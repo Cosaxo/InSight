@@ -24562,3 +24562,68 @@ is approved, and the four assertions that replaced that line are the
 decision itself: a code queues rather than admits, a second ask is
 idempotent, a non-member cannot approve their own request, and approval
 clears both the queue entry and the name beside it.
+
+## D241 · Both doors at once: accepting an invitation clears the ask
+
+**2026-08-23.** **Status:** binding. A gap in D240, found by reading the
+three writers of `memberUids` against each other rather than by a report.
+
+### The state
+
+D240 named one of the two orders and handled it. `requestJoinImpl`'s
+`admit()` clears the queue — *"whichever way they arrived, they are not
+waiting any more"* — so **invited by handle, then taps the link** ends
+with one membership and no queue row.
+
+The other order had nothing. `inviteToGroupV2` skips a target who is
+already a **member** and says nothing about one who is already **waiting**
+— correctly, and D240's own reasoning is why: inviting somebody who asked
+is exactly how a member says yes from the picker instead of from the
+queue. So the ask outlives the invitation, and `acceptGroupInviteV2` wrote
+`memberUids` without touching `pending`.
+
+The circle then draws *"Wants to join — Bob"* about somebody sitting in
+its own member list, forever, and consumes one of the twenty
+`PENDING_CAP` slots doing it.
+
+### Why it could not be cleared
+
+The row is drawn under a **Let in** button, and that button is the one
+action that cannot fix it. `approveJoinV2` returned early on an existing
+member — before any write — while the push after the transaction fired
+anyway and carries no rate budget of its own. So the only visible remedy
+was **No**, on a member, which is the wrong sentence for the wrong person.
+
+### The fix, in both places, and why both
+
+- **`acceptGroupInviteV2` clears the queue on both branches** — the admit
+  path and the already-a-member early return. This is the source: no new
+  stale row can be created.
+- **`approveJoinV2`'s already-a-member return clears it too.** Not
+  redundant. It is the ONLY path a row that already exists can be cleared
+  from, and it is where the accept/approve race lands: whichever
+  transaction is second sees a member and arrives exactly there. A button
+  that does nothing to the row it is drawn on is a worse failure than the
+  duplicate write it avoids.
+
+### What made it findable
+
+Three callables write `memberUids` and only one of them was audited
+against the other two. The queue is a second piece of state that every
+one of them has to leave consistent, and D240's record reasoned about the
+queue's *cost* (on the group document, not a subcollection) and its
+*authorisation* (`duoMode`'s `hasOnly`) without enumerating its writers.
+The enumeration is the check: `pending` is written by
+`requestJoinImpl`, `approveJoinV2`, `declineJoinV2`, `deleteAccount`
+phase 3c-bis and — now — `acceptGroupInviteV2`. Any sixth writer of
+`memberUids` has to appear on that list or explain why not.
+
+### Measured rather than assumed
+
+`e2e-v2-loop.mjs` runs the crossing in the order that broke: ask by link,
+then get invited by handle, then accept. It asserts the membership lands
+**and** that neither `pending` nor `pendingNames` still names the joiner.
+A second case writes a stale row by hand — no callable can produce one
+any more — and asserts that **Let in** clears it rather than sitting
+there being re-notified. Both fail against the previous implementation;
+the first was written before the fix and watched to fail.

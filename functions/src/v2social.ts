@@ -341,7 +341,18 @@ export const approveJoinV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
     if (!snap.exists) throw new HttpsError("not-found", "no such circle");
     const members: string[] = snap.get("memberUids") || [];
     if (!members.includes(uid)) throw new HttpsError("permission-denied", "not a member");
-    if (members.includes(who)) return String(snap.get("name") || "");
+    // Already in. Clear the queue row rather than returning to leave it
+    // drawn: this is the ONE path a stale row can be cleared from, since
+    // the "Let in" button under it calls exactly this. Reachable from a
+    // double tap, and from the accept/approve race — whichever
+    // transaction lands second sees a member and arrives here.
+    if (members.includes(who)) {
+      tx.update(ref, {
+        pending: FieldValue.arrayRemove(who),
+        [`pendingNames.${who}`]: FieldValue.delete(),
+      });
+      return String(snap.get("name") || "");
+    }
     const pending: string[] = snap.get("pending") || [];
     // Only somebody who actually asked. Without this, approve is an
     // add-anyone endpoint wearing a different name.
@@ -1437,7 +1448,24 @@ export const acceptGroupInviteV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, e
     if (!isnap.exists) throw new HttpsError("permission-denied", "no invitation");
     if (!gsnap.exists) throw new HttpsError("not-found", "no such circle");
     const members: string[] = gsnap.get("memberUids") || [];
-    if (members.includes(uid)) { tx.delete(iref); return { gid, name: gsnap.get("name") }; }
+    // The ask and the invitation can both be outstanding for the same
+    // person: inviteToGroupV2 skips a target who is already a MEMBER and
+    // says nothing about one who is already waiting — correctly, since
+    // inviting someone who asked is how a member says yes from the picker
+    // instead of from the queue. So both branches below clear the queue,
+    // the way requestJoinImpl's admit() does for the opposite order.
+    // Without it the circle draws "wants to join" about somebody in its
+    // own member list, and approveJoinV2's early return means the row
+    // cannot be cleared by the button it is drawn under.
+    const leaveQueue = {
+      pending: FieldValue.arrayRemove(uid),
+      [`pendingNames.${uid}`]: FieldValue.delete(),
+    };
+    if (members.includes(uid)) {
+      tx.update(gref, leaveQueue);
+      tx.delete(iref);
+      return { gid, name: gsnap.get("name") };
+    }
     const cap = gsnap.get("mode") === "duo" ? 2 : GROUP_CAP;
     // Checked INSIDE the transaction: two people accepting the last seat
     // of a duo at once is the one race this callable can actually lose.
@@ -1449,6 +1477,7 @@ export const acceptGroupInviteV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, e
       // days you were not in the circle, and revealMembersFor scopes a
       // reveal to the people who were in it that day.
       [`memberJoinedAt.${uid}`]: FieldValue.serverTimestamp(),
+      ...leaveQueue,
     });
     tx.delete(iref);
     return { gid, name: gsnap.get("name") };

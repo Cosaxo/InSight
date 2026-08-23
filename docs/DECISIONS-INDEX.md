@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 244 lines instead of
-24,565. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 245 lines instead of
+24,630. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -257,4 +257,5 @@ detect it.
 | **D237** | [Search finds people, by the address they gave you](DECISIONS.md#d237--search-finds-people-by-the-address-they-gave-you) | D239 | 24115 |
 | **D238** | [The invite code stops being something a person reads](DECISIONS.md#d238--the-invite-code-stops-being-something-a-person-reads) | D240 | 24212 |
 | **D239** | [Found by name, not only by the address you memorised](DECISIONS.md#d239--found-by-name-not-only-by-the-address-you-memorised) | — | 24339 |
-| **D240** | [The link asks; the circle answers](DECISIONS.md#d240--the-link-asks-the-circle-answers) | — | 24458 |
+| **D240** | [The link asks; the circle answers](DECISIONS.md#d240--the-link-asks-the-circle-answers) | D241 | 24458 |
+| **D241** | [Both doors at once: accepting an invitation clears the ask](DECISIONS.md#d241--both-doors-at-once-accepting-an-invitation-clears-the-ask) | — | 24566 |
