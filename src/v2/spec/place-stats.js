@@ -8,6 +8,12 @@ import React from 'react';
 // place-stats.js — the member scorecards for Oslo / Norway / the world.
 // Baked averages + counts keep the cards full from day one; your own scores
 // come from 'rate' questions in the World feed and overlay live.
+// Hoisted `export let`, assigned inside the IIFE — the shape DAILYQ,
+// FRIENDS and PICKS were converted with (D39, "convert on touch").
+// `PLACE_RATE_QS` stays on window: world-feed-data.js concatenates it at
+// MODULE SCOPE, so that one is still crossing the bridge.
+export let PLACESTATS;
+
 (function () {
   const LS = 'insight.placeRatings.v1';
   let mine = {};
@@ -63,7 +69,7 @@ import React from 'react';
   // rate()'s save writes the previous account's back under the new uid.
   // Notify without re-creating the purged key.
   window.addEventListener('insight:local-purge', () => { mine = {}; subs.forEach((f) => f()); });
-  window.PLACESTATS = api;
+  PLACESTATS = api;
 
   // the feed questions that fill the scorecards — one per (scope, category)
   const P = [

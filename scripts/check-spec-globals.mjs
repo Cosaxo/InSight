@@ -251,7 +251,6 @@ const COUPLING_BASELINE = {
   "src/v2/spec/passive-progress.js": 2,
   "src/v2/spec/person-mindmap.jsx": 4,
   "src/v2/spec/person-overlay.jsx": 2,
-  "src/v2/spec/place-stats.jsx": 3,
   "src/v2/spec/profile-general.jsx": 17,
   "src/v2/spec/profile-overlay.jsx": 6,
   "src/v2/spec/relmap-panels.jsx": 2,
@@ -264,7 +263,7 @@ const COUPLING_BASELINE = {
   "src/v2/spec/type-marks.jsx": 2,
   "src/v2/spec/vote-cuts.js": 1,
   "src/v2/spec/world-feed-data.js": 4,
-  "src/v2/spec/world-feed.jsx": 80,
+  "src/v2/spec/world-feed.jsx": 68,
 };
 
 const coupling = {};

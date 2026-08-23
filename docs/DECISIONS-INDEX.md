@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 235 lines instead of
-23,567. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 236 lines instead of
+23,615. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -249,3 +249,4 @@ detect it.
 | **D229** | [The three behaviour bugs from D227's list](DECISIONS.md#d229--the-three-behaviour-bugs-from-d227s-list) | — | 23328 |
 | **D229b** | [The three honesty findings from D227's list](DECISIONS.md#d229b--the-three-honesty-findings-from-d227s-list) | — | 23403 |
 | **D230** | [The coupling ratchet, 392 → 352](DECISIONS.md#d230--the-coupling-ratchet-392--352) | — | 23480 |
+| **D230b** | [PLACESTATS off the bridge, 352 → 337](DECISIONS.md#d230b--placestats-off-the-bridge-352--337) | — | 23568 |

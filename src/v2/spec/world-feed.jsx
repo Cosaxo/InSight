@@ -24,6 +24,7 @@ import { VOTECUTS } from './vote-cuts.js';
 import { LEARN_FEED } from './learn-feed.js';
 import { WF_COUNTERS, WF_TAKE_SIG } from './world-feed-counters.js';
 import { PICKS } from './pick-data.js';
+import { PLACESTATS } from './place-stats.js';
 import { Sheet } from './primitives.jsx';
 // The feed's cadence arithmetic — extracted so the test exercises THIS loop
 // rather than a copy of it (D11's claim, D42's citation; see the module).
@@ -631,12 +632,12 @@ class WorldFeed extends React.Component {
       wfSave(votes);
       return { votes };
     });
-    if (window.PLACESTATS) window.PLACESTATS.rate(q.scope, q.catId, score);
+    PLACESTATS.rate(q.scope, q.catId, score);
   }
 
   renderRate(q, T, big) {
     const v = this.state.votes[q.id];
-    const c = window.PLACESTATS ? window.PLACESTATS.cat(q.scope, q.catId) : null;
+    const c = PLACESTATS.cat(q.scope, q.catId);
     if (v == null) {
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 12 : 9 }}>
@@ -1783,7 +1784,7 @@ class WorldFeed extends React.Component {
     );
     if (insight) return insight;
     if (q.type === 'rate') {
-      const c = window.PLACESTATS ? window.PLACESTATS.cat(q.scope, q.catId) : null;
+      const c = PLACESTATS.cat(q.scope, q.catId);
       return <span style={quiet}>{wfFmt(c ? c.n : (q.n || 0))} ratings</span>;
     }
     if (q.type === 'dial' || q.type === 'field') return <span style={quiet}>{wfFmt(q.n || 0)} answers</span>;
@@ -2121,7 +2122,7 @@ class WorldFeed extends React.Component {
   renderRateInsight(q, T, big) {
     const v = this.state.votes[q.id];
     if (typeof v !== 'number') return null;
-    const c = window.PLACESTATS ? window.PLACESTATS.cat(q.scope, q.catId) : null;
+    const c = PLACESTATS.cat(q.scope, q.catId);
     const avg = c ? c.avg : 5;
     let best = null;
     WF_CUTS().forEach((cut) => {
@@ -2785,7 +2786,7 @@ class WorldFeed extends React.Component {
   renderRateStats(q, T) {
     const dim = this.state.dims[q.id] || 'friends';
     const axis = this.state.cutAxis[q.id] || null, cutKey = WF_CUTKEY(dim, axis), youBand = WF_YOU(dim, axis);
-    const c = window.PLACESTATS ? window.PLACESTATS.cat(q.scope, q.catId) : null;
+    const c = PLACESTATS.cat(q.scope, q.catId);
     const avg = c ? c.avg : 5;
     const v = this.state.votes[q.id];
     const track = (g, a) => (
@@ -3343,7 +3344,7 @@ class WorldFeed extends React.Component {
     }
     if (q.type === 'rate') {
       const v = this.state.votes[q.id];
-      const c = window.PLACESTATS ? window.PLACESTATS.cat(q.scope, q.catId) : null;
+      const c = PLACESTATS.cat(q.scope, q.catId);
       return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>you {v}/10 · crowd {c ? c.avg.toFixed(1) : '—'}</span>;
     }
     if (q.type === 'rank') {

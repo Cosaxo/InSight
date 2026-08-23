@@ -23564,3 +23564,51 @@ the reason `world-feed-math.js`'s already was: the module graph orders it.
 The three eager `spec-index.js` lines stay — the modules are still in the
 eager graph, and keeping them preserves the load order those comments
 document.
+
+## D230b · PLACESTATS off the bridge, 352 → 337
+
+**2026-08-22.** **Status:** binding. The next name down the provider view
+D230 built, and the one that finally tests D108's suppression prediction
+on a component the prediction is actually about.
+
+`place-stats.js` is a **pure provider** — the graph shows it reading
+nothing cross-module at all, so no cycle was possible. Fifteen reads
+across two consumers: `world-feed.jsx` (12) and `place-stats.jsx` (3),
+which goes to **zero** and leaves the coupling list. 42 files → 41.
+
+The guards were the usual list: one `if (window.X) window.X.m()`, five
+`window.X ? window.X.cat(…) : null`, and in the card an effect written
+`() => (window.PLACESTATS ? window.PLACESTATS.subscribe(…) : undefined)`
+— which returned `undefined` instead of an unsubscriber on any frame the
+module had not loaded. `cat()` genuinely returns null for an unknown
+scope, so the null RESULT is a data condition and its downstream handling
+stays; only the guard went. Same for `if (!S)` in the card.
+
+`PLACE_RATE_QS` stays on window for the same reason `PICK_QS` does:
+`world-feed-data.js` concatenates it at module scope, so both
+`spec-index.js` ordering lines stay exactly as they are.
+
+### D108's prediction, tested properly this time — and it still did not fire
+
+D230 recorded that the prediction (a conversion RAISES the suppression
+count, because the React Compiler bails out of components reading through
+global scope and the bridge is therefore hiding `react-hooks` findings)
+did not fire, and gave a specific reason: every read was in a **class**
+component, where the compiler's hook analysis has nothing to say.
+
+`PlaceStatsCard` is a real **function component** with `React.useState`
+and `React.useEffect`, reading the global in both its body and its effect.
+That is exactly the shape the prediction describes. Measured: **28
+suppressions before, 28 after**, lint green at `--max-warnings 0`.
+
+**Verified rather than assumed**, because "no new findings" is worthless
+if the rule was not watching: `react-hooks` recommended IS enabled for
+`src/v2/**/*.{js,jsx}` (only `react-hooks/immutability` is off for the
+spec layer), and a deliberate conditional-hook probe in this exact file
+raised `react-hooks/rules-of-hooks` immediately, then was reverted.
+
+So the honest reading of D108 is narrower than the sentence in CLAUDE.md
+suggests: converting **can** reveal hidden findings, and it does not
+follow that it will. This component was already hook-correct, so the
+compiler gained the ability to analyse it and found nothing to say. The
+prediction is a risk to plan for, not a cost to budget.

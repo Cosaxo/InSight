@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import { PLACESTATS } from './place-stats.js';
 
 // place-stats.jsx — the scorecard for City / Country / World tabs.
 // Sorted best → worst on one shared 0–10 baseline, so the eight rows read as a
@@ -15,9 +16,12 @@ const PS_LW = 140;              // label column — sized to the longest label (
 const PS_GAP = 10;
 function PlaceStatsCard({ scope, accent }) {
   const [, tick] = React.useState(0);
-  React.useEffect(() => (window.PLACESTATS ? window.PLACESTATS.subscribe(() => tick((t) => t + 1)) : undefined), []);
-  const PS = window.PLACESTATS;
-  if (!PS) return null;
+  // Imported since D230b, so the load-order guards are gone: an imported
+  // binding cannot be unset, and the effect now always returns the
+  // unsubscriber rather than `undefined` on the frame the module had not
+  // loaded. `if (!S)` below stays — an unknown scope is a DATA condition.
+  React.useEffect(() => PLACESTATS.subscribe(() => tick((t) => t + 1)), []);
+  const PS = PLACESTATS;
   const S = PS.SCOPES[scope];
   if (!S) return null;
   const col = accent || 'var(--c-world)';

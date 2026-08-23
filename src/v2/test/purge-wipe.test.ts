@@ -32,7 +32,8 @@ import "../spec/test-definitions.js";
 import "../spec/passive-progress.js";
 // @ts-expect-error TS7016 — untyped spec module, the house pattern
 import { PICKS } from "../spec/pick-data.js";
-import "../spec/place-stats.js";
+// @ts-expect-error TS7016 — untyped spec module, the house pattern
+import { PLACESTATS } from "../spec/place-stats.js";
 import "../spec/world-subtopics.js";
 import "../spec/suggestions.js";
 import "../spec/world-feed-report.js";
@@ -160,11 +161,11 @@ describe("module stores drop their memory on the purge (D51)", () => {
   });
 
   it("PLACESTATS: place ratings", () => {
-    W.PLACESTATS.rate("city", "nature", 9);
-    expect(W.PLACESTATS.myScore("city", "nature")).toBe(9);
+    PLACESTATS.rate("city", "nature", 9);
+    expect(PLACESTATS.myScore("city", "nature")).toBe(9);
     purge();
-    expect(W.PLACESTATS.myScore("city", "nature")).toBeNull();
-    W.PLACESTATS.rate("city", "food", 5);
+    expect(PLACESTATS.myScore("city", "nature")).toBeNull();
+    PLACESTATS.rate("city", "food", 5);
     const after = stored("insight.placeRatings.v1")!;
     expect(after).toContain("city:food");
     expect(after).not.toContain("city:nature");
