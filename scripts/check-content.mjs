@@ -17,10 +17,10 @@
 // own test doesn't declare.
 //
 // Regeneration stays a deliberate step: `npm run build:content`.
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildAds, buildEntries, generate, loadContent, CONTENT_SOURCES, LENS_SCALE, LIKERT, dialOptions, fieldOptions, DIAL_BUCKETS } from "./gen-v2content.mjs";
+import { buildAds, buildEntries, generate, loadContent, CATALOG_FILES, CONTENT_SOURCES, LENS_SCALE, LIKERT, PICK_SEQ_BASE, dialOptions, fieldOptions, DIAL_BUCKETS } from "./gen-v2content.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(root, "functions", "src", "v2content.ts");
@@ -57,7 +57,11 @@ if (generate(content) !== committed) {
 // immutable docs keyed by qid, so a malformed or colliding id is forever.
 const ID_SHAPE = {
   daily: /^daily-\d{3}$/,
-  feed: /^feed-[A-Za-z0-9]+$/,
+  // Two id families share the feed surface since D14 went live: ordinary
+  // feed entries, and catalogue picks promoted from the pick archive —
+  // `pick-<archive id>`, kept verbatim so a live card and its
+  // pick-data.js entry share one name.
+  feed: /^(feed|pick)-[A-Za-z0-9]+$/,
   group: /^group-[A-Za-z0-9]+$/,
   duo: /^duo-\d{3}$/,
   // Two id families share the test surface: the core instruments'
@@ -84,12 +88,21 @@ for (const q of entries) {
   else if (!ID_SHAPE[q.surface].test(q.id)) errors.push(`${q.id}: id does not match the ${q.surface} shape`);
 }
 
-// ---- per-surface seq contiguity (the banks sort on it).
-const seqBySurface = new Map();
+// ---- per-surface seq contiguity (the banks sort on it). Catalogue picks
+// share the feed surface but run their own lane from PICK_SEQ_BASE, so a
+// feed append cannot renumber shipped pick docs — contiguity is per LANE,
+// and the guard after the loop is what keeps the two lanes from ever
+// meeting: the feed counter must stay strictly below the pick base.
+const laneOf = (q) => (q.surface === "feed" && q.type === "catalog" ? "feed picks" : q.surface);
+const seqByLane = new Map([["feed picks", PICK_SEQ_BASE]]);
 for (const q of entries) {
-  const want = seqBySurface.get(q.surface) ?? 0;
-  if (q.seq !== want) errors.push(`${q.id}: seq ${q.seq}, expected ${want} (per-surface, contiguous)`);
-  seqBySurface.set(q.surface, q.seq + 1);
+  const lane = laneOf(q);
+  const want = seqByLane.get(lane) ?? 0;
+  if (q.seq !== want) errors.push(`${q.id}: seq ${q.seq}, expected ${want} (per-lane, contiguous)`);
+  seqByLane.set(lane, q.seq + 1);
+}
+if ((seqByLane.get("feed") ?? 0) >= PICK_SEQ_BASE) {
+  errors.push(`the feed's seq counter reached ${seqByLane.get("feed")} — it may not cross PICK_SEQ_BASE (${PICK_SEQ_BASE}); raise the base deliberately (gen-v2content.mjs) before the lanes collide`);
 }
 
 // ---- options: scales must be exactly the agree scale, ratings exactly
@@ -99,13 +112,32 @@ const RATING = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
 const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
 for (const q of entries) {
   if (!q.prompt || !q.prompt.trim()) errors.push(`${q.id}: empty prompt`);
-  // The current-events serving window (docs/NEXT-FUNCTIONALITY.md §1):
+  // The current-events serving window (docs/NEXT-FUNCTIONALITY.md §1, D231):
   // feed-only — no other surface serves by date (the daily deck is
   // positional), and the client filter compares UTC day-key strings, so
-  // the shape must be exactly that.
-  if (q.until !== undefined) {
-    if (q.surface !== "feed") errors.push(`${q.id}: \`until\` is the feed's current-events window — no other surface carries it`);
-    else if (!/^\d{4}-\d{2}-\d{2}$/.test(q.until)) errors.push(`${q.id}: \`until\` must be a YYYY-MM-DD UTC day key`);
+  // the shape must be exactly that. Both ends are checked here; what the
+  // window may CONTAIN — how long it runs, which topic must carry one — is
+  // check:quality's, and deliberately not restated in this file.
+  for (const [field, label] of [["from", "opens"], ["until", "closes"]]) {
+    if (q[field] === undefined) continue;
+    if (q.surface !== "feed") {
+      errors.push(`${q.id}: \`${field}\` is the feed's current-events window (${label}) — no other surface carries it`);
+    } else if (!/^\d{4}-\d{2}-\d{2}$/.test(q[field])) {
+      errors.push(`${q.id}: \`${field}\` must be a YYYY-MM-DD UTC day key`);
+    }
+  }
+  // Day keys are zero-padded, so string order IS date order — the same
+  // property the client's `fresh()` filter rests on.
+  if (typeof q.from === "string" && typeof q.until === "string" && q.until < q.from) {
+    errors.push(`${q.id}: the window closes (${q.until}) before it opens (${q.from})`);
+  }
+  // docs/SCALE-PLAN.md §1, the sponsored rule below pointed one field over.
+  // A core question is what the Mirror folds its cohort readings over, and
+  // that corpus has to be answerable by everyone: a windowed question can
+  // only ever be answered by whoever was here that week, so folding it
+  // reports when a person joined as if it were what they believe.
+  if (q.until !== undefined && q.core === true) {
+    errors.push(`${q.id}: a windowed question is never core — the Mirror's corpus must be answerable by someone who arrives next year`);
   }
   // Sponsored questions (D195). Every rule here is a promise the card
   // makes on screen, held at the source so the disclosure cannot be
@@ -234,6 +266,25 @@ for (const q of entries) {
         errors.push(`${q.id}: field options are not the synthesized cell labels for its ax/ay`);
       }
     }
+  } else if (q.type === "catalog") {
+    // Catalogue picks (D14): the shipped catalogue is the answer space, an
+    // answer is an `entity` key, and the aggregate trigger validates it
+    // per-domain — so the entry carries NO options and MUST name a domain
+    // whose catalogue file is committed under public/ (QUESTION-FARM.md
+    // rule 2: a card whose catalogue is absent opens straight into the
+    // picker's error state). films/artists stay refused here until the D15
+    // operator step commits their files; CATALOG_FILES is the generator's
+    // (one map — promote-questions.mjs imports the same one).
+    if (q.surface !== "feed") errors.push(`${q.id}: catalog type outside the feed surface`);
+    if (q.options.length !== 0) errors.push(`${q.id}: a catalog question carries no options — the catalogue is its answer space`);
+    const file = CATALOG_FILES[q.domain];
+    if (!file) errors.push(`${q.id}: domain ${JSON.stringify(q.domain)} is not a known catalogue domain (CATALOG_DOMAINS, functions/src/v2.ts)`);
+    else if (!existsSync(join(root, "public", file))) {
+      errors.push(`${q.id}: domain ${q.domain} has no committed catalogue (public/${file}) — the picker would open into its error state`);
+    }
+    if (q.core === true) {
+      errors.push(`${q.id}: a catalog question is never core — an entity answer has no option share for a cohort fold to read (D161)`);
+    }
   } else if (q.options.length < 2 || q.options.length > 10) {
     errors.push(`${q.id}: ${q.options.length} options (want 2..10)`);
   }
@@ -315,10 +366,14 @@ for (const q of entries) {
   promptsBySurface.set(key, q.id);
 }
 
-// ---- feed topics must exist in the taxonomy the client renders.
+// ---- feed topics must exist in the taxonomy the client renders. Catalog
+// picks are exempt BY SURFACE RULE, not oversight: they file against
+// WORLD_TOPICS — `fav` is a real topic the feed's chip row carries for
+// them (D145 §4) and deliberately not part of the feed's own subject
+// taxonomy; check:quality validates their `cat` against that wider set.
 const topicIds = new Set(content.feed.topics.map((t) => t.id));
 for (const q of entries) {
-  if (q.surface === "feed" && !topicIds.has(q.topic)) {
+  if (q.surface === "feed" && q.type !== "catalog" && !topicIds.has(q.topic)) {
     errors.push(`${q.id}: feed topic ${JSON.stringify(q.topic)} not in feed-questions.json topics`);
   }
 }

@@ -17,6 +17,7 @@ export const KEY_DOMAINS = [
   { constName: "EMOJI_KEYS", file: "emoji.txt" },
   { constName: "COUNTRY_KEYS", file: "countries.txt" },
   { constName: "DOG_KEYS", file: "dogs.txt" },
+  { constName: "COLOR_KEYS", file: "colors.txt" },
 ];
 
 export function parseKeys(file) {

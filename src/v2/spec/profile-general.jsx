@@ -7,6 +7,9 @@ import React from 'react';
 import { IS_DATA } from './sample-data.js';
 import { IS_TEST_RESULTS } from './test-definitions.js';
 import { PASSIVE } from './passive-progress.js';
+// Where each instrument currently stands, as a colour and a two-tone split
+// (D230) — the reading the feed's rings and the profiles sheet already wear.
+import { passiveStanding } from './passive-meter.jsx';
 import { list as anchorList } from './map-anchors.js';
 import { PROFILE_GENERAL_LS } from '../data/cityAnchor';
 import { CITY_OK_LEAF } from '../data/cityConfirm.ts';
@@ -415,6 +418,15 @@ import {
             const res = R[k];
             const top = res ? [...res.dims].sort((a, b) => b.value - a.value)[0] : null;
             const pct = PASSIVE.pct(k);
+            // The arc used to need `res` — a STORED result — for both its
+            // colour and its permission to draw, so in a live build (where
+            // nothing writes one, D121) this card was four grey rings that
+            // never moved however much of the feed you answered. It reads
+            // the same standing the rest of the app does now: the stored
+            // result where there is one, the fold over your own answers
+            // where there is not, and the arc draws on progress alone.
+            const { col, sp } = passiveStanding(k);
+            const arc = (C * pct) / 100;
             return (
               <button key={k} className="press" onClick={() => onGo && onGo(sub)} style={{
                 cursor: 'pointer', WebkitAppearance: 'none', appearance: 'none', background: 'none', border: 'none',
@@ -423,8 +435,17 @@ import {
               }}>
                 <svg viewBox="0 0 56 56" width="54" height="54" style={{ width: '100%', maxWidth: 54, height: 'auto' }} aria-hidden="true">
                   <circle cx="28" cy="28" r="23" fill="none" stroke="var(--surface-3)" strokeWidth="6"></circle>
-                  {pct > 0 && res && <circle cx="28" cy="28" r="23" fill="none" stroke={res.accent} strokeWidth="6" strokeLinecap="round"
-                    strokeDasharray={`${(C * pct) / 100} ${C}`} transform="rotate(-90 28 28)"></circle>}
+                  {/* Two tones, laid rather than segmented: the runner-up's
+                      lighter hue takes the whole sweep, the dominant axis'
+                      deeper one covers its first `ratio` on top. Layering
+                      keeps the arc's own rounded end and turns the boundary
+                      into the same soft split the type mark draws — a
+                      butt-capped second arc would put a hard edge mid-ring
+                      and a flat start where the cap used to round. */}
+                  {pct > 0 && <circle cx="28" cy="28" r="23" fill="none" stroke={sp ? sp.lift : col} strokeWidth="6" strokeLinecap="round"
+                    strokeDasharray={`${arc} ${C}`} transform="rotate(-90 28 28)"></circle>}
+                  {pct > 0 && sp && <circle cx="28" cy="28" r="23" fill="none" stroke={sp.deep} strokeWidth="6" strokeLinecap="round"
+                    strokeDasharray={`${arc * sp.ratio} ${C}`} transform="rotate(-90 28 28)"></circle>}
                 </svg>
                 <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '-0.01em', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{top ? top.label : name}</span>
                 <span style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)', marginTop: -4 }}>{name}</span>

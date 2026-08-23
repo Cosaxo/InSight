@@ -34,7 +34,7 @@ describe("parseJoinCode", () => {
   });
 });
 
-// ── the custom scheme is the route that needs no fingerprint (D232) ──
+// ── the custom scheme is the route that needs no fingerprint (D238) ──
 //
 // It was parsed here long before either platform registered it, so these
 // pin what web/join.html's one button now depends on. `insight://join/X`

@@ -1,9 +1,9 @@
 // Finding a person: the one query every surface that adds somebody runs
-// (D231, D233).
+// (D237, D239).
 //
 // TWO WAYS IN, merged here so the three callers cannot drift. A HANDLE
 // is an exact address — one document read against a registry keyed on
-// the id (D122). A NAME is a prefix over the people directory (D233) —
+// the id (D122). A NAME is a prefix over the people directory (D239) —
 // a bounded query, case-insensitive because `nameKey` is the lowercase
 // copy the rules force to equal the name.
 //

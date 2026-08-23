@@ -35,10 +35,11 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 // jsdom, and the v15 revision roughly doubled the spec layer's feed weight —
 // the slowest cases sat at ~4.8s before it and tip over under suite load.
 vi.setConfig({ testTimeout: 15000 });
-import { FEED_OPTIONS, PATH_TITLE, fixtureSurfaceMismatch, installLive } from "./live-fixture";
+import { FEED_OPTIONS, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
 import { awaitText, growFeed, openHeaderOverlay } from "./mount-app";
 import { list as anchorList } from "../spec/map-anchors.js";
 import { IS_TESTS, IS_TEST_RESULTS } from "../spec/test-definitions.js";
+import { PASSIVE } from "../spec/passive-progress.js";
 import { IS_ARCHETYPES } from "../spec/archetype-data.js";
 import { resetNormCache } from "../data/testNorms";
 import { FRIENDS } from "../spec/follows.js";
@@ -378,6 +379,87 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(screen.queryByText(/ended here$/)).toBeNull();
     expect(screen.queryByText(/walks your road$/)).toBeNull();
     expectNoBoundary("live feed, crossroads with no walks");
+  });
+
+  // Catalogue picks on a LIVE feed (D14 gone live): the card comes from
+  // the bank mapper — an optionless doc the old playable() gate would have
+  // dropped — and unanswered it offers the catalogue search.
+  it("serves the bank's pick card on a live feed", async () => {
+    const expectNoBoundary = mountLive({ pickCard: true });
+    await awaitText(/Fixture pick card/);
+    expect(
+      screen.getByText(PICK_PROMPT),
+      "the live pick card is missing — the mapper dropped the optionless doc",
+    ).toBeTruthy();
+    expectNoBoundary("live feed, pick card unanswered");
+  });
+
+  // The answered reveal draws the PUBLISHED canon — pickCanon's board,
+  // never the demo store's baked crowd — and wears the live copy: since
+  // D98 a spot needs one vote, so the demo's "needs 5 votes" clause would
+  // be a false claim about an exact number (COPY.md §3). The store knows
+  // the answer, WF_LS does not — the fresh-device path, which is also what
+  // exercises pickVal's myVotes fallback.
+  it("reveals the published board with the live copy, not the demo floor's", async () => {
+    const expectNoBoundary = mountLive({ pickCard: true }, (l) => {
+      l.votes["pick-fixture"] = "128514";
+    });
+    // An answered card parks behind the Answered expander at the stream's
+    // end (D133) — stock the tail, open the expander, then expand the
+    // collapsed row itself to reach the reveal.
+    await growFeed();
+    fireEvent.click(screen.getByRole("button", { name: /^Answered · 1$/ }));
+    await awaitText(/Fixture pick card/);
+    fireEvent.click(screen.getByText(PICK_PROMPT));
+    await awaitText(/of 10 spots on the board claimed/);
+    // the fixture canon: two rows on the board, three folded
+    expect(screen.getByText(/everyone else · 3/)).toBeTruthy();
+    expect(screen.getByText(/2 of 10 spots on the board claimed/)).toBeTruthy();
+    expect(
+      screen.queryByText(/a spot needs 5 votes/),
+      "a live board printed the demo floor's clause — D98 made counts exact",
+    ).toBeNull();
+    // D17's segment chips ride the published `by`
+    expect(screen.getByRole("button", { name: "everyone" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "18-24" })).toBeTruthy();
+    expectNoBoundary("live feed, pick card answered");
+  });
+
+  // Rank on a LIVE feed (D233): the whole loop through the real card —
+  // tap the four items into an order, watch the completed ranking reach
+  // the store, and read the reveal against the DERIVED crowd. The demo's
+  // arrow into renderRankStats (a fabricated friends cohort) must be gone.
+  it("ranks a live card by tapping, and reveals the derived crowd comparison", async () => {
+    const expectNoBoundary = mountLive({ rankCard: true });
+    await awaitText(/Fixture rank card/);
+    for (const name of ["Alpha", "Gamma", "Beta", "Delta"]) {
+      fireEvent.click(screen.getByRole("button", { name }));
+    }
+    // tapRank's completion dispatched LIVE.voteRank — the store holds the
+    // joined order (fixture voteRank mirrors the real create-only write)
+    expect(live.votes["rank-fixture"]).toBe("0,2,1,3");
+    await awaitText(/You matched the crowd on/);
+    // fixture crowd [1,3,2,4] against 0,2,1,3 — every position agrees
+    expect(screen.getByText(/You matched the crowd on 4 of 4/)).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: /You matched the crowd/ }),
+      "a live rank card offered the demo's stats sheet — its cohorts are fabricated",
+    ).toBeNull();
+    expectNoBoundary("live feed, rank card answered by tapping");
+  });
+
+  it("tells the first ranker they are first, instead of a crowd that is only them", async () => {
+    const expectNoBoundary = mountLive({ rankCard: true, tooSmall: true }, (l) => {
+      l.votes["rank-fixture"] = "3,2,1,0"; // answered on another device
+    });
+    await growFeed();
+    fireEvent.click(screen.getByRole("button", { name: /^Answered · 1$/ }));
+    await awaitText(/Fixture rank card/);
+    fireEvent.click(screen.getByText(RANK_PROMPT));
+    await awaitText(/order builds from here/);
+    expect(screen.getByText(/You’re first — the crowd’s order builds from here/)).toBeTruthy();
+    expect(screen.queryByText(/You matched the crowd on/)).toBeNull();
+    expectNoBoundary("live feed, rank card first voter");
   });
 
   it("gives a live card who-voted and the named takes toggle — never the demo sheet", async () => {
@@ -894,6 +976,26 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // chip, which would be the worst of both: delivered, and undisclosed.
     expect(screen.queryByText(/Fixture Transit/)).toBeNull();
     expectNoBoundary("live feed, unmatched sponsored card");
+  });
+
+  // D231: a current-events card wears its own deadline. The ring is the
+  // one on-screen claim the window makes, so this pins both halves a
+  // refactor could undo — the real one is drawn, and the decorative one
+  // that reads the wall clock is not drawn on the same card.
+  it("a windowed live card wears its ask window, and not the decorative clock", async () => {
+    const expectNoBoundary = mountLive({ feedCards: 4, windowed: true });
+    await growFeed();
+    // Opens today, closes in three: four days left, whatever day this runs.
+    const mark = screen.getByTitle("4 of 4 days left to answer");
+    expect(mark).not.toBeNull();
+    expect(within(mark).getByText("4d")).not.toBeNull();
+    // …and the card keeps its topic chip, unlike a paid one — a window is
+    // a fact about the question, not a disclosure that replaces it.
+    const card = mark.closest("div").parentElement;
+    expect(within(card).getByText(/^culture$/i)).not.toBeNull();
+    // The decorative ring reads the wall clock, so it would print hours.
+    expect(within(card).queryByText(/^\d+h$/)).toBeNull();
+    expectNoBoundary("live feed, windowed card");
   });
 
   // D196: the reading game is gated on there being enough fair reads to
@@ -1661,5 +1763,83 @@ describe("live mode never inherits the sample persona (D55)", () => {
     expect(Object.keys(IS_TEST_RESULTS)).toEqual(["values"]);
     expect(IS_TEST_RESULTS.political, "a demo result survived hydration")
       .toBeUndefined();
+  });
+});
+
+// ── the colour an instrument wears before it has a type (D230) ────────
+//
+// `TestProgress` (profile-overlay.jsx) is the card that stands where a
+// result would be, and it is LIVE-ONLY BY CONSTRUCTION: `ownProgress`
+// returns null without a live store, so every demo smoke mount walks past
+// this branch without executing a line of it. It draws the two-tone split
+// now — deep base, the runner-up axis' lighter tone laid on its right —
+// and that is a SHAPE, which is the class of thing check:globals, eslint
+// and tsc are all blind to and only a render can see. The hues themselves
+// are pinned at the fold (test/passive-fold-live.test.jsx); what is pinned
+// here is that the second tone reaches the DOM, and that it is absent when
+// there is nothing behind it.
+describe("the filling-in card wears where you stand (D230)", () => {
+  // Politics' items pair up by axis — 0,1 econ · 2,3 auth — so extremes on
+  // the first pair and dead centre on the second give the split a dominant
+  // hue and a runner-up. Built from the definition, so it cannot drift.
+  const polBank = () => IS_TESTS.political.questions.map((q, i) => ({
+    id: `t-pol-${String(i).padStart(2, "0")}`,
+    prompt: q.q,
+    test: "political",
+    surface: "test",
+    options: ["", "", "", "", ""],
+  }));
+
+  /** Mount live on the Politics profile tab, with `picks` already answered. */
+  async function openPolitics(picks) {
+    const bank = polBank();
+    const expectNoBoundary = mountLive({}, (l) => {
+      Object.defineProperty(window.LIVE, "testFeedItems", {
+        value: () => bank, writable: true, configurable: true,
+      });
+      for (const [i, v] of Object.entries(picks)) l.votes[bank[i].id] = String(v);
+      // A live account that has taken no sit-down test — otherwise the demo
+      // persona's stored Politics result answers first and the fold path
+      // this case exists for is never reached.
+      window.dispatchEvent(new CustomEvent("insight:test-results", { detail: {} }));
+      // passive-meter.jsx holds the fold behind the store's notify, and the
+      // fixture's `subscribe` never reaches that listener. PASSIVE's does.
+      PASSIVE.poke();
+      // The subtab is remembered on `window`, and reading it is how the
+      // overlay opens anywhere but General.
+      window.__profileSub = "politics";
+    });
+    await openHeaderOverlay("profile");
+    await act(async () => {});
+    return expectNoBoundary;
+  }
+
+  /** The filled part of the card's progress bar. */
+  function fillOf() {
+    const card = screen.getByText(/of 30 answered/).closest(".card");
+    expect(card, "the filling-in card did not render — test is vacuous").not.toBeNull();
+    return card.firstElementChild.firstElementChild;
+  }
+
+  afterEach(() => {
+    delete window.__profileSub;
+    // Put the demo seed back: it is module state in test-definitions.js and
+    // this block empties it.
+    window.dispatchEvent(new Event("insight:local-purge"));
+  });
+
+  it("lays the runner-up's tone over the bar, from four answers", async () => {
+    const expectNoBoundary = await openPolitics({ 0: 4, 1: 0, 2: 2, 3: 2 });
+    expect(fillOf().children.length, "the bar drew one flat tone").toBe(1);
+    expectNoBoundary("profile/politics");
+  });
+
+  it("draws one tone while nothing has been answered", async () => {
+    // The control, and it is load-bearing twice over: a card that always
+    // appended the second span would pass the case above, and a card that
+    // crashed on an empty fold would fail here rather than in production.
+    const expectNoBoundary = await openPolitics({});
+    expect(fillOf().children.length, "a second tone appeared out of no answers").toBe(0);
+    expectNoBoundary("profile/politics/empty");
   });
 });

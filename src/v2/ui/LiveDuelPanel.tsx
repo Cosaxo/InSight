@@ -45,7 +45,7 @@ import { consumeJoinCode, inviteLinkFor } from "../data/links";
 // yet; it is no longer something anyone types.
 import { atHandle } from "../data/handles";
 // Finding a person is one query shared by every surface that adds one
-// (D233) — the create picker here, add-to-a-circle below, and the
+// (D239) — the create picker here, add-to-a-circle below, and the
 // search overlay's people section.
 import { usePeopleFinder } from "./peopleSearch";
 import PersonRow from "./PersonRow";
@@ -91,7 +91,7 @@ interface LiveGroup {
   streak?: number;
   memberUids?: string[];
   memberNames?: Record<string, string>;
-  // People who asked to join and are waiting on a member (D234). ON the
+  // People who asked to join and are waiting on a member (D240). ON the
   // group document, not in a subcollection: members already read this
   // doc, and a subcollection would need a member-gated read rule whose
   // only expression in Firestore is `get()` on the group — one billed
@@ -187,7 +187,7 @@ function LdOption({ label, onClick, tint, lead, disabled }: {
   );
 }
 
-// ── who is coming (D230) ─────────────────────────────────────────
+// ── who is coming (D236) ─────────────────────────────────────────
 //
 // A circle used to be created EMPTY and populated afterwards, and that is
 // the whole reason a first-run screen could offer nothing but a code: at
@@ -259,7 +259,7 @@ function LdPicker({ picked, onChange, cap, busy: outerBusy }: {
               ambiguity a person only discovers by inviting the wrong
               person to the wrong room.
 
-              Both take a name or a handle since D233. This one says whose
+              Both take a name or a handle since D239. This one says whose
               circle it is instead of what it accepts, because a row
               appears the moment you type either. */}
           <LdInput value={q} onChange={setQ} placeholder="Who's coming?" />
@@ -358,12 +358,12 @@ function LdOnboard({ mode }: { mode?: string }) {
         <LdBtn primary disabled={busy || !name.trim() || !me}
           onClick={() => void go(create)}>Create</LdBtn>
       </div>
-      {/* WHO IS COMING (D230) — the half of this screen that used to be a
+      {/* WHO IS COMING (D236) — the half of this screen that used to be a
           code field. Optional: a circle with nobody in it yet is still a
           legitimate thing to make, and the link is how you reach somebody
           who has no account to hold a handle. */}
       <LdPicker picked={picked} onChange={setPicked} cap={duo ? 1 : 31} busy={busy} />
-      {/* NO CODE FIELD (D232). D122 demoted it to a fallback behind "Have
+      {/* NO CODE FIELD (D238). D122 demoted it to a fallback behind "Have
           an invite code?" and this is the rest of that move: a tapped
           invite link now lands as LdJoinPending, one button at the top of
           the panel, so nothing is ever read off a screen and typed into
@@ -382,7 +382,7 @@ function LdOnboard({ mode }: { mode?: string }) {
   );
 }
 
-// ── people waiting on this circle (D234) ─────────────────────────
+// ── people waiting on this circle (D240) ─────────────────────────
 //
 // The circle's half of the consent. A tapped link used to admit its
 // holder outright; now it puts them here, and a member decides.
@@ -458,10 +458,10 @@ function LdAddByHandle({ g }: { g: LiveGroup }) {
       setOk(true);
       const who = handle ? atHandle(handle) : (name || "them");
       // NOT "they will see it next time they open InSight", which is
-      // what this said and what D230 falsified — an invitation notifies
+      // what this said and what D236 falsified — an invitation notifies
       // now. It does not promise the notification either: an account
       // that has never created, joined or accepted has no push token yet
-      // (D230 limit 1), so the message keeps the half that is always
+      // (D236 limit 1), so the message keeps the half that is always
       // true — it is sent, and it is theirs to accept.
       setMsg(`Invited ${who} — waiting on them.`);
     } catch (e) {
@@ -475,7 +475,7 @@ function LdAddByHandle({ g }: { g: LiveGroup }) {
 
   return (
     <div style={col(8)}>
-      {/* NAME OR HANDLE (D233), the same field the create picker uses and
+      {/* NAME OR HANDLE (D239), the same field the create picker uses and
           for the same reason: the two screens add people, and needing to
           remember which one takes a name is the kind of difference a
           person discovers by failing. */}
@@ -506,7 +506,7 @@ function LdAddByHandle({ g }: { g: LiveGroup }) {
 // The other way in — the one that reaches somebody with no account yet,
 // who therefore has no handle to be picked by.
 //
-// IT SAYS WHAT IT DOES (D232). The button's face used to be the eight
+// IT SAYS WHAT IT DOES (D238). The button's face used to be the eight
 // characters themselves, on the reasoning that a person handed a code
 // would be looking for one. That reasoning died with the field that
 // received them: it copies a LINK, it has always copied a link, and
@@ -580,7 +580,7 @@ function LdInvites({ mode }: { mode?: string }) {
   );
 }
 
-// ── a tapped invite link (D232) ──────────────────────────────────
+// ── a tapped invite link (D238) ──────────────────────────────────
 //
 // What a link used to do was PREFILL A TEXT FIELD, which meant the app
 // had received the invitation and then asked you to confirm it by
@@ -648,7 +648,7 @@ function LdJoinPending({ code, onDone }: { code: string; onDone: () => void }) {
         One question a day, sealed until tomorrow, then revealed with names to the people in it.
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        {/* ASK, not Join (D234). The link no longer admits its holder —
+        {/* ASK, not Join (D240). The link no longer admits its holder —
             a forwarded one puts you forward instead of in, and the
             button says which. */}
         <LdBtn primary disabled={busy} onClick={() => void ask()}>{busy ? "\u2026" : "Ask to join"}</LdBtn>
@@ -1304,7 +1304,7 @@ function LiveDuelPanel({ mode }: { mode?: string }) {
   const [vh, setVh] = React.useState(0);
   const [cur, setCur] = React.useState("");
   const has = groups.length > 0;
-  // A tapped invite link, consumed ONCE (D232). Read-and-clear, so it
+  // A tapped invite link, consumed ONCE (D238). Read-and-clear, so it
   // prompts on this visit and does not resurface days later on a circle
   // the person already declined to join — the same contract the field it
   // replaced had, minus the typing.

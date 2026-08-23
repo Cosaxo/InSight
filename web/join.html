@@ -12,7 +12,7 @@
     this page — the OS hands the URL straight to the app. Until then,
     and on desktop forever, this IS the landing.
 
-    IT NO LONGER SHOWS A CODE (D232). It used to: the code, big and
+    IT NO LONGER SHOWS A CODE (D238). It used to: the code, big and
     monospaced, a "Copy code" button, and directions to a field in the
     app. That field is gone and should have been — a code was a bearer
     token with no expiry that admitted whoever held it without anybody's
@@ -85,7 +85,7 @@
         return;
       }
       // The code rides in the href and is never rendered. Nobody reads
-      // it and nobody types it, which is the whole of D232.
+      // it and nobody types it, which is the whole of D238.
       open.href = "insight://join/" + encodeURIComponent(code);
       open.hidden = false;
       note.hidden = false;

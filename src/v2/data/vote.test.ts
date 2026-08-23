@@ -10,9 +10,12 @@
 // ../../lib/firebase, ../../lib/sentry and firebase/firestore. setDoc
 // resolution/rejection is driven by manually-settled promises.
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LIVE_MEMBERS, LIVE_NEAR_MEMBERS, LIVE_SOCIAL_MEMBERS } from "../test/live-surface";
 import { FUNCTIONS_REGION } from "../../lib/region";
+import { CANON_BOARD_N } from "./deck";
 
 interface FakeSnapshotDoc {
   id: string;
@@ -51,6 +54,11 @@ const h = vi.hoisted(() => ({
   // listener the tests used to push into, so its fixtures are a document set
   // rather than a callback, and they land in this same map.
   aggDocs: [] as FakeSnapshotDoc[],
+  // Documents the my-answers query resolves to (empty = the fresh-account
+  // boot every earlier case was written against). Added for the catalog
+  // fold: an entity answer doc has no optionIdx, and hydrate's fold has to
+  // read it as answered rather than silently re-offering the picker.
+  answerDocs: [] as FakeSnapshotDoc[],
   aggIdQueries: [] as string[][],
   // Ids that make the `v2_question_aggs` query they appear in REJECT.
   // Targeted rather than getDocsImpl's blanket failure, because the case
@@ -143,6 +151,9 @@ vi.mock("firebase/firestore", () => {
       // Lets a test simulate a network failure mid-hydrate.
       if (h.getDocsImpl) return Promise.reject(h.getDocsImpl());
       if (q?.path === "v2_questions") return Promise.resolve(snapOf(h.bankDocs));
+      // The my-answers pull (and, on a warm boot, the D86 edit-cursor
+      // query on the same path — fold() is idempotent over the repeat).
+      if (q?.path === "v2_users/uid_test/answers") return Promise.resolve(snapOf(h.answerDocs));
       // main's version, kept whole: it records the id list and returns only
       // the matching documents, which the learn-split cases below assert on.
       // The D129 poll reads through this same arm — `refreshAggs` queries
@@ -277,6 +288,7 @@ beforeEach(() => {
   h.clearCacheImpl = null;
   h.hangSignIn = false;
   h.aggDocs.length = 0;
+  h.answerDocs.length = 0;
   h.aggIdQueries.length = 0;
   h.aggFailIds.length = 0;
   h.bankDocs = [
@@ -721,11 +733,11 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(LIVE.enabled).toBe(true);
   });
 
-  it("rank-type feed questions stay out of the live feed", async () => {
-    // The bank seeds rank questions, but no answer can carry an order yet —
-    // served as vote cards they collect single choices against a "rank
-    // them" prompt, which poisons the aggregate (D12). Fails without the
-    // q.type !== "rank" filter in hydrate's feedBank predicate.
+  it("rank-type feed questions serve as RANK cards — never flattened to votes", async () => {
+    // D12's exclusion, retired at D233. What must never come back is the
+    // failure D12 pulled the cards for: a rank doc flattened to a
+    // pick-one vote card, folding single choices into an aggregate that
+    // claims to be a ranking. Served — and served in its own shape.
     h.bankDocs.push(
       {
         id: "q_feed_vote",
@@ -739,9 +751,14 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
       },
     );
     await bootLive();
-    const feed = (window as unknown as { WORLD_FEED_QS?: Array<{ id: string }> }).WORLD_FEED_QS || [];
+    const feed = (window as unknown as {
+      WORLD_FEED_QS?: Array<{ id: string; type: string; items?: string[] }>;
+    }).WORLD_FEED_QS || [];
     expect(feed.map((q) => q.id)).toContain("q_feed_vote");
-    expect(feed.map((q) => q.id)).not.toContain("q_feed_rank");
+    const rank = feed.find((q) => q.id === "q_feed_rank");
+    expect(rank).toBeDefined();
+    expect(rank!.type).toBe("rank");
+    expect(rank!.items).toEqual(["A", "B", "C"]);
   });
 
   it("a continuum question keeps its type and range copy in the live feed (D114)", async () => {
@@ -872,6 +889,308 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     }).WORLD_FEED_QS || [];
     expect(feed.find((q) => q.id === "q_feed_doors")?.also).toEqual(["tech"]);
     expect("also" in (feed.find((q) => q.id === "q_feed_plain") || {})).toBe(false);
+  });
+
+  // ── catalogue picks (D14 gone live) ──────────────────────────────
+  const PICK_BANK = {
+    id: "pick-pk04",
+    data: {
+      surface: "feed", seq: 7, type: "catalog", domain: "emoji",
+      prompt: "Your most-used emoji?", options: [], topic: "fav",
+      test: null, active: true,
+    },
+  };
+
+  it("a catalog question rides the live feed as a pick card (D14)", async () => {
+    // No options — the catalogue is the answer space — so this doc fails
+    // playable() and rides the feed lane's catalog carve-out instead.
+    // Fails without it (the card vanishes), and fails if the mapper
+    // flattens it to "vote" (an option-less split card).
+    h.bankDocs.push(PICK_BANK);
+    await bootLive();
+    const feed = (window as unknown as {
+      WORLD_FEED_QS?: Array<{ id: string; type: string; cat: string; domain?: string; noCountsYet?: boolean; options?: unknown }>;
+    }).WORLD_FEED_QS || [];
+    const pick = feed.find((q) => q.id === "pick-pk04");
+    expect(pick).toBeDefined();
+    expect(pick!.type).toBe("pick");
+    expect(pick!.domain).toBe("emoji");
+    expect(pick!.cat).toBe("fav");
+    expect(pick!.noCountsYet).toBe(true);
+  });
+
+  it("hydrate reads an entity answer as answered and mirrors it wrapped", async () => {
+    // An entity doc carries no optionIdx. Skipping it in the fold would
+    // re-offer the picker on a fresh device and the create-only rule
+    // would then refuse the re-pick; mirroring the bare number would put
+    // a dex key where the card expects setPick's { entity } shape.
+    h.bankDocs.push(PICK_BANK);
+    h.answerDocs.push({
+      id: "pick-pk04",
+      data: { qid: "pick-pk04", surface: "feed", entity: 128514, answeredAt: { toMillis: () => 5 } },
+    });
+    const LIVE = await bootLive();
+    expect(LIVE.myVotes()).toMatchObject({ "pick-pk04": "128514" });
+    const wf = JSON.parse(storage.getItem(WF_LS) || "{}");
+    expect(wf["pick-pk04"]).toEqual({ entity: 128514 });
+  });
+
+  describe("votePick (D14): the create-only entity write", () => {
+    it("writes the entity doc — no optionIdx — and caches only on server ack", async () => {
+      h.bankDocs.push(PICK_BANK);
+      const LIVE = await bootLive();
+      const d = deferred();
+      h.setDocImpl = () => d.promise;
+      LIVE.votePick("pick-pk04", 128514);
+      expect(LIVE.myVotes()).toMatchObject({ "pick-pk04": "128514" });
+      expect(LIVE.confirmedVotes()).not.toHaveProperty("pick-pk04");
+      await flush();
+      const call = h.setDocCalls.find((c) => c.path === "v2_users/uid_test/answers/pick-pk04");
+      expect(call).toBeDefined();
+      expect(call!.data.entity).toBe(128514);
+      expect(call!.data.surface).toBe("feed");
+      expect(call!.data).not.toHaveProperty("optionIdx");
+      const notCached = JSON.parse(storage.getItem(ANS_LS) || "{}");
+      expect(notCached.votes || {}).not.toHaveProperty("pick-pk04");
+      d.resolve();
+      await flush();
+      expect(LIVE.confirmedVotes()).toMatchObject({ "pick-pk04": "128514" });
+      const cached = JSON.parse(storage.getItem(ANS_LS) || "{}");
+      expect(cached.votes).toMatchObject({ "pick-pk04": "128514" });
+    });
+
+    it("rolls back and scrubs the WF_LS mirror on a refused write", async () => {
+      h.bankDocs.push(PICK_BANK);
+      const LIVE = await bootLive();
+      // the card's own optimistic echo, written by setPick before the store
+      storage.setItem(WF_LS, JSON.stringify({ "pick-pk04": { entity: 7 } }));
+      h.setDocImpl = () => Promise.reject(new Error("PERMISSION_DENIED"));
+      LIVE.votePick("pick-pk04", 7);
+      await flush();
+      expect(LIVE.myVotes()).not.toHaveProperty("pick-pk04");
+      expect(JSON.parse(storage.getItem(WF_LS) || "{}")).not.toHaveProperty("pick-pk04");
+    });
+
+    it("is create-only and refuses malformed entities before the wire", async () => {
+      h.bankDocs.push(PICK_BANK);
+      const LIVE = await bootLive();
+      LIVE.votePick("pick-pk04", 128514);
+      await flush();
+      const before = h.setDocCalls.length;
+      LIVE.votePick("pick-pk04", 25); // answered — mirrors the create-only rule
+      LIVE.votePick("pick-x", 2.5); // not an int
+      LIVE.votePick("pick-x", -1); // negative
+      LIVE.votePick("pick-x", 1_000_000_000); // the rules' sanity ceiling
+      await flush();
+      expect(h.setDocCalls.length).toBe(before);
+    });
+
+    it("editVote refuses to move a pick — create-only has no edit arm (D14)", async () => {
+      h.bankDocs.push(PICK_BANK);
+      const LIVE = await bootLive();
+      LIVE.votePick("pick-pk04", 128514);
+      await flush();
+      expect(LIVE.editVote("pick-pk04", "25")).toBe(false);
+      expect(h.updateDocCalls).toHaveLength(0);
+    });
+  });
+
+  describe("pickCanon / pickSegs / pickSeg (D14): the board in the demo store's shapes", () => {
+    const AGG_CACHE = {
+      "pick-pk04": {
+        total: 16,
+        top: { "128514": 9, "10084": 4 },
+        rest: 3,
+        by: { ageBand: { "18-24": { "128514": 5, "10084": 2 } } },
+      },
+    };
+
+    it("sorts the published top by count desc then entity asc, rest as published", async () => {
+      h.bankDocs.push(PICK_BANK);
+      storage.setItem("insight.aggsCache.v1", JSON.stringify(AGG_CACHE));
+      const LIVE = await bootLive();
+      const c = LIVE.pickCanon("pick-pk04");
+      expect(c.top).toEqual([
+        { entity: 128514, count: 9 },
+        { entity: 10084, count: 4 },
+      ]);
+      expect(c.total).toBe(16);
+      expect(c.rest).toBe(3);
+      // the demo fold's tail scalars stay silent live — no floor exists
+      expect(c.restEntities).toBe(0);
+      expect(c.restBelowFloor).toBe(false);
+    });
+
+    it("joins your own UNFOLDED pick at read time; Not listed joins the total, never the board", async () => {
+      h.bankDocs.push(PICK_BANK, {
+        id: "pick-pk05",
+        data: {
+          surface: "feed", seq: 8, type: "catalog", domain: "emoji",
+          prompt: "The most annoying emoji?", options: [], topic: "fav",
+          test: null, active: true,
+        },
+      });
+      storage.setItem("insight.aggsCache.v1", JSON.stringify(AGG_CACHE));
+      const LIVE = await bootLive();
+      const d = deferred();
+      h.setDocImpl = () => d.promise;
+      LIVE.votePick("pick-pk04", 10084); // pending — the agg cannot hold it yet
+      expect(LIVE.pickCanon("pick-pk04").top).toEqual([
+        { entity: 128514, count: 9 },
+        { entity: 10084, count: 5 },
+      ]);
+      expect(LIVE.pickCanon("pick-pk04").total).toBe(17);
+      LIVE.votePick("pick-pk05", 0); // "Not listed": counted, never enumerated
+      const c = LIVE.pickCanon("pick-pk05");
+      expect(c.total).toBe(1);
+      expect(c.top).toEqual([]);
+      expect(c.rest).toBe(1);
+      d.resolve();
+      await flush();
+    });
+
+    it("flattens the published by into segment chips and orders one segment's board", async () => {
+      h.bankDocs.push(PICK_BANK);
+      storage.setItem("insight.aggsCache.v1", JSON.stringify(AGG_CACHE));
+      const LIVE = await bootLive();
+      expect(LIVE.pickSegs("pick-pk04")).toEqual([{ dim: "ageBand", bucket: "18-24" }]);
+      expect(LIVE.pickSeg("pick-pk04", "ageBand", "18-24")).toEqual({
+        rows: [
+          { entity: 128514, count: 5 },
+          { entity: 10084, count: 2 },
+        ],
+        cohort: 7,
+      });
+      expect(LIVE.pickSeg("pick-pk04", "gender", "Women")).toBeNull();
+      expect(LIVE.pickSegs("pick-nope")).toEqual([]);
+    });
+
+    // Read as TEXT rather than imported, the handles.test.ts precedent:
+    // functions/ is a separate package, and importing it would drag the
+    // admin SDK into the client run. The board depth lives on both sides
+    // of the wire — the server publishes `top` truncated at CANON_TOP_N,
+    // the client slices its own-vote join at CANON_BOARD_N — and nothing
+    // but this pin would notice one moving alone: the board would just
+    // quietly show a different depth than the aggregate carries.
+    it("CANON_BOARD_N matches the server's CANON_TOP_N", () => {
+      const serverSrc = readFileSync(
+        resolve(__dirname, "../../../functions/src/v2.ts"),
+        "utf8",
+      );
+      const m = /const CANON_TOP_N = (\d+);/.exec(serverSrc);
+      expect(m, "the server's CANON_TOP_N moved or was renamed").toBeTruthy();
+      expect(Number(m![1])).toBe(CANON_BOARD_N);
+    });
+  });
+
+  // ── rank answers (D233) ──────────────────────────────────────────
+  const RANK_BANK = {
+    id: "feed-f03",
+    data: {
+      surface: "feed", seq: 9, type: "rank", prompt: "Pure athleticism — rank them",
+      options: ["Gymnasts", "Sprinters", "Swimmers", "Climbers"], topic: "sport",
+      test: null, active: true,
+    },
+  };
+
+  it("a rank question rides the live feed as a rank card with a DERIVED crowd", async () => {
+    // Serving it as a vote card is the exact wrong-shaped poisoning D12
+    // pulled the cards for — the mapper must keep the type and hand the
+    // card the demo's own contract: items, crowd[i] = 1-based rank of
+    // item i, votes from the total.
+    h.bankDocs.push(RANK_BANK);
+    storage.setItem("insight.aggsCache.v1", JSON.stringify({
+      "feed-f03": { total: 3, pos: [4, 5, 3, 6] },
+    }));
+    await bootLive();
+    const feed = (window as unknown as {
+      WORLD_FEED_QS?: Array<{ id: string; type: string; items?: string[]; crowd?: number[] | null; votes?: number; options?: unknown }>;
+    }).WORLD_FEED_QS || [];
+    const rank = feed.find((q) => q.id === "feed-f03");
+    expect(rank).toBeDefined();
+    expect(rank!.type).toBe("rank");
+    expect(rank!.items).toEqual(["Gymnasts", "Sprinters", "Swimmers", "Climbers"]);
+    expect(rank!.crowd).toEqual([2, 3, 1, 4]);
+    expect(rank!.votes).toBe(3);
+  });
+
+  it("hydrates an order answer, mirrors it in the card's shape, and shows NO crowd to its only voter", async () => {
+    h.bankDocs.push(RANK_BANK);
+    h.answerDocs.push({
+      id: "feed-f03",
+      data: { qid: "feed-f03", surface: "feed", order: [2, 0, 1, 3], answeredAt: { toMillis: () => 5 } },
+    });
+    // the aggregate holds exactly the viewer's own fold
+    storage.setItem("insight.aggsCache.v1", JSON.stringify({
+      "feed-f03": { total: 1, pos: [1, 2, 0, 3] },
+    }));
+    const LIVE = await bootLive();
+    expect(LIVE.myVotes()).toMatchObject({ "feed-f03": "2,0,1,3" });
+    const rank = ((window as unknown as { WORLD_FEED_QS?: Array<{ id: string; crowd?: number[] | null }> }).WORLD_FEED_QS || [])
+      .find((q) => q.id === "feed-f03");
+    // a crowd that is only you would read as perfect agreement — null is
+    // the honest first-voter state the card renders as "you're first"
+    expect(rank!.crowd).toBeNull();
+    const wf = JSON.parse(storage.getItem(WF_LS) || "{}");
+    expect(wf["feed-f03"]).toEqual({ order: [2, 0, 1, 3] });
+  });
+
+  describe("voteRank (D233): the create-only order write", () => {
+    it("writes the order doc — no optionIdx — and caches only on server ack", async () => {
+      h.bankDocs.push(RANK_BANK);
+      const LIVE = await bootLive();
+      const d = deferred();
+      h.setDocImpl = () => d.promise;
+      LIVE.voteRank("feed-f03", [2, 0, 1, 3]);
+      expect(LIVE.myVotes()).toMatchObject({ "feed-f03": "2,0,1,3" });
+      expect(LIVE.confirmedVotes()).not.toHaveProperty("feed-f03");
+      await flush();
+      const call = h.setDocCalls.find((c) => c.path === "v2_users/uid_test/answers/feed-f03");
+      expect(call).toBeDefined();
+      expect(call!.data.order).toEqual([2, 0, 1, 3]);
+      expect(call!.data.surface).toBe("feed");
+      expect(call!.data).not.toHaveProperty("optionIdx");
+      d.resolve();
+      await flush();
+      expect(LIVE.confirmedVotes()).toMatchObject({ "feed-f03": "2,0,1,3" });
+      const cached = JSON.parse(storage.getItem(ANS_LS) || "{}");
+      expect(cached.votes).toMatchObject({ "feed-f03": "2,0,1,3" });
+    });
+
+    it("rolls back and scrubs the WF_LS mirror on a refused write", async () => {
+      h.bankDocs.push(RANK_BANK);
+      const LIVE = await bootLive();
+      storage.setItem(WF_LS, JSON.stringify({ "feed-f03": { order: [0, 1, 2, 3] } }));
+      h.setDocImpl = () => Promise.reject(new Error("PERMISSION_DENIED"));
+      LIVE.voteRank("feed-f03", [0, 1, 2, 3]);
+      await flush();
+      expect(LIVE.myVotes()).not.toHaveProperty("feed-f03");
+      expect(JSON.parse(storage.getItem(WF_LS) || "{}")).not.toHaveProperty("feed-f03");
+    });
+
+    it("is create-only and refuses every malformed order before the wire", async () => {
+      h.bankDocs.push(RANK_BANK);
+      const LIVE = await bootLive();
+      LIVE.voteRank("feed-f03", [3, 2, 1, 0]);
+      await flush();
+      const before = h.setDocCalls.length;
+      LIVE.voteRank("feed-f03", [0, 1, 2, 3]); // answered — create-only
+      LIVE.voteRank("q_1", [0, 1]); // not a rank question
+      LIVE.voteRank("feed-f03", [0, 1, 2]); // wrong length
+      LIVE.voteRank("feed-f03", [0, 1, 2, 2]); // duplicate
+      LIVE.voteRank("feed-f03", [0, 1, 2, 4]); // out of range
+      await flush();
+      expect(h.setDocCalls.length).toBe(before);
+    });
+
+    it("editVote refuses to move a ranking — create-only has no edit arm (D233)", async () => {
+      h.bankDocs.push(RANK_BANK);
+      const LIVE = await bootLive();
+      LIVE.voteRank("feed-f03", [2, 0, 1, 3]);
+      await flush();
+      expect(LIVE.editVote("feed-f03", "1")).toBe(false);
+      expect(h.updateDocCalls).toHaveLength(0);
+    });
   });
 
   it("reports a failed agg poll and leaves the cached counts standing", async () => {

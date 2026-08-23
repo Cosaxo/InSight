@@ -2,7 +2,7 @@
 // https://prvfire33.web.app/join/<CODE>; this module turns that URL back
 // into a pending join when the app is opened by it.
 //
-// THREE SHAPES REACH HERE, and since D232 all three end in one button
+// THREE SHAPES REACH HERE, and since D238 all three end in one button
 // rather than a filled-in text field (LdJoinPending):
 //
 //   · https://…/join/CODE      — the shared link. Opens the app directly
@@ -11,7 +11,7 @@
 //                                Android lands on the page below.
 //   · https://…/join.html?c=…  — that page's own query form.
 //   · insight://join/CODE      — the custom scheme, registered on BOTH
-//                                platforms since D232 and the reason the
+//                                platforms since D238 and the reason the
 //                                fingerprint is no longer what stands
 //                                between a tapped invite and the app.
 //                                web/join.html's one button navigates

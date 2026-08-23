@@ -18,6 +18,7 @@ import {
   gHash,
   hasPublishedCounts,
   isCore,
+  rankCrowdFor,
   OPTION_COLORS,
   utcDayIndex,
 } from "./deck";
@@ -208,13 +209,75 @@ describe("splitBanks (per-surface allowlists)", () => {
       qd("group-gp0", { surface: "group", type: "pick", topic: "pick", options: [] }),
       qd("duo-000", { surface: "duo" }),
       qd("learn-cell1", { surface: "learn", options: ["a", "b", "c", "d"] }),
-      qd("feed-f03", { surface: "feed", type: "rank" }), // D12: never in the live feed
+      // D12's exclusion, RETIRED at D233: an answer can carry an order now,
+      // so a rank doc rides the feed lane like any playable question. The
+      // pin flipped with the pipeline — this line failing again would mean
+      // the exclusion quietly returned.
+      qd("feed-f03", { surface: "feed", type: "rank" }),
       qd("daily-bad", { options: [] }), // unplayable — dropped
+      // D14 gone live: a catalog doc carries NO options (the catalogue is
+      // its answer space), so it rides the feed lane through the same kind
+      // of carve-out the duel lane gives "pick" days. Remove the exception
+      // and this drops out of the feed — which is the regression this line
+      // exists to catch.
+      qd("pick-pk04", { surface: "feed", type: "catalog", domain: "emoji", options: [] }),
     ]);
     expect(banks.learn.map((x) => x.id)).toEqual(["learn-cell1"]);
     expect(banks.daily.map((x) => x.id)).toEqual(["daily-000"]);
-    expect(banks.feed.map((x) => x.id)).toEqual(["feed-f01", "test-big5-00"]);
+    expect(banks.feed.map((x) => x.id)).toEqual(["feed-f01", "test-big5-00", "feed-f03", "pick-pk04"]);
     expect(banks.duel.map((x) => x.id)).toEqual(["group-gu0", "group-gp0", "duo-000"]);
+  });
+
+  it("a catalog doc is feed-only — the carve-out widens no other lane", () => {
+    // The exception is options-shaped, so the thing to check is that it
+    // stays INSIDE the feed allowlist: a catalog doc on another surface
+    // must still be dropped as unplayable, not adopted. The test surface
+    // is the load-bearing row: the feed lane ADMITS test-surface docs, so
+    // the first cut of the carve-out quietly took a test-surface catalog
+    // doc with it — the review fix narrowed catalog to surface "feed"
+    // exactly, and this is the line that keeps it narrowed.
+    const banks = splitBanks([
+      qd("pick-x", { surface: "daily", type: "catalog", options: [] }),
+      qd("pick-y", { surface: "learn", type: "catalog", options: [] }),
+      qd("pick-z", { surface: "test", type: "catalog", options: [] }),
+    ]);
+    expect(banks.daily).toEqual([]);
+    expect(banks.learn).toEqual([]);
+    expect(banks.feed).toEqual([]);
+  });
+});
+
+describe("rankCrowdFor (D233): the crowd order, minus you", () => {
+  it("ranks items by ascending position sum, ties broken by index", () => {
+    // Three strangers folded to sums [4, 5, 3, 6]: item 2 leads, then 0,
+    // 1, 3 — so the per-item 1-based ranks come back as [2, 3, 1, 4].
+    expect(rankCrowdFor({ pos: [4, 5, 3, 6], total: 3 }, null, false)).toEqual([2, 3, 1, 4]);
+    // A dead tie resolves by item index, so equal sums render identically
+    // on every device rather than flickering with sort stability.
+    expect(rankCrowdFor({ pos: [5, 5, 5], total: 3 }, null, false)).toEqual([1, 2, 3]);
+  });
+
+  it("subtracts the viewer's own folded order before ranking", () => {
+    // Two answers: mine [0,1,2,3] and one stranger's exact reverse.
+    // Summed they tie everything at 3 — a crowd that includes you says
+    // nothing. With mine back out, the crowd IS the stranger: [4,3,2,1].
+    expect(rankCrowdFor({ pos: [3, 3, 3, 3], total: 2 }, [0, 1, 2, 3], false)).toEqual([4, 3, 2, 1]);
+  });
+
+  it("is null when nobody ELSE has ranked — absent agg, or a crowd of only you", () => {
+    expect(rankCrowdFor(undefined, null, false)).toBeNull();
+    expect(rankCrowdFor({ pos: [0, 1], total: 0 }, null, false)).toBeNull();
+    // sole folded voter: the total is you, and a mirror is not a crowd
+    expect(rankCrowdFor({ pos: [0, 1], total: 1 }, [0, 1], false)).toBeNull();
+    // …but PENDING, the same total 1 is a stranger and ranks normally
+    expect(rankCrowdFor({ pos: [0, 1], total: 1 }, [0, 1], true)).toEqual([1, 2]);
+  });
+
+  it("leaves the sums whole when the stored order cannot be yours", () => {
+    // a length mismatch (bank options changed shape — D52 says they
+    // cannot, so this is corruption) skips the subtraction rather than
+    // corrupting the remainder
+    expect(rankCrowdFor({ pos: [0, 1, 2], total: 1 }, [0, 1], false)).toEqual([1, 2, 3]);
   });
 });
 

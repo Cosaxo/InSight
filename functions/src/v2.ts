@@ -37,6 +37,8 @@ import { logger } from "firebase-functions";
 import { V2_ADS, V2_QUESTIONS } from "./v2content";
 import {
   canonBreakdownFor,
+  validRankOrder,
+  foldRankOrder,
   catalogEntityKey,
   foldAnchors,
   foldCanonAnchors,
@@ -45,6 +47,7 @@ import {
   retargetAnchors,
   retargetCounts,
   seedDocMatches,
+  SEEDED_FIELDS,
   seedOptionConflict,
   describeSeedOptionConflicts,
   type BreakdownCounts,
@@ -53,7 +56,7 @@ import {
   type CatalogSpec,
   type SeedOptionConflict,
 } from "./pure";
-import { FILM_KEYS, ARTIST_KEYS, EMOJI_KEYS, COUNTRY_KEYS, DOG_KEYS } from "./catalogKeys";
+import { FILM_KEYS, ARTIST_KEYS, EMOJI_KEYS, COUNTRY_KEYS, DOG_KEYS, COLOR_KEYS } from "./catalogKeys";
 
 const REGION = FUNCTIONS_REGION;
 
@@ -260,6 +263,11 @@ const CATALOG_DOMAINS: Record<string, CatalogSpec> = {
   // Catalogue-minted keys (build-dogs.mjs) — append-only by discipline,
   // contiguous by construction; the generated set is the whole contract.
   dogs: { keys: DOG_KEYS },
+  // 1 + parseInt(hex, 16) of each CSS named colour (build-colors.mjs) —
+  // the colour's own identity as its key, offset once so black stays off
+  // the Not-listed 0; sparse, externally stable, and the generated set
+  // is the whole contract.
+  colors: { keys: COLOR_KEYS },
 };
 
 // ── content seed ────────────────────────────────────────────────
@@ -389,6 +397,32 @@ export async function runSeedV2(
       ...(typeof q.hue === "number" ? { hue: q.hue } : {}),
       ...(q.nodes ? { nodes: q.nodes } : {}),
       ...(q.endings ? { endings: q.endings } : {}),
+      // The fields the whitelist silently dropped (D234). Its own comment
+      // above warned that "a field the seed does not name never reaches
+      // Firestore" — and for two releases that was the fate of everything
+      // below: SCHEMA-V2.md promised each on the doc, the CLIENT reads
+      // each off hydrated docs (isCore for the Mirror's corpus, tag/rates
+      // for the Scores stop and D205's anchor guard, until/sponsor for
+      // D179/D195's windows, `also` for D206's doors, tier for the call
+      // card), and the server never wrote any of them — every consumer
+      // read absent and every test stayed green on self-seeded fixtures.
+      // Emit-when-set like their neighbours; SEEDED_FIELDS compares them
+      // (pure.ts), so the reseed after this lands is the one-time repair
+      // that writes them onto the standing docs.
+      ...(typeof q.tag === "string" ? { tag: q.tag } : {}),
+      ...(typeof q.rates === "string" ? { rates: q.rates } : {}),
+      ...(q.core === true ? { core: true } : {}),
+      // `from` (D231, current events) arrived in a parallel thread the
+      // same day D234 landed, with exactly the gap D234 closes: in the
+      // bank, in the client's serving filter, and in no write. Caught at
+      // the merge; transported and compared like its `until` twin.
+      ...(typeof q.from === "string" ? { from: q.from } : {}),
+      ...(typeof q.until === "string" ? { until: q.until } : {}),
+      ...(Array.isArray(q.also) && q.also.length ? { also: q.also } : {}),
+      ...(q.sponsor ? { sponsor: q.sponsor } : {}),
+      ...(typeof q.tier === "string" ? { tier: q.tier } : {}),
+      ...(typeof q.resolvesAt === "string" ? { resolvesAt: q.resolvesAt } : {}),
+      ...(q.rubric ? { rubric: q.rubric } : {}),
     };
     // Unchanged docs are not rewritten. Two things depend on this, and the
     // second is the expensive one: `updatedAt` only means something as an
@@ -407,6 +441,21 @@ export async function runSeedV2(
     if (conflict) {
       refused.push(conflict);
       continue;
+    }
+    // A retired emit-when-set field must be DELETED, not merely omitted
+    // (D234's amendment): `merge: true` cannot remove a field, so a doc
+    // whose source dropped `core` (the D233 rank flip is exactly this)
+    // would keep it forever while every reseed re-detected the mismatch
+    // and churned updatedAt. Computed against the stored doc, on the
+    // rewrite path only, so seedDocMatches above stays sentinel-free and
+    // a repaired bank reseeds as a no-op.
+    const prior = stored.get(q.id);
+    if (prior) {
+      for (const f of SEEDED_FIELDS) {
+        if (!(f in payload) && prior[f] !== undefined) {
+          payload[f] = FieldValue.delete();
+        }
+      }
     }
     payload.updatedAt = FieldValue.serverTimestamp();
     // Honor a source-carried `active: false` on FIRST create (it used to be
@@ -651,6 +700,52 @@ export const onV2AnswerCreated = onDocumentCreated(
           },
           { merge: false },
         );
+      });
+      return;
+    }
+    // Rank answers carry `order`, never `optionIdx` (D233) — the item
+    // indexes in the answerer's sequence, admitted by rules only on
+    // type=="rank" questions. Same ledger, same private/public docs, same
+    // cadence; what publishes is per-item POSITION SUMS plus the total —
+    // enough for a crowd order (sort by mean position) — instead of
+    // per-option counts. No `by` map, deliberately: the Mirror's cohort
+    // folds read option shares, which an order does not have, and a
+    // breakdown nothing reads would be document growth with no reader
+    // (a rank-shaped lens brings it with it, if one ever ships).
+    if (snap.get("order") !== undefined) {
+      const db = firestore();
+      const eventRef = db.collection("v2_agg_events").doc(event.id);
+      const privRef = db.collection("v2_aggs_private").doc(qid);
+      const pubRef = db.collection("v2_question_aggs").doc(qid);
+      const qRef = db.collection("v2_questions").doc(qid);
+      await runAggTransaction(db, qid, async (tx) => {
+        const seen = await tx.get(eventRef);
+        if (seen.exists) return;
+        // The item count decides the only valid order length — the
+        // trigger's one question-doc read, the catalog branch's pattern.
+        // Rules already bound the size; the elements (a permutation of
+        // 0..n-1, no duplicates) can only be checked here.
+        const qDoc = await tx.get(qRef);
+        const n = ((qDoc.get("options") as unknown[] | undefined) || []).length;
+        const order = validRankOrder(snap.get("order"), n);
+        if (order === null) {
+          logger.warn(`[v2] answer ${event.params.uid}/${qid} has no usable order`);
+          return; // an invalid permutation never aggregates; the doc stays, harmless
+        }
+        const priv = await tx.get(privRef);
+        const stored = priv.exists ? (priv.get("pos") as number[] | undefined) : undefined;
+        // Re-derive from zero when the stored array is absent or the wrong
+        // length (a bank doc whose options were never allowed to change —
+        // D52 — so a mismatch is corruption, not history): starting fresh
+        // miscounts, but a crash here retry-loops forever.
+        const pos = Array.isArray(stored) && stored.length === n ? [...stored] : new Array<number>(n).fill(0);
+        foldRankOrder(pos, order);
+        const total = ((priv.exists && (priv.get("total") as number)) || 0) + 1;
+        tx.set(eventRef, ledgerEntry(event.params.uid, qid));
+        tx.set(privRef, { pos, total }, { merge: false });
+        // Published whole, every answer (D98): the sums and the total ARE
+        // the reveal — the client derives the crowd order by mean position.
+        tx.set(pubRef, { total, pos }, { merge: false });
       });
       return;
     }

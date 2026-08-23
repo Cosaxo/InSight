@@ -1,4 +1,4 @@
-// The people section of the search overlay, in a live build (D231, D233).
+// The people section of the search overlay, in a live build (D237, D239).
 //
 // It rendered EMPTY for the whole life of live mode — `samplePeople ===
 // false` returns `[]` in search-overlay.jsx, guarding D1: every persona
@@ -7,9 +7,9 @@
 // search is exactly the fabrication that store predates.
 //
 // The guard was right; its consequence was that a live build could add
-// somebody to a circle and could not look anybody up. D231 opened this
+// somebody to a circle and could not look anybody up. D237 opened this
 // on the handle registry, which answers an exact address and nothing
-// else. D233 added the name half, and moved the query itself into
+// else. D239 added the name half, and moved the query itself into
 // `usePeopleFinder` so this section, the create picker and add-to-a-
 // circle cannot answer "who is this" three different ways.
 import React from "react";

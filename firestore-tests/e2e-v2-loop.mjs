@@ -119,6 +119,29 @@ if (qsnap.empty) fail("daily bank empty");
 const q0 = qsnap.docs[0];
 ok("daily bank: " + qsnap.size + " questions; first: \"" + q0.get("prompt").slice(0, 40) + "…\"");
 
+// 3b · the doc shape the schema promises actually lands (D234). For two
+// releases core/tag/rates (and until/sponsor/also/the call trio) were in
+// SCHEMA-V2.md, in the client's readers — and in no write: the seed's
+// payload whitelist dropped them, every client read absent, and every
+// suite stayed green on self-seeded fixtures. This is the one harness
+// that runs the REAL seed, so this is where that class of gap is caught.
+{
+  const coreQ = await getDoc(doc(db, "v2_questions", "feed-f01"));
+  if (coreQ.get("core") !== true)
+    fail("feed-f01 lost its core flag in the seed — the Mirror's corpus reads hydrated docs (D161/D234)");
+  const ratesQ = qsnap.docs.find((d) => d.get("rates") !== undefined);
+  if (!ratesQ) fail("no seeded daily doc carries `rates` — the Scores stop reads hydrated docs (D187/D234)");
+  const tagQ = qsnap.docs.find((d) => typeof d.get("tag") === "string");
+  if (!tagQ) fail("no seeded daily doc carries `tag` — the Scores card is a column of nouns (D187/D234)");
+  // `from` (D231's window-open) arrived in a parallel thread with exactly
+  // this gap and was caught at the merge — its assertion joins the leg so
+  // the current-events lane cannot ship windowless the same way.
+  const feedSnap = await getDocs(query(collection(db, "v2_questions"), where("surface", "==", "feed")));
+  const fromQ = feedSnap.docs.find((d) => typeof d.get("from") === "string");
+  if (!fromQ) fail("no seeded feed doc carries `from` — the current-events window opens off hydrated docs (D231/D234)");
+  ok("seed transports the promised doc shape: core, rates, tag, from present on live docs");
+}
+
 // 4 · vote (owner-only answer write, rules enforced end-to-end)
 const uid = cred.user.uid;
 // anchors ride along so the per-anchor breakdown (D8) is exercised too.
@@ -399,7 +422,7 @@ const pAuth = getAuth(pApp); connectAuthEmulator(pAuth, "http://127.0.0.1:9099",
 const pDb = getFirestore(pApp, E2E_DB_ID); connectFirestoreEmulator(pDb, "127.0.0.1", 8080);
 const pFns = getFunctions(pApp, FUNCTIONS_REGION); connectFunctionsEmulator(pFns, "127.0.0.1", 5001);
 const partner = await signInAnonymously(pAuth);
-// THE LINK ASKS, IT DOES NOT ADMIT (D234). A code used to write straight
+// THE LINK ASKS, IT DOES NOT ADMIT (D240). A code used to write straight
 // into memberUids, which made it a bearer token with no expiry: whoever
 // it was forwarded to was in, and nobody already in the circle had
 // agreed to them. Now it puts the asker in `pending` and a member
@@ -553,7 +576,7 @@ const lateAuth = getAuth(lateApp); connectAuthEmulator(lateAuth, "http://127.0.0
 const lateDb = getFirestore(lateApp, E2E_DB_ID); connectFirestoreEmulator(lateDb, "127.0.0.1", 8080);
 const lateFns = getFunctions(lateApp, FUNCTIONS_REGION); connectFunctionsEmulator(lateFns, "127.0.0.1", 5001);
 const latecomer = await signInAnonymously(lateAuth);
-// Same two steps as the partner above (D234): ask, then be let in by
+// Same two steps as the partner above (D240): ask, then be let in by
 // somebody already there.
 await httpsCallable(lateFns, "requestJoinV2")({ code: gCreated.data.inviteCode });
 await httpsCallable(fns, "approveJoinV2")({ gid: lateGid, uid: latecomer.user.uid });
@@ -665,6 +688,195 @@ if (labove.counts["0"] !== 3 || labove.counts["1"] !== 1 || labove.counts["2"] !
   fail("learn counts wrong at total 5: " + JSON.stringify(labove));
 ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 right");
 
+// 9c · catalog picks (D14 gone live): an entity answer rides the same
+// create-only path, and the trigger folds it through the CANON — the
+// top/rest board plus per-segment orderings (D17) — instead of
+// per-option counts. The refusals sit exactly where the design puts
+// them: rules refuse the wrong SHAPES (each branch's hasOnly keeps the
+// other's field out; the D86 edit arm requires an old doc carrying
+// optionIdx), while a wrong KEY passes rules and dies at the trigger,
+// validated against the committed catalogue — an unknown key never
+// aggregates.
+{
+  const PK = "pick-pk04"; // "Your most-used emoji?" — content/pick-questions.json
+  const pkDoc = await getDoc(doc(db, "v2_questions", PK));
+  if (!pkDoc.exists() || pkDoc.get("type") !== "catalog" || pkDoc.get("domain") !== "emoji")
+    fail("the pick seed did not land as a catalog doc: " + JSON.stringify(pkDoc.data() || null));
+  ok("pick question seeded: type catalog, domain emoji, no options");
+  await setDoc(doc(db, "v2_users", uid, "answers", PK), {
+    qid: PK, surface: "feed", entity: 128514, // 😂 — a real committed key
+    answeredAt: serverTimestamp(),
+    anchors: { ageBand: "25-34", country: "NO", city: "Oslo, NO" },
+  });
+  let canon = null;
+  for (let i = 0; i < 40; i++) {
+    const snap = await getDoc(doc(db, "v2_question_aggs", PK));
+    if (snap.exists()) { canon = snap.data(); break; }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!canon) fail(`canon never published after ${40 * 500}ms — the entity fold did not fire, or did not finish in time`);
+  if (canon.total !== 1 || !canon.top || canon.top["128514"] !== 1 || canon.rest !== 0)
+    fail("first pick did not publish exactly: " + JSON.stringify(canon));
+  if (!canon.by || !canon.by.ageBand || !canon.by.ageBand["25-34"] || canon.by.ageBand["25-34"]["128514"] !== 1)
+    fail("the segment board (D17) is missing the pick: " + JSON.stringify(canon.by));
+  ok("canon published exactly: total 1, top {128514: 1}, segment board included");
+
+  // The shape refusals. A feed vote question refuses `entity` (its
+  // isCatalogAnswer lookup sees type "vote"), a catalog question refuses
+  // `optionIdx` (its bound reads options.size(), which is 0), and a pick
+  // cannot be moved (no old optionIdx for the D86 arm to key on).
+  const feedVoteSnap = await getDocs(query(
+    collection(db, "v2_questions"),
+    where("surface", "==", "feed"), where("type", "==", "vote"), limit(1),
+  ));
+  if (!feedVoteSnap.size) fail("no feed vote question in the bank to test the entity refusal against");
+  const FV = feedVoteSnap.docs[0].id;
+  await expectDenied("entity refused on a non-catalog question", () =>
+    setDoc(doc(db, "v2_users", uid, "answers", FV), {
+      qid: FV, surface: "feed", entity: 128514,
+      answeredAt: serverTimestamp(), anchors: {},
+    }));
+  await expectDenied("optionIdx refused on a catalog question", () =>
+    setDoc(doc(db, "v2_users", uid, "answers", "pick-pk05"), {
+      qid: "pick-pk05", surface: "feed", optionIdx: 0,
+      answeredAt: serverTimestamp(), anchors: {},
+    }));
+  await expectDenied("a pick cannot be edited (create-only, D14/D86)", () =>
+    updateDoc(doc(db, "v2_users", uid, "answers", PK), {
+      optionIdx: 1, editedAt: serverTimestamp(),
+    }));
+
+  // The key refusal is the TRIGGER's, so it cannot be a rules denial:
+  // 999999 clears the rules' sanity bound but names no emoji codepoint in
+  // the committed catalogue. Write it, then a VALID second pick — when the
+  // valid one lands at total 2, the invalid one has provably been dropped
+  // (a folded bogus key would have pushed the total past 2, and its key
+  // would stand on the board).
+  const pApps = [];
+  for (const [n, entity] of [[0, 999999], [1, 10084]]) {
+    const pApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "picker" + n);
+    pApps.push(pApp);
+    const pAuth = getAuth(pApp); connectAuthEmulator(pAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+    const pDb = getFirestore(pApp, E2E_DB_ID); connectFirestoreEmulator(pDb, "127.0.0.1", 8080);
+    const u = await signInAnonymously(pAuth);
+    await setDoc(doc(pDb, "v2_users", u.user.uid, "answers", PK), {
+      qid: PK, surface: "feed", entity,
+      answeredAt: serverTimestamp(), anchors: { ageBand: "35-44", country: "NO", city: "Bergen, NO" },
+    });
+  }
+  let two = null;
+  for (let i = 0; i < 40; i++) {
+    const snap = await getDoc(doc(db, "v2_question_aggs", PK));
+    if (snap.exists() && snap.get("total") >= 2) { two = snap.data(); break; }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!two) fail("canon never reached total 2");
+  if (two.total !== 2 || two.top["999999"] !== undefined || two.top["10084"] !== 1)
+    fail("an unknown key aggregated, or a valid one did not: " + JSON.stringify(two));
+  ok("unknown entity key dropped at the trigger; valid keys fold exactly");
+
+  // "Not listed" (entity 0): counted in the total, never enumerated on
+  // the board — it lands in `rest` and nowhere else.
+  const nlApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "pickerNL");
+  const nlAuth = getAuth(nlApp); connectAuthEmulator(nlAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+  const nlDb = getFirestore(nlApp, E2E_DB_ID); connectFirestoreEmulator(nlDb, "127.0.0.1", 8080);
+  const nlu = await signInAnonymously(nlAuth);
+  await setDoc(doc(nlDb, "v2_users", nlu.user.uid, "answers", PK), {
+    qid: PK, surface: "feed", entity: 0,
+    answeredAt: serverTimestamp(), anchors: {},
+  });
+  let three = null;
+  for (let i = 0; i < 40; i++) {
+    const snap = await getDoc(doc(db, "v2_question_aggs", PK));
+    if (snap.exists() && snap.get("total") === 3) { three = snap.data(); break; }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!three) fail("canon never reached total 3 after the Not-listed pick");
+  if (three.top["0"] !== undefined || three.rest !== 1)
+    fail("Not listed leaked onto the board, or missed the fold: " + JSON.stringify(three));
+  ok("Not listed: counted in the total, folded into rest, never enumerated");
+}
+
+// 9d · rank answers (D233): an ORDER rides the create-only path and the
+// trigger folds per-item position sums — {total, pos} — instead of
+// counts. The refusals split across the two boundaries by design: rules
+// refuse the wrong SHAPES (an index on a rank question — the D12
+// poisoning through the raw API — an order on a vote question, a
+// wrong-size list, any edit), while a wrong-ELEMENT order passes rules
+// and dies at the trigger's permutation check, exactly like an unknown
+// catalog key.
+{
+  const RQ = "feed-f03"; // "Pure athleticism — rank them", 4 items
+  const rqDoc = await getDoc(doc(db, "v2_questions", RQ));
+  if (!rqDoc.exists() || rqDoc.get("type") !== "rank" || (rqDoc.get("options") || []).length !== 4)
+    fail("the rank seed did not land as a 4-item rank doc: " + JSON.stringify(rqDoc.data() || null));
+  await setDoc(doc(db, "v2_users", uid, "answers", RQ), {
+    qid: RQ, surface: "feed", order: [2, 0, 1, 3],
+    answeredAt: serverTimestamp(),
+    anchors: { ageBand: "25-34", country: "NO", city: "Oslo, NO" },
+  });
+  let rpub = null;
+  for (let i = 0; i < 40; i++) {
+    const snap = await getDoc(doc(db, "v2_question_aggs", RQ));
+    if (snap.exists()) { rpub = snap.data(); break; }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!rpub) fail(`rank agg never published after ${40 * 500}ms — the order fold did not fire, or did not finish in time`);
+  // order [2,0,1,3] gives item positions 2→0, 0→1, 1→2, 3→3
+  if (rpub.total !== 1 || JSON.stringify(rpub.pos) !== JSON.stringify([1, 2, 0, 3]))
+    fail("first order did not fold exactly: " + JSON.stringify(rpub));
+  if (rpub.counts !== undefined)
+    fail("a rank aggregate grew a counts map — the vote fold ran on an order doc: " + JSON.stringify(rpub));
+  ok("rank: first order folded exactly — {total 1, pos [1,2,0,3]}, no counts");
+
+  await expectDenied("duplicate ranking refused by rules", () =>
+    setDoc(doc(db, "v2_users", uid, "answers", RQ), {
+      qid: RQ, surface: "feed", order: [0, 1, 2, 3],
+      answeredAt: serverTimestamp(), anchors: {},
+    }));
+  await expectDenied("optionIdx refused on a rank question (the D12 side door)", () =>
+    setDoc(doc(db, "v2_users", uid, "answers", "feed-f10"), {
+      qid: "feed-f10", surface: "feed", optionIdx: 0,
+      answeredAt: serverTimestamp(), anchors: {},
+    }));
+  await expectDenied("a wrong-size order refused by rules", () =>
+    setDoc(doc(db, "v2_users", uid, "answers", "feed-f10"), {
+      qid: "feed-f10", surface: "feed", order: [0, 1],
+      answeredAt: serverTimestamp(), anchors: {},
+    }));
+  await expectDenied("a ranking cannot be edited (create-only, D233)", () =>
+    updateDoc(doc(db, "v2_users", uid, "answers", RQ), {
+      order: [0, 1, 2, 3], editedAt: serverTimestamp(),
+    }));
+
+  // The element refusal is the TRIGGER's: [0,0,0,0] clears every rules
+  // bound (right length, a list) and names no permutation. Write it, then
+  // a VALID second ranking — when that lands at total 2 with the right
+  // sums, the invalid one has provably been dropped.
+  const rApps = [];
+  for (const [n, order] of [[0, [0, 0, 0, 0]], [1, [3, 2, 1, 0]]]) {
+    const rApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "ranker" + n);
+    rApps.push(rApp);
+    const rAuth = getAuth(rApp); connectAuthEmulator(rAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+    const rDb = getFirestore(rApp, E2E_DB_ID); connectFirestoreEmulator(rDb, "127.0.0.1", 8080);
+    const u = await signInAnonymously(rAuth);
+    await setDoc(doc(rDb, "v2_users", u.user.uid, "answers", RQ), {
+      qid: RQ, surface: "feed", order,
+      answeredAt: serverTimestamp(), anchors: {},
+    });
+  }
+  let rtwo = null;
+  for (let i = 0; i < 40; i++) {
+    const snap = await getDoc(doc(db, "v2_question_aggs", RQ));
+    if (snap.exists() && snap.get("total") >= 2) { rtwo = snap.data(); break; }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!rtwo) fail("rank agg never reached total 2");
+  // valid folds: [2,0,1,3] + [3,2,1,0] → pos [1+3, 2+2, 0+1, 3+0]
+  if (rtwo.total !== 2 || JSON.stringify(rtwo.pos) !== JSON.stringify([4, 4, 1, 3]))
+    fail("a non-permutation folded, or a valid order did not: " + JSON.stringify(rtwo));
+  ok("rank: non-permutation dropped at the trigger; valid orders sum exactly");
+}
 
 // 10 · Near presence (D84 / D174 / D176 / D177): the write path through
 // the rules, the count and the ROOM through the real callables, and the
@@ -970,9 +1182,9 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
     () => httpsCallable(pFns, "claimHandleV2")({ handle: "olaf_t" }));
 }
 
-// 14 · invitations: a batch, charged per person, surviving no FCM (D230)
+// 14 · invitations: a batch, charged per person, surviving no FCM (D236)
 //
-// The notification is the whole point of D230, and the emulator has no
+// The notification is the whole point of D236, and the emulator has no
 // FCM — which makes that the case worth pinning here rather than a
 // weakness of the harness. `sendPushToUids` is best-effort BY
 // CONSTRUCTION: an invitation that was written must still be reported as

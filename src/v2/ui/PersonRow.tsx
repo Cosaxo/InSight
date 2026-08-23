@@ -1,5 +1,5 @@
 // One person, drawn one way, everywhere the app offers you somebody
-// (D233).
+// (D239).
 //
 // Three surfaces list people you might add: the create picker, add-to-a-
 // circle, and the search overlay's people section. They take different

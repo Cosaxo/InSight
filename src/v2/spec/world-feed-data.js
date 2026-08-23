@@ -27,6 +27,12 @@ export const WORLD_TOPICS = [
   { id: 'event',   label: 'World events',   color: 'oklch(0.52 0.14 260)' },
   { id: 'people',  label: 'Famous people',  color: 'oklch(0.52 0.14 85)'  },
   { id: 'bigq',    label: 'Big questions',  color: 'oklch(0.52 0.14 290)' },
+  // the current-events lane (D231). A TIME, not a subject — which is what
+  // keeps it off 'event' (World events), whose questions are evergreen: a
+  // card here carries an ask window and stops being served when it closes.
+  // Hue 115 is the widest gap left in the row (85 -> 145), picked for
+  // distance from its neighbours rather than for a meaning.
+  { id: 'now',     label: 'Happening now',  color: 'oklch(0.52 0.14 115)' },
   { id: 'places',  label: 'Places',         color: 'oklch(0.52 0.14 60)'  },
   // catalogue picks are a FORMAT, not a subject — so they live on a channel, the
   // same way dilemmas and rankings do. It also means they always have a home:
@@ -44,17 +50,18 @@ window.WORLD_TOPICS = WORLD_TOPICS;
 // demo list, most of the seeded bank sat behind a door that no longer exists:
 // no chip, no follow, no search result could surface it. Until scenes have a
 // real backend, a live build runs every SUBJECT always-on; the chips' mute is
-// unchanged, so the coarse control a follow used to give is still there. The
-// two formats with no live stock stay out of the live row — the bank mapper
-// (data/live.ts) emits plain votes only, so `places` (rate cards) and `fav`
-// (catalogue picks) would be dead chips filtering nothing. Build flag rather
+// unchanged, so the coarse control a follow used to give is still there.
+// `fav` rides the live row since D14 went live — the bank mapper emits pick
+// cards from the seeded catalog questions, so the chip filters real stock.
+// `places` alone stays out: rate cards are still demo-only, and a chip over
+// no stock would be a dead filter. Build flag rather
 // than window.LIVE.enabled for learn-progress.js's reason: this runs at
 // module scope, before the live boot attaches — and the demoInProd fallback
 // needs the widening too, because a live build seeds zero follows and its
 // demo-pool fallback had the same dark subjects.
 const WFD_LIVE_BUILD = import.meta.env && import.meta.env.VITE_V2_LIVE === 'true';
 window.WORLD_CHANNELS = WFD_LIVE_BUILD
-  ? window.WORLD_TOPICS.filter((t) => t.id !== 'places' && t.id !== 'fav').map((t) => t.id)
+  ? window.WORLD_TOPICS.filter((t) => t.id !== 'places').map((t) => t.id)
   : ['dilemma', 'event', 'people', 'bigq', 'places', 'fav'];
 
 // ── question pool ──
@@ -157,6 +164,7 @@ window.WORLD_FEED_QS = [
   { id: 'dl7', cat: 'food', type: 'dial', prompt: 'How many coffees a day is too many?', lo: 1, hi: 10, unit: 'cups', med: 4, n: 5100, dist: [3, 8, 15, 19, 16, 12, 9, 7, 5, 3, 2, 1] },
   { id: 'dl8', cat: 'music', type: 'dial', prompt: 'How long should a concert be?', lo: 1, hi: 4, unit: 'hrs', med: 2, n: 4600, dist: [2, 5, 10, 16, 19, 16, 12, 8, 5, 3, 2, 2] },
   { id: 'dl9', cat: 'movies', type: 'dial', prompt: 'Trailers before the film \u2014 how many minutes is right?', lo: 0, hi: 30, unit: 'min', med: 10, n: 4300, dist: [6, 9, 13, 17, 16, 12, 9, 7, 5, 3, 2, 1] },
+  { id: 'dl10', cat: 'bigq', type: 'dial', prompt: 'How many close friends does a person need?', lo: 0, hi: 10, unit: 'friends', med: 3, n: 4900, dist: [4, 10, 18, 20, 15, 11, 8, 6, 4, 2, 1, 1] },
   { id: 'fd1', cat: 'dilemma', type: 'field', prompt: 'Pineapple on pizza \u2014 place it', ax: ['tastes bad', 'tastes good'], ay: ['a crime', 'high art'], n: 6800, cloud: [[22, 72, 10, 14], [76, 26, 12, 15], [54, 50, 4, 10]] },
   { id: 'fd2', cat: 'bigq', type: 'field', prompt: 'Small talk \u2014 place it', ax: ['painful', 'pleasant'], ay: ['pointless', 'essential'], n: 4100, cloud: [[64, 32, 12, 16], [30, 60, 8, 14], [50, 48, 6, 12]] },
   { id: 'fd3', cat: 'bigq', type: 'field', prompt: 'AI assistants, today \u2014 place them', ax: ['overhyped', 'underrated'], ay: ['scary', 'exciting'], n: 5600, cloud: [[42, 38, 10, 16], [68, 30, 8, 13], [30, 66, 7, 12]] },

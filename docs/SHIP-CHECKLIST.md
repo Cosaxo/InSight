@@ -55,10 +55,10 @@ the verification — treat a successful seed as proof of both.
 3. **The remaining step: Actions → *Seed content* → Run workflow.** No
    sign-in, no dev machine, nothing to install.
 
-   616 questions land in `v2_questions`. Re-running is safe (idempotent,
+   653 questions land in `v2_questions`. Re-running is safe (idempotent,
    never resets the `active` kill switch) and, since D34, genuinely cheap:
    it rewrites only documents whose content changed and leaves `contentRev`
-   alone, so a reseed no longer costs every returning device a 616-read
+   alone, so a reseed no longer costs every returning device a 653-read
 bank refetch. The job summary reports `{written, skipped}` — a no-op
    reseed reports `written: 0`.
 
@@ -496,7 +496,7 @@ Both apps must be registered under `com.cosaxo.insight`:
 
 ## 3b · Invite links — two fingerprints (account-gated)
 
-**The custom scheme carries this now (D232).** `insight://join/CODE` is
+**The custom scheme carries this now (D238).** `insight://join/CODE` is
 registered on both platforms and needs no fingerprint at all, so a tapped
 invite reaches the app today: `web/join.html`'s one button navigates
 there. Nothing below is on the critical path any more — a tapped code no

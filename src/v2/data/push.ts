@@ -2,13 +2,13 @@
 // is a no-op. Requires the platform Firebase config files
 // (google-services.json / GoogleService-Info.plist) to actually deliver.
 //
-// TWO CLASSES since D230, each on its own Android channel, both sent by
+// TWO CLASSES since D236, each on its own Android channel, both sent by
 // functions/src/v2social.ts through one fan-out (sendPushToUids):
 //
 //   · "yesterday is revealed"  — revealGroupDay,   channel "reveals"
 //   · "someone invited you"    — inviteToGroupV2,  channel "invites"
-//   · "someone wants to join"  — requestJoinV2,    channel "invites"  (D234)
-//   · "you're in"              — approveJoinV2,    channel "invites"  (D234)
+//   · "someone wants to join"  — requestJoinV2,    channel "invites"  (D240)
+//   · "you're in"              — approveJoinV2,    channel "invites"  (D240)
 //
 // It was one class for a long time and this comment said so. The second is
 // what turned D122's invitation — consent, an inbox, a handle registry —
@@ -61,7 +61,7 @@ export async function registerPush(
     // foregrounded app renders the payload itself.
     // Creating an existing channel is a no-op, so this is safe every boot.
     //
-    // TWO CHANNELS SINCE D230, and the split is not decoration. A channel
+    // TWO CHANNELS SINCE D236, and the split is not decoration. A channel
     // carries a name and a description into Android's own settings, and
     // it is what a person switches off when they want less. Posting an
     // invitation to "reveals" would put it under a description that says
@@ -86,14 +86,14 @@ export async function registerPush(
         {
           id: "invites",
           name: "Invitations",
-          // Covers BOTH directions since D234: an invitation to you,
+          // Covers BOTH directions since D240: an invitation to you,
           // and somebody asking to join a circle you are in. One
           // channel because they are one concern — who is joining
           // what — and a person muting one would mean to mute both.
           description: "When someone invites you, or asks to join your circle.",
           // 4, same as reveals: an invitation is a person waiting on an
           // answer from you, and one that arrives silently is the thing
-          // D230 exists to fix.
+          // D236 exists to fix.
           importance: 4 as const,
           // Public, and it costs nothing to say so: the text carries a
           // display name and a circle's name, both of which D98 already
@@ -165,7 +165,7 @@ export async function registerPush(
         land();
         return;
       }
-      // A join request, or an approval of yours (D234). BOTH name a
+      // A join request, or an approval of yours (D240). BOTH name a
       // circle this account is in — you are a member of the one somebody
       // is asking to join, and you have just become a member of the one
       // that let you in — so the gid resolves and the tap can land on
@@ -179,7 +179,7 @@ export async function registerPush(
         land();
         return;
       }
-      // An invitation (D230). The gid is deliberately NOT stashed the way a
+      // An invitation (D236). The gid is deliberately NOT stashed the way a
       // reveal's is: a reveal lands on a circle you are already in, and
       // DailySplit resolves it through LIVE.social.groups(). An invitee is
       // by definition not a member yet, so that lookup finds nothing and

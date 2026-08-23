@@ -35,6 +35,8 @@ import {
   SEEDED_FIELDS,
   foldCanonAnchors,
   canonTopN,
+  validRankOrder,
+  foldRankOrder,
   canonBreakdownFor,
   CANON_BY_MAX_ENTITIES,
   isPlausibleFcmToken,
@@ -1864,5 +1866,39 @@ describe("fcmBatches", () => {
 
   it("is empty for no tokens, so a caller can loop without a guard", () => {
     expect(fcmBatches([])).toEqual([]);
+  });
+});
+
+describe("validRankOrder / foldRankOrder — the order fold's trust boundary (D233)", () => {
+  it("admits exactly the permutations of 0..n-1", () => {
+    expect(validRankOrder([2, 0, 1, 3], 4)).toEqual([2, 0, 1, 3]);
+    expect(validRankOrder([1, 0], 2)).toEqual([1, 0]);
+  });
+
+  it("refuses every wrong shape the rules cannot see", () => {
+    // Rules bound the SIZE; each of these clears that bound and dies here.
+    expect(validRankOrder([0, 1, 2, 2], 4)).toBeNull(); // duplicate
+    expect(validRankOrder([0, 1, 2, 4], 4)).toBeNull(); // out of range
+    expect(validRankOrder([0, 1, 2, -1], 4)).toBeNull(); // negative
+    expect(validRankOrder([0, 1, 2, 1.5], 4)).toBeNull(); // not an int
+    expect(validRankOrder([0, 1, 2, "3"], 4)).toBeNull(); // not a number
+    expect(validRankOrder([0, 1, 2], 4)).toBeNull(); // wrong length
+    expect(validRankOrder("0,1,2,3", 4)).toBeNull(); // not a list
+    expect(validRankOrder([0], 1)).toBeNull(); // a rank of one ranks nothing
+    expect(validRankOrder([], 0)).toBeNull();
+  });
+
+  it("folds position sums an answer at a time, and the crowd order falls out", () => {
+    const pos = [0, 0, 0, 0];
+    // Two answerers agree items run 2, 0, 1, 3; one dissents entirely.
+    foldRankOrder(pos, [2, 0, 1, 3]);
+    foldRankOrder(pos, [2, 0, 1, 3]);
+    foldRankOrder(pos, [3, 1, 0, 2]);
+    // item 2 sat at positions 0,0,3 → 3; item 0 at 1,1,2 → 4;
+    // item 1 at 2,2,1 → 5; item 3 at 3,3,0 → 6.
+    expect(pos).toEqual([4, 5, 3, 6]);
+    // Ascending mean position = the published crowd order: 2, 0, 1, 3.
+    const rank = [...pos.keys()].sort((a, b) => pos[a] - pos[b] || a - b);
+    expect(rank).toEqual([2, 0, 1, 3]);
   });
 });

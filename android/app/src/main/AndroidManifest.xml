@@ -44,7 +44,7 @@
                       android:pathPrefix="/join/" />
             </intent-filter>
 
-            <!-- The SAME invite link, by custom scheme (D232). This is what
+            <!-- The SAME invite link, by custom scheme (D238). This is what
                  the hosted /join page's "Open in InSight" button navigates
                  to, and it is why a tapped invite no longer ends in a code
                  somebody has to read and type: an https link only reaches

@@ -156,6 +156,8 @@ import {
   duelQFor as duelQForPure,
   hasPublishedCounts,
   isCore,
+  rankCrowdFor,
+  CANON_BOARD_N,
   splitBanks,
   utcDayIndex as utcDayIndexPure,
 } from "./deck";
@@ -345,7 +347,7 @@ const state = {
   // different things for those two.
   circle: null as CircleMember[] | null,
   circleLoading: false,
-  // Name-prefix searches already answered this session (D233), keyed by
+  // Name-prefix searches already answered this session (D239), keyed by
   // the lowercased prefix. A search box asks the same question on every
   // backspace and the answer cannot have changed between two keystrokes.
   peopleSearch: new Map<string, DirectoryPerson[]>(),
@@ -481,13 +483,16 @@ const REVEAL_HIST_DAYS = 14;
 // Clearing the timer alone would not close the snapshot writers.
 let torndown = false;
 
-function cacheVote(aid: string, optionIdx: number): void {
+// `stored` is the answer's value in the cache's own string form: an
+// optionIdx or entity as digits, a rank order as the joined "2,0,1,3"
+// (D233) — exactly what hydrate's fold would re-derive from the doc.
+function cacheVote(aid: string, stored: number | string): void {
   if (torndown) return;
   try {
     const ANS_LS = "insight.answersCache.v1";
     const cached = JSON.parse(localStorage.getItem(ANS_LS) || "null") || { uid: state.uid, votes: {}, maxTs: 0 };
     if (cached.uid !== state.uid) return;
-    cached.votes[aid] = String(optionIdx);
+    cached.votes[aid] = String(stored);
     localStorage.setItem(ANS_LS, JSON.stringify(cached));
   } catch {
     /* best-effort */
@@ -1094,12 +1099,18 @@ async function hydrate(): Promise<void> {
   // and the aggregate persist, the archive is the product. Feed-only by
   // the gates (check:content), so the daily tombstone note below is
   // untouched; `active: false` remains the hard, server-enforced kill.
-  const fresh = (q: { until?: string }) => !q.until || q.until >= utcDayKey(0);
+  const today = utcDayKey(0);
+  // Both ends, so `from` is a real serving boundary and not just the ring's
+  // start: an editor can write next week's question this week and have it
+  // appear on the day, rather than having to be awake to merge it. Day keys
+  // are zero-padded, so string order is date order.
+  const fresh = (q: { from?: string; until?: string }) =>
+    (!q.until || q.until >= today) && (!q.from || q.from <= today);
   const active = sorted.filter((q) => q.active !== false && fresh(q));
 
   // Allowlist split per surface — pure and unit-tested in deck.ts
-  // (splitBanks carries the why-comments: playability, the D12 rank
-  // exclusion, and the D32 learn fencing).
+  // (splitBanks carries the why-comments: playability, the catalog
+  // carve-out, and the D32 learn fencing).
   const banks = splitBanks(active);
   // THE DAILY LANE KEEPS ITS RETIRED QUESTIONS, as tombstones. Every other
   // surface iterates its bank, so dropping an inactive question there simply
@@ -1174,6 +1185,22 @@ async function hydrate(): Promise<void> {
     const fold = (d: { id: string; get: (f: string) => unknown }) => {
       const optionIdx = d.get("optionIdx");
       if (typeof optionIdx === "number") state.votes[d.id] = String(optionIdx);
+      // Catalog answers carry `entity` and rank answers carry `order` —
+      // never `optionIdx` (D14/D233). Both join the same map in string
+      // form (the entity's digits; the order joined with commas) —
+      // votes[] is "what did I answer", and every consumer that
+      // INTERPRETS the value goes through the question's type
+      // (mirrorVoteValue, buildFeedGlobals) — so skipping either here
+      // would re-offer the card on a fresh device and the create-only
+      // rule would then refuse the re-answer.
+      else {
+        const entity = d.get("entity");
+        if (typeof entity === "number") state.votes[d.id] = String(entity);
+        else {
+          const order = d.get("order");
+          if (Array.isArray(order)) state.votes[d.id] = order.join(",");
+        }
+      }
       const at = d.get("answeredAt") as { toMillis?: () => number } | undefined;
       if (at && typeof at.toMillis === "function") maxTs = Math.max(maxTs, at.toMillis());
       const et = d.get("editedAt") as { toMillis?: () => number } | undefined;
@@ -1322,7 +1349,9 @@ async function hydrate(): Promise<void> {
     const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
     state.feedBank.forEach((q) => {
       const v = state.votes[q.id];
-      if (v != null && wf[q.id] == null) wf[q.id] = mirrorVoteValue(q, Number(v));
+      if (v == null || wf[q.id] != null) return;
+      const mv = mirrorVoteValue(q, v);
+      if (mv != null) wf[q.id] = mv;
     });
     localStorage.setItem(WF_LS, JSON.stringify(wf));
   } catch {
@@ -1350,10 +1379,28 @@ function feedCounts(q: QuestionDoc & { id: string }): number[] {
 // knows. The midpoint math duplicates dialBucketMid/fieldCellMid
 // (world-feed.jsx) because data/ cannot import the spec layer;
 // vote.test.ts pins the values so the twins cannot drift apart silently.
+// A rank answer's stored form is its order joined with commas ("2,0,1,3"
+// — D233), the one non-numeric value the votes map holds. Parsed back
+// strictly: anything that is not a clean integer list reads as null, and
+// a null never reaches the mirror.
+function storedOrder(v: string | undefined): number[] | null {
+  if (typeof v !== "string" || !v.includes(",")) return null;
+  const order = v.split(",").map(Number);
+  return order.every((x) => Number.isInteger(x) && x >= 0) ? order : null;
+}
+
 function mirrorVoteValue(
   q: QuestionDoc,
-  idx: number,
-): number | { x: number; y: number } {
+  stored: string,
+): number | { x: number; y: number } | { entity: number } | { order: number[] } | null {
+  // A rank answer mirrors as the card's own shape ({ order }, tapRank's
+  // write) — the stored string is the joined order, not an index at all.
+  if (q.type === "rank") {
+    const order = storedOrder(stored);
+    return order ? { order } : null;
+  }
+  const idx = Number(stored);
+  if (Number.isNaN(idx)) return null;
   if (q.type === "dial") {
     const lo = q.lo ?? 0;
     const hi = q.hi ?? 100;
@@ -1362,17 +1409,23 @@ function mirrorVoteValue(
   if (q.type === "field") {
     return { x: ((idx % 4) + 0.5) * 25, y: (Math.floor(idx / 4) + 0.5) * (100 / 3) };
   }
+  // A catalog answer's stored value IS the entity key (D14) — the control's
+  // unit and the store's coincide — but the card keeps it wrapped
+  // ({ entity }, setPick's own shape) so the feed can never mistake a dex
+  // number for an option index.
+  if (q.type === "catalog") return { entity: idx };
   return idx;
 }
 
 // Replace the demo feed globals with live-shaped cards: real questions,
-// real k-floored counts, no seeded comments (D1 — renderEngage is also
-// gated off for q.live cards). Rankings/scales are deferred; every live
-// card renders through the options path — EXCEPT the continuum forms
-// (dial/field, D114), which keep their bank type: their options are
-// synthesized bucket/cell labels, the per-option counts ARE the crowd's
-// distribution, and world-feed renders them through their own bodies
-// (curve / cloud) instead of option rows.
+// real exact counts, no seeded comments (D1 — renderEngage is also
+// gated off for q.live cards). Every live card renders through the
+// options path — EXCEPT the forms that keep their bank type because
+// their answer space is not an option row: the continuum pair
+// (dial/field, D114, synthesized bucket/cell labels whose counts ARE
+// the crowd's distribution), catalogue picks (D14/D232, the board from
+// the published canon) and rankings (D233, the crowd order derived
+// from the published position sums).
 function buildFeedGlobals(): void {
   if (!state.feedBank.length) return;
   // Crossroads (D136) is a feed question but NOT a feed card: its reveal is
@@ -1382,8 +1435,51 @@ function buildFeedGlobals(): void {
   // the stream. It rides its own accessor below; everything else about it
   // is ordinary (real options, real counts, the same fold and ledger).
   const feed = state.feedBank
-    .filter((q) => q.surface === "feed" && q.type !== "path" && (q.options || []).length >= 2)
+    .filter((q) => q.surface === "feed" && q.type !== "path"
+      && ((q.options || []).length >= 2 || q.type === "catalog"))
     .map((q) => {
+      // Catalogue picks (D14 gone live) keep their own card shape: no
+      // options — the catalogue is the answer space — so none of the
+      // option-counts apparatus below applies. The board itself is not
+      // here either: the reveal reads LIVE.pickCanon at render time, the
+      // pathQs() precedent, because the canon re-sorts as votes land and
+      // a snapshot baked into the pool would go stale between rebuilds.
+      // `n` is the one number the collapsed card prints.
+      if (q.type === "catalog") {
+        return {
+          id: q.id,
+          cat: q.topic || "fav",
+          type: "pick",
+          domain: q.domain,
+          prompt: q.prompt,
+          n: state.aggs[q.id]?.total ?? 0,
+          ...(q.also && q.also.length ? { also: q.also } : {}),
+          live: true,
+          noCountsYet: !hasPublishedCounts(state.aggs[q.id]),
+        };
+      }
+      // Rank cards (D12 → D233) keep their own shape too: `items` are the
+      // seeded options, `crowd` is DERIVED from the published position
+      // sums — 1-based rank per item, the demo's exact contract — with
+      // the viewer's own folded order subtracted first (rankCrowdFor),
+      // and null while nobody ELSE has ranked, which is the card's
+      // first-voter state. Mapping a rank doc through the generic vote
+      // arm below is precisely the wrong-shaped card D12 pulled.
+      if (q.type === "rank") {
+        const agg = state.aggs[q.id];
+        return {
+          id: q.id,
+          cat: q.topic || "culture",
+          type: "rank",
+          prompt: q.prompt,
+          items: q.options,
+          crowd: rankCrowdFor(agg, storedOrder(state.votes[q.id]), q.id in state.unaggregated),
+          votes: agg?.total ?? 0,
+          ...(q.also && q.also.length ? { also: q.also } : {}),
+          live: true,
+          noCountsYet: !hasPublishedCounts(agg),
+        };
+      }
       // Hoisted: feedCounts walks the whole option list, so calling it
       // inside the per-option map made this O(n^2) per card — and it
       // re-runs after every vote.
@@ -1408,6 +1504,12 @@ function buildFeedGlobals(): void {
         // label from that one value. Emit-when-set, so an ordinary card is
         // byte-for-byte what it was.
         ...(q.sponsor ? { sponsor: q.sponsor, until: q.until } : {}),
+        // The ask window (D231): a current-events card draws its own
+        // deadline as a draining ring, which needs both ends. Not for a
+        // sponsored card — that one already states its window in the PAID
+        // band, and the same fact in two shapes on one card reads as two
+        // facts.
+        ...(!q.sponsor && q.from && q.until ? { from: q.from, until: q.until } : {}),
         // Doors (docs/TAGS-PLAN.md §2): the topics this card also belongs
         // to. The feed's filter, stock and search read cat ∪ also; nothing
         // that PLACES the card does. Emit-when-set, same rule as sponsor.
@@ -1624,7 +1726,7 @@ const SOCIAL = {
     return out;
   },
   /**
-   * Ask to join by invite code — what a tapped link now does (D234).
+   * Ask to join by invite code — what a tapped link now does (D240).
    *
    * `status` is the whole return: `joined` when the circle had already
    * invited them (their side of the consent was on record, so the link
@@ -1643,7 +1745,7 @@ const SOCIAL = {
     pushEarned();
     return out;
   },
-  /** Let somebody in who asked (D234). Members only, enforced server-side. */
+  /** Let somebody in who asked (D240). Members only, enforced server-side. */
   async approveJoin(gid: string, uid: string) {
     return callable<{ ok: boolean }>("approveJoinV2", { gid, uid });
   },
@@ -1666,7 +1768,7 @@ const SOCIAL = {
     return mod.uidForHandle(db, handle);
   },
   /**
-   * People whose display name starts with what was typed (D233).
+   * People whose display name starts with what was typed (D239).
    *
    * The other half of `whoIs`, and the reason it is a different call
    * rather than a smarter one: a handle is an exact address and a name
@@ -1703,7 +1805,7 @@ const SOCIAL = {
     return out;
   },
   /**
-   * Invite one account, or a whole selection (D230).
+   * Invite one account, or a whole selection (D236).
    *
    * The array is sent as an ARRAY rather than looped here: the server's
    * per-hour budget charges per recipient, so a client-side loop would be
@@ -1720,7 +1822,7 @@ const SOCIAL = {
     const out = await callable<{ gid: string; name: string }>("acceptGroupInviteV2", {
       gid, displayName: state.profile.displayName,
     });
-    // THE THIRD MOMENT THAT EARNS THE PROMPT (D230). createGroup and
+    // THE THIRD MOMENT THAT EARNS THE PROMPT (D236). createGroup and
     // joinGroup have always called this; accepting an invitation is the
     // same act by a different door and was the one that did not, so a
     // person whose entire path into the app was "a friend invited me"
@@ -2463,7 +2565,7 @@ const LIVE = {
     const uid = state.uid;
     if (!uid) throw new Error("no session");
     await setDoc(doc(db, "v2_users", uid), { displayName: name }, { merge: true });
-    // The directory row (D233), written beside the profile rather than
+    // The directory row (D239), written beside the profile rather than
     // derived from it by a trigger: a trigger would be a function
     // invocation per profile write for a two-field copy, and the rules
     // already force `nameKey` to equal `name`, so the client cannot
@@ -3650,6 +3752,78 @@ const LIVE = {
       .filter((q) => q.surface === "feed" && q.type === "path")
       .map((q) => ({ ...q, counts: feedCounts(q) }));
   },
+  /**
+   * The live pick card's board (D14 gone live): the published canon — the
+   * CANON_TOP_N biggest entities plus everything else summed into `rest` —
+   * in exactly the shape the demo store returns (spec/pick-data.js
+   * PICKS.canon), so the card switches source on q.live and reshapes
+   * nothing. Your own UNFOLDED pick joins at read time, the store's own
+   * convention: once the trigger folds it the published doc already counts
+   * it, so only `unaggregated` adds here. Entity 0 ("Not listed") joins
+   * the total and thereby `rest`, never the board — counted, not
+   * enumerated. `restEntities`/`restBelowFloor` are the DEMO fold's two
+   * tail scalars: the server publishes neither (post-D98 there is no
+   * floor and the tail is simply everything outside the top N), so they
+   * read empty here and the card's fold-note copy stays silent.
+   */
+  pickCanon(qid: string): {
+    top: Array<{ entity: number; count: number }>;
+    rest: number;
+    total: number;
+    restEntities: number;
+    restBelowFloor: boolean;
+  } {
+    const agg = state.aggs[qid];
+    const counts: Record<string, number> = { ...(agg?.top || {}) };
+    let total = agg?.total ?? 0;
+    if (qid in state.unaggregated) {
+      total += 1;
+      const k = String(state.unaggregated[qid]);
+      if (k !== "0") counts[k] = (counts[k] || 0) + 1;
+    }
+    const rows = Object.keys(counts)
+      .map((k) => ({ entity: Number(k), count: counts[k] }))
+      .sort((a, b) => b.count - a.count || a.entity - b.entity);
+    // The board size the fold publishes — the pending join above can push
+    // the list to N+1 for the seconds before the trigger folds, and the
+    // card's spots copy assumes the cap. CANON_BOARD_N is the pinned twin
+    // of the server's CANON_TOP_N (deck.ts has the why).
+    const top = rows.slice(0, CANON_BOARD_N);
+    const shown = top.reduce((a, r) => a + r.count, 0);
+    return { top, rest: total - shown, total, restEntities: 0, restBelowFloor: false };
+  },
+  /**
+   * The segment chips a live pick card offers — flattened from the
+   * published `by` (D17), in the doc's own order. PICKS.segs' shape.
+   */
+  pickSegs(qid: string): Array<{ dim: string; bucket: string }> {
+    const by = state.aggs[qid]?.by;
+    if (!by) return [];
+    const out: Array<{ dim: string; bucket: string }> = [];
+    for (const dim of Object.keys(by)) {
+      for (const bucket of Object.keys(by[dim] || {})) out.push({ dim, bucket });
+    }
+    return out;
+  },
+  /**
+   * One segment's ordering of the global board (D17): rows are the
+   * published cell — already cut to the board's own entities server-side —
+   * and `cohort` is the SHOWN total, the deliberately conservative "as N
+   * of them see it" number D17 records. Null when the question holds no
+   * slice for that segment. PICKS.canonSeg's contract.
+   */
+  pickSeg(
+    qid: string,
+    dim: string,
+    bucket: string,
+  ): { rows: Array<{ entity: number; count: number }>; cohort: number } | null {
+    const cell = state.aggs[qid]?.by?.[dim]?.[bucket];
+    if (!cell) return null;
+    const rows = Object.keys(cell)
+      .map((k) => ({ entity: Number(k), count: cell[k] }))
+      .sort((a, b) => b.count - a.count || a.entity - b.entity);
+    return { rows, cohort: rows.reduce((a, r) => a + r.count, 0) };
+  },
   // Votes the server has acknowledged (or that hydrate read back) —
   // excludes writes still in flight so permanent records (the Map)
   // never keep a vote whose setDoc may yet be refused. Keyed off
@@ -3895,6 +4069,124 @@ const LIVE = {
       }
     })();
   },
+  /**
+   * One favourite from a shipped catalogue (D14): `entity` is the
+   * catalogue key — never a string, never an option index — and the doc
+   * carries it in optionIdx's place, which is what routes it down the
+   * trigger's canon fold. vote()'s shape otherwise: create-only (no edit
+   * path exists for picks, and the rules' edit arm cannot admit one),
+   * optimistic with rollback, cached on server ack only. The outer bound
+   * mirrors the rules' sanity ceiling; the real validation is the
+   * trigger's, against the committed catalogue the question's domain
+   * names — an unknown key never aggregates.
+   */
+  votePick(qid: string, entity: number): void {
+    if (state.votes[qid]) return; // one answer per question, mirroring rules
+    if (!Number.isInteger(entity) || entity < 0 || entity >= 1_000_000_000) return;
+    state.votes[qid] = String(entity);
+    state.inflight[qid] = true;
+    state.unaggregated[qid] = entity;
+    notify();
+    void (async () => {
+      try {
+        const db = await getDb();
+        const uid = state.uid;
+        if (!uid) throw new Error("no session");
+        const q = state.feedBank.find((x) => x.id === qid);
+        await setDoc(doc(db, "v2_users", uid, "answers", qid), {
+          qid,
+          surface: q?.surface ?? "feed",
+          entity,
+          answeredAt: serverTimestamp(),
+          anchors: answerAnchors(q?.rates),
+        });
+        // Server ack only — the same answers-cache doctrine as vote():
+        // caching optimistically would let a refused write resurrect a
+        // phantom pick on every future boot.
+        delete state.inflight[qid];
+        cacheVote(qid, entity);
+        notify();
+        scheduleAggRefresh(db, qid);
+      } catch (err) {
+        delete state.votes[qid];
+        delete state.inflight[qid];
+        delete state.unaggregated[qid];
+        try {
+          const WF_LS = "insight.feedVotes.v1";
+          const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
+          if (qid in wf) {
+            delete wf[qid];
+            localStorage.setItem(WF_LS, JSON.stringify(wf));
+          }
+        } catch {
+          /* best-effort */
+        }
+        notify();
+        reportError(err, { where: "votePick", qid });
+      }
+    })();
+  },
+  /**
+   * A ranking (D233): `order` is the item indexes in the answerer's
+   * sequence — an ORDER, never an index — and the doc carries it in
+   * optionIdx's place, which routes it down the trigger's position-sum
+   * fold. vote()'s shape otherwise: create-only (no edit path exists,
+   * and the rules' edit arm cannot admit one), optimistic with rollback,
+   * cached on server ack only. The bounds here mirror what rules can
+   * check (length against the bank doc's own item count) plus what only
+   * the trigger re-checks (a clean permutation) — a doomed write spared
+   * client-side is the same mirror editVote keeps.
+   */
+  voteRank(qid: string, order: number[]): void {
+    if (state.votes[qid]) return; // one answer per question, mirroring rules
+    const q = state.feedBank.find((x) => x.id === qid);
+    if (q?.type !== "rank") return;
+    const n = q.options.length;
+    if (!Array.isArray(order) || order.length !== n || n < 2) return;
+    if (order.some((v) => !Number.isInteger(v) || v < 0 || v >= n)) return;
+    if (new Set(order).size !== n) return;
+    state.votes[qid] = order.join(",");
+    state.inflight[qid] = true;
+    // The value is unread for ranks (nothing subtracts an order from a
+    // counts array) — the KEY is the pending flag rankCrowdFor and the
+    // agg refresh both key on, same lifecycle as every other vote.
+    state.unaggregated[qid] = 0;
+    notify();
+    void (async () => {
+      try {
+        const db = await getDb();
+        const uid = state.uid;
+        if (!uid) throw new Error("no session");
+        await setDoc(doc(db, "v2_users", uid, "answers", qid), {
+          qid,
+          surface: q.surface,
+          order,
+          answeredAt: serverTimestamp(),
+          anchors: answerAnchors(q.rates),
+        });
+        delete state.inflight[qid];
+        cacheVote(qid, order.join(","));
+        notify();
+        scheduleAggRefresh(db, qid);
+      } catch (err) {
+        delete state.votes[qid];
+        delete state.inflight[qid];
+        delete state.unaggregated[qid];
+        try {
+          const WF_LS = "insight.feedVotes.v1";
+          const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
+          if (qid in wf) {
+            delete wf[qid];
+            localStorage.setItem(WF_LS, JSON.stringify(wf));
+          }
+        } catch {
+          /* best-effort */
+        }
+        notify();
+        reportError(err, { where: "voteRank", qid });
+      }
+    })();
+  },
   // D86: move an EXISTING answer to a different option — the one
   // repeatable answer write (vote() above is create-only and no-ops on an
   // answered question, mirroring the rules). Daily, feed and test cards
@@ -3910,6 +4202,13 @@ const LIVE = {
     const prev = state.votes[qid];
     if (!prev || prev === optionId) return false;
     if (qid in state.inflight) return false;
+    // Catalog picks and rank answers are create-only (D14/D233): the
+    // rules' edit arm keys on the OLD doc carrying optionIdx, which an
+    // entity or order answer never does, so the write below is doomed for
+    // both. Neither card offers an edit affordance — this mirror spares
+    // the round-trip if a future surface calls in anyway.
+    const editType = state.feedBank.find((x) => x.id === qid)?.type;
+    if (editType === "catalog" || editType === "rank") return false;
     const optionIdx = Number(optionId);
     if (!Number.isInteger(optionIdx) || optionIdx < 0) return false;
     if (Date.now() - (state.editedAt[qid] || 0) < 60_000) return false;
@@ -3954,7 +4253,8 @@ const LIVE = {
             // gone (only the feed ever knew it) — the standing bucket's
             // midpoint is the closest the doc can testify to.
             const q = state.feedBank.find((x) => x.id === qid);
-            wf[qid] = q ? mirrorVoteValue(q, Number(prev)) : Number(prev);
+            const mv = q ? mirrorVoteValue(q, prev) : null;
+            wf[qid] = mv != null ? mv : Number(prev);
             localStorage.setItem(WF_LS, JSON.stringify(wf));
           }
         } catch {
@@ -4270,7 +4570,7 @@ export function refreshLive(): Promise<void> {
         .then((m) => m.registerPush(forUid))
         .catch(() => { if (pushRegisteredFor === forUid) pushRegisteredFor = null; });
     }
-    // The directory row for an account that already had a name (D233),
+    // The directory row for an account that already had a name (D239),
     // fire-and-forget and once per (uid, name) per device.
     //
     // THE BACKFILL, and it is why this is here rather than left to

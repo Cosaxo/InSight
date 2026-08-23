@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// One person, drawn one way (D233). Three surfaces list people you might
+// One person, drawn one way (D239). Three surfaces list people you might
 // add — the create picker, add-to-a-circle, the search overlay — and they
 // were drawing the same subject three ways before this existed.
 //

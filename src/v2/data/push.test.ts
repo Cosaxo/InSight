@@ -151,7 +151,7 @@ describe("registerPush — the prompt is asked for, not assumed", () => {
   });
 });
 
-// ── the two channels, and the tap that routes (D230) ─────────────
+// ── the two channels, and the tap that routes (D236) ─────────────
 
 describe("channels", () => {
   const grant = async () => {
@@ -177,7 +177,7 @@ describe("channels", () => {
     await grant();
     const byId = Object.fromEntries(h.channels.map((c) => [c.id, c]));
     expect(byId.reveals.description).toBe("When a group or duo day is revealed.");
-    // Both directions since D234 — an invitation to you, and somebody
+    // Both directions since D240 — an invitation to you, and somebody
     // asking to join a circle you are in. One channel, because a
     // person muting one would mean to mute both.
     expect(byId.invites.description).toBe("When someone invites you, or asks to join your circle.");
@@ -236,7 +236,7 @@ describe("a tapped notification lands somewhere", () => {
   });
 });
 
-// ── a circle you are in, either direction (D234) ───────────────────
+// ── a circle you are in, either direction (D240) ───────────────────
 describe("a tapped join notification", () => {
   const tap = async (data: Record<string, unknown>) => {
     h.platform = "android";

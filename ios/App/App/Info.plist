@@ -44,7 +44,7 @@
 				<string>com.googleusercontent.apps.437999864865-vqpbjkbk34fsqms3st4pt09f72rc2dan</string>
 			</array>
 		</dict>
-		<!-- Invite links by custom scheme (D232). The Associated Domains
+		<!-- Invite links by custom scheme (D238). The Associated Domains
 		     entitlement above is the better route and stays the preferred
 		     one; this is the route that needs no fingerprint and no CDN
 		     fetch, so an invite reaches the app on the day it is sent

@@ -14,7 +14,7 @@ import { Av, AnonAv, anonName, useDialog } from './primitives.jsx';
 // search-overlay.jsx — one field, three kinds of answer: questions, topics, people.
 // A question hit is the real question: tap it and the feed's own card opens in
 // place, so you can vote from search instead of going hunting for the card.
-// The LIVE people section (D231). An ESM import rather than a global:
+// The LIVE people section (D237). An ESM import rather than a global:
 // this module is deferred behind loadOverlays(), so the chunk it pulls is
 // not first paint, and a real import is one less name resolved at render
 // time (check:globals rule 4).
@@ -257,7 +257,7 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
   // anything, searching a name that resolves would print "nothing found"
   // directly above the person it found.
   //
-  // REPORTED, not predicted (D233). It used to be a synchronous
+  // REPORTED, not predicted (D239). It used to be a synchronous
   // predicate — "does this look like a handle" — which was answerable
   // because a handle is a shape. A name is not: whether anybody is
   // called that is a query, and a guess made before it returns is wrong

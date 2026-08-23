@@ -94,7 +94,7 @@ const liveReady = () => {
 
 // The mode of the circle this gid names, or null when it names none this
 // account is in. Shared by both gid-shaped pending targets — a tapped
-// reveal, and a tapped join request or approval (D234) — so the store is
+// reveal, and a tapped join request or approval (D240) — so the store is
 // reached once here rather than once in each of them, which is the
 // difference check:globals rule 4 counts.
 const modeOfGroup = (gid) => {
@@ -149,7 +149,7 @@ class DailySplit extends React.Component {
     window.addEventListener('insight:local-purge', this._onPurge);
     // the window event fires on every store notify AND on push-tap
     // dispatch — either way, try to consume a pending reveal or
-    // invitation target (D230)
+    // invitation target (D236)
     this._pendingHandler = () => this.consumePending();
     window.addEventListener('insight-live-update', this._pendingHandler);
     this.consumePending();
@@ -186,7 +186,7 @@ class DailySplit extends React.Component {
     return true;
   }
 
-  // A tapped INVITATION (D230) stores the mode, not a gid, and the
+  // A tapped INVITATION (D236) stores the mode, not a gid, and the
   // asymmetry is structural: the tapper is not a member yet, so
   // groups() cannot resolve the circle and the lookup above would find
   // nothing at all. Land on the stop whose LdInvites draws the row.
@@ -199,7 +199,7 @@ class DailySplit extends React.Component {
     return true;
   }
 
-  // A tapped join request, or an approval of one (D234). Same shape as
+  // A tapped join request, or an approval of one (D240). Same shape as
   // the reveal above and for the same reason — both name a circle this
   // account is IN, so groups() resolves the gid — but it is its own key
   // because it is not a reveal and a key that lied about that is how the

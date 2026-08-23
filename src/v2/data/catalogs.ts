@@ -136,6 +136,9 @@ const COUNTRIES = makeCatalog("countries.txt");
 // Minted-key catalogue (build-dogs.mjs), alphabetical initial mint —
 // like COUNTRIES, export-only: its consumers import it.
 const DOGS = makeCatalog("dogs.txt");
+// Hex-derived keys (build-colors.mjs, 1 + parseInt(hex, 16)) — like
+// COUNTRIES, export-only: its consumers import it.
+const COLORS = makeCatalog("colors.txt");
 
 declare global {
   interface Window {
@@ -152,4 +155,4 @@ declare global {
 // exactly what check:globals rule 5 exists to delete.
 Object.assign(globalThis, { FILMS, ARTISTS, EMOJI });
 
-export { FILMS, ARTISTS, EMOJI, COUNTRIES, DOGS };
+export { FILMS, ARTISTS, EMOJI, COUNTRIES, DOGS, COLORS };

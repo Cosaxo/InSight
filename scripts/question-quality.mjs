@@ -81,6 +81,54 @@ export const TAG_WORDS_MAX = 4; // corpus max 4 — "a two-or-three-word label",
 // makes broad tagging pointless (credit is conserved, a door never adds any);
 // this cap is what makes it impossible to try at scale anyway.
 export const ALSO_MAX = 2;
+// ── the current-events lane (D231, docs/NEXT-FUNCTIONALITY.md §1) ──
+//
+// `now` is the one topic whose questions expire. §1 asks for "a bounded
+// window so 'current' cannot mean months", and these are that bound, in
+// days SERVED (inclusive of both ends — a question opened and closed on
+// the same day serves for 1).
+//
+// MIN exists because a window shorter than a weekend is not a question,
+// it is a poll of whoever happened to open the app on a Tuesday; the
+// feed's own quality signal is per-question evenness, and a split
+// measured on a handful of answers is noise (feed-budget.mjs's dilution
+// bound, said about time instead of stock).
+//
+// MAX is §1's sentence made arithmetic. Three weeks is the outer edge of
+// what a reader would still call current; past it the topic is lying in
+// its own name.
+//
+// SHORT is the owner's direction (2026-08-23): every question gets the
+// window that fits it, but most should sit at the low end. A batch rule
+// rather than a per-question one, because "most" is a property of a
+// batch — a single 20-day question is a judgement call, six of them is a
+// lane that has quietly become a monthly.
+export const NOW_TOPIC = "now";
+export const WINDOW_MIN_DAYS = 3;
+export const WINDOW_MAX_DAYS = 21;
+export const WINDOW_SHORT_DAYS = 7;
+
+/** Days served, both ends inclusive. Null unless both ends are real day keys. */
+export function windowDays(from, until) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(from)) || !/^\d{4}-\d{2}-\d{2}$/.test(String(until))) return null;
+  const a = Date.parse(`${from}T00:00:00Z`), b = Date.parse(`${until}T00:00:00Z`);
+  if (Number.isNaN(a) || Number.isNaN(b)) return null;
+  return Math.round((b - a) / 86400000) + 1;
+}
+
+// A prediction is a CALL, not a feed question (§1's first boundary, D127).
+// "Should X resign?" is an opinion and belongs here; "Will X win on
+// Sunday?" needs a sealed answer and a resolved outcome, and must arrive
+// through docs/FORESIGHT-CALLS.md's door or not at all — an unresolved
+// call takes the player's guess and never comes back.
+//
+// A TRIPWIRE, not a proof: the two shapes it catches are the prompt that
+// OPENS as a future interrogative, and the one that pins a claim to a
+// resolution date. "AI will replace most jobs — agree?" is an opinion
+// about the future that no rubric can settle, and it passes both, which
+// is correct. Judged false positives go in ALLOW under `call-shape`.
+const CALL_OPENER = /^\s*(will|won't|who will|what will|when will|how many\b[^?]*\bwill|which\b[^?]*\bwill)\b/i;
+const CALL_DATED = /\bwill\b[^?]*\b(by (the end of|next|this)?\s*\w|before (the|next|this)\b|on (monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|this (week|month)\b|next (week|month)\b)/i;
 export const TONES = new Set(["light", "blend", "deep"]);
 // Option-count shapes per type, exactly as the corpus uses them. scale and
 // rating carry no options (labels are synthesized: LIKERT / "1".."10") and
@@ -387,6 +435,12 @@ export function loadCorpus() {
     "window.PICK_QS = [",
     "pick-data.js",
   );
+  // The LIVE pick seed (D14 go-live): the archive entries above that were
+  // promoted. Validated with the same pick rules, held byte-equal to the
+  // archive by id, and covered by provenance like every live bank.
+  const pickSeed = JSON.parse(
+    readFileSync(join(root, "content", "pick-questions.json"), "utf8"),
+  ).questions;
   const learn = JSON.parse(readFileSync(join(root, "content", "learn-questions.json"), "utf8"));
   // The demo pool is prototype filler EXCEPT its continuum entries
   // (dial/field), which are lane-authored production copy — the feed lane
@@ -430,6 +484,7 @@ export function loadCorpus() {
     subParents: new Map(worldSubs.map((s) => [s.id, s.parent])),
     duel: [...duel.group, ...duel.oneVsOne, ...(duel.romantic ?? [])],
     pick,
+    pickSeed,
     learn,
     pulse,
     learnLevels: learnLevelBounds(),
@@ -464,6 +519,58 @@ export function placeCivicHit(q) {
   const hits = words.filter((w) => PLACES.has(w));
   if (!hits.length || !CIVIC.test(text)) return null;
   return { places: [...new Set(hits)], cue: text.match(CIVIC)[0] };
+}
+
+// ── the tragedy tripwire (D235) ──
+//
+// The owner's rule, on reading the first current-events batch: these
+// questions should avoid tragedies — a terror attack being the named
+// example — because it is an easy way to get the app in trouble.
+//
+// WHY IT IS A RULE AND NOT TASTE. News skews to catastrophe, so a lane
+// whose whole job is "what is happening now" walks into one most weeks.
+// A vote card under a death toll is a body count with buttons: it asks a
+// crowd to take a side on somebody's worst day, and since D98 it then
+// PUBLISHES the exact split doing so. There is no version of that which
+// reads as anything but the app monetising a funeral, and no answer to a
+// journalist asking why it exists.
+//
+// TWO TIERS, because one word list would either miss the thing or fail
+// honest content. The plain list is unambiguous whatever surrounds it.
+// The second fires only on an EVENT word beside a CASUALTY word, which is
+// what separates "markets crashed 8% — panic or noise?" (an event word,
+// no toll, fine) from "the crash that killed 14" (both, and not ours to
+// ask). Measured over the whole 653-entry bank the day it was written:
+// zero entries fire, and the three that trip a single tier are exactly
+// the content the conjunction exists to spare — the Library of
+// Alexandria's earthquake, what a gladiator fight ended in, and the Book
+// of the Dead.
+//
+// LEARN IS CARVED OUT, the same way it is for the place tripwire above
+// and for a sharper reason than symmetry: a learn card has a RIGHT
+// ANSWER. "Who was assassinated in 44 BC?" is history with one correct
+// response; it does not ask anybody to take a side, which is the entire
+// thing this rule is about. Every other surface asks for a side.
+//
+// A TRIPWIRE, NOT THE RULE. The rule lives in QUESTION-FARM.md and cannot
+// be written as a word list, because the same prompt can be ordinary in a
+// quiet week and grotesque in the week of an attack — "is airport
+// security theatre?" being the clean example — and no gate can see the
+// week. What this catches is the unambiguous case; judging the rest is
+// the writing run's job and the audit's. Judged false positives go in
+// ALLOW under `tragedy`, with the reason, the neighbours pattern.
+const TRAGEDY_PLAIN = /\b(terror|terrorist|terrorism|massacres?|genocide|atroci\w+|war crimes?|mass shooting|suicide bomb\w*|beheading|lynching|manslaughter|murder(ed|s)?|assassinat\w+|hostages?|kidnapp\w+|abduct\w+|torture|rape|p?a?edophil\w+)\b/i;
+const TRAGEDY_EVENT = /\b(attacks?|bombing|shootings?|stabbing|strikes?|crash(ed|es)?|derail\w*|sinking|quake|earthquake|floods?|wildfires?|hurricane|famine|outbreak|siege|raid)\b/i;
+const TRAGEDY_TOLL = /\b(death toll|casualt\w+|fatalit\w+|killed|dead|died|deaths|victims?|wounded|injured|mourn\w+|funerals?|bodies|survivors?|missing)\b/i;
+
+export function tragedyHit(q) {
+  const text = textOf(q);
+  const plain = text.match(TRAGEDY_PLAIN);
+  if (plain) return { kind: "plain", cue: plain[0] };
+  const event = text.match(TRAGEDY_EVENT);
+  const toll = text.match(TRAGEDY_TOLL);
+  if (event && toll) return { kind: "casualty", cue: `${event[0]} … ${toll[0]}` };
+  return null;
 }
 
 // ── doors (docs/TAGS-PLAN.md) ──
@@ -567,6 +674,19 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     err("also", `\`also\` is feed/pick only (docs/TAGS-PLAN.md §1) — on ${surface} nothing reads doors${surface === "daily" ? ", and alternative placements are `alts`" : ""}`);
   }
 
+  // Same carve-out as the place rule below, for the reason in the
+  // tripwire's own header: a learn card has a right answer, so it can name
+  // an atrocity as history without asking anyone to take a side.
+  const tragedy = surface === "learn" ? null : tragedyHit(q);
+  if (tragedy) {
+    err(
+      "tragedy",
+      `reads as a question about a tragedy ("${tragedy.cue}") — this app does not put suffering to a vote (D235), ` +
+        "and a published split on one is how it ends up in a story about itself. " +
+        'A human may record "<id>~tragedy" in ALLOW if judged clear.',
+    );
+  }
+
   const place = surface === "learn" ? null : placeCivicHit(q);
   if (place) {
     err(
@@ -613,7 +733,9 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     if (!FEED_TYPES.has(q.type)) {
       err("type-shape", `unknown feed type ${JSON.stringify(q.type)} — vote|rank|duel|dial|field|path`);
     }
-    if (q.type === "rank") warn.push("rank type — not live-servable (D12); fine in the bank, never a lane candidate");
+    // rank is live-servable since D233 (answers carry an order); whether
+    // the FARM may author one is the lane contract's question
+    // (QUESTION-FARM.md), not a per-question warning's.
     // `cat` is REQUIRED, not merely validated-if-present. Every feed question
     // in the bank carries one, so this held by luck for as long as only humans
     // wrote them; a topic-less card has a broken kicker and never appears in
@@ -646,6 +768,40 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     // in the other direction just below.
     if (!mode.texture && typeof q.core !== "boolean") {
       err("core", "a feed question must declare `core` (true = served to everyone and foldable into the Mirror's readings, false = personalized tail) — see docs/SCALE-PLAN.md §1");
+    }
+
+    // ── the current-events lane (D231) ──
+    //
+    // check:content owns the SHAPE of the two window fields (day keys,
+    // feed-only, ordered) and the core refusal. What lives here is
+    // editorial: whether the window is one a reader would still call
+    // current, and whether the question is a question this lane may ask
+    // at all. The two gates deliberately do not restate each other.
+    const windowed = q.from !== undefined || q.until !== undefined;
+    if (q.cat === NOW_TOPIC && !(typeof q.from === "string" && typeof q.until === "string")) {
+      // Both ends, always. A `now` card with no close never stops being
+      // served, which is the whole failure the topic exists to avoid; one
+      // with no open cannot draw its remaining fraction, so the ring would
+      // have to guess — and a guessed deadline on a real one is worse than
+      // no ring at all.
+      err("window", `a ${NOW_TOPIC} question carries both \`from\` and \`until\` — the lane's promise is that it stops being asked`);
+    }
+    if (windowed && q.cat !== NOW_TOPIC && !q.sponsor) {
+      // A window on an ordinary topic is a card that vanishes from a chip
+      // row that gives the reader no reason to expect it. Sponsored slots
+      // are the one other windowed thing, and they announce themselves
+      // with a band (D195).
+      err("window", `a window belongs to the ${NOW_TOPIC} topic or a sponsored slot — an ordinary card that quietly expires is stock a reader cannot account for`);
+    }
+    const days = windowDays(q.from, q.until);
+    if (days !== null && (days < WINDOW_MIN_DAYS || days > WINDOW_MAX_DAYS)) {
+      err("window", `the window runs ${days} day${days === 1 ? "" : "s"} (${WINDOW_MIN_DAYS}-${WINDOW_MAX_DAYS}) — shorter polls whoever opened the app that day, longer stops being current`);
+    }
+    if (q.cat === NOW_TOPIC) {
+      const text = [q.prompt, ...(q.options || []).map((o) => (o && typeof o === "object" ? o.label : o))].filter(Boolean).join(" ");
+      if (CALL_OPENER.test(String(q.prompt || "")) || CALL_DATED.test(text)) {
+        err("call-shape", "this reads as a prediction, not an opinion — a resolved call needs a sealed answer and an executable rubric (docs/FORESIGHT-CALLS.md, D127), and must arrive through that door");
+      }
     }
 
     // ── continuum shapes ── the whole entry is authored, crowd texture
@@ -820,10 +976,6 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
   // options, c/t in range, c≠t, p in 1..99, k 2..6 words) is deliberately
   // absent — two gates disagreeing about the same rule is how one of them
   // gets edited to match the other and both stop meaning anything.
-  if (surface === "feed" && q.until !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(String(q.until))) {
-    err("type-shape", "`until` (the current-events window) must be a YYYY-MM-DD UTC day key");
-  }
-
   if (surface === "pick") {
     // The catalog contract's rule 3 — "Every card carries a `cat`, always" —
     // had no gate behind it: pick got the universal rules only, and all
@@ -958,7 +1110,42 @@ export function checkBatch(batch) {
   // moment a run can still obey it. The 0.75 ceiling is shared with daily
   // deliberately — a batch of eight may be six votes, which is honest,
   // and may not be seven.
-  const feed = batch.filter((q) => q.surface === "feed");
+  // The current-events lane is not the budgeted farm lane, and the two
+  // rules below cannot judge it (D231). TOPIC spread is meaningless: `now`
+  // batches are single-topic by construction, so the rule would fail every
+  // batch this lane can legally write. FORM spread is meaningless for a
+  // reason worth writing down: the two continuum forms are authored TWICE,
+  // the second copy being permanent demo texture in world-feed-data.js,
+  // and a question about this week's news has no business becoming a card
+  // the demo build shows forever — while a `path` needs eight endings it
+  // would outlive by a fortnight. So the lane writes votes, and the form
+  // rule is not a bar it can clear, only one it can trip over.
+  //
+  // What replaces them is the rule this lane actually needs: windows.
+  const now = batch.filter((q) => q.surface === "feed" && q.cat === NOW_TOPIC);
+  const feed = batch.filter((q) => q.surface === "feed" && q.cat !== NOW_TOPIC);
+  if (now.length >= 3) {
+    // Distinct closes, because a batch that expires together empties the
+    // topic in one day — and a topic filter offering an empty chip is
+    // §1's own "reads as abandoned", which it names as worse than not
+    // having the topic at all. Staggering is also the honest thing: six
+    // stories do not stop being current on the same afternoon.
+    const closes = now.map((q) => q.until);
+    const dupes = closes.filter((d, i) => closes.indexOf(d) !== i);
+    if (dupes.length) {
+      errs.push(`${new Set(dupes).size} close date(s) shared across the batch (${[...new Set(dupes)].join(", ")}) — stagger them, or the topic empties in one day`);
+    }
+    // "Each question gets the window that fits it, but most should be
+    // towards the lower end" (the owner, 2026-08-23). Half is the
+    // arithmetic reading of "most" that a batch of three can still satisfy.
+    const short = now.filter((q) => {
+      const d = windowDays(q.from, q.until);
+      return d !== null && d <= WINDOW_SHORT_DAYS;
+    }).length;
+    if (short * 2 < now.length) {
+      errs.push(`${short} of ${now.length} ${NOW_TOPIC} questions run ${WINDOW_SHORT_DAYS} days or less — most of a batch should sit at the short end, or the lane is a monthly wearing a daily's name`);
+    }
+  }
   if (feed.length >= 3) {
     const dominant = (key, label, extra) => {
       const seen = {};
@@ -1056,6 +1243,9 @@ export function checkProvenance(corpus) {
   for (const [surface, bank] of [
     ["daily", corpus.seed.map((q) => q.id)],
     ["feed", corpus.feed.questions.map((q) => q.id)],
+    // The live pick seed (D14 go-live). Rows are keyed by the archive's
+    // own pk id — which IS the seed id, so no archiveId field to rot.
+    ["pick", corpus.pickSeed.map((q) => q.id)],
   ]) {
     const rows = prov[surface] || {};
     for (const id of bank) {
@@ -1106,7 +1296,7 @@ export function checkProvenance(corpus) {
   // two-gate design's whole point. Only content this repo did not
   // hand-write has to prove it was read.
   const aiReviewed = [];
-  for (const surface of ["daily", "feed"]) {
+  for (const surface of ["daily", "feed", "pick"]) {
     for (const [id, row] of Object.entries(prov[surface] || {})) {
       if (row.source !== "farm" && row.source !== "community") continue;
       const r = row.review;
@@ -1284,6 +1474,12 @@ if (invokedDirectly) {
       // copy and would otherwise have fired on every story for a field the
       // candidate did in fact declare and this function dropped.
       core: raw.core,
+      // …and the ask window, for the reason `id` is here (D231): the window
+      // rules read both ends and `sponsor` decides which of them applies, so
+      // a pre-flight that dropped them would print six ✓ on a batch CI is
+      // about to refuse — and the batch rules below would compare six
+      // `undefined` closes and call them a collision.
+      from: raw.from, until: raw.until, sponsor: raw.sponsor,
     };
   };
 
@@ -1419,9 +1615,9 @@ if (invokedDirectly) {
   });
   corpus.feed.questions.forEach((q) => {
     const { errs } = checkQuestion(q, "feed", corpus);
-    // rank's warn line stays out of gate output: the bank legitimately
-    // holds 8 rank questions (D12 keeps them out of the LIVE feed, not the
-    // bank), and a warning printed 8 times every CI run is noise.
+    // warns stay out of the feed walk's gate output (the old rank
+    // exclusion warning printed 8 times per run until D233 retired it;
+    // the suppression outlived it in case a future type earns one).
     report("feed", q.id, errs, []);
   });
   corpus.duel.forEach((q) => {
@@ -1432,6 +1628,29 @@ if (invokedDirectly) {
     const { errs, warn } = checkQuestion(q, "pick", corpus);
     report("pick", q.id, errs, warn);
   });
+  // The LIVE pick seed (D14 gone live) — the archive entries above,
+  // promoted. Two checks: the same pick rules (a hand edit to the seed
+  // alone should fail exactly like one to the archive), and PARITY with
+  // the archive by id, because the whole promote-script contract is
+  // byte-for-byte copies — a retyped prompt or a swapped domain here is
+  // the drift the script exists to make impossible, so the gate holds it.
+  {
+    const byPk = new Map(corpus.pick.map((q) => [q.id, q]));
+    corpus.pickSeed.forEach((q) => {
+      const { errs, warn } = checkQuestion(q, "pick", corpus);
+      report("pick(seed)", q.id, errs, warn);
+      const arch = byPk.get(q.id);
+      const drift = !arch ? "has no archive entry — the seed is promoted FROM pick-data.js, never authored directly"
+        : arch.prompt !== q.prompt ? `prompt differs from the archive's ${JSON.stringify(arch.prompt)}`
+        : arch.domain !== q.domain ? `domain differs from the archive's ${JSON.stringify(arch.domain)}`
+        : arch.cat !== q.cat ? `cat differs from the archive's ${JSON.stringify(arch.cat)}`
+        : null;
+      if (drift) {
+        failed = true;
+        console.error(`  ✗ pick(seed) ${q.id}: ${drift}`);
+      }
+    });
+  }
   corpus.learn.cards.forEach((card) => {
     const { errs, warn } = checkQuestion(learnView(card), "learn", corpus);
     report("learn", card.id, errs, warn);

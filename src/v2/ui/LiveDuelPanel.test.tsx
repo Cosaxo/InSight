@@ -43,7 +43,7 @@ const LIVE = vi.hoisted(() => {
       void name; void mode; void displayName;
       return { gid: "g_new", inviteCode: "AAAA1111" };
     },
-    // A tapped link ASKS since D234 — it no longer admits its holder.
+    // A tapped link ASKS since D240 — it no longer admits its holder.
     requestJoin: async (code: string, displayName?: string) => {
       void code; void displayName;
       return { gid: "g_new", name: "Test", status: "requested" as string };
@@ -79,7 +79,7 @@ const LIVE = vi.hoisted(() => {
     invitesLoading: () => false,
     loadInvites: async () => {},
     whoIs: async (h: string) => { void h; return null as string | null; },
-    // The name half of finding somebody (D233). A prefix over the
+    // The name half of finding somebody (D239). A prefix over the
     // people directory, where whoIs is an exact address.
     searchPeople: async (q: string) => {
       void q;
@@ -99,7 +99,7 @@ const LIVE = vi.hoisted(() => {
     saveDisplayName: async (n: string) => { void n; },
     // The shared PersonRow draws an Avatar, which reads the face token
     // and falls back to initials (D178). Every result row goes through
-    // it since D233, so these three are now part of what this panel
+    // it since D239, so these three are now part of what this panel
     // needs from the store.
     faceFor: (uid: string) => { void uid; return ""; },
     nameFor: (uid: string) => ({ u_ada: "Ada Lovelace" }[uid] || ""),
@@ -265,7 +265,7 @@ describe("LiveDuelPanel · a solo duo says why nothing is happening", () => {
     LIVE.social.groups = () => [{ ...DUO, memberUids: ["u_me"] }];
     render(<LiveDuelPanel mode="duo" />);
     expect(screen.getByText(/Add them, or send the link/i)).toBeTruthy();
-    // NAME OR HANDLE since D233 — the field takes both, and the
+    // NAME OR HANDLE since D239 — the field takes both, and the
     // placeholder is the only thing that says so.
     expect(screen.getByPlaceholderText(/Name or @handle/i)).toBeTruthy();
     expect(screen.getByRole("button", { name: /copy invite link/i })).toBeTruthy();
@@ -495,7 +495,7 @@ describe("LiveDuelPanel · adding someone to a circle", () => {
     LIVE.social.searchPeople = vi.fn(async () => rows);
   };
 
-  // THE POINT OF D233. This screen was handle-only, which meant you
+  // THE POINT OF D239. This screen was handle-only, which meant you
   // could add the friend whose address you had memorised and nobody
   // else.
   it("finds by name and invites the uid behind the row", async () => {
@@ -819,7 +819,7 @@ describe("LiveDuelPanel · day history is bought, not assumed", () => {
   });
 });
 
-// ── create with people in it (D230) ────────────────────────────────
+// ── create with people in it (D236) ────────────────────────────────
 //
 // The screen used to make an empty room and leave you to find a way to
 // tell anyone. What these hold is the property the change exists for:
@@ -835,7 +835,7 @@ describe("LiveDuelPanel · creating with people picked", () => {
     LIVE.social.searchPeople = vi.fn(async () => []);
   });
 
-  // Name OR handle since D233 — the picker was handle-only, so it could
+  // Name OR handle since D239 — the picker was handle-only, so it could
   // add the friend whose address you had memorised and nobody else.
   const pick = async (handle: string, uid: string, name: string) => {
     LIVE.social.searchPeople = vi.fn(async () => [{ uid, name, handle }]);
@@ -930,7 +930,7 @@ describe("LiveDuelPanel · creating with people picked", () => {
   });
 });
 
-// ── the code stops being something anyone reads or types (D232) ────
+// ── the code stops being something anyone reads or types (D238) ────
 //
 // D122 demoted the field to a fallback; this removes it. What made that
 // worth doing is not tidiness: an invite code was a bearer token with no
@@ -975,7 +975,7 @@ describe("LiveDuelPanel · a tapped invite link", () => {
   // The link used to PREFILL A FIELD — the app had the invitation and
   // then asked you to confirm it by looking at characters it already
   // held. One button is the same act with the reading removed.
-  // ASKS, not joins (D234). The link used to admit whoever held it —
+  // ASKS, not joins (D240). The link used to admit whoever held it —
   // a permanent bearer token beside a consent flow — so a forwarded one
   // put a stranger in the circle. Now it puts them forward.
   it("asks to join with the code it arrived with, and says who decides", async () => {
@@ -1049,7 +1049,7 @@ describe("LiveDuelPanel · a tapped invite link", () => {
   });
 });
 
-// ── the circle's half of the consent (D234) ────────────────────────
+// ── the circle's half of the consent (D240) ────────────────────────
 //
 // A link used to admit whoever held it. Now it puts them in `pending` on
 // the group document, and a member decides. These hold the two halves a

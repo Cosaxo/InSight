@@ -149,7 +149,7 @@ await adb.doc(`v2_users/${OTHER}/following/third_party`).set({ to: "third_party"
 //     this account's display name on it, which is the half that outlives
 //     an erasure most visibly.
 await adb.doc("v2_handles/erasable").set({ uid, at: new Date() });
-// The people directory row (D233). Keyed by uid but TOP-LEVEL, so the
+// The people directory row (D239). Keyed by uid but TOP-LEVEL, so the
 // profile subtree's recursive delete walks past it — the same trap the
 // handle registry sets, and worse if missed: this row holds a NAME, so
 // leaving it means an erased account stays findable by the search the
@@ -191,7 +191,7 @@ await adb.doc(`v2_groups/${SOLO}/reveals/${DAY}`).set({
 await adb.doc(`v2_groups/${SHARED}`).set({
   name: "Shared", mode: "group", ownerUid: uid, memberUids: [uid, OTHER], streak: 3,
 });
-// A circle this account ASKED to join and was never let into (D234).
+// A circle this account ASKED to join and was never let into (D240).
 // Invisible to the membership sweep by definition — that phase matches on
 // memberUids, and the whole point of a pending request is that the asker
 // is not in it. The name is the leak: an erased account would sit in a
@@ -500,7 +500,7 @@ if (!(await exists(`v2_groups/${SHARED}/invites/fourth_party`)))
 ok("another account's handle and other people's invitations survive");
 
 // ── the shared group survives, scrubbed ──
-// The queue in a circle they never got into (D234).
+// The queue in a circle they never got into (D240).
 const waited = await adb.doc(`v2_groups/${WAITED}`).get();
 if (!waited.exists) fail("the WAITED group was deleted — the account was never a member of it");
 if ((waited.get("pending") || []).includes(uid)) fail("the erased account is still queued to join");

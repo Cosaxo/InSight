@@ -123,6 +123,18 @@ export const LIVE_MEMBERS = [
   // spec/paths-card.jsx reads it here instead. Empty in a demo build, which
   // is the signal the card falls back to its authored pool on.
   "pathQs",
+  // Catalogue picks (D14 gone live): the create-only entity write, and the
+  // three reads that hand the live pick card its board in exactly the demo
+  // store's shapes (spec/pick-data.js PICKS.canon/segs/canonSeg) — the
+  // canon with your unfolded pick joined at read time, the segment chips
+  // flattened from the published `by`, and one segment's ordering of the
+  // global board (D17).
+  "votePick", "pickCanon", "pickSegs", "pickSeg",
+  // Rank answers (D233): the create-only order write. The crowd order is
+  // not a member — buildFeedGlobals derives it onto the card (`crowd`)
+  // from the published position sums, so the spec layer reads it off the
+  // pool exactly as the demo authored it.
+  "voteRank",
   // Foresight CALL, tier A (D194): the bank's calls with their folded
   // counts, the published grades (null per call = fetched-and-ungraded,
   // the whole map null = nothing read yet — the card draws different
@@ -150,11 +162,11 @@ export const LIVE_SOCIAL_MEMBERS = [
   // Listed here before any consumer reads them, for the reason the block
   // below states: the pin is what makes the surface reviewed.
   "acceptInvite", "claimHandle", "declineInvite", "inviteToGroup",
-  // Asking to join, and the circle's answer (D234). `joinGroup` is
+  // Asking to join, and the circle's answer (D240). `joinGroup` is
   // gone with the admit-by-code path it named.
   "requestJoin", "approveJoin", "declineJoin",
   "invites", "invitesLoading", "loadInvites", "whoIs",
-  // The name half of finding somebody (D233). `whoIs` answers an
+  // The name half of finding somebody (D239). `whoIs` answers an
   // exact address; this answers a prefix over the people directory.
   "searchPeople",
   // Circle takes and the report control (D1, docs/MODERATION.md). Listed

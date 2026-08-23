@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The people section of search, in a live build (D231, D233).
+// The people section of search, in a live build (D237, D239).
 //
 // It rendered empty for the whole life of live mode, so the app could add
 // somebody to a circle by handle and could not look anybody up. What
@@ -53,7 +53,7 @@ describe("LivePeopleSearch · finding somebody", () => {
     expect(container.firstChild, "an empty section still took the screen").toBeNull();
   });
 
-  // THE POINT OF D233. Before it, this query returned nothing: names
+  // THE POINT OF D239. Before it, this query returned nothing: names
   // were not searchable, only the exact handle was.
   it("finds people by name", async () => {
     LIVE.social.searchPeople = vi.fn(async () => [
@@ -154,7 +154,7 @@ describe("LivePeopleSearch · the follows already in memory", () => {
   });
 
   // With a query the DIRECTORY answers, not the local list — otherwise
-  //search would find your follows and nobody else, which is the gap D233
+  //search would find your follows and nobody else, which is the gap D239
   // exists to close.
   it("hands a query to the directory rather than filtering follows", async () => {
     LIVE.circle = () => MINE;

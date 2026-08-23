@@ -18,7 +18,7 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 // Type-only: `requestJoinImpl` is shared by two exported callables
-// (D234), so its parameter needs the shape onCall hands a handler.
+// (D240), so its parameter needs the shape onCall hands a handler.
 import type { CallableRequest } from "firebase-functions/v2/https";
 import {
   assertOperator,
@@ -199,7 +199,7 @@ export const createGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
 const PENDING_CAP = 20;
 
 /**
- * Ask to join a circle by its invite code — the LINK's landing (D234).
+ * Ask to join a circle by its invite code — the LINK's landing (D240).
  *
  * THIS USED TO ADMIT. `joinGroupV2` wrote straight into `memberUids`, so
  * a code was a bearer token: whoever held it was in, forever, with no
@@ -305,7 +305,7 @@ async function requestJoinImpl(request: CallableRequest): Promise<{
 }
 
 // The name the link and every shipped build already call. Kept ALIASED
-// rather than renamed (D234): a callable that disappears is a hard error
+// rather than renamed (D240): a callable that disappears is a hard error
 // in every app version already installed, and this one is reached by the
 // one flow a stranger uses. Same implementation, so an old build asks to
 // join instead of admitting itself — which is the whole point, and it
@@ -322,7 +322,7 @@ export const requestJoinV2 = onCall(
 );
 
 /**
- * Let somebody in who asked (D234) — the circle's half of the consent.
+ * Let somebody in who asked (D240) — the circle's half of the consent.
  *
  * Members only, which is the same gate `inviteToGroupV2` uses and for the
  * same reason: an approval from a non-member would let anyone add anyone
@@ -368,7 +368,7 @@ export const approveJoinV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
 });
 
 /**
- * Turn somebody down (D234).
+ * Turn somebody down (D240).
  *
  * Tells them NOTHING, on D122's reasoning about declining an invitation:
  * a "declined" state makes refusing someone a message you have to send
@@ -506,7 +506,7 @@ export const registerPushToken = onCall({ ...LIGHT_CALLABLE, region: REGION, enf
 
 // ── the one push fan-out ────────────────────────────────────────
 //
-// BOTH notification classes send through here (D230). This was inline in
+// BOTH notification classes send through here (D236). This was inline in
 // revealGroupDay, and it had accumulated four corrections the hard way:
 // token->owners as a LIST so a shared device is pruned everywhere it
 // lives, length bounds so a client cannot hand FCM a megabyte, CHUNKING
@@ -658,7 +658,7 @@ async function revealGroupDay(
     ...members.map((uid) => db.doc(`v2_users/${uid}`)),
     { fieldMask: ["displayName"] },
   );
-  // Push tokens are NOT fetched here any more (D230). They were, next to
+  // Push tokens are NOT fetched here any more (D236). They were, next to
   // the reads the reveal actually needs — which billed one document per
   // member on every scanned day, including the majority that reveal
   // nothing. sendPushToUids reads them itself, after the reveal has
@@ -912,7 +912,7 @@ async function revealGroupDay(
     logger.error(`[duel-signal] fold failed for ${gid}/${dayKey} (${aggQid}):`, err);
   }
 
-  // The reveal is out — one of the product's two notifications (D230).
+  // The reveal is out — one of the product's two notifications (D236).
   // Best-effort by construction: sendPushToUids never throws, so FCM
   // being down can never roll back a reveal that already committed.
   await sendPushToUids(
@@ -1225,7 +1225,7 @@ export const claimHandleV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   const db = firestore();
   const ref = db.collection("v2_handles").doc(handle);
   const userRef = db.doc(`v2_users/${uid}`);
-  // The directory row (D233), written in the same transaction. It has to
+  // The directory row (D239), written in the same transaction. It has to
   // be here rather than left to the client because `handle` is immutable
   // to the client on that document, the same way it is on the profile —
   // and because a handle that is claimed but missing from the directory
@@ -1275,11 +1275,11 @@ export const claimHandleV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
  * that D98 had not already published. The rate limit below is the whole
  * defence against volume, and `hidden` on the invite is the recipient's.
  *
- * SINCE D230 IT ALSO NOTIFIES, and that changes what the opening costs.
+ * SINCE D236 IT ALSO NOTIFIES, and that changes what the opening costs.
  * An invitation used to sit in an inbox until the invitee happened to
  * open the app; now it interrupts them. Declining still deletes the doc
  * and still tells the inviter nothing, so a declined invitation can be
- * re-sent and will ping again. INVITES_PER_HOUR — which since D230
+ * re-sent and will ping again. INVITES_PER_HOUR — which since D236
  * charges per RECIPIENT rather than per call — remains the whole defence,
  * and a block is still the answer if invite spam becomes real. It is
  * still not built here.
@@ -1290,7 +1290,7 @@ export const inviteToGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enfor
   const gid = String(request.data?.gid || "");
   if (!gid) throw new HttpsError("invalid-argument", "gid and to required");
 
-  // ONE OR MANY (D230). `to` was a single uid. The picker sends a whole
+  // ONE OR MANY (D236). `to` was a single uid. The picker sends a whole
   // selection, and looping on the client would have been N round trips
   // against a budget that counts CALLS — so the batch is the shape the
   // budget sees, and it charges N.
@@ -1369,7 +1369,7 @@ export const inviteToGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enfor
   }
   await batch.commit();
 
-  // THE POINT OF D230. The invitation used to land silently and wait for
+  // THE POINT OF D236. The invitation used to land silently and wait for
   // the invitee to open the app on their own — which is what made a system
   // with consent, an inbox and a registry still feel like being handed a
   // code. The notification IS the delivery.
@@ -1395,7 +1395,7 @@ export const inviteToGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enfor
   return { ok: true, invited, skipped };
 });
 
-// CHARGES N, not one per call (D230). A batch invitation is N
+// CHARGES N, not one per call (D236). A batch invitation is N
 // notifications to N people, so counting it as a single event would have
 // made this cap meaningless the moment a picker shipped: one call, forty
 // pings. For count = 1 the arithmetic is identical to what D122 shipped.

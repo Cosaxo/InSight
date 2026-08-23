@@ -7,6 +7,7 @@ import {
   loadCorpus, checkQuestion, checkBatch, checkProvenance, checkHeadroom,
   checkPathGenre, placeCivicHit, PROMPT_MAX, OPTION_SHAPES, FEED_TYPES,
   DIAL_BUCKETS, PATH_AXES, PATH_AXIS_LEGACY,
+  windowDays, NOW_TOPIC, WINDOW_MAX_DAYS, tragedyHit,
 } from "./question-quality.mjs";
 
 const corpus = loadCorpus();
@@ -406,5 +407,163 @@ describe("the corpus itself", () => {
     // failure IS the tripwire asking for the recorded decision (id scheme,
     // or D30's bank pagination).
     expect(checkHeadroom(corpus).errs).toEqual([]);
+  });
+});
+
+// ── the current-events lane (D231) ──
+//
+// Every rule here is one half of a promise the topic's own name makes: a
+// `now` card stops being asked, and it stops soon. The gate is where that
+// is true, because the client filter can only ever act on what a window
+// says — an unbounded one is served forever and nothing downstream can
+// tell it apart from an ordinary card.
+describe("the current-events window", () => {
+  const nowQ = (over = {}) => ({
+    surface: "feed", type: "vote", cat: NOW_TOPIC, core: false,
+    prompt: "Petrol is climbing again. Changed how you travel?",
+    options: ["Driving less", "No change"],
+    from: "2026-08-23", until: "2026-08-29", ...over,
+  });
+  const win = (q) => checkQuestion(q, "feed", corpus).errs.filter((e) => e.rule === "window");
+
+  it("counts days served, both ends inclusive", () => {
+    expect(windowDays("2026-08-23", "2026-08-29")).toBe(7);
+    expect(windowDays("2026-08-23", "2026-08-23")).toBe(1);
+    // Across a month boundary, and across the DST change no UTC day key has.
+    expect(windowDays("2026-08-29", "2026-09-02")).toBe(5);
+    expect(windowDays("2026-08-23", undefined)).toBe(null);
+  });
+
+  it("passes a well-formed now question", () => {
+    expect(checkQuestion(nowQ(), "feed", corpus).errs).toEqual([]);
+  });
+
+  it("wants both ends on a now question", () => {
+    expect(win(nowQ({ until: undefined })).length).toBe(1);
+    expect(win(nowQ({ from: undefined })).length).toBe(1);
+  });
+
+  it("bounds the window at both ends", () => {
+    expect(win(nowQ({ until: "2026-08-24" })).length).toBe(1);
+    expect(win(nowQ({ until: "2026-10-01" })).length).toBe(1);
+    // The ceiling itself is legal — a bound refusing its own value is a
+    // bound nobody can write against.
+    const edge = new Date(Date.parse("2026-08-23T00:00:00Z") + (WINDOW_MAX_DAYS - 1) * 86400000);
+    expect(win(nowQ({ until: edge.toISOString().slice(0, 10) }))).toEqual([]);
+  });
+
+  it("refuses a window on a topic that is not now", () => {
+    expect(win(nowQ({ cat: "event" })).length).toBeGreaterThan(0);
+    // …except a sponsored slot, which announces its own window (D195).
+    expect(win(nowQ({ cat: "event", sponsor: { buyer: "Ruter" } }))).toEqual([]);
+  });
+
+  it("points a prediction at the CALL door", () => {
+    const call = (prompt) => checkQuestion(nowQ({ prompt }), "feed", corpus).errs.some((e) => e.rule === "call-shape");
+    expect(call("Will the talks restart?")).toBe(true);
+    expect(call("Who will win the election?")).toBe(true);
+    expect(call("The ceasefire will hold by next week.")).toBe(true);
+    // An opinion ABOUT the future is not a call: no rubric can settle it,
+    // so there is no outcome to leave a player waiting on (D127).
+    expect(call("AI will replace most jobs — agree?")).toBe(false);
+    expect(call("Should the strait stay open to everyone?")).toBe(false);
+  });
+
+  it("staggers a batch's closes and keeps most windows short", () => {
+    const together = [
+      nowQ({ from: "2026-08-23", until: "2026-08-27" }),
+      nowQ({ from: "2026-08-23", until: "2026-08-27" }),
+      nowQ({ from: "2026-08-23", until: "2026-08-28" }),
+    ];
+    expect(checkBatch(together).some((e) => e.includes("close date"))).toBe(true);
+
+    const slow = [
+      nowQ({ from: "2026-08-23", until: "2026-09-05" }),
+      nowQ({ from: "2026-08-23", until: "2026-09-06" }),
+      nowQ({ from: "2026-08-23", until: "2026-08-27" }),
+    ];
+    expect(checkBatch(slow).some((e) => e.includes("short end"))).toBe(true);
+
+    const good = [
+      nowQ({ from: "2026-08-23", until: "2026-08-27" }),
+      nowQ({ from: "2026-08-23", until: "2026-08-29" }),
+      nowQ({ from: "2026-08-23", until: "2026-09-05" }),
+    ];
+    expect(checkBatch(good)).toEqual([]);
+  });
+
+  // The farm's two batch rules cannot judge this lane, and the point of
+  // the exemption is that a legal batch stops tripping them: `now` is
+  // single-topic by construction and writes votes only.
+  it("does not hold the farm's spread rules against a now batch", () => {
+    const batch = Array.from({ length: 4 }, (_, i) => nowQ({
+      until: ["2026-08-26", "2026-08-27", "2026-08-28", "2026-08-29"][i],
+    }));
+    expect(checkBatch(batch)).toEqual([]);
+  });
+});
+
+// ── the tragedy tripwire (D235) ──
+//
+// The owner's rule for the current-events lane, and the reason it is a
+// gate rather than a note: news skews to catastrophe, so a lane whose job
+// is "what is happening now" meets one most weeks, and the pressure to
+// ask the obvious question is highest exactly when asking it is worst.
+//
+// The false-positive half matters as much as the hit half. A gate that
+// blocks "markets crashed 8%" is one whose waivers stop being read, and
+// the whole two-tier design exists to keep that from happening.
+describe("the tragedy tripwire", () => {
+  const nowQ = (over = {}) => ({
+    surface: "feed", type: "vote", cat: NOW_TOPIC, core: false,
+    prompt: "Crude is near $94. Has the pump changed how you get around?",
+    options: ["Driving less already", "No change yet"],
+    from: "2026-08-23", until: "2026-08-29", ...over,
+  });
+  const fires = (q) => checkQuestion(q, "feed", corpus).errs.some((e) => e.rule === "tragedy");
+
+  it("catches the unambiguous words whatever surrounds them", () => {
+    for (const prompt of [
+      "Was the terror attack preventable?",
+      "After the massacre, should the minister resign?",
+      "Is what happened in the province a genocide?",
+      "Should the hostages' names be published?",
+    ]) expect(fires(nowQ({ prompt })), prompt).toBe(true);
+  });
+
+  it("catches an event beside a casualty count, which one word alone cannot", () => {
+    expect(fires(nowQ({ prompt: "The crash that killed 14 — was the airline at fault?" }))).toBe(true);
+    // The cue can hide in an option rather than the prompt.
+    expect(fires(nowQ({
+      prompt: "Who should answer for the derailment?",
+      options: ["The operator", "Nobody — 9 dead was bad luck"],
+    }))).toBe(true);
+  });
+
+  it("lets honest content through, which is the point of two tiers", () => {
+    for (const prompt of [
+      // An event word with no toll: the single most likely legitimate
+      // current-events question there is.
+      "Markets crashed 8% overnight. Panic or noise?",
+      "A general strike shut the country down. Fair tactic?",
+      "Crude is near $94. Has the pump changed how you get around?",
+      // A toll word with no event, in a phrase that has nothing to do with one.
+      "A dead heat in the final — replay it, or share the title?",
+      "Is the transfer deadline a dead letter now?",
+    ]) expect(fires(nowQ({ prompt })), prompt).toBe(false);
+  });
+
+  it("spares the learn surface, because a learn card has a right answer", () => {
+    // History that names an atrocity is knowledge, not a side to take —
+    // the same carve-out the place tripwire makes, for a sharper reason.
+    const card = { f: "hist", q: "Who was assassinated in 44 BC?", a: ["Caesar", "Cato", "Sulla", "Crassus"], c: 0, t: 1, p: 55, k: "Roman politics" };
+    expect(tragedyHit({ prompt: card.q, options: card.a })).not.toBe(null);
+    expect(checkQuestion(card, "learn", corpus).errs.some((e) => e.rule === "tragedy")).toBe(false);
+  });
+
+  it("reports which tier caught it, so a waiver can be judged", () => {
+    expect(tragedyHit({ prompt: "Was the terror attack preventable?" })).toMatchObject({ kind: "plain" });
+    expect(tragedyHit({ prompt: "The crash that killed 14 — who pays?" })).toMatchObject({ kind: "casualty" });
+    expect(tragedyHit({ prompt: "Markets crashed 8%. Panic or noise?" })).toBe(null);
   });
 });

@@ -1,5 +1,5 @@
 // The Firestore reads behind handles, invitations and the people
-// directory (D122, D233).
+// directory (D122, D239).
 //
 // WHY THEY ARE NOT IN ./handles AND ./invites, where they read more
 // naturally: those two are imported by LiveDuelPanel and
@@ -90,7 +90,7 @@ export async function fetchInvites(db: Firestore, me: string): Promise<Invite[]>
  */
 export const PEOPLE_SEARCH_CAP = 8;
 
-/** One row of the people directory (D233) — a name, and a handle if claimed. */
+/** One row of the people directory (D239) — a name, and a handle if claimed. */
 export interface DirectoryPerson {
   uid: string;
   name: string;

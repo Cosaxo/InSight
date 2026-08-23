@@ -22,6 +22,7 @@ import {
   TOPIC_TARGET,
   OPEN_MAX,
   SERVABLE_TYPES,
+  LANE_EXCLUDED,
 } from "./feed-budget.mjs";
 
 const level = (n, questions) =>
@@ -107,9 +108,11 @@ describe("feedBudget", () => {
 
 describe("loadFeedTopics", () => {
   it("counts only servable forms, once per carried topic", () => {
-    // rank is not live-servable (D12) and duel-type feed cards are prototype
-    // legacy; a topic must not read as covered on questions nobody can meet.
-    expect(SERVABLE_TYPES.has("rank")).toBe(false);
+    // duel-type feed cards are prototype legacy; a topic must not read as
+    // covered on questions nobody can meet. rank joined the servable set
+    // at D233 — an answer carries an order now — so its exclusion pin
+    // flipped to an inclusion pin the same day.
+    expect(SERVABLE_TYPES.has("rank")).toBe(true);
     expect(SERVABLE_TYPES.has("duel")).toBe(false);
     expect(SERVABLE_TYPES.has("path")).toBe(true);
 
@@ -123,14 +126,24 @@ describe("loadFeedTopics", () => {
     // questions PLUS their servable in-taxonomy doors. This test asserted
     // `< bank size` until doors existed — that inequality was the
     // single-topic premise itself, worn as a test.
-    const inTaxonomy = new Set(raw.topics.map((t) => t.id));
+    //
+    // Allocatable topics only (D231): the fold does not report `now`, so a
+    // current-events question contributes nothing to this column — neither
+    // through its home topic nor through a door onto one. Summing the whole
+    // bank was the same "every topic is allocatable" premise worn as a
+    // test, one layer further out.
+    const inTaxonomy = new Set(
+      raw.topics.filter((t) => !LANE_EXCLUDED.has(t.id)).map((t) => t.id),
+    );
     const servable = raw.questions.filter((q) => SERVABLE_TYPES.has(q.type));
+    const homeCount = servable.filter((q) => inTaxonomy.has(q.cat)).length;
     const doorCount = servable.reduce(
       (n, q) => n + (q.also || []).filter((t) => inTaxonomy.has(t)).length,
       0,
     );
     expect(doorCount).toBeGreaterThan(0); // the retro-tag is real, not vestigial
-    expect(counted).toBe(servable.length + doorCount);
+    expect(homeCount).toBeLessThan(servable.length); // the exclusion is doing work
+    expect(counted).toBe(homeCount + doorCount);
   });
 
   it("covers every topic in the taxonomy, thin ones included", () => {
@@ -154,8 +167,17 @@ describe("loadFeedTopics", () => {
       readFileSync(new URL("../content/feed-questions.json", import.meta.url), "utf8"),
     );
     const topics = loadFeedTopics();
+    const allocatable = raw.topics.filter((t) => !LANE_EXCLUDED.has(t.id));
     expect(topics).toHaveLength(10);
-    expect(topics.map((t) => t.id)).toEqual(raw.topics.map((t) => t.id));
+    expect(topics.map((t) => t.id)).toEqual(allocatable.map((t) => t.id));
+    // …and the exclusion is the point of the filter, not a side effect of
+    // it (D231). `now` is the editorial current-events lane; a brand-new
+    // topic is the largest deficit in the taxonomy, so thinnest-first
+    // would point every farm run straight at the one topic a farm run may
+    // not write. The rule has to hold in the allocator, because a rule the
+    // allocator argues against every run eventually loses.
+    expect(raw.topics.map((t) => t.id)).toContain("now");
+    expect(topics.map((t) => t.id)).not.toContain("now");
     for (const t of topics) {
       expect(Number.isInteger(t.questions)).toBe(true);
       expect(t.questions).toBeGreaterThanOrEqual(0);

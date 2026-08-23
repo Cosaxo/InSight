@@ -177,12 +177,12 @@ export const deleteAccount = onCall(
       // missing rather than that nobody followed them.
       othersFollows: 0,
       handle: 0,
-      // The people directory row (D233). A flat 0/1 rather than a query
+      // The people directory row (D239). A flat 0/1 rather than a query
       // count: it is one document at a known id, so a 0 here means the
       // delete threw, not that nothing matched.
       peopleRow: 0,
       // Circles this account had ASKED to join and was never approved
-      // into (D234) — invisible to the membership sweep by definition.
+      // into (D240) — invisible to the membership sweep by definition.
       pendingJoins: 0,
       invitesTo: 0,
       invitesFrom: 0,
@@ -595,7 +595,7 @@ export const deleteAccount = onCall(
     }
 
     // 3c-bis. Pending join requests in circles this account never joined
-    //     (D234). `pending` and `pendingNames` live ON the group document,
+    //     (D240). `pending` and `pendingNames` live ON the group document,
     //     so phase 1c misses them entirely — that phase matches on
     //     `memberUids`, and the whole point of a pending request is that
     //     the asker is not in that array. The name is the leak: an erased
@@ -619,7 +619,7 @@ export const deleteAccount = onCall(
       failed.push("pendingJoins");
     }
 
-    // 3d. The people directory (D233). Keyed by uid but a TOP-LEVEL
+    // 3d. The people directory (D239). Keyed by uid but a TOP-LEVEL
     //     document, so phase 1b's recursiveDelete of v2_users/{uid} walks
     //     straight past it — the same trap 3b describes for the handle
     //     registry, and worse if missed: the row holds a name, so leaving
@@ -761,7 +761,7 @@ export {
   createGroupV2,
   declineGroupInviteV2,
   inviteToGroupV2,
-  // joinGroupV2 is the DEPRECATED ALIAS (D234) — same implementation
+  // joinGroupV2 is the DEPRECATED ALIAS (D240) — same implementation
   // as requestJoinV2, kept exported so builds already installed keep
   // working and start asking to join instead of admitting themselves.
   joinGroupV2,
