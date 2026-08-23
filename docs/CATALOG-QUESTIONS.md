@@ -1,15 +1,22 @@
 # Catalog questions — "favourite X" with a thousand options
 
-**Status: built through step 4's machinery.** Written 2026-07-30 as a
+**Status: LIVE (D232, 2026-08-23).**
+Twenty-three pick cards serve from the live bank —
+`content/pick-questions.json`, promoted from the archive through
+`npm run promote` — across pokemon, emoji, elements, countries and
+dogs; the pokemon six joined the same day the owner cleared the
+nominative-use check (see the pilot note below). The sixth domain,
+**colors**, was committed the same day from a parallel thread (#261) —
+catalogue, keys and archive entries all in place, live cards pending
+their own promote run. Written 2026-07-30 as a
 design sketch, after the v15 UI merge; the same day, steps 1–3 shipped
 (Pokédex catalogue, demo `pick` card, canon backend — **D14**) and step
 4's machinery followed (QID key sets, domain-aware validation, the
 Wikidata generator — **D15**). The load-bearing choices live in those
 decision records now; this document keeps the full arguments. What
 remains open: an operator run of `scripts/build-catalog.mjs` to generate
-the films/artists catalogues (needs network access to Wikidata — D15),
-the films/artists demo cards once those files exist, the pre-ship
-trademark check below, and going live per D14.
+the films/artists catalogues (needs network access to Wikidata — D15)
+and the films/artists demo cards once those files exist.
 
 ## The question class
 
@@ -55,7 +62,10 @@ picker UX.
 - **Pokémon is the pilot.** The set is closed, small, and stable; the
   catalogue is a few tens of KB; there is no freshness problem. (One check
   before shipping: name/trademark posture for a nominative "favourite"
-  poll — likely fine, but it gets a real answer, not an assumption.)
+  poll — likely fine, but it gets a real answer, not an assumption.
+  **Answered 2026-08-23: cleared by the owner** — nominative use of the
+  names, no artwork (the art refusal in the imagery table below stands
+  untouched). The six pokemon cards promoted the same day.)
 - **Films and artists are open-ended, so the catalogue is curated, not
   complete.** A generated top-N list (Wikidata sitelink/popularity ranked),
   refreshed by re-running the build script, plus an explicit **"Not

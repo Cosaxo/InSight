@@ -23590,3 +23590,275 @@ Gates, and one of them found a real hole in this change before CI could:
   collision. Same class as the `id` and `core` notes already in that
   function — a pre-flight that drops a field judges a question by a rule
   the corpus gate is not applying.
+
+## D232 · Catalog questions go live: seventeen picks, promoted through one pen
+
+**Decided:** 2026-08-23 · **Status:** built (this branch); the operator
+seed step and two held tranches remain
+
+**Decision.** D14's "one deliberate change" ships. Seventeen pick cards —
+every archive card whose domain has a committed catalogue and no open
+legal question: emoji ×5, elements ×4, countries ×4, dogs ×4 — are
+promoted from the demo archive (`src/v2/spec/pick-data.js`) into a new
+live bank, `content/pick-questions.json`, and served as live feed cards.
+The plan this executes is [RANK-CATALOG-LIVE.md](RANK-CATALOG-LIVE.md)
+§2, written the day before; deviations from it are recorded below.
+
+**What was already true, verified rather than assumed.** The backend
+needed zero changes: `firestore.rules` admits the entity shape
+(create-only, device-bound, each branch's `hasOnly` fencing the other's
+field), `onV2AnswerCreated` validates keys per-domain and publishes the
+canon — `{ total, top, rest, by }`, exact since D98 — and the committed
+catalogues carry drift gates. The e2e leg added here proved all of it
+against the emulator on the first run: fold, segment boards, all four
+shape refusals, the unknown-key drop at the trigger, and the Not-listed
+fold.
+
+**The pieces this change added, and the shape of each:**
+
+1. **Seed.** `pick` joins `CONTENT_SOURCES`; entries emit as
+   `surface: "feed"`, `type: "catalog"`, `options: []`, `topic: "fav"`,
+   id `pick-<archive id>` (kept verbatim — the archive id is the name
+   the demo's crowd data already keys on), seq continuing the feed's
+   counter (the romantic pool's precedent). Never `core`: an entity
+   answer has no option share for a cohort fold to read (D161's
+   absent-means-tail does the rest).
+2. **One pen.** `promote-questions.mjs` gained the pick lane: pk ids
+   promote byte-for-byte with provenance rows (`prov.pick`, D97/D162),
+   refusing unknown ids, re-promotions, mixed-lane runs and any domain
+   without a committed catalogue under `public/` (the QUESTION-FARM
+   rule, now enforced at both ends of the pipe — `check:content` holds
+   the same map). `check:quality` validates the seed with the same pick
+   rules AND holds it byte-equal to the archive by id, so a hand edit to
+   either copy fails CI.
+3. **Client.** `splitBanks` carves `type: "catalog"` into the feed lane
+   (the duel lane's "pick" precedent — no options is the doc's correct
+   shape, not damage). `buildFeedGlobals` emits the demo card's own
+   shape (`type: 'pick'`, `domain`, `n` from the agg). `LIVE.votePick`
+   is `vote()` transposed: create-only, optimistic with rollback, cached
+   on server ack, no edit path (the D86 arm cannot admit one — the old
+   doc carries no optionIdx — and `editVote` now says so before the
+   wire). `LIVE.pickCanon/pickSegs/pickSeg` hand the card its board in
+   exactly the shapes `PICKS.canon/segs/canonSeg` return, your unfolded
+   pick joined at read time (the store's own convention), so the card
+   switches source on `q.live` and reshapes nothing. Entity answers
+   hydrate through the same `votes` map as numeric strings; everything
+   that INTERPRETS the number routes through the question's type
+   (`mirrorVoteValue` wraps them `{ entity }`, the WF reconcile grew a
+   pick arm), which is what keeps a dex number out of an option index's
+   clothes.
+4. **The chip.** `fav` rejoins the live channel row — it filters real
+   stock now. `places` stays out: rate cards remain demo-only.
+5. **Copy, two live divergences (COPY.md §3 — claims, not word
+   counts).** The demo deliberately demonstrates the OLD floor's shape
+   (its store's comment says so), so its two floor sentences are false
+   on a live board: "a spot needs 5 votes" (exact counts since D98 — any
+   vote claims a spot) and the ghost row's "only you see this — too few
+   to count yet" (a live off-board pick counted, exactly, inside
+   "everyone else"). Live cards say "counted with everyone else — not on
+   the board yet" and drop the votes clause; the demo keeps both, still
+   true of what it demonstrates.
+
+**Held back, each with its reason:**
+
+- **The six pokemon cards** (pk01–03, 06, 07, 09) wait on the
+  nominative-use check CATALOG-QUESTIONS.md has required since the
+  sketch — "it gets a real answer, not an assumption." The promote lane
+  makes that tranche a one-command follow-up.
+- **Films/artists** stay the D15 operator step (Wikidata is refused at
+  CONNECT from every sandbox this repo has measured); both ends of the
+  pipe refuse their cards until `public/films.txt`/`artists.txt` exist.
+- **`feed-budget.mjs` deliberately unchanged**, reversing the plan's §2
+  item 3: the regulator computes per-SUBJECT breadth over
+  `feed-questions.json`'s ten topics, and pick cards live in a separate
+  file on a format channel with their own daily lane (D145) — adding
+  `catalog` to `SERVABLE_TYPES` would have been a no-op that implied the
+  opposite.
+- **No stats sheet, no who-voted for pick cards** — unchanged from the
+  demo: the card renders no engage row (`q.type !== 'pick'` at the
+  render site), so the D17 segment chips in the reveal are the whole
+  breakdown surface. Widening that is its own decision.
+- **`v2_users` answer docs gained no new collection** — the entity
+  answer rides the existing path, so `docs/data-inventory.md` is
+  unchanged (gate green).
+
+**Enforcement:** the e2e catalog leg (`firestore-tests/e2e-v2-loop.mjs`
+§9c); nine new client store cases (`vote.test.ts`: the mapper, the
+entity hydration + wrapped mirror, votePick's ack/rollback/create-only
+arms, editVote's refusal, canon/segs/seg shapes with the pending join
+and the Not-listed rule); `deck.test.ts` pins the carve-out inside the
+feed lane and nowhere else; two live smoke mounts (picker unanswered,
+published board answered — asserting the live copy and the absent floor
+clause); `world-channels.test.js` re-pinned to the new row;
+`check:quality`'s seed↔archive parity rule; `check:content`'s catalog
+arm (shape, domain, committed catalogue, never-core). Green at commit:
+1653 unit, 289 functions, 116 rules, the full e2e, lint, and every
+static gate — `check:globals`' ratchet came DOWN two (the pickSrc seam
+replaced two direct global reads), which the baseline now records.
+
+**The operator steps that make it visible:** merge, deploy (no backend
+change — the workflow chain reseeds), or run *Seed content* by hand;
+633 questions land, 17 of them picks. Nothing needs `bumpRev`: creates
+carry `updatedAt` and clients page them in.
+
+## D233 · Rank questions live: an answer carries an order, and the exclusion retires
+
+**Decided:** 2026-08-23 · **Status:** built (this branch); D12's "binding
+until the pipeline below exists" clause is hereby satisfied and that
+record closes
+
+**Decision.** The pipeline D12 priced ships, and the eight seeded rank
+questions return to the live feed as what they are. A rank answer is
+`order` — the item indexes in the answerer's sequence — with **no
+optionIdx at all**: D12's sketch said "order alongside optionIdx", and
+the refinement matters, because a synthetic index would let an order
+answer leak into every option-shaped fold, which is the poisoning D12
+pulled the cards for wearing a seatbelt. The plan this executes is
+[RANK-CATALOG-LIVE.md](RANK-CATALOG-LIVE.md) §3; D232's catalog
+go-live is the pattern it copies joint for joint.
+
+**The pieces:**
+
+1. **Rules** (`isRankAnswer`): keys `hasOnly [qid, surface, order,
+   answeredAt, anchors]`, feed-only, the list's size equal to the
+   question's own item count (the get() dedupes with the type/kill-
+   switch reads — one billed read, same as a vote). Rules cannot
+   iterate a list, so ELEMENTS are the trigger's — a rules test pins
+   that a non-permutation is admitted here by design and dies there.
+2. **The hole the same change closes.** `isWorldAnswer` now refuses
+   `type == "rank"` questions. Before D233 this was open in principle:
+   a rank doc carries real options, so a raw-API `optionIdx` write
+   passed the size bound and the vote fold would have clobbered a rank
+   aggregate's `{pos, total}` with `{counts}` — D12's failure through
+   the side door, reachable the moment rank docs got aggregates worth
+   corrupting. E2E-pinned ("the D12 side door").
+3. **The fold** (`onV2AnswerCreated`): the order branch mirrors the
+   entity branch — ledger-deduped transaction, one question-doc read
+   for the item count, `validRankOrder` (pure.ts: a permutation of
+   0..n-1 or null, never a repair), position sums folded in place,
+   `{total, pos}` published whole every answer. No `by` map: the
+   Mirror's cohort folds read option shares, which an order does not
+   have, and a breakdown with no reader is document growth for nothing.
+4. **The client**: `LIVE.voteRank` is the create-only write
+   (vote()'s optimistic shape; `editVote` refuses ranks before the
+   wire, matching the rules arm that cannot admit them);
+   `rankCrowdFor` (deck.ts) derives the demo's exact crowd contract —
+   `crowd[i]` = 1-based rank of item i — from the published sums **with
+   the viewer's own folded order subtracted first**, countsFor's
+   convention: at launch scale a "crowd" that includes you is mostly
+   you, and matching a reader against their own reflection would be the
+   reveal lying with true arithmetic. Null crowd = nobody ELSE has
+   ranked, and the card renders "You're first" instead of a perfect-
+   agreement mirror; `tapRank`'s completed order dispatches on live
+   cards and the reveal's match line loses the demo's arrow (the sheet
+   behind it, renderRankStats, is a fabricated friends cohort). The
+   stored form is the joined order ("2,0,1,3") in the same votes map,
+   and every consumer that interprets a value routes through the
+   question's type — the D232 discipline.
+5. **Corpus honesty.** The eight rank seeds now declare `core: false`
+   (check:quality demands the declaration be explicit) — an order
+   answer has no option share for a cohort reading to fold, so tail by
+   arithmetic, not by punishment. `SERVABLE_TYPES` gains rank
+   (feed-budget.mjs): a rank card covers its topic for a reader now,
+   which the regulator's counts must say.
+6. **The live engage row was already fenced** (`q.type === 'rank'`
+   returns null in renderEngage's live arm — pre-laid before this
+   change) and stays so: the voter list is option-shaped and skips
+   order docs, so v1 rank cards are reveal-only. Widening that is its
+   own decision.
+
+**Held/deferred, stated:** no rank edits (D86 stays one shape; an order
+edit is a -old/+new delta through the sums nobody has asked for); no
+permutation histogram (n! cells is not a reveal — the display argument
+survives D98 even though the disclosure one dissolved); no per-anchor
+rank breakdowns (no reader); the farm does not author ranks (the lane
+contract's question, QUESTION-FARM.md, deliberately not opened here).
+
+**Enforcement:** four rules cases (the shapes, the side door, the
+admitted-by-design non-permutation, the kill switch); three pure-fold
+cases (permutation validation, the sums, the derived order); e2e leg
+9d (exact first fold, four refusals, the trigger dropping [0,0,0,0]
+while a valid second order sums exactly — the emulator's own warning
+line is visible in the run log); nine client store cases (mapper shape,
+crowd derivation and its null, hydration + wrapped mirror, voteRank's
+ack/rollback/create-only/validation, editVote's refusal); rankCrowdFor
+unit cases including the subtract-own tie-break; two live smoke mounts
+(the full tap-to-rank loop against the derived crowd; the first-voter
+copy); the cost tripwires recounted with their ledgers extended (rules
+gets 25 → 30, same billed read; trigger tx.gets 5 → 8, the extra read
+absorbed into TRIGGER_READS' stated approximation). Green at commit:
+1665 unit, 292 functions, 120 rules, the full e2e, lint, and every
+static gate.
+
+**Deploy order, which matters here where D232 needed none:** functions
+first (the fold accepts orders), rules second (clients may write them),
+client last (clients start writing them) — no window where a shipped
+client writes a shape the backend refuses or drops. The deploy chain
+runs backend before hosting, which is this order; the record states it
+so a partial manual deploy cannot invert it.
+
+## D234 · The seed transports the doc shape the schema promises
+
+**Decided:** 2026-08-23 · **Status:** built (this branch), rides the
+D232/D233 PR; the reseed after it merges is the one-time repair
+
+**The finding, verified at every layer before anything moved.**
+`runSeedV2`'s payload is a whitelist, and its own comment warns that "a
+field the seed does not name never reaches Firestore." Twelve fields had
+fallen on the wrong side of that line. Nine were in the schema, in the
+client, and in no write: `core` (D161 — the Mirror's corpus flag),
+`tag`/`rates` (D187 — the Scores stop's noun column and its place
+filter, plus D205's anchor guard), `until` (D179), `sponsor` (D195),
+`also` (D206 — the doors), and the call trio `tier`/`resolvesAt`/
+`rubric` (D194). Three more — `mode`, `branch`, `sub` — were written on
+CREATE but absent from `SEEDED_FIELDS`, so the skip froze them at
+create: an edit to a daily's subject path could never reach a stored
+doc.
+
+**Why every gate was green while it was dark.** Server-side consumers
+read the COMPILED bank (`V2_QUESTIONS` — the patterns fit's core filter,
+the call resolver's rubrics, D44's no-slice set), so nothing serverside
+ever noticed. Client-side consumers read HYDRATED DOCS — and every suite
+that exercises them seeds its own fixtures with the fields present
+(vote.test's bankDocs, the live-fixture, rules fixtures), while the one
+harness that runs the real seed (the e2e) never asserted on doc shape.
+Production behavior implied by the gap, none of it test-visible: the
+Mirror's cohort lenses treating every feed question as tail, the Scores
+scorecards empty, doors dark, D205's city guard never firing.
+
+**The fix, three mirrors and a proof.** The payload gains the nine
+emit-when-set transports; `SEEDED_FIELDS` gains all twelve (with the
+one-time-repair consequence stated in place: the next reseed rewrites
+exactly the docs whose stored form lacks them — that is the repair, not
+a phantom); seed.test's `storedForm` mirrors both; and the e2e now
+asserts doc shape after the real seed (step 3b) — the assertion that
+would have caught this class the day it opened. `sponsor` and `rubric`
+ride the structural compare `nodes`/`endings` forced; arrays ride the
+element-wise arm.
+
+**What this deliberately does not do:** transport `political` (server-
+side only by design — D44 computes from content, no client reads it off
+docs, and the schema does not list it) or invent per-field backfill
+tooling — the ordinary reseed IS the backfill, `updatedAt` moves, and
+clients page the repaired docs in through the cursor like any edit.
+
+**Enforcement:** seed.test's two D234 cases (the transport proven
+against the real bank — each self-reporting if the bank stops carrying
+an example — and the missing-field mismatch that drives the repair
+write); the e2e's 3b; the no-op control now compares the FULL written
+shape, which is what caught `storedForm`'s own missing mirrors during
+the build.
+
+**Amendment (same day, the PR's review pass): dropped fields are
+deleted, not orphaned.** The compare gained the twelve fields; the
+WRITE could still not remove one — `{merge: true}` cannot delete — so a
+doc whose source dropped an emit-when-set field (D233's rank `core`
+flip is the live instance: eight docs would have stored `core: true`
+forever had the seed run between the two commits) would mismatch on
+every reseed, rewrite, and keep the field anyway: `updatedAt` churn
+with no convergence. The rewrite path now walks `SEEDED_FIELDS` and
+writes `FieldValue.delete()` for any field the stored doc carries that
+the payload does not. Computed on the rewrite path only, against the
+stored doc — `seedDocMatches` stays sentinel-free, so a repaired bank
+reseeds as a no-op. Third seed.test D234 case pins the sentinel and
+that a field absent on both sides gets none.

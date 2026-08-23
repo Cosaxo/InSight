@@ -22,7 +22,7 @@ the count is zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
 `check:store-listing` and `check:versions` pass; the daily bank is at 128
-questions of 630 seeded; the production backend is deployed. **Measured
+questions of 653 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -168,7 +168,7 @@ arithmetic.
       below because it documents how the gap was reasoned about while it
       was real.
       Actions → **Seed content** → Run workflow.
-      630 questions land in `v2_questions` — idempotent and, since D34,
+      653 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -179,8 +179,9 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **630** after the K=5 test expansion, D103's
-      retirement of the Thinking test and D114's continuum questions — so
+      and the bank is **653** after the K=5 test expansion, D103's
+      retirement of the Thinking test, D114's continuum questions and the
+      D14 go-live's pick promotion — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
       `test-cognitive-*` questions are live in `v2_questions` and no longer
       in the bank, and a reseed does not retire them (`active` is only ever
@@ -981,7 +982,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 630 seeded questions are live regardless.
+      working, not a leak — the 653 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
