@@ -402,7 +402,13 @@ function LdAddByHandle({ g }: { g: LiveGroup }) {
       await LIVE.social.inviteToGroup(g.id, uid);
       setH("");
       setOk(true);
-      setMsg(`Invited ${atHandle(canonical)} — they will see it next time they open InSight.`);
+      // NOT "they will see it next time they open InSight" any more, which
+      // is what this said and what D230 falsified — an invitation
+      // notifies now. It does not promise the notification either: an
+      // account that has never created, joined or accepted has no push
+      // token yet (D230 limit 1), so the honest half is the half that is
+      // always true — it is sent, and it is theirs to accept.
+      setMsg(`Invited ${atHandle(canonical)} — waiting on them.`);
     } catch (e) {
       const raw = errText(e);
       setMsg(/already-exists/i.test(raw)
