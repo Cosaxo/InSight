@@ -101,7 +101,18 @@ switch the lane off entirely.
   drawer cannot hold one either, because `fresh()` filters the bank at
   hydrate. The standing limit, and its priced fix, are in D231.
 
-**Two boundaries, both already recorded elsewhere:**
+**Three boundaries. The first is the owner's and binds hardest:**
+
+- **No tragedies (D235).** This app does not put suffering to a vote —
+  terror attacks the named example, and mass-casualty events, atrocities
+  and a named person's killing with them. News skews to catastrophe, so
+  this lane meets one most weeks and the pressure to ask the obvious
+  question peaks exactly when asking it is worst. It is not a rule against
+  serious news: sanctions, a verdict, an economic shock are ordinary
+  questions. `check:quality`'s `tragedy` tripwire catches the
+  unambiguous cases; the judgement is still the writer's, because the same
+  prompt is fine in a quiet week and grotesque in the week of an attack.
+
 
 - **An opinion about the news is content; a prediction is a CALL.**
   "Should X resign?" is an ordinary feed question. "Will X win on

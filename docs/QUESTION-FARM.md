@@ -937,6 +937,32 @@ Rules, each load-bearing:
   content append also adds the question's provenance row
   (`content/provenance.json`, `source: "farm"`, the run's date as
   batch) — `check:quality` fails a feed question without one.
+- **No tragedies** (D235). The owner's rule, and it binds every lane and
+  every surface: **this app does not put suffering to a vote.** Terror
+  attacks are the named example and the clearest case; the rule is wider —
+  mass-casualty events, atrocities, disasters with a death toll, a named
+  person's killing. A vote card under a death toll is a body count with
+  buttons: it asks a crowd to take a side on somebody's worst day, and
+  since D98 it publishes the exact split doing so. There is no answer to a
+  journalist asking why it exists, which is the owner's own reason — an
+  easy way to get the app in trouble.
+
+  It bites hardest on `now`, because news skews to catastrophe and the
+  pressure to ask the obvious question is highest exactly when asking it
+  is worst. **What it does not mean is "avoid serious news":** sanctions,
+  a verdict, an economic shock, a resignation are all ordinary questions.
+  The line is between a question about a POLICY or a CONSEQUENCE and one
+  that treats a specific atrocity as poll material.
+
+  `check:quality` carries a two-tier tripwire (rule `tragedy`) — an
+  unambiguous word list, plus an event word beside a casualty word, so
+  "markets crashed 8%" passes and "the crash that killed 14" does not.
+  Learn is carved out because a learn card has a right answer rather than
+  a side. **The tripwire is not the rule**, and a run that clears it has
+  not been cleared: the same prompt is ordinary in a quiet week and
+  grotesque in the week of an attack — "is airport security theatre?" is
+  the clean example — and no gate can see the week. Judged false positives
+  go in `ALLOW` under `tragedy`, with the reason.
 - **`now` is not this lane's to write** (D231). "Happening now" is the
   current-events topic, and it is EDITORIAL: timeliness needs a person,
   and a news question written by an unsupervised run is what this

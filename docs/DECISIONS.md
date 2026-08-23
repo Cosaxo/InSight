@@ -23537,10 +23537,12 @@ distinct, four of six at seven days or fewer. One carries `political:
 true` (the Hormuz card); the heatwave card does not, because it asks what
 the reader makes of the weather rather than what should be done about it.
 
-**The line the batch drew:** the same week carried airstrikes with named
-death tolls in Lebanon and a Russian strike on Kramatorsk. A vote card
-under a casualty count is not an opinion question, it is a body count
-with buttons, and this lane declines them. Policy, economics, justice,
+**The line the batch drew** — *promoted to the lane's rule the same day,
+with a gate: see [D235](#d235--no-tragedies-this-app-does-not-put-suffering-to-a-vote).*
+The same week carried airstrikes with named death tolls in Lebanon and a
+Russian strike on Kramatorsk. A vote card under a casualty count is not
+an opinion question, it is a body count with buttons, and this lane
+declines them. Policy, economics, justice,
 culture, science and climate all had live stories that week, which is the
 answer to whether the line costs anything.
 
@@ -23862,3 +23864,102 @@ the payload does not. Computed on the rewrite path only, against the
 stored doc — `seedDocMatches` stays sentinel-free, so a repaired bank
 reseeds as a no-op. Third seed.test D234 case pins the sentinel and
 that a field absent on both sides gets none.
+
+## D235 · No tragedies: this app does not put suffering to a vote
+
+**2026-08-23.** **Status:** binding, built. Owner's rule, given on reading
+D231's first current-events batch: *"one note on these they should
+generly avoid tradgedies like terror attack as that is a easy way to get
+this app in truoble"*.
+
+D231's record already carried a line of this shape — the first batch
+declined the week's casualty stories (airstrikes in Lebanon, a strike on
+Kramatorsk) on the reasoning that a vote card under a death toll is a
+body count with buttons. That was **one writer's judgement inside one
+batch**, recorded as a note about what a batch did. This makes it the
+lane's rule, and gives it a gate, because a judgement that lives only in
+prose is one the next run under time pressure re-decides from scratch.
+
+### The rule
+
+**This app does not put suffering to a vote.** Terror attacks are the
+named example and the clearest case. The rule is wider: mass-casualty
+events, atrocities, disasters with a death toll, a named person's killing
+or victimhood.
+
+It binds every lane and every surface. It bites hardest on `now`, because
+that lane's whole job is what is happening this week and news skews to
+catastrophe — the pressure to ask the obvious question is highest exactly
+when asking it is worst.
+
+**Two reasons, and the owner gave the second.** The first is that the
+question is wrong on its own terms: it asks a crowd to take a side on
+somebody's worst day, and since D98 the app then publishes the exact
+split doing so, with no k-floor to hide behind. The second is the
+practical one — *"an easy way to get this app in trouble"* — and it is
+correct in a way worth writing down rather than assuming: there is no
+answer to a journalist, a store reviewer or a bereaved family asking why
+the question exists. A single screenshot is the whole story, and it would
+be a fair one.
+
+**What the rule is NOT.** It is not "avoid serious news". Sanctions, a
+verdict, an economic shock, a resignation, a policy fight are all
+ordinary questions and several are in the D231 batch. The line runs
+between a question about a POLICY or a CONSEQUENCE and one that treats a
+specific atrocity as poll material. "Should the sanctions be lifted?" is
+ours. "Was the attack preventable?" is not.
+
+### The gate, and its honest limits
+
+`check:quality` grows a `tragedy` tripwire beside the place-civic one,
+two tiers deep:
+
+- **Plain** — words unambiguous whatever surrounds them: terror,
+  massacre, genocide, atrocity, war crime, assassination, hostage,
+  kidnapping, torture, and their kin.
+- **Conjunction** — an EVENT word (attack, crash, strike, quake, flood,
+  siege…) only when a CASUALTY word (death toll, killed, victims,
+  wounded, fatalities…) appears with it.
+
+The second tier is the whole design. One flat list would either miss the
+thing or fail honest content, and the split is what separates *"markets
+crashed 8% — panic or noise?"* from *"the crash that killed 14"*. **A
+gate that reliably cries wolf is one whose waivers stop being read** —
+this file's own sentence, one rule over.
+
+**Measured before it shipped, over the full 653-entry generated bank:
+zero entries fire.** The three that trip a single tier and pass are
+exactly what the conjunction exists to spare — the Library of
+Alexandria's earthquake, what a gladiator fight usually ended in, and the
+Book of the Dead. That measurement is why the gate could be scoped to
+every surface rather than to `now` alone, which is where the owner's note
+pointed: the risk is identical if a daily question does it, and today the
+widening costs nothing.
+
+**Learn is carved out**, the same shape as the place tripwire and for a
+sharper reason than symmetry: a learn card has a RIGHT ANSWER. "Who was
+assassinated in 44 BC?" is history with one correct response and asks
+nobody to take a side, which is the entire thing this rule is about.
+Every other surface asks for a side.
+
+**The tripwire is not the rule, and clearing it is not clearance.** The
+same prompt is ordinary in a quiet week and grotesque in the week of an
+attack — *"is airport security theatre?"* is the clean example — and no
+word list can see the week. What the gate catches is the unambiguous
+case; judging the rest stays the writing run's job and the audit's.
+Judged false positives go in `ALLOW` under `tragedy`, with the reason,
+the neighbours pattern. Nothing is waived there today.
+
+### Where it is written down
+
+The rule is in [`QUESTION-FARM.md`](QUESTION-FARM.md) beside the lane's
+other hard rules and in [`NEXT-FUNCTIONALITY.md`](NEXT-FUNCTIONALITY.md)
+§1's boundaries, which now number three — it sits above the CALL boundary
+and the editorial-lane one, because it is the only one of the three whose
+cost is not a design regret.
+
+Both halves of the tripwire were verified to FAIL against the pre-change
+file rather than assumed to: neutering the call site fails the plain-word
+case and the casualty-conjunction case, while the three
+false-positive cases keep passing, which is the property that would
+otherwise rot silently.

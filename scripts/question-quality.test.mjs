@@ -7,7 +7,7 @@ import {
   loadCorpus, checkQuestion, checkBatch, checkProvenance, checkHeadroom,
   checkPathGenre, placeCivicHit, PROMPT_MAX, OPTION_SHAPES, FEED_TYPES,
   DIAL_BUCKETS, PATH_AXES, PATH_AXIS_LEGACY,
-  windowDays, NOW_TOPIC, WINDOW_MAX_DAYS,
+  windowDays, NOW_TOPIC, WINDOW_MAX_DAYS, tragedyHit,
 } from "./question-quality.mjs";
 
 const corpus = loadCorpus();
@@ -500,5 +500,70 @@ describe("the current-events window", () => {
       until: ["2026-08-26", "2026-08-27", "2026-08-28", "2026-08-29"][i],
     }));
     expect(checkBatch(batch)).toEqual([]);
+  });
+});
+
+// ── the tragedy tripwire (D235) ──
+//
+// The owner's rule for the current-events lane, and the reason it is a
+// gate rather than a note: news skews to catastrophe, so a lane whose job
+// is "what is happening now" meets one most weeks, and the pressure to
+// ask the obvious question is highest exactly when asking it is worst.
+//
+// The false-positive half matters as much as the hit half. A gate that
+// blocks "markets crashed 8%" is one whose waivers stop being read, and
+// the whole two-tier design exists to keep that from happening.
+describe("the tragedy tripwire", () => {
+  const nowQ = (over = {}) => ({
+    surface: "feed", type: "vote", cat: NOW_TOPIC, core: false,
+    prompt: "Crude is near $94. Has the pump changed how you get around?",
+    options: ["Driving less already", "No change yet"],
+    from: "2026-08-23", until: "2026-08-29", ...over,
+  });
+  const fires = (q) => checkQuestion(q, "feed", corpus).errs.some((e) => e.rule === "tragedy");
+
+  it("catches the unambiguous words whatever surrounds them", () => {
+    for (const prompt of [
+      "Was the terror attack preventable?",
+      "After the massacre, should the minister resign?",
+      "Is what happened in the province a genocide?",
+      "Should the hostages' names be published?",
+    ]) expect(fires(nowQ({ prompt })), prompt).toBe(true);
+  });
+
+  it("catches an event beside a casualty count, which one word alone cannot", () => {
+    expect(fires(nowQ({ prompt: "The crash that killed 14 — was the airline at fault?" }))).toBe(true);
+    // The cue can hide in an option rather than the prompt.
+    expect(fires(nowQ({
+      prompt: "Who should answer for the derailment?",
+      options: ["The operator", "Nobody — 9 dead was bad luck"],
+    }))).toBe(true);
+  });
+
+  it("lets honest content through, which is the point of two tiers", () => {
+    for (const prompt of [
+      // An event word with no toll: the single most likely legitimate
+      // current-events question there is.
+      "Markets crashed 8% overnight. Panic or noise?",
+      "A general strike shut the country down. Fair tactic?",
+      "Crude is near $94. Has the pump changed how you get around?",
+      // A toll word with no event, in a phrase that has nothing to do with one.
+      "A dead heat in the final — replay it, or share the title?",
+      "Is the transfer deadline a dead letter now?",
+    ]) expect(fires(nowQ({ prompt })), prompt).toBe(false);
+  });
+
+  it("spares the learn surface, because a learn card has a right answer", () => {
+    // History that names an atrocity is knowledge, not a side to take —
+    // the same carve-out the place tripwire makes, for a sharper reason.
+    const card = { f: "hist", q: "Who was assassinated in 44 BC?", a: ["Caesar", "Cato", "Sulla", "Crassus"], c: 0, t: 1, p: 55, k: "Roman politics" };
+    expect(tragedyHit({ prompt: card.q, options: card.a })).not.toBe(null);
+    expect(checkQuestion(card, "learn", corpus).errs.some((e) => e.rule === "tragedy")).toBe(false);
+  });
+
+  it("reports which tier caught it, so a waiver can be judged", () => {
+    expect(tragedyHit({ prompt: "Was the terror attack preventable?" })).toMatchObject({ kind: "plain" });
+    expect(tragedyHit({ prompt: "The crash that killed 14 — who pays?" })).toMatchObject({ kind: "casualty" });
+    expect(tragedyHit({ prompt: "Markets crashed 8%. Panic or noise?" })).toBe(null);
   });
 });
