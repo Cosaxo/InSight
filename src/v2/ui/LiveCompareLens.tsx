@@ -189,7 +189,15 @@ function LiveCompareLens({ pop, whom, emptyThem }: {
     theirs = fold.axes;
     // People rather than answers, and counted over the whole roster so
     // the denominator is the population the tab names.
-    basis = () => <>{fold.people} of {pop.uids.length} have taken one</>;
+    //
+    // `peopleIn(the drawn kinds)`, not `fold.people` (D229) — the same
+    // refusal the `cells` branch makes eight lines up. The fold measures
+    // every instrument the roster has finished, and a set whose only card
+    // is Big Five would otherwise print the three people who between them
+    // also finished Politics. The numerator now counts the people the
+    // cards on screen actually rest on; the denominator stays the roster,
+    // so somebody missing is stated rather than dropped from both.
+    basis = (r) => <>{fold.peopleIn(r.cards.map((c) => c.kind))} of {pop.uids.length} have taken one</>;
   }
 
   const read = compareRead(DEFS, CORE_TEST_KINDS, mine, theirs, theirN);

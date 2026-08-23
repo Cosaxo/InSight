@@ -233,8 +233,21 @@ export function cohortAxisMap(
 /** A population's axes, with how many people carried them. */
 export interface PeopleAxes {
   axes: AxisMap;
-  /** People who contributed at least one axis. */
+  /** People who contributed at least one axis, to any instrument. */
   people: number;
+  /**
+   * …and how many contributed to at least one of `kinds` (D229).
+   *
+   * A caller that DREW only some of the instruments must count only those,
+   * or its basis line overstates what the cards on screen rest on — the
+   * same refusal `cohortAxisMap`'s consumer already makes by printing the
+   * drawn answers rather than the fold's total.
+   *
+   * A UNION rather than a sum of per-instrument counts: one person who
+   * finished two instruments is one person, and adding the counts would
+   * report more people than the roster has.
+   */
+  peopleIn: (kinds: readonly string[]) => number;
 }
 
 /**
@@ -259,6 +272,9 @@ export function peopleAxisMap(
 ): PeopleAxes {
   const acc: Record<string, Record<string, { sum: number; n: number }>> = {};
   const seen = new Set<number>();
+  // Who contributed to WHICH instrument, so a caller that drew some of
+  // them can count only those (see PeopleAxes.peopleIn).
+  const perKind: Record<string, Set<number>> = {};
   results.forEach((r, i) => {
     if (!r) return;
     for (const kind of Object.keys(defs)) {
@@ -271,6 +287,7 @@ export function peopleAxisMap(
         a.sum += v;
         a.n += 1;
         seen.add(i);
+        (perKind[kind] || (perKind[kind] = new Set<number>())).add(i);
       }
     }
   });
@@ -288,7 +305,18 @@ export function peopleAxisMap(
     }
     if (Object.keys(dims).length) axes[kind] = dims;
   }
-  return { axes, people: seen.size };
+  return {
+    axes,
+    people: seen.size,
+    peopleIn(kinds) {
+      const union = new Set<number>();
+      for (const k of kinds) {
+        const s = perKind[k];
+        if (s) for (const i of s) union.add(i);
+      }
+      return union.size;
+    },
+  };
 }
 
 // ── the comparison ───────────────────────────────────────────────────

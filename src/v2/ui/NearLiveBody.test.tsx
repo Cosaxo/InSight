@@ -16,7 +16,7 @@
 // screen taken from a fact about one cell), and that it names nobody.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -354,7 +354,12 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
     LIVE.near.on = () => true;
     LIVE.near.room = () => ({ people: [], qs: {} });
     const { container } = render(<NearLiveBody />);
-    expect(await screen.findByRole("group", { name: /closer to the centre is more like you/i })).toBeTruthy();
+    // The field is lazy, so this waits for the drawing itself. It used to
+    // wait on the canvas's group label — but D229 hides an EMPTY ring from
+    // the accessibility tree, because that label promised "closer to the
+    // centre is more like you" over a ring with nobody on it. The label is
+    // not what this case is about; the ring being drawn at all is.
+    await waitFor(() => expect(container.querySelector("svg")).toBeTruthy());
     // You at the centre, and nobody else — one text node in the whole svg.
     expect(container.querySelectorAll("svg text")).toHaveLength(1);
     // …and the explanation still follows it rather than replacing it.
@@ -381,8 +386,11 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
       cleanup();
       LIVE.near.room = () => null;
       setup();
-      render(<NearLiveBody />);
-      await screen.findByRole("group", { name: /closer to the centre is more like you/i });
+      const { container } = render(<NearLiveBody />);
+      // Same await handle as above, and the same reason (D229): two of the
+      // three states below draw an empty ring, which no longer carries a
+      // group label to find it by.
+      await waitFor(() => expect(container.querySelector("svg")).toBeTruthy());
       // Oslo is the fixture's city everywhere else in this file, so it is
       // the string that would appear if the city fold came back.
       expect(document.body.textContent || "", "Near's field named a city again")

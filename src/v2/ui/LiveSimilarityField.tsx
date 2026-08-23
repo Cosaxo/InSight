@@ -195,8 +195,25 @@ function SimilarityCanvas({ nodes, picked, onPick, kind }: {
 }) {
   const pts = layout(nodes);
   const anon = kind === "anon";
+  // AN EMPTY RING NAMES NOTHING (D229). With no nodes this group's label
+  // promised "closer to the centre is more like you" over a canvas with
+  // nobody on it — a comparison announced to a screen reader and then not
+  // made. Every empty arm goes through here (`SfEmptyField` hands it
+  // `nodes={[]}`), so that was the FIRST thing a new account heard from
+  // this tab, on every stop.
+  //
+  // `EmptyField` — the forty-line copy of this drawing that Circle and
+  // Groups use — already resolved it the other way: `aria-hidden` on the
+  // svg, the real sentence in the caption underneath. Two drawings of one
+  // picture cannot disagree about that, and the copy was right: the rings
+  // and the "you" disc are the scale a radius will be read on, not a
+  // reading. There is nothing here to announce until somebody is placed.
+  const empty = !pts.length;
   return (
-    <svg viewBox="-170 -170 340 340" role="group" aria-label="Similarity field — closer to the centre is more like you"
+    <svg viewBox="-170 -170 340 340"
+      role={empty ? undefined : "group"}
+      aria-label={empty ? undefined : "Similarity field — closer to the centre is more like you"}
+      aria-hidden={empty ? "true" : undefined}
       style={{ width: "100%", maxHeight: 350, display: "block", touchAction: "pan-y" }}>
       {/* guide rings — the scale the radius reads on */}
       {[64, 101, 138].map((r, i) => (

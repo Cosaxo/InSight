@@ -663,7 +663,16 @@ function LdManage({ g, onClose }: { g: LiveGroup; onClose: () => void }) {
           {members.map((u) => (
             <span key={u} style={{ display: "flex", alignItems: "center", gap: 7, border: LD_LINE,
               borderRadius: 999, background: "var(--surface-2)", padding: "4px 12px 4px 5px" }}>
-              {u === uid ? <YouChip size={22} /> : <DuelAv uid={u} name={names[u]} size={22} />}
+              {/* The pill is HIDDEN here and nowhere else (D229). `YouChip`
+                  speaks by design — in a reveal bar it is the only marker
+                  of your own row, so `aria-hidden` on the component would
+                  cost that. This chip is the one place that already prints
+                  the word beside it, so unhidden the member list announced
+                  "you you". The caller owns the duplication, so the caller
+                  hides it. */}
+              {u === uid
+                ? <span aria-hidden="true" style={{ display: "flex" }}><YouChip size={22} /></span>
+                : <DuelAv uid={u} name={names[u]} size={22} />}
               <span style={{ fontFamily: "var(--sans)", fontWeight: 700, fontSize: 12.5, color: "var(--ink)" }}>
                 {u === uid ? "you" : (firstName(names[u]) || "Someone")}
               </span>

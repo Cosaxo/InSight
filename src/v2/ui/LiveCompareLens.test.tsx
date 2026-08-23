@@ -419,17 +419,12 @@ describe("the basis under the header counts what was drawn", () => {
     expect(screen.queryByText(/test answers/)).toBeNull();
   });
 
-  it("PINS A KNOWN OVERSTATEMENT: a set's people count spans instruments the cards do not", () => {
-    // Reported, not endorsed. `peopleAxisMap`'s `people` counts everyone who
-    // contributed an axis to ANY instrument, and the lens prints it under
-    // cards that can rest on far fewer — here, one. The `cells` basis
-    // refuses exactly this a dozen lines up in the panel ("`r.answers`, not
-    // the fold's total … resting five axes on a count of eleven would
-    // overstate them"), so the two bases do not hold the same line.
-    //
-    // The fix is a per-instrument people count out of `peopleAxisMap`,
-    // which is a data-layer change and not this suite's to make. When it
-    // lands this expectation becomes "1 of 3" and this comment goes.
+  it("counts only the people the DRAWN cards rest on (D229)", () => {
+    // WAS A PINNED OVERSTATEMENT, now the fix. `peopleAxisMap`'s `people`
+    // counts everyone who contributed an axis to ANY instrument, and the
+    // lens printed it under cards that can rest on far fewer. The `cells`
+    // basis refuses exactly this eight lines up in the panel, so the two
+    // bases did not hold the same line.
     LIVE.myTestResults = () => stored({ big5: { O: 50, C: 50, E: 50 } });
     LIVE.scoresFor = (uid) => ({
       a: scored({ big5: { O: 50, C: 50, E: 50 } }),
@@ -442,7 +437,30 @@ describe("the basis under the header counts what was drawn", () => {
     // you have no Politics for theirs to be compared against.
     expect(cardOf("Big Five")).toBeTruthy();
     expect(screen.queryByText("Politics")).toBeNull();
-    expect(screen.getByText(/3 of 3 have taken one/)).toBeTruthy();
+    expect(screen.getByText(/1 of 3 have taken one/)).toBeTruthy();
+    // The denominator is still the roster, so the two who are missing are
+    // stated rather than dropped out of both numbers.
+    expect(screen.queryByText(/1 of 1/)).toBeNull();
+  });
+
+  it("counts a person once when the cards span two instruments", () => {
+    // The union, and the reason a sum of per-instrument counts is wrong:
+    // `a` finished both, so two cards drawn off one person must not report
+    // two people out of a roster of two.
+    LIVE.myTestResults = () => stored({
+      big5: { O: 50, C: 50, E: 50 },
+      political: { econ: 50, auth: 50, foreign: 50 },
+    });
+    LIVE.scoresFor = (uid) => ({
+      a: scored({
+        big5: { O: 50, C: 50, E: 50 },
+        political: { econ: 50, auth: 50, foreign: 50 },
+      }),
+    })[uid] || null;
+    render(lens({ basis: "people", uids: ["a", "b"] }));
+
+    expect(cardOf("Big Five")).toBeTruthy();
+    expect(screen.getByText(/1 of 2 have taken one/)).toBeTruthy();
   });
 });
 

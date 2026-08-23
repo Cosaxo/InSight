@@ -21,12 +21,15 @@
 //      the two files' geometry is compared against each other rather
 //      than pinned to literals here, which would only re-state this file.
 //   3. The words are the readable half. The drawing is `aria-hidden` and
-//      announces nothing; the sentence is text. Here the two files
-//      DISAGREE — `SfEmptyField` hands the same empty canvas to a screen
-//      reader as a group named "Similarity field — closer to the centre
-//      is more like you", a promise about nodes that are not there.
-//      Recorded in the suite's report, deliberately not asserted: only
-//      one of the two can be right and it is not this file's call.
+//      announces nothing; the sentence is text. The two files DISAGREED
+//      here when this suite was written — `SfEmptyField` handed the same
+//      empty canvas to a screen reader as a group named "Similarity field
+//      — closer to the centre is more like you", a promise about nodes
+//      that are not there — and it was recorded rather than asserted,
+//      because only one of the two could be right and it was not this
+//      file's call. It was this file's answer that was right: D229 hides
+//      the engine's empty canvas too, and its own suite pins both halves
+//      (hidden while empty, named again the moment somebody is placed).
 //   4. No action, no button. City fills as strangers answer and needs no
 //      door; the two stops that cannot fill by waiting carry the only
 //      buttons, and an empty state that grows a control it did not ask

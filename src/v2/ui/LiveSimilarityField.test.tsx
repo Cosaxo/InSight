@@ -407,6 +407,32 @@ describe("an empty field draws the ring anyway (D160)", () => {
     expect(screen.getByText(/Nobody from Oslo yet/)).toBeTruthy();
   });
 
+  it("names nothing to a screen reader while there is nobody on it (D229)", () => {
+    // The canvas carries `role="group"` and a label promising "closer to
+    // the centre is more like you". Over an EMPTY ring that announces a
+    // comparison and then does not make one — and every empty arm goes
+    // through here, so it was the first thing a new account heard from
+    // this tab, on every stop. `EmptyField`, the forty-line copy of this
+    // drawing that Circle and Groups use, already hid its svg; the two
+    // could not both be right.
+    const { container } = render(<SimilaritySection scope="city" />);
+    const svg = container.querySelector("svg")!;
+    expect(svg.getAttribute("aria-hidden")).toBe("true");
+    expect(svg.getAttribute("role")).toBeNull();
+    expect(svg.getAttribute("aria-label")).toBeNull();
+  });
+
+  it("…and names itself again the moment somebody is placed", () => {
+    // The half the fix must not swallow: with nodes on it the label is the
+    // only thing telling a screen reader what the radius MEANS.
+    LIVE.kindredPeople = () => [person("a", { name: "Ada Lovelace" })];
+    const { container } = render(<SimilaritySection scope="city" />);
+    const svg = container.querySelector("svg")!;
+    expect(svg.getAttribute("aria-hidden")).toBeNull();
+    expect(svg.getAttribute("role")).toBe("group");
+    expect(svg.getAttribute("aria-label")).toMatch(/closer to the centre is more like you/);
+  });
+
   it("says it is matching rather than empty while the loaders are out", () => {
     // Absent is not empty — the same distinction every live surface here
     // draws, and the one that stops a full city reading as a dead one.

@@ -23399,3 +23399,80 @@ Every fix was mutation-checked in BOTH directions: reverting it fails, and
 so does over-applying it. That second half is the one worth keeping — it
 is what caught that removing `days()`'s schedule gate would have fixed the
 card by breaking the trend.
+
+## D229b · The three honesty findings from D227's list
+
+**2026-08-22.** **Status:** binding. The rest of D227's eight, and the
+close of that list. Recorded under D229 because it is the same sweep: the
+behaviour half is above, this is the half where the app was telling the
+truth to the eye and not to everyone.
+
+### 1 · A basis that counted people the cards did not rest on
+
+`LiveCompareLens` prints what its likeness stands on, and the two bases
+count different things. The `cells` branch already refused to overstate —
+"`r.answers`, not the fold's total: the fold may have measured instruments
+this comparison never drew" — and the `people` branch, eight lines below
+it, printed `fold.people`: everyone who contributed an axis to ANY
+instrument. A set whose only drawn card is Big Five reported the three
+people who between them also finished Politics.
+
+`peopleAxisMap` now returns `peopleIn(kinds)` beside `people`, and the
+lens counts only the instruments it drew. A UNION rather than a sum of
+per-instrument counts, because one person who finished two instruments is
+one person and adding the counts would report more people than the roster
+has — pinned by its own case, since a sum passes the single-card one.
+
+The denominator stays the roster: somebody missing is stated rather than
+dropped from both numbers.
+
+### 2 · An empty ring that announced a comparison
+
+`SimilarityCanvas` carries `role="group"` and the label "Similarity field —
+closer to the centre is more like you". Every empty arm draws through it
+(`SfEmptyField` hands it `nodes={[]}`), so that label promised a
+comparison over a ring with nobody on it — and since the field is what a
+cohort stop OPENS on, it was the first thing a new account heard from the
+Mirror, on every stop.
+
+`EmptyField` — the forty-line copy of this drawing that Circle and Groups
+use, kept as a copy because importing the engine would drag it into the
+first-paint graph — had already answered the other way: `aria-hidden` on
+the svg, the sentence in the caption. Two drawings of one picture cannot
+disagree about that, and the copy was right. The rings and the "you" disc
+are the scale a radius will be read on, not a reading.
+
+Hidden while empty, named again the moment somebody is placed; both halves
+pinned, because hiding it always would take away the only thing telling a
+screen reader what the radius MEANS.
+
+**It cost two tests elsewhere, and that is worth recording.**
+`NearLiveBody` waited on that group label to know the lazy field had
+rendered — using an accessibility promise as a test handle. Repointed at
+the drawing itself. The full suite caught it; neither panel's own suite
+could have.
+
+### 3 · "you you"
+
+`LiveDuelPanel`'s member chip drew `YouChip` AND a text label that is also
+the word "you", so the member list said it twice to a screen reader.
+
+The fix is at the CALL SITE, not on the component. `YouChip` speaks by
+design — in a reveal bar it is the only marker of your own row, and
+`aria-hidden` on the component would cost that everywhere to fix it in one
+place. This chip is the one place that already prints the word beside the
+pill, so the caller that owns the duplication is the caller that hides it.
+Both halves pinned: the pill is still DRAWN (it is the visual marker), and
+the other member is still named.
+
+The assertion had to be on the accessibility tree rather than on
+`getAllByText`, which does not respect `aria-hidden` — the duplication is
+still in the DOM on purpose, so a text count cannot see this fix at all.
+
+### The list is closed
+
+D227 found eight, D228 fixed two, D229 fixed three, and this record fixes
+the last three. Every one was pinned as-found by the suite that found it,
+with a failure message naming the fix — so all eight announced themselves
+by turning their own case red the moment the source moved. That
+convention is the reason none of them needed re-finding.
