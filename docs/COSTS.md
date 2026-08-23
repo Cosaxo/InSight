@@ -63,6 +63,7 @@ Every constant below is sourced, not assumed:
 | One pulse open | **Today only: one `documentId() in` query over as many per-day agg ids as there are pulses** (≤5), once per UTC day per session — a same-day answer forces one refresh so the reveal's bins include you. The 21-day window is `ensureTrend`, one 21-id query, paid on the tap that opens a reading | `DAYS`, src/v2/data/pulse.ts (D139, roster D203). **Five pulses cost FEWER reads per open than one did**, and that is the point of the split: D139 fetched the whole 21-day window on every open although the card only ever draws today, so a naive ×5 would have been 105 ids — over the 30-clause `documentId() in` cap, hence 4+ queries per open for data the first screen never reads. The template read is gone too: `splitBanks` now keeps a pulse lane, so the roster's prompts come from the bank `hydrate()` already cached (it also means `active: false` finally reaches the client — before D203 a killed pulse still drew a tappable card whose every write the rules refused). Your own series still costs zero — derived from the hydrated vote mirror |
 | One Roles tab open | Up to 14 day-key `getDoc`s per room, once per room per session — the SAME cache the duel panel fills, so a room you have already opened costs nothing here | `REVEAL_HIST_DAYS`, src/v2/data/live.ts (D156, D204). This is the first surface that wants EVERY room's history rather than the one you are looking at, so on a cold session it pays for the rooms you have not opened yet: ~14 reads each, loaded sequentially rather than in parallel so a profile tab does not spike the read rate. The fold itself is free — `data/roles.ts` is pure arithmetic over documents already in hand, with no new field and no new collection |
 | The Patterns fit, nightly | The day's ledger entries re-read as the vote log (the velocity scan's shape, second reader), one private state read+write per active answerer, one model doc read+write per project | functions/src/patterns.ts (v28 §2, trial D166 §1). Measured BEFORE the fold shipped — the dated note under the scenario table has the movement |
+| The engagement digest, nightly | The day's ledger entries re-read a THIRD time as the activity log, one bookkeeping state read+write per active answerer, one public day doc per project | functions/src/engagement.ts (R1/D251). A separate scan rather than a rider on velocity's, deliberately — its header carries the windowing argument. Measured before the deploy — dated note below |
 | One Circle open | 1 + one query per member: ≤50 members × ≤300 answers, +1 followers query | `FOLLOW_CAP` / `CIRCLE_ANSWER_CAP`, src/v2/data/circle.ts (D101). Also once per session since 2026-08-13, with `setFollowing` the one caller that may force a refetch — it changes the membership the fold is over |
 | One takes panel | ≤100 world takes per question, ≤500 per group, once per scope per session | `TAKE_FETCH_CAP` / `TAKE_GROUP_FETCH_CAP`, src/v2/data/live.ts — both caps and the cache are new on 2026-08-13; the world query had no `limit()` and returned roughly everyone who spoke that day |
 
@@ -92,11 +93,11 @@ roughly double on the three operation lines.
 
 | Scenario | DAU | reads/day | writes/day | Firestore $/mo | Functions $/mo | **Total $/mo** |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Launch / TestFlight | 50 | 10.0 K | 1.0 K | 0.00 | 0.00 | **0.00** |
-| Friends-of-friends | 500 | 175 K | 9.6 K | 1.12 | 0.00 | **1.12** |
-| Real traction | 5,000 | 2.2 M | 96 K | 23 | 0.00 | **23** |
-| Scale | 50,000 | 22.0 M | 960 K | 249 | 2.20 | **251** |
-| Hit | 500,000 | 220 M | 9.6 M | 2,512 | 43 | **2,555** |
+| Launch / TestFlight | 50 | 10.1 K | 1.0 K | 0.00 | 0.00 | **0.00** |
+| Friends-of-friends | 500 | 177 K | 10.1 K | 1.15 | 0.00 | **1.15** |
+| Real traction | 5,000 | 2.2 M | 101 K | 23 | 0.00 | **23** |
+| Scale | 50,000 | 22.2 M | 1.0 M | 253 | 2.20 | **255** |
+| Hit | 500,000 | 222 M | 10.1 M | 2,550 | 43 | **2,593** |
 
 > **Measured 2026-08-19, BEFORE the fold shipped (VISION-V28 §11.4).**
 > The Patterns fit (v28 §2, trial D166 §1) joined the model:
@@ -112,6 +113,19 @@ roughly double on the three operation lines.
 > in real time — a map redraws nightly. The named lever if the ledger
 > re-read ever matters: flag eligible entries at write time and query the
 > flag, dropping the term by the ineligible share.
+
+> **Measured 2026-08-23, before the deploy.** The engagement digest
+> (R1/D251, `docs/ENGAGEMENT-PLAN.md` rung 0) joined the model:
+> `ENGAGEMENT_READS_PER_LEDGER_ENTRY` and `ENGAGEMENT_USER_STATE_OPS` in
+> `scripts/cost-arith.mjs`. A THIRD nightly reader of the same ledger
+> entries plus one bookkeeping state read+write per active answerer —
+> server reads 22 → 27 per user-day, one more write per user-day,
+> $251 → $255 at 50 k and $2,555 → $2,593 at 500 k. A separate scan
+> rather than a rider on the velocity pass, deliberately: velocity's
+> window is a cursor (lastScanAt → now, capped 72 h) and the digest's is
+> the calendar day, and coupling the two semantics to save one read per
+> entry per night is the wrong trade — the argument lives in
+> functions/src/engagement.ts's header, where a revisit would start.
 
 > **The tab's client half (2026-08-19, same day)** adds reads too small
 > for the model's terms, stated so nobody hunts for them later: ONE

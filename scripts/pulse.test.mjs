@@ -25,6 +25,7 @@ import { execFileSync } from "node:child_process";
 
 import {
   collect, collectArchive, bucketEvenness, addressablePlaces, isoDay, ROOT,
+  collectEngagement, engagementFromDays,
 } from "./pulse-collect.mjs";
 import { renderPulse } from "./pulse-render.mjs";
 import { PEN_TARGET } from "./farm-budget.mjs";
@@ -719,5 +720,66 @@ describe("the rendered page", () => {
     const html = renderPulse(nasty, []);
     expect(html).not.toContain("<img src=x>");
     expect(html).toContain("&lt;/script&gt;");
+  });
+});
+
+describe("the engagement panel (R1/D251)", () => {
+  // The digest has not deployed, so the TREE holds no committed trail —
+  // and the collector must say so rather than inventing zeros. The day the
+  // first monitoring/engagement.json is committed, this case flips to
+  // asserting the present shape against the real artifact, the
+  // collectScorecard lesson: a fixture you wrote yourself proves nothing.
+  it("reads the tree honestly: no committed trail yet → present: false, with the fix in the note", () => {
+    const e = collectEngagement();
+    expect(e.present).toBe(false);
+    expect(e.note).toMatch(/scorecard -- --fetch/);
+    expect(e.note).toMatch(/digestEngagementV2/);
+  });
+
+  it("renders the honest-absence banner, not an empty chart", () => {
+    const html = renderPulse(collect(), []);
+    expect(html).toContain("Engagement — the digest trail");
+    expect(html).toContain("No trail yet");
+  });
+
+  const DAYS = [
+    { day: "2026-08-20", actives: 10, firstTime: 10, votes: 30, events: 31,
+      bySurface: { daily: 10, feed: 20 },
+      returned: { d1: { returned: 0, of: null }, d7: { returned: 0, of: null }, d30: { returned: 0, of: null } },
+      streaksBroken: 0 },
+    // 08-21 deliberately missing — a day the digest never folded
+    { day: "2026-08-22", actives: 6, firstTime: 2, votes: 12, events: 12,
+      bySurface: { daily: 6, feed: 6 },
+      returned: { d1: { returned: 0, of: 0 }, d7: { returned: 3, of: 10 }, d30: { returned: 0, of: null } },
+      streaksBroken: 1 },
+  ];
+
+  it("folds the day docs null-aware: unknown cohorts stay unknown, empty ones stay empty", () => {
+    const e = engagementFromDays(DAYS);
+    expect(e).toMatchObject({ days: 2, gaps: 1, lastDay: "2026-08-22" });
+    expect(e.latest).toMatchObject({ actives: 6, firstTime: 2, streaksBroken: 1 });
+    // of: 10 → a real rate; of: 0 → known-empty cohort, rate null; of:
+    // null → cohort day never folded, rate null. The render tells the
+    // last two apart, so the fold must keep them apart.
+    expect(e.returned.d7).toEqual({ returned: 3, of: 10, rate: 0.3 });
+    expect(e.returned.d1).toEqual({ returned: 0, of: 0, rate: null });
+    expect(e.returned.d30).toEqual({ returned: 0, of: null, rate: null });
+    expect(e.weekMeanActives).toBe(8);
+  });
+
+  it("renders a populated trail with rates and the unknown-cohort wording", () => {
+    const p = collect();
+    const e = { present: true, fetchedOn: "2026-08-23", ...engagementFromDays(DAYS) };
+    const html = renderPulse({ ...p, engagement: e }, []);
+    expect(html).not.toContain("No trail yet");
+    expect(html).toContain("30%");
+    expect(html).toContain("empty cohort");
+    expect(html).toContain("cohort day never folded");
+    expect(html).toContain("1 gap(s)");
+  });
+
+  it("an empty trail file folds to zero days, not to an invented reading", () => {
+    expect(engagementFromDays([])).toEqual({ days: 0 });
+    expect(engagementFromDays(undefined)).toEqual({ days: 0 });
   });
 });

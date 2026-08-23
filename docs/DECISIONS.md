@@ -25444,3 +25444,124 @@ The 28 `react-hooks/exhaustive-deps` and `react-hooks/refs` suppressions on
 ported effects. Changing effect re-run timing blind is exactly the trade
 `src/v2/README.md` refuses, and that refusal survives this record — it was
 only ever the autofocus half that had been filed under it by association.
+
+## D251 · The ledger learns to count people: engagement rung 0
+
+**Decided:** 2026-08-23 · **Status:** binding — adopted by the owner in
+those words ("i adopt R1"), recorded and built in the same change.
+Adopts `docs/ENGAGEMENT-PLAN.md` §8 R1 (rung 0); widens D28; graduates
+the row `docs/MONITORING.md` § Population listed as "unbuilt, not
+forbidden" on exactly the condition that record demanded.
+
+**Decision.** `v2_agg_events` gains a **third purpose**: population
+counting. D28 justified the ledger as trigger dedup and fake-account
+attribution, and `velocity.ts` still states that counting people with it
+"remains a new purpose for this data and remains undone until its own
+record says otherwise." This is that record. What the purpose grants is
+exactly what shipped with it:
+
+- **`digestEngagementV2`** (`functions/src/engagement.ts`) — a nightly
+  `onSchedule` sweep (02:23 UTC) folding each finished UTC day's ledger
+  into one **public** day document, `v2_engagement_daily/{day}`: actives,
+  first-time answerers, deduped votes vs raw events, answers by surface,
+  signup-cohort returns (D1/D7/D30), broken streaks. Counts only — no
+  uid, name or anchor anywhere in the document. The patterns-fit shape
+  throughout: injected store, `lastDay` idempotence, bounded 7-day
+  catch-up, an empty day writing a zero doc because an ABSENT doc means
+  "never folded" and the console draws that as a gap.
+- **The bookkeeping the counts need, stated rather than smuggled:**
+  `v2_users/{uid}/engagement/_state` — first active day, last active
+  day, distinct active days, current streak. Uid-keyed, server-written,
+  readable by NOBODY (the push-tokens posture), erased by the recursive
+  delete with no new arm. The alternative was four windowed ledger scans
+  per night; one small pair per active account is the honest trade, and
+  it is bookkeeping for anonymous outputs, not a reading anyone can
+  query.
+- **The read side:** `npm run scorecard -- --fetch` commits the trail to
+  `monitoring/engagement.json` on the scorecard's own credential-free
+  fetch (one fetch path — `docs/MONITORING.md` already rejected a drift
+  pair), and `npm run pulse` gains the engagement panel and two trail
+  columns (`dau`, `retD7`), honesty rules printed beside the numbers.
+
+**Two sub-decisions the runbook left open, taken here.** The day docs are
+**world-readable** (ENGAGEMENT-RUNBOOK 0.2) — the plan §5 recommendation
+adopted as the default, since the adoption named R1 without the toggle;
+nothing per-person is in them, and the public read is what keeps the
+console credential-free. Reversing is one rules line, and the arm's
+comment says so. And the digest is a **separate nightly scan** rather
+than a rider on `velocity.ts`'s (ENGAGEMENT-RUNBOOK 1.1): velocity's
+window is a cursor capped at 72 h, the digest's is the calendar day, and
+coupling two windowing semantics to save ~3 reads per user per night is
+the wrong trade. Arithmetic in `engagement.ts`'s header; the cost model
+carries it (`ENGAGEMENT_READS_PER_LEDGER_ENTRY`,
+`ENGAGEMENT_USER_STATE_OPS`) — server reads 22 → 27 per user-day,
+**$251 → $255/mo at 50 k DAU, $2,555 → $2,593 at 500 k**, measured
+before the deploy per the house rule.
+
+**What this deliberately does not change.** Nothing new is collected:
+the client sends nothing, no SDK ships, and the store forms' Product
+Interaction row stays **No** — re-answered rather than assumed
+(`docs/STORE-FORMS.md`), because Apple's row asks what is collected from
+the app and a server-side fold of already-stored answers is not that.
+`data-inventory.md`'s "not collected" paragraph is rewritten to say
+precisely this. The counts are **floors**: a person who opens the app
+and answers nothing is invisible at rung 0, and every reader says so.
+The refusals around this record stand — per-user funnels, session
+analytics and engagement scoring (client collection, ENGAGEMENT-PLAN
+rungs 1–2) each wait on their own unadopted record; anchor-sliced and
+Art. 9-sliced engagement stay refused outright, and the digest holds
+that line by construction: its store reads uid, qid and dates and can
+reach no anchor.
+
+**Honest limits, recorded rather than papered over.** `streaksBroken` is
+detected on RETURN — an account that never comes back is a retention
+fact, not a streak one. A crash in the two writes between a day doc and
+its cursor can undercount that one figure for that one day on the replay
+(the write-order comment in `runEngagementDigest` prices the windows).
+An outage longer than the 7-day catch-up leaves days permanently
+unfolded — gaps, visible as gaps. And the day docs persist indefinitely
+on purpose: ~365 small anonymous documents a year IS the trail, and a
+TTL on them would delete the product of the fold, not a liability.
+
+**Enforcement:** 14 unit tests on the fold (`engagement.test.ts` —
+idempotence, crash-replay, null denominators, surface derivation), two
+rules tests (world-read/write-nobody on the day docs; deny-both-ways on
+`_state`, including a rung-2-shaped id refused today), the
+`check:monitoring` chain (heartbeat metric → log-based metric → absence
+policy), `check:deploy-targets`, `check:fn-runtime`, two new
+`check:policy-claims` rows over the `web/privacy.html` disclosure, the
+inventory rows, and the `SCHEMA-V2.md` entries. 265 script tests carry
+the console half, absent-trail case included.
+
+## D252 · The ceiling: what stays refused at every engagement rung
+
+**Decided:** — · **Status:** **Proposed** — drafted with D251 per
+ENGAGEMENT-RUNBOOK 0.1, awaiting the owner's explicit word (the D28
+lesson: this file once marked a record binding ahead of the owner's
+decision and reclassified it the same day; the owner's adoption named R1
+alone, so this one waits rather than presumes). Until adopted, every
+refusal below still binds through the documents that already record it.
+
+**The proposal** (`docs/ENGAGEMENT-PLAN.md` §8 R5, §4.3–4.4): one
+standing record that the following are refused at every rung, whatever
+is adopted above them, so the next "track more" ask starts from a
+written line rather than drift —
+
+- raw per-event upload (the event stream: two orders of magnitude more
+  writes than the app, and a uid-keyed behavioural log is the dossier
+  every standing document promises does not exist);
+- third-party analytics SDKs (outside `deleteAccount`'s reach, outside
+  the emulator suites, outside `firestore.rules` — unprovable by exactly
+  the machinery this repo trusts promises to; Sentry stays the one
+  third party, crash-scoped, D76/D211);
+- per-target reads (who viewed whom — the flag-authorship deny's
+  anti-retaliation reasoning applied to viewing);
+- hesitation and per-option deliberation timing (QUESTION-FARM's row;
+  the D57 posture that per-item timings never leave the device);
+- anything from a sealed duel before its reveal; keystrokes, drafts and
+  free text before posting; coordinates beyond the presence cell's
+  existing coarseness; the pulse cadence;
+- engagement sliced by anchor or by any test result (Art. 9 included);
+- and the daily and the Mirror ever adapting to any of it (D128/D163's
+  invariant — one blind question, the same for everyone, is
+  load-bearing).

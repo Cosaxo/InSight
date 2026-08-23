@@ -172,8 +172,18 @@ Four of those are worth knowing *why*, because each looks tickable:
   recently". The server stores **no device identifier**; the platforms
   hold the state. There is nothing here for `deleteAccount` to erase
   because nothing is held.
-- **Product Interaction — No.** `data-inventory.md`: "No product analytics
-  of any kind ship today." Adding any would change this row.
+- **Product Interaction — No, re-answered at D251 rather than assumed.**
+  The row asks what is **collected from the app**, and nothing moved:
+  no analytics SDK, no client event stream, nothing about usage leaves
+  the device. What D251 added is server-side — a nightly fold of answers
+  already stored into anonymous daily counts (`v2_engagement_daily`;
+  `data-inventory.md`: "No product analytics are collected"). Apple's own
+  definition here is data about how a user interacts with the app that is
+  collected *from the app*, which a server-side derivation of already-
+  declared answer data is not. Collecting any client usage data
+  (`docs/ENGAGEMENT-PLAN.md` rungs 1–2) flips this row — not-linked at
+  rung 1, linked at rung 2 — and that plan prices the change; whoever
+  ships either rung owns this bullet.
 - **Emails or Text Messages — still No, for the shape reason.** A take is
   a **post** — to a circle (D78 part 1) or, since D83, anonymously to the
   world — never a message to a person, and Apple files posts under *User

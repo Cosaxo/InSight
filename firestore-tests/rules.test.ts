@@ -678,6 +678,38 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "patterns", "state"), { v: [1], n: 1 }));
   });
 
+  it("the engagement day docs read like an aggregate and write like one — nobody (R1/D251)", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_engagement_daily", "2026-08-22"), {
+        day: "2026-08-22", actives: 3, firstTime: 1, votes: 5, events: 5,
+      });
+      await setDoc(doc(db, "v2_engagement_daily", "meta"), { lastDay: "2026-08-22" });
+    });
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_engagement_daily", "2026-08-22")));
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_engagement_daily", "meta")));
+    await assertFails(getDoc(doc(asSignedOut(), "v2_engagement_daily", "2026-08-22")));
+    // A client-writable count would make the whole trail forgeable.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_engagement_daily", "2026-08-23"), { actives: 9 }));
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_engagement_daily", "2026-08-22"), { actives: 9 }));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_engagement_daily", "2026-08-22")));
+  });
+
+  it("a person's engagement bookkeeping is readable and writable by NOBODY — the owner included (D251)", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER, "engagement", "_state"), {
+        firstDay: "2026-08-01", lastDay: "2026-08-22", activeDays: 9, streak: 2,
+      });
+    });
+    // The push/ shape again: no read grant at all, so the pair cannot be
+    // opened by accident — not by a stranger, not by its own subject.
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "engagement", "_state")));
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "_state")));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "_state"), { streak: 99 }));
+    // And the rung-2 shape is refused TODAY: a date-shaped rollup id has
+    // no create arm until R3 opens one (ENGAGEMENT-PLAN §4.2).
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "2026-08-22"), { sessions: 1 }));
+  });
+
   it("the option bound, the kill switch and the surface claim all read off the question", async () => {
     await seedCall();
     await assertFails(setDoc(mine(), callAnswer({ optionIdx: 2 })));

@@ -1,0 +1,30 @@
+{
+  "displayName": "digestEngagementV2 has gone quiet",
+  "documentation": {
+    "content": "The nightly digestEngagementV2 run has not reported a completed digest.\n\nWHY THIS POLICY EXISTS. The fourth instance of the shape scheduledDuelReveals-silent.json exists for, landed WITH its function rather than after an audit (the first three were the audit's finding). A scheduled function that stops running reports NOTHING — no error, no page, no failed request — because the failure is an absence. The engagement trail keeps serving whatever day it last folded, so the console stays green while every panel reading v2_engagement_daily quietly ages.\n\nWHAT IT WATCHES. The log-based metric `engagement_digest`, emitted by functions/src/engagement.ts on every completed run — including a zero-day run (an empty day still writes its doc and still heartbeats). `conditionAbsent` over 30 hours: the cron is 02:23 UTC daily, so that is one missed run plus slack, the fitPatternsV2 window's reasoning.\n\nWHAT A FIRE COSTS IF IGNORED. Less than the other nightly jobs — the digest owns no product surface, only the operator's trail — but the catch-up window is DIGEST_CATCHUP_DAYS (7): after a week of silence, days start going permanently unfolded, and an unfolded day is an absent doc the console draws as a gap forever.\n\nFIRST RESPONSE. Check Cloud Scheduler for the job's last execution and its status, then the function's own logs for the run that should have happened. A run that STARTED and threw shows up in the errors, not here; this policy is specifically for the run that never began — a paused scheduler job, a failed deploy that dropped the trigger, or a quota block. check:deploy-targets and check:fn-runtime cover the deploy-side causes at commit time, so a fire here after a green deploy points at the scheduler or the project, not the code."
+  },
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "no completed digestEngagementV2 run for 30 hours",
+      "conditionAbsent": {
+        "filter": "metric.type=\"logging.googleapis.com/user/engagement_digest\"",
+        "duration": "108000s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "3600s",
+            "perSeriesAligner": "ALIGN_SUM"
+          }
+        ]
+      }
+    }
+  ],
+  "alertStrategy": {
+    "notificationRateLimit": {
+      "period": "3600s"
+    },
+    "autoClose": "604800s"
+  },
+  "enabled": true,
+  "notificationChannels": []
+}

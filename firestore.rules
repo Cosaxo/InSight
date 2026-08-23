@@ -139,6 +139,20 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Engagement day docs (R1/D251) — the nightly digest's anonymous
+    // population counts (actives, first answerers, cohort returns,
+    // answers by surface), one doc per UTC day plus the fold's own
+    // `meta` cursor. World-readable per D251's adopted default — nothing
+    // per-person is in any of them, and the public read is what lets the
+    // scorecard's credential-free fetch and the pulse console read the
+    // trail. Written by NOBODY but the digest on the admin SDK: a
+    // client-writable count would make the whole trail forgeable in one
+    // request (the v2_patterns posture, one shelf up).
+    match /v2_engagement_daily/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     function isValidV2Anchors(anchors) {
       return anchors is map
         && anchors.keys().hasOnly([
@@ -241,6 +255,23 @@ service cloud.firestore {
       // Written only by fitPatternsV2 (admin SDK); deleteAccount's
       // recursive delete of v2_users/{uid} takes it with the account.
       match /patterns/{docId} {
+        allow read, write: if false;
+      }
+
+      // Engagement bookkeeping (R1/D251): the digest's per-account
+      // first/last-active pair (`_state`) — the smallest state from
+      // which the anonymous day counts are computable without rescanning
+      // history. Closed BOTH ways on the push/ principle: a path with no
+      // read grant cannot be opened by accident, and not even the owner
+      // reads it — it is bookkeeping for a fold, not a surface. Written
+      // only by digestEngagementV2 (admin SDK); erased with the account
+      // by deleteAccount's recursive delete — no new arm, the patterns/
+      // state precedent. If rung 2 (ENGAGEMENT-PLAN §4.2) ever ships,
+      // its client-created day rollups land HERE under date-shaped ids,
+      // and this deny narrows to admit exactly that shape — `_state`
+      // fails a date regex by construction, which is why it is named
+      // with the underscore.
+      match /engagement/{docId} {
         allow read, write: if false;
       }
 

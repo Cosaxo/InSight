@@ -84,6 +84,11 @@ const METRICS = [
     description: "ledgerVelocityScan completed a nightly scan (03:47 UTC)",
     filter: 'jsonPayload.metric="velocity_scan"',
   },
+  {
+    name: "engagement_digest",
+    description: "digestEngagementV2 completed a nightly digest (02:23 UTC)",
+    filter: 'jsonPayload.metric="engagement_digest"',
+  },
 ];
 
 const POLICIES = [
@@ -96,6 +101,7 @@ const POLICIES = [
   // number on screen that quietly stops moving.
   "monitoring/fitPatternsV2-silent.json",
   "monitoring/ledgerVelocityScan-silent.json",
+  "monitoring/digestEngagementV2-silent.json",
   // The odd one out, and deliberately so: the three above watch something
   // breaking, this one watches the app working expensively. It reads a
   // BUILT-IN Firestore metric rather than a log-based one, so it needs no

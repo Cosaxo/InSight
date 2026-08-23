@@ -1,10 +1,13 @@
 # Engagement — measuring what holds people and what loses them
 
-**Status: plan only. No code exists.** Requested 2026-08-23: *track as
-much as possible about how a user uses the app — what engages them, what
-bores them, and whatever else is useful.* Read it as a proposal, with
-what it reverses named at the top, the arithmetic in the middle, and the
-failure modes at the bottom.
+**Status: mixed — rung 0 is built (R1, taken as D251, 2026-08-23);
+rungs 1–2 remain proposals with no code behind them.** Requested
+2026-08-23: *track as much as possible about how a user uses the app —
+what engages them, what bores them, and whatever else is useful.* Read
+§2 as a description and everything above rung 0 as a proposal, with what
+it reverses named at the top, the arithmetic in the middle, and the
+failure modes at the bottom. The build list, with phase 1's as-built
+notes, is [`ENGAGEMENT-RUNBOOK.md`](ENGAGEMENT-RUNBOOK.md).
 
 > **This generalizes [`ATTENTION.md`](ATTENTION.md), it does not replace
 > it.** That document answered a narrower 2026-08-13 ask ("does anyone
@@ -492,6 +495,9 @@ Drafted here, adopted only by the owner writing them into
   counts; the 90-day TTL and erasure sweep stand. Reverses nothing
   user-facing; MONITORING.md's "unbuilt, not forbidden" row graduates.
   *Open toggle carried by R2 as well: public daily doc vs server-only.*
+  **Taken as D251 (2026-08-23) and built the same day** — the toggle
+  resolved to public, and the record carries the two build-time
+  decisions (public read; a separate nightly scan) with their reasoning.
 - **R2 · Anonymous feature tallies.** Adopts ATTENTION tier 3
   generalized (§4.1): sampled, bucketed, per-day random ids,
   fold-and-delete. Rewrites the data-inventory sentence to "no *linked*
@@ -512,7 +518,10 @@ Drafted here, adopted only by the owner writing them into
   record — event streams, third-party SDKs, per-target reads,
   hesitation, anchor/Art. 9 slicing, cadence, and the
   daily/Mirror-never-adapt invariant — so the next "track more" ask
-  starts from a written line.
+  starts from a written line. **Drafted as D252, Status: Proposed** —
+  the owner's adoption named R1 alone, so the ceiling waits for its own
+  word rather than presuming it (the D28 lesson); until then every
+  refusal in it binds through the documents that already record it.
 
 ## 9 · Failure modes
 

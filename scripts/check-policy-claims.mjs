@@ -106,6 +106,15 @@ export const CLAIMS = [
     /moves from one option to another/i],
   ["D227 · the verified logic score also groups answers, in broad bands",
     /verified logic score, in four broad\s+bands/i],
+  // D251 is one disclosure in two halves, pinned separately for the D202
+  // reason: one row says what the daily summary is (counts, no identity),
+  // the other admits the uid-keyed bookkeeping behind it and its erasure.
+  // Deleting either half leaves a page that reads as more, or less,
+  // private than the digest actually is.
+  ["D251 · the daily usage summary is counts, computed without identity",
+    /counts,\s+computed without your identity/i],
+  ["D251 · the digest's per-account date pair is unreadable and erased with the account",
+    /first and most recent day you answered[\s\S]{0,200}?deleted with your\s+account/i],
 ];
 
 /** Labels of every claim the given page source fails to state. */

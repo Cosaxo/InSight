@@ -151,7 +151,7 @@ v2_aggs_private/{qid}              the trigger's working state (no readers)
                                    per document is unchanged. Bounded:
                                    low-cardinality anchors only (no city,
                                    no profession) and ≤24 buckets/dim.
-v2_agg_events/{eventId}            trigger ledger (opaque), three jobs (D28)
+v2_agg_events/{eventId}            trigger ledger (opaque), four jobs (D28, D251)
   { qid, uid, optionIdx?, at,      dedup: at-least-once delivery can't
     expireAt }                     double-count. Attribution: uid is what
                                    lets an operator subtract a discovered
@@ -163,6 +163,10 @@ v2_agg_events/{eventId}            trigger ledger (opaque), three jobs (D28)
                                    the nightly Patterns fit reads as its
                                    stream (patterns.ts); it adds nothing
                                    the answer doc does not publish (D98).
+                                   Activity log: the nightly engagement
+                                   digest counts people by it — the
+                                   fourth job, the purpose D251 widened
+                                   D28's list to grant (engagement.ts).
                                    TTL'd at 90 days
                                    (LEDGER_RETENTION_DAYS); a uid's
                                    entries are erased with the account
@@ -281,6 +285,30 @@ v2_users/{uid}/patterns/state      the fit's per-person carry (v28 §2)
                                    as, and how many it has folded
 read: NOBODY · write: NOBODY — the push/ shape; fitPatternsV2 (admin SDK)
 writes it, deleteAccount's recursive delete erases it with the account.
+
+v2_engagement_daily/{day}          the engagement digest's trail (R1/D251)
+  day, actives, firstTime,         one doc per UTC day: distinct answering
+  votes, events,                   accounts, first-timers, deduped
+  bySurface {surface: n},          (uid,qid) pairs vs raw ledger events,
+  returned {d1,d7,d30:             pairs per surface, and signup-cohort
+    {returned, of|null}},          returns — `of` is the cohort day's
+  streaksBroken, foldedAt          firstTime, null when that day was
+                                   never folded (absent ≠ zero). Plus the
+                                   fold's own `meta` cursor doc {lastDay}
+read: signed-in · write: NOBODY — written once per night by
+digestEngagementV2 (admin SDK). Counts only; no uid, name or anchor
+anywhere in it, so deleteAccount has nothing to reach here.
+
+v2_users/{uid}/engagement/_state   the digest's bookkeeping pair (D251)
+  firstDay, lastDay,               when this account first and last
+  activeDays, streak               answered, distinct active days, and the
+                                   consecutive-day streak — the smallest
+                                   state the cohort counts need without
+                                   rescanning history
+read: NOBODY · write: NOBODY — the push/ shape again; digestEngagementV2
+(admin SDK) writes it, deleteAccount's recursive delete erases it with
+the account. The `_state` id deliberately fails the date-shaped id a
+future rung-2 rules arm would admit (ENGAGEMENT-PLAN §4.2).
 
 v2_avatars/{uid}                   the profile photo's document (D178)
   token: "…"                       the Storage download token for
@@ -547,7 +575,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 128 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 130 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

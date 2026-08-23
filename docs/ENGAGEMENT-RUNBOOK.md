@@ -1,8 +1,5 @@
 # Engagement runbook — the ordered build list
 
-**Status: plan only.** The build list for
-[`ENGAGEMENT-PLAN.md`](ENGAGEMENT-PLAN.md); no code exists.
-
 > **Reasoning lives in [`ENGAGEMENT-PLAN.md`](ENGAGEMENT-PLAN.md)**,
 > which is canonical — the rung definitions, the two-channel rule, the
 > refusals, the records R1–R5. This file is the same work as an ordered
@@ -35,114 +32,122 @@ rather than remembered:
 
 ## Phase 0 — the records that gate everything
 
-- [ ] **0.1 [owner] Adopt R1 and R5** into `docs/DECISIONS.md` (drafts:
-      plan §8), then `npm run build:doc-index`. R5 (the ceiling) lands
-      with whichever rung ships first, so the refusals are recorded in
-      the same commit that starts collecting anything. ·
-      **Gate:** `check:docs`. · **Size:** S.
+- [x] **0.1 [owner] Adopt R1 and R5** — **R1 DONE 2026-08-23**: adopted
+      by the owner in those words, recorded as **D251**. R5 is drafted as
+      **D252, Status: Proposed** rather than binding — the adoption named
+      R1 alone, and the D28 lesson is that this file does not mark a
+      record binding ahead of the owner's word. Until adopted, its
+      refusals bind through the documents that already record them. ·
+      **Gate:** `check:docs` (green, index regenerated). · **Size:** S.
 
-- [ ] **0.2 [owner] Resolve the one open toggle**: `v2_engagement_daily`
-      world-readable (plan §5's recommendation — anonymous ratios; keeps
-      the no-credentials read path the scorecard already uses) or
-      server-only (business numbers private; the collect step then needs
-      credentials and its own auth story). Everything in phase 1.3 and
-      1.7 takes its shape from this. · **Size:** S.
+- [x] **0.2 [owner] Resolve the one open toggle — DONE 2026-08-23,
+      public**, as the plan recommended and D251 records: the adoption
+      named R1 without the toggle, so the recommendation stood as the
+      default. Nothing per-person is in the day docs, and the public
+      read is what keeps the scorecard fetch and the pulse console
+      credential-free. Reversing is one rules line; the arm's comment
+      says so.
 
 ## Phase 1 — rung 0: the digest (server + console; no client release)
 
 Ships independently of any app build — nothing here touches `src/`.
 
-- [ ] **1.1 `functions/src/engagement.ts` — `digestEngagementV2`,
-      nightly.** `onSchedule`, options from `ops.ts` (imported for its
-      side effect, like every function module — `check:fn-runtime`
-      guards the outcome), folding **yesterday's** `v2_agg_events` in
-      one pass with a bounded catch-up (`PATTERNS_CATCHUP_DAYS` is the
-      shape and the constant to mirror). Pass logic behind an injected
-      store interface (the `patterns.ts` / `calls.ts` precedent) so it
-      tests without an emulator.
+- [x] **1.1 `functions/src/engagement.ts` — `digestEngagementV2`,
+      nightly. DONE 2026-08-23.** `onSchedule` at 02:23 UTC (off the
+      other two ledger readers), options from `ops.ts`, folding every
+      owed day up to yesterday behind an injected `EngagementStore`
+      (the `patterns.ts` idiom exactly: `lastDay` cursor, 7-day bounded
+      catch-up, paged day reads, monotonic per-uid state so a
+      crash-replay recomputes rather than double-counts). An empty day
+      writes a ZERO doc — absent means "never folded" and the console
+      draws it as a gap.
 
-      **Build-time decision, named here so it is taken rather than
-      defaulted:** `velocity.ts` already runs a daily scheduled pass
-      over the same ledger. Either the digest extends that pass (one
-      scan, two outputs) or it adds a second bounded one — count the
-      reads and pick; the pulse tripwire culture says the arithmetic is
-      the argument, and either answer is fine *written down*.
+      **The named decision was taken as a SECOND scan**, not a rider on
+      `velocity.ts`: velocity's window is a cursor capped at 72 h, the
+      digest's is the calendar day, and coupling two windowing semantics
+      to save ~3 reads per user per night is the wrong trade. The
+      arithmetic is in the file header and D251; the surface of each
+      qid derives from the compiled bank (pulse composites by stripping
+      the day suffix, unknowns as `other`, never a guess).
+      · **Gate:** `npm test --prefix functions` — 14 cases green,
+      crash-replay and null-denominator cases included. · **Size:** M.
 
-      Outputs to `v2_engagement_daily/{yyyy-mm-dd}`: actives (distinct
-      uids), first-time answerers, D1/D7/D30 return counts, answers by
-      surface, streak deaths. All counts, no uids.
-      · **Gate:** `npm test --prefix functions` (fold math on the
-      injected store). · **Size:** M.
-
-- [ ] **1.2 The bookkeeping the counts need.** Retention and
-      first-seen need "when was this uid last/first active" without
-      re-scanning four day-windows nightly: the digest keeps
-      `v2_users/{uid}/engagement/_state` (firstDay, lastDay,
-      activeDays), server-written, deny-all, erased by the existing
-      recursive delete. This is the D28-shape trade stated in R1:
-      uid-keyed *bookkeeping* for anonymous *outputs* — one write per
-      active user per day against the alternative's four full ledger
-      scans; the arithmetic goes in the record. The doc id `_state`
+- [x] **1.2 The bookkeeping the counts need. DONE 2026-08-23.**
+      `v2_users/{uid}/engagement/_state` — firstDay, lastDay,
+      activeDays, **streak** (it joined the pair because streak deaths
+      needed it and it costs nothing extra) — server-written, deny-all,
+      erased by the existing recursive delete. The trade is stated in
+      D251: uid-keyed *bookkeeping* for anonymous *outputs*, one write
+      per active user per day against four full ledger scans. `_state`
       fails the date-shaped id regex phase 3 will use for client
-      creates, so the server-only split falls out of the id discipline
-      rather than needing its own clause. · **Gate:** `test:rules`
-      (deny both ways), review of the R1 text. · **Size:** S.
-
-- [ ] **1.3 Rules arms + tests.** `v2_engagement_daily`: read per 0.2,
-      `write: if false` (admin SDK only — the `v2_patterns` shape,
-      labelled at the path). `v2_users/{uid}/engagement/{docId}`:
-      deny-all in this phase (phase 3 opens the one create shape).
-      Every arm carries its why-comment at the path, the house
-      convention. · **Gate:** `test:rules`, `check:data-inventory`
-      (the rows land in 1.6). · **Size:** S.
-
-- [ ] **1.4 Deploy + monitoring wiring.** Add both function names to
-      `firebase-deploy.yml`'s `--only` list (`check:deploy-targets`
-      holds it; `ALLOW_UNDEPLOYED` is the hatch if code lands a PR
-      ahead of its first deploy). Clone
-      `monitoring/fitPatternsV2-silent.json` →
-      `digestEngagementV2-silent.json` — a cron's characteristic
-      failure is not throwing but not running, so it is watched **by
-      absence** of its heartbeat log line; `monitoring:apply` stays a
-      hand-run step and the console reports policies as *committed*,
-      never *deployed*. · **Gate:** `check:deploy-targets`,
-      `check:fn-runtime`, `check:monitoring`. · **Size:** S.
-
-- [ ] **1.5 Cost line first.** `scripts/cost-arith.mjs` gains the
-      engagement inputs (digest reads/writes per day as functions of
-      DAU); `docs/COSTS.md` gains the line — **before the deploy**, the
-      `FEATURE-COMPLETE.md` §3 rule the patterns fold and the pulse
-      roster both followed. · **Gate:** `npm run costs` runs; review. ·
+      creates, so server-only falls out of the id discipline. ·
+      **Gate:** `test:rules` — deny pinned both ways, owner included. ·
       **Size:** S.
 
-- [ ] **1.6 Paperwork.** `docs/data-inventory.md` rows for
-      `v2_engagement_daily` and the `_state` doc; the purpose sentence
-      in `web/privacy.html` plus its `CLAIMS` row in
-      `scripts/check-policy-claims.mjs` (the anonymity token is the
-      load-bearing part); `docs/SCHEMA-V2.md`; a purposes re-check pass
-      over `docs/STORE-FORMS.md` (no category row moves at this rung —
-      confirm rather than assume, the 5.4 lesson from
-      `SCALE-RUNBOOK.md`). · **Gate:** `check:data-inventory`,
-      `check:policy-claims`, `check:store-forms`, `check:docs`. ·
-      **Size:** S.
+- [x] **1.3 Rules arms + tests. DONE 2026-08-23.** `v2_engagement_daily`
+      world-read / write-nobody (the `v2_patterns` posture, labelled at
+      the path, `meta` cursor included); `v2_users/{uid}/engagement`
+      deny-all, with a test that a rung-2-shaped date id is refused
+      TODAY. 128 → 130 rules tests; the `SCHEMA-V2.md` figure moved
+      with them (`check:figures` caught the quote, as designed). ·
+      **Gate:** `test:rules` (130 green). · **Size:** S.
 
-- [ ] **1.7 The console reads it.** Extend
-      `scripts/question-scorecard.mjs`'s existing fetch — **one fetch
-      path, deliberately**: `MONITORING.md` already rejected a second
-      fetch against the same project as a drift pair — to pull the
-      daily docs and write the figures beside its committed artifact;
-      `pulse.mjs` gains the engagement panel and trail columns (DAU,
-      D7, one-and-done), reading committed files only, stdlib only —
-      if this step wants an import from `node_modules`, that is the
-      bug. Honesty rules from plan §3.4 print beside the numbers, the
-      way the goodhart warning already ships next to evenness. ·
-      **Gate:** `npm run test:scripts`. · **Size:** M.
+- [x] **1.4 Deploy + monitoring wiring. DONE 2026-08-23.**
+      `digestEngagementV2` in the deploy `--only` list (33 functions,
+      `check:deploy-targets` green); `monitoring/
+      digestEngagementV2-silent.json` watching **absence** of the
+      `engagement_digest` heartbeat over 30 h, with its metric in
+      `apply-monitoring.mjs`'s METRICS and the policy in POLICIES
+      (`check:monitoring`: 8 policies, 5 metrics, every link resolves).
+      `monitoring:apply` stays the hand-run step — the policy is
+      *committed*, not yet *deployed*, and the console will say so. ·
+      **Gate:** all three green. · **Size:** S.
+
+- [x] **1.5 Cost line first. DONE 2026-08-23, before any deploy.**
+      `ENGAGEMENT_READS_PER_LEDGER_ENTRY` + `ENGAGEMENT_USER_STATE_OPS`
+      in `cost-arith.mjs`, folded into the server-reads and writes
+      terms; `COSTS.md` re-ran and moved: server reads 22 → 27 per
+      user-day, $251 → $255/mo at 50 k, $2,555 → $2,593 at 500 k, with
+      the dated note and the separate-scan argument beside the table. ·
+      **Gate:** `npm run costs` reproduces the quoted rows;
+      `test:scripts` pins the constants. · **Size:** S.
+
+- [x] **1.6 Paperwork. DONE 2026-08-23.** Inventory rows for the day
+      docs and `_state`, the ledger row's third purpose named, the
+      "not collected" paragraph rewritten to the collection/derivation
+      distinction; `web/privacy.html` gains the headcount paragraph and
+      `check:policy-claims` two rows pinning its halves (counts-without-
+      identity; the date pair unreadable and erased); `SCHEMA-V2.md`
+      entries; `STORE-FORMS.md` Product Interaction re-answered **No**
+      with the reasoning (server-side derivation is not collection —
+      whoever ships rung 1 or 2 owns flipping it). · **Gate:** all four
+      green (22 disclosures, 33 collections). · **Size:** S.
+
+- [x] **1.7 The console reads it. DONE 2026-08-23.**
+      `question-scorecard.mjs --fetch` now also writes
+      `monitoring/engagement.json` on the same anonymous token (one
+      fetch path); `pulse-collect.mjs` gains `collectEngagement` +
+      the pure `engagementFromDays` (null-aware: an unfolded cohort day
+      reads *unknown*, never 0%); `pulse-render.mjs` draws the panel
+      with the §3.4 honesty rules printed beside the numbers;
+      `pulse.mjs` trails `dau` and `retD7`. The population panel's
+      blocked row moved to the live column with D251 cited, and its two
+      stale refusal citations were corrected while the file was open. ·
+      **Gate:** `test:scripts` — 265 green, honest-absence case
+      included. · **Size:** M.
 
 - [ ] **1.8 Done when:** the first real nightly run publishes a day
       doc, the trail carries its row, and `npm run pulse` answers "did
       anyone come yesterday" from a committed file. **Stop here is a
       legitimate state** — rung 0 alone answers retention, activation,
       streak deaths and retention-lift-by-week-1-surface.
+
+      **Code-complete 2026-08-23; open until the next production
+      deploy** carries `digestEngagementV2` out (the standing
+      europe-west1 deploy path), the first digest folds a real day, and
+      `npm run scorecard -- --fetch` commits the first trail. Until
+      then the pulse panel reports the honest absence, and that is the
+      correct reading.
 
 ## Phase 2 — rung 1: the anonymous channel (first client release)
 
