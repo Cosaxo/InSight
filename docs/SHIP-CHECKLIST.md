@@ -496,20 +496,35 @@ Both apps must be registered under `com.cosaxo.insight`:
 
 ## 3b · Invite links — two fingerprints (account-gated)
 
-The code half is live: sharing copies a `/join/CODE` link, the hosted
-fallback page works today, and the app prefills a tapped code. Direct
-app-open needs:
+**The custom scheme carries this now (D238).** `insight://join/CODE` is
+registered on both platforms and needs no fingerprint at all, so a tapped
+invite reaches the app today: `web/join.html`'s one button navigates
+there. Nothing below is on the critical path any more — a tapped code no
+longer has to be read by a person, because there is no field left to type
+it into.
+
+The two fingerprints are still worth having. A custom scheme cannot be
+VERIFIED — any app may claim it — and an https link that opens the app
+directly skips the landing page altogether. Step 1 is the one still
+outstanding:
 
 1. `web/.well-known/assetlinks.json` — replace
    `REPLACE_WITH_PLAY_SIGNING_SHA256` with the Play App Signing SHA-256
    (Play Console → Setup → App signing).
-2. `web/.well-known/apple-app-site-association` — replace
-   `REPLACE_WITH_TEAM_ID` with the Apple Team ID.
+2. `web/.well-known/apple-app-site-association` — **done, 2026-08-05.**
+   It carries the real Team ID (`U2LVW456S7.com.cosaxo.insight`), and
+   this step said `REPLACE_WITH_TEAM_ID` for seventeen days after it
+   stopped being true. Left in place rather than deleted because a step
+   that reads "replace this" against a file that already holds the real
+   value is how a good credential gets overwritten with a placeholder.
 3. Redeploy hosting, reinstall the app, tap a link. Android:
    `adb shell pm get-app-links com.cosaxo.insight` should show verified.
    iOS re-fetches AASA on install (CDN-cached; allow up to a day).
 
-Until then links open the fallback page — degraded, not broken.
+Until then an https link opens the fallback page, which offers the app
+by scheme — one tap, no code. `check:store-copy` fails while step 1 is
+unreplaced, and that failure is the reminder rather than a blocker on
+anything a user does.
 
 ## 4 · On-device verification list (first build)
 

@@ -33,7 +33,7 @@
 // two-objects-that-must-agree bug live-fixture.ts documents.
 import { afterEach, describe, expect, it } from "vitest";
 import realLive from "../data/live";
-// LENS_FEED_QS is imported by name since D244 — world-feed.jsx was its only
+// LENS_FEED_QS is imported by name since D249 — world-feed.jsx was its only
 // consumer, so it no longer publishes to window. LENSES and IS_LENSES still
 // mirror, for lens-cards.jsx and profile-general.jsx.
 // @ts-expect-error TS7016 — untyped spec module, the house pattern

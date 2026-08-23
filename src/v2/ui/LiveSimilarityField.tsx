@@ -195,7 +195,7 @@ function SimilarityCanvas({ nodes, picked, onPick, kind }: {
 }) {
   const pts = layout(nodes);
   const anon = kind === "anon";
-  // AN EMPTY RING NAMES NOTHING (D239). With no nodes this group's label
+  // AN EMPTY RING NAMES NOTHING (D244). With no nodes this group's label
   // promised "closer to the centre is more like you" over a canvas with
   // nobody on it — a comparison announced to a screen reader and then not
   // made. Every empty arm goes through here (`SfEmptyField` hands it

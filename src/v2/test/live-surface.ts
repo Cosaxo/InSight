@@ -155,14 +155,20 @@ export const LIVE_MEMBERS = [
 ];
 
 export const LIVE_SOCIAL_MEMBERS = [
-  "bankQ", "createGroup", "groups", "joinGroup", "leaveGroup",
+  "bankQ", "createGroup", "groups", "leaveGroup",
   "loadRevealHistory", "myDuelVote", "revealFor", "revealHistory",
   "romanticPoolReady", "setDuoMode", "todayKey", "todayQ", "voteDuel",
   // Handles and invitations (D122) — the uid-addressed way into a circle.
   // Listed here before any consumer reads them, for the reason the block
   // below states: the pin is what makes the surface reviewed.
   "acceptInvite", "claimHandle", "declineInvite", "inviteToGroup",
+  // Asking to join, and the circle's answer (D240). `joinGroup` is
+  // gone with the admit-by-code path it named.
+  "requestJoin", "approveJoin", "declineJoin",
   "invites", "invitesLoading", "loadInvites", "whoIs",
+  // The name half of finding somebody (D239). `whoIs` answers an
+  // exact address; this answers a prefix over the people directory.
+  "searchPeople",
   // Circle takes and the report control (D1, docs/MODERATION.md). Listed
   // here before any JSX reads them: the pin is what makes the surface
   // reviewed, and a member added straight into a consumer is a member

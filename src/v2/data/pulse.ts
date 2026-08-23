@@ -260,7 +260,7 @@ export function ensureToday(force = false): Promise<void> {
   if (todayAggs && loadedForKey === today && !force) return Promise.resolve();
   if (loadingToday) return loadingToday;
   // THE EMPTY-ROSTER DECISION IS MADE OUT HERE, SYNCHRONOUSLY, and that
-  // placement is the whole fix (D238).
+  // placement is the whole fix (D243).
   //
   // `roster()` reads `LIVE.pulseQs()`, which is empty until the bank
   // hydrates — an empty roster is the bank not having arrived, not a day
@@ -387,7 +387,7 @@ function days(pid: string): PulseDay[] {
     // room's seeded history — otherwise a weekly pulse would draw a
     // Tuesday it was never offered on. The SCHEDULE gate is this fold's,
     // not the read's: `mineOn` below is what you actually answered, and
-    // `mineToday` wants that without this gate (D239).
+    // `mineToday` wants that without this gate (D244).
     const mine = !scheduled ? null : mineOn(k, mineLive, mineDemo, v);
     return {
       i, key: k, date: d, label: dayLabel(d), today: i === DAYS - 1,
@@ -527,7 +527,7 @@ export const PULSE = {
     return cutOf(agg, id).n;
   },
   mineToday(pid: string): number | null {
-    // NOT `days(pid)[DAYS - 1].v` (D239). That fold nulls every day the
+    // NOT `days(pid)[DAYS - 1].v` (D244). That fold nulls every day the
     // cadence did not ask on, which is right for the trend line — a weekly
     // pulse must not draw a Tuesday it never offered — and wrong here.
     //

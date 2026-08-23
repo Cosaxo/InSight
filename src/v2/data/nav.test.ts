@@ -1,4 +1,4 @@
-// The nav registry (D243) — the module that let app-shell's cross-links
+// The nav registry (D248) — the module that let app-shell's cross-links
 // off the global bridge without drawing an ESM cycle.
 //
 // Four properties, and three of them are about REGISTRATION rather than

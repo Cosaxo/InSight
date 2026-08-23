@@ -197,7 +197,7 @@ function wfOpt(color, i, n) { return WPAL.opt(color, i, n); }
 function wfShade(color, i, n) { return WPAL.opt(color, i, n, true); }
 // every who-voted cut in one place (vote-cuts.js): demographics, then the four
 // tests — each opening into its own subvalues, the same axes the Circle map uses
-// Imported since D241, so the load-order guards these four carried are
+// Imported since D246, so the load-order guards these four carried are
 // gone: an imported binding cannot be unset, and VOTECUTS is an IIFE that
 // always returns its object. The fallbacks they guarded with — a
 // hand-written `friends` dim, `null`, `[]` — were the shapes D108 names as
@@ -1473,7 +1473,7 @@ class WorldFeed extends React.Component {
   // precedent), pinned against the server's CANON_TOP_N in vote.test.ts.
   //
   // LIVE and PICKS are the IMPORTED bindings, not `window.*`. This seam
-  // landed on main while this file was coming off the bridge (D244), and
+  // landed on main while this file was coming off the bridge (D249), and
   // the header above is explicit that new window.LIVE reads may not join
   // the ones that predate the ratchet. `return PICKS` for the same reason
   // the `PK ?` guards below are gone: an imported binding cannot be unset,

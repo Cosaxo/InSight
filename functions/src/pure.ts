@@ -1885,3 +1885,78 @@ export function roomQids(raw: unknown, cap: number = ROOM_QUESTION_CAP): string[
   }
   return [...seen];
 }
+
+// ── push fan-out (v2social) ─────────────────────────────────────
+
+/**
+ * Bounds on a stored FCM token, applied before it reaches FCM.
+ *
+ * Rules cap the token array at 10 entries but never check what is IN
+ * them, so a client can store ten ~1MB strings in its own profile and we
+ * would hand them straight to sendEachForMulticast. Length only — no
+ * format regex, which is the part most likely to silently kill every
+ * notification the day FCM changes its token shape.
+ *
+ * NB: this bounds SEND cost, not what is stored.
+ */
+export const FCM_TOKEN_MIN = 20;
+export const FCM_TOKEN_MAX = 4096;
+
+/** FCM's own per-call ceiling for sendEachForMulticast. */
+export const FCM_BATCH = 500;
+
+export interface PushFanout {
+  /**
+   * token -> the uids whose push document carries it.
+   *
+   * A LIST, not one uid: the same device can hold tokens for more than
+   * one account, and a token FCM reports dead has to be pruned from every
+   * document it lives on. Otherwise the array grows one ghost per
+   * reinstall/rotation forever and every send fans out to them.
+   */
+  owners: Map<string, string[]>;
+  /** uids that carried at least one token this refused — the caller logs them. */
+  malformed: string[];
+}
+
+/**
+ * Collect the tokens a multicast should target, from one entry per uid.
+ *
+ * Pairing uid to tokens is the CALLER's job and deliberately so: the
+ * reveal sender reads push subdocuments whose every id is the literal
+ * string "tokens" (D98), so there the uid is recoverable only from
+ * getAll's preserved ordering. That subtlety belongs at its call site,
+ * not in here.
+ *
+ * Pure, so the bounds and the dedupe are testable without an emulator —
+ * and worth testing, because both failures are silent: an over-long token
+ * fails the whole batch, and a token counted twice is a duplicate push.
+ */
+export function fcmFanout(entries: readonly { uid: string; tokens: unknown }[]): PushFanout {
+  const owners = new Map<string, string[]>();
+  const malformed: string[] = [];
+  for (const { uid, tokens } of entries) {
+    if (!Array.isArray(tokens)) continue;
+    let bad = false;
+    for (const t of tokens as unknown[]) {
+      if (typeof t !== "string" || t.length < FCM_TOKEN_MIN || t.length > FCM_TOKEN_MAX) {
+        bad = true;
+        continue;
+      }
+      const list = owners.get(t) || [];
+      // A uid listed twice for one token would prune it twice and, worse,
+      // read as two devices in any future per-recipient accounting.
+      if (!list.includes(uid)) list.push(uid);
+      owners.set(t, list);
+    }
+    if (bad) malformed.push(uid);
+  }
+  return { owners, malformed };
+}
+
+/** Split tokens into FCM-sized batches. Never truncates — see FCM_BATCH. */
+export function fcmBatches(tokens: readonly string[], size: number = FCM_BATCH): string[][] {
+  const out: string[][] = [];
+  for (let i = 0; i < tokens.length; i += size) out.push(tokens.slice(i, i + size));
+  return out;
+}

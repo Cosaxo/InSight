@@ -172,7 +172,7 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-// The update-required blocker (D245) — its own component because
+// The update-required blocker (D250) — its own component because
 // `useDialog` is a hook and this dialog renders conditionally.
 //
 // WHAT THE HOOK ADDS THAT HAND-WRITTEN ARIA COULD NOT. This had
@@ -317,7 +317,7 @@ function App() {
   useEffect(() => {
     const openSuggestions = () => openDeferred(() => { setOv('suggest'); });
     const openLogicTest = () => openDeferred(() => { closeAll(); setOv('logic'); });
-    // Registered (D243) rather than published: these are closures over this
+    // Registered (D248) rather than published: these are closures over this
     // shell's state, so the registry is what lets a consumer import a door
     // without importing the shell that owns it — see data/nav.ts on why an
     // import would have drawn a real cycle here.
@@ -398,7 +398,7 @@ function App() {
     // a Map cue lands on the Mirror's You stop; map-tab itself reads the
     // where (data/mapCue's take-once) — this shell only does the walking
     const offCue = onMapCue(() => { closeAll(); setTweak('mirrorPop', 'you'); setTab('mirror'); });
-    // D243: registered, not published. `openProfileTab` joins them here —
+    // D248: registered, not published. `openProfileTab` joins them here —
     // it used to be assigned in this same effect and torn down with the
     // rest by name.
     const offNav = registerNav({ openOverlay, openProfileTab, goTab, goNav, openCity, openPerson });

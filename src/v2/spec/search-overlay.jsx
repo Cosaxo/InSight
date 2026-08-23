@@ -15,6 +15,12 @@ import NAV from '../data/nav';
 // search-overlay.jsx — one field, three kinds of answer: questions, topics, people.
 // A question hit is the real question: tap it and the feed's own card opens in
 // place, so you can vote from search instead of going hunting for the card.
+// The LIVE people section (D237). An ESM import rather than a global:
+// this module is deferred behind loadOverlays(), so the chunk it pulls is
+// not first paint, and a real import is one less name resolved at render
+// time (check:globals rule 4).
+import LivePeopleSearch from '../ui/LivePeopleSearch.tsx';
+
 const { useState: useSrchState, useEffect: useSrchEffect, useMemo: useSrchMemo, useRef: useSrchRef } = React;
 
 const SRCH_VOTES_LS = 'insight.feedVotes.v1';
@@ -247,7 +253,18 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
     return all.filter(p => srchMatch(p.name + ' ' + (p.role || p.rel || '') + ' ' + (p.interests || []).map(i => i.t || i).join(' '), query));
   }, [query, samplePeople]);
 
-  const nothing = !questions.length && !topics.length && !people.length && !dailies.length;
+  // In a live build `people` above is ALWAYS empty (samplePeople is
+  // false), so without asking the live section whether it found
+  // anything, searching a name that resolves would print "nothing found"
+  // directly above the person it found.
+  //
+  // REPORTED, not predicted (D239). It used to be a synchronous
+  // predicate — "does this look like a handle" — which was answerable
+  // because a handle is a shape. A name is not: whether anybody is
+  // called that is a query, and a guess made before it returns is wrong
+  // half the time.
+  const [livePeople, setLivePeople] = useSrchState(false);
+  const nothing = !questions.length && !topics.length && !people.length && !dailies.length && !livePeople;
   const go = (fn) => { onClose(); fn(); };
   const open = (qq) => {
     setOpenQ(openQ && openQ.id === qq.id ? null : qq);
@@ -289,8 +306,12 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
       </div>
 
       <div ref={scRef} style={{ flex: 1, overflowY: 'auto', padding: '4px 12px 40px' }}>
+        {/* "a name" is a live build's one false suggestion: people are
+            found by HANDLE there (the registry is keyed on the document id
+            — D122 — so there is no name query to offer), and the only
+            names that match are follows already in memory. */}
         {nothing && (
-          <div className="search-empty">Nothing for “{q}” — try a topic, a name, or a few words of a question</div>
+          <div className="search-empty">Nothing for “{q}” — try a topic, {samplePeople === false ? 'a @handle' : 'a name'}, or a few words of a question</div>
         )}
 
         {!!questions.length && <div className="search-group">{query ? 'Questions' : 'Open questions'}</div>}
@@ -313,6 +334,7 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
           <SrchTopicRow key={t.id} item={t} query={query} onToggle={() => { t.toggle(); setBump((b) => b + 1); }} />
         ))}
 
+        {samplePeople === false && <LivePeopleSearch query={q} onActive={setLivePeople} />}
         {!!people.length && <div className="search-group">{query ? 'People' : 'Friends'}</div>}
         {people.map(p => (
           <SrchHit key={p.id}

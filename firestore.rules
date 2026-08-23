@@ -948,6 +948,60 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ─── the people directory (D239) ───────────────────────────────
+    //
+    // WHAT IT IS FOR. D122's registry is keyed on the handle, so it
+    // answers "is @olaf someone" by exact id and nothing else. That is
+    // the right shape for uniqueness and the wrong one for finding a
+    // friend whose handle you do not know — the owner's call is that a
+    // person should be findable by NAME as well, when creating a circle
+    // and when adding to one.
+    //
+    // WHY A SEPARATE COLLECTION, when `v2_users` is already world-read
+    // and therefore already listable by any signed-in account. Two
+    // reasons, and neither is exposure — a name query over v2_users
+    // would reveal nothing an enumeration of it could not already:
+    //
+    //   · SIZE. A client query cannot field-mask, so searching v2_users
+    //     downloads whole profiles — anchors, testResults, the lot. The
+    //     reveal path added a fieldMask for exactly this and OOM'd
+    //     without one; a search box is a worse place to learn it.
+    //   · SHAPE. What a result row draws is a name and a handle. A
+    //     document holding only those two cannot leak a third by
+    //     someone forgetting a projection.
+    //
+    // `nameKey` IS ENFORCED TO BE THE NAME, not merely bounded. Without
+    // the rule below a client could write nameKey "ada" onto the row
+    // that displays "Bob" and answer somebody's search for a friend with
+    // a stranger. Rules can compare it, so they do: what you are found
+    // by and what the result shows are one string, checked here rather
+    // than trusted.
+    match /v2_people/{uid} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(["name", "nameKey", "handle"])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.name.size() <= 60
+        && request.resource.data.nameKey is string
+        && request.resource.data.nameKey == request.resource.data.name.lower()
+        // `handle` on the allowlist but immutable to the client, exactly
+        // as v2_users.handle is and for the same reason: claimHandleV2
+        // (admin SDK) owns it, and because request.resource.data is the
+        // RESULTING document, a later client merge of the name still
+        // presents `handle` in its key set. Leave it off the allowlist
+        // and claiming a handle would silently freeze your name in the
+        // directory forever — a failure that ships green.
+        && (!("handle" in request.resource.data)
+          || (resource != null
+            && request.resource.data.handle == resource.data.get("handle", null)));
+      // deleteAccount (admin SDK) owns removal — phase 3d. This row is a
+      // top-level document keyed by uid, so phase 1b's recursiveDelete of
+      // v2_users/{uid} does not reach it, the same trap the handle
+      // registry set in 3b.
+      allow delete: if false;
+    }
+
     // ─── moderation substrate (docs/MODERATION.md, D22) ────────────
     //
     // Takes are comments on a question — in a circle, or at world scale

@@ -228,7 +228,7 @@ const COUPLING_BASELINE = {
   "src/v2/spec/city-overlay.jsx": 2,
   "src/v2/spec/compare-breakdown.jsx": 1,
   "src/v2/spec/daily-questions.js": 3,
-  "src/v2/spec/daily-split.jsx": 31,
+  "src/v2/spec/daily-split.jsx": 29,
   "src/v2/spec/demographics.jsx": 3,
   "src/v2/spec/duo-daily.jsx": 7,
   "src/v2/spec/feed-read.js": 2,

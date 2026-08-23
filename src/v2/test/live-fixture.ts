@@ -222,13 +222,19 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     revealHistory: () => [],
     loadRevealHistory: async () => {},
     createGroup: async () => ({ gid: "g_test", inviteCode: "ABCD2345" }),
-    joinGroup: async () => ({ gid: "g_test", name: "Test" }),
+    requestJoin: async () => ({ gid: "g_test", name: "Test", status: "requested" as const }),
+    approveJoin: async () => ({ ok: true }),
+    declineJoin: async () => ({ ok: true }),
     leaveGroup: async () => ({ gid: "g_test", deleted: false }),
     // Handles and invitations (D122). Empty and inert for the same reason
     // the groups and takes below are: a seeded invitation would be sample
     // data wearing a live badge, and "nobody has invited you" IS the live
     // surface a new account opens on.
     whoIs: async () => null,
+    // The name half of finding somebody (D239). Empty, like every
+    // other read here — a fixture that returned people would put
+    // invented names in a live-mode smoke test.
+    searchPeople: async () => [],
     claimHandle: async (handle: string) => ({ handle }),
     inviteToGroup: async () => ({ ok: true }),
     acceptInvite: async () => ({ gid: "g_test", name: "Test" }),

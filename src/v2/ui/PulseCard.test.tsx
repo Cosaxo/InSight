@@ -434,7 +434,7 @@ describe("PulseCard · the rhythm (D203)", () => {
     expect(screen.queryByRole("radiogroup"), "the chips stayed open after a choice").toBeNull();
   });
 
-  it("keeps today's answer on screen when the rhythm changes (D239)", async () => {
+  it("keeps today's answer on screen when the rhythm changes (D244)", async () => {
     // WAS A FLAGGED DEFECT, now the fix. `mineToday` read `days()`, which
     // nulls every day the cadence did not ask on — right for the trend
     // line, wrong for today's card. Pausing after answering took your own
