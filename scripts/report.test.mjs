@@ -18,13 +18,13 @@
 //      edits counted as MOVES, not people).
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { parseLogicPct as realParseLogicPct } from "../src/v2/data/similarity";
+import { parseLogicPct as realParseLogicPct, parseTestResults as realParseTestResults } from "../src/v2/data/similarity";
 import {
   LOGIC_BANDS, NEIGHBOUR_MIN_SHARED, REPORT_READ_SET, WORLD_ANSWER_SURFACES,
   assertReadable, buildReportData, condModes, cramersV, dimRowsFromBy,
   dimRowsFromRoll, editNet, editPairs, logicBandOf, logicCut, makeReader,
-  parseLogicPct, renderCsvs, renderReportHtml, seriesFromRoll, toCsv,
-  totalMoves,
+  parseLogicPct, parseTestDims, renderCsvs, renderReportHtml, seriesFromRoll,
+  toCsv, totalMoves,
 } from "./report-lib.mjs";
 
 const srcOf = (p) => readFileSync(new URL("../" + p, import.meta.url), "utf8");
@@ -212,7 +212,14 @@ const fakeReader = (over = {}) => ({
     { uid: "u1", optionIdx: 0, anchors: { profession: "Tech" }, answeredAt: new Date("2026-08-20T10:00:00Z"), editedAt: null },
     { uid: "u2", optionIdx: 1, anchors: {}, answeredAt: new Date("2026-08-21T10:00:00Z"), editedAt: new Date("2026-08-21T11:00:00Z") },
   ],
-  getProfiles: async () => ({ u1: { name: "Åse", logic: 91 }, u2: { name: "", logic: null } }),
+  getProfiles: async () => ({
+    u1: {
+      name: "Åse", logic: 91,
+      // The Enthusiast's own signature — the matcher must land on it.
+      tests: { big5: { dims: [{ id: "O", value: 88 }, { id: "C", value: 40 }, { id: "E", value: 75 }, { id: "A", value: 55 }, { id: "N", value: 45 }] } },
+    },
+    u2: { name: "", logic: null, tests: null },
+  }),
   getAnswersFor: async () => ({}),
   listPatternCandidates: async () => [{ id: "daily-001", prompt: "Early bird?", options: ["Yes", "No"] }],
   ...over,
@@ -253,9 +260,45 @@ describe("assembly and the page", () => {
   it("writes the bundle's three CSVs with the roll's own columns", async () => {
     const data = await buildReportData(fakeReader(), { qid: "pd01", vocab: VOCAB });
     const csvs = renderCsvs(data);
-    expect(csvs.roll.split("\r\n")[0]).toBe("name,option,profession,answeredAt,editedAt,logicBand");
+    expect(csvs.roll.split("\r\n")[0]).toBe(
+      "name,option,profession,answeredAt,editedAt,logicBand,Big Five type,Politics type,Values type,Social type",
+    );
     expect(csvs.roll).toContain("Åse,All night,Tech");
+    expect(csvs.roll).toContain("The Enthusiast,untested,untested,untested");
     expect(csvs.edits.trim().split("\r\n")).toEqual(["from,to,moves", "As now,All night,1"]);
     expect(csvs.series.trim().split("\r\n")[0]).toBe("day,All night,As now,total");
+  });
+
+  it("cuts the roll by the app's own matcher, untested listed as a row", async () => {
+    const data = await buildReportData(fakeReader(), { qid: "pd01", vocab: VOCAB });
+    const big5 = data.typeCuts.find((c) => c.kind === "big5");
+    expect(big5.tested).toBe(1);
+    const hit = big5.rows.find((r) => r.label === "The Enthusiast");
+    expect(hit).toMatchObject({ counts: [1, 0], t: 1 });
+    expect(big5.rows[big5.rows.length - 1]).toMatchObject({ label: "Untested", t: 1 });
+    // every named type stays listed, the empty ones at zero
+    expect(big5.rows.length).toBeGreaterThan(5);
+    const html = renderReportHtml(data);
+    expect(html).toContain("Big Five — type");
+    expect(html).toContain("Politics — type");
+    expect(html).toContain("tested 1");
+  });
+
+  it("parseTestDims mirrors similarity.parseTestResults, shape for shape", () => {
+    const cases = [
+      null, 7, {}, { big5: null }, { big5: { dims: "x" } },
+      { big5: { dims: [{ id: "O", value: 88.6 }, { id: "", value: 4 }, { id: "C", value: "41" }, { id: "N", value: "junk" }, null] } },
+      { political: { dims: [{ id: "econ", value: -5 }, { id: "auth", value: 250 }] } },
+      { big5: { dims: Array.from({ length: 20 }, (_, i) => ({ id: "d" + i, value: i })) } },
+    ];
+    for (const raw of cases) {
+      for (const kind of ["big5", "political"]) {
+        const mine = parseTestDims(raw, kind);
+        const theirs = realParseTestResults(raw, [kind]);
+        const mineMap = mine ? Object.fromEntries(mine.map((d) => [d.id, d.value])) : null;
+        const theirsMap = theirs ? theirs[kind] ?? null : null;
+        expect(mineMap, JSON.stringify({ raw, kind })).toEqual(theirsMap);
+      }
+    }
   });
 });

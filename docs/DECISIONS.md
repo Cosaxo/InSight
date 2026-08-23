@@ -23523,3 +23523,62 @@ recast from promise-enforcement to choice-pinning.
 promise. D231's three surfaces (`scripts/report-lib.mjs`'s header, the
 design extraction's README, PAID-PLAN §9.2's note) now name one blocker
 instead of two.
+
+## D233 · The archetype module leaves the bridge, and the report gets its type cuts
+
+**2026-08-23.** **Status:** binding, built. Owner's call ("yes do that"),
+continuing D232: with the never-group promise gone, the one thing
+between the report and the mock's test-group cuts was
+`spec/archetype-data.js` reading `window` at module scope. D39's
+"convert on touch", taken at the moment of touch. Written on
+`claude/next-project-priorities-w43wut` as D233 — renumber on merge if
+main has minted it, the standing collision pattern.
+
+### The conversion — the primitives shape, applied
+
+The consumer set was closed and small, so it was finished rather than
+bridged (`src/v2/README.md`'s own lesson): every window publication in
+`archetype-data.js` became a named export — `IS_FRIEND_TYPES`,
+`IS_STANDOUT`, `IS_nearWhy`, `IS_archScores`, `IS_profileRarity`,
+`IS_typeRuleParts`, `IS_matchArchetype` — and every reader converted to
+imports in the same change: `result-card.jsx` (six names, dead
+load-order guards deleted per D108), `type-marks.jsx`,
+`passive-meter.jsx`, `ui/LiveRolesPanel.tsx` (its test now pins the
+matcher with a module mock over the real import instead of a window
+seed), and `test/sample-people.test.js`. The dead `import React` left
+with the publications. Rule 4's ratchet came down 392 → 378 across
+41 files, and the README's own quoted figure moved with it.
+
+Two lessons this conversion adds to the case study:
+
+- **An ENVIRONMENT guard is not a load-order guard.**
+  `test-definitions.js` (already export-only) still crashed node on two
+  module-scope `window.addEventListener` calls — browser wiring, not
+  data flow. Those two got `typeof window !== "undefined"` guards with
+  the distinction stated at the site; D108's dead-guard rule is about
+  load-order conditions an import removes, and it stands untouched.
+- **A `@ts-expect-error` belongs to the line below it.** Inserting the
+  new spec import above `result-rose.jsx`'s import in LiveRolesPanel
+  silently transferred the suppression and surfaced TS7016 one line
+  down — caught by a fresh `tsc -b` after the incremental cache had
+  shrugged. Each untyped spec import now carries its own.
+
+### The type cuts
+
+`scripts/report-lib.mjs` imports the app's own matcher and signatures
+and the report's Who-answered section gains four groups — Big Five ·
+Politics · Values · Social, one "— type" accordion each: every named
+type listed (empty ones at zero), the Untested row a full row with its
+own split, "tested N" as the section's basis, the roll CSV carrying the
+four type columns. The parse is a twin of
+`similarity.parseTestResults`' per-kind arm, pinned shape-for-shape by
+the test; the match itself is NOT a twin — it is the same function the
+app runs, which is the point of the conversion. e2e §7g proves the
+all-untested case end to end (the loop's twelve voters have no
+results, and every row still renders).
+
+**Still waiting from the mock, on purpose:** the per-axis five-band
+rows. The mock's bands are its own population-shaping numbers, not a
+vocabulary the app defines anywhere — banding an axis is a design
+decision to take, not a constant to transcribe. District and
+field-of-study rows stay out for the old reason: no such data exists.

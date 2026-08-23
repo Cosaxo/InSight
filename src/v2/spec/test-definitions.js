@@ -153,10 +153,17 @@ try {
 // mirror object is what the profile surfaces render, and without the drop
 // it keeps showing the previous account's results until an app restart.
 // In place, not reassigned: consumers hold references to this object.
-window.addEventListener('insight:local-purge', () => {
-  Object.keys(IS_TEST_RESULTS).forEach((k) => { delete IS_TEST_RESULTS[k]; });
-  Object.keys(IS_TEST_RESULTS_DEMO).forEach((k) => { IS_TEST_RESULTS[k] = JSON.parse(JSON.stringify(IS_TEST_RESULTS_DEMO[k])); });
-});
+// Browser wiring only: since D233 this module also loads under plain
+// node (the report builder imports archetype-data.js, which imports
+// IS_TEST_AVG above), where there is no window and nothing to purge or
+// hydrate. An environment guard, not a load-order one — the D108 rule
+// is about the latter.
+if (typeof window !== 'undefined') {
+  window.addEventListener('insight:local-purge', () => {
+    Object.keys(IS_TEST_RESULTS).forEach((k) => { delete IS_TEST_RESULTS[k]; });
+    Object.keys(IS_TEST_RESULTS_DEMO).forEach((k) => { IS_TEST_RESULTS[k] = JSON.parse(JSON.stringify(IS_TEST_RESULTS_DEMO[k])); });
+  });
+}
 // Live hydration (data/live.ts publishTestResults). Fires only in live
 // mode — hydrate() and resetForNewUid() are the sole callers and neither
 // runs without a session — so the demo seed above survives untouched in
@@ -170,11 +177,13 @@ window.addEventListener('insight:local-purge', () => {
 //
 // In place, for the same reason the purge above is: the fifteen consumers
 // import this binding and hold the object.
-window.addEventListener('insight:test-results', (e) => {
-  const next = (e && e.detail) || {};
-  Object.keys(IS_TEST_RESULTS).forEach((k) => { delete IS_TEST_RESULTS[k]; });
-  Object.keys(next).forEach((k) => { IS_TEST_RESULTS[k] = next[k]; });
-});
+if (typeof window !== 'undefined') {
+  window.addEventListener('insight:test-results', (e) => {
+    const next = (e && e.detail) || {};
+    Object.keys(IS_TEST_RESULTS).forEach((k) => { delete IS_TEST_RESULTS[k]; });
+    Object.keys(next).forEach((k) => { IS_TEST_RESULTS[k] = next[k]; });
+  });
+}
 
 // Exported as `persistTestResult`; consumers used to reach it as
 // `window.IS_persistTestResult`, which is why the import in daily-split and

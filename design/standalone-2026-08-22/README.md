@@ -14,11 +14,12 @@ rule (`design/README.md`).
 
 What the implementation deliberately did NOT carry, each with its record:
 
-- **The four instruments' type cuts** (the mock's test-group
-  accordions): permitted since **D232** removed the never-group promise
-  on the owner's call, and still unbuilt for one technical reason —
-  `spec/archetype-data.js` reads `window` at module scope and cannot
-  load under node. They join when its bridge migration lands.
+- **The four instruments' TYPE cuts shipped at D233** (permitted at
+  D232, buildable once `archetype-data.js` left the bridge and could
+  load under node). What still waits from the mock's test groups is the
+  per-AXIS five-band rows: the mock's bands are its own
+  population-shaping numbers, not a vocabulary the app defines — banding
+  an axis is a design decision nobody has taken.
 - **District and field-of-study rows**: no such data exists anywhere.
 - **"N answers changed at least once"** (the mock's second-thoughts
   basis): the D226 matrix counts MOVES, not people, so the page says

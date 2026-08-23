@@ -28,6 +28,8 @@ import React from "react";
 import LIVE from "../data/live";
 import { blendRoles, duoRole, duoRoleDays, groupRole, groupRoleDays, MIN_DUO, MIN_GROUP, type RoleResult } from "../data/roles";
 // @ts-expect-error TS7016 — untyped spec module (additive export)
+import { matchArchetype } from "../spec/archetype-data.js";
+// @ts-expect-error TS7016 — untyped spec module (additive export)
 import { RoseMini, TestRose } from "../spec/result-rose.jsx";
 // @ts-expect-error TS7016 — untyped spec module (additive export)
 import { TypeMark } from "../spec/type-marks.jsx";
@@ -38,12 +40,12 @@ interface Setting { key: string; label: string; res: RoleResult }
  * (the prototype's ThinRow), never silently missing from the panel. */
 interface ThinSetting { key: string; label: string; note: string }
 
-/** The matcher, through the one global the archetype module still owns. */
+/** The matcher, imported since the archetype module left the bridge
+ * (D233) — the untyped .js export, given its shape at this one seam. */
 function typeOf(kind: string, dims: { id: string; value: number }[]): { name: string; line: string } | null {
-  const m = (window as unknown as {
-    IS_matchArchetype?: (k: string, d: unknown) => { list: { name: string; line: string }[]; idx: number } | null;
-  }).IS_matchArchetype;
-  if (!m) return null;
+  const m = matchArchetype as (
+    k: string, d: unknown,
+  ) => { list: { name: string; line: string }[]; idx: number } | null;
   const hit = m(kind, dims);
   return hit ? hit.list[hit.idx] : null;
 }

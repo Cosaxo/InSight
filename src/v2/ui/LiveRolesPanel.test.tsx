@@ -23,6 +23,15 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 let ROOMS: Record<string, unknown>[] = [];
 let HIST: Record<string, Record<string, unknown>[]> = {};
 
+// The matcher is roles.test.ts' subject, not this panel's — pin it so
+// these assertions read the panel's behaviour, not the fixtures' dims.
+// Everything else keeps the real module (type-marks reads IS_ARCHETYPES
+// through the same import since D233's conversion).
+vi.mock("../spec/archetype-data.js", async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  matchArchetype: () => ({ list: [{ name: "The Mind Reader", line: "Calls their answer before they do." }], idx: 0 }),
+}));
+
 vi.mock("../data/live", () => ({
   default: {
     enabled: true,
@@ -56,9 +65,6 @@ const duoRoom = (id: string) => ({ id, mode: "duo", memberUids: ["me", "them"], 
 
 beforeEach(() => {
   ROOMS = []; HIST = {};
-  // The matcher lives on the archetype module's window mirror.
-  (window as unknown as { IS_matchArchetype?: unknown }).IS_matchArchetype =
-    () => ({ list: [{ name: "The Mind Reader", line: "Calls their answer before they do." }], idx: 0 });
 });
 afterEach(cleanup);
 

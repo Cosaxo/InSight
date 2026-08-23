@@ -25,29 +25,34 @@
 // Sections, copy voice and the honesty states are its: an empty bucket
 // is "none yet — still listed", a thin cell prints "shown exactly", and
 // nothing is suppressed, because exact-from-the-first-answer is the
-// product (D98). Three of the mock's cuts do NOT ship in v1, each for a
-// stated reason the decision record carries:
+// product (D98). Two of the mock's rows do NOT ship, each for a stated
+// reason the decision records carry:
 //
-//   · The four instruments' type cuts, Big Five included — PERMITTED
-//     since D232 removed the never-group promise (the app's
-//     Big-Five-plus-logic scope is a product choice now, not a pledge),
-//     and still unbuilt for one technical reason: the archetype matcher
-//     lives in spec/archetype-data.js, which reads `window` at module
-//     scope and cannot load under node. They join when that module
-//     finishes its bridge migration.
+//   · The per-AXIS five-band dims (the mock's "Big Five · Openness"
+//     rows): the mock's bands are its own population-shaping numbers,
+//     not a vocabulary the app anywhere defines — banding an axis is a
+//     design decision nobody has taken, so the rows wait for it rather
+//     than shipping an invented scale. (The TYPE cuts themselves ship:
+//     permitted at D232, buildable at D233.)
 //   · District / field-of-study rows — no such data exists anywhere.
 //
 // What DOES cut: the census dims from the aggregate's `by` map (exact,
 // complete), Job folded from the roll's public vote-time snapshots
 // (profession is deliberately never a SERVER dim — D8 — but the
 // snapshots are world-readable and the fold is the reader's own
-// arithmetic, the D146 class), and the logic quarters (D227's bands).
+// arithmetic, the D146 class), the logic quarters (D227's bands), and —
+// since D233 — the four instruments' TYPE cuts, run through the app's
+// own matcher over the public testResults (permitted by D232's promise
+// removal; buildable once the archetype module left the bridge).
 //
 // Twins, each pinned by scripts/report.test.mjs rather than imported:
 // the client modules that own these (voters.ts, logicSplit.ts,
 // similarity.ts) sit behind import chains that touch `window`/live.ts,
 // so a direct import cannot load under node. The test reads the sources
-// and fails when a twin drifts.
+// and fails when a twin drifts. The archetype MATCHER is not a twin:
+// since D233's bridge conversion the module loads under plain node, so
+// the report runs the app's own matcher on the app's own signatures.
+import { ARCHETYPES, IS_matchArchetype } from "../src/v2/spec/archetype-data.js";
 
 // ── twins (pinned to their client sources by report.test.mjs) ────────
 
@@ -81,6 +86,37 @@ export function parseLogicPct(raw) {
   if (!Number.isFinite(pct)) return null;
   return Math.max(0, Math.min(100, Math.round(pct)));
 }
+
+/** similarity.ts parseTestResults, one instrument's arm, in the dims-array
+ * shape the matcher takes — same defensive read, same clamps, pinned
+ * against the real parse by the test. */
+export function parseTestDims(raw, kind) {
+  if (!raw || typeof raw !== "object") return null;
+  const entry = raw[kind];
+  if (!entry || typeof entry !== "object") return null;
+  const dims = entry.dims;
+  if (!Array.isArray(dims)) return null;
+  const out = [];
+  for (const d of dims.slice(0, 12)) {
+    if (!d || typeof d !== "object") continue;
+    const id = d.id;
+    const value = Number(d.value);
+    if (typeof id !== "string" || !id || !Number.isFinite(value)) continue;
+    out.push({ id, value: Math.max(0, Math.min(100, Math.round(value))) });
+  }
+  return out.length ? out : null;
+}
+
+/** The four instruments the report cuts by, with the names the app shows
+ * (similarity.ts CORE_TEST_KINDS, display names per data-inventory).
+ * Permitted since D232 removed the never-group promise; buildable since
+ * D233 put the matcher within reach of node. */
+export const REPORT_TYPE_CUTS = [
+  ["big5", "Big Five"],
+  ["political", "Politics"],
+  ["values", "Values"],
+  ["attachment", "Social"],
+];
 
 // ── bounds (each stated on the page wherever it binds) ───────────────
 
@@ -208,12 +244,14 @@ export function makeReader(fs) {
         touch("v2_users", snap.docs.length);
         for (const d of snap.docs) {
           const n = d.get("displayName");
+          const tests = d.get("testResults");
           out[d.id] = {
             name: typeof n === "string" ? n.trim().slice(0, 60) : "",
-            logic: parseLogicPct(d.get("testResults")),
+            logic: parseLogicPct(tests),
+            tests: tests ?? null,
           };
         }
-        for (const u of chunk) if (!(u in out)) out[u] = { name: "", logic: null };
+        for (const u of chunk) if (!(u in out)) out[u] = { name: "", logic: null, tests: null };
       }
       return out;
     },
@@ -399,6 +437,36 @@ export function logicCut(roll, profiles, optionCount) {
   return { rows: [...rows, untested], verified };
 }
 
+/** One instrument's type name for a voter, or null for the untested —
+ * the app's own nearest-signature matcher over the public result. */
+export function typeNameOf(tests, kind) {
+  const dims = parseTestDims(tests, kind);
+  if (!dims) return null;
+  const hit = IS_matchArchetype(kind, dims);
+  return hit ? hit.list[hit.idx].name : null;
+}
+
+/** The type cut: the roll grouped by matched archetype on one
+ * instrument — every named type listed (empty ones at zero, the
+ * design's rule), untested last as a full row, never dropped. */
+export function typeCut(roll, profiles, kind, optionCount) {
+  const sys = ARCHETYPES[kind];
+  const rowFor = (label) => ({ label, counts: Array.from({ length: optionCount }, () => 0), t: 0 });
+  const rows = sys.list.map((a) => rowFor(a.name));
+  const byName = new Map(rows.map((r) => [r.label, r]));
+  const untested = rowFor("Untested");
+  let tested = 0;
+  for (const r of roll) {
+    const name = typeNameOf((profiles[r.uid] || {}).tests, kind);
+    const row = name ? byName.get(name) : untested;
+    if (name) tested += 1;
+    if (!row) continue;
+    row.t += 1;
+    if (r.optionIdx >= 0 && r.optionIdx < optionCount) row.counts[r.optionIdx] += 1;
+  }
+  return { rows: [...rows, untested], tested };
+}
+
 /** Cramér's V between the main question and one candidate over the
  * joined sample — for 2×2 (the patterns predicate guarantees the
  * candidate side) this is |phi|. */
@@ -471,6 +539,9 @@ export async function buildReportData(reader, { qid, vocab, now = new Date(), ne
 
   const pairsList = editPairs(agg.edits);
   const logic = logicCut(roll, profiles, options.length);
+  const typeCuts = REPORT_TYPE_CUTS.map(([kind, title]) => (
+    { kind, title, ...typeCut(roll, profiles, kind, options.length) }
+  ));
 
   // neighbours — a bounded joined sample, most recent voters first
   const sample = roll.slice(0, neighbourSample);
@@ -506,19 +577,24 @@ export async function buildReportData(reader, { qid, vocab, now = new Date(), ne
     until: question.until || null,
     counts,
     total,
-    roll: roll.map((r) => ({
-      name: (profiles[r.uid] || {}).name || "",
-      optionIdx: r.optionIdx,
-      anchors: r.anchors,
-      answeredAt: r.answeredAt ? r.answeredAt.toISOString() : "",
-      editedAt: r.editedAt ? r.editedAt.toISOString() : "",
-      logicBand: logicBandOf((profiles[r.uid] || {}).logic),
-    })),
+    roll: roll.map((r) => {
+      const p = profiles[r.uid] || {};
+      return {
+        name: p.name || "",
+        optionIdx: r.optionIdx,
+        anchors: r.anchors,
+        answeredAt: r.answeredAt ? r.answeredAt.toISOString() : "",
+        editedAt: r.editedAt ? r.editedAt.toISOString() : "",
+        logicBand: logicBandOf(p.logic),
+        types: Object.fromEntries(REPORT_TYPE_CUTS.map(([kind]) => [kind, typeNameOf(p.tests, kind)])),
+      };
+    }),
     dims,
     job,
     edits: { pairs: pairsList, net: editNet(agg.edits, options.length), moves: totalMoves(agg.edits) },
     series: seriesFromRoll(roll, options.length),
     logic,
+    typeCuts,
     neighbours,
     neighbourBasis: { sampled: sample.length, candidates: candidates.length, floor: NEIGHBOUR_MIN_SHARED },
     generatedAt: now.toISOString(),
@@ -542,11 +618,13 @@ export const toCsv = (rows) => rows.map((r) => r.map(csvCell).join(",")).join("\
 export function renderCsvs(data) {
   const anchorKeys = [...new Set(data.roll.flatMap((r) => Object.keys(r.anchors || {})))].sort();
   const roll = toCsv([
-    ["name", "option", ...anchorKeys, "answeredAt", "editedAt", "logicBand"],
+    ["name", "option", ...anchorKeys, "answeredAt", "editedAt", "logicBand",
+      ...REPORT_TYPE_CUTS.map(([, title]) => `${title} type`)],
     ...data.roll.map((r) => [
       r.name, data.options[r.optionIdx] ?? r.optionIdx,
       ...anchorKeys.map((k) => (r.anchors || {})[k] || ""),
       r.answeredAt, r.editedAt, r.logicBand || "untested",
+      ...REPORT_TYPE_CUTS.map(([kind]) => (r.types || {})[kind] || "untested"),
     ]),
   ]);
   const edits = toCsv([
@@ -703,27 +781,40 @@ export function renderReportHtml(data) {
       ).join("") + `</div>`) +
     `<div style="${BASIS}">${fmt(data.edits.moves)} ${data.edits.moves === 1 ? "move" : "moves"} between options so far — moves, not people (someone changing twice counts twice), and the split above counts each person&rsquo;s latest answer. Full matrix: edits.csv.</div>`);
 
-  const dimSection = (title, d, remLabel) =>
-    `<details${title === "Age band" ? " open" : ""} style="border-bottom:1px solid color-mix(in oklch, var(--rule) 62%, transparent)">` +
+  const dimSection = (title, rows, right, extraHtml, open) =>
+    `<details${open ? " open" : ""} style="border-bottom:1px solid color-mix(in oklch, var(--rule) 62%, transparent)">` +
     `<summary style="display:flex;align-items:center;gap:10px;padding:11px 0;cursor:pointer;list-style:none">` +
     `<span style="flex:1;min-width:0;font-size:13.5px;font-weight:650;letter-spacing:-0.01em;color:var(--ink)">${esc(title)}</span>` +
-    `<span style="flex-shrink:0;font-size:10.5px;font-weight:600;color:var(--ink-3);font-variant-numeric:tabular-nums">shared by ${fmt(d.shared)}</span>` +
+    `<span style="flex-shrink:0;font-size:10.5px;font-weight:600;color:var(--ink-3);font-variant-numeric:tabular-nums">${right}</span>` +
     `<span class="chev" style="flex-shrink:0;font-size:11px;color:var(--ink-3)">&#9662;</span></summary>` +
-    `<div style="padding:0 0 13px">` +
-    d.rows.map(bucketRow).join("") +
-    (d.notShared > 0 ? bucketRow({ label: remLabel, counts: [], t: 0 }).replace(
-      `<span style="color:var(--ink)">0</span><span style="font-weight:600;color:var(--ink-3)"> · none yet — still listed</span>`,
-      `<span style="color:var(--ink)">${fmt(d.notShared)}</span><span style="font-weight:600;color:var(--ink-3)"> · did not share this</span>`,
-    ).replace(stackBar([], 10), "") : "") +
+    `<div style="padding:0 0 13px">` + rows.map(bucketRow).join("") + (extraHtml || "") +
     `</div></details>`;
+
+  // The census dims' remainder is a footnote line, not a bucket: "did
+  // not share this" is an absence of a cohort, where the cuts' Untested
+  // is a real row with its own split.
+  const notSharedNote = (n) => (n > 0
+    ? `<div style="margin-top:9px;display:flex;align-items:baseline;justify-content:space-between;gap:8px">` +
+      `<span style="font-size:12.5px;font-weight:650;color:var(--ink-2)">Not shared</span>` +
+      `<span style="flex-shrink:0;font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums">` +
+      `<span style="color:var(--ink)">${fmt(n)}</span><span style="font-weight:600;color:var(--ink-3)"> · did not share this</span></span></div>`
+    : "");
 
   const whoCard = card(
     kicker("Who answered", legend(options)) +
     `<div style="margin-top:14px"><div style="${K};font-size:9.5px;opacity:0.85">Demographics</div>` +
-    data.dims.map((d) => dimSection(DIM_TITLES[d.key] || d.key, d, "Not shared")).join("") +
-    dimSection("Job", data.job, "Not shared") +
+    data.dims.map((d) => dimSection(
+      DIM_TITLES[d.key] || d.key, d.rows, `shared by ${fmt(d.shared)}`,
+      notSharedNote(d.notShared), d.key === "ageBand",
+    )).join("") +
+    dimSection("Job", data.job.rows, `shared by ${fmt(data.job.shared)}`, notSharedNote(data.job.notShared)) +
     `</div>` +
-    `<div style="${BASIS}">Census cuts are the aggregate&rsquo;s own published cells — exact, complete, an absent bucket is zero (D98). Job is folded from the answers&rsquo; public vote-time snapshots, the same read anyone in the app can make. Cohorts as they stood at vote time · an empty bucket stays listed at zero, and small counts print exactly. The app&rsquo;s test-type cuts are not in this v1 report.</div>`);
+    data.typeCuts.map((cut) =>
+      `<div style="margin-top:14px"><div style="${K};font-size:9.5px;opacity:0.85">${esc(cut.title)}</div>` +
+      dimSection(`${cut.title} — type`, cut.rows, `tested ${fmt(cut.tested)}`) +
+      `</div>`,
+    ).join("") +
+    `<div style="${BASIS}">Census cuts are the aggregate&rsquo;s own published cells — exact, complete, an absent bucket is zero (D98). Job is folded from the answers&rsquo; public vote-time snapshots, and the four type cuts run the app&rsquo;s own nearest-signature matcher over the public testResults — the same reads anyone in the app can make. Cohorts as they stood at vote time · an empty bucket stays listed at zero, small counts print exactly, and the Untested row is the remainder — shown, never dropped.</div>`);
 
   const logicCard = card(
     kicker("The logic cut", "verified in the timed in-app test") +

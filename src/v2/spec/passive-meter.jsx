@@ -8,6 +8,7 @@ import { TypeMark, typeColor, typeSplit } from './type-marks.jsx';
 import { Sheet } from './primitives.jsx';
 import ReactDOM from 'react-dom';
 import { IS_TEST_RESULTS } from './test-definitions.js';
+import { IS_matchArchetype } from './archetype-data.js';
 import { PASSIVE } from './passive-progress.js';
 // The fold over your own feed answers (D121) — what an instrument reads as
 // when it has no stored result, which in a live build is every instrument.
@@ -135,7 +136,7 @@ function passiveSignature(k) {
 export function passiveStanding(k) {
   const m = PASSIVE.META[k];
   const R = IS_TEST_RESULTS[k];
-  const mt = (R && R.dims && window.IS_matchArchetype) ? window.IS_matchArchetype(k, R.dims) : null;
+  const mt = (R && R.dims) ? IS_matchArchetype(k, R.dims) : null;
   const standing = mt ? mt.list[mt.idx].name : null;
   if (standing) {
     return { standing, col: typeColor(k, standing, null, m.accent), sp: typeSplit(k, standing) };

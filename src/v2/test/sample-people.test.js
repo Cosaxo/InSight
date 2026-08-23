@@ -23,7 +23,7 @@
 import { describe, expect, it } from "vitest";
 
 import { IS_DATA } from "../spec/sample-data.js";
-import { IS_ARCHETYPES } from "../spec/archetype-data.js";
+import { IS_ARCHETYPES, IS_FRIEND_TYPES } from "../spec/archetype-data.js";
 import { FRIENDS } from "../spec/follows.js";
 import "../spec/mirror-field-pops.jsx"; // publishes MFP_SECTORS
 import { DUELS } from "../spec/duels-data.js";
@@ -93,7 +93,7 @@ describe("the circle roster", () => {
 
 describe("the per-test type map", () => {
   it("covers every person, in every test", () => {
-    for (const [testKey, map] of Object.entries(window.IS_FRIEND_TYPES)) {
+    for (const [testKey, map] of Object.entries(IS_FRIEND_TYPES)) {
       for (const p of people) {
         expect(map[p.id], `${p.id} (${p.name}) missing from IS_FRIEND_TYPES.${testKey}`).toBeTruthy();
       }
@@ -104,7 +104,7 @@ describe("the per-test type map", () => {
     // sameType compares these strings to the archetype the user landed on. A
     // name that matches no archetype matches no user either — it is not an
     // error, just a person who can never appear.
-    for (const [testKey, map] of Object.entries(window.IS_FRIEND_TYPES)) {
+    for (const [testKey, map] of Object.entries(IS_FRIEND_TYPES)) {
       const names = new Set(IS_ARCHETYPES[testKey].list.map((a) => a.name));
       for (const [pid, type] of Object.entries(map)) {
         expect(names.has(type), `IS_FRIEND_TYPES.${testKey}.${pid} = "${type}" is not an archetype`).toBe(true);
@@ -113,7 +113,7 @@ describe("the per-test type map", () => {
   });
 
   it("maps nobody who is not in the roster", () => {
-    for (const [testKey, map] of Object.entries(window.IS_FRIEND_TYPES)) {
+    for (const [testKey, map] of Object.entries(IS_FRIEND_TYPES)) {
       for (const pid of Object.keys(map)) {
         expect(byId.has(pid), `IS_FRIEND_TYPES.${testKey} types "${pid}", who is not in the roster`).toBe(true);
       }

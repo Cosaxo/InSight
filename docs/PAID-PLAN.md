@@ -344,10 +344,11 @@ every day it waits.
 2. **Report builder v1** (§2) — **DONE, D231 (2026-08-23)**: a script,
    run by hand per contract (`scripts/build-report.mjs`), reading as an
    anonymous signed-in user with the read-set held by test and e2e;
-   the page is the 2026-08-22 standalone's design. The test-type
-   accordions wait on one bridge-bound module (the never-group promise
-   that also stood in the way retired at D232); sell by hand at
-   hand-set prices. This plus the existing D195 machinery is a complete sellable
+   the page is the 2026-08-22 standalone's design. The four
+   instruments' type cuts joined at D233 (D232 retired the promise in
+   their way, D233's bridge conversion made the matcher loadable); the
+   mock's per-axis band rows wait on a banding vocabulary nobody has
+   authored. Sell by hand at hand-set prices. This plus the existing D195 machinery is a complete sellable
    product with near-zero app code.
 3. **"Asked by you" + purchase records** (§7) — the first in-app build.
 4. **The score catalog and subscription serving** (§5) — including the
