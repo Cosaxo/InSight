@@ -254,8 +254,9 @@ Proposed only, each awaiting its own record
 ([`NEXT-FUNCTIONALITY.md`](NEXT-FUNCTIONALITY.md) §7): the
 current-events feed topic with its `until` window · result history ·
 types tier 2, the D8 amendment · longitudinal re-testing · a same-day
-pulse edit window · anonymous attention rollups
-([`ATTENTION.md`](ATTENTION.md) tier 3) · auction-priced slots · the
+pulse edit window · anonymous attention rollups and the wider
+engagement ladder ([`ATTENTION.md`](ATTENTION.md) tier 3, generalized by
+[`ENGAGEMENT-PLAN.md`](ENGAGEMENT-PLAN.md)) · auction-priced slots · the
 community board and bylines. None binds anything yet.
 
 ## 5 · Flips and soft-shipped gates

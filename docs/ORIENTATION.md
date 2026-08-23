@@ -115,6 +115,7 @@ directions.
 | [`PEOPLE-MAP.md`](PEOPLE-MAP.md) | The patterns Map transposed: people placed by their answers. The People lens shipped at D214; the plane switch and whole-world variant stay deferred with their arithmetic | mixed |
 | [`NEXT-FUNCTIONALITY.md`](NEXT-FUNCTIONALITY.md) | Six ideas measured against the architecture. Plan notes, not decisions | plan |
 | [`ATTENTION.md`](ATTENTION.md) | "Does anyone like this, and what is this person into." No code exists | plan |
+| [`ENGAGEMENT-PLAN.md`](ENGAGEMENT-PLAN.md) | The 2026-08-23 ask — measure what engages and what bores — against the standing analytics refusals: what rung 0 already knows, the two-channel design, and the record each rung reverses | plan |
 | [`TAGS-PLAN.md`](TAGS-PLAN.md) | Questions carry several topics through one `also` field, and the demand lanes read them without becoming buyable or gameable. Built at D206; §4's tier-2 reading waits on D163 | mixed |
 | [`FORESIGHT-CALLS.md`](FORESIGHT-CALLS.md) | The half of Foresight that asserts a fact. Tier A built and retired in service (D194→D196); tier B is the live question | mixed |
 | [`EVENT-DISCUSSIONS.md`](EVENT-DISCUSSIONS.md) | Recent events as feed cards, each with a discussion window. The rework of the parked prediction slot; no code exists | plan |
