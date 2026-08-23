@@ -2680,6 +2680,45 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "daily-126",
+  "surface": "daily",
+  "seq": 126,
+  "type": "scale",
+  "domain": null,
+  "prompt": "The best hobbies have nothing to show for them.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "deep",
+  "branch": "Interests",
+  "sub": "The point",
+  "tag": "Nothing to show",
+  "axis": "unproductive",
+  "test": null
+ },
+ {
+  "id": "daily-127",
+  "surface": "daily",
+  "seq": 127,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Respected at work, or free to walk away from it?",
+  "options": [
+   "Respected",
+   "Free to walk"
+  ],
+  "topic": "deep",
+  "branch": "Goals",
+  "sub": "Work and life",
+  "tag": "Respect or freedom",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "feed-f01",
   "surface": "feed",
   "seq": 0,
