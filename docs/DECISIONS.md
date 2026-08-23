@@ -24627,3 +24627,93 @@ A second case writes a stale row by hand — no callable can produce one
 any more — and asserts that **Let in** clears it rather than sitting
 there being re-notified. Both fail against the previous implementation;
 the first was written before the fix and watched to fail.
+
+## D242 · The surface claim is an equality, and was the same test twice
+
+**2026-08-23.** **Status:** binding. A rules defect, found by reading
+`isWorldAnswer()` against the five sibling shapes that were written from
+it.
+
+### What the clause said and what it did
+
+`isWorldAnswer()`'s last clause carried this comment:
+
+> …and the claimed surface must match the question's own, so a duel-bank
+> question can't be answered as a world question and land in the public
+> aggregate.
+
+and this code:
+
+```
+&& get(…/v2_questions/$(aid)).data.get("surface", "daily")
+     in ["daily", "feed", "test", "learn"]
+```
+
+The answer's own surface is checked against that same list eleven lines
+above. So both sides were tested for membership of one list and neither
+was ever compared to the other: **the same test twice, and no comparison
+at all.**
+
+### The stated case held; the one underneath it did not
+
+A duel-bank question carries `surface` `"group"` or `"duo"`, which is in
+neither list, so the sentence the comment actually wrote down was true
+either way. That is why it read as correct for as long as it did.
+
+What it did not cover is the four world surfaces **against each other**,
+and one of those pairs is load-bearing. The D86 edit arm forty lines
+below keys on the ANSWER's self-declared surface:
+
+```
+allow update: … && resource.data.surface in ["daily", "feed", "test"]
+```
+
+`learn` is excluded there deliberately — *"first-attempt-only is D32's
+whole measurement… 'not knowledge, obviously' — the owner's own words."*
+But `learn` was not excluded from what a learn question could be
+*labelled* on the way in. Answer a learn-bank question with
+`surface: "feed"` and the create passes; the answer is then a feed answer
+as far as every later check can tell, and the edit arm moves it. D32's
+measurement was one field away from optional.
+
+### The client already assumed the equality
+
+`src/v2/data/live.ts:4027` explains why a call question has to be
+findable in the local banks before voting: *"the write would claim
+`surface: "daily"` and rules would refuse it."* That refusal is exactly
+the equality this clause was supposed to be. The client was written
+against the comment; the rule implemented something weaker.
+
+### And so did the two shapes copied from it
+
+`isRankAnswer()` and `isCatalogAnswer()` both carry the comment *"same
+kill switch and surface agreement as isWorldAnswer"* — and both wrote
+`== "feed"`. `isPulseAnswer()` writes `== "pulse"`, `isCallAnswer()`
+writes `== "call"`. Every branch that names ONE surface got the
+comparison right. The only branch that names four is the only one that
+got it wrong, which is the shape to expect: a list makes `in` read like
+the natural operator even where the question is equality.
+
+### The fix, and what the default still buys
+
+```
+&& get(…/v2_questions/$(aid)).data.get("surface", "daily")
+     == request.resource.data.surface
+```
+
+The default keeps a field-less bank doc answerable rather than
+permanently bricked — that half predates this and survives it — and under
+equality it means answerable **as `"daily"` specifically**. The
+membership check on the answer's own surface still bounds the agreed pair
+to the four world names, so nothing widens.
+
+### Measured rather than assumed
+
+Two rules cases, both written before the fix and watched to fail: a
+learn-bank question refuses the label `"feed"` and still accepts
+`"learn"`, and a question with no `surface` field refuses `"test"` and
+accepts `"daily"`. The rules suite is 130 with them. `test:e2e` runs the
+whole loop unchanged, which is the check that mattered here — an
+equality is exactly the kind of tightening that breaks a legitimate
+write, and every legitimate write in `live.ts` passes the question's own
+`surface` through.

@@ -436,12 +436,29 @@ service cloud.firestore {
             // inactive stops accepting answers, not just showing itself.
             && get(/databases/$(database)/documents/v2_questions/$(aid))
                  .data.get("active", true) == true
-            // …and the claimed surface must match the question's own, so a
-            // duel-bank question can't be answered as a world question and
-            // land in the public aggregate. Defaults keep a field-less doc
-            // answerable rather than permanently bricked.
+            // …and the claimed surface must BE the question's own —
+            // EQUALITY, not membership of the same list on both sides,
+            // which is the same test twice and no comparison at all.
+            //
+            // The stated case held either way: a duel-bank question carries
+            // "group"/"duo", which is in neither list, so it could never be
+            // answered as world material and land in the public aggregate.
+            // What did not hold is the four world surfaces against each
+            // other, and one of those pairs is load-bearing. The D86 edit
+            // arm below keys on the ANSWER's self-declared surface and
+            // excludes "learn", because first-attempt-only IS D32's
+            // measurement — so a learn question answered as "feed" was an
+            // editable learn answer. live.ts:4027 already assumed this
+            // clause was an equality ("would claim surface: daily and rules
+            // would refuse it"); it is one now.
+            //
+            // The default keeps a field-less bank doc answerable rather
+            // than permanently bricked, and under equality that means
+            // answerable as "daily" specifically. The membership check on
+            // the ANSWER's own surface (above) is what still bounds the
+            // pair to the four world names.
             && get(/databases/$(database)/documents/v2_questions/$(aid))
-                 .data.get("surface", "daily") in ["daily", "feed", "test", "learn"];
+                 .data.get("surface", "daily") == request.resource.data.surface;
         }
 
         // Catalog answers (docs/CATALOG-QUESTIONS.md): one pick from a
