@@ -21,8 +21,11 @@ beforeEach(() => {
 });
 
 async function feedData() {
-  await import("../spec/world-feed-data.js");
-  return { channels: window.WORLD_CHANNELS, topics: window.WORLD_TOPICS };
+  // WORLD_CHANNELS is imported by name since D249 — world-feed.jsx was its
+  // only consumer, so it no longer publishes. WORLD_TOPICS still mirrors,
+  // for daily-split, search-overlay and suggestions.
+  const { WORLD_CHANNELS } = await import("../spec/world-feed-data.js");
+  return { channels: WORLD_CHANNELS, topics: window.WORLD_TOPICS };
 }
 
 describe("the always-on channel set, per build (D96)", () => {

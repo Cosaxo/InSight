@@ -15,6 +15,7 @@ import { bindSwipeBack } from './swipe-back.js';
 // an import makes impossible. The data conditions beside them (`liveGeo`,
 // the stop id) are unchanged, because those guard data, not loading.
 import NearLiveBody from '../ui/NearLiveBody';
+import NAV from '../data/nav';
 // Three of them load AFTER first paint, and the reason is the bundle budget
 // rather than taste.
 //
@@ -269,7 +270,7 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, backKey 
   const backTo = React.useRef(backKey);
   React.useEffect(() => {
     backTo.current = backKey || 'track:world';
-    if (backRef.current) bindSwipeBack(backRef.current, () => window.goNav && window.goNav(backTo.current));
+    if (backRef.current) bindSwipeBack(backRef.current, () => NAV.goNav(backTo.current));
   });
 
   // The ruler is ONE element across every stop — never inside a branch that can

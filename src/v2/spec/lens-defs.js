@@ -232,7 +232,7 @@ window.IS_LENSES = [
 // phones loses their lenses, as they already lose their local state. Wiring
 // the round trip (restore path first, then the mirror, then the rules cap and
 // its test) is its own increment.
-window.LENSES = (function () {
+export const LENSES = (function () {
   const LS = 'insight.lenses.v1';
   const BY = {};
   window.IS_LENSES.forEach((l) => { BY[l.id] = l; });
@@ -352,7 +352,8 @@ window.LENSES = (function () {
 // those prefix questions (~20 of the 50 items) — for a feed-only user,
 // `moral` could never pass 4 of 8. Rebuilt lazily instead; world-feed calls
 // this on every feed build.
-window.LENS_FEED_QS = (function () {
+// No window mirror (D249): world-feed.jsx was the only reader.
+export const LENS_FEED_QS = (function () {
   function h(s) { let x = 17; for (let i = 0; i < s.length; i++) x = Math.imul(x ^ s.charCodeAt(i), 2654435761); return ((x ^ (x >>> 11)) >>> 0) / 4294967295; }
   // Agree-FIRST, and the seeded bank's lens rows carry the same five in the
   // same order (content/lenses.json → LENS_SCALE, drift-gated by
@@ -421,3 +422,5 @@ window.LENS_FEED_QS = (function () {
     return demoBuilt;
   };
 })();
+// The mirror stays for lens-cards.jsx and profile-general.jsx.
+window.LENSES = LENSES;

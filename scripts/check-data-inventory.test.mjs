@@ -1,4 +1,4 @@
-// check-data-inventory.test.mjs — pins D243's rule-2 parsers.
+// check-data-inventory.test.mjs — pins D257's rule-2 parsers.
 //
 // Rule 2 fails silently by construction: every way it can stop working
 // takes rows OUT of the checked set and leaves the gate green. The

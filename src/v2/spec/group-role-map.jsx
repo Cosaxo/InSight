@@ -5,6 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { DUELS } from './duels-data.js';
+import NAV from '../data/nav';
 
 // group-role-map.jsx — the group as a cast list. Scenario questions ("bank
 // heist: who drives?") crown members with ROLES; here every member (you
@@ -167,8 +168,8 @@ import { DUELS } from './duels-data.js';
               {all.length ? `how ${gname} cast ${person.me ? 'you' : person.name}` : `${gname} hasn't cast ${person.me ? 'you' : person.name} yet`}
             </div>
           </div>
-          {!person.me && window.openPerson && (
-            <button className="press" onClick={() => window.openPerson(person.id)} style={{
+          {!person.me && NAV.can('openPerson') && (
+            <button className="press" onClick={() => NAV.openPerson(person.id)} style={{
               cursor: 'pointer', WebkitAppearance: 'none', border: '0.5px solid var(--rule)', background: 'var(--surface)',
               borderRadius: 999, padding: '6px 12px', fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-2)', whiteSpace: 'nowrap',
             }}>profile →</button>

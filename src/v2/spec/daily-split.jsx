@@ -44,6 +44,7 @@ const LiveDuelPanel = React.lazy(() => import('../ui/LiveDuelPanel.tsx'));
 import ReactDOM from 'react-dom';
 import { IS_TESTS, IS_TEST_RESULTS, persistTestResult } from './test-definitions.js';
 import { PASSIVE } from './passive-progress.js';
+import NAV from '../data/nav';
 
 // daily-split.jsx — SPLIT: the daily tab. Three modes — World (vote blind,
 // see how the crowd & every kind of person split), Group (one question a day
@@ -453,10 +454,10 @@ class DailySplit extends React.Component {
       // see). Patterns sat past the near one until D217 unmounted it for
       // v1; while it is out, the near end springs back like any other
       // edge, and this branch is where the exit returns (the exception
-      // D166 §1 licensed). Still one window.goNav read, because the
+      // D166 §1 licensed). Still one NAV.goNav read, because the
       // coupling meter (rule 4) counts occurrences and only moves down.
       if (ni >= MODES.length || ni < 0) {
-        const nav = window.goNav;
+        const nav = NAV.goNav;
         if (ni >= MODES.length && nav) { nav('mirror'); return; }
         spring(); return;
       }
@@ -909,11 +910,13 @@ class DailySplit extends React.Component {
                 // id (app-shell.jsx) and 'map' is neither, so this ran
                 // closeAll() and returned — the one control in the app that
                 // points at the Map did nothing, and the tap read as a dead
-                // button rather than an error. The Map IS the Mirror's You
-                // stop ("fully retracted — you, alone, visualized: the Map
-                // lives here", mirror-tab.jsx), so that is the destination
-                // the toast was always naming.
-                onClick: () => window.goTab && window.goTab('you'), style: { display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3s ease forwards' } },
+                // button rather than an error. Moving the call onto the NAV
+                // registry (D248) did not change that: the accept-list is
+                // the same one. The Map IS the Mirror's You stop ("fully
+                // retracted — you, alone, visualized: the Map lives here",
+                // mirror-tab.jsx), so that is the destination the toast was
+                // always naming.
+                onClick: () => NAV.goTab('you'), style: { display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3s ease forwards' } },
                 'added to ' + this.mapBranch(S), h('span', { 'aria-hidden': true }, '\u2192')))),
       // The live daily is a world-scope question, so it carries the D83
       // world-takes surface: anonymous, one take per person, enforced
@@ -1048,7 +1051,7 @@ class DailySplit extends React.Component {
         // the sliding surface — swipes translate this, not the whole page
         h('div', { ref: (n) => { this.bodyEl = n; }, style: { display: 'flex', flexDirection: 'column', gap: 13, flex: 1, willChange: 'transform' } }, body),
         // quiet footer — suggest a question for the daily (community board)
-        h('button', { onClick: () => window.openSuggestions && window.openSuggestions(), style: { alignSelf: 'center', marginTop: 4, padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)' } }, 'Have a question in mind? ', h('span', { style: { color: 'var(--accent)' } }, 'Suggest one \u2192'))),
+        h('button', { onClick: () => NAV.openSuggestions(), style: { alignSelf: 'center', marginTop: 4, padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)' } }, 'Have a question in mind? ', h('span', { style: { color: 'var(--accent)' } }, 'Suggest one \u2192'))),
     };
   }
 

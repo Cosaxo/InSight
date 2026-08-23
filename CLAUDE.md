@@ -124,11 +124,12 @@ This is deliberate and temporary (see `src/v2/README.md`), but it is
 load-bearing today — and "temporary" only became true when something
 started measuring it (D39; see **The convention is shrinking** below).
 
-Six modules are already off the bridge: `primitives.jsx`, `sample-data.js`,
-`daily-questions.js`, `world-catalogs.js`, `follows.js` and
-`result-rose.jsx` are ordinary ESM modules with named exports. They are
-still listed in `spec-index.js`, but nothing waits on their side effects —
-the line is inertia plus rule 2, not a dependency.
+Seven modules are already off the bridge: `primitives.jsx`, `sample-data.js`,
+`daily-questions.js`, `world-catalogs.js`, `follows.js`, `result-rose.jsx`
+and `archetype-data.js` (D253 — the conversion that also lets the report
+builder run the matcher under node) are ordinary ESM modules with named
+exports. They are still listed in `spec-index.js`, but nothing waits on
+their side effects — the line is inertia plus rule 2, not a dependency.
 
 **Rule 2 asks whether a file LOADS, not whether `spec-index.js` names it.**
 A spec module imported by another spec module satisfies it through the ESM
@@ -219,7 +220,7 @@ Plus the non-test gates: `check:globals`, `check:labels`, `check:quality`
 pre-D98 privacy vocabulary, in copy a user reads — D116),
 `check:data-inventory` (every collection the rules reach is named in
 `docs/data-inventory.md`, which the store privacy label derives from —
-D130, plus D243's reader column held to the two read rules a script may
+D130, plus D257's reader column held to the two read rules a script may
 read literally), `check:versions`,
 `check:bundle`, `check:deploy-targets`, `check:fn-runtime`,
 `check:appcheck`, and the

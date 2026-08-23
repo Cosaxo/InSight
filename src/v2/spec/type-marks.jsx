@@ -7,7 +7,7 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { RP_TESTS } from './result-rose.jsx';
 import { Sheet } from './primitives.jsx';
-import { IS_ARCHETYPES } from './archetype-data.js';
+import { IS_ARCHETYPES, IS_matchArchetype } from './archetype-data.js';
 import { IS_TEST_RESULTS } from './test-definitions.js';
 import LIVE from '../data/live';
 // How common a type actually is, counted (D157) — see TypeIndexSheet.
@@ -127,7 +127,7 @@ export function TypeIndexSheet({ testKey, onClose }) {
   const host = typeof document !== 'undefined' ? document.querySelector('.app') : null;
   if (!sys || !host) return null;
   const R = IS_TEST_RESULTS[testKey];
-  const arch = R && R.dims && window.IS_matchArchetype ? window.IS_matchArchetype(testKey, R.dims) : null;
+  const arch = R && R.dims ? IS_matchArchetype(testKey, R.dims) : null;
   const yours = arch ? arch.list[arch.idx].name : (LIVE.enabled ? myTypeOn(testKey) : null);
   // Measured counts, keyed by name, or null when there is no measurement
   // to be had. `typedN` 0 is a real answer and not the same as null: it

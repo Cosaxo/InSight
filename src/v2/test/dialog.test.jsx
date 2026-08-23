@@ -26,6 +26,7 @@ import React from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { awaitNode } from "./mount-app.jsx";
 import { Sheet } from "../spec/primitives.jsx";
+import { UpdateRequiredBlocker } from "../spec/app-shell.jsx";
 import {
   backLayerCount, closeTopBackLayer, pushBackLayer, resetBackLayers,
 } from "../data/backLayers";
@@ -110,6 +111,52 @@ describe("overlays are modal dialogs", () => {
     expect(dialog.contains(document.activeElement)).toBe(true);
     fireEvent.keyDown(dialog, { key: "Escape" });
     expect(document.activeElement, "focus was not restored to the opener").toBe(opener);
+  });
+
+  it("traps Tab inside the update blocker, which had no trap at all (D250)", () => {
+    // The blocker is a modal the SERVER puts up: role, aria-modal and a
+    // label were hand-written on it and it took focus with `autoFocus`, so
+    // it announced itself correctly — and Tab walked straight out into the
+    // app behind, which is still in the DOM under an absolutely positioned
+    // overlay. Focus containment is runtime, so jsx-a11y could not see it.
+    //
+    // ASSERTED ON `defaultPrevented`, NOT ON `document.activeElement`, and
+    // the difference is the whole test. jsdom does not implement Tab
+    // navigation, so firing a keydown moves focus nowhere on its own — and
+    // this dialog has ONE focusable, so a wrap lands back where it started.
+    // An activeElement assertion therefore passes identically with and
+    // without the trap: the first draft of this case did exactly that and
+    // survived reverting the fix. `preventDefault` is the thing that stops
+    // the browser taking focus out, so it is the thing to assert.
+    const { container } = render(<UpdateRequiredBlocker />);
+    const dialog = container.querySelector('[role="dialog"]');
+    expect(dialog, "the blocker did not render as a dialog").toBeTruthy();
+    expect(dialog.getAttribute("aria-modal")).toBe("true");
+
+    // useDialog focuses the first focusable inside on mount — the job
+    // `autoFocus` used to do, now done by the hook that also restores focus
+    // to the opener on unmount. (Not the discriminator above: autoFocus
+    // focuses it too. It is here because it is a property worth holding.)
+    const inside = dialog.querySelector("button");
+    expect(document.activeElement, "the blocker did not take focus").toBe(inside);
+
+    for (const shiftKey of [false, true]) {
+      const ev = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true, shiftKey });
+      dialog.dispatchEvent(ev);
+      expect(ev.defaultPrevented, `${shiftKey ? "Shift+Tab" : "Tab"} was left to the browser, which takes focus out of the blocker`).toBe(true);
+    }
+  });
+
+  it("does not let Escape dismiss the blocker", () => {
+    // `useDialog` wires Escape to `onClose`, and the blocker passes a
+    // no-op ON PURPOSE: there is nothing to close to, and a build the
+    // server has refused must not be dismissable. This guards the future
+    // mistake — someone passing a real `onClose` here — rather than the
+    // fix this record made, which Escape cannot distinguish.
+    const { container } = render(<UpdateRequiredBlocker />);
+    const dialog = container.querySelector('[role="dialog"]');
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(container.querySelector('[role="dialog"]'), "Escape dismissed the blocker").toBeTruthy();
   });
 
   it("traps Tab inside the dialog", async () => {

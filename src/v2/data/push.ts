@@ -19,6 +19,7 @@ import { getFunctions, httpsCallable } from "firebase/functions";
 import { getDb } from "../../lib/firebase";
 import { reportError } from "../../lib/sentry";
 import { FUNCTIONS_REGION } from "../../lib/region";
+import NAV from "./nav";
 
 /**
  * Register this device for reveal notifications.
@@ -150,10 +151,12 @@ export async function registerPush(
     });
     await PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
       const data = (action.notification && action.notification.data) || {};
-      // land on the daily tab; DailySplit consumes whatever was stashed
+      // land on the daily tab; DailySplit consumes whatever was stashed.
+      // The registry since D248, not a `window as unknown as {…}` cast:
+      // NAV.goTab owns the not-yet-mounted case, so the `if (w.goTab)`
+      // this replaced has no caller-side remnant.
       const land = () => {
-        const w = window as unknown as { goTab?: (t: string) => void };
-        if (w.goTab) w.goTab("track");
+        NAV.goTab("track");
         window.dispatchEvent(new Event("insight-live-update"));
       };
       if (data.kind === "reveal" && data.gid) {

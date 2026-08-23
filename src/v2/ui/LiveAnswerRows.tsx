@@ -78,11 +78,23 @@ function headText(row: AnswerRow): { big: string; unit: string; sub: string } | 
 
 function standText(row: AnswerRow, whom: string): string {
   const st = standingIn(row.counts, row.mine, row.type);
-  // Said either way. "You have not answered this one" is a fact about the
-  // row worth as much as the comparison it replaces, and dropping the line
-  // made an unanswered row look like an answered one whose sentence failed
-  // to render.
-  if (!st) return "You have not answered this one.";
+  // ONE NULL, TWO FACTS (D244). `standingIn` refuses for two different
+  // reasons — the cohort has said nothing, or you have not answered — and
+  // this rendered both as the second one. That put "You have not answered
+  // this one." under a chip naming your own pick two lines above it: the
+  // row contradicting itself on a single screen.
+  //
+  // Reachable from the Near room, and not only for a beat: `loadRoom` is
+  // session-cached per cell, so a vote cast after the fold shows your chip
+  // against zero counts until you walk to another block.
+  if (!st) {
+    // Which reason, asked in the same terms `standingIn` refuses on.
+    if (row.mine < 0 || row.mine >= row.counts.length) return "You have not answered this one.";
+    // You answered, and the cohort's cell is still empty. Not "nobody has
+    // answered" — you did, and you are in this cohort — so the honest line
+    // explains the zeros rather than denying the chip.
+    return "Your answer is not in this count yet.";
+  }
   // A share of ONE answer is not a share (D170): with n=1 the arithmetic
   // can only ever say 0% or 100%, so "100% of Oslo are with you" reports
   // the sample size wearing a percentage. The release showed exactly that

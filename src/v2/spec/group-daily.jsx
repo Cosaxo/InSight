@@ -13,6 +13,7 @@ import { Sheet } from './primitives.jsx';
 // reached the screen without passing through it.
 import { WPAL } from './world-palette.js';
 import ReactDOM from 'react-dom';
+import NAV from '../data/nav';
 
 // group-daily.jsx — the daily tab's GROUP mode. Groups are named circles
 // (The Crew, Book Club…), each with its own question today. Same shape as
@@ -53,8 +54,8 @@ import ReactDOM from 'react-dom';
   // The avatar IS the link to a person — one rule across the daily, the duo and
   // the group bodies, so an initial circle always means "open them".
   function GDAv({ p, size = 22, sealed, plain }) {
-    const open = (e) => { if (!p || p.me) return; e.stopPropagation(); if (window.openPerson) window.openPerson(p); };
-    const linked = !!(p && !p.me && !plain && window.openPerson);
+    const open = (e) => { if (!p || p.me) return; e.stopPropagation(); NAV.openPerson(p); };
+    const linked = !!(p && !p.me && !plain && NAV.openPerson);
     // contrast-safe twin, since the fill carries the initials (D189)
     const fill = WPAL.ink(`oklch(0.52 0.13 ${p.hue})`);
     return (

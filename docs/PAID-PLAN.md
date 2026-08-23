@@ -1,10 +1,12 @@
 # Paid questions, reports and cohort subscriptions — the plan
 
 **Status: plan, except §3's aggregate half
-([D226](DECISIONS.md#d226--the-edit-flow-matrix--second-thoughts-become-a-published-number))
-and §4's logic cut
+([D226](DECISIONS.md#d226--the-edit-flow-matrix--second-thoughts-become-a-published-number)),
+§4's logic cut
 ([D227](DECISIONS.md#d227--the-logic-cut--the-who-voted-sheet-groups-answers-by-the-verified-score))
-— both built 2026-08-22.** Requested by the owner 2026-08-21; everything
+and §2's report builder v1
+([D251](DECISIONS.md#d251--the-report-builder-ships-and-reads-as-a-signed-in-user))
+— the first two built 2026-08-22, the builder 2026-08-23.** Requested by the owner 2026-08-21; everything
 else below is unbuilt and binds nothing. This page extends the recorded
 revenue
 paths ([`MONETIZATION.md`](MONETIZATION.md) paths 1–2, re-derived in
@@ -339,9 +341,14 @@ every day it waits.
    carry, e2e and unit pins, inventory row, policy sentence. Taken
    first because flows only exist from the day the trigger folds them,
    and nothing can backfill the votes already moved.
-2. **Report builder v1** (§2) — a script, run by hand per contract,
-   delivered to the buyer; sell by hand at hand-set prices.
-   This plus the existing D195 machinery is a complete sellable
+2. **Report builder v1** (§2) — **DONE, D251 (2026-08-23)**: a script,
+   run by hand per contract (`scripts/build-report.mjs`), reading as an
+   anonymous signed-in user with the read-set held by test and e2e;
+   the page is the 2026-08-22 standalone's design. The four
+   instruments' type cuts joined at D253 (D252 retired the promise in
+   their way, D253's bridge conversion made the matcher loadable) and
+   the per-axis five-band rows at D254, banded by the app's own
+   thresholds. Sell by hand at hand-set prices. This plus the existing D195 machinery is a complete sellable
    product with near-zero app code.
 3. **"Asked by you" + purchase records** (§7) — the first in-app build.
 4. **The score catalog and subscription serving** (§5) — including the

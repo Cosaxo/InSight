@@ -9,6 +9,7 @@ import { Kicker } from './primitives.jsx';
 // The palette gate (D189) — see gmAccent below for why this stop in
 // particular could not do without it.
 import { WPAL } from './world-palette.js';
+import NAV from '../data/nav';
 
 // group-mirror.jsx — the Mirror's GROUPS stop: your named circles as a cast
 // list. Pick a group → the role constellation, then the standard three lenses
@@ -168,7 +169,7 @@ import { WPAL } from './world-palette.js';
             const isTwin = P.twin && p.id === P.twin.id;
             const isCon = P.contrarian && p.id === P.contrarian.id;
             return (
-              <button type="button" className="btn-bare" key={p.id} aria-label={`Open ${p.name}`} onClick={() => window.openPerson && window.openPerson(p)} style={{ position: 'absolute', left: x + '%', top: cy + lvl * 46, transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'pointer' }}>
+              <button type="button" className="btn-bare" key={p.id} aria-label={`Open ${p.name}`} onClick={() => NAV.openPerson(p)} style={{ position: 'absolute', left: x + '%', top: cy + lvl * 46, transform: 'translate(-50%, -50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, cursor: 'pointer' }}>
                 <span style={{ borderRadius: '50%', display: 'inline-flex', boxShadow: isTwin ? '0 0 0 2px var(--accent)' : isCon ? '0 0 0 2px var(--ink-3)' : '0 0 0 2.5px var(--surface)' }}><window.GDAv p={p} size={28} plain></window.GDAv></span>
                 <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-2)', whiteSpace: 'nowrap' }}>{p.name.split(' ')[0]}</span>
               </button>

@@ -27,7 +27,7 @@
 // and is the thing that failed at D130: a collection cannot ship without
 // the inventory at least naming it.
 //
-// RULE 2 — the READER check, added D243, because rule 1's stated limit
+// RULE 2 — the READER check, added D257, because rule 1's stated limit
 // ("it does NOT read the row, verify who the row says may read it, or
 // notice a row that has gone stale in place") turned out to be describing
 // two live errors rather than an acceptable gap. `reveals` was documented
@@ -224,7 +224,7 @@ export const SAYS_NOBODY = /\bnobody\b|\bno one\b/i;
 // its path, a read rule edited into a form this declines to read — takes
 // rows OUT of the checked set and leaves the gate green. The number can
 // rise freely; it may not fall without saying so. 27 is the tree this
-// landed against (D243).
+// landed against (D257).
 const READER_FLOOR = 27;
 const readClasses = classifyReads(rules);
 let readerChecked = 0;

@@ -8,7 +8,9 @@ import { TypeMark, typeColor, typeSplit } from './type-marks.jsx';
 import { Sheet } from './primitives.jsx';
 import ReactDOM from 'react-dom';
 import { IS_TEST_RESULTS } from './test-definitions.js';
+import { IS_matchArchetype } from './archetype-data.js';
 import { PASSIVE } from './passive-progress.js';
+import NAV from '../data/nav';
 // The fold over your own feed answers (D121) — what an instrument reads as
 // when it has no stored result, which in a live build is every instrument.
 // Imported from its one owner rather than re-derived here: `ownProgress`
@@ -135,7 +137,7 @@ function passiveSignature(k) {
 export function passiveStanding(k) {
   const m = PASSIVE.META[k];
   const R = IS_TEST_RESULTS[k];
-  const mt = (R && R.dims && window.IS_matchArchetype) ? window.IS_matchArchetype(k, R.dims) : null;
+  const mt = (R && R.dims) ? IS_matchArchetype(k, R.dims) : null;
   const standing = mt ? mt.list[mt.idx].name : null;
   if (standing) {
     return { standing, col: typeColor(k, standing, null, m.accent), sp: typeSplit(k, standing) };
@@ -197,7 +199,7 @@ function PassiveMeter() {
                 // It goes to the profile's tab for the instrument instead —
                 // the place its axes, its progress and (once there is one)
                 // its type actually live.
-                const go = () => { close(); setTimeout(() => { if (window.openProfileTab) window.openProfileTab(PM_SUB[k] || 'general'); }, 240); };
+                const go = () => { close(); setTimeout(() => { NAV.openProfileTab(PM_SUB[k] || 'general'); }, 240); };
                 return (
                   <button key={k} onClick={go} aria-label={m.label + ' \u2014 ' + (standing ? standing + ' \u2014 ' : '') + done + ' of ' + n + (full ? ' \u2014 complete' : '') + ' \u2014 open in your profile'} style={{ display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 11, width: '100%', textAlign: 'left', border: 'none', borderTop: PM_LINE, borderRadius: 0, background: 'none', padding: '15px 2px 17px', cursor: 'pointer', WebkitAppearance: 'none' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>

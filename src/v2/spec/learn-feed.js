@@ -15,7 +15,7 @@ import { LEARN } from './learn-progress.js';
 // slider: the number of knowledge fields you follow is already an intensity
 // control, and a continuous dial is a settings-shaped answer to a design
 // question — almost nobody moves it, so the default is the product.
-window.LEARN_FEED = (function () {
+export const LEARN_FEED = (function () {
   const LS = 'insight.learnFreq.v1';
   const RATE = { off: 0, some: 7, lots: 3 };   // one knowledge card every N feed cards
   let f = 'some';

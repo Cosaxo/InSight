@@ -7,6 +7,7 @@ import React from 'react';
 import { RMCore } from './relmap-core.js';
 import { RMPersonPanel, RMHubPanel } from './relmap-panels.jsx';
 import { useDialog } from './primitives.jsx';
+import NAV from '../data/nav';
 
 // RelationshipMap — a force-directed map of your people.
 // You sit at the center; each circle (family, friends, work…) gathers around its
@@ -740,7 +741,7 @@ let RelationshipMapExport;
 
           {/* embedded: one quiet door to the full tool */}
           {this.props.embedded && (
-            <button onClick={(e) => { e.stopPropagation(); if (window.openOverlay) window.openOverlay('relmap'); }}
+            <button onClick={(e) => { e.stopPropagation(); NAV.openOverlay('relmap'); }}
               style={{ position: 'absolute', top: 12, right: 14, zIndex: 7, display: 'flex', alignItems: 'center', gap: 6, padding: '7px 13px', borderRadius: 100, border: '1px solid ' + P.rule, background: P.card, boxShadow: P.shadow, cursor: 'pointer', fontFamily: SANS, fontSize: 12, fontWeight: 700, color: P.ink2, whiteSpace: 'nowrap' }}>
               Full map <span style={{ fontSize: 13, lineHeight: 1 }}>↗</span></button>
           )}
