@@ -28,6 +28,7 @@
 // prototype does the same (`MFSparse` sits UNDER `MFCanvas`, never instead
 // of it).
 import React from "react";
+import NAV from "../data/nav";
 
 /**
  * The rings and you, with a caption underneath.
@@ -47,7 +48,7 @@ export default function EmptyField({ caption, children, action }: {
    * fill by waiting: City fills as strangers answer and needs no button.
    *
    * The nav lookup lives HERE rather than at the call site because two of
-   * the call sites are spec-layer `.jsx`, where `window.goNav` counts as
+   * the call sites are spec-layer `.jsx`, where `window.goNav` counted as
    * new shared-global coupling and `check:globals` rule 4 only moves down.
    * One typed reader for all of them keeps the meter flat.
    *
@@ -61,9 +62,11 @@ export default function EmptyField({ caption, children, action }: {
 }) {
   const go = () => {
     if (action!.prime) action!.prime();
-    const w = window as unknown as { goNav?: (k: string) => void; goTab?: (t: string) => void };
-    if (w.goNav) w.goNav(action!.nav);
-    else if (w.goTab) w.goTab(action!.nav.split(":")[0]);
+    // The registry since D231, replacing a `window as unknown as {…}` cast.
+    // The goTab FALLBACK is behaviour, not a guard: it takes the tab id
+    // alone, because a shell without `goNav` cannot honour a nav KEY.
+    if (NAV.can("goNav")) NAV.goNav(action!.nav);
+    else NAV.goTab(action!.nav.split(":")[0]);
   };
   return (
     <div style={{ padding: "6px 0 2px" }}>

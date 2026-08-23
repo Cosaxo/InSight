@@ -59,10 +59,16 @@ vi.mock("../data/live", () => ({ default: LIVE, LIVE }));
 
 import EmptyField from "./EmptyField";
 import { PeopleField } from "./LiveSimilarityField";
+import { registerNav, type NavHandlers } from "../data/nav";
 
-/** The two nav globals `app-shell.jsx` publishes, as this file reads them. */
-type NavHost = { goNav?: (k: string) => void; goTab?: (t: string) => void };
-const host = window as unknown as NavHost;
+/**
+ * The two doors `app-shell.jsx` registers, installed the way the shell
+ * installs them (D231). They were `window.goNav` / `window.goTab` until
+ * the nav registry replaced the bridge; `registerNav` returns the teardown,
+ * which is what `afterEach` now runs.
+ */
+let dropNav: (() => void) | null = null;
+const installNav = (part: Partial<NavHandlers>) => { dropNav = registerNav(part); };
 
 /**
  * The drawing's skeleton: every circle by radius and whether it is
@@ -89,10 +95,10 @@ function skeleton(container: HTMLElement) {
 afterEach(() => {
   cleanup();
   // Left behind, these leak a navigating button into the next test — and
-  // into every other suite in the run, since `window` is the file's own
+  // into every other suite in the run, since the registry is module state
   // but the habit is not.
-  delete host.goNav;
-  delete host.goTab;
+  dropNav?.();
+  dropNav = null;
 });
 
 // ── 1 · the drawing comes first, and alone ───────────────────────────
@@ -175,8 +181,7 @@ describe("the one action a field cannot take for itself", () => {
   it("sends the full nav key rather than the tab it starts with", () => {
     const goNav = vi.fn();
     const goTab = vi.fn();
-    host.goNav = goNav;
-    host.goTab = goTab;
+    installNav({ goNav, goTab });
     render(
       <EmptyField action={{ label: "Start a group →", nav: "track:group" }}>
         One question a day, revealed with names the morning after.
@@ -193,7 +198,7 @@ describe("the one action a field cannot take for itself", () => {
 
   it("falls back to the tab id alone on a host with no goNav", () => {
     const goTab = vi.fn();
-    host.goTab = goTab;
+    installNav({ goTab });
     render(
       <EmptyField action={{ label: "Start a group →", nav: "track:group" }}>
         One question a day, revealed with names the morning after.
@@ -215,7 +220,7 @@ describe("the one action a field cannot take for itself", () => {
     // lands you in the feed and stops, which is the device report D190
     // was opened by.
     const order: string[] = [];
-    host.goNav = () => { order.push("nav"); };
+    installNav({ goNav: () => { order.push("nav"); } });
     render(
       <EmptyField action={{ label: "Pick topics →", nav: "track:world", prime: () => order.push("prime") }}>
         Every topic runs in your feed until you narrow it.

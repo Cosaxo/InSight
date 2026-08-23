@@ -6,7 +6,7 @@
 //
 // WHY THE CROSS-LINK OVERLAYS ARE HERE AT ALL. Five of them have no header
 // button: `relmap`, `logic` and `suggest` are opened by other components
-// calling `window.openOverlay('relmap')` / …, and `person` and `city` by name
+// calling `NAV.openOverlay('relmap')` / …, and `person` and `city` by name
 // lookup into the sample data. Nothing mounted them, which made them the
 // largest block of this layer that no test executed — ~130 KB of the shipped
 // bundle, including the biggest single component after the feed (relmap.jsx).
@@ -26,7 +26,7 @@ import { openHeaderOverlay,
 vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
 registerSmokeHooks();
 
-describe("the overlays with no button — opened through window.*", () => {
+describe("the overlays with no button — opened through the nav registry", () => {
   it("opens the relationship map", async () => {
     const expectNoBoundary = mountApp();
     await openVia("openOverlay", "relmap");

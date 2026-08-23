@@ -23612,3 +23612,95 @@ suggests: converting **can** reveal hidden findings, and it does not
 follow that it will. This component was already hook-correct, so the
 compiler gained the ability to analyse it and found nothing to say. The
 prediction is a risk to plan for, not a cost to budget.
+
+## D231 · The shell's cross-links become a registry, 337 → 295
+
+**2026-08-22.** **Status:** binding. `app-shell.jsx`'s forty-odd nav reads
+— the largest seam left after `LIVE` — and the first one that could not be
+a conversion at all.
+
+### Why an import would have been wrong
+
+Two things the provider view turned up. First, these eight names are not
+values: `goTab`, `goNav`, `openOverlay`, `openProfileTab`, `openCity`,
+`openPerson`, `openSuggestions`, `openLogicTest` are **closures over the
+shell's live state**, registered in an effect on mount and deleted on
+unmount. There is nothing to export.
+
+Second, and decisive: **six of app-shell's fifteen consumers are in a
+two-cycle with it**, and every one is the same shape — *the shell reads
+the consumer's COMPONENT because it renders it, and the consumer reads the
+shell's NAV FUNCTION because it navigates.*
+
+| consumer | shell reads | it reads |
+| --- | --- | --- |
+| `daily-split.jsx` | `DailySplit` | `openSuggestions`, `goTab`, `goNav` |
+| `mirror-tab.jsx` | `MirrorTab` | `goNav` |
+| `search-overlay.jsx` | `SearchOverlay` | `goTab` |
+| `profile-overlay.jsx` | `ProfileOverlay` | `__profileSub` |
+| `relmap.jsx` | `RelationshipMapOverlay` | `openOverlay` |
+| `passive-meter.jsx` | `PassiveMeter` | `openProfileTab` |
+
+That is a real bidirectional dependency, not a multi-writer artifact, so
+`import { goTab } from './app-shell.jsx'` would have made a genuine ESM
+cycle — the case `src/v2/README.md` names as the one to leave alone,
+because ESM handles cyclic value bindings badly and the failure is a
+temporal-dead-zone error that appears only at render.
+
+### A registry has no direction
+
+`data/nav.ts` depends on **nothing**. The shell imports it to REGISTER;
+consumers import it to CALL. The cycle is not broken so much as never
+drawn, and it is the shape `data/backLayers`, `data/mapCue.ts` and
+`spec/swipe-back.js` already have — all three of which app-shell imports
+for the same reason.
+
+It also collected three typed readers that were casting their way across:
+`data/links.ts`, `data/push.ts` and `ui/EmptyField.tsx` each wrote
+`window as unknown as { goTab?: … }` to reach the same doors. One typed
+surface replaced all three.
+
+### The presence check is NOT the dead guard shape
+
+Every consumer wrote `window.goTab && window.goTab(id)`, and D108 calls
+that shape dead on a converted module — correctly, because those were
+LOAD-ORDER guards and an imported binding cannot be unset. This one is
+different and stays: the shell registers on mount and clears on unmount,
+so a handler genuinely may be absent, and a call before mount must no-op
+rather than throw. The registry owns that check now instead of fifteen
+call sites, and `nav.test.ts` pins it first, because if it ever throws
+instead, fifteen call sites become a crash on the same frame.
+
+Two registration properties are pinned for reasons that are easy to miss:
+registration is **additive** (app-shell registers in two effects with
+different dependency lists, so a whole-object set would have the second
+wipe the first) and teardown is **identity-checked** (React mounts the
+next shell before the previous one's cleanup runs, so deleting by key
+alone would strand the live shell with no doors).
+
+### What it cost, and what caught what
+
+Nineteen files. The eager graph is unchanged at 831 KB and the bundle at
+2352 KB; `data/nav.ts` is a few hundred bytes and app-shell already sits
+in the entry chunk.
+
+Two mistakes, both caught by gates rather than by reading. A bulk
+insertion put `import NAV …` after the last line *starting with* `import
+`, which in two files is a line INSIDE a multi-line import block — a parse
+error, caught by lint and eight failing mount suites. And the same sweep
+rewrote a COMMENT in `EmptyField.tsx` that describes the old state and
+must keep saying `window.goNav`.
+
+The mount suites are what make this change safe to have made at all: they
+walk both tabs and every overlay, and `smoke-overlays.test.jsx` drives the
+deferred overlays through these very doors — so `openVia` now asserts the
+door is REGISTERED rather than that a global is installed, which fails
+just as loudly if the shell ever stops registering.
+
+### What is left
+
+295 across 37 files, from 392 at D230. `world-feed.jsx` (68) is the
+largest remaining consumer and `LIVE` (80 reads, 13 consumers) the largest
+provider — and that one is deliberate: `live.ts` publishes `window.LIVE`
+because the whole spec layer reads it, and moving it is the end of the
+migration rather than a step in it.

@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 236 lines instead of
-23,615. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 237 lines instead of
+23,707. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -125,7 +125,7 @@ detect it.
 | **D105** | [One text field owns the app's scale: every input defers to --field-size](DECISIONS.md#d105--one-text-field-owns-the-apps-scale-every-input-defers-to---field-size) | D113 | 9924 |
 | **D106** | [The retired privacy model is swept out of the documentation, starting with the two pages users actually read](DECISIONS.md#d106--the-retired-privacy-model-is-swept-out-of-the-documentation-starting-with-the-two-pages-users-actually-read) | D183 (+4) | 10004 |
 | **D107** | [A purpose string for the authorisation this app never asks for](DECISIONS.md#d107--a-purpose-string-for-the-authorisation-this-app-never-asks-for) | D199 | 10108 |
-| **D108** | [Two providers leave the bridge, and the mount suite stops being one file](DECISIONS.md#d108--two-providers-leave-the-bridge-and-the-mount-suite-stops-being-one-file) | D230 (+2) | 10236 |
+| **D108** | [Two providers leave the bridge, and the mount suite stops being one file](DECISIONS.md#d108--two-providers-leave-the-bridge-and-the-mount-suite-stops-being-one-file) | D231 (+3) | 10236 |
 | **D109** | [LEARN leaves the bridge, and takes the load-order bug with it](DECISIONS.md#d109--learn-leaves-the-bridge-and-takes-the-load-order-bug-with-it) | D110 | 10377 |
 | **D110** | [The bundle gets the number that decides first paint, and it immediately finds 327 KB](DECISIONS.md#d110--the-bundle-gets-the-number-that-decides-first-paint-and-it-immediately-finds-327-kb) | D201 (+2) | 10529 |
 | **D111** | [Near and City are two stops again: presence is not a place](DECISIONS.md#d111--near-and-city-are-two-stops-again-presence-is-not-a-place) | D192 (+5) | 10661 |
@@ -248,5 +248,6 @@ detect it.
 | **D228** | [Two data-layer defects D227 found, fixed](DECISIONS.md#d228--two-data-layer-defects-d227-found-fixed) | D229 | 23205 |
 | **D229** | [The three behaviour bugs from D227's list](DECISIONS.md#d229--the-three-behaviour-bugs-from-d227s-list) | — | 23328 |
 | **D229b** | [The three honesty findings from D227's list](DECISIONS.md#d229b--the-three-honesty-findings-from-d227s-list) | — | 23403 |
-| **D230** | [The coupling ratchet, 392 → 352](DECISIONS.md#d230--the-coupling-ratchet-392--352) | — | 23480 |
-| **D230b** | [PLACESTATS off the bridge, 352 → 337](DECISIONS.md#d230b--placestats-off-the-bridge-352--337) | — | 23568 |
+| **D230** | [The coupling ratchet, 392 → 352](DECISIONS.md#d230--the-coupling-ratchet-392--352) | D231 | 23480 |
+| **D230b** | [PLACESTATS off the bridge, 352 → 337](DECISIONS.md#d230b--placestats-off-the-bridge-352--337) | D231 | 23568 |
+| **D231** | [The shell's cross-links become a registry, 337 → 295](DECISIONS.md#d231--the-shells-cross-links-become-a-registry-337--295) | — | 23616 |

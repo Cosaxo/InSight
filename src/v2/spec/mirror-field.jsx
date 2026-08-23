@@ -7,6 +7,7 @@ import React from 'react';
 import { IS_DATA, fmtPop } from './sample-data.js';
 import { Av, Lazy, MatchRing } from './primitives.jsx';
 import { WPAL } from './world-palette.js';
+import NAV from '../data/nav';
 
 // mirror-field.jsx — the Mirror rendered as a FIELD, not a scroll of cards.
 // One grammar for every population (borrowed from the Map tab):
@@ -293,7 +294,7 @@ function MFSparse({ done = 0, need = 8 }) {
       <div style={{ fontFamily: 'var(--sans)', fontSize: 16.5, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--ink)', maxWidth: 250, lineHeight: 1.25, textWrap: 'pretty' }}>
         {left} more answers and they take their places.
       </div>
-      <button className="press" onClick={() => window.goTab && window.goTab('track')} style={{
+      <button className="press" onClick={() => NAV.goTab('track')} style={{
         border: 'none', borderRadius: 999, padding: '11px 20px', cursor: 'pointer', WebkitAppearance: 'none',
         background: 'var(--ink)', color: 'var(--surface)', fontFamily: 'var(--sans)', fontSize: 14, fontWeight: 700, letterSpacing: '-0.01em',
       }}>Answer today's</button>
@@ -383,7 +384,7 @@ function MFDetail({ node, onPerson, onJoin, onLeave, joined }) {
     title = d.name || node.label;
     sub = node.home ? 'where you live now' : [d.country, d.mood].filter(Boolean).join(' · ');
     const known = IS_DATA.cities && IS_DATA.cities.some((c) => c.name === title);
-    if (known && window.openCity) action = btn('Explore →', () => window.openCity(title));
+    if (known && NAV.openCity) action = btn('Explore →', () => NAV.openCity(title));
   }
 
   return (

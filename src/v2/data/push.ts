@@ -8,6 +8,7 @@ import { getFunctions, httpsCallable } from "firebase/functions";
 import { getDb } from "../../lib/firebase";
 import { reportError } from "../../lib/sentry";
 import { FUNCTIONS_REGION } from "../../lib/region";
+import NAV from "./nav";
 
 /**
  * Register this device for reveal notifications.
@@ -111,8 +112,8 @@ export async function registerPushForReveals(
           /* best-effort */
         }
         // land on the daily tab; DailySplit consumes the pending gid
-        const w = window as unknown as { goTab?: (t: string) => void };
-        if (w.goTab) w.goTab("track");
+        // The registry since D231 — was a `window as unknown as {…}` cast.
+        NAV.goTab("track");
         window.dispatchEvent(new Event("insight-live-update"));
       }
     });

@@ -4,6 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+import NAV from '../data/nav';
 import { IS_DATA } from './sample-data.js';
 import { IS_TEST_RESULTS } from './test-definitions.js';
 import { PASSIVE } from './passive-progress.js';
@@ -336,7 +337,7 @@ import {
     const anchors = anchorList();
     if (!anchors.length) return null;
     return (
-      <button className="card press" onClick={() => window.goTab && window.goTab('you')} style={{
+      <button className="card press" onClick={() => NAV.goTab('you')} style={{
         width: '100%', marginBottom: 16, padding: '13px 18px', cursor: 'pointer', textAlign: 'left',
         WebkitAppearance: 'none', appearance: 'none', display: 'flex', alignItems: 'center', gap: 15,
         border: '0.5px solid var(--rule)', fontFamily: 'var(--sans)', color: 'var(--ink)',
@@ -442,7 +443,7 @@ import {
     const C = 2 * Math.PI * 23;
     const col = window.LOGIC ? window.LOGIC.color : 'var(--ink)';
     return (
-      <button className="card press" onClick={() => window.openLogicTest && window.openLogicTest()} style={{
+      <button className="card press" onClick={() => NAV.openLogicTest()} style={{
         width: '100%', marginBottom: 16, padding: '13px 18px', cursor: 'pointer', textAlign: 'left',
         WebkitAppearance: 'none', appearance: 'none', display: 'flex', alignItems: 'center', gap: 15,
         border: '0.5px solid var(--rule)', fontFamily: 'var(--sans)', color: 'var(--ink)',

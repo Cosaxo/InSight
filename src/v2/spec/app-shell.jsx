@@ -16,6 +16,7 @@ import { reportError } from '../../lib/sentry';
 // sides, so the coupling ratchet never counts it.
 import { onMapCue } from '../data/mapCue.ts';
 import { closeTopBackLayer } from '../data/backLayers';
+import { registerNav } from '../data/nav';
 
 // The patterns tab is UNMOUNTED for v1 (D217) — this is the import site
 // the D166 §1 trial clause priced the reversal at. ui/PatternsTab.tsx,
@@ -117,7 +118,8 @@ const WORLD_ZOOM_IDS = ['city', 'country', 'world'];
 
 // The one nav-key axis: any tab-or-mode destination, from anywhere. The bar
 // nav that rendered these as buttons left with the v28 teardown (§10); the
-// entries survive because window.goNav (below) and the swipe gestures still
+// entries survive because goNav (below, registered into data/nav) and the
+// swipe gestures still
 // address the app by these keys.
 const NAV_ONE = [
   { key: 'track:world', tab: 'track',  mode: 'world' },
@@ -271,13 +273,17 @@ function App() {
   }, []);
 
   useEffect(() => {
-    window.openSuggestions = () => openDeferred(() => { setOv('suggest'); });
-    window.openLogicTest = () => openDeferred(() => { closeAll(); setOv('logic'); });
-    return () => { delete window.openSuggestions; delete window.openLogicTest; };
+    const openSuggestions = () => openDeferred(() => { setOv('suggest'); });
+    const openLogicTest = () => openDeferred(() => { closeAll(); setOv('logic'); });
+    // Registered (D231) rather than published: these are closures over this
+    // shell's state, so the registry is what lets a consumer import a door
+    // without importing the shell that owns it — see data/nav.ts on why an
+    // import would have drawn a real cycle here.
+    return registerNav({ openSuggestions, openLogicTest });
   }, [openDeferred]);
 
   useEffect(() => {
-    window.openOverlay = (key) => {
+    const openOverlay = (key) => {
       if (!LIVE_OVERLAYS.includes(key)) return;
       const from = ovRef.current;
       const show = () => {
@@ -305,17 +311,19 @@ function App() {
     // page instead, which needs a way to name the page. __profileSub is
     // the overlay's own memory of the last tab, so writing it before the
     // open is exactly what a returning visit does.
-    window.openProfileTab = (subId) => {
+    const openProfileTab = (subId) => {
       if (typeof subId === 'string' && subId) window.__profileSub = subId;
-      return window.openOverlay('profile');
+      // The local, not the registry: this shell's own door, called
+      // directly, so a teardown race cannot make it a no-op mid-flight.
+      return openOverlay('profile');
     };
-    window.goTab = (id) => {
+    const goTab = (id) => {
       closeAll();
       if (MIRROR_POP_IDS.includes(id)) { setTweak('mirrorPop', id); setTab('mirror'); return; }
       if (TABS.some(x => x.id === id)) setTab(id);
     };
     // one axis for the bottom bar: any nav key, from anywhere (swipe gestures use this)
-    window.goNav = (key) => {
+    const goNav = (key) => {
       const it = NAV_ONE.find(x => x.key === key);
       if (!it) return;
       // a cross-tab jump ends the gesture that caused it: trackpad momentum kept
@@ -335,12 +343,12 @@ function App() {
     // should not pay for a chunk, and — more to the point — should not
     // resolve to "loaded, then nothing happened", which is indistinguishable
     // from a failed load. Same for openPerson below.
-    window.openCity = (name) => {
+    const openCity = (name) => {
       const c = (IS_DATA.cities || []).find(x => x.name === name);
       if (c) return openDeferred(() => { closeAll(); setCity(c); });
     };
     // cross-link: open a person's profile (record, or id/name lookup)
-    window.openPerson = (who) => {
+    const openPerson = (who) => {
       const list = IS_DATA.people || [];
       const p = typeof who === 'object' ? who : list.find(x => x.id === who || x.name === who);
       if (p) return openDeferred(() => { closeAll(); setPerson(p); });
@@ -348,7 +356,11 @@ function App() {
     // a Map cue lands on the Mirror's You stop; map-tab itself reads the
     // where (data/mapCue's take-once) — this shell only does the walking
     const offCue = onMapCue(() => { closeAll(); setTweak('mirrorPop', 'you'); setTab('mirror'); });
-    return () => { offCue(); delete window.openOverlay; delete window.goTab; delete window.goNav; delete window.openCity; delete window.openPerson; };
+    // D231: registered, not published. `openProfileTab` joins them here —
+    // it used to be assigned in this same effect and torn down with the
+    // rest by name.
+    const offNav = registerNav({ openOverlay, openProfileTab, goTab, goNav, openCity, openPerson });
+    return () => { offCue(); offNav(); };
     // Mount-only by design: this registers the window.* cross-link
     // handlers once and tears them down on unmount. Re-running it on every
     // setTweak identity change would re-register the same closures for no
