@@ -56,7 +56,7 @@ what is actually left is much smaller than the diff suggested.
 
 | Item | Verdict | Backend half (D167) | The constraint that shapes it |
 | --- | --- | --- | --- |
-| **Three tabs** (`patterns · daily · mirror`) | **Adopted ON TRIAL** (D166 §1) | none of its own — it is a shell | The tab count is the app's thesis sentence — `CLAUDE.md` opens with "a two-tab app". Cheap to build, expensive to be wrong about, so it ships behind the lazy loader with the reversal kept to one import site. |
+| **Three tabs** (`patterns · daily · mirror`) | **Adopted ON TRIAL** (D166 §1) · unmounted for v1 (D217) · **back on a data gate** (D251) | none of its own as a shell — but the GATE has one: the fit publishes its drawable-pool count onto `v2_meta/app` | The tab count is the app's thesis sentence — `CLAUDE.md` opened with "a two-tab app". Cheap to build, expensive to be wrong about, so it ships behind the lazy loader with the reversal kept to one import site. The third tab is now in the bar only when the data can carry it, which is the same sentence one condition further in. |
 | **Patterns · Map** (questions placed by mutual prediction) | **Build — but the engine is a backend item** | **the item IS the backend**: a fold publishing per-question loading vectors | The prototype invents 560 people. A real map needs cross-question co-occurrence, which no aggregate publishes today. |
 | **Patterns · Oracle** (guess your next answer) | **Build, second** | rides Map's publication — no second fold | Rides the *same* publication as the Map. Two readers, one server fold — that is the whole reason to sequence them together. Distinct from [D163](DECISIONS.md#d163--the-app-learns-what-you-are-into-and-the-model-never-leaves-the-phone)'s interest model: that one orders the tail and never leaves the phone; this one guesses an answer from a published fold and shows its working. |
 | **Pulse: one → five, with cadence** | **BUILT (D203)** | done — and it needed no rules or function change at all; `isPulseAnswer` already keyed on the payload's `baseQid` and the trigger on `event.params.qid` | D139's store is single-pulse by deliberate choice ("a roster becomes a parameter the day a second pulse ships"). This is that day. |
@@ -108,7 +108,11 @@ small (a `TABS` entry, a glyph, an accent, a lazy chunk). Adopting it
 means rewriting that opening paragraph and re-reading D99/D100/D112/D136
 for anything that leaned on "two".
 
-**ADOPTED ON TRIAL (D166 §1).** Build it as though it ships; keep the
+**ADOPTED ON TRIAL (D166 §1)**, unmounted for the v1 release (D217), and
+mounted on a data gate since D251 — the trial is resumed rather than
+verdicted, and the near-end exit below is a REQUEST now: `goNav` answers
+whether it navigated, and the ruler springs back while the gate is shut.
+Build it as though it ships; keep the
 reversal cheap. Three things follow, and they are the whole cost of the
 trial clause:
 

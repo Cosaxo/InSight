@@ -62,7 +62,7 @@ Every constant below is sourced, not assumed:
 | One Kindred first view | ≤12 sheets' worth, shared with the sheet cache | `KINDRED_QUESTIONS`, src/v2/data/live.ts (D99) |
 | One pulse open | **Today only: one `documentId() in` query over as many per-day agg ids as there are pulses** (≤5), once per UTC day per session — a same-day answer forces one refresh so the reveal's bins include you. The 21-day window is `ensureTrend`, one 21-id query, paid on the tap that opens a reading | `DAYS`, src/v2/data/pulse.ts (D139, roster D203). **Five pulses cost FEWER reads per open than one did**, and that is the point of the split: D139 fetched the whole 21-day window on every open although the card only ever draws today, so a naive ×5 would have been 105 ids — over the 30-clause `documentId() in` cap, hence 4+ queries per open for data the first screen never reads. The template read is gone too: `splitBanks` now keeps a pulse lane, so the roster's prompts come from the bank `hydrate()` already cached (it also means `active: false` finally reaches the client — before D203 a killed pulse still drew a tappable card whose every write the rules refused). Your own series still costs zero — derived from the hydrated vote mirror |
 | One Roles tab open | Up to 14 day-key `getDoc`s per room, once per room per session — the SAME cache the duel panel fills, so a room you have already opened costs nothing here | `REVEAL_HIST_DAYS`, src/v2/data/live.ts (D156, D204). This is the first surface that wants EVERY room's history rather than the one you are looking at, so on a cold session it pays for the rooms you have not opened yet: ~14 reads each, loaded sequentially rather than in parallel so a profile tab does not spike the read rate. The fold itself is free — `data/roles.ts` is pure arithmetic over documents already in hand, with no new field and no new collection |
-| The Patterns fit, nightly | The day's ledger entries re-read as the vote log (the velocity scan's shape, second reader), one private state read+write per active answerer, one model doc read+write per project | functions/src/patterns.ts (v28 §2, trial D166 §1). Measured BEFORE the fold shipped — the dated note under the scenario table has the movement |
+| The Patterns fit, nightly | The day's ledger entries re-read as the vote log (the velocity scan's shape, second reader), one private state read+write per active answerer, one model doc read+write per project, one merged write to `v2_meta/app` (the tab's mount gate, D251) | functions/src/patterns.ts (v28 §2, trial D166 §1). Measured BEFORE the fold shipped — the dated note under the scenario table has the movement |
 | One Circle open | 1 + one query per member: ≤50 members × ≤300 answers, +1 followers query | `FOLLOW_CAP` / `CIRCLE_ANSWER_CAP`, src/v2/data/circle.ts (D101). Also once per session since 2026-08-13, with `setFollowing` the one caller that may force a refetch — it changes the membership the fold is over |
 | One takes panel | ≤100 world takes per question, ≤500 per group, once per scope per session | `TAKE_FETCH_CAP` / `TAKE_GROUP_FETCH_CAP`, src/v2/data/live.ts — both caps and the cache are new on 2026-08-13; the world query had no `limit()` and returned roughly everyone who spoke that day |
 
@@ -112,6 +112,17 @@ roughly double on the three operation lines.
 > in real time — a map redraws nightly. The named lever if the ledger
 > re-read ever matters: flag eligible entries at write time and query the
 > flag, dropping the term by the ineligible share.
+
+> **The mount gate (D251, 2026-08-23) costs nothing on either side**, and
+> that is the reason it is shaped the way it is. The fit's nightly run
+> gains ONE merged write to `v2_meta/app` — one document per project per
+> night, on a doc nothing else writes hot, so D7's wall never hears about
+> it. The client gains no read at all: the count rides the `v2_meta/app`
+> fetch `hydrate()` already pays, and the viewer's half is a walk of two
+> banks the device is holding. The alternative — fetching the ~11 KB
+> loadings doc at every cold start to decide whether to draw a BUTTON —
+> is the read the bank cache exists to avoid, on every device including
+> the ones that never open the tab.
 
 > **The tab's client half (2026-08-19, same day)** adds reads too small
 > for the model's terms, stated so nobody hunts for them later: ONE

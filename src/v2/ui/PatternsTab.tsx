@@ -24,6 +24,17 @@
 // The trial ships LIVE DATA ONLY (the narrowing D166 §1 licenses): a
 // build with no published loadings — the demo included — says so instead
 // of inventing a crowd.
+//
+// SINCE D251 THIS FILE IS REACHED ONLY THROUGH A GATE. The tab is absent
+// from the bar until the fit has published enough to draw and the viewer
+// has answered enough to be drawn in it (`data/patternsReady.ts`), so the
+// two states below are no longer what a first-time visitor lands on —
+// they are what a viewer sees when the gate has opened and this session's
+// fetch has not landed yet, or has landed on an emptier database than the
+// gate was told about (an old build, a purge, a client bank that cannot
+// name what the fit folded). They stay, unchanged and still honest: the
+// gate is a floor on the CORPUS, and it was never able to promise that
+// this device's own read succeeded.
 import React from "react";
 import LIVE from "../data/live";
 import PATTERNS, { ensureLive } from "../data/patterns";
@@ -143,9 +154,16 @@ export default function PatternsTab(): React.ReactElement {
   }
 
   if (!PATTERNS.hasLoadings()) {
-    // The honest empty state, and the demo's ONLY state: the trial ships
-    // live data only (D166 §1) — no loadings published means nothing to
-    // draw, said out loud rather than a fabricated crowd.
+    // The honest empty state: the trial ships live data only (D166 §1) —
+    // no loadings published means nothing to draw, said out loud rather
+    // than a fabricated crowd. The demo can no longer reach it, because
+    // the gate that mounts this tab is shut on a build with no fit behind
+    // it (D251); the branch stays because the sentence it protects is the
+    // rule, not the surface it happens to render on.
+    //
+    // check:public-copy does not scan this file, so the demo line below is
+    // held by the smoke-live case that asserts it CANNOT appear on a live
+    // build, not by a gate.
     return (
       <div style={{ padding: "18px 16px" }}>
         <div className="card" style={{ padding: "26px 18px", textAlign: "center", fontFamily: SANS, lineHeight: 1.5 }}>

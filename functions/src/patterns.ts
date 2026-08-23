@@ -41,11 +41,13 @@ import { V2_QUESTIONS } from "./v2content";
 import { db as firestore } from "./db";
 import {
   PATTERNS_K,
+  PATTERNS_MIN_BASIS,
   emptyModel,
   emptyUser,
   encodeAnswer,
   foldUserDay,
   publishableLoadings,
+  readyPool,
   type PatternsModel,
   type PatternsObservation,
   type PatternsUserState,
@@ -231,6 +233,32 @@ export function firestorePatternsStore(db: Firestore): PatternsStore {
         at: FieldValue.serverTimestamp(),
         q,
       });
+      // ── the mount signal (D251) ──────────────────────────────────
+      //
+      // The Patterns tab is absent from the bar until the fit can carry
+      // it, and the client decides that from ONE number: how many
+      // questions are fitted on a basis worth drawing. That number has to
+      // reach a device that has not opened the tab — which is every
+      // device, before the gate opens — so it cannot live in the loadings
+      // doc: reading 11 KB of vectors on every cold start to decide
+      // whether to render a button is the read this app spends its
+      // hydrate budget avoiding.
+      //
+      // `v2_meta/app` is the document `hydrate()` already fetches for
+      // contentRev and the build gates, so the gate costs ZERO extra
+      // reads — the same argument D196's gate makes by folding aggregates
+      // the store already holds. Merged, never set: this fit owns two
+      // fields on a document the seed and the operator own the rest of.
+      //
+      // The floor rides along with the count so the client can tell what
+      // the number means rather than assuming (patternsFit.readyPool).
+      await db.collection("v2_meta").doc("app").set(
+        {
+          patternsPool: readyPool(model, PATTERNS_MIN_BASIS),
+          patternsBasis: PATTERNS_MIN_BASIS,
+        },
+        { merge: true },
+      );
     },
     async getUsers(uids) {
       const out = new Map<string, PatternsUserState>();

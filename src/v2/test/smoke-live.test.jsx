@@ -36,7 +36,9 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 // the slowest cases sat at ~4.8s before it and tip over under suite load.
 vi.setConfig({ testTimeout: 15000 });
 import { FEED_OPTIONS, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
-import { awaitText, growFeed, openHeaderOverlay } from "./mount-app";
+import NAV from "../data/nav";
+import { PATTERNS_EARNED_KEY, PATTERNS_MIN_BASIS, PATTERNS_MIN_MINE, PATTERNS_MIN_POOL } from "../data/patternsReady";
+import { awaitText, growFeed, openHeaderOverlay, swipeDaily } from "./mount-app";
 import { list as anchorList } from "../spec/map-anchors.js";
 import { IS_TESTS, IS_TEST_RESULTS } from "../spec/test-definitions.js";
 import { PASSIVE } from "../spec/passive-progress.js";
@@ -68,6 +70,10 @@ beforeAll(async () => {
 });
 
 afterEach(() => {
+  // The Patterns gate is remembered per device (D251), so a case that
+  // opens it would hand the next one an app that has already earned the
+  // third tab — including the cases that assert there are two.
+  localStorage.removeItem(PATTERNS_EARNED_KEY);
   cleanup();
   errorSpy?.mockRestore();
   live?.restore();
@@ -122,10 +128,144 @@ describe("spec layer mounts in live mode", () => {
     expectNoBoundary("profile/live");
   });
 
-  // The patterns-tab live case (no invented people — D166 §1, D167) left
-  // with the mount at D217 and returns with it; the honesty rule it
-  // pinned still holds inside ui/PatternsTab.tsx, which is unreachable
-  // while unmounted.
+  // ── the patterns tab's mount gate, both sides (D251) ────────────────
+  //
+  // The tab is absent until the nightly fit has published enough to draw
+  // and the viewer has answered enough to be drawn in it. smoke-nav owns
+  // the closed half against a demo build; these two own the half that
+  // needs a published signal, because only the fixture can supply one.
+
+  it("stays out of the bar on a live build the fit has not reached", () => {
+    // A live app is not a sufficient condition, and this is the case that
+    // says so: LIVE is on, boot has run, and the fit has published
+    // nothing — so the bar is still the two tabs v1 ships.
+    const expectNoBoundary = mountLive();
+    expect(screen.queryByRole("button", { name: /^patterns$/i })).toBeNull();
+    expect(document.querySelectorAll(".tabbar .tab-btn").length).toBe(2);
+    expectNoBoundary("patterns below the gate/live");
+  });
+
+  it("appears once the fit has published enough, and draws no invented people (D166 §1, D167)", async () => {
+    // Above both floors: a fit that published PATTERNS_MIN_POOL questions
+    // at PATTERNS_MIN_BASIS, and a viewer with PATTERNS_MIN_MINE answers
+    // among the ones it folds.
+    const expectNoBoundary = mountLive({
+      patterns: { pool: PATTERNS_MIN_POOL, basis: PATTERNS_MIN_BASIS, mine: PATTERNS_MIN_MINE },
+    });
+    expect(document.querySelectorAll(".tabbar .tab-btn").length).toBe(3);
+    const btn = screen.getByRole("button", { name: /^patterns$/i });
+    // The tab body is a lazy chunk — the click alone renders nothing, so
+    // awaitText lets the import resolve before asserting. In jsdom the
+    // loadings fetch cannot resolve, so the honest state here is the
+    // waiting card; what this pins is that a LIVE mount never falls back
+    // to the prototype's synthetic crowd (560 people, fabricated
+    // "78% pick that" lines) and never trips the boundary.
+    fireEvent.click(btn);
+    await awaitText(/pattern fit|No patterns yet/i);
+    expect(document.querySelector(".app").getAttribute("data-view")).toBe("patterns");
+    expect(document.body.textContent).toMatch(/pattern fit|No patterns yet/i);
+    expectNoBoundary("patterns above the gate/live");
+    // WHAT THIS CASE CANNOT SEE, stated so nobody reads more into it. In
+    // jsdom the loadings fetch never resolves, so the body renders the
+    // waiting card and no lens ever mounts: an assertion here about the
+    // prototype's 560 invented people, or about the demo-only sentence,
+    // would be guarding a branch this mount cannot reach — the vacuous
+    // pass this file's own header warns about. Those two live where the
+    // branches do, in ui/PatternsTab.test.tsx. What this case owns is the
+    // MOUNT: the tab is in the bar, it opens, the chunk arrives, and the
+    // shell keys its scroll memory on it.
+  });
+
+  it("puts the tab in the bar mid-session, without a reload", async () => {
+    // THE TRANSITION, which the case above cannot see: it mounts with the
+    // signal already published, so only `useState`'s first read runs. This
+    // is the path that matters for the feature as asked for — the app is
+    // open, boot lands the fit's number, and the tab appears. Without the
+    // subscription the tab would wait for the next launch, which is a
+    // different (and much quieter) product.
+    const expectNoBoundary = mountLive();
+    expect(document.querySelectorAll(".tabbar .tab-btn").length).toBe(2);
+    act(() => {
+      live.LIVE.patternsSignal = () => ({
+        pool: PATTERNS_MIN_POOL, basis: PATTERNS_MIN_BASIS, mine: PATTERNS_MIN_MINE,
+      });
+      live.LIVE.vote("daily-000", "1");           // …and the store notifies
+    });
+    expect(document.querySelectorAll(".tabbar .tab-btn").length).toBe(3);
+    const btn = screen.getByRole("button", { name: /^patterns$/i });
+    fireEvent.click(btn);
+    await awaitText(/pattern fit|No patterns yet/i);
+    expect(document.querySelector(".app").getAttribute("data-view")).toBe("patterns");
+    expectNoBoundary("patterns gate opening mid-session/live");
+  });
+
+  it("the daily's near end walks into the tab once the gate is open", async () => {
+    // The other half of smoke-nav's spring-back case: the same gesture,
+    // above the gate. `goNav` answering true is what lets daily-split
+    // leave the card where the navigation took it instead of springing
+    // it — and the exit D166 §1 licensed is the whole reason the near end
+    // is reachable at all.
+    const expectNoBoundary = mountLive({
+      patterns: { pool: PATTERNS_MIN_POOL, basis: PATTERNS_MIN_BASIS, mine: PATTERNS_MIN_MINE },
+    });
+    expect(document.querySelector(".app").getAttribute("data-view")).toBe("track:world");
+    swipeDaily(1);
+    expect(document.querySelector(".app").getAttribute("data-tab")).toBe("patterns");
+    await awaitText(/pattern fit|No patterns yet/i);
+    expectNoBoundary("near-end swipe above the gate/live");
+  });
+
+  it("takes the tab back when the account changes under it", () => {
+    // The one case that closes the gate: purgeLocalTrace fires
+    // `insight:local-purge` on deletion and on a uid change, with no
+    // reload behind it. The latch has to hear that, or the next account
+    // inherits a tab it has not earned — and a viewer standing on the tab
+    // has to be moved, or they are left on one the bar no longer carries.
+    const expectNoBoundary = mountLive({
+      patterns: { pool: PATTERNS_MIN_POOL, basis: PATTERNS_MIN_BASIS, mine: PATTERNS_MIN_MINE },
+    });
+    act(() => { NAV.goNav("patterns"); });
+    expect(document.querySelector(".app").getAttribute("data-tab")).toBe("patterns");
+    act(() => {
+      live.LIVE.patternsSignal = () => ({});      // a fresh account: nothing answered
+      window.dispatchEvent(new Event("insight:local-purge"));
+    });
+    expect(document.querySelectorAll(".tabbar .tab-btn").length).toBe(2);
+    expect(screen.queryByRole("button", { name: /^patterns$/i })).toBeNull();
+    expect(document.querySelector(".app").getAttribute("data-tab")).toBe("track");
+    expectNoBoundary("patterns gate after a purge/live");
+  });
+
+  it("the gate does not close under someone standing on the tab", () => {
+    // Monotone within a session. Both inputs can only grow in life — a
+    // published basis never shrinks, answers never un-happen — but a
+    // store that answered differently for any reason would take the bar
+    // out from under a viewer, leaving `tab` set to one TABS no longer
+    // carries: a bar with nothing marked current over a body nothing
+    // mounts.
+    //
+    // MEASURED, so nobody trims this as belt-and-braces without knowing
+    // what it holds: two things keep the property — the latch that drops
+    // the subscription once open, and a check that only ever sets true —
+    // so removing EITHER alone still passes here. What fails is removing
+    // both, which is exactly the shape the regression would take: the
+    // hook rewritten as a plain derived boolean.
+    const expectNoBoundary = mountLive({
+      patterns: { pool: PATTERNS_MIN_POOL, basis: PATTERNS_MIN_BASIS, mine: PATTERNS_MIN_MINE },
+    });
+    act(() => { NAV.goNav("patterns"); });
+    expect(document.querySelector(".app").getAttribute("data-tab")).toBe("patterns");
+    act(() => {
+      // The store forgets, and then notifies through the ordinary path.
+      // Writable by construction — installLive defines its members with
+      // `writable: true` and restores the real descriptors after.
+      live.LIVE.patternsSignal = () => ({});
+      live.LIVE.vote("daily-000", "1");
+    });
+    expect(document.querySelectorAll(".tabbar .tab-btn").length).toBe(3);
+    expect(document.querySelector(".app").getAttribute("data-tab")).toBe("patterns");
+    expectNoBoundary("patterns gate latched/live");
+  });
 
   it("shows the real follow list in the live profile, none of the demo field", async () => {
     // The General tab used to embed MirrorFieldBody pop="groups" — the

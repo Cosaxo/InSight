@@ -15,9 +15,10 @@ vi.mock("firebase-functions", () => ({
   logger: { info() {}, warn() {}, error() {} },
 }));
 
-import { PATTERNS_QIDS, runPatternsFit, utcDay, type PatternsLedgerEntry, type PatternsStore } from "./patterns";
+import { PATTERNS_QIDS, firestorePatternsStore, runPatternsFit, utcDay, type PatternsLedgerEntry, type PatternsStore } from "./patterns";
 import { V2_QUESTIONS } from "./v2content";
-import type { PatternsModel, PatternsUserState } from "./patternsFit";
+import type { Firestore } from "firebase-admin/firestore";
+import { PATTERNS_MIN_BASIS, emptyModel, type PatternsModel, type PatternsUserState } from "./patternsFit";
 
 const NOW = Date.UTC(2026, 7, 19, 3, 0, 0); // the 02:37 schedule's morning
 
@@ -180,5 +181,76 @@ describe("idempotence and catch-up", () => {
     const r = await runPatternsFit(store, NOW);
     // only the last PATTERNS_CATCHUP_DAYS days were even asked for
     expect(r.days).toBeLessThanOrEqual(7);
+  });
+});
+
+// ── the mount signal (D251) ───────────────────────────────────────────
+//
+// The publication half, which the injected store above deliberately
+// cannot see: `firestorePatternsStore` is what decides WHERE the numbers
+// land, and the tab appearing at all depends on the second write landing
+// on the document `hydrate()` reads. Without this, a fit that stopped
+// writing the signal would leave the tab hidden on a database full of
+// loadings — a failure with no error anywhere, which is the shape the
+// store interface exists to keep testable.
+describe("what the fit publishes for the tab's gate", () => {
+  /** putModel touches two collections and nothing else, so the cast is a
+   * claim this test can be read against rather than a hole. */
+  const asDb = (fake: { collection: (name: string) => unknown }): Firestore =>
+    fake as unknown as Firestore;
+
+  /** Just enough Firestore for putModel: refs that record their writes. */
+  function fakeDb() {
+    const writes: { path: string; data: Record<string, unknown>; opts?: unknown }[] = [];
+    const db = {
+      collection(name: string) {
+        return {
+          doc(id: string) {
+            return {
+              set(data: Record<string, unknown>, opts?: unknown) {
+                writes.push({ path: `${name}/${id}`, data, opts });
+                return Promise.resolve();
+              },
+            };
+          },
+        };
+      },
+    };
+    return { db, writes };
+  }
+
+  const modelWith = (basisByQid: Record<string, number>): PatternsModel => {
+    const model = emptyModel();
+    for (const [qid, n] of Object.entries(basisByQid)) {
+      model.q[qid] = { v: Array.from({ length: model.k }, () => 0.1), n, sum: 0 };
+    }
+    return model;
+  };
+
+  it("writes the drawable count and its floor onto the meta doc, merged", async () => {
+    const { db, writes } = fakeDb();
+    // three published questions, two of them at the floor or better
+    const model = modelWith({ a: PATTERNS_MIN_BASIS, b: PATTERNS_MIN_BASIS + 40, c: 1 });
+    await firestorePatternsStore(asDb(db)).putModel(model, "2026-08-22", 12);
+
+    expect(writes.map((w) => w.path)).toEqual(["v2_patterns/loadings", "v2_meta/app"]);
+    const loadings = writes[0];
+    // every vector still publishes, floor or no floor — the basis rides
+    // with each one and the readers refuse per question
+    expect(Object.keys(loadings.data.q as Record<string, unknown>)).toEqual(["a", "b", "c"]);
+
+    const meta = writes[1];
+    expect(meta.data).toEqual({ patternsPool: 2, patternsBasis: PATTERNS_MIN_BASIS });
+    // MERGED, never set: contentRev, latestBuild, minBuild and updateUrl
+    // live on this document and belong to the seed and the operator.
+    expect(meta.opts).toEqual({ merge: true });
+  });
+
+  it("publishes a zero rather than nothing when no question is drawable yet", async () => {
+    const { db, writes } = fakeDb();
+    await firestorePatternsStore(asDb(db)).putModel(modelWith({ a: 1, b: 2 }), "2026-08-22", 2);
+    // A field that stops being written is a field the client keeps
+    // reading at its last value — so early nights say 0 out loud.
+    expect(writes[1].data).toEqual({ patternsPool: 0, patternsBasis: PATTERNS_MIN_BASIS });
   });
 });

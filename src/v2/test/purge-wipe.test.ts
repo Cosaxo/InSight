@@ -22,6 +22,7 @@
 // covered in smoke-live.test.jsx, where a mounted tree exists to assert
 // on. This file covers the module-scope stores.
 import { beforeEach, describe, expect, it } from "vitest";
+import { PATTERNS_EARNED_KEY, PATTERNS_MIN_BASIS, patternsEarned } from "../data/patternsReady";
 import "../spec/feed-read.js";
 import "../spec/follows.js";
 // Imported by NAME since D246 — learn-feed.js no longer publishes to
@@ -242,6 +243,22 @@ describe("module stores drop their memory on the purge (D51)", () => {
     const after = stored("insight.dailyq.v1")!;
     expect(after).toContain("purge-dq2");
     expect(after).not.toContain("purge-dq\"");
+  });
+
+  it("PATTERNS: the earned gate is forgotten, and not re-earned by the read", () => {
+    // The Patterns tab's mount gate (D251) remembers that this account
+    // crossed the floor, so that retiring a question the viewer answered
+    // cannot take the tab back off them. That memory is account state:
+    // the next uid has to earn it. The second half is the resurrection
+    // this file exists for — `patternsEarned` WRITES the key whenever the
+    // live signal passes, so a purged device must read as un-earned AND
+    // stay that way when the fresh account's (empty) signal is offered.
+    expect(patternsEarned({ pool: 999, basis: PATTERNS_MIN_BASIS, mine: 999 })).toBe(true);
+    expect(stored(PATTERNS_EARNED_KEY)).toBe("1");
+    purge();
+    expect(stored(PATTERNS_EARNED_KEY)).toBeNull();
+    expect(patternsEarned({})).toBe(false);
+    expect(stored(PATTERNS_EARNED_KEY)).toBeNull();
   });
 
   it("IS_TEST_RESULTS: the mirror restores the pristine demo seed", () => {

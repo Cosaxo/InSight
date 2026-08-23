@@ -7,7 +7,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen } from "@testing-library/react";
 import { OWNS_X } from "../spec/swipe-back.js";
-import { openHeaderOverlay, awaitNode, awaitText, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
+import { openHeaderOverlay, awaitNode, awaitText, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS, swipeDaily } from "./mount-app.jsx";
 import NAV from "../data/nav";
 
 vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
@@ -90,10 +90,10 @@ describe("the tab bar says which tab you are on", () => {
     // over a single panel: there is no tablist here, and claiming one would
     // promise arrow-key navigation the bar does not implement.
     //
-    // Written against three tabs, kept at two (D217 unmounted patterns):
-    // the assertion is "exactly one, and it follows", which is the property
-    // that has to hold at any TABS length — including three again, if the
-    // trial resumes.
+    // Written against three tabs, and the bar is two or three depending on
+    // the data now (D251 — this suite mounts a demo build, so two): the
+    // assertion is "exactly one, and it follows", which is the property
+    // that has to hold at any TABS length.
     const expectNoBoundary = mountApp();
     const tabs = () => [...document.querySelectorAll(".tabbar .tab-btn")];
     const current = () => tabs().filter((b) => b.getAttribute("aria-current") === "page");
@@ -114,14 +114,20 @@ describe("the tab bar says which tab you are on", () => {
   });
 });
 
-// ── the patterns tab is unmounted for v1 (D217) ───────────────────────
+// ── the patterns tab below its gate (D251) ────────────────────────────
 //
-// The two cases that walked it live in this file's history and return
-// with the mount. What the unmount owes a test instead: the tab bar is
-// two tabs, and the retired nav key is a no-op rather than a crash — a
-// stale caller (a remembered deep link, an old build's gesture) must
-// land nowhere, not on a boundary.
-describe("the patterns tab is out (D217)", () => {
+// The tab is absent from the bar until the nightly fit has published
+// enough to draw and the viewer has answered enough to be drawn in it
+// (data/patternsReady.ts). These suites mount a DEMO build — no fit, no
+// LIVE at all — so the gate is shut here by construction and stays shut,
+// which makes this file the natural home for the closed half. The open
+// half needs a published signal and lives in smoke-live.
+//
+// What the closed state owes a test: the bar is the two tabs v1 ships,
+// and the nav key is refused QUIETLY — a stale caller (a remembered
+// gesture, an old build's deep link) must land nowhere, not on a
+// boundary, and not on a tab with no button in the bar.
+describe("the patterns tab below its gate (D251)", () => {
   it("the tab bar carries two tabs and no patterns button", () => {
     const expectNoBoundary = mountApp();
     expect(screen.queryByRole("button", { name: /^patterns$/i })).toBeNull();
@@ -129,11 +135,34 @@ describe("the patterns tab is out (D217)", () => {
     expectNoBoundary("two-tab bar");
   });
 
-  it("the retired nav key is refused quietly", () => {
+  it("the nav key is refused quietly, and says it was refused", () => {
     const expectNoBoundary = mountApp();
-    act(() => { NAV.goNav("patterns"); });
+    // The return value is the half daily-split.jsx reads: its near-end
+    // exit springs back on a refusal instead of leaving the card where
+    // the finger let go.
+    let went;
+    act(() => { went = NAV.goNav("patterns"); });
+    expect(went, "goNav must report a refusal, not swallow it").toBe(false);
     expect(document.querySelector(".app").getAttribute("data-tab")).not.toBe("patterns");
-    expectNoBoundary("goNav('patterns') after D217");
+    expectNoBoundary("goNav('patterns') below the gate");
+  });
+
+  it("the daily's near end springs back rather than navigating", () => {
+    // THE ACTUAL GESTURE, not goNav standing in for it. daily-split's
+    // near-end branch is the one joint D166 §1 licensed outside the tab,
+    // and it is why `goNav` answers a boolean at all — so a case that
+    // called goNav directly would be testing the shell and calling it
+    // daily-split. Swiped: the World stop is the near end of the axis, so
+    // a rightward drag past the 66px threshold reaches for Patterns and,
+    // with the gate shut, must spring the card back to centre instead of
+    // leaving it where the finger let go.
+    const expectNoBoundary = mountApp();
+    expect(document.querySelector(".app").getAttribute("data-view")).toBe("track:world");
+    const body = swipeDaily(1);
+    expect(document.querySelector(".app").getAttribute("data-view")).toBe("track:world");
+    expect(document.querySelector(".app").getAttribute("data-tab")).toBe("track");
+    expect(body.style.transform, "the card was left where the finger let go").toBe("translateX(0)");
+    expectNoBoundary("near-end below the gate");
   });
 });
 

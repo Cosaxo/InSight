@@ -111,7 +111,7 @@ directions.
 | [`FEATURE-COMPLETE.md`](FEATURE-COMPLETE.md) | Everything open between here and feature-complete — algorithms, question production, scale work, flips — one line each, pointing at the file that owns it | plan |
 | [`COST-REDUCTION.md`](COST-REDUCTION.md) | Getting the bill down. The big one was built at D129; the rest is analysis | mixed |
 | [`DEVICE-BIND.md`](DEVICE-BIND.md) | D29's activation gate: what ships, what you add, how to flip it on. Rules requirement is shipped **soft** | mixed |
-| [`VISION-V28.md`](VISION-V28.md) | The v28 design, including the third tab adopted on trial and not built | plan |
+| [`VISION-V28.md`](VISION-V28.md) | The v28 design. Its third tab was adopted on trial (D166 §1), built, unmounted for the v1 release (D217) and is back on a data gate (D251) — the row's own §0 table carries each item's verdict | plan |
 | [`PEOPLE-MAP.md`](PEOPLE-MAP.md) | The patterns Map transposed: people placed by their answers. The People lens shipped at D214; the plane switch and whole-world variant stay deferred with their arithmetic | mixed |
 | [`NEXT-FUNCTIONALITY.md`](NEXT-FUNCTIONALITY.md) | Six ideas measured against the architecture. Plan notes, not decisions | plan |
 | [`ATTENTION.md`](ATTENTION.md) | "Does anyone like this, and what is this person into." No code exists | plan |

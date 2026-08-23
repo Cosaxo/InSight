@@ -166,6 +166,7 @@ import type { FeedAd } from "./sponsored";
 import { nearMode, nearOptedIn, nearUntil, setNearMode, type NearMode } from "./near";
 // The device computes its own archetype name for the presence doc (D176).
 import { myType } from "./typeMix";
+import { patternsEligible, type PatternsSignal } from "./patternsReady";
 import { locateCell, locateSupported } from "./locate";
 import { scrubPersonaAnchors } from "./personaResidue";
 import { FUNCTIONS_REGION } from "../../lib/region";
@@ -268,7 +269,10 @@ const state = {
     // retroactively rewrite which cohort a past answer counted in.
     anchors: {} as Record<string, string>,
   },
-  meta: { latestBuild: 0, minBuild: 0, updateUrl: "" },
+  // `patterns*` are written by the nightly fit rather than the seed
+  // (functions/src/patterns.ts) — the crowd half of the Patterns tab's
+  // mount gate (D251), riding the meta read hydrate already pays.
+  meta: { latestBuild: 0, minBuild: 0, updateUrl: "", patternsPool: 0, patternsBasis: 0 },
   stats: { bankSource: "none", aggsFetched: 0, answersFetched: 0, callOutcomesFetched: 0 },
   groups: [] as Array<Record<string, unknown> & { id: string }>,
   duelBank: [] as Array<QuestionDoc & { id: string }>,
@@ -925,6 +929,8 @@ async function hydrate(): Promise<void> {
       state.meta.latestBuild = Number(meta.get("latestBuild") || 0);
       state.meta.minBuild = Number(meta.get("minBuild") || 0);
       state.meta.updateUrl = String(meta.get("updateUrl") || "");
+      state.meta.patternsPool = Number(meta.get("patternsPool") || 0);
+      state.meta.patternsBasis = Number(meta.get("patternsBasis") || 0);
     }
   } catch {
     /* meta is best-effort — absence just means no caching/update info */
@@ -3490,6 +3496,40 @@ const LIVE = {
       .filter((q) => q.surface === "feed" && isCore(q) && q.active !== false
         && (q.options || []).length === 2 && hasPublishedCounts(state.aggs[q.id]))
       .map((q) => buildSPure(q, null, voteCtx(q.id), now));
+  },
+  /**
+   * What the Patterns tab's mount gate reads (D251) — the crowd's number
+   * as the nightly fit published it, and the viewer's own answers among
+   * the questions that fit folds.
+   *
+   * NO NEW READ, either half. The crowd number rides the `v2_meta/app`
+   * document `hydrate()` already fetches for contentRev; the viewer's
+   * count is a walk of two banks the device is holding anyway, and votes
+   * come out of the same map `myVotes()` copies. The verdict itself is
+   * `data/patternsReady.ts` — pure, so the numbers can be pinned without
+   * a store.
+   *
+   * The banks, not the view models: `aggregated()`/`coreFeedAggregated()`
+   * are the same walk plus a `buildSPure` per question, and this runs on
+   * every render of the shell. It also deliberately does NOT require a
+   * published aggregate the way those two do — a question you answered is
+   * evidence about you whether or not its crowd counts have landed on
+   * this device yet.
+   *
+   * Empty in a demo build, which is the honest answer: the tab draws live
+   * data only (D166 §1), so a build with no fit behind it has no gate to
+   * open.
+   */
+  patternsSignal(): PatternsSignal {
+    if (!this.enabled) return {};
+    let mine = 0;
+    for (const q of state.questions) {
+      if (state.votes[q.id] !== undefined && patternsEligible(q)) mine += 1;
+    }
+    for (const q of state.feedBank) {
+      if (state.votes[q.id] !== undefined && patternsEligible(q)) mine += 1;
+    }
+    return { pool: state.meta.patternsPool, basis: state.meta.patternsBasis, mine };
   },
   // ── Learn (D32) ──
   // The first attempt on a learn card is a plain world answer; the

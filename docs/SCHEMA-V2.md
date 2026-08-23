@@ -506,6 +506,16 @@ v2_meta/app                        operator/seed-written metadata
   latestBuild    soft in-app "update available" banner when > appBuild
   minBuild       hard "update needed" gate when > appBuild
   updateUrl      store link the prompts open (web falls back to reload)
+  patternsPool   questions the nightly fit has fitted on `patternsBasis`
+                 answers or more — the crowd half of the Patterns tab's
+                 mount gate (D251). Written by fitPatternsV2, merged, and
+                 the only field here the SWEEP owns (contentRev is the
+                 seed's); it lives on this doc rather than on
+                 v2_patterns/loadings so a client can read it without
+                 fetching ~11 KB of vectors it may never draw
+  patternsBasis  the floor that count was taken at, published beside it
+                 so the number says what it means — the client refuses a
+                 count taken at a looser floor than its own
 read: signed-in · write: nobody
 ```
 

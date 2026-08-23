@@ -121,6 +121,18 @@ const bankKiB = (() => {
   return Math.round((JSON.stringify(arr).length / 1024) * 10) / 10;
 })();
 
+// The Patterns fit's eligible corpus (D251) — two-option daily plus
+// two-option core feed, the rule `PATTERNS_QIDS` compiles from this same
+// bank. Quoted in `src/v2/data/patternsReady.ts` as the scale the tab's
+// pool floor is a fraction of, which is precisely the kind of sentence
+// this file exists for: it is true today, it moves every time the bank
+// grows a core question, and nothing else would notice.
+const patternsEligibleCount = (() => {
+  const arr = bankArray(v2content);
+  return arr.filter((q) => (q.options || []).length === 2
+    && (q.surface === "daily" || (q.surface === "feed" && q.core === true))).length;
+})();
+
 if (!seededQuestions || !dailyQuestions) {
   console.error(
     "check-figures: found no questions in functions/src/v2content.ts.\n"
@@ -212,6 +224,13 @@ const shippedFunctions = readdirSync(resolve(root, "functions", "src"), { recurs
   );
 
 const FIGURES = [
+  {
+    file: "src/v2/data/patternsReady.ts",
+    what: "the Patterns fit's eligible corpus",
+    re: /the eligible corpus is (\d+) questions today/,
+    actual: String(patternsEligibleCount),
+    fix: (n) => `"the eligible corpus is ${n} questions today"`,
+  },
   {
     file: "functions/README.md",
     what: "functions that ship",
