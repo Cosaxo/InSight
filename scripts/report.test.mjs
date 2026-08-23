@@ -194,9 +194,21 @@ describe("the folds", () => {
     expect(condModes([], 2, ["L", "R"])).toEqual([null, null]);
   });
 
-  it("toCsv escapes commas, quotes and newlines, CRLF rows", () => {
+  it("toCsv escapes commas, quotes and newlines, CRLF rows, BOM for Excel", () => {
     expect(toCsv([["a,b", 'say "hi"', "two\nlines"], [1, 2, 3]]))
-      .toBe('"a,b","say ""hi""","two\nlines"\r\n1,2,3\r\n');
+      .toBe('﻿"a,b","say ""hi""","two\nlines"\r\n1,2,3\r\n');
+  });
+
+  it("toCsv neutralises formula-injection openers in user-controlled cells", () => {
+    // A display name is any 60-char string; a cell opening with = + - @
+    // executes in Excel/Sheets on the buyer's machine.
+    const out = toCsv([["=HYPERLINK(\"http://evil\")", "+SUM(A1)", "-2+3", "@cmd", "safe"]]);
+    expect(out).toContain("'=HYPERLINK");
+    expect(out).toContain("'+SUM(A1)");
+    expect(out).toContain("'-2+3");
+    expect(out).toContain("'@cmd");
+    expect(out).toContain(",safe");
+    expect(out).not.toMatch(/(^|,)=/m);
   });
 });
 
@@ -262,7 +274,7 @@ describe("assembly and the page", () => {
     const data = await buildReportData(fakeReader(), { qid: "pd01", vocab: VOCAB });
     const csvs = renderCsvs(data);
     expect(csvs.roll.split("\r\n")[0]).toBe(
-      "name,option,profession,answeredAt,editedAt,logicBand,Big Five type,Politics type,Values type,Social type",
+      "﻿name,option,profession,answeredAt,editedAt,logicBand,Big Five type,Politics type,Values type,Social type",
     );
     expect(csvs.roll).toContain("Åse,All night,Tech");
     expect(csvs.roll).toContain("The Enthusiast,untested,untested,untested");
@@ -331,6 +343,10 @@ describe("assembly and the page", () => {
       { big5: { dims: [{ id: "O", value: 88.6 }, { id: "", value: 4 }, { id: "C", value: "41" }, { id: "N", value: "junk" }, null] } },
       { political: { dims: [{ id: "econ", value: -5 }, { id: "auth", value: 250 }] } },
       { big5: { dims: Array.from({ length: 20 }, (_, i) => ({ id: "d" + i, value: i })) } },
+      // a duplicated dim id must collapse LAST-WINS on both sides — fed
+      // twice to the matcher it would double-weight the dim and could
+      // type a crafted profile differently here than in the app
+      { big5: { dims: [{ id: "O", value: 100 }, { id: "C", value: 50 }, { id: "O", value: 0 }] } },
     ];
     for (const raw of cases) {
       for (const kind of ["big5", "political"]) {
@@ -339,6 +355,9 @@ describe("assembly and the page", () => {
         const mineMap = mine ? Object.fromEntries(mine.map((d) => [d.id, d.value])) : null;
         const theirsMap = theirs ? theirs[kind] ?? null : null;
         expect(mineMap, JSON.stringify({ raw, kind })).toEqual(theirsMap);
+        // …and the ORDER, which fromEntries would erase: the matcher
+        // sees an array, so first-seen position matters on both sides.
+        if (mine) expect(mine.map((d) => d.id), JSON.stringify({ raw, kind })).toEqual(Object.keys(theirsMap));
       }
     }
   });

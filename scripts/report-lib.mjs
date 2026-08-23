@@ -32,22 +32,30 @@
 // by the app's own thresholds rather than the mock's population-shaping
 // shares — see the axis-bands section below.)
 //
-// What DOES cut: the census dims from the aggregate's `by` map (exact,
-// complete), Job folded from the roll's public vote-time snapshots
-// (profession is deliberately never a SERVER dim — D8 — but the
-// snapshots are world-readable and the fold is the reader's own
-// arithmetic, the D146 class), the logic quarters (D227's bands), and —
+// What DOES cut: the closed-vocabulary dims from the aggregate's `by`
+// map (their vocabularies are shorter than the fold's bucket cap, so
+// those cells are exact AND complete); the open dims (city, country)
+// and Job folded from the roll's public vote-time snapshots — the
+// aggregate can evict a rare open-dim bucket past its cap, and the roll
+// this builder walks whole cannot (profession is additionally never a
+// SERVER dim at all, D8; either way the fold is the reader's own
+// arithmetic, the D146 class); the logic quarters (D227's bands); and —
 // since D243 — the four instruments' TYPE cuts, run through the app's
 // own matcher over the public testResults (permitted by D242's promise
 // removal; buildable once the archetype module left the bridge).
 //
-// Twins, each pinned by scripts/report.test.mjs rather than imported:
-// the client modules that own these (voters.ts, logicSplit.ts,
-// similarity.ts) sit behind import chains that touch `window`/live.ts,
-// so a direct import cannot load under node. The test reads the sources
-// and fails when a twin drifts. The archetype MATCHER is not a twin:
-// since D243's bridge conversion the module loads under plain node, so
-// the report runs the app's own matcher on the app's own signatures.
+// Twins, each pinned by scripts/report.test.mjs rather than imported.
+// Two different blockers, worth keeping apart because they retire
+// differently: voters.ts and logicSplit.ts sit behind import chains
+// that touch `window`/live.ts, so nothing can import them until those
+// chains are clean; similarity.ts is pure but TypeScript, which plain
+// node (this module's runtime, via the CLI and the e2e) cannot load —
+// its twins retire the day this layer runs under a TS-stripping node,
+// and until then the pin test imports the REAL functions (vitest
+// transforms TS) and compares behaviour, not just source text. The
+// archetype MATCHER is not a twin: since D243's bridge conversion the
+// module loads under plain node, so the report runs the app's own
+// matcher on the app's own signatures.
 import { ARCHETYPES, IS_RULE_ADJ, IS_matchArchetype, RULE_REAL, RULE_STRONG } from "../src/v2/spec/archetype-data.js";
 import { IS_TESTS, IS_TEST_AVG } from "../src/v2/spec/test-definitions.js";
 
@@ -85,23 +93,35 @@ export function parseLogicPct(raw) {
 }
 
 /** similarity.ts parseTestResults, one instrument's arm, in the dims-array
- * shape the matcher takes — same defensive read, same clamps, pinned
- * against the real parse by the test. */
+ * shape the matcher takes — same defensive read, same clamps, and the
+ * same LAST-WINS collapse of a duplicated dim id (the app's axes map
+ * keeps first-seen position, last value; feeding the matcher both
+ * copies would double-weight the dim and could type a crafted profile
+ * differently here than in the app). Pinned against the real parse by
+ * the test, duplicate case included. Memoized per profile object — one
+ * report re-reads the same immutable testResults ~30 times across the
+ * type cuts, the axis cuts and the roll columns. */
+const dimsCache = new WeakMap();
 export function parseTestDims(raw, kind) {
   if (!raw || typeof raw !== "object") return null;
+  let memo = dimsCache.get(raw);
+  if (!memo) { memo = new Map(); dimsCache.set(raw, memo); }
+  if (memo.has(kind)) return memo.get(kind);
+  let out = null;
   const entry = raw[kind];
-  if (!entry || typeof entry !== "object") return null;
-  const dims = entry.dims;
-  if (!Array.isArray(dims)) return null;
-  const out = [];
-  for (const d of dims.slice(0, 12)) {
-    if (!d || typeof d !== "object") continue;
-    const id = d.id;
-    const value = Number(d.value);
-    if (typeof id !== "string" || !id || !Number.isFinite(value)) continue;
-    out.push({ id, value: Math.max(0, Math.min(100, Math.round(value))) });
+  if (entry && typeof entry === "object" && Array.isArray(entry.dims)) {
+    const byId = new Map();
+    for (const d of entry.dims.slice(0, 12)) {
+      if (!d || typeof d !== "object") continue;
+      const id = d.id;
+      const value = Number(d.value);
+      if (typeof id !== "string" || !id || !Number.isFinite(value)) continue;
+      byId.set(id, Math.max(0, Math.min(100, Math.round(value))));
+    }
+    if (byId.size) out = [...byId].map(([id, value]) => ({ id, value }));
   }
-  return out.length ? out : null;
+  memo.set(kind, out);
+  return out;
 }
 
 /** The four instruments the report cuts by, with the names the app shows
@@ -289,9 +309,12 @@ export function makeReader(fs) {
       return out;
     },
 
-    /** The neighbour corpus: the patterns fit's own predicate (D161 —
-     * two options, daily or core feed), applied to the bank directly so
-     * there is no second list to drift. */
+    /** The neighbour corpus: the patterns fit's predicate (D161 — two
+     * options, daily or core feed) applied to the live bank, PLUS one
+     * deliberate divergence from PATTERNS_QIDS: a question flipped
+     * `active: false` is excluded here although the fit still folds it.
+     * The kill switch is operational — a pulled question should not
+     * resurface in a sold artifact under a neighbour heading. */
     async listPatternCandidates(exceptQid) {
       const out = [];
       for (const surface of ["daily", "feed"]) {
@@ -435,12 +458,20 @@ export function logicCut(roll, profiles, optionCount) {
 }
 
 /** One instrument's type name for a voter, or null for the untested —
- * the app's own nearest-signature matcher over the public result. */
+ * the app's own nearest-signature matcher over the public result.
+ * Memoized beside parseTestDims for the same reason: the match runs
+ * once per profile per instrument, not once per call site. */
+const typeCache = new WeakMap();
 export function typeNameOf(tests, kind) {
+  if (!tests || typeof tests !== "object") return null;
+  let memo = typeCache.get(tests);
+  if (!memo) { memo = new Map(); typeCache.set(tests, memo); }
+  if (memo.has(kind)) return memo.get(kind);
   const dims = parseTestDims(tests, kind);
-  if (!dims) return null;
-  const hit = IS_matchArchetype(kind, dims);
-  return hit ? hit.list[hit.idx].name : null;
+  const hit = dims ? IS_matchArchetype(kind, dims) : null;
+  const name = hit ? hit.list[hit.idx].name : null;
+  memo.set(kind, name);
+  return name;
 }
 
 /** The type cut: the roll grouped by matched archetype on one
@@ -577,10 +608,22 @@ export async function buildReportData(reader, { qid, vocab, now = new Date(), ne
   const roll = await reader.walkRoll(qid);
   const profiles = await reader.getProfiles(roll.map((r) => r.uid));
 
-  const dims = (vocab.dims || []).map((dim) => ({
-    key: dim,
-    ...dimRowsFromBy((agg.by || {})[dim], options.length, total, vocab.byDim ? vocab.byDim[dim] : undefined),
-  }));
+  // A closed vocabulary is shorter than the fold's bucket cap, so the
+  // aggregate's cells are exact AND complete for those dims. An OPEN dim
+  // (city, country) can evict rare buckets past BREAKDOWN_MAX_BUCKETS —
+  // pure.ts's own cap discipline — which would file a real answer's city
+  // under "not shared" and falsify the page's completeness claim. So
+  // open dims fold from the roll this builder already walks whole: the
+  // same exactness class as Job, at zero extra reads.
+  const dims = (vocab.dims || []).map((dim) => {
+    const voc = vocab.byDim ? vocab.byDim[dim] : undefined;
+    return {
+      key: dim,
+      ...(voc
+        ? dimRowsFromBy((agg.by || {})[dim], options.length, total, voc)
+        : dimRowsFromRoll(roll, dim, options.length)),
+    };
+  });
   const job = dimRowsFromRoll(roll, "profession", options.length);
 
   const pairsList = editPairs(agg.edits);
@@ -663,9 +706,19 @@ export const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => (
 
 const csvCell = (v) => {
   const s = String(v ?? "");
-  return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  // Formula-injection guard: a cell opening with =, +, -, @ (or a stray
+  // tab/CR) executes when the buyer opens the bundle in Excel/Sheets,
+  // and a display name is attacker-controlled text — the rules check
+  // only its length. The spreadsheet convention neutralises it: a
+  // leading apostrophe. None of this builder's own numbers is ever
+  // negative, so the guard only ever fires on adversarial strings.
+  const guarded = /^[=+\-@\t\r]/.test(s) ? "'" + s : s;
+  return /[",\n\r]/.test(guarded) ? '"' + guarded.replace(/"/g, '""') + '"' : guarded;
 };
-export const toCsv = (rows) => rows.map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
+// The BOM is for the buyer's Excel, which otherwise opens a BOM-less
+// UTF-8 CSV as ANSI and garbles exactly the names the roll exists to
+// show ("Åse" → "Ã…se"). Harmless to every other reader.
+export const toCsv = (rows) => "\uFEFF" + rows.map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
 
 /** roll.csv · edits.csv · series.csv — the bundle beside the page. */
 export function renderCsvs(data) {
@@ -868,7 +921,7 @@ export function renderReportHtml(data) {
       cut.axes.map((ax) => dimSection(`${cut.title} · ${ax.label}`, ax.rows, `tested ${fmt(ax.tested)}`)).join("") +
       `</div>`,
     ).join("") +
-    `<div style="${BASIS}">Census cuts are the aggregate&rsquo;s own published cells — exact, complete, an absent bucket is zero (D98). Job is folded from the answers&rsquo; public vote-time snapshots, and the test cuts run the app&rsquo;s own reading of the public testResults: types by its nearest-signature matcher, axes in its own five bands — read against the authored baselines, a lean at 8 dim points and a defining lean at 18, the same thresholds the result card names types by. Cohorts as they stood at vote time · an empty bucket stays listed at zero, small counts print exactly, and the Untested row is the remainder — shown, never dropped.</div>`);
+    `<div style="${BASIS}">Closed-list cuts are the aggregate&rsquo;s own published cells — exact, complete, an absent bucket is zero (D98); city, country and Job fold from this report&rsquo;s full walk of the public answers themselves, so no bucket cap can drop a rare cell. The test cuts run the app&rsquo;s own reading of the public testResults: types by its nearest-signature matcher, axes in its own five bands — read against the authored baselines, a lean at 8 dim points and a defining lean at 18, the same thresholds the result card names types by. Cohorts as they stood at vote time · an empty bucket stays listed at zero, small counts print exactly, and the Untested row is the remainder — shown, never dropped.</div>`);
 
   const logicCard = card(
     kicker("The logic cut", "verified in the timed in-app test") +

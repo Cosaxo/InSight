@@ -579,7 +579,6 @@ as deployed infrastructure. It now says what is true.
 > city as the unit, the catalogue, the coarse on-device locate and D92's
 > standing-grant apply all moved to the City stop unchanged.
 
-
 **Decision.** The Mirror's Near population is the city the user **picks from
 a fixed catalogue** in their profile, and it renders the same k-floored
 public aggregates as everything else — counts, never people. `city` is a
@@ -6789,7 +6788,6 @@ design, D1 — not unbuilt); `scenes.js`'s follow list; the catalogue pick
 cards carrying `q.catalog`; and `daily-questions.js`'s non-world
 audiences, where only the World distribution is swapped for the real
 aggregate.
-
 
 ---
 
@@ -19586,7 +19584,6 @@ project works."*
 > eye — and `check:docs` cannot catch it. The index is what makes it
 > cheap to notice: a duplicate number is visible in one screen of it.
 
-
 **Decision.** [`docs/ORIENTATION.md`](ORIENTATION.md) is the entry point
 for a reader with no context: every document with whether it describes the
 app or proposes something, every gate with where it runs, every directory
@@ -23364,7 +23361,6 @@ rather than assumed to:
   zero. A colour is a name-level guard's blind spot twice over — the
   pill it copies lives in another file.
 
-<<<<<<< HEAD
 ## D231 · Current events get a lane: a topic that expires, and the questions to fill it
 
 **2026-08-23.** **Status:** binding, built. Owner's direction, opening a
@@ -23962,8 +23958,6 @@ file rather than assumed to: neutering the call site fails the plain-word
 case and the casualty-conjunction case, while the three
 false-positive cases keep passing, which is the property that would
 otherwise rot silently.
-<<<<<<< HEAD
->>>>>>> origin/main
 
 ## D236 · An invitation that notifies: the pick is the delivery
 
@@ -24559,7 +24553,6 @@ is approved, and the four assertions that replaced that line are the
 decision itself: a code queues rather than admits, a second ask is
 idempotent, a non-member cannot approve their own request, and approval
 clears both the queue entry and the name beside it.
->>>>>>> origin/main
 
 ## D241 · The report builder ships, and reads as a signed-in user
 
@@ -24773,7 +24766,11 @@ four type columns. The parse is a twin of
 the test; the match itself is NOT a twin — it is the same function the
 app runs, which is the point of the conversion. e2e §7g proves the
 all-untested case end to end (the loop's twelve voters have no
-results, and every row still renders).
+results, and every row still renders). D242's condition — a build task
+WITH a disclosure edit — is met in the same change:
+`web/privacy.html`'s reports paragraph names the type-and-axis
+grouping, political, values and social included, with its own
+`check:policy-claims` pin.
 
 **Still waiting from the mock, on purpose:** the per-axis five-band
 rows. The mock's bands are its own population-shaping numbers, not a
@@ -24829,5 +24826,3 @@ inclusive, the 50 fallback, a skewed baseline moving its bands);
 e2e §7g holds the all-untested shape; the roll CSV is unchanged — the
 axes are the page's reading, and the roll already lets a buyer
 recompute any of it.
-=======
-=======

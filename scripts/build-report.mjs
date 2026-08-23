@@ -98,7 +98,19 @@ const reader = makeReader({
 });
 
 const opts = { qid, vocab };
-if (arg("sample")) opts.neighbourSample = Number(arg("sample"));
+const sampleArg = arg("sample");
+if (sampleArg !== null) {
+  const n = Number(sampleArg);
+  // Rejected loudly, not coerced: `--sample 3OO` as NaN would slice the
+  // join to nothing and ship a report claiming a 0-voter basis, and
+  // `--sample 0` silently ignored would pay for the full join the
+  // operator asked to skip.
+  if (!Number.isFinite(n) || n < 0) {
+    console.error(`--sample must be a non-negative number, got "${sampleArg}"`);
+    process.exit(1);
+  }
+  opts.neighbourSample = n;
+}
 const data = await buildReportData(reader, opts);
 
 const day = data.generatedAt.slice(0, 10);
