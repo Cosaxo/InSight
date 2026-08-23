@@ -23766,3 +23766,87 @@ draws. Its two reads in `world-feed.jsx` are left on the bridge with it.
 
 Eager graph unchanged at 831 KB, bundle at 2352 KB. `world-feed.jsx` is
 60 → 32, of which 16 are `LIVE`.
+
+## D233 · The a11y ratchet: six were right, one was hiding
+
+**2026-08-22.** **Status:** binding. The a11y baseline, examined rather
+than paid down — and the difference between those two is the record.
+
+### The finding: most of this was not debt
+
+`check:a11y` read "8 known findings — 5 in the ported spec layer, 3
+deliberate elsewhere", and `src/v2/README.md` filed the five under the
+trade it uses for the React Compiler suppressions: *changing focus
+behaviour in ported components no test asserts the interaction of is the
+blind change that trade refuses. Fix them behind interaction tests, not
+ahead of them.*
+
+The trade is real. The conclusion was not, because nobody had looked at
+the sites. Six of the seven `no-autofocus` findings are the SAME case the
+two picker fields were already excused for — a control the reader has just
+asked for:
+
+| file | the control |
+| --- | --- |
+| `relmap.jsx` | the people search, rendered only when `searchOpen` |
+| `suggestions.jsx` | the question field of an overlay opened by a button |
+| `world-feed.jsx` | the counter-reply box, rendered only when `replyTo` names that take |
+| `group-daily.jsx` | the group-name field of a sheet the user opened |
+| `CityPicker.tsx`, `PickSearch.tsx` | the pickers' own search fields |
+
+`no-autofocus` is a heuristic against focus moving on LOAD. Moving it to a
+control someone just opened is correct behaviour, and deleting these props
+to lower a number would make the app worse — a search you must tap twice,
+a reply box that does not take the cursor. They are recorded as decisions
+now, each with its reason beside it in `BASELINE`, rather than as debt
+someone is invited to "fix".
+
+The eighth, `TweaksPanel.jsx`, is the drag handle of the host-era debug
+panel — a pointer affordance by nature, and `src/dev/` is behind a
+build-time flag with no import in a production build (verified: nothing
+matching it is in `dist/`).
+
+### The seventh WAS a defect, and its justification is what hid it
+
+`app-shell.jsx`'s `autoFocus` is on the update-required blocker — the one
+dialog here that is **not** user-initiated. Focus SHOULD enter a modal when
+it opens; not doing so is the WCAG 2.4.3 failure. So the prop read as
+correct, and that stopped anyone looking further.
+
+What the prop could not do is KEEP focus there. The blocker had
+`role="dialog"`, `aria-modal="true"` and a label written by hand — and **no
+focus trap** — so Tab walked straight out into the app behind it, which is
+still fully in the DOM under an absolutely positioned overlay. D24 gave
+the eight overlays `useDialog` for exactly this; the blocker was written
+inline and missed the sweep. Focus containment is runtime behaviour, so no
+linter could report it, and this gate read the file as one deliberate
+`autoFocus` and nothing else.
+
+It goes through `useDialog` now. That traps Tab, restores focus to the
+opener on unmount, and focuses the button itself — so the `autoFocus` went
+with it, which is a fix rather than a removal. `onClose` is a **no-op on
+purpose**: `useDialog` wires Escape to it, and a build the server has
+refused must not be dismissable.
+
+7 findings, 4 in `spec/`.
+
+### The test that did not work, and why it is worth recording
+
+The first draft asserted `document.activeElement` after firing Tab — and
+**survived reverting the fix**. jsdom does not implement Tab navigation, so
+a keydown moves focus nowhere on its own, and this dialog has ONE focusable
+control, so a wrap lands back where it started. The assertion passed
+identically with and without the trap.
+
+`preventDefault` is what actually stops the browser taking focus out, so
+that is what the case asserts now, and reverting the fix fails it. Same
+lesson as D227's `duelMarks` gap, arriving from a different direction: a
+test that cannot fail is worse than no test, and only the mutation says
+which one you wrote.
+
+### What stays deferred, unchanged
+
+The 28 `react-hooks/exhaustive-deps` and `react-hooks/refs` suppressions on
+ported effects. Changing effect re-run timing blind is exactly the trade
+`src/v2/README.md` refuses, and that refusal survives this record — it was
+only ever the autofocus half that had been filed under it by association.

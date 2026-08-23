@@ -17,6 +17,7 @@ import { reportError } from '../../lib/sentry';
 import { onMapCue } from '../data/mapCue.ts';
 import { closeTopBackLayer } from '../data/backLayers';
 import { registerNav } from '../data/nav';
+import { useDialog } from './primitives.jsx';
 
 // The patterns tab is UNMOUNTED for v1 (D217) — this is the import site
 // the D166 §1 trial clause priced the reversal at. ui/PatternsTab.tsx,
@@ -169,6 +170,47 @@ class ErrorBoundary extends React.Component {
       </div>
     );
   }
+}
+
+// The update-required blocker (D233) — its own component because
+// `useDialog` is a hook and this dialog renders conditionally.
+//
+// WHAT THE HOOK ADDS THAT HAND-WRITTEN ARIA COULD NOT. This had
+// `role="dialog" aria-modal="true" aria-label` and an `autoFocus`, so it
+// announced itself correctly and took focus — and then TAB WALKED STRAIGHT
+// OUT of it into the app behind, which is still fully in the DOM under an
+// absolutely positioned overlay. Focus containment is runtime behaviour, so
+// `jsx-a11y` cannot see it and `check:a11y` reported this file as one
+// deliberate `autoFocus` and nothing else. D24 gave the eight overlays
+// `useDialog` for exactly this; the blocker was written inline and missed
+// the sweep.
+//
+// `onClose` is a NO-OP on purpose. There is nothing to close to — the
+// server has said this build may not talk to it — and `useDialog` wires
+// Escape to `onClose`, so passing an empty function is what makes Escape
+// swallowed rather than dismissing a blocker the user cannot re-summon.
+//
+// `autoFocus` is gone with it, and that is a fix rather than a removal:
+// the hook focuses the first focusable inside on mount (this button) and
+// restores focus to the opener on unmount, which the prop never did.
+// Exported for `test/dialog.test.jsx`, which asserts the trap this exists
+// for. Not published to global scope: nothing renders it but `App` below.
+export function UpdateRequiredBlocker() {
+  const dlg = useDialog(() => {}, 'Update required');
+  return (
+    <div {...dlg} style={{ position: 'absolute', inset: 0, zIndex: 200, background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <div className="card" style={{ maxWidth: 320, textAlign: 'center', padding: '26px 20px' }}>
+        <div style={{ fontWeight: 800, fontSize: 20, marginBottom: 8 }}>Update needed</div>
+        <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.5, marginBottom: 16 }}>
+          This version can no longer talk to the server safely. Grab the latest and you're back in.
+        </div>
+        <button className="press" onClick={() => { const u = window.LIVE.updateUrl; if (u) window.open(u, '_blank'); else location.reload(); }}
+          style={{ border: 'none', borderRadius: 999, padding: '12px 24px', cursor: 'pointer', background: 'var(--ink)', color: 'var(--surface)', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14 }}>
+          {window.LIVE.updateUrl ? 'Get the update' : 'Reload'}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function App() {
@@ -429,20 +471,7 @@ function App() {
           </div>
         </header>
 
-        {liveOn && window.LIVE.updateRequired && (
-          <div role="dialog" aria-modal="true" aria-label="Update required" style={{ position: 'absolute', inset: 0, zIndex: 200, background: 'var(--surface)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
-            <div className="card" style={{ maxWidth: 320, textAlign: 'center', padding: '26px 20px' }}>
-              <div style={{ fontWeight: 800, fontSize: 20, marginBottom: 8 }}>Update needed</div>
-              <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.5, marginBottom: 16 }}>
-                This version can no longer talk to the server safely. Grab the latest and you're back in.
-              </div>
-              <button className="press" autoFocus onClick={() => { const u = window.LIVE.updateUrl; if (u) window.open(u, '_blank'); else location.reload(); }}
-                style={{ border: 'none', borderRadius: 999, padding: '12px 24px', cursor: 'pointer', background: 'var(--ink)', color: 'var(--surface)', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14 }}>
-                {window.LIVE.updateUrl ? 'Get the update' : 'Reload'}
-              </button>
-            </div>
-          </div>
-        )}
+        {liveOn && window.LIVE.updateRequired && <UpdateRequiredBlocker />}
         {liveOn && !window.LIVE.updateRequired && window.LIVE.updateAvailable && !this_dismissedUpdate() && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 16px', background: 'color-mix(in oklch, var(--accent, var(--ink)) 9%, var(--surface-2))', borderBottom: '1px solid var(--rule)', fontSize: 12.5, fontWeight: 700 }}>
             <span style={{ flex: 1 }}>A newer version is out.</span>

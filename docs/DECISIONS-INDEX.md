@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 238 lines instead of
-23,769. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 239 lines instead of
+23,853. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -38,7 +38,7 @@ detect it.
 | **D21** | [The live-mode branches get a mount test; accessibility gets a ratchet](DECISIONS.md#d21--the-live-mode-branches-get-a-mount-test-accessibility-gets-a-ratchet) | D49 (+3) | 1674 |
 | **D22** | [Moderation substrate: confinement is structural, and advisory until trusted](DECISIONS.md#d22--moderation-substrate-confinement-is-structural-and-advisory-until-trusted) | D78 (+2) | 1758 |
 | **D23** | [The mouse-only spec-layer controls become buttons, ahead of the interaction tests D21 wanted](DECISIONS.md#d23--the-mouse-only-spec-layer-controls-become-buttons-ahead-of-the-interaction-tests-d21-wanted) | D24 | 1897 |
-| **D24** | [Every overlay and sheet is a real modal dialog, and this time the interaction test came with it](DECISIONS.md#d24--every-overlay-and-sheet-is-a-real-modal-dialog-and-this-time-the-interaction-test-came-with-it) | D221 (+1) | 1990 |
+| **D24** | [Every overlay and sheet is a real modal dialog, and this time the interaction test came with it](DECISIONS.md#d24--every-overlay-and-sheet-is-a-real-modal-dialog-and-this-time-the-interaction-test-came-with-it) | D233 (+2) | 1990 |
 | **D25** | [The world feed loads after first paint; the rest of the split waits](DECISIONS.md#d25--the-world-feed-loads-after-first-paint-the-rest-of-the-split-waits) | D221 (+8) | 2081 |
 | **D26** | [The spec layer's dead render code is deleted; the one toolkit is kept](DECISIONS.md#d26--the-spec-layers-dead-render-code-is-deleted-the-one-toolkit-is-kept) | D43 | 2139 |
 | **D27** | [The v15 revision syncs in whole, and the honesty layer stays where it was](DECISIONS.md#d27--the-v15-revision-syncs-in-whole-and-the-honesty-layer-stays-where-it-was) | D38 | 2231 |
@@ -244,7 +244,7 @@ detect it.
 | **D224** | [A pick answer snapshots who it meant, and the reveal carries it](DECISIONS.md#d224--a-pick-answer-snapshots-who-it-meant-and-the-reveal-carries-it) | D225 | 22872 |
 | **D225** | [The no-private-report promise is removed, before anything needed it](DECISIONS.md#d225--the-no-private-report-promise-is-removed-before-anything-needed-it) | — | 22940 |
 | **D226** | [The de-overlap pass did not know the ring closes](DECISIONS.md#d226--the-de-overlap-pass-did-not-know-the-ring-closes) | D227 | 23006 |
-| **D227** | [The owed list reaches zero, and eight defects fall out of it](DECISIONS.md#d227--the-owed-list-reaches-zero-and-eight-defects-fall-out-of-it) | D229 (+1) | 23087 |
+| **D227** | [The owed list reaches zero, and eight defects fall out of it](DECISIONS.md#d227--the-owed-list-reaches-zero-and-eight-defects-fall-out-of-it) | D233 (+2) | 23087 |
 | **D228** | [Two data-layer defects D227 found, fixed](DECISIONS.md#d228--two-data-layer-defects-d227-found-fixed) | D229 | 23205 |
 | **D229** | [The three behaviour bugs from D227's list](DECISIONS.md#d229--the-three-behaviour-bugs-from-d227s-list) | — | 23328 |
 | **D229b** | [The three honesty findings from D227's list](DECISIONS.md#d229b--the-three-honesty-findings-from-d227s-list) | — | 23403 |
@@ -252,3 +252,4 @@ detect it.
 | **D230b** | [PLACESTATS off the bridge, 352 → 337](DECISIONS.md#d230b--placestats-off-the-bridge-352--337) | D232 (+1) | 23568 |
 | **D231** | [The shell's cross-links become a registry, 337 → 295](DECISIONS.md#d231--the-shells-cross-links-become-a-registry-337--295) | D232 | 23616 |
 | **D232** | [world-feed.jsx, 295 → 267](DECISIONS.md#d232--world-feedjsx-295--267) | — | 23708 |
+| **D233** | [The a11y ratchet: six were right, one was hiding](DECISIONS.md#d233--the-a11y-ratchet-six-were-right-one-was-hiding) | — | 23770 |

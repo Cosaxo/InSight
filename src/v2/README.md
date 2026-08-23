@@ -400,8 +400,9 @@ It is separate from `npm run lint` because that script carries
 "warn" tier to hold existing debt, and the alternative would be the blanket
 disable this file's Lint suppressions section exists to prevent.
 
-The baseline is **8**: 5 in `spec/`, plus two deliberate `autoFocus` keeps
-on picker search fields. It opened at 69 and came down in four steps — D23
+The baseline is **7**: 4 in `spec/`, plus three elsewhere. Every one of the
+seven is a deliberate keep (D233), each with its reason recorded beside it
+in `BASELINE`. It opened at 69 and came down in four steps — D23
 turned the mouse-only controls into buttons, D24 made every overlay and
 sheet a real modal dialog, D35 gave the Basics editor's selects explicit
 `htmlFor`/`id` pairs, which cleared `label-has-associated-control` entirely
@@ -410,9 +411,10 @@ winning the accessible-name computation, so the chosen city never reached a
 screen reader), and D49 made the post-vote beat's Skip control a real
 button.
 
-What is left is **seven `no-autofocus` findings** and **one
+What is left is **six `no-autofocus` findings** and **one
 `no-static-element-interactions`** in `src/dev/TweaksPanel.jsx`, the host-era debug
-panel rather than a user surface. (The v18 sync retired one more autofocus
+panel rather than a user surface — which is behind a build-time flag, so a
+production build has no import of it at all. (The v18 sync retired one more autofocus
 with the relmap add-circle input it replaced by rename-in-place.)
 
 That sentence used to say "six `no-autofocus` findings and three
@@ -427,12 +429,40 @@ A count kept by hand drifts even inside a paragraph whose own file is
 gate-enforced; prefer "run the gate" to a number, and where a number is
 load-bearing, make the gate own it.
 
-The remaining autofocus findings stay deferred for the reason the React
-Compiler ones do — changing focus behaviour in ported components no test
-asserts the interaction of is the blind change that trade refuses. Fix them
-behind interaction tests, not ahead of them:
-`test/consequence-beat.test.jsx` is what that looks like, and
-`test/dialog.test.jsx` is the precedent it follows.
+**That sentence has now been wrong twice, and D233 is the second
+correction.** It read: "the remaining autofocus findings stay deferred for
+the reason the React Compiler ones do — changing focus behaviour in ported
+components no test asserts the interaction of is the blind change that
+trade refuses. Fix them behind interaction tests, not ahead of them."
+
+The trade was real and the conclusion was not, because nobody had looked at
+the sites. When D233 did, six of the seven turned out to be the SAME case
+the two pickers were already excused for: a control the reader has just
+asked for — a search rendered only when `searchOpen`, a reply box rendered
+only when `replyTo` names that take, the name field of a sheet they opened.
+Moving focus there is correct behaviour, and `no-autofocus` is a heuristic
+against focus moving on LOAD. Deleting those props to lower a number would
+make the app worse, so they are recorded as decisions instead.
+
+**The seventh was a real defect, and it was hiding behind a justification
+that happened to be true.** app-shell's update-required blocker is the one
+dialog here that is NOT user-initiated, and focus SHOULD enter a modal when
+it opens — so its `autoFocus` read as correct, and stopped anyone looking
+further. What the prop could not do is keep focus there: the blocker had
+role, aria-modal and a label written by hand and no focus trap, so Tab
+walked out into the app behind it, which is still in the DOM under an
+absolutely positioned overlay. Containment is runtime behaviour, so no
+linter reported it. It goes through `useDialog` now — the hook D24 gave the
+other eight overlays — which traps Tab, restores focus on unmount and
+focuses the button itself, so the prop went with it.
+`test/dialog.test.jsx` holds both halves.
+
+The React Compiler suppressions are a different matter and DO stay
+deferred: 28 of them, all `react-hooks/exhaustive-deps` and
+`react-hooks/refs` on ported effects, where changing re-run timing blind is
+exactly the trade this file refuses. That refusal survives D233 unchanged —
+it was only ever the autofocus half that had been filed under it by
+association.
 
 Per file, not a total, so a fix in one file cannot pay for a regression in
 another. Lowering it is the script's own output: fix something, run it, and
