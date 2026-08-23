@@ -47,6 +47,7 @@ import {
   retargetAnchors,
   retargetCounts,
   seedDocMatches,
+  SEEDED_FIELDS,
   seedOptionConflict,
   describeSeedOptionConflicts,
   type BreakdownCounts,
@@ -430,6 +431,21 @@ export async function runSeedV2(
     if (conflict) {
       refused.push(conflict);
       continue;
+    }
+    // A retired emit-when-set field must be DELETED, not merely omitted
+    // (D233's amendment): `merge: true` cannot remove a field, so a doc
+    // whose source dropped `core` (the D232 rank flip is exactly this)
+    // would keep it forever while every reseed re-detected the mismatch
+    // and churned updatedAt. Computed against the stored doc, on the
+    // rewrite path only, so seedDocMatches above stays sentinel-free and
+    // a repaired bank reseeds as a no-op.
+    const prior = stored.get(q.id);
+    if (prior) {
+      for (const f of SEEDED_FIELDS) {
+        if (!(f in payload) && prior[f] !== undefined) {
+          payload[f] = FieldValue.delete();
+        }
+      }
     }
     payload.updatedAt = FieldValue.serverTimestamp();
     // Honor a source-carried `active: false` on FIRST create (it used to be

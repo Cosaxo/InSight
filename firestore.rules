@@ -492,7 +492,13 @@ service cloud.firestore {
           return request.resource.data.keys().hasOnly([
               "qid", "surface", "entity", "answeredAt", "anchors",
             ])
-            && request.resource.data.surface in ["daily", "feed", "test"]
+            // Feed-only since D233's review pass (it read `in ["daily",
+            // "feed", "test"]` from birth): catalog questions exist on no
+            // other surface — the seed emits feed and check:content
+            // refuses the rest — so the wider list only ever admitted
+            // answers to a hand-edited console doc the client fences out
+            // anyway (splitBanks keeps the same feed-narrow line).
+            && request.resource.data.surface == "feed"
             && request.resource.data.qid == aid
             && request.resource.data.entity is int
             && request.resource.data.entity >= 0
@@ -503,7 +509,7 @@ service cloud.firestore {
             && get(/databases/$(database)/documents/v2_questions/$(aid))
                  .data.get("active", true) == true
             && get(/databases/$(database)/documents/v2_questions/$(aid))
-                 .data.get("surface", "daily") in ["daily", "feed", "test"];
+                 .data.get("surface", "daily") == "feed";
         }
 
         // Sealed duel answers: id g_{gid}_{day}. Only members may PLAY,

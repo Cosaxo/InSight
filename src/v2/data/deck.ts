@@ -298,6 +298,15 @@ export function hasPublishedCounts(agg: AggDoc | undefined): boolean {
   return !!agg && typeof agg.total === "number" && agg.total > 0;
 }
 
+// The published pick board's size — MUST equal CANON_TOP_N in
+// functions/src/v2.ts, which cuts what the fold publishes. One constant
+// client-side (pickCanon's slice and the card's "N of 10 spots" copy both
+// read it, directly or through pickSrc), and vote.test.ts pins it against
+// the functions source text — the dialBucketMid twin-math precedent: two
+// layers that cannot import each other, held equal by a test instead of
+// by hope.
+export const CANON_BOARD_N = 10;
+
 /**
  * The crowd's 1-based rank per item for a rank question (D232), derived
  * from the published position sums — EXCLUDING the viewer's own folded
@@ -320,14 +329,25 @@ export function rankCrowdFor(
   const pos = agg?.pos;
   const total = agg?.total ?? 0;
   if (!Array.isArray(pos) || pos.length < 2 || total <= 0) return null;
-  const rest = [...pos];
+  let rest = [...pos];
   let n = total;
   if (mine && !pending && mine.length === rest.length) {
+    // The same staleness countsFor clamps with `count > 0`: a cached
+    // aggregate from BEFORE this device's fold (another device answered,
+    // or the top-up has not landed) does not contain the viewer, and
+    // subtracting anyway would invert the crowd or manufacture a false
+    // "You're first". A sum driven negative is proof the order was never
+    // in these numbers — keep the whole aggregate and compare against it
+    // as the crowd it actually is; the post-vote refresh converges it.
+    const sub = [...rest];
     for (let p = 0; p < mine.length; p++) {
       const item = mine[p];
-      if (Number.isInteger(item) && item >= 0 && item < rest.length) rest[item] -= p;
+      if (Number.isInteger(item) && item >= 0 && item < sub.length) sub[item] -= p;
     }
-    n -= 1;
+    if (sub.every((v) => v >= 0)) {
+      rest = sub;
+      n -= 1;
+    }
   }
   if (n <= 0) return null;
   const byMean = [...rest.keys()].sort((a, b) => rest[a] - rest[b] || a - b);
@@ -446,26 +466,27 @@ export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
     Array.isArray(q.options) && q.options.length >= 2;
   return {
     daily: active.filter((q) => q.surface === "daily" && playable(q)),
-    // type "rank" is excluded from the LIVE feed on purpose. The bank seeds
-    // 8 of them, and buildFeedGlobals used to serve them as single-choice
-    // vote cards — folding single options into aggregates that claim to be
-    // a ranking. Wrong-shaped answers are worse than no card (the same
-    // honesty rule as D5); the full arithmetic is in D12.
     // type "catalog" is the feed lane's deliberate playable() exception,
     // the duel lane's "pick" precedent: a catalog doc carries no options
     // because the shipped catalogue is its answer space (D14), so the
     // options gate that drops malformed docs would drop every pick card.
+    // The exception is FEED-NARROW where the plain lane spans test too —
+    // catalog questions exist on no other surface (rules and the seed
+    // both say feed), and an options-free doc admitted off a wider
+    // surface would be a hand-edited console doc this fence exists to
+    // drop.
     //
-    // Rank rides the lane again since D232 — D12's exclusion lived here
-    // for as long as an answer could not carry an order. It can now
-    // (`order`, rules + fold + LIVE.voteRank), and buildFeedGlobals maps
-    // rank docs to their own card type, so the pick-one poisoning D12
-    // pulled them for is structurally gone rather than filtered around.
-    feed: active.filter(
-      (q) =>
-        (q.surface === "feed" || q.surface === "test") &&
-        (q.type === "catalog" || playable(q)),
-    ),
+    // Rank rides the plain lane since D232 — D12's exclusion lived here
+    // for as long as an answer could not carry an order (served as vote
+    // cards, rank docs folded single picks into aggregates that claimed
+    // to be rankings). An answer carries one now (`order`, rules + fold +
+    // LIVE.voteRank), and buildFeedGlobals maps rank docs to their own
+    // card type, so the poisoning D12 pulled them for is structurally
+    // gone rather than filtered around.
+    feed: active.filter((q) =>
+      q.type === "catalog"
+        ? q.surface === "feed"
+        : (q.surface === "feed" || q.surface === "test") && playable(q)),
     duel: active.filter(
       (q) =>
         (q.surface === "group" || q.surface === "duo") &&

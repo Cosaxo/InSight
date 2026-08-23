@@ -154,6 +154,7 @@ import {
   hasPublishedCounts,
   isCore,
   rankCrowdFor,
+  CANON_BOARD_N,
   splitBanks,
   utcDayIndex as utcDayIndexPure,
 } from "./deck";
@@ -3678,10 +3679,11 @@ const LIVE = {
     const rows = Object.keys(counts)
       .map((k) => ({ entity: Number(k), count: counts[k] }))
       .sort((a, b) => b.count - a.count || a.entity - b.entity);
-    // The board size the fold publishes (CANON_TOP_N, functions/src/v2.ts)
-    // — the pending join above can push the list to N+1 for the seconds
-    // before the trigger folds, and the card's spots copy assumes the cap.
-    const top = rows.slice(0, 10);
+    // The board size the fold publishes — the pending join above can push
+    // the list to N+1 for the seconds before the trigger folds, and the
+    // card's spots copy assumes the cap. CANON_BOARD_N is the pinned twin
+    // of the server's CANON_TOP_N (deck.ts has the why).
+    const top = rows.slice(0, CANON_BOARD_N);
     const shown = top.reduce((a, r) => a + r.count, 0);
     return { top, rest: total - shown, total, restEntities: 0, restBelowFloor: false };
   },

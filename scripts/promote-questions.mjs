@@ -27,6 +27,7 @@ import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
 import vm from "node:vm";
+import { CATALOG_FILES } from "./gen-v2content.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SPEC = join(root, "src", "v2", "spec", "daily-questions.js");
@@ -134,13 +135,9 @@ if (ids.every(isPickId)) {
   // Only domains whose catalogue file is committed under public/ may go
   // live (QUESTION-FARM.md § the daily catalog-question run, rule 2) — a
   // card whose catalogue is absent opens straight into the picker's error
-  // state. check-content.mjs holds the same map; both refuse films/artists
-  // until the D15 operator step commits their files.
-  const CATALOG_FILES = {
-    pokemon: "pokedex.txt", emoji: "emoji.txt", elements: "elements.txt",
-    countries: "countries.txt", dogs: "dogs.txt", films: "films.txt",
-    artists: "artists.txt",
-  };
+  // state. CATALOG_FILES is the generator's one map (check-content.mjs
+  // reads the same import); both refuse films/artists until the D15
+  // operator step commits their files.
   const byPk = new Map(PICK_QS.map((q) => [q.id, q]));
   const seed = JSON.parse(readFileSync(PICK_SEED, "utf8"));
   const have = new Set(seed.questions.map((q) => q.id));

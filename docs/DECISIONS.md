@@ -23623,3 +23623,17 @@ an example — and the missing-field mismatch that drives the repair
 write); the e2e's 3b; the no-op control now compares the FULL written
 shape, which is what caught `storedForm`'s own missing mirrors during
 the build.
+
+**Amendment (same day, the PR's review pass): dropped fields are
+deleted, not orphaned.** The compare gained the twelve fields; the
+WRITE could still not remove one — `{merge: true}` cannot delete — so a
+doc whose source dropped an emit-when-set field (D232's rank `core`
+flip is the live instance: eight docs would have stored `core: true`
+forever had the seed run between the two commits) would mismatch on
+every reseed, rewrite, and keep the field anyway: `updatedAt` churn
+with no convergence. The rewrite path now walks `SEEDED_FIELDS` and
+writes `FieldValue.delete()` for any field the stored doc carries that
+the payload does not. Computed on the rewrite path only, against the
+stored doc — `seedDocMatches` stays sentinel-free, so a repaired bank
+reseeds as a no-op. Third seed.test D233 case pins the sentinel and
+that a field absent on both sides gets none.

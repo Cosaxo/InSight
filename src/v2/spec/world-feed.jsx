@@ -14,6 +14,12 @@ import React from 'react';
 // paint (D25), so importing it here keeps it in the deferred chunk
 // instead of pulling it into the first-paint bundle.
 import LiveBreakdownPanel from '../ui/LiveBreakdownPanel';
+// The pick board's size — deck.ts's pinned twin of the server's
+// CANON_TOP_N (vote.test.ts holds all three equal). An import for D39's
+// reason above: live.ts already carries deck.ts in the entry graph, so
+// referencing it from this deferred chunk costs nothing and the meter
+// never counts it.
+import { CANON_BOARD_N } from '../data/deck';
 import { WPAL } from './world-palette.js';
 import { HAPTIC } from './haptics.js';
 import { WF_CATALOGS } from './world-catalogs.js';
@@ -606,25 +612,26 @@ class WorldFeed extends React.Component {
   }
 
   // ranking: tap items in order; tapping an assigned item un-assigns it.
-  // A COMPLETED order on a live card persists through LIVE.voteRank
-  // (D232) — create-only, so the double-invoke React may give this
-  // updater is a no-op on the second pass, the same property that makes
-  // the wfSave beside it safe.
+  // The order is derived OUTSIDE the updater, setPick's shape: a completed
+  // ranking triggers wfSave and LIVE.voteRank, and voteRank's notify()
+  // synchronously setStates every store subscriber — run from inside an
+  // updater that is a render-phase side effect ("Cannot update a component
+  // while rendering a different component", doubled under StrictMode).
+  // Reading this.state in a tap handler is safe: handlers run between
+  // renders, and the create-only guard covers the pathological double-tap.
   tapRank(q, i) {
     HAPTIC.tick();
-    this.setState((s) => {
-      const cur = (s.pending[q.id] || []).slice();
-      const at = cur.indexOf(i);
-      if (at >= 0) cur.splice(at, 1); else cur.push(i);
-      if (cur.length === q.items.length) {
-        const votes = { ...s.votes, [q.id]: { order: cur } };
-        wfSave(votes);
-        const L = q.live && window.LIVE;
-        if (L && L.voteRank) L.voteRank(q.id, cur);
-        return { votes, pending: { ...s.pending, [q.id]: [] } };
-      }
-      return { pending: { ...s.pending, [q.id]: cur } };
-    });
+    const cur = (this.state.pending[q.id] || []).slice();
+    const at = cur.indexOf(i);
+    if (at >= 0) cur.splice(at, 1); else cur.push(i);
+    if (cur.length === q.items.length) {
+      wfSave({ ...this.state.votes, [q.id]: { order: cur } });
+      const L = q.live && window.LIVE;
+      if (L && L.voteRank) L.voteRank(q.id, cur);
+      this.setState((s) => ({ votes: { ...s.votes, [q.id]: { order: cur } }, pending: { ...s.pending, [q.id]: [] } }));
+      return;
+    }
+    this.setState((s) => ({ pending: { ...s.pending, [q.id]: cur } }));
   }
 
   // a live ranking may exist only server-side (fresh device, no local
@@ -1435,11 +1442,13 @@ class WorldFeed extends React.Component {
 
   // The live pick card's board source: LIVE's published canon for q.live,
   // the demo store otherwise — one seam, so renderPick and the thin bar
-  // cannot disagree about where a board comes from.
+  // cannot disagree about where a board comes from. TOP_N is the shared
+  // CANON_BOARD_N (an ESM import — data/deck.ts, the D51 logic-gen
+  // precedent), pinned against the server's CANON_TOP_N in vote.test.ts.
   pickSrc(q) {
     const L = q.live && window.LIVE;
     if (L && L.pickCanon) {
-      return { canon: (id) => L.pickCanon(id), segs: (id) => L.pickSegs(id), canonSeg: (id, d, b) => L.pickSeg(id, d, b), TOP_N: 10 };
+      return { canon: (id) => L.pickCanon(id), segs: (id) => L.pickSegs(id), canonSeg: (id, d, b) => L.pickSeg(id, d, b), TOP_N: CANON_BOARD_N };
     }
     return window.PICKS || null;
   }

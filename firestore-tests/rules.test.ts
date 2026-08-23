@@ -1084,8 +1084,26 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     await assertFails(setDoc(ref(CQ), { qid: CQ, surface: "feed", optionIdx: 0,
       answeredAt: serverTimestamp(), anchors: {} }));                 // optionIdx on a catalog question
     await assertFails(setDoc(ref(CQ), cat({ surface: "group" })));    // not a world surface
+    // Feed-only since D233's review pass: the clause read `in ["daily",
+    // "feed", "test"]` from birth, and "test" here passed BOTH halves of
+    // it against this feed question. Now the claimed surface must be
+    // exactly the one catalog questions exist on.
+    await assertFails(setDoc(ref(CQ), cat({ surface: "test" })));
+    await assertFails(setDoc(ref(CQ), cat({ surface: "daily" })));
     await assertFails(setDoc(ref("feed-cat-off"),
       cat({ qid: "feed-cat-off" })));                                 // kill switch holds
+    // The question-side agreement tightened with it: a catalog doc
+    // hand-edited onto another surface (console — the seed cannot write
+    // one, check:content refuses it) takes no answers at all, whichever
+    // surface the answer claims.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "test-cat"), {
+        surface: "test", seq: 0, type: "catalog",
+        prompt: "?", options: [], active: true,
+      });
+    });
+    await assertFails(setDoc(ref("test-cat"), cat({ qid: "test-cat", surface: "test" })));
+    await assertFails(setDoc(ref("test-cat"), cat({ qid: "test-cat" })));
     // a vote question never accepts an entity answer
     await seedQuestion();
     await assertFails(setDoc(ref(QID), { qid: QID, surface: "daily", entity: 1,

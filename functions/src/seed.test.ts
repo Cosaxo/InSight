@@ -12,6 +12,7 @@
 // Firestore is not needed to prove which writes a function chooses to make.
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { logger } from "firebase-functions";
+import { FieldValue } from "firebase-admin/firestore";
 import { runSeedV2 } from "./v2";
 import { seedDocMatches } from "./pure";
 import { V2_QUESTIONS } from "./v2content";
@@ -144,6 +145,30 @@ describe("the seed transports the doc shape the schema promises (D233)", () => {
     // point of the field being in the compare.
     expect(seedDocMatches(stored, storedForm(q))).toBe(false);
     expect(seedDocMatches(storedForm(q), storedForm(q))).toBe(true);
+  });
+
+  it("a stored field the source DROPPED is deleted, not orphaned — merge:true cannot remove it", async () => {
+    // The other direction of the repair, and the one `{merge: true}` hides:
+    // an emit-when-set field the source stopped carrying stays on the doc
+    // forever unless the payload says delete. The D232 rank flip is the
+    // live instance — those eight stored `core: true` before the flip.
+    const q = V2_QUESTIONS.find((x) => x.type === "rank");
+    expect(q, "the bank no longer carries a rank question — pick another core-less example").toBeDefined();
+    const { db, written } = fakeDb(allStored({
+      [q!.id]: storedForm(q! as typeof victim, { core: true }),
+    }));
+    await runSeedV2(db as never);
+    expect(written[q!.id], `${q!.id} was not rewritten at all`).toBeDefined();
+    const sentinel = written[q!.id].core as { isEqual?: (o: unknown) => boolean };
+    expect(
+      sentinel && typeof sentinel.isEqual === "function" && sentinel.isEqual(FieldValue.delete()),
+      `${q!.id}'s payload must carry FieldValue.delete() for core, got: ${JSON.stringify(sentinel)}`,
+    ).toBe(true);
+    // Only the dropped field gets a sentinel — a field absent on BOTH sides
+    // (this rank card has never had a duel mode) must stay out of the
+    // payload entirely, or every rewrite would spray deletes over fields
+    // that were never there.
+    expect("mode" in written[q!.id]).toBe(false);
   });
 });
 

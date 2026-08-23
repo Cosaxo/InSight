@@ -231,10 +231,15 @@ describe("splitBanks (per-surface allowlists)", () => {
   it("a catalog doc is feed-only — the carve-out widens no other lane", () => {
     // The exception is options-shaped, so the thing to check is that it
     // stays INSIDE the feed allowlist: a catalog doc on another surface
-    // must still be dropped as unplayable, not adopted.
+    // must still be dropped as unplayable, not adopted. The test surface
+    // is the load-bearing row: the feed lane ADMITS test-surface docs, so
+    // the first cut of the carve-out quietly took a test-surface catalog
+    // doc with it — the review fix narrowed catalog to surface "feed"
+    // exactly, and this is the line that keeps it narrowed.
     const banks = splitBanks([
       qd("pick-x", { surface: "daily", type: "catalog", options: [] }),
       qd("pick-y", { surface: "learn", type: "catalog", options: [] }),
+      qd("pick-z", { surface: "test", type: "catalog", options: [] }),
     ]);
     expect(banks.daily).toEqual([]);
     expect(banks.learn).toEqual([]);

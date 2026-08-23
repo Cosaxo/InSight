@@ -20,7 +20,7 @@
 import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildAds, buildEntries, generate, loadContent, CONTENT_SOURCES, LENS_SCALE, LIKERT, dialOptions, fieldOptions, DIAL_BUCKETS } from "./gen-v2content.mjs";
+import { buildAds, buildEntries, generate, loadContent, CATALOG_FILES, CONTENT_SOURCES, LENS_SCALE, LIKERT, PICK_SEQ_BASE, dialOptions, fieldOptions, DIAL_BUCKETS } from "./gen-v2content.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(root, "functions", "src", "v2content.ts");
@@ -88,12 +88,21 @@ for (const q of entries) {
   else if (!ID_SHAPE[q.surface].test(q.id)) errors.push(`${q.id}: id does not match the ${q.surface} shape`);
 }
 
-// ---- per-surface seq contiguity (the banks sort on it).
-const seqBySurface = new Map();
+// ---- per-surface seq contiguity (the banks sort on it). Catalogue picks
+// share the feed surface but run their own lane from PICK_SEQ_BASE, so a
+// feed append cannot renumber shipped pick docs — contiguity is per LANE,
+// and the guard after the loop is what keeps the two lanes from ever
+// meeting: the feed counter must stay strictly below the pick base.
+const laneOf = (q) => (q.surface === "feed" && q.type === "catalog" ? "feed picks" : q.surface);
+const seqByLane = new Map([["feed picks", PICK_SEQ_BASE]]);
 for (const q of entries) {
-  const want = seqBySurface.get(q.surface) ?? 0;
-  if (q.seq !== want) errors.push(`${q.id}: seq ${q.seq}, expected ${want} (per-surface, contiguous)`);
-  seqBySurface.set(q.surface, q.seq + 1);
+  const lane = laneOf(q);
+  const want = seqByLane.get(lane) ?? 0;
+  if (q.seq !== want) errors.push(`${q.id}: seq ${q.seq}, expected ${want} (per-lane, contiguous)`);
+  seqByLane.set(lane, q.seq + 1);
+}
+if ((seqByLane.get("feed") ?? 0) >= PICK_SEQ_BASE) {
+  errors.push(`the feed's seq counter reached ${seqByLane.get("feed")} — it may not cross PICK_SEQ_BASE (${PICK_SEQ_BASE}); raise the base deliberately (gen-v2content.mjs) before the lanes collide`);
 }
 
 // ---- options: scales must be exactly the agree scale, ratings exactly
@@ -245,13 +254,8 @@ for (const q of entries) {
     // whose catalogue file is committed under public/ (QUESTION-FARM.md
     // rule 2: a card whose catalogue is absent opens straight into the
     // picker's error state). films/artists stay refused here until the D15
-    // operator step commits their files; promote-questions.mjs holds the
-    // same map at the other end of the pipe.
-    const CATALOG_FILES = {
-      pokemon: "pokedex.txt", emoji: "emoji.txt", elements: "elements.txt",
-      countries: "countries.txt", dogs: "dogs.txt", films: "films.txt",
-      artists: "artists.txt",
-    };
+    // operator step commits their files; CATALOG_FILES is the generator's
+    // (one map — promote-questions.mjs imports the same one).
     if (q.surface !== "feed") errors.push(`${q.id}: catalog type outside the feed surface`);
     if (q.options.length !== 0) errors.push(`${q.id}: a catalog question carries no options — the catalogue is its answer space`);
     const file = CATALOG_FILES[q.domain];

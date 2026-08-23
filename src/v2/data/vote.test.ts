@@ -10,9 +10,12 @@
 // ../../lib/firebase, ../../lib/sentry and firebase/firestore. setDoc
 // resolution/rejection is driven by manually-settled promises.
 
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LIVE_MEMBERS, LIVE_NEAR_MEMBERS, LIVE_SOCIAL_MEMBERS } from "../test/live-surface";
 import { FUNCTIONS_REGION } from "../../lib/region";
+import { CANON_BOARD_N } from "./deck";
 
 interface FakeSnapshotDoc {
   id: string;
@@ -1060,6 +1063,23 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
       });
       expect(LIVE.pickSeg("pick-pk04", "gender", "Women")).toBeNull();
       expect(LIVE.pickSegs("pick-nope")).toEqual([]);
+    });
+
+    // Read as TEXT rather than imported, the handles.test.ts precedent:
+    // functions/ is a separate package, and importing it would drag the
+    // admin SDK into the client run. The board depth lives on both sides
+    // of the wire — the server publishes `top` truncated at CANON_TOP_N,
+    // the client slices its own-vote join at CANON_BOARD_N — and nothing
+    // but this pin would notice one moving alone: the board would just
+    // quietly show a different depth than the aggregate carries.
+    it("CANON_BOARD_N matches the server's CANON_TOP_N", () => {
+      const serverSrc = readFileSync(
+        resolve(__dirname, "../../../functions/src/v2.ts"),
+        "utf8",
+      );
+      const m = /const CANON_TOP_N = (\d+);/.exec(serverSrc);
+      expect(m, "the server's CANON_TOP_N moved or was renamed").toBeTruthy();
+      expect(Number(m![1])).toBe(CANON_BOARD_N);
     });
   });
 
