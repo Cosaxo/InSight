@@ -1490,6 +1490,12 @@ export const SEEDED_FIELDS = [
   // repair, not a phantom.
   "mode", "branch", "sub", "tag", "rates", "core", "until", "also",
   "sponsor", "tier", "resolvesAt", "rubric",
+  // `from` (D231's window-open, the `until` twin) joined at the D231/D234
+  // merge: it arrived in a parallel thread with exactly the D234 gap —
+  // promised by the schema, read by the client's serving filter, written
+  // by nothing — and the merge is where the two threads first saw each
+  // other.
+  "from",
 ] as const;
 
 /**

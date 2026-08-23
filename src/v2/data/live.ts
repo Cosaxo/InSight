@@ -1092,7 +1092,13 @@ async function hydrate(): Promise<void> {
   // and the aggregate persist, the archive is the product. Feed-only by
   // the gates (check:content), so the daily tombstone note below is
   // untouched; `active: false` remains the hard, server-enforced kill.
-  const fresh = (q: { until?: string }) => !q.until || q.until >= utcDayKey(0);
+  const today = utcDayKey(0);
+  // Both ends, so `from` is a real serving boundary and not just the ring's
+  // start: an editor can write next week's question this week and have it
+  // appear on the day, rather than having to be awake to merge it. Day keys
+  // are zero-padded, so string order is date order.
+  const fresh = (q: { from?: string; until?: string }) =>
+    (!q.until || q.until >= today) && (!q.from || q.from <= today);
   const active = sorted.filter((q) => q.active !== false && fresh(q));
 
   // Allowlist split per surface — pure and unit-tested in deck.ts
@@ -1491,6 +1497,12 @@ function buildFeedGlobals(): void {
         // label from that one value. Emit-when-set, so an ordinary card is
         // byte-for-byte what it was.
         ...(q.sponsor ? { sponsor: q.sponsor, until: q.until } : {}),
+        // The ask window (D231): a current-events card draws its own
+        // deadline as a draining ring, which needs both ends. Not for a
+        // sponsored card — that one already states its window in the PAID
+        // band, and the same fact in two shapes on one card reads as two
+        // facts.
+        ...(!q.sponsor && q.from && q.until ? { from: q.from, until: q.until } : {}),
         // Doors (docs/TAGS-PLAN.md §2): the topics this card also belongs
         // to. The feed's filter, stock and search read cat ∪ also; nothing
         // that PLACES the card does. Emit-when-set, same rule as sponsor.

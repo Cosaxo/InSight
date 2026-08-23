@@ -49,6 +49,11 @@
       "id": "bigq",
       "label": "Big questions",
       "color": "oklch(0.55 0.14 290)"
+    },
+    {
+      "id": "now",
+      "label": "Happening now",
+      "color": "oklch(0.55 0.14 115)"
     }
   ],
   "channels": [
@@ -2363,6 +2368,109 @@
         {
           "label": "A starter",
           "count": 2500
+        }
+      ]
+    },
+    {
+      "id": "n01",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "political": true,
+      "prompt": "Trump has labelled the Strait of Hormuz new US territory. Your read?",
+      "from": "2026-08-23",
+      "until": "2026-08-28",
+      "options": [
+        {
+          "label": "A power grab"
+        },
+        {
+          "label": "Keeping trade open"
+        }
+      ]
+    },
+    {
+      "id": "n02",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "Crude is near $94. Has the pump changed how you get around?",
+      "from": "2026-08-23",
+      "until": "2026-08-31",
+      "options": [
+        {
+          "label": "Driving less already"
+        },
+        {
+          "label": "No change yet"
+        }
+      ]
+    },
+    {
+      "id": "n03",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "Evergrande's founder got life for fraud and bribery. That sentence is…",
+      "from": "2026-08-23",
+      "until": "2026-08-27",
+      "options": [
+        {
+          "label": "About right"
+        },
+        {
+          "label": "Too far"
+        }
+      ]
+    },
+    {
+      "id": "n04",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "Harry and Meghan move back to Britain, but keep no royal duties. Workable?",
+      "from": "2026-08-23",
+      "until": "2026-09-03",
+      "options": [
+        {
+          "label": "It can work"
+        },
+        {
+          "label": "Pick a side"
+        }
+      ]
+    },
+    {
+      "id": "n05",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "A model published proofs for ten open problems in maths. Is that doing maths?",
+      "from": "2026-08-23",
+      "until": "2026-08-29",
+      "options": [
+        {
+          "label": "It counts"
+        },
+        {
+          "label": "Not until a human gets it"
+        }
+      ]
+    },
+    {
+      "id": "n06",
+      "core": false,
+      "cat": "now",
+      "type": "vote",
+      "prompt": "Italy's fourth heatwave this summer, red alerts in 25 cities. Just summer now?",
+      "from": "2026-08-23",
+      "until": "2026-08-26",
+      "options": [
+        {
+          "label": "This is normal now"
+        },
+        {
+          "label": "Still an emergency"
         }
       ]
     }

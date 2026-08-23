@@ -81,6 +81,54 @@ export const TAG_WORDS_MAX = 4; // corpus max 4 — "a two-or-three-word label",
 // makes broad tagging pointless (credit is conserved, a door never adds any);
 // this cap is what makes it impossible to try at scale anyway.
 export const ALSO_MAX = 2;
+// ── the current-events lane (D231, docs/NEXT-FUNCTIONALITY.md §1) ──
+//
+// `now` is the one topic whose questions expire. §1 asks for "a bounded
+// window so 'current' cannot mean months", and these are that bound, in
+// days SERVED (inclusive of both ends — a question opened and closed on
+// the same day serves for 1).
+//
+// MIN exists because a window shorter than a weekend is not a question,
+// it is a poll of whoever happened to open the app on a Tuesday; the
+// feed's own quality signal is per-question evenness, and a split
+// measured on a handful of answers is noise (feed-budget.mjs's dilution
+// bound, said about time instead of stock).
+//
+// MAX is §1's sentence made arithmetic. Three weeks is the outer edge of
+// what a reader would still call current; past it the topic is lying in
+// its own name.
+//
+// SHORT is the owner's direction (2026-08-23): every question gets the
+// window that fits it, but most should sit at the low end. A batch rule
+// rather than a per-question one, because "most" is a property of a
+// batch — a single 20-day question is a judgement call, six of them is a
+// lane that has quietly become a monthly.
+export const NOW_TOPIC = "now";
+export const WINDOW_MIN_DAYS = 3;
+export const WINDOW_MAX_DAYS = 21;
+export const WINDOW_SHORT_DAYS = 7;
+
+/** Days served, both ends inclusive. Null unless both ends are real day keys. */
+export function windowDays(from, until) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(from)) || !/^\d{4}-\d{2}-\d{2}$/.test(String(until))) return null;
+  const a = Date.parse(`${from}T00:00:00Z`), b = Date.parse(`${until}T00:00:00Z`);
+  if (Number.isNaN(a) || Number.isNaN(b)) return null;
+  return Math.round((b - a) / 86400000) + 1;
+}
+
+// A prediction is a CALL, not a feed question (§1's first boundary, D127).
+// "Should X resign?" is an opinion and belongs here; "Will X win on
+// Sunday?" needs a sealed answer and a resolved outcome, and must arrive
+// through docs/FORESIGHT-CALLS.md's door or not at all — an unresolved
+// call takes the player's guess and never comes back.
+//
+// A TRIPWIRE, not a proof: the two shapes it catches are the prompt that
+// OPENS as a future interrogative, and the one that pins a claim to a
+// resolution date. "AI will replace most jobs — agree?" is an opinion
+// about the future that no rubric can settle, and it passes both, which
+// is correct. Judged false positives go in ALLOW under `call-shape`.
+const CALL_OPENER = /^\s*(will|won't|who will|what will|when will|how many\b[^?]*\bwill|which\b[^?]*\bwill)\b/i;
+const CALL_DATED = /\bwill\b[^?]*\b(by (the end of|next|this)?\s*\w|before (the|next|this)\b|on (monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b|this (week|month)\b|next (week|month)\b)/i;
 export const TONES = new Set(["light", "blend", "deep"]);
 // Option-count shapes per type, exactly as the corpus uses them. scale and
 // rating carry no options (labels are synthesized: LIKERT / "1".."10") and
@@ -657,6 +705,40 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
       err("core", "a feed question must declare `core` (true = served to everyone and foldable into the Mirror's readings, false = personalized tail) — see docs/SCALE-PLAN.md §1");
     }
 
+    // ── the current-events lane (D231) ──
+    //
+    // check:content owns the SHAPE of the two window fields (day keys,
+    // feed-only, ordered) and the core refusal. What lives here is
+    // editorial: whether the window is one a reader would still call
+    // current, and whether the question is a question this lane may ask
+    // at all. The two gates deliberately do not restate each other.
+    const windowed = q.from !== undefined || q.until !== undefined;
+    if (q.cat === NOW_TOPIC && !(typeof q.from === "string" && typeof q.until === "string")) {
+      // Both ends, always. A `now` card with no close never stops being
+      // served, which is the whole failure the topic exists to avoid; one
+      // with no open cannot draw its remaining fraction, so the ring would
+      // have to guess — and a guessed deadline on a real one is worse than
+      // no ring at all.
+      err("window", `a ${NOW_TOPIC} question carries both \`from\` and \`until\` — the lane's promise is that it stops being asked`);
+    }
+    if (windowed && q.cat !== NOW_TOPIC && !q.sponsor) {
+      // A window on an ordinary topic is a card that vanishes from a chip
+      // row that gives the reader no reason to expect it. Sponsored slots
+      // are the one other windowed thing, and they announce themselves
+      // with a band (D195).
+      err("window", `a window belongs to the ${NOW_TOPIC} topic or a sponsored slot — an ordinary card that quietly expires is stock a reader cannot account for`);
+    }
+    const days = windowDays(q.from, q.until);
+    if (days !== null && (days < WINDOW_MIN_DAYS || days > WINDOW_MAX_DAYS)) {
+      err("window", `the window runs ${days} day${days === 1 ? "" : "s"} (${WINDOW_MIN_DAYS}-${WINDOW_MAX_DAYS}) — shorter polls whoever opened the app that day, longer stops being current`);
+    }
+    if (q.cat === NOW_TOPIC) {
+      const text = [q.prompt, ...(q.options || []).map((o) => (o && typeof o === "object" ? o.label : o))].filter(Boolean).join(" ");
+      if (CALL_OPENER.test(String(q.prompt || "")) || CALL_DATED.test(text)) {
+        err("call-shape", "this reads as a prediction, not an opinion — a resolved call needs a sealed answer and an executable rubric (docs/FORESIGHT-CALLS.md, D127), and must arrive through that door");
+      }
+    }
+
     // ── continuum shapes ── the whole entry is authored, crowd texture
     // included (the demo pool has no backend), so the gate holds the
     // texture to the same bar as the copy: a dial whose dist doesn't fit
@@ -829,10 +911,6 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
   // options, c/t in range, c≠t, p in 1..99, k 2..6 words) is deliberately
   // absent — two gates disagreeing about the same rule is how one of them
   // gets edited to match the other and both stop meaning anything.
-  if (surface === "feed" && q.until !== undefined && !/^\d{4}-\d{2}-\d{2}$/.test(String(q.until))) {
-    err("type-shape", "`until` (the current-events window) must be a YYYY-MM-DD UTC day key");
-  }
-
   if (surface === "pick") {
     // The catalog contract's rule 3 — "Every card carries a `cat`, always" —
     // had no gate behind it: pick got the universal rules only, and all
@@ -967,7 +1045,42 @@ export function checkBatch(batch) {
   // moment a run can still obey it. The 0.75 ceiling is shared with daily
   // deliberately — a batch of eight may be six votes, which is honest,
   // and may not be seven.
-  const feed = batch.filter((q) => q.surface === "feed");
+  // The current-events lane is not the budgeted farm lane, and the two
+  // rules below cannot judge it (D231). TOPIC spread is meaningless: `now`
+  // batches are single-topic by construction, so the rule would fail every
+  // batch this lane can legally write. FORM spread is meaningless for a
+  // reason worth writing down: the two continuum forms are authored TWICE,
+  // the second copy being permanent demo texture in world-feed-data.js,
+  // and a question about this week's news has no business becoming a card
+  // the demo build shows forever — while a `path` needs eight endings it
+  // would outlive by a fortnight. So the lane writes votes, and the form
+  // rule is not a bar it can clear, only one it can trip over.
+  //
+  // What replaces them is the rule this lane actually needs: windows.
+  const now = batch.filter((q) => q.surface === "feed" && q.cat === NOW_TOPIC);
+  const feed = batch.filter((q) => q.surface === "feed" && q.cat !== NOW_TOPIC);
+  if (now.length >= 3) {
+    // Distinct closes, because a batch that expires together empties the
+    // topic in one day — and a topic filter offering an empty chip is
+    // §1's own "reads as abandoned", which it names as worse than not
+    // having the topic at all. Staggering is also the honest thing: six
+    // stories do not stop being current on the same afternoon.
+    const closes = now.map((q) => q.until);
+    const dupes = closes.filter((d, i) => closes.indexOf(d) !== i);
+    if (dupes.length) {
+      errs.push(`${new Set(dupes).size} close date(s) shared across the batch (${[...new Set(dupes)].join(", ")}) — stagger them, or the topic empties in one day`);
+    }
+    // "Each question gets the window that fits it, but most should be
+    // towards the lower end" (the owner, 2026-08-23). Half is the
+    // arithmetic reading of "most" that a batch of three can still satisfy.
+    const short = now.filter((q) => {
+      const d = windowDays(q.from, q.until);
+      return d !== null && d <= WINDOW_SHORT_DAYS;
+    }).length;
+    if (short * 2 < now.length) {
+      errs.push(`${short} of ${now.length} ${NOW_TOPIC} questions run ${WINDOW_SHORT_DAYS} days or less — most of a batch should sit at the short end, or the lane is a monthly wearing a daily's name`);
+    }
+  }
   if (feed.length >= 3) {
     const dominant = (key, label, extra) => {
       const seen = {};
@@ -1296,6 +1409,12 @@ if (invokedDirectly) {
       // copy and would otherwise have fired on every story for a field the
       // candidate did in fact declare and this function dropped.
       core: raw.core,
+      // …and the ask window, for the reason `id` is here (D231): the window
+      // rules read both ends and `sponsor` decides which of them applies, so
+      // a pre-flight that dropped them would print six ✓ on a batch CI is
+      // about to refuse — and the batch rules below would compare six
+      // `undefined` closes and call them a collision.
+      from: raw.from, until: raw.until, sponsor: raw.sponsor,
     };
   };
 

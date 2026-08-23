@@ -23366,6 +23366,231 @@ rather than assumed to:
   zero. A colour is a name-level guard's blind spot twice over — the
   pill it copies lives in another file.
 
+## D231 · Current events get a lane: a topic that expires, and the questions to fill it
+
+**2026-08-23.** **Status:** binding, built. Owner's direction, opening a
+session on `claude/current-event-questions-kba24s`: *"lets start makeing
+the current event questions"*, then three answers that shaped it — build
+the whole lane and a first batch rather than either half; *"each question
+should have a uniqe timline fiting it but most should be towards the
+lower end"*; and the chip reads **Happening now**.
+
+[`docs/NEXT-FUNCTIONALITY.md`](NEXT-FUNCTIONALITY.md) §1 is the design
+this executes, written when the answer to "why no current events?" was
+"the daily deck is positional and cannot retire an entry" (D97). The
+verdict there was *build it on the feed*, and the feed had already been
+given half the machinery: `until` on a bank entry, a client-side
+`fresh()` filter, and shape checks in both content gates — all landed by
+D195, because a paid slot is a window too. What was missing was
+everything that makes it a **lane**: a topic to file the questions under,
+a second end so the window is a span rather than a deadline, bounds so
+"current" cannot mean months, a refusal for the one question-shape that
+belongs somewhere else, a card that says when it closes, and six
+questions.
+
+### The decisions
+
+**1 · `now` / "Happening now", and it is a TIME rather than a subject.**
+The taxonomy already carried `event` ("World events"), and the first
+instinct is that a news question goes there. It does not: `event`'s
+questions are evergreen — "Should voting be mandatory?", "Four-day work
+week: inevitable or fantasy?" — and they are still true next year. What
+distinguishes this lane is not what a question is about but how long it
+is worth asking, so the chip names the time. Hue 115, the widest gap left
+in the row (85 → 145), picked for distance from its neighbours and not
+for a meaning. Creating a topic is the human act farm hard rule 3
+reserves; this record is that act, taken by the owner in the message
+above.
+
+**2 · A window has two ends, and `from` ships to the device.** §1
+specified one field. `from` is the second, and it earns the wire for a
+reason a gate could not have supplied: the card draws its remaining time
+as a draining ring, and a ring needs the WHOLE to know what fraction is
+left. Deriving the start from `content/provenance.json`'s batch date
+would satisfy the gate and nothing else — provenance is a repo file that
+never reaches a phone.
+
+Having shipped it, `fresh()` reads both ends, so `from` is a real serving
+boundary and not just the ring's start: an editor writes next week's
+question this week and it appears on the day, instead of having to be
+awake to merge it.
+
+**3 · Three to twenty-one days served, and most of a batch at the short
+end.** §1 asked for "a bounded window so 'current' cannot mean months"
+and left the number open. The floor exists because a window shorter than
+a weekend polls whoever happened to open the app on a Tuesday — the
+feed's quality signal is per-question evenness, and a split measured on a
+handful of answers is noise, which is `feed-budget.mjs`'s dilution bound
+said about time instead of stock. The ceiling is §1's sentence as
+arithmetic: past three weeks the topic is lying in its own name.
+
+The owner's rule — every question gets the window that fits it, most
+towards the low end — is a property of a BATCH, so it is a batch rule: at
+least half of a `now` batch runs seven days or fewer. A single twenty-day
+question is a judgement call; six of them is a lane that has quietly
+become a monthly.
+
+**4 · A windowed question is never core.** The rule sponsored questions
+already had (docs/SCALE-PLAN.md §1), one field over and for a different
+reason. The Mirror's corpus has to be answerable by someone who arrives
+next year; a question only whoever was here that week could answer folds
+"when did you join" into a reading about what people believe.
+
+**5 · A prediction goes through the CALL door or not at all.** §1's first
+boundary, and D127's: a resolved call is the one number in the app a
+reader cannot recompute, and a wrong or never-resolved outcome marks real
+users wrong with nothing to appeal to. `check:quality` refuses a `now`
+prompt that opens as a future interrogative ("Will…", "Who will…") or
+pins a claim to a resolution date. It is a **tripwire, not a proof**:
+"AI will replace most jobs — agree?" is an opinion about the future that
+no rubric can settle, and it passes both patterns, which is correct. The
+`ALLOW` map takes judged false positives per finding, the neighbours
+discipline.
+
+**6 · The farm may not write this lane, and the allocator is where that
+holds.** §1 ends its "not doing" list with *farm-authored current
+events*: timeliness needs a human, and a news question written by an
+unsupervised job is what the farm's governance exists to prevent. Putting
+that in the run's instructions would not have survived, because the
+regulator argues the other way every run — a brand-new topic is 24
+questions short of `TOPIC_TARGET`, the largest deficit in the taxonomy,
+so thinnest-first would point every run straight at the one topic a run
+may not touch. `LANE_EXCLUDED` in `feed-budget.mjs` is the exclusion, and
+`feed-budget.test.mjs` pins it in both directions: `now` is in the
+taxonomy, and it is not in the fold.
+
+**7 · The farm's two batch-spread rules do not judge this lane; window
+staggering replaces them.** TOPIC spread is meaningless here — a `now`
+batch is single-topic by construction, so the rule would fail every batch
+the lane can legally write. FORM spread is meaningless for a reason worth
+writing down: the two continuum forms are authored twice, the second copy
+being permanent demo texture in `world-feed-data.js`, and a question
+about this week's news has no business becoming a card the demo build
+shows forever — while a `path` needs eight endings it would outlive by a
+fortnight. So the lane writes votes, and the form rule is not a bar it
+can clear, only one it can trip over.
+
+What replaces them is the rule this lane actually needs: closes must be
+distinct across a batch. Six questions expiring on one afternoon empty
+the topic in a day, and a topic filter offering an empty chip is §1's own
+"reads as abandoned", which it names as worse than not having the topic.
+
+**8 · The card wears its real deadline, and the decorative one steps
+aside.** `world-feed.jsx` already drew a draining ring — `renderClock`,
+picked by hash of the question id, counting down the hours of the wall
+day. Its own comment is the reason it was safe: *"purely a clock: it
+reads the wall time and nothing about the question, so it cannot disclose
+a count."* A `now` card has a real deadline, so it gets the same ring
+drawn from `askWindow()` and a `4d` beside it. **Never both on one
+card** — the invented ring beside a true one borrows its credibility —
+and the hash pick now skips windowed cards entirely so the grace note
+still lands somewhere.
+
+### What this did NOT build, and the arithmetic
+
+**§1's archive half has no surface to land on, and that is a finding, not
+a deferral by preference.** §1 asks that "the answer rows should print
+the ask window ('asked 12–19 Aug') so a reader a year later knows which
+crowd this was", sized as a `ui/LiveAnswerRows.tsx` / `cohortLabels.ts`
+change. Those rows cannot show a `now` question:
+`LiveCohortBody` builds them from `LIVE.aggregated()`, which walks
+`state.questions` — the **daily** bank — and then filters to
+`coreCorpus`. A feed question has not been able to reach that list since
+D161 scoped the corpus to core, and decision 4 above makes a `now`
+question permanently non-core. The sentence was written before both.
+
+The feed's own answered drawer cannot hold it either: `fresh()` filters
+the BANK at hydrate, so a closed question is gone from `state.feedBank`
+before anything asks whether the viewer answered it. **So the standing
+limit is: once a `now` question's window closes, the person who answered
+it can no longer see that they did.** The answer and the aggregate
+persist — nothing is lost, and the Mirror is unaffected because these
+were never in its corpus — but there is no screen that shows them.
+
+The cheap fix is known and deliberately not taken here: make the bank
+filter answer-aware (`fresh(q) || answered(q)`), which would leave a
+closed-but-answered card in the done drawer wearing its window. It is not
+one line where it looks like one — `fresh()` runs inside `hydrate()`
+before the vote state is loaded, so making it vote-aware means moving the
+filter or the load, and `state.feedBank` has eleven other consumers
+including search and the missing-aggregate fetch that would then see
+expired questions. That is its own change with its own tests, and pricing
+it honestly beat shipping a half of it under this record.
+
+**The window is a client-side serving filter, not a server truth.** §1
+said so and it still holds: `active: false` is the hard kill, and an
+expired question technically accepts answers a little longer because
+nobody is shown the card. If that gap ever matters, a scheduled function
+can flip `active` at the boundary — the pattern exists three times
+already. Note the free property on the other side: D86 refuses edits
+while a question is inactive, so retiring a current question also freezes
+its answers, which for a time-scoped question is a feature.
+
+### The first batch, and what it declined to ask
+
+Six questions, written against reporting from the week of 17–23 August
+2026 and verified against more than one outlet where the claim carries
+weight: the Strait of Hormuz map, oil near $94, Hui Ka Yan's life
+sentence, the Sussexes' return, a model's ten published proofs, and
+Italy's fourth heatwave. Windows 4, 5, 6, 7, 9 and 12 days, every close
+distinct, four of six at seven days or fewer. One carries `political:
+true` (the Hormuz card); the heatwave card does not, because it asks what
+the reader makes of the weather rather than what should be done about it.
+
+**The line the batch drew:** the same week carried airstrikes with named
+death tolls in Lebanon and a Russian strike on Kramatorsk. A vote card
+under a casualty count is not an opinion question, it is a body count
+with buttons, and this lane declines them. Policy, economics, justice,
+culture, science and climate all had live stories that week, which is the
+answer to whether the line costs anything.
+
+**Provenance says `farm`, and that is the honest row.** These questions
+were written by a machine in a session a person directed. `editorial`
+means "editorial IS the human" — the clause that exempts a row from
+proving it was read — and claiming it here would launder AI-written
+content as hand-written, which is the failure `checkProvenance`'s own
+comment names one field over. So: `source: farm`, `review: { by: "ai",
+audited: false }`, and the audit shortfall accrues where the gate already
+reports it. Provenance names the WRITER; `LANE_EXCLUDED` names the
+SCHEDULE; they are different facts and the two can disagree without
+either lying.
+
+### Cost, and what holds it
+
+Bank 624 → 630 questions, 155.1 → 156.8 KiB on the wire; every prose
+figure that quotes either was corrected where `check:figures` printed it
+(SCHEMA-V2, COSTS ×3, LAUNCH-RUNBOOK ×4, SHIP-CHECKLIST ×2). Shipping
+bundle: eager graph 832 → 833 KB, total 2356 → 2358 KB —
+`data/askWindow.ts` rides the `world-feed` chunk, since that file is its
+only importer.
+
+Gates, and one of them found a real hole in this change before CI could:
+
+- `check:content` owns the window's SHAPE (both fields feed-only, day
+  keys, ordered) and the core refusal; `check:quality` owns what the
+  window may contain. Deliberately no overlap — two gates restating one
+  rule is how one of them gets edited to match the other.
+- `scripts/question-quality.test.mjs` pins the per-question rules and the
+  batch rules, including that the ceiling day is itself legal: a bound
+  that refuses its own value is a bound nobody can write against.
+- `data/askWindow.test.ts` pins the arithmetic — both ends inclusive, the
+  drain, the month boundary, the clamp at each end, and null for the
+  ninety-nine per cent of questions with no window.
+- `test/smoke-live.test.jsx` executes the render, because the three
+  name-level guards cannot: the ring is drawn from a real window and the
+  wall-clock ring is not drawn on the same card.
+- `test/world-channels.test.js` pins that `now` is a channel in a LIVE
+  build and not in the demo one — the stock is live-only, and a chip
+  filtering nothing is worse than no chip.
+- **The pre-flight was blind and is not any more.** `--batch` builds its
+  candidates through `candidateOf`, which copies an explicit field list;
+  it dropped `from`, `until` and `sponsor`, so the first run of the real
+  batch printed six failures against a batch CI accepts, and the
+  staggering rule compared six `undefined` closes and called them a
+  collision. Same class as the `id` and `core` notes already in that
+  function — a pre-flight that drops a field judges a question by a rule
+  the corpus gate is not applying.
+
 ## D232 · Catalog questions go live: seventeen picks, promoted through one pen
 
 **Decided:** 2026-08-23 · **Status:** built (this branch); the operator

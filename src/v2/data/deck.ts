@@ -76,8 +76,12 @@ export interface QuestionDoc {
   rates?: string;
   test: string | null;
   active: boolean;
-  // Current-events serving window (D-plan §1): a feed entry past this
-  // UTC day stops being OFFERED; answers and aggregate persist.
+  // Current-events serving window (docs/NEXT-FUNCTIONALITY.md §1, D231): a
+  // feed entry is OFFERED only between these two inclusive UTC day keys;
+  // answers and aggregate persist either way. `until` alone is legal and
+  // is what a sponsored slot carries (D195) — a paid window announces
+  // itself in a band rather than drawing a ring, so it needs no start.
+  from?: string;
   until?: string;
   // Core/tail (D161). Feed-only, and ABSENT MEANS TAIL — a question is in
   // the Mirror's corpus only if it says so. Every other surface is core by

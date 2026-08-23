@@ -112,13 +112,32 @@ const RATING = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"];
 const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i]);
 for (const q of entries) {
   if (!q.prompt || !q.prompt.trim()) errors.push(`${q.id}: empty prompt`);
-  // The current-events serving window (docs/NEXT-FUNCTIONALITY.md §1):
+  // The current-events serving window (docs/NEXT-FUNCTIONALITY.md §1, D231):
   // feed-only — no other surface serves by date (the daily deck is
   // positional), and the client filter compares UTC day-key strings, so
-  // the shape must be exactly that.
-  if (q.until !== undefined) {
-    if (q.surface !== "feed") errors.push(`${q.id}: \`until\` is the feed's current-events window — no other surface carries it`);
-    else if (!/^\d{4}-\d{2}-\d{2}$/.test(q.until)) errors.push(`${q.id}: \`until\` must be a YYYY-MM-DD UTC day key`);
+  // the shape must be exactly that. Both ends are checked here; what the
+  // window may CONTAIN — how long it runs, which topic must carry one — is
+  // check:quality's, and deliberately not restated in this file.
+  for (const [field, label] of [["from", "opens"], ["until", "closes"]]) {
+    if (q[field] === undefined) continue;
+    if (q.surface !== "feed") {
+      errors.push(`${q.id}: \`${field}\` is the feed's current-events window (${label}) — no other surface carries it`);
+    } else if (!/^\d{4}-\d{2}-\d{2}$/.test(q[field])) {
+      errors.push(`${q.id}: \`${field}\` must be a YYYY-MM-DD UTC day key`);
+    }
+  }
+  // Day keys are zero-padded, so string order IS date order — the same
+  // property the client's `fresh()` filter rests on.
+  if (typeof q.from === "string" && typeof q.until === "string" && q.until < q.from) {
+    errors.push(`${q.id}: the window closes (${q.until}) before it opens (${q.from})`);
+  }
+  // docs/SCALE-PLAN.md §1, the sponsored rule below pointed one field over.
+  // A core question is what the Mirror folds its cohort readings over, and
+  // that corpus has to be answerable by everyone: a windowed question can
+  // only ever be answered by whoever was here that week, so folding it
+  // reports when a person joined as if it were what they believe.
+  if (q.until !== undefined && q.core === true) {
+    errors.push(`${q.id}: a windowed question is never core — the Mirror's corpus must be answerable by someone who arrives next year`);
   }
   // Sponsored questions (D195). Every rule here is a promise the card
   // makes on screen, held at the source so the disclosure cannot be

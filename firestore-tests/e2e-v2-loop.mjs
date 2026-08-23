@@ -133,7 +133,13 @@ ok("daily bank: " + qsnap.size + " questions; first: \"" + q0.get("prompt").slic
   if (!ratesQ) fail("no seeded daily doc carries `rates` — the Scores stop reads hydrated docs (D187/D234)");
   const tagQ = qsnap.docs.find((d) => typeof d.get("tag") === "string");
   if (!tagQ) fail("no seeded daily doc carries `tag` — the Scores card is a column of nouns (D187/D234)");
-  ok("seed transports the promised doc shape: core, rates, tag present on live docs");
+  // `from` (D231's window-open) arrived in a parallel thread with exactly
+  // this gap and was caught at the merge — its assertion joins the leg so
+  // the current-events lane cannot ship windowless the same way.
+  const feedSnap = await getDocs(query(collection(db, "v2_questions"), where("surface", "==", "feed")));
+  const fromQ = feedSnap.docs.find((d) => typeof d.get("from") === "string");
+  if (!fromQ) fail("no seeded feed doc carries `from` — the current-events window opens off hydrated docs (D231/D234)");
+  ok("seed transports the promised doc shape: core, rates, tag, from present on live docs");
 }
 
 // 4 · vote (owner-only answer write, rules enforced end-to-end)

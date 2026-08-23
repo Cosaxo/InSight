@@ -412,6 +412,11 @@ export async function runSeedV2(
       ...(typeof q.tag === "string" ? { tag: q.tag } : {}),
       ...(typeof q.rates === "string" ? { rates: q.rates } : {}),
       ...(q.core === true ? { core: true } : {}),
+      // `from` (D231, current events) arrived in a parallel thread the
+      // same day D234 landed, with exactly the gap D234 closes: in the
+      // bank, in the client's serving filter, and in no write. Caught at
+      // the merge; transported and compared like its `until` twin.
+      ...(typeof q.from === "string" ? { from: q.from } : {}),
       ...(typeof q.until === "string" ? { until: q.until } : {}),
       ...(Array.isArray(q.also) && q.also.length ? { also: q.also } : {}),
       ...(q.sponsor ? { sponsor: q.sponsor } : {}),

@@ -102,6 +102,20 @@ export const OPEN_MAX = 6;
 // card still covers its topic for a reader.
 export const SERVABLE_TYPES = new Set(["vote", "rank", "dial", "field", "path"]);
 
+// Topics this lane may not write into (D231). `now` is the current-events
+// lane, and it is EDITORIAL by design — docs/NEXT-FUNCTIONALITY.md §1 ends
+// its "not doing" list with "farm-authored current events", because
+// timeliness needs a human and a news question written by an unsupervised
+// job is the thing the farm's governance exists to prevent.
+//
+// The exclusion has to live HERE rather than in the run's instructions,
+// because the regulator would otherwise recruit the lane by arithmetic: a
+// brand-new topic is 24 questions short of TOPIC_TARGET, which is the
+// largest deficit in the taxonomy, so thinnest-first would point every run
+// at it from the day it was created. A rule the allocator argues against
+// every run is a rule that eventually loses.
+export const LANE_EXCLUDED = new Set(["now"]);
+
 // Pure: everything the CLI prints derives from this one function, so the test
 // pins the budget the lane actually gets.
 //
@@ -193,7 +207,9 @@ export function loadFeedTopics() {
       counts.set(t, counts.get(t) + 1);
     }
   }
-  return feed.topics.map((t) => ({ id: t.id, label: t.label, questions: counts.get(t.id) ?? 0 }));
+  return feed.topics
+    .filter((t) => !LANE_EXCLUDED.has(t.id))
+    .map((t) => ({ id: t.id, label: t.label, questions: counts.get(t.id) ?? 0 }));
 }
 
 // The scorecard line. The feed lane has no runway sentence to print — its

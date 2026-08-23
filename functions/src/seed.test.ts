@@ -96,6 +96,7 @@ function storedForm(q: typeof victim, overrides: Record<string, unknown> = {}) {
     ...(typeof q.tag === "string" ? { tag: q.tag } : {}),
     ...(typeof q.rates === "string" ? { rates: q.rates } : {}),
     ...(q.core === true ? { core: true } : {}),
+    ...(typeof q.from === "string" ? { from: q.from } : {}),
     ...(typeof q.until === "string" ? { until: q.until } : {}),
     ...(Array.isArray(q.also) && q.also.length ? { also: q.also } : {}),
     ...(q.sponsor ? { sponsor: q.sponsor } : {}),
@@ -128,6 +129,9 @@ describe("the seed transports the doc shape the schema promises (D234)", () => {
       expect(written[q!.id][field], `${q!.id} lost its ${field} in the payload`).toEqual(value(q!));
     };
     expectField((q) => q.core === true, "core", () => true);
+    // `from` — D231's window-open, caught with the D234 gap at the merge
+    // of the two threads (see the payload comment in v2.ts).
+    expectField((q) => typeof q.from === "string", "from", (q) => q.from);
     expectField((q) => typeof q.tag === "string", "tag", (q) => q.tag);
     expectField((q) => typeof q.rates === "string", "rates", (q) => q.rates);
     expectField((q) => Array.isArray(q.also) && q.also.length > 0, "also", (q) => q.also);
