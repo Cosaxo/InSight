@@ -697,6 +697,44 @@ describe("LiveDuelPanel · your name is the account's, not this screen's", () =>
   });
 });
 
+describe("LiveDuelPanel · the member list says you once (D244)", () => {
+  /**
+   * What a screen reader would get: `textContent` with the `aria-hidden`
+   * subtrees taken out.
+   *
+   * The duplication is still in the DOM on purpose — the pill is the
+   * VISUAL marker and stays drawn — so a `getAllByText` count cannot see
+   * this fix at all. The question is only ever about the accessibility
+   * tree, so the assertion has to be too.
+   */
+  const spoken = (el: Element): string => {
+    const clone = el.cloneNode(true) as Element;
+    clone.querySelectorAll("[aria-hidden='true']").forEach((n) => n.remove());
+    return clone.textContent ?? "";
+  };
+  const memberList = () => screen.getByText("2 here").parentElement!;
+
+  it("does not announce “you you” on your own chip", () => {
+    // `YouChip` speaks by design — in a reveal bar it is the only marker
+    // of your own row, so `aria-hidden` on the COMPONENT would cost that.
+    // This chip is the one place that already prints the word beside the
+    // pill, and unhidden the member list read it twice.
+    render(<LiveDuelPanel mode="duo" />);
+    openManage();
+    expect(spoken(memberList()).match(/you/g) ?? [], "the pill and the label both spoke").toHaveLength(1);
+  });
+
+  it("still names the other member, and still draws the pill", () => {
+    // Two halves the fix must not swallow: hiding the wrong element would
+    // take a real name off the list rather than a duplicate word, and
+    // hiding the pill from SIGHT would lose the marker it exists to be.
+    render(<LiveDuelPanel mode="duo" />);
+    openManage();
+    expect(spoken(memberList())).toContain("Ada");
+    expect(memberList().textContent, "the pill stopped being drawn").toContain("youyou");
+  });
+});
+
 describe("LiveDuelPanel · a circle's reveal is a split, not a list", () => {
   const GROUP = {
     ...DUO, mode: "group",

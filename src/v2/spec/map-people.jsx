@@ -7,6 +7,7 @@ import React from 'react';
 import { ReadRun } from './read-run.jsx';
 import { DUELS } from './duels-data.js';
 import { Kicker } from './primitives.jsx';
+import NAV from '../data/nav';
 
 // map-people.jsx — how you and your circle read each other in the daily
 // duels. Lives on the CIRCLE stop (a lens card under the relationship map),
@@ -89,7 +90,7 @@ import { Kicker } from './primitives.jsx';
         )}
         <div className="mpc-foot">
           {p.streak > 0 && <span className="mpc-align">{p.streak}-day run</span>}
-          <button className="mpc-open" onClick={() => window.openPerson && window.openPerson(p.id)}>open profile →</button>
+          <button className="mpc-open" onClick={() => NAV.openPerson(p.id)}>open profile →</button>
         </div>
       </div>
     );
@@ -109,7 +110,7 @@ import { Kicker } from './primitives.jsx';
         <div className="mmt-gwho">how you read them</div>
         <div className="mpc-rows">
           {ps.map((p) => (
-            <button key={p.id} className="mpc-row" onClick={() => window.openPerson && window.openPerson(p.id)}>
+            <button key={p.id} className="mpc-row" onClick={() => NAV.openPerson(p.id)}>
               <span className="mpc-av" style={{ '--phue': p.hue }}>{p.init}</span>
               <span className="mpc-name">{first(p.name)}</span>
               <MPRun days={dotsFor(p.id, p.read.total, 'readRight')}></MPRun>

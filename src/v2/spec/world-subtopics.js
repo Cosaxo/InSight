@@ -25,7 +25,8 @@ const WORLD_SUBTOPICS = [
 // Only for questions that cannot be answered honestly without a fact. Rules:
 // definitions and events, never arguments (those live in the reveal), and never
 // more than ~40 words. If a question needs more than that, rewrite the question.
-window.WORLD_BG = {
+// Converted (D249). No window mirror: world-feed.jsx was the only reader.
+export const WORLD_BG = {
   // ── main pool ──
   f06: 'E-sports were a medal event at the 2022 Asian Games, and the IOC has run separate Olympic Esports events since 2021 without adding them to the Olympic programme.',
   f11: 'Cultivated meat is grown from animal cells in a tank, with no slaughter. Singapore approved sale in 2020 and the US in 2023; volumes are tiny and costs still far above farmed meat.',
@@ -54,7 +55,7 @@ window.WORLD_BG = {
   r02: 'Thick foam midsoles with a stiff carbon plate return enough energy to have reset road records since 2017. World Athletics now caps road-shoe sole thickness and allows one plate.',
 };
 // the tennis scene asks t04's question in its own words — same fact behind it
-window.WORLD_BG.s03 = window.WORLD_BG.t04;
+WORLD_BG.s03 = WORLD_BG.t04;
 
 // ── the stocked leaves ──────────────────────────────────────────────────────
 (function () {
@@ -107,7 +108,7 @@ window.WORLD_BG.s03 = window.WORLD_BG.t04;
 })();
 
 // ── follow state — a leaf is followed exactly like a topic ──────────────────
-window.SUBTOPICS = (function () {
+export const SUBTOPICS = (function () {
   const LS = 'insight.subtopics.v1';
   const ALL = WORLD_SUBTOPICS;
   const BY = {};
@@ -153,3 +154,5 @@ window.SUBTOPICS = (function () {
     subscribe: (f) => { listeners.add(f); return () => listeners.delete(f); },
   };
 })();
+// The mirror stays for search-overlay.jsx, which has not moved.
+window.SUBTOPICS = SUBTOPICS;

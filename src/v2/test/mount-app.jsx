@@ -35,6 +35,7 @@
 import { afterEach, beforeAll, expect, vi } from "vitest";
 import React from "react";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import NAV from "../data/nav";
 
 // 15s per test, not the 5s default: every case mounts the FULL app in jsdom,
 // and the v15 revision roughly doubled the spec layer's feed weight — the
@@ -116,14 +117,18 @@ export function mountApp() {
 // outside React's event system, and without act() the assertion runs against
 // the frame before the overlay rendered.
 export async function openVia(name, ...args) {
-  expect(typeof window[name], `window.${name} is not installed`).toBe("function");
+  // The REGISTRY since D248, not `window.*` — app-shell registers its doors
+  // into data/nav rather than publishing them, so this asserts the door
+  // exists there. Same guarantee, and it still fails loudly if the shell
+  // stopped registering: `can()` is false and the expect below names it.
+  expect(NAV.can(name), `nav door "${name}" is not registered`).toBe(true);
   // AWAITED act, because these openers are async: each awaits loadOverlays()
   // before setting the state that mounts its overlay (spec-index.js,
   // app-shell's openDeferred). A bare synchronous `act(() => …)` returns before
   // the promise settles, so every assertion would run against the frame BEFORE
   // the overlay rendered — which is the vacuous pass these suites exist to
   // prevent, wearing a new shape.
-  await act(async () => { await window[name](...args); });
+  await act(async () => { await NAV[name](...args); });
 }
 
 // Copy only the opened overlay renders. textContent, not getByText, because

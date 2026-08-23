@@ -25,6 +25,13 @@
 // rather than falling back to a plausible number. And it has no `friends`
 // kind: the prototype's best line is "3 of 5 friends went the other way",
 // which is a named who-voted at world scale and exactly what D1 rules out.
+// Hoisted `export let`, assigned inside the IIFE — the shape DAILYQ,
+// FRIENDS, PICKS and PLACESTATS were converted with (D249). The FEEDREAD
+// mirror stays for app-shell.jsx and mirror-field-pops.jsx; `feedInsight`
+// has no mirror because world-feed.jsx was its only reader.
+export let FEEDREAD;
+export let feedInsight;
+
 (function () {
   const LS = 'insight.readRoom.v1';
   function load() {
@@ -39,7 +46,7 @@
     try { localStorage.setItem(LS, JSON.stringify(S)); } catch { /* best-effort: private mode, quota */ }
   }
 
-  window.FEEDREAD = {
+  FEEDREAD = {
     // maj = you were with the majority. First write per question wins —
     // answers are immutable server-side (D5), so the memory of one must be
     // too, or the strip and the aggregate could tell different stories
@@ -80,7 +87,7 @@
   // here is publishable by construction, and this adds no disclosure of its
   // own. Returns null for anything it cannot say honestly: a demo card, a
   // question below the floor, a breakdown with nothing surprising in it.
-  window.feedInsight = function feedInsight(q) {
+  feedInsight = function feedInsightImpl(q) {
     if (!q || !q.live || !q.options || q.options.length < 2) return null;
     const L = window.LIVE;
     const agg = L && L.enabled && L.aggFor ? L.aggFor(q.id) : null;
@@ -126,3 +133,4 @@
     return { kind: best.kind, group: label, sideIdx: best.sideIdx, pct: best.pct, dim: best.dim };
   };
 })();
+window.FEEDREAD = FEEDREAD;

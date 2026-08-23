@@ -58,7 +58,7 @@ const WORLD_FEED_COUNTERS = {
 // Two derived signals per take, stable per key: how many people it moved, and
 // how much of its support came from the other side. Sits in data so the view
 // stays a view.
-window.WF_TAKE_SIG = function (key, ups) {
+export function WF_TAKE_SIG(key, ups) {
   let h = 2166136261;
   for (let i = 0; i < key.length; i++) { h ^= key.charCodeAt(i); h = Math.imul(h, 16777619); }
   const r = ((h >>> 0) % 10000) / 10000;
@@ -66,13 +66,13 @@ window.WF_TAKE_SIG = function (key, ups) {
   const hasCounter = !!WORLD_FEED_COUNTERS[key];
   const cross = 0.14 + r * 0.62 + (hasCounter ? 0.06 : 0);
   return { mind: Math.max(1, Math.round((ups || 40) * (0.04 + r2 * 0.22))), cross: Math.min(0.86, cross) };
-};
+}
 
 // counters normalise to a list — a take can draw several rebuttals, shown one
 // at a time. Strongest (by minds moved) first.
-window.WF_COUNTERS = function (key) {
+export function WF_COUNTERS(key) {
   const v = WORLD_FEED_COUNTERS[key];
   if (!v) return [];
-  const list = (Array.isArray(v) ? v : [v]).map((x, i) => ({ ...x, sig: window.WF_TAKE_SIG(key + '#' + i, x.ups), ckey: key + '#' + i }));
+  const list = (Array.isArray(v) ? v : [v]).map((x, i) => ({ ...x, sig: WF_TAKE_SIG(key + '#' + i, x.ups), ckey: key + '#' + i }));
   return list.sort((a, b) => b.sig.mind - a.sig.mind);
-};
+}

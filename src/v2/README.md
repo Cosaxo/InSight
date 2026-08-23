@@ -323,6 +323,16 @@ Run it for the live figure rather than quoting one here (D39,
 | `CityPicker` | every emitted value matches the server's own city shape; all five location failures land somewhere usable; a located city is suggested, never applied |
 | `PickSearch` | the id handed up is the catalogue key, not the row position; each domain searches its own store; "not listed" stays a distinct answer |
 | `LivePrivacyPanel` | deleting an account takes two deliberate taps, and a refused delete is shown rather than swallowed |
+| `LiveSimilarityField` | the radius is likeness INVERTED, so a better match sits nearer the centre the aria-label promises; no two nodes stack at any cap the app ships (D225 — the de-overlap pass was not circular and failed at all three); a likeness ranked from answers rather than scores says so; Near draws no name, no initials and no tab stop; a place below `MIN_PLACE_AXES` is listed and never positioned; an empty field still draws the ring (D160) |
+| `LiveAnswerRows` | the headline reads BY TYPE (a rating leads with its average, a scale with how much of the room agrees) — dropping `row.type` compiles and then every rating leads with the share who picked a 7; a question this cohort has not answered still draws its options at an explicit zero; a share is printed only where it reads as one, every other bar carries its exact count (D98); the standing sentence is never a percentage of ONE answer (D170); and "most divisive" and "most agreed" are the two orderings they claim |
+| `profileSetup` | the GATE, not the screen — the persistence contract `LiveProfileSetup.test.tsx` never touches (it does not import these two functions at all): the fact is on the DEVICE, re-read per call, so a boot-time snapshot would pass every other test in this tree; the key sits inside the `insight.*` namespace D51's purge sweeps, or it survives an account deletion and the next account on that device is never asked; and seen beats every reason to ask |
+| `duelMarks` | a mark is coloured by an ID and never by the name printed beside it — two members called Ada are two people, and `markHue(name || uid)` compiles, reads tidier, and gives two strangers one colour; shape is KIND (round is a person, a rounded square a circle) at every size; each mark reads its OWN initials rule, a swap tsc cannot see; and nothing is invented from an id — no name means a dot, because an initial made out of a uid is a name we made up and showed to the person it is about |
+| `Avatar` | each face is its OWN (a captured uid dresses a whole list in one stranger's photo — the only defect here that looking twice does not correct); the branch is on the URL, not the token, so a build with no bucket does not get `<img src="">` on every face; a failed load falls back to initials keyed by UID rather than by slot, since Near re-orders under a mounted component and React keeps state at the POSITION; the photo is named and the initials are silent; and `initialsOf` is executed, never stubbed — this is the only suite that runs it |
+| `EmptyField` | the licensed copy stays a copy — the geometry is compared against `LiveSimilarityField`'s original rather than pinned to literals, because neither tsc nor check:globals can see the two drift; the drawing comes first and alone, `aria-hidden`, with the sentence as the readable half; and `prime` runs BEFORE the nav jump (D190), the ordering the door depends on |
+| `LiveCompareLens` | attribution — two people's numbers inside one picture, so each score keeps its own side axis for axis (swap either and every card reads as its mirror image with every number on it still correct); an instrument only ONE of you has draws no card, and an axis their side lost to its floor leaves the rose rather than sitting at a neutral 50; the three emptinesses stay apart; your side folds through `voteIndices`, because the store's option ids are STRINGS and a raw `myVotes()` folds to nothing while looking reasonable in the diff (D132) |
+| `MirrorLensTabs` | the row is the list it was handed, in that order (Explore is the World's alone, Compare ends the row); exactly one tab reports `aria-selected`, and it is the caller's; CLOSED is closed — a stop opens with nothing open and an `open` that is not in `tabs` must read as nothing rather than as the first tab; a tap on the already-open tab still goes up as that tab's id, which is how all four callers close a stop; and the size ladder steps down as the row widens, the row being unscrollable |
+| `PulseCard` | the card draws the pulse it was HANDED, not the roster's first — five identical columns all recording against one pulse is the failure; it is blind until you answer; the dot you tap is the optionIdx recorded (the 1..5 step vs 0..4 wire is where an off-by-one names itself back to you correctly); absent is not zero; the reading's 21-day window is fetched on the tap, never on the open |
+| `SignInGate` | a build that will not show the wall never fetches the screen chunk (the split is the whole reason it is two files, and only a bundle ceiling can otherwise see it); off, it renders no element of its own; behind the wall the app is not merely hidden but unmounted; and the wall COMES DOWN — `linked` flips on the store's auth observer, so dropping the subscription strands a user who signed in successfully |
 
 Each of those rows was **mutation-checked**: the property was broken in the
 component, the suite was watched to fail, and the change reverted. A
@@ -390,8 +400,9 @@ It is separate from `npm run lint` because that script carries
 "warn" tier to hold existing debt, and the alternative would be the blanket
 disable this file's Lint suppressions section exists to prevent.
 
-The baseline is **8**: 5 in `spec/`, plus two deliberate `autoFocus` keeps
-on picker search fields. It opened at 69 and came down in four steps — D23
+The baseline is **7**: 4 in `spec/`, plus three elsewhere. Every one of the
+seven is a deliberate keep (D250), each with its reason recorded beside it
+in `BASELINE`. It opened at 69 and came down in four steps — D23
 turned the mouse-only controls into buttons, D24 made every overlay and
 sheet a real modal dialog, D35 gave the Basics editor's selects explicit
 `htmlFor`/`id` pairs, which cleared `label-has-associated-control` entirely
@@ -400,9 +411,10 @@ winning the accessible-name computation, so the chosen city never reached a
 screen reader), and D49 made the post-vote beat's Skip control a real
 button.
 
-What is left is **seven `no-autofocus` findings** and **one
+What is left is **six `no-autofocus` findings** and **one
 `no-static-element-interactions`** in `src/dev/TweaksPanel.jsx`, the host-era debug
-panel rather than a user surface. (The v18 sync retired one more autofocus
+panel rather than a user surface — which is behind a build-time flag, so a
+production build has no import of it at all. (The v18 sync retired one more autofocus
 with the relmap add-circle input it replaced by rename-in-place.)
 
 That sentence used to say "six `no-autofocus` findings and three
@@ -417,12 +429,40 @@ A count kept by hand drifts even inside a paragraph whose own file is
 gate-enforced; prefer "run the gate" to a number, and where a number is
 load-bearing, make the gate own it.
 
-The remaining autofocus findings stay deferred for the reason the React
-Compiler ones do — changing focus behaviour in ported components no test
-asserts the interaction of is the blind change that trade refuses. Fix them
-behind interaction tests, not ahead of them:
-`test/consequence-beat.test.jsx` is what that looks like, and
-`test/dialog.test.jsx` is the precedent it follows.
+**That sentence has now been wrong twice, and D250 is the second
+correction.** It read: "the remaining autofocus findings stay deferred for
+the reason the React Compiler ones do — changing focus behaviour in ported
+components no test asserts the interaction of is the blind change that
+trade refuses. Fix them behind interaction tests, not ahead of them."
+
+The trade was real and the conclusion was not, because nobody had looked at
+the sites. When D250 did, six of the seven turned out to be the SAME case
+the two pickers were already excused for: a control the reader has just
+asked for — a search rendered only when `searchOpen`, a reply box rendered
+only when `replyTo` names that take, the name field of a sheet they opened.
+Moving focus there is correct behaviour, and `no-autofocus` is a heuristic
+against focus moving on LOAD. Deleting those props to lower a number would
+make the app worse, so they are recorded as decisions instead.
+
+**The seventh was a real defect, and it was hiding behind a justification
+that happened to be true.** app-shell's update-required blocker is the one
+dialog here that is NOT user-initiated, and focus SHOULD enter a modal when
+it opens — so its `autoFocus` read as correct, and stopped anyone looking
+further. What the prop could not do is keep focus there: the blocker had
+role, aria-modal and a label written by hand and no focus trap, so Tab
+walked out into the app behind it, which is still in the DOM under an
+absolutely positioned overlay. Containment is runtime behaviour, so no
+linter reported it. It goes through `useDialog` now — the hook D24 gave the
+other eight overlays — which traps Tab, restores focus on unmount and
+focuses the button itself, so the prop went with it.
+`test/dialog.test.jsx` holds both halves.
+
+The React Compiler suppressions are a different matter and DO stay
+deferred: 28 of them, all `react-hooks/exhaustive-deps` and
+`react-hooks/refs` on ported effects, where changing re-run timing blind is
+exactly the trade this file refuses. That refusal survives D250 unchanged —
+it was only ever the autofocus half that had been filed under it by
+association.
 
 Per file, not a total, so a fix in one file cannot pay for a regression in
 another. Lowering it is the script's own output: fix something, run it, and
@@ -488,7 +528,7 @@ side could see, caught before it landed.
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
-prints the current total on every run. The count today is **386 across 42
+prints the current total on every run. The count today is **265 across 37
 files**, down from 799 when the ratchet landed.
 
 The mechanism needs no bookkeeping, which is what makes it usable. The

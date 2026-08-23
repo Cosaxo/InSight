@@ -23,6 +23,7 @@
 // tab/app-shell handoff and dies with the session, so a stale invite
 // never resurfaces days later.
 import { reportError } from "../../lib/sentry";
+import NAV from "./nav";
 
 // One origin for every outward link (privacy page, invites). If a real
 // domain ever replaces the .web.app default, this is the single edit —
@@ -86,8 +87,8 @@ export function initDeepLinks(): void {
     const code = parseJoinCode(url);
     if (!code) return;
     stashJoinCode(code);
-    const w = window as unknown as { goTab?: (t: string) => void };
-    if (w.goTab) w.goTab("track");
+    // The registry since D248 — was a `window as unknown as {…}` cast.
+    NAV.goTab("track");
     window.dispatchEvent(new Event("insight-live-update"));
   };
   try {
