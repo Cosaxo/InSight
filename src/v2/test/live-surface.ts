@@ -130,6 +130,11 @@ export const LIVE_MEMBERS = [
   // flattened from the published `by`, and one segment's ordering of the
   // global board (D17).
   "votePick", "pickCanon", "pickSegs", "pickSeg",
+  // Rank answers (D232): the create-only order write. The crowd order is
+  // not a member — buildFeedGlobals derives it onto the card (`crowd`)
+  // from the published position sums, so the spec layer reads it off the
+  // pool exactly as the demo authored it.
+  "voteRank",
   // Foresight CALL, tier A (D194): the bank's calls with their folded
   // counts, the published grades (null per call = fetched-and-ungraded,
   // the whole map null = nothing read yet — the card draws different

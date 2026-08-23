@@ -605,7 +605,11 @@ class WorldFeed extends React.Component {
     );
   }
 
-  // ranking: tap items in order; tapping an assigned item un-assigns it
+  // ranking: tap items in order; tapping an assigned item un-assigns it.
+  // A COMPLETED order on a live card persists through LIVE.voteRank
+  // (D232) — create-only, so the double-invoke React may give this
+  // updater is a no-op on the second pass, the same property that makes
+  // the wfSave beside it safe.
   tapRank(q, i) {
     HAPTIC.tick();
     this.setState((s) => {
@@ -615,10 +619,25 @@ class WorldFeed extends React.Component {
       if (cur.length === q.items.length) {
         const votes = { ...s.votes, [q.id]: { order: cur } };
         wfSave(votes);
+        const L = q.live && window.LIVE;
+        if (L && L.voteRank) L.voteRank(q.id, cur);
         return { votes, pending: { ...s.pending, [q.id]: [] } };
       }
       return { pending: { ...s.pending, [q.id]: cur } };
     });
+  }
+
+  // a live ranking may exist only server-side (fresh device, no local
+  // mirror yet) — myVotes holds the joined order (dialVal's precedent)
+  rankVal(q) {
+    const v = this.state.votes[q.id];
+    const L = window.LIVE;
+    if ((v && v.order) || !q.live || !L || !L.myVotes) return v;
+    const b = L.myVotes()[q.id];
+    if (typeof b !== 'string' || b.indexOf(',') < 0) return v;
+    const order = b.split(',').map(Number);
+    return order.length === q.items.length && order.every((x) => Number.isInteger(x) && x >= 0 && x < q.items.length)
+      ? { order } : v;
   }
 
   // rate cards: score a place 1–10; feeds the city/country/world scorecards
@@ -1409,7 +1428,8 @@ class WorldFeed extends React.Component {
       wfSave(votes);
       return { votes };
     });
-    if (q.live && window.LIVE && window.LIVE.votePick) window.LIVE.votePick(q.id, entity);
+    const L = q.live && window.LIVE;
+    if (L && L.votePick) L.votePick(q.id, entity);
     else if (window.PICKS) window.PICKS.pick(q.id, entity);
   }
 
@@ -1417,8 +1437,8 @@ class WorldFeed extends React.Component {
   // the demo store otherwise — one seam, so renderPick and the thin bar
   // cannot disagree about where a board comes from.
   pickSrc(q) {
-    if (q.live && window.LIVE && window.LIVE.pickCanon) {
-      const L = window.LIVE;
+    const L = q.live && window.LIVE;
+    if (L && L.pickCanon) {
       return { canon: (id) => L.pickCanon(id), segs: (id) => L.pickSegs(id), canonSeg: (id, d, b) => L.pickSeg(id, d, b), TOP_N: 10 };
     }
     return window.PICKS || null;
@@ -1469,8 +1489,9 @@ class WorldFeed extends React.Component {
   // rather than offer the picker again (dialVal's precedent)
   pickVal(q) {
     const v = this.state.votes[q.id];
-    if (v != null || !q.live || !window.LIVE || !LIVE.myVotes) return v;
-    const b = LIVE.myVotes()[q.id];
+    const L = window.LIVE;
+    if (v != null || !q.live || !L || !L.myVotes) return v;
+    const b = L.myVotes()[q.id];
     return b == null ? null : { entity: Number(b) };
   }
 
@@ -1939,7 +1960,7 @@ class WorldFeed extends React.Component {
   }
 
   renderRank(q, T, big) {
-    const done = this.state.votes[q.id];
+    const done = this.rankVal(q);
     const D = big ? 28 : 24;
     const num = (filled, label) => (
       <span style={{ width: D, height: D, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 13 : 12, boxSizing: 'border-box', background: filled ? WPAL.ink(T.color) : 'transparent', color: filled ? '#fff' : 'var(--ink-3)', border: filled ? 'none' : '1.5px solid color-mix(in oklch, var(--ink-3), transparent 40%)' }}>{label}</span>
@@ -1966,7 +1987,25 @@ class WorldFeed extends React.Component {
     }
     const order = done.order;
     const v2 = this.opts.v2;
+    // A live board nobody ELSE has ranked has no crowd to compare against
+    // (the store subtracts your own folded order \u2014 D232): your sequence
+    // stands alone, said plainly, instead of a comparison against a crowd
+    // that is only you reading as perfect agreement.
+    if (!q.crowd) {
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 9 : 7, animation: v2 ? 'none' : 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' }}>
+          {order.map((it, pos) => (
+            <div key={it} style={{ border: WF_LINE, borderRadius: big ? 13 : 11, background: 'var(--surface)', padding: big ? '11px 13px' : '8px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ width: D, height: D, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 13 : 12, background: WPAL.ink(T.color), color: '#fff' }}>{pos + 1}</span>
+              <span style={{ flex: 1, minWidth: 0, fontWeight: 700, fontSize: big ? 15 : 13.5 }}>{q.items[it]}</span>
+            </div>
+          ))}
+          <span style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-3)' }}>{'You\u2019re first \u2014 the crowd\u2019s order builds from here'}</span>
+        </div>
+      );
+    }
     const matches = order.filter((it, pos) => q.crowd[it] === pos + 1).length;
+    const matchLine = <>You matched the crowd on {matches} of {q.items.length}</>;
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: big ? 9 : 7, animation: v2 ? 'none' : 'popIn .3s cubic-bezier(0.2,0.8,0.2,1)' }}>
         {order.map((it, pos) => {
@@ -1979,7 +2018,13 @@ class WorldFeed extends React.Component {
             </div>
           );
         })}
-        <button className="press" onClick={() => this.setState({ sheet: { q, T, panel: 'stats' }, sideFilter: null, replyTo: null })} style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', padding: '2px 0', cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>You matched the crowd on {matches} of {q.items.length}<span aria-hidden="true" style={{ fontWeight: 700 }}>{'\u2192'}</span></button>
+        {/* The sheet behind the demo's arrow is renderRankStats \u2014 a
+            fabricated friends-cohort read. A live card has no honest
+            rank breakdown to open (the fold publishes sums, no by \u2014
+            D232), so the line states the match and stops. */}
+        {q.live
+          ? <span style={{ alignSelf: 'flex-start', padding: '2px 0', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-3)' }}>{matchLine}</span>
+          : <button className="press" onClick={() => this.setState({ sheet: { q, T, panel: 'stats' }, sideFilter: null, replyTo: null })} style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', padding: '2px 0', cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>{matchLine}<span aria-hidden="true" style={{ fontWeight: 700 }}>{'\u2192'}</span></button>}
       </div>
     );
   }
@@ -1989,7 +2034,7 @@ class WorldFeed extends React.Component {
     // a live continuum answer may exist only server-side (fresh device, no
     // local raw value) — the bucket in myVotes is still an answer, and the
     // card must show its reveal rather than offer the question again
-    if ((q.type === 'dial' || q.type === 'field' || q.type === 'pick') && v == null && q.live && LIVE.myVotes) {
+    if ((q.type === 'dial' || q.type === 'field' || q.type === 'pick' || q.type === 'rank') && v == null && q.live && LIVE.myVotes) {
       return LIVE.myVotes()[q.id] != null;
     }
     return q.type === 'rank' ? !!(v && v.order) : v != null;
@@ -3383,7 +3428,10 @@ class WorldFeed extends React.Component {
       return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>you {v}/10 · crowd {c ? c.avg.toFixed(1) : '—'}</span>;
     }
     if (q.type === 'rank') {
-      const done = this.state.votes[q.id];
+      const done = this.rankVal(q);
+      if (!done || !done.order) return null;
+      // no crowd yet (live first voter, D232) — "ranked" is the whole read
+      if (!q.crowd) return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>ranked</span>;
       const m = done.order.filter((it, pos) => q.crowd[it] === pos + 1).length;
       return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>ranked{' · '}{m}/{q.items.length} with the crowd</span>;
     }

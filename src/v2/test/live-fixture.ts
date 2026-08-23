@@ -94,6 +94,14 @@ export interface LiveFixtureOptions {
    * pickCanon/pickSegs/pickSeg above serve its board.
    */
   pickCard?: boolean;
+  /**
+   * Append one live rank card (D232), shaped as buildFeedGlobals emits
+   * it: items, a DERIVED crowd (1-based rank per item), votes from the
+   * agg total. Opt-in for pickCard's reason. `tooSmall` empties the
+   * crowd to null — the first-voter state, where the card must render
+   * your order without a crowd column.
+   */
+  rankCard?: boolean;
 }
 
 const OPTION_COLORS = ["var(--c-around)", "var(--c-today)", "var(--c-likeness)"];
@@ -109,6 +117,9 @@ export const PATH_TITLE = "Fixture Crossroads: the forked road";
 // The pick card's prompt (D14) — unique for FEED_PROMPT's reason: a test
 // must be able to say which card it has hold of.
 export const PICK_PROMPT = "Fixture pick card: your favourite fixture?";
+
+// The rank card's prompt (D232), same rule.
+export const RANK_PROMPT = "Fixture rank card: order the fixtures";
 
 function liveQuestion(
   id: string,
@@ -479,6 +490,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       !tooSmall && dim === "ageBand" && bucket === "18-24"
         ? { rows: [{ entity: 128514, count: 5 }, { entity: 10084, count: 2 }], cohort: 7 }
         : null),
+    // Rank answers (D232): the create-only order write, into the shared
+    // votes map in the store's own joined form.
+    voteRank: (qid: string, order: number[]) => {
+      if (!votes[qid]) votes[qid] = order.join(",");
+    },
     // Foresight CALL, tier A (D194). One open call, ungraded — the state
     // the feed head shows most of the time, and the one the mount tests
     // care about (the card renders, and it renders REAL bank shape rather
@@ -662,6 +678,23 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       domain: "emoji",
       prompt: PICK_PROMPT,
       n: tooSmall ? 0 : 16,
+      live: true,
+      noCountsYet: !!tooSmall,
+    });
+  }
+  // The live rank card (D232), buildFeedGlobals' own shape. The crowd is
+  // pre-derived (the store does that, not the card) — null in the
+  // tooSmall/first-voter arm, where renderRank must show your order and
+  // no crowd column rather than crashing on q.crowd[it].
+  if (opts.rankCard) {
+    (w.WORLD_FEED_QS as Dict[]).push({
+      id: "rank-fixture",
+      cat: "culture",
+      type: "rank",
+      prompt: RANK_PROMPT,
+      items: ["Alpha", "Beta", "Gamma", "Delta"],
+      crowd: tooSmall ? null : [1, 3, 2, 4],
+      votes: tooSmall ? 0 : 9,
       live: true,
       noCountsYet: !!tooSmall,
     });

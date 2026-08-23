@@ -420,6 +420,18 @@ service cloud.firestore {
             && request.resource.data.qid == aid
             && request.resource.data.optionIdx
               < get(/databases/$(database)/documents/v2_questions/$(aid)).data.options.size()
+            // A rank question takes an ORDER, never an index (D12/D232).
+            // Without this clause a raw-API optionIdx write would pass —
+            // rank docs carry real options, so the size bound holds — and
+            // the vote fold would then clobber the rank aggregate's
+            // {pos, total} with {counts}: the exact wrong-shaped-answer
+            // poisoning D12 pulled the cards for, back through the side
+            // door. Catalog questions never needed the clause because
+            // their options list is empty and the size bound above
+            // already refuses every index. The get() is deduped with the
+            // two below, so the clause costs no extra read.
+            && get(/databases/$(database)/documents/v2_questions/$(aid))
+                 .data.get("type", "") != "rank"
             // Honour the operational kill switch: a question flipped
             // inactive stops accepting answers, not just showing itself.
             && get(/databases/$(database)/documents/v2_questions/$(aid))
@@ -445,6 +457,37 @@ service cloud.firestore {
         // (CATALOG_DOMAINS, functions/src/v2.ts) and an unknown key
         // never aggregates; a thousand-entry `in` list is not a rules
         // construct.
+        // Rank answers (D12 → D232): a ranking is an ORDER, not an index —
+        // `order` is the item indexes in the answerer's sequence, and
+        // there is no optionIdx at all (a synthetic one would let the
+        // answer leak into option-shaped folds, which is D12's poisoning
+        // with extra steps). Rules bound the list — its size must be the
+        // question's own item count — but cannot iterate it (no forall),
+        // so element validation is the trigger's: a malformed permutation
+        // is dropped at fold time, the same trust boundary every catalog
+        // key already crosses. Feed-only: rank questions exist on no
+        // other surface. Create-only forever — the D86 edit arm keys on
+        // the OLD doc carrying optionIdx, which an order answer never
+        // does, so ranks are immutable without a clause naming them.
+        function isRankAnswer() {
+          return request.resource.data.keys().hasOnly([
+              "qid", "surface", "order", "answeredAt", "anchors",
+            ])
+            && request.resource.data.surface == "feed"
+            && request.resource.data.qid == aid
+            && request.resource.data.order is list
+            && request.resource.data.order.size() >= 2
+            && request.resource.data.order.size()
+              == get(/databases/$(database)/documents/v2_questions/$(aid)).data.options.size()
+            && get(/databases/$(database)/documents/v2_questions/$(aid))
+                 .data.get("type", "") == "rank"
+            // same kill switch and surface agreement as isWorldAnswer
+            && get(/databases/$(database)/documents/v2_questions/$(aid))
+                 .data.get("active", true) == true
+            && get(/databases/$(database)/documents/v2_questions/$(aid))
+                 .data.get("surface", "daily") == "feed";
+        }
+
         function isCatalogAnswer() {
           return request.resource.data.keys().hasOnly([
               "qid", "surface", "entity", "answeredAt", "anchors",
@@ -654,6 +697,9 @@ service cloud.firestore {
             // field out. They feed aggregates, so they carry the D29
             // binding the duel branch is exempt from.
             || (isCatalogAnswer() && deviceBound())
+            // Rank answers carry `order` (D232) — same arrangement: their
+            // own branch beside the optionIdx block, the same binding.
+            || (isRankAnswer() && deviceBound())
           );
         // D86 unlocks ONE edit shape on world-scope opinion answers:
         // optionIdx moves, everything else is frozen. What stays immutable,
@@ -668,6 +714,10 @@ service cloud.firestore {
         //     the `resource.data.optionIdx is int` guard (the OLD doc must
         //     already have one) keeps them out until a delta path for the
         //     canon exists;
+        //   - rank answers (D232): they carry `order`, not `optionIdx`,
+        //     so the same OLD-doc guard keeps them create-only — moving a
+        //     ranking would need a -old/+new delta through the position
+        //     sums, a path nobody has wanted yet;
         //   - the anchors SNAPSHOT and answeredAt: frozen, so an edit moves
         //     which option you hold, never which cohort you were in when
         //     you first answered (D8) — and the aggregate delta stays a

@@ -2731,8 +2731,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "sport",
   "axis": null,
-  "test": null,
-  "core": true
+  "test": null
  },
  {
   "id": "feed-f04",
@@ -2853,8 +2852,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "food",
   "axis": null,
-  "test": null,
-  "core": true
+  "test": null
  },
  {
   "id": "feed-f11",
@@ -2957,8 +2955,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "movies",
   "axis": null,
-  "test": null,
-  "core": true
+  "test": null
  },
  {
   "id": "feed-f17",
@@ -3061,8 +3058,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "music",
   "axis": null,
-  "test": null,
-  "core": true
+  "test": null
  },
  {
   "id": "feed-f23",
@@ -3167,8 +3163,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "tech",
   "axis": null,
-  "test": null,
-  "core": true
+  "test": null
  },
  {
   "id": "feed-f29",
@@ -3274,8 +3269,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "culture",
   "axis": null,
-  "test": null,
-  "core": true
+  "test": null
  },
  {
   "id": "feed-f35",
@@ -3636,8 +3630,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "bigq",
   "axis": null,
-  "test": null,
-  "core": true
+  "test": null
  },
  {
   "id": "feed-s01",
@@ -3719,8 +3712,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "sport",
   "axis": null,
-  "test": null,
-  "core": true
+  "test": null
  },
  {
   "id": "feed-s06",

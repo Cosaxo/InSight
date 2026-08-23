@@ -71,15 +71,15 @@
 //   budget  = 0  if open ≥ OPEN_MAX, else
 //             min(RUN_CAP, OPEN_MAX − open, max(0, deficit − open))
 //
-// WHAT COUNTS AS DEPTH, and why the count is not `questions.length`. Two feed
-// types are in the bank and cannot reach a reader: `rank` is not live-servable
-// (D12) and `duel`-type feed cards are prototype legacy. Counting them would
-// let a topic read as covered on questions nobody can be served — `sport` sits
-// at 13 entries and 10 servable ones, and it is the 10 that a reader meets.
-// Scene-attached `sNN` entries DO count: they are ordinary votes, the seed
-// emits them, and a reader cannot tell them from any other card. They are out
-// of the lane's AUTHORING scope, which is a different question from whether
-// they cover a topic.
+// WHAT COUNTS AS DEPTH, and why the count is not `questions.length`. One feed
+// type is in the bank and cannot reach a reader: `duel`-type feed cards are
+// prototype legacy. Counting them would let a topic read as covered on
+// questions nobody can be served. `rank` left this exclusion at D232 — an
+// answer can carry an order now, so a rank card covers its topic like any
+// other. Scene-attached `sNN` entries DO count: they are ordinary votes, the
+// seed emits them, and a reader cannot tell them from any other card. They
+// are out of the lane's AUTHORING scope, which is a different question from
+// whether they cover a topic.
 //
 // This is an operator/run tool, not a CI gate — the CI-side feed gates are
 // check:quality's feed surface and check:content's structural half.
@@ -96,10 +96,11 @@ export const TOPIC_TARGET = 24;
 export const OPEN_MAX = 6;
 
 // The forms a reader can actually be served (QUESTION-FARM.md § The feed lane,
-// plus D12 for rank and D136 for path). `path` joined the servable set when
-// Crossroads went live; the lane's authorable list is a subset of this one,
-// because a legacy `duel` card still covers its topic for a reader.
-export const SERVABLE_TYPES = new Set(["vote", "dial", "field", "path"]);
+// plus D136 for path and D232 for rank). `path` joined the servable set when
+// Crossroads went live and `rank` when answers learned to carry an order; the
+// lane's authorable list is a subset of this one, because a legacy `duel`
+// card still covers its topic for a reader.
+export const SERVABLE_TYPES = new Set(["vote", "rank", "dial", "field", "path"]);
 
 // Pure: everything the CLI prints derives from this one function, so the test
 // pins the budget the lane actually gets.

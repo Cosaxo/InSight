@@ -143,6 +143,11 @@ export interface CallOutcome {
 export interface AggDoc {
   counts?: Record<string, number>;
   total?: number;
+  // Rank questions' aggregate (D232): per-item POSITION SUMS — pos[i] is
+  // the sum of the 0-based positions every answerer gave item i — from
+  // which the crowd order derives (rankCrowdFor below). Present only on
+  // rank questions' aggregates, which carry no counts and no by.
+  pos?: number[];
   // The catalog canon (D14): the published board — the CANON_TOP_N biggest
   // entities as key → count — and everything outside it summed into
   // `rest`. Present only on catalog questions' aggregates, whose `by` maps
@@ -293,6 +298,44 @@ export function hasPublishedCounts(agg: AggDoc | undefined): boolean {
   return !!agg && typeof agg.total === "number" && agg.total > 0;
 }
 
+/**
+ * The crowd's 1-based rank per item for a rank question (D232), derived
+ * from the published position sums — EXCLUDING the viewer's own folded
+ * order, the same subtract-own convention countsFor keeps. The demo's
+ * crowd is authored strangers; live, a "crowd" that is mostly you would
+ * make the reveal's match line a mirror, so the comparison is you
+ * against everyone else. `mine` is the viewer's stored order (null when
+ * unanswered); once the trigger folds it (`pending` false) its positions
+ * come back out here and the card compares against the remainder.
+ *
+ * Null means NO CROWD: nobody has ranked, or only the viewer has — the
+ * card's first-voter state, not an error. Ties break by item index so
+ * equal sums render identically on every device.
+ */
+export function rankCrowdFor(
+  agg: AggDoc | undefined,
+  mine: number[] | null,
+  pending: boolean,
+): number[] | null {
+  const pos = agg?.pos;
+  const total = agg?.total ?? 0;
+  if (!Array.isArray(pos) || pos.length < 2 || total <= 0) return null;
+  const rest = [...pos];
+  let n = total;
+  if (mine && !pending && mine.length === rest.length) {
+    for (let p = 0; p < mine.length; p++) {
+      const item = mine[p];
+      if (Number.isInteger(item) && item >= 0 && item < rest.length) rest[item] -= p;
+    }
+    n -= 1;
+  }
+  if (n <= 0) return null;
+  const byMean = [...rest.keys()].sort((a, b) => rest[a] - rest[b] || a - b);
+  const crowd = new Array<number>(rest.length).fill(0);
+  byMean.forEach((item, i) => { crowd[item] = i + 1; });
+  return crowd;
+}
+
 export function buildS(
   q: QuestionDoc & { id: string },
   // Null for a question that is not on the pager at all — the Mirror's
@@ -412,10 +455,16 @@ export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
     // the duel lane's "pick" precedent: a catalog doc carries no options
     // because the shipped catalogue is its answer space (D14), so the
     // options gate that drops malformed docs would drop every pick card.
+    //
+    // Rank rides the lane again since D232 — D12's exclusion lived here
+    // for as long as an answer could not carry an order. It can now
+    // (`order`, rules + fold + LIVE.voteRank), and buildFeedGlobals maps
+    // rank docs to their own card type, so the pick-one poisoning D12
+    // pulled them for is structurally gone rather than filtered around.
     feed: active.filter(
       (q) =>
         (q.surface === "feed" || q.surface === "test") &&
-        (q.type === "catalog" || (playable(q) && q.type !== "rank")),
+        (q.type === "catalog" || playable(q)),
     ),
     duel: active.filter(
       (q) =>

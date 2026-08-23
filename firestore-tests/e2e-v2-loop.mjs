@@ -725,6 +725,87 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
   ok("Not listed: counted in the total, folded into rest, never enumerated");
 }
 
+// 9d · rank answers (D232): an ORDER rides the create-only path and the
+// trigger folds per-item position sums — {total, pos} — instead of
+// counts. The refusals split across the two boundaries by design: rules
+// refuse the wrong SHAPES (an index on a rank question — the D12
+// poisoning through the raw API — an order on a vote question, a
+// wrong-size list, any edit), while a wrong-ELEMENT order passes rules
+// and dies at the trigger's permutation check, exactly like an unknown
+// catalog key.
+{
+  const RQ = "feed-f03"; // "Pure athleticism — rank them", 4 items
+  const rqDoc = await getDoc(doc(db, "v2_questions", RQ));
+  if (!rqDoc.exists() || rqDoc.get("type") !== "rank" || (rqDoc.get("options") || []).length !== 4)
+    fail("the rank seed did not land as a 4-item rank doc: " + JSON.stringify(rqDoc.data() || null));
+  await setDoc(doc(db, "v2_users", uid, "answers", RQ), {
+    qid: RQ, surface: "feed", order: [2, 0, 1, 3],
+    answeredAt: serverTimestamp(),
+    anchors: { ageBand: "25-34", country: "NO", city: "Oslo, NO" },
+  });
+  let rpub = null;
+  for (let i = 0; i < 40; i++) {
+    const snap = await getDoc(doc(db, "v2_question_aggs", RQ));
+    if (snap.exists()) { rpub = snap.data(); break; }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!rpub) fail(`rank agg never published after ${40 * 500}ms — the order fold did not fire, or did not finish in time`);
+  // order [2,0,1,3] gives item positions 2→0, 0→1, 1→2, 3→3
+  if (rpub.total !== 1 || JSON.stringify(rpub.pos) !== JSON.stringify([1, 2, 0, 3]))
+    fail("first order did not fold exactly: " + JSON.stringify(rpub));
+  if (rpub.counts !== undefined)
+    fail("a rank aggregate grew a counts map — the vote fold ran on an order doc: " + JSON.stringify(rpub));
+  ok("rank: first order folded exactly — {total 1, pos [1,2,0,3]}, no counts");
+
+  await expectDenied("duplicate ranking refused by rules", () =>
+    setDoc(doc(db, "v2_users", uid, "answers", RQ), {
+      qid: RQ, surface: "feed", order: [0, 1, 2, 3],
+      answeredAt: serverTimestamp(), anchors: {},
+    }));
+  await expectDenied("optionIdx refused on a rank question (the D12 side door)", () =>
+    setDoc(doc(db, "v2_users", uid, "answers", "feed-f10"), {
+      qid: "feed-f10", surface: "feed", optionIdx: 0,
+      answeredAt: serverTimestamp(), anchors: {},
+    }));
+  await expectDenied("a wrong-size order refused by rules", () =>
+    setDoc(doc(db, "v2_users", uid, "answers", "feed-f10"), {
+      qid: "feed-f10", surface: "feed", order: [0, 1],
+      answeredAt: serverTimestamp(), anchors: {},
+    }));
+  await expectDenied("a ranking cannot be edited (create-only, D232)", () =>
+    updateDoc(doc(db, "v2_users", uid, "answers", RQ), {
+      order: [0, 1, 2, 3], editedAt: serverTimestamp(),
+    }));
+
+  // The element refusal is the TRIGGER's: [0,0,0,0] clears every rules
+  // bound (right length, a list) and names no permutation. Write it, then
+  // a VALID second ranking — when that lands at total 2 with the right
+  // sums, the invalid one has provably been dropped.
+  const rApps = [];
+  for (const [n, order] of [[0, [0, 0, 0, 0]], [1, [3, 2, 1, 0]]]) {
+    const rApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "ranker" + n);
+    rApps.push(rApp);
+    const rAuth = getAuth(rApp); connectAuthEmulator(rAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+    const rDb = getFirestore(rApp, E2E_DB_ID); connectFirestoreEmulator(rDb, "127.0.0.1", 8080);
+    const u = await signInAnonymously(rAuth);
+    await setDoc(doc(rDb, "v2_users", u.user.uid, "answers", RQ), {
+      qid: RQ, surface: "feed", order,
+      answeredAt: serverTimestamp(), anchors: {},
+    });
+  }
+  let rtwo = null;
+  for (let i = 0; i < 40; i++) {
+    const snap = await getDoc(doc(db, "v2_question_aggs", RQ));
+    if (snap.exists() && snap.get("total") >= 2) { rtwo = snap.data(); break; }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!rtwo) fail("rank agg never reached total 2");
+  // valid folds: [2,0,1,3] + [3,2,1,0] → pos [1+3, 2+2, 0+1, 3+0]
+  if (rtwo.total !== 2 || JSON.stringify(rtwo.pos) !== JSON.stringify([4, 4, 1, 3]))
+    fail("a non-permutation folded, or a valid order did not: " + JSON.stringify(rtwo));
+  ok("rank: non-permutation dropped at the trigger; valid orders sum exactly");
+}
+
 // 10 · Near presence (D84 / D174 / D176 / D177): the write path through
 // the rules, the count and the ROOM through the real callables, and the
 // gate that says you may only ask about a room you are standing in.

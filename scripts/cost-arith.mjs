@@ -288,8 +288,16 @@ export const RULE_READS = { world: 1, duel: 3, call: 2 };
 //
 // The world trigger's aggregate transaction does exactly two: tx.get on the
 // ledger event (dedup) and tx.get on the private aggregate. The catalog
-// branch adds a third for the question's domain, but catalog is not live
-// (D14), so the model charges the vote path.
+// branch (live since D231) and the rank branch (D232) each add a third —
+// the question doc, for the domain and the item count respectively — so a
+// pick or rank answer costs 3 where a vote costs 2. The model still
+// charges the vote path for every world answer, a DELIBERATE
+// approximation rather than a stale one: `B.worldAnswers` has no per-type
+// split to hang the extra read on, picks and ranks are a small slice of
+// the bank (17 + 8 of 129 feed entries), and the error is one read per
+// such answer, strictly under +50% on this term's smallest component.
+// If the mix ever tilts toward catalogue/rank-heavy feeds, split the
+// volume assumption before touching this constant.
 //
 // The duel branch of the same trigger does ZERO — it is one blind
 // arrayUnion onto the group, deliberately ("one blind write, no read").

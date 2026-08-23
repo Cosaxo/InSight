@@ -620,7 +620,9 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     if (!FEED_TYPES.has(q.type)) {
       err("type-shape", `unknown feed type ${JSON.stringify(q.type)} — vote|rank|duel|dial|field|path`);
     }
-    if (q.type === "rank") warn.push("rank type — not live-servable (D12); fine in the bank, never a lane candidate");
+    // rank is live-servable since D232 (answers carry an order); whether
+    // the FARM may author one is the lane contract's question
+    // (QUESTION-FARM.md), not a per-question warning's.
     // `cat` is REQUIRED, not merely validated-if-present. Every feed question
     // in the bank carries one, so this held by luck for as long as only humans
     // wrote them; a topic-less card has a broken kicker and never appears in
@@ -1429,9 +1431,9 @@ if (invokedDirectly) {
   });
   corpus.feed.questions.forEach((q) => {
     const { errs } = checkQuestion(q, "feed", corpus);
-    // rank's warn line stays out of gate output: the bank legitimately
-    // holds 8 rank questions (D12 keeps them out of the LIVE feed, not the
-    // bank), and a warning printed 8 times every CI run is noise.
+    // warns stay out of the feed walk's gate output (the old rank
+    // exclusion warning printed 8 times per run until D232 retired it;
+    // the suppression outlived it in case a future type earns one).
     report("feed", q.id, errs, []);
   });
   corpus.duel.forEach((q) => {

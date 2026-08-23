@@ -730,11 +730,11 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(LIVE.enabled).toBe(true);
   });
 
-  it("rank-type feed questions stay out of the live feed", async () => {
-    // The bank seeds rank questions, but no answer can carry an order yet —
-    // served as vote cards they collect single choices against a "rank
-    // them" prompt, which poisons the aggregate (D12). Fails without the
-    // q.type !== "rank" filter in hydrate's feedBank predicate.
+  it("rank-type feed questions serve as RANK cards — never flattened to votes", async () => {
+    // D12's exclusion, retired at D232. What must never come back is the
+    // failure D12 pulled the cards for: a rank doc flattened to a
+    // pick-one vote card, folding single choices into an aggregate that
+    // claims to be a ranking. Served — and served in its own shape.
     h.bankDocs.push(
       {
         id: "q_feed_vote",
@@ -748,9 +748,14 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
       },
     );
     await bootLive();
-    const feed = (window as unknown as { WORLD_FEED_QS?: Array<{ id: string }> }).WORLD_FEED_QS || [];
+    const feed = (window as unknown as {
+      WORLD_FEED_QS?: Array<{ id: string; type: string; items?: string[] }>;
+    }).WORLD_FEED_QS || [];
     expect(feed.map((q) => q.id)).toContain("q_feed_vote");
-    expect(feed.map((q) => q.id)).not.toContain("q_feed_rank");
+    const rank = feed.find((q) => q.id === "q_feed_rank");
+    expect(rank).toBeDefined();
+    expect(rank!.type).toBe("rank");
+    expect(rank!.items).toEqual(["A", "B", "C"]);
   });
 
   it("a continuum question keeps its type and range copy in the live feed (D114)", async () => {
@@ -1055,6 +1060,116 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
       });
       expect(LIVE.pickSeg("pick-pk04", "gender", "Women")).toBeNull();
       expect(LIVE.pickSegs("pick-nope")).toEqual([]);
+    });
+  });
+
+  // ── rank answers (D232) ──────────────────────────────────────────
+  const RANK_BANK = {
+    id: "feed-f03",
+    data: {
+      surface: "feed", seq: 9, type: "rank", prompt: "Pure athleticism — rank them",
+      options: ["Gymnasts", "Sprinters", "Swimmers", "Climbers"], topic: "sport",
+      test: null, active: true,
+    },
+  };
+
+  it("a rank question rides the live feed as a rank card with a DERIVED crowd", async () => {
+    // Serving it as a vote card is the exact wrong-shaped poisoning D12
+    // pulled the cards for — the mapper must keep the type and hand the
+    // card the demo's own contract: items, crowd[i] = 1-based rank of
+    // item i, votes from the total.
+    h.bankDocs.push(RANK_BANK);
+    storage.setItem("insight.aggsCache.v1", JSON.stringify({
+      "feed-f03": { total: 3, pos: [4, 5, 3, 6] },
+    }));
+    await bootLive();
+    const feed = (window as unknown as {
+      WORLD_FEED_QS?: Array<{ id: string; type: string; items?: string[]; crowd?: number[] | null; votes?: number; options?: unknown }>;
+    }).WORLD_FEED_QS || [];
+    const rank = feed.find((q) => q.id === "feed-f03");
+    expect(rank).toBeDefined();
+    expect(rank!.type).toBe("rank");
+    expect(rank!.items).toEqual(["Gymnasts", "Sprinters", "Swimmers", "Climbers"]);
+    expect(rank!.crowd).toEqual([2, 3, 1, 4]);
+    expect(rank!.votes).toBe(3);
+  });
+
+  it("hydrates an order answer, mirrors it in the card's shape, and shows NO crowd to its only voter", async () => {
+    h.bankDocs.push(RANK_BANK);
+    h.answerDocs.push({
+      id: "feed-f03",
+      data: { qid: "feed-f03", surface: "feed", order: [2, 0, 1, 3], answeredAt: { toMillis: () => 5 } },
+    });
+    // the aggregate holds exactly the viewer's own fold
+    storage.setItem("insight.aggsCache.v1", JSON.stringify({
+      "feed-f03": { total: 1, pos: [1, 2, 0, 3] },
+    }));
+    const LIVE = await bootLive();
+    expect(LIVE.myVotes()).toMatchObject({ "feed-f03": "2,0,1,3" });
+    const rank = ((window as unknown as { WORLD_FEED_QS?: Array<{ id: string; crowd?: number[] | null }> }).WORLD_FEED_QS || [])
+      .find((q) => q.id === "feed-f03");
+    // a crowd that is only you would read as perfect agreement — null is
+    // the honest first-voter state the card renders as "you're first"
+    expect(rank!.crowd).toBeNull();
+    const wf = JSON.parse(storage.getItem(WF_LS) || "{}");
+    expect(wf["feed-f03"]).toEqual({ order: [2, 0, 1, 3] });
+  });
+
+  describe("voteRank (D232): the create-only order write", () => {
+    it("writes the order doc — no optionIdx — and caches only on server ack", async () => {
+      h.bankDocs.push(RANK_BANK);
+      const LIVE = await bootLive();
+      const d = deferred();
+      h.setDocImpl = () => d.promise;
+      LIVE.voteRank("feed-f03", [2, 0, 1, 3]);
+      expect(LIVE.myVotes()).toMatchObject({ "feed-f03": "2,0,1,3" });
+      expect(LIVE.confirmedVotes()).not.toHaveProperty("feed-f03");
+      await flush();
+      const call = h.setDocCalls.find((c) => c.path === "v2_users/uid_test/answers/feed-f03");
+      expect(call).toBeDefined();
+      expect(call!.data.order).toEqual([2, 0, 1, 3]);
+      expect(call!.data.surface).toBe("feed");
+      expect(call!.data).not.toHaveProperty("optionIdx");
+      d.resolve();
+      await flush();
+      expect(LIVE.confirmedVotes()).toMatchObject({ "feed-f03": "2,0,1,3" });
+      const cached = JSON.parse(storage.getItem(ANS_LS) || "{}");
+      expect(cached.votes).toMatchObject({ "feed-f03": "2,0,1,3" });
+    });
+
+    it("rolls back and scrubs the WF_LS mirror on a refused write", async () => {
+      h.bankDocs.push(RANK_BANK);
+      const LIVE = await bootLive();
+      storage.setItem(WF_LS, JSON.stringify({ "feed-f03": { order: [0, 1, 2, 3] } }));
+      h.setDocImpl = () => Promise.reject(new Error("PERMISSION_DENIED"));
+      LIVE.voteRank("feed-f03", [0, 1, 2, 3]);
+      await flush();
+      expect(LIVE.myVotes()).not.toHaveProperty("feed-f03");
+      expect(JSON.parse(storage.getItem(WF_LS) || "{}")).not.toHaveProperty("feed-f03");
+    });
+
+    it("is create-only and refuses every malformed order before the wire", async () => {
+      h.bankDocs.push(RANK_BANK);
+      const LIVE = await bootLive();
+      LIVE.voteRank("feed-f03", [3, 2, 1, 0]);
+      await flush();
+      const before = h.setDocCalls.length;
+      LIVE.voteRank("feed-f03", [0, 1, 2, 3]); // answered — create-only
+      LIVE.voteRank("q_1", [0, 1]); // not a rank question
+      LIVE.voteRank("feed-f03", [0, 1, 2]); // wrong length
+      LIVE.voteRank("feed-f03", [0, 1, 2, 2]); // duplicate
+      LIVE.voteRank("feed-f03", [0, 1, 2, 4]); // out of range
+      await flush();
+      expect(h.setDocCalls.length).toBe(before);
+    });
+
+    it("editVote refuses to move a ranking — create-only has no edit arm (D232)", async () => {
+      h.bankDocs.push(RANK_BANK);
+      const LIVE = await bootLive();
+      LIVE.voteRank("feed-f03", [2, 0, 1, 3]);
+      await flush();
+      expect(LIVE.editVote("feed-f03", "1")).toBe(false);
+      expect(h.updateDocCalls).toHaveLength(0);
     });
   });
 

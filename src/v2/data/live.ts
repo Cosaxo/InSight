@@ -153,6 +153,7 @@ import {
   duelQFor as duelQForPure,
   hasPublishedCounts,
   isCore,
+  rankCrowdFor,
   splitBanks,
   utcDayIndex as utcDayIndexPure,
 } from "./deck";
@@ -474,13 +475,16 @@ const REVEAL_HIST_DAYS = 14;
 // Clearing the timer alone would not close the snapshot writers.
 let torndown = false;
 
-function cacheVote(aid: string, optionIdx: number): void {
+// `stored` is the answer's value in the cache's own string form: an
+// optionIdx or entity as digits, a rank order as the joined "2,0,1,3"
+// (D232) — exactly what hydrate's fold would re-derive from the doc.
+function cacheVote(aid: string, stored: number | string): void {
   if (torndown) return;
   try {
     const ANS_LS = "insight.answersCache.v1";
     const cached = JSON.parse(localStorage.getItem(ANS_LS) || "null") || { uid: state.uid, votes: {}, maxTs: 0 };
     if (cached.uid !== state.uid) return;
-    cached.votes[aid] = String(optionIdx);
+    cached.votes[aid] = String(stored);
     localStorage.setItem(ANS_LS, JSON.stringify(cached));
   } catch {
     /* best-effort */
@@ -1091,8 +1095,8 @@ async function hydrate(): Promise<void> {
   const active = sorted.filter((q) => q.active !== false && fresh(q));
 
   // Allowlist split per surface — pure and unit-tested in deck.ts
-  // (splitBanks carries the why-comments: playability, the D12 rank
-  // exclusion, and the D32 learn fencing).
+  // (splitBanks carries the why-comments: playability, the catalog
+  // carve-out, and the D32 learn fencing).
   const banks = splitBanks(active);
   // THE DAILY LANE KEEPS ITS RETIRED QUESTIONS, as tombstones. Every other
   // surface iterates its bank, so dropping an inactive question there simply
@@ -1167,15 +1171,21 @@ async function hydrate(): Promise<void> {
     const fold = (d: { id: string; get: (f: string) => unknown }) => {
       const optionIdx = d.get("optionIdx");
       if (typeof optionIdx === "number") state.votes[d.id] = String(optionIdx);
-      // Catalog answers carry `entity`, never `optionIdx` (D14). They join
-      // the same map in the same string form — votes[] is "what did I
-      // answer", and every consumer that INTERPRETS the number goes
-      // through the question's type (mirrorVoteValue, buildFeedGlobals) —
-      // so skipping them here would re-offer the picker on a fresh device
-      // and the create-only rule would then refuse the re-pick.
+      // Catalog answers carry `entity` and rank answers carry `order` —
+      // never `optionIdx` (D14/D232). Both join the same map in string
+      // form (the entity's digits; the order joined with commas) —
+      // votes[] is "what did I answer", and every consumer that
+      // INTERPRETS the value goes through the question's type
+      // (mirrorVoteValue, buildFeedGlobals) — so skipping either here
+      // would re-offer the card on a fresh device and the create-only
+      // rule would then refuse the re-answer.
       else {
         const entity = d.get("entity");
         if (typeof entity === "number") state.votes[d.id] = String(entity);
+        else {
+          const order = d.get("order");
+          if (Array.isArray(order)) state.votes[d.id] = order.join(",");
+        }
       }
       const at = d.get("answeredAt") as { toMillis?: () => number } | undefined;
       if (at && typeof at.toMillis === "function") maxTs = Math.max(maxTs, at.toMillis());
@@ -1325,7 +1335,9 @@ async function hydrate(): Promise<void> {
     const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
     state.feedBank.forEach((q) => {
       const v = state.votes[q.id];
-      if (v != null && wf[q.id] == null) wf[q.id] = mirrorVoteValue(q, Number(v));
+      if (v == null || wf[q.id] != null) return;
+      const mv = mirrorVoteValue(q, v);
+      if (mv != null) wf[q.id] = mv;
     });
     localStorage.setItem(WF_LS, JSON.stringify(wf));
   } catch {
@@ -1353,10 +1365,28 @@ function feedCounts(q: QuestionDoc & { id: string }): number[] {
 // knows. The midpoint math duplicates dialBucketMid/fieldCellMid
 // (world-feed.jsx) because data/ cannot import the spec layer;
 // vote.test.ts pins the values so the twins cannot drift apart silently.
+// A rank answer's stored form is its order joined with commas ("2,0,1,3"
+// — D232), the one non-numeric value the votes map holds. Parsed back
+// strictly: anything that is not a clean integer list reads as null, and
+// a null never reaches the mirror.
+function storedOrder(v: string | undefined): number[] | null {
+  if (typeof v !== "string" || !v.includes(",")) return null;
+  const order = v.split(",").map(Number);
+  return order.every((x) => Number.isInteger(x) && x >= 0) ? order : null;
+}
+
 function mirrorVoteValue(
   q: QuestionDoc,
-  idx: number,
-): number | { x: number; y: number } | { entity: number } {
+  stored: string,
+): number | { x: number; y: number } | { entity: number } | { order: number[] } | null {
+  // A rank answer mirrors as the card's own shape ({ order }, tapRank's
+  // write) — the stored string is the joined order, not an index at all.
+  if (q.type === "rank") {
+    const order = storedOrder(stored);
+    return order ? { order } : null;
+  }
+  const idx = Number(stored);
+  if (Number.isNaN(idx)) return null;
   if (q.type === "dial") {
     const lo = q.lo ?? 0;
     const hi = q.hi ?? 100;
@@ -1374,13 +1404,14 @@ function mirrorVoteValue(
 }
 
 // Replace the demo feed globals with live-shaped cards: real questions,
-// real k-floored counts, no seeded comments (D1 — renderEngage is also
-// gated off for q.live cards). Rankings/scales are deferred; every live
-// card renders through the options path — EXCEPT the continuum forms
-// (dial/field, D114), which keep their bank type: their options are
-// synthesized bucket/cell labels, the per-option counts ARE the crowd's
-// distribution, and world-feed renders them through their own bodies
-// (curve / cloud) instead of option rows.
+// real exact counts, no seeded comments (D1 — renderEngage is also
+// gated off for q.live cards). Every live card renders through the
+// options path — EXCEPT the forms that keep their bank type because
+// their answer space is not an option row: the continuum pair
+// (dial/field, D114, synthesized bucket/cell labels whose counts ARE
+// the crowd's distribution), catalogue picks (D14/D231, the board from
+// the published canon) and rankings (D232, the crowd order derived
+// from the published position sums).
 function buildFeedGlobals(): void {
   if (!state.feedBank.length) return;
   // Crossroads (D136) is a feed question but NOT a feed card: its reveal is
@@ -1411,6 +1442,28 @@ function buildFeedGlobals(): void {
           ...(q.also && q.also.length ? { also: q.also } : {}),
           live: true,
           noCountsYet: !hasPublishedCounts(state.aggs[q.id]),
+        };
+      }
+      // Rank cards (D12 → D232) keep their own shape too: `items` are the
+      // seeded options, `crowd` is DERIVED from the published position
+      // sums — 1-based rank per item, the demo's exact contract — with
+      // the viewer's own folded order subtracted first (rankCrowdFor),
+      // and null while nobody ELSE has ranked, which is the card's
+      // first-voter state. Mapping a rank doc through the generic vote
+      // arm below is precisely the wrong-shaped card D12 pulled.
+      if (q.type === "rank") {
+        const agg = state.aggs[q.id];
+        return {
+          id: q.id,
+          cat: q.topic || "culture",
+          type: "rank",
+          prompt: q.prompt,
+          items: q.options,
+          crowd: rankCrowdFor(agg, storedOrder(state.votes[q.id]), q.id in state.unaggregated),
+          votes: agg?.total ?? 0,
+          ...(q.also && q.also.length ? { also: q.also } : {}),
+          live: true,
+          noCountsYet: !hasPublishedCounts(agg),
         };
       }
       // Hoisted: feedCounts walks the whole option list, so calling it
@@ -3966,6 +4019,67 @@ const LIVE = {
       }
     })();
   },
+  /**
+   * A ranking (D232): `order` is the item indexes in the answerer's
+   * sequence — an ORDER, never an index — and the doc carries it in
+   * optionIdx's place, which routes it down the trigger's position-sum
+   * fold. vote()'s shape otherwise: create-only (no edit path exists,
+   * and the rules' edit arm cannot admit one), optimistic with rollback,
+   * cached on server ack only. The bounds here mirror what rules can
+   * check (length against the bank doc's own item count) plus what only
+   * the trigger re-checks (a clean permutation) — a doomed write spared
+   * client-side is the same mirror editVote keeps.
+   */
+  voteRank(qid: string, order: number[]): void {
+    if (state.votes[qid]) return; // one answer per question, mirroring rules
+    const q = state.feedBank.find((x) => x.id === qid);
+    if (q?.type !== "rank") return;
+    const n = q.options.length;
+    if (!Array.isArray(order) || order.length !== n || n < 2) return;
+    if (order.some((v) => !Number.isInteger(v) || v < 0 || v >= n)) return;
+    if (new Set(order).size !== n) return;
+    state.votes[qid] = order.join(",");
+    state.inflight[qid] = true;
+    // The value is unread for ranks (nothing subtracts an order from a
+    // counts array) — the KEY is the pending flag rankCrowdFor and the
+    // agg refresh both key on, same lifecycle as every other vote.
+    state.unaggregated[qid] = 0;
+    notify();
+    void (async () => {
+      try {
+        const db = await getDb();
+        const uid = state.uid;
+        if (!uid) throw new Error("no session");
+        await setDoc(doc(db, "v2_users", uid, "answers", qid), {
+          qid,
+          surface: q.surface,
+          order,
+          answeredAt: serverTimestamp(),
+          anchors: answerAnchors(q.rates),
+        });
+        delete state.inflight[qid];
+        cacheVote(qid, order.join(","));
+        notify();
+        scheduleAggRefresh(db, qid);
+      } catch (err) {
+        delete state.votes[qid];
+        delete state.inflight[qid];
+        delete state.unaggregated[qid];
+        try {
+          const WF_LS = "insight.feedVotes.v1";
+          const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
+          if (qid in wf) {
+            delete wf[qid];
+            localStorage.setItem(WF_LS, JSON.stringify(wf));
+          }
+        } catch {
+          /* best-effort */
+        }
+        notify();
+        reportError(err, { where: "voteRank", qid });
+      }
+    })();
+  },
   // D86: move an EXISTING answer to a different option — the one
   // repeatable answer write (vote() above is create-only and no-ops on an
   // answered question, mirroring the rules). Daily, feed and test cards
@@ -3981,12 +4095,13 @@ const LIVE = {
     const prev = state.votes[qid];
     if (!prev || prev === optionId) return false;
     if (qid in state.inflight) return false;
-    // Catalog picks are create-only (D14): the rules' edit arm keys on the
-    // OLD doc carrying optionIdx, which an entity answer never does, so
-    // the write below is doomed for them. The pick card offers no edit
-    // affordance — this mirror spares the round-trip if a future surface
-    // calls in anyway.
-    if (state.feedBank.find((x) => x.id === qid)?.type === "catalog") return false;
+    // Catalog picks and rank answers are create-only (D14/D232): the
+    // rules' edit arm keys on the OLD doc carrying optionIdx, which an
+    // entity or order answer never does, so the write below is doomed for
+    // both. Neither card offers an edit affordance — this mirror spares
+    // the round-trip if a future surface calls in anyway.
+    const editType = state.feedBank.find((x) => x.id === qid)?.type;
+    if (editType === "catalog" || editType === "rank") return false;
     const optionIdx = Number(optionId);
     if (!Number.isInteger(optionIdx) || optionIdx < 0) return false;
     if (Date.now() - (state.editedAt[qid] || 0) < 60_000) return false;
@@ -4031,7 +4146,8 @@ const LIVE = {
             // gone (only the feed ever knew it) — the standing bucket's
             // midpoint is the closest the doc can testify to.
             const q = state.feedBank.find((x) => x.id === qid);
-            wf[qid] = q ? mirrorVoteValue(q, Number(prev)) : Number(prev);
+            const mv = q ? mirrorVoteValue(q, prev) : null;
+            wf[qid] = mv != null ? mv : Number(prev);
             localStorage.setItem(WF_LS, JSON.stringify(wf));
           }
         } catch {

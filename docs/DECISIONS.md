@@ -23475,3 +23475,99 @@ replaced two direct global reads), which the baseline now records.
 change — the workflow chain reseeds), or run *Seed content* by hand;
 633 questions land, 17 of them picks. Nothing needs `bumpRev`: creates
 carry `updatedAt` and clients page them in.
+
+## D232 · Rank questions live: an answer carries an order, and the exclusion retires
+
+**Decided:** 2026-08-23 · **Status:** built (this branch); D12's "binding
+until the pipeline below exists" clause is hereby satisfied and that
+record closes
+
+**Decision.** The pipeline D12 priced ships, and the eight seeded rank
+questions return to the live feed as what they are. A rank answer is
+`order` — the item indexes in the answerer's sequence — with **no
+optionIdx at all**: D12's sketch said "order alongside optionIdx", and
+the refinement matters, because a synthetic index would let an order
+answer leak into every option-shaped fold, which is the poisoning D12
+pulled the cards for wearing a seatbelt. The plan this executes is
+[RANK-CATALOG-LIVE.md](RANK-CATALOG-LIVE.md) §3; D231's catalog
+go-live is the pattern it copies joint for joint.
+
+**The pieces:**
+
+1. **Rules** (`isRankAnswer`): keys `hasOnly [qid, surface, order,
+   answeredAt, anchors]`, feed-only, the list's size equal to the
+   question's own item count (the get() dedupes with the type/kill-
+   switch reads — one billed read, same as a vote). Rules cannot
+   iterate a list, so ELEMENTS are the trigger's — a rules test pins
+   that a non-permutation is admitted here by design and dies there.
+2. **The hole the same change closes.** `isWorldAnswer` now refuses
+   `type == "rank"` questions. Before D232 this was open in principle:
+   a rank doc carries real options, so a raw-API `optionIdx` write
+   passed the size bound and the vote fold would have clobbered a rank
+   aggregate's `{pos, total}` with `{counts}` — D12's failure through
+   the side door, reachable the moment rank docs got aggregates worth
+   corrupting. E2E-pinned ("the D12 side door").
+3. **The fold** (`onV2AnswerCreated`): the order branch mirrors the
+   entity branch — ledger-deduped transaction, one question-doc read
+   for the item count, `validRankOrder` (pure.ts: a permutation of
+   0..n-1 or null, never a repair), position sums folded in place,
+   `{total, pos}` published whole every answer. No `by` map: the
+   Mirror's cohort folds read option shares, which an order does not
+   have, and a breakdown with no reader is document growth for nothing.
+4. **The client**: `LIVE.voteRank` is the create-only write
+   (vote()'s optimistic shape; `editVote` refuses ranks before the
+   wire, matching the rules arm that cannot admit them);
+   `rankCrowdFor` (deck.ts) derives the demo's exact crowd contract —
+   `crowd[i]` = 1-based rank of item i — from the published sums **with
+   the viewer's own folded order subtracted first**, countsFor's
+   convention: at launch scale a "crowd" that includes you is mostly
+   you, and matching a reader against their own reflection would be the
+   reveal lying with true arithmetic. Null crowd = nobody ELSE has
+   ranked, and the card renders "You're first" instead of a perfect-
+   agreement mirror; `tapRank`'s completed order dispatches on live
+   cards and the reveal's match line loses the demo's arrow (the sheet
+   behind it, renderRankStats, is a fabricated friends cohort). The
+   stored form is the joined order ("2,0,1,3") in the same votes map,
+   and every consumer that interprets a value routes through the
+   question's type — the D231 discipline.
+5. **Corpus honesty.** The eight rank seeds now declare `core: false`
+   (check:quality demands the declaration be explicit) — an order
+   answer has no option share for a cohort reading to fold, so tail by
+   arithmetic, not by punishment. `SERVABLE_TYPES` gains rank
+   (feed-budget.mjs): a rank card covers its topic for a reader now,
+   which the regulator's counts must say.
+6. **The live engage row was already fenced** (`q.type === 'rank'`
+   returns null in renderEngage's live arm — pre-laid before this
+   change) and stays so: the voter list is option-shaped and skips
+   order docs, so v1 rank cards are reveal-only. Widening that is its
+   own decision.
+
+**Held/deferred, stated:** no rank edits (D86 stays one shape; an order
+edit is a -old/+new delta through the sums nobody has asked for); no
+permutation histogram (n! cells is not a reveal — the display argument
+survives D98 even though the disclosure one dissolved); no per-anchor
+rank breakdowns (no reader); the farm does not author ranks (the lane
+contract's question, QUESTION-FARM.md, deliberately not opened here).
+
+**Enforcement:** four rules cases (the shapes, the side door, the
+admitted-by-design non-permutation, the kill switch); three pure-fold
+cases (permutation validation, the sums, the derived order); e2e leg
+9d (exact first fold, four refusals, the trigger dropping [0,0,0,0]
+while a valid second order sums exactly — the emulator's own warning
+line is visible in the run log); nine client store cases (mapper shape,
+crowd derivation and its null, hydration + wrapped mirror, voteRank's
+ack/rollback/create-only/validation, editVote's refusal); rankCrowdFor
+unit cases including the subtract-own tie-break; two live smoke mounts
+(the full tap-to-rank loop against the derived crowd; the first-voter
+copy); the cost tripwires recounted with their ledgers extended (rules
+gets 25 → 30, same billed read; trigger tx.gets 5 → 8, the extra read
+absorbed into TRIGGER_READS' stated approximation). Green at commit:
+1665 unit, 292 functions, 120 rules, the full e2e, lint, and every
+static gate.
+
+**Deploy order, which matters here where D231 needed none:** functions
+first (the fold accepts orders), rules second (clients may write them),
+client last (clients start writing them) — no window where a shipped
+client writes a shape the backend refuses or drops. The deploy chain
+runs backend before hosting, which is this order; the record states it
+so a partial manual deploy cannot invert it.

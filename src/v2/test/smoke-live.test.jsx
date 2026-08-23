@@ -35,7 +35,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 // jsdom, and the v15 revision roughly doubled the spec layer's feed weight —
 // the slowest cases sat at ~4.8s before it and tip over under suite load.
 vi.setConfig({ testTimeout: 15000 });
-import { FEED_OPTIONS, PATH_TITLE, PICK_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
+import { FEED_OPTIONS, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
 import { awaitText, growFeed, openHeaderOverlay } from "./mount-app";
 import { list as anchorList } from "../spec/map-anchors.js";
 import { IS_TESTS, IS_TEST_RESULTS } from "../spec/test-definitions.js";
@@ -423,6 +423,43 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(screen.getByRole("button", { name: "everyone" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "18-24" })).toBeTruthy();
     expectNoBoundary("live feed, pick card answered");
+  });
+
+  // Rank on a LIVE feed (D232): the whole loop through the real card —
+  // tap the four items into an order, watch the completed ranking reach
+  // the store, and read the reveal against the DERIVED crowd. The demo's
+  // arrow into renderRankStats (a fabricated friends cohort) must be gone.
+  it("ranks a live card by tapping, and reveals the derived crowd comparison", async () => {
+    const expectNoBoundary = mountLive({ rankCard: true });
+    await awaitText(/Fixture rank card/);
+    for (const name of ["Alpha", "Gamma", "Beta", "Delta"]) {
+      fireEvent.click(screen.getByRole("button", { name }));
+    }
+    // tapRank's completion dispatched LIVE.voteRank — the store holds the
+    // joined order (fixture voteRank mirrors the real create-only write)
+    expect(live.votes["rank-fixture"]).toBe("0,2,1,3");
+    await awaitText(/You matched the crowd on/);
+    // fixture crowd [1,3,2,4] against 0,2,1,3 — every position agrees
+    expect(screen.getByText(/You matched the crowd on 4 of 4/)).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: /You matched the crowd/ }),
+      "a live rank card offered the demo's stats sheet — its cohorts are fabricated",
+    ).toBeNull();
+    expectNoBoundary("live feed, rank card answered by tapping");
+  });
+
+  it("tells the first ranker they are first, instead of a crowd that is only them", async () => {
+    const expectNoBoundary = mountLive({ rankCard: true, tooSmall: true }, (l) => {
+      l.votes["rank-fixture"] = "3,2,1,0"; // answered on another device
+    });
+    await growFeed();
+    fireEvent.click(screen.getByRole("button", { name: /^Answered · 1$/ }));
+    await awaitText(/Fixture rank card/);
+    fireEvent.click(screen.getByText(RANK_PROMPT));
+    await awaitText(/order builds from here/);
+    expect(screen.getByText(/You’re first — the crowd’s order builds from here/)).toBeTruthy();
+    expect(screen.queryByText(/You matched the crowd on/)).toBeNull();
+    expectNoBoundary("live feed, rank card first voter");
   });
 
   it("gives a live card who-voted and the named takes toggle — never the demo sheet", async () => {

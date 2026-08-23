@@ -1,12 +1,18 @@
 # Rank and catalog go-live — the two feed forms the live bank withholds
 
-**Status: half built.** §2 (catalog) shipped 2026-08-23 —
-[D231](DECISIONS.md#d231--catalog-questions-go-live-seventeen-picks-promoted-through-one-pen)
-records what was built, the one planned item it reversed
-(`feed-budget.mjs`, whose regulator turns out to read only the subject
-taxonomy) and the two held tranches (pokemon behind the trademark
-check; films/artists behind the D15 operator step). §3 (rank) is still
-a plan. Written 2026-08-22 on the
+**Status: BOTH HALVES BUILT.** §2 (catalog) shipped 2026-08-23 as
+[D231](DECISIONS.md#d231--catalog-questions-go-live-seventeen-picks-promoted-through-one-pen);
+§3 (rank) shipped the same day as
+[D232](DECISIONS.md#d232--rank-questions-live-an-answer-carries-an-order-and-the-exclusion-retires),
+which also closes D12. The records carry the as-built deviations —
+D231 reversed one planned item (`feed-budget.mjs`, whose regulator
+reads only the subject taxonomy — a call D232 then reversed BACK when
+rank joined the servable set, since rank questions live in that
+taxonomy and pick cards do not) and D232 refined the answer shape (no
+optionIdx at all) and closed a rules hole the plan had not seen
+(optionIdx on a rank doc). What remains open is inventory, not
+machinery: pokemon behind the trademark check, films/artists behind
+the D15 operator step. Written 2026-08-22 on the
 owner's direction after asking why ranking questions disappeared and
 catalogue ("favourite X") questions never appear: both absences are
 deliberate and recorded — `rank` was pulled from the live feed at
@@ -133,6 +139,13 @@ client last, so no build ever offers a card the bank cannot serve.
    assumption"), and the operator seed step (`seedContentV2`).
 
 ## 3 · Part two — rank questions live
+
+**Built 2026-08-23 (D232).** The section below is the plan as written;
+D232 records the as-built refinements — the answer carries `order`
+with NO optionIdx (item 1's "alongside" was the sketch, not the ship),
+`isWorldAnswer` gained the rank refusal item 1 had not priced, and the
+derived crowd subtracts the viewer's own folded order so the first
+voter meets "You're first" rather than a mirror.
 
 D12's four numbered costs, updated for D98 and made concrete:
 

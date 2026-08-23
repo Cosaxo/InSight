@@ -37,6 +37,8 @@ import { logger } from "firebase-functions";
 import { V2_ADS, V2_QUESTIONS } from "./v2content";
 import {
   canonBreakdownFor,
+  validRankOrder,
+  foldRankOrder,
   catalogEntityKey,
   foldAnchors,
   foldCanonAnchors,
@@ -651,6 +653,52 @@ export const onV2AnswerCreated = onDocumentCreated(
           },
           { merge: false },
         );
+      });
+      return;
+    }
+    // Rank answers carry `order`, never `optionIdx` (D232) — the item
+    // indexes in the answerer's sequence, admitted by rules only on
+    // type=="rank" questions. Same ledger, same private/public docs, same
+    // cadence; what publishes is per-item POSITION SUMS plus the total —
+    // enough for a crowd order (sort by mean position) — instead of
+    // per-option counts. No `by` map, deliberately: the Mirror's cohort
+    // folds read option shares, which an order does not have, and a
+    // breakdown nothing reads would be document growth with no reader
+    // (a rank-shaped lens brings it with it, if one ever ships).
+    if (snap.get("order") !== undefined) {
+      const db = firestore();
+      const eventRef = db.collection("v2_agg_events").doc(event.id);
+      const privRef = db.collection("v2_aggs_private").doc(qid);
+      const pubRef = db.collection("v2_question_aggs").doc(qid);
+      const qRef = db.collection("v2_questions").doc(qid);
+      await runAggTransaction(db, qid, async (tx) => {
+        const seen = await tx.get(eventRef);
+        if (seen.exists) return;
+        // The item count decides the only valid order length — the
+        // trigger's one question-doc read, the catalog branch's pattern.
+        // Rules already bound the size; the elements (a permutation of
+        // 0..n-1, no duplicates) can only be checked here.
+        const qDoc = await tx.get(qRef);
+        const n = ((qDoc.get("options") as unknown[] | undefined) || []).length;
+        const order = validRankOrder(snap.get("order"), n);
+        if (order === null) {
+          logger.warn(`[v2] answer ${event.params.uid}/${qid} has no usable order`);
+          return; // an invalid permutation never aggregates; the doc stays, harmless
+        }
+        const priv = await tx.get(privRef);
+        const stored = priv.exists ? (priv.get("pos") as number[] | undefined) : undefined;
+        // Re-derive from zero when the stored array is absent or the wrong
+        // length (a bank doc whose options were never allowed to change —
+        // D52 — so a mismatch is corruption, not history): starting fresh
+        // miscounts, but a crash here retry-loops forever.
+        const pos = Array.isArray(stored) && stored.length === n ? [...stored] : new Array<number>(n).fill(0);
+        foldRankOrder(pos, order);
+        const total = ((priv.exists && (priv.get("total") as number)) || 0) + 1;
+        tx.set(eventRef, ledgerEntry(event.params.uid, qid));
+        tx.set(privRef, { pos, total }, { merge: false });
+        // Published whole, every answer (D98): the sums and the total ARE
+        // the reveal — the client derives the crowd order by mean position.
+        tx.set(pubRef, { total, pos }, { merge: false });
       });
       return;
     }
