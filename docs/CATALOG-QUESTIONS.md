@@ -1,11 +1,14 @@
 # Catalog questions — "favourite X" with a thousand options
 
-**Status: LIVE for every committed domain (D231, 2026-08-23).**
+**Status: LIVE (D231, 2026-08-23).**
 Twenty-three pick cards serve from the live bank —
 `content/pick-questions.json`, promoted from the archive through
 `npm run promote` — across pokemon, emoji, elements, countries and
 dogs; the pokemon six joined the same day the owner cleared the
-nominative-use check (see the pilot note below). Written 2026-07-30 as a
+nominative-use check (see the pilot note below). The sixth domain,
+**colors**, was committed the same day from a parallel thread (#261) —
+catalogue, keys and archive entries all in place, live cards pending
+their own promote run. Written 2026-07-30 as a
 design sketch, after the v15 UI merge; the same day, steps 1–3 shipped
 (Pokédex catalogue, demo `pick` card, canon backend — **D14**) and step
 4's machinery followed (QID key sets, domain-aware validation, the

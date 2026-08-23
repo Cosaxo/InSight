@@ -3096,5 +3096,52 @@
         "The long game"
       ]
     ]
+  },
+  {
+    "id": "126",
+    "type": "scale",
+    "prompt": "The best hobbies have nothing to show for them.",
+    "tag": "Nothing to show",
+    "axis": "unproductive",
+    "tone": "deep",
+    "cat": [
+      "Interests",
+      "The point"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Rest"
+      ],
+      [
+        "Morals",
+        "The good life"
+      ]
+    ]
+  },
+  {
+    "id": "127",
+    "type": "binary",
+    "prompt": "Respected at work, or free to walk away from it?",
+    "tag": "Respect or freedom",
+    "options": [
+      "Respected",
+      "Free to walk"
+    ],
+    "tone": "deep",
+    "cat": [
+      "Goals",
+      "Work and life"
+    ],
+    "alts": [
+      [
+        "Values",
+        "Meaning"
+      ],
+      [
+        "Morals",
+        "The good life"
+      ]
+    ]
   }
 ]

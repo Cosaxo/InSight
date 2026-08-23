@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-08-22T07:04:24.752Z",
-  "daysSinceEpoch": 21,
+  "generatedAt": "2026-08-23T07:04:48.045Z",
+  "daysSinceEpoch": 22,
   "coverage": {
-    "questions": 222,
+    "questions": 230,
     "scored": 0,
-    "belowFloor": 10,
-    "unserved": 103
+    "belowFloor": 12,
+    "unserved": 104
   },
   "topics": {
     "Sport": {
@@ -81,7 +81,7 @@
       "avgEvenness": null
     },
     "Story": {
-      "questions": 7,
+      "questions": 8,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -105,7 +105,7 @@
       "avgEvenness": null
     },
     "Skills": {
-      "questions": 6,
+      "questions": 7,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -129,7 +129,7 @@
       "avgEvenness": null
     },
     "tech": {
-      "questions": 11,
+      "questions": 12,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -145,7 +145,7 @@
       "avgEvenness": null
     },
     "food": {
-      "questions": 13,
+      "questions": 14,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -153,7 +153,7 @@
       "avgEvenness": null
     },
     "movies": {
-      "questions": 9,
+      "questions": 10,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -169,7 +169,7 @@
       "avgEvenness": null
     },
     "music": {
-      "questions": 8,
+      "questions": 9,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -177,7 +177,7 @@
       "avgEvenness": null
     },
     "event": {
-      "questions": 10,
+      "questions": 11,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -185,7 +185,7 @@
       "avgEvenness": null
     },
     "people": {
-      "questions": 7,
+      "questions": 8,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -212,7 +212,7 @@
         "avgEvenness": null
       },
       "choice": {
-        "questions": 29,
+        "questions": 31,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -254,7 +254,7 @@
         "avgEvenness": null
       },
       "vote": {
-        "questions": 79,
+        "questions": 84,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -262,7 +262,7 @@
         "avgEvenness": null
       },
       "dial": {
-        "questions": 8,
+        "questions": 9,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -297,7 +297,7 @@
     "bySource": {
       "editorial": {
         "questions": 176,
-        "served": 95,
+        "served": 96,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -305,8 +305,8 @@
         "avgEvenness": null
       },
       "farm": {
-        "questions": 46,
-        "served": 24,
+        "questions": 54,
+        "served": 30,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -317,7 +317,7 @@
     "byVintage": {
       "editorial:prototype": {
         "questions": 118,
-        "served": 86,
+        "served": 87,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -361,6 +361,15 @@
         "avgEvenness": null
       },
       "farm:2026-08-21": {
+        "questions": 8,
+        "served": 6,
+        "scored": 0,
+        "answers": 0,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": null
+      },
+      "farm:2026-08-22": {
         "questions": 8,
         "served": 6,
         "scored": 0,
@@ -3654,11 +3663,11 @@
       ],
       "type": "scale",
       "prompt": "I'd rather have a few deep friendships than many.",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-022",
@@ -5191,6 +5200,36 @@
       "signal": "unserved"
     },
     {
+      "qid": "daily-124",
+      "surface": "daily",
+      "topic": "Skills",
+      "topics": [
+        "Skills"
+      ],
+      "type": "choice",
+      "prompt": "Which could you do perfectly, starting right now?",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-125",
+      "surface": "daily",
+      "topic": "Story",
+      "topics": [
+        "Story"
+      ],
+      "type": "choice",
+      "prompt": "Your life so far reads most like…",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
       "qid": "feed-f01",
       "surface": "feed",
       "topic": "sport",
@@ -6598,7 +6637,7 @@
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "no-answers"
+      "signal": "below-floor"
     },
     {
       "qid": "feed-f73",
@@ -6669,6 +6708,96 @@
       ],
       "type": "vote",
       "prompt": "Penalty shootouts: great drama, or a cruel coin flip?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f78",
+      "surface": "feed",
+      "topic": "music",
+      "topics": [
+        "music"
+      ],
+      "type": "vote",
+      "prompt": "One instrument, mastered overnight — which?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f79",
+      "surface": "feed",
+      "topic": "people",
+      "topics": [
+        "people"
+      ],
+      "type": "vote",
+      "prompt": "Meet your hero — or keep the myth?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-dl9",
+      "surface": "feed",
+      "topic": "movies",
+      "topics": [
+        "movies"
+      ],
+      "type": "dial",
+      "prompt": "Trailers before the film — how many minutes is right?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "below-floor"
+    },
+    {
+      "qid": "feed-f80",
+      "surface": "feed",
+      "topic": "event",
+      "topics": [
+        "event"
+      ],
+      "type": "vote",
+      "prompt": "A total eclipse nearby — travel to stand in it?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f81",
+      "surface": "feed",
+      "topic": "food",
+      "topics": [
+        "food"
+      ],
+      "type": "vote",
+      "prompt": "Cold leftovers the next morning: better, or sad?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f82",
+      "surface": "feed",
+      "topic": "tech",
+      "topics": [
+        "tech"
+      ],
+      "type": "vote",
+      "prompt": "Paper books or an e-reader?",
       "served": true,
       "total": 0,
       "evenness": null,

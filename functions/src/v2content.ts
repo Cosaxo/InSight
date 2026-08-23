@@ -2685,6 +2685,45 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "daily-126",
+  "surface": "daily",
+  "seq": 126,
+  "type": "scale",
+  "domain": null,
+  "prompt": "The best hobbies have nothing to show for them.",
+  "options": [
+   "Strongly disagree",
+   "Disagree",
+   "Neutral",
+   "Agree",
+   "Strongly agree"
+  ],
+  "topic": "deep",
+  "branch": "Interests",
+  "sub": "The point",
+  "tag": "Nothing to show",
+  "axis": "unproductive",
+  "test": null
+ },
+ {
+  "id": "daily-127",
+  "surface": "daily",
+  "seq": 127,
+  "type": "binary",
+  "domain": null,
+  "prompt": "Respected at work, or free to walk away from it?",
+  "options": [
+   "Respected",
+   "Free to walk"
+  ],
+  "topic": "deep",
+  "branch": "Goals",
+  "sub": "Work and life",
+  "tag": "Respect or freedom",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "feed-f01",
   "surface": "feed",
   "seq": 0,
@@ -4939,6 +4978,111 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "E-reader"
   ],
   "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f83",
+  "surface": "feed",
+  "seq": 112,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The saddest instrument?",
+  "options": [
+   "Cello",
+   "Violin",
+   "Piano",
+   "Trumpet"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f84",
+  "surface": "feed",
+  "seq": 113,
+  "type": "vote",
+  "domain": null,
+  "prompt": "One painting for your wall: Frida Kahlo, or Picasso?",
+  "options": [
+   "Frida Kahlo",
+   "Picasso"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f85",
+  "surface": "feed",
+  "seq": 114,
+  "type": "vote",
+  "domain": null,
+  "prompt": "End credits: sit through them, or straight out?",
+  "options": [
+   "Sit through",
+   "Straight out"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f86",
+  "surface": "feed",
+  "seq": 115,
+  "type": "vote",
+  "domain": null,
+  "prompt": "New Year's Eve: the big night, or asleep by eleven?",
+  "options": [
+   "The big night",
+   "Asleep by eleven"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl10",
+  "surface": "feed",
+  "seq": 116,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many close friends does a person need?",
+  "options": [
+   "0–1 friends",
+   "1–2 friends",
+   "2–3 friends",
+   "3–3 friends",
+   "3–4 friends",
+   "4–5 friends",
+   "5–6 friends",
+   "6–7 friends",
+   "7–8 friends",
+   "8–8 friends",
+   "8–9 friends",
+   "9–10 friends"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 10,
+  "unit": "friends"
+ },
+ {
+  "id": "feed-f87",
+  "surface": "feed",
+  "seq": 117,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Soup: a meal, or a starter?",
+  "options": [
+   "A meal",
+   "A starter"
+  ],
+  "topic": "food",
   "axis": null,
   "test": null
  },

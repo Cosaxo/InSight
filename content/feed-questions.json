@@ -2262,6 +2262,109 @@
           "count": 2200
         }
       ]
+    },
+    {
+      "id": "f83",
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "The saddest instrument?",
+      "options": [
+        {
+          "label": "Cello",
+          "count": 3200
+        },
+        {
+          "label": "Violin",
+          "count": 2400
+        },
+        {
+          "label": "Piano",
+          "count": 1900
+        },
+        {
+          "label": "Trumpet",
+          "count": 800
+        }
+      ]
+    },
+    {
+      "id": "f84",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "One painting for your wall: Frida Kahlo, or Picasso?",
+      "options": [
+        {
+          "label": "Frida Kahlo",
+          "count": 2900
+        },
+        {
+          "label": "Picasso",
+          "count": 2400
+        }
+      ]
+    },
+    {
+      "id": "f85",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "End credits: sit through them, or straight out?",
+      "options": [
+        {
+          "label": "Sit through",
+          "count": 2300
+        },
+        {
+          "label": "Straight out",
+          "count": 3100
+        }
+      ]
+    },
+    {
+      "id": "f86",
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "prompt": "New Year's Eve: the big night, or asleep by eleven?",
+      "options": [
+        {
+          "label": "The big night",
+          "count": 2600
+        },
+        {
+          "label": "Asleep by eleven",
+          "count": 2900
+        }
+      ]
+    },
+    {
+      "id": "dl10",
+      "core": false,
+      "cat": "bigq",
+      "type": "dial",
+      "prompt": "How many close friends does a person need?",
+      "lo": 0,
+      "hi": 10,
+      "unit": "friends"
+    },
+    {
+      "id": "f87",
+      "core": false,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "Soup: a meal, or a starter?",
+      "options": [
+        {
+          "label": "A meal",
+          "count": 3000
+        },
+        {
+          "label": "A starter",
+          "count": 2500
+        }
+      ]
     }
   ]
 }

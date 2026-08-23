@@ -213,6 +213,26 @@
         "audited": false
       }
     },
+    "126": {
+      "archiveId": "dqx97",
+      "source": "farm",
+      "batch": "2026-08-23",
+      "review": {
+        "by": "ai",
+        "at": "2026-08-23",
+        "audited": false
+      }
+    },
+    "127": {
+      "archiveId": "dqx98",
+      "source": "farm",
+      "batch": "2026-08-23",
+      "review": {
+        "by": "ai",
+        "at": "2026-08-23",
+        "audited": false
+      }
+    },
     "000": {
       "archiveId": "dq30",
       "source": "editorial",
@@ -1326,6 +1346,54 @@
     "f82": {
       "source": "farm",
       "batch": "2026-08-22",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f83": {
+      "source": "farm",
+      "batch": "2026-08-23",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f84": {
+      "source": "farm",
+      "batch": "2026-08-23",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f85": {
+      "source": "farm",
+      "batch": "2026-08-23",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f86": {
+      "source": "farm",
+      "batch": "2026-08-23",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl10": {
+      "source": "farm",
+      "batch": "2026-08-23",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f87": {
+      "source": "farm",
+      "batch": "2026-08-23",
       "review": {
         "by": "ai",
         "audited": false
