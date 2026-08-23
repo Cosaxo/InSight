@@ -25191,3 +25191,61 @@ agrees with the rules" on the same ground and was right. What would have
 caught the tab sentence is the thing D217 asked for and this record
 repeats: when a tab is mounted or unmounted, the front page's first
 paragraph is one of the joints.
+
+## D249 · The room cache is keyed by one cell and folded over nine
+
+**2026-08-23.** **Status:** binding. An erasure gap, in the sweep whose
+own comment said the gap was closed.
+
+### The asymmetry
+
+`nearbyRoomV2` caches at `v2_presence_room/{own}` — the CALLER's cell —
+while the roster inside it is folded over `presenceNeighbors(cell)`, that
+cell's whole 3×3 block. `presenceNeighbors` is symmetric, so a phone
+standing in cell **X** appears in the cached roster of every cell **C**
+with X ∈ neighbors(C) — up to **nine** documents, one of which is X's own.
+
+`deleteAccount` deleted that one:
+
+```ts
+const presCell = pres.get("cell");
+await db.collection("v2_presence").doc(uid).delete();
+if (typeof presCell === "string" && presCell) {
+  await db.collection("v2_presence_room").doc(presCell).delete();
+}
+```
+
+with the comment above it stating the opposite in as many words:
+*"deleting the presence doc alone would leave this account listed in a
+room for up to one beat window after it asked to be erased. Read the cell
+first, then drop the cached fold for it."* Right about the mechanism,
+wrong about the count — so the window it describes stayed open for eight
+cells out of nine, and `docs/data-inventory.md` repeated the claim in the
+row for the collection it calls *"the one derived document that holds
+uids."*
+
+### What it actually leaks, stated exactly
+
+A uid and the archetype string the phone wrote, inside a roster a viewer
+standing in an adjacent cell reads through `nearbyRoomV2`, until the next
+beat window re-folds that cell from `v2_presence` — which no longer holds
+the account. Bounded and short-lived. It is not the presence CELL itself,
+which is one of D98's three denies and was deleted correctly.
+
+Small, and it is the kind of small this repo does not get to have: an
+erasure claim is held to the letter here, `check:policy-claims` exists
+because a promise deleted from the page is a promise deleted from the
+product, and this one was written down twice.
+
+### The fix, and its own edge
+
+`presenceNeighbors(presCell)` rather than the block derived again — which
+is also what handles the pole, where it returns fewer than nine rather
+than wrapping past the top of the world. Nine deletes on a path that
+already does far more.
+
+`e2e-delete-account.mjs` gains a NEIGHBOUR cell's cached roster naming the
+account, which must go, **and a cell two away, which must not** — outside
+the block, so its roster cannot name this account and reaching it would be
+the sweep taking a roster it has no claim on. The first fails against the
+previous implementation.

@@ -24,6 +24,7 @@ import { getAuth } from "firebase-admin/auth";
 import { getStorage } from "firebase-admin/storage";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { avatarTarget } from "./moderation";
+import { presenceNeighbors } from "./pure";
 import { logger } from "firebase-functions";
 // ./ops also sets the global runtime options — and must be imported
 // before any function is defined. See the note there. It stays a value
@@ -304,7 +305,25 @@ export const deleteAccount = onCall(
       const presCell = pres.get("cell");
       await db.collection("v2_presence").doc(uid).delete();
       if (typeof presCell === "string" && presCell) {
-        await db.collection("v2_presence_room").doc(presCell).delete();
+        // NINE, not one. The cache is keyed by the CALLER's cell while its
+        // roster is folded over that cell's whole 3x3 neighbourhood
+        // (`roomFor(cells, own, qids)` in v2social.ts, where `cells =
+        // presenceNeighbors(cell)` and `own = cell`). presenceNeighbors is
+        // symmetric, so a phone standing in X is listed in
+        // v2_presence_room/{C} for every C in neighbors(X) — and this
+        // deleted X alone, leaving the erased uid in the roster a viewer
+        // one cell over reads, for up to a beat window, while the comment
+        // above said the window was closed.
+        //
+        // Nine deletes on a path that already does far more, and
+        // presenceNeighbors returns fewer than nine near a pole, which is
+        // the whole edge case handled by using it rather than deriving the
+        // block here.
+        const stale = presenceNeighbors(presCell);
+        await Promise.all(
+          (stale.length ? stale : [presCell])
+            .map((c) => db.collection("v2_presence_room").doc(c).delete()),
+        );
       }
       // …and the queue's copy of the text, which the take's deletion does
       // not take with it. Must run AFTER the takes are gone — it identifies
