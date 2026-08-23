@@ -14629,7 +14629,6 @@ on both compilers.
 entry is scoped to `/functions`, whose `tsconfig.json` is separate and
 whose output is the only one that gets deployed to Cloud Functions.
 
-
 ## D148 · The Routine prompts catch up with their contracts, by the only mechanism that works
 
 **Decided:** 2026-08-14 · **Status:** taken — both Routines recreated
@@ -20404,7 +20403,6 @@ URL in the prose, two length caps, a malformed id), the feed's ad dispatch,
 the expired-ad filter, and the one-slot rule — the last of which required
 the test to be fixed before it bit.
 
-
 ## D198 · Build 21's pre-flight: the number run 31 spent, and the bundle gate's artifact claim
 
 **Decided:** 2026-08-19 · **Status:** binding · The comparison runbook 2.4
@@ -23964,6 +23962,603 @@ file rather than assumed to: neutering the call site fails the plain-word
 case and the casualty-conjunction case, while the three
 false-positive cases keep passing, which is the property that would
 otherwise rot silently.
+<<<<<<< HEAD
+>>>>>>> origin/main
+
+## D236 · An invitation that notifies: the pick is the delivery
+
+**2026-08-22.** **Status:** binding. Owner's call, from "when someone
+makes a group or 1v1 you get a notification and can join if you want and
+vice versa if you want to invite someone" — after looking at the 1v1 and
+Circle first-run screens and reading them as still being about codes.
+
+### The screen was not the problem, and the reading was still right
+
+D122 already answered "invite codes feel clunky". It shipped handles, a
+registry, an invitation with consent, and an inbox, and it put the code
+field behind "Have an invite code?" — where the screenshots found it,
+open, because it is one tap from closed.
+
+So the complaint was not about the control. It was about this, the
+success message `LdAddByHandle` prints after an invitation is sent:
+
+> *"Invited @mira — they will see it next time they open InSight."*
+
+That sentence is the whole defect. D122 built the system and then
+delivered it by hoping. An invitation sat in a collection until the
+invitee happened to open the app on their own — which is worse than a
+code, because a code at least does something at the moment you hand it
+over. **The notification is the delivery**, and it is the only part that
+was missing.
+
+### Tied to being PICKED, never to a circle being created
+
+The owner's phrasing was "when someone makes a group or 1v1 you get a
+notification". Taken literally that is a broadcast, and it is refused:
+notifying on creation would carry a circle's name to people who were not
+invited, which is exactly the read `v2_groups`' member gate exists to
+prevent (it is why D122 denormalises `groupName` onto the invitation in
+the first place — an invitee cannot read the group they are invited to).
+With a follow cap of 50, naming a circle would also be up to 50
+notifications for one act.
+
+What survives is better than the literal reading, because it collapses
+two steps into one: **a circle is created with people in it.** The
+create screen carries a picker, the pick causes the invitation, and the
+invitation causes the notification. Nobody ever sees an empty room and
+goes looking for a way to tell anyone about it.
+
+### What shipped
+
+- **`LdPicker`** on the create screen — handle in, chip out, cap-aware
+  (a 1v1 has one seat, so the field closes after one pick rather than
+  offering a second person a room that cannot hold them).
+- **`inviteToGroupV2` takes one uid or many**, in one call, and writes
+  them in one batch. A single target keeps D122's exact error codes,
+  because `LdAddByHandle` turns them into sentences a person reads; a
+  batch skips and reports `invited`/`skipped` instead, because one
+  unreachable name must not cost the other seven their invitation.
+- **A push per invitation**, through the same fan-out the reveal uses.
+- **`acceptGroupInvite` now calls `pushEarned()`** — the third moment
+  that earns the prompt. `createGroup` and `joinGroup` always have; the
+  door most likely to be a new user's only one did not, so an account
+  whose entire path in was "a friend invited me" could sit in a circle
+  having never been asked.
+
+### Two channels, because a description is a claim
+
+The manifest names `reveals` as the default channel for incoming
+messages, so an invitation with no channel named would post there and
+wear "When a group or duo day is revealed." That is a false sentence on
+the one screen Android gives a person to turn this off, and it would
+make muting invitations cost them the reveal they opened the app for.
+So `invites` is its own channel, the client creates both at
+registration, and `sendPushToUids` names one explicitly on every send.
+Pinned in `push.test.ts`, both ids and both descriptions.
+
+### The budget charges per recipient
+
+`INVITES_PER_HOUR` counted CALLS. A batch would have made it meaningless
+the moment the picker shipped — one call, forty notifications — so
+`assertInviteBudget` takes a count and charges it. For a single invite
+the arithmetic is identical to what D122 shipped, so nothing about the
+old path moved. Asserted in the e2e against the real rate-limit document
+through the admin handle, because `v2_ratelimits` is server-only.
+
+### One fan-out, and a read it removed
+
+The FCM logic was inline in `revealGroupDay` and had accumulated four
+corrections the hard way: token→owners as a **list** so a shared device
+is pruned everywhere it lives, length bounds so a client cannot hand FCM
+a megabyte, **chunking** rather than the `.slice(0, 64)` that silently
+unnotified everyone past roughly the seventh member, and pruning on only
+the two **terminal** error codes so a transient failure never evicts a
+live device. Copying that for invitations would have meant maintaining
+all four twice, and the copy is always the one that rots. It is now
+`sendPushToUids`, with the collection and the bounds pure and tested
+(`pure.ts` `fcmFanout`).
+
+It also **never throws**, by construction. A notification is the last
+step of something that already succeeded, so FCM being down must not
+roll back a reveal that committed or an invitation that was written.
+The e2e pins exactly this: the emulator has no FCM, and inviting two
+people still reports two invitations.
+
+Moving the read into the sender removed a billed one. `revealGroupDay`
+fetched a push document per member next to the reads the reveal needs —
+**before** the `shouldReveal` gate, so every scanned day paid for it,
+including the majority that reveal nothing. It is now read after the
+reveal commits and only when there is something to announce.
+
+### Four limits, recorded
+
+1. **The first invitation to a brand-new account still lands silently.**
+   Permission is asked at the moments that earn it, never at boot (iOS
+   makes a decline permanent), so an account that has never created,
+   joined or accepted has no token. The inbox still shows the row; the
+   push starts working from their first acceptance onward. This is the
+   cost of D122's "anyone may invite anyone" meeting D3's anonymous-first
+   accounts, and it shrinks as the app grows.
+2. **Someone with no account is unchanged** — the link, and on Android
+   that link still cannot verify, because `assetlinks.json` carries
+   `REPLACE_WITH_PLAY_SIGNING_SHA256` (SHIP-CHECKLIST §3b, blocked on
+   Play Console access). Every Android invite to a stranger still lands
+   on the hosted page and degrades to copying a code. That is the
+   remaining half of the owner's complaint and it is a credential, not a
+   change.
+3. **A declined invitation can be re-sent and will ping again.**
+   Declining deletes the doc and tells the inviter nothing, deliberately
+   (D122: a "declined" state makes refusing someone a message you have to
+   send). The rate limit is still the whole defence and a block is still
+   the answer if invite spam becomes real. Still not built.
+4. **The picker searches handles and nothing else.** It does not trigger
+   `LIVE.loadCircle()` — that is one read per follow for a convenience —
+   and in live mode the follow graph is mostly people found by likeness
+   rather than friends anyway. The owner's model is that people look
+   their friends up, and the registry supports it; what does not yet is
+   `search-overlay.jsx`, which returns **no people at all** in a live
+   build (`samplePeople === false`, guarding D1's invented cast) while
+   `whoIs` is reached from exactly one place — inside a circle you have
+   already made. Wiring the app's own search to the registry is the next
+   piece and is not in this change. **Closed by D237.**
+
+### What was measured rather than assumed
+
+The e2e refused the first draft of its own fixture: `inviteToGroupV2`
+skipped both targets because neither had a `v2_users` document, which
+joining by code alone never writes. That is not a gap in the app —
+claiming a handle writes the profile, so anyone findable by handle is
+invitable — but it is the reason the case now claims two handles and
+resolves them through the registry, which is the path the picker
+actually takes.
+
+## D237 · Search finds people, by the address they gave you
+
+**2026-08-23.** **Status:** binding. Owner's call, "now wire the search
+to the registry so people can find friends" — closing the fourth limit
+D236 recorded.
+
+### The section was empty, and had been since the port
+
+`search-overlay.jsx` offers three kinds of answer: questions, topics,
+**people**. The third returned `[]` for the whole life of live mode —
+one line, `if (samplePeople === false) return []`, guarding D1: every
+persona behind it is invented down to the subtitles ("sister · since
+birth · 86% match"), and a real user reading an invented sister into
+their own search is exactly the fabrication that store predates.
+
+The guard was right. Its consequence was not: **a live build had no way
+to look a person up at all.** D122 built the registry that answers this
+and then reached it from exactly one place — `LdAddByHandle`, inside a
+circle you had already made — so the app could add somebody to a room
+and could not find anybody. The file's own comment had already noticed
+the shape of it: *"wiring the real graph in here would be a feature
+rather than the removal of a limitation."*
+
+This is that feature. It is also what makes the owner's model of D236
+true: people look their friends up, so the graph fills with friends.
+
+### Exact handle lookup, never a prefix query
+
+`v2_handles/{handle}` is keyed on the **document id**, and D122 chose
+that deliberately: uniqueness needs no index and no query, and the
+registry answers *"is @olaf someone"* and never *"who is everyone"*.
+Searching by prefix would need a query surface over that collection.
+That is a different exposure and would be a different decision — not a
+detail of this one — so it is not here. You find the friend whose handle
+you know, which is how an address gets handed out.
+
+The consequence is stated where it will be read: the empty state used to
+say "try a topic, **a name**, or a few words of a question", and in a
+live build that was the one false suggestion on the screen. It now says
+`a @handle` there.
+
+### What it costs
+
+- **One read per settled query.** A handle is valid several characters
+  before it is finished — "olafsen" is five valid handles on the way to
+  one — so the lookup is debounced, and a query that cannot be a handle
+  never reaches the registry at all. Both pinned.
+- **Follows are free or absent.** Names already in memory are filtered
+  locally, and nothing here calls `LIVE.loadCircle()` — that is the
+  per-member answer fan-out, one read per follow, and a search field is
+  not where to spend it. When the Mirror's Circle stop has paid for it
+  the list is there; when it has not, the registry is still the whole
+  feature. Pinned as a negative: the suite fails if the search box ever
+  triggers the fold.
+- **The name is a second read**, batched into the shared profile cache
+  every other person surface already reads from. Without it the row says
+  "Someone", which is worse than no row — it reads as an account with no
+  name rather than one not fetched yet.
+- **Nothing in the eager graph.** `search-overlay.jsx` has been behind
+  `loadOverlays()` since D223, and `live.ts` was already eager, so the
+  measured eager total did not move (832 KB); the section costs ~3 KB in
+  a chunk a tap reaches.
+
+### One predicate, two callers
+
+The overlay decides whether to print "nothing found" from its own lists,
+and in a live build its people list is always empty. So a handle that
+resolved would have printed *"Nothing for @ada"* directly above Ada.
+`ui/peopleSearch.ts` answers "will the people section draw anything"
+for both sides, so they cannot disagree — a valid handle counts before
+the lookup returns, because the section says something either way (the
+row, "Looking up @ada…", or "No account is @ada").
+
+Its own module for a second reason that agrees: a file exporting a
+component may export only components, or fast refresh stops working.
+
+### The row follows, and that is the fourth door
+
+Same one-tap follow the People lens, the similarity field and the Circle
+stop use, under D101's rule: a follow grants nothing D98 had not already
+granted, so there is no request and no pending state. Following yourself
+is not a state the store will enter, so your own row says **you** rather
+than offering a control that does nothing.
+
+### Measured rather than assumed
+
+A JSX comment placed inside `{nothing && ( … )}` made two children of a
+single-element expression — a syntax error that **`tsc -b` cannot see**,
+because the spec layer is `.jsx` and only `data/` and `ui/` are
+typechecked. It surfaced as eleven failures across seven unrelated test
+files (a profile-migration assertion among them), which is what a broken
+`spec-index` import looks like from the outside, and the gate that named
+it directly was **`check:a11y`** — "these files could not be parsed, so
+they were not checked". A file a gate cannot read is a file that gate is
+lying about, which is why it reports rather than skips.
+
+## D238 · The invite code stops being something a person reads
+
+**2026-08-23.** **Status:** binding. Owner's call — "I think we should
+remove invite codes, they cause confusion and mess" — and the confusion
+turned out to be the smaller half of the argument.
+
+### Two doors into a circle, with different rules
+
+D122 added consent to invitations for a stated reason: *joining a circle
+puts your name on a sealed daily answer that is then revealed to those
+people.* That is access the other side does not otherwise have, so it is
+offered and accepted.
+
+The code door had none of that, and two properties made it worse than
+untidy:
+
+- **It never expires and is never rotated.** Minted once at creation
+  (`inviteCode()` in v2social) and never touched again — no rotation
+  callable, no expiry, nothing in any UI that could change it.
+- **Possession is admission.** `joinGroupV2` writes straight into
+  `memberUids`. No invitation, no acceptance, no member approves you.
+
+So an invite code was a **permanent bearer token** sitting next to a
+consent flow built because the thing behind it is sensitive. One
+forwarded screenshot and a stranger is in the circle, reading everyone's
+answers with their names on them, with no way to revoke short of leaving.
+Two doors, two rules; this closes the one nobody agreed to.
+
+### What is removed, and what is not
+
+**Removed — everything a person reads, types or is told to copy:**
+
+- the create screen's "Have an invite code?" disclosure, its field, and
+  the "OR JOIN WITH A CODE" rule
+- the code as the face of the invite button (`LdCopyLink`), which copied
+  a LINK and had always copied a link — the last place in the app that
+  taught people this was a code product
+- the hosted page's big monospaced code, its "Copy code" button, and its
+  directions to a field that no longer exists
+
+**Not removed — the token inside the link.** Something has to name the
+circle in `…/join/CODE`, nobody reads it, and it is the only thing that
+reaches a person with no account and therefore no handle to be picked
+by. Same shape as a document share URL.
+
+**What this gives up, stated plainly:** somebody handed a code out of
+band — read aloud, written on paper — now has no way to enter it. That
+is the point rather than the cost; entering a code by hand is exactly the
+capability being withdrawn.
+
+### The blocker was not what D236 said it was
+
+D236 recorded that removing the field had to wait for the Play signing
+fingerprint, because on Android an https invite link cannot open the app
+until `assetlinks.json` is filled in — so the hosted page and its typed
+code were the whole Android path.
+
+That was true and it was not the only route. `parseJoinCode` has always
+accepted `insight://join/CODE`, and its comment explains why it matches
+on host+path (in a custom scheme the word "join" is the authority). But
+**the scheme was registered on neither platform** — Android's manifest
+carried only the https filter, and iOS's `CFBundleURLSchemes` held only
+the Google Sign-In reversed client id. The parser handled a URL nothing
+could deliver.
+
+Registering it is one `<intent-filter>` and one plist dict. No Play
+Console, no Apple credential, no verification wait. `web/join.html` now
+offers one button that navigates there, so a tapped invite reaches the
+app today.
+
+The fingerprints are still worth having and SHIP-CHECKLIST still asks
+for them: an https link that opens the app skips the landing page
+entirely, and a verified app link is a stronger claim than a scheme.
+
+### A tapped link is one button, at the top
+
+The link used to **prefill a text field** — the app had received the
+invitation and then asked you to confirm it by reading eight characters
+it already held. It is now `LdJoinPending`: one Join, one Not now.
+
+Moving it also fixed something the field's placement hid. It lived in
+`LdOnboard`, which for an account that already has circles renders at
+the END of the rail — so a tapped invite landed in a card four circles
+below the fold. `LdJoinPending` sits at the top beside `LdInvites`,
+where the other "somebody is waiting on you" surface already is, and it
+is mode-agnostic: a code names a circle rather than a tab, `joinGroupV2`
+resolves it either way, and the old field required being on the right
+tab *and* opening a disclosure.
+
+It carries the consent sentence, which is a claim rather than a caption
+(COPY.md §3): somebody arriving from a link has been told nothing by the
+app yet, and what joining does is put their name on an answer these
+people read tomorrow.
+
+### Three limits
+
+1. **A custom scheme cannot be verified.** Any app may claim `insight://`.
+   What travels it is an invite token, never a credential, and the https
+   route stays preferred for when the fingerprint lands.
+2. **If the app is not installed, the tap does nothing.** Hence a button
+   rather than an auto-redirect on load — navigating to a scheme
+   unprompted raises "Cannot Open Page" with nothing to distinguish that
+   from a broken invite. The page says to install and open the link
+   again; it cannot link a store, because no store URL exists anywhere in
+   this repo yet.
+3. **The link is still a bearer token.** This removed the code's
+   *surface*, not the possession model underneath — a forwarded link
+   still admits its holder. Closing that properly means a link that
+   INVITES rather than admits, and it is deliberately not in this change.
+   It is the next decision, and the argument for it is already written
+   above. **Closed by D240.**
+
+### Measured rather than assumed
+
+**The suite went green when the field came out.** Every test passed with
+the code field deleted, which means nothing had ever covered it —
+placeholder, disclosure, join button or all three. A deletion no test can
+see is one that grows back, so the removal is now pinned as explicitly as
+the replacement: no code placeholder, no disclosure, no eight characters
+on the invite button.
+
+Still owed, and it cannot be closed from here: **a real tap on a real
+device.** The scheme registration is two platform manifests, which no
+emulator suite in this repo exercises. The logic either side of it is
+covered; the OS handoff is not.
+
+## D239 · Found by name, not only by the address you memorised
+
+**2026-08-23.** **Status:** binding. Owner's call — search should take a
+name as well as a handle, on the create screen and when adding to a
+circle that already exists.
+
+### What was actually wrong
+
+D122 gave the app an address and D237 made it searchable, but both halves
+answer the same question: *is @olaf someone.* `v2_handles` is keyed on
+the document id, which is what makes uniqueness free and what makes the
+registry incapable of answering anything else.
+
+So the picker could add the friend whose handle you had memorised and
+nobody else — and the two screens that add people disagreed about even
+that. `LdPicker` did an exact handle lookup, `LivePeopleSearch` also
+matched follows already in memory, and neither could find a stranger by
+the name they go by.
+
+### The exposure delta is nil, and that is a finding rather than a defence
+
+`v2_users` carries `allow read: if request.auth != null`, and in Firestore
+rules **`read` is `get` plus `list`**. Any signed-in account could already
+enumerate every profile in the app — names, anchors, test results — with
+one unfiltered `getDocs`. A name directory does not open that door; it
+was open, and searching it merely costs a prefix query instead of a
+sweep.
+
+That is worth knowing on its own terms, and it is not what this decision
+is about. It is recorded here because the argument against a directory
+would otherwise be "it makes people findable", and people are already
+findable — by anybody willing to download the collection.
+
+### A separate collection anyway, for two reasons that are not exposure
+
+- **Size.** A client query cannot field-mask, so searching `v2_users`
+  downloads whole profiles. `revealGroupDay` added a `fieldMask` for
+  exactly this and OOM'd without one; a search box is a worse place to
+  learn it.
+- **Shape.** What a result row draws is a name and a handle. A document
+  holding only those cannot leak a third field to a forgotten
+  projection.
+
+`v2_people/{uid}` — `name`, `nameKey`, `handle`. Nothing else, ever.
+
+### `nameKey` is checked against the name, not merely bounded
+
+The rule is `request.resource.data.nameKey == request.resource.data.name.lower()`.
+
+Without it a client writes `nameKey: "ada"` onto the row that displays
+"Bob", and a search for a friend answers with a stranger. That is
+impersonation with extra steps, and it is the one thing a directory can
+do that a handle registry cannot — a handle is unique and server-issued,
+a name is neither. Rules can compare two strings, so the comparison is
+where the guarantee lives rather than in the client that writes them.
+
+Mutation-checked: it fails exactly one rules case.
+
+### Prefix, not substring — stated because it will be noticed
+
+Firestore has no substring match and no fuzzy match. The query is a range
+over `nameKey` — `[key, key)` — so "ada" finds "Ada Lovelace" and
+"lovelace" does not. A directory that pretended otherwise would be worse
+than one whose limit is legible.
+
+The upper bound is written as the **escape** `""` rather than the
+literal character, which is invisible in an editor and survives a
+careless copy only by luck.
+
+### One hook, three surfaces
+
+`usePeopleFinder` merges the exact-handle read and the name query and is
+used by the create picker, add-to-a-circle, and the search overlay's
+people section. They render different rows and different actions; what
+they must not do is answer "who is this" three different ways, which is
+how one of them quietly stops finding people the other two can see.
+
+It also owns the `exclude` list — people already picked, members the
+circle already has, and you. Filtering there rather than at each call
+site means a filtered-out row can never be counted as a match and leave a
+caller drawing an empty list under a result count.
+
+`livePeopleActive` is gone with it. That predicate answered "could this
+query produce people" synchronously, which worked while the answer was a
+SHAPE (is this a handle) and cannot work now that it is a QUERY (is
+anybody called this). The section reports upward instead —
+`onActive` — and a guess made before the query returns is wrong half the
+time.
+
+### Two things that would have shipped silently
+
+**The erasure arm.** `v2_people/{uid}` is keyed by uid but is a TOP-LEVEL
+document, so phase 1b's recursive delete of `v2_users/{uid}` walks
+straight past it — the same trap the handle registry set in phase 3b, and
+worse if missed: this row holds a name, so an erased account would stay
+findable by the search the feature exists to provide. Phase 3d, asserted
+in `e2e-delete-account.mjs` with a control row that must survive.
+
+**The backfill.** Every account that existed before the directory has a
+display name and no row, so without a heal they are findable by handle
+and invisible by name until they happen to rename themselves — which most
+people never do. Boot writes the row once per (uid, name) per device,
+memoised in localStorage so it is not a write on every launch.
+
+### What the gates caught, in order
+
+`check:data-inventory` failed the moment the rules named a collection the
+inventory did not — which is D130 working exactly as written, since that
+document is what the App Store privacy label is derived from.
+`check:figures` then failed on four files quoting a rules-test count that
+seven new cases had moved. Neither is a bug; both are the documentation
+errors this repo keeps re-committing, caught by the gates built for them.
+
+The live fixture refused to drift too: `vote.test.ts` pins
+`LIVE.social`'s members, so adding `searchPeople` to the store without
+adding it to `live-fixture.ts` failed the smoke suite. That is D122's
+note working a second time.
+
+## D240 · The link asks; the circle answers
+
+**2026-08-23.** **Status:** binding. Owner's call, closing the limit D238
+recorded rather than accepting it: "make the link invite instead of
+admit."
+
+### One-sided consent
+
+D238 took the code off every screen and left the possession model
+underneath exactly as it was. `joinGroupV2` wrote straight into
+`memberUids`, so a link was a bearer token with no expiry and no
+rotation: forward it and its holder is in, permanently, reading answers
+that carry everybody's name.
+
+D122 built consent for invitations because *joining a circle puts your
+name on a sealed daily answer that is then revealed to those people.*
+Both sides agree — a member picks you, you accept. The link supplied
+only **your** half. Nobody already in the circle had agreed to you
+specifically, and no forwarding chain changes that.
+
+So the link now puts you **forward** instead of **in**, and a member
+taps Let in. That is the half a bearer token could never carry.
+
+### Two shortcuts, both of them the circle having already agreed
+
+- **You are already a member** — nothing happened, say so, get out of
+  the way.
+- **Somebody already invited you by handle** — that IS the circle
+  choosing you, on record, so the link *completes* the invitation
+  instead of opening a second queue behind it. Without this the smooth
+  path (invite them, then send them the link) would have asked a member
+  to approve the person they had just invited.
+
+### The queue lives on the group document
+
+`pending` and `pendingNames`, not a subcollection, and it is a cost
+decision rather than a shape preference. Members already read the group
+document — it is live-subscribed by `hydrateSocial`, so an approval
+lands on every member's screen with no refresh and no extra read. A
+subcollection would need a member-gated read rule, and the only way
+Firestore rules can express that is `get()` on the group: one billed
+read per request listed. That is precisely the tripwire D122 hit and
+backed out of when it tried to let members read the invitation list.
+
+The consequence is worth naming: **`duoMode`'s `hasOnly` is now the only
+thing between a client and the membership queue.** That rule was written
+for a pool toggle; it is load-bearing for this. Pinned by its own rules
+case — a member cannot add to `pending`, name an entry, clear one, or
+ride one in beside a legal `duoMode` write.
+
+### `joinGroupV2` is kept as an alias, deliberately
+
+Same implementation, exported twice. A callable that disappears is a hard
+error in every build already installed, and this is the one flow a
+stranger uses — a `not-found` on a tapped invite is the worst place to
+learn that an app needs updating.
+
+Aliasing also means the hole closes **on deploy** rather than whenever
+each build updates: an old client calls `joinGroupV2`, gets a request
+queued instead of a membership, and reports it slightly wrong. Wrong
+copy on an old build is a smaller cost than an open admit-by-code
+endpoint, and it is the direction of the trade this decision is about.
+
+### Two things that follow from the notification
+
+**The prompt now fires on ASKING, not only on joining.** The
+notification an asker most needs next is "you're in", and it cannot
+arrive without a token — so `pushEarned()` moved onto the request. Asking
+earns the prompt for exactly the reason joining does.
+
+**Declining tells them nothing.** D122's reasoning about declining an
+invitation applies unchanged in the other direction: a "declined" state
+makes refusing somebody a message you have to send them, which is what
+makes people approve requests they do not want. The row simply stops
+being there.
+
+### The erasure arm phase 1c cannot reach
+
+`pending` sits on a group whose `memberUids` does **not** contain the
+asker — that is what pending means — so the membership sweep matches
+nothing and walks past it. And the entry carries a NAME, so an erased
+account would sit in a stranger's circle, by name, waiting to be
+approved forever. Phase 3c-bis, `array-contains` on a single field
+(auto-indexed, no index entry), asserted in `e2e-delete-account.mjs`
+with a second asker's request that must survive.
+
+### Three limits
+
+1. **Friction, and it is the point.** The sender now has to come back and
+   approve. That is the cost of the circle having a say, and D236's push
+   is what makes it one tap rather than a chore — members are notified
+   the moment somebody asks.
+2. **A link is still a capability to ASK.** Forwarding it can queue
+   strangers, bounded by `PENDING_CAP` and the join budget rather than
+   prevented. That is a nuisance where the old behaviour was a breach.
+3. **An asker cannot see their own request.** The group document is
+   member-gated and they are not a member, so status lives in the
+   response and in local state. Asking twice is idempotent and answers
+   `waiting`, which is what a person who reinstalls will hit.
+
+### Measured rather than assumed
+
+The e2e's own partner used to join by code in one call. It now asks and
+is approved, and the four assertions that replaced that line are the
+decision itself: a code queues rather than admits, a second ask is
+idempotent, a non-member cannot approve their own request, and approval
+clears both the queue entry and the name beside it.
 >>>>>>> origin/main
 
 ## D241 · The report builder ships, and reads as a signed-in user
@@ -24234,4 +24829,5 @@ inclusive, the 50 fallback, a skewed baseline moving its bands);
 e2e §7g holds the all-untested shape; the roll CSV is unchanged — the
 axes are the page's reading, and the roll already lets a buyer
 recompute any of it.
+=======
 =======

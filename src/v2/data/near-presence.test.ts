@@ -39,7 +39,7 @@ vi.mock("../../lib/firebase", () => ({
 }));
 
 vi.mock("../../lib/sentry", () => ({ reportError: vi.fn(), setSentryUser: vi.fn() }));
-vi.mock("./push", () => ({ registerPushForReveals: () => Promise.resolve() }));
+vi.mock("./push", () => ({ registerPush: () => Promise.resolve() }));
 
 vi.mock("./locate", () => ({
   locateSupported: () => true,

@@ -73,7 +73,7 @@ vi.mock("../../lib/sentry", () => ({
 }));
 
 vi.mock("./push", () => ({
-  registerPushForReveals: () => Promise.resolve(),
+  registerPush: () => Promise.resolve(),
 }));
 
 vi.mock("firebase/functions", () => ({
