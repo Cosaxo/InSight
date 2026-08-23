@@ -44,6 +44,29 @@
                       android:pathPrefix="/join/" />
             </intent-filter>
 
+            <!-- The SAME invite link, by custom scheme (D232). This is what
+                 the hosted /join page's "Open in InSight" button navigates
+                 to, and it is why a tapped invite no longer ends in a code
+                 somebody has to read and type: an https link only reaches
+                 the app once assetlinks.json carries the real Play signing
+                 SHA-256, and a custom scheme needs no fingerprint at all.
+
+                 host="join" rather than a path, because in insight://join/CODE
+                 the word "join" IS the authority — parseJoinCode matches on
+                 host+path for exactly this reason (src/v2/data/links.ts).
+
+                 No autoVerify: a custom scheme cannot be verified, which is
+                 the trade. Another app may claim it, so this carries an
+                 invite token and never a credential, and the https filter
+                 above stays the preferred route for when the fingerprint
+                 lands. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="insight" android:host="join" />
+            </intent-filter>
+
         </activity>
 
         <!-- Reveal notification presentation. Without the icon meta-data

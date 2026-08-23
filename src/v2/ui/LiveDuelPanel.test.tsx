@@ -866,3 +866,100 @@ describe("LiveDuelPanel · creating with people picked", () => {
     expect(await screen.findByText(/Circle made/i)).toBeTruthy();
   });
 });
+
+// ── the code stops being something anyone reads or types (D232) ────
+//
+// D122 demoted the field to a fallback; this removes it. What made that
+// worth doing is not tidiness: an invite code was a bearer token with no
+// expiry and no rotation that admitted whoever held it with nobody's
+// consent, sitting beside an invitation flow that exists precisely
+// because joining a circle puts your name on an answer these people
+// read the next day. Two doors, two rules.
+//
+// These pin the removal as well as the replacement, because the suite
+// went green when the field came out — nothing had ever covered it, and
+// a deletion no test can see is one that grows back.
+
+describe("LiveDuelPanel · no code is read off one screen and typed into another", () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+    LIVE.social.groups = () => [];
+  });
+  afterEach(() => sessionStorage.clear());
+
+  it("offers no way to type a code, and no door that opens one", () => {
+    render(<LiveDuelPanel mode="group" />);
+    expect(screen.queryByPlaceholderText(/invite code/i)).toBeNull();
+    expect(screen.queryByText(/OR JOIN WITH A CODE/i)).toBeNull();
+    expect(screen.queryByRole("button", { name: /have an invite code/i })).toBeNull();
+  });
+
+  it("shows the invite button as what it does, not as eight characters", () => {
+    LIVE.social.groups = () => [{ ...DUO, memberUids: ["u_me"], inviteCode: "ABCD2345" }];
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.getByRole("button", { name: /Copy invite link/i })).toBeTruthy();
+    expect(screen.queryByText("ABCD2345"), "the code was still on the screen").toBeNull();
+  });
+});
+
+describe("LiveDuelPanel · a tapped invite link", () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+    LIVE.social.groups = () => [];
+  });
+  afterEach(() => sessionStorage.clear());
+
+  // The link used to PREFILL A FIELD — the app had the invitation and
+  // then asked you to confirm it by looking at characters it already
+  // held. One button is the same act with the reading removed.
+  it("joins on one tap, with the code it arrived with", async () => {
+    sessionStorage.setItem("insight.pendingJoin", "ABCD2345");
+    const join = vi.fn(async (code: string, displayName?: string) => {
+      void code; void displayName;
+      return { gid: "g_new", name: "Test" };
+    });
+    LIVE.social.joinGroup = join;
+    render(<LiveDuelPanel mode="group" />);
+
+    expect(screen.getByText(/An invitation/i)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /^Join$/ }));
+    await waitFor(() => expect(join).toHaveBeenCalled());
+    expect(join.mock.calls[0][0]).toBe("ABCD2345");
+  });
+
+  // A CLAIM, not a caption. Somebody arriving from a link has been told
+  // nothing by the app yet, and what joining does is put their name on an
+  // answer these people read — which is the whole reason D122 made
+  // invitations consented.
+  it("says what joining exposes before the tap, not after", () => {
+    sessionStorage.setItem("insight.pendingJoin", "ABCD2345");
+    render(<LiveDuelPanel mode="group" />);
+    expect(screen.getByText(/revealed with names to the people in it/i)).toBeTruthy();
+  });
+
+  it("takes no for an answer without joining anything", () => {
+    sessionStorage.setItem("insight.pendingJoin", "ABCD2345");
+    const join = vi.fn(async () => ({ gid: "g_new", name: "Test" }));
+    LIVE.social.joinGroup = join;
+    render(<LiveDuelPanel mode="group" />);
+    fireEvent.click(screen.getByRole("button", { name: /Not now/i }));
+    expect(screen.queryByText(/An invitation/i)).toBeNull();
+    expect(join).not.toHaveBeenCalled();
+  });
+
+  // The card sits at the TOP of the panel rather than inside LdOnboard,
+  // which for an account that already has circles renders at the end of
+  // the rail — so the old field was four circles' worth of scrolling
+  // below the invitation that had just opened the app.
+  it("is reachable without scrolling past the circles you already have", () => {
+    sessionStorage.setItem("insight.pendingJoin", "ABCD2345");
+    LIVE.social.groups = () => [{ ...DUO, memberUids: ["u_me", "u_ada"] }];
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.getByRole("button", { name: /^Join$/ })).toBeTruthy();
+  });
+
+  it("draws nothing when no link was tapped", () => {
+    render(<LiveDuelPanel mode="group" />);
+    expect(screen.queryByText(/An invitation/i)).toBeNull();
+  });
+});

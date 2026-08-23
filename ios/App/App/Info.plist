@@ -44,6 +44,22 @@
 				<string>com.googleusercontent.apps.437999864865-vqpbjkbk34fsqms3st4pt09f72rc2dan</string>
 			</array>
 		</dict>
+		<!-- Invite links by custom scheme (D232). The Associated Domains
+		     entitlement above is the better route and stays the preferred
+		     one; this is the route that needs no fingerprint and no CDN
+		     fetch, so an invite reaches the app on the day it is sent
+		     rather than the day verification lands. Unlike a universal
+		     link a scheme cannot be verified — any app may claim it — so
+		     what travels this way is an invite token and never a
+		     credential. -->
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.cosaxo.insight.invite</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>insight</string>
+			</array>
+		</dict>
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>

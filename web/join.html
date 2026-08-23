@@ -10,9 +10,22 @@
     (firebase.json). Once the app-links files carry real fingerprints
     (.well-known/), a tap on a phone with the app installed never sees
     this page — the OS hands the URL straight to the app. Until then,
-    and on desktop forever, this IS the landing: show the code, make it
-    copyable, say where it goes. No analytics, no scripts beyond the
-    ~20 lines below, nothing loaded from anywhere.
+    and on desktop forever, this IS the landing.
+
+    IT NO LONGER SHOWS A CODE (D232). It used to: the code, big and
+    monospaced, a "Copy code" button, and directions to a field in the
+    app. That field is gone and should have been — a code was a bearer
+    token with no expiry that admitted whoever held it without anybody's
+    consent. What this offers instead is the custom scheme,
+    insight://join/CODE, which the app registers on both platforms and
+    which needs no fingerprint: a tapped invite reaches the app today
+    rather than on the day verification lands.
+
+    Tap, never auto-redirect. Navigating to a scheme on load raises
+    "Cannot Open Page" on a device without the app, with nothing to
+    distinguish that from a broken invite. A tap is intent, and the OS
+    is kinder about it. No analytics, no scripts beyond the ~25 lines
+    below, nothing loaded from anywhere.
   -->
   <style>
     :root {
@@ -32,18 +45,12 @@
     .mark em { font-style: normal; color: var(--accent); }
     h1 { margin-top: 18px; font-size: 26px; letter-spacing: -0.02em; line-height: 1.15; }
     p { margin-top: 10px; color: var(--ink-2); font-size: 15px; line-height: 1.5; }
-    .code {
-      margin: 22px auto 0; display: inline-block; padding: 14px 22px;
-      background: var(--surface); border: 1px solid var(--rule); border-radius: 14px;
-      font-family: ui-monospace, Menlo, Consolas, monospace;
-      font-size: 26px; font-weight: 700; letter-spacing: 0.18em;
-    }
-    button {
+    button, a.btn {
       margin-top: 14px; display: inline-block; border: none; cursor: pointer;
+      text-decoration: none;
       background: var(--ink); color: var(--surface); font: inherit; font-weight: 700;
       font-size: 14px; padding: 12px 26px; border-radius: 999px;
     }
-    .steps { margin-top: 26px; text-align: left; color: var(--ink-2); font-size: 14px; line-height: 1.6; }
     .steps b { color: var(--ink); }
     .quiet { margin-top: 26px; font-size: 12px; color: var(--ink-3); }
   </style>
@@ -51,41 +58,37 @@
 <body>
   <main>
     <div class="mark">in<em>Sight</em></div>
-    <h1>You’re invited to a group</h1>
+    <h1>You’re invited</h1>
     <p id="lead">One question a day, answers sealed until tomorrow — then revealed with names, only to the people in it.</p>
-    <div class="code" id="code">········</div>
-    <div><button id="copy" hidden>Copy code</button></div>
-    <div class="steps">
-      In the app: <b>Daily</b> → <b>Group</b> → <b>Join with a code</b>.
-      If you opened this on your phone with inSight installed, the code is
-      already waiting in the join field.
-    </div>
+    <div><a class="btn" id="open" href="#" hidden>Open in inSight</a></div>
+    <p class="quiet" id="note" hidden>Don’t have it yet? Install inSight, then open this link again.</p>
     <p class="quiet">No account or email needed — the app works anonymously from the first tap.</p>
   </main>
   <script>
     // Same acceptance as the app's parser (src/v2/data/links.ts): the
-    // server's code alphabet only, so a mangled URL shows an honest
-    // failure instead of an uncopyable blob.
+    // server's code alphabet only, so a mangled URL says so instead of
+    // handing the app a token it will refuse.
+    //
+    // DUPLICATED ON PURPOSE, the way functions/src/pure.ts and
+    // data/handles.ts duplicate normalizeHandle: this page ships as
+    // static HTML with no bundler, so there is no graph to import the
+    // real parser through. Keep the two in step.
     (function () {
       var m = /(?:^|\/)join\/([^/?#]+)/.exec(location.pathname);
       var raw = (m && m[1]) || new URLSearchParams(location.search).get("c") || "";
       var code = decodeURIComponent(raw).trim().toUpperCase();
-      var el = document.getElementById("code");
-      var btn = document.getElementById("copy");
+      var open = document.getElementById("open");
+      var note = document.getElementById("note");
       if (!/^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{6,12}$/.test(code)) {
-        el.textContent = "—";
-        document.getElementById("lead").textContent =
-          "This invite link is incomplete. Ask your friend to share it again.";
+        document.querySelector("h1").textContent = "That link is incomplete";
+        document.getElementById("lead").textContent = "Ask your friend to send it again.";
         return;
       }
-      el.textContent = code;
-      btn.hidden = false;
-      btn.addEventListener("click", function () {
-        navigator.clipboard.writeText(code).then(function () {
-          btn.textContent = "Copied ✓";
-          setTimeout(function () { btn.textContent = "Copy code"; }, 1600);
-        });
-      });
+      // The code rides in the href and is never rendered. Nobody reads
+      // it and nobody types it, which is the whole of D232.
+      open.href = "insight://join/" + encodeURIComponent(code);
+      open.hidden = false;
+      note.hidden = false;
     })();
   </script>
 </body>

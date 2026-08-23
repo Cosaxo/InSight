@@ -496,9 +496,17 @@ Both apps must be registered under `com.cosaxo.insight`:
 
 ## 3b · Invite links — two fingerprints (account-gated)
 
-The code half is live: sharing copies a `/join/CODE` link, the hosted
-fallback page works today, and the app prefills a tapped code. Direct
-app-open needs:
+**The custom scheme carries this now (D232).** `insight://join/CODE` is
+registered on both platforms and needs no fingerprint at all, so a tapped
+invite reaches the app today: `web/join.html`'s one button navigates
+there. Nothing below is on the critical path any more — a tapped code no
+longer has to be read by a person, because there is no field left to type
+it into.
+
+The two fingerprints are still worth having. A custom scheme cannot be
+VERIFIED — any app may claim it — and an https link that opens the app
+directly skips the landing page altogether. Step 1 is the one still
+outstanding:
 
 1. `web/.well-known/assetlinks.json` — replace
    `REPLACE_WITH_PLAY_SIGNING_SHA256` with the Play App Signing SHA-256
@@ -513,12 +521,10 @@ app-open needs:
    `adb shell pm get-app-links com.cosaxo.insight` should show verified.
    iOS re-fetches AASA on install (CDN-cached; allow up to a day).
 
-Until then links open the fallback page — degraded, not broken. Android
-is the platform that is still there: step 1 is the only fingerprint
-outstanding, so every Android invite to somebody with no account lands
-on `web/join.html` and degrades to copying a code by hand. D230 fixed
-the notification half of the owner's complaint; this step is the other
-half, and it is a credential rather than a change.
+Until then an https link opens the fallback page, which offers the app
+by scheme — one tap, no code. `check:store-copy` fails while step 1 is
+unreplaced, and that failure is the reminder rather than a blocker on
+anything a user does.
 
 ## 4 · On-device verification list (first build)
 

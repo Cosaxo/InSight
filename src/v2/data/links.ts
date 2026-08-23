@@ -1,12 +1,23 @@
 // Invite links — the intake half. A share produces
 // https://prvfire33.web.app/join/<CODE>; this module turns that URL back
-// into a prefilled join code when the app is opened by it.
+// into a pending join when the app is opened by it.
 //
-// Until the store fingerprints land (assetlinks.json / AASA — see
-// SHIP-CHECKLIST), tapping a link opens the hosted fallback page
-// (web/join.html), which shows the code and points at the app. Nothing
-// here breaks in that world — the deep-link path is an upgrade, not a
-// dependency.
+// THREE SHAPES REACH HERE, and since D232 all three end in one button
+// rather than a filled-in text field (LdJoinPending):
+//
+//   · https://…/join/CODE      — the shared link. Opens the app directly
+//                                only once assetlinks.json carries the
+//                                real Play signing SHA-256; until then
+//                                Android lands on the page below.
+//   · https://…/join.html?c=…  — that page's own query form.
+//   · insight://join/CODE      — the custom scheme, registered on BOTH
+//                                platforms since D232 and the reason the
+//                                fingerprint is no longer what stands
+//                                between a tapped invite and the app.
+//                                web/join.html's one button navigates
+//                                here. A scheme cannot be verified, so
+//                                what travels it is an invite token and
+//                                never a credential.
 //
 // The pending code is a session note, not durable state: it survives the
 // tab/app-shell handoff and dies with the session, so a stale invite

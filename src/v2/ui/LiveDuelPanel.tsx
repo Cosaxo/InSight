@@ -281,8 +281,6 @@ function LdOnboard({ mode }: { mode?: string }) {
   const [name, setName] = React.useState("");
   // A tapped invite link lands here: the stashed code prefills the join
   // field (consume = one prefill, not a haunting).
-  const [code, setCode] = React.useState(() => consumeJoinCode() || "");
-  const [codeOpen, setCodeOpen] = React.useState(false);
   const [picked, setPicked] = React.useState<LdPick[]>([]);
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
@@ -355,37 +353,20 @@ function LdOnboard({ mode }: { mode?: string }) {
           legitimate thing to make, and the link is how you reach somebody
           who has no account to hold a handle. */}
       <LdPicker picked={picked} onChange={setPicked} cap={duo ? 1 : 31} busy={busy} />
-      {/* THE CODE STOPS BEING THE SECOND HALF OF THIS SCREEN (D122).
-          It used to sit here under an "OR JOIN WITH A CODE" rule, as a
-          peer of Create — which made an eight-character string the thing
-          a new user was asked for before they had anyone to swap it
-          with. Once a circle exists its members are added by handle, and
-          a person with no account gets a link (the code rides inside it,
-          where nobody reads it).
+      {/* NO CODE FIELD (D232). D122 demoted it to a fallback behind "Have
+          an invite code?" and this is the rest of that move: a tapped
+          invite link now lands as LdJoinPending, one button at the top of
+          the panel, so nothing is ever read off a screen and typed into
+          another one.
 
-          It is not deleted: a tapped invite link prefills this field, and
-          somebody who was handed a code out of band still has to be able
-          to type it. So it becomes what it actually is — the fallback —
-          and prefilled state opens it, because a code that arrived by
-          link should not be hidden behind a disclosure. */}
-      {codeOpen || code ? (
-        <>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--ink-3)", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em" }}>
-            <span style={{ flex: 1, height: 1, background: "var(--rule)" }} />OR JOIN WITH A CODE<span style={{ flex: 1, height: 1, background: "var(--rule)" }} />
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <LdInput value={code} onChange={(v) => setCode(v.toUpperCase())} placeholder="Invite code" style={{ fontFamily: "var(--mono, monospace)", letterSpacing: "0.12em" }} />
-            <LdBtn primary disabled={busy || code.trim().length < 6 || !me}
-              onClick={() => void go(() => S.joinGroup(code.trim(), me || undefined))}>Join</LdBtn>
-          </div>
-        </>
-      ) : (
-        <button className="press" onClick={() => setCodeOpen(true)} style={{
-          alignSelf: "center", border: "none", background: "none", padding: "2px 8px",
-          cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600,
-          color: "var(--ink-3)", WebkitAppearance: "none",
-        }}>Have an invite code?</button>
-      )}
+          What that gives up, stated: somebody handed a code out of band —
+          read aloud, written down — has no way to enter it. That is the
+          point rather than the cost. A code was a bearer token with no
+          expiry and no rotation that admitted its holder with nobody's
+          consent, sitting next to an invitation flow that exists because
+          joining a circle puts your name on an answer these people will
+          read. Two doors, two rules; this closes the one nobody agreed
+          to. */}
       {err && <div style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{err.replace(/^.*?: */, "")}</div>}
     </div>
   );
@@ -451,11 +432,15 @@ function LdAddByHandle({ g }: { g: LiveGroup }) {
   );
 }
 
-// The other way in — the one that reaches somebody with no account yet.
-// The LINK, not the bare code: pasteable anywhere, and it lands on the
-// hosted /join page (or straight in the app once app-links verify). The
-// code is still the button's face, because that is what a person who was
-// handed one out of band will be looking for.
+// The other way in — the one that reaches somebody with no account yet,
+// who therefore has no handle to be picked by.
+//
+// IT SAYS WHAT IT DOES (D232). The button's face used to be the eight
+// characters themselves, on the reasoning that a person handed a code
+// would be looking for one. That reasoning died with the field that
+// received them: it copies a LINK, it has always copied a link, and
+// showing a code was the last place in the app that taught people this
+// was a code product.
 function LdCopyLink({ g }: { g: LiveGroup }) {
   const [copied, setCopied] = React.useState(false);
   const copy = () => {
@@ -467,10 +452,10 @@ function LdCopyLink({ g }: { g: LiveGroup }) {
   };
   return (
     <button onClick={copy} aria-label="Copy invite link — no account needed" title="Copy invite link"
-      style={{ flexShrink: 0, border: LD_LINE, background: "var(--surface-2)", borderRadius: 8, padding: "5px 10px",
-        cursor: "pointer", fontFamily: "var(--mono, monospace)", fontSize: 11.5, fontWeight: 700,
-        letterSpacing: "0.1em", color: "var(--ink-2)", WebkitAppearance: "none" }}>
-      {copied ? "copied ✓" : g.inviteCode}
+      style={{ flexShrink: 0, border: LD_LINE, background: "var(--surface-2)", borderRadius: 999, padding: "6px 13px",
+        cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 700,
+        color: "var(--ink-2)", WebkitAppearance: "none" }}>
+      {copied ? "link copied ✓" : "Invite"}
     </button>
   );
 }
@@ -519,6 +504,57 @@ function LdInvites({ mode }: { mode?: string }) {
           <LdBtn small primary onClick={() => void act(inv.gid, true)} disabled={busy === inv.gid}>Accept</LdBtn>
         </div>
       ))}
+      {err && <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{err}</div>}
+    </div>
+  );
+}
+
+// ── a tapped invite link (D232) ──────────────────────────────────
+//
+// What a link used to do was PREFILL A TEXT FIELD, which meant the app
+// had received the invitation and then asked you to confirm it by
+// looking at eight characters it already had. This is the same act with
+// the typing removed: one button.
+//
+// It sits at the top of the panel beside LdInvites, not inside LdOnboard
+// where the field lived, and that placement is the fix for a second
+// thing: LdOnboard renders at the END of the rail for an account that
+// already has circles, so a tapped link used to land in a card you had
+// to scroll past four circles to reach.
+//
+// Mode-agnostic on purpose. The code names a circle, not a tab, and
+// `joinGroupV2` resolves it either way — so whichever of Circle or 1v1
+// you are looking at when the link opens the app, the invitation is
+// there. It used to require being on the right tab AND opening a
+// disclosure.
+function LdJoinPending({ code, onDone }: { code: string; onDone: () => void }) {
+  const [busy, setBusy] = React.useState(false);
+  const [err, setErr] = React.useState<string | null>(null);
+  const join = async () => {
+    setBusy(true); setErr(null);
+    try {
+      await LIVE.social.joinGroup(code, ldName().trim() || undefined);
+      onDone();
+    } catch (e) {
+      setErr(errText(e).replace(/^.*?: */, ""));
+      setBusy(false);
+    }
+  };
+  return (
+    <div className="card" style={{ display: "flex", flexDirection: "column", gap: 11, padding: "16px 15px" }}>
+      <span className="kicker" style={{ marginBottom: 0 }}>An invitation</span>
+      {/* A CLAIM, not a caption (COPY.md §3). What joining does is put
+          your name on a sealed answer that these people read the next
+          day, and D122 made consent the difference between an invitation
+          and a follow. Somebody arriving from a link has been told
+          nothing by the app yet, so this is where it gets said. */}
+      <div style={{ fontSize: 13.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.45 }}>
+        One question a day, sealed until tomorrow, then revealed with names to the people in it.
+      </div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <LdBtn primary disabled={busy} onClick={() => void join()}>{busy ? "\u2026" : "Join"}</LdBtn>
+        <LdBtn small disabled={busy} onClick={onDone}>Not now</LdBtn>
+      </div>
       {err && <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{err}</div>}
     </div>
   );
@@ -1167,6 +1203,11 @@ function LiveDuelPanel({ mode }: { mode?: string }) {
   const [vh, setVh] = React.useState(0);
   const [cur, setCur] = React.useState("");
   const has = groups.length > 0;
+  // A tapped invite link, consumed ONCE (D232). Read-and-clear, so it
+  // prompts on this visit and does not resurface days later on a circle
+  // the person already declined to join — the same contract the field it
+  // replaced had, minus the typing.
+  const [pendingCode, setPendingCode] = React.useState(() => consumeJoinCode() || "");
 
   // Snap on the tab's own scroller while this panel is mounted, plus a
   // scroll-spy that keeps the rail pointing at whatever is under the
@@ -1225,6 +1266,7 @@ function LiveDuelPanel({ mode }: { mode?: string }) {
   if (!has) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "4px 1px 20px" }}>
+        {pendingCode && <LdJoinPending code={pendingCode} onDone={() => setPendingCode("")} />}
         <LdInvites mode={mode} />
         <LdOnboard mode={mode} />
       </div>
@@ -1256,6 +1298,7 @@ function LiveDuelPanel({ mode }: { mode?: string }) {
       </div>
       {/* Invitations lead the stack. Someone asking to play with you
           outranks a card you have already finished. */}
+      {pendingCode && <LdJoinPending code={pendingCode} onDone={() => setPendingCode("")} />}
       <LdInvites mode={mode} />
       <div style={col(0)}>
         {items.map(({ g }, i) => {

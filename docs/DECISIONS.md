@@ -23520,3 +23520,130 @@ it directly was **`check:a11y`** — "these files could not be parsed, so
 they were not checked". A file a gate cannot read is a file that gate is
 lying about, which is why it reports rather than skips.
 
+
+## D232 · The invite code stops being something a person reads
+
+**2026-08-23.** **Status:** binding. Owner's call — "I think we should
+remove invite codes, they cause confusion and mess" — and the confusion
+turned out to be the smaller half of the argument.
+
+### Two doors into a circle, with different rules
+
+D122 added consent to invitations for a stated reason: *joining a circle
+puts your name on a sealed daily answer that is then revealed to those
+people.* That is access the other side does not otherwise have, so it is
+offered and accepted.
+
+The code door had none of that, and two properties made it worse than
+untidy:
+
+- **It never expires and is never rotated.** Minted once at creation
+  (`inviteCode()` in v2social) and never touched again — no rotation
+  callable, no expiry, nothing in any UI that could change it.
+- **Possession is admission.** `joinGroupV2` writes straight into
+  `memberUids`. No invitation, no acceptance, no member approves you.
+
+So an invite code was a **permanent bearer token** sitting next to a
+consent flow built because the thing behind it is sensitive. One
+forwarded screenshot and a stranger is in the circle, reading everyone's
+answers with their names on them, with no way to revoke short of leaving.
+Two doors, two rules; this closes the one nobody agreed to.
+
+### What is removed, and what is not
+
+**Removed — everything a person reads, types or is told to copy:**
+
+- the create screen's "Have an invite code?" disclosure, its field, and
+  the "OR JOIN WITH A CODE" rule
+- the code as the face of the invite button (`LdCopyLink`), which copied
+  a LINK and had always copied a link — the last place in the app that
+  taught people this was a code product
+- the hosted page's big monospaced code, its "Copy code" button, and its
+  directions to a field that no longer exists
+
+**Not removed — the token inside the link.** Something has to name the
+circle in `…/join/CODE`, nobody reads it, and it is the only thing that
+reaches a person with no account and therefore no handle to be picked
+by. Same shape as a document share URL.
+
+**What this gives up, stated plainly:** somebody handed a code out of
+band — read aloud, written on paper — now has no way to enter it. That
+is the point rather than the cost; entering a code by hand is exactly the
+capability being withdrawn.
+
+### The blocker was not what D230 said it was
+
+D230 recorded that removing the field had to wait for the Play signing
+fingerprint, because on Android an https invite link cannot open the app
+until `assetlinks.json` is filled in — so the hosted page and its typed
+code were the whole Android path.
+
+That was true and it was not the only route. `parseJoinCode` has always
+accepted `insight://join/CODE`, and its comment explains why it matches
+on host+path (in a custom scheme the word "join" is the authority). But
+**the scheme was registered on neither platform** — Android's manifest
+carried only the https filter, and iOS's `CFBundleURLSchemes` held only
+the Google Sign-In reversed client id. The parser handled a URL nothing
+could deliver.
+
+Registering it is one `<intent-filter>` and one plist dict. No Play
+Console, no Apple credential, no verification wait. `web/join.html` now
+offers one button that navigates there, so a tapped invite reaches the
+app today.
+
+The fingerprints are still worth having and SHIP-CHECKLIST still asks
+for them: an https link that opens the app skips the landing page
+entirely, and a verified app link is a stronger claim than a scheme.
+
+### A tapped link is one button, at the top
+
+The link used to **prefill a text field** — the app had received the
+invitation and then asked you to confirm it by reading eight characters
+it already held. It is now `LdJoinPending`: one Join, one Not now.
+
+Moving it also fixed something the field's placement hid. It lived in
+`LdOnboard`, which for an account that already has circles renders at
+the END of the rail — so a tapped invite landed in a card four circles
+below the fold. `LdJoinPending` sits at the top beside `LdInvites`,
+where the other "somebody is waiting on you" surface already is, and it
+is mode-agnostic: a code names a circle rather than a tab, `joinGroupV2`
+resolves it either way, and the old field required being on the right
+tab *and* opening a disclosure.
+
+It carries the consent sentence, which is a claim rather than a caption
+(COPY.md §3): somebody arriving from a link has been told nothing by the
+app yet, and what joining does is put their name on an answer these
+people read tomorrow.
+
+### Three limits
+
+1. **A custom scheme cannot be verified.** Any app may claim `insight://`.
+   What travels it is an invite token, never a credential, and the https
+   route stays preferred for when the fingerprint lands.
+2. **If the app is not installed, the tap does nothing.** Hence a button
+   rather than an auto-redirect on load — navigating to a scheme
+   unprompted raises "Cannot Open Page" with nothing to distinguish that
+   from a broken invite. The page says to install and open the link
+   again; it cannot link a store, because no store URL exists anywhere in
+   this repo yet.
+3. **The link is still a bearer token.** This removed the code's
+   *surface*, not the possession model underneath — a forwarded link
+   still admits its holder. Closing that properly means a link that
+   INVITES rather than admits, and it is deliberately not in this change.
+   It is the next decision, and the argument for it is already written
+   above.
+
+### Measured rather than assumed
+
+**The suite went green when the field came out.** Every test passed with
+the code field deleted, which means nothing had ever covered it —
+placeholder, disclosure, join button or all three. A deletion no test can
+see is one that grows back, so the removal is now pinned as explicitly as
+the replacement: no code placeholder, no disclosure, no eight characters
+on the invite button.
+
+Still owed, and it cannot be closed from here: **a real tap on a real
+device.** The scheme registration is two platform manifests, which no
+emulator suite in this repo exercises. The logic either side of it is
+covered; the OS handoff is not.
+
