@@ -554,6 +554,29 @@ describe("resetForNewUid", () => {
     expect(LIVE.social.takes(GID)).toEqual([]);
     expect(LIVE.social.flagged("t1")).toBe(false);
   });
+
+  it("carries no previous account's follow list past a uid change", async () => {
+    // The follow cache is the outgoing account's answer to "who are my
+    // friends", and it is what puts the Friends chip on a who-voted sheet.
+    // loadFollows() early-returns on a non-null cache — `if (state.follows)
+    // return` — so a survivor is not corrected by the next load; it stands
+    // for the rest of the session, marking strangers as the new account's
+    // friends.
+    //
+    // The null/[] distinction is the assertion, not the contents: null is
+    // "not asked or failed", [] is "you follow nobody", and only the reset
+    // can put it back to the first. An empty list from the mock is enough
+    // to tell the two apart.
+    const LIVE = await bootLive();
+    await LIVE.loadFollows();
+    expect(LIVE.follows()).not.toBeNull();
+
+    h.authCb?.({ uid: "uid_follows_other" });
+    await vi.waitFor(() => { expect(LIVE.uid).toBe("uid_follows_other"); });
+
+    expect(LIVE.follows()).toBeNull();
+    expect(LIVE.followsLoading()).toBe(false);
+  });
 });
 
 describe("deleteTake", () => {

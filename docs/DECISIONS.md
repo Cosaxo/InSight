@@ -24800,3 +24800,77 @@ the gate fails naming the row and the rule; with it corrected the gate
 passes and reports the covered count. The count is in the success line on
 purpose — a coverage number that silently falls to zero is the failure
 mode every gate in this repo that globs files has to answer for.
+
+## D244 · Two shipped surfaces the bank never fetched
+
+**2026-08-23.** **Status:** binding. Two defects in `live.ts`'s account
+state, found by reading the boot fetch against `splitBanks` and
+`resetForNewUid` against its own list.
+
+### 1 · `pulse` and `call` were absent from `BANK_SURFACES`
+
+`hydrate()` decides what the bank IS in one constant, spelled twice — as
+the `in` constraint on the full paged fetch, and as the client-side filter
+the delta path shares (the delta queries on `updatedAt` with no surface
+clause, so it *would* have brought them in, and the filter dropped them
+again). It listed six names. `splitBanks` returns six **lanes**, and two
+of them — `pulse` and `call` — were not among the six.
+
+So on every live device:
+
+- `state.pulseBank` and `state.callBank` were `[]`, always;
+- `LIVE.pulseQs()` returned `[]`, so `pulse.ts`'s `roster()` returned `[]`
+  whenever `LIVE.enabled`, and **the entire D203 pulse roster never drew**;
+- `LIVE.callQs()` returned `[]`, so **no Foresight CALL ever drew** (D194).
+
+Five pulse documents and three call documents were seeded, active, and
+admitted by their own rules arms (`isPulseAnswer`, `isCallAnswer`), and
+none of them existed as far as the app was concerned.
+
+**Why nothing looked wrong.** The demo build draws both from its own
+fixtures, so every place a human would look — the demo, the mount tests,
+the screenshots — showed a working pulse card and working calls. And
+`docs/COSTS.md` §"One pulse open" states the intended arrangement as
+fact: *"`splitBanks` now keeps a pulse lane, so the roster's prompts come
+from the bank `hydrate()` already cached."* Half of that shipped. The
+lane was added; the fetch that fills it was not.
+
+**The invariant, now written where the constant is:** every surface
+`splitBanks` can return must appear here. Not "add the new one when you
+add a lane" — that is the discipline that failed. Pinned in
+`bank-cache.test.ts` on the QUERY as well as on the output, because a
+surface dropped by the server-side `in` and one dropped by the
+client-side filter look identical from the bank and only one of them
+costs a read. Firestore's `in` takes 30 values; eight is not near it.
+
+### 2 · `resetForNewUid` left `state.follows` standing
+
+The function is a careful list — votes, aggs, groups, reveals, takes,
+flags, voters, names, scores, faces, learn state, profile-seen ages,
+circle, foresight, invites, push and device-bind flags — each with the
+reason it belongs to the outgoing account. `follows` was missed.
+
+It is the same graph as `circle`, one view over, and `setFollowing`
+already drops it before a refetch for exactly this reason ("leaving the
+old list standing in between is how a just-followed friend fails to
+appear"). Left across a uid change it does worse than go stale, because
+**`loadFollows()` early-returns on a non-null cache** — `if
+(state.follows) return` — so unlike almost everything else in that list it
+is not corrected by the next load. It stands for the session, putting the
+previous account's friends on the Friends cut of every who-voted sheet.
+
+Reachable without a sign-out: `linkGoogle()` falls back to
+`googleSignIn()` when there is no `currentUser`, which produces a
+different uid in the same process.
+
+The null/`[]` distinction is what the test asserts, not the contents:
+`null` is "not asked or failed", `[]` is "you follow nobody", and only the
+reset can put it back to the first.
+
+### What both have in common
+
+Neither is visible to any gate here, and both are one line. The bank one
+is a list that had to be kept in step with a function in another file; the
+follows one is a list that had to be kept in step with the state
+declaration above it. Both failed the same way a `spec-index.js` reorder
+would — quietly, with the app still rendering something.
