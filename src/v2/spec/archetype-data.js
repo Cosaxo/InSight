@@ -1,9 +1,13 @@
 // Ported from design/spec-modules/archetype-data.js (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
-// Cross-module references resolve through the shared global scope and
-// spec-index.js load order is semantic — scripts/check-spec-globals.mjs
-// guards the wiring in CI.
-import React from 'react';
+//
+// OFF THE BRIDGE since D253 (D39's "convert on touch"): every name here
+// is a plain named export, nothing is published to window, and the
+// consumer set moved in the same change (the primitives.jsx precedent —
+// a provider whose consumers all fit in one change is cheaper to finish
+// than to bridge). The conversion is also what lets this module load
+// under plain node: the report builder (scripts/report-lib.mjs) imports
+// the matcher to draw the four instruments' type cuts.
 import { IS_TEST_AVG } from './test-definitions.js';
 
 // archetype-data.js — named type systems per test. Each type has a signature
@@ -12,9 +16,6 @@ import { IS_TEST_AVG } from './test-definitions.js';
 // rare ones genuinely rare). Your result maps to the NEAREST type live.
 // Signatures are deliberately EXTREME on each type's 1–2 defining dims and
 // near-neutral elsewhere, so nearest-type matching stays stable.
-// Converted off the shared-global bridge (D39, "convert on touch"):
-// type-marks.jsx imports this by name. The window mirror stays for the
-// consumers that have not moved.
 export const IS_ARCHETYPES = {
   big5: { list: [
     { name: 'The Enthusiast',      share: 6,  line: 'Says yes first, plans later.',                    sig: { O: 88, C: 40, E: 75, A: 55, N: 45 } },
@@ -115,7 +116,7 @@ export const IS_ARCHETYPES = {
 // value has to be a name from IS_ARCHETYPES above for the same reason: a
 // typo matches nobody and fails silently. src/v2/test/sample-people.test.js
 // holds both properties.
-window.IS_FRIEND_TYPES = {
+export const IS_FRIEND_TYPES = {
   big5: {
     f1: 'The Quiet One', f2: 'The Live Wire', f3: 'The Planner', f4: 'The Diplomat', f5: 'The Quiet One', f6: 'The Reader', f7: 'The Sensitive',
     f8: 'The Enthusiast', f9: 'The Dependable', f10: 'The Lookout', f11: 'The Live Wire', f12: 'The Diplomat', f13: 'The Quiet One',
@@ -143,7 +144,7 @@ window.IS_FRIEND_TYPES = {
 };
 
 // Standout phrases per dim: [below-average phrase, above-average phrase]
-window.IS_STANDOUT = {
+export const IS_STANDOUT = {
   big5: {
     O: ['more practical-minded than most', 'more curious than most people'],
     C: ['looser with plans than most', 'more disciplined than most'],
@@ -190,7 +191,7 @@ const IS_DIM_WORD = {
 // a short "if {word}" phrase — e.g. "if more outgoing".
 // Weighted the same way as matching: the gap only counts on dims that DEFINE
 // that neighbour, so we never explain a Sentinel as "if more playful".
-window.IS_nearWhy = function (testKey, dims, a) {
+export function IS_nearWhy(testKey, dims, a) {
   const words = IS_DIM_WORD[testKey];
   if (!words || !dims || !a) return null;
   let best = null, bm = 0;
@@ -228,7 +229,7 @@ window.IS_nearWhy = function (testKey, dims, a) {
 const ARCH_W_FLOOR = 6;      // every dim counts a little
 const ARCH_SHARE_PULL = 210; // strength of the commonness prior
 
-window.IS_archScores = function (testKey, dims) {
+export function IS_archScores(testKey, dims) {
   const sys = IS_ARCHETYPES[testKey];
   if (!sys || !dims || !dims.length) return null;
   const avg = IS_TEST_AVG[testKey] || {};
@@ -255,7 +256,7 @@ window.IS_archScores = function (testKey, dims) {
 // deviation from IS_TEST_AVG in dim points; people scatter ~15 points per axis,
 // so z = rms/15 and the share of people at least this far out follows the
 // fitted survival curve exp(−0.916·z^2.33)  (z=1 → ~40%, 1.5 → ~9%, 2 → ~1%).
-window.IS_profileRarity = function (testKey, dims) {
+export function IS_profileRarity(testKey, dims) {
   const avg = IS_TEST_AVG[testKey];
   if (!avg || !dims || !dims.length) return null;
   let s = 0, n = 0;
@@ -289,7 +290,7 @@ const IS_RULE_WORD = {
 // needs adjectives, not the nouns the axis labels use. Written out rather than
 // derived from IS_DIM_WORD because those are comparatives ("warmer", "looser")
 // and don't survive a prefix.
-const IS_RULE_ADJ = {
+export const IS_RULE_ADJ = {
   big5: { O: ['practical', 'curious'], C: ['loose', 'disciplined'], E: ['reserved', 'outgoing'], A: ['blunt', 'warm'], N: ['unshakeable', 'sensitive'] },
   political: { econ: ['left on money', 'pro-market'], auth: ['liberty-first', 'order-first'], foreign: ['nation-first', 'globally-minded'], env: ['growth-first', 'climate-urgent'], tech: ['tech-wary', 'tech-hopeful'], estab: ['system-trusting', 'anti-system'] },
   values: { future: ['dark on the future', 'hopeful'], circle: ['family-first', 'stranger-minded'], hedonism: ['duty-bound', 'pleasure-first'], meaning: ['happiness-first', 'meaning-seeking'], moral: ['relativist', 'morally certain'], beauty: ['truth-first', 'beauty-first'] },
@@ -308,10 +309,10 @@ const IS_RULE_ADJ = {
 //     Rank by deviation and take the top 2, with a 3rd when it's still real.
 //  3. MODERATION IS A POSITION. A type sitting at the population average on a
 //     dim gets said out loud ("even on money"), not dropped.
-const RULE_STRONG = 18;  // dim points from the population — a defining lean
-const RULE_REAL = 8;     // ...a lean worth naming at all
+export const RULE_STRONG = 18;  // dim points from the population — a defining lean
+export const RULE_REAL = 8;     // ...a lean worth naming at all
 
-window.IS_typeRuleParts = function (testKey, dims, a, max) {
+export function IS_typeRuleParts(testKey, dims, a, max) {
   if (!a || !dims) return [];
   const nouns = IS_RULE_WORD[testKey] || {};
   const adjs = IS_RULE_ADJ[testKey] || {};
@@ -337,9 +338,9 @@ window.IS_typeRuleParts = function (testKey, dims, a, max) {
 };
 
 // Nearest type → { list, idx, dists (priored), fits (raw), rms, gap }
-window.IS_matchArchetype = function (testKey, dims) {
+export function IS_matchArchetype(testKey, dims) {
   const sys = IS_ARCHETYPES[testKey];
-  const sc = window.IS_archScores(testKey, dims);
+  const sc = IS_archScores(testKey, dims);
   if (!sc) return null;
   let best = 0;
   sc.forEach((x, i) => { if (x.score < sc[best].score) best = i; });
@@ -353,13 +354,10 @@ window.IS_matchArchetype = function (testKey, dims) {
     dists: sc.map(x => x.score), fits: sc.map(x => x.fit),
     rms: rmsOf[best], gap: up ? rmsOf[up.i] - rmsOf[best] : 99,
   };
-};
+}
 
-window.IS_ARCHETYPES = IS_ARCHETYPES;
-
-// Named exports for typed consumers (data/typeMix.ts, D141) — ADDITIVE:
-// the globals above stay until this module's full conversion, existing
-// spec consumers keep reading them, and the coupling ratchet counts
-// references, which an import is not.
+// Unprefixed aliases for the typed consumers that arrived before the
+// conversion (data/typeMix.ts, D141; ui/LiveRolesPanel.tsx, D253) — same
+// bindings, second names, kept so nothing has to rename on its side.
 export const ARCHETYPES = IS_ARCHETYPES;
-export const matchArchetype = window.IS_matchArchetype;
+export const matchArchetype = IS_matchArchetype;

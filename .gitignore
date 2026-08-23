@@ -115,3 +115,8 @@ design/store/screenshots/*/*.png
 # diff" argument it was committed for is served without the churn.
 monitoring/pulse.json
 monitoring/pulse.html
+
+# Built question reports (scripts/build-report.mjs, D251). The roll CSV
+# carries public app names — a deliverable for the buyer, never repo
+# content.
+reports/

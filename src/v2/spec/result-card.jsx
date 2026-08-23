@@ -10,6 +10,7 @@ import { RP_TESTS, RoseMini, TestRose } from './result-rose.jsx';
 import { IS_DATA } from './sample-data.js';
 import { Av } from './primitives.jsx';
 import { IS_TESTS, IS_TEST_RESULTS } from './test-definitions.js';
+import { IS_FRIEND_TYPES, IS_STANDOUT, IS_matchArchetype, IS_nearWhy, IS_profileRarity, IS_typeRuleParts } from './archetype-data.js';
 import { PASSIVE } from './passive-progress.js';
 // What the POPULATION looks like, measured (D157). This card used to read
 // IS_TEST_AVG directly — five authored constants per instrument, drawn as
@@ -193,7 +194,7 @@ function PctlLine({ testKey, d, diff, src }) {
 function DifferRows({ testKey, R, cfg }) {
   const norm = testNorm(testKey);
   const avg = norm.avg;
-  const ph = (window.IS_STANDOUT || {})[testKey] || {};
+  const ph = IS_STANDOUT[testKey] || {};
   // No early return on a missing baseline any more: your own scores are
   // yours and render whatever the crowd looks like. What an absent
   // baseline removes is the COMPARISON — the hollow ring, the stretch bar
@@ -254,7 +255,7 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
   const R = ownResult(testKey);
   const cfg = RP_TESTS[testKey];
   if (!R || !cfg || !R.dims || !R.dims.length) return null;
-  const arch = window.IS_matchArchetype ? window.IS_matchArchetype(testKey, R.dims) : null;
+  const arch = IS_matchArchetype(testKey, R.dims);
   const you = arch ? arch.idx : -1;
   const fits = arch ? arch.fits : null;
   // The dot field's number, measured where it can be (D157).
@@ -277,12 +278,12 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
       };
     }
     if (LIVE.enabled) return null;
-    const guess = window.IS_profileRarity ? window.IS_profileRarity(testKey, R.dims) : null;
+    const guess = IS_profileRarity(testKey, R.dims);
     return guess ? { ...guess, note: `${guess.label.toLowerCase()} sit as far from average as you` } : null;
   })();
-  const ruleParts = arch && window.IS_typeRuleParts ? window.IS_typeRuleParts(testKey, R.dims, arch.list[you]) : [];
+  const ruleParts = arch ? IS_typeRuleParts(testKey, R.dims, arch.list[you]) : [];
   const near = arch ? arch.list.map((a, i) => ({ a, i, d: fits[i], rms: arch.rmsOf[i] })).filter(x => x.i !== you).sort((m, n) => m.d - n.d).slice(0, 2)
-    .map((x, k) => ({ ...x, why: window.IS_nearWhy ? window.IS_nearWhy(testKey, R.dims, x.a) : null, border: k === 0 && (x.rms - arch.rms) < 5 })) : [];
+    .map((x, k) => ({ ...x, why: IS_nearWhy(testKey, R.dims, x.a), border: k === 0 && (x.rms - arch.rms) < 5 })) : [];
   // fit strength, in dim points of separation from the runner-up
   const fit = arch ? (arch.gap < 5 ? 'close' : arch.gap >= 12 && arch.rms < 12 ? 'textbook' : 'clear') : 'clear';
   const streak = fit === 'close' ? near[0].a.name.replace(/^The /, '') : null;
@@ -302,7 +303,7 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
   // and an empty list maps to nothing.
   const sameType = (() => {
     if (!arch || LIVE.enabled) return [];
-    const map = (window.IS_FRIEND_TYPES || {})[testKey] || {};
+    const map = IS_FRIEND_TYPES[testKey] || {};
     const ppl = IS_DATA.people || [];
     return ppl.filter(p => map[p.id] === arch.list[you].name);
   })();

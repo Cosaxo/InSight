@@ -579,7 +579,6 @@ as deployed infrastructure. It now says what is true.
 > city as the unit, the catalogue, the coarse on-device locate and D92's
 > standing-grant apply all moved to the City stop unchanged.
 
-
 **Decision.** The Mirror's Near population is the city the user **picks from
 a fixed catalogue** in their profile, and it renders the same k-floored
 public aggregates as everything else — counts, never people. `city` is a
@@ -6789,7 +6788,6 @@ design, D1 — not unbuilt); `scenes.js`'s follow list; the catalogue pick
 cards carrying `q.catalog`; and `daily-questions.js`'s non-world
 audiences, where only the World distribution is swapped for the real
 aggregate.
-
 
 ---
 
@@ -14629,7 +14627,6 @@ on both compilers.
 entry is scoped to `/functions`, whose `tsconfig.json` is separate and
 whose output is the only one that gets deployed to Cloud Functions.
 
-
 ## D148 · The Routine prompts catch up with their contracts, by the only mechanism that works
 
 **Decided:** 2026-08-14 · **Status:** taken — both Routines recreated
@@ -19587,7 +19584,6 @@ project works."*
 > eye — and `check:docs` cannot catch it. The index is what makes it
 > cheap to notice: a duplicate number is visible in one screen of it.
 
-
 **Decision.** [`docs/ORIENTATION.md`](ORIENTATION.md) is the entry point
 for a reader with no context: every document with whether it describes the
 app or proposes something, every gate with where it runs, every directory
@@ -20403,7 +20399,6 @@ ten content refusals (image, logo, colour, link, pixel, unknown field, a
 URL in the prose, two length caps, a malformed id), the feed's ad dispatch,
 the expired-ad filter, and the one-slot rule — the last of which required
 the test to be fixed before it bit.
-
 
 ## D198 · Build 21's pre-flight: the number run 31 spent, and the bundle gate's artifact claim
 
@@ -23366,7 +23361,6 @@ rather than assumed to:
   zero. A colour is a name-level guard's blind spot twice over — the
   pill it copies lives in another file.
 
-
 ## D231 · Current events get a lane: a topic that expires, and the questions to fill it
 
 **2026-08-23.** **Status:** binding, built. Owner's direction, opening a
@@ -24112,7 +24106,6 @@ invitable — but it is the reason the case now claims two handles and
 resolves them through the registry, which is the path the picker
 actually takes.
 
-
 ## D237 · Search finds people, by the address they gave you
 
 **2026-08-23.** **Status:** binding. Owner's call, "now wire the search
@@ -24208,7 +24201,6 @@ files (a profile-migration assertion among them), which is what a broken
 it directly was **`check:a11y`** — "these files could not be parsed, so
 they were not checked". A file a gate cannot read is a file that gate is
 lying about, which is why it reports rather than skips.
-
 
 ## D238 · The invite code stops being something a person reads
 
@@ -24336,7 +24328,6 @@ device.** The scheme registration is two platform manifests, which no
 emulator suite in this repo exercises. The logic either side of it is
 covered; the OS handoff is not.
 
-
 ## D239 · Found by name, not only by the address you memorised
 
 **2026-08-23.** **Status:** binding. Owner's call — search should take a
@@ -24454,7 +24445,6 @@ The live fixture refused to drift too: `vote.test.ts` pins
 `LIVE.social`'s members, so adding `searchPeople` to the store without
 adding it to `live-fixture.ts` failed the smoke suite. That is D122's
 note working a second time.
-
 
 ## D240 · The link asks; the circle answers
 
@@ -25444,3 +25434,276 @@ The 28 `react-hooks/exhaustive-deps` and `react-hooks/refs` suppressions on
 ported effects. Changing effect re-run timing blind is exactly the trade
 `src/v2/README.md` refuses, and that refusal survives this record — it was
 only ever the autofocus half that had been filed under it by association.
+
+## D251 · The report builder ships, and reads as a signed-in user
+
+**2026-08-23.** **Status:** binding, built. Owner's call on the
+paid-reports thread — *"build the report builder then"* — adopting
+`PAID-PLAN.md` §2/§9.2's v1: a script run by hand per contract, sold by
+hand. The visual is the owner's own: the 2026-08-22 standalone's
+`paid-report.jsx`, uploaded on the same thread and extracted to
+`design/standalone-2026-08-22/` per that directory family's rule.
+Written on `claude/next-project-priorities-w43wut` as D230, renumbered
+to D231 when #259 minted D230, to D236 when #263–#267 minted D231–D235,
+to D241 when #266 minted D236–D240, and to D251 when #265 minted
+D241–D250 — four renumberings in one record's lifetime, which is what a
+day of parallel threads now looks like.
+
+### What ships
+
+`scripts/build-report.mjs` (the operator CLI) over
+`scripts/report-lib.mjs` (the assembly and the renderer): one
+self-contained HTML page in the app's own tokens plus the CSV bundle
+(roll · edits · series), written to a gitignored `reports/` — the roll
+carries public app names, so a built report is a deliverable, never
+repo content. Contents per §2, each with its basis stated on the page:
+the exact split, the seven census dims from `agg.by` with the closed
+vocabularies' empty buckets listed at zero, Job folded from the roll's
+public vote-time snapshots (the server publishes no profession cells —
+D8 — but the snapshots are world-readable and the fold is the reader's
+own arithmetic, the D146 class), answers-over-time bucketed from the
+public `answeredAt` stamps, the D226 matrix as from→to rows with net
+chips, the D227 logic quarters, and top-5 similar questions by
+shared-voter correlation over a bounded recent sample (floor 12 shared
+— the exact-pair card's own silence threshold), against the patterns
+fit's corpus derived by predicate from the bank rather than copied.
+
+### The posture, which is the decision
+
+The builder signs in ANONYMOUSLY and reads through the client SDK, so
+`firestore.rules` itself referees every read — D225's surviving
+sentence ("no read path a signed-in user does not have") enforced by
+the platform, not promised by a script. On top, `REPORT_READ_SET`
+names the four readable surfaces the builder may touch
+(`v2_questions`, `v2_question_aggs`, `v2_users`, the `answers` group);
+the guard throws on anything else, `scripts/report.test.mjs` pins the
+refusal and greps the lib for undeclared collection literals, and the
+e2e's §7g drives a real build through the harness's signed-in client
+and asserts the stats stayed inside the list. §2's "a test holds its
+read set to that list" is those three layers.
+
+The rules pushed back once, and the finding is worth its lines: the
+neighbour join first read other users' answers by `documentId() in`,
+and the rules engine will not prove a field filter across a
+document-id disjunction — the whole query is refused (measured against
+the emulator, both databases; the shapes and verdicts rode this
+change's history). The fix is the schema's own gift: `qid` is pinned
+equal to the doc id, so the constraint rides the FIELD and evaluates
+like the collection-group read the rules were written for. Twins the
+node-side builder cannot import (voters.ts' surface list, logicSplit's
+bands, similarity's percentile parse — their chains touch window) are
+duplicated and pinned by test against their sources.
+
+### What deliberately does not ship, each with its reason
+
+- **Politics / Values / Social answer-grouping** (the mock's test
+  accordions): `web/privacy.html` promises those results are "never
+  used to group answers" — a claim `check:policy-claims` pins. Widening
+  it is the owner's own recorded call (the D202 shape), not a
+  renderer's default.
+- **The Big Five type cut** — allowed by that promise (D146), blocked
+  by `spec/archetype-data.js` reading `window` at module scope; joins
+  when its bridge migration lands.
+- **The mock's "N answers changed at least once"** — the matrix counts
+  MOVES, not people (D226), so the page says that instead; a sentence
+  the data cannot make does not ship because a design said it.
+- **`PaidMineCard`** ("Questions you asked") — §9.3's in-app surface,
+  now designed and still deliberately unbuilt.
+- **The scheduled cadence** — §2's monthly job is the productized form;
+  v1 is §9.2's hand-run script, so the COSTS.md line waits for the job
+  per §2's own sentence. A run costs the roll (one read per answer),
+  the distinct-voter profiles, and the join (per sampled voter, two
+  `in` queries per 30 candidates, billing answers found) — hundreds of
+  reads at launch scale, printed by the CLI per run.
+
+### The trail
+
+`web/privacy.html` says plainly that reports packaged from the public
+numbers are sold, pinned by a new `check:policy-claims` row — added
+with the capability rather than with the first contract, because the
+page lagging the product is the D116 failure and the sentence is true
+of the offering either way. No new collection, no rules change, no
+store-form movement (nothing new is collected); `reports/` is
+gitignored; PAID-PLAN §2/§9.2 and ORIENTATION's row moved in this
+commit.
+
+## D252 · The never-grouped promise is removed, and the scope becomes a choice
+
+**2026-08-23.** **Status:** binding. Owner's call, on the paid-reports
+thread, over D251's note that the promise stood between the report and
+the mock's test-group cuts: *"yeah undo this we are trying to unwind as
+many promises as possible"* — the D225 posture applied to its next
+sentence, and recorded in the same shape.
+
+### What was promised, and where it stood
+
+`web/privacy.html`, the Big Five type-cut bullet, since D146 and
+restated through D202/D227: *"Your political, values and social results
+are never used to group answers this way."* Pinned by
+`check:policy-claims` ("D146 · politics/values/social results are NOT
+used to group answers"), cited as a promise by
+`docs/data-inventory.md`'s Core-test-results row and by
+`data/typeSplit.ts`'s own header, and the stated reason D251's report
+ships without the mock's politics/values/social accordions.
+
+### The decision
+
+**The pledge is removed outright; the behaviour is untouched.** The app
+today groups answers by exactly what it did yesterday — the Big Five
+type (D146) and the verified logic bands (D227) — and that scope is now
+the app's CURRENT CHOICE, described in the present tense with nothing
+promised about tomorrow. An unneeded promise is a standing liability
+(D225's words): it either gets broken later or warps a build to route
+around it, which is precisely what D251 §"what deliberately does not
+ship" was doing.
+
+### What remains true, and what holds each piece
+
+- **The behaviour cannot widen by accident.** `data/typeSplit.SPLIT_TEST`
+  stays the single explicit switch, passed at every call site and
+  pinned by its own test — a behaviour pin now, not a promise's
+  enforcement arm. Widening it is a product decision with a page edit
+  beside it, and nothing more.
+- **A test result is still never a breakdown dim** (D8): no server cell
+  is keyed by one, `BREAKDOWN_DIMS` is unchanged, and this record does
+  not touch that — it is structure, not pledge.
+- **Audience targeting is untouched.** Buyable cohorts stay the
+  published dims; the politics result stays out of the sponsor
+  vocabulary (D195/D228). Grouping public answers by a public result in
+  a report is arithmetic over what D98 already publishes; *selecting
+  who gets asked* by politics is a different machine, and it stays off.
+- **The report's test cuts stay unbuilt for one reason now, not two**:
+  the archetype matcher (`spec/archetype-data.js`) reads `window` at
+  module scope and cannot load under node. When its bridge migration
+  lands, building the cuts — all four instruments — is a build task
+  with a disclosure edit, not a reversal.
+- **The page still discloses what IS done** — the D146 grouped-by-type
+  sentence, the D227 logic-band sentence and the D202 count-of-people
+  pair keep their claims pins. What retired is the "never", not the
+  description.
+
+### The edits this record made
+
+`web/privacy.html`: the never sentence replaced by a present-tense
+scope ("Today the groupings drawn this way are…"), which D227's pin
+still holds. `scripts/check-policy-claims.mjs`: the D146 never-row
+deleted per the gate's own retirement rule, with the D202 comment block
+rewritten. `data/typeSplit.ts`: the header and `SPLIT_TEST` docstring
+recast from promise-enforcement to choice-pinning.
+`docs/data-inventory.md`: the Core-test-results row says choice, not
+promise. D251's three surfaces (`scripts/report-lib.mjs`'s header, the
+design extraction's README, PAID-PLAN §9.2's note) now name one blocker
+instead of two.
+
+## D253 · The archetype module leaves the bridge, and the report gets its type cuts
+
+**2026-08-23.** **Status:** binding, built. Owner's call ("yes do that"),
+continuing D252: with the never-group promise gone, the one thing
+between the report and the mock's test-group cuts was
+`spec/archetype-data.js` reading `window` at module scope. D39's
+"convert on touch", taken at the moment of touch. Written on
+`claude/next-project-priorities-w43wut` as D233, renumbered to D238,
+D243 and finally D253 as #263–#267, #266 and #265 minted the numbers
+in between — the standing collision pattern, thrice over.
+
+### The conversion — the primitives shape, applied
+
+The consumer set was closed and small, so it was finished rather than
+bridged (`src/v2/README.md`'s own lesson): every window publication in
+`archetype-data.js` became a named export — `IS_FRIEND_TYPES`,
+`IS_STANDOUT`, `IS_nearWhy`, `IS_archScores`, `IS_profileRarity`,
+`IS_typeRuleParts`, `IS_matchArchetype` — and every reader converted to
+imports in the same change: `result-card.jsx` (six names, dead
+load-order guards deleted per D108), `type-marks.jsx`,
+`passive-meter.jsx`, `ui/LiveRolesPanel.tsx` (its test now pins the
+matcher with a module mock over the real import instead of a window
+seed), and `test/sample-people.test.js`. The dead `import React` left
+with the publications. Rule 4's ratchet came down 392 → 378 across
+41 files, and the README's own quoted figure moved with it.
+
+Two lessons this conversion adds to the case study:
+
+- **An ENVIRONMENT guard is not a load-order guard.**
+  `test-definitions.js` (already export-only) still crashed node on two
+  module-scope `window.addEventListener` calls — browser wiring, not
+  data flow. Those two got `typeof window !== "undefined"` guards with
+  the distinction stated at the site; D108's dead-guard rule is about
+  load-order conditions an import removes, and it stands untouched.
+- **A `@ts-expect-error` belongs to the line below it.** Inserting the
+  new spec import above `result-rose.jsx`'s import in LiveRolesPanel
+  silently transferred the suppression and surfaced TS7016 one line
+  down — caught by a fresh `tsc -b` after the incremental cache had
+  shrugged. Each untyped spec import now carries its own.
+
+### The type cuts
+
+`scripts/report-lib.mjs` imports the app's own matcher and signatures
+and the report's Who-answered section gains four groups — Big Five ·
+Politics · Values · Social, one "— type" accordion each: every named
+type listed (empty ones at zero), the Untested row a full row with its
+own split, "tested N" as the section's basis, the roll CSV carrying the
+four type columns. The parse is a twin of
+`similarity.parseTestResults`' per-kind arm, pinned shape-for-shape by
+the test; the match itself is NOT a twin — it is the same function the
+app runs, which is the point of the conversion. e2e §7g proves the
+all-untested case end to end (the loop's twelve voters have no
+results, and every row still renders). D252's condition — a build task
+WITH a disclosure edit — is met in the same change:
+`web/privacy.html`'s reports paragraph names the type-and-axis
+grouping, political, values and social included, with its own
+`check:policy-claims` pin.
+
+**Still waiting from the mock, on purpose:** the per-axis five-band
+rows. The mock's bands are its own population-shaping numbers, not a
+vocabulary the app defines anywhere — banding an axis is a design
+decision to take, not a constant to transcribe. District and
+field-of-study rows stay out for the old reason: no such data exists.
+
+## D254 · The axis bands ship, in the app's own vocabulary
+
+**2026-08-23.** **Status:** binding, built. Owner's call ("yes do the
+axis bands aswell"), closing the last deliberate gap between the report
+and the mock's Who-answered section. D253 had declined these rows
+because banding an axis looked like an undesigned decision; building
+them showed the design already existed — the app just had never applied
+it as a cut. Written on `claude/next-project-priorities-w43wut` as
+D234, renumbered to D239 when #263–#267 minted D231–D235, and to D254
+when #266 minted D236–D240 — the standing collision pattern, twice
+over.
+
+### The banding, and why none of it is invented
+
+Each axis reads in five bands, and every constant is one the app
+already owns and explains:
+
+- **The centre** is `IS_TEST_AVG`'s authored baseline — the same number
+  the archetype matcher centres BOTH sides on (its rule 2: scores are
+  read against the population, not the midpoint), so an axis where
+  people average 65 does not call an ordinary 60 a lean low.
+- **The edges** are `RULE_REAL` (8 dim points — "a lean worth naming at
+  all") and `RULE_STRONG` (18 — "a defining lean"): the thresholds the
+  result card's what-earns-the-name rule reads. |dev| ≥ 18 is the pole
+  band, ≥ 8 leans, else Between — `IS_typeRuleParts`' own reading,
+  applied symmetrically.
+- **The labels** come from `IS_RULE_ADJ`'s pole pairs, written to
+  survive a prefix: Practical · Leans practical · Between · Leans
+  curious · Curious. Axis names and order are `IS_TESTS`' own dims.
+
+The mock's bands carried shares (11/24/29/24/12) — population-shaping
+numbers for its invented crowd, not edges; transcribing them was the
+thing D253 refused, and this is the replacement it asked for.
+
+### What shipped
+
+`archetype-data.js` exports the three constants it already owned
+(`IS_RULE_ADJ`, `RULE_REAL`, `RULE_STRONG` — additive, no consumer
+moved). `report-lib.mjs` gains `axisBandIndex`/`axisBandLabels`/
+`axisCut`, and each instrument group on the page now carries its axes
+under the type dim — "Big Five · Openness" through "Social · Ease",
+five bands in scale order plus Untested as a full row, "tested N" as
+each section's basis, the basis line naming the thresholds so a buyer
+can check the reading. Boundary arithmetic pinned exactly (±8/±18
+inclusive, the 50 fallback, a skewed baseline moving its bands);
+e2e §7g holds the all-untested shape; the roll CSV is unchanged — the
+axes are the page's reading, and the roll already lets a buyer
+recompute any of it.
