@@ -10,6 +10,7 @@ import { DAILYQ } from './daily-questions.js';
 import { IS_DATA } from './sample-data.js';
 import { SCENES } from './scenes.js';
 import { Av, AnonAv, anonName, useDialog } from './primitives.jsx';
+import NAV from '../data/nav';
 
 // search-overlay.jsx — one field, three kinds of answer: questions, topics, people.
 // A question hit is the real question: tap it and the feed's own card opens in
@@ -318,7 +319,7 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
 
         {!!dailies.length && <div className="search-group">Daily archive</div>}
         {dailies.map((d) => (
-          <button key={d.id} className="search-hit" style={{ alignItems: 'flex-start', gap: 10 }} onClick={() => go(() => window.goTab && window.goTab('track'))}>
+          <button key={d.id} className="search-hit" style={{ alignItems: 'flex-start', gap: 10 }} onClick={() => go(() => NAV.goTab('track'))}>
             <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--accent)', flexShrink: 0, marginTop: 6 }}></span>
             <span style={{ flex: 1, minWidth: 0 }}>
               <span className="hit-t" style={{ display: 'block', lineHeight: 1.3 }}><SrchMark text={d.prompt} q={query} /></span>

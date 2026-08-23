@@ -8,6 +8,7 @@ import { describe, expect, it, vi } from "vitest";
 import { act, fireEvent, screen } from "@testing-library/react";
 import { OWNS_X } from "../spec/swipe-back.js";
 import { openHeaderOverlay, awaitNode, awaitText, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
+import NAV from "../data/nav";
 
 vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
 registerSmokeHooks();
@@ -130,7 +131,7 @@ describe("the patterns tab is out (D217)", () => {
 
   it("the retired nav key is refused quietly", () => {
     const expectNoBoundary = mountApp();
-    act(() => { window.goNav("patterns"); });
+    act(() => { NAV.goNav("patterns"); });
     expect(document.querySelector(".app").getAttribute("data-tab")).not.toBe("patterns");
     expectNoBoundary("goNav('patterns') after D217");
   });

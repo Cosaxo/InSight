@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 248 lines instead of
-24,829. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 259 lines instead of
+25,710. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -38,7 +38,7 @@ detect it.
 | **D21** | [The live-mode branches get a mount test; accessibility gets a ratchet](DECISIONS.md#d21--the-live-mode-branches-get-a-mount-test-accessibility-gets-a-ratchet) | D49 (+3) | 1673 |
 | **D22** | [Moderation substrate: confinement is structural, and advisory until trusted](DECISIONS.md#d22--moderation-substrate-confinement-is-structural-and-advisory-until-trusted) | D78 (+2) | 1757 |
 | **D23** | [The mouse-only spec-layer controls become buttons, ahead of the interaction tests D21 wanted](DECISIONS.md#d23--the-mouse-only-spec-layer-controls-become-buttons-ahead-of-the-interaction-tests-d21-wanted) | D24 | 1896 |
-| **D24** | [Every overlay and sheet is a real modal dialog, and this time the interaction test came with it](DECISIONS.md#d24--every-overlay-and-sheet-is-a-real-modal-dialog-and-this-time-the-interaction-test-came-with-it) | D221 (+1) | 1989 |
+| **D24** | [Every overlay and sheet is a real modal dialog, and this time the interaction test came with it](DECISIONS.md#d24--every-overlay-and-sheet-is-a-real-modal-dialog-and-this-time-the-interaction-test-came-with-it) | D250 (+2) | 1989 |
 | **D25** | [The world feed loads after first paint; the rest of the split waits](DECISIONS.md#d25--the-world-feed-loads-after-first-paint-the-rest-of-the-split-waits) | D221 (+8) | 2080 |
 | **D26** | [The spec layer's dead render code is deleted; the one toolkit is kept](DECISIONS.md#d26--the-spec-layers-dead-render-code-is-deleted-the-one-toolkit-is-kept) | D43 | 2138 |
 | **D27** | [The v15 revision syncs in whole, and the honesty layer stays where it was](DECISIONS.md#d27--the-v15-revision-syncs-in-whole-and-the-honesty-layer-stays-where-it-was) | D38 | 2230 |
@@ -68,7 +68,7 @@ detect it.
 | **D48** | [Three limits accepted while closing the reveal-alert, bridge and boot-state gaps](DECISIONS.md#d48--three-limits-accepted-while-closing-the-reveal-alert-bridge-and-boot-state-gaps) | D59 | 4656 |
 | **D49** | [The Skip control becomes a button, the alert chain gets a gate, and the feed's split stops at its arithmetic](DECISIONS.md#d49--the-skip-control-becomes-a-button-the-alert-chain-gets-a-gate-and-the-feeds-split-stops-at-its-arithmetic) | — | 4709 |
 | **D50** | [A lens question in a live feed is a self-report item, not a poll](DECISIONS.md#d50--a-lens-question-in-a-live-feed-is-a-self-report-item-not-a-poll) | D146 (+6) | 4797 |
-| **D51** | [Deleting the keys is only half the wipe: every local store hears the purge](DECISIONS.md#d51--deleting-the-keys-is-only-half-the-wipe-every-local-store-hears-the-purge) | D203 (+5) | 4863 |
+| **D51** | [Deleting the keys is only half the wipe: every local store hears the purge](DECISIONS.md#d51--deleting-the-keys-is-only-half-the-wipe-every-local-store-hears-the-purge) | D243 (+6) | 4863 |
 | **D52** | [The content review: what got fixed, what got flagged, and the two lines that held](DECISIONS.md#d52--the-content-review-what-got-fixed-what-got-flagged-and-the-two-lines-that-held) | D203 (+7) | 4929 |
 | **D53** | [The logic test measured: zero ambiguity in 60,000 items, and the curve gets pinned](DECISIONS.md#d53--the-logic-test-measured-zero-ambiguity-in-60000-items-and-the-curve-gets-pinned) | D61 (+2) | 5019 |
 | **D54** | [The ledger gets eyes: a daily velocity scan, feeding manual review](DECISIONS.md#d54--the-ledger-gets-eyes-a-daily-velocity-scan-feeding-manual-review) | D130 (+2) | 5127 |
@@ -125,7 +125,7 @@ detect it.
 | **D105** | [One text field owns the app's scale: every input defers to --field-size](DECISIONS.md#d105--one-text-field-owns-the-apps-scale-every-input-defers-to---field-size) | D113 | 9922 |
 | **D106** | [The retired privacy model is swept out of the documentation, starting with the two pages users actually read](DECISIONS.md#d106--the-retired-privacy-model-is-swept-out-of-the-documentation-starting-with-the-two-pages-users-actually-read) | D183 (+4) | 10002 |
 | **D107** | [A purpose string for the authorisation this app never asks for](DECISIONS.md#d107--a-purpose-string-for-the-authorisation-this-app-never-asks-for) | D199 | 10106 |
-| **D108** | [Two providers leave the bridge, and the mount suite stops being one file](DECISIONS.md#d108--two-providers-leave-the-bridge-and-the-mount-suite-stops-being-one-file) | D253 (+2) | 10234 |
+| **D108** | [Two providers leave the bridge, and the mount suite stops being one file](DECISIONS.md#d108--two-providers-leave-the-bridge-and-the-mount-suite-stops-being-one-file) | D253 (+6) | 10234 |
 | **D109** | [LEARN leaves the bridge, and takes the load-order bug with it](DECISIONS.md#d109--learn-leaves-the-bridge-and-takes-the-load-order-bug-with-it) | D110 | 10375 |
 | **D110** | [The bundle gets the number that decides first paint, and it immediately finds 327 KB](DECISIONS.md#d110--the-bundle-gets-the-number-that-decides-first-paint-and-it-immediately-finds-327-kb) | D201 (+2) | 10527 |
 | **D111** | [Near and City are two stops again: presence is not a place](DECISIONS.md#d111--near-and-city-are-two-stops-again-presence-is-not-a-place) | D192 (+5) | 10659 |
@@ -249,8 +249,8 @@ detect it.
 | **D229** | [Two releases shipped unrecorded, and the sixth skip is the one that costs](DECISIONS.md#d229--two-releases-shipped-unrecorded-and-the-sixth-skip-is-the-one-that-costs) | D230 | 23210 |
 | **D230** | [An instrument's colour is where you stand now, not where you finished](DECISIONS.md#d230--an-instruments-colour-is-where-you-stand-now-not-where-you-finished) | D251 | 23273 |
 | **D231** | [Current events get a lane: a topic that expires, and the questions to fill it](DECISIONS.md#d231--current-events-get-a-lane-a-topic-that-expires-and-the-questions-to-fill-it) | D254 (+2) | 23364 |
-| **D232** | [Catalog questions go live: seventeen picks, promoted through one pen](DECISIONS.md#d232--catalog-questions-go-live-seventeen-picks-promoted-through-one-pen) | D234 (+1) | 23591 |
-| **D233** | [Rank questions live: an answer carries an order, and the exclusion retires](DECISIONS.md#d233--rank-questions-live-an-answer-carries-an-order-and-the-exclusion-retires) | D253 (+1) | 23701 |
+| **D232** | [Catalog questions go live: seventeen picks, promoted through one pen](DECISIONS.md#d232--catalog-questions-go-live-seventeen-picks-promoted-through-one-pen) | D249 (+2) | 23591 |
+| **D233** | [Rank questions live: an answer carries an order, and the exclusion retires](DECISIONS.md#d233--rank-questions-live-an-answer-carries-an-order-and-the-exclusion-retires) | D253 (+2) | 23701 |
 | **D234** | [The seed transports the doc shape the schema promises](DECISIONS.md#d234--the-seed-transports-the-doc-shape-the-schema-promises) | D254 | 23797 |
 | **D235** | [No tragedies: this app does not put suffering to a vote](DECISIONS.md#d235--no-tragedies-this-app-does-not-put-suffering-to-a-vote) | D254 (+1) | 23863 |
 | **D236** | [An invitation that notifies: the pick is the delivery](DECISIONS.md#d236--an-invitation-that-notifies-the-pick-is-the-delivery) | D254 (+4) | 23962 |
@@ -258,7 +258,18 @@ detect it.
 | **D238** | [The invite code stops being something a person reads](DECISIONS.md#d238--the-invite-code-stops-being-something-a-person-reads) | D253 (+1) | 24205 |
 | **D239** | [Found by name, not only by the address you memorised](DECISIONS.md#d239--found-by-name-not-only-by-the-address-you-memorised) | D254 | 24331 |
 | **D240** | [The link asks; the circle answers](DECISIONS.md#d240--the-link-asks-the-circle-answers) | D254 (+1) | 24449 |
-| **D251** | [The report builder ships, and reads as a signed-in user](DECISIONS.md#d251--the-report-builder-ships-and-reads-as-a-signed-in-user) | D252 | 24557 |
-| **D252** | [The never-grouped promise is removed, and the scope becomes a choice](DECISIONS.md#d252--the-never-grouped-promise-is-removed-and-the-scope-becomes-a-choice) | D253 | 24649 |
-| **D253** | [The archetype module leaves the bridge, and the report gets its type cuts](DECISIONS.md#d253--the-archetype-module-leaves-the-bridge-and-the-report-gets-its-type-cuts) | D254 | 24717 |
-| **D254** | [The axis bands ship, in the app's own vocabulary](DECISIONS.md#d254--the-axis-bands-ship-in-the-apps-own-vocabulary) | — | 24781 |
+| **D241** | [The de-overlap pass did not know the ring closes](DECISIONS.md#d241--the-de-overlap-pass-did-not-know-the-ring-closes) | D251 (+1) | 24557 |
+| **D242** | [The owed list reaches zero, and eight defects fall out of it](DECISIONS.md#d242--the-owed-list-reaches-zero-and-eight-defects-fall-out-of-it) | D250 (+3) | 24638 |
+| **D243** | [Two data-layer defects D242 found, fixed](DECISIONS.md#d243--two-data-layer-defects-d242-found-fixed) | D253 (+2) | 24756 |
+| **D244** | [The three behaviour bugs from D242's list](DECISIONS.md#d244--the-three-behaviour-bugs-from-d242s-list) | D245 | 24879 |
+| **D245** | [The three honesty findings from D242's list](DECISIONS.md#d245--the-three-honesty-findings-from-d242s-list) | — | 24954 |
+| **D246** | [The coupling ratchet, 392 → 352](DECISIONS.md#d246--the-coupling-ratchet-392--352) | D249 (+2) | 25031 |
+| **D247** | [PLACESTATS off the bridge, 352 → 337](DECISIONS.md#d247--placestats-off-the-bridge-352--337) | — | 25119 |
+| **D248** | [The shell's cross-links become a registry, 337 → 295](DECISIONS.md#d248--the-shells-cross-links-become-a-registry-337--295) | D249 | 25167 |
+| **D249** | [world-feed.jsx, 295 → 267](DECISIONS.md#d249--world-feedjsx-295--267) | — | 25259 |
+|  | ↳ *amendment 2026-08-23* — [world-feed.jsx meets main's live pick/rank seam](DECISIONS.md#d249-amendment-2026-08-23--world-feedjsx-meets-mains-live-pickrank-seam) | — | 25321 |
+| **D250** | [The a11y ratchet: six were right, one was hiding](DECISIONS.md#d250--the-a11y-ratchet-six-were-right-one-was-hiding) | D251 | 25354 |
+| **D251** | [The report builder ships, and reads as a signed-in user](DECISIONS.md#d251--the-report-builder-ships-and-reads-as-a-signed-in-user) | D252 | 25438 |
+| **D252** | [The never-grouped promise is removed, and the scope becomes a choice](DECISIONS.md#d252--the-never-grouped-promise-is-removed-and-the-scope-becomes-a-choice) | D253 | 25530 |
+| **D253** | [The archetype module leaves the bridge, and the report gets its type cuts](DECISIONS.md#d253--the-archetype-module-leaves-the-bridge-and-the-report-gets-its-type-cuts) | D254 | 25598 |
+| **D254** | [The axis bands ship, in the app's own vocabulary](DECISIONS.md#d254--the-axis-bands-ship-in-the-apps-own-vocabulary) | — | 25662 |

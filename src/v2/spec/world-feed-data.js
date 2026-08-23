@@ -60,7 +60,8 @@ window.WORLD_TOPICS = WORLD_TOPICS;
 // needs the widening too, because a live build seeds zero follows and its
 // demo-pool fallback had the same dark subjects.
 const WFD_LIVE_BUILD = import.meta.env && import.meta.env.VITE_V2_LIVE === 'true';
-window.WORLD_CHANNELS = WFD_LIVE_BUILD
+// No window mirror (D249): world-feed.jsx was the only reader.
+export const WORLD_CHANNELS = WFD_LIVE_BUILD
   ? window.WORLD_TOPICS.filter((t) => t.id !== 'places').map((t) => t.id)
   : ['dilemma', 'event', 'people', 'bigq', 'places', 'fav'];
 

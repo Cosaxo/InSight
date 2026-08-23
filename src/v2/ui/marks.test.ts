@@ -71,6 +71,59 @@ describe("groupInitials", () => {
   });
 });
 
+/**
+ * A lone surrogate — the shape both folds used to emit. Spelled out rather
+ * than `String.isWellFormed`, which needs an ES2024 lib this project does
+ * not target, and this says the thing directly: a high surrogate must be
+ * followed by a low one, and a low one must never stand alone.
+ */
+const loneSurrogate = (s: string): boolean => {
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    if (c >= 0xdc00 && c <= 0xdfff) return true;
+    if (c >= 0xd800 && c <= 0xdbff) {
+      const n = s.charCodeAt(i + 1);
+      if (!(n >= 0xdc00 && n <= 0xdfff)) return true;
+      i++;
+    }
+  }
+  return false;
+};
+
+describe("an astral character is one character (D243)", () => {
+  // Both folds indexed UTF-16 CODE UNITS, so a word beginning with an
+  // emoji, a mathematical alphanumeric or a CJK extension B glyph
+  // contributed HALF of it — tofu on a rail whose whole job is telling
+  // people apart. The same defect `data/avatar.ts` carried.
+  it("keeps a whole glyph in a person's initials, first word or second", () => {
+    expect(personInitials("🎈 Ada")).toBe("🎈A");
+    expect(personInitials("Ada 🎈")).toBe("A🎈");
+    expect(personInitials("𝒜da Test")).toBe("𝒜T");
+    // The single-word branch was already right BY ACCIDENT — slice(0, 2)
+    // takes both halves of one astral character — and is kept so the
+    // accident cannot quietly become a regression.
+    expect(personInitials("🎈")).toBe("🎈");
+  });
+
+  it("keeps a whole glyph in a circle's initials, leading The included", () => {
+    expect(groupInitials("🎈 Club")).toBe("🎈C");
+    expect(groupInitials("Club 🎈")).toBe("C🎈");
+    // The "The" is stripped first, so the emoji becomes the FIRST word —
+    // the path that has two chances to lose half a character.
+    expect(groupInitials("The 🎈 Club")).toBe("🎈C");
+    expect(groupInitials("🎈")).toBe("🎈");
+  });
+
+  it("never emits a lone surrogate, whatever it is handed", () => {
+    // The property under all of the above, and the one that fails the
+    // moment either fold goes back to indexing.
+    for (const n of ["🎈 Ada", "Ada 🎈", "𝒜da Test", "Li 𠮷", "🎈", "The 🎈 Club", "🎈 Club"]) {
+      expect(loneSurrogate(personInitials(n)), `personInitials(${n})`).toBe(false);
+      expect(loneSurrogate(groupInitials(n)), `groupInitials(${n})`).toBe(false);
+    }
+  });
+});
+
 describe("firstName", () => {
   it("is the first word, and nothing when there is none", () => {
     expect(firstName("Ada Lovelace")).toBe("Ada");

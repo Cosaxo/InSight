@@ -24554,6 +24554,887 @@ decision itself: a code queues rather than admits, a second ask is
 idempotent, a non-member cannot approve their own request, and approval
 clears both the queue entry and the name beside it.
 
+## D241 · The de-overlap pass did not know the ring closes
+
+**2026-08-22.** **Status:** binding. Found on a project review, by
+probing `layout()` rather than reading it — the reading had been done
+before and passed.
+
+### The bug
+
+`LiveSimilarityField`'s `layout()` places every node at a hashed angle
+and then runs one de-overlap pass so that two near-identical matches do
+not land on top of each other. The pass walked the angle-sorted list
+and pushed each node forward to clear its predecessor by 0.42 rad.
+
+It never wrapped. A circle has 2π to give and the pass had no term for
+that, so on a crowded field the run marched past a full turn and the
+tail came back around **onto the head** — landing on exactly the nodes
+that had already been spaced correctly. The pass's own output was the
+collision it exists to prevent.
+
+Two things made it survivable-looking. It is a layout detail with no
+test, on the one panel `check:panel-suites` listed as "the biggest one
+owed". And the failure is DATA-DEPENDENT: it turns on where `angleHash`
+happens to drop the particular ids in the field, so a synthetic
+population can clear all three caps while the real one does not. That
+is why it reads as correct and why a probe found it and a reading had
+not.
+
+### Measured, not reasoned
+
+The closest pair anywhere on the ring, wrap included, on the World
+stop's own country codes — before, after, and what the pass was asking
+for:
+
+| cap | field | before | after | wanted |
+| --- | --- | --- | --- | --- |
+| `CITY_FIELD_CAP` 12 | City | 0.2212 rad | 0.5236 | 0.42 |
+| `NEAR_FIELD_CAP` 14 | Near | 0.0366 rad | 0.4488 | 0.42 |
+| `PLACE_FIELD_CAP` 24 | Country/World | 0.0168 rad | 0.2618 | 0.262 |
+
+All three caps the app ships, and the worst of them is a **25×**
+violation — two place labels drawn on top of each other.
+
+### The fix, and the trade it makes
+
+Two lines, both about the ring being a ring:
+
+- **The step is the smaller of 0.42 and an even share.** A ring of 24
+  has 0.262 rad per node; asking for 0.42 is asking for more circle
+  than exists, and the old pass answered that by running off the end.
+- **The wrap is then checked.** If the run no longer clears the first
+  node a turn later, the nodes spread evenly instead.
+
+The trade is deliberate and it is the honest one. On a crowded ring the
+hash keeps the ORDER and not the exact angle — but the forward pass was
+already relocating most nodes at those densities, so what is given up
+is a property that had stopped holding anyway, and an even ring cannot
+stack at any N. The header comment on `layout()` carries the table
+above so the next reader does not have to re-derive it.
+
+`R_MIN`/`R_MAX` and the radius arithmetic are untouched: the reading is
+unchanged, only where the nodes sit around it.
+
+### The suite that now holds it
+
+`src/v2/ui/LiveSimilarityField.test.tsx` — 18 tests, six properties,
+each mutation-checked (broken in the component, watched to fail,
+reverted), which is what `src/v2/README.md` asks of a panel suite. The
+row it added to that table is the list. Two are worth naming here:
+
+- **Nothing stacks, at 12, 14 and 24.** Asserted on the RENDERED
+  transforms, not by re-running `layout` — a test that recomputed the
+  layout would agree with a broken one. Reverting this record's fix
+  fails all three.
+- **The radius is likeness inverted.** A better match sits nearer the
+  centre than a worse one, and a perfect match sits on the inner ring.
+  One flipped sign turns every field in the Mirror into the opposite of
+  what its caption says, `tsc` cannot see it, and nothing had been
+  standing there.
+
+`check:panel-suites` drops from 10 owed to 9.
+
+## D242 · The owed list reaches zero, and eight defects fall out of it
+
+**2026-08-22.** **Status:** binding. The other half of D241's finding: that
+record fixed a bug in the one panel `check:panel-suites` called "the
+biggest one owed", and the obvious next question was what the other nine
+were hiding.
+
+### What shipped
+
+A suite for every panel still on the list — **119 tests**, each property
+mutation-checked (broken in the component, watched to fail, reverted), the
+standard `src/v2/README.md` asks of a panel suite:
+
+| suite | tests | | suite | tests |
+| --- | --- | --- | --- | --- |
+| `LiveAnswerRows` | 25 | | `Avatar` | 14 |
+| `PulseCard` | 17 | | `MirrorLensTabs` | 12 |
+| `duelMarks` | 16 | | `EmptyField` | 8 |
+| `LiveCompareLens` | 15 | | `profileSetup` | 8 |
+| `SignInGate` | 4 | | | |
+
+**The OWED list is now empty, and that changes what the gate is.** It was
+a ratchet because the debt was ten; with nothing recorded, `unexplained`
+fires on the next panel added without a suite. It is a floor now, and the
+list is how it got there. 37/37 panels carry a suite.
+
+### The notes were excuses, and each one was wrong
+
+Every entry on that list carried a reason it had been skipped, and the
+reasons are the finding. "Routing, no reading of its own"
+(`MirrorLensTabs`) has three ways to lie that all type-check, the sharpest
+being an `open` that is not in `tabs` — which `LiveCohortBody` hands it
+every time you walk World → City with Explore up, and which must read as
+*nothing* rather than as the first tab. "Glyph constants, no component"
+(`duelMarks`) are components that colour a mark by an id, where
+`markHue(name || uid)` compiles, reads tidier, and gives two strangers one
+colour. "Decides nothing" (`Avatar`) holds the only defect in this sweep
+that looking twice does not correct — a captured uid dressing a whole list
+in one stranger's photo. A skip reason is a hypothesis, and none of these
+survived being tested.
+
+### Eight defects, none of them fixed here
+
+Every one is outside the panel that surfaced it, so each is recorded and
+asserted-as-found rather than repaired under cover of a test sweep. Where
+a suite pins current behaviour it says so in the failure message, so the
+fix fails loudly instead of silently:
+
+1. **`data/pulse`** — pausing a pulse hides the answer you already gave
+   today and puts the blind ask back, while the vote stays on the server.
+   `mineToday` reads `days()`, which nulls every day the cadence did not
+   ask on: right for the trend line, wrong for today's card.
+2. **`data/pulse`** — `ensureToday()` called while the bank is empty
+   latches `loadingToday` on a settled promise **for the life of the
+   module**, so every later call returns it and the crowd is never fetched
+   again. The local-purge reset does not clear it. The worst of the eight:
+   it is a permanent stuck state, not a wrong reading.
+3. **`data/avatar.ts:122`** — `initialsOf` indexes UTF-16 code UNITS, so a
+   name whose first or last word begins with an astral character yields an
+   UNPAIRED SURROGATE: `"Ada 🎈"` → `"A\uD83C"`, tofu beside a correct
+   letter on the one surface whose job is drawing identity. A one-word
+   emoji name escapes it because `slice(0, 2)` happens to take both
+   halves, which is why it is invisible by hand. Fix: code points.
+4. **`Avatar`** — a failed image load is remembered by uid for the
+   lifetime of the mount, so a NEW token for the SAME uid keeps drawing
+   initials. After a transient failure a fresh upload shows no photo until
+   the component unmounts.
+5. **`LiveAnswerRows`** — `standText` cannot tell "this cohort has no
+   answers" from "you have not answered", so a row can name your own pick
+   and say you did not answer it, on the same screen.
+6. **`LiveCompareLens`** — on the `people` basis the header counts
+   everyone who contributed an axis to ANY instrument, including
+   instruments no card was drawn for, so the basis overstates what the
+   drawn cards rest on. The `cells` basis refuses exactly this a dozen
+   lines above in the same function.
+7. **`LiveSimilarityField`** — `SfEmptyField` hands an EMPTY canvas to a
+   screen reader as a group named "Similarity field — closer to the centre
+   is more like you", a promise about nodes that are not there, where
+   `EmptyField` draws the identical picture `aria-hidden`. Only one of the
+   two can be right. Found because `EmptyField`'s suite compares the two
+   drawings against each other rather than pinning literals — the licensed
+   copy is only licensed while it stays a copy, and no gate can see them
+   drift.
+8. **`LiveDuelPanel`** — the member chip draws `YouChip` AND a text label
+   that is also the word "you", so the member list announces "you you".
+   `YouChip` is deliberately not `aria-hidden`, so the fix is the
+   consumer's.
+
+### What a suite declined to assert, and why that is the result
+
+Three properties were considered and dropped as untestable rather than
+pinned, which is the outcome the mutation rule exists to produce:
+`letterSpacing: init ? "normal" : "0"` in `DuelAv` is INERT (both values
+render identically for one or two glyphs, so no mutation of it can fail);
+`data-lens={t.id}` is read by nothing in the tree — src, scripts and css
+were grepped, the two spec-layer rows included; and forwarded props like
+`emptyNote` would only assert that React renders children. A test that
+cannot fail is worse than no test, and recording the reason is what stops
+the next reader adding it.
+
+### One gap found by not trusting the reports
+
+The mutation checks are self-reported, so they were spot-checked
+independently. `duelMarks` property 4 claimed each mark reads its own
+initials rule and that the swap survives tsc — but its person case used
+"Ada Lovelace" and "Ada", and `groupInitials` returns AL and AD for both.
+A `DuelAv` wired to the circle rule passed that test; the swap was caught
+two describes down by the nameless-dot case, incidentally. The rules
+separate on a leading "The", and the person side had never rendered one.
+One assertion through the component closed it.
+
+That is the general lesson and it is worth more than the fix: **a suite
+that passes is not evidence a suite exists.** One of these files was
+reported green while it was a 48-line scratch probe with no assertions at
+all, and two passed individually while failing together because a file was
+still being edited. Structure, stability and an independent mutation are
+three different questions.
+
+## D243 · Two data-layer defects D242 found, fixed
+
+**2026-08-22.** **Status:** binding. D242 recorded eight defects and fixed
+none, on the rule that a test sweep must not quietly become a behaviour
+change. These are the two the owner picked out of that list.
+
+### 1 · `initialsOf` drew half a character
+
+`data/avatar.ts` indexed UTF-16 **code units**. `parts[0][0]` on a word
+beginning with an astral character takes the high surrogate and leaves the
+low one, so a multi-word name contributed an **unpaired surrogate** to the
+initials — tofu beside a correct letter, on the one surface whose whole
+job is drawing identity. Measured, old → new:
+
+| name | before | after |
+| --- | --- | --- |
+| `Ada 🎈` | `"A\uD83C"` broken | `"A🎈"` |
+| `🎈 Ada` | `"\uD83CA"` broken | `"🎈A"` |
+| `𝒜da Test` | `"\uD835T"` broken | `"𝒜T"` |
+| `Li 𠮷` | `"L\uD842"` broken | `"L𠮷"` |
+| `Ada Lovelace` · `Анна Каренина` · `josé ólafur` · `山田太郎` | correct | unchanged |
+
+The single-word branch was already right **by accident** — `slice(0, 2)`
+happens to take both halves of one astral character — which is why the bug
+survived every by-hand reading of a function this short. Spreading to code
+points gives both branches the same unit and makes the accident
+deliberate.
+
+`Avatar.test.tsx`'s pinned-defect case becomes the fix's case, as its own
+comment instructed. The assertion under all of it is the property rather
+than the four strings: nothing that comes out is a lone surrogate.
+
+### 1b · …and so did `marks.ts`, twice
+
+`personInitials` and `groupInitials` (`src/v2/ui/marks.ts`) carried the
+identical defect and are fixed the same way. Noticed while fixing
+`initialsOf` and left out of the first pass as UI-layer scope; folded in
+on the owner's call rather than left as a known twin.
+
+They are the daily's social rail — the marks every group and 1v1 row
+identifies a person or a circle by — so the failure is the same one in the
+same place: half a glyph where a letter should be, on a surface whose only
+job is telling people apart.
+
+| input | `personInitials` | `groupInitials` |
+| --- | --- | --- |
+| `🎈 Ada` / `🎈 Club` | `"\uD83CA"` → `"🎈A"` | `"\uD83CC"` → `"🎈C"` |
+| `Ada 🎈` / `Club 🎈` | `"A\uD83C"` → `"A🎈"` | `"C\uD83C"` → `"C🎈"` |
+| `The 🎈 Club` | — | `"\uD83CC"` → `"🎈C"` |
+
+The last row is the one worth naming: `groupInitials` strips a leading
+"The" first, so the emoji becomes the FIRST word — the path with two
+chances to lose half a character rather than one.
+
+The two folds keep separate implementations on purpose. They take
+different letters — first-two-words here, first-and-last in
+`data/avatar.ts` — and `duelMarks.test.tsx` exists partly to prove each
+mark reads its own rule. What they now share is only what a character IS,
+which is not a product decision either of them gets to make differently.
+
+### 2 · `ensureToday` latched its in-flight slot on a settled promise
+
+The interesting one, and the one this record exists for.
+
+`ensureToday`'s empty-roster branch sat **inside** the async IIFE:
+
+```ts
+loadingToday = (async () => {
+  try {
+    const ids = roster().map(…);
+    if (!ids.length) { todayAggs = {}; loadedForKey = today; return; }
+    const got = await fetchAggs(ids);      // the only await
+    …
+  } finally { loadingToday = null; }
+})();
+```
+
+There is no `await` before that early return, so on an empty roster the
+**entire body runs synchronously** — `finally { loadingToday = null }`
+included — and it runs BEFORE the `loadingToday = (…)()` assignment it is
+trying to clear. The assignment then stores an already-settled promise in
+the in-flight slot, and `if (loadingToday) return loadingToday` answers
+every later call instantly. The crowd is never fetched again for the life
+of the module. The purge listener (D51) resets `todayAggs` and
+`loadedForKey`, not that slot, so nothing recovers it.
+
+The fix is placement, not logic: the empty-roster decision moves OUT of
+the promise and is made synchronously, so the in-flight slot is only ever
+taken by a call that really fetches — and that call always suspends at
+`await fetchAggs`, so its `finally` cannot run early. Nothing is cached
+either, because an empty roster is the bank not having arrived rather than
+a day with no pulses: `loadedForKey` stays unset, and the call that
+arrives once the bank lands does the work.
+
+**Latent, not live — and the reachability argument is why it is fixed
+anyway.** The only caller is `PulseCard`'s mount effect, and
+`daily-split` builds its card list from `dueToday()`, which filters the
+same roster — so no card mounts to make the call while the bank is empty.
+But that effect is registered ABOVE `if (!PULSE.ready()) return null`, so
+it runs whenever a card mounts before the bank arrives, and the comment
+beside that return already promises "the effect above fills it". It would
+not have.
+
+`data/pulse-ensure.test.ts` holds it — a separate file because the case
+needs a LIVE store with a bank that changes underneath it, and
+`pulse.test.ts` mocks the store as `enabled: false`, which returns from
+the first line of the function. Three cases: the empty call does not
+poison the next one, a real load still caches, and `force` still refetches
+— the last two because the fix must not turn every mount into a query.
+
+### A note on believing an agent's report
+
+D242's write-up said this bug's mechanism was `loadingToday` latching on a
+settled promise, "the `finally` runs before the assignment". Reviewing it
+here, that looked wrong — there IS a `finally`, and the purge DOES reset —
+and this record was drafted describing a different mechanism (the
+`loadedForKey` cache) and calling the report inaccurate. Writing the test
+proved the original report exactly right, in both details, including the
+one about the purge. The reasoning that missed it is worth naming: an
+async function with no `await` before its return runs to completion
+synchronously, so its `finally` can execute before the caller has stored
+its promise. Reading the code was not enough; running it was.
+
+## D244 · The three behaviour bugs from D242's list
+
+**2026-08-22.** **Status:** binding. D242 recorded eight defects and fixed
+none; D243 took the two data-layer ones. These are the three that change
+what a user sees. The remaining three on that list are honesty and
+accessibility findings and are still open.
+
+Each was already pinned as-found by the suite that discovered it, with a
+failure message naming the fix — so every one of these fixes announced
+itself by turning its own case red, which is what that convention is for.
+
+### 1 · Changing a pulse's rhythm hid the answer you had just given
+
+`mineToday` read `days(pid)[DAYS - 1].v`, and `days()` nulls every day the
+cadence did not ask on. That gate is correct for the trend line — a weekly
+pulse must not draw a Tuesday it never offered — and wrong for today's
+card: **whether you answered today is a fact about what you did, not a
+scheduling question.** Read through the gate, pausing a pulse after
+answering took your own answer off the screen and put the blind ask back
+over it, while the vote sat on the server. Setting the cadence back made
+it reappear, so nothing was ever lost except the card's word for what you
+had done.
+
+Pausing was the loud case; choosing any rhythm that excludes today — a
+weekly pulse on a Wednesday — hit the identical gate quietly, and both
+are now pinned.
+
+The read moves into `mineOn`, shared with `days()` so the two cannot
+disagree about what an answer IS while disagreeing, correctly, about
+whether the schedule matters. `days()` keeps its gate: the mutation that
+removes it fails `pulse.test.ts`, which is the check that this fix did not
+over-reach into the trend.
+
+### 2 · A new photo stayed hidden behind an old failure
+
+`Avatar` remembered a failed image load by **uid**, for the lifetime of
+the mount. Keyed that way it already handled the case it was written for —
+Near re-orders under a mounted component and React keeps state at the
+POSITION, so a boolean would carry one person's dead token onto whoever
+scrolled into their row. What it could not see is the same person's NEW
+token: after a transient failure — a flaky network, an object caught
+mid-replace — a fresh upload from the account panel kept drawing initials
+until the component unmounted.
+
+Keyed by the URL, which is uid AND token, both are one condition. The
+half the fix must not break is pinned too: a re-render that changes
+nothing must still not retry a token already known to be dead.
+
+### 3 · A row that named your pick and denied it in the same breath
+
+`standingIn` returns null for two different reasons — the cohort has said
+nothing, or you have not answered — and `standText` rendered both as the
+second. So a row could print "You have not answered this one." directly
+under a chip naming your own pick.
+
+Reachable from the Near room, and **not only for a beat**: `loadRoom` is
+session-cached per cell, so a vote cast after the fold shows your chip
+against zero counts until you walk to another block.
+
+One null, two facts, so the fix asks which — in the same terms
+`standingIn` refuses on, rather than a second copy of the condition that
+could drift from it. When you have answered and the cell is still empty
+the line is "Your answer is not in this count yet.": not "nobody has
+answered", because you did and you are in this cohort, so the honest
+sentence explains the zeros rather than denying the chip. The other
+direction is pinned as well — with no pick of your own the sentence is
+about you, whatever the cohort has done.
+
+### Method
+
+Every fix was mutation-checked in BOTH directions: reverting it fails, and
+so does over-applying it. That second half is the one worth keeping — it
+is what caught that removing `days()`'s schedule gate would have fixed the
+card by breaking the trend.
+
+## D245 · The three honesty findings from D242's list
+
+**2026-08-22.** **Status:** binding. The rest of D242's eight, and the
+close of that list. Recorded under D244 because it is the same sweep: the
+behaviour half is above, this is the half where the app was telling the
+truth to the eye and not to everyone.
+
+### 1 · A basis that counted people the cards did not rest on
+
+`LiveCompareLens` prints what its likeness stands on, and the two bases
+count different things. The `cells` branch already refused to overstate —
+"`r.answers`, not the fold's total: the fold may have measured instruments
+this comparison never drew" — and the `people` branch, eight lines below
+it, printed `fold.people`: everyone who contributed an axis to ANY
+instrument. A set whose only drawn card is Big Five reported the three
+people who between them also finished Politics.
+
+`peopleAxisMap` now returns `peopleIn(kinds)` beside `people`, and the
+lens counts only the instruments it drew. A UNION rather than a sum of
+per-instrument counts, because one person who finished two instruments is
+one person and adding the counts would report more people than the roster
+has — pinned by its own case, since a sum passes the single-card one.
+
+The denominator stays the roster: somebody missing is stated rather than
+dropped from both numbers.
+
+### 2 · An empty ring that announced a comparison
+
+`SimilarityCanvas` carries `role="group"` and the label "Similarity field —
+closer to the centre is more like you". Every empty arm draws through it
+(`SfEmptyField` hands it `nodes={[]}`), so that label promised a
+comparison over a ring with nobody on it — and since the field is what a
+cohort stop OPENS on, it was the first thing a new account heard from the
+Mirror, on every stop.
+
+`EmptyField` — the forty-line copy of this drawing that Circle and Groups
+use, kept as a copy because importing the engine would drag it into the
+first-paint graph — had already answered the other way: `aria-hidden` on
+the svg, the sentence in the caption. Two drawings of one picture cannot
+disagree about that, and the copy was right. The rings and the "you" disc
+are the scale a radius will be read on, not a reading.
+
+Hidden while empty, named again the moment somebody is placed; both halves
+pinned, because hiding it always would take away the only thing telling a
+screen reader what the radius MEANS.
+
+**It cost two tests elsewhere, and that is worth recording.**
+`NearLiveBody` waited on that group label to know the lazy field had
+rendered — using an accessibility promise as a test handle. Repointed at
+the drawing itself. The full suite caught it; neither panel's own suite
+could have.
+
+### 3 · "you you"
+
+`LiveDuelPanel`'s member chip drew `YouChip` AND a text label that is also
+the word "you", so the member list said it twice to a screen reader.
+
+The fix is at the CALL SITE, not on the component. `YouChip` speaks by
+design — in a reveal bar it is the only marker of your own row, and
+`aria-hidden` on the component would cost that everywhere to fix it in one
+place. This chip is the one place that already prints the word beside the
+pill, so the caller that owns the duplication is the caller that hides it.
+Both halves pinned: the pill is still DRAWN (it is the visual marker), and
+the other member is still named.
+
+The assertion had to be on the accessibility tree rather than on
+`getAllByText`, which does not respect `aria-hidden` — the duplication is
+still in the DOM on purpose, so a text count cannot see this fix at all.
+
+### The list is closed
+
+D242 found eight, D243 fixed two, D244 fixed three, and this record fixes
+the last three. Every one was pinned as-found by the suite that found it,
+with a failure message naming the fix — so all eight announced themselves
+by turning their own case red the moment the source moved. That
+convention is the reason none of them needed re-finding.
+
+## D246 · The coupling ratchet, 392 → 352
+
+**2026-08-22.** **Status:** binding. `check:globals` rule 4's first move
+since D108, following the procedure `src/v2/README.md` records rather than
+improvising one.
+
+### Transpose the meter before planning — and this time it paid
+
+CLAUDE.md says rule 4 reports per **consumer**, which is right for a
+ratchet and wrong for planning, and that the paragraph above it twice
+claimed the cheap seam was exhausted and was twice wrong. Building the
+PROVIDER view out of `spec-globals.mjs`'s own `definedBy`/`referenced`
+maps answered it in one run:
+
+| reads | provider | name | consumers |
+| --- | --- | --- | --- |
+| 80 | `data/live.ts` | `LIVE` | 13 |
+| 43 | `app-shell.jsx` | `goTab`, `openPerson`, … | 5 |
+| 15 | `place-stats.js` | `PLACESTATS` | 2 |
+| 12 | `pick-data.js` | `PICKS` | **1** |
+| 12 | `vote-cuts.js` | `VOTECUTS` | **1** |
+| 10 | `world-feed-counters.js` | `WF_COUNTERS`, `WF_TAKE_SIG` | **1** |
+| 6 | `learn-feed.js` | `LEARN_FEED` | **1** |
+
+`LIVE` is deliberate (`live.ts` publishes it, and the whole spec layer
+reads it); `app-shell.jsx` is the root and a plausible cycle. Everything
+after that is **single-consumer, and the consumer is the same file** —
+`world-feed.jsx`, which already imports eight spec modules by name. Forty
+reads, one consumer, four pure data modules, no new pattern.
+
+### Cycles checked against the graph, not the paragraph
+
+Per the README's own warning. Three of the four read nothing cross-module
+at all; `vote-cuts.js` reads `RMLenses`, and lazily (`const L = () =>
+window.RMLenses`), from `relmap-lenses.jsx` — not the consumer. No cycle.
+
+### The guard shapes, which are a list and not a pattern
+
+Every site, read individually. `VOTECUTS` was four `X ? X.m() : fallback`
+and two `X && X.m()`. `LEARN_FEED` added `!LF || !LF.every()`, where only
+the first half is dead — `every()` returning 0 is the DATA condition and
+stays — and a `{LF ? (…) : null}` wrapping JSX. `PICKS` added
+`(window.PICKS && window.PICKS.TOP_N) || 10`, which is D108's second dead
+shape exactly: `TOP_N` is always on the api, so the `|| 10` was a local
+rewrite of the store's own default.
+
+Two modules were already half-converted — `vote-cuts.js` carried
+`export const VOTECUTS` with a window mirror "for the who-voted
+breakdowns that have not moved". `world-feed.jsx` was the last of those,
+so the mirror went with it.
+
+**`PICK_QS` stays on window and that is not an oversight.**
+`world-feed-data.js` concatenates it at MODULE SCOPE, so it is still
+crossing the bridge; its publication is live wiring, not residue.
+
+### What the tests knew that the gates did not
+
+Two spec tests reached these modules through the bridge —
+`learn-serve.test.js` (`window.LEARN_FEED`) and `purge-wipe.test.ts`
+(`W.PICKS`). Both fail loudly the moment a publication goes, which is the
+right direction, and both now import by name.
+
+### D108's suppression prediction did not fire, for a reason
+
+CLAUDE.md says to **expect a conversion to RAISE the suppression count**:
+the React Compiler cannot resolve a value arriving through global scope,
+so it bails out of the component, and converting reveals the `react-hooks`
+findings the bridge was hiding. Measured here: **28 before, 28 after**,
+lint green at `--max-warnings 0`.
+
+The reason is specific rather than lucky, and worth writing down so the
+next reader does not treat the prediction as refuted. `WorldFeed` is a
+**class component**, and every one of the forty reads is in one of its
+methods (`setPick`, `renderPick`, `renderEngage`, `takeCard`, …). The
+compiler's hook analysis has nothing to say about a class, so there was no
+bailout to undo. The prediction holds for function components; it says
+nothing about this layer's class-based half.
+
+### Cost
+
+Entry chunk unchanged at 831 KB eager; total 2353 → 2352 KB across 103 →
+102 chunks, `world-feed-counters.js` having merged into the feed chunk it
+was already deferred alongside. Its `loadWorldFeed()` await is gone for
+the reason `world-feed-math.js`'s already was: the module graph orders it.
+The three eager `spec-index.js` lines stay — the modules are still in the
+eager graph, and keeping them preserves the load order those comments
+document.
+
+## D247 · PLACESTATS off the bridge, 352 → 337
+
+**2026-08-22.** **Status:** binding. The next name down the provider view
+D246 built, and the one that finally tests D108's suppression prediction
+on a component the prediction is actually about.
+
+`place-stats.js` is a **pure provider** — the graph shows it reading
+nothing cross-module at all, so no cycle was possible. Fifteen reads
+across two consumers: `world-feed.jsx` (12) and `place-stats.jsx` (3),
+which goes to **zero** and leaves the coupling list. 42 files → 41.
+
+The guards were the usual list: one `if (window.X) window.X.m()`, five
+`window.X ? window.X.cat(…) : null`, and in the card an effect written
+`() => (window.PLACESTATS ? window.PLACESTATS.subscribe(…) : undefined)`
+— which returned `undefined` instead of an unsubscriber on any frame the
+module had not loaded. `cat()` genuinely returns null for an unknown
+scope, so the null RESULT is a data condition and its downstream handling
+stays; only the guard went. Same for `if (!S)` in the card.
+
+`PLACE_RATE_QS` stays on window for the same reason `PICK_QS` does:
+`world-feed-data.js` concatenates it at module scope, so both
+`spec-index.js` ordering lines stay exactly as they are.
+
+### D108's prediction, tested properly this time — and it still did not fire
+
+D246 recorded that the prediction (a conversion RAISES the suppression
+count, because the React Compiler bails out of components reading through
+global scope and the bridge is therefore hiding `react-hooks` findings)
+did not fire, and gave a specific reason: every read was in a **class**
+component, where the compiler's hook analysis has nothing to say.
+
+`PlaceStatsCard` is a real **function component** with `React.useState`
+and `React.useEffect`, reading the global in both its body and its effect.
+That is exactly the shape the prediction describes. Measured: **28
+suppressions before, 28 after**, lint green at `--max-warnings 0`.
+
+**Verified rather than assumed**, because "no new findings" is worthless
+if the rule was not watching: `react-hooks` recommended IS enabled for
+`src/v2/**/*.{js,jsx}` (only `react-hooks/immutability` is off for the
+spec layer), and a deliberate conditional-hook probe in this exact file
+raised `react-hooks/rules-of-hooks` immediately, then was reverted.
+
+So the honest reading of D108 is narrower than the sentence in CLAUDE.md
+suggests: converting **can** reveal hidden findings, and it does not
+follow that it will. This component was already hook-correct, so the
+compiler gained the ability to analyse it and found nothing to say. The
+prediction is a risk to plan for, not a cost to budget.
+
+## D248 · The shell's cross-links become a registry, 337 → 295
+
+**2026-08-22.** **Status:** binding. `app-shell.jsx`'s forty-odd nav reads
+— the largest seam left after `LIVE` — and the first one that could not be
+a conversion at all.
+
+### Why an import would have been wrong
+
+Two things the provider view turned up. First, these eight names are not
+values: `goTab`, `goNav`, `openOverlay`, `openProfileTab`, `openCity`,
+`openPerson`, `openSuggestions`, `openLogicTest` are **closures over the
+shell's live state**, registered in an effect on mount and deleted on
+unmount. There is nothing to export.
+
+Second, and decisive: **six of app-shell's fifteen consumers are in a
+two-cycle with it**, and every one is the same shape — *the shell reads
+the consumer's COMPONENT because it renders it, and the consumer reads the
+shell's NAV FUNCTION because it navigates.*
+
+| consumer | shell reads | it reads |
+| --- | --- | --- |
+| `daily-split.jsx` | `DailySplit` | `openSuggestions`, `goTab`, `goNav` |
+| `mirror-tab.jsx` | `MirrorTab` | `goNav` |
+| `search-overlay.jsx` | `SearchOverlay` | `goTab` |
+| `profile-overlay.jsx` | `ProfileOverlay` | `__profileSub` |
+| `relmap.jsx` | `RelationshipMapOverlay` | `openOverlay` |
+| `passive-meter.jsx` | `PassiveMeter` | `openProfileTab` |
+
+That is a real bidirectional dependency, not a multi-writer artifact, so
+`import { goTab } from './app-shell.jsx'` would have made a genuine ESM
+cycle — the case `src/v2/README.md` names as the one to leave alone,
+because ESM handles cyclic value bindings badly and the failure is a
+temporal-dead-zone error that appears only at render.
+
+### A registry has no direction
+
+`data/nav.ts` depends on **nothing**. The shell imports it to REGISTER;
+consumers import it to CALL. The cycle is not broken so much as never
+drawn, and it is the shape `data/backLayers`, `data/mapCue.ts` and
+`spec/swipe-back.js` already have — all three of which app-shell imports
+for the same reason.
+
+It also collected three typed readers that were casting their way across:
+`data/links.ts`, `data/push.ts` and `ui/EmptyField.tsx` each wrote
+`window as unknown as { goTab?: … }` to reach the same doors. One typed
+surface replaced all three.
+
+### The presence check is NOT the dead guard shape
+
+Every consumer wrote `window.goTab && window.goTab(id)`, and D108 calls
+that shape dead on a converted module — correctly, because those were
+LOAD-ORDER guards and an imported binding cannot be unset. This one is
+different and stays: the shell registers on mount and clears on unmount,
+so a handler genuinely may be absent, and a call before mount must no-op
+rather than throw. The registry owns that check now instead of fifteen
+call sites, and `nav.test.ts` pins it first, because if it ever throws
+instead, fifteen call sites become a crash on the same frame.
+
+Two registration properties are pinned for reasons that are easy to miss:
+registration is **additive** (app-shell registers in two effects with
+different dependency lists, so a whole-object set would have the second
+wipe the first) and teardown is **identity-checked** (React mounts the
+next shell before the previous one's cleanup runs, so deleting by key
+alone would strand the live shell with no doors).
+
+### What it cost, and what caught what
+
+Nineteen files. The eager graph is unchanged at 831 KB and the bundle at
+2352 KB; `data/nav.ts` is a few hundred bytes and app-shell already sits
+in the entry chunk.
+
+Two mistakes, both caught by gates rather than by reading. A bulk
+insertion put `import NAV …` after the last line *starting with* `import
+`, which in two files is a line INSIDE a multi-line import block — a parse
+error, caught by lint and eight failing mount suites. And the same sweep
+rewrote a COMMENT in `EmptyField.tsx` that describes the old state and
+must keep saying `window.goNav`.
+
+The mount suites are what make this change safe to have made at all: they
+walk both tabs and every overlay, and `smoke-overlays.test.jsx` drives the
+deferred overlays through these very doors — so `openVia` now asserts the
+door is REGISTERED rather than that a global is installed, which fails
+just as loudly if the shell ever stops registering.
+
+### What is left
+
+295 across 37 files, from 392 at D246. `world-feed.jsx` (68) is the
+largest remaining consumer and `LIVE` (80 reads, 13 consumers) the largest
+provider — and that one is deliberate: `live.ts` publishes `window.LIVE`
+because the whole spec layer reads it, and moving it is the end of the
+migration rather than a step in it.
+
+## D249 · world-feed.jsx, 295 → 267
+
+**2026-08-22.** **Status:** binding. The largest remaining CONSUMER, after
+D248 took the largest provider that was not `LIVE`.
+
+The graph said this one was safe before any of it was written:
+`world-feed.jsx` publishes only three names, read by `map-tab.jsx`,
+`daily-split.jsx` and `search-overlay.jsx` — none of which provides
+anything it reads. **No cycle with any of its nine providers**, so unlike
+D248 this was an ordinary conversion.
+
+### Six reads were of modules that already export
+
+`PLACES`, `FILMS`, `ARTISTS`, `EMOJI`, `POKEDEX` and `PickSearch` are
+`data/` and `ui/` modules with proper named or default exports, reached
+through `window` for no reason except that the spec layer has always
+reached that way. Those six cost nothing to move.
+
+### The rest, and where each mirror went
+
+The publications came off only where `world-feed.jsx` was the LAST reader
+— the rest keep a mirror with a comment naming who still needs it, which
+is the honest shape a half-converted module has (`vote-cuts.js` carried
+exactly that until D246 removed the last global reader):
+
+| name | reads | mirror |
+| --- | --- | --- |
+| `SUBTOPICS` | 6 | kept — `search-overlay.jsx` |
+| `LENSES` | 4 | kept — `lens-cards.jsx`, `profile-general.jsx` |
+| `WF_REPORT` | 3 | kept — `daily-split.jsx` |
+| `FEEDREAD` | 2 | kept — `app-shell.jsx`, `mirror-field-pops.jsx` |
+| `WORLD_BG`, `LENS_FEED_QS`, `feedInsight`, `WORLD_FEED_COMMENTS`, `TEST_FEED_QS`, `WORLD_CHANNELS` | 8 | **removed** — no reader left |
+
+`feed-read.js` needed the hoisted `export let` (its two names are assigned
+inside an IIFE), which is now the fourth module converted that way after
+DAILYQ, FRIENDS, PICKS and PLACESTATS.
+
+### What the tests knew
+
+Two suites reached these through the bridge and failed the moment the
+publications went — `lens-live.test.ts` (`W.LENS_FEED_QS`) and
+`world-channels.test.js` (`window.WORLD_CHANNELS`). Both import by name
+now. `lens-live.test.ts` also lost its return typing when the `W`
+declaration dropped that member, because the untyped spec import is `any`:
+restored as an explicit alias rather than left implicit, which `tsc`
+caught and no test would have.
+
+### One await could go, and one could not
+
+`world-feed-comments.js` is no longer awaited in `loadWorldFeed()` —
+`world-feed.jsx` imports it, so the module graph orders it, the same
+reasoning `world-feed-math.js` and (since D246) `world-feed-counters.js`
+already carry.
+
+`consequence-beat.jsx` **stays awaited**, and the difference is the point:
+`daily-split.jsx` renders it too, by bare tag through the bridge, so the
+feed's own import is not the only thing that has to have loaded before it
+draws. Its two reads in `world-feed.jsx` are left on the bridge with it.
+
+Eager graph unchanged at 831 KB, bundle at 2352 KB. `world-feed.jsx` is
+60 → 32, of which 16 are `LIVE`.
+
+## D249 amendment (2026-08-23) · world-feed.jsx meets main's live pick/rank seam
+
+**Status:** binding. Not a new decision — a note on what the third merge
+with main did to the file D249 had just taken off the bridge.
+
+main's #263 (D232/D233) added a live seam to the same file: `pickSrc(q)`
+routes a pick board through `LIVE.pickCanon` for a live question and the
+demo store otherwise, and `rankVal`/`pickVal` read a server-only answer
+back through `LIVE.myVotes`. Written against `window.LIVE` and
+`window.PICKS`, because on main those were the only bindings there were.
+
+Merged as main's LOGIC on this branch's BINDINGS, which is what the file's
+own header already required: *"the window.LIVE reads elsewhere in this file
+predate the ratchet; new ones may not join them."* Six sites, all of them
+`window.X` → the import that D249 had just added:
+
+- `setPick` → `PICKS.pick`, and `pickSrc` returns `PICKS` rather than
+  `window.PICKS || null`
+- three `window.LIVE` reads in `setRank`, `rankVal` and `pickVal`
+
+The guards main wrote around those bindings went with them, per D108: an
+imported binding cannot be unset, so `window.PICKS || null`, `PK ? … : …`
+in four places, `(PK && PK.TOP_N) || 10` and `|| !L` in two conditions all
+had no false case left. What stayed is every DATA condition — `sel ?` (no
+segment chip picked), `L && L.voteRank` and `L.myVotes` (does this build's
+LIVE expose the method), `q.live &&` (is this a live question).
+
+**The arithmetic.** Un-converted, main's six sites would have read 35
+against a baseline of 32 and failed `check:globals` — the ratchet catching
+exactly what it is for, on a merge rather than on a commit. Converted, the
+file reads 32 and the tree reads **267 across 37 files**, which is the
+figure D249 left and `src/v2/README.md` still states.
+
+## D250 · The a11y ratchet: six were right, one was hiding
+
+**2026-08-22.** **Status:** binding. The a11y baseline, examined rather
+than paid down — and the difference between those two is the record.
+
+### The finding: most of this was not debt
+
+`check:a11y` read "8 known findings — 5 in the ported spec layer, 3
+deliberate elsewhere", and `src/v2/README.md` filed the five under the
+trade it uses for the React Compiler suppressions: *changing focus
+behaviour in ported components no test asserts the interaction of is the
+blind change that trade refuses. Fix them behind interaction tests, not
+ahead of them.*
+
+The trade is real. The conclusion was not, because nobody had looked at
+the sites. Six of the seven `no-autofocus` findings are the SAME case the
+two picker fields were already excused for — a control the reader has just
+asked for:
+
+| file | the control |
+| --- | --- |
+| `relmap.jsx` | the people search, rendered only when `searchOpen` |
+| `suggestions.jsx` | the question field of an overlay opened by a button |
+| `world-feed.jsx` | the counter-reply box, rendered only when `replyTo` names that take |
+| `group-daily.jsx` | the group-name field of a sheet the user opened |
+| `CityPicker.tsx`, `PickSearch.tsx` | the pickers' own search fields |
+
+`no-autofocus` is a heuristic against focus moving on LOAD. Moving it to a
+control someone just opened is correct behaviour, and deleting these props
+to lower a number would make the app worse — a search you must tap twice,
+a reply box that does not take the cursor. They are recorded as decisions
+now, each with its reason beside it in `BASELINE`, rather than as debt
+someone is invited to "fix".
+
+The eighth, `TweaksPanel.jsx`, is the drag handle of the host-era debug
+panel — a pointer affordance by nature, and `src/dev/` is behind a
+build-time flag with no import in a production build (verified: nothing
+matching it is in `dist/`).
+
+### The seventh WAS a defect, and its justification is what hid it
+
+`app-shell.jsx`'s `autoFocus` is on the update-required blocker — the one
+dialog here that is **not** user-initiated. Focus SHOULD enter a modal when
+it opens; not doing so is the WCAG 2.4.3 failure. So the prop read as
+correct, and that stopped anyone looking further.
+
+What the prop could not do is KEEP focus there. The blocker had
+`role="dialog"`, `aria-modal="true"` and a label written by hand — and **no
+focus trap** — so Tab walked straight out into the app behind it, which is
+still fully in the DOM under an absolutely positioned overlay. D24 gave
+the eight overlays `useDialog` for exactly this; the blocker was written
+inline and missed the sweep. Focus containment is runtime behaviour, so no
+linter could report it, and this gate read the file as one deliberate
+`autoFocus` and nothing else.
+
+It goes through `useDialog` now. That traps Tab, restores focus to the
+opener on unmount, and focuses the button itself — so the `autoFocus` went
+with it, which is a fix rather than a removal. `onClose` is a **no-op on
+purpose**: `useDialog` wires Escape to it, and a build the server has
+refused must not be dismissable.
+
+7 findings, 4 in `spec/`.
+
+### The test that did not work, and why it is worth recording
+
+The first draft asserted `document.activeElement` after firing Tab — and
+**survived reverting the fix**. jsdom does not implement Tab navigation, so
+a keydown moves focus nowhere on its own, and this dialog has ONE focusable
+control, so a wrap lands back where it started. The assertion passed
+identically with and without the trap.
+
+`preventDefault` is what actually stops the browser taking focus out, so
+that is what the case asserts now, and reverting the fix fails it. Same
+lesson as D242's `duelMarks` gap, arriving from a different direction: a
+test that cannot fail is worse than no test, and only the mutation says
+which one you wrote.
+
+### What stays deferred, unchanged
+
+The 28 `react-hooks/exhaustive-deps` and `react-hooks/refs` suppressions on
+ported effects. Changing effect re-run timing blind is exactly the trade
+`src/v2/README.md` refuses, and that refusal survives this record — it was
+only ever the autofocus half that had been filed under it by association.
+
 ## D251 · The report builder ships, and reads as a signed-in user
 
 **2026-08-23.** **Status:** binding, built. Owner's call on the

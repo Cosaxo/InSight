@@ -7,9 +7,10 @@
 // destructuring registered both names as LOCALS, so the tags resolved locally,
 // the window bag looked like it had two dead entries, and a rename here would
 // have been caught by nothing. Real imports make the edge visible to both.
-// `window.openPerson` below is still a global read — that owner has not moved.
+// `NAV.openPerson` below is still a global read — that owner has not moved.
 import React from 'react';
 import { RMCore } from './relmap-core.js';
+import NAV from '../data/nav';
 
 // RelationshipMap — the selected-person and selected-circle detail panels.
 const { P } = RMCore;
@@ -88,8 +89,8 @@ export function RMPersonPanel({ s, onSelect, onClose }) {
               </button>
             ))}
           </div>
-          {s.personRecord && window.openPerson && (
-            <button className="press" onClick={(e) => { e.stopPropagation(); window.openPerson(s.personRecord); }}
+          {s.personRecord && NAV.can('openPerson') && (
+            <button className="press" onClick={(e) => { e.stopPropagation(); NAV.openPerson(s.personRecord); }}
               style={{ marginTop: 20, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, width: '100%', boxSizing: 'border-box', padding: '12px 14px', borderRadius: 12, border: 'none', cursor: 'pointer', background: s.color, color: P.initFill, fontFamily: SANS, fontSize: 14, fontWeight: 700 }}>
               See {s.name.split(' ')[0]}’s map&nbsp;<span style={{ fontSize: 15, lineHeight: 1 }}>↗</span></button>
           )}

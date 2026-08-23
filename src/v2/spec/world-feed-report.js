@@ -8,7 +8,7 @@ import React from 'react';
 // world-feed-report.js — reporting a take. The reason list is short on purpose:
 // a long list is a form, and nobody fills in a form about a stranger. One tap
 // sends it and takes the take out of your feed. Reports persist locally.
-window.WF_REPORT = (function () {
+export const WF_REPORT = (function () {
   const LS = 'insight.reports.v1';
   let S = {};
   try { S = JSON.parse(localStorage.getItem(LS) || '{}') || {}; } catch (e) { S = {}; }
@@ -27,3 +27,5 @@ window.WF_REPORT = (function () {
     subscribe: (f) => { listeners.add(f); return () => listeners.delete(f); },
   };
 })();
+// The mirror stays for daily-split.jsx, which has not moved.
+window.WF_REPORT = WF_REPORT;

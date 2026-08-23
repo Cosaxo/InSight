@@ -18,6 +18,16 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// The nav registry (D248), not `window.goTab`. push.ts stopped casting
+// its way onto window when app-shell's cross-links became a registry, so
+// a test that stubs the global now stubs a door nothing opens.
+import { registerNav } from "./nav";
+
+// Held so beforeEach can drop exactly what the last tap registered —
+// registerNav's teardown is identity-checked, so `delete`-ing by key is
+// not something a caller can do.
+let dropNav: () => void = () => {};
+
 const h = vi.hoisted(() => ({
   native: true,
   platform: "ios",
@@ -77,7 +87,8 @@ beforeEach(() => {
   h.registered = false;
   localStorage.clear();
   sessionStorage.clear();
-  delete (window as unknown as { goTab?: unknown }).goTab;
+  dropNav();
+  dropNav = () => {};
 });
 
 describe("registerPush — the prompt is asked for, not assumed", () => {
@@ -197,7 +208,7 @@ describe("a tapped notification lands somewhere", () => {
     h.platform = "android";
     h.permission = "granted";
     const goTab = vi.fn();
-    (window as unknown as { goTab: unknown }).goTab = goTab;
+    dropNav = registerNav({ goTab });
     const { registerPush } = await import("./push");
     await registerPush("u1");
     h.handlers.pushNotificationActionPerformed({ notification: { data } });
@@ -242,7 +253,7 @@ describe("a tapped join notification", () => {
     h.platform = "android";
     h.permission = "granted";
     const goTab = vi.fn();
-    (window as unknown as { goTab: unknown }).goTab = goTab;
+    dropNav = registerNav({ goTab });
     const { registerPush } = await import("./push");
     await registerPush("u1");
     h.handlers.pushNotificationActionPerformed({ notification: { data } });

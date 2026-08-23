@@ -32,18 +32,12 @@ const UI = join(root, "src", "v2", "ui");
 
 // The panels still owed a suite, each with what a reader would want to
 // know. Removing a name from this list is the only direction it moves.
-const OWED = {
-  Avatar: "initials and the D178 photo fallback; drawn everywhere, decides nothing",
-  EmptyField: "the similarity field's empty state — one card, offers the Answers tab",
-  LiveAnswerRows: "the Answers lens's rows; the arithmetic is cohort.ts, tested there",
-  LiveCompareLens: "Compare's row list; its fold is data/compare.ts, tested there",
-  LiveSimilarityField: "the permanent head of City/Country/World — the biggest one owed",
-  MirrorLensTabs: "the lens tab bar (D136); routing, no reading of its own",
-  PulseCard: "the daily's pulse card — its trend half is PulseTrends, now covered",
-  SignInGate: "the pre-D3 gate; LiveSignInGate is the live one and has a suite",
-  duelMarks: "glyph constants, no component",
-  profileSetup: "the pre-typed setup; LiveProfileSetup is the live one and has a suite",
-};
+//
+// EMPTY SINCE D242, and the gate is now a floor rather than a ratchet:
+// with nothing owed, `unexplained` fires on the next panel added without
+// a suite. That is the direction this was always pointed at — the debt
+// was ten when the list was written and the list is how it got to zero.
+const OWED = {};
 
 const panels = readdirSync(UI)
   .filter((f) => f.endsWith(".tsx") && !f.endsWith(".test.tsx"))

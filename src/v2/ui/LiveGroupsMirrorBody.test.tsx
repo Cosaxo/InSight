@@ -25,6 +25,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MIN_SHARED } from "../data/groupPortrait";
+import { registerNav } from "../data/nav";
 
 const LIVE = vi.hoisted(() => {
   const social = {
@@ -137,14 +138,15 @@ describe("LiveGroupsMirrorBody · states it refuses to fake", () => {
     // group and delivers a duel. The pin is on the goNav key, because the
     // difference is one argument and the wrong one still "navigates".
     const goNav = vi.fn();
-    (window as unknown as { goNav?: (k: string) => void }).goNav = goNav;
+    // The nav registry since D248, not a window global.
+    const dropNav = registerNav({ goNav });
     try {
       LIVE.social.groups = () => [];
       render(<LiveGroupsMirrorBody />);
       screen.getByRole("button", { name: /Start a group/i }).click();
       expect(goNav).toHaveBeenCalledWith("track:group");
     } finally {
-      delete (window as unknown as { goNav?: (k: string) => void }).goNav;
+      dropNav();
     }
   });
 
