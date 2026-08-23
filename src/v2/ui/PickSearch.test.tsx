@@ -45,6 +45,10 @@ const stores = vi.hoisted(() => ({
   dogs: [
     { key: 223, name: "Golden Retriever" },
   ],
+  colors: [
+    { key: 256, name: "blue" },
+    { key: 1, name: "black" },
+  ],
 }));
 
 const catalogStore = (rows: () => Array<{ key: number; name: string }>) => ({
@@ -68,6 +72,7 @@ vi.mock("../data/catalogs", () => ({
   EMOJI: catalogStore(() => stores.emoji),
   COUNTRIES: catalogStore(() => stores.countries),
   DOGS: catalogStore(() => stores.dogs),
+  COLORS: catalogStore(() => stores.colors),
 }));
 
 const { default: PickSearch } = await import("./PickSearch");

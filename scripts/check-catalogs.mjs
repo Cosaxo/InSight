@@ -23,7 +23,8 @@ const errors = [];
 
 function parseCatalogue(file, label) {
   const keys = [];
-  if (!existsSync(file)) return { present: false, keys };
+  const names = new Map();
+  if (!existsSync(file)) return { present: false, keys, names };
   const lines = readFileSync(file, "utf8").split("\n");
   const seenKeys = new Set();
   const seenNames = new Set();
@@ -60,12 +61,13 @@ function parseCatalogue(file, label) {
     if (seenNames.has(nk)) errors.push(`${at}: duplicate name ${JSON.stringify(name)}`);
     seenNames.add(nk);
     keys.push(key);
+    names.set(key, name);
     count += 1;
   }
   if (headerCount !== null && headerCount !== count) {
     errors.push(`${label}: header says ${headerCount} entries, file has ${count}`);
   }
-  return { present: true, keys };
+  return { present: true, keys, names };
 }
 
 const films = parseCatalogue(join(root, "public", "films.txt"), "films.txt");
@@ -73,6 +75,7 @@ const artists = parseCatalogue(join(root, "public", "artists.txt"), "artists.txt
 const emoji = parseCatalogue(join(root, "public", "emoji.txt"), "emoji.txt");
 const countries = parseCatalogue(join(root, "public", "countries.txt"), "countries.txt");
 const dogs = parseCatalogue(join(root, "public", "dogs.txt"), "dogs.txt");
+const colors = parseCatalogue(join(root, "public", "colors.txt"), "colors.txt");
 
 // Countries-only invariants: the catalogue's one minted key is Kosovo's
 // 900 (build-countries.mjs header) — every other key must be a 3-digit
@@ -105,6 +108,26 @@ if (dogs.present) {
   }
 }
 
+// Colors-only invariant: each key IS the colour plus one —
+// 1 + parseInt(hex, 16), the offset keeping black off the Not-listed
+// key 0 — so every key sits in 1..0x1000000, and three spec anchors pin
+// the derivation itself: black #000000, rebeccapurple #663399, white
+// #ffffff. A key outside the range or a moved anchor means the
+// derivation changed, which re-keys stored favourites.
+if (colors.present) {
+  for (const k of colors.keys) {
+    if (k < 1 || k > 0x1000000) {
+      errors.push(`colors.txt: key ${k} outside 1..0x1000000 — the +1 hex derivation`);
+    }
+  }
+  const want = [[1, "black"], [0x66339a, "rebeccapurple"], [0x1000000, "white"]];
+  for (const [k, name] of want) {
+    if (colors.names.get(k) !== name) {
+      errors.push(`colors.txt: expected key ${k} to be ${name}, found ${colors.names.get(k) ?? "absent"}`);
+    }
+  }
+}
+
 // Agreement with the trigger's compiled-in sets: re-derive and compare.
 const KEYS_FILE = join(root, "functions", "src", "catalogKeys.ts");
 function declaredKeys(source, name) {
@@ -130,6 +153,7 @@ if (src !== null) {
     ["EMOJI_KEYS", emoji, "emoji.txt"],
     ["COUNTRY_KEYS", countries, "countries.txt"],
     ["DOG_KEYS", dogs, "dogs.txt"],
+    ["COLOR_KEYS", colors, "colors.txt"],
   ]) {
     const declared = declaredKeys(src, name);
     if (declared === null) {
@@ -157,5 +181,6 @@ console.log(
     `artists ${artists.present ? artists.keys.length : "absent"}, ` +
     `emoji ${emoji.present ? emoji.keys.length : "absent"}, ` +
     `countries ${countries.present ? countries.keys.length : "absent"}, ` +
-    `dogs ${dogs.present ? dogs.keys.length : "absent"}, key sets agree`,
+    `dogs ${dogs.present ? dogs.keys.length : "absent"}, ` +
+    `colors ${colors.present ? colors.keys.length : "absent"}, key sets agree`,
 );

@@ -19,7 +19,7 @@
 import React from "react";
 import POKEDEX, { type Species } from "../data/pokedex";
 import ELEMENTS_CATALOG, { type Element } from "../data/elements";
-import { FILMS, ARTISTS, EMOJI, COUNTRIES, DOGS, type CatalogEntry } from "../data/catalogs";
+import { FILMS, ARTISTS, EMOJI, COUNTRIES, DOGS, COLORS, type CatalogEntry } from "../data/catalogs";
 
 const PS_LINE = "1px solid var(--rule)";
 
@@ -113,6 +113,14 @@ const DOMAINS: Record<string, DomainSpec> = {
     // mutts are real dogs with no row, and theirs is the honest miss.
     noMatch:
       "No match — try the common name. Crosses and mixes count as “Not listed”.",
+  },
+  colors: {
+    ...catalogSpec(COLORS, "Search colours…", "one pick from 139 — the crowd's canon reveals after"),
+    // The CSS spec's named colours, alias-deduped (aqua stands for cyan,
+    // gray for grey) — so a miss is often the alias spelling, and every
+    // colour outside the spec's 139 names is honestly "Not listed".
+    noMatch:
+      "No match — these are the CSS names (try “aqua”, “gray”). Anything unnamed counts as “Not listed”.",
   },
   countries: {
     ...catalogSpec(COUNTRIES, "Search countries…", "one pick from 250 — the crowd's canon reveals after"),

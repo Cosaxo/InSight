@@ -53,7 +53,7 @@ import {
   type CatalogSpec,
   type SeedOptionConflict,
 } from "./pure";
-import { FILM_KEYS, ARTIST_KEYS, EMOJI_KEYS, COUNTRY_KEYS, DOG_KEYS } from "./catalogKeys";
+import { FILM_KEYS, ARTIST_KEYS, EMOJI_KEYS, COUNTRY_KEYS, DOG_KEYS, COLOR_KEYS } from "./catalogKeys";
 
 const REGION = FUNCTIONS_REGION;
 
@@ -260,6 +260,11 @@ const CATALOG_DOMAINS: Record<string, CatalogSpec> = {
   // Catalogue-minted keys (build-dogs.mjs) — append-only by discipline,
   // contiguous by construction; the generated set is the whole contract.
   dogs: { keys: DOG_KEYS },
+  // 1 + parseInt(hex, 16) of each CSS named colour (build-colors.mjs) —
+  // the colour's own identity as its key, offset once so black stays off
+  // the Not-listed 0; sparse, externally stable, and the generated set
+  // is the whole contract.
+  colors: { keys: COLOR_KEYS },
 };
 
 // ── content seed ────────────────────────────────────────────────

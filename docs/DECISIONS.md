@@ -23275,6 +23275,96 @@ it into `android/app/build.gradle` and `ios/App/App.xcodeproj`;
 `LAUNCH-RUNBOOK.md` 5.6's figure followed, because `check:figures` owns
 that number and went red until it did. `IOS-RELEASE.md` gains the
 build 22 and build 23 records.
+## D230 · An instrument's colour is where you stand now, not where you finished
+
+**2026-08-22.** **Status:** binding, built. Owner's call, made against a
+screenshot of the profiles sheet: *"add this coloring in the question
+profile with double color even before the profile is done — just take
+what the current result is, the double coloring looks so much better."*
+Written on `claude/question-profile-double-color-dbhcji` as D229 and
+**renumbered to D230 on merge**, because #258 minted D229 while this
+branch was open — the D218/D224/D225 collision pattern, now five for
+five.
+
+### What was drawn, and what it was drawn from
+
+`passiveStanding` (`spec/passive-meter.jsx`) is the app's only reader of
+`typeSplit`. It matched `IS_TEST_RESULTS[k]` to an archetype and wore
+that type's two-tone split — the dominant axis' deep hue over `ratio` of
+the shape, the runner-up's lighter hue over the rest, the same
+construction the type MARK draws. With no stored result it returned the
+instrument's flat category accent (`TEST_HUE`), and all three consumers
+wore that: the feed chip's four rings, the profiles sheet's
+per-question pills, and the per-card `PassiveTag`.
+
+**Which meant the split only ever drew in the DEMO.** D121 removed the
+sit-down flow, and nothing has written `testResults` since; a live
+account's `IS_TEST_RESULTS` is emptied by hydrate's own event and stays
+empty however much of the feed it answers. The colour in the screenshot
+that prompted this is a colour a shipping build never draws — the seed
+in `test-definitions.js` is Mira Halvorsen's finished result, and the
+demo is the only place it exists.
+
+### The decision
+
+**The colour comes from the current reading, at whatever stage it is
+at.** A stored result still wins — a finished instrument beats an
+estimate of the same thing from fewer answers, which is the order
+`ownResult` already keeps. Without one, the colour comes from the fold
+over your own feed answers (`ownProgress` → `data/passiveProfile.ts`),
+handed to `typeSplit`'s `values` arm as a plain axis map: same
+arithmetic, your own two strongest leanings instead of a named type's,
+and it lands on the first answer rather than the last.
+
+**COLOUR ONLY — the type stays refused.** `standing` is null on the fold
+path, so the type's name, its mark and the aria-label that reads it are
+exactly as dark as they were. D121's threshold does not move: a hue says
+*this is where you lean so far* and moves when the next answer moves it,
+while a name is a claim, and `MIN_AXIS_ITEMS` is what decides when the
+fold has earned one. The split is what makes the weaker claim legible —
+two tones ARE "two axes lead, one more than the other", which is the
+most a handful of answers supports.
+
+### Where it draws now
+
+- **The chip rings, the sheet's pills and `PassiveTag`** — no code
+  changed; they read `passiveStanding` and it started answering.
+- **`TestProgress`** (`spec/profile-overlay.jsx`) — the filling-in card
+  that stands where a result would be. Its bar is deep + lift now, so
+  tapping a two-tone row in the sheet through to the tab it points at
+  lands on the same two tones instead of on the family hue.
+- **`TestArcsCard`** (`spec/profile-general.jsx`) — the "Your tests"
+  arcs, which also stopped needing a STORED result to draw at all. In a
+  live build that card was four grey rings that never moved however much
+  of the feed you answered; the arc follows progress now, and wears the
+  split by layering (lighter tone over the whole sweep, deeper one over
+  its first `ratio`) so the arc keeps its own rounded end.
+
+### Cost, and what holds it
+
+The fold measured at ~60µs a call over the 110-item bank, and
+`passiveStanding` runs once per ring, once per marked feed card, on
+every render — so the signature is held per instrument and dropped on
+`LIVE.subscribe` + `PASSIVE.subscribe`. Both fire ahead of the re-render
+they cause (`LIVE.vote` writes, notifies, and only then returns), so a
+held signature cannot be staler than the screen drawing it. The one
+exception is a test writing votes straight into the live FIXTURE, which
+installs its own `subscribe` over the singleton's: `PASSIVE.poke()` is
+the drop there, and `withVotes` does it. Shipping bundle: eager graph
+831 → 832 KB, total unchanged at 2356 KB.
+
+Two gates, and both were verified to FAIL against the pre-change files
+rather than assumed to:
+
+- `test/passive-fold-live.test.jsx` pins the hues at the fold — econ
+  over auth from four Politics answers, foreign over env when the same
+  four answers move axis, the flat accent when nothing is answered, and
+  a stored result still winning and still naming its type.
+- `test/smoke-live.test.jsx` pins the SHAPE, because `TestProgress` is
+  live-only by construction and no demo suite executes a line of it: the
+  bar carries its second tone from four answers and carries none from
+  zero. A colour is a name-level guard's blind spot twice over — the
+  pill it copies lives in another file.
 
 ## D231 · The report builder ships, and reads as a signed-in user
 
