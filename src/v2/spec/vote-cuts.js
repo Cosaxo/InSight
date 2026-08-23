@@ -12,7 +12,7 @@ import React from 'react';
 // there always mean the same thing.
 // Converted off the shared-global bridge (D39, "convert on touch"):
 // daily-split.jsx and world-feed.jsx both import this by name. The window
-// mirror is GONE since D230 — world-feed.jsx was the last global reader,
+// mirror is GONE since D236 — world-feed.jsx was the last global reader,
 // and a publication nothing reads is the residue rule 5 exists to catch.
 export const VOTECUTS = (function () {
   const DEMO = [

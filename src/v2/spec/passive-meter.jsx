@@ -10,6 +10,15 @@ import ReactDOM from 'react-dom';
 import { IS_TEST_RESULTS } from './test-definitions.js';
 import { PASSIVE } from './passive-progress.js';
 import NAV from '../data/nav';
+// The fold over your own feed answers (D121) — what an instrument reads as
+// when it has no stored result, which in a live build is every instrument.
+// Imported from its one owner rather than re-derived here: `ownProgress`
+// already joins the bank, the definitions and your votes, and a second
+// scorer for the instruments is exactly what D121 removed.
+import { ownProgress } from './result-card.jsx';
+// Imported for `subscribe` alone (see pmDrop) — an import rather than a
+// `window.LIVE` read, so the D39 coupling meter does not move up for it.
+import LIVE from '../data/live';
 
 // passive-meter.jsx — UI for the passive test progress: PassiveRing (one
 // conic ring per test), PassiveMeter (persistent indicator by the feed chips;
@@ -70,20 +79,73 @@ function usePassive() {
   return PASSIVE;
 }
 
-// The colour a test currently READS AS: the type you stand at right now, with
-// its two-tone split — the same value the open sheet and the type mark use.
-// Falls back to the test's category hue before a standing exists.
-// A named export rather than a window publish: nothing outside this file reads
-// it yet, and the bridge only carries names unmoved consumers actually look up.
+// Held per instrument, because this is the one reading here that is not
+// cheap: `ownProgress` joins the bank to the definitions and folds your
+// whole vote map, measured at ~60µs a call on the 110-item bank, and
+// `passiveStanding` runs once per ring, once per marked feed card, on every
+// render. Dropped on the two signals that can move it — LIVE for the votes
+// and the bank, PASSIVE for the local tally and the purge — and both fire
+// synchronously ahead of the re-render they cause (`LIVE.vote` notifies
+// before it returns), so a held signature can never be staler than the
+// screen drawing it.
+//
+// The one place that is not true is a test that writes votes straight into
+// the live FIXTURE, which installs its own `subscribe` over the singleton's
+// and so never reaches this listener: `PASSIVE.poke()` is the drop there.
+let pmSig = {};
+const pmDrop = () => { pmSig = {}; };
+LIVE.subscribe(pmDrop);
+PASSIVE.subscribe(pmDrop);
+
+// Where the fold has got to, as a signature `typeSplit`/`typeColor` can read
+// — or null when there is nothing behind it yet. Null in the demo too, where
+// `ownProgress` returns null by design: test-definitions.js's seed IS the
+// persona's own result, and re-scoring it from the feed would be a second
+// answer to a settled question.
+function passiveSignature(k) {
+  if (k in pmSig) return pmSig[k];
+  const p = ownProgress(k);
+  let sig = null;
+  if (p && p.dims.length) {
+    sig = {};
+    p.dims.forEach((d) => { sig[d.dim] = d.value; });
+  }
+  pmSig[k] = sig;
+  return sig;
+}
+
+// The colour a test currently READS AS: where you stand right now, with its
+// two-tone split — the same value the open sheet and the type mark use.
+//
+// TWO SOURCES, in this order. A stored result matches an archetype and the
+// colour is that type's. Without one — which post-D121 is every instrument in
+// a live build, since nothing writes `testResults` any more — it comes from
+// the fold over your own feed answers, through `typeSplit`'s `values` arm:
+// same arithmetic, your own two strongest leanings instead of a named type's,
+// and it lands on the first answer rather than on the last (D230).
+//
+// COLOUR ONLY, and that split is deliberate. A hue says "this is where you
+// lean so far" and moves when the next answer moves it; a NAME is a claim,
+// and passiveProfile.ts refuses one until every axis clears MIN_AXIS_ITEMS.
+// So `standing` stays null on the fold path — the type mark, the type's name
+// and the aria-label that reads it all stay dark, and what fills in early is
+// the colour the row was otherwise spending on a flat category accent.
+//
+// A named export rather than a window publish: the bridge only carries names
+// unmoved consumers look up, and both consumers outside this file import it.
 export function passiveStanding(k) {
   const m = PASSIVE.META[k];
   const R = IS_TEST_RESULTS[k];
   const mt = (R && R.dims && window.IS_matchArchetype) ? window.IS_matchArchetype(k, R.dims) : null;
   const standing = mt ? mt.list[mt.idx].name : null;
+  if (standing) {
+    return { standing, col: typeColor(k, standing, null, m.accent), sp: typeSplit(k, standing) };
+  }
+  const sig = passiveSignature(k);
   return {
-    standing,
-    col: standing ? typeColor(k, standing, null, m.accent) : m.accent,
-    sp: standing ? typeSplit(k, standing) : null,
+    standing: null,
+    col: sig ? typeColor(k, null, sig, m.accent) : m.accent,
+    sp: sig ? typeSplit(k, null, sig) : null,
   };
 }
 

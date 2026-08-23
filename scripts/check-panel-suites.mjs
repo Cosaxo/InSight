@@ -33,7 +33,7 @@ const UI = join(root, "src", "v2", "ui");
 // The panels still owed a suite, each with what a reader would want to
 // know. Removing a name from this list is the only direction it moves.
 //
-// EMPTY SINCE D227, and the gate is now a floor rather than a ratchet:
+// EMPTY SINCE D232, and the gate is now a floor rather than a ratchet:
 // with nothing owed, `unexplained` fires on the next panel added without
 // a suite. That is the direction this was always pointed at — the debt
 // was ten when the list was written and the list is how it got to zero.

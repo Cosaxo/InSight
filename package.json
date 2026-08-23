@@ -61,6 +61,7 @@
     "build:emoji": "node scripts/build-emoji.mjs",
     "build:countries": "node scripts/build-countries.mjs",
     "build:dogs": "node scripts/build-dogs.mjs",
+    "build:colors": "node scripts/build-colors.mjs",
     "check:ios-spm": "node scripts/check-ios-spm.mjs",
     "check:ios-facebook": "node scripts/check-ios-facebook.mjs",
     "check:ios-location": "node scripts/check-ios-location.mjs",
@@ -136,5 +137,5 @@
   "overrides": {
     "tar": "^7.5.22"
   },
-  "appBuild": 23
+  "appBuild": 24
 }

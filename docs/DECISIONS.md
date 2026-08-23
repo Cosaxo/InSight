@@ -23003,7 +23003,370 @@ public does not have". `PAID-PLAN.md` §0/§2/§9–§11: the publish
 requirement and the embargo open-question are gone; the read-set test
 stays as the hard line.
 
-## D226 · The de-overlap pass did not know the ring closes
+## D226 · The edit-flow matrix — second thoughts become a published number
+
+**2026-08-22.** **Status:** binding, built. Owner's call on the
+paid-reports thread ("then build the edit flow matrix"), adopting
+`PAID-PLAN.md` §3's **aggregate half** — the one item of that plan §9
+ranks ahead of demand evidence, because it loses data every day it
+waits: an edit that happens before the trigger folds flows is
+unrecoverable, and nothing can backfill what was never recorded. Flows
+therefore ACCRUE from this deploy forward; every D86 edit before it is
+gone, which is the argument that put this first and the reason waiting
+longer had a price.
+
+### What ships
+
+One field on the aggregate docs: `edits` — from-option → to-option →
+count, folded by `onV2AnswerUpdated` beside the -old/+new move it
+already applies (`foldEditFlow`, `functions/src/pure.ts`).
+
+- **Moves, not people.** One person editing twice appears under two
+  pairs. Stitching moves into per-person journeys would need the
+  per-answer receipt the fold deliberately does not keep — and the
+  matrix is a statement about the question, not about anyone's path
+  through it. No diagonal cells (the trigger returns on from == to
+  before folding), and the map only grows: an edit is an event that
+  happened, so there is no -old/+new to commute and no clamp to guard.
+- **Folded after the retry guard.** A deferred edit (update delivered
+  before its create — `retargetCounts`'s false) throws before the fold,
+  so the eventual replay counts the move exactly once, on the delivery
+  that actually moves the vote.
+- **Carried through the whole-doc rewrites.** Both answer branches
+  write the agg docs with `merge: false`, so the create path now reads
+  and re-emits `edits` (emit-when-set — a never-edited question's doc
+  gains no key). This is the quiet-loss half of the build, and the e2e
+  pins it: step 7e asserts the published cell after the 1→0 move, and
+  the new 7f asserts the matrix survives the next create's rewrite.
+  `pure.test.ts` pins the arithmetic; the whole loop ran green against
+  the emulated trigger before this record was written.
+
+### The trail, because it is data about people
+
+Public like everything beside it (D98), and said where the repo says
+such things: one sentence in `web/privacy.html` ("counts the change
+itself, as moves from one option to another — moves, not people"),
+pinned by a new `check:policy-claims` row; the `v2_question_aggs` row in
+`docs/data-inventory.md` extended; `SCHEMA-V2.md` states the field in
+both the answer-update contract and the public-doc shape; and the D28
+correction runbook (`DEPLOYMENT.md`) now subtracts a ring's pairs —
+reconstructable from the ledger's `at`-ordered per-event entries while
+they live — and carries `edits` through the republish, so an operator
+following it verbatim cannot drop the matrix. Erasure posture is the
+counts' own: an anonymous tally, not attributable, so `deleteAccount`
+does not unwind it (index.ts phase 1b's principle).
+
+### What deliberately does not ship
+
+- **The per-voter mark** (`firstOptionIdx` on the answer doc) —
+  `PAID-PLAN.md` §11 question 1, still the owner's open call. The
+  matrix needed no answer-doc change and no rules change; the mark is
+  both, and publishing a person's retracted opinion forever deserves
+  its own record, not a rider on this one.
+- **Client rendering.** Nothing draws `edits` yet; `deck.ts`'s `AggDoc`
+  states the field so the published shape is documented where every
+  other field's is. A "second thoughts" reading is a product decision
+  for later; the reports (`PAID-PLAN.md` §2) are its first intended
+  reader.
+- **D86 is not widened.** The client-writable edit surface is exactly
+  what it was — optionIdx + editedAt, daily/feed/test, 60s cooldown —
+  and the rules did not move. What changed is what the server counts
+  about an edit, not what a client may write.
+
+## D227 · The logic cut — the who-voted sheet groups answers by the verified score
+
+**2026-08-22.** **Status:** binding, built. Owner's call on the
+paid-reports thread ("do this", over PAID-PLAN.md §4's quick-win
+paragraph): the logic score becomes a cut on who voted. Same day as
+D226; the two are independent builds from the same plan.
+
+### What ships
+
+A **Logic** chip on the who-voted sheet (`LiveBreakdownPanel`), beside
+D146's Type chip and built on its exact rails: a client fold
+(`data/logicSplit.ts`) over the session's bounded voter sample, grouping
+by **quarters of the verified logic percentile** (`testResults.logic
+.pctile`, server-written D57) and redrawing the question's own options
+with each band's numbers.
+
+- **Zero extra reads, by construction.** The percentile is the third
+  rider on the profile document `resolveNames` already fetches for a
+  name (D112's argument, verbatim: no field mask, so it was on the wire
+  regardless). It rides the D129 persisted cache as `l` beside `n`/`s`
+  — same absent/null doctrine — and a cache written before this record
+  self-heals: the missing key puts the uid back through one profile
+  read, then holds. `profile-cache.test.ts` pins the round trip, the
+  healing, and that "untested" is a cached null rather than a refetch.
+- **The type cut's honesty rules, unchanged and shared.** Same rank and
+  shares floors (imported, not copied — four bands cut the same sample
+  more coarsely than the archetypes, so floors sized for the finer cut
+  hold a fortiori), counts under the floor, the basis stated under the
+  bars with both denominators, no roster (D149), never offered to a
+  continuum body. Two of its own: bands render in **scale order**, never
+  popularity order (a score scale re-sorted by n stops being a scale),
+  and the band guard is a **type test** — a row that never carried the
+  field reads as untested, because the falling-through alternative
+  files every legacy row in the bottom quarter, the one wrong answer
+  worse than none. `logicSplit.test.ts` pins both, plus the quartile
+  boundaries; the panel suite grew seven cases.
+- **Quarters, not scores.** A 63-vs-64 split is noise dressed as
+  insight, and anything finer drifts toward a leaderboard of strangers'
+  intelligence. The percentile rather than the marks because form eras
+  never mix (D61) and the percentile is the number the server computed
+  to be comparable.
+
+### The promise this narrows, and how it was moved
+
+`web/privacy.html` said answers are grouped by the Big Five "and only
+the Big Five is." That sentence is now false and was **amended in the
+same commit**: politics, values and social still never group answers
+(the pinned D146 half survives verbatim, and `typeSplit.SPLIT_TEST`
+still owns the instrument scope untouched); what groups answers is the
+Big Five and, separately, the verified logic score in four broad bands.
+A new `check:policy-claims` row pins the new half, so neither sentence
+can vanish quietly — the D202 discipline, third application. The
+data-inventory rows for `testResults` and the logic score both state
+the new scope, and the logic row says the honest exit plainly: not
+taking the test is not appearing in the cut.
+
+### What deliberately does not ship
+
+- **Not a breakdown dim.** `agg.by.logicBand` would publish per-city
+  intelligence readings — a census-grade product claim with D8-sized
+  consequences, not a filter. The cut is a bounded client sample that
+  says its basis, exactly like the type cut it mirrors.
+- **Not in the audience vocabulary.** Buyable cohorts stay the
+  published dims (D164; PAID-PLAN.md §4's fence): "ask only the smart
+  ones" is the precise-targeting compounding NEXT-FUNCTIONALITY §6
+  refuses, and this record does not move it.
+
+## D228 · The buyer model: three dims, nameless if wanted, and the lens waits
+
+**2026-08-22.** **Status:** binding, built. Owner's three calls on the
+paid-reports thread, answering `PAID-PLAN.md` §11's open questions 2
+and 3 and adding one of his own: *"we can undo this decision if that is
+deemed sensible"* (the one-dim audience cap), and *"we don't need to
+print the company name that has paid for the question … and it can be
+individuals as well that might want to buy a question."* Same day as
+D226/D227; this one reshapes D195's buyer model rather than building a
+new surface.
+
+### 1 · The audience cap: one dim becomes one-to-three
+
+`sponsor.audience` now takes **one to three** dim → bucket entries from
+the published breakdown dims — the owner's example cohort ("men 20–30
+in the US") is exactly three — matched **conjunctively on the device**
+(`matches()` already iterated N entries; the cap was the whole change)
+with **every matched dim printed on the band** (`whyMatched` likewise).
+Three is the recorded coarseness ceiling: past it, compounding
+published dims starts shaping a person-sized query, which is the
+precise-targeting compounding `NEXT-FUNCTIONALITY.md` §6 refuses and
+this record does not touch. A key that is not a published dim matches
+nobody — `matches()` fails closed — so an unknown dim is unsellable
+inventory rather than a leak. Held by `check-content.mjs` (the D195
+one-tag rule, widened in place) and pinned by a `SponsorMark` test that
+asserts a three-dim purchase prints all three.
+
+### 2 · The buyer: individuals welcome, the name theirs, the word ours
+
+`sponsor.buyer` becomes **optional**. Companies and individuals both
+buy questions, and printing a person's name on every serve is theirs to
+want or to refuse — a nameless purchase simply omits the field
+(`check-content.mjs` refuses a blank string: "paid, namelessly" is an
+absence, never an empty name pretending to be one). The band renders
+from the block's **presence**: the word PAID, the window, and the
+audience line, with "The buyer" as the expanded copy's neutral noun —
+a noun, never a pseudonym.
+
+**What is deliberately NOT the buyer's to decline is the word PAID
+itself**, and the reasoning is recorded because the owner's ask could
+be read wider: one covert paid card would make every unpaid card
+suspect, so the marker is what keeps the free feed's honesty cheap to
+believe — it protects the house content more than it burdens the
+buyer. (It is also the consumer-law-shaped half: marking commercial
+content as commercial is the piece with legal weight; naming the buyer
+was always the app's own extra.) Removing the marker outright would be
+a different decision with different stakes, not taken here. Feed ADS
+are untouched: an ad without an advertiser is covert advertising, and
+D197's `advertiser` stays required. The contract-side purchase record
+always knows who paid; the card just may not say.
+
+### 3 · The Scores lens: report and place page first, the lens waits
+
+`PAID-PLAN.md` §11 question 3, resolved for v1: subscribed place
+metrics live in the **report and on a public place page**; the Scores
+lens does not mount them. If they ever mount, the recorded shape is a
+separate, disclosed band under the base scorecard — never mixed into
+the rows a reader takes as the app's own voice — and that mounting is
+its own decision, taken when a real subscription exists rather than
+ahead of one. The basic set stays editorial and unbuyable; tail-never-
+core stands.
+
+### The trail
+
+`check-content.mjs` rules; `data/sponsored.ts` `Sponsor` type;
+`ui/SponsorMark.tsx` nameless rendering plus its suite (PAID always,
+name when worn, all three dims printed); `SCHEMA-V2.md`,
+`content/README.md`, `MONETIZATION.md` path 2, `TAGS-PLAN.md` §3's
+parenthetical, and `PAID-PLAN.md` §§5–7/11 updated in the same commit.
+The bank still carries zero sponsored questions and the test asserting
+it stands — this record changes what may be sold, not what has been.
+
+## D229 · Two releases shipped unrecorded, and the sixth skip is the one that costs
+
+**2026-08-22.** **Status:** binding. Found by build 24's pre-flight,
+which opened on a spent build number for the fourth time. Written on
+`claude/ios-release-prep-i8z3zb` as D226 and **renumbered to D229 on
+merge**, because #257 minted D226–D228 while this branch was open — the
+D218/D224/D225 collision pattern, now four for four.
+
+### What the run list said
+
+`appBuild` was 23 in the tree and 23 at run 38's `head_sha`, where step
+17 — `Upload to App Store Connect` — is `success`. Build 23 was
+delivered on 2026-08-20 at 19:38:52Z. A dispatch from this tree would
+have transferred a `.ipa` and then been refused for the build number,
+after the transfer: ~150 minutes of macOS quota at 10x, for an integer.
+
+Two releases were involved and **neither had a record in `docs/`** —
+not the run ids, not the deliveries, nothing. `IOS-RELEASE.md` now
+carries both, with the delivery UUIDs and byte counts read out of the
+logs rather than recalled.
+
+### The arithmetic
+
+Six bumps have held (runs 20, 21, 22, 28, 33, 36); six have been
+skipped (18, 19, 24, 26, 31, 38). Build 22 and build 23 went out
+sixteen hours apart on 2026-08-20 — the bump after the first was read
+off step 17 and held, the bump after the second was not made at all.
+That is D198's reading with the confounders removed: same tree, same
+day, same procedure written down in the same file, and the only
+difference is whether step 17's conclusion was read. Both uploads
+printed the workflow's own reminder at step 18, so the missing part is
+not a prompt.
+
+### What the pre-flight found that the procedure did not cover
+
+Build 23's dry run and its upload **archived different commits**. Run
+37 archived `1c13fb6`; run 38 archived `fe6a8e2`, D219's own commit,
+which landed in the sixteen minutes between the two dispatches. D159
+already names this trap and both prior instances were a pulse trail
+row — a JSONL line, semantically nothing. This one is a feature: D219
+flips `ios-release.yml`'s `VITE_REQUIRE_SIGNIN` default from `'true'`
+to `'false'`, so with the repository variable unset the dry run built a
+**walled** app and the upload shipped a **wall-less** one.
+
+**The loss is narrower than it first reads, and the boundary is the
+point.** The diff between the two commits touches the build step's env
+and nothing after it; the plist write, the link step, the ad-hoc
+archive, the cloud-signed export and both entitlement gates are
+identical. Everything the dry run exists to prove was proven on the
+inputs the upload used. What went unrehearsed is the bundle — build 23
+is the first wall-less build, and no dry run has archived that bundle.
+So: **a dry run derisks the signing, not the build**, and the two
+coincide only when both dispatches name one commit. Recorded rather
+than gated, because nothing in this tree can read the run list — the
+same reason D184 left the invariant a procedure.
+
+### The edits this record made
+
+`package.json` `appBuild` 23 → 24, with `check:versions --fix` writing
+it into `android/app/build.gradle` and `ios/App/App.xcodeproj`;
+`LAUNCH-RUNBOOK.md` 5.6's figure followed, because `check:figures` owns
+that number and went red until it did. `IOS-RELEASE.md` gains the
+build 22 and build 23 records.
+## D230 · An instrument's colour is where you stand now, not where you finished
+
+**2026-08-22.** **Status:** binding, built. Owner's call, made against a
+screenshot of the profiles sheet: *"add this coloring in the question
+profile with double color even before the profile is done — just take
+what the current result is, the double coloring looks so much better."*
+Written on `claude/question-profile-double-color-dbhcji` as D229 and
+**renumbered to D230 on merge**, because #258 minted D229 while this
+branch was open — the D218/D224/D225 collision pattern, now five for
+five.
+
+### What was drawn, and what it was drawn from
+
+`passiveStanding` (`spec/passive-meter.jsx`) is the app's only reader of
+`typeSplit`. It matched `IS_TEST_RESULTS[k]` to an archetype and wore
+that type's two-tone split — the dominant axis' deep hue over `ratio` of
+the shape, the runner-up's lighter hue over the rest, the same
+construction the type MARK draws. With no stored result it returned the
+instrument's flat category accent (`TEST_HUE`), and all three consumers
+wore that: the feed chip's four rings, the profiles sheet's
+per-question pills, and the per-card `PassiveTag`.
+
+**Which meant the split only ever drew in the DEMO.** D121 removed the
+sit-down flow, and nothing has written `testResults` since; a live
+account's `IS_TEST_RESULTS` is emptied by hydrate's own event and stays
+empty however much of the feed it answers. The colour in the screenshot
+that prompted this is a colour a shipping build never draws — the seed
+in `test-definitions.js` is Mira Halvorsen's finished result, and the
+demo is the only place it exists.
+
+### The decision
+
+**The colour comes from the current reading, at whatever stage it is
+at.** A stored result still wins — a finished instrument beats an
+estimate of the same thing from fewer answers, which is the order
+`ownResult` already keeps. Without one, the colour comes from the fold
+over your own feed answers (`ownProgress` → `data/passiveProfile.ts`),
+handed to `typeSplit`'s `values` arm as a plain axis map: same
+arithmetic, your own two strongest leanings instead of a named type's,
+and it lands on the first answer rather than the last.
+
+**COLOUR ONLY — the type stays refused.** `standing` is null on the fold
+path, so the type's name, its mark and the aria-label that reads it are
+exactly as dark as they were. D121's threshold does not move: a hue says
+*this is where you lean so far* and moves when the next answer moves it,
+while a name is a claim, and `MIN_AXIS_ITEMS` is what decides when the
+fold has earned one. The split is what makes the weaker claim legible —
+two tones ARE "two axes lead, one more than the other", which is the
+most a handful of answers supports.
+
+### Where it draws now
+
+- **The chip rings, the sheet's pills and `PassiveTag`** — no code
+  changed; they read `passiveStanding` and it started answering.
+- **`TestProgress`** (`spec/profile-overlay.jsx`) — the filling-in card
+  that stands where a result would be. Its bar is deep + lift now, so
+  tapping a two-tone row in the sheet through to the tab it points at
+  lands on the same two tones instead of on the family hue.
+- **`TestArcsCard`** (`spec/profile-general.jsx`) — the "Your tests"
+  arcs, which also stopped needing a STORED result to draw at all. In a
+  live build that card was four grey rings that never moved however much
+  of the feed you answered; the arc follows progress now, and wears the
+  split by layering (lighter tone over the whole sweep, deeper one over
+  its first `ratio`) so the arc keeps its own rounded end.
+
+### Cost, and what holds it
+
+The fold measured at ~60µs a call over the 110-item bank, and
+`passiveStanding` runs once per ring, once per marked feed card, on
+every render — so the signature is held per instrument and dropped on
+`LIVE.subscribe` + `PASSIVE.subscribe`. Both fire ahead of the re-render
+they cause (`LIVE.vote` writes, notifies, and only then returns), so a
+held signature cannot be staler than the screen drawing it. The one
+exception is a test writing votes straight into the live FIXTURE, which
+installs its own `subscribe` over the singleton's: `PASSIVE.poke()` is
+the drop there, and `withVotes` does it. Shipping bundle: eager graph
+831 → 832 KB, total unchanged at 2356 KB.
+
+Two gates, and both were verified to FAIL against the pre-change files
+rather than assumed to:
+
+- `test/passive-fold-live.test.jsx` pins the hues at the fold — econ
+  over auth from four Politics answers, foreign over env when the same
+  four answers move axis, the flat accent when nothing is answered, and
+  a stored result still winning and still naming its type.
+- `test/smoke-live.test.jsx` pins the SHAPE, because `TestProgress` is
+  live-only by construction and no demo suite executes a line of it: the
+  bar carries its second tone from four answers and carries none from
+  zero. A colour is a name-level guard's blind spot twice over — the
+  pill it copies lives in another file.
+
+## D231 · The de-overlap pass did not know the ring closes
 
 **2026-08-22.** **Status:** binding. Found on a project review, by
 probing `layout()` rather than reading it — the reading had been done
@@ -23084,9 +23447,9 @@ row it added to that table is the list. Two are worth naming here:
 
 `check:panel-suites` drops from 10 owed to 9.
 
-## D227 · The owed list reaches zero, and eight defects fall out of it
+## D232 · The owed list reaches zero, and eight defects fall out of it
 
-**2026-08-22.** **Status:** binding. The other half of D226's finding: that
+**2026-08-22.** **Status:** binding. The other half of D231's finding: that
 record fixed a bug in the one panel `check:panel-suites` called "the
 biggest one owed", and the obvious next question was what the other nine
 were hiding.
@@ -23202,9 +23565,9 @@ all, and two passed individually while failing together because a file was
 still being edited. Structure, stability and an independent mutation are
 three different questions.
 
-## D228 · Two data-layer defects D227 found, fixed
+## D233 · Two data-layer defects D232 found, fixed
 
-**2026-08-22.** **Status:** binding. D227 recorded eight defects and fixed
+**2026-08-22.** **Status:** binding. D232 recorded eight defects and fixed
 none, on the rule that a test sweep must not quietly become a behaviour
 change. These are the two the owner picked out of that list.
 
@@ -23314,7 +23677,7 @@ poison the next one, a real load still caches, and `force` still refetches
 
 ### A note on believing an agent's report
 
-D227's write-up said this bug's mechanism was `loadingToday` latching on a
+D232's write-up said this bug's mechanism was `loadingToday` latching on a
 settled promise, "the `finally` runs before the assignment". Reviewing it
 here, that looked wrong — there IS a `finally`, and the purge DOES reset —
 and this record was drafted describing a different mechanism (the
@@ -23325,10 +23688,10 @@ async function with no `await` before its return runs to completion
 synchronously, so its `finally` can execute before the caller has stored
 its promise. Reading the code was not enough; running it was.
 
-## D229 · The three behaviour bugs from D227's list
+## D234 · The three behaviour bugs from D232's list
 
-**2026-08-22.** **Status:** binding. D227 recorded eight defects and fixed
-none; D228 took the two data-layer ones. These are the three that change
+**2026-08-22.** **Status:** binding. D232 recorded eight defects and fixed
+none; D233 took the two data-layer ones. These are the three that change
 what a user sees. The remaining three on that list are honesty and
 accessibility findings and are still open.
 
@@ -23400,10 +23763,10 @@ so does over-applying it. That second half is the one worth keeping — it
 is what caught that removing `days()`'s schedule gate would have fixed the
 card by breaking the trend.
 
-## D229b · The three honesty findings from D227's list
+## D235 · The three honesty findings from D232's list
 
-**2026-08-22.** **Status:** binding. The rest of D227's eight, and the
-close of that list. Recorded under D229 because it is the same sweep: the
+**2026-08-22.** **Status:** binding. The rest of D232's eight, and the
+close of that list. Recorded under D234 because it is the same sweep: the
 behaviour half is above, this is the half where the app was telling the
 truth to the eye and not to everyone.
 
@@ -23471,13 +23834,13 @@ still in the DOM on purpose, so a text count cannot see this fix at all.
 
 ### The list is closed
 
-D227 found eight, D228 fixed two, D229 fixed three, and this record fixes
+D232 found eight, D233 fixed two, D234 fixed three, and this record fixes
 the last three. Every one was pinned as-found by the suite that found it,
 with a failure message naming the fix — so all eight announced themselves
 by turning their own case red the moment the source moved. That
 convention is the reason none of them needed re-finding.
 
-## D230 · The coupling ratchet, 392 → 352
+## D236 · The coupling ratchet, 392 → 352
 
 **2026-08-22.** **Status:** binding. `check:globals` rule 4's first move
 since D108, following the procedure `src/v2/README.md` records rather than
@@ -23565,10 +23928,10 @@ The three eager `spec-index.js` lines stay — the modules are still in the
 eager graph, and keeping them preserves the load order those comments
 document.
 
-## D230b · PLACESTATS off the bridge, 352 → 337
+## D237 · PLACESTATS off the bridge, 352 → 337
 
 **2026-08-22.** **Status:** binding. The next name down the provider view
-D230 built, and the one that finally tests D108's suppression prediction
+D236 built, and the one that finally tests D108's suppression prediction
 on a component the prediction is actually about.
 
 `place-stats.js` is a **pure provider** — the graph shows it reading
@@ -23590,7 +23953,7 @@ stays; only the guard went. Same for `if (!S)` in the card.
 
 ### D108's prediction, tested properly this time — and it still did not fire
 
-D230 recorded that the prediction (a conversion RAISES the suppression
+D236 recorded that the prediction (a conversion RAISES the suppression
 count, because the React Compiler bails out of components reading through
 global scope and the bridge is therefore hiding `react-hooks` findings)
 did not fire, and gave a specific reason: every read was in a **class**
@@ -23613,7 +23976,7 @@ follow that it will. This component was already hook-correct, so the
 compiler gained the ability to analyse it and found nothing to say. The
 prediction is a risk to plan for, not a cost to budget.
 
-## D231 · The shell's cross-links become a registry, 337 → 295
+## D238 · The shell's cross-links become a registry, 337 → 295
 
 **2026-08-22.** **Status:** binding. `app-shell.jsx`'s forty-odd nav reads
 — the largest seam left after `LIVE` — and the first one that could not be
@@ -23699,22 +24062,22 @@ just as loudly if the shell ever stops registering.
 
 ### What is left
 
-295 across 37 files, from 392 at D230. `world-feed.jsx` (68) is the
+295 across 37 files, from 392 at D236. `world-feed.jsx` (68) is the
 largest remaining consumer and `LIVE` (80 reads, 13 consumers) the largest
 provider — and that one is deliberate: `live.ts` publishes `window.LIVE`
 because the whole spec layer reads it, and moving it is the end of the
 migration rather than a step in it.
 
-## D232 · world-feed.jsx, 295 → 267
+## D239 · world-feed.jsx, 295 → 267
 
 **2026-08-22.** **Status:** binding. The largest remaining CONSUMER, after
-D231 took the largest provider that was not `LIVE`.
+D238 took the largest provider that was not `LIVE`.
 
 The graph said this one was safe before any of it was written:
 `world-feed.jsx` publishes only three names, read by `map-tab.jsx`,
 `daily-split.jsx` and `search-overlay.jsx` — none of which provides
 anything it reads. **No cycle with any of its nine providers**, so unlike
-D231 this was an ordinary conversion.
+D238 this was an ordinary conversion.
 
 ### Six reads were of modules that already export
 
@@ -23728,7 +24091,7 @@ reached that way. Those six cost nothing to move.
 The publications came off only where `world-feed.jsx` was the LAST reader
 — the rest keep a mirror with a comment naming who still needs it, which
 is the honest shape a half-converted module has (`vote-cuts.js` carried
-exactly that until D230 removed the last global reader):
+exactly that until D236 removed the last global reader):
 
 | name | reads | mirror |
 | --- | --- | --- |
@@ -23756,7 +24119,7 @@ caught and no test would have.
 
 `world-feed-comments.js` is no longer awaited in `loadWorldFeed()` —
 `world-feed.jsx` imports it, so the module graph orders it, the same
-reasoning `world-feed-math.js` and (since D230) `world-feed-counters.js`
+reasoning `world-feed-math.js` and (since D236) `world-feed-counters.js`
 already carry.
 
 `consequence-beat.jsx` **stays awaited**, and the difference is the point:
@@ -23767,7 +24130,7 @@ draws. Its two reads in `world-feed.jsx` are left on the bridge with it.
 Eager graph unchanged at 831 KB, bundle at 2352 KB. `world-feed.jsx` is
 60 → 32, of which 16 are `LIVE`.
 
-## D233 · The a11y ratchet: six were right, one was hiding
+## D240 · The a11y ratchet: six were right, one was hiding
 
 **2026-08-22.** **Status:** binding. The a11y baseline, examined rather
 than paid down — and the difference between those two is the record.
@@ -23840,7 +24203,7 @@ identically with and without the trap.
 
 `preventDefault` is what actually stops the browser taking focus out, so
 that is what the case asserts now, and reverting the fix fails it. Same
-lesson as D227's `duelMarks` gap, arriving from a different direction: a
+lesson as D232's `duelMarks` gap, arriving from a different direction: a
 test that cannot fail is worse than no test, and only the mutation says
 which one you wrote.
 

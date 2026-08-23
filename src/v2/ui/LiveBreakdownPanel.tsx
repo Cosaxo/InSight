@@ -58,6 +58,8 @@ import {
   type ByMap,
 } from "../data/cohort";
 import { typeDivergence, typeSplitFor, type TypeSplitRow } from "../data/typeSplit";
+import { logicDivergence, logicSplitFor, type LogicSplitRow } from "../data/logicSplit";
+import { parseLogicPct } from "../data/similarity";
 import { myType } from "../data/typeMix";
 // The app's one option-colour function, so a friend's side chip wears the
 // same hue the takes list gives that side.
@@ -82,6 +84,12 @@ const FRIENDS = "friends";
 // A key that could be mistaken for a dim is how they would end up sharing
 // a code path and then a caption.
 const TYPE_PICK = "__type";
+
+// The Logic cut's sentinel (D227) — the type cut's twin: a client fold
+// over the session's bounded voter sample, kept out of COHORT_DIMS for
+// the same census-vs-sample reason. The fold and its bands live in
+// data/logicSplit.ts; this file only picks and draws.
+const LOGIC_PICK = "__logic";
 
 /** The cohort a body is being drawn for. `dim` empty means everyone. */
 export interface CohortPick {
@@ -319,15 +327,17 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
   const [, bump] = React.useReducer((n: number) => n + 1, 0);
   React.useEffect(() => LIVE.subscribe(bump), []);
   const typeOpen = dim === TYPE_PICK;
+  const logicOpen = dim === LOGIC_PICK;
   const friendsOpen = dim === FRIENDS;
-  // The type cut folds the roster's cache — but both of its empty states
-  // render INSTEAD of the roster, so on a question whose voters have not
-  // been fetched the cut would wait forever on a component that is not
-  // mounted. Asked for here as well; the store de-dupes, so the common
-  // case (roster already mounted, fetch already in flight) costs nothing.
+  // The type and logic cuts fold the roster's cache — but their empty
+  // states render INSTEAD of the roster, so on a question whose voters
+  // have not been fetched the cut would wait forever on a component that
+  // is not mounted. Asked for here as well; the store de-dupes, so the
+  // common case (roster already mounted, fetch already in flight) costs
+  // nothing.
   React.useEffect(() => {
-    if (typeOpen && qid) void LIVE.loadVoters(qid);
-  }, [typeOpen, qid]);
+    if ((typeOpen || logicOpen) && qid) void LIVE.loadVoters(qid);
+  }, [typeOpen, logicOpen, qid]);
 
   if (!LIVE.enabled || !qid) return null;
 
@@ -341,7 +351,7 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
   // a dim with no cells would open onto an empty row and read as a bug
   // rather than as "nobody who answered filled that in".
   const dims = COHORT_DIMS.filter((d) => by?.[d] && Object.keys(by[d]).length);
-  const openDim = (typeOpen || friendsOpen)
+  const openDim = (typeOpen || friendsOpen || logicOpen)
     ? ""
     : (dims.includes(dim as (typeof COHORT_DIMS)[number]) ? dim : "");
 
@@ -350,8 +360,8 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
   // null while a fetch is in flight, and the one that reads everyone's
   // CURRENT type against answers they gave at any time (data/typeSplit.ts).
   // The roster below owns the fetch; this is arithmetic on its cache.
-  const scored = typeOpen ? LIVE.voterScores(qid) : null;
-  const split = scored ? typeSplitFor(scored, n, myType()) : null;
+  const scored = typeOpen || logicOpen ? LIVE.voterScores(qid) : null;
+  const split = typeOpen && scored ? typeSplitFor(scored, n, myType()) : null;
   // Ranked first, then the thin ones — `typeSplitFor` has already refused
   // to rank the latter, and concatenating keeps that order on the chips.
   const typeRows: TypeSplitRow[] = split ? [...split.ranked, ...split.thin] : [];
@@ -359,6 +369,18 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
     ? bucket
     : (typeRows[0]?.type || "");
   const typeRow = typeRows.find((r) => r.type === openType) || null;
+
+  // The Logic cut (D227) — the same sample, banded by verified percentile
+  // instead of typed. Scale order rather than popularity order, because a
+  // score scale re-sorted by n stops reading as a scale.
+  const lsplit = logicOpen && scored
+    ? logicSplitFor(scored, n, parseLogicPct(LIVE.myTestResults()))
+    : null;
+  const logicRows: LogicSplitRow[] = lsplit ? [...lsplit.ranked, ...lsplit.thin] : [];
+  const openBand = logicRows.some((r) => r.band === bucket)
+    ? bucket
+    : (logicRows[0]?.band || "");
+  const logicRow = logicRows.find((r) => r.band === openBand) || null;
 
   const buckets = openDim ? mixFor(by, openDim, n) : [];
   const openBucket = buckets.some((b) => b.bucket === bucket)
@@ -371,12 +393,14 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
   const cohortN = counts.reduce((a, b) => a + b, 0);
   const pick: CohortPick = typeOpen
     ? { dim: TYPE_PICK, bucket: openType, label: openType || "Types", n: typeRow?.n ?? 0 }
-    : {
-      dim: openDim,
-      bucket: openDim ? openBucket : "",
-      label: openDim ? bucketLabel(openDim, openBucket) : "Everyone",
-      n: cohortN,
-    };
+    : logicOpen
+      ? { dim: LOGIC_PICK, bucket: openBand, label: logicRow?.label || "Logic", n: logicRow?.n ?? 0 }
+      : {
+        dim: openDim,
+        bucket: openDim ? openBucket : "",
+        label: openDim ? bucketLabel(openDim, openBucket) : "Everyone",
+        n: cohortN,
+      };
 
   // Where this cohort parts company with everyone. Read from the same fold
   // the Mirror's Explore lens uses, so the two surfaces cannot disagree
@@ -426,17 +450,18 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
             people rather than a percentage, and it is the one a reader
             wants first. */}
         <LbChip on={friendsOpen} onTap={() => { setDim(FRIENDS); setBucket(""); }}>Friends</LbChip>
-        <LbChip on={!openDim && !typeOpen && !friendsOpen} onTap={() => { setDim(""); setBucket(""); }}>Everyone</LbChip>
+        <LbChip on={!openDim && !typeOpen && !logicOpen && !friendsOpen} onTap={() => { setDim(""); setBucket(""); }}>Everyone</LbChip>
         {dims.map((d) => (
           <LbChip key={d} on={openDim === d} onTap={() => { setDim(d); setBucket(""); }}>
             {DIM_LABEL[d]}
           </LbChip>
         ))}
         {/* Last, and after the published dims rather than sorted among
-            them: the chips to its left open exact cells, this one opens a
-            sample. The order is the only cue available before the tap;
+            them: the chips to their left open exact cells, these two open
+            a sample. The order is the only cue available before the tap;
             the basis line under the bars is the one after it. */}
         <LbChip on={typeOpen} onTap={() => { setDim(TYPE_PICK); setBucket(""); }}>Type</LbChip>
+        <LbChip on={logicOpen} onTap={() => { setDim(LOGIC_PICK); setBucket(""); }}>Logic</LbChip>
       </div>
 
       {friendsOpen && <LbFriends qid={qid} options={options} mine={mine} />}
@@ -466,6 +491,27 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
             )
       )}
 
+      {logicOpen && (
+        lsplit === null
+          ? <LbNote>Reading who answered…</LbNote>
+          : !logicRows.length
+            ? (
+              <LbNote>
+                None of the {lsplit.sampleN.toLocaleString()} answers here carries a verified
+                logic score yet — it fills in as people take the logic test.
+              </LbNote>
+            )
+            : (
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {logicRows.map((r) => (
+                  <LbChip key={r.band} on={openBand === r.band} onTap={() => setBucket(r.band)}>
+                    {r.label} · {r.n}{lsplit.mine === r.band ? " · you" : ""}
+                  </LbChip>
+                ))}
+              </div>
+            )
+      )}
+
       {!!openDim && (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {buckets.map((b) => {
@@ -484,7 +530,7 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
           tapping a chip two scrolls ago has to be able to see whose.
           Suppressed while the type cut has nothing to head — its two
           empty states say more than "Types · 0 answers" would. */}
-      {!friendsOpen && (!typeOpen || !!typeRow) && (
+      {!friendsOpen && (!typeOpen || !!typeRow) && (!logicOpen || !!logicRow) && (
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, borderBottom: LB_LINE, paddingBottom: 6 }}>
           <span style={{ flex: 1, fontFamily: "var(--sans)", fontWeight: 800, fontSize: 13.5, color: "var(--ink)" }}>
             {pick.label}
@@ -510,6 +556,22 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
             counts={typeRow.counts}
             mine={mine}
             mode={split && split.enough ? "pct" : "count"}
+          />
+        )
+      ) : logicOpen ? (
+        !logicRow ? null : !logicRow.n ? (
+          <LbNote>Nobody in this band has answered this yet.</LbNote>
+        ) : (
+          // The type cut's shares rule, unchanged: percentages only once
+          // the scored sample can carry them, counts and the basis line
+          // otherwise. No renderBody here for the type cut's own reason —
+          // a sampled position must not draw on a track that reads as the
+          // population's.
+          <LbOptionRows
+            options={options}
+            counts={logicRow.counts}
+            mine={mine}
+            mode={lsplit && lsplit.enough ? "pct" : "count"}
           />
         )
       ) : !cohortN ? (
@@ -552,6 +614,33 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
         </div>
       )}
 
+      {/* The Logic cut's basis, on the type cut's template: a sample, not
+          the census, and the bands named for what they are — quarters of
+          the verified test's percentile. The untested are the gap between
+          the two numbers, never a fifth band. */}
+      {!friendsOpen && logicOpen && !!lsplit && !!logicRows.length && (
+        <div style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.5, textWrap: "pretty" }}>
+          {(() => {
+            const d = logicRow && lsplit.enough ? logicDivergence(logicRow, lsplit.overall) : null;
+            return (
+              <>
+                {d && (
+                  <>
+                    The {logicRow!.label.toLowerCase()} are <strong style={{ color: "var(--ink-2)" }}>{d.gap} points</strong>
+                    {" "}{d.higher ? "more" : "less"} likely to say {options[d.optionIdx]} than
+                    the scored people here.{" "}
+                  </>
+                )}
+                Of the {lsplit.sampleN.toLocaleString()} answers this session has read,
+                {" "}{lsplit.scoredN.toLocaleString()} carry a verified logic score —
+                the bands are quarters of its percentile.
+                {!lsplit.enough && " Too few for shares, so these are counts."}
+              </>
+            );
+          })()}
+        </div>
+      )}
+
       {/* One line, and only when there is something to say. "Same as
           everyone" is a real finding on a cohort screen — it is the
           answer to the question the chips just asked — so it is stated
@@ -570,9 +659,9 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
       )}
 
       {/* No roster under a cohort (D149). "Everyone", every demographic
-          cut and D146's type cut all answer in percentages; the only cut
-          that names people is Friends, because there "who" IS the question
-          being asked. */}
+          cut, D146's type cut and D227's logic cut all answer in
+          percentages; the only cut that names people is Friends, because
+          there "who" IS the question being asked. */}
     </div>
   );
 }

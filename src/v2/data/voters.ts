@@ -35,7 +35,7 @@ import { getFirestoreApi } from "../../lib/firebase";
 import type { Firestore } from "firebase/firestore";
 // Pure arithmetic, no Firebase anywhere in it — safe to import statically
 // without re-opening the first-paint hole the comment above closes.
-import { CORE_TEST_KINDS, parseTestResults, type ParsedResults } from "./similarity";
+import { CORE_TEST_KINDS, parseLogicPct, parseTestResults, type ParsedResults } from "./similarity";
 
 // The surfaces a world answer can carry. Must match the array in
 // firestore.rules' collection-group grant exactly — a value here the rule
@@ -154,6 +154,7 @@ export async function fetchVoters(
   myUid: string | null,
   names: Record<string, string>,
   scores?: Record<string, ParsedResults | null>,
+  logic?: Record<string, number | null>,
 ): Promise<Voter[]> {
   const { collectionGroup, getDocs, limit: fsLimit, orderBy, query, where } = await getFirestoreApi();
   const snap = await getDocs(query(
@@ -177,7 +178,7 @@ export async function fetchVoters(
     rows.push({ uid, optionIdx, anchors, name: "", isMe: uid === myUid });
   }
 
-  await resolveNames(db, rows.map((r) => r.uid), names, scores);
+  await resolveNames(db, rows.map((r) => r.uid), names, scores, undefined, logic);
   for (const r of rows) r.name = names[r.uid] || "";
   return rows;
 }
@@ -202,6 +203,7 @@ export async function resolveNames(
   names: Record<string, string>,
   scores?: Record<string, ParsedResults | null>,
   faces?: Record<string, string>,
+  logic?: Record<string, number | null>,
 ): Promise<void> {
   // TWO MISSING SETS, not one union, and the difference is a read per
   // person on five surfaces.
@@ -217,8 +219,15 @@ export async function resolveNames(
   // It does not touch the -41% that decision reports: that is earned on the
   // `fetchVoters` path, which passes no `faces`, and where the union and
   // the split are the same set.
+  // The logic percentile (D227) is a third rider on the same document —
+  // parsed here for the same D112 reason scores are: the profile was on
+  // the wire regardless. Its own missing-check because a cache written
+  // before D227 holds names and scores but no logic entries, and skipping
+  // the read for those uids would show a whole sheet as "untested"; one
+  // refetch round fills them and the cache self-heals.
   const needProfile = uids.filter((u) => !(u in names)
-    || (scores ? !(u in scores) : false));
+    || (scores ? !(u in scores) : false)
+    || (logic ? !(u in logic) : false));
   const needFace = faces ? uids.filter((u) => !(u in faces)) : [];
   if (!needProfile.length && !needFace.length) return;
   const {
@@ -261,6 +270,7 @@ export async function resolveNames(
         const n = d.get("displayName");
         names[d.id] = typeof n === "string" ? n.trim().slice(0, 60) : "";
         if (scores) scores[d.id] = parseTestResults(d.get("testResults"), CORE_TEST_KINDS);
+        if (logic) logic[d.id] = parseLogicPct(d.get("testResults"));
       }
     }
     if (faces && avSnap) {
@@ -283,6 +293,7 @@ export async function resolveNames(
     for (const u of profileBatch || []) {
       if (!(u in names)) names[u] = "";
       if (scores && !(u in scores)) scores[u] = null;
+      if (logic && !(u in logic)) logic[u] = null;
     }
     if (faces) {
       for (const u of faceBatch || []) {

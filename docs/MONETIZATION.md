@@ -94,13 +94,18 @@ aggregate.
 Every note this paragraph used to hold is now a thing with a gate behind
 it: the disclosure band (`ui/SponsorMark.tsx`, the app's ink and never a
 buyer's), the one-card cap and its slot in the interleave
-(`data/sponsored.ts`, `SPONSOR_SLOT`), the coarse audience tag matched **on
-the device** against the published breakdown dims, `until` as the window,
-and `sponsor` as a provenance source `check:quality` holds in both
-directions. The bank carries **zero** sponsored questions and a test
-asserts it: authoring one would print a real company's name beside the
-word PAID on a card nobody bought, which is D1 pointed at a claim about
-money. The next thing this path needs is a contract, not code.
+(`data/sponsored.ts`, `SPONSOR_SLOT`), the coarse audience tags matched **on
+the device** against the published breakdown dims (one to three since
+D228, matched conjunctively and each printed on the band), `until` as the
+window, and `sponsor` as a provenance source `check:quality` holds in both
+directions. Since D228 the buyer may be an **individual** as well as a
+company, and the printed name is the buyer's to wear or omit — the word
+PAID is not: the band renders from the sponsor block's presence, because
+one covert paid card would make every unpaid card suspect. The bank
+carries **zero** sponsored questions and a test asserts it: authoring one
+would put the word PAID on a card nobody bought, which is D1 pointed at a
+claim about money. The next thing this path needs is a contract, not
+code.
 
 One sentence from the design could not be ported and is recorded here
 because it is a promise: the prototype's *"never names, never your

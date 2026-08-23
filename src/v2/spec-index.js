@@ -228,8 +228,8 @@ import './spec/app-shell.jsx';
 // unchanged.
 export const loadWorldFeed = retryable(async () => {
   // world-feed-comments.js and world-feed-counters.js are NOT awaited here
-  // and do not need to be — world-feed.jsx imports both by name (D230,
-  // D232), so the module graph orders them and they stay in the feed
+  // and do not need to be — world-feed.jsx imports both by name (D236,
+  // D239), so the module graph orders them and they stay in the feed
   // chunk. Same reasoning as world-feed-math.js below.
   //
   // consequence-beat.jsx IS still awaited: daily-split.jsx renders it too,

@@ -355,7 +355,7 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
     LIVE.near.room = () => ({ people: [], qs: {} });
     const { container } = render(<NearLiveBody />);
     // The field is lazy, so this waits for the drawing itself. It used to
-    // wait on the canvas's group label — but D229 hides an EMPTY ring from
+    // wait on the canvas's group label — but D234 hides an EMPTY ring from
     // the accessibility tree, because that label promised "closer to the
     // centre is more like you" over a ring with nobody on it. The label is
     // not what this case is about; the ring being drawn at all is.
@@ -387,7 +387,7 @@ describe("NearLiveBody · the constellation, with nobody named", () => {
       LIVE.near.room = () => null;
       setup();
       const { container } = render(<NearLiveBody />);
-      // Same await handle as above, and the same reason (D229): two of the
+      // Same await handle as above, and the same reason (D234): two of the
       // three states below draw an empty ring, which no longer carries a
       // group label to find it by.
       await waitFor(() => expect(container.querySelector("svg")).toBeTruthy());

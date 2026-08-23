@@ -27,7 +27,7 @@
 //      — closer to the centre is more like you", a promise about nodes
 //      that are not there — and it was recorded rather than asserted,
 //      because only one of the two could be right and it was not this
-//      file's call. It was this file's answer that was right: D229 hides
+//      file's call. It was this file's answer that was right: D234 hides
 //      the engine's empty canvas too, and its own suite pins both halves
 //      (hidden while empty, named again the moment somebody is placed).
 //   4. No action, no button. City fills as strangers answer and needs no
@@ -63,7 +63,7 @@ import { registerNav, type NavHandlers } from "../data/nav";
 
 /**
  * The two doors `app-shell.jsx` registers, installed the way the shell
- * installs them (D231). They were `window.goNav` / `window.goTab` until
+ * installs them (D238). They were `window.goNav` / `window.goTab` until
  * the nav registry replaced the bridge; `registerNav` returns the teardown,
  * which is what `afterEach` now runs.
  */

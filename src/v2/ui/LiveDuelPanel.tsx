@@ -663,7 +663,7 @@ function LdManage({ g, onClose }: { g: LiveGroup; onClose: () => void }) {
           {members.map((u) => (
             <span key={u} style={{ display: "flex", alignItems: "center", gap: 7, border: LD_LINE,
               borderRadius: 999, background: "var(--surface-2)", padding: "4px 12px 4px 5px" }}>
-              {/* The pill is HIDDEN here and nowhere else (D229). `YouChip`
+              {/* The pill is HIDDEN here and nowhere else (D234). `YouChip`
                   speaks by design — in a reveal bar it is the only marker
                   of your own row, so `aria-hidden` on the component would
                   cost that. This chip is the one place that already prints

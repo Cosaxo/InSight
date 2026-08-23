@@ -55,7 +55,7 @@ import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
 // coupling-meter reasoning. The three legacy stores stay window.* reads
 // below (in the D39 baseline); convert them on touch, never re-add one.
 import ELEMENTS_CATALOG from '../data/elements.ts';
-import { COUNTRIES, DOGS } from '../data/catalogs.ts';
+import { COUNTRIES, DOGS, COLORS } from '../data/catalogs.ts';
 // Imported for the D89 gate rather than read off window — same meter
 // reasoning as the imports above. The window.LIVE reads elsewhere in this
 // file predate the ratchet; new ones may not join them.
@@ -190,7 +190,7 @@ function wfOpt(color, i, n) { return WPAL.opt(color, i, n); }
 function wfShade(color, i, n) { return WPAL.opt(color, i, n, true); }
 // every who-voted cut in one place (vote-cuts.js): demographics, then the four
 // tests — each opening into its own subvalues, the same axes the Circle map uses
-// Imported since D230, so the load-order guards these four carried are
+// Imported since D236, so the load-order guards these four carried are
 // gone: an imported binding cannot be unset, and VOTECUTS is an IIFE that
 // always returns its object. The fallbacks they guarded with — a
 // hand-written `friends` dim, `null`, `[]` — were the shapes D108 names as
@@ -1441,6 +1441,7 @@ class WorldFeed extends React.Component {
       : domain === 'elements' ? ELEMENTS_CATALOG
       : domain === 'countries' ? COUNTRIES
       : domain === 'dogs' ? DOGS
+      : domain === 'colors' ? COLORS
       : POKEDEX;
   }
 
