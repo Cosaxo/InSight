@@ -650,7 +650,7 @@ describe("LiveDuelPanel · your name is the account's, not this screen's", () =>
   });
 });
 
-describe("LiveDuelPanel · the member list says you once (D235)", () => {
+describe("LiveDuelPanel · the member list says you once (D238)", () => {
   /**
    * What a screen reader would get: `textContent` with the `aria-hidden`
    * subtrees taken out.

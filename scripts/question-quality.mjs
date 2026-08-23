@@ -435,6 +435,12 @@ export function loadCorpus() {
     "window.PICK_QS = [",
     "pick-data.js",
   );
+  // The LIVE pick seed (D14 go-live): the archive entries above that were
+  // promoted. Validated with the same pick rules, held byte-equal to the
+  // archive by id, and covered by provenance like every live bank.
+  const pickSeed = JSON.parse(
+    readFileSync(join(root, "content", "pick-questions.json"), "utf8"),
+  ).questions;
   const learn = JSON.parse(readFileSync(join(root, "content", "learn-questions.json"), "utf8"));
   // The demo pool is prototype filler EXCEPT its continuum entries
   // (dial/field), which are lane-authored production copy — the feed lane
@@ -478,6 +484,7 @@ export function loadCorpus() {
     subParents: new Map(worldSubs.map((s) => [s.id, s.parent])),
     duel: [...duel.group, ...duel.oneVsOne, ...(duel.romantic ?? [])],
     pick,
+    pickSeed,
     learn,
     pulse,
     learnLevels: learnLevelBounds(),
@@ -661,7 +668,9 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     if (!FEED_TYPES.has(q.type)) {
       err("type-shape", `unknown feed type ${JSON.stringify(q.type)} — vote|rank|duel|dial|field|path`);
     }
-    if (q.type === "rank") warn.push("rank type — not live-servable (D12); fine in the bank, never a lane candidate");
+    // rank is live-servable since D233 (answers carry an order); whether
+    // the FARM may author one is the lane contract's question
+    // (QUESTION-FARM.md), not a per-question warning's.
     // `cat` is REQUIRED, not merely validated-if-present. Every feed question
     // in the bank carries one, so this held by luck for as long as only humans
     // wrote them; a topic-less card has a broken kicker and never appears in
@@ -1169,6 +1178,9 @@ export function checkProvenance(corpus) {
   for (const [surface, bank] of [
     ["daily", corpus.seed.map((q) => q.id)],
     ["feed", corpus.feed.questions.map((q) => q.id)],
+    // The live pick seed (D14 go-live). Rows are keyed by the archive's
+    // own pk id — which IS the seed id, so no archiveId field to rot.
+    ["pick", corpus.pickSeed.map((q) => q.id)],
   ]) {
     const rows = prov[surface] || {};
     for (const id of bank) {
@@ -1219,7 +1231,7 @@ export function checkProvenance(corpus) {
   // two-gate design's whole point. Only content this repo did not
   // hand-write has to prove it was read.
   const aiReviewed = [];
-  for (const surface of ["daily", "feed"]) {
+  for (const surface of ["daily", "feed", "pick"]) {
     for (const [id, row] of Object.entries(prov[surface] || {})) {
       if (row.source !== "farm" && row.source !== "community") continue;
       const r = row.review;
@@ -1538,9 +1550,9 @@ if (invokedDirectly) {
   });
   corpus.feed.questions.forEach((q) => {
     const { errs } = checkQuestion(q, "feed", corpus);
-    // rank's warn line stays out of gate output: the bank legitimately
-    // holds 8 rank questions (D12 keeps them out of the LIVE feed, not the
-    // bank), and a warning printed 8 times every CI run is noise.
+    // warns stay out of the feed walk's gate output (the old rank
+    // exclusion warning printed 8 times per run until D233 retired it;
+    // the suppression outlived it in case a future type earns one).
     report("feed", q.id, errs, []);
   });
   corpus.duel.forEach((q) => {
@@ -1551,6 +1563,29 @@ if (invokedDirectly) {
     const { errs, warn } = checkQuestion(q, "pick", corpus);
     report("pick", q.id, errs, warn);
   });
+  // The LIVE pick seed (D14 gone live) — the archive entries above,
+  // promoted. Two checks: the same pick rules (a hand edit to the seed
+  // alone should fail exactly like one to the archive), and PARITY with
+  // the archive by id, because the whole promote-script contract is
+  // byte-for-byte copies — a retyped prompt or a swapped domain here is
+  // the drift the script exists to make impossible, so the gate holds it.
+  {
+    const byPk = new Map(corpus.pick.map((q) => [q.id, q]));
+    corpus.pickSeed.forEach((q) => {
+      const { errs, warn } = checkQuestion(q, "pick", corpus);
+      report("pick(seed)", q.id, errs, warn);
+      const arch = byPk.get(q.id);
+      const drift = !arch ? "has no archive entry — the seed is promoted FROM pick-data.js, never authored directly"
+        : arch.prompt !== q.prompt ? `prompt differs from the archive's ${JSON.stringify(arch.prompt)}`
+        : arch.domain !== q.domain ? `domain differs from the archive's ${JSON.stringify(arch.domain)}`
+        : arch.cat !== q.cat ? `cat differs from the archive's ${JSON.stringify(arch.cat)}`
+        : null;
+      if (drift) {
+        failed = true;
+        console.error(`  ✗ pick(seed) ${q.id}: ${drift}`);
+      }
+    });
+  }
   corpus.learn.cards.forEach((card) => {
     const { errs, warn } = checkQuestion(learnView(card), "learn", corpus);
     report("learn", card.id, errs, warn);

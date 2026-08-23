@@ -407,7 +407,7 @@ describe("an empty field draws the ring anyway (D160)", () => {
     expect(screen.getByText(/Nobody from Oslo yet/)).toBeTruthy();
   });
 
-  it("names nothing to a screen reader while there is nobody on it (D235)", () => {
+  it("names nothing to a screen reader while there is nobody on it (D238)", () => {
     // The canvas carries `role="group"` and a label promising "closer to
     // the centre is more like you". Over an EMPTY ring that announces a
     // comparison and then does not make one — and every empty arm goes

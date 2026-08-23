@@ -15,6 +15,10 @@
 // Id scheme (stable forever — answers are immutable docs keyed by qid):
 //   daily-NNN / duo-NNN      explicit "NNN" on the source entry (3 digits)
 //   feed-<id> / group-<id>   explicit ids on the source entry
+//   pick-<id>                the archive's own pk id, kept verbatim — the
+//                            promote script copies it with the prompt, so
+//                            a live pick card and its pick-data.js archive
+//                            entry share one name (D14 go-live)
 //   test-<key>-NN            explicit "NN" on each item in tests.json
 //   lq-<lens>-<N>            explicit UNPADDED "N" on each item in
 //                            lenses.json — the client minted these ids
@@ -121,6 +125,28 @@ export function pathOptions(q) {
   return PATH_ENDINGS.map((k) => q.endings[k].name);
 }
 
+// Domain → committed catalogue file under public/ (D14/D15). One map, one
+// home, for the same reason CONTENT_SOURCES below is one: it was born as
+// two transcriptions (promote-questions.mjs and check-content.mjs) that
+// agreed by luck, and a domain added to one and not the other would let a
+// card promote whose gate could not see its catalogue. Both import it now.
+// The SERVER's copy is functions/src/v2.ts CATALOG_DOMAINS — different
+// shape (domain → compiled key module), same key set; check:catalogs walks
+// the files themselves.
+export const CATALOG_FILES = {
+  pokemon: "pokedex.txt", emoji: "emoji.txt", elements: "elements.txt",
+  countries: "countries.txt", dogs: "dogs.txt", colors: "colors.txt",
+  films: "films.txt", artists: "artists.txt",
+};
+
+// Catalogue picks run their own seq lane from here (D232, amended at
+// review): `feed.questions.length + i` — the first cut — renumbered every
+// shipped pick doc on any feed append, mismatching the whole pick bank at
+// the next reseed for nothing. A fixed base keeps a pick's seq as stable
+// as its id. 1000 leaves the feed ~888 appends of headroom; check-content
+// fails the build before the lanes can collide.
+export const PICK_SEQ_BASE = 1000;
+
 // The banks this generator reads, as data rather than six inline literals —
 // check-content.mjs holds /content to exactly this set, so an unread file
 // cannot sit there being described as content (D137). Keep it the single
@@ -128,6 +154,7 @@ export function pathOptions(q) {
 export const CONTENT_SOURCES = {
   daily: "daily-questions.json",
   feed: "feed-questions.json",
+  pick: "pick-questions.json",
   duel: "duel-questions.json",
   tests: "tests.json",
   lenses: "lenses.json",
@@ -145,9 +172,11 @@ export function loadContent() {
   );
 }
 
-// Builds the entries in emission order: daily → feed → group → duo →
-// romantic → test → learn → pulse → call. `seq` is per-surface and contiguous (the
-// romantic pool continues the duo surface's counter); note the test surface
+// Builds the entries in emission order: daily → feed → picks → group →
+// duo → romantic → test → learn → pulse → call. `seq` is per-surface and
+// contiguous (the romantic pool continues the duo surface's counter), with
+// ONE carve-out: catalogue picks share the feed surface but run their own
+// lane from PICK_SEQ_BASE (see the constant); note the test surface
 // runs ONE counter across all four tests (test-political-00 has seq 10, not 0).
 // Property order in each entry is load-bearing — JSON.stringify preserves
 // insertion order, and the drift gate compares bytes.
@@ -164,7 +193,7 @@ function requireId(q, where) {
 }
 
 export function buildEntries(content = loadContent()) {
-  const { daily, feed, duel, tests, lenses, learn, pulse, call } = content;
+  const { daily, feed, pick, duel, tests, lenses, learn, pulse, call } = content;
   const entries = [];
 
   // `active: false` retires an entry from serving without touching its id
@@ -195,8 +224,8 @@ export function buildEntries(content = loadContent()) {
       type: q.type,
       // `domain` names the catalogue key space (pokemon/films/…) the
       // aggregate trigger validates `entity` answers against (D14/D15).
-      // null everywhere until live catalog questions ship; carried on every
-      // entry so the seed path can already transport it.
+      // Non-null only on the pick block's `type: "catalog"` entries below;
+      // carried on every entry so the seed path transports it uniformly.
       domain: q.domain ?? null,
       prompt: q.prompt,
       // scale/rating entries carry no options in the source — the scales
@@ -336,6 +365,39 @@ export function buildEntries(content = loadContent()) {
             endings: q.endings,
           }
         : {}),
+      ...flags(q),
+    });
+  });
+
+  // Catalogue picks (D14 gone live): one favourite from a shipped
+  // catalogue, promoted out of the pick-data.js archive by
+  // promote-questions.mjs — never hand-written here (QUESTION-FARM.md's
+  // one-pen rule). Same `feed` surface as the cards they ride beside —
+  // splitBanks and the card renderer route on `type` — but their OWN seq
+  // lane from PICK_SEQ_BASE, not the feed counter continued: a pick's seq
+  // must survive feed appends the way its id does (see the constant).
+  // `options` is empty by construction: the catalogue is the answer
+  // space, an answer is an `entity` key, and the aggregate trigger
+  // validates it against the committed catalogue the doc's `domain`
+  // names (CATALOG_DOMAINS, functions/src/v2.ts). No `core` flag ever:
+  // an entity answer has no option share for a cohort fold to read, so
+  // a pick card is tail by construction (D161's absent-means-tail).
+  (pick?.questions ?? []).forEach((q, i) => {
+    entries.push({
+      id: `pick-${requireId(q, `pick-questions.json[${i}]`)}`,
+      surface: "feed",
+      seq: PICK_SEQ_BASE + i,
+      type: "catalog",
+      domain: q.domain,
+      prompt: q.prompt,
+      options: [],
+      topic: q.cat,
+      axis: null,
+      test: null,
+      // Doors ride here exactly as on feed entries (docs/TAGS-PLAN.md §1)
+      // — a pick card's home is the fav channel, so a door is how it also
+      // reaches its subject's shelf.
+      ...(Array.isArray(q.also) && q.also.length ? { also: q.also.map(String) } : {}),
       ...flags(q),
     });
   });
@@ -550,6 +612,11 @@ const HEADER =
   "// forms' range/plane copy (D114), absent everywhere else; their options\n" +
   "// are synthesized bucket/cell labels, so the D52 option freeze freezes\n" +
   "// the range with them.\n" +
+  "// `domain` is non-null only on `type: \"catalog\"` (pick) entries — the\n" +
+  "// catalogue key space their `entity` answers validate against (D14/D15).\n" +
+  "// Pick entries carry no options: the shipped catalogue is the answer\n" +
+  "// space, and they are never `core` — an entity answer has no option\n" +
+  "// share for a cohort fold to read.\n" +
   "// `also` is feed/pick-only (docs/TAGS-PLAN.md, D206): the topics a\n" +
   "// question ALSO belongs to beside its `topic` home. Reach, never\n" +
   "// placement — the client's filter/stock/search read topic ∪ also, the\n" +

@@ -57,6 +57,10 @@ export interface QuestionDoc {
   prompt: string;
   options: string[];
   topic: string | null;
+  // The catalogue key space a `type: "catalog"` question's `entity`
+  // answers validate against — pokemon/emoji/elements/… (D14/D15). The
+  // seed transports it on every doc; non-null only on catalog docs.
+  domain?: string | null;
   // The daily bank's [branch, sub-branch] subject path (D100) — "Mind" /
   // "Outlook". Absent on every other surface, and absent from any daily
   // doc seeded before D100 until the next seed run, so every reader has
@@ -143,6 +147,18 @@ export interface CallOutcome {
 export interface AggDoc {
   counts?: Record<string, number>;
   total?: number;
+  // Rank questions' aggregate (D233): per-item POSITION SUMS — pos[i] is
+  // the sum of the 0-based positions every answerer gave item i — from
+  // which the crowd order derives (rankCrowdFor below). Present only on
+  // rank questions' aggregates, which carry no counts and no by.
+  pos?: number[];
+  // The catalog canon (D14): the published board — the CANON_TOP_N biggest
+  // entities as key → count — and everything outside it summed into
+  // `rest`. Present only on catalog questions' aggregates, whose `by` maps
+  // hold entity keys (cut to the board's own entities, D17) rather than
+  // option indexes.
+  top?: Record<string, number>;
+  rest?: number;
   // Per-anchor breakdown, exact and complete (functions/src/pure.ts, D8
   // for the shape, D98 for the exactness). A cell that is absent here has
   // no answers in it — nothing is suppressed, so absent means zero and the
@@ -286,6 +302,64 @@ export function hasPublishedCounts(agg: AggDoc | undefined): boolean {
   return !!agg && typeof agg.total === "number" && agg.total > 0;
 }
 
+// The published pick board's size — MUST equal CANON_TOP_N in
+// functions/src/v2.ts, which cuts what the fold publishes. One constant
+// client-side (pickCanon's slice and the card's "N of 10 spots" copy both
+// read it, directly or through pickSrc), and vote.test.ts pins it against
+// the functions source text — the dialBucketMid twin-math precedent: two
+// layers that cannot import each other, held equal by a test instead of
+// by hope.
+export const CANON_BOARD_N = 10;
+
+/**
+ * The crowd's 1-based rank per item for a rank question (D233), derived
+ * from the published position sums — EXCLUDING the viewer's own folded
+ * order, the same subtract-own convention countsFor keeps. The demo's
+ * crowd is authored strangers; live, a "crowd" that is mostly you would
+ * make the reveal's match line a mirror, so the comparison is you
+ * against everyone else. `mine` is the viewer's stored order (null when
+ * unanswered); once the trigger folds it (`pending` false) its positions
+ * come back out here and the card compares against the remainder.
+ *
+ * Null means NO CROWD: nobody has ranked, or only the viewer has — the
+ * card's first-voter state, not an error. Ties break by item index so
+ * equal sums render identically on every device.
+ */
+export function rankCrowdFor(
+  agg: AggDoc | undefined,
+  mine: number[] | null,
+  pending: boolean,
+): number[] | null {
+  const pos = agg?.pos;
+  const total = agg?.total ?? 0;
+  if (!Array.isArray(pos) || pos.length < 2 || total <= 0) return null;
+  let rest = [...pos];
+  let n = total;
+  if (mine && !pending && mine.length === rest.length) {
+    // The same staleness countsFor clamps with `count > 0`: a cached
+    // aggregate from BEFORE this device's fold (another device answered,
+    // or the top-up has not landed) does not contain the viewer, and
+    // subtracting anyway would invert the crowd or manufacture a false
+    // "You're first". A sum driven negative is proof the order was never
+    // in these numbers — keep the whole aggregate and compare against it
+    // as the crowd it actually is; the post-vote refresh converges it.
+    const sub = [...rest];
+    for (let p = 0; p < mine.length; p++) {
+      const item = mine[p];
+      if (Number.isInteger(item) && item >= 0 && item < sub.length) sub[item] -= p;
+    }
+    if (sub.every((v) => v >= 0)) {
+      rest = sub;
+      n -= 1;
+    }
+  }
+  if (n <= 0) return null;
+  const byMean = [...rest.keys()].sort((a, b) => rest[a] - rest[b] || a - b);
+  const crowd = new Array<number>(rest.length).fill(0);
+  byMean.forEach((item, i) => { crowd[item] = i + 1; });
+  return crowd;
+}
+
 export function buildS(
   q: QuestionDoc & { id: string },
   // Null for a question that is not on the pager at all — the Mirror's
@@ -396,17 +470,27 @@ export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
     Array.isArray(q.options) && q.options.length >= 2;
   return {
     daily: active.filter((q) => q.surface === "daily" && playable(q)),
-    // type "rank" is excluded from the LIVE feed on purpose. The bank seeds
-    // 8 of them, and buildFeedGlobals used to serve them as single-choice
-    // vote cards — folding single options into aggregates that claim to be
-    // a ranking. Wrong-shaped answers are worse than no card (the same
-    // honesty rule as D5); the full arithmetic is in D12.
-    feed: active.filter(
-      (q) =>
-        (q.surface === "feed" || q.surface === "test") &&
-        playable(q) &&
-        q.type !== "rank",
-    ),
+    // type "catalog" is the feed lane's deliberate playable() exception,
+    // the duel lane's "pick" precedent: a catalog doc carries no options
+    // because the shipped catalogue is its answer space (D14), so the
+    // options gate that drops malformed docs would drop every pick card.
+    // The exception is FEED-NARROW where the plain lane spans test too —
+    // catalog questions exist on no other surface (rules and the seed
+    // both say feed), and an options-free doc admitted off a wider
+    // surface would be a hand-edited console doc this fence exists to
+    // drop.
+    //
+    // Rank rides the plain lane since D233 — D12's exclusion lived here
+    // for as long as an answer could not carry an order (served as vote
+    // cards, rank docs folded single picks into aggregates that claimed
+    // to be rankings). An answer carries one now (`order`, rules + fold +
+    // LIVE.voteRank), and buildFeedGlobals maps rank docs to their own
+    // card type, so the poisoning D12 pulled them for is structurally
+    // gone rather than filtered around.
+    feed: active.filter((q) =>
+      q.type === "catalog"
+        ? q.surface === "feed"
+        : (q.surface === "feed" || q.surface === "test") && playable(q)),
     duel: active.filter(
       (q) =>
         (q.surface === "group" || q.surface === "duo") &&

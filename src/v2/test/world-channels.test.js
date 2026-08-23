@@ -21,7 +21,7 @@ beforeEach(() => {
 });
 
 async function feedData() {
-  // WORLD_CHANNELS is imported by name since D240 — world-feed.jsx was its
+  // WORLD_CHANNELS is imported by name since D243 — world-feed.jsx was its
   // only consumer, so it no longer publishes. WORLD_TOPICS still mirrors,
   // for daily-split, search-overlay and suggestions.
   const { WORLD_CHANNELS } = await import("../spec/world-feed-data.js");
@@ -34,18 +34,20 @@ describe("the always-on channel set, per build (D96)", () => {
     expect(channels).toEqual(["dilemma", "event", "people", "bigq", "places", "fav"]);
   });
 
-  it("live: every subject runs always-on; the two stockless formats stay out", async () => {
+  it("live: every subject runs always-on; only the stockless format stays out", async () => {
     vi.stubEnv("VITE_V2_LIVE", "true");
     const { channels, topics } = await feedData();
     expect(channels).toContain("sport");
     expect(channels).toContain("culture");
-    // data/live.ts's bank mapper emits plain votes only, so these two
-    // would be dead chips filtering nothing.
+    // `fav` carries real stock since D14 went live — the bank mapper emits
+    // pick cards from the seeded catalog questions, so its chip filters
+    // something and must be present.
+    expect(channels).toContain("fav");
+    // `places` alone is still a dead chip: rate cards remain demo-only.
     expect(channels).not.toContain("places");
-    expect(channels).not.toContain("fav");
     // Derived from the topic list, so a subject added later is reachable
     // by default rather than dark until someone remembers this list.
-    expect(channels).toEqual(topics.filter((t) => t.id !== "places" && t.id !== "fav").map((t) => t.id));
+    expect(channels).toEqual(topics.filter((t) => t.id !== "places").map((t) => t.id));
   });
 
   // D96 part 3's actual claim, checked against the bank instead of against

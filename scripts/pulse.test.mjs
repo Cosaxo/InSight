@@ -307,7 +307,14 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       // via the membership clause — so this is the D139 and D194 shape
       // twice over: the site count moves, the billed cost does not, and
       // RULE_READS.duel stays 3.
-    ).toEqual({ gets: 25, exists: 3 });
+      //
+      // 25 → 30 gets at D233: isWorldAnswer gained the type != "rank"
+      // clause (one site, the same /v2_questions doc its two existing
+      // get()s read — deduped, cost unchanged), and isRankAnswer arrived
+      // with four sites on that same one document, so a rank answer's
+      // create bills the SAME single question-doc read the world path
+      // does. RULE_READS.world stays 1 and covers the rank path with it.
+    ).toEqual({ gets: 30, exists: 3 });
   });
 
   it("the answer trigger's transaction still issues the reads the model charges", () => {
@@ -317,9 +324,11 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       (body.match(/tx\.get\(/g) || []).length,
       "onV2AnswerCreated changed how many documents it reads. TRIGGER_READS "
       + "in scripts/cost-arith.mjs charges the VOTE path (2: ledger event + "
-      + "private agg); the rest are the catalog branch, which is not live "
-      + "(D14). Recount before changing the constant.",
-    ).toBe(5);
+      + "private agg); the catalog (D232) and rank (D233) branches each read "
+      + "one more — the question doc — which the model deliberately absorbs "
+      + "into the vote rate (see the constant's comment). Recount before "
+      + "changing the constant.",
+    ).toBe(8);
   });
 
   it("the velocity scan still walks the ledger once per entry", () => {

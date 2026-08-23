@@ -90,7 +90,7 @@ const loneSurrogate = (s: string): boolean => {
   return false;
 };
 
-describe("an astral character is one character (D234)", () => {
+describe("an astral character is one character (D237)", () => {
   // Both folds indexed UTF-16 CODE UNITS, so a word beginning with an
   // emoji, a mathematical alphanumeric or a CJK extension B glyph
   // contributed HALF of it — tofu on a rail whose whole job is telling

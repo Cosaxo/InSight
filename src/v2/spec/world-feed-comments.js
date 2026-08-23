@@ -8,7 +8,7 @@ import React from 'react';
 // world-feed-comments.js — takes on the feed questions. Part of the
 // pre-population promise: every question ships with a couple of live takes.
 // opt = index of the option the commenter voted for (null on rankings).
-// No window mirror (D240): world-feed.jsx was the only reader.
+// No window mirror (D243): world-feed.jsx was the only reader.
 export const WORLD_FEED_COMMENTS = {
   'tq-political-8': [
     { name: 'Omar K.', init: 'OK', opt: 1, time: '2h', ups: 167, text: 'My grandmother video-calls her sister across an ocean every day. Case closed.' },

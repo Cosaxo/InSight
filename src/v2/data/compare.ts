@@ -236,7 +236,7 @@ export interface PeopleAxes {
   /** People who contributed at least one axis, to any instrument. */
   people: number;
   /**
-   * …and how many contributed to at least one of `kinds` (D235).
+   * …and how many contributed to at least one of `kinds` (D238).
    *
    * A caller that DREW only some of the instruments must count only those,
    * or its basis line overstates what the cards on screen rest on — the

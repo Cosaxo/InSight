@@ -26,7 +26,7 @@
 // kind: the prototype's best line is "3 of 5 friends went the other way",
 // which is a named who-voted at world scale and exactly what D1 rules out.
 // Hoisted `export let`, assigned inside the IIFE — the shape DAILYQ,
-// FRIENDS, PICKS and PLACESTATS were converted with (D240). The FEEDREAD
+// FRIENDS, PICKS and PLACESTATS were converted with (D243). The FEEDREAD
 // mirror stays for app-shell.jsx and mirror-field-pops.jsx; `feedInsight`
 // has no mirror because world-feed.jsx was its only reader.
 export let FEEDREAD;

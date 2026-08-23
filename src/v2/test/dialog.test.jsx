@@ -113,7 +113,7 @@ describe("overlays are modal dialogs", () => {
     expect(document.activeElement, "focus was not restored to the opener").toBe(opener);
   });
 
-  it("traps Tab inside the update blocker, which had no trap at all (D241)", () => {
+  it("traps Tab inside the update blocker, which had no trap at all (D244)", () => {
     // The blocker is a modal the SERVER puts up: role, aria-modal and a
     // label were hand-written on it and it took focus with `autoFocus`, so
     // it announced itself correctly — and Tab walked straight out into the

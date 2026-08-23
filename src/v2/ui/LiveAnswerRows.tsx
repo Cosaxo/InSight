@@ -78,7 +78,7 @@ function headText(row: AnswerRow): { big: string; unit: string; sub: string } | 
 
 function standText(row: AnswerRow, whom: string): string {
   const st = standingIn(row.counts, row.mine, row.type);
-  // ONE NULL, TWO FACTS (D235). `standingIn` refuses for two different
+  // ONE NULL, TWO FACTS (D238). `standingIn` refuses for two different
   // reasons — the cohort has said nothing, or you have not answered — and
   // this rendered both as the second one. That put "You have not answered
   // this one." under a chip naming your own pick two lines above it: the

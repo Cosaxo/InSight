@@ -401,7 +401,7 @@ It is separate from `npm run lint` because that script carries
 disable this file's Lint suppressions section exists to prevent.
 
 The baseline is **7**: 4 in `spec/`, plus three elsewhere. Every one of the
-seven is a deliberate keep (D241), each with its reason recorded beside it
+seven is a deliberate keep (D244), each with its reason recorded beside it
 in `BASELINE`. It opened at 69 and came down in four steps — D23
 turned the mouse-only controls into buttons, D24 made every overlay and
 sheet a real modal dialog, D35 gave the Basics editor's selects explicit
@@ -429,14 +429,14 @@ A count kept by hand drifts even inside a paragraph whose own file is
 gate-enforced; prefer "run the gate" to a number, and where a number is
 load-bearing, make the gate own it.
 
-**That sentence has now been wrong twice, and D241 is the second
+**That sentence has now been wrong twice, and D244 is the second
 correction.** It read: "the remaining autofocus findings stay deferred for
 the reason the React Compiler ones do — changing focus behaviour in ported
 components no test asserts the interaction of is the blind change that
 trade refuses. Fix them behind interaction tests, not ahead of them."
 
 The trade was real and the conclusion was not, because nobody had looked at
-the sites. When D241 did, six of the seven turned out to be the SAME case
+the sites. When D244 did, six of the seven turned out to be the SAME case
 the two pickers were already excused for: a control the reader has just
 asked for — a search rendered only when `searchOpen`, a reply box rendered
 only when `replyTo` names that take, the name field of a sheet they opened.
@@ -460,7 +460,7 @@ focuses the button itself, so the prop went with it.
 The React Compiler suppressions are a different matter and DO stay
 deferred: 28 of them, all `react-hooks/exhaustive-deps` and
 `react-hooks/refs` on ported effects, where changing re-run timing blind is
-exactly the trade this file refuses. That refusal survives D241 unchanged —
+exactly the trade this file refuses. That refusal survives D244 unchanged —
 it was only ever the autofocus half that had been filed under it by
 association.
 

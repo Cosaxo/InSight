@@ -25,7 +25,7 @@ cohort the Mirror slices by, and what is still prototype data — see
 v2_questions/{qid}                 canonical bank, seeded by seedContentV2
   surface: daily|feed|group|duo|test|learn|pulse|call
   seq: int            rotation order within a surface
-  type: binary|choice|scale|rating|vote|duel|ranking|catalog|pulse|call
+  type: binary|choice|scale|rating|vote|duel|rank|dial|field|path|catalog|pulse|call
   domain: pokemon|films|artists   (catalog questions only — names the key
                                    space the trigger validates against, D15)
   prompt: string
@@ -103,13 +103,20 @@ v2_users/{uid}/answers/{qid}
     trigger validates against the question's own domain (a range for
     pokemon, generated QID key sets for films/artists) and an unknown
     key never aggregates.
+    Rank questions (bank type "rank" — D233) store `order` in place of
+    optionIdx: the item indexes in the answerer's sequence. Rules bound
+    the list's SIZE to the question's own item count and refuse a plain
+    optionIdx on a rank question (the D12 side door); the trigger
+    validates the ELEMENTS (a permutation of 0..n-1, validRankOrder) and
+    a malformed order never aggregates. No optionIdx alongside — a
+    synthetic index would leak an order into option-shaped folds.
 create: owner, validated (question must exist; optionIdx < options.size())
 update: owner, ONE shape (D86) — optionIdx moves (+ editedAt ==
 request.time), on surfaces daily|feed|test only, bounded by the
 question's options, once per 60 s per answer. Everything else is frozen:
 anchors and answeredAt (the cohort stamp, D8), learn (D32's
 first-attempt measurement), duels (the seal), catalog answers (no canon
-delta path). The aggregate stays a plain fold because onV2AnswerUpdated
+delta path), rank answers (no order delta path — D233). The aggregate stays a plain fold because onV2AnswerUpdated
 applies the matching -old/+new delta with the total unchanged — the
 reconciliation D5 avoided now exists, in one trigger, ledger-deduped.
 Since D226 the same trigger also counts the move itself into the
@@ -132,6 +139,12 @@ v2_aggs_private/{qid}              the trigger's working state (no readers)
            { entity: n } } }       slices (D17), the vote fold transposed
                                    with its own per-cell entity cap (32)
                                    on top of the bucket cap
+  pos [ int ], total               rank questions (D233): per-item
+                                   position sums in place of counts —
+                                   pos[i] is the summed 0-based position
+                                   of item i, fixed-length at the item
+                                   count, no by map (nothing reads a
+                                   rank breakdown yet)
   by { dim: { bucket: {opt:n} } }  per-anchor slices, exact (see D8).
                                    Lives HERE, in the doc the trigger
                                    already writes, so D7's ~1 write/sec
@@ -169,6 +182,12 @@ v2_question_aggs/{qid}             the PUBLIC mirror, EXACT (D98)
                                    An absent cell is ZERO, not withheld.
                                    Includes the political items, whose
                                    D44 carve-out D98 reversed (D8)
+  { total, pos }                   rank questions (D233): the position
+                                   sums published whole — the client
+                                   derives the crowd order by ascending
+                                   mean position (deck.ts rankCrowdFor),
+                                   subtracting the viewer's own folded
+                                   order first
   edits { from: { to: n } }        the edit-flow matrix (D226): every D86
                                    edit counted from → to. MOVES, not
                                    people — one person editing twice
@@ -432,8 +451,8 @@ MOD_UIDS-gated callables (the D22 confinement)
 ## Functions
 
 - `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
-  into `v2_questions` (630 docs, stable ids `daily-000`, `feed-<id>`,
-  `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
+  into `v2_questions` (653 docs, stable ids `daily-000`, `feed-<id>`,
+  `pick-<id>`, `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
   operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
 - `onV2AnswerCreated` (Firestore trigger, retry on) — transactionally
@@ -493,7 +512,7 @@ read: signed-in · write: nobody
 ## Read economics (client)
 
 A live boot costs ~20 reads, not ~380: one `v2_meta/app` read decides
-everything. The question bank (630 docs) caches in localStorage keyed by
+everything. The question bank (653 docs) caches in localStorage keyed by
 `contentRev`, and refreshes **incrementally** — one query for docs newer
 than the cache's `updatedAt` cursor, so a promotion cycle costs the
 handful of questions it added rather than the whole bank (D34;
@@ -528,7 +547,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 116 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 120 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

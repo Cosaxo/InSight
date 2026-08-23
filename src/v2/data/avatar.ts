@@ -122,7 +122,7 @@ export function tokenFromUrl(url: string): string {
 export function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (!parts.length) return "?";
-  // CODE POINTS, NOT CODE UNITS (D234). `parts[0][0]` indexes UTF-16, and
+  // CODE POINTS, NOT CODE UNITS (D237). `parts[0][0]` indexes UTF-16, and
   // an astral character — an emoji, a CJK extension B glyph — is two units
   // wide, so a multi-word name whose first or last word starts with one
   // contributed HALF of it: "Ada 🎈" drew "A\uD83C", an unpaired surrogate

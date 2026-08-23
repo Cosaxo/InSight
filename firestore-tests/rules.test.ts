@@ -1084,8 +1084,26 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     await assertFails(setDoc(ref(CQ), { qid: CQ, surface: "feed", optionIdx: 0,
       answeredAt: serverTimestamp(), anchors: {} }));                 // optionIdx on a catalog question
     await assertFails(setDoc(ref(CQ), cat({ surface: "group" })));    // not a world surface
+    // Feed-only since D234's review pass: the clause read `in ["daily",
+    // "feed", "test"]` from birth, and "test" here passed BOTH halves of
+    // it against this feed question. Now the claimed surface must be
+    // exactly the one catalog questions exist on.
+    await assertFails(setDoc(ref(CQ), cat({ surface: "test" })));
+    await assertFails(setDoc(ref(CQ), cat({ surface: "daily" })));
     await assertFails(setDoc(ref("feed-cat-off"),
       cat({ qid: "feed-cat-off" })));                                 // kill switch holds
+    // The question-side agreement tightened with it: a catalog doc
+    // hand-edited onto another surface (console — the seed cannot write
+    // one, check:content refuses it) takes no answers at all, whichever
+    // surface the answer claims.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "test-cat"), {
+        surface: "test", seq: 0, type: "catalog",
+        prompt: "?", options: [], active: true,
+      });
+    });
+    await assertFails(setDoc(ref("test-cat"), cat({ qid: "test-cat", surface: "test" })));
+    await assertFails(setDoc(ref("test-cat"), cat({ qid: "test-cat" })));
     // a vote question never accepts an entity answer
     await seedQuestion();
     await assertFails(setDoc(ref(QID), { qid: QID, surface: "daily", entity: 1,
@@ -2296,5 +2314,78 @@ describe("circle invitations (D122)", () => {
     await assertFails(updateDoc(doc(asUser(FRIEND), "v2_groups", GID), {
       memberUids: [OWNER, FRIEND],
     }));
+  });
+});
+
+describe("rank answers (D233): an order, never an index", () => {
+  const RANK = "feed-f03";
+  const seedRank = () => seed(async (db) => {
+    await setDoc(doc(db, "v2_questions", RANK), {
+      surface: "feed", seq: 2, type: "rank", prompt: "Rank them",
+      options: ["A", "B", "C", "D"], active: true,
+    });
+  });
+  const mine = () => doc(asUser(OWNER), "v2_users", OWNER, "answers", RANK);
+  const rankAnswer = (over: Record<string, unknown> = {}) => ({
+    qid: RANK, surface: "feed", order: [2, 0, 1, 3],
+    answeredAt: serverTimestamp(), anchors: {}, ...over,
+  });
+
+  it("admits a full order, and the answer is create-only with no edit arm", async () => {
+    await seedRank();
+    await assertSucceeds(setDoc(mine(), rankAnswer()));
+    await assertFails(setDoc(mine(), rankAnswer({ order: [0, 1, 2, 3] }))); // a re-rank rewrites frozen fields
+    await assertFails(updateDoc(mine(), { order: [0, 1, 2, 3], editedAt: serverTimestamp() }));
+    // The D86 arm keys on the OLD doc carrying optionIdx — an order answer
+    // never does, so a ranking cannot be "moved" through the vote edit.
+    await assertFails(updateDoc(mine(), { optionIdx: 1, editedAt: serverTimestamp() }));
+  });
+
+  it("bounds the list where rules can, and refuses the index the fold would misread", async () => {
+    await seedRank();
+    await assertFails(setDoc(mine(), rankAnswer({ order: [0, 1, 2] }))); // size != item count
+    await assertFails(setDoc(mine(), rankAnswer({ order: 3 }))); // not a list
+    await assertFails(setDoc(mine(), rankAnswer({ order: [2, 0, 1, 3], optionIdx: 1 }))); // both fields
+    // THE hole this branch closes alongside itself: a rank doc carries
+    // real options, so before D233 a plain optionIdx write passed
+    // isWorldAnswer's size bound and its fold clobbered the rank
+    // aggregate — D12's wrong-shaped poisoning through the raw API.
+    await assertFails(setDoc(mine(), {
+      qid: RANK, surface: "feed", optionIdx: 0,
+      answeredAt: serverTimestamp(), anchors: {},
+    }));
+    // …and the reverse: an order on a vote question names no rank type.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "feed-v1"), {
+        surface: "feed", seq: 3, type: "vote", prompt: "V",
+        options: ["A", "B", "C", "D"], active: true,
+      });
+    });
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", "feed-v1"),
+      rankAnswer({ qid: "feed-v1" }),
+    ));
+  });
+
+  it("elements are the TRIGGER's to validate — rules admit a non-permutation by design", async () => {
+    // Rules can bound a list's size but cannot iterate it (no forall), so
+    // a duplicate-laden order passes here and dies at validRankOrder in
+    // the fold (functions/src/pure.ts) — the same trust boundary catalog
+    // keys cross. Pinned so the boundary stays a decision, not a surprise.
+    await seedRank();
+    await assertSucceeds(setDoc(
+      doc(asUser(STRANGER), "v2_users", STRANGER, "answers", RANK),
+      rankAnswer({ order: [0, 0, 0, 0] }),
+    ));
+  });
+
+  it("honours the kill switch", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", RANK), {
+        surface: "feed", seq: 2, type: "rank", prompt: "R",
+        options: ["A", "B", "C", "D"], active: false,
+      });
+    });
+    await assertFails(setDoc(mine(), rankAnswer()));
   });
 });
