@@ -23571,3 +23571,55 @@ client last (clients start writing them) — no window where a shipped
 client writes a shape the backend refuses or drops. The deploy chain
 runs backend before hosting, which is this order; the record states it
 so a partial manual deploy cannot invert it.
+
+## D233 · The seed transports the doc shape the schema promises
+
+**Decided:** 2026-08-23 · **Status:** built (this branch), rides the
+D231/D232 PR; the reseed after it merges is the one-time repair
+
+**The finding, verified at every layer before anything moved.**
+`runSeedV2`'s payload is a whitelist, and its own comment warns that "a
+field the seed does not name never reaches Firestore." Twelve fields had
+fallen on the wrong side of that line. Nine were in the schema, in the
+client, and in no write: `core` (D161 — the Mirror's corpus flag),
+`tag`/`rates` (D187 — the Scores stop's noun column and its place
+filter, plus D205's anchor guard), `until` (D179), `sponsor` (D195),
+`also` (D206 — the doors), and the call trio `tier`/`resolvesAt`/
+`rubric` (D194). Three more — `mode`, `branch`, `sub` — were written on
+CREATE but absent from `SEEDED_FIELDS`, so the skip froze them at
+create: an edit to a daily's subject path could never reach a stored
+doc.
+
+**Why every gate was green while it was dark.** Server-side consumers
+read the COMPILED bank (`V2_QUESTIONS` — the patterns fit's core filter,
+the call resolver's rubrics, D44's no-slice set), so nothing serverside
+ever noticed. Client-side consumers read HYDRATED DOCS — and every suite
+that exercises them seeds its own fixtures with the fields present
+(vote.test's bankDocs, the live-fixture, rules fixtures), while the one
+harness that runs the real seed (the e2e) never asserted on doc shape.
+Production behavior implied by the gap, none of it test-visible: the
+Mirror's cohort lenses treating every feed question as tail, the Scores
+scorecards empty, doors dark, D205's city guard never firing.
+
+**The fix, three mirrors and a proof.** The payload gains the nine
+emit-when-set transports; `SEEDED_FIELDS` gains all twelve (with the
+one-time-repair consequence stated in place: the next reseed rewrites
+exactly the docs whose stored form lacks them — that is the repair, not
+a phantom); seed.test's `storedForm` mirrors both; and the e2e now
+asserts doc shape after the real seed (step 3b) — the assertion that
+would have caught this class the day it opened. `sponsor` and `rubric`
+ride the structural compare `nodes`/`endings` forced; arrays ride the
+element-wise arm.
+
+**What this deliberately does not do:** transport `political` (server-
+side only by design — D44 computes from content, no client reads it off
+docs, and the schema does not list it) or invent per-field backfill
+tooling — the ordinary reseed IS the backfill, `updatedAt` moves, and
+clients page the repaired docs in through the cursor like any edit.
+
+**Enforcement:** seed.test's two D233 cases (the transport proven
+against the real bank — each self-reporting if the bank stops carrying
+an example — and the missing-field mismatch that drives the repair
+write); the e2e's 3b; the no-op control now compares the FULL written
+shape, which is what caught `storedForm`'s own missing mirrors during
+the build.

@@ -391,6 +391,27 @@ export async function runSeedV2(
       ...(typeof q.hue === "number" ? { hue: q.hue } : {}),
       ...(q.nodes ? { nodes: q.nodes } : {}),
       ...(q.endings ? { endings: q.endings } : {}),
+      // The fields the whitelist silently dropped (D233). Its own comment
+      // above warned that "a field the seed does not name never reaches
+      // Firestore" — and for two releases that was the fate of everything
+      // below: SCHEMA-V2.md promised each on the doc, the CLIENT reads
+      // each off hydrated docs (isCore for the Mirror's corpus, tag/rates
+      // for the Scores stop and D205's anchor guard, until/sponsor for
+      // D179/D195's windows, `also` for D206's doors, tier for the call
+      // card), and the server never wrote any of them — every consumer
+      // read absent and every test stayed green on self-seeded fixtures.
+      // Emit-when-set like their neighbours; SEEDED_FIELDS compares them
+      // (pure.ts), so the reseed after this lands is the one-time repair
+      // that writes them onto the standing docs.
+      ...(typeof q.tag === "string" ? { tag: q.tag } : {}),
+      ...(typeof q.rates === "string" ? { rates: q.rates } : {}),
+      ...(q.core === true ? { core: true } : {}),
+      ...(typeof q.until === "string" ? { until: q.until } : {}),
+      ...(Array.isArray(q.also) && q.also.length ? { also: q.also } : {}),
+      ...(q.sponsor ? { sponsor: q.sponsor } : {}),
+      ...(typeof q.tier === "string" ? { tier: q.tier } : {}),
+      ...(typeof q.resolvesAt === "string" ? { resolvesAt: q.resolvesAt } : {}),
+      ...(q.rubric ? { rubric: q.rubric } : {}),
     };
     // Unchanged docs are not rewritten. Two things depend on this, and the
     // second is the expensive one: `updatedAt` only means something as an

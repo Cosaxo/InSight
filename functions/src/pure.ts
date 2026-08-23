@@ -1475,6 +1475,21 @@ export const SEEDED_FIELDS = [
   // renaming one is refused rather than written, which is correct: every
   // stored walk is one of those names.)
   "title", "intro", "hue", "nodes", "endings",
+  // The rest of what the payload writes (D233). Three of these were
+  // always in the payload and never here (`mode`, `branch`, `sub`) — an
+  // edit to a daily's subject path could not reach a stored doc, because
+  // a field the compare ignores is a field the skip below freezes at
+  // create. The other nine were in neither place: SCHEMA-V2.md promised
+  // them on the doc and every client reader (isCore, the Scores tag/rates
+  // pair, the feed's until/sponsor/also) read hydrated docs that could
+  // not carry them — dark in production while every test seeded its own
+  // fixtures green. `sponsor` and `rubric` are objects and ride the same
+  // structural arm nodes/endings forced; `also`/array values ride the
+  // element-wise compare. Adding compare fields makes the next reseed
+  // rewrite exactly the docs whose stored form lacks them — the one-time
+  // repair, not a phantom.
+  "mode", "branch", "sub", "tag", "rates", "core", "until", "also",
+  "sponsor", "tier", "resolvesAt", "rubric",
 ] as const;
 
 /**

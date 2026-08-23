@@ -13,6 +13,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { logger } from "firebase-functions";
 import { runSeedV2 } from "./v2";
+import { seedDocMatches } from "./pure";
 import { V2_QUESTIONS } from "./v2content";
 
 // A Firestore stand-in that records the batch writes it is handed.
@@ -84,9 +85,67 @@ function storedForm(q: typeof victim, overrides: Record<string, unknown> = {}) {
     ...(typeof q.hue === "number" ? { hue: q.hue } : {}),
     ...(q.nodes ? { nodes: q.nodes } : {}),
     ...(q.endings ? { endings: q.endings } : {}),
+    // D233's repaired transports — mirrored here for storedForm's whole
+    // reason to exist: this is exactly what the seed writes. The first
+    // three were always in the payload and only joined the COMPARE at
+    // D233, which is when this mirror had to start carrying them too.
+    ...(typeof q.mode === "string" ? { mode: q.mode } : {}),
+    ...(typeof q.branch === "string" ? { branch: q.branch } : {}),
+    ...(typeof q.sub === "string" ? { sub: q.sub } : {}),
+    ...(typeof q.tag === "string" ? { tag: q.tag } : {}),
+    ...(typeof q.rates === "string" ? { rates: q.rates } : {}),
+    ...(q.core === true ? { core: true } : {}),
+    ...(typeof q.until === "string" ? { until: q.until } : {}),
+    ...(Array.isArray(q.also) && q.also.length ? { also: q.also } : {}),
+    ...(q.sponsor ? { sponsor: q.sponsor } : {}),
+    ...(typeof q.tier === "string" ? { tier: q.tier } : {}),
+    ...(typeof q.resolvesAt === "string" ? { resolvesAt: q.resolvesAt } : {}),
+    ...(q.rubric ? { rubric: q.rubric } : {}),
     ...overrides,
   };
 }
+
+// D233: the payload transports every field SCHEMA-V2.md promises on the
+// doc, proven against the REAL bank rather than a fixture — for two
+// releases core/tag/rates/until/sponsor/also (and the call trio) were in
+// the schema, in the client's readers, and in no write. Each case skips
+// itself only if the bank stops carrying an example, so a future content
+// change cannot hollow it silently — the daily/feed rows below all exist
+// today.
+describe("the seed transports the doc shape the schema promises (D233)", () => {
+  it("writes core, tag, rates, also and the call trio when the source carries them", async () => {
+    const { db, written } = fakeDb({});
+    await runSeedV2(db as never);
+    const expectField = (
+      pick: (q: (typeof V2_QUESTIONS)[number]) => boolean,
+      field: string,
+      value: (q: (typeof V2_QUESTIONS)[number]) => unknown,
+    ) => {
+      const q = V2_QUESTIONS.find(pick);
+      expect(q, `the bank no longer carries an example for ${field} — replace this case's pick`).toBeDefined();
+      expect(written[q!.id], `${q!.id} was not written`).toBeDefined();
+      expect(written[q!.id][field], `${q!.id} lost its ${field} in the payload`).toEqual(value(q!));
+    };
+    expectField((q) => q.core === true, "core", () => true);
+    expectField((q) => typeof q.tag === "string", "tag", (q) => q.tag);
+    expectField((q) => typeof q.rates === "string", "rates", (q) => q.rates);
+    expectField((q) => Array.isArray(q.also) && q.also.length > 0, "also", (q) => q.also);
+    expectField((q) => q.surface === "call", "tier", (q) => q.tier);
+    expectField((q) => q.surface === "call", "resolvesAt", (q) => q.resolvesAt);
+    expectField((q) => q.surface === "call", "rubric", (q) => q.rubric);
+  });
+
+  it("a stored doc MISSING a promised field is a mismatch — the reseed repairs it", () => {
+    const q = V2_QUESTIONS.find((x) => x.core === true)!;
+    const stored = storedForm(q);
+    delete (stored as Record<string, unknown>).core;
+    // Without `core` in SEEDED_FIELDS this compared equal and production
+    // docs kept their pre-D233 shape forever — the repair write is the
+    // point of the field being in the compare.
+    expect(seedDocMatches(stored, storedForm(q))).toBe(false);
+    expect(seedDocMatches(storedForm(q), storedForm(q))).toBe(true);
+  });
+});
 
 // Firestore refuses a map key that is the empty string, and it refuses it at
 // WRITE time inside the seed callable — so a bank carrying one passes
