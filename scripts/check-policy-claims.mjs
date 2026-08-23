@@ -115,6 +115,15 @@ export const CLAIMS = [
     /counts,\s+computed without your identity/i],
   ["D251 · the digest's per-account date pair is unreadable and erased with the account",
     /first and most recent day you answered[\s\S]{0,200}?deleted with your\s+account/i],
+  // D253 is one disclosure in two halves, the D251 pair's shape: one row
+  // pins what the tally cannot do (be linked to a person, or a phone
+  // across days), the other pins the lifecycle promise (fold, then
+  // delete). Either half vanishing leaves the page describing a
+  // different collection than the one shipping.
+  ["D253 · the usage tally is unlinkable — to you, and to the same phone across days",
+    /cannot be linked back to\s+you[\s\S]{0,80}?across two\s+days/i],
+  ["D253 · the raw tallies are deleted after the nightly fold",
+    /deleted after\s+(that|the) nightly\s+fold/i],
 ];
 
 /** Labels of every claim the given page source fails to state. */

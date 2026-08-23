@@ -262,3 +262,35 @@ describe("module stores drop their memory on the purge (D51)", () => {
     expect(stored("insight.testResults.v2")).not.toContain("purge-zz");
   });
 });
+
+// ── the engagement tally (R2/D253) ──────────────────────────────────────
+// The newest insight.* store, driven through the same resurrection
+// scenario. Module-scope like the others; its unit suite
+// (data/engagement.test.ts) covers the tally arithmetic, this covers the
+// wipe contract alongside its peers.
+import {
+  arm as engagementArm, note as engagementNote,
+  LS_KEY as ENGAGEMENT_LS, _engagementForTest,
+} from "../data/engagement";
+
+describe("engagement tally (insight.engagement.v1)", () => {
+  it("seed → purge → fresh → remutate persists only the new data", () => {
+    const t = _engagementForTest();
+    t.reset();
+    engagementArm({ write: async () => {}, build: 1 });
+    engagementNote("feedPass");
+    t.saveNow();
+    expect(localStorage.getItem(ENGAGEMENT_LS)).toContain("feedPass");
+
+    purge();
+    // fresh-boot, and critically: nothing wrote the key back
+    expect(localStorage.getItem(ENGAGEMENT_LS)).toBeNull();
+
+    engagementNote("feedSeen");
+    t.saveNow();
+    const after = localStorage.getItem(ENGAGEMENT_LS) || "";
+    expect(after).toContain("feedSeen");
+    expect(after).not.toContain("feedPass");
+    t.reset();
+  });
+});

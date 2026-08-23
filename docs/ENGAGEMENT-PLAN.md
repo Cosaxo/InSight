@@ -1,13 +1,15 @@
 # Engagement — measuring what holds people and what loses them
 
-**Status: mixed — rung 0 is built (R1, taken as D251, 2026-08-23);
-rungs 1–2 remain proposals with no code behind them.** Requested
-2026-08-23: *track as much as possible about how a user uses the app —
-what engages them, what bores them, and whatever else is useful.* Read
-§2 as a description and everything above rung 0 as a proposal, with what
-it reverses named at the top, the arithmetic in the middle, and the
-failure modes at the bottom. The build list, with phase 1's as-built
-notes, is [`ENGAGEMENT-RUNBOOK.md`](ENGAGEMENT-RUNBOOK.md).
+**Status: mixed — rungs 0 and 1 are built (R1/D251 and R2/D253, both
+2026-08-23, with R5's ceiling binding as D252); rung 2 and the
+per-question map remain proposals (R3 undrafted, R4 = D254 Proposed).**
+Requested 2026-08-23: *track as much as possible about how a user uses
+the app — what engages them, what bores them, and whatever else is
+useful.* Read §2 and §4.1 as descriptions and everything above them as
+proposal, with what it reverses named at the top, the arithmetic in the
+middle, and the failure modes at the bottom. The build list, with both
+phases' as-built notes, is
+[`ENGAGEMENT-RUNBOOK.md`](ENGAGEMENT-RUNBOOK.md).
 
 > **This generalizes [`ATTENTION.md`](ATTENTION.md), it does not replace
 > it.** That document answered a narrower 2026-08-13 ask ("does anyone
@@ -503,6 +505,10 @@ Drafted here, adopted only by the owner writing them into
   fold-and-delete. Rewrites the data-inventory sentence to "no *linked*
   product analytics; anonymous, sampled feature tallies since R2", moves
   Product Interaction to collected/not-linked, lands the §7 row.
+  **Taken as D253 (2026-08-23) and built the same day** — the record
+  carries the as-built sub-decisions (the entrance-observer "seen"
+  definition, the flat shard collection, rate 1 at launch) and the
+  honest limits.
 - **R3 · The person channel.** Reverses MONITORING's per-user
   funnels/session-analytics/engagement-scoring row, scoped by the
   two-channel rule (no qids), no-reader rules, create-only, 90-day TTL,
@@ -513,15 +519,18 @@ Drafted here, adopted only by the owner writing them into
   seen/pass/defer reach the server **only** inside anonymous shards;
   hesitation stays refused outright. The scorecard gains
   attention metrics with D33's goodhart warning printed beside them, and
-  measure-and-retire (D162) gains its denominator.
+  measure-and-retire (D162) gains its denominator. **Drafted as D254,
+  Status: Proposed** — the shard schema carries its field and the rules
+  refuse it non-empty until the owner's word; adoption is one rules
+  clause, the client populating the map, and the scorecard columns.
 - **R5 · The ceiling, recorded.** The §4.3–4.4 refusals as one standing
   record — event streams, third-party SDKs, per-target reads,
   hesitation, anchor/Art. 9 slicing, cadence, and the
   daily/Mirror-never-adapt invariant — so the next "track more" ask
-  starts from a written line. **Drafted as D252, Status: Proposed** —
-  the owner's adoption named R1 alone, so the ceiling waits for its own
-  word rather than presuming it (the D28 lesson); until then every
-  refusal in it binds through the documents that already record it.
+  starts from a written line. **Adopted as D252 (2026-08-23, "i adopt
+  R5")** — drafted Proposed the day before and adopted on the owner's
+  explicit word, which is the D28 lesson working as the drafting
+  intended.
 
 ## 9 · Failure modes
 

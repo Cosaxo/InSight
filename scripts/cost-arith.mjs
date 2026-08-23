@@ -329,6 +329,15 @@ export const PATTERNS_USER_STATE_OPS = 1;
 // day doc per PROJECT per night, under any rounding here.
 export const ENGAGEMENT_READS_PER_LEDGER_ENTRY = 1;
 export const ENGAGEMENT_USER_STATE_OPS = 1;
+// Rung 1's attention shards (R2/D253): one anonymous device shard per
+// SAMPLED device per day — the client's own sampling constant, read from
+// source (the D47 rule) because it is the designed lever if the fold's
+// budget ever matters, and a model quoting yesterday's rate is the D34
+// failure again. Each sampled device-day costs one shard write, one fold
+// read, and one fold delete; the day-doc merge writes are per batch per
+// day, under any rounding here.
+export const ATTN_SAMPLE_RATE = readNum(
+  "src/v2/data/engagement.ts", /SHARD_SAMPLE_RATE = ([\d.]+)/, "SHARD_SAMPLE_RATE");
 
 // The reveal pipeline (revealGroupDay), per group-day actually revealed, for
 // a group of M members:
@@ -657,6 +666,7 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
       + PATTERNS_USER_STATE_OPS
       + B.worldAnswers * ENGAGEMENT_READS_PER_LEDGER_ENTRY
       + ENGAGEMENT_USER_STATE_OPS
+      + ATTN_SAMPLE_RATE // the shard fold reads each sampled device's shard once
       + B.duelAnswers * revealReadsPerMember(B.duelGroupSize);
     // The D98 surfaces (D102): who-voted, Kindred, Circle — a client
     // reading OTHER users' answers on demand. One key rather than three
@@ -695,9 +705,11 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     // discounts every phase, which is what a floorless world means.
     const pub = 1 / PUBLISH_EVERY;
     // + the Patterns fit's and the engagement digest's one state write
-    // each per active user per night.
-    const writes = dau * (B.worldAnswers * (1 + 2 + pub) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + 0.2);
-    const deletes = dau * B.worldAnswers; // ledger TTL, 90 days later
+    // each per active user per night, + one attention shard per sampled
+    // device per day (its fold-side day-doc merge rides per batch).
+    const writes = dau * (B.worldAnswers * (1 + 2 + pub) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + ATTN_SAMPLE_RATE + 0.2);
+    // ledger TTL 90 days later, + the shard fold deleting what it folded
+    const deletes = dau * (B.worldAnswers + ATTN_SAMPLE_RATE);
     const inv = dau * (B.worldAnswers + B.duelAnswers);
     // Concurrency 20 only pays off under queue pressure; at low volume each
     // invocation effectively owns its instance for the request.

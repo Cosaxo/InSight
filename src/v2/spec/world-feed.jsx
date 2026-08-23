@@ -5,6 +5,8 @@
 // guards the wiring in CI.
 import React from 'react';
 import NAV from '../data/nav';
+// R2/D253: the anonymous feature tally — a no-op until initLive arms it.
+import * as engagement from '../data/engagement';
 import { SUBTOPICS, WORLD_BG } from './world-subtopics.js';
 import { LENSES, LENS_FEED_QS } from './lens-defs.js';
 import { FEEDREAD, feedInsight } from './feed-read.js';
@@ -405,8 +407,16 @@ class WorldFeed extends React.Component {
     };
     window.addEventListener('insight:local-purge', this._onPurge);
     // entrance: each card rises as it first scrolls into view (transform-only)
+    //
+    // …and that first intersection is also the tally's "seen" (R2/D253):
+    // one count per card per mount, because the observer unobserves after
+    // firing. Deliberately the entrance event rather than ATTENTION.md
+    // §3's ≥50%-for-≥1s refinement — one observer instead of two, and
+    // every card gets the SAME definition, so the ratios the fold
+    // publishes compare like with like. Tightening the definition is a
+    // one-line change here if the coarser read ever misleads.
     this._io = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver((es) => {
-      es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('wf-in'); this._io.unobserve(e.target); } });
+      es.forEach((e) => { if (e.isIntersecting) { engagement.note('feedSeen'); e.target.classList.add('wf-in'); this._io.unobserve(e.target); } });
     }, { rootMargin: '0px 0px -8% 0px' }) : null;
   }
   componentDidUpdate() {
@@ -510,6 +520,9 @@ class WorldFeed extends React.Component {
   // either pollute the aggregate or need a second write path per question
   // for something the user asked to ignore.
   setPass(id, on) {
+    // Counted OUTSIDE the updater (StrictMode double-invokes updaters in
+    // dev), and count only the pass itself, never the un-pass (R2/D253).
+    if (on) engagement.note('feedPass');
     this.setState((s) => {
       const passed = { ...s.passed };
       if (on) passed[id] = 1; else delete passed[id];
@@ -525,6 +538,7 @@ class WorldFeed extends React.Component {
   // second write path per question for something the user asked to be
   // shown again later.
   setDefer(id, on) {
+    if (on) engagement.note('feedDefer'); // the setPass rule, same reasons
     this.setState((s) => {
       const now = Date.now();
       const deferred = pruneDeferred({ ...s.deferred }, now);

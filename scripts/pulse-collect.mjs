@@ -503,11 +503,12 @@ export function collectPopulation(pipeline) {
     refused: [
       {
         metric: "per-user funnels, session analytics, engagement scoring",
-        record: "docs/data-inventory.md — 'No product analytics are collected'; narrowable only "
-          + "by ENGAGEMENT-PLAN.md R2/R3, neither adopted",
-        why: "there is still no client event pipeline to read, by design. D251 added a "
-          + "server-side fold over answers already stored — counts, never sessions; collecting "
-          + "client usage data is a recorded reversal, not a monitoring tweak",
+        record: "docs/data-inventory.md, narrowed twice: D251 (server-side derivation) and "
+          + "D253 (anonymous device tallies). The per-USER half is ENGAGEMENT-PLAN.md R3, "
+          + "unadopted, under D252's recorded ceiling",
+        why: "what ships is counts that cannot name anyone — the digest's folds and the "
+          + "unlinkable daily shards. Nothing uid-keyed about behaviour exists to read, and "
+          + "adding it is a recorded reversal, not a monitoring tweak",
       },
       {
         metric: "retention or engagement sliced by anchor (age, gender, country, education…)",
@@ -552,10 +553,29 @@ export function collectPopulation(pipeline) {
  * firstTime count, so its rate is UNKNOWN (null), never 0% — and a `of`
  * of zero is a known-empty cohort, which is a different fact. */
 export function engagementFromDays(days) {
-  const rows = [...(days || [])]
+  const all = [...(days || [])]
     .filter((d) => d && typeof d.day === "string")
     .sort((a, b) => (a.day < b.day ? -1 : 1));
-  if (!rows.length) return { days: 0 };
+  // Digest rows only, for the digest's own metrics: a doc holding just
+  // late-shard attention (its day predates the digest's catch-up) has no
+  // `actives`, and reading it as a zero-actives day would be the
+  // absent≠zero failure wearing a new face.
+  const rows = all.filter((d) => typeof d.actives === "number");
+  // The newest attention section, wherever it landed (R2/D253): reach is
+  // devices that used the feature at all — bucketing cannot distort it —
+  // and est is the midpoint estimate, both already scaled by the
+  // sampling rate at fold time.
+  const attnRow = [...all].reverse().find((d) => d.attn && typeof d.attn === "object");
+  const attn = attnRow
+    ? {
+        day: attnRow.day,
+        devices: attnRow.attn.devices ?? 0,
+        features: Object.entries(attnRow.attn.s || {})
+          .map(([key, v]) => ({ key, reach: v?.reach ?? 0, est: v?.est ?? 0 }))
+          .sort((a, b) => b.reach - a.reach),
+      }
+    : null;
+  if (!rows.length) return attn ? { days: 0, attn } : { days: 0 };
   const latest = rows[rows.length - 1];
   const last7 = rows.slice(-7);
   // Days inside the span the digest never folded — the console draws
@@ -588,6 +608,7 @@ export function engagementFromDays(days) {
       d7: rate(latest.returned?.d7),
       d30: rate(latest.returned?.d30),
     },
+    attn,
   };
 }
 

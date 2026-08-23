@@ -197,3 +197,123 @@ describe("day arithmetic", () => {
     expect(dayGap("2026-08-22", "2026-08-23")).toBe(1);
   });
 });
+
+// ── the attention fold (R2/D253) ────────────────────────────────────────
+import {
+  BUCKET_MIDPOINTS, SHARD_FOLD_CAP, foldShards, runAttentionFold,
+  type AttentionShardDoc, type AttentionStore, type AttnDelta,
+} from "./engagement";
+
+function attnStore(shards: AttentionShardDoc[]) {
+  const state = {
+    shards: [...shards],
+    applied: [] as Array<{ day: string; delta: AttnDelta; ids: string[] }>,
+    days: new Map<string, { devices: number; s: Record<string, { reach: number; est: number }> }>(),
+  };
+  const store: AttentionStore = {
+    async shardPage(cap) { return state.shards.slice(0, cap); },
+    // the memory twin of the batched set-merge + delete: additive, and it
+    // removes exactly the ids it was handed
+    async applyAttention(day, delta, ids) {
+      state.applied.push({ day, delta, ids });
+      state.shards = state.shards.filter((s) => !ids.includes(s.id));
+      const doc = state.days.get(day) ?? { devices: 0, s: {} };
+      doc.devices += delta.devices;
+      for (const [k, c] of Object.entries(delta.s)) {
+        const cur = doc.s[k] ?? { reach: 0, est: 0 };
+        cur.reach += c.reach;
+        cur.est += c.est;
+        doc.s[k] = cur;
+      }
+      state.days.set(day, doc);
+      await Promise.resolve();
+    },
+  };
+  return { store, state };
+}
+
+const sh = (id: string, day: string, s: Record<string, unknown>, rate: unknown = 1): AttentionShardDoc =>
+  ({ id, day, rate, s });
+
+describe("foldShards", () => {
+  it("sums bucket midpoints into est and devices-that-used into reach", () => {
+    const out = foldShards([
+      sh("a", "2026-08-22", { feedSeen: 2, opens: 1 }), // 4 + 1.5
+      sh("b", "2026-08-22", { feedSeen: 4, lensPeople: 0 }), // 12; zero bucket = no reach
+    ]);
+    const d = out.get("2026-08-22")!;
+    expect(d.devices).toBe(2);
+    expect(d.s.feedSeen).toEqual({ reach: 2, est: BUCKET_MIDPOINTS[2] + BUCKET_MIDPOINTS[4] });
+    expect(d.s.opens).toEqual({ reach: 1, est: 1.5 });
+    expect(d.s.lensPeople).toBeUndefined();
+  });
+
+  it("clamps what the rules deliberately left to the reader: garbage buckets, junk rates, junk maps", () => {
+    const out = foldShards([
+      sh("a", "2026-08-22", { feedSeen: 137, opens: -3, errors: "lots" }, 42), // rate>1 → 1
+      sh("b", "2026-08-22", "not a map" as unknown as Record<string, unknown>),
+      sh("c", "not-a-day", { feedSeen: 1 }),
+    ]);
+    const d = out.get("2026-08-22")!;
+    expect(d.devices).toBe(2);
+    expect(d.s.feedSeen).toEqual({ reach: 1, est: BUCKET_MIDPOINTS[4] }); // 137 → bucket 4
+    expect(d.s.opens).toBeUndefined(); // negative → 0
+    expect(d.s.errors).toBeUndefined(); // non-number → 0
+    expect(out.has("not-a-day")).toBe(false);
+  });
+
+  it("scales a sampled shard by 1/rate", () => {
+    const out = foldShards([sh("a", "2026-08-22", { feedSeen: 1 }, 0.1)]);
+    const d = out.get("2026-08-22")!;
+    expect(d.devices).toBe(10);
+    expect(d.s.feedSeen).toEqual({ reach: 10, est: 15 }); // 1.5 × 10
+  });
+});
+
+describe("runAttentionFold", () => {
+  it("groups by day and deletes exactly what it folded", async () => {
+    const { store, state } = attnStore([
+      sh("a", "2026-08-21", { opens: 1 }),
+      sh("b", "2026-08-22", { opens: 1 }),
+      sh("c", "2026-08-22", { opens: 2 }),
+    ]);
+    const res = await runAttentionFold(store);
+    expect(res).toMatchObject({ shards: 3, days: 2, capped: false });
+    expect(state.shards).toHaveLength(0);
+    expect(state.days.get("2026-08-22")!.devices).toBe(2);
+    expect(state.days.get("2026-08-21")!.s.opens).toEqual({ reach: 1, est: 1.5 });
+  });
+
+  it("every applied chunk deletes its own shards — the crash-safe unit is the batch", async () => {
+    const many = Array.from({ length: 700 }, (_, i) => sh(`s${i}`, "2026-08-22", { opens: 1 }));
+    const { store, state } = attnStore(many);
+    await runAttentionFold(store);
+    expect(state.applied.map((a) => a.ids.length)).toEqual([300, 300, 100]);
+    for (const a of state.applied) {
+      // each batch's delta was computed from ITS shards alone, so a crash
+      // between batches can never double-count a survivor
+      expect(a.delta.devices).toBe(a.ids.length);
+    }
+    expect(state.days.get("2026-08-22")!.devices).toBe(700);
+  });
+
+  it("respects the cap, reports it, and leaves the rest for tomorrow", async () => {
+    const many = Array.from({ length: 30 }, (_, i) => sh(`s${i}`, "2026-08-22", { opens: 1 }));
+    const { store, state } = attnStore(many);
+    const res = await runAttentionFold(store, 10);
+    expect(res).toMatchObject({ shards: 10, capped: true });
+    expect(state.shards).toHaveLength(20);
+  });
+
+  it("a malformed day is skipped, never guessed at, never deleted blind", async () => {
+    const { store, state } = attnStore([sh("weird", "yesterday-ish", { opens: 1 })]);
+    const res = await runAttentionFold(store);
+    expect(res.shards).toBe(1);
+    expect(state.applied).toHaveLength(0);
+    expect(state.shards).toHaveLength(1);
+  });
+
+  it("the cap constant is sane against the batch arithmetic", () => {
+    expect(SHARD_FOLD_CAP).toBeGreaterThan(0);
+  });
+});

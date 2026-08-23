@@ -390,6 +390,144 @@ export function firestoreEngagementStore(db: Firestore): EngagementStore {
   };
 }
 
+// ── rung 1: the attention fold (R2/D253) ────────────────────────
+//
+// Devices write one anonymous shard per finished day (v2_attention,
+// src/v2/data/engagement.ts); this fold sums them into the day docs'
+// `attn` section and DELETES them — fold-and-delete is the channel's own
+// promise (ATTENTION.md §6: an operator who keeps the raw shards has a
+// funnel), so the deletion is asserted by test, not assumed.
+//
+// LATE SHARDS ARE THE NORMAL CASE, not an error: a device flushes
+// yesterday's tally on its next boot, which can be days later. So the
+// fold takes whatever shards exist for ANY day and merges additively
+// (FieldValue.increment under set-merge) into that day's doc, however
+// old. Exactly-once is per CHUNK: each chunk's increments and its
+// deletes commit in one batch, so a crash between chunks leaves later
+// shards alive and unfolded — refolded next night, never double-counted.
+
+/** One nightly pass is bounded; leftovers fold the next night, and the
+ * heartbeat says when the cap bit (no silent caps). */
+export const SHARD_FOLD_CAP = 20_000;
+const SHARD_CHUNK = 300; // 1 set + ≤300 deletes per batch, under the 500-op limit
+
+/** The estimate the buckets allow: their midpoints (0 · 1–2 · 3–5 · 6–10
+ * · 11+). `est` sums midpoints per device — an ESTIMATE and labelled so
+ * downstream; `reach` counts devices that used the feature at all, which
+ * bucketing cannot distort. Both scale by 1/rate for sampled shards. */
+export const BUCKET_MIDPOINTS = [0, 1.5, 4, 8, 12] as const;
+
+export interface AttentionShardDoc {
+  id: string;
+  day: string;
+  rate: unknown;
+  s: unknown;
+}
+
+export interface AttnCounter {
+  reach: number;
+  est: number;
+}
+export interface AttnDelta {
+  devices: number;
+  s: Record<string, AttnCounter>;
+}
+
+export interface AttentionStore {
+  /** Up to `cap` shards, any day, any order. */
+  shardPage(cap: number): Promise<AttentionShardDoc[]>;
+  /** ONE atomic commit: merge the delta into the day doc's `attn`
+   * section AND delete exactly these shards. */
+  applyAttention(day: string, delta: AttnDelta, shardIds: string[]): Promise<void>;
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** Pure: fold shards (all of one day, or several) into per-day deltas.
+ * The rules pin the key vocabulary but deliberately not the values
+ * (rules cannot iterate a map) — so the clamps live HERE, on the only
+ * reader: buckets to 0..4 integers, rates to (0, 1]. */
+export function foldShards(shards: AttentionShardDoc[]): Map<string, AttnDelta> {
+  const out = new Map<string, AttnDelta>();
+  for (const shard of shards) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(shard.day)) continue;
+    const rate =
+      typeof shard.rate === "number" && shard.rate > 0 && shard.rate <= 1 ? shard.rate : 1;
+    const weight = 1 / rate;
+    let delta = out.get(shard.day);
+    if (!delta) {
+      delta = { devices: 0, s: {} };
+      out.set(shard.day, delta);
+    }
+    delta.devices = round2(delta.devices + weight);
+    const s = shard.s && typeof shard.s === "object" ? (shard.s as Record<string, unknown>) : {};
+    for (const [key, raw] of Object.entries(s)) {
+      const bucket = typeof raw === "number" && Number.isFinite(raw)
+        ? Math.min(4, Math.max(0, Math.trunc(raw)))
+        : 0;
+      if (bucket <= 0) continue;
+      const c = delta.s[key] || (delta.s[key] = { reach: 0, est: 0 });
+      c.reach = round2(c.reach + weight);
+      c.est = round2(c.est + BUCKET_MIDPOINTS[bucket] * weight);
+    }
+  }
+  return out;
+}
+
+export async function runAttentionFold(
+  store: AttentionStore,
+  cap = SHARD_FOLD_CAP,
+): Promise<{ shards: number; days: number; capped: boolean }> {
+  const page = await store.shardPage(cap);
+  const byDay = new Map<string, AttentionShardDoc[]>();
+  for (const shard of page) {
+    const list = byDay.get(shard.day) || [];
+    list.push(shard);
+    byDay.set(shard.day, list);
+  }
+  for (const [day, shards] of byDay) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue; // unfoldable; left for a human
+    for (let i = 0; i < shards.length; i += SHARD_CHUNK) {
+      const chunk = shards.slice(i, i + SHARD_CHUNK);
+      const delta = foldShards(chunk).get(day);
+      if (delta) await store.applyAttention(day, delta, chunk.map((s) => s.id));
+    }
+  }
+  return { shards: page.length, days: byDay.size, capped: page.length >= cap };
+}
+
+export function firestoreAttentionStore(db: Firestore): AttentionStore {
+  return {
+    async shardPage(cap) {
+      const snap = await db.collection("v2_attention").limit(cap).get();
+      return snap.docs.map((d) => ({
+        id: d.id,
+        day: String(d.get("day") ?? ""),
+        rate: d.get("rate"),
+        s: d.get("s"),
+      }));
+    },
+    async applyAttention(day, delta, shardIds) {
+      const batch = db.batch();
+      const s: Record<string, { reach: FirebaseFirestore.FieldValue; est: FirebaseFirestore.FieldValue }> = {};
+      for (const [key, c] of Object.entries(delta.s)) {
+        s[key] = { reach: FieldValue.increment(c.reach), est: FieldValue.increment(c.est) };
+      }
+      batch.set(
+        db.collection("v2_engagement_daily").doc(day),
+        // A day older than the digest's catch-up may have no doc at all;
+        // this merge then creates an attn-only one, and the console's
+        // reader treats a doc with no `actives` as not-digested rather
+        // than as a zero day (pulse-collect.mjs).
+        { day, attn: { devices: FieldValue.increment(delta.devices), s } },
+        { merge: true },
+      );
+      for (const id of shardIds) batch.delete(db.collection("v2_attention").doc(id));
+      await batch.commit();
+    },
+  };
+}
+
 export const digestEngagementV2 = onSchedule(
   // Nightly, off the top-of-hour herd and clear of the other two ledger
   // readers (patterns 02:37, velocity 03:47). Cost at 5k DAU: one paged
@@ -398,19 +536,32 @@ export const digestEngagementV2 = onSchedule(
   // an input to scripts/cost-arith.mjs, not a figure to trust from here.
   { schedule: "23 2 * * *", region: FUNCTIONS_REGION, ...LIGHT_UNBOUNDED },
   async () => {
-    const res = await runEngagementDigest(firestoreEngagementStore(firestore()), Date.now());
+    const db = firestore();
+    const res = await runEngagementDigest(firestoreEngagementStore(db), Date.now());
+    // Rung 1's fold runs AFTER the digest so a fresh day doc exists for
+    // most shards to merge into (a late shard for an older day merges
+    // just as well — see runAttentionFold's header).
+    const attn = await runAttentionFold(firestoreAttentionStore(db));
+    if (attn.capped) {
+      logger.warn(
+        `[engagement] shard fold hit its cap (${SHARD_FOLD_CAP}) — leftovers fold tomorrow; sampling (src/v2/data/engagement.ts SHARD_SAMPLE_RATE) is the designed lever if this repeats`,
+        { metric: "engagement_shard_cap", shards: attn.shards },
+      );
+    }
     // The heartbeat — monitoring/digestEngagementV2-silent.json watches
     // for this line's ABSENCE (the fitPatternsV2 pattern): a scheduled
     // function that stops running reports nothing, so the alert is on
     // silence, and this log is the pulse it listens for.
     logger.info(
-      `[engagement] digest: ${res.days} day(s) folded through ${res.lastDay || "—"} — actives=${res.actives} votes=${res.votes}`,
+      `[engagement] digest: ${res.days} day(s) folded through ${res.lastDay || "—"} — actives=${res.actives} votes=${res.votes}; shards=${attn.shards} over ${attn.days} day(s)`,
       {
         metric: "engagement_digest",
         days: res.days,
         lastDay: res.lastDay,
         actives: res.actives,
         votes: res.votes,
+        shards: attn.shards,
+        shardDays: attn.days,
       },
     );
   },

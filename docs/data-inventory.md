@@ -50,7 +50,8 @@ Safety answers when store listing time comes.
 | Question suggestions | `v2_suggestions` | **the author, and only the author** | "Suggest a question" (docs/NEXT-FUNCTIONALITY.md §6): prompt, form, options, topic/audience/cadence hints, a credit opt-in, `status` (review / picked / declined) and a reviewer note. Written only by `suggestQuestionV2` (App Check, 3/day budget, declines place-scoped civic asks at the door — that subject is the paid research path); read by operators through `fetchSuggestionsV2`/`reviewSuggestionV2`. Promotion into the banks stays the human PR path (`--source community` provenance) — a picked suggestion becomes content carrying a vintage, never a byline. Rows erased by `deleteAccount` |
 | Aggregates (exact) | `v2_aggs_private` | nobody (server only) | the trigger's working state. Since D98 it holds **the same numbers as the public document** — there is no "below the floor" left for it to hold back. A cache, not a curtain; it survives because the trigger writes into it transactionally, and it has no readers and no secrets |
 | Aggregate event ledger | `v2_agg_events` | nobody (server only) | one entry per counted answer: qid, **uid**, timestamp. Dedup for the trigger, plus the attribution that lets a discovered fake-account ring be subtracted from the counts (D28), plus — **the third purpose, D251, recorded rather than drifted into** — the nightly engagement digest's activity source (anonymous population counts; the two rows below are its outputs). Duplicates facts the answer docs already hold — no new category. 90-day TTL; a uid's entries are erased with the account |
-| Engagement day docs (D251) | `v2_engagement_daily` | any signed-in user | one doc per UTC day, written only by the nightly `digestEngagementV2`: actives, first-time answerers, votes/events, answers by surface, signup-cohort returns (D1/D7/D30), broken streaks — **counts only, no uid, no name, no anchor anywhere in the document**, plus the fold's own `meta` cursor. Derived entirely from answers already stored; nothing new is collected. World-readable on purpose (the `v2_patterns` posture): it is what the scorecard's credential-free fetch and the pulse console read. Nothing here for `deleteAccount` to erase — anonymous tallies, like the aggregates above |
+| Engagement day docs (D251, attn D253) | `v2_engagement_daily` | any signed-in user | one doc per UTC day, written only by the nightly `digestEngagementV2`: actives, first-time answerers, votes/events, answers by surface, signup-cohort returns (D1/D7/D30), broken streaks — **counts only, no uid, no name, no anchor anywhere in the document**, plus the fold's own `meta` cursor. Since D253 it also carries `attn`: per-feature reach and midpoint estimates summed from the anonymous device shards below, which the fold deletes as it sums. World-readable on purpose (the `v2_patterns` posture): it is what the scorecard's credential-free fetch and the pulse console read. Nothing here for `deleteAccount` to erase — anonymous tallies, like the aggregates above |
+| Attention shards (D253) | `v2_attention/{randomId}` | **nobody** (`allow read: if false`; create-only, no update or client delete) | rung 1 of `docs/ENGAGEMENT-PLAN.md`: one doc per **sampled** device per FINISHED UTC day — bucketed counts of which features were used (the vocabulary pinned in `src/v2/data/engagement.ts` and mirrored in the rules' field whitelist), a build number, platform, the sampling rate. **No uid, no device id, a random document id per write** — two days from one phone are not joinable, and the rules refuse any extra field (asserted by test, including a uid). The `qids` map is rules-pinned EMPTY until D254 is adopted, so per-question collection is structurally off. Folded nightly into the day doc above and **deleted** (fold-and-delete asserted by test); the read deny exists because a readable shard pile would be the raw material of the funnel this channel promises not to be. Nothing here for `deleteAccount` to reach: nothing links a shard to an account, which is the design, not a gap |
 | Engagement bookkeeping (D251) | `v2_users/{uid}/engagement/_state` | **nobody** (`allow read, write: if false`) | the digest's per-account pair: first active day, last active day, distinct active days, current streak — the smallest state from which the day docs' cohort counts are computable without rescanning history. Written only by `digestEngagementV2` (admin SDK); not readable even by the owner (the push-tokens posture — a path with no read grant is not one edit from being readable). Erased with the account by phase 1b's recursive delete — no new arm, the patterns-state shape. Disclosed in `web/privacy.html` and pinned by `check:policy-claims` |
 | Rate-limit counters | `v2_ratelimits/{join_uid, invite_uid, suggest_uid}`, `insight_ratelimits/{uid}` | **nobody** (`read, write: if false`) | a sliding-window count and a stamp per throttled action — circle joins (the only invite-probe path), invitations sent (D122), and question suggestions submitted. Keyed by uid and therefore listed here, though they hold no content and no anchors: a number and a time. `deleteAccount` removes all four by exact id |
 | Auth identity | Firebase Auth | — | anonymous by default; Google via linking. Accounts that passed device activation carry a `db: 1` custom claim (D29) — one boolean, no device information |
@@ -60,14 +61,19 @@ Safety answers when store listing time comes.
 | Crash reports | Sentry (third party) | Sentry project members | **on, with no in-app switch** (D76, the panel toggle removed at D211; an opt-out recorded by an older build is still honoured at every send site); errors carry the **uid** (no email, no name, no session replay, `sendDefaultPii: false`) |
 
 **Not collected:** contacts, photos, free-text from strangers, advertising
-or analytics identifiers. **No product analytics are collected**: there is
-no analytics SDK and no client event stream — nothing about how anyone
-uses the app leaves the device. D251 did not change that sentence's
-subject, and the distinction is the store forms': what it added is
-**server-side derivation** — the nightly digest above folds answers
-already stored into anonymous daily counts. Collecting client usage data
-is `docs/ENGAGEMENT-PLAN.md` rungs 1–2, each behind its own unadopted
-record, and each would rewrite this paragraph in the same PR it ships in.
+or analytics identifiers, and any analytics SDK — the only third party is
+still Sentry, crash-scoped. **Product analytics, stated precisely (D251,
+then D253):** the server *derives* anonymous daily counts from answers
+already stored (the digest, D251), and since D253 the app also *collects*
+one **anonymous, bucketed feature tally per sampled device per day** — the
+attention shards above: which surfaces a device used, in coarse buckets,
+under a fresh random id, linkable to no account and not even to the same
+phone across two days. That is the whole of it. **No per-user usage data
+is collected** — no session log, no event stream, no funnel, nothing
+uid-keyed about behaviour (`docs/ENGAGEMENT-PLAN.md` rung 2 / R3 remains
+unadopted, and D252 records the ceiling above it) — and no per-question
+skip data (R4/D254, Proposed; the rules refuse the field). Whichever of
+those ever ships rewrites this paragraph in the same PR, as this one was.
 
 **Location — declare Coarse, and read why the old wording was wrong.**
 This paragraph used to open "the v2 app asks for no location: the manifest

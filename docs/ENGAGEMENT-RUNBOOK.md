@@ -154,117 +154,143 @@ Ships independently of any app build — nothing here touches `src/`.
 Gated on R2 (+R4 if the `qids` map ships — they can land together or
 R4 can wait; the shard shape carries an empty map either way).
 
-- [ ] **2.1 [owner] Adopt R2, and R4 with or after it** →
-      `DECISIONS.md`, `build:doc-index`. · **Gate:** `check:docs`. ·
+- [x] **2.1 [owner] Adopt R2, and R4 with or after it — R2 DONE
+      2026-08-23 as D253**: the owner's words were "start building phase
+      2", and this step is the gate that defines building phase 2 AS
+      adopting R2, so the record states that provenance plainly rather
+      than inferring silently. **R4 was not named and is D254,
+      Proposed** — the shard schema carries its field, the rules refuse
+      it non-empty, and 2.8 below stays open on it. D252 (R5) went
+      binding the same day, on "i adopt R5". · **Gate:** `check:docs`
+      (index regenerated, 254 records). · **Size:** S.
+
+- [x] **2.2 `src/v2/data/engagement.ts` — the tally store. DONE
+      2026-08-23.** Typed, no globals; the API settled smaller than
+      sketched — `note(key)` over a 30-key vocabulary (pinned by test
+      AND mirrored in the rules whitelist), `noteAnswer(surface)`,
+      `flushPast()` — with the day's sampling coin drawn at its first
+      note and an unsampled day tallying nothing at all. Buckets at
+      flush; exact tallies never leave the device. Persists
+      `insight.engagement.v1` with the D51 listener; 13 unit tests plus
+      the purge-wipe cycle case. · **Gate:** `test:unit`, `check:purge`
+      (28 listeners), `check:globals` (rule 4 at its baseline). ·
+      **Size:** M.
+
+- [x] **2.3 Arm it from `initLive`, inert everywhere else. DONE
+      2026-08-23.** Armed in `initLive` only; every note() is a no-op
+      unarmed, which is the whole test-flag-free inertness story. The
+      mount pin landed in `smoke-nav.test.jsx`: a full mount plus a tab
+      walk leaves no `insight.engagement.v1`. (The two data suites that
+      DO call `initLive` arm harmlessly — nothing flushes inside one
+      day.) · **Gate:** `test:unit` (smoke). · **Size:** S.
+
+- [x] **2.4 Wire the seams. DONE 2026-08-23**, with three placements
+      landing better than sketched once the code was open:
+
+      - `live.ts` — `vote`/`editVote` count on the server ACK, not the
+        tap, so the tally agrees with the server about what was
+        answered; a slow first paint (>4 s) counts off the boot promise.
+      - `app-shell.jsx` — NOT the nav registry (it carries cross-links,
+        not the tab bar's own taps): three one-line effects on the
+        shell's `tab`, `ov` and `mirrorPop` state cover every tab,
+        overlay and Mirror-stop view from any path, the ruler included —
+        which also dissolved the "find mirror-tab's setter" step, since
+        every stop change flows through `mirrorPop`. The `ErrorBoundary`
+        counts beside its Sentry report.
+      - `world-feed.jsx` — the EXISTING entrance IntersectionObserver
+        doubles as "seen" (first scroll into view — a deliberate,
+        recorded deviation from ATTENTION §3's ≥50 %/≥1 s: one observer,
+        one definition for every card; D253 carries it). Pass/defer
+        count at `setPass`/`setDefer`, outside the updaters.
+      - `MirrorLensTabs` — lens taps at the row itself, one point for
+        both callers. Reveal-viewed at `LdRevealBars`'s mount in
+        `LiveDuelPanel.tsx` (typed, tested — no spec duel module
+        touched). `push.ts` — the tap lands `notifOpen`.
+
+      · **Gate:** `check:globals` (coupling baseline unmoved;
+      spec-index untouched), `test:unit` across the six touched suites.
+      · **Size:** M.
+
+- [x] **2.5 Rules arm for the shards. DONE 2026-08-23**, with one
+      structural improvement over the sketch: the shards live FLAT
+      (`v2_attention/{shardId}`, day as a bounded FIELD with the pulse
+      parse idiom, −8 d/+2 d) — a collection-group query and its index
+      question disappear. `hasOnly` over seven fields plus the 30-key
+      `s` whitelist; **bucket VALUES deliberately unbounded here** —
+      rules cannot iterate a map, and the fold (the only reader) clamps
+      in one line, with the arm's comment saying so. No read for
+      anyone, no update, no client delete. The `qids` clause admits
+      only an EMPTY map until D254. Two rules tests, uid-refusal and
+      qids-refusal included → 132. · **Gate:** `test:rules`. ·
       **Size:** S.
 
-- [ ] **2.2 `src/v2/data/engagement.ts` — the tally store.** Typed,
-      no globals. API on the order of `bump(surface, key)`,
-      `bumpQid(qid, kind)`, `flushYesterday()`; UTC day rollover; the
-      sampling coin; buckets applied **at flush** (0, 1–2, 3–5, 6–10,
-      11+ — exact tallies never leave the device). Persists
-      `insight.engagement.v1`, registers the `insight:local-purge`
-      listener (D51) — `check:purge` fails a store that forgets, and
-      `purge-wipe.test.ts` gets a seed → purge → remutate case so the
-      wipe is real, not just the keys. Unit tests beside it
-      (`engagement.test.ts`): rollover, bucketing, purge, sampling
-      determinism under an injected coin. · **Gate:** `test:unit`,
-      `check:purge`, `check:globals` (rule 4 unmoved). · **Size:** M.
+- [x] **2.6 Flush transport. DONE 2026-08-23.** `flushPast()` hands
+      each finished sampled day to the SDK (`setDoc`, random UUID id)
+      and clears local state on hand-off — the offline queue owns
+      delivery, and re-writing on the next boot would double-count a
+      shard the queue already delivered. A refused write is one lost
+      anonymous day, priced and unlogged (wiring Sentry in would couple
+      every seam's import graph for a loss the design accepts). Tallies
+      older than the rules window are dropped, not sent to be refused.
+      · **Gate:** `test:unit` (injected writer). · **Size:** S.
 
-- [ ] **2.3 Arm it from `initLive`, inert everywhere else.** Nothing
-      tallies in jsdom: the mount suites are the only gate that
-      executes a render (the `statsTypo` lesson), so add a smoke case
-      asserting a full walk of both tabs writes nothing and tallies
-      nothing. · **Gate:** `test:unit` (smoke). · **Size:** S.
+- [x] **2.7 The shard fold. DONE 2026-08-23**, as `runAttentionFold` in
+      the same nightly run (one schedule, one heartbeat — the digest's
+      metric gains `shards`/`shardDays` fields, no monitoring change).
+      Late shards are the NORMAL case (a device flushes yesterday on
+      its next boot), so the fold sweeps whatever exists — capped at
+      `SHARD_FOLD_CAP` per night, cap logged, never silent — and
+      merges additively into ANY day's doc via `FieldValue.increment`
+      under set-merge. **Exactly-once is the batch**: each chunk's
+      delta and its deletes commit atomically, so a crash between
+      chunks re-folds survivors without double-counting (pinned by the
+      700-shard chunk test). Reach + midpoint estimates, scaled by the
+      shard's own rate; garbage clamped. No e2e callable — the
+      injected-store tests carry it, so `check:appcheck` stays
+      untouched. · **Gate:** `npm test --prefix functions` (8 fold
+      cases). · **Size:** M.
 
-- [ ] **2.4 Wire the seams.** Each is an import plus one call; grep
-      the named symbol before wiring — verify rather than assume:
+- [ ] **2.8 R4 lands in the scorecard. OPEN — gated on D254 (Proposed),
+      deliberately.** The owner's phase-2 instruction named neither R4
+      nor per-question collection, so the `qids` map ships rules-pinned
+      EMPTY and nothing per-question is collected. Adoption is small
+      and staged: widen the one rules clause to a size cap, let the
+      client populate the map from the pass/defer/seen signals it
+      already tallies locally, fold into the day docs' `qids` section,
+      then `question-scorecard.mjs` merges seen→answer conversion and
+      pass rate with the D33 warning printed beside them — the
+      denominator `SCALE-RUNBOOK.md` 3.4 (measure-and-retire) has been
+      missing. · **Gate:** `test:rules`, `test:scripts`. · **Size:** S.
 
-      - `live.ts` — `LIVE.vote` / `LIVE.editVote` (the pinned surface
-        in `vote.test.ts`): answer counts by surface, edit counts.
-        `hydrate()` duration → cold-start bucket.
-      - `app-shell.jsx` — the D248 nav registry (`registerNav({goTab,
-        openOverlay, openProfileTab, openCity, openPerson, …})`) is one
-        choke point for tab, overlay, city and person opens; the
-        `ErrorBoundary` here counts catches beside its Sentry report.
-      - `world-feed.jsx` — an IntersectionObserver for **seen** (≥50 %
-        visible ≥1 s, `ATTENTION.md` §3's definition), beside the
-        existing `WF_PASS_LS` pass/defer writes, which are the tap
-        points for pass/defer counts (R4).
-      - `MirrorLensTabs` — lens opens per stop. The stop-change seam
-        lives in `mirror-tab.jsx`'s stop state; find the setter by grep
-        at build.
-      - Reveal viewed — the reveal body's mount in the duel spec
-        modules; `subscribeReveals` in `live.ts` is *delivery*, not
-        viewing, so the hook goes at the render.
-      - `push.ts` — the `pushNotificationActionPerformed` listener:
-        notification opened.
+- [x] **2.9 Paperwork, same PR. DONE 2026-08-23.** Inventory row +
+      the "not collected" paragraph rewritten to the derive/collect/
+      per-user three-way; **Product Interaction → collected / NOT
+      linked** in both store files, moved together under
+      `check:store-forms` (11 collected types), with the unlinkability
+      reasoning written at filing depth and a tombstone in the JSON's
+      notCollected block; `web/privacy.html`'s tally paragraph + two
+      `CLAIMS` rows (unlinkable-across-days; deleted-after-the-fold) →
+      24 disclosures; `SCHEMA-V2.md` entries; the COSTS lever reads
+      `SHARD_SAMPLE_RATE` from source (server reads 27 → 28/user-day,
+      $255 → $257 at 50 k, $2,593 → $2,613 at 500 k, linear in the
+      rate). · **Gate:** all four green. · **Size:** S.
 
-      · **Gate:** `check:globals` (no new coupling; spec-index
-      untouched), `test:unit`. · **Size:** M.
-
-- [ ] **2.5 Rules arm for the shards.** `v2_attention/{day}/devices/
-      {shardId}`: create-only, signed-in; the **day segment** parsed
-      with the pulse idiom (`matches('[0-9]{4}-…')` +
-      `timestamp.date()` bounds, a ±few-day window for yesterday-flush
-      and clock skew); `hasOnly` field whitelist; `qids` map size
-      capped; bucket values bounded 0–4; no read, no update, no client
-      delete (the fold deletes on the admin SDK). Rules tests in both
-      directions, including every cap refusal. · **Gate:**
-      `test:rules`. · **Size:** S.
-
-- [ ] **2.6 Flush transport.** `flushYesterday()` writes the shard
-      through the ordinary SDK (`getDb()`), riding the offline queue —
-      a rollup written on a dead train arrives when the phone wakes,
-      no hand-rolled retry. Random doc id per write; `sampled` flag on
-      the doc. · **Gate:** `test:unit` with the mock firestore
-      (`bank-cache.test.ts` shows the mock's shape). · **Size:** S.
-
-- [ ] **2.7 `foldAttentionV2`** — second phase of the nightly file:
-      sum yesterday's shards into the day doc's `features` / `qids`
-      sections, **then delete the shards** (batched); the deletion is
-      asserted on the injected store, because an operator who keeps
-      the raw pile has built the funnel this rung promises not to be.
-      Truncated `qids` overflow is counted into `other`, reported, not
-      hidden. If an e2e leg is wanted, `revealDuelsNowV2` is the
-      precedent for a test-trigger callable — and then it takes the
-      `ENFORCE_APP_CHECK` constant and a `check:appcheck` entry like
-      every callable; otherwise the injected-store tests carry it. ·
-      **Gate:** `npm test --prefix functions`; `check:appcheck` only
-      if the callable exists. · **Size:** M.
-
-- [ ] **2.8 R4 lands in the scorecard.** `question-scorecard.mjs`
-      merges seen→answer conversion and pass rate per question from
-      the day docs; `scorecard-metrics` gains the columns and their
-      tests; the D33 warning prints beside them (a metric this simple
-      invites goodharting, and a dashboard doubles the invitation).
-      This is the denominator `SCALE-RUNBOOK.md` 3.4
-      (measure-and-retire) has been missing. · **Gate:**
-      `test:scripts`. · **Size:** S.
-
-- [ ] **2.9 Paperwork, same PR.** `data-inventory.md`'s "not
-      collected" paragraph rewritten to the R2 wording; **Product
-      Interaction → collected / not linked** in `docs/STORE-FORMS.md`
-      *and* `design/store/app-privacy.json` (they exist twice on
-      purpose; `check:store-forms` holds them equal); `web/privacy.html`
-      section + `CLAIMS` rows (tokens: *without your name or account*,
-      *no third-party analytics*, the sampling sentence);
-      `SCHEMA-V2.md`; COSTS lever updated. · **Gate:**
-      `check:store-forms`, `check:policy-claims`,
-      `check:data-inventory`, `check:public-copy`. · **Size:** S.
-
-- [ ] **2.10 Bundle + release.** `engagement.ts` is entry-side (it
-      hooks boot); `check:bundle` prices the eager delta — if
-      `MAX_EAGER_KB` must move, it moves with a note beside the
-      ceiling, the 955→966 pulse-card precedent, never silently. Ships
-      with a normal app release (`appBuild` etc. ride the release's
-      own `check:versions` discipline). · **Gate:** `check:bundle`,
+- [x] **2.10 Bundle + release — code side DONE 2026-08-23.**
+      `engagement.ts` is entry-side by necessity; the build and
+      `check:bundle` run in this change's gate sweep, and the release
+      itself rides the normal train (`appBuild` moves with the next
+      store build, not with this commit). · **Gate:** `check:bundle`,
       `npm run build`. · **Size:** S.
 
 - [ ] **2.11 Done when:** a device on a store build produces a shard,
-      the nightly fold publishes feature and question ratios with the
-      shards deleted behind it, and the scorecard prints a question's
-      seen→answer conversion next to its evenness.
+      and the nightly fold publishes feature reach with the shards
+      deleted behind it. **Code-complete 2026-08-23; open until the
+      next production deploy AND the next app release** — the fold
+      ships with the standing europe-west1 deploy, the shard writer
+      ships inside the next store build, and until both are out the
+      pulse panel's attention table simply is not there, which is the
+      correct reading. (Per-question ratios belong to 2.8/D254, not
+      here.)
 
 ## Phase 3 — rung 2: the person channel
 

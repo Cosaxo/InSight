@@ -153,6 +153,73 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Attention shards (R2/D253) — rung 1's anonymous device tallies:
+    // one create-only doc per device per FINISHED UTC day, under a random
+    // per-write id, holding bucketed feature counts and nothing else. The
+    // nightly fold sums shards into v2_engagement_daily and DELETES them.
+    //
+    // READABLE BY NOBODY, and that is the channel's own promise kept in
+    // rules: a readable shard pile is the raw material of the per-device
+    // funnel this rung exists not to be (ATTENTION.md §6's "an operator
+    // who keeps the raw shards has a funnel" — a READER of them is the
+    // same failure from the other side). Update and delete are refused
+    // too: the fold deletes on the admin SDK, and a client-editable shard
+    // would un-fix the create-only shape.
+    //
+    // The day is a FIELD with the pulse arm's parse-and-bound idiom: an
+    // 8-day back-window (yesterday-flush plus a dormant phone's slack —
+    // the client drops older tallies itself) and 2 days forward for
+    // clock skew. Bucket VALUES are deliberately not bounded here: rules
+    // cannot iterate a map, thirty enumerated clauses would be this
+    // file's most brittle block, and the fold — the only reader — clamps
+    // every value to the 0..4 bucket range in one line instead.
+    match /v2_attention/{shardId} {
+      allow read: if false;
+      allow update, delete: if false;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly([
+          "day", "build", "platform", "sampled", "rate", "s", "qids",
+        ])
+        && request.resource.data.day is string
+        && request.resource.data.day.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+        && timestamp.date(
+             int(request.resource.data.day[0:4]),
+             int(request.resource.data.day[5:7]),
+             int(request.resource.data.day[8:10]))
+           > request.time - duration.value(8, 'd')
+        && timestamp.date(
+             int(request.resource.data.day[0:4]),
+             int(request.resource.data.day[5:7]),
+             int(request.resource.data.day[8:10]))
+           < request.time + duration.value(2, 'd')
+        && request.resource.data.build is int
+        && request.resource.data.platform in ["ios", "android", "web"]
+        && request.resource.data.sampled == true
+        && request.resource.data.rate is number
+        && request.resource.data.rate > 0
+        && request.resource.data.rate <= 1
+        && request.resource.data.s is map
+        && request.resource.data.s.keys().hasOnly([
+          "opens", "slowBoots", "errors",
+          "tabDaily", "tabMirror", "overlays",
+          "stopYou", "stopNear", "stopCircle", "stopGroups", "stopCity",
+          "stopCountry", "stopWorld",
+          "lensPeople", "lensCompare", "lensExplore", "lensScores",
+          "feedSeen", "feedPass", "feedDefer",
+          "ansDaily", "ansFeed", "ansTest", "ansLearn", "ansPulse",
+          "ansCall", "ansDuel", "edits",
+          "revealSeen", "notifOpen",
+        ])
+        // The R4 arm, CLOSED: per-question tallies (the `qids` map) are
+        // D254's — Proposed, unadopted — so the field is refused with
+        // anything in it. Adopting R4 widens this one clause to a size
+        // cap; until then per-question collection is structurally off,
+        // not merely something the client politely omits.
+        && (!("qids" in request.resource.data)
+          || (request.resource.data.qids is map
+            && request.resource.data.qids.size() == 0));
+    }
+
     function isValidV2Anchors(anchors) {
       return anchors is map
         && anchors.keys().hasOnly([

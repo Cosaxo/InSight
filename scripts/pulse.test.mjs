@@ -783,3 +783,40 @@ describe("the engagement panel (R1/D251)", () => {
     expect(engagementFromDays(undefined)).toEqual({ days: 0 });
   });
 });
+
+describe("the attention section (R2/D253)", () => {
+  it("carries the newest attn block and keeps attn-only strays out of the digest counts", () => {
+    const withAttn = [
+      // late shards for a day the digest never folded: attention only, no
+      // `actives` — it must not read as a zero-actives digest day
+      { day: "2026-08-10", attn: { devices: 2, s: { feedSeen: { reach: 2, est: 8 } } } },
+      { day: "2026-08-20", actives: 10, firstTime: 10, votes: 30, events: 31,
+        bySurface: { daily: 10 },
+        returned: { d1: { returned: 0, of: null }, d7: { returned: 0, of: null }, d30: { returned: 0, of: null } },
+        streaksBroken: 0 },
+      { day: "2026-08-22", actives: 6, firstTime: 2, votes: 12, events: 12,
+        bySurface: { daily: 6 },
+        returned: { d1: { returned: 0, of: 0 }, d7: { returned: 3, of: 10 }, d30: { returned: 0, of: null } },
+        streaksBroken: 1,
+        attn: { devices: 5, s: { feedSeen: { reach: 5, est: 30 }, lensPeople: { reach: 1, est: 1.5 } } } },
+    ];
+    const e = engagementFromDays(withAttn);
+    expect(e.days).toBe(2); // the stray is not a digest day
+    expect(e.latest.day).toBe("2026-08-22");
+    expect(e.attn.day).toBe("2026-08-22");
+    expect(e.attn.devices).toBe(5);
+    expect(e.attn.features[0]).toEqual({ key: "feedSeen", reach: 5, est: 30 });
+    const html = renderPulse({ ...collect(), engagement: { present: true, fetchedOn: "2026-08-23", ...e } }, []);
+    expect(html).toContain("est. uses");
+    expect(html).toContain("feedSeen");
+    expect(html).toContain("bucketing cannot distort it");
+  });
+
+  it("an attn-only trail still renders the attention table under the no-digest banner logic", () => {
+    const e = engagementFromDays([
+      { day: "2026-08-10", attn: { devices: 2, s: { opens: { reach: 2, est: 3 } } } },
+    ]);
+    expect(e.days).toBe(0);
+    expect(e.attn.devices).toBe(2);
+  });
+});

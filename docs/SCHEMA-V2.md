@@ -295,9 +295,33 @@ v2_engagement_daily/{day}          the engagement digest's trail (R1/D251)
   streaksBroken, foldedAt          firstTime, null when that day was
                                    never folded (absent ≠ zero). Plus the
                                    fold's own `meta` cursor doc {lastDay}
+  attn {devices,                   D253: the shard fold's sums — per
+    s {key: {reach, est}}}         feature, devices that used it (reach)
+                                   and a bucket-midpoint estimate (est),
+                                   both scaled by the sampling rate.
+                                   Merged additively as late shards
+                                   arrive; a doc holding only attn (its
+                                   day predates the digest's catch-up)
+                                   has no `actives`, and readers treat
+                                   that as not-digested, never as zero
 read: signed-in · write: NOBODY — written once per night by
 digestEngagementV2 (admin SDK). Counts only; no uid, name or anchor
 anywhere in it, so deleteAccount has nothing to reach here.
+
+v2_attention/{randomId}            rung 1's anonymous device shards (D253)
+  day, build, platform,            one CREATE-ONLY doc per sampled device
+  sampled, rate,                   per FINISHED UTC day: bucketed feature
+  s {key: 0..4}                    counts (the vocabulary lives in
+                                   src/v2/data/engagement.ts and the
+                                   rules' field whitelist — the pair is
+                                   held equal by hand and by the rules
+                                   suite), plus build/platform/rate. The
+                                   `qids` map is rules-pinned EMPTY until
+                                   D254 (Proposed) opens it
+read: NOBODY · update/delete: NOBODY — the fold deletes on the admin SDK
+as it sums (fold-and-delete, asserted by test). A random id per write and
+no uid anywhere: two days from one phone are not joinable, which is the
+channel's whole contract (ENGAGEMENT-PLAN §4.1).
 
 v2_users/{uid}/engagement/_state   the digest's bookkeeping pair (D251)
   firstDay, lastDay,               when this account first and last
@@ -575,7 +599,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 130 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 132 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

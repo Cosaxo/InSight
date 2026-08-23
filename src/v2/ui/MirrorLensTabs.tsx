@@ -34,6 +34,14 @@ import React from "react";
 // Shape and labels next door, so this file exports only its component —
 // see lensTabs.ts for why that split is load-bearing and not cosmetic.
 import type { LensTab } from "./lensTabs";
+// R2/D253: the tap that opens a lens is exactly the cost gate D136 built
+// — a body exists only while its tab is open — so it is also the honest
+// count of "does anyone open People". A no-op until initLive arms it.
+import { note, type SKey } from "../data/engagement";
+
+const LENS_NOTE: Partial<Record<string, SKey>> = {
+  people: "lensPeople", compare: "lensCompare", explore: "lensExplore", scores: "lensScores",
+};
 
 function MirrorLensTabs({ tabs, open, onOpen }: {
   tabs: LensTab[];
@@ -76,7 +84,11 @@ function MirrorLensTabs({ tabs, open, onOpen }: {
         <button key={t.id} data-lens={t.id} role="tab" aria-selected={open === t.id}
           className={"mm-lensbtn" + (open === t.id ? " is-on" : "")}
           style={{ fontSize: fs, padding: "10px 3px" }}
-          onClick={() => onOpen(t.id)}>{t.label}</button>
+          onClick={() => {
+            const k = LENS_NOTE[t.id];
+            if (k) note(k); // Answers is the landing tab, not a tap worth counting
+            onOpen(t.id);
+          }}>{t.label}</button>
       ))}
     </div>
   );

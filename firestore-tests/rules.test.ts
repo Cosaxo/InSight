@@ -710,6 +710,39 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "2026-08-22"), { sessions: 1 }));
   });
 
+  // A valid rung-1 shard: yesterday's day, the pinned vocabulary, nothing
+  // identifying (R2/D253).
+  const shard = (over: Record<string, unknown> = {}) => ({
+    day: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
+    build: 24, platform: "web", sampled: true, rate: 1,
+    s: { opens: 1, feedSeen: 2 },
+    ...over,
+  });
+
+  it("an attention shard is create-only, day-bounded and vocabulary-pinned (R2/D253)", async () => {
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_attention", "shard-1"), shard()));
+    await assertFails(setDoc(doc(asSignedOut(), "v2_attention", "shard-2"), shard()));
+    // a uid on the question channel is the two-channel rule's exact breach
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-3"), shard({ uid: OWNER })));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-4"), shard({ day: "2026-01-01" })));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-5"), shard({ s: { opens: 1, notAKey: 1 } })));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-6"), shard({ sampled: false })));
+  });
+
+  it("shards are readable and editable by NOBODY, and the qids map stays shut until D254", async () => {
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_attention", "mine"), shard()));
+    // not even the writer: a readable pile is the funnel's raw material
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_attention", "mine")));
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_attention", "mine")));
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_attention", "mine"), { s: { opens: 4 } }));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_attention", "mine")));
+    // empty is tolerated (an older client may send the field bare)…
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_attention", "q0"), shard({ qids: {} })));
+    // …anything IN it is refused: per-question collection is structurally
+    // off until the owner adopts R4 (D254, Proposed).
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "q1"), shard({ qids: { "daily-000": { s: 1 } } })));
+  });
+
   it("the option bound, the kill switch and the surface claim all read off the question", async () => {
     await seedCall();
     await assertFails(setDoc(mine(), callAnswer({ optionIdx: 2 })));

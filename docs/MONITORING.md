@@ -175,7 +175,7 @@ consoles, which are not in this repo and never will be.
 
 | Refused | Record |
 | --- | --- |
-| Per-user funnels, session analytics, engagement scoring | data-inventory.md — "No product analytics are **collected**" (the sentence narrowed at D251: the server now *derives* anonymous daily counts from stored answers; collecting client usage data stays refused, narrowable only by ENGAGEMENT-PLAN.md R2/R3, neither adopted) |
+| Per-user funnels, session analytics, engagement scoring | data-inventory.md, narrowed twice and holding: D251 lets the server *derive* anonymous daily counts from stored answers; D253 lets devices send *anonymous, unlinkable* daily feature tallies. What the row still refuses is the per-USER half — anything uid-keyed about behaviour — which is ENGAGEMENT-PLAN.md R3, unadopted, with D252 recording the ceiling above it |
 | Retention or engagement sliced by anchor | D8 — the anchors exist; nothing suppresses them since D98 |
 | Anything sliced by political result | D8; GDPR Art. 9 |
 | Skip / pass / hesitation rates | QUESTION-FARM.md, "Deliberately out of scope" |

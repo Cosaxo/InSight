@@ -779,6 +779,15 @@ function panelEngagement(p) {
       <thead><tr><th>surface · ${esc(e.latest.day)}</th><th>votes</th></tr></thead>
       <tbody>${surfaces.map(([s, n]) => `<tr><td>${esc(s)}</td><td>${int(n)}</td></tr>`).join("")}</tbody>
     </table></div>` : ""}
+    ${e.attn ? `<div class="scroll"><table>
+      <thead><tr><th>feature · ${esc(e.attn.day)} · ~${int(Math.round(e.attn.devices))} device(s)</th><th>reach</th><th>est. uses</th></tr></thead>
+      <tbody>${e.attn.features.slice(0, 14).map((f) =>
+        `<tr><td>${esc(f.key)}</td><td>${int(Math.round(f.reach))}</td><td>${int(Math.round(f.est))}</td></tr>`).join("")}</tbody>
+    </table></div>
+    <p class="note">The feature rows are rung 1's anonymous device shards (R2/D253), folded
+      and deleted nightly: <b>reach</b> counts devices that used the feature at all —
+      bucketing cannot distort it — and <b>est.</b> sums bucket midpoints, scaled by the
+      sampling rate: an estimate, and labelled one.</p>` : ""}
     <p class="note">Read it against its moment, not in isolation: a new surface's share is
       inflated for as long as it is new — judge shares against neighbours over ≥ a month —
       and a rate whose cohort day predates the digest reads <em>unknown</em>, never 0%
