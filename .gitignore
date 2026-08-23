@@ -120,3 +120,12 @@ monitoring/pulse.html
 # carries public app names — a deliverable for the buyer, never repo
 # content.
 reports/
+
+# The overnight loop's working files (scripts/night-shift.sh). The task
+# list and the morning summary are per-night bookkeeping the unattended
+# fixer must never be able to sweep into a commit, and .night-shift/ holds
+# the night logs plus an optional machine-local env file that may carry an
+# API key — same reasoning as .env above.
+/NIGHT_TASKS.md
+/MORNING_SUMMARY.md
+/.night-shift/
