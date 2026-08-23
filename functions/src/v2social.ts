@@ -833,12 +833,24 @@ async function revealGroupDay(
       qid: freshQid ?? qid,
       votes: freshVotes,
       names,
-      // Membership AT REVEAL TIME — load-bearing, not informational. The
-      // reveal read rule gates on THIS array (firestore.rules, the
-      // /reveals/{day} match), which is what keeps the guarantee
-      // retroactive: a later joiner cannot read this day, and a member who
-      // leaves does not lose the days they played. Writing it in the same
-      // create() as the votes is what stops the two from drifting.
+      // Membership AT REVEAL TIME.
+      //
+      // THIS NO LONGER GATES THE READ, and the paragraph that used to
+      // stand here said it did — "the reveal read rule gates on THIS
+      // array… a later joiner cannot read this day". True when written;
+      // retired by D98, which made the match `allow read: if
+      // request.auth != null` on the reasoning that a reveal is world
+      // answers' younger sibling. Nothing updated the comment, so the
+      // strongest statement about who can read a reveal lived at the
+      // write site and was three months stale — the shape D71 already
+      // named: a comment that overstates a guarantee is how the
+      // guarantee outlives its reason.
+      //
+      // What the field IS for now: the record of who was in the circle
+      // for that day, which `deleteAccount` scrubs on erasure (pinned in
+      // rules.test.ts) and which is what the reveal's names are drawn
+      // against. Writing it in the same create() as the votes is what
+      // stops the two from drifting.
       //
       // It is the scan's membership, deliberately, not gsnap's fresher
       // one: these are the members whose answers were read, and a fresher
@@ -856,17 +868,19 @@ async function revealGroupDay(
       //
       // The filtered array can in principle come out empty — every member
       // who played day D has left, and everyone now in the group joined
-      // after it. The reveal still writes, readable by nobody, which is the
+      // after it. The reveal still writes, naming nobody, which is the
       // correct answer to "who was here for this day"; it also settles the
-      // day so the scan stops re-examining it.
+      // day so the scan stops re-examining it. (Before D98 that sentence
+      // ended "readable by nobody" — the empty array closed the read. It
+      // does not any more; the document is world-readable and simply
+      // credits no one.)
       //
-      // Never remove or rename this field without changing that rule in the
-      // opposite order to the way the pair shipped: the field had to go live
-      // BEFORE the rule started requiring it (a released ruleset applies
-      // instantly while gen2 functions roll out over minutes, so reveals
-      // written in that window would carry no `members` and be permanently
-      // unreadable by their own members). Dropping it means the rule stops
-      // depending on it FIRST.
+      // The deploy-ordering warning that stood here is spent with the
+      // rule it was about: `members` had to go live BEFORE the rule
+      // started requiring it, because a released ruleset applies
+      // instantly while gen2 functions roll out over minutes. No rule
+      // requires it now, so removing the field costs an erasure sweep and
+      // the reveal's names, not a window of unreadable documents.
       members: revealMembersFor(
         members,
         joinedAtMs(gsnap.get("memberJoinedAt")),

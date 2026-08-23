@@ -219,7 +219,8 @@ Plus the non-test gates: `check:globals`, `check:labels`, `check:quality`
 pre-D98 privacy vocabulary, in copy a user reads — D116),
 `check:data-inventory` (every collection the rules reach is named in
 `docs/data-inventory.md`, which the store privacy label derives from —
-D130), `check:versions`,
+D130, plus D243's reader column held to the two read rules a script may
+read literally), `check:versions`,
 `check:bundle`, `check:deploy-targets`, `check:fn-runtime`,
 `check:appcheck`, and the
 catalogue drift gates `check:cities`, `check:pokedex`, `check:catalogs` —

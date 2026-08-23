@@ -24717,3 +24717,86 @@ whole loop unchanged, which is the check that mattered here — an
 equality is exactly the kind of tightening that breaks a legitimate
 write, and every legitimate write in `live.ts` passes the question's own
 `surface` through.
+
+## D243 · The inventory's reader column, held to the two rules a script may read literally
+
+**2026-08-23.** **Status:** binding. Extends D130's gate, because D130's
+stated limit turned out to describe two live errors rather than an
+acceptable gap.
+
+### The two errors
+
+`docs/data-inventory.md` is what `design/store/app-privacy.json` derives
+from, and that file is the App Store privacy label. Two of its rows
+disagreed with `firestore.rules`, in opposite directions:
+
+- **Reveals** said `members`. The rule has been
+  `allow read: if request.auth != null` since D98, which retired the
+  member gate on the reasoning that *"withholding the materialized copy
+  while publishing the source would be a lock on a door with no wall."*
+  The row was three months stale, and so was the comment at the write
+  site (`v2social.ts`) and the schema line in `SCHEMA-V2.md`, both of
+  which still said the read rule gates on the `members` array.
+- **Sealed duel answers** said `any signed-in user`. The cross-user arm
+  admits `surface in ["daily","feed","test","learn","pulse","call"]`, and
+  a duel answer's surface is `group`/`duo` — so the document itself is
+  read by nobody but its author, and the public copy is the reveal.
+
+Each is the other's mirror, which is worth noting: this is not a bias
+toward over- or under-claiming. It is a column nothing was reading.
+
+There was also a **duplicate Pulse answers row** — D203's update wrote a
+new row instead of editing D166's, and the two disagreed about the
+cadence key (`insight.pulseCadence.v1` is the one in `pulse.ts`).
+
+### Why D130 declined this, and what changed
+
+D130's header is explicit: *"It does NOT read the row, verify who the row
+says may read it, or notice a row that has gone stale in place — a name is
+cheap to check and a claim is not."* That reasoning is correct. "Who may
+read this" is a general question about a rules expression, and D106 made
+the same call for prose about privacy and was right to.
+
+The answer is to check **less**, not to check loosely. Rule 2 interprets
+nothing: it classifies a read condition only when the WHOLE condition is
+one of two literal strings —
+
+```
+request.auth != null   → PUBLIC   (the row must say "any signed-in user")
+false                  → NOBODY   (the row must say "nobody" / "no one")
+```
+
+— and skips every collection whose read rules are anything else, or whose
+read rules do not all classify the same way. `answers`, `v2_groups`,
+`v2_takes`, `invites` and `v2_suggestions` are all skipped, deliberately:
+they are conditional per document, so no single sentence in a table is
+their answer anyway. That is a smaller claim than "the inventory is
+correct", and it is the whole claim.
+
+**27 rows are covered** on the tree this landed against, and `reveals` is
+one of them.
+
+### The attribution rule, which is the part that could go wrong
+
+A row is attributed to a collection by the **last known collection name in
+its first backticked path**, so `v2_users/{uid}/push/tokens` attributes to
+`push` rather than to the document id at the end of it, and
+`v2_users/{uid}/answers` attributes to `answers` rather than `v2_users`. A
+row beginning "same subcollection…" inherits from the row above, which is
+how the document is actually written. A row naming no known collection is
+skipped rather than guessed at — the device-local, auth and Sentry rows
+are not Firestore and have no rule to be held to.
+
+The collection-group form (`match /{path=**}/answers/{aid}`) is matched
+explicitly. Without it that block's read lands on whatever encloses it,
+and the enclosing collection inherits a classification it never wrote —
+which in this file would have mis-classified `foresight` as `answers`'
+conditional arm.
+
+### Measured rather than assumed
+
+Mutation-tested both ways: with the `Reveals` row restored to `members`
+the gate fails naming the row and the rule; with it corrected the gate
+passes and reports the covered count. The count is in the success line on
+purpose — a coverage number that silently falls to zero is the failure
+mode every gate in this repo that globs files has to answer for.
