@@ -23411,7 +23411,7 @@ reveal commits and only when there is something to announce.
    build (`samplePeople === false`, guarding D1's invented cast) while
    `whoIs` is reached from exactly one place — inside a circle you have
    already made. Wiring the app's own search to the registry is the next
-   piece and is not in this change.
+   piece and is not in this change. **Closed by D231.**
 
 ### What was measured rather than assumed
 
@@ -23422,4 +23422,101 @@ claiming a handle writes the profile, so anyone findable by handle is
 invitable — but it is the reason the case now claims two handles and
 resolves them through the registry, which is the path the picker
 actually takes.
+
+
+## D231 · Search finds people, by the address they gave you
+
+**2026-08-23.** **Status:** binding. Owner's call, "now wire the search
+to the registry so people can find friends" — closing the fourth limit
+D230 recorded.
+
+### The section was empty, and had been since the port
+
+`search-overlay.jsx` offers three kinds of answer: questions, topics,
+**people**. The third returned `[]` for the whole life of live mode —
+one line, `if (samplePeople === false) return []`, guarding D1: every
+persona behind it is invented down to the subtitles ("sister · since
+birth · 86% match"), and a real user reading an invented sister into
+their own search is exactly the fabrication that store predates.
+
+The guard was right. Its consequence was not: **a live build had no way
+to look a person up at all.** D122 built the registry that answers this
+and then reached it from exactly one place — `LdAddByHandle`, inside a
+circle you had already made — so the app could add somebody to a room
+and could not find anybody. The file's own comment had already noticed
+the shape of it: *"wiring the real graph in here would be a feature
+rather than the removal of a limitation."*
+
+This is that feature. It is also what makes the owner's model of D230
+true: people look their friends up, so the graph fills with friends.
+
+### Exact handle lookup, never a prefix query
+
+`v2_handles/{handle}` is keyed on the **document id**, and D122 chose
+that deliberately: uniqueness needs no index and no query, and the
+registry answers *"is @olaf someone"* and never *"who is everyone"*.
+Searching by prefix would need a query surface over that collection.
+That is a different exposure and would be a different decision — not a
+detail of this one — so it is not here. You find the friend whose handle
+you know, which is how an address gets handed out.
+
+The consequence is stated where it will be read: the empty state used to
+say "try a topic, **a name**, or a few words of a question", and in a
+live build that was the one false suggestion on the screen. It now says
+`a @handle` there.
+
+### What it costs
+
+- **One read per settled query.** A handle is valid several characters
+  before it is finished — "olafsen" is five valid handles on the way to
+  one — so the lookup is debounced, and a query that cannot be a handle
+  never reaches the registry at all. Both pinned.
+- **Follows are free or absent.** Names already in memory are filtered
+  locally, and nothing here calls `LIVE.loadCircle()` — that is the
+  per-member answer fan-out, one read per follow, and a search field is
+  not where to spend it. When the Mirror's Circle stop has paid for it
+  the list is there; when it has not, the registry is still the whole
+  feature. Pinned as a negative: the suite fails if the search box ever
+  triggers the fold.
+- **The name is a second read**, batched into the shared profile cache
+  every other person surface already reads from. Without it the row says
+  "Someone", which is worse than no row — it reads as an account with no
+  name rather than one not fetched yet.
+- **Nothing in the eager graph.** `search-overlay.jsx` has been behind
+  `loadOverlays()` since D223, and `live.ts` was already eager, so the
+  measured eager total did not move (832 KB); the section costs ~3 KB in
+  a chunk a tap reaches.
+
+### One predicate, two callers
+
+The overlay decides whether to print "nothing found" from its own lists,
+and in a live build its people list is always empty. So a handle that
+resolved would have printed *"Nothing for @ada"* directly above Ada.
+`ui/peopleSearch.ts` answers "will the people section draw anything"
+for both sides, so they cannot disagree — a valid handle counts before
+the lookup returns, because the section says something either way (the
+row, "Looking up @ada…", or "No account is @ada").
+
+Its own module for a second reason that agrees: a file exporting a
+component may export only components, or fast refresh stops working.
+
+### The row follows, and that is the fourth door
+
+Same one-tap follow the People lens, the similarity field and the Circle
+stop use, under D101's rule: a follow grants nothing D98 had not already
+granted, so there is no request and no pending state. Following yourself
+is not a state the store will enter, so your own row says **you** rather
+than offering a control that does nothing.
+
+### Measured rather than assumed
+
+A JSX comment placed inside `{nothing && ( … )}` made two children of a
+single-element expression — a syntax error that **`tsc -b` cannot see**,
+because the spec layer is `.jsx` and only `data/` and `ui/` are
+typechecked. It surfaced as eleven failures across seven unrelated test
+files (a profile-migration assertion among them), which is what a broken
+`spec-index` import looks like from the outside, and the gate that named
+it directly was **`check:a11y`** — "these files could not be parsed, so
+they were not checked". A file a gate cannot read is a file that gate is
+lying about, which is why it reports rather than skips.
 
