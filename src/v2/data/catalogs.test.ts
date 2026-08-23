@@ -169,9 +169,13 @@ describe("the shipped colours catalogue", () => {
 
   it("finds a colour, and the alias rule holds", () => {
     expect(COLORS.search(real, "rebecca")[0].key).toBe(0x66339a);
-    // aqua stands for cyan (alphabetically-first per hex) — cyan has no row
+    // alphabetically-first per hex: aqua stands for cyan, gray for grey —
+    // the losing alias of each pair has no row, in either family
     expect(COLORS.search(real, "aqua").length).toBeGreaterThan(0);
     expect(real.some((e) => e.name === "cyan")).toBe(false);
+    expect(real.some((e) => e.name === "gray")).toBe(true);
+    expect(real.some((e) => e.name === "grey")).toBe(false);
+    expect(new Set(real.map((e) => e.name)).size).toBe(real.length);
   });
 });
 
