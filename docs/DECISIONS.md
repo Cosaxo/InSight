@@ -23455,3 +23455,71 @@ of the offering either way. No new collection, no rules change, no
 store-form movement (nothing new is collected); `reports/` is
 gitignored; PAID-PLAN §2/§9.2 and ORIENTATION's row moved in this
 commit.
+
+## D232 · The never-grouped promise is removed, and the scope becomes a choice
+
+**2026-08-23.** **Status:** binding. Owner's call, on the paid-reports
+thread, over D231's note that the promise stood between the report and
+the mock's test-group cuts: *"yeah undo this we are trying to unwind as
+many promises as possible"* — the D225 posture applied to its next
+sentence, and recorded in the same shape.
+
+### What was promised, and where it stood
+
+`web/privacy.html`, the Big Five type-cut bullet, since D146 and
+restated through D202/D227: *"Your political, values and social results
+are never used to group answers this way."* Pinned by
+`check:policy-claims` ("D146 · politics/values/social results are NOT
+used to group answers"), cited as a promise by
+`docs/data-inventory.md`'s Core-test-results row and by
+`data/typeSplit.ts`'s own header, and the stated reason D231's report
+ships without the mock's politics/values/social accordions.
+
+### The decision
+
+**The pledge is removed outright; the behaviour is untouched.** The app
+today groups answers by exactly what it did yesterday — the Big Five
+type (D146) and the verified logic bands (D227) — and that scope is now
+the app's CURRENT CHOICE, described in the present tense with nothing
+promised about tomorrow. An unneeded promise is a standing liability
+(D225's words): it either gets broken later or warps a build to route
+around it, which is precisely what D231 §"what deliberately does not
+ship" was doing.
+
+### What remains true, and what holds each piece
+
+- **The behaviour cannot widen by accident.** `data/typeSplit.SPLIT_TEST`
+  stays the single explicit switch, passed at every call site and
+  pinned by its own test — a behaviour pin now, not a promise's
+  enforcement arm. Widening it is a product decision with a page edit
+  beside it, and nothing more.
+- **A test result is still never a breakdown dim** (D8): no server cell
+  is keyed by one, `BREAKDOWN_DIMS` is unchanged, and this record does
+  not touch that — it is structure, not pledge.
+- **Audience targeting is untouched.** Buyable cohorts stay the
+  published dims; the politics result stays out of the sponsor
+  vocabulary (D195/D228). Grouping public answers by a public result in
+  a report is arithmetic over what D98 already publishes; *selecting
+  who gets asked* by politics is a different machine, and it stays off.
+- **The report's test cuts stay unbuilt for one reason now, not two**:
+  the archetype matcher (`spec/archetype-data.js`) reads `window` at
+  module scope and cannot load under node. When its bridge migration
+  lands, building the cuts — all four instruments — is a build task
+  with a disclosure edit, not a reversal.
+- **The page still discloses what IS done** — the D146 grouped-by-type
+  sentence, the D227 logic-band sentence and the D202 count-of-people
+  pair keep their claims pins. What retired is the "never", not the
+  description.
+
+### The edits this record made
+
+`web/privacy.html`: the never sentence replaced by a present-tense
+scope ("Today the groupings drawn this way are…"), which D227's pin
+still holds. `scripts/check-policy-claims.mjs`: the D146 never-row
+deleted per the gate's own retirement rule, with the D202 comment block
+rewritten. `data/typeSplit.ts`: the header and `SPLIT_TEST` docstring
+recast from promise-enforcement to choice-pinning.
+`docs/data-inventory.md`: the Core-test-results row says choice, not
+promise. D231's three surfaces (`scripts/report-lib.mjs`'s header, the
+design extraction's README, PAID-PLAN §9.2's note) now name one blocker
+instead of two.

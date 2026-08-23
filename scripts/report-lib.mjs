@@ -28,14 +28,13 @@
 // product (D98). Three of the mock's cuts do NOT ship in v1, each for a
 // stated reason the decision record carries:
 //
-//   · Politics / Values / Social answer-grouping — web/privacy.html
-//     promises those results are "never used to group answers" (pinned
-//     by check:policy-claims since D183; scope restated at D202/D227).
-//     Widening that is the owner's recorded call, not a renderer's.
-//   · The Big Five type cut — allowed by that promise (D146), but the
-//     archetype matcher lives in spec/archetype-data.js, which reads
-//     `window` at module scope and cannot load under node. It joins
-//     when that module finishes its bridge migration.
+//   · The four instruments' type cuts, Big Five included — PERMITTED
+//     since D232 removed the never-group promise (the app's
+//     Big-Five-plus-logic scope is a product choice now, not a pledge),
+//     and still unbuilt for one technical reason: the archetype matcher
+//     lives in spec/archetype-data.js, which reads `window` at module
+//     scope and cannot load under node. They join when that module
+//     finishes its bridge migration.
 //   · District / field-of-study rows — no such data exists anywhere.
 //
 // What DOES cut: the census dims from the aggregate's `by` map (exact,

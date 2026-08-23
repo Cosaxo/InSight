@@ -14,13 +14,11 @@ rule (`design/README.md`).
 
 What the implementation deliberately did NOT carry, each with its record:
 
-- **Politics / Values / Social answer-grouping** (the mock's test-group
-  accordions): `web/privacy.html` promises those results are "never
-  used to group answers", pinned by `check:policy-claims` — widening
-  that is an owner decision, not a renderer's (D231 § what waits).
-- **The Big Five type cut**: allowed by that promise (D146), blocked
-  technically — `spec/archetype-data.js` reads `window` at module scope
-  and cannot load under node. Joins when its bridge migration lands.
+- **The four instruments' type cuts** (the mock's test-group
+  accordions): permitted since **D232** removed the never-group promise
+  on the owner's call, and still unbuilt for one technical reason —
+  `spec/archetype-data.js` reads `window` at module scope and cannot
+  load under node. They join when its bridge migration lands.
 - **District and field-of-study rows**: no such data exists anywhere.
 - **"N answers changed at least once"** (the mock's second-thoughts
   basis): the D226 matrix counts MOVES, not people, so the page says
