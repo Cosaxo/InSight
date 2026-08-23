@@ -106,6 +106,8 @@ export const CLAIMS = [
     /moves from one option to another/i],
   ["D227 · the verified logic score also groups answers, in broad bands",
     /verified logic score, in four broad\s+bands/i],
+  ["D231 · sold reports are packaged public numbers, never a private read",
+    /report never contains\s+anything a signed-in user could not read/i],
 ];
 
 /** Labels of every claim the given page source fails to state. */

@@ -23275,3 +23275,93 @@ it into `android/app/build.gradle` and `ios/App/App.xcodeproj`;
 `LAUNCH-RUNBOOK.md` 5.6's figure followed, because `check:figures` owns
 that number and went red until it did. `IOS-RELEASE.md` gains the
 build 22 and build 23 records.
+
+## D231 · The report builder ships, and reads as a signed-in user
+
+**2026-08-23.** **Status:** binding, built. Owner's call on the
+paid-reports thread — *"build the report builder then"* — adopting
+`PAID-PLAN.md` §2/§9.2's v1: a script run by hand per contract, sold by
+hand. The visual is the owner's own: the 2026-08-22 standalone's
+`paid-report.jsx`, uploaded on the same thread and extracted to
+`design/standalone-2026-08-22/` per that directory family's rule.
+Written on `claude/next-project-priorities-w43wut` as D230 and
+renumbered to D231 on merge — #259 minted D230 while this branch was
+open, the D218/D224/D229 collision pattern, now five for five.
+
+### What ships
+
+`scripts/build-report.mjs` (the operator CLI) over
+`scripts/report-lib.mjs` (the assembly and the renderer): one
+self-contained HTML page in the app's own tokens plus the CSV bundle
+(roll · edits · series), written to a gitignored `reports/` — the roll
+carries public app names, so a built report is a deliverable, never
+repo content. Contents per §2, each with its basis stated on the page:
+the exact split, the seven census dims from `agg.by` with the closed
+vocabularies' empty buckets listed at zero, Job folded from the roll's
+public vote-time snapshots (the server publishes no profession cells —
+D8 — but the snapshots are world-readable and the fold is the reader's
+own arithmetic, the D146 class), answers-over-time bucketed from the
+public `answeredAt` stamps, the D226 matrix as from→to rows with net
+chips, the D227 logic quarters, and top-5 similar questions by
+shared-voter correlation over a bounded recent sample (floor 12 shared
+— the exact-pair card's own silence threshold), against the patterns
+fit's corpus derived by predicate from the bank rather than copied.
+
+### The posture, which is the decision
+
+The builder signs in ANONYMOUSLY and reads through the client SDK, so
+`firestore.rules` itself referees every read — D225's surviving
+sentence ("no read path a signed-in user does not have") enforced by
+the platform, not promised by a script. On top, `REPORT_READ_SET`
+names the four readable surfaces the builder may touch
+(`v2_questions`, `v2_question_aggs`, `v2_users`, the `answers` group);
+the guard throws on anything else, `scripts/report.test.mjs` pins the
+refusal and greps the lib for undeclared collection literals, and the
+e2e's §7g drives a real build through the harness's signed-in client
+and asserts the stats stayed inside the list. §2's "a test holds its
+read set to that list" is those three layers.
+
+The rules pushed back once, and the finding is worth its lines: the
+neighbour join first read other users' answers by `documentId() in`,
+and the rules engine will not prove a field filter across a
+document-id disjunction — the whole query is refused (measured against
+the emulator, both databases; the shapes and verdicts rode this
+change's history). The fix is the schema's own gift: `qid` is pinned
+equal to the doc id, so the constraint rides the FIELD and evaluates
+like the collection-group read the rules were written for. Twins the
+node-side builder cannot import (voters.ts' surface list, logicSplit's
+bands, similarity's percentile parse — their chains touch window) are
+duplicated and pinned by test against their sources.
+
+### What deliberately does not ship, each with its reason
+
+- **Politics / Values / Social answer-grouping** (the mock's test
+  accordions): `web/privacy.html` promises those results are "never
+  used to group answers" — a claim `check:policy-claims` pins. Widening
+  it is the owner's own recorded call (the D202 shape), not a
+  renderer's default.
+- **The Big Five type cut** — allowed by that promise (D146), blocked
+  by `spec/archetype-data.js` reading `window` at module scope; joins
+  when its bridge migration lands.
+- **The mock's "N answers changed at least once"** — the matrix counts
+  MOVES, not people (D226), so the page says that instead; a sentence
+  the data cannot make does not ship because a design said it.
+- **`PaidMineCard`** ("Questions you asked") — §9.3's in-app surface,
+  now designed and still deliberately unbuilt.
+- **The scheduled cadence** — §2's monthly job is the productized form;
+  v1 is §9.2's hand-run script, so the COSTS.md line waits for the job
+  per §2's own sentence. A run costs the roll (one read per answer),
+  the distinct-voter profiles, and the join (per sampled voter, two
+  `in` queries per 30 candidates, billing answers found) — hundreds of
+  reads at launch scale, printed by the CLI per run.
+
+### The trail
+
+`web/privacy.html` says plainly that reports packaged from the public
+numbers are sold, pinned by a new `check:policy-claims` row — added
+with the capability rather than with the first contract, because the
+page lagging the product is the D116 failure and the sentence is true
+of the offering either way. No new collection, no rules change, no
+store-form movement (nothing new is collected); `reports/` is
+gitignored; PAID-PLAN §2/§9.2 and ORIENTATION's row moved in this
+commit.

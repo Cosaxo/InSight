@@ -4,8 +4,9 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, connectAuthEmulator, signInAnonymously } from "firebase/auth";
 import {
-  getFirestore, connectFirestoreEmulator, collection, query, where, orderBy,
-  limit, getDocs, doc, getDoc, setDoc, updateDoc, serverTimestamp,
+  getFirestore, connectFirestoreEmulator, collection, collectionGroup, query,
+  where, orderBy, limit, startAfter, documentId, getDocs, doc, getDoc, setDoc,
+  updateDoc, serverTimestamp,
 } from "firebase/firestore";
 import { getFunctions, connectFunctionsEmulator, httpsCallable } from "firebase/functions";
 // The ADMIN handle, and the only thing it is used for: reading back a
@@ -20,6 +21,13 @@ import { getFirestore as adminFirestore } from "firebase-admin/firestore";
 // output rather than repeated here (D201). `pretest:e2e` builds it, so
 // this harness cannot be pointed at a region the emulator is not on.
 import { FUNCTIONS_REGION } from "../functions/lib/ops.js";
+// The breakdown dims and their closed vocabularies, from the same
+// compiled output — the report builder takes them as input so it never
+// grows the second copy check:anchors exists to prevent.
+import { BREAKDOWN_DIMS, BREAKDOWN_DIM_VOCAB } from "../functions/lib/pure.js";
+// The report builder (PAID-PLAN §9.2): §7g drives it through THIS
+// harness's signed-in client, so the deployed rules referee every read.
+import { REPORT_READ_SET, buildReportData, makeReader, renderReportHtml } from "../scripts/report-lib.mjs";
 
 // The named database (D165). The backend writes to FIRESTORE_DB_ID, so a
 // harness on `(default)` reads an empty database and reports a phantom
@@ -384,6 +392,39 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
   if (JSON.stringify(twelve.edits) !== JSON.stringify({ "1": { "0": 1 } }))
     fail("the create's whole-doc rewrite dropped the edit-flow matrix: " + JSON.stringify(twelve.edits));
   ok("D226: edit-flow matrix carried through the next create's rewrite");
+}
+
+// 7g · the report builder reads as a signed-in user and stays inside its
+// declared set (PAID-PLAN §2/§9.2). The same guarded reader the operator
+// script runs, driven through this harness's own client: every read here
+// passes the deployed rules, and the reader's stats prove the build
+// touched nothing beyond REPORT_READ_SET — the unit suite pins the
+// refusal; this pins a real build. The numbers are 7e/7f's standing
+// state: 12 answers, 9/3 after the edit, one 1→0 move in the matrix.
+{
+  const reader = makeReader({
+    db, collection, collectionGroup, doc, getDoc, getDocs,
+    query, where, orderBy, limit, startAfter, documentId,
+  });
+  const report = await buildReportData(reader, {
+    qid: q0.id,
+    vocab: { dims: BREAKDOWN_DIMS, byDim: BREAKDOWN_DIM_VOCAB },
+  });
+  const [c0, c1, ...restCounts] = report.counts;
+  if (report.total !== 12 || c0 !== 9 || c1 !== 3 || restCounts.some((n) => n !== 0))
+    fail("report split disagrees with the agg: " + JSON.stringify({ total: report.total, counts: report.counts }));
+  if (report.roll.length !== 12)
+    fail("report roll walked " + report.roll.length + " of 12 answers");
+  if (JSON.stringify(report.edits.pairs) !== JSON.stringify([{ from: 1, to: 0, n: 1 }]))
+    fail("report edit pairs wrong: " + JSON.stringify(report.edits.pairs));
+  const seriesTotal = report.series.reduce((a, d) => a + d.t, 0);
+  if (seriesTotal !== 12) fail("report series drops answers: " + seriesTotal + " of 12");
+  const offList = Object.keys(reader.stats.reads).filter((c) => !REPORT_READ_SET.includes(c));
+  if (offList.length) fail("report read outside its declared set: " + offList.join(", "));
+  const html = renderReportHtml(report);
+  if (!html.includes("moves, not people"))
+    fail("report page lost the D226 semantics line");
+  ok("report builder: 12-row roll, 9/3 split, the 1→0 move, every read inside REPORT_READ_SET");
 }
 
 // 8 · the duel loop: create → join by code → sealed answers → reveal → streak
