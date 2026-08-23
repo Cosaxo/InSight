@@ -521,6 +521,58 @@ export function placeCivicHit(q) {
   return { places: [...new Set(hits)], cue: text.match(CIVIC)[0] };
 }
 
+// ── the tragedy tripwire (D235) ──
+//
+// The owner's rule, on reading the first current-events batch: these
+// questions should avoid tragedies — a terror attack being the named
+// example — because it is an easy way to get the app in trouble.
+//
+// WHY IT IS A RULE AND NOT TASTE. News skews to catastrophe, so a lane
+// whose whole job is "what is happening now" walks into one most weeks.
+// A vote card under a death toll is a body count with buttons: it asks a
+// crowd to take a side on somebody's worst day, and since D98 it then
+// PUBLISHES the exact split doing so. There is no version of that which
+// reads as anything but the app monetising a funeral, and no answer to a
+// journalist asking why it exists.
+//
+// TWO TIERS, because one word list would either miss the thing or fail
+// honest content. The plain list is unambiguous whatever surrounds it.
+// The second fires only on an EVENT word beside a CASUALTY word, which is
+// what separates "markets crashed 8% — panic or noise?" (an event word,
+// no toll, fine) from "the crash that killed 14" (both, and not ours to
+// ask). Measured over the whole 653-entry bank the day it was written:
+// zero entries fire, and the three that trip a single tier are exactly
+// the content the conjunction exists to spare — the Library of
+// Alexandria's earthquake, what a gladiator fight ended in, and the Book
+// of the Dead.
+//
+// LEARN IS CARVED OUT, the same way it is for the place tripwire above
+// and for a sharper reason than symmetry: a learn card has a RIGHT
+// ANSWER. "Who was assassinated in 44 BC?" is history with one correct
+// response; it does not ask anybody to take a side, which is the entire
+// thing this rule is about. Every other surface asks for a side.
+//
+// A TRIPWIRE, NOT THE RULE. The rule lives in QUESTION-FARM.md and cannot
+// be written as a word list, because the same prompt can be ordinary in a
+// quiet week and grotesque in the week of an attack — "is airport
+// security theatre?" being the clean example — and no gate can see the
+// week. What this catches is the unambiguous case; judging the rest is
+// the writing run's job and the audit's. Judged false positives go in
+// ALLOW under `tragedy`, with the reason, the neighbours pattern.
+const TRAGEDY_PLAIN = /\b(terror|terrorist|terrorism|massacres?|genocide|atroci\w+|war crimes?|mass shooting|suicide bomb\w*|beheading|lynching|manslaughter|murder(ed|s)?|assassinat\w+|hostages?|kidnapp\w+|abduct\w+|torture|rape|p?a?edophil\w+)\b/i;
+const TRAGEDY_EVENT = /\b(attacks?|bombing|shootings?|stabbing|strikes?|crash(ed|es)?|derail\w*|sinking|quake|earthquake|floods?|wildfires?|hurricane|famine|outbreak|siege|raid)\b/i;
+const TRAGEDY_TOLL = /\b(death toll|casualt\w+|fatalit\w+|killed|dead|died|deaths|victims?|wounded|injured|mourn\w+|funerals?|bodies|survivors?|missing)\b/i;
+
+export function tragedyHit(q) {
+  const text = textOf(q);
+  const plain = text.match(TRAGEDY_PLAIN);
+  if (plain) return { kind: "plain", cue: plain[0] };
+  const event = text.match(TRAGEDY_EVENT);
+  const toll = text.match(TRAGEDY_TOLL);
+  if (event && toll) return { kind: "casualty", cue: `${event[0]} … ${toll[0]}` };
+  return null;
+}
+
 // ── doors (docs/TAGS-PLAN.md) ──
 // `also` is reach, never placement: the Map, kicker and stream grouping stay
 // on `cat`; the filter, stock, search and demand rollup read cat ∪ also.
@@ -620,6 +672,19 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
   // metadata nothing reads, which is how fields rot into lore.
   if (q.also !== undefined && surface !== "feed" && surface !== "pick") {
     err("also", `\`also\` is feed/pick only (docs/TAGS-PLAN.md §1) — on ${surface} nothing reads doors${surface === "daily" ? ", and alternative placements are `alts`" : ""}`);
+  }
+
+  // Same carve-out as the place rule below, for the reason in the
+  // tripwire's own header: a learn card has a right answer, so it can name
+  // an atrocity as history without asking anyone to take a side.
+  const tragedy = surface === "learn" ? null : tragedyHit(q);
+  if (tragedy) {
+    err(
+      "tragedy",
+      `reads as a question about a tragedy ("${tragedy.cue}") — this app does not put suffering to a vote (D235), ` +
+        "and a published split on one is how it ends up in a story about itself. " +
+        'A human may record "<id>~tragedy" in ALLOW if judged clear.',
+    );
   }
 
   const place = surface === "learn" ? null : placeCivicHit(q);
