@@ -529,6 +529,10 @@ Drafted here, adopted only by the owner writing them into
 
 ## 10 · Order of work, and where to stop
 
+The step-by-step build list — phases per rung, sizes, and the gate that
+proves each step — is [`ENGAGEMENT-RUNBOOK.md`](ENGAGEMENT-RUNBOOK.md);
+this section is the order and the stopping argument only.
+
 1. **R1 / rung 0** — the digest fold, the pulse panel, the purpose
    record. Days of work, no collection, and it answers retention, DAU,
    activation, streak deaths, social loops and retention-lift. **Do this
