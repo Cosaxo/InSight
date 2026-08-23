@@ -25018,3 +25018,109 @@ across days, so "dormant then busy" is literally its shape on its own
 day, and excluding it needs the deck rather than the ledger. The dormant
 old feed question the test defends is the remainder, and it is the case
 worth keeping.
+
+## D247 · Three gates that did not hold, and the queue sweep that took someone else's evidence
+
+**2026-08-23.** **Status:** binding. This repo's safety model is that a
+gate exists for each class of silent failure. Three of them were the class
+they were written to catch.
+
+### 1 · `check:tap-targets` stopped reading at the first `>` — and that is almost never the tag's
+
+`const head = chunk.split(/>|\n\s*h\(/)[0]`. The `>` that ends a control's
+attributes is hardly ever the first one after `<button`: `onClick={() =>
+…}` puts one there, three attributes earlier. So every head was truncated
+at the arrow and a `width: 26` after it was invisible.
+
+Measured against a quote- and depth-aware scan on the same tree: the split
+found **0** undersized controls; the scan finds **17**.
+
+```
+compare-breakdown  7px page dots      relmap            34px close, 38px search,
+daily-split       22px day dots                          34px zoom pair, 18px remove
+group-daily       24px remove, 22px   search-overlay    26px "Close question", 18px clear
+profile-general   17px unfollow       world-feed        30px add-a-topic
+relmap-panels     30px close ×2       LiveDuelPanel     22px day dots ×2
+                                      PulseTrends       34px scope row
+```
+
+A gate written because *"check:a11y reported 8 findings and green while
+fourteen controls sat at 7-26px of real hit area — including the Close
+button on every bottom sheet in the app"* had the identical hole one layer
+down, and its EXEMPT map said *"none today — every small control in the
+tree carries .tap44"* while seventeen did not.
+
+**`check-touch-zoom.mjs` already carried the answer**, for the same
+problem, with the reason written out: *"a naive `/<input[^>]*>/` stops
+inside the first onChange."* The scan is now that one, generalised to
+hyperscript's balanced props object.
+
+All seventeen fixed rather than exempted. Five are dot rows and take
+`tap44 is-tight`, because the wide box would cover a neighbour and a
+near-miss would land on the wrong day — the case that variant exists for.
+The relmap zoom pair is the one that needed more than a class: `is-tight`
+narrows width and never height, so two 34px controls 6px apart still
+overlapped by 4px vertically. Their gap goes to 10 and the boxes meet
+instead.
+
+### 2 · `check:appcheck` accepted a commented-out gate
+
+Its exemption arm tests `\bassertOperator\s*\(` against the callable's raw
+source, so `// assertOperator(request);` answers yes. Probed on this tree:
+commenting out that one line in `seedContentV2` — the callable that
+rewrites the entire question bank — left the gate green, on
+`backend-checks.yml`, which `firebase-deploy.yml` calls.
+
+That is verbatim the failure the arm's own header describes: *"Removing
+assertOperator from seedContentV2 left every gate in the repo green."* It
+closed the hole for a **deleted** line and not for a **commented** one —
+and a comment is how that line actually goes away, when somebody runs the
+seed against a local emulator without an allowlisted uid and the comment
+survives the PR.
+
+Comments are blanked before the scan now, preserving every index and line
+number. A local copy of `spec-globals.mjs`'s `stripComments` rather than an
+import, deliberately: that module scans the whole client spec layer at
+import time, and a deploy gate must not be able to fail because
+`src/v2/spec` moved.
+
+### 3 · D243's own parser mis-attributed a nested match
+
+Two hours old and the same class. `match /v2_users/{` ends on the
+**wildcard segment's** `{`, not the block's, and the first version
+compensated with a manual `depth++` that balanced only while no match was
+nested inside another. With one nested, the parent's `allow read` was
+attributed to the CHILD — and since a name with two classifications is
+skipped, both dropped out of rule 2 silently.
+
+`firestore.rules` happens to write every parent's own read above its
+subcollections, so the tree was correct and the parser was not. Moving one
+read below one nested block would have cost `v2_users` and its last
+subcollection their coverage with nothing failing.
+
+Two answers, because the parser is not the only way rule 2 can go quiet:
+the whole match header is consumed now and the depth arithmetic left to
+the brace branches; and `READER_FLOOR` pins the covered count at 27, so a
+row leaving the checked set has to say so. `scripts/check-data-inventory.test.mjs`
+pins the parsers against nesting, the collection-group form, comments and
+the row-attribution rule — mutation-tested, like the other two.
+
+### 4 · `deleteOrphanedModQueue` deleted every queued avatar report
+
+Not a gate — the thing the gates are for. The sweep keys on the moderation
+target being **absent**, which is what lets it run without an author on the
+queue entry, and it asked `v2_takes/{takeId}` about every entry. Avatars
+share that queue (D178) under an `av_<uid>` id, and `v2_takes/av_<uid>` can
+never exist. So every queued face read as an orphan, and **any** account
+deleting itself swept them all.
+
+Accounts are free (D3) and the queue is rebuilt daily, so a flagged photo
+could be kept out of moderation indefinitely, once a day, by a throwaway.
+`moderation.ts`'s `avatarTarget` — whose docstring says it exists so *"the
+queue build, the verdict and any future consumer cannot disagree about what
+an avatar target looks like"* — is exported and used here. This was that
+future consumer, and it disagreed.
+
+`e2e-delete-account.mjs` gains the control the take case already had: a
+third party's queued face, which must survive an unrelated erasure with its
+flag count intact. It fails against the previous implementation.

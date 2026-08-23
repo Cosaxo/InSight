@@ -25,7 +25,7 @@ export function RMPersonPanel({ s, onSelect, onClose }) {
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '5px 11px 5px 9px', borderRadius: 100, background: s.tint, fontFamily: SANS, fontSize: 12, fontWeight: 600, color: s.color }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: s.color }}></span>{s.groupLabel}
             </span>
-            <button className="press" onClick={() => onClose()} style={{ border: 'none', background: P.chipBg, width: 30, height: 30, borderRadius: '50%', cursor: 'pointer', color: P.ink2, fontSize: 17, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+            <button className="press tap44" onClick={() => onClose()} style={{ border: 'none', background: P.chipBg, width: 30, height: 30, borderRadius: '50%', cursor: 'pointer', color: P.ink2, fontSize: 17, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 13, marginBottom: 16 }}>
             <div style={{ width: 48, height: 48, flex: 'none', borderRadius: '50%', background: s.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: P.initFill, fontFamily: SANS, fontSize: 18, fontWeight: 700 }}>{s.initials}</div>
@@ -105,7 +105,7 @@ export function RMHubPanel({ h, onSelect, onDrill, onClose }) {
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '5px 11px 5px 9px', borderRadius: 100, background: h.tint, fontFamily: SANS, fontSize: 12, fontWeight: 600, color: h.color }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: h.color }}></span>Circle average
             </span>
-            <button className="press" onClick={() => onClose()} style={{ border: 'none', background: P.chipBg, width: 30, height: 30, borderRadius: '50%', cursor: 'pointer', color: P.ink2, fontSize: 17, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+            <button className="press tap44" onClick={() => onClose()} style={{ border: 'none', background: P.chipBg, width: 30, height: 30, borderRadius: '50%', cursor: 'pointer', color: P.ink2, fontSize: 17, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 13, marginBottom: 18 }}>
             <div style={{ width: 48, height: 48, flex: 'none', borderRadius: '50%', background: h.color, display: 'flex', alignItems: 'center', justifyContent: 'center', color: P.initFill, fontFamily: SANS, fontSize: 18, fontWeight: 700 }}>{h.count}</div>

@@ -23,6 +23,7 @@ import { FieldValue } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { getStorage } from "firebase-admin/storage";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { avatarTarget } from "./moderation";
 import { logger } from "firebase-functions";
 // ./ops also sets the global runtime options — and must be imported
 // before any function is defined. See the note there. It stays a value
@@ -122,8 +123,23 @@ async function deleteOrphanedModQueue(): Promise<number> {
       orphans.push(q.ref);
       continue;
     }
-    const take = await db.collection("v2_takes").doc(takeId).get();
-    if (!take.exists) orphans.push(q.ref);
+    // AVATARS SHARE THIS QUEUE (D178), namespaced `av_<uid>` so they
+    // cannot collide with a take id — and `v2_takes/av_<uid>` never
+    // exists, so testing every entry against v2_takes read EVERY queued
+    // avatar report as an orphan. Any account deleting itself swept them
+    // all, and accounts are free (D3): a flagged photo could be kept out
+    // of the queue indefinitely, once a day, by a throwaway.
+    //
+    // Same absence-keyed design, asked of the right collection. The
+    // prefix is read through moderation.ts's own `avatarTarget`, which
+    // exists so "the queue build, the verdict and any future consumer
+    // cannot disagree about what an avatar target looks like" — this is
+    // that future consumer, and it disagreed.
+    const face = avatarTarget(takeId);
+    const target = face
+      ? await db.collection("v2_avatars").doc(face).get()
+      : await db.collection("v2_takes").doc(takeId).get();
+    if (!target.exists) orphans.push(q.ref);
   }
   if (!orphans.length) return 0;
   const batch = db.batch();

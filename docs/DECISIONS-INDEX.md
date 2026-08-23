@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 250 lines instead of
-25,021. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 251 lines instead of
+25,127. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -16,7 +16,7 @@ detect it.
 | --- | --- | --- | --- |
 | **D1** | [Comments and "who voted" are circle-scoped only](DECISIONS.md#d1--comments-and-who-voted-are-circle-scoped-only) | D237 (+37) | 14 |
 | **D2** | ["Near" means geohash5 (~5 km), reusing the existing geo system](DECISIONS.md#d2--near-means-geohash5-5-km-reusing-the-existing-geo-system) | D84 (+3) | 29 |
-| **D3** | [Anonymous-first auth with account linking](DECISIONS.md#d3--anonymous-first-auth-with-account-linking) | D236 (+18) | 97 |
+| **D3** | [Anonymous-first auth with account linking](DECISIONS.md#d3--anonymous-first-auth-with-account-linking) | D247 (+19) | 97 |
 | **D4** | [The v1 shelf, and the legacy boundary](DECISIONS.md#d4--the-v1-shelf-and-the-legacy-boundary) | D192 (+6) | 342 |
 | **D5** | [Sealed answers are owner-only; reveals are materialized server-side](DECISIONS.md#d5--sealed-answers-are-owner-only-reveals-are-materialized-server-side) | D224 (+18) | 393 |
 | **D6** | [Android backup off; iPhone-only; no custom crypto](DECISIONS.md#d6--android-backup-off-iphone-only-no-custom-crypto) | D192 (+3) | 296 |
@@ -195,7 +195,7 @@ detect it.
 | **D175** | [Near asks for a precise fix, so its radius can be honest](DECISIONS.md#d175--near-asks-for-a-precise-fix-so-its-radius-can-be-honest) | D202 (+6) | 17248 |
 | **D176** | [Near becomes a room, and the phone says what it is](DECISIONS.md#d176--near-becomes-a-room-and-the-phone-says-what-it-is) | D177 | 17338 |
 | **D177** | [Near becomes a room you can read, and asking requires standing in it](DECISIONS.md#d177--near-becomes-a-room-you-can-read-and-asking-requires-standing-in-it) | D202 (+4) | 17468 |
-| **D178** | [The app gets a face, and it is reported like anything else somebody says](DECISIONS.md#d178--the-app-gets-a-face-and-it-is-reported-like-anything-else-somebody-says) | D223 (+4) | 17616 |
+| **D178** | [The app gets a face, and it is reported like anything else somebody says](DECISIONS.md#d178--the-app-gets-a-face-and-it-is-reported-like-anything-else-somebody-says) | D247 (+5) | 17616 |
 | **D179** | [The rules deploy on merge and the app does not, so `until` is optional for one release](DECISIONS.md#d179--the-rules-deploy-on-merge-and-the-app-does-not-so-until-is-optional-for-one-release) | D234 (+4) | 17749 |
 | **D180** | [Build 18's pre-flight: the record was written and the number was not](DECISIONS.md#d180--build-18s-pre-flight-the-record-was-written-and-the-number-was-not) | D198 (+2) | 17837 |
 | **D181** | [Near's field drew the city it is not about](DECISIONS.md#d181--nears-field-drew-the-city-it-is-not-about) | D184 (+1) | 18067 |
@@ -260,7 +260,8 @@ detect it.
 | **D240** | [The link asks; the circle answers](DECISIONS.md#d240--the-link-asks-the-circle-answers) | D241 | 24458 |
 | **D241** | [Both doors at once: accepting an invitation clears the ask](DECISIONS.md#d241--both-doors-at-once-accepting-an-invitation-clears-the-ask) | — | 24566 |
 | **D242** | [The surface claim is an equality, and was the same test twice](DECISIONS.md#d242--the-surface-claim-is-an-equality-and-was-the-same-test-twice) | — | 24631 |
-| **D243** | [The inventory's reader column, held to the two rules a script may read literally](DECISIONS.md#d243--the-inventorys-reader-column-held-to-the-two-rules-a-script-may-read-literally) | — | 24721 |
+| **D243** | [The inventory's reader column, held to the two rules a script may read literally](DECISIONS.md#d243--the-inventorys-reader-column-held-to-the-two-rules-a-script-may-read-literally) | D247 | 24721 |
 | **D244** | [Two shipped surfaces the bank never fetched](DECISIONS.md#d244--two-shipped-surfaces-the-bank-never-fetched) | — | 24804 |
 | **D245** | [Two numbers that contradicted the picture beside them](DECISIONS.md#d245--two-numbers-that-contradicted-the-picture-beside-them) | — | 24878 |
 | **D246** | [The volume ceiling was budgeting a window the scan does not read](DECISIONS.md#d246--the-volume-ceiling-was-budgeting-a-window-the-scan-does-not-read) | — | 24933 |
+| **D247** | [Three gates that did not hold, and the queue sweep that took someone else's evidence](DECISIONS.md#d247--three-gates-that-did-not-hold-and-the-queue-sweep-that-took-someone-elses-evidence) | — | 25022 |

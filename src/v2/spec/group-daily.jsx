@@ -197,7 +197,7 @@ import ReactDOM from 'react-dom';
                   <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 13.5 }}>{m.name}</span>
                   <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--ink-3)' }}>{m.pending ? 'invited · waiting' : m.rel}</span>
                 </span>
-                <button onClick={() => DUELS.removeGroupMember(g.id, m.id)} aria-label={'Remove ' + m.name}
+                <button className="tap44" onClick={() => DUELS.removeGroupMember(g.id, m.id)} aria-label={'Remove ' + m.name}
                   style={{ flexShrink: 0, border: 'none', background: 'var(--surface-3)', color: 'var(--ink-2)', width: 24, height: 24, borderRadius: '50%', cursor: 'pointer', fontSize: 11, fontWeight: 800, WebkitAppearance: 'none' }}>{'\u2715'}</button>
               </div>
             ))}
@@ -310,7 +310,7 @@ import ReactDOM from 'react-dom';
           const done = i > 0 || DUELS.groupDone(g.id);
           const cur = i === day;
           return (
-            <button key={i} onClick={() => setDay(i)} title={days[i].prompt}
+            <button key={i} className="tap44 is-tight" onClick={() => setDay(i)} title={days[i].prompt}
               aria-label={days[i].label + ' — ' + (done ? 'answered' : 'not answered')}
               aria-current={cur ? 'true' : undefined}
               style={{ width: 22, height: 22, padding: 0, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitAppearance: 'none' }}>

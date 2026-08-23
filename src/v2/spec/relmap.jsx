@@ -726,7 +726,7 @@ let RelationshipMapExport;
 
           {/* close */}
           {this.props.onClose && (
-            <button onClick={(e) => { e.stopPropagation(); this.props.onClose(); }} title="Close"
+            <button className="tap44" onClick={(e) => { e.stopPropagation(); this.props.onClose(); }} title="Close"
               style={{ position: 'absolute', top: 16, right: 16, zIndex: 9, width: 34, height: 34, borderRadius: '50%', border: '1px solid ' + P.rule, background: P.card, boxShadow: P.shadow, cursor: 'pointer', color: P.ink2, fontSize: 15, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
           )}
 
@@ -770,7 +770,7 @@ let RelationshipMapExport;
                       style={{ border: 'none', cursor: 'pointer', fontFamily: SANS, fontSize: 11, fontWeight: 600, padding: '7px 2px', borderRadius: 9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', background: st.mode === k ? P.ink : 'transparent', color: st.mode === k ? P.canvas : P.ink3, transition: 'background 0.2s ease, color 0.2s ease' }}>{lab}</button>
                   ))}
                 </div>
-                <button onClick={(e) => { e.stopPropagation(); this.setState({ searchOpen: true }); }} aria-label="Search people"
+                <button className="tap44" onClick={(e) => { e.stopPropagation(); this.setState({ searchOpen: true }); }} aria-label="Search people"
                   style={{ flex: 'none', width: 38, borderRadius: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', ...pillBg }}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={P.ink2} strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
                 </button>
@@ -816,9 +816,9 @@ let RelationshipMapExport;
 
           {/* zoom buttons */}
           {!this.props.embedded && !v.selected && !v.selectedHub && (
-            <div style={{ position: 'absolute', right: 16, bottom: 216, display: 'flex', flexDirection: 'column', gap: 6, zIndex: 5 }}>
+            <div style={{ position: 'absolute', right: 16, bottom: 216, display: 'flex', flexDirection: 'column', gap: 10, zIndex: 5 }}>
               {[['+', 1.35], ['−', 1 / 1.35]].map(([lab, f]) => (
-                <button key={lab} onClick={(e) => { e.stopPropagation(); this.zoomStep(f); }} aria-label={lab === '+' ? 'Zoom in' : 'Zoom out'}
+                <button key={lab} className="tap44" onClick={(e) => { e.stopPropagation(); this.zoomStep(f); }} aria-label={lab === '+' ? 'Zoom in' : 'Zoom out'}
                   style={{ width: 34, height: 34, borderRadius: '50%', border: '1px solid ' + P.rule, cursor: 'pointer', fontSize: 17, lineHeight: 1, color: P.ink2, display: 'flex', alignItems: 'center', justifyContent: 'center', background: P.card, boxShadow: P.shadow }}>{lab}</button>
               ))}
             </div>
@@ -850,7 +850,7 @@ let RelationshipMapExport;
                   <span style={{ fontFamily: SANS, fontSize: 13.5, fontWeight: 500, color: P.ink2 }}>{gp.label}</span>
                 )}
                 {st.editing && gp.removable && st.groups.length > 1 && (
-                  <button onClick={(e) => { e.stopPropagation(); this.removeGroup(gp.key); }} title="Remove circle"
+                  <button className="tap44" onClick={(e) => { e.stopPropagation(); this.removeGroup(gp.key); }} title="Remove circle"
                     style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: P.faint, width: 18, height: 18, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, lineHeight: 1, padding: 0 }}>×</button>
                 )}
               </div>

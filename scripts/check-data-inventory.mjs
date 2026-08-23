@@ -70,7 +70,7 @@
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const RULES = join(ROOT, "firestore.rules");
@@ -133,7 +133,7 @@ for (const name of missing) {
 // condition is one of two literal forms. A rules expression is not
 // something a regex may interpret; these two are recognised the way a
 // string literal is, not parsed.
-function classifyReads(src) {
+export function classifyReads(src) {
   // Comments first: `// allow read: if false` inside a paragraph of
   // reasoning is prose, and this file has a great deal of both.
   const clean = src.split("\n").map((l) => l.replace(/\/\/.*$/, "")).join("\n");
@@ -156,9 +156,27 @@ function classifyReads(src) {
     const open = /^match\s+\/([A-Za-z0-9_]+)\/\{/.exec(rest)
       || /^match\s+\/\{[A-Za-z0-9_]+=\*\*\}\/([A-Za-z0-9_]+)\/\{/.exec(rest);
     if (open) {
+      // The two regexes above end on the `{` of a WILDCARD SEGMENT
+      // (`/{uid}`), not on the brace that opens the block — a path is
+      // `/v2_users/{uid} {`, so their match stops seventeen characters
+      // early. Advancing by their length therefore leaves the wildcard's
+      // closing `}` to be read as a block close, and the first version of
+      // this compensated with a manual `depth++` that balanced only while
+      // no match was nested inside another. With one nested, the parent's
+      // own `allow read` was attributed to the CHILD — silently, since a
+      // name with two classifications is skipped, so `v2_users` and its
+      // last subcollection would both have dropped out of rule 2 with
+      // nothing failing. Verified against a five-line fixture before and
+      // after.
+      //
+      // So: consume the whole header instead — every `/segment`, literal
+      // or wildcard, up to and including the block's own `{` — and leave
+      // the depth arithmetic entirely to the two brace branches above.
+      // `- 2` lands the next iteration ON that brace.
+      const header = /^match\s+(?:\/(?:[A-Za-z0-9_$]+|\{[A-Za-z0-9_]+(?:=\*\*)?\}))+\s*\{/.exec(rest);
+      if (!header) throw new Error(`check-data-inventory: unparsable match header at "${rest.slice(0, 60)}"`);
       stack.push({ name: open[1], depth: depth + 1 });
-      i += open[0].length - 2;
-      depth++;
+      i += header[0].length - 2;
       continue;
     }
     const allow = /^allow\s+([a-z,\s]*?):\s*if\s+/.exec(rest);
@@ -178,7 +196,7 @@ function classifyReads(src) {
 // A row's collection: the last KNOWN collection name in its first
 // backticked path, so `v2_users/{uid}/push/tokens` attributes to `push`
 // rather than to the document id at the end of it.
-function inventoryRows(md, known) {
+export function inventoryRows(md, known) {
   const out = [];
   let last = null;
   for (const line of md.split("\n")) {
@@ -198,8 +216,16 @@ function inventoryRows(md, known) {
   return out;
 }
 
-const SAYS_PUBLIC = /any signed-in user|anyone signed in/i;
-const SAYS_NOBODY = /\bnobody\b|\bno one\b/i;
+export const SAYS_PUBLIC = /any signed-in user|anyone signed in/i;
+export const SAYS_NOBODY = /\bnobody\b|\bno one\b/i;
+
+// A FLOOR, because rule 2's failure mode is silence: every way it can stop
+// working — a parser that mis-attributes, a `Where` cell that stops naming
+// its path, a read rule edited into a form this declines to read — takes
+// rows OUT of the checked set and leaves the gate green. The number can
+// rise freely; it may not fall without saying so. 27 is the tree this
+// landed against (D243).
+const READER_FLOOR = 27;
 const readClasses = classifyReads(rules);
 let readerChecked = 0;
 for (const row of inventoryRows(inventory, named)) {
@@ -223,7 +249,14 @@ for (const row of inventoryRows(inventory, named)) {
   );
 }
 
-if (problems.length) {
+// ── CLI ──
+// Guarded so a test can import the two parsers above without the report
+// running (and, on a failure, calling process.exit out from under vitest).
+// Same shape as check-public-copy.mjs.
+const invokedDirectly =
+  process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (invokedDirectly && problems.length) {
   console.error("check-data-inventory: FAILED\n");
   for (const p of problems) console.error(`  ${p}\n`);
   console.error(
@@ -234,8 +267,18 @@ if (problems.length) {
   process.exit(1);
 }
 
+if (readerChecked < READER_FLOOR) {
+  problems.push(
+    `rule 2 covered ${readerChecked} row(s), down from ${READER_FLOOR}.\n` +
+      `    A row leaves the checked set silently — a read rule edited into a form\n` +
+      `    this declines to read, a \`Where\` cell that stopped naming its path, or a\n` +
+      `    parser that mis-attributed it. Find which, then lower READER_FLOOR\n` +
+      `    deliberately if the loss is correct.`,
+  );
+}
+
 const covered = collections.length - Object.keys(EXEMPT).length;
-console.log(
+if (invokedDirectly) console.log(
   `check-data-inventory OK — ${covered} collection(s) named in docs/data-inventory.md, ` +
     `${Object.keys(EXEMPT).length} exempted with reasons; ` +
     `${readerChecked} row(s) held to an unambiguous read rule.`,

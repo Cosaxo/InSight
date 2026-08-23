@@ -948,7 +948,7 @@ class DailySplit extends React.Component {
           const q = DATA[i];
           const v = st.votes[q.id], cur = i === wIdx;
           return h('button', {
-            key: q.id, className: 'press', onClick: () => this.jumpTo(i), title: q.text,
+            key: q.id, className: 'press tap44 is-tight', onClick: () => this.jumpTo(i), title: q.text,
             'aria-label': (dayNames[i] || 'Earlier') + ' \u2014 ' + (v ? 'answered' : 'not answered'),
             'aria-current': cur ? 'true' : undefined,
             style: { width: 22, height: 22, padding: 0, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitAppearance: 'none' }

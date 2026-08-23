@@ -301,6 +301,18 @@ await adb.doc(`v2_flags/${THEIR_TAKE}_${uid}`).set({ takeId: THEIR_TAKE, gid: SH
 await adb.doc(`v2_mod_queue/${THEIR_TAKE}`).set({
   takeId: THEIR_TAKE, gid: SHARED, text: "someone else's words", flags: 3, escalations: 1,
 });
+// The second control, and it is a different SHAPE rather than a second
+// instance of the first. Avatars are moderated through this same queue
+// (D178) under an `av_<uid>` target id, and `v2_takes/av_<uid>` can never
+// exist — so a sweep that asks v2_takes about every entry reads every
+// queued face as an orphan and takes it, whoever is deleting. Accounts
+// are free (D3), so that is a flagged photo kept out of moderation
+// indefinitely by a throwaway, once a day, for as long as it is reported.
+const THEIR_FACE = `av_${OTHER}`;
+await adb.doc(`v2_avatars/${OTHER}`).set({ token: "tok0e2e0001", at: new Date(), hidden: false });
+await adb.doc(`v2_mod_queue/${THEIR_FACE}`).set({
+  takeId: THEIR_FACE, kind: "avatar", gid: null, text: null, flags: 3, escalations: 0,
+});
 
 // One client-authored write, so the test also covers the real path.
 //
@@ -471,6 +483,13 @@ if (theirQueued.get("text") !== "someone else's words") fail("someone else's que
 if (theirQueued.get("escalations") !== 1) fail("someone else's escalation count was lost");
 if (!(await exists(`v2_takes/${THEIR_TAKE}`))) fail("someone else's take was deleted");
 ok("someone else's take, its queue entry and its escalation count survive untouched");
+// …and the same for a queued FACE, which is the entry the sweep could not
+// find in v2_takes because it was never going to be there.
+const theirFace = await adb.doc(`v2_mod_queue/${THEIR_FACE}`).get();
+if (!theirFace.exists) fail("the sweep took a queued avatar report — av_ ids are not take ids");
+if (theirFace.get("flags") !== 3) fail("a queued avatar report's flag count was altered");
+if (!(await exists(`v2_avatars/${OTHER}`))) fail("someone else's profile photo was deleted");
+ok("a queued avatar report on someone else survives an unrelated erasure");
 if (!(await exists(`v2_suggestions/${OTHER}_e2e`)))
   fail("someone else's suggestion was deleted — the sweep matched more than the uid");
 ok("someone else's question suggestion survives");
