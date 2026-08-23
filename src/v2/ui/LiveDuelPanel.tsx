@@ -43,7 +43,12 @@ import { consumeJoinCode, inviteLinkFor } from "../data/links";
 // Handles and invitations (D122) — how a circle gains a member now. The
 // code survives inside the share link for people who have no account
 // yet; it is no longer something anyone types.
-import { atHandle, handleProblem, normalizeHandle } from "../data/handles";
+import { atHandle } from "../data/handles";
+// Finding a person is one query shared by every surface that adds one
+// (D239) — the create picker here, add-to-a-circle below, and the
+// search overlay's people section.
+import { usePeopleFinder } from "./peopleSearch";
+import PersonRow from "./PersonRow";
 import { inviteLine, type Invite } from "../data/invites";
 import { duoRuns, revealTally, type RevealDocLike } from "../data/duelRuns";
 import { DuelAv, GroupMark, YouChip } from "./duelMarks";
@@ -86,6 +91,13 @@ interface LiveGroup {
   streak?: number;
   memberUids?: string[];
   memberNames?: Record<string, string>;
+  // People who asked to join and are waiting on a member (D240). ON the
+  // group document, not in a subcollection: members already read this
+  // doc, and a subcollection would need a member-gated read rule whose
+  // only expression in Firestore is `get()` on the group — one billed
+  // read per request listed, which is the tripwire D122 backed out of.
+  pending?: string[];
+  pendingNames?: Record<string, string>;
 }
 interface RevealVote { optionIdx: number; guessIdx?: number; qid?: string }
 interface LiveReveal extends RevealDocLike {
@@ -112,14 +124,17 @@ function errText(e: unknown): string {
   return String((e instanceof Error && e.message) || e);
 }
 
-function LdInput({ value, onChange, placeholder, style }: {
+function LdInput({ value, onChange, placeholder, style, onEnter }: {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
   style?: React.CSSProperties;
+  /** Enter submits. A picker you have to reach for a button to use is not one. */
+  onEnter?: () => void;
 }) {
   return (
     <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder}
+      onKeyDown={onEnter ? (e) => { if (e.key === "Enter") { e.preventDefault(); onEnter(); } } : undefined}
       style={{ border: LD_LINE, borderRadius: 10, padding: "11px 13px", fontFamily: "var(--sans)",
         fontSize: "var(--field-size)", fontWeight: 600, color: "var(--ink)", background: "var(--surface-2)",
         outline: "none", minWidth: 0, width: "100%", boxSizing: "border-box", ...style }} />
@@ -172,13 +187,111 @@ function LdOption({ label, onClick, tint, lead, disabled }: {
   );
 }
 
+// ── who is coming (D236) ─────────────────────────────────────────
+//
+// A circle used to be created EMPTY and populated afterwards, and that is
+// the whole reason a first-run screen could offer nothing but a code: at
+// the one moment you knew who you wanted, the app had nowhere to put
+// them. So you made a room, then went looking for a way to tell people.
+//
+// Picking is also what sends the notification. Creating a circle notifies
+// nobody — a circle's name reaching people who were not invited is
+// precisely the read v2_groups' member gate exists to refuse.
+//
+// SEARCH IS THE SOURCE, not the follow graph. In live mode that graph
+// fills from likeness surfaces (Kindred, voter lists), so it is mostly
+// people you have never met — the wrong list to pick friends out of. A
+// handle is an address you already know, the way a phone number is.
+// Nothing here triggers `LIVE.loadCircle()`: that is one read per follow,
+// and paying it for a convenience on the create screen is the kind of
+// fan-out this panel is careful about everywhere else.
+// The name rides along with the uid because not everybody has a handle
+// — a chip for somebody found by name has nothing else to say.
+interface LdPick { uid: string; handle: string; name: string }
+
+function LdPicker({ picked, onChange, cap, busy: outerBusy }: {
+  picked: LdPick[];
+  onChange: (next: LdPick[]) => void;
+  cap: number;
+  busy?: boolean;
+}) {
+  const [q, setQ] = React.useState("");
+  const full = picked.length >= cap;
+  // Already picked are excluded from the results rather than shown and
+  // refused — a row you may not tap is a worse answer than no row.
+  const { rows, busy, empty } = usePeopleFinder(full ? "" : q, [
+    ...picked.map((p) => p.uid),
+    LIVE.uid || "",
+  ]);
+
+  const add = (uid: string, handle: string, name: string) => {
+    onChange([...picked, { uid, handle, name }]);
+    setQ("");
+  };
+
+  return (
+    <div style={col(8)}>
+      {picked.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {picked.map((p) => (
+            <button key={p.uid} className="press"
+              aria-label={`Remove ${p.handle ? atHandle(p.handle) : p.name || "them"}`}
+              onClick={() => onChange(picked.filter((x) => x.uid !== p.uid))}
+              style={{ display: "inline-flex", alignItems: "center", gap: 6, border: LD_LINE,
+                borderRadius: 999, background: "var(--surface-2)", padding: "6px 10px 6px 12px",
+                cursor: "pointer", fontFamily: p.handle ? "var(--mono, monospace)" : "var(--sans)",
+                fontSize: 12.5, fontWeight: 700, color: "var(--ink)", WebkitAppearance: "none" }}>
+              {p.handle ? atHandle(p.handle) : (p.name || "Someone")}
+              <span aria-hidden="true" style={{ fontSize: 14, color: "var(--ink-3)" }}>&times;</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {/* The field goes away at the cap rather than failing on submit —
+          for a 1v1 the cap is one, and an open field there would invite
+          a second person into a room with one seat. */}
+      {!full && (
+        <>
+          {/* NOT "Name or @handle", which is LdAddByHandle's. Both can be
+              on screen at once — the rail ends with this card while every
+              circle above it carries that one — and two identically
+              labelled fields that add to different circles is the kind of
+              ambiguity a person only discovers by inviting the wrong
+              person to the wrong room.
+
+              Both take a name or a handle since D239. This one says whose
+              circle it is instead of what it accepts, because a row
+              appears the moment you type either. */}
+          <LdInput value={q} onChange={setQ} placeholder="Who's coming?" />
+          {rows.map((r) => (
+            <PersonRow key={r.uid} uid={r.uid} name={r.name} handle={r.handle || undefined}
+              disabled={outerBusy}
+              onClick={() => add(r.uid, r.handle, r.name)} />
+          ))}
+          {busy && !rows.length && (
+            <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>Looking…</div>
+          )}
+          {/* Deliberately does not distinguish "no such name" from "no
+              such handle": to somebody looking a person up those are one
+              answer, and saying which would report on what the directory
+              holds rather than on who was found. */}
+          {empty && !busy && (
+            <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>
+              Nobody found for “{empty}”.
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── first-run: create or join ────────────────────────────────────
 function LdOnboard({ mode }: { mode?: string }) {
   const [name, setName] = React.useState("");
   // A tapped invite link lands here: the stashed code prefills the join
   // field (consume = one prefill, not a haunting).
-  const [code, setCode] = React.useState(() => consumeJoinCode() || "");
-  const [codeOpen, setCodeOpen] = React.useState(false);
+  const [picked, setPicked] = React.useState<LdPick[]>([]);
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
   const duo = mode === "duo";
@@ -198,6 +311,25 @@ function LdOnboard({ mode }: { mode?: string }) {
   const known = ldName().trim();
   const [typedMe, setTypedMe] = React.useState("");
   const me = known || typedMe.trim();
+  // Create, then invite the people already picked — one act on this
+  // screen, two calls under it.
+  //
+  // BEST-EFFORT on the second, and the order is the reason: by the time it
+  // runs the circle EXISTS, so a failed invitation must not surface as a
+  // failed creation and send somebody back to a screen whose circle was in
+  // fact made. It reports for itself instead of throwing into `go`'s catch.
+  const create = async () => {
+    const out = await S.createGroup(name.trim(), duo ? "duo" : "group", me || undefined);
+    const gid = (out as { gid?: string } | undefined)?.gid;
+    if (!gid || !picked.length) return out;
+    try {
+      await S.inviteToGroup(gid, picked.map((p) => p.uid));
+    } catch (e) {
+      setErr(`Circle made — the invitations did not send. ${errText(e).replace(/^.*?: */, "")}`);
+    }
+    return out;
+  };
+
   const go = async (fn: () => Promise<unknown>) => {
     setBusy(true); setErr(null);
     // Only the fallback writes: with a known name there is nothing new to
@@ -224,40 +356,75 @@ function LdOnboard({ mode }: { mode?: string }) {
             the profile when the client sends nothing, and sending an empty
             string would overwrite a name the profile already has. */}
         <LdBtn primary disabled={busy || !name.trim() || !me}
-          onClick={() => void go(() => S.createGroup(name.trim(), mode === "duo" ? "duo" : "group", me || undefined))}>Create</LdBtn>
+          onClick={() => void go(create)}>Create</LdBtn>
       </div>
-      {/* THE CODE STOPS BEING THE SECOND HALF OF THIS SCREEN (D122).
-          It used to sit here under an "OR JOIN WITH A CODE" rule, as a
-          peer of Create — which made an eight-character string the thing
-          a new user was asked for before they had anyone to swap it
-          with. Once a circle exists its members are added by handle, and
-          a person with no account gets a link (the code rides inside it,
-          where nobody reads it).
+      {/* WHO IS COMING (D236) — the half of this screen that used to be a
+          code field. Optional: a circle with nobody in it yet is still a
+          legitimate thing to make, and the link is how you reach somebody
+          who has no account to hold a handle. */}
+      <LdPicker picked={picked} onChange={setPicked} cap={duo ? 1 : 31} busy={busy} />
+      {/* NO CODE FIELD (D238). D122 demoted it to a fallback behind "Have
+          an invite code?" and this is the rest of that move: a tapped
+          invite link now lands as LdJoinPending, one button at the top of
+          the panel, so nothing is ever read off a screen and typed into
+          another one.
 
-          It is not deleted: a tapped invite link prefills this field, and
-          somebody who was handed a code out of band still has to be able
-          to type it. So it becomes what it actually is — the fallback —
-          and prefilled state opens it, because a code that arrived by
-          link should not be hidden behind a disclosure. */}
-      {codeOpen || code ? (
-        <>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--ink-3)", fontSize: 11, fontWeight: 700, letterSpacing: "0.08em" }}>
-            <span style={{ flex: 1, height: 1, background: "var(--rule)" }} />OR JOIN WITH A CODE<span style={{ flex: 1, height: 1, background: "var(--rule)" }} />
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <LdInput value={code} onChange={(v) => setCode(v.toUpperCase())} placeholder="Invite code" style={{ fontFamily: "var(--mono, monospace)", letterSpacing: "0.12em" }} />
-            <LdBtn primary disabled={busy || code.trim().length < 6 || !me}
-              onClick={() => void go(() => S.joinGroup(code.trim(), me || undefined))}>Join</LdBtn>
-          </div>
-        </>
-      ) : (
-        <button className="press" onClick={() => setCodeOpen(true)} style={{
-          alignSelf: "center", border: "none", background: "none", padding: "2px 8px",
-          cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600,
-          color: "var(--ink-3)", WebkitAppearance: "none",
-        }}>Have an invite code?</button>
-      )}
+          What that gives up, stated: somebody handed a code out of band —
+          read aloud, written down — has no way to enter it. That is the
+          point rather than the cost. A code was a bearer token with no
+          expiry and no rotation that admitted its holder with nobody's
+          consent, sitting next to an invitation flow that exists because
+          joining a circle puts your name on an answer these people will
+          read. Two doors, two rules; this closes the one nobody agreed
+          to. */}
       {err && <div style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{err.replace(/^.*?: */, "")}</div>}
+    </div>
+  );
+}
+
+// ── people waiting on this circle (D240) ─────────────────────────
+//
+// The circle's half of the consent. A tapped link used to admit its
+// holder outright; now it puts them here, and a member decides.
+//
+// Drawn from the GROUP DOCUMENT, which is already live-subscribed
+// (hydrateSocial's onSnapshot), so an approval lands on every member's
+// screen with no refresh and no extra read.
+//
+// Declining tells them nothing, on D122's reasoning about declining an
+// invitation: a "declined" state makes refusing somebody a message you
+// have to send them, which is what makes people approve requests they do
+// not want. The row simply stops being there.
+function LdPendingRequests({ g }: { g: LiveGroup }) {
+  const [busy, setBusy] = React.useState<string | null>(null);
+  const [err, setErr] = React.useState<string | null>(null);
+  const pending = g.pending || [];
+  const names = g.pendingNames || {};
+  if (!pending.length) return null;
+
+  const act = async (uid: string, ok: boolean) => {
+    setBusy(uid); setErr(null);
+    try {
+      if (ok) await LIVE.social.approveJoin(g.id, uid);
+      else await LIVE.social.declineJoin(g.id, uid);
+    } catch (e) { setErr(errText(e).replace(/^.*?: */, "")); }
+    setBusy(null);
+  };
+
+  return (
+    <div style={col(9)}>
+      <span className="kicker" style={{ marginBottom: 0 }}>
+        {pending.length === 1 ? "Wants to join" : `${pending.length} want to join`}
+      </span>
+      {pending.map((uid) => (
+        <PersonRow key={uid} uid={uid} name={names[uid] || ""}>
+          <span style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+            <LdBtn small disabled={busy === uid} onClick={() => void act(uid, false)}>No</LdBtn>
+            <LdBtn small primary disabled={busy === uid} onClick={() => void act(uid, true)}>Let in</LdBtn>
+          </span>
+        </PersonRow>
+      ))}
+      {err && <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{err}</div>}
     </div>
   );
 }
@@ -272,61 +439,79 @@ function LdOnboard({ mode }: { mode?: string }) {
 // joining a circle puts your name on a sealed answer that gets revealed
 // to those people, and that IS access they did not otherwise have.
 function LdAddByHandle({ g }: { g: LiveGroup }) {
-  const [h, setH] = React.useState("");
-  const [busy, setBusy] = React.useState(false);
+  const [q, setQ] = React.useState("");
+  const [busySend, setBusySend] = React.useState(false);
   const [msg, setMsg] = React.useState<string | null>(null);
   const [ok, setOk] = React.useState(false);
-  const canonical = normalizeHandle(h);
+  // The circle's own members are excluded, so the list never offers
+  // somebody the callable would refuse with "already a member".
+  const { rows, busy, empty } = usePeopleFinder(q, [
+    ...(g.memberUids || []),
+    LIVE.uid || "",
+  ]);
 
-  const send = async () => {
-    if (!canonical) return;
-    setBusy(true); setMsg(null); setOk(false);
+  const send = async (uid: string, name: string, handle: string) => {
+    setBusySend(true); setMsg(null); setOk(false);
     try {
-      const uid = await LIVE.social.whoIs(canonical);
-      // "Nobody has that handle" is the failure this flow has that a code
-      // did not, so it gets a sentence rather than a raw error — and it
-      // deliberately does NOT say whether the handle is malformed or
-      // merely unclaimed, because to someone looking a person up those
-      // are the same answer.
-      if (!uid) { setMsg(`No account is ${atHandle(canonical)}.`); setBusy(false); return; }
       await LIVE.social.inviteToGroup(g.id, uid);
-      setH("");
+      setQ("");
       setOk(true);
-      setMsg(`Invited ${atHandle(canonical)} — they will see it next time they open InSight.`);
+      const who = handle ? atHandle(handle) : (name || "them");
+      // NOT "they will see it next time they open InSight", which is
+      // what this said and what D236 falsified — an invitation notifies
+      // now. It does not promise the notification either: an account
+      // that has never created, joined or accepted has no push token yet
+      // (D236 limit 1), so the message keeps the half that is always
+      // true — it is sent, and it is theirs to accept.
+      setMsg(`Invited ${who} — waiting on them.`);
     } catch (e) {
       const raw = errText(e);
       setMsg(/already-exists/i.test(raw)
-        ? `${atHandle(canonical)} is already here.`
+        ? "They are already here."
         : raw.replace(/^.*?: */, ""));
     }
-    setBusy(false);
+    setBusySend(false);
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
-      <span className="kicker" style={{ marginBottom: 0 }}>Add someone</span>
-      <div style={{ display: "flex", gap: 8 }}>
-        <LdInput value={h} onChange={setH} placeholder="@their-handle"
-          style={{ fontFamily: "var(--mono, monospace)" }} />
-        <LdBtn primary disabled={busy || !canonical} onClick={() => void send()}>
-          {busy ? "…" : "Invite"}
-        </LdBtn>
-      </div>
-      {(handleProblem(h) || msg) && (
+    <div style={col(8)}>
+      {/* NAME OR HANDLE (D239), the same field the create picker uses and
+          for the same reason: the two screens add people, and needing to
+          remember which one takes a name is the kind of difference a
+          person discovers by failing. */}
+      <LdInput value={q} onChange={setQ} placeholder="Name or @handle" />
+      {rows.map((r) => (
+        <PersonRow key={r.uid} uid={r.uid} name={r.name} handle={r.handle || undefined}
+          disabled={busySend}
+          onClick={() => void send(r.uid, r.name, r.handle)} />
+      ))}
+      {busy && !rows.length && (
+        <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>Looking…</div>
+      )}
+      {empty && !busy && !msg && (
+        <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>
+          Nobody found for “{empty}”.
+        </div>
+      )}
+      {msg && (
         <div role="status" style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.4,
-          color: ok ? "var(--ink-2)" : handleProblem(h) ? "var(--ink-3)" : "oklch(0.5 0.19 25)" }}>
-          {handleProblem(h) || msg}
+          color: ok ? "var(--ink-2)" : "oklch(0.5 0.19 25)" }}>
+          {msg}
         </div>
       )}
     </div>
   );
 }
 
-// The other way in — the one that reaches somebody with no account yet.
-// The LINK, not the bare code: pasteable anywhere, and it lands on the
-// hosted /join page (or straight in the app once app-links verify). The
-// code is still the button's face, because that is what a person who was
-// handed one out of band will be looking for.
+// The other way in — the one that reaches somebody with no account yet,
+// who therefore has no handle to be picked by.
+//
+// IT SAYS WHAT IT DOES (D238). The button's face used to be the eight
+// characters themselves, on the reasoning that a person handed a code
+// would be looking for one. That reasoning died with the field that
+// received them: it copies a LINK, it has always copied a link, and
+// showing a code was the last place in the app that taught people this
+// was a code product.
 function LdCopyLink({ g }: { g: LiveGroup }) {
   const [copied, setCopied] = React.useState(false);
   const copy = () => {
@@ -338,10 +523,10 @@ function LdCopyLink({ g }: { g: LiveGroup }) {
   };
   return (
     <button onClick={copy} aria-label="Copy invite link — no account needed" title="Copy invite link"
-      style={{ flexShrink: 0, border: LD_LINE, background: "var(--surface-2)", borderRadius: 8, padding: "5px 10px",
-        cursor: "pointer", fontFamily: "var(--mono, monospace)", fontSize: 11.5, fontWeight: 700,
-        letterSpacing: "0.1em", color: "var(--ink-2)", WebkitAppearance: "none" }}>
-      {copied ? "copied ✓" : g.inviteCode}
+      style={{ flexShrink: 0, border: LD_LINE, background: "var(--surface-2)", borderRadius: 999, padding: "6px 13px",
+        cursor: "pointer", fontFamily: "var(--sans)", fontSize: 12, fontWeight: 700,
+        color: "var(--ink-2)", WebkitAppearance: "none" }}>
+      {copied ? "link copied ✓" : "Invite"}
     </button>
   );
 }
@@ -390,6 +575,85 @@ function LdInvites({ mode }: { mode?: string }) {
           <LdBtn small primary onClick={() => void act(inv.gid, true)} disabled={busy === inv.gid}>Accept</LdBtn>
         </div>
       ))}
+      {err && <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{err}</div>}
+    </div>
+  );
+}
+
+// ── a tapped invite link (D238) ──────────────────────────────────
+//
+// What a link used to do was PREFILL A TEXT FIELD, which meant the app
+// had received the invitation and then asked you to confirm it by
+// looking at eight characters it already had. This is the same act with
+// the typing removed: one button.
+//
+// It sits at the top of the panel beside LdInvites, not inside LdOnboard
+// where the field lived, and that placement is the fix for a second
+// thing: LdOnboard renders at the END of the rail for an account that
+// already has circles, so a tapped link used to land in a card you had
+// to scroll past four circles to reach.
+//
+// Mode-agnostic on purpose. The code names a circle, not a tab, and
+// `joinGroupV2` resolves it either way — so whichever of Circle or 1v1
+// you are looking at when the link opens the app, the invitation is
+// there. It used to require being on the right tab AND opening a
+// disclosure.
+function LdJoinPending({ code, onDone }: { code: string; onDone: () => void }) {
+  const [busy, setBusy] = React.useState(false);
+  const [err, setErr] = React.useState<string | null>(null);
+  const [done, setDone] = React.useState<{ status: string; name: string } | null>(null);
+
+  const ask = async () => {
+    setBusy(true); setErr(null);
+    try {
+      const out = await LIVE.social.requestJoin(code, ldName().trim() || undefined);
+      // Already a member: nothing happened and nothing needs saying.
+      if (out.status === "member") { onDone(); return; }
+      setDone({ status: out.status, name: out.name || "" });
+    } catch (e) {
+      setErr(errText(e).replace(/^.*?: */, ""));
+    }
+    setBusy(false);
+  };
+
+  if (done) {
+    const where = done.name ? ` ${done.name}` : " the circle";
+    return (
+      <div className="card" style={{ display: "flex", flexDirection: "column", gap: 11, padding: "16px 15px" }}>
+        <span className="kicker" style={{ marginBottom: 0 }}>
+          {done.status === "joined" ? "You're in" : "Asked"}
+        </span>
+        <div style={{ fontSize: 13.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.45 }}>
+          {done.status === "joined"
+            // They had already been invited by handle — the circle's
+            // consent was on record, so the link completed it rather
+            // than opening a second queue behind it.
+            ? `You had an invitation to${where}, so you're in.`
+            : `Someone in${where} has to let you in.`}
+        </div>
+        <div><LdBtn small onClick={onDone}>OK</LdBtn></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="card" style={{ display: "flex", flexDirection: "column", gap: 11, padding: "16px 15px" }}>
+      <span className="kicker" style={{ marginBottom: 0 }}>An invitation</span>
+      {/* A CLAIM, not a caption (COPY.md §3). What joining does is put
+          your name on a sealed answer that these people read the next
+          day, and D122 made consent the difference between an invitation
+          and a follow. Somebody arriving from a link has been told
+          nothing by the app yet, so this is where it gets said. */}
+      <div style={{ fontSize: 13.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.45 }}>
+        One question a day, sealed until tomorrow, then revealed with names to the people in it.
+      </div>
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        {/* ASK, not Join (D240). The link no longer admits its holder —
+            a forwarded one puts you forward instead of in, and the
+            button says which. */}
+        <LdBtn primary disabled={busy} onClick={() => void ask()}>{busy ? "\u2026" : "Ask to join"}</LdBtn>
+        <LdBtn small disabled={busy} onClick={onDone}>Not now</LdBtn>
+      </div>
       {err && <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{err}</div>}
     </div>
   );
@@ -672,6 +936,7 @@ function LdManage({ g, onClose }: { g: LiveGroup; onClose: () => void }) {
         </div>
       </div>
 
+      <LdPendingRequests g={g} />
       {members.length < (duo ? 2 : 32) && <LdAddByHandle g={g} />}
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, borderTop: LD_HAIR, paddingTop: 10 }}>
@@ -842,8 +1107,9 @@ function LdCard({ g, vh, nextName, newest }: {
         <GroupMark gid={g.id} name={g.name} size={52} />
         <div style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 21, letterSpacing: -0.4 }}>Waiting for someone</div>
         <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", maxWidth: 260, textWrap: "pretty" }}>
-          Add them by handle or send the link.
+          Add them, or send the link.
         </div>
+        <LdPendingRequests g={g} />
         <LdAddByHandle g={g} />
         <LdCopyLink g={g} />
       </div>
@@ -1038,6 +1304,11 @@ function LiveDuelPanel({ mode }: { mode?: string }) {
   const [vh, setVh] = React.useState(0);
   const [cur, setCur] = React.useState("");
   const has = groups.length > 0;
+  // A tapped invite link, consumed ONCE (D238). Read-and-clear, so it
+  // prompts on this visit and does not resurface days later on a circle
+  // the person already declined to join — the same contract the field it
+  // replaced had, minus the typing.
+  const [pendingCode, setPendingCode] = React.useState(() => consumeJoinCode() || "");
 
   // Snap on the tab's own scroller while this panel is mounted, plus a
   // scroll-spy that keeps the rail pointing at whatever is under the
@@ -1096,6 +1367,7 @@ function LiveDuelPanel({ mode }: { mode?: string }) {
   if (!has) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 14, padding: "4px 1px 20px" }}>
+        {pendingCode && <LdJoinPending code={pendingCode} onDone={() => setPendingCode("")} />}
         <LdInvites mode={mode} />
         <LdOnboard mode={mode} />
       </div>
@@ -1127,6 +1399,7 @@ function LiveDuelPanel({ mode }: { mode?: string }) {
       </div>
       {/* Invitations lead the stack. Someone asking to play with you
           outranks a card you have already finished. */}
+      {pendingCode && <LdJoinPending code={pendingCode} onDone={() => setPendingCode("")} />}
       <LdInvites mode={mode} />
       <div style={col(0)}>
         {items.map(({ g }, i) => {

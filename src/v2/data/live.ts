@@ -132,6 +132,9 @@ import { agreement, type Agreement } from "./cohort";
 // already await getDb(), so the import costs no round trip that was not
 // happening anyway.
 import type { Member as CircleMember } from "./circle";
+// Type-only, so the query module stays behind the dynamic import that
+// keeps `firebase/firestore` off the first-paint path (D122).
+import type { DirectoryPerson } from "./socialFetch";
 // Foresight (D126). Type-only at module scope; the fold and the writer
 // are reached through the same dynamic import the circle uses, and for
 // the same reason — live.ts is eager and this cannot run until a lens
@@ -344,6 +347,10 @@ const state = {
   // different things for those two.
   circle: null as CircleMember[] | null,
   circleLoading: false,
+  // Name-prefix searches already answered this session (D239), keyed by
+  // the lowercased prefix. A search box asks the same question on every
+  // backspace and the answer cannot have changed between two keystrokes.
+  peopleSearch: new Map<string, DirectoryPerson[]>(),
   // The same graph, one query deep (D149). `circle` above is the FOLD —
   // every followed account's answers, one query per member — and it is the
   // right cost for the Circle stop and much too much for a chip on a
@@ -1718,10 +1725,33 @@ const SOCIAL = {
     pushEarned();
     return out;
   },
-  async joinGroup(code: string, displayName?: string) {
-    const out = await callable<{ gid: string; name: string }>("joinGroupV2", { code, displayName });
+  /**
+   * Ask to join by invite code — what a tapped link now does (D240).
+   *
+   * `status` is the whole return: `joined` when the circle had already
+   * invited them (their side of the consent was on record, so the link
+   * completes it), `requested` when a member has to approve, `waiting`
+   * when they had already asked, `member` when they were already in.
+   *
+   * `pushEarned()` fires on a REQUEST too, not only on a join — the
+   * notification this account most needs next is "you're in", and it
+   * cannot arrive without a token. Asking is the moment that earns the
+   * prompt for exactly the same reason joining is.
+   */
+  async requestJoin(code: string, displayName?: string) {
+    const out = await callable<{
+      gid: string; name: string; status: "member" | "joined" | "requested" | "waiting";
+    }>("requestJoinV2", { code, displayName });
     pushEarned();
     return out;
+  },
+  /** Let somebody in who asked (D240). Members only, enforced server-side. */
+  async approveJoin(gid: string, uid: string) {
+    return callable<{ ok: boolean }>("approveJoinV2", { gid, uid });
+  },
+  /** Turn somebody down. Tells them nothing — the row simply stops being there. */
+  async declineJoin(gid: string, uid: string) {
+    return callable<{ ok: boolean }>("declineJoinV2", { gid, uid });
   },
   // ── handles and invitations (D122) ──
   //
@@ -1737,21 +1767,68 @@ const SOCIAL = {
     const [db, mod] = await Promise.all([getDb(), import("./socialFetch")]);
     return mod.uidForHandle(db, handle);
   },
+  /**
+   * People whose display name starts with what was typed (D239).
+   *
+   * The other half of `whoIs`, and the reason it is a different call
+   * rather than a smarter one: a handle is an exact address and a name
+   * is a prefix over a directory, so one is a document read and the
+   * other a bounded query. Merging them is the caller's job — see
+   * `ui/peopleSearch.ts`, which is what every surface that finds people
+   * actually uses.
+   *
+   * Session-cached per key, because a search box asks the same question
+   * on every backspace and the answer cannot have changed between two
+   * keystrokes.
+   */
+  async searchPeople(raw: string): Promise<DirectoryPerson[]> {
+    const key = raw.trim().toLowerCase();
+    if (!key) return [];
+    const hit = state.peopleSearch.get(key);
+    if (hit) return hit;
+    const [db, mod] = await Promise.all([getDb(), import("./socialFetch")]);
+    const rows = await mod.searchPeopleByName(db, key);
+    // Bounded so a long session cannot grow one entry per keystroke ever
+    // typed. Oldest out first — a Map iterates in insertion order, which
+    // is the whole mechanism.
+    if (state.peopleSearch.size >= 40) {
+      const oldest = state.peopleSearch.keys().next().value;
+      if (oldest !== undefined) state.peopleSearch.delete(oldest);
+    }
+    state.peopleSearch.set(key, rows);
+    return rows;
+  },
   async claimHandle(handle: string) {
     const out = await callable<{ handle: string }>("claimHandleV2", { handle });
     state.profile.handle = out.handle;
     notify();
     return out;
   },
-  async inviteToGroup(gid: string, to: string) {
-    return callable<{ ok: boolean }>("inviteToGroupV2", {
-      gid, to, displayName: state.profile.displayName,
+  /**
+   * Invite one account, or a whole selection (D236).
+   *
+   * The array is sent as an ARRAY rather than looped here: the server's
+   * per-hour budget charges per recipient, so a client-side loop would be
+   * N round trips against a cap that already counts them — and a partial
+   * failure halfway through would leave the picker with no honest way to
+   * say who got asked. `invited`/`skipped` come back for that.
+   */
+  async inviteToGroup(gid: string, to: string | readonly string[]) {
+    return callable<{ ok: boolean; invited?: string[]; skipped?: string[] }>("inviteToGroupV2", {
+      gid, to: Array.isArray(to) ? [...to] : to, displayName: state.profile.displayName,
     });
   },
   async acceptInvite(gid: string) {
     const out = await callable<{ gid: string; name: string }>("acceptGroupInviteV2", {
       gid, displayName: state.profile.displayName,
     });
+    // THE THIRD MOMENT THAT EARNS THE PROMPT (D236). createGroup and
+    // joinGroup have always called this; accepting an invitation is the
+    // same act by a different door and was the one that did not, so a
+    // person whose entire path into the app was "a friend invited me"
+    // could be in a circle and never once be asked. That is exactly the
+    // account an invitation push most needs to reach next time.
+    pushEarned();
     await this.loadInvites();
     return out;
   },
@@ -2488,6 +2565,22 @@ const LIVE = {
     const uid = state.uid;
     if (!uid) throw new Error("no session");
     await setDoc(doc(db, "v2_users", uid), { displayName: name }, { merge: true });
+    // The directory row (D239), written beside the profile rather than
+    // derived from it by a trigger: a trigger would be a function
+    // invocation per profile write for a two-field copy, and the rules
+    // already force `nameKey` to equal `name`, so the client cannot
+    // publish a name it is not also found by.
+    //
+    // A SECOND WRITE, deliberately not awaited into the same failure. If
+    // the directory write throws, the name is still saved and the
+    // account is merely not findable yet — the next save fixes it, and
+    // the boot heal below catches the case where there is no next save.
+    try {
+      const mod = await import("./socialFetch");
+      await mod.writeDirectoryRow(db, uid, name);
+    } catch (err) {
+      reportError(err, { where: "writeDirectoryRow" });
+    }
     state.profile.displayName = name;
     saveLocalName(name);
     notify();
@@ -4421,7 +4514,7 @@ let pushRegisteredFor: string | null = null;
  * out" means anything. Boot deliberately does not call this (see initLive);
  * push.ts has the iOS reasoning, which is that the decline is permanent.
  *
- * Fire-and-forget and idempotent: `registerPushForReveals` memoizes the
+ * Fire-and-forget and idempotent: `registerPush` memoizes the
  * token write per (uid, token), and the OS shows one prompt per install
  * however many times it is asked. `pushRegisteredFor` is NOT consulted here
  * — boot sets it after a silent registration, and this call is the one that
@@ -4431,7 +4524,7 @@ function pushEarned(): void {
   const forUid = state.uid;
   if (!forUid) return;
   void import("./push")
-    .then((m) => m.registerPushForReveals(forUid, { ask: true }))
+    .then((m) => m.registerPush(forUid, { ask: true }))
     .catch(() => { /* native bridge absent, or the user said no */ });
 }
 let deviceBindAttemptedFor: string | null = null;
@@ -4474,9 +4567,37 @@ export function refreshLive(): Promise<void> {
       const forUid = state.uid as string;
       pushRegisteredFor = forUid;
       void import("./push")
-        .then((m) => m.registerPushForReveals(forUid))
+        .then((m) => m.registerPush(forUid))
         .catch(() => { if (pushRegisteredFor === forUid) pushRegisteredFor = null; });
     }
+    // The directory row for an account that already had a name (D239),
+    // fire-and-forget and once per (uid, name) per device.
+    //
+    // THE BACKFILL, and it is why this is here rather than left to
+    // `saveDisplayName`. Every account that existed before the directory
+    // did has a display name and no row, so without this they are
+    // findable by handle and invisible by name until they happen to
+    // rename themselves — which most people never do. The localStorage
+    // memo is what keeps it from being a write on every boot: the value
+    // is the name, so it re-writes exactly when the name changed on
+    // another device and not otherwise.
+    void (async () => {
+      const forUid = state.uid;
+      const name = (state.profile.displayName || "").trim();
+      if (!forUid || !name) return;
+      const KEY = "insight.directoryRow.v1";
+      try {
+        const seen = JSON.parse(localStorage.getItem(KEY) || "null");
+        if (seen && seen.uid === forUid && seen.name === name) return;
+      } catch { /* unreadable cache — write and move on */ }
+      try {
+        const [db, mod] = await Promise.all([getDb(), import("./socialFetch")]);
+        await mod.writeDirectoryRow(db, forUid, name);
+        localStorage.setItem(KEY, JSON.stringify({ uid: forUid, name }));
+      } catch (err) {
+        reportError(err, { where: "directoryHeal" });
+      }
+    })();
     // fire-and-forget, same shape: the D29 device-binding activation.
     // Once per uid; ensureDeviceBound() itself memoizes per uid in
     // localStorage, handles the missing native bridge, and never surfaces

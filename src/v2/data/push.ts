@@ -1,8 +1,19 @@
-// Push registration (Phase 5) — native platforms only, and only the one
-// notification the product earns: "your reveal is out" (sent by
-// revealGroupDay in functions/src/v2social.ts). On web this module is a
-// no-op. Requires the platform Firebase config files
+// Push registration (Phase 5) — native platforms only. On web this module
+// is a no-op. Requires the platform Firebase config files
 // (google-services.json / GoogleService-Info.plist) to actually deliver.
+//
+// TWO CLASSES since D236, each on its own Android channel, both sent by
+// functions/src/v2social.ts through one fan-out (sendPushToUids):
+//
+//   · "yesterday is revealed"  — revealGroupDay,   channel "reveals"
+//   · "someone invited you"    — inviteToGroupV2,  channel "invites"
+//   · "someone wants to join"  — requestJoinV2,    channel "invites"  (D240)
+//   · "you're in"              — approveJoinV2,    channel "invites"  (D240)
+//
+// It was one class for a long time and this comment said so. The second is
+// what turned D122's invitation — consent, an inbox, a handle registry —
+// from a note left in an empty room into something that reaches the person
+// it is addressed to.
 import { Capacitor } from "@capacitor/core";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { getDb } from "../../lib/firebase";
@@ -29,7 +40,7 @@ import { FUNCTIONS_REGION } from "../../lib/region";
  * otherwise a no-op — and the moments that make a reveal possible call it
  * with `ask: true`.
  */
-export async function registerPushForReveals(
+export async function registerPush(
   uid: string,
   { ask = false }: { ask?: boolean } = {},
 ): Promise<void> {
@@ -49,19 +60,54 @@ export async function registerPushForReveals(
     // and the failure only shows when the app is BACKGROUNDED, since a
     // foregrounded app renders the payload itself.
     // Creating an existing channel is a no-op, so this is safe every boot.
+    //
+    // TWO CHANNELS SINCE D236, and the split is not decoration. A channel
+    // carries a name and a description into Android's own settings, and
+    // it is what a person switches off when they want less. Posting an
+    // invitation to "reveals" would put it under a description that says
+    // "When a group or duo day is revealed" — a false label on the one
+    // screen the OS gives the user to control this — and would make
+    // muting invitations cost them the reveal they actually opened the
+    // app for. The server names the channel explicitly on every send
+    // (sendPushToUids), so neither class rides the manifest default.
     if (Capacitor.getPlatform() === "android") {
-      try {
-        await PushNotifications.createChannel({
+      for (const ch of [
+        {
           id: "reveals",
           name: "Reveals",
           description: "When a group or duo day is revealed.",
-          importance: 4, // heads-up: the reveal is the thing you opened the app for
-          visibility: 1, // public — the text names no answers, only that a day is out
+          // `as const` on both: an inline object infers the literal, but
+          // these live in an array now and would widen to `number`,
+          // which is not the plugin's Importance/Visibility union.
+          importance: 4 as const, // heads-up: the reveal is what you opened the app for
+          visibility: 1 as const, // public — names no answers, only that a day is out
           vibration: true,
-        });
-      } catch (err) {
-        // A missing channel degrades delivery; it must not stop registration.
-        reportError(err, { where: "push.createChannel" });
+        },
+        {
+          id: "invites",
+          name: "Invitations",
+          // Covers BOTH directions since D240: an invitation to you,
+          // and somebody asking to join a circle you are in. One
+          // channel because they are one concern — who is joining
+          // what — and a person muting one would mean to mute both.
+          description: "When someone invites you, or asks to join your circle.",
+          // 4, same as reveals: an invitation is a person waiting on an
+          // answer from you, and one that arrives silently is the thing
+          // D236 exists to fix.
+          importance: 4 as const,
+          // Public, and it costs nothing to say so: the text carries a
+          // display name and a circle's name, both of which D98 already
+          // publishes to any signed-in account.
+          visibility: 1 as const,
+          vibration: true,
+        },
+      ]) {
+        try {
+          await PushNotifications.createChannel(ch);
+        } catch (err) {
+          // A missing channel degrades delivery; it must not stop registration.
+          reportError(err, { where: "push.createChannel" });
+        }
       }
     }
     await PushNotifications.addListener("registration", (token) => {
@@ -104,16 +150,48 @@ export async function registerPushForReveals(
     });
     await PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
       const data = (action.notification && action.notification.data) || {};
+      // land on the daily tab; DailySplit consumes whatever was stashed
+      const land = () => {
+        const w = window as unknown as { goTab?: (t: string) => void };
+        if (w.goTab) w.goTab("track");
+        window.dispatchEvent(new Event("insight-live-update"));
+      };
       if (data.kind === "reveal" && data.gid) {
         try {
           sessionStorage.setItem("insight.pendingReveal", String(data.gid));
         } catch {
           /* best-effort */
         }
-        // land on the daily tab; DailySplit consumes the pending gid
-        const w = window as unknown as { goTab?: (t: string) => void };
-        if (w.goTab) w.goTab("track");
-        window.dispatchEvent(new Event("insight-live-update"));
+        land();
+        return;
+      }
+      // A join request, or an approval of yours (D240). BOTH name a
+      // circle this account is in — you are a member of the one somebody
+      // is asking to join, and you have just become a member of the one
+      // that let you in — so the gid resolves and the tap can land on
+      // that circle's own mode.
+      if ((data.kind === "join-request" || data.kind === "join-approved") && data.gid) {
+        try {
+          sessionStorage.setItem("insight.pendingCircle", String(data.gid));
+        } catch {
+          /* best-effort */
+        }
+        land();
+        return;
+      }
+      // An invitation (D236). The gid is deliberately NOT stashed the way a
+      // reveal's is: a reveal lands on a circle you are already in, and
+      // DailySplit resolves it through LIVE.social.groups(). An invitee is
+      // by definition not a member yet, so that lookup finds nothing and
+      // the tap would go nowhere at all. The MODE is what routes — Circle
+      // or 1v1, where LdInvites already draws the row waiting for them.
+      if (data.kind === "invite") {
+        try {
+          sessionStorage.setItem("insight.pendingInvite", data.mode === "duo" ? "duo" : "group");
+        } catch {
+          /* best-effort */
+        }
+        land();
       }
     });
     await PushNotifications.register();

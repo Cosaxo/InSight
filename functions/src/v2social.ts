@@ -17,6 +17,9 @@
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+// Type-only: `requestJoinImpl` is shared by two exported callables
+// (D240), so its parameter needs the shape onCall hands a handler.
+import type { CallableRequest } from "firebase-functions/v2/https";
 import {
   assertOperator,
   ENFORCE_APP_CHECK,
@@ -30,6 +33,8 @@ import { randomBytes } from "node:crypto";
 import { db as firestore } from "./db";
 import {
   duelAggDelta,
+  fcmBatches,
+  fcmFanout,
   foldDuelAgg,
   inviteCodeFromBytes,
   normalizeHandle,
@@ -183,7 +188,47 @@ export const createGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   return { gid: ref.id, inviteCode: code };
 });
 
-export const joinGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
+/**
+ * How many people may be waiting on one circle at a time.
+ *
+ * The pending list lives ON the group document, which every member reads
+ * on every load — so this is not a product limit but the bound on a list
+ * a stranger with a forwarded link can lengthen. Twenty keeps the
+ * document small; the rate limit below keeps the arrival rate sane.
+ */
+const PENDING_CAP = 20;
+
+/**
+ * Ask to join a circle by its invite code — the LINK's landing (D240).
+ *
+ * THIS USED TO ADMIT. `joinGroupV2` wrote straight into `memberUids`, so
+ * a code was a bearer token: whoever held it was in, forever, with no
+ * expiry and no rotation, and nobody already in the circle had agreed to
+ * them. D122 built consent for invitations precisely because joining
+ * puts your name on a sealed answer these people read the next day —
+ * and the link walked around it.
+ *
+ * So the link now puts you FORWARD instead of in. The circle's side of
+ * the consent is a member tapping Approve, which is the half a bearer
+ * token could never supply.
+ *
+ * TWO SHORTCUTS, both of them the circle having already consented:
+ *   · you are a member → nothing to do, say so;
+ *   · somebody already invited you by handle → that IS the circle
+ *     choosing you, so the link completes the invitation rather than
+ *     opening a second queue behind it. Without this the smooth path
+ *     (invite them, send them the link) would ask a member to approve
+ *     the person they just invited.
+ *
+ * PENDING LIVES ON THE GROUP DOCUMENT, not in a subcollection, and that
+ * is a cost decision. Members already read this document; a subcollection
+ * would need its own member-gated read rule, and the only way rules can
+ * express that is `get()` on the group — one billed read per request
+ * listed, which is the tripwire D122 hit and backed out of.
+ */
+async function requestJoinImpl(request: CallableRequest): Promise<{
+  gid: string; name: string; status: "member" | "joined" | "requested" | "waiting";
+}> {
   if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
   const uid = request.auth.uid;
   const code = String(request.data?.code || "").trim().toUpperCase();
@@ -196,25 +241,159 @@ export const joinGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAp
   if (q.empty) throw new HttpsError("not-found", "no group with that code");
   const ref = q.docs[0].ref;
   const myName = await callerName(uid, request.data?.displayName);
+  const inviteRef = ref.collection("invites").doc(uid);
+
   const out = await db.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
+    const [snap, invite] = await Promise.all([tx.get(ref), tx.get(inviteRef)]);
+    const name = String(snap.get("name") || "");
     const members: string[] = snap.get("memberUids") || [];
-    if (members.includes(uid)) return { gid: ref.id, name: snap.get("name") };
-    const cap = snap.get("mode") === "duo" ? 2 : GROUP_CAP;
-    if (members.length >= cap) {
-      throw new HttpsError("resource-exhausted", "group is full");
+    if (members.includes(uid)) return { gid: ref.id, name, status: "member" as const };
+
+    const admit = () => {
+      const cap = snap.get("mode") === "duo" ? 2 : GROUP_CAP;
+      if (members.length >= cap) throw new HttpsError("resource-exhausted", "group is full");
+      tx.update(ref, {
+        memberUids: FieldValue.arrayUnion(uid),
+        [`memberNames.${uid}`]: myName,
+        // Set on every join, including a rejoin after leaving: the days
+        // between are days this account was not in the group, and a
+        // stale earlier timestamp would hand them back.
+        [`memberJoinedAt.${uid}`]: FieldValue.serverTimestamp(),
+        // Whichever way they arrived, they are not waiting any more.
+        pending: FieldValue.arrayRemove(uid),
+        [`pendingNames.${uid}`]: FieldValue.delete(),
+      });
+    };
+
+    // Already invited → the circle picked them. Complete it.
+    if (invite.exists) {
+      admit();
+      tx.delete(inviteRef);
+      return { gid: ref.id, name, status: "joined" as const };
+    }
+
+    const pending: string[] = snap.get("pending") || [];
+    if (pending.includes(uid)) return { gid: ref.id, name, status: "waiting" as const };
+    if (pending.length >= PENDING_CAP) {
+      throw new HttpsError("resource-exhausted", "too many people are already waiting");
     }
     tx.update(ref, {
-      memberUids: FieldValue.arrayUnion(uid),
-      [`memberNames.${uid}`]: myName,
-      // Set on every join, including a rejoin after leaving: the days
-      // between are days this account was not in the group, and a stale
-      // earlier timestamp would hand them back.
-      [`memberJoinedAt.${uid}`]: FieldValue.serverTimestamp(),
+      pending: FieldValue.arrayUnion(uid),
+      [`pendingNames.${uid}`]: myName,
     });
-    return { gid: ref.id, name: snap.get("name") };
+    return { gid: ref.id, name, status: "requested" as const };
   });
+
+  // The members are the ones who can act on it, so they are the ones
+  // told. Best-effort by construction — sendPushToUids never throws, so
+  // a dead FCM cannot roll back a request that was written.
+  if (out.status === "requested") {
+    const fresh = await ref.get();
+    await sendPushToUids(
+      db,
+      (fresh.get("memberUids") || []) as string[],
+      {
+        title: out.name || "inSight",
+        body: `${myName || "Someone"} wants to join.`,
+      },
+      { kind: "join-request", gid: out.gid },
+      "invites",
+      "join-request",
+    );
+  }
   return out;
+}
+
+// The name the link and every shipped build already call. Kept ALIASED
+// rather than renamed (D240): a callable that disappears is a hard error
+// in every app version already installed, and this one is reached by the
+// one flow a stranger uses. Same implementation, so an old build asks to
+// join instead of admitting itself — which is the whole point, and it
+// takes effect for those builds the moment this deploys rather than
+// whenever they update.
+export const joinGroupV2 = onCall(
+  { ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK },
+  requestJoinImpl,
+);
+/** The name that says what it does. Both point at one implementation. */
+export const requestJoinV2 = onCall(
+  { ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK },
+  requestJoinImpl,
+);
+
+/**
+ * Let somebody in who asked (D240) — the circle's half of the consent.
+ *
+ * Members only, which is the same gate `inviteToGroupV2` uses and for the
+ * same reason: an approval from a non-member would let anyone add anyone
+ * to any circle they can name the id of.
+ */
+export const approveJoinV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
+  const uid = request.auth.uid;
+  const gid = String(request.data?.gid || "");
+  const who = String(request.data?.uid || "");
+  if (!gid || !who) throw new HttpsError("invalid-argument", "gid and uid required");
+  const db = firestore();
+  const ref = db.doc(`v2_groups/${gid}`);
+  const name = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new HttpsError("not-found", "no such circle");
+    const members: string[] = snap.get("memberUids") || [];
+    if (!members.includes(uid)) throw new HttpsError("permission-denied", "not a member");
+    if (members.includes(who)) return String(snap.get("name") || "");
+    const pending: string[] = snap.get("pending") || [];
+    // Only somebody who actually asked. Without this, approve is an
+    // add-anyone endpoint wearing a different name.
+    if (!pending.includes(who)) throw new HttpsError("failed-precondition", "they have not asked");
+    const cap = snap.get("mode") === "duo" ? 2 : GROUP_CAP;
+    if (members.length >= cap) throw new HttpsError("resource-exhausted", "circle is full");
+    tx.update(ref, {
+      memberUids: FieldValue.arrayUnion(who),
+      [`memberNames.${who}`]: String(snap.get("pendingNames")?.[who] || ""),
+      [`memberJoinedAt.${who}`]: FieldValue.serverTimestamp(),
+      pending: FieldValue.arrayRemove(who),
+      [`pendingNames.${who}`]: FieldValue.delete(),
+    });
+    return String(snap.get("name") || "");
+  });
+  await sendPushToUids(
+    db, [who],
+    { title: name || "inSight", body: "You're in." },
+    { kind: "join-approved", gid },
+    "invites",
+    "join-approved",
+  );
+  return { ok: true };
+});
+
+/**
+ * Turn somebody down (D240).
+ *
+ * Tells them NOTHING, on D122's reasoning about declining an invitation:
+ * a "declined" state makes refusing someone a message you have to send
+ * them, which is what makes people accept — or here, approve — requests
+ * they do not want. The row simply stops being there.
+ */
+export const declineJoinV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
+  const uid = request.auth.uid;
+  const gid = String(request.data?.gid || "");
+  const who = String(request.data?.uid || "");
+  if (!gid || !who) throw new HttpsError("invalid-argument", "gid and uid required");
+  const db = firestore();
+  const ref = db.doc(`v2_groups/${gid}`);
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new HttpsError("not-found", "no such circle");
+    const members: string[] = snap.get("memberUids") || [];
+    if (!members.includes(uid)) throw new HttpsError("permission-denied", "not a member");
+    tx.update(ref, {
+      pending: FieldValue.arrayRemove(who),
+      [`pendingNames.${who}`]: FieldValue.delete(),
+    });
+  });
+  return { ok: true };
 });
 
 export const leaveGroupV2 = onCall({ ...LIGHT_UNBOUNDED, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
@@ -325,6 +504,85 @@ export const registerPushToken = onCall({ ...LIGHT_CALLABLE, region: REGION, enf
   return { ok: true };
 });
 
+// ── the one push fan-out ────────────────────────────────────────
+//
+// BOTH notification classes send through here (D236). This was inline in
+// revealGroupDay, and it had accumulated four corrections the hard way:
+// token->owners as a LIST so a shared device is pruned everywhere it
+// lives, length bounds so a client cannot hand FCM a megabyte, CHUNKING
+// rather than the `.slice(0, 64)` that silently unnotified everyone past
+// roughly the seventh member, and pruning on only the two TERMINAL error
+// codes so a transient failure never evicts a live device.
+//
+// Copying that for invitations would have meant maintaining all four
+// twice — and the copy is always the one that rots. The collection and
+// the bounds are pure (pure.ts `fcmFanout`) and tested there; what is
+// left here is the I/O.
+//
+// NEVER THROWS. A notification is the last step of something that has
+// already succeeded — a reveal that committed, an invitation that was
+// written — so FCM being down must not roll that back or reach the
+// caller as a failure.
+async function sendPushToUids(
+  db: FirebaseFirestore.Firestore,
+  uids: readonly string[],
+  notification: { title: string; body: string },
+  data: Record<string, string>,
+  channelId: string,
+  where: string,
+): Promise<void> {
+  try {
+    if (!uids.length) return;
+    // Paired BY INDEX, not by `s.id`. These are the push subdocuments
+    // (D98), so every one of their ids is the literal string "tokens" and
+    // the uid is recoverable only from the position getAll preserves.
+    const snaps = await db.getAll(...uids.map((uid) => db.doc(pushDocPath(uid))));
+    const { owners, malformed } = fcmFanout(
+      snaps.map((s, i) => ({ uid: uids[i], tokens: s.exists ? s.get("fcmTokens") : null })),
+    );
+    for (const uid of malformed) logger.warn(`[${where}] skipping malformed fcmToken on ${uid}`);
+    const tokens = [...owners.keys()];
+    if (!tokens.length) return;
+    // Only the two TERMINAL codes evict. A transient error (unavailable,
+    // deadline) must never cost a live device its registration.
+    const DEAD = new Set([
+      "messaging/registration-token-not-registered",
+      "messaging/invalid-registration-token",
+    ]);
+    const removals = new Map<string, string[]>(); // uid -> dead tokens
+    for (const chunk of fcmBatches(tokens)) {
+      const res = await getMessaging().sendEachForMulticast({
+        tokens: chunk,
+        notification,
+        data,
+        // NAMED, not left to the manifest default. Android 8+ drops a
+        // notification posted to a channel that does not exist, and only
+        // while the app is BACKGROUNDED — which is exactly when both of
+        // these matter. The client creates both channels at registration
+        // (src/v2/data/push.ts); the manifest default covers reveals
+        // alone, so an invitation with no channelId would post to
+        // "reveals" and wear its description.
+        android: { notification: { channelId } },
+      });
+      res.responses.forEach((r, j) => {
+        if (r.success || !r.error || !DEAD.has(r.error.code)) return;
+        for (const uid of owners.get(chunk[j]) || []) {
+          const dead = removals.get(uid) || [];
+          dead.push(chunk[j]);
+          removals.set(uid, dead);
+        }
+      });
+    }
+    await Promise.all([...removals].map(([uid, dead]) =>
+      db.doc(pushDocPath(uid))
+        .update({ fcmTokens: FieldValue.arrayRemove(...dead) })
+        .catch(() => { /* best-effort cleanup */ }),
+    ));
+  } catch (err) {
+    logger.warn(`[v2social] push (${where}) failed:`, err);
+  }
+}
+
 // ── the reveal pipeline ─────────────────────────────────────────
 
 interface RevealVote {
@@ -400,9 +658,11 @@ async function revealGroupDay(
     ...members.map((uid) => db.doc(`v2_users/${uid}`)),
     { fieldMask: ["displayName"] },
   );
-  // Push tokens, from the server-only subdocument (D98). Same member
-  // order as profileSnaps, so the fan-out below can pair them by index.
-  const pushSnaps = await db.getAll(...members.map((uid) => db.doc(pushDocPath(uid))));
+  // Push tokens are NOT fetched here any more (D236). They were, next to
+  // the reads the reveal actually needs — which billed one document per
+  // member on every scanned day, including the majority that reveal
+  // nothing. sendPushToUids reads them itself, after the reveal has
+  // committed and only when there is something to announce.
 
   const votes: Record<string, RevealVote> = {};
   const qids: unknown[] = [];
@@ -652,90 +912,22 @@ async function revealGroupDay(
     logger.error(`[duel-signal] fold failed for ${gid}/${dayKey} (${aggQid}):`, err);
   }
 
-  // The one notification the product earns (Phase 5): the reveal is out.
-  // Tokens are best-effort — failures never block the reveal itself.
-  try {
-    // token -> owning uids, so a token FCM reports dead can be pruned
-    // from the doc it lives on (otherwise fcmTokens grows one ghost per
-    // reinstall/rotation forever and every reveal fans out to them).
-    const tokenOwners = new Map<string, string[]>();
-    // Paired BY INDEX against `members`, not by `s.id`. These snapshots
-    // are the push subdocuments (D98), so every one of their ids is the
-    // literal string "tokens" — the uid is only recoverable from the
-    // position, because getAll preserves the order it was handed.
-    pushSnaps.forEach((s, i) => {
-      const ownerUid = members[i];
-      if (!s.exists || !Array.isArray(s.get("fcmTokens"))) return;
-      for (const t of s.get("fcmTokens") as string[]) {
-        // Rules cap the array at 10 entries but never check what is IN
-        // them, so a client can store ten ~1MB strings in its own
-        // (owner-writable) profile and we would hand them straight to
-        // sendEachForMulticast. Bound length only — no format regex,
-        // which is the part most likely to silently kill reveals for
-        // everyone the day FCM changes its token shape.
-        // NB: this bounds SEND cost, not what is stored.
-        if (typeof t !== "string" || t.length < 20 || t.length > 4096) {
-          logger.warn(`[reveal] skipping malformed fcmToken on ${ownerUid}`);
-          continue;
-        }
-        const owners = tokenOwners.get(t) || [];
-        owners.push(ownerUid);
-        tokenOwners.set(t, owners);
-      }
-    });
-    // CHUNKED, not truncated. This was `.slice(0, 64)`, which is below
-    // what a full group can hold: GROUP_CAP (32) members x the 10 tokens
-    // registerPushToken keeps each is 320. Past the 64th token — roughly
-    // the 7th member with a couple of devices — members simply never heard
-    // that the reveal was out, with nothing logged to say so. A silently
-    // unnotified member is indistinguishable from a broken feature, and
-    // reveals are the one push this product sends.
-    //
-    // 500 is FCM's own per-call ceiling for sendEachForMulticast, so today
-    // every group fits in one call and the loop runs once. It is a loop
-    // rather than a bare call so that raising GROUP_CAP or the token cap
-    // stays a capacity question instead of quietly reintroducing the same
-    // silent drop.
-    const FCM_BATCH = 500;
-    const tokens = [...tokenOwners.keys()];
-    if (tokens.length) {
-      // Prune tokens FCM says are gone for good. Only the two terminal
-      // codes — transient errors must not evict a live device.
-      const DEAD = new Set([
-        "messaging/registration-token-not-registered",
-        "messaging/invalid-registration-token",
-      ]);
-      const removals = new Map<string, string[]>(); // uid -> dead tokens
-      for (let i = 0; i < tokens.length; i += FCM_BATCH) {
-        const chunk = tokens.slice(i, i + FCM_BATCH);
-        const res = await getMessaging().sendEachForMulticast({
-          tokens: chunk,
-          notification: {
-            title: group.get("name") || "Your duel",
-            body: mode === "duo"
-              ? "Yesterday's answers are out — see if you called it."
-              : "Yesterday's answers are revealed — see who said what.",
-          },
-          data: { kind: "reveal", gid, day: dayKey },
-        });
-        res.responses.forEach((r, j) => {
-          if (r.success || !r.error || !DEAD.has(r.error.code)) return;
-          for (const uid of tokenOwners.get(chunk[j]) || []) {
-            const dead = removals.get(uid) || [];
-            dead.push(chunk[j]);
-            removals.set(uid, dead);
-          }
-        });
-      }
-      await Promise.all([...removals].map(([uid, dead]) =>
-        db.doc(pushDocPath(uid))
-          .update({ fcmTokens: FieldValue.arrayRemove(...dead) })
-          .catch(() => { /* best-effort cleanup */ }),
-      ));
-    }
-  } catch (err) {
-    logger.warn(`[v2social] push for ${gid}/${dayKey} failed:`, err);
-  }
+  // The reveal is out — one of the product's two notifications (D236).
+  // Best-effort by construction: sendPushToUids never throws, so FCM
+  // being down can never roll back a reveal that already committed.
+  await sendPushToUids(
+    db,
+    members,
+    {
+      title: group.get("name") || "Your duel",
+      body: mode === "duo"
+        ? "Yesterday's answers are out — see if you called it."
+        : "Yesterday's answers are revealed — see who said what.",
+    },
+    { kind: "reveal", gid, day: dayKey },
+    "reveals",
+    "reveal",
+  );
   return true;
 }
 
@@ -1033,6 +1225,12 @@ export const claimHandleV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   const db = firestore();
   const ref = db.collection("v2_handles").doc(handle);
   const userRef = db.doc(`v2_users/${uid}`);
+  // The directory row (D239), written in the same transaction. It has to
+  // be here rather than left to the client because `handle` is immutable
+  // to the client on that document, the same way it is on the profile —
+  // and because a handle that is claimed but missing from the directory
+  // is an account findable by name and not by the address it just took.
+  const peopleRef = db.doc(`v2_people/${uid}`);
   await db.runTransaction(async (tx) => {
     const [snap, me] = await Promise.all([tx.get(ref), tx.get(userRef)]);
     const prev = me.exists ? (me.get("handle") as string | undefined) : undefined;
@@ -1053,6 +1251,15 @@ export const claimHandleV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
     }
     tx.set(ref, { uid, at: FieldValue.serverTimestamp() });
     tx.set(userRef, { handle }, { merge: true });
+    // MERGE, and name/nameKey only when the profile already has one:
+    // most accounts claim a handle on the setup screen after saving a
+    // name, but the order is not guaranteed and a directory row whose
+    // `name` is "" would be found by an empty prefix — that is, by
+    // everything. The client's own write fills it in either way.
+    const myName = String(me.exists ? (me.get("displayName") || "") : "").trim();
+    tx.set(peopleRef, myName
+      ? { handle, name: myName, nameKey: myName.toLowerCase() }
+      : { handle }, { merge: true });
   });
   return { handle };
 });
@@ -1067,15 +1274,41 @@ export const claimHandleV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
  * until they accept — and it reveals nothing about them to the inviter
  * that D98 had not already published. The rate limit below is the whole
  * defence against volume, and `hidden` on the invite is the recipient's.
+ *
+ * SINCE D236 IT ALSO NOTIFIES, and that changes what the opening costs.
+ * An invitation used to sit in an inbox until the invitee happened to
+ * open the app; now it interrupts them. Declining still deletes the doc
+ * and still tells the inviter nothing, so a declined invitation can be
+ * re-sent and will ping again. INVITES_PER_HOUR — which since D236
+ * charges per RECIPIENT rather than per call — remains the whole defence,
+ * and a block is still the answer if invite spam becomes real. It is
+ * still not built here.
  */
 export const inviteToGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
   const uid = request.auth.uid;
   const gid = String(request.data?.gid || "");
-  const to = String(request.data?.to || "");
-  if (!gid || !to) throw new HttpsError("invalid-argument", "gid and to required");
-  if (to === uid) throw new HttpsError("invalid-argument", "you are already here");
-  await assertInviteBudget(uid);
+  if (!gid) throw new HttpsError("invalid-argument", "gid and to required");
+
+  // ONE OR MANY (D236). `to` was a single uid. The picker sends a whole
+  // selection, and looping on the client would have been N round trips
+  // against a budget that counts CALLS — so the batch is the shape the
+  // budget sees, and it charges N.
+  //
+  // A SINGLE target keeps D122's exact error codes, because LdAddByHandle
+  // turns them into sentences a person reads ("@mira is already here").
+  // A batch cannot do that: one unreachable name must not cost the other
+  // seven their invitation, so a batch skips and reports instead.
+  const rawTo = request.data?.to;
+  const targets = [...new Set(
+    (Array.isArray(rawTo) ? rawTo : [rawTo]).map((t) => String(t || "")).filter(Boolean),
+  )];
+  if (!targets.length) throw new HttpsError("invalid-argument", "gid and to required");
+  const single = targets.length === 1;
+  const refuse = (code: "invalid-argument" | "not-found" | "already-exists", msg: string) => {
+    if (single) throw new HttpsError(code, msg);
+  };
+
   const db = firestore();
   const gref = db.doc(`v2_groups/${gid}`);
   const gsnap = await gref.get();
@@ -1084,43 +1317,102 @@ export const inviteToGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enfor
   // Members only. An invite from a non-member would let anyone add anyone
   // to any circle they can name the id of.
   if (!members.includes(uid)) throw new HttpsError("permission-denied", "not a member");
-  if (members.includes(to)) throw new HttpsError("already-exists", "already a member");
-  const cap = gsnap.get("mode") === "duo" ? 2 : GROUP_CAP;
-  if (members.length >= cap) throw new HttpsError("resource-exhausted", "circle is full");
-  // The invitee must exist. Without this, a typo'd uid writes an invite
+  const mode = gsnap.get("mode") === "duo" ? "duo" : "group";
+  const cap = mode === "duo" ? 2 : GROUP_CAP;
+  // SEATS, not merely "is it full". An invitation consumes no seat until
+  // it is accepted, but a batch bigger than the room is either a mistake
+  // or a way to turn one call into forty notifications — and for a duo,
+  // which has exactly one seat, it is the difference between inviting a
+  // partner and paging a crowd.
+  const seats = cap - members.length;
+  if (seats <= 0) throw new HttpsError("resource-exhausted", "circle is full");
+  if (targets.length > seats) {
+    throw new HttpsError("invalid-argument", `only ${seats} ${seats === 1 ? "seat" : "seats"} left`);
+  }
+
+  // The budget charges what the call actually costs. Counting a batch as
+  // one event would have made INVITES_PER_HOUR meaningless the moment a
+  // picker shipped.
+  await assertInviteBudget(uid, targets.length);
+
+  // The invitee must exist. Without this a typo'd uid writes an invite
   // nobody will ever see and the sender is told it worked.
-  const target = await db.doc(`v2_users/${to}`).get();
-  if (!target.exists) throw new HttpsError("not-found", "no such account");
-  await gref.collection("invites").doc(to).set({
-    // `to` is denormalised onto the doc because a collection-group query
-    // cannot filter on a document id — the same reason the follow graph
-    // carries it (data/circle.ts fetchFollowersOf).
-    to,
-    from: uid,
-    fromName: await callerName(uid, request.data?.displayName),
-    // The circle's NAME rides along so the invitee can read the invite
-    // without reading the group: v2_groups is member-gated because it
-    // carries inviteCode, and an invitee is by definition not a member yet.
-    groupName: gsnap.get("name") || "",
-    mode: gsnap.get("mode") || "group",
-    at: FieldValue.serverTimestamp(),
-  }, { merge: true });
-  return { ok: true };
+  const targetSnaps = await db.getAll(...targets.map((t) => db.doc(`v2_users/${t}`)));
+  const invited: string[] = [];
+  const skipped: string[] = [];
+  targets.forEach((t, i) => {
+    if (t === uid) { refuse("invalid-argument", "you are already here"); skipped.push(t); return; }
+    if (members.includes(t)) { refuse("already-exists", "already a member"); skipped.push(t); return; }
+    if (!targetSnaps[i].exists) { refuse("not-found", "no such account"); skipped.push(t); return; }
+    invited.push(t);
+  });
+  if (!invited.length) return { ok: true, invited, skipped };
+
+  const fromName = await callerName(uid, request.data?.displayName);
+  const groupName = gsnap.get("name") || "";
+  const batch = db.batch();
+  for (const to of invited) {
+    batch.set(gref.collection("invites").doc(to), {
+      // `to` is denormalised onto the doc because a collection-group query
+      // cannot filter on a document id — the same reason the follow graph
+      // carries it (data/circle.ts fetchFollowersOf).
+      to,
+      from: uid,
+      fromName,
+      // The circle's NAME rides along so the invitee can read the invite
+      // without reading the group: v2_groups is member-gated because it
+      // carries inviteCode, and an invitee is by definition not a member yet.
+      groupName,
+      mode,
+      at: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  }
+  await batch.commit();
+
+  // THE POINT OF D236. The invitation used to land silently and wait for
+  // the invitee to open the app on their own — which is what made a system
+  // with consent, an inbox and a registry still feel like being handed a
+  // code. The notification IS the delivery.
+  //
+  // Tied to being PICKED, never to a circle being created: a notification
+  // on creation would carry the circle's name to people who were not
+  // invited, which is the read v2_groups' member gate exists to refuse.
+  //
+  // Sent after the commit, so a push can never announce an invitation
+  // that failed to write.
+  const who = fromName || "Someone";
+  await sendPushToUids(
+    db,
+    invited,
+    {
+      title: groupName || "inSight",
+      body: mode === "duo" ? `${who} wants to play with you.` : `${who} invited you to join.`,
+    },
+    { kind: "invite", gid, mode },
+    "invites",
+    "invite",
+  );
+  return { ok: true, invited, skipped };
 });
 
-async function assertInviteBudget(uid: string): Promise<void> {
+// CHARGES N, not one per call (D236). A batch invitation is N
+// notifications to N people, so counting it as a single event would have
+// made this cap meaningless the moment a picker shipped: one call, forty
+// pings. For count = 1 the arithmetic is identical to what D122 shipped.
+async function assertInviteBudget(uid: string, count = 1): Promise<void> {
   const db = firestore();
   const ref = db.collection("v2_ratelimits").doc(`invite_${uid}`);
   await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
-    const cutoff = Date.now() - 3600000;
+    const now = Date.now();
+    const cutoff = now - 3600000;
     const events: number[] = ((snap.exists && snap.get("events")) || [])
       .filter((t: number) => t > cutoff);
-    if (events.length >= INVITES_PER_HOUR) {
+    if (events.length + count > INVITES_PER_HOUR) {
       throw new HttpsError("resource-exhausted", "too many invitations — try later");
     }
-    events.push(Date.now());
-    tx.set(ref, { events, expireAt: new Date(Date.now() + 2 * 3600000) });
+    for (let i = 0; i < count; i++) events.push(now);
+    tx.set(ref, { events, expireAt: new Date(now + 2 * 3600000) });
   });
 }
 

@@ -1,0 +1,124 @@
+// Finding a person: the one query every surface that adds somebody runs
+// (D237, D239).
+//
+// TWO WAYS IN, merged here so the three callers cannot drift. A HANDLE
+// is an exact address — one document read against a registry keyed on
+// the id (D122). A NAME is a prefix over the people directory (D239) —
+// a bounded query, case-insensitive because `nameKey` is the lowercase
+// copy the rules force to equal the name.
+//
+// Prefix, not substring: Firestore has no substring or fuzzy matching,
+// so "lovelace" does not find "Ada Lovelace". A directory that
+// pretended otherwise would be worse than one whose limit is legible.
+//
+// Its own module for two reasons that happen to agree. The lint rule is
+// the loud one — a file that exports a component may export only
+// components, or fast refresh stops working. The real one is that BOTH
+// sides need this answer and they must not compute it differently:
+// `LivePeopleSearch` decides whether to render, and `search-overlay.jsx`
+// decides whether to print "nothing found" — and in a live build the
+// overlay's own people list is ALWAYS empty, so without asking here it
+// would print "nothing for @ada" directly above Ada.
+import React from "react";
+import LIVE from "../data/live";
+import { normalizeHandle } from "../data/handles";
+import type { DirectoryPerson } from "../data/socialFetch";
+
+/**
+ * The follows ALREADY IN MEMORY that match, filtered locally.
+ *
+ * Deliberately never calls `LIVE.loadCircle()`: that is the per-member
+ * answer fan-out — one read per follow — and a search field is not where
+ * to spend it. When the Mirror's Circle stop has paid for it the list is
+ * here for free; when it has not, the registry lookup is still the whole
+ * feature.
+ */
+export function circleMatches(query: string): Array<{ uid: string; name: string }> {
+  const q = query.trim().toLowerCase();
+  const mine = LIVE.circle() || [];
+  return q ? mine.filter((m) => (m.name || "").toLowerCase().includes(q)) : mine;
+}
+
+// The registry and the directory are both billed reads, and a handle is
+// valid several characters before it is finished — "olafsen" is five
+// valid handles on the way to one. So the field settles first.
+export const FIND_DEBOUNCE_MS = 300;
+
+export interface FindResult {
+  /** Matches, exact-handle hit first when there is one. */
+  rows: DirectoryPerson[];
+  /** A lookup is in flight for a settled query. */
+  busy: boolean;
+  /** The query came back empty. Carries what was searched, for the wording. */
+  empty: string | null;
+}
+
+/**
+ * Find people by handle or by name.
+ *
+ * ONE HOOK FOR THREE SURFACES — the create picker, add-to-a-circle, and
+ * the search overlay's people section. They render different rows and
+ * different actions; what they must not do is answer "who is this" three
+ * different ways, which is how one of them quietly stops finding people
+ * the other two can see.
+ *
+ * `exclude` drops uids a caller cannot offer — the people already picked,
+ * the members a circle already has, and you. Applied here rather than at
+ * each call site so a filtered-out row cannot be counted as a match and
+ * leave the caller drawing an empty list under "1 result".
+ */
+export function usePeopleFinder(query: string, exclude: readonly string[] = []): FindResult {
+  const [rows, setRows] = React.useState<DirectoryPerson[]>([]);
+  const [busy, setBusy] = React.useState(false);
+  const [empty, setEmpty] = React.useState<string | null>(null);
+  const canonical = normalizeHandle(query);
+  const key = query.trim().toLowerCase();
+  // A string, so the effect re-runs when the SET changes rather than on
+  // every render — an array literal from a caller is a new identity each
+  // time and would restart the debounce forever.
+  const skip = [...exclude].sort().join(",");
+
+  React.useEffect(() => {
+    setRows([]);
+    setEmpty(null);
+    if (!key) return undefined;
+    let live = true;
+    const drop = new Set(skip ? skip.split(",") : []);
+    const t = setTimeout(() => {
+      setBusy(true);
+      void (async () => {
+        try {
+          // Both at once. The handle read is skipped entirely when what
+          // was typed cannot be one, so a name search costs one query.
+          const [byName, handleUid] = await Promise.all([
+            LIVE.social.searchPeople(key),
+            canonical ? LIVE.social.whoIs(canonical) : Promise.resolve(null),
+          ]);
+          if (!live) return;
+          const out = byName.filter((r) => !drop.has(r.uid));
+          // The exact hit leads, and joins the list only if the name
+          // search did not already carry it — one person, one row.
+          if (handleUid && !drop.has(handleUid) && !out.some((r) => r.uid === handleUid)) {
+            // The registry stores a uid and nothing else, so the name is
+            // a second read, batched into the shared profile cache every
+            // other person surface reads from.
+            await LIVE.loadNames([handleUid]);
+            if (!live) return;
+            out.unshift({ uid: handleUid, name: LIVE.nameFor(handleUid), handle: canonical || "" });
+          }
+          setRows(out);
+          if (!out.length) setEmpty(query.trim());
+        } catch {
+          // Offline, or a refused read. A search box that throws is
+          // worse than one that finds nothing.
+          if (live) setEmpty(query.trim());
+        } finally {
+          if (live) setBusy(false);
+        }
+      })();
+    }, FIND_DEBOUNCE_MS);
+    return () => { live = false; clearTimeout(t); };
+  }, [key, canonical, skip, query]);
+
+  return { rows, busy, empty };
+}

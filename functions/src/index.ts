@@ -177,6 +177,13 @@ export const deleteAccount = onCall(
       // missing rather than that nobody followed them.
       othersFollows: 0,
       handle: 0,
+      // The people directory row (D239). A flat 0/1 rather than a query
+      // count: it is one document at a known id, so a 0 here means the
+      // delete threw, not that nothing matched.
+      peopleRow: 0,
+      // Circles this account had ASKED to join and was never approved
+      // into (D240) — invisible to the membership sweep by definition.
+      pendingJoins: 0,
       invitesTo: 0,
       invitesFrom: 0,
       // Question suggestions swept by phase 4d (docs/NEXT-FUNCTIONALITY.md
@@ -587,6 +594,45 @@ export const deleteAccount = onCall(
       failed.push("handle");
     }
 
+    // 3c-bis. Pending join requests in circles this account never joined
+    //     (D240). `pending` and `pendingNames` live ON the group document,
+    //     so phase 1c misses them entirely — that phase matches on
+    //     `memberUids`, and the whole point of a pending request is that
+    //     the asker is not in that array. The name is the leak: an erased
+    //     account would sit in a stranger's circle, by name, waiting to
+    //     be approved.
+    //
+    //     `array-contains` on a single field, so Firestore indexes it
+    //     automatically and this needs no index entry.
+    try {
+      const waiting = await db.collection("v2_groups")
+        .where("pending", "array-contains", uid).get();
+      for (const g of waiting.docs) {
+        await g.ref.update({
+          pending: FieldValue.arrayRemove(uid),
+          [`pendingNames.${uid}`]: FieldValue.delete(),
+        });
+      }
+      counts.pendingJoins = waiting.size;
+    } catch (err) {
+      logger.error("[deleteAccount] pending-join wipe failed:", err);
+      failed.push("pendingJoins");
+    }
+
+    // 3d. The people directory (D239). Keyed by uid but a TOP-LEVEL
+    //     document, so phase 1b's recursiveDelete of v2_users/{uid} walks
+    //     straight past it — the same trap 3b describes for the handle
+    //     registry, and worse if missed: the row holds a name, so leaving
+    //     it means an erased account stays findable by the search this
+    //     feature exists to provide.
+    try {
+      await db.doc(`v2_people/${uid}`).delete();
+      counts.peopleRow = 1;
+    } catch (err) {
+      logger.error("[deleteAccount] people directory wipe failed:", err);
+      failed.push("peopleRow");
+    }
+
     // 3c. Circle invitations, BOTH directions (D122) — the same shape as
     //     the inbound follows above, and the same reason it is not
     //     covered by phase 1b: these documents live under someone else's
@@ -715,7 +761,13 @@ export {
   createGroupV2,
   declineGroupInviteV2,
   inviteToGroupV2,
+  // joinGroupV2 is the DEPRECATED ALIAS (D240) — same implementation
+  // as requestJoinV2, kept exported so builds already installed keep
+  // working and start asking to join instead of admitting themselves.
   joinGroupV2,
+  requestJoinV2,
+  approveJoinV2,
+  declineJoinV2,
   leaveGroupV2,
   nearbyCountV2,
   nearbyRoomV2,
