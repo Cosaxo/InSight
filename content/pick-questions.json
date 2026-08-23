@@ -112,6 +112,42 @@
       "domain": "dogs",
       "cat": "fav",
       "prompt": "The most fun breed to say out loud?"
+    },
+    {
+      "id": "pk01",
+      "domain": "pokemon",
+      "cat": "fav",
+      "prompt": "Favourite Pokémon?"
+    },
+    {
+      "id": "pk02",
+      "domain": "pokemon",
+      "cat": "fav",
+      "prompt": "The scariest Pokémon?"
+    },
+    {
+      "id": "pk03",
+      "domain": "pokemon",
+      "cat": "fav",
+      "prompt": "The cutest Pokémon?"
+    },
+    {
+      "id": "pk06",
+      "domain": "pokemon",
+      "cat": "fav",
+      "prompt": "The strongest Pokémon?"
+    },
+    {
+      "id": "pk07",
+      "domain": "pokemon",
+      "cat": "fav",
+      "prompt": "The Pokémon you’d be?"
+    },
+    {
+      "id": "pk09",
+      "domain": "pokemon",
+      "cat": "fav",
+      "prompt": "The best Pokémon name?"
     }
   ]
 }

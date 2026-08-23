@@ -5147,6 +5147,78 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "pick-pk01",
+  "surface": "feed",
+  "seq": 129,
+  "type": "catalog",
+  "domain": "pokemon",
+  "prompt": "Favourite Pokémon?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk02",
+  "surface": "feed",
+  "seq": 130,
+  "type": "catalog",
+  "domain": "pokemon",
+  "prompt": "The scariest Pokémon?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk03",
+  "surface": "feed",
+  "seq": 131,
+  "type": "catalog",
+  "domain": "pokemon",
+  "prompt": "The cutest Pokémon?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk06",
+  "surface": "feed",
+  "seq": 132,
+  "type": "catalog",
+  "domain": "pokemon",
+  "prompt": "The strongest Pokémon?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk07",
+  "surface": "feed",
+  "seq": 133,
+  "type": "catalog",
+  "domain": "pokemon",
+  "prompt": "The Pokémon you’d be?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk09",
+  "surface": "feed",
+  "seq": 134,
+  "type": "catalog",
+  "domain": "pokemon",
+  "prompt": "The best Pokémon name?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "group-gu0",
   "surface": "group",
   "seq": 0,

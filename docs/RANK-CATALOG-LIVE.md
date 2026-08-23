@@ -11,8 +11,13 @@ rank joined the servable set, since rank questions live in that
 taxonomy and pick cards do not) and D232 refined the answer shape (no
 optionIdx at all) and closed a rules hole the plan had not seen
 (optionIdx on a rank doc). What remains open is inventory, not
-machinery: pokemon behind the trademark check, films/artists behind
-the D15 operator step. Written 2026-08-22 on the
+machinery: the pokemon tranche cleared and promoted 2026-08-23 (the
+owner answered the nominative-use check), leaving only films/artists —
+blocked on network policy, not on anyone's machine: the sandbox's
+egress proxy answers CONNECT 403 for `query.wikidata.org` (the one
+host `build-catalog.mjs` needs), so widening the session environment's
+network policy to allow it lets a session run the build itself.
+Written 2026-08-22 on the
 owner's direction after asking why ranking questions disappeared and
 catalogue ("favourite X") questions never appear: both absences are
 deliberate and recorded — `rank` was pulled from the live feed at
