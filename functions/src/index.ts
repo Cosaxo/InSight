@@ -177,6 +177,10 @@ export const deleteAccount = onCall(
       // missing rather than that nobody followed them.
       othersFollows: 0,
       handle: 0,
+      // The people directory row (D233). A flat 0/1 rather than a query
+      // count: it is one document at a known id, so a 0 here means the
+      // delete threw, not that nothing matched.
+      peopleRow: 0,
       invitesTo: 0,
       invitesFrom: 0,
       // Question suggestions swept by phase 4d (docs/NEXT-FUNCTIONALITY.md
@@ -585,6 +589,20 @@ export const deleteAccount = onCall(
     } catch (err) {
       logger.error("[deleteAccount] handle release failed:", err);
       failed.push("handle");
+    }
+
+    // 3d. The people directory (D233). Keyed by uid but a TOP-LEVEL
+    //     document, so phase 1b's recursiveDelete of v2_users/{uid} walks
+    //     straight past it — the same trap 3b describes for the handle
+    //     registry, and worse if missed: the row holds a name, so leaving
+    //     it means an erased account stays findable by the search this
+    //     feature exists to provide.
+    try {
+      await db.doc(`v2_people/${uid}`).delete();
+      counts.peopleRow = 1;
+    } catch (err) {
+      logger.error("[deleteAccount] people directory wipe failed:", err);
+      failed.push("peopleRow");
     }
 
     // 3c. Circle invitations, BOTH directions (D122) — the same shape as

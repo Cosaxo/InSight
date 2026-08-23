@@ -19,7 +19,6 @@ import { Av, AnonAv, anonName, useDialog } from './primitives.jsx';
 // not first paint, and a real import is one less name resolved at render
 // time (check:globals rule 4).
 import LivePeopleSearch from '../ui/LivePeopleSearch.tsx';
-import { livePeopleActive } from '../ui/peopleSearch.ts';
 
 const { useState: useSrchState, useEffect: useSrchEffect, useMemo: useSrchMemo, useRef: useSrchRef } = React;
 
@@ -254,10 +253,16 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
   }, [query, samplePeople]);
 
   // In a live build `people` above is ALWAYS empty (samplePeople is
-  // false), so without asking the live section whether it has anything,
-  // searching a handle that resolves would print "nothing found"
+  // false), so without asking the live section whether it found
+  // anything, searching a name that resolves would print "nothing found"
   // directly above the person it found.
-  const livePeople = samplePeople === false && livePeopleActive(q);
+  //
+  // REPORTED, not predicted (D233). It used to be a synchronous
+  // predicate — "does this look like a handle" — which was answerable
+  // because a handle is a shape. A name is not: whether anybody is
+  // called that is a query, and a guess made before it returns is wrong
+  // half the time.
+  const [livePeople, setLivePeople] = useSrchState(false);
   const nothing = !questions.length && !topics.length && !people.length && !dailies.length && !livePeople;
   const go = (fn) => { onClose(); fn(); };
   const open = (qq) => {
@@ -328,7 +333,7 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
           <SrchTopicRow key={t.id} item={t} query={query} onToggle={() => { t.toggle(); setBump((b) => b + 1); }} />
         ))}
 
-        {livePeople && <LivePeopleSearch query={q} />}
+        {samplePeople === false && <LivePeopleSearch query={q} onActive={setLivePeople} />}
         {!!people.length && <div className="search-group">{query ? 'People' : 'Friends'}</div>}
         {people.map(p => (
           <SrchHit key={p.id}

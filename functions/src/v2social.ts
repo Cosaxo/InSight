@@ -1048,6 +1048,12 @@ export const claimHandleV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   const db = firestore();
   const ref = db.collection("v2_handles").doc(handle);
   const userRef = db.doc(`v2_users/${uid}`);
+  // The directory row (D233), written in the same transaction. It has to
+  // be here rather than left to the client because `handle` is immutable
+  // to the client on that document, the same way it is on the profile —
+  // and because a handle that is claimed but missing from the directory
+  // is an account findable by name and not by the address it just took.
+  const peopleRef = db.doc(`v2_people/${uid}`);
   await db.runTransaction(async (tx) => {
     const [snap, me] = await Promise.all([tx.get(ref), tx.get(userRef)]);
     const prev = me.exists ? (me.get("handle") as string | undefined) : undefined;
@@ -1068,6 +1074,15 @@ export const claimHandleV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
     }
     tx.set(ref, { uid, at: FieldValue.serverTimestamp() });
     tx.set(userRef, { handle }, { merge: true });
+    // MERGE, and name/nameKey only when the profile already has one:
+    // most accounts claim a handle on the setup screen after saving a
+    // name, but the order is not guaranteed and a directory row whose
+    // `name` is "" would be found by an empty prefix — that is, by
+    // everything. The client's own write fills it in either way.
+    const myName = String(me.exists ? (me.get("displayName") || "") : "").trim();
+    tx.set(peopleRef, myName
+      ? { handle, name: myName, nameKey: myName.toLowerCase() }
+      : { handle }, { merge: true });
   });
   return { handle };
 });

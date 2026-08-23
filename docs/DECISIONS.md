@@ -23647,3 +23647,122 @@ device.** The scheme registration is two platform manifests, which no
 emulator suite in this repo exercises. The logic either side of it is
 covered; the OS handoff is not.
 
+
+## D233 · Found by name, not only by the address you memorised
+
+**2026-08-23.** **Status:** binding. Owner's call — search should take a
+name as well as a handle, on the create screen and when adding to a
+circle that already exists.
+
+### What was actually wrong
+
+D122 gave the app an address and D231 made it searchable, but both halves
+answer the same question: *is @olaf someone.* `v2_handles` is keyed on
+the document id, which is what makes uniqueness free and what makes the
+registry incapable of answering anything else.
+
+So the picker could add the friend whose handle you had memorised and
+nobody else — and the two screens that add people disagreed about even
+that. `LdPicker` did an exact handle lookup, `LivePeopleSearch` also
+matched follows already in memory, and neither could find a stranger by
+the name they go by.
+
+### The exposure delta is nil, and that is a finding rather than a defence
+
+`v2_users` carries `allow read: if request.auth != null`, and in Firestore
+rules **`read` is `get` plus `list`**. Any signed-in account could already
+enumerate every profile in the app — names, anchors, test results — with
+one unfiltered `getDocs`. A name directory does not open that door; it
+was open, and searching it merely costs a prefix query instead of a
+sweep.
+
+That is worth knowing on its own terms, and it is not what this decision
+is about. It is recorded here because the argument against a directory
+would otherwise be "it makes people findable", and people are already
+findable — by anybody willing to download the collection.
+
+### A separate collection anyway, for two reasons that are not exposure
+
+- **Size.** A client query cannot field-mask, so searching `v2_users`
+  downloads whole profiles. `revealGroupDay` added a `fieldMask` for
+  exactly this and OOM'd without one; a search box is a worse place to
+  learn it.
+- **Shape.** What a result row draws is a name and a handle. A document
+  holding only those cannot leak a third field to a forgotten
+  projection.
+
+`v2_people/{uid}` — `name`, `nameKey`, `handle`. Nothing else, ever.
+
+### `nameKey` is checked against the name, not merely bounded
+
+The rule is `request.resource.data.nameKey == request.resource.data.name.lower()`.
+
+Without it a client writes `nameKey: "ada"` onto the row that displays
+"Bob", and a search for a friend answers with a stranger. That is
+impersonation with extra steps, and it is the one thing a directory can
+do that a handle registry cannot — a handle is unique and server-issued,
+a name is neither. Rules can compare two strings, so the comparison is
+where the guarantee lives rather than in the client that writes them.
+
+Mutation-checked: it fails exactly one rules case.
+
+### Prefix, not substring — stated because it will be noticed
+
+Firestore has no substring match and no fuzzy match. The query is a range
+over `nameKey` — `[key, key)` — so "ada" finds "Ada Lovelace" and
+"lovelace" does not. A directory that pretended otherwise would be worse
+than one whose limit is legible.
+
+The upper bound is written as the **escape** `""` rather than the
+literal character, which is invisible in an editor and survives a
+careless copy only by luck.
+
+### One hook, three surfaces
+
+`usePeopleFinder` merges the exact-handle read and the name query and is
+used by the create picker, add-to-a-circle, and the search overlay's
+people section. They render different rows and different actions; what
+they must not do is answer "who is this" three different ways, which is
+how one of them quietly stops finding people the other two can see.
+
+It also owns the `exclude` list — people already picked, members the
+circle already has, and you. Filtering there rather than at each call
+site means a filtered-out row can never be counted as a match and leave a
+caller drawing an empty list under a result count.
+
+`livePeopleActive` is gone with it. That predicate answered "could this
+query produce people" synchronously, which worked while the answer was a
+SHAPE (is this a handle) and cannot work now that it is a QUERY (is
+anybody called this). The section reports upward instead —
+`onActive` — and a guess made before the query returns is wrong half the
+time.
+
+### Two things that would have shipped silently
+
+**The erasure arm.** `v2_people/{uid}` is keyed by uid but is a TOP-LEVEL
+document, so phase 1b's recursive delete of `v2_users/{uid}` walks
+straight past it — the same trap the handle registry set in phase 3b, and
+worse if missed: this row holds a name, so an erased account would stay
+findable by the search the feature exists to provide. Phase 3d, asserted
+in `e2e-delete-account.mjs` with a control row that must survive.
+
+**The backfill.** Every account that existed before the directory has a
+display name and no row, so without a heal they are findable by handle
+and invisible by name until they happen to rename themselves — which most
+people never do. Boot writes the row once per (uid, name) per device,
+memoised in localStorage so it is not a write on every launch.
+
+### What the gates caught, in order
+
+`check:data-inventory` failed the moment the rules named a collection the
+inventory did not — which is D130 working exactly as written, since that
+document is what the App Store privacy label is derived from.
+`check:figures` then failed on four files quoting a rules-test count that
+seven new cases had moved. Neither is a bug; both are the documentation
+errors this repo keeps re-committing, caught by the gates built for them.
+
+The live fixture refused to drift too: `vote.test.ts` pins
+`LIVE.social`'s members, so adding `searchPeople` to the store without
+adding it to `live-fixture.ts` failed the smoke suite. That is D122's
+note working a second time.
+

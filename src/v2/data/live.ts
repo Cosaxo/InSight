@@ -132,6 +132,9 @@ import { agreement, type Agreement } from "./cohort";
 // already await getDb(), so the import costs no round trip that was not
 // happening anyway.
 import type { Member as CircleMember } from "./circle";
+// Type-only, so the query module stays behind the dynamic import that
+// keeps `firebase/firestore` off the first-paint path (D122).
+import type { DirectoryPerson } from "./socialFetch";
 // Foresight (D126). Type-only at module scope; the fold and the writer
 // are reached through the same dynamic import the circle uses, and for
 // the same reason — live.ts is eager and this cannot run until a lens
@@ -342,6 +345,10 @@ const state = {
   // different things for those two.
   circle: null as CircleMember[] | null,
   circleLoading: false,
+  // Name-prefix searches already answered this session (D233), keyed by
+  // the lowercased prefix. A search box asks the same question on every
+  // backspace and the answer cannot have changed between two keystrokes.
+  peopleSearch: new Map<string, DirectoryPerson[]>(),
   // The same graph, one query deep (D149). `circle` above is the FOLD —
   // every followed account's answers, one query per member — and it is the
   // right cost for the Circle stop and much too much for a chip on a
@@ -1635,6 +1642,37 @@ const SOCIAL = {
     const [db, mod] = await Promise.all([getDb(), import("./socialFetch")]);
     return mod.uidForHandle(db, handle);
   },
+  /**
+   * People whose display name starts with what was typed (D233).
+   *
+   * The other half of `whoIs`, and the reason it is a different call
+   * rather than a smarter one: a handle is an exact address and a name
+   * is a prefix over a directory, so one is a document read and the
+   * other a bounded query. Merging them is the caller's job — see
+   * `ui/peopleSearch.ts`, which is what every surface that finds people
+   * actually uses.
+   *
+   * Session-cached per key, because a search box asks the same question
+   * on every backspace and the answer cannot have changed between two
+   * keystrokes.
+   */
+  async searchPeople(raw: string): Promise<DirectoryPerson[]> {
+    const key = raw.trim().toLowerCase();
+    if (!key) return [];
+    const hit = state.peopleSearch.get(key);
+    if (hit) return hit;
+    const [db, mod] = await Promise.all([getDb(), import("./socialFetch")]);
+    const rows = await mod.searchPeopleByName(db, key);
+    // Bounded so a long session cannot grow one entry per keystroke ever
+    // typed. Oldest out first — a Map iterates in insertion order, which
+    // is the whole mechanism.
+    if (state.peopleSearch.size >= 40) {
+      const oldest = state.peopleSearch.keys().next().value;
+      if (oldest !== undefined) state.peopleSearch.delete(oldest);
+    }
+    state.peopleSearch.set(key, rows);
+    return rows;
+  },
   async claimHandle(handle: string) {
     const out = await callable<{ handle: string }>("claimHandleV2", { handle });
     state.profile.handle = out.handle;
@@ -2402,6 +2440,22 @@ const LIVE = {
     const uid = state.uid;
     if (!uid) throw new Error("no session");
     await setDoc(doc(db, "v2_users", uid), { displayName: name }, { merge: true });
+    // The directory row (D233), written beside the profile rather than
+    // derived from it by a trigger: a trigger would be a function
+    // invocation per profile write for a two-field copy, and the rules
+    // already force `nameKey` to equal `name`, so the client cannot
+    // publish a name it is not also found by.
+    //
+    // A SECOND WRITE, deliberately not awaited into the same failure. If
+    // the directory write throws, the name is still saved and the
+    // account is merely not findable yet — the next save fixes it, and
+    // the boot heal below catches the case where there is no next save.
+    try {
+      const mod = await import("./socialFetch");
+      await mod.writeDirectoryRow(db, uid, name);
+    } catch (err) {
+      reportError(err, { where: "writeDirectoryRow" });
+    }
     state.profile.displayName = name;
     saveLocalName(name);
     notify();
@@ -4193,6 +4247,34 @@ export function refreshLive(): Promise<void> {
         .then((m) => m.registerPush(forUid))
         .catch(() => { if (pushRegisteredFor === forUid) pushRegisteredFor = null; });
     }
+    // The directory row for an account that already had a name (D233),
+    // fire-and-forget and once per (uid, name) per device.
+    //
+    // THE BACKFILL, and it is why this is here rather than left to
+    // `saveDisplayName`. Every account that existed before the directory
+    // did has a display name and no row, so without this they are
+    // findable by handle and invisible by name until they happen to
+    // rename themselves — which most people never do. The localStorage
+    // memo is what keeps it from being a write on every boot: the value
+    // is the name, so it re-writes exactly when the name changed on
+    // another device and not otherwise.
+    void (async () => {
+      const forUid = state.uid;
+      const name = (state.profile.displayName || "").trim();
+      if (!forUid || !name) return;
+      const KEY = "insight.directoryRow.v1";
+      try {
+        const seen = JSON.parse(localStorage.getItem(KEY) || "null");
+        if (seen && seen.uid === forUid && seen.name === name) return;
+      } catch { /* unreadable cache — write and move on */ }
+      try {
+        const [db, mod] = await Promise.all([getDb(), import("./socialFetch")]);
+        await mod.writeDirectoryRow(db, forUid, name);
+        localStorage.setItem(KEY, JSON.stringify({ uid: forUid, name }));
+      } catch (err) {
+        reportError(err, { where: "directoryHeal" });
+      }
+    })();
     // fire-and-forget, same shape: the D29 device-binding activation.
     // Once per uid; ensureDeviceBound() itself memoizes per uid in
     // localStorage, handles the missing native bridge, and never surfaces

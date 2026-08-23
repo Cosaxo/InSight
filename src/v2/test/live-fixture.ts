@@ -183,6 +183,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // data wearing a live badge, and "nobody has invited you" IS the live
     // surface a new account opens on.
     whoIs: async () => null,
+    // The name half of finding somebody (D233). Empty, like every
+    // other read here — a fixture that returned people would put
+    // invented names in a live-mode smoke test.
+    searchPeople: async () => [],
     claimHandle: async (handle: string) => ({ handle }),
     inviteToGroup: async () => ({ ok: true }),
     acceptInvite: async () => ({ gid: "g_test", name: "Test" }),

@@ -149,6 +149,12 @@ await adb.doc(`v2_users/${OTHER}/following/third_party`).set({ to: "third_party"
 //     this account's display name on it, which is the half that outlives
 //     an erasure most visibly.
 await adb.doc("v2_handles/erasable").set({ uid, at: new Date() });
+// The people directory row (D233). Keyed by uid but TOP-LEVEL, so the
+// profile subtree's recursive delete walks past it — the same trap the
+// handle registry sets, and worse if missed: this row holds a NAME, so
+// leaving it means an erased account stays findable by the search the
+// feature exists to provide.
+await adb.doc(`v2_people/${uid}`).set({ name: "Erasable", nameKey: "erasable", handle: "erasable" });
 await adb.doc(`v2_groups/${SHARED}/invites/${uid}`).set({
   to: uid, from: OTHER, fromName: "Other", groupName: "Shared", mode: "group", at: new Date(),
 });
@@ -161,6 +167,7 @@ await adb.doc(`v2_groups/${SHARED}/invites/third_party`).set({
 // matching rows would look correct from the deleted side and be a
 // catastrophe from everyone else's.
 await adb.doc("v2_handles/somebodyelse").set({ uid: OTHER, at: new Date() });
+await adb.doc(`v2_people/${OTHER}`).set({ name: "Other", nameKey: "other" });
 await adb.doc(`v2_groups/${SHARED}/invites/fourth_party`).set({
   to: "fourth_party", from: OTHER, fromName: "Other", groupName: "Shared", mode: "group", at: new Date(),
 });
@@ -419,6 +426,7 @@ for (const [path, label] of [
   [`v2_ratelimits/suggest_${uid}`, "their suggestion budget ledger"],
   [`v2_agg_events/evt_mine`, "their agg-ledger entry"],
   ["v2_handles/erasable", "their handle — the name goes back into circulation"],
+  [`v2_people/${uid}`, "their directory row — an erased account stops being findable by name"],
   [`v2_groups/${SHARED}/invites/${uid}`, "an invitation TO them, under someone else's circle"],
   [`v2_groups/${SHARED}/invites/third_party`, "an invitation FROM them, carrying their name"],
 ]) await mustBeGone(path, label);
@@ -471,6 +479,8 @@ if (!(await exists(`v2_users/${OTHER}/following/third_party`)))
 ok("someone else's other follows survive — the sweep matched on `to`, not on the collection");
 
 // The same control for D122's two sweeps.
+if (!(await exists(`v2_people/${OTHER}`)))
+  fail("the directory sweep took another account's row");
 if (!(await exists("v2_handles/somebodyelse")))
   fail("the handle sweep took another account's handle — it matched the collection, not the uid");
 if (!(await exists(`v2_groups/${SHARED}/invites/fourth_party`)))

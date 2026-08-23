@@ -151,6 +151,9 @@ export const LIVE_SOCIAL_MEMBERS = [
   // below states: the pin is what makes the surface reviewed.
   "acceptInvite", "claimHandle", "declineInvite", "inviteToGroup",
   "invites", "invitesLoading", "loadInvites", "whoIs",
+  // The name half of finding somebody (D233). `whoIs` answers an
+  // exact address; this answers a prefix over the people directory.
+  "searchPeople",
   // Circle takes and the report control (D1, docs/MODERATION.md). Listed
   // here before any JSX reads them: the pin is what makes the surface
   // reviewed, and a member added straight into a consumer is a member

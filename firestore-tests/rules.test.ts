@@ -2179,6 +2179,74 @@ describe("presence (D84 — Near by radius)", () => {
 // CANNOT do — which is the half that matters, because accepting an
 // invitation is one hop from `memberUids`, and `memberUids` is the array
 // this rules file reads to decide who may see a sealed duel answer.
+// ── the people directory (D233) ──────────────────────────────────
+//
+// The registry above answers an exact address. This is the half that
+// answers a NAME, and its whole risk is one line of the rule: `nameKey`
+// is what a search matches and `name` is what the result draws, so a row
+// where they disagree answers somebody's search for a friend with a
+// stranger. Rules can compare the two, so they do.
+describe("people directory: found by name (D233)", () => {
+  const seedRow = () => seed(async (db) => {
+    await setDoc(doc(db, "v2_people", OWNER), { name: "Olaf", nameKey: "olaf", handle: "olaf_t" });
+  });
+
+  it("anyone signed in can search it — that is what it is for", async () => {
+    await seedRow();
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_people", OWNER)));
+  });
+
+  it("you write your own row and nobody else's", async () => {
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_people", OWNER), { name: "Olaf", nameKey: "olaf" }));
+    await assertFails(setDoc(doc(asUser(STRANGER), "v2_people", OWNER), { name: "Olaf", nameKey: "olaf" }));
+  });
+
+  // THE ONE THAT MATTERS. Without this the row displaying "Bob" can be
+  // found by a search for "ada", which is impersonation with extra steps
+  // — the searcher gets a stranger where they asked for a friend.
+  it("refuses a nameKey that is not the name", async () => {
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_people", OWNER), { name: "Bob", nameKey: "ada" }));
+    // Case, too: the key is the FOLD of the name, and a key that merely
+    // contains it would sort into the wrong prefix range.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_people", OWNER), { name: "Olaf", nameKey: "Olaf" }));
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_people", OWNER), { name: "Olaf T", nameKey: "olaf t" }));
+  });
+
+  it("refuses an empty or oversized name", async () => {
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_people", OWNER), { name: "", nameKey: "" }));
+    const long = "x".repeat(61);
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_people", OWNER), { name: long, nameKey: long }));
+  });
+
+  it("refuses a field nobody declared", async () => {
+    // A directory row holds a name and a handle. Anything else is a
+    // second thing a search result could leak.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_people", OWNER), {
+      name: "Olaf", nameKey: "olaf", email: "olaf@example.com",
+    }));
+  });
+
+  // `handle` is the callable's, exactly as v2_users.handle is: a claim is
+  // a two-document transaction the rules cannot express. It is on the
+  // allowlist so a later name write can carry it through, and immutable
+  // so that write cannot change it.
+  it("lets a client carry the handle through but never set or move it", async () => {
+    await seedRow();
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_people", OWNER),
+      { name: "Olaf Two", nameKey: "olaf two", handle: "olaf_t" }));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_people", OWNER),
+      { name: "Olaf", nameKey: "olaf", handle: "someone_else" }));
+  });
+
+  // deleteAccount (admin SDK) owns removal — phase 3d. A client delete
+  // would be the one path able to strip a row the erasure counts on.
+  it("nobody deletes a row from a client, not even their own", async () => {
+    await seedRow();
+    await assertFails(deleteDoc(doc(asUser(STRANGER), "v2_people", OWNER)));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_people", OWNER)));
+  });
+});
+
 describe("handles: the account registry (D122)", () => {
   const seedHandle = () => seed(async (db) => {
     await setDoc(doc(db, "v2_handles", "olaf"), { uid: OWNER, at: new Date() });
