@@ -71,7 +71,7 @@ export const CLAIMS = [
   ["D146 · answers can be grouped by the Big Five type, retroactively",
     /grouped by it[\s\S]{0,400}?before you had a type at all/i],
   // The D146 row beside this one — "politics/values/social results are
-  // NOT used to group answers" — retired at D232: the owner removed the
+  // NOT used to group answers" — retired at D237: the owner removed the
   // promise (the D225 posture — an unneeded promise is a standing
   // liability). The page now DESCRIBES what groups answers today, with
   // no pledge about tomorrow; the app's current Big-Five-plus-logic
@@ -105,7 +105,7 @@ export const CLAIMS = [
     /moves from one option to another/i],
   ["D227 · the verified logic score also groups answers, in broad bands",
     /verified logic score, in\s+four broad\s+bands/i],
-  ["D231 · sold reports are packaged public numbers, never a private read",
+  ["D236 · sold reports are packaged public numbers, never a private read",
     /report never contains\s+anything a signed-in user could not read/i],
 ];
 

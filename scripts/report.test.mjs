@@ -22,9 +22,10 @@ import { parseLogicPct as realParseLogicPct, parseTestResults as realParseTestRe
 import {
   LOGIC_BANDS, NEIGHBOUR_MIN_SHARED, REPORT_READ_SET, WORLD_ANSWER_SURFACES,
   assertReadable, buildReportData, condModes, cramersV, dimRowsFromBy,
-  dimRowsFromRoll, editNet, editPairs, logicBandOf, logicCut, makeReader,
-  parseLogicPct, parseTestDims, renderCsvs, renderReportHtml, seriesFromRoll,
-  toCsv, totalMoves,
+  axisBandIndex, axisBandLabels, axisCut, dimRowsFromRoll, editNet,
+  editPairs, logicBandOf, logicCut, makeReader, parseLogicPct,
+  parseTestDims, renderCsvs, renderReportHtml, seriesFromRoll, toCsv,
+  totalMoves,
 } from "./report-lib.mjs";
 
 const srcOf = (p) => readFileSync(new URL("../" + p, import.meta.url), "utf8");
@@ -282,6 +283,46 @@ describe("assembly and the page", () => {
     expect(html).toContain("Big Five — type");
     expect(html).toContain("Politics — type");
     expect(html).toContain("tested 1");
+  });
+
+  it("axis bands mirror the result card's own thresholds, centred on the baseline", () => {
+    // avg 60 (big5 O's authored baseline): the |dev| >= 18 / >= 8 reading.
+    expect(axisBandIndex(42, 60)).toBe(0); // dev −18 — a defining lean
+    expect(axisBandIndex(43, 60)).toBe(1); // −17 — a lean
+    expect(axisBandIndex(52, 60)).toBe(1); // −8 — still a lean
+    expect(axisBandIndex(53, 60)).toBe(2); // −7 — Between
+    expect(axisBandIndex(67, 60)).toBe(2);
+    expect(axisBandIndex(68, 60)).toBe(3); // +8
+    expect(axisBandIndex(78, 60)).toBe(4); // +18
+    // a missing baseline centres on 50, the matcher's own fallback
+    expect(axisBandIndex(58, undefined)).toBe(3);
+    expect(axisBandIndex(68, undefined)).toBe(4);
+    // a skewed baseline moves the bands with it (A averages 65)
+    expect(axisBandIndex(65, 65)).toBe(2);
+    expect(axisBandIndex(47, 65)).toBe(0);
+    expect(axisBandLabels("practical", "curious")).toEqual(
+      ["Practical", "Leans practical", "Between", "Leans curious", "Curious"],
+    );
+  });
+
+  it("axisCut files each voter by their own axis, untested as a full row", async () => {
+    const data = await buildReportData(fakeReader(), { qid: "pd01", vocab: VOCAB });
+    const cut = axisCut(
+      (await fakeReader().walkRoll()), await fakeReader().getProfiles(), "big5", "O", 2,
+    );
+    // Åse's O = 88 against the authored 60 is a defining lean high
+    expect(cut.tested).toBe(1);
+    expect(cut.rows[4]).toMatchObject({ label: "Curious", counts: [1, 0], t: 1 });
+    expect(cut.rows[5]).toMatchObject({ label: "Untested", t: 1 });
+    expect(cut.rows.reduce((a, r) => a + r.t, 0)).toBe(2);
+    // and the page draws every big5 axis under the type dim
+    const big5 = data.typeCuts.find((c) => c.kind === "big5");
+    expect(big5.axes.map((a) => a.label)).toEqual(
+      ["Openness", "Conscientiousness", "Extraversion", "Agreeableness", "Sensitivity"],
+    );
+    const html = renderReportHtml(data);
+    expect(html).toContain("Big Five · Openness");
+    expect(html).toContain("Leans practical");
   });
 
   it("parseTestDims mirrors similarity.parseTestResults, shape for shape", () => {

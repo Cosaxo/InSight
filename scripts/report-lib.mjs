@@ -25,24 +25,20 @@
 // Sections, copy voice and the honesty states are its: an empty bucket
 // is "none yet — still listed", a thin cell prints "shown exactly", and
 // nothing is suppressed, because exact-from-the-first-answer is the
-// product (D98). Two of the mock's rows do NOT ship, each for a stated
-// reason the decision records carry:
-//
-//   · The per-AXIS five-band dims (the mock's "Big Five · Openness"
-//     rows): the mock's bands are its own population-shaping numbers,
-//     not a vocabulary the app anywhere defines — banding an axis is a
-//     design decision nobody has taken, so the rows wait for it rather
-//     than shipping an invented scale. (The TYPE cuts themselves ship:
-//     permitted at D232, buildable at D233.)
-//   · District / field-of-study rows — no such data exists anywhere.
+// product (D98). One of the mock's rows does NOT ship, for the old
+// reason: district / field-of-study — no such data exists anywhere.
+// (The mock's other absences closed in order: type cuts permitted at
+// D237 and built at D238; the per-axis five-band rows at D239, banded
+// by the app's own thresholds rather than the mock's population-shaping
+// shares — see the axis-bands section below.)
 //
 // What DOES cut: the census dims from the aggregate's `by` map (exact,
 // complete), Job folded from the roll's public vote-time snapshots
 // (profession is deliberately never a SERVER dim — D8 — but the
 // snapshots are world-readable and the fold is the reader's own
 // arithmetic, the D146 class), the logic quarters (D227's bands), and —
-// since D233 — the four instruments' TYPE cuts, run through the app's
-// own matcher over the public testResults (permitted by D232's promise
+// since D238 — the four instruments' TYPE cuts, run through the app's
+// own matcher over the public testResults (permitted by D237's promise
 // removal; buildable once the archetype module left the bridge).
 //
 // Twins, each pinned by scripts/report.test.mjs rather than imported:
@@ -50,9 +46,10 @@
 // similarity.ts) sit behind import chains that touch `window`/live.ts,
 // so a direct import cannot load under node. The test reads the sources
 // and fails when a twin drifts. The archetype MATCHER is not a twin:
-// since D233's bridge conversion the module loads under plain node, so
+// since D238's bridge conversion the module loads under plain node, so
 // the report runs the app's own matcher on the app's own signatures.
-import { ARCHETYPES, IS_matchArchetype } from "../src/v2/spec/archetype-data.js";
+import { ARCHETYPES, IS_RULE_ADJ, IS_matchArchetype, RULE_REAL, RULE_STRONG } from "../src/v2/spec/archetype-data.js";
+import { IS_TESTS, IS_TEST_AVG } from "../src/v2/spec/test-definitions.js";
 
 // ── twins (pinned to their client sources by report.test.mjs) ────────
 
@@ -109,8 +106,8 @@ export function parseTestDims(raw, kind) {
 
 /** The four instruments the report cuts by, with the names the app shows
  * (similarity.ts CORE_TEST_KINDS, display names per data-inventory).
- * Permitted since D232 removed the never-group promise; buildable since
- * D233 put the matcher within reach of node. */
+ * Permitted since D237 removed the never-group promise; buildable since
+ * D238 put the matcher within reach of node. */
 export const REPORT_TYPE_CUTS = [
   ["big5", "Big Five"],
   ["political", "Politics"],
@@ -467,6 +464,55 @@ export function typeCut(roll, profiles, kind, optionCount) {
   return { rows: [...rows, untested], tested };
 }
 
+// ── the axis bands (D239) ────────────────────────────────────────────
+//
+// Five bands per axis, and NOTHING here is invented: the centre is the
+// app's own authored baseline (IS_TEST_AVG — the same numbers the
+// matcher centres on, rule 2), the edges are the archetype module's own
+// magnitude vocabulary (RULE_REAL = a lean worth naming, RULE_STRONG =
+// a defining lean — the thresholds the result card's "what earns the
+// name" rule reads), and the pole words are IS_RULE_ADJ, written to
+// survive a prefix. The mock's band shares were population-shaping
+// numbers; these are the app's.
+
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** Band index 0..4 for an axis value against its authored baseline —
+ * the exact |dev| >= STRONG / >= REAL reading IS_typeRuleParts makes. */
+export function axisBandIndex(value, avg) {
+  const dev = value - (typeof avg === "number" ? avg : 50);
+  const mag = Math.abs(dev);
+  if (mag >= RULE_STRONG) return dev < 0 ? 0 : 4;
+  if (mag >= RULE_REAL) return dev < 0 ? 1 : 3;
+  return 2;
+}
+
+/** The five labels for one axis's [low, high] adjective pair. */
+export function axisBandLabels(low, high) {
+  return [cap(low), "Leans " + low, "Between", "Leans " + high, cap(high)];
+}
+
+/** One axis's five-band cut over the roll — bands in scale order (low
+ * pole first), every band listed, untested last as a full row. */
+export function axisCut(roll, profiles, kind, dimId, optionCount) {
+  const poles = (IS_RULE_ADJ[kind] || {})[dimId];
+  if (!poles) return null;
+  const avg = (IS_TEST_AVG[kind] || {})[dimId];
+  const rowFor = (label) => ({ label, counts: Array.from({ length: optionCount }, () => 0), t: 0 });
+  const rows = axisBandLabels(poles[0], poles[1]).map(rowFor);
+  const untested = rowFor("Untested");
+  let tested = 0;
+  for (const r of roll) {
+    const dims = parseTestDims((profiles[r.uid] || {}).tests, kind);
+    const hit = dims ? dims.find((d) => d.id === dimId) : null;
+    const row = hit ? rows[axisBandIndex(hit.value, avg)] : untested;
+    if (hit) tested += 1;
+    row.t += 1;
+    if (r.optionIdx >= 0 && r.optionIdx < optionCount) row.counts[r.optionIdx] += 1;
+  }
+  return { rows: [...rows, untested], tested };
+}
+
 /** Cramér's V between the main question and one candidate over the
  * joined sample — for 2×2 (the patterns predicate guarantees the
  * candidate side) this is |phi|. */
@@ -539,9 +585,16 @@ export async function buildReportData(reader, { qid, vocab, now = new Date(), ne
 
   const pairsList = editPairs(agg.edits);
   const logic = logicCut(roll, profiles, options.length);
-  const typeCuts = REPORT_TYPE_CUTS.map(([kind, title]) => (
-    { kind, title, ...typeCut(roll, profiles, kind, options.length) }
-  ));
+  const typeCuts = REPORT_TYPE_CUTS.map(([kind, title]) => ({
+    kind, title,
+    ...typeCut(roll, profiles, kind, options.length),
+    axes: ((IS_TESTS[kind] || {}).dims || [])
+      .map((d) => {
+        const c = axisCut(roll, profiles, kind, d.id, options.length);
+        return c ? { label: d.label, ...c } : null;
+      })
+      .filter(Boolean),
+  }));
 
   // neighbours — a bounded joined sample, most recent voters first
   const sample = roll.slice(0, neighbourSample);
@@ -812,9 +865,10 @@ export function renderReportHtml(data) {
     data.typeCuts.map((cut) =>
       `<div style="margin-top:14px"><div style="${K};font-size:9.5px;opacity:0.85">${esc(cut.title)}</div>` +
       dimSection(`${cut.title} — type`, cut.rows, `tested ${fmt(cut.tested)}`) +
+      cut.axes.map((ax) => dimSection(`${cut.title} · ${ax.label}`, ax.rows, `tested ${fmt(ax.tested)}`)).join("") +
       `</div>`,
     ).join("") +
-    `<div style="${BASIS}">Census cuts are the aggregate&rsquo;s own published cells — exact, complete, an absent bucket is zero (D98). Job is folded from the answers&rsquo; public vote-time snapshots, and the four type cuts run the app&rsquo;s own nearest-signature matcher over the public testResults — the same reads anyone in the app can make. Cohorts as they stood at vote time · an empty bucket stays listed at zero, small counts print exactly, and the Untested row is the remainder — shown, never dropped.</div>`);
+    `<div style="${BASIS}">Census cuts are the aggregate&rsquo;s own published cells — exact, complete, an absent bucket is zero (D98). Job is folded from the answers&rsquo; public vote-time snapshots, and the test cuts run the app&rsquo;s own reading of the public testResults: types by its nearest-signature matcher, axes in its own five bands — read against the authored baselines, a lean at 8 dim points and a defining lean at 18, the same thresholds the result card names types by. Cohorts as they stood at vote time · an empty bucket stays listed at zero, small counts print exactly, and the Untested row is the remainder — shown, never dropped.</div>`);
 
   const logicCard = card(
     kicker("The logic cut", "verified in the timed in-app test") +

@@ -23366,7 +23366,7 @@ rather than assumed to:
   zero. A colour is a name-level guard's blind spot twice over — the
   pill it copies lives in another file.
 
-## D231 · The report builder ships, and reads as a signed-in user
+## D236 · The report builder ships, and reads as a signed-in user
 
 **2026-08-23.** **Status:** binding, built. Owner's call on the
 paid-reports thread — *"build the report builder then"* — adopting
@@ -23374,9 +23374,10 @@ paid-reports thread — *"build the report builder then"* — adopting
 hand. The visual is the owner's own: the 2026-08-22 standalone's
 `paid-report.jsx`, uploaded on the same thread and extracted to
 `design/standalone-2026-08-22/` per that directory family's rule.
-Written on `claude/next-project-priorities-w43wut` as D230 and
-renumbered to D231 on merge — #259 minted D230 while this branch was
-open, the D218/D224/D229 collision pattern, now five for five.
+Written on `claude/next-project-priorities-w43wut` as D230, renumbered
+to D231 when #259 minted D230, and again to D236 when #263–#267 minted
+D231–D235 — the D218/D224/D229 collision pattern, twice in one record's
+lifetime, which is what a day of parallel threads now looks like.
 
 ### What ships
 
@@ -23456,10 +23457,10 @@ store-form movement (nothing new is collected); `reports/` is
 gitignored; PAID-PLAN §2/§9.2 and ORIENTATION's row moved in this
 commit.
 
-## D232 · The never-grouped promise is removed, and the scope becomes a choice
+## D237 · The never-grouped promise is removed, and the scope becomes a choice
 
 **2026-08-23.** **Status:** binding. Owner's call, on the paid-reports
-thread, over D231's note that the promise stood between the report and
+thread, over D236's note that the promise stood between the report and
 the mock's test-group cuts: *"yeah undo this we are trying to unwind as
 many promises as possible"* — the D225 posture applied to its next
 sentence, and recorded in the same shape.
@@ -23472,7 +23473,7 @@ are never used to group answers this way."* Pinned by
 `check:policy-claims` ("D146 · politics/values/social results are NOT
 used to group answers"), cited as a promise by
 `docs/data-inventory.md`'s Core-test-results row and by
-`data/typeSplit.ts`'s own header, and the stated reason D231's report
+`data/typeSplit.ts`'s own header, and the stated reason D236's report
 ships without the mock's politics/values/social accordions.
 
 ### The decision
@@ -23483,7 +23484,7 @@ type (D146) and the verified logic bands (D227) — and that scope is now
 the app's CURRENT CHOICE, described in the present tense with nothing
 promised about tomorrow. An unneeded promise is a standing liability
 (D225's words): it either gets broken later or warps a build to route
-around it, which is precisely what D231 §"what deliberately does not
+around it, which is precisely what D236 §"what deliberately does not
 ship" was doing.
 
 ### What remains true, and what holds each piece
@@ -23520,19 +23521,20 @@ deleted per the gate's own retirement rule, with the D202 comment block
 rewritten. `data/typeSplit.ts`: the header and `SPLIT_TEST` docstring
 recast from promise-enforcement to choice-pinning.
 `docs/data-inventory.md`: the Core-test-results row says choice, not
-promise. D231's three surfaces (`scripts/report-lib.mjs`'s header, the
+promise. D236's three surfaces (`scripts/report-lib.mjs`'s header, the
 design extraction's README, PAID-PLAN §9.2's note) now name one blocker
 instead of two.
 
-## D233 · The archetype module leaves the bridge, and the report gets its type cuts
+## D238 · The archetype module leaves the bridge, and the report gets its type cuts
 
 **2026-08-23.** **Status:** binding, built. Owner's call ("yes do that"),
-continuing D232: with the never-group promise gone, the one thing
+continuing D237: with the never-group promise gone, the one thing
 between the report and the mock's test-group cuts was
 `spec/archetype-data.js` reading `window` at module scope. D39's
 "convert on touch", taken at the moment of touch. Written on
-`claude/next-project-priorities-w43wut` as D233 — renumber on merge if
-main has minted it, the standing collision pattern.
+`claude/next-project-priorities-w43wut` as D233 and renumbered to D238
+on merge — #263–#267 minted D231–D235 while this branch was open, the
+standing collision pattern.
 
 ### The conversion — the primitives shape, applied
 
@@ -23582,3 +23584,51 @@ rows. The mock's bands are its own population-shaping numbers, not a
 vocabulary the app defines anywhere — banding an axis is a design
 decision to take, not a constant to transcribe. District and
 field-of-study rows stay out for the old reason: no such data exists.
+
+## D239 · The axis bands ship, in the app's own vocabulary
+
+**2026-08-23.** **Status:** binding, built. Owner's call ("yes do the
+axis bands aswell"), closing the last deliberate gap between the report
+and the mock's Who-answered section. D238 had declined these rows
+because banding an axis looked like an undesigned decision; building
+them showed the design already existed — the app just had never applied
+it as a cut. Written on `claude/next-project-priorities-w43wut` as
+D234 and renumbered to D239 on merge — #263–#267 minted D231–D235
+while this branch was open, the standing collision pattern.
+
+### The banding, and why none of it is invented
+
+Each axis reads in five bands, and every constant is one the app
+already owns and explains:
+
+- **The centre** is `IS_TEST_AVG`'s authored baseline — the same number
+  the archetype matcher centres BOTH sides on (its rule 2: scores are
+  read against the population, not the midpoint), so an axis where
+  people average 65 does not call an ordinary 60 a lean low.
+- **The edges** are `RULE_REAL` (8 dim points — "a lean worth naming at
+  all") and `RULE_STRONG` (18 — "a defining lean"): the thresholds the
+  result card's what-earns-the-name rule reads. |dev| ≥ 18 is the pole
+  band, ≥ 8 leans, else Between — `IS_typeRuleParts`' own reading,
+  applied symmetrically.
+- **The labels** come from `IS_RULE_ADJ`'s pole pairs, written to
+  survive a prefix: Practical · Leans practical · Between · Leans
+  curious · Curious. Axis names and order are `IS_TESTS`' own dims.
+
+The mock's bands carried shares (11/24/29/24/12) — population-shaping
+numbers for its invented crowd, not edges; transcribing them was the
+thing D238 refused, and this is the replacement it asked for.
+
+### What shipped
+
+`archetype-data.js` exports the three constants it already owned
+(`IS_RULE_ADJ`, `RULE_REAL`, `RULE_STRONG` — additive, no consumer
+moved). `report-lib.mjs` gains `axisBandIndex`/`axisBandLabels`/
+`axisCut`, and each instrument group on the page now carries its axes
+under the type dim — "Big Five · Openness" through "Social · Ease",
+five bands in scale order plus Untested as a full row, "tested N" as
+each section's basis, the basis line naming the thresholds so a buyer
+can check the reading. Boundary arithmetic pinned exactly (±8/±18
+inclusive, the 50 fallback, a skewed baseline moving its bands);
+e2e §7g holds the all-untested shape; the roll CSV is unchanged — the
+axes are the page's reading, and the roll already lets a buyer
+recompute any of it.

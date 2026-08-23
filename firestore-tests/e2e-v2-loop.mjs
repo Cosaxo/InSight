@@ -424,16 +424,21 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
   const html = renderReportHtml(report);
   if (!html.includes("moves, not people"))
     fail("report page lost the D226 semantics line");
-  // The four type cuts (D233): nobody in this loop has taken a test, so
+  // The four type cuts (D238): nobody in this loop has taken a test, so
   // every cut is all-Untested — listed as a full row, never dropped —
   // and every named type renders at zero.
   const badCut = report.typeCuts.find((c) => c.tested !== 0 || c.rows[c.rows.length - 1].t !== 12);
   if (report.typeCuts.length !== 4 || badCut)
     fail("type cuts wrong on an untested crowd: " + JSON.stringify(report.typeCuts.map((c) => [c.kind, c.tested])));
-  for (const needle of ["Big Five — type", "Politics — type", "Values — type", "Social — type"]) {
-    if (!html.includes(needle)) fail("report page lost a type cut: " + needle);
+  // …and each instrument's axes ride under it (D239), five bands +
+  // Untested per axis, all twelve voters in the Untested row here too.
+  const badAxis = report.typeCuts.find((c) =>
+    !c.axes.length || c.axes.some((a) => a.rows.length !== 6 || a.rows[5].t !== 12));
+  if (badAxis) fail("axis cuts wrong on an untested crowd: " + badAxis.kind);
+  for (const needle of ["Big Five — type", "Politics — type", "Values — type", "Social — type", "Big Five · Openness"]) {
+    if (!html.includes(needle)) fail("report page lost a cut: " + needle);
   }
-  ok("report builder: 12-row roll, 9/3 split, the 1→0 move, four all-untested type cuts, every read inside REPORT_READ_SET");
+  ok("report builder: 12-row roll, 9/3 split, the 1→0 move, four all-untested type cuts with their axis bands, every read inside REPORT_READ_SET");
 }
 
 // 8 · the duel loop: create → join by code → sealed answers → reveal → streak

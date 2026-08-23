@@ -1,7 +1,7 @@
 // Ported from design/spec-modules/archetype-data.js (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
 //
-// OFF THE BRIDGE since D233 (D39's "convert on touch"): every name here
+// OFF THE BRIDGE since D238 (D39's "convert on touch"): every name here
 // is a plain named export, nothing is published to window, and the
 // consumer set moved in the same change (the primitives.jsx precedent —
 // a provider whose consumers all fit in one change is cheaper to finish
@@ -290,7 +290,7 @@ const IS_RULE_WORD = {
 // needs adjectives, not the nouns the axis labels use. Written out rather than
 // derived from IS_DIM_WORD because those are comparatives ("warmer", "looser")
 // and don't survive a prefix.
-const IS_RULE_ADJ = {
+export const IS_RULE_ADJ = {
   big5: { O: ['practical', 'curious'], C: ['loose', 'disciplined'], E: ['reserved', 'outgoing'], A: ['blunt', 'warm'], N: ['unshakeable', 'sensitive'] },
   political: { econ: ['left on money', 'pro-market'], auth: ['liberty-first', 'order-first'], foreign: ['nation-first', 'globally-minded'], env: ['growth-first', 'climate-urgent'], tech: ['tech-wary', 'tech-hopeful'], estab: ['system-trusting', 'anti-system'] },
   values: { future: ['dark on the future', 'hopeful'], circle: ['family-first', 'stranger-minded'], hedonism: ['duty-bound', 'pleasure-first'], meaning: ['happiness-first', 'meaning-seeking'], moral: ['relativist', 'morally certain'], beauty: ['truth-first', 'beauty-first'] },
@@ -309,8 +309,8 @@ const IS_RULE_ADJ = {
 //     Rank by deviation and take the top 2, with a 3rd when it's still real.
 //  3. MODERATION IS A POSITION. A type sitting at the population average on a
 //     dim gets said out loud ("even on money"), not dropped.
-const RULE_STRONG = 18;  // dim points from the population — a defining lean
-const RULE_REAL = 8;     // ...a lean worth naming at all
+export const RULE_STRONG = 18;  // dim points from the population — a defining lean
+export const RULE_REAL = 8;     // ...a lean worth naming at all
 
 export function IS_typeRuleParts(testKey, dims, a, max) {
   if (!a || !dims) return [];
@@ -357,7 +357,7 @@ export function IS_matchArchetype(testKey, dims) {
 }
 
 // Unprefixed aliases for the typed consumers that arrived before the
-// conversion (data/typeMix.ts, D141; ui/LiveRolesPanel.tsx, D233) — same
+// conversion (data/typeMix.ts, D141; ui/LiveRolesPanel.tsx, D238) — same
 // bindings, second names, kept so nothing has to rename on its side.
 export const ARCHETYPES = IS_ARCHETYPES;
 export const matchArchetype = IS_matchArchetype;

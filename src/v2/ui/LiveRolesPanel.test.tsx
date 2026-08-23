@@ -26,7 +26,7 @@ let HIST: Record<string, Record<string, unknown>[]> = {};
 // The matcher is roles.test.ts' subject, not this panel's — pin it so
 // these assertions read the panel's behaviour, not the fixtures' dims.
 // Everything else keeps the real module (type-marks reads IS_ARCHETYPES
-// through the same import since D233's conversion).
+// through the same import since D238's conversion).
 vi.mock("../spec/archetype-data.js", async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
   matchArchetype: () => ({ list: [{ name: "The Mind Reader", line: "Calls their answer before they do." }], idx: 0 }),
