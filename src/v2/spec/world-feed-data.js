@@ -27,6 +27,12 @@ export const WORLD_TOPICS = [
   { id: 'event',   label: 'World events',   color: 'oklch(0.52 0.14 260)' },
   { id: 'people',  label: 'Famous people',  color: 'oklch(0.52 0.14 85)'  },
   { id: 'bigq',    label: 'Big questions',  color: 'oklch(0.52 0.14 290)' },
+  // the current-events lane (D231). A TIME, not a subject — which is what
+  // keeps it off 'event' (World events), whose questions are evergreen: a
+  // card here carries an ask window and stops being served when it closes.
+  // Hue 115 is the widest gap left in the row (85 -> 145), picked for
+  // distance from its neighbours rather than for a meaning.
+  { id: 'now',     label: 'Happening now',  color: 'oklch(0.52 0.14 115)' },
   { id: 'places',  label: 'Places',         color: 'oklch(0.52 0.14 60)'  },
   // catalogue picks are a FORMAT, not a subject — so they live on a channel, the
   // same way dilemmas and rankings do. It also means they always have a home:
@@ -53,7 +59,7 @@ window.WORLD_TOPICS = WORLD_TOPICS;
 // needs the widening too, because a live build seeds zero follows and its
 // demo-pool fallback had the same dark subjects.
 const WFD_LIVE_BUILD = import.meta.env && import.meta.env.VITE_V2_LIVE === 'true';
-// No window mirror (D239): world-feed.jsx was the only reader.
+// No window mirror (D240): world-feed.jsx was the only reader.
 export const WORLD_CHANNELS = WFD_LIVE_BUILD
   ? window.WORLD_TOPICS.filter((t) => t.id !== 'places' && t.id !== 'fav').map((t) => t.id)
   : ['dilemma', 'event', 'people', 'bigq', 'places', 'fav'];

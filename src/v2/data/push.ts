@@ -112,7 +112,7 @@ export async function registerPushForReveals(
           /* best-effort */
         }
         // land on the daily tab; DailySplit consumes the pending gid
-        // The registry since D238 — was a `window as unknown as {…}` cast.
+        // The registry since D239 — was a `window as unknown as {…}` cast.
         NAV.goTab("track");
         window.dispatchEvent(new Event("insight-live-update"));
       }

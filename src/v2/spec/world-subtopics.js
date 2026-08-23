@@ -25,7 +25,7 @@ const WORLD_SUBTOPICS = [
 // Only for questions that cannot be answered honestly without a fact. Rules:
 // definitions and events, never arguments (those live in the reveal), and never
 // more than ~40 words. If a question needs more than that, rewrite the question.
-// Converted (D239). No window mirror: world-feed.jsx was the only reader.
+// Converted (D240). No window mirror: world-feed.jsx was the only reader.
 export const WORLD_BG = {
   // ── main pool ──
   f06: 'E-sports were a medal event at the 2022 Asian Games, and the IOC has run separate Olympic Esports events since 2021 without adding them to the Olympic programme.',

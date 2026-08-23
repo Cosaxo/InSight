@@ -352,7 +352,7 @@ export const LENSES = (function () {
 // those prefix questions (~20 of the 50 items) — for a feed-only user,
 // `moral` could never pass 4 of 8. Rebuilt lazily instead; world-feed calls
 // this on every feed build.
-// No window mirror (D239): world-feed.jsx was the only reader.
+// No window mirror (D240): world-feed.jsx was the only reader.
 export const LENS_FEED_QS = (function () {
   function h(s) { let x = 17; for (let i = 0; i < s.length; i++) x = Math.imul(x ^ s.charCodeAt(i), 2654435761); return ((x ^ (x >>> 11)) >>> 0) / 4294967295; }
   // Agree-FIRST, and the seeded bank's lens rows carry the same five in the

@@ -86,9 +86,32 @@ export interface LiveFixtureOptions {
    * nobody is served.
    */
   adCard?: boolean;
+  /**
+   * Give the LAST world card a current-events window (D231). Opt-in for
+   * the same reason `sponsored` is — a window is a property of one topic,
+   * and a fixture that always carried one would have every other live case
+   * asserting against a card the feed only serves for a week.
+   *
+   * The dates are computed from the run's own clock so the assertion is
+   * the same on any day: opens today, closes in three, which is four days
+   * left and a full ring.
+   *
+   * The card keeps the fixture's `culture` topic rather than taking `now`,
+   * and that is the test environment rather than a shortcut: these suites
+   * mount a DEMO build, whose channel list is the prototype's fixed six
+   * (world-feed-data.js reads the build flag at module scope, which is why
+   * world-channels.test.js re-imports to test the other side). A `now`
+   * card matches no demo channel and never reaches the pool. What is being
+   * pinned here is the ring, and a window is a property of the CARD — the
+   * topic that may carry one is check:quality's rule, held in the bank.
+   */
+  windowed?: boolean;
 }
 
 const OPTION_COLORS = ["var(--c-around)", "var(--c-today)", "var(--c-likeness)"];
+
+/** A UTC day key `n` days from now — live.ts's own arithmetic (D231). */
+const dayKey = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 
 // The feed card's prompt and options, exported so a test can target the feed
 // rather than the daily deck card sharing the screen with it. Strings chosen
@@ -616,6 +639,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       // reads the same field buildFeedGlobals emits.
       ...(opts.sponsored && i === Math.max(1, opts.feedCards ?? 1) - 1
         ? { sponsor: { buyer: "Fixture Transit", audience: { city: "Oslo, NO" } }, until: "2099-01-01" }
+        : {}),
+      // D231: the ask window travels ON the card too, for the same reason
+      // — world-feed reads the fields buildFeedGlobals emits.
+      ...(opts.windowed && i === Math.max(1, opts.feedCards ?? 1) - 1
+        ? { from: dayKey(0), until: dayKey(3) }
         : {}),
     }),
   );

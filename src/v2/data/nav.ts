@@ -1,7 +1,7 @@
-// The shell's cross-links, as a registry rather than a bridge (D238).
+// The shell's cross-links, as a registry rather than a bridge (D239).
 //
 // WHY THIS IS NOT AN ORDINARY CONVERSION. Every other module taken off the
-// global bridge (D39 through D237) exported a value: a data store, a
+// global bridge (D39 through D238) exported a value: a data store, a
 // component, a fold. These eight are CLOSURES OVER THE SHELL'S LIVE STATE
 // — `goTab` calls `setTab`, `openOverlay` calls `setOv`, `openPerson`
 // calls `setPerson` — registered in an app-shell effect on mount and

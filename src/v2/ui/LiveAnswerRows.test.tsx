@@ -163,7 +163,7 @@ describe("a question nobody here has answered", () => {
     expect(barText(opened(), "Yes")).toMatch(/0$/);
   });
 
-  it("tells an empty cohort from a question you skipped (D234)", () => {
+  it("tells an empty cohort from a question you skipped (D235)", () => {
     // WAS A FLAGGED DEFECT, now the fix. `standingIn` refuses for two
     // different reasons and `standText` rendered both as the second one,
     // so this row said "You have not answered this one." under a chip

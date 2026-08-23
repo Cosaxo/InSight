@@ -24,7 +24,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import "../spec/feed-read.js";
 import "../spec/follows.js";
-// Imported by NAME since D236 — learn-feed.js no longer publishes to
+// Imported by NAME since D237 — learn-feed.js no longer publishes to
 // window, so `W.LEARN_FEED` would be undefined.
 // @ts-expect-error TS7016 — untyped spec module, the house pattern
 import { LEARN_FEED } from "../spec/learn-feed.js";

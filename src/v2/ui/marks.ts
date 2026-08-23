@@ -50,7 +50,7 @@ export function markHue(seed: string): number {
  * name — the caller decides what an anonymous member looks like, because
  * "Someone" and "?" are different claims.
  */
-// CODE POINTS, NOT CODE UNITS (D233). `w[0][0]` indexes UTF-16, and an
+// CODE POINTS, NOT CODE UNITS (D234). `w[0][0]` indexes UTF-16, and an
 // astral character — an emoji, a mathematical alphanumeric, a CJK
 // extension B glyph — is two units wide, so a name whose word begins with
 // one contributed HALF of it: an unpaired surrogate, drawn as tofu on a

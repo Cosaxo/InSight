@@ -16,7 +16,7 @@ const PS_LW = 140;              // label column — sized to the longest label (
 const PS_GAP = 10;
 function PlaceStatsCard({ scope, accent }) {
   const [, tick] = React.useState(0);
-  // Imported since D237, so the load-order guards are gone: an imported
+  // Imported since D238, so the load-order guards are gone: an imported
   // binding cannot be unset, and the effect now always returns the
   // unsubscriber rather than `undefined` on the frame the module had not
   // loaded. `if (!S)` below stays — an unknown scope is a DATA condition.

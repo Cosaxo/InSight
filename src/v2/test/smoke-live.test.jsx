@@ -897,6 +897,26 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expectNoBoundary("live feed, unmatched sponsored card");
   });
 
+  // D231: a current-events card wears its own deadline. The ring is the
+  // one on-screen claim the window makes, so this pins both halves a
+  // refactor could undo — the real one is drawn, and the decorative one
+  // that reads the wall clock is not drawn on the same card.
+  it("a windowed live card wears its ask window, and not the decorative clock", async () => {
+    const expectNoBoundary = mountLive({ feedCards: 4, windowed: true });
+    await growFeed();
+    // Opens today, closes in three: four days left, whatever day this runs.
+    const mark = screen.getByTitle("4 of 4 days left to answer");
+    expect(mark).not.toBeNull();
+    expect(within(mark).getByText("4d")).not.toBeNull();
+    // …and the card keeps its topic chip, unlike a paid one — a window is
+    // a fact about the question, not a disclosure that replaces it.
+    const card = mark.closest("div").parentElement;
+    expect(within(card).getByText(/^culture$/i)).not.toBeNull();
+    // The decorative ring reads the wall clock, so it would print hours.
+    expect(within(card).queryByText(/^\d+h$/)).toBeNull();
+    expectNoBoundary("live feed, windowed card");
+  });
+
   // D196: the reading game is gated on there being enough fair reads to
   // keep a record worth believing. The fixture's two questions are nowhere
   // near it, which is exactly the state a real launch is in — so the live
