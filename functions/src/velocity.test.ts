@@ -20,12 +20,16 @@ import {
   foldInto,
   foldWindow,
   isAggregateSurface,
+  PULSE_BANK_SIZE,
+  VOLUME_CEILING,
+  WINDOW_MAX_DAYS,
   mergeDays,
   pruneDays,
   utcDayKey,
   type DayCounts,
   type LedgerRow,
 } from "./velocity";
+import { V2_QUESTIONS } from "./v2content";
 
 describe("utcDayKey", () => {
   it("is the UTC calendar day, zero-padded", () => {
@@ -38,18 +42,37 @@ describe("utcDayKey", () => {
 });
 
 describe("the impossible-volume ceiling", () => {
-  it("counts only surfaces that reach the aggregate ledger", () => {
-    for (const s of ["daily", "feed", "test", "learn"]) {
-      expect(isAggregateSurface(s)).toBe(true);
+  // Derived from the trigger's own rule rather than from a hand-kept
+  // list, which is how `pulse` and then `call` came to be missing while
+  // this test stayed green: onV2AnswerCreated diverts group/duo and folds
+  // everything else, so every other surface in the bank writes a ledger
+  // entry and belongs in the ceiling.
+  it("counts exactly the surfaces the aggregate trigger folds", () => {
+    const inBank = [...new Set(V2_QUESTIONS.map((q) => q.surface))];
+    expect(inBank.length).toBeGreaterThan(4);
+    for (const s of inBank) {
+      expect(isAggregateSurface(s), `${s} is in the bank`).toBe(s !== "group" && s !== "duo");
     }
-    // Duel answers never write ledger entries (member reveals, not
-    // aggregates — D29), so duel-bank questions must not raise the
-    // ceiling a fake account is measured against.
+    // Named as well as derived: duel answers never write ledger entries
+    // (member reveals, not aggregates — D29), so duel-bank questions must
+    // not raise the ceiling a fake account is measured against.
     expect(isAggregateSurface("group")).toBe(false);
     expect(isAggregateSurface("duo")).toBe(false);
   });
   it("derives a usable ceiling from the committed bank", () => {
     expect(AGG_BANK_SIZE).toBeGreaterThan(0);
+  });
+  it("budgets the pulse for the window it measures, not the ledger's TTL", () => {
+    // The quantity compared against this is the per-uid entry count
+    // INSIDE the scan window, and that window is capped at 72 hours. The
+    // allowance was derived from the ledger's 90-day expireAt, which made
+    // the ceiling roughly 1.7x the honest maximum — a detector for "2x a
+    // uid's real count" that a doubled heavy day sat comfortably under.
+    expect(WINDOW_MAX_DAYS).toBe(4);
+    expect(VOLUME_CEILING).toBe(AGG_BANK_SIZE + PULSE_BANK_SIZE * WINDOW_MAX_DAYS);
+    // The shape of the mistake, stated so a re-derivation from any
+    // longer-lived constant fails here rather than in production.
+    expect(VOLUME_CEILING).toBeLessThan(AGG_BANK_SIZE + PULSE_BANK_SIZE * 90);
   });
 });
 

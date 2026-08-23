@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 249 lines instead of
-24,932. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 250 lines instead of
+25,021. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -263,3 +263,4 @@ detect it.
 | **D243** | [The inventory's reader column, held to the two rules a script may read literally](DECISIONS.md#d243--the-inventorys-reader-column-held-to-the-two-rules-a-script-may-read-literally) | — | 24721 |
 | **D244** | [Two shipped surfaces the bank never fetched](DECISIONS.md#d244--two-shipped-surfaces-the-bank-never-fetched) | — | 24804 |
 | **D245** | [Two numbers that contradicted the picture beside them](DECISIONS.md#d245--two-numbers-that-contradicted-the-picture-beside-them) | — | 24878 |
+| **D246** | [The volume ceiling was budgeting a window the scan does not read](DECISIONS.md#d246--the-volume-ceiling-was-budgeting-a-window-the-scan-does-not-read) | — | 24933 |

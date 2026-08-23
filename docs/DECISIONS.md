@@ -24929,3 +24929,92 @@ figures computed at render time. The nearest thing to a guard is
 lesson is that consolidating the implementation did not consolidate the
 **callers**: `standingIn` was left dividing beside it for as long as
 `pctFor` has existed.
+
+## D246 · The volume ceiling was budgeting a window the scan does not read
+
+**2026-08-23.** **Status:** binding for the two fixes; §3 is a finding
+recorded, deliberately not acted on.
+
+### 1 · The ceiling described the ledger, the count describes the window
+
+`VOLUME_CEILING` is compared against `fold.perUid.get(uid).length` — a
+uid's ledger entries **inside the scan's window**, which `WINDOW_CAP_MS`
+caps at 72 hours. The pulse allowance was derived from the ledger's
+90-day `expireAt` TTL instead, two hundred lines away from the constant it
+had to agree with:
+
+```
+was:  AGG_BANK_SIZE + PULSE_BANK_SIZE × 90   =  576 + 450  = 1026
+now:  AGG_BANK_SIZE + PULSE_BANK_SIZE ×  4   =  579 +  20  =  599
+```
+
+The stated target is *"dedup failure or forged writes"*, which shows as
+roughly **2×** a uid's real entry count. At 1026 a user who answered 300
+questions in the window and had every entry duplicated reports 600 and is
+never flagged; the check only fired for somebody who answered essentially
+the whole bank inside three days **and** was doubled. The signal was not
+wrong — it was asleep.
+
+`WINDOW_CAP_MS` moves up beside the ceiling for that reason: the ceiling
+has to describe the window it is compared against, and the two could not
+disagree if they were adjacent. +1 day because a 72-hour window can touch
+four calendar days.
+
+### 2 · `isAggregateSurface` did not name `call`
+
+Its criterion is "reaches the ledger". `onV2AnswerCreated` diverts
+`group`/`duo` and folds everything else, so a call answer writes a
+`v2_agg_events` row like any other — *"an ordinary world answer in every
+respect"*, in `isCallAnswer`'s own words. The ceiling was three short.
+
+The test that should have caught it listed `["daily","feed","test",
+"learn"]` by hand, so it stayed green through `pulse` **and** `call`. It
+now derives the expectation from the trigger's rule: for every surface in
+the committed bank, `isAggregateSurface(s)` must be true iff `s` is
+neither `group` nor `duo`. Both fixes are mutation-tested — reverting
+either fails the new cases.
+
+### 3 · `burstSignal`'s baseline counts scan days, not days the qid was seen — RECORDED, NOT CHANGED
+
+`BASELINE_MIN_DAYS`'s own comment states the intent plainly:
+
+> The deck makes naive burst detection lie: the daily question is answered
+> by everyone on its day, and a freshly promoted question debuts from
+> zero — **both are bursts by design.** BASELINE_MIN_DAYS is the guard: a
+> question must have an ESTABLISHED quiet history before a jump flags.
+
+`baselineDays` is `Object.keys(days).filter(d => d < day).length` — prior
+days **the scan recorded**, not prior days **the qid appeared on**. So a
+qid with no history at all gets `baselineDays = 3+` and
+`baselineMean = 0`, clears the guard, and flags at `BURST_MIN`. Two feeds
+produce such a qid every single day:
+
+- **The deck.** `deck.ts` indexes by `(today - DECK_EPOCH - back) % n`, so
+  a daily question reappears every *n* days — 128 today, far outside the
+  seven-day baseline window and the 72-hour scan window alike.
+- **The pulse.** The ledger row carries `event.params.qid`, which for a
+  pulse is the composite `{baseQid}_{day}`. A pulse qid is **structurally
+  incapable** of having a prior day.
+
+So at ten answers a day the scan would log the daily question and all five
+pulses as bursts, every day, forever — exactly the two cases the guard is
+described as excluding.
+
+**Not changed here, because the opposite reading is pinned** — the test
+`"reads a recorded day with no entries for the qid as zero, and skips
+unrecorded days"` asserts `flagged === true` for precisely this shape,
+with the reasoning that *"three days of genuine silence followed by 12
+votes is the stuffed-question shape."* Both readings are defensible and
+they are the same code path, because `days` cannot distinguish "not yet
+born" from "dormant all window". Choosing between them is a product call
+about an alerting channel, not a defect to quietly flip under a pinned
+test.
+
+**What the answer probably is,** for whoever takes it: split the two.
+A composite `{qid}_{YYYY-MM-DD}` id can never establish a baseline and
+should be excluded outright — no reading of the signal has anything to
+say about it. The daily question is the real judgement: it persists
+across days, so "dormant then busy" is literally its shape on its own
+day, and excluding it needs the deck rather than the ledger. The dormant
+old feed question the test defends is the remainder, and it is the case
+worth keeping.
