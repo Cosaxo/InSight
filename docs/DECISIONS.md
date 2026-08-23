@@ -23704,3 +23704,65 @@ largest remaining consumer and `LIVE` (80 reads, 13 consumers) the largest
 provider — and that one is deliberate: `live.ts` publishes `window.LIVE`
 because the whole spec layer reads it, and moving it is the end of the
 migration rather than a step in it.
+
+## D232 · world-feed.jsx, 295 → 267
+
+**2026-08-22.** **Status:** binding. The largest remaining CONSUMER, after
+D231 took the largest provider that was not `LIVE`.
+
+The graph said this one was safe before any of it was written:
+`world-feed.jsx` publishes only three names, read by `map-tab.jsx`,
+`daily-split.jsx` and `search-overlay.jsx` — none of which provides
+anything it reads. **No cycle with any of its nine providers**, so unlike
+D231 this was an ordinary conversion.
+
+### Six reads were of modules that already export
+
+`PLACES`, `FILMS`, `ARTISTS`, `EMOJI`, `POKEDEX` and `PickSearch` are
+`data/` and `ui/` modules with proper named or default exports, reached
+through `window` for no reason except that the spec layer has always
+reached that way. Those six cost nothing to move.
+
+### The rest, and where each mirror went
+
+The publications came off only where `world-feed.jsx` was the LAST reader
+— the rest keep a mirror with a comment naming who still needs it, which
+is the honest shape a half-converted module has (`vote-cuts.js` carried
+exactly that until D230 removed the last global reader):
+
+| name | reads | mirror |
+| --- | --- | --- |
+| `SUBTOPICS` | 6 | kept — `search-overlay.jsx` |
+| `LENSES` | 4 | kept — `lens-cards.jsx`, `profile-general.jsx` |
+| `WF_REPORT` | 3 | kept — `daily-split.jsx` |
+| `FEEDREAD` | 2 | kept — `app-shell.jsx`, `mirror-field-pops.jsx` |
+| `WORLD_BG`, `LENS_FEED_QS`, `feedInsight`, `WORLD_FEED_COMMENTS`, `TEST_FEED_QS`, `WORLD_CHANNELS` | 8 | **removed** — no reader left |
+
+`feed-read.js` needed the hoisted `export let` (its two names are assigned
+inside an IIFE), which is now the fourth module converted that way after
+DAILYQ, FRIENDS, PICKS and PLACESTATS.
+
+### What the tests knew
+
+Two suites reached these through the bridge and failed the moment the
+publications went — `lens-live.test.ts` (`W.LENS_FEED_QS`) and
+`world-channels.test.js` (`window.WORLD_CHANNELS`). Both import by name
+now. `lens-live.test.ts` also lost its return typing when the `W`
+declaration dropped that member, because the untyped spec import is `any`:
+restored as an explicit alias rather than left implicit, which `tsc`
+caught and no test would have.
+
+### One await could go, and one could not
+
+`world-feed-comments.js` is no longer awaited in `loadWorldFeed()` —
+`world-feed.jsx` imports it, so the module graph orders it, the same
+reasoning `world-feed-math.js` and (since D230) `world-feed-counters.js`
+already carry.
+
+`consequence-beat.jsx` **stays awaited**, and the difference is the point:
+`daily-split.jsx` renders it too, by bare tag through the bridge, so the
+feed's own import is not the only thing that has to have loaded before it
+draws. Its two reads in `world-feed.jsx` are left on the bridge with it.
+
+Eager graph unchanged at 831 KB, bundle at 2352 KB. `world-feed.jsx` is
+60 → 32, of which 16 are `LIVE`.

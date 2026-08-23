@@ -10,7 +10,8 @@ import { PASSIVE } from './passive-progress.js';
 // test-feed-data.js — each core test's OWN questions, surfaced as marked cards
 // in the World feed (round-robin across tests, seeded prefix skipped — those
 // were already answered in the demo). Answering one advances that test only.
-window.TEST_FEED_QS = (function () {
+// No window mirror (D232): world-feed.jsx was the only reader.
+export const TEST_FEED_QS = (function () {
   const P = PASSIVE, TESTS = IS_TESTS;
   function h(s) { let x = 9; for (let i = 0; i < s.length; i++) x = Math.imul(x ^ s.charCodeAt(i), 387420489); return ((x ^ (x >>> 9)) >>> 0) / 4294967295; }
   const SCALE = ['Strongly agree', 'Agree', 'Neutral', 'Disagree', 'Strongly disagree'];

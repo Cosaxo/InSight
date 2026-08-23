@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 237 lines instead of
-23,707. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 238 lines instead of
+23,769. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -248,6 +248,7 @@ detect it.
 | **D228** | [Two data-layer defects D227 found, fixed](DECISIONS.md#d228--two-data-layer-defects-d227-found-fixed) | D229 | 23205 |
 | **D229** | [The three behaviour bugs from D227's list](DECISIONS.md#d229--the-three-behaviour-bugs-from-d227s-list) | — | 23328 |
 | **D229b** | [The three honesty findings from D227's list](DECISIONS.md#d229b--the-three-honesty-findings-from-d227s-list) | — | 23403 |
-| **D230** | [The coupling ratchet, 392 → 352](DECISIONS.md#d230--the-coupling-ratchet-392--352) | D231 | 23480 |
-| **D230b** | [PLACESTATS off the bridge, 352 → 337](DECISIONS.md#d230b--placestats-off-the-bridge-352--337) | D231 | 23568 |
-| **D231** | [The shell's cross-links become a registry, 337 → 295](DECISIONS.md#d231--the-shells-cross-links-become-a-registry-337--295) | — | 23616 |
+| **D230** | [The coupling ratchet, 392 → 352](DECISIONS.md#d230--the-coupling-ratchet-392--352) | D232 (+1) | 23480 |
+| **D230b** | [PLACESTATS off the bridge, 352 → 337](DECISIONS.md#d230b--placestats-off-the-bridge-352--337) | D232 (+1) | 23568 |
+| **D231** | [The shell's cross-links become a registry, 337 → 295](DECISIONS.md#d231--the-shells-cross-links-become-a-registry-337--295) | D232 | 23616 |
+| **D232** | [world-feed.jsx, 295 → 267](DECISIONS.md#d232--world-feedjsx-295--267) | — | 23708 |

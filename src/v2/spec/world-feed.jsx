@@ -5,6 +5,16 @@
 // guards the wiring in CI.
 import React from 'react';
 import NAV from '../data/nav';
+import { SUBTOPICS, WORLD_BG } from './world-subtopics.js';
+import { LENSES, LENS_FEED_QS } from './lens-defs.js';
+import { FEEDREAD, feedInsight } from './feed-read.js';
+import { WF_REPORT } from './world-feed-report.js';
+import { WORLD_FEED_COMMENTS } from './world-feed-comments.js';
+import { TEST_FEED_QS } from './test-feed-data.js';
+import { WORLD_CHANNELS } from './world-feed-data.js';
+import PLACES from '../data/places';
+import { FILMS, ARTISTS, EMOJI } from '../data/catalogs';
+import POKEDEX from '../data/pokedex';
 // The live who-voted sheet, cohort-first (D125) — it owns the cohort
 // choice, the split drawn for it and the named roster underneath, which
 // used to be three panels stacked here.
@@ -83,12 +93,12 @@ const WF_DEFER_LS = 'insight.feedDefer.v1';
 const WF_BRANCH = { food: 'Food', sport: 'Body', movies: 'Taste', music: 'Taste', tech: 'Mind', culture: 'Values', dilemma: 'Morals', event: 'Mind', people: 'Values', bigq: 'Values', fav: 'Taste' };
 const WF_TOPICS = window.WORLD_TOPICS || [];
 const WF_TOPIC = Object.fromEntries(WF_TOPICS.map((t) => [t.id, t]));
-const WF_CHANNELS = window.WORLD_CHANNELS || [];
+const WF_CHANNELS = WORLD_CHANNELS || [];
 const WF_CHAN_SET = Object.fromEntries(WF_CHANNELS.map((id) => [id, true]));
 // second level of the tree: colour comes from the parent topic, label from the leaf
-const WF_SUB = (id) => (id && window.SUBTOPICS ? window.SUBTOPICS.get(id) : null);
+const WF_SUB = (id) => (id && SUBTOPICS ? SUBTOPICS.get(id) : null);
 // background knowledge, only where a question can't be answered honestly without it
-const WF_BGTEXT = (q) => (q && (q.bg || (window.WORLD_BG || {})[q.id])) || null;
+const WF_BGTEXT = (q) => (q && (q.bg || (WORLD_BG || {})[q.id])) || null;
 const WF_LINE = '1px solid color-mix(in oklch, var(--rule), transparent 25%)';
 
 // ── the mounted window (D136) ──
@@ -209,7 +219,7 @@ const WF_YOU = (dim, ax) => VOTECUTS.you(dim, ax);
 // is the right thing to STORE and the wrong thing to show, so it is turned
 // back into a name here, in the reader's own language via Intl.
 function wfBucketLabel(dim, bucket) {
-  const P = window.PLACES;
+  const P = PLACES;
   if (!P) return bucket;
   if (dim === 'country') return P.countryName(bucket);
   if (dim === 'city') {
@@ -362,7 +372,7 @@ class WorldFeed extends React.Component {
         });
       })
       : null;
-    this._unsubSubs = window.SUBTOPICS ? window.SUBTOPICS.subscribe(() => this.forceUpdate()) : null;
+    this._unsubSubs = SUBTOPICS ? SUBTOPICS.subscribe(() => this.forceUpdate()) : null;
     this._unsubLearn = LEARN.subscribe(() => this.forceUpdate());
     this._unsubLF = LEARN_FEED.subscribe(() => this.forceUpdate());
     // The purge (data/live.ts, D51): this component PERSISTS four of its
@@ -546,7 +556,7 @@ class WorldFeed extends React.Component {
     PASSIVE.record(q); // no-op unless this is a test's own question (q.test)
     // …and the same for a lens question. The scale runs agree→disagree while
     // the lens stores disagree→agree, hence 4 - val.
-    if (window.LENSES && q.lens) window.LENSES.record({ ...q, value: typeof val === 'number' ? 4 - val : 2 });
+    if (LENSES && q.lens) LENSES.record({ ...q, value: typeof val === 'number' ? 4 - val : 2 });
     if (!refused) this._fresh = id; // gates the reveal's count-up + bar growth to the vote moment
     // the vote is felt, then the crowd's answer is felt arriving — timed to the
     // same stagger the bars use (2 steps), so hand and eye agree
@@ -555,10 +565,10 @@ class WorldFeed extends React.Component {
     // the feed's memory: with the crowd or against it. Local to this device
     // (feed-read.js) — it reports only your own answers, so no floor applies.
     // No crowd on a selfOnly card means no majority to be with.
-    if (window.FEEDREAD && q.options && typeof val === 'number' && !selfOnly) {
+    if (FEEDREAD && q.options && typeof val === 'number' && !selfOnly) {
       const counts = q.options.map((o) => o.count);
       const { p } = wfPcts(counts, val);
-      window.FEEDREAD.log(id, { maj: p[val] === Math.max(...p) });
+      FEEDREAD.log(id, { maj: p[val] === Math.max(...p) });
     }
     // the ripple — where this vote landed on your Mirror. Deliberately on
     // ~45% of answers, chosen by a hash of the id so it is stable per
@@ -1425,13 +1435,13 @@ class WorldFeed extends React.Component {
   // rule when the countries domain wired up; catalogs.test.ts now pins
   // every PICK_QS domain to an arm of this resolver.
   pickStore(domain) {
-    return domain === 'films' ? window.FILMS
-      : domain === 'artists' ? window.ARTISTS
-      : domain === 'emoji' ? window.EMOJI
+    return domain === 'films' ? FILMS
+      : domain === 'artists' ? ARTISTS
+      : domain === 'emoji' ? EMOJI
       : domain === 'elements' ? ELEMENTS_CATALOG
       : domain === 'countries' ? COUNTRIES
       : domain === 'dogs' ? DOGS
-      : window.POKEDEX;
+      : POKEDEX;
   }
 
   // key → display name, resolved at render time. The catalogue loads
@@ -2052,7 +2062,7 @@ class WorldFeed extends React.Component {
     }
     // The 'add' panel has no question behind it, so every read of `q` from
     // here down has to tolerate its absence.
-    const takes = q ? ((window.WORLD_FEED_COMMENTS || {})[q.id] || []) : [];
+    const takes = q ? ((WORLD_FEED_COMMENTS || {})[q.id] || []) : [];
     const hasStats = true;
     const open = (id) => this.setState({ sheet: { q, T, panel: id }, sideFilter: null, replyTo: null });
     const D = big ? 32 : 30;
@@ -2228,13 +2238,13 @@ class WorldFeed extends React.Component {
     if (q.type === 'rate') return this.renderRateInsight(q, T, big);
     if (q.type === 'dial') return this.renderDialInsight(q, T, big);
     if (q.type === 'field') return this.renderFieldInsight(q, T, big);
-    if (!window.feedInsight || !q.options) return null;
+    if (!feedInsight || !q.options) return null;
     const mine = typeof this.state.votes[q.id] === 'number' ? this.state.votes[q.id] : null;
     const counts = q.options.map((o) => o.count);
     // feedInsight here is the LIVE version (feed-read.js): it reads q alone,
     // ignores the demo-signature args, and returns null on demo cards rather
     // than inventing a cohort (its header says why).
-    const ins = window.feedInsight(q, counts, mine, wfHash, WF_FRIENDS);
+    const ins = feedInsight(q, counts, mine, wfHash, WF_FRIENDS);
     if (!ins) return null;
     const n = q.options.length;
     const v2 = this.opts.v2;
@@ -2271,7 +2281,7 @@ class WorldFeed extends React.Component {
     const { q, T, panel } = s;
     // The 'add' panel has no question behind it, so every read of `q` from
     // here down has to tolerate its absence.
-    const takes = q ? ((window.WORLD_FEED_COMMENTS || {})[q.id] || []) : [];
+    const takes = q ? ((WORLD_FEED_COMMENTS || {})[q.id] || []) : [];
     const close = () => {
       if (s.closing) return;
       this.setState({ sheet: { ...s, closing: true }, replyTo: null, reportFor: null });
@@ -2307,7 +2317,7 @@ class WorldFeed extends React.Component {
   // changes which questions the feed mixes in and nothing that leaves the
   // device.
   renderAdd() {
-    const ST = window.SUBTOPICS;
+    const ST = SUBTOPICS;
     const label = { fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--ink-3)', margin: '4px 2px 6px' };
     // ── the topics that actually stock your feed ──────────────────────
     //
@@ -2506,7 +2516,7 @@ class WorldFeed extends React.Component {
   // one shared reason chooser — takes and counters both use it
   reportRow(k, pad) {
     if (this.state.reportFor !== k) return null;
-    const R = window.WF_REPORT;
+    const R = WF_REPORT;
     if (!R) return null;
     return (
       <div style={{ marginLeft: pad || 0, display: 'flex', flexDirection: 'column', gap: 7, paddingTop: 2 }}>
@@ -2524,7 +2534,7 @@ class WorldFeed extends React.Component {
   // the placeholder a reported take leaves behind — only for this sitting, so
   // Undo stays in reach without the sheet filling up with tombstones
   reportedCard(k) {
-    const R = window.WF_REPORT;
+    const R = WF_REPORT;
     if (!this._jr || !this._jr.has(k)) return null;
     return (
       <div key={k} style={{ border: WF_LINE, borderRadius: 12, background: 'var(--surface-2)', padding: '11px 12px', display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -2545,7 +2555,7 @@ class WorldFeed extends React.Component {
   takeCard(q, T, item) {
     const o = this.opts;
     const { c, key, sig } = item;
-    const R = window.WF_REPORT;
+    const R = WF_REPORT;
     if (R && R.has(key)) return this.reportedCard(key);
     const myVote = this.state.votes[q.id];
     const mySide = typeof myVote === 'number' && q.options ? myVote : null;
@@ -3399,7 +3409,7 @@ class WorldFeed extends React.Component {
     const tm = q.test ? PASSIVE.META[q.test] : null;
     // a lens question wears its lens's own name and hue, the same way a test
     // question wears its test's — otherwise it reads as an off-topic card
-    const lz = !tm && q.lens && window.LENSES ? window.LENSES.get(q.lens) : null;
+    const lz = !tm && q.lens && LENSES ? LENSES.get(q.lens) : null;
     const mk = tm || (lz ? { label: lz.title, accent: `oklch(0.56 0.13 ${lz.hue})` } : null);
     // a knowledge card wears its field, coloured by its subject
     const kn = q.type === 'know' ? LEARN.field(q.f) : null;
@@ -3556,7 +3566,7 @@ class WorldFeed extends React.Component {
     const scenes = SCENES.mine();
     // topics pulled in by a live (followed + unmuted) scene — but a scene that
     // owns a subtopic pulls only that leaf, so the two never double up
-    const ST = window.SUBTOPICS;
+    const ST = SUBTOPICS;
     const pulled = {};
     const leafOn = {};
     const owned = {};
@@ -3632,7 +3642,7 @@ class WorldFeed extends React.Component {
     // test with no bank, no result page and no progress row to land on.
     // testFor() returns null for any key PASSIVE.META has dropped, so this
     // fences the next retirement too without naming it.
-    const testSplit = partitionAnswered((window.TEST_FEED_QS || []).filter((q) => PASSIVE.testFor(q)), sunk);
+    const testSplit = partitionAnswered((TEST_FEED_QS || []).filter((q) => PASSIVE.testFor(q)), sunk);
     // Deferred items leave the stream until their wait is up (D121).
     //
     // Sampled ONCE per build, like `sunk` above and for the same reason: a
@@ -3649,7 +3659,7 @@ class WorldFeed extends React.Component {
     // LENS_FEED_QS is a builder, not an array: the lens pool differs between
     // demo and live, and liveness lands only after boot — so the feed asks
     // at build time rather than keeping a snapshot (lens-defs.js says why).
-    const lensQs = window.LENS_FEED_QS;
+    const lensQs = LENS_FEED_QS;
     const lensSplit = partitionAnswered(typeof lensQs === 'function' ? lensQs() : [], sunk);
     const lqs = lensSplit.fresh.filter(notHeld);
     // What the expander holds, in the same order the feed would have
