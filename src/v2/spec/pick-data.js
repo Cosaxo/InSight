@@ -10,6 +10,12 @@
 // boundary, complementary suppression — lives in functions/src/pure.ts
 // where it is tested; this demo shows the same shape without re-implementing
 // the disclosure math on synthetic numbers.
+// Hoisted `export let`, assigned inside the IIFE below — the shape DAILYQ
+// and FRIENDS were converted with (D39, "convert on touch"). `PICK_QS`
+// stays on window: world-feed-data.js concatenates it at MODULE SCOPE, so
+// that one is still crossing the bridge and its publication is not residue.
+export let PICKS;
+
 (function () {
   const LS = 'insight.picks.v1';
   let mine = {};
@@ -862,7 +868,7 @@
   // pick()'s save writes the previous account's back under the new uid.
   // Notify without re-creating the purged key.
   window.addEventListener('insight:local-purge', () => { mine = {}; subs.forEach((f) => f()); });
-  window.PICKS = api;
+  PICKS = api;
 
   // the feed questions — one per COMMITTED catalogue. Films/artists cards
   // land here the day scripts/build-catalog.mjs output is committed (an

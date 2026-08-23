@@ -23476,3 +23476,91 @@ the last three. Every one was pinned as-found by the suite that found it,
 with a failure message naming the fix — so all eight announced themselves
 by turning their own case red the moment the source moved. That
 convention is the reason none of them needed re-finding.
+
+## D230 · The coupling ratchet, 392 → 352
+
+**2026-08-22.** **Status:** binding. `check:globals` rule 4's first move
+since D108, following the procedure `src/v2/README.md` records rather than
+improvising one.
+
+### Transpose the meter before planning — and this time it paid
+
+CLAUDE.md says rule 4 reports per **consumer**, which is right for a
+ratchet and wrong for planning, and that the paragraph above it twice
+claimed the cheap seam was exhausted and was twice wrong. Building the
+PROVIDER view out of `spec-globals.mjs`'s own `definedBy`/`referenced`
+maps answered it in one run:
+
+| reads | provider | name | consumers |
+| --- | --- | --- | --- |
+| 80 | `data/live.ts` | `LIVE` | 13 |
+| 43 | `app-shell.jsx` | `goTab`, `openPerson`, … | 5 |
+| 15 | `place-stats.js` | `PLACESTATS` | 2 |
+| 12 | `pick-data.js` | `PICKS` | **1** |
+| 12 | `vote-cuts.js` | `VOTECUTS` | **1** |
+| 10 | `world-feed-counters.js` | `WF_COUNTERS`, `WF_TAKE_SIG` | **1** |
+| 6 | `learn-feed.js` | `LEARN_FEED` | **1** |
+
+`LIVE` is deliberate (`live.ts` publishes it, and the whole spec layer
+reads it); `app-shell.jsx` is the root and a plausible cycle. Everything
+after that is **single-consumer, and the consumer is the same file** —
+`world-feed.jsx`, which already imports eight spec modules by name. Forty
+reads, one consumer, four pure data modules, no new pattern.
+
+### Cycles checked against the graph, not the paragraph
+
+Per the README's own warning. Three of the four read nothing cross-module
+at all; `vote-cuts.js` reads `RMLenses`, and lazily (`const L = () =>
+window.RMLenses`), from `relmap-lenses.jsx` — not the consumer. No cycle.
+
+### The guard shapes, which are a list and not a pattern
+
+Every site, read individually. `VOTECUTS` was four `X ? X.m() : fallback`
+and two `X && X.m()`. `LEARN_FEED` added `!LF || !LF.every()`, where only
+the first half is dead — `every()` returning 0 is the DATA condition and
+stays — and a `{LF ? (…) : null}` wrapping JSX. `PICKS` added
+`(window.PICKS && window.PICKS.TOP_N) || 10`, which is D108's second dead
+shape exactly: `TOP_N` is always on the api, so the `|| 10` was a local
+rewrite of the store's own default.
+
+Two modules were already half-converted — `vote-cuts.js` carried
+`export const VOTECUTS` with a window mirror "for the who-voted
+breakdowns that have not moved". `world-feed.jsx` was the last of those,
+so the mirror went with it.
+
+**`PICK_QS` stays on window and that is not an oversight.**
+`world-feed-data.js` concatenates it at MODULE SCOPE, so it is still
+crossing the bridge; its publication is live wiring, not residue.
+
+### What the tests knew that the gates did not
+
+Two spec tests reached these modules through the bridge —
+`learn-serve.test.js` (`window.LEARN_FEED`) and `purge-wipe.test.ts`
+(`W.PICKS`). Both fail loudly the moment a publication goes, which is the
+right direction, and both now import by name.
+
+### D108's suppression prediction did not fire, for a reason
+
+CLAUDE.md says to **expect a conversion to RAISE the suppression count**:
+the React Compiler cannot resolve a value arriving through global scope,
+so it bails out of the component, and converting reveals the `react-hooks`
+findings the bridge was hiding. Measured here: **28 before, 28 after**,
+lint green at `--max-warnings 0`.
+
+The reason is specific rather than lucky, and worth writing down so the
+next reader does not treat the prediction as refuted. `WorldFeed` is a
+**class component**, and every one of the forty reads is in one of its
+methods (`setPick`, `renderPick`, `renderEngage`, `takeCard`, …). The
+compiler's hook analysis has nothing to say about a class, so there was no
+bailout to undo. The prediction holds for function components; it says
+nothing about this layer's class-based half.
+
+### Cost
+
+Entry chunk unchanged at 831 KB eager; total 2353 → 2352 KB across 103 →
+102 chunks, `world-feed-counters.js` having merged into the feed chunk it
+was already deferred alongside. Its `loadWorldFeed()` await is gone for
+the reason `world-feed-math.js`'s already was: the module graph orders it.
+The three eager `spec-index.js` lines stay — the modules are still in the
+eager graph, and keeping them preserves the load order those comments
+document.

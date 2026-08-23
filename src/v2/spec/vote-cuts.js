@@ -11,8 +11,9 @@ import React from 'react';
 // map colours people by — rm-test-lenses.js owns both, so a cut here and a lens
 // there always mean the same thing.
 // Converted off the shared-global bridge (D39, "convert on touch"):
-// daily-split.jsx imports this by name. The window mirror stays for the
-// who-voted breakdowns that have not moved.
+// daily-split.jsx and world-feed.jsx both import this by name. The window
+// mirror is GONE since D230 — world-feed.jsx was the last global reader,
+// and a publication nothing reads is the residue rule 5 exists to catch.
 export const VOTECUTS = (function () {
   const DEMO = [
     { id: 'friends', label: 'Friends' },
@@ -108,4 +109,3 @@ export const VOTECUTS = (function () {
 
   return { dims, subs, groups, key, you, centerChip, TEST_IDS };
 })();
-window.VOTECUTS = VOTECUTS;

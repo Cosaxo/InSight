@@ -228,7 +228,10 @@ import './spec/app-shell.jsx';
 // unchanged.
 export const loadWorldFeed = retryable(async () => {
   await import('./spec/world-feed-comments.js');
-  await import('./spec/world-feed-counters.js');
+  // world-feed-counters.js is NOT awaited here and does not need to be —
+  // world-feed.jsx imports it by name since D230, so the module graph
+  // orders it and it stays in the feed chunk. Same reasoning as
+  // world-feed-math.js below.
   await import('./spec/consequence-beat.jsx');
   // world-feed-math.js is NOT awaited here and does not need to be —
   // world-feed.jsx imports it directly, so the module graph orders it,

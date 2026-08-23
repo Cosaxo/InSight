@@ -24,10 +24,14 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import "../spec/feed-read.js";
 import "../spec/follows.js";
-import "../spec/learn-feed.js";
+// Imported by NAME since D230 — learn-feed.js no longer publishes to
+// window, so `W.LEARN_FEED` would be undefined.
+// @ts-expect-error TS7016 — untyped spec module, the house pattern
+import { LEARN_FEED } from "../spec/learn-feed.js";
 import "../spec/test-definitions.js";
 import "../spec/passive-progress.js";
-import "../spec/pick-data.js";
+// @ts-expect-error TS7016 — untyped spec module, the house pattern
+import { PICKS } from "../spec/pick-data.js";
 import "../spec/place-stats.js";
 import "../spec/world-subtopics.js";
 import "../spec/suggestions.js";
@@ -123,10 +127,10 @@ describe("module stores drop their memory on the purge (D51)", () => {
   });
 
   it("LEARN_FEED: the frequency setting", () => {
-    W.LEARN_FEED.setFreq("lots");
+    LEARN_FEED.setFreq("lots");
     expect(stored("insight.learnFreq.v1")).toBe("lots");
     purge();
-    expect(W.LEARN_FEED.freq()).toBe("some");
+    expect(LEARN_FEED.freq()).toBe("some");
     expect(stored("insight.learnFreq.v1")).toBeNull();
   });
 
@@ -144,12 +148,12 @@ describe("module stores drop their memory on the purge (D51)", () => {
   });
 
   it("PICKS: catalogue picks", () => {
-    W.PICKS.pick("purge-q", 25);
-    expect(W.PICKS.my("purge-q")).toBe(25);
+    PICKS.pick("purge-q", 25);
+    expect(PICKS.my("purge-q")).toBe(25);
     purge();
-    expect(W.PICKS.my("purge-q")).toBeNull();
+    expect(PICKS.my("purge-q")).toBeNull();
     expect(stored("insight.picks.v1")).toBeNull();
-    W.PICKS.pick("purge-q2", 6);
+    PICKS.pick("purge-q2", 6);
     const after = stored("insight.picks.v1")!;
     expect(after).toContain("purge-q2");
     expect(after).not.toContain("purge-q\"");
