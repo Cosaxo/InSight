@@ -521,17 +521,20 @@ unchanged (write the archive); promotion stays a human-initiated step.
 **Status: running.** Paused 2026-07-31 while Pokémon (three canons deep)
 was the only committed catalogue — the honest-question well was near its
 floor; re-enabled the same day with the emoji domain (this PR's
-catalogue, the first built under the rules below). Films/artists still
-await the D15 operator step.
+catalogue, the first built under the rules below). Films joined
+2026-08-23 (D255) and is available to the lane; artists does not exist
+and is not pending an errand — D255 refused the generated catalogue on
+content.
 
 Rules, each load-bearing:
 
 1. **One card per card-day, appended to `PICK_QS`** (Mon–Sat; Sunday is
    the domain slot). Ids continue the `pkNN` sequence.
 2. **Only domains whose catalogue file is committed** under `public/`
-   (today `pokedex.txt`; `films.txt`/`artists.txt` after the D15 operator
-   step). A card whose catalogue is absent opens straight into the
-   picker's error state — never ship one. When no usable domain can
+   (`films.txt` joined 2026-08-23, D255; `artists.txt` does not exist
+   and is not scheduled — see the status note above). A card whose
+   catalogue is absent opens straight into the picker's error state —
+   never ship one. When no usable domain can
    carry an honest new question, the run is a **no-op, logged with the
    reason**; a skipped day is fine, a filler question is not.
 3. **Every card carries a `cat`, always** — an existing `WORLD_TOPICS`
@@ -606,13 +609,16 @@ Two consequences worth stating, because they were the standing blockers:
   clause already covers it.
 - **A domain day with no buildable source is a logged no-op, and that is
   still a good day.** Rule 1 below is not relaxed by the slot: never
-  entries from model memory. Measured from a remote session on
-  2026-08-14 and worth not re-discovering — `registry.npmjs.org` is
-  reachable through the session proxy (200), and `query.wikidata.org` is
-  refused at CONNECT (403). So the reachable path is a package registry,
-  as with `periodic-table` for elements; films/artists stay the D15
-  operator step until someone runs `build-catalog.mjs` on a networked
-  machine.
+  entries from model memory. Reachability is no longer the constraint
+  it was: `registry.npmjs.org` has always been reachable through the
+  session proxy (200), and `query.wikidata.org` — refused at CONNECT
+  (403) when this was measured 2026-08-14 — answers 200 since the
+  policy was widened, which is how films was built and committed
+  (D255). Package registries remain the proven path, as with
+  `periodic-table` for elements, and Wikidata is now a second one. A
+  reachable source is still not a sufficient one: D255 refused the
+  artists catalogue it fetched successfully, because the query was
+  honest and its output was not a music catalogue.
 
 Rules, each load-bearing:
 
@@ -1694,11 +1700,14 @@ carry an honest new question, the run is a NO-OP logged with the reason
 Domain-day rules: a verifiable machine-readable source reachable from
 this session, NEVER entries from model memory (a wrong key silently
 resolves someone's stored favourite to the wrong thing forever).
-Measured 2026-08-14: registry.npmjs.org is reachable through the
-session proxy, query.wikidata.org is refused at CONNECT — so package
-registries are the path (periodic-table for elements is the precedent),
-and films/artists remain the D15 operator step, proposed in a PR body
-rather than built. Ship the full gate set in ONE PR: the committed
+Reachability, corrected 2026-08-23: registry.npmjs.org and
+query.wikidata.org are both reachable through the session proxy (the
+latter was refused at CONNECT when measured 2026-08-14; the policy was
+widened since), so a domain day may build from either — films was
+(D255). Verify the OUTPUT, not just the fetch: D255 threw away an
+artists catalogue that downloaded cleanly and passed every gate, because
+ranking people by fame and filtering by "has a music occupation" returns
+Leonardo da Vinci. Ship the full gate set in ONE PR: the committed
 asset under public/, a check-* drift script wired into ci.yml (and
 backend-checks.yml where the trigger's key space depends on it), the
 CATALOG_DOMAINS entry, the client store wiring, and a first card with

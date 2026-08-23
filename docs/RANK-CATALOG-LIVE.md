@@ -12,11 +12,12 @@ taxonomy and pick cards do not) and D233 refined the answer shape (no
 optionIdx at all) and closed a rules hole the plan had not seen
 (optionIdx on a rank doc). What remains open is inventory, not
 machinery: the pokemon tranche cleared and promoted 2026-08-23 (the
-owner answered the nominative-use check), leaving only films/artists —
-blocked on network policy, not on anyone's machine: the sandbox's
-egress proxy answers CONNECT 403 for `query.wikidata.org` (the one
-host `build-catalog.mjs` needs), so widening the session environment's
-network policy to allow it lets a session run the build itself.
+owner answered the nominative-use check), and films followed the same
+day — the network policy was widened, `query.wikidata.org` answers 200
+from a session, and the D15 operator run committed `public/films.txt`
+([D255](DECISIONS.md#d255--the-films-catalogue-ships-artists-is-refused-on-its-content-not-on-the-network)).
+Artists is the one domain still out, and no longer for a network
+reason: the same run generated it and D255 refused it on content.
 Written 2026-08-22 on the
 owner's direction after asking why ranking questions disappeared and
 catalogue ("favourite X") questions never appear: both absences are
@@ -52,11 +53,12 @@ folds an order today.
 questions (create-only, device-bound, each branch's `hasOnly` keeping
 the other's field out), and `onV2AnswerCreated`
 (`functions/src/v2.ts`) validates the key per-domain
-(`CATALOG_DOMAINS`: pokemon, elements, emoji, countries, dogs live;
-films/artists empty pending the D15 operator step) and publishes the
+(`CATALOG_DOMAINS`: pokemon, elements, emoji, countries, dogs and now
+films live; artists empty — D255 refused the generated catalogue on
+content, so the domain stays fail-safe) and publishes the
 canon — `{ total, top, rest, by }` to `v2_question_aggs`, exact counts
-since D98 retired the k-floor, per-segment board orderings per D17. Six
-catalogues are committed under `public/` with drift gates. The client
+since D98 retired the k-floor, per-segment board orderings per D17.
+Seven catalogues are committed under `public/` with drift gates. The client
 pick card is complete in the demo (`renderPick`, `PickSearch`,
 `pickStore` resolving every domain), and the farm's catalog lane
 (D145) appends roughly one card per day to `window.PICK_QS`
@@ -213,8 +215,10 @@ D12's four numbered costs, updated for D98 and made concrete:
 - **No permutation histogram, no rank breakdowns, no catalog
   breakdowns beyond D17's boards** — each is a recorded refusal with
   its arithmetic; nothing here reopens them.
-- **No films/artists cards.** Their key sets are empty until the D15
-  operator step runs on a networked machine; the domain validation
+- **No films/artists cards.** Films' key set filled 2026-08-23 (D255)
+  but its cards are their own promote run, deliberately not folded into
+  the catalogue commit; artists' key set is still empty, now on a
+  curation decision rather than a network one. The domain validation
   fail-safe (an unknown domain never aggregates) is already in place.
 - **No new farm lane behavior.** The catalog lane keeps writing the
   archive daily; only promotion changes (through the script, human

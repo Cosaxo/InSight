@@ -8,15 +8,20 @@ dogs; the pokemon six joined the same day the owner cleared the
 nominative-use check (see the pilot note below). The sixth domain,
 **colors**, was committed the same day from a parallel thread (#261) —
 catalogue, keys and archive entries all in place, live cards pending
-their own promote run. Written 2026-07-30 as a
+their own promote run. The seventh, **films**, was committed
+2026-08-23 by the D15 operator run (**D255**) — catalogue and keys in
+place, cards pending their own promote run. Written 2026-07-30 as a
 design sketch, after the v15 UI merge; the same day, steps 1–3 shipped
 (Pokédex catalogue, demo `pick` card, canon backend — **D14**) and step
 4's machinery followed (QID key sets, domain-aware validation, the
 Wikidata generator — **D15**). The load-bearing choices live in those
 decision records now; this document keeps the full arguments. What
-remains open: an operator run of `scripts/build-catalog.mjs` to generate
-the films/artists catalogues (needs network access to Wikidata — D15)
-and the films/artists demo cards once those files exist.
+remains open: **artists**. The same run generated it and D255 refused
+it — sitelink fame ranks the person and P106 calls anyone who ever
+played or wrote a musician, so ten of the top twenty were Leonardo da
+Vinci, Goethe, Chaplin and company. Its key set stays empty until a
+curation rule exists that says "famous *for* music", which no Wikidata
+property states.
 
 ## The question class
 
@@ -212,4 +217,6 @@ catalogue is stale, not a prompt to collect strings.
    owner-written like every other answer; a `pure.ts` test for the fold's
    subtraction rule that **fails without the change**.
 4. Films/artists catalogues from Wikidata, only after the Pokémon pilot
-   proves the reveal is worth reading.
+   proves the reveal is worth reading. *(Films: done 2026-08-23, D255.
+   Artists: generated the same day and refused on content — the query
+   is honest and the catalogue it produces is not a music catalogue.)*
