@@ -23966,7 +23966,7 @@ false-positive cases keep passing, which is the property that would
 otherwise rot silently.
 >>>>>>> origin/main
 
-## D236 · The report builder ships, and reads as a signed-in user
+## D241 · The report builder ships, and reads as a signed-in user
 
 **2026-08-23.** **Status:** binding, built. Owner's call on the
 paid-reports thread — *"build the report builder then"* — adopting
@@ -23975,9 +23975,10 @@ hand. The visual is the owner's own: the 2026-08-22 standalone's
 `paid-report.jsx`, uploaded on the same thread and extracted to
 `design/standalone-2026-08-22/` per that directory family's rule.
 Written on `claude/next-project-priorities-w43wut` as D230, renumbered
-to D231 when #259 minted D230, and again to D236 when #263–#267 minted
-D231–D235 — the D218/D224/D229 collision pattern, twice in one record's
-lifetime, which is what a day of parallel threads now looks like.
+to D231 when #259 minted D230, to D236 when #263–#267 minted D231–D235,
+and to D241 when #266 minted D236–D240 — the D218/D224/D229 collision
+pattern three times in one record's lifetime, which is what a day of
+parallel threads now looks like.
 
 ### What ships
 
@@ -24057,10 +24058,10 @@ store-form movement (nothing new is collected); `reports/` is
 gitignored; PAID-PLAN §2/§9.2 and ORIENTATION's row moved in this
 commit.
 
-## D237 · The never-grouped promise is removed, and the scope becomes a choice
+## D242 · The never-grouped promise is removed, and the scope becomes a choice
 
 **2026-08-23.** **Status:** binding. Owner's call, on the paid-reports
-thread, over D236's note that the promise stood between the report and
+thread, over D241's note that the promise stood between the report and
 the mock's test-group cuts: *"yeah undo this we are trying to unwind as
 many promises as possible"* — the D225 posture applied to its next
 sentence, and recorded in the same shape.
@@ -24073,7 +24074,7 @@ are never used to group answers this way."* Pinned by
 `check:policy-claims` ("D146 · politics/values/social results are NOT
 used to group answers"), cited as a promise by
 `docs/data-inventory.md`'s Core-test-results row and by
-`data/typeSplit.ts`'s own header, and the stated reason D236's report
+`data/typeSplit.ts`'s own header, and the stated reason D241's report
 ships without the mock's politics/values/social accordions.
 
 ### The decision
@@ -24084,7 +24085,7 @@ type (D146) and the verified logic bands (D227) — and that scope is now
 the app's CURRENT CHOICE, described in the present tense with nothing
 promised about tomorrow. An unneeded promise is a standing liability
 (D225's words): it either gets broken later or warps a build to route
-around it, which is precisely what D236 §"what deliberately does not
+around it, which is precisely what D241 §"what deliberately does not
 ship" was doing.
 
 ### What remains true, and what holds each piece
@@ -24121,20 +24122,20 @@ deleted per the gate's own retirement rule, with the D202 comment block
 rewritten. `data/typeSplit.ts`: the header and `SPLIT_TEST` docstring
 recast from promise-enforcement to choice-pinning.
 `docs/data-inventory.md`: the Core-test-results row says choice, not
-promise. D236's three surfaces (`scripts/report-lib.mjs`'s header, the
+promise. D241's three surfaces (`scripts/report-lib.mjs`'s header, the
 design extraction's README, PAID-PLAN §9.2's note) now name one blocker
 instead of two.
 
-## D238 · The archetype module leaves the bridge, and the report gets its type cuts
+## D243 · The archetype module leaves the bridge, and the report gets its type cuts
 
 **2026-08-23.** **Status:** binding, built. Owner's call ("yes do that"),
-continuing D237: with the never-group promise gone, the one thing
+continuing D242: with the never-group promise gone, the one thing
 between the report and the mock's test-group cuts was
 `spec/archetype-data.js` reading `window` at module scope. D39's
 "convert on touch", taken at the moment of touch. Written on
-`claude/next-project-priorities-w43wut` as D233 and renumbered to D238
-on merge — #263–#267 minted D231–D235 while this branch was open, the
-standing collision pattern.
+`claude/next-project-priorities-w43wut` as D233, renumbered to D238
+when #263–#267 minted D231–D235, and to D243 when #266 minted
+D236–D240 — the standing collision pattern, twice over.
 
 ### The conversion — the primitives shape, applied
 
@@ -24185,16 +24186,17 @@ vocabulary the app defines anywhere — banding an axis is a design
 decision to take, not a constant to transcribe. District and
 field-of-study rows stay out for the old reason: no such data exists.
 
-## D239 · The axis bands ship, in the app's own vocabulary
+## D244 · The axis bands ship, in the app's own vocabulary
 
 **2026-08-23.** **Status:** binding, built. Owner's call ("yes do the
 axis bands aswell"), closing the last deliberate gap between the report
-and the mock's Who-answered section. D238 had declined these rows
+and the mock's Who-answered section. D243 had declined these rows
 because banding an axis looked like an undesigned decision; building
 them showed the design already existed — the app just had never applied
 it as a cut. Written on `claude/next-project-priorities-w43wut` as
-D234 and renumbered to D239 on merge — #263–#267 minted D231–D235
-while this branch was open, the standing collision pattern.
+D234, renumbered to D239 when #263–#267 minted D231–D235, and to D244
+when #266 minted D236–D240 — the standing collision pattern, twice
+over.
 
 ### The banding, and why none of it is invented
 
@@ -24216,7 +24218,7 @@ already owns and explains:
 
 The mock's bands carried shares (11/24/29/24/12) — population-shaping
 numbers for its invented crowd, not edges; transcribing them was the
-thing D238 refused, and this is the replacement it asked for.
+thing D243 refused, and this is the replacement it asked for.
 
 ### What shipped
 

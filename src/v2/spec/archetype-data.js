@@ -1,7 +1,7 @@
 // Ported from design/spec-modules/archetype-data.js (the historical prototype — no sync
 // script survives; THIS file is the live source now, hand-edits and all).
 //
-// OFF THE BRIDGE since D238 (D39's "convert on touch"): every name here
+// OFF THE BRIDGE since D243 (D39's "convert on touch"): every name here
 // is a plain named export, nothing is published to window, and the
 // consumer set moved in the same change (the primitives.jsx precedent —
 // a provider whose consumers all fit in one change is cheaper to finish
@@ -357,7 +357,7 @@ export function IS_matchArchetype(testKey, dims) {
 }
 
 // Unprefixed aliases for the typed consumers that arrived before the
-// conversion (data/typeMix.ts, D141; ui/LiveRolesPanel.tsx, D238) — same
+// conversion (data/typeMix.ts, D141; ui/LiveRolesPanel.tsx, D243) — same
 // bindings, second names, kept so nothing has to rename on its side.
 export const ARCHETYPES = IS_ARCHETYPES;
 export const matchArchetype = IS_matchArchetype;

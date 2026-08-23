@@ -28,7 +28,7 @@
 // product (D98). One of the mock's rows does NOT ship, for the old
 // reason: district / field-of-study — no such data exists anywhere.
 // (The mock's other absences closed in order: type cuts permitted at
-// D237 and built at D238; the per-axis five-band rows at D239, banded
+// D242 and built at D243; the per-axis five-band rows at D244, banded
 // by the app's own thresholds rather than the mock's population-shaping
 // shares — see the axis-bands section below.)
 //
@@ -37,8 +37,8 @@
 // (profession is deliberately never a SERVER dim — D8 — but the
 // snapshots are world-readable and the fold is the reader's own
 // arithmetic, the D146 class), the logic quarters (D227's bands), and —
-// since D238 — the four instruments' TYPE cuts, run through the app's
-// own matcher over the public testResults (permitted by D237's promise
+// since D243 — the four instruments' TYPE cuts, run through the app's
+// own matcher over the public testResults (permitted by D242's promise
 // removal; buildable once the archetype module left the bridge).
 //
 // Twins, each pinned by scripts/report.test.mjs rather than imported:
@@ -46,7 +46,7 @@
 // similarity.ts) sit behind import chains that touch `window`/live.ts,
 // so a direct import cannot load under node. The test reads the sources
 // and fails when a twin drifts. The archetype MATCHER is not a twin:
-// since D238's bridge conversion the module loads under plain node, so
+// since D243's bridge conversion the module loads under plain node, so
 // the report runs the app's own matcher on the app's own signatures.
 import { ARCHETYPES, IS_RULE_ADJ, IS_matchArchetype, RULE_REAL, RULE_STRONG } from "../src/v2/spec/archetype-data.js";
 import { IS_TESTS, IS_TEST_AVG } from "../src/v2/spec/test-definitions.js";
@@ -106,8 +106,8 @@ export function parseTestDims(raw, kind) {
 
 /** The four instruments the report cuts by, with the names the app shows
  * (similarity.ts CORE_TEST_KINDS, display names per data-inventory).
- * Permitted since D237 removed the never-group promise; buildable since
- * D238 put the matcher within reach of node. */
+ * Permitted since D242 removed the never-group promise; buildable since
+ * D243 put the matcher within reach of node. */
 export const REPORT_TYPE_CUTS = [
   ["big5", "Big Five"],
   ["political", "Politics"],
@@ -464,7 +464,7 @@ export function typeCut(roll, profiles, kind, optionCount) {
   return { rows: [...rows, untested], tested };
 }
 
-// ── the axis bands (D239) ────────────────────────────────────────────
+// ── the axis bands (D244) ────────────────────────────────────────────
 //
 // Five bands per axis, and NOTHING here is invented: the centre is the
 // app's own authored baseline (IS_TEST_AVG — the same numbers the

@@ -116,7 +116,7 @@ design/store/screenshots/*/*.png
 monitoring/pulse.json
 monitoring/pulse.html
 
-# Built question reports (scripts/build-report.mjs, D236). The roll CSV
+# Built question reports (scripts/build-report.mjs, D241). The roll CSV
 # carries public app names — a deliverable for the buyer, never repo
 # content.
 reports/

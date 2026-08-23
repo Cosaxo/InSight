@@ -56,7 +56,7 @@
 // could lean on it. D202 demoted that constant to a default so a reader
 // could switch the population MIX between instruments, so `SPLIT_TEST`
 // below is explicit, passed at every call site, and pinned by a test.
-// Since D237 the scope it holds is the app's CURRENT CHOICE, not a
+// Since D242 the scope it holds is the app's CURRENT CHOICE, not a
 // promise: the "never used to group" sentence left `web/privacy.html`
 // with its claims pin (the owner's unwind-the-promises posture, D225's
 // shape), and the page now describes what groups answers today.
@@ -78,7 +78,7 @@ export { TYPE_TEST, TYPE_THIN };
 
 /**
  * The instrument answers may be grouped by — the app's current scope,
- * in one constant (a product choice since D237, not a promise).
+ * in one constant (a product choice since D242, not a promise).
  *
  * It is `TYPE_TEST` today and must be passed explicitly rather than left to
  * default: the point is that widening `typeMix`'s default can no longer

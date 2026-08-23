@@ -41,7 +41,7 @@ interface Setting { key: string; label: string; res: RoleResult }
 interface ThinSetting { key: string; label: string; note: string }
 
 /** The matcher, imported since the archetype module left the bridge
- * (D238) — the untyped .js export, given its shape at this one seam. */
+ * (D243) — the untyped .js export, given its shape at this one seam. */
 function typeOf(kind: string, dims: { id: string; value: number }[]): { name: string; line: string } | null {
   const m = matchArchetype as (
     k: string, d: unknown,
