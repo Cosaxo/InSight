@@ -17,6 +17,9 @@
 import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { getMessaging } from "firebase-admin/messaging";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+// Type-only: `requestJoinImpl` is shared by two exported callables
+// (D234), so its parameter needs the shape onCall hands a handler.
+import type { CallableRequest } from "firebase-functions/v2/https";
 import {
   assertOperator,
   ENFORCE_APP_CHECK,
@@ -185,7 +188,47 @@ export const createGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   return { gid: ref.id, inviteCode: code };
 });
 
-export const joinGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
+/**
+ * How many people may be waiting on one circle at a time.
+ *
+ * The pending list lives ON the group document, which every member reads
+ * on every load — so this is not a product limit but the bound on a list
+ * a stranger with a forwarded link can lengthen. Twenty keeps the
+ * document small; the rate limit below keeps the arrival rate sane.
+ */
+const PENDING_CAP = 20;
+
+/**
+ * Ask to join a circle by its invite code — the LINK's landing (D234).
+ *
+ * THIS USED TO ADMIT. `joinGroupV2` wrote straight into `memberUids`, so
+ * a code was a bearer token: whoever held it was in, forever, with no
+ * expiry and no rotation, and nobody already in the circle had agreed to
+ * them. D122 built consent for invitations precisely because joining
+ * puts your name on a sealed answer these people read the next day —
+ * and the link walked around it.
+ *
+ * So the link now puts you FORWARD instead of in. The circle's side of
+ * the consent is a member tapping Approve, which is the half a bearer
+ * token could never supply.
+ *
+ * TWO SHORTCUTS, both of them the circle having already consented:
+ *   · you are a member → nothing to do, say so;
+ *   · somebody already invited you by handle → that IS the circle
+ *     choosing you, so the link completes the invitation rather than
+ *     opening a second queue behind it. Without this the smooth path
+ *     (invite them, send them the link) would ask a member to approve
+ *     the person they just invited.
+ *
+ * PENDING LIVES ON THE GROUP DOCUMENT, not in a subcollection, and that
+ * is a cost decision. Members already read this document; a subcollection
+ * would need its own member-gated read rule, and the only way rules can
+ * express that is `get()` on the group — one billed read per request
+ * listed, which is the tripwire D122 hit and backed out of.
+ */
+async function requestJoinImpl(request: CallableRequest): Promise<{
+  gid: string; name: string; status: "member" | "joined" | "requested" | "waiting";
+}> {
   if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
   const uid = request.auth.uid;
   const code = String(request.data?.code || "").trim().toUpperCase();
@@ -198,25 +241,159 @@ export const joinGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAp
   if (q.empty) throw new HttpsError("not-found", "no group with that code");
   const ref = q.docs[0].ref;
   const myName = await callerName(uid, request.data?.displayName);
+  const inviteRef = ref.collection("invites").doc(uid);
+
   const out = await db.runTransaction(async (tx) => {
-    const snap = await tx.get(ref);
+    const [snap, invite] = await Promise.all([tx.get(ref), tx.get(inviteRef)]);
+    const name = String(snap.get("name") || "");
     const members: string[] = snap.get("memberUids") || [];
-    if (members.includes(uid)) return { gid: ref.id, name: snap.get("name") };
-    const cap = snap.get("mode") === "duo" ? 2 : GROUP_CAP;
-    if (members.length >= cap) {
-      throw new HttpsError("resource-exhausted", "group is full");
+    if (members.includes(uid)) return { gid: ref.id, name, status: "member" as const };
+
+    const admit = () => {
+      const cap = snap.get("mode") === "duo" ? 2 : GROUP_CAP;
+      if (members.length >= cap) throw new HttpsError("resource-exhausted", "group is full");
+      tx.update(ref, {
+        memberUids: FieldValue.arrayUnion(uid),
+        [`memberNames.${uid}`]: myName,
+        // Set on every join, including a rejoin after leaving: the days
+        // between are days this account was not in the group, and a
+        // stale earlier timestamp would hand them back.
+        [`memberJoinedAt.${uid}`]: FieldValue.serverTimestamp(),
+        // Whichever way they arrived, they are not waiting any more.
+        pending: FieldValue.arrayRemove(uid),
+        [`pendingNames.${uid}`]: FieldValue.delete(),
+      });
+    };
+
+    // Already invited → the circle picked them. Complete it.
+    if (invite.exists) {
+      admit();
+      tx.delete(inviteRef);
+      return { gid: ref.id, name, status: "joined" as const };
+    }
+
+    const pending: string[] = snap.get("pending") || [];
+    if (pending.includes(uid)) return { gid: ref.id, name, status: "waiting" as const };
+    if (pending.length >= PENDING_CAP) {
+      throw new HttpsError("resource-exhausted", "too many people are already waiting");
     }
     tx.update(ref, {
-      memberUids: FieldValue.arrayUnion(uid),
-      [`memberNames.${uid}`]: myName,
-      // Set on every join, including a rejoin after leaving: the days
-      // between are days this account was not in the group, and a stale
-      // earlier timestamp would hand them back.
-      [`memberJoinedAt.${uid}`]: FieldValue.serverTimestamp(),
+      pending: FieldValue.arrayUnion(uid),
+      [`pendingNames.${uid}`]: myName,
     });
-    return { gid: ref.id, name: snap.get("name") };
+    return { gid: ref.id, name, status: "requested" as const };
   });
+
+  // The members are the ones who can act on it, so they are the ones
+  // told. Best-effort by construction — sendPushToUids never throws, so
+  // a dead FCM cannot roll back a request that was written.
+  if (out.status === "requested") {
+    const fresh = await ref.get();
+    await sendPushToUids(
+      db,
+      (fresh.get("memberUids") || []) as string[],
+      {
+        title: out.name || "inSight",
+        body: `${myName || "Someone"} wants to join.`,
+      },
+      { kind: "join-request", gid: out.gid },
+      "invites",
+      "join-request",
+    );
+  }
   return out;
+}
+
+// The name the link and every shipped build already call. Kept ALIASED
+// rather than renamed (D234): a callable that disappears is a hard error
+// in every app version already installed, and this one is reached by the
+// one flow a stranger uses. Same implementation, so an old build asks to
+// join instead of admitting itself — which is the whole point, and it
+// takes effect for those builds the moment this deploys rather than
+// whenever they update.
+export const joinGroupV2 = onCall(
+  { ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK },
+  requestJoinImpl,
+);
+/** The name that says what it does. Both point at one implementation. */
+export const requestJoinV2 = onCall(
+  { ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK },
+  requestJoinImpl,
+);
+
+/**
+ * Let somebody in who asked (D234) — the circle's half of the consent.
+ *
+ * Members only, which is the same gate `inviteToGroupV2` uses and for the
+ * same reason: an approval from a non-member would let anyone add anyone
+ * to any circle they can name the id of.
+ */
+export const approveJoinV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
+  const uid = request.auth.uid;
+  const gid = String(request.data?.gid || "");
+  const who = String(request.data?.uid || "");
+  if (!gid || !who) throw new HttpsError("invalid-argument", "gid and uid required");
+  const db = firestore();
+  const ref = db.doc(`v2_groups/${gid}`);
+  const name = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new HttpsError("not-found", "no such circle");
+    const members: string[] = snap.get("memberUids") || [];
+    if (!members.includes(uid)) throw new HttpsError("permission-denied", "not a member");
+    if (members.includes(who)) return String(snap.get("name") || "");
+    const pending: string[] = snap.get("pending") || [];
+    // Only somebody who actually asked. Without this, approve is an
+    // add-anyone endpoint wearing a different name.
+    if (!pending.includes(who)) throw new HttpsError("failed-precondition", "they have not asked");
+    const cap = snap.get("mode") === "duo" ? 2 : GROUP_CAP;
+    if (members.length >= cap) throw new HttpsError("resource-exhausted", "circle is full");
+    tx.update(ref, {
+      memberUids: FieldValue.arrayUnion(who),
+      [`memberNames.${who}`]: String(snap.get("pendingNames")?.[who] || ""),
+      [`memberJoinedAt.${who}`]: FieldValue.serverTimestamp(),
+      pending: FieldValue.arrayRemove(who),
+      [`pendingNames.${who}`]: FieldValue.delete(),
+    });
+    return String(snap.get("name") || "");
+  });
+  await sendPushToUids(
+    db, [who],
+    { title: name || "inSight", body: "You're in." },
+    { kind: "join-approved", gid },
+    "invites",
+    "join-approved",
+  );
+  return { ok: true };
+});
+
+/**
+ * Turn somebody down (D234).
+ *
+ * Tells them NOTHING, on D122's reasoning about declining an invitation:
+ * a "declined" state makes refusing someone a message you have to send
+ * them, which is what makes people accept — or here, approve — requests
+ * they do not want. The row simply stops being there.
+ */
+export const declineJoinV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
+  if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
+  const uid = request.auth.uid;
+  const gid = String(request.data?.gid || "");
+  const who = String(request.data?.uid || "");
+  if (!gid || !who) throw new HttpsError("invalid-argument", "gid and uid required");
+  const db = firestore();
+  const ref = db.doc(`v2_groups/${gid}`);
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new HttpsError("not-found", "no such circle");
+    const members: string[] = snap.get("memberUids") || [];
+    if (!members.includes(uid)) throw new HttpsError("permission-denied", "not a member");
+    tx.update(ref, {
+      pending: FieldValue.arrayRemove(who),
+      [`pendingNames.${who}`]: FieldValue.delete(),
+    });
+  });
+  return { ok: true };
 });
 
 export const leaveGroupV2 = onCall({ ...LIGHT_UNBOUNDED, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {

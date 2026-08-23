@@ -7,6 +7,8 @@
 //
 //   · "yesterday is revealed"  — revealGroupDay,   channel "reveals"
 //   · "someone invited you"    — inviteToGroupV2,  channel "invites"
+//   · "someone wants to join"  — requestJoinV2,    channel "invites"  (D234)
+//   · "you're in"              — approveJoinV2,    channel "invites"  (D234)
 //
 // It was one class for a long time and this comment said so. The second is
 // what turned D122's invitation — consent, an inbox, a handle registry —
@@ -84,7 +86,11 @@ export async function registerPush(
         {
           id: "invites",
           name: "Invitations",
-          description: "When someone invites you to a circle or a 1v1.",
+          // Covers BOTH directions since D234: an invitation to you,
+          // and somebody asking to join a circle you are in. One
+          // channel because they are one concern — who is joining
+          // what — and a person muting one would mean to mute both.
+          description: "When someone invites you, or asks to join your circle.",
           // 4, same as reveals: an invitation is a person waiting on an
           // answer from you, and one that arrives silently is the thing
           // D230 exists to fix.
@@ -153,6 +159,20 @@ export async function registerPush(
       if (data.kind === "reveal" && data.gid) {
         try {
           sessionStorage.setItem("insight.pendingReveal", String(data.gid));
+        } catch {
+          /* best-effort */
+        }
+        land();
+        return;
+      }
+      // A join request, or an approval of yours (D234). BOTH name a
+      // circle this account is in — you are a member of the one somebody
+      // is asking to join, and you have just become a member of the one
+      // that let you in — so the gid resolves and the tap can land on
+      // that circle's own mode.
+      if ((data.kind === "join-request" || data.kind === "join-approved") && data.gid) {
+        try {
+          sessionStorage.setItem("insight.pendingCircle", String(data.gid));
         } catch {
           /* best-effort */
         }

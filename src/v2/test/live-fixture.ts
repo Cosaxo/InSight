@@ -176,7 +176,9 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     revealHistory: () => [],
     loadRevealHistory: async () => {},
     createGroup: async () => ({ gid: "g_test", inviteCode: "ABCD2345" }),
-    joinGroup: async () => ({ gid: "g_test", name: "Test" }),
+    requestJoin: async () => ({ gid: "g_test", name: "Test", status: "requested" as const }),
+    approveJoin: async () => ({ ok: true }),
+    declineJoin: async () => ({ ok: true }),
     leaveGroup: async () => ({ gid: "g_test", deleted: false }),
     // Handles and invitations (D122). Empty and inert for the same reason
     // the groups and takes below are: a seeded invitation would be sample

@@ -1623,10 +1623,33 @@ const SOCIAL = {
     pushEarned();
     return out;
   },
-  async joinGroup(code: string, displayName?: string) {
-    const out = await callable<{ gid: string; name: string }>("joinGroupV2", { code, displayName });
+  /**
+   * Ask to join by invite code — what a tapped link now does (D234).
+   *
+   * `status` is the whole return: `joined` when the circle had already
+   * invited them (their side of the consent was on record, so the link
+   * completes it), `requested` when a member has to approve, `waiting`
+   * when they had already asked, `member` when they were already in.
+   *
+   * `pushEarned()` fires on a REQUEST too, not only on a join — the
+   * notification this account most needs next is "you're in", and it
+   * cannot arrive without a token. Asking is the moment that earns the
+   * prompt for exactly the same reason joining is.
+   */
+  async requestJoin(code: string, displayName?: string) {
+    const out = await callable<{
+      gid: string; name: string; status: "member" | "joined" | "requested" | "waiting";
+    }>("requestJoinV2", { code, displayName });
     pushEarned();
     return out;
+  },
+  /** Let somebody in who asked (D234). Members only, enforced server-side. */
+  async approveJoin(gid: string, uid: string) {
+    return callable<{ ok: boolean }>("approveJoinV2", { gid, uid });
+  },
+  /** Turn somebody down. Tells them nothing — the row simply stops being there. */
+  async declineJoin(gid: string, uid: string) {
+    return callable<{ ok: boolean }>("declineJoinV2", { gid, uid });
   },
   // ── handles and invitations (D122) ──
   //

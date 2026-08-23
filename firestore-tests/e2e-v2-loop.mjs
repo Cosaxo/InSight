@@ -399,9 +399,55 @@ const pAuth = getAuth(pApp); connectAuthEmulator(pAuth, "http://127.0.0.1:9099",
 const pDb = getFirestore(pApp, E2E_DB_ID); connectFirestoreEmulator(pDb, "127.0.0.1", 8080);
 const pFns = getFunctions(pApp, FUNCTIONS_REGION); connectFunctionsEmulator(pFns, "127.0.0.1", 5001);
 const partner = await signInAnonymously(pAuth);
-const joined = await httpsCallable(pFns, "joinGroupV2")({ code: inviteCode });
-if (joined.data.gid !== gid) fail("joinGroupV2 landed in wrong group");
-ok("partner joined by invite code");
+// THE LINK ASKS, IT DOES NOT ADMIT (D234). A code used to write straight
+// into memberUids, which made it a bearer token with no expiry: whoever
+// it was forwarded to was in, and nobody already in the circle had
+// agreed to them. Now it puts the asker in `pending` and a member
+// decides — so the e2e's own partner has to be let in, which is the
+// point rather than a cost of the test.
+const asked = await httpsCallable(pFns, "requestJoinV2")({ code: inviteCode });
+if (asked.data.gid !== gid) fail("requestJoinV2 landed in wrong group");
+if (asked.data.status !== "requested") {
+  fail("a code admitted its holder: " + JSON.stringify(asked.data));
+}
+{
+  const g = await adminDb.doc(`v2_groups/${gid}`).get();
+  if ((g.get("memberUids") || []).includes(partner.user.uid)) {
+    fail("asking to join added the member outright");
+  }
+  if (!(g.get("pending") || []).includes(partner.user.uid)) {
+    fail("the request was not queued");
+  }
+}
+ok("a tapped code ASKS — the asker is queued, not admitted");
+
+// Asking twice is idempotent: the client retries on a dropped response,
+// and a second row for one person would be two approvals to give.
+const again = await httpsCallable(pFns, "requestJoinV2")({ code: inviteCode });
+if (again.data.status !== "waiting") fail("a second ask was not idempotent: " + JSON.stringify(again.data));
+ok("asking twice queues one request, not two");
+
+// A NON-MEMBER cannot approve. Without this, approve is an add-anyone
+// endpoint wearing a different name.
+try {
+  await httpsCallable(pFns, "approveJoinV2")({ gid, uid: partner.user.uid });
+  fail("a non-member approved their own request");
+} catch (e) {
+  if (e?.code !== "functions/permission-denied") {
+    fail("wrong refusal for a non-member approval: " + (e?.code || e));
+  }
+}
+ok("only a member decides — the asker cannot approve themselves");
+
+const joined = await httpsCallable(fns, "approveJoinV2")({ gid, uid: partner.user.uid });
+if (!joined.data?.ok) fail("approveJoinV2 refused: " + JSON.stringify(joined.data));
+{
+  const g = await adminDb.doc(`v2_groups/${gid}`).get();
+  if (!(g.get("memberUids") || []).includes(partner.user.uid)) fail("approval did not add the member");
+  if ((g.get("pending") || []).includes(partner.user.uid)) fail("approval left the request queued");
+  if ((g.get("pendingNames") || {})[partner.user.uid]) fail("approval left the name behind");
+}
+ok("a member let them in; the queue entry and its name are gone");
 
 const aid = `g_${gid}_${YESTER}`;
 const duel = (idx, guess) => ({
@@ -507,7 +553,10 @@ const lateAuth = getAuth(lateApp); connectAuthEmulator(lateAuth, "http://127.0.0
 const lateDb = getFirestore(lateApp, E2E_DB_ID); connectFirestoreEmulator(lateDb, "127.0.0.1", 8080);
 const lateFns = getFunctions(lateApp, FUNCTIONS_REGION); connectFunctionsEmulator(lateFns, "127.0.0.1", 5001);
 const latecomer = await signInAnonymously(lateAuth);
-await httpsCallable(lateFns, "joinGroupV2")({ code: gCreated.data.inviteCode });
+// Same two steps as the partner above (D234): ask, then be let in by
+// somebody already there.
+await httpsCallable(lateFns, "requestJoinV2")({ code: gCreated.data.inviteCode });
+await httpsCallable(fns, "approveJoinV2")({ gid: lateGid, uid: latecomer.user.uid });
 
 const lateAid = `g_${lateGid}_${OTHERDAY}`;
 const groupAnswer = (idx) => ({

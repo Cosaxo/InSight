@@ -43,10 +43,13 @@ const LIVE = vi.hoisted(() => {
       void name; void mode; void displayName;
       return { gid: "g_new", inviteCode: "AAAA1111" };
     },
-    joinGroup: async (code: string, displayName?: string) => {
+    // A tapped link ASKS since D234 — it no longer admits its holder.
+    requestJoin: async (code: string, displayName?: string) => {
       void code; void displayName;
-      return { gid: "g_new", name: "Test" };
+      return { gid: "g_new", name: "Test", status: "requested" as string };
     },
+    approveJoin: async (gid: string, uid: string) => { void gid; void uid; return { ok: true }; },
+    declineJoin: async (gid: string, uid: string) => { void gid; void uid; return { ok: true }; },
     voteDuel: async (gid: string, idx: number, guess?: number) => { void gid; void idx; void guess; },
     setDuoMode: async (gid: string, m: string) => { void gid; void m; },
     romanticPoolReady: () => false,
@@ -972,19 +975,41 @@ describe("LiveDuelPanel · a tapped invite link", () => {
   // The link used to PREFILL A FIELD — the app had the invitation and
   // then asked you to confirm it by looking at characters it already
   // held. One button is the same act with the reading removed.
-  it("joins on one tap, with the code it arrived with", async () => {
+  // ASKS, not joins (D234). The link used to admit whoever held it —
+  // a permanent bearer token beside a consent flow — so a forwarded one
+  // put a stranger in the circle. Now it puts them forward.
+  it("asks to join with the code it arrived with, and says who decides", async () => {
     sessionStorage.setItem("insight.pendingJoin", "ABCD2345");
-    const join = vi.fn(async (code: string, displayName?: string) => {
+    const ask = vi.fn(async (code: string, displayName?: string) => {
       void code; void displayName;
-      return { gid: "g_new", name: "Test" };
+      return { gid: "g_new", name: "Book Club", status: "requested" as string };
     });
-    LIVE.social.joinGroup = join;
+    LIVE.social.requestJoin = ask;
     render(<LiveDuelPanel mode="group" />);
 
     expect(screen.getByText(/An invitation/i)).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /^Join$/ }));
-    await waitFor(() => expect(join).toHaveBeenCalled());
-    expect(join.mock.calls[0][0]).toBe("ABCD2345");
+    fireEvent.click(screen.getByRole("button", { name: /Ask to join/i }));
+    await waitFor(() => expect(ask).toHaveBeenCalled());
+    expect(ask.mock.calls[0][0]).toBe("ABCD2345");
+    // The circle's half of the consent is a member tapping Let in, and
+    // the asker is told that rather than left to wonder.
+    expect(await screen.findByText(/has to let you in/i)).toBeTruthy();
+  });
+
+  // The one shortcut, and it is the circle having already consented:
+  // somebody invited by handle who then taps the link is completing that
+  // invitation, not opening a second queue behind it.
+  it("completes an invitation the circle had already sent", async () => {
+    sessionStorage.setItem("insight.pendingJoin", "ABCD2345");
+    LIVE.social.requestJoin = vi.fn(async () => (
+      { gid: "g_new", name: "Book Club", status: "joined" as string }
+    ));
+    render(<LiveDuelPanel mode="group" />);
+    fireEvent.click(screen.getByRole("button", { name: /Ask to join/i }));
+    // Names the invitation as the reason — an asker who is suddenly in
+    // without being told why has no way to tell that from a bug.
+    expect(await screen.findByText(/had an invitation to Book Club/i)).toBeTruthy();
+    expect(screen.queryByText(/has to let you in/i)).toBeNull();
   });
 
   // A CLAIM, not a caption. Somebody arriving from a link has been told
@@ -999,12 +1024,12 @@ describe("LiveDuelPanel · a tapped invite link", () => {
 
   it("takes no for an answer without joining anything", () => {
     sessionStorage.setItem("insight.pendingJoin", "ABCD2345");
-    const join = vi.fn(async () => ({ gid: "g_new", name: "Test" }));
-    LIVE.social.joinGroup = join;
+    const ask = vi.fn(async () => ({ gid: "g_new", name: "Test", status: "requested" as string }));
+    LIVE.social.requestJoin = ask;
     render(<LiveDuelPanel mode="group" />);
     fireEvent.click(screen.getByRole("button", { name: /Not now/i }));
     expect(screen.queryByText(/An invitation/i)).toBeNull();
-    expect(join).not.toHaveBeenCalled();
+    expect(ask).not.toHaveBeenCalled();
   });
 
   // The card sits at the TOP of the panel rather than inside LdOnboard,
@@ -1015,11 +1040,65 @@ describe("LiveDuelPanel · a tapped invite link", () => {
     sessionStorage.setItem("insight.pendingJoin", "ABCD2345");
     LIVE.social.groups = () => [{ ...DUO, memberUids: ["u_me", "u_ada"] }];
     render(<LiveDuelPanel mode="duo" />);
-    expect(screen.getByRole("button", { name: /^Join$/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Ask to join/i })).toBeTruthy();
   });
 
   it("draws nothing when no link was tapped", () => {
     render(<LiveDuelPanel mode="group" />);
     expect(screen.queryByText(/An invitation/i)).toBeNull();
+  });
+});
+
+// ── the circle's half of the consent (D234) ────────────────────────
+//
+// A link used to admit whoever held it. Now it puts them in `pending` on
+// the group document, and a member decides. These hold the two halves a
+// request queue is easy to get wrong: it has to be visible to members
+// without a refresh, and declining must tell the asker nothing.
+
+describe("LiveDuelPanel · people waiting to be let in", () => {
+  const WAITING = {
+    ...DUO, memberUids: ["u_me"],
+    pending: ["u_ada"], pendingNames: { u_ada: "Ada Lovelace" },
+  };
+
+  it("names who is waiting, and offers both answers", () => {
+    LIVE.social.groups = () => [WAITING];
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.getByText(/Wants to join/i)).toBeTruthy();
+    expect(screen.getByText("Ada Lovelace")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Let in$/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^No$/ })).toBeTruthy();
+  });
+
+  it("lets them in by uid, not by the name on the row", async () => {
+    const approve = vi.fn(async (gid: string, uid: string) => { void gid; void uid; return { ok: true }; });
+    LIVE.social.approveJoin = approve;
+    LIVE.social.groups = () => [WAITING];
+    render(<LiveDuelPanel mode="duo" />);
+    fireEvent.click(screen.getByRole("button", { name: /^Let in$/ }));
+    await waitFor(() => expect(approve).toHaveBeenCalled());
+    expect(approve.mock.calls[0][0]).toBe("g1");
+    expect(approve.mock.calls[0][1]).toBe("u_ada");
+  });
+
+  it("turns them down through the decline path, never the approve one", async () => {
+    const approve = vi.fn(async () => ({ ok: true }));
+    const decline = vi.fn(async (gid: string, uid: string) => { void gid; void uid; return { ok: true }; });
+    LIVE.social.approveJoin = approve;
+    LIVE.social.declineJoin = decline;
+    LIVE.social.groups = () => [WAITING];
+    render(<LiveDuelPanel mode="duo" />);
+    fireEvent.click(screen.getByRole("button", { name: /^No$/ }));
+    await waitFor(() => expect(decline).toHaveBeenCalled());
+    expect(decline.mock.calls[0][1]).toBe("u_ada");
+    expect(approve, "declining let somebody in").not.toHaveBeenCalled();
+  });
+
+  it("draws nothing when nobody is waiting", () => {
+    LIVE.social.groups = () => [{ ...DUO, memberUids: ["u_me"] }];
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.queryByText(/Wants to join/i)).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Let in$/ })).toBeNull();
   });
 });

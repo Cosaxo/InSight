@@ -23631,7 +23631,7 @@ people read tomorrow.
    still admits its holder. Closing that properly means a link that
    INVITES rather than admits, and it is deliberately not in this change.
    It is the next decision, and the argument for it is already written
-   above.
+   above. **Closed by D234.**
 
 ### Measured rather than assumed
 
@@ -23765,4 +23765,113 @@ The live fixture refused to drift too: `vote.test.ts` pins
 `LIVE.social`'s members, so adding `searchPeople` to the store without
 adding it to `live-fixture.ts` failed the smoke suite. That is D122's
 note working a second time.
+
+
+## D234 · The link asks; the circle answers
+
+**2026-08-23.** **Status:** binding. Owner's call, closing the limit D232
+recorded rather than accepting it: "make the link invite instead of
+admit."
+
+### One-sided consent
+
+D232 took the code off every screen and left the possession model
+underneath exactly as it was. `joinGroupV2` wrote straight into
+`memberUids`, so a link was a bearer token with no expiry and no
+rotation: forward it and its holder is in, permanently, reading answers
+that carry everybody's name.
+
+D122 built consent for invitations because *joining a circle puts your
+name on a sealed daily answer that is then revealed to those people.*
+Both sides agree — a member picks you, you accept. The link supplied
+only **your** half. Nobody already in the circle had agreed to you
+specifically, and no forwarding chain changes that.
+
+So the link now puts you **forward** instead of **in**, and a member
+taps Let in. That is the half a bearer token could never carry.
+
+### Two shortcuts, both of them the circle having already agreed
+
+- **You are already a member** — nothing happened, say so, get out of
+  the way.
+- **Somebody already invited you by handle** — that IS the circle
+  choosing you, on record, so the link *completes* the invitation
+  instead of opening a second queue behind it. Without this the smooth
+  path (invite them, then send them the link) would have asked a member
+  to approve the person they had just invited.
+
+### The queue lives on the group document
+
+`pending` and `pendingNames`, not a subcollection, and it is a cost
+decision rather than a shape preference. Members already read the group
+document — it is live-subscribed by `hydrateSocial`, so an approval
+lands on every member's screen with no refresh and no extra read. A
+subcollection would need a member-gated read rule, and the only way
+Firestore rules can express that is `get()` on the group: one billed
+read per request listed. That is precisely the tripwire D122 hit and
+backed out of when it tried to let members read the invitation list.
+
+The consequence is worth naming: **`duoMode`'s `hasOnly` is now the only
+thing between a client and the membership queue.** That rule was written
+for a pool toggle; it is load-bearing for this. Pinned by its own rules
+case — a member cannot add to `pending`, name an entry, clear one, or
+ride one in beside a legal `duoMode` write.
+
+### `joinGroupV2` is kept as an alias, deliberately
+
+Same implementation, exported twice. A callable that disappears is a hard
+error in every build already installed, and this is the one flow a
+stranger uses — a `not-found` on a tapped invite is the worst place to
+learn that an app needs updating.
+
+Aliasing also means the hole closes **on deploy** rather than whenever
+each build updates: an old client calls `joinGroupV2`, gets a request
+queued instead of a membership, and reports it slightly wrong. Wrong
+copy on an old build is a smaller cost than an open admit-by-code
+endpoint, and it is the direction of the trade this decision is about.
+
+### Two things that follow from the notification
+
+**The prompt now fires on ASKING, not only on joining.** The
+notification an asker most needs next is "you're in", and it cannot
+arrive without a token — so `pushEarned()` moved onto the request. Asking
+earns the prompt for exactly the reason joining does.
+
+**Declining tells them nothing.** D122's reasoning about declining an
+invitation applies unchanged in the other direction: a "declined" state
+makes refusing somebody a message you have to send them, which is what
+makes people approve requests they do not want. The row simply stops
+being there.
+
+### The erasure arm phase 1c cannot reach
+
+`pending` sits on a group whose `memberUids` does **not** contain the
+asker — that is what pending means — so the membership sweep matches
+nothing and walks past it. And the entry carries a NAME, so an erased
+account would sit in a stranger's circle, by name, waiting to be
+approved forever. Phase 3c-bis, `array-contains` on a single field
+(auto-indexed, no index entry), asserted in `e2e-delete-account.mjs`
+with a second asker's request that must survive.
+
+### Three limits
+
+1. **Friction, and it is the point.** The sender now has to come back and
+   approve. That is the cost of the circle having a say, and D230's push
+   is what makes it one tap rather than a chore — members are notified
+   the moment somebody asks.
+2. **A link is still a capability to ASK.** Forwarding it can queue
+   strangers, bounded by `PENDING_CAP` and the join budget rather than
+   prevented. That is a nuisance where the old behaviour was a breach.
+3. **An asker cannot see their own request.** The group document is
+   member-gated and they are not a member, so status lives in the
+   response and in local state. Asking twice is idempotent and answers
+   `waiting`, which is what a person who reinstalls will hit.
+
+### Measured rather than assumed
+
+The e2e's own partner used to join by code in one call. It now asks and
+is approved, and the four assertions that replaced that line are the
+decision itself: a code queues rather than admits, a second ask is
+idempotent, a non-member cannot approve their own request, and approval
+clears both the queue entry and the name beside it.
 

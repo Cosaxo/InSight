@@ -191,6 +191,18 @@ await adb.doc(`v2_groups/${SOLO}/reveals/${DAY}`).set({
 await adb.doc(`v2_groups/${SHARED}`).set({
   name: "Shared", mode: "group", ownerUid: uid, memberUids: [uid, OTHER], streak: 3,
 });
+// A circle this account ASKED to join and was never let into (D234).
+// Invisible to the membership sweep by definition — that phase matches on
+// memberUids, and the whole point of a pending request is that the asker
+// is not in it. The name is the leak: an erased account would sit in a
+// stranger's circle, by name, waiting to be approved forever.
+const WAITED = "grp_waited";
+await adb.doc(`v2_groups/${WAITED}`).set({
+  name: "Waited", mode: "group", ownerUid: OTHER, memberUids: [OTHER], streak: 0,
+  // A control alongside: another asker, whose request must survive.
+  pending: [uid, "third_party"],
+  pendingNames: { [uid]: "Doomed", third_party: "Someone Else" },
+});
 await adb.doc(`v2_groups/${SHARED}/reveals/${DAY}`).set({
   day: DAY, qid: "group-gu0",
   votes: { [uid]: { optionIdx: 1 }, [OTHER]: { optionIdx: 0 } },
@@ -488,6 +500,19 @@ if (!(await exists(`v2_groups/${SHARED}/invites/fourth_party`)))
 ok("another account's handle and other people's invitations survive");
 
 // ── the shared group survives, scrubbed ──
+// The queue in a circle they never got into (D234).
+const waited = await adb.doc(`v2_groups/${WAITED}`).get();
+if (!waited.exists) fail("the WAITED group was deleted — the account was never a member of it");
+if ((waited.get("pending") || []).includes(uid)) fail("the erased account is still queued to join");
+if ((waited.get("pendingNames") || {})[uid]) fail("the erased account's name survives in a join queue");
+if (!(waited.get("pending") || []).includes("third_party")) {
+  fail("the queue sweep took another account's request");
+}
+if (!(waited.get("pendingNames") || {}).third_party) {
+  fail("the queue sweep took another account's name");
+}
+ok("their pending join request is gone; somebody else's survives");
+
 const shared = await adb.doc(`v2_groups/${SHARED}`).get();
 if (!shared.exists) fail("the SHARED group was deleted — it still had another member");
 const members = shared.get("memberUids") || [];

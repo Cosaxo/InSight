@@ -1343,6 +1343,39 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
     await assertFails(updateDoc(doc(asUser(OWNER), "v2_groups", "g_grp"), { duoMode: "romantic" }));
   });
 
+  // ── join requests are server-only, both ways (D234) ──────────────
+  //
+  // `pending` and `pendingNames` live on this document because members
+  // already read it — a subcollection would need a member-gated read
+  // rule, and rules can only express that with `get()` on the group,
+  // which is one billed read per request listed (the tripwire D122 hit).
+  //
+  // Living here means the duoMode rule above is the ONLY member-writable
+  // surface standing between a client and the membership queue. If that
+  // ever widens, a member could approve themselves — or anyone — without
+  // going through approveJoinV2, which is where the cap and the
+  // "did they actually ask" check live.
+  it("nobody writes the join queue from a client (D234)", async () => {
+    await seedGroup();
+    // A member cannot add somebody to the queue…
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_groups", GID),
+      { pending: [STRANGER] }));
+    // …nor put a name beside one…
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_groups", GID),
+      { pendingNames: { [STRANGER]: "Sneaky" } }));
+    // …nor clear one, which would be declining without the callable…
+    await assertFails(updateDoc(doc(asUser(FRIEND), "v2_groups", GID),
+      { pending: [] }));
+    // …and the queue is not a way to ride a legal write in.
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_groups", GID),
+      { duoMode: "romantic", pending: [STRANGER] }));
+    // THE ONE THAT MATTERS: the queue is one hop from `memberUids`, so a
+    // client that could write either could let itself into any circle it
+    // can name the id of.
+    await assertFails(updateDoc(doc(asUser(STRANGER), "v2_groups", GID),
+      { memberUids: [OWNER, FRIEND, STRANGER] }));
+  });
+
   it("members write sealed duel answers under the composite id; outsiders can't", async () => {
     await seedGroup();
     await assertSucceeds(setDoc(

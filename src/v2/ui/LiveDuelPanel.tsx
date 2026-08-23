@@ -91,6 +91,13 @@ interface LiveGroup {
   streak?: number;
   memberUids?: string[];
   memberNames?: Record<string, string>;
+  // People who asked to join and are waiting on a member (D234). ON the
+  // group document, not in a subcollection: members already read this
+  // doc, and a subcollection would need a member-gated read rule whose
+  // only expression in Firestore is `get()` on the group — one billed
+  // read per request listed, which is the tripwire D122 backed out of.
+  pending?: string[];
+  pendingNames?: Record<string, string>;
 }
 interface RevealVote { optionIdx: number; guessIdx?: number; qid?: string }
 interface LiveReveal extends RevealDocLike {
@@ -375,6 +382,53 @@ function LdOnboard({ mode }: { mode?: string }) {
   );
 }
 
+// ── people waiting on this circle (D234) ─────────────────────────
+//
+// The circle's half of the consent. A tapped link used to admit its
+// holder outright; now it puts them here, and a member decides.
+//
+// Drawn from the GROUP DOCUMENT, which is already live-subscribed
+// (hydrateSocial's onSnapshot), so an approval lands on every member's
+// screen with no refresh and no extra read.
+//
+// Declining tells them nothing, on D122's reasoning about declining an
+// invitation: a "declined" state makes refusing somebody a message you
+// have to send them, which is what makes people approve requests they do
+// not want. The row simply stops being there.
+function LdPendingRequests({ g }: { g: LiveGroup }) {
+  const [busy, setBusy] = React.useState<string | null>(null);
+  const [err, setErr] = React.useState<string | null>(null);
+  const pending = g.pending || [];
+  const names = g.pendingNames || {};
+  if (!pending.length) return null;
+
+  const act = async (uid: string, ok: boolean) => {
+    setBusy(uid); setErr(null);
+    try {
+      if (ok) await LIVE.social.approveJoin(g.id, uid);
+      else await LIVE.social.declineJoin(g.id, uid);
+    } catch (e) { setErr(errText(e).replace(/^.*?: */, "")); }
+    setBusy(null);
+  };
+
+  return (
+    <div style={col(9)}>
+      <span className="kicker" style={{ marginBottom: 0 }}>
+        {pending.length === 1 ? "Wants to join" : `${pending.length} want to join`}
+      </span>
+      {pending.map((uid) => (
+        <PersonRow key={uid} uid={uid} name={names[uid] || ""}>
+          <span style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+            <LdBtn small disabled={busy === uid} onClick={() => void act(uid, false)}>No</LdBtn>
+            <LdBtn small primary disabled={busy === uid} onClick={() => void act(uid, true)}>Let in</LdBtn>
+          </span>
+        </PersonRow>
+      ))}
+      {err && <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{err}</div>}
+    </div>
+  );
+}
+
 // ── add someone, by handle (D122) ────────────────────────────────
 //
 // This is what replaced "share this code with them". The flow is: type a
@@ -547,16 +601,41 @@ function LdInvites({ mode }: { mode?: string }) {
 function LdJoinPending({ code, onDone }: { code: string; onDone: () => void }) {
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
-  const join = async () => {
+  const [done, setDone] = React.useState<{ status: string; name: string } | null>(null);
+
+  const ask = async () => {
     setBusy(true); setErr(null);
     try {
-      await LIVE.social.joinGroup(code, ldName().trim() || undefined);
-      onDone();
+      const out = await LIVE.social.requestJoin(code, ldName().trim() || undefined);
+      // Already a member: nothing happened and nothing needs saying.
+      if (out.status === "member") { onDone(); return; }
+      setDone({ status: out.status, name: out.name || "" });
     } catch (e) {
       setErr(errText(e).replace(/^.*?: */, ""));
-      setBusy(false);
     }
+    setBusy(false);
   };
+
+  if (done) {
+    const where = done.name ? ` ${done.name}` : " the circle";
+    return (
+      <div className="card" style={{ display: "flex", flexDirection: "column", gap: 11, padding: "16px 15px" }}>
+        <span className="kicker" style={{ marginBottom: 0 }}>
+          {done.status === "joined" ? "You're in" : "Asked"}
+        </span>
+        <div style={{ fontSize: 13.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.45 }}>
+          {done.status === "joined"
+            // They had already been invited by handle — the circle's
+            // consent was on record, so the link completed it rather
+            // than opening a second queue behind it.
+            ? `You had an invitation to${where}, so you're in.`
+            : `Someone in${where} has to let you in.`}
+        </div>
+        <div><LdBtn small onClick={onDone}>OK</LdBtn></div>
+      </div>
+    );
+  }
+
   return (
     <div className="card" style={{ display: "flex", flexDirection: "column", gap: 11, padding: "16px 15px" }}>
       <span className="kicker" style={{ marginBottom: 0 }}>An invitation</span>
@@ -569,7 +648,10 @@ function LdJoinPending({ code, onDone }: { code: string; onDone: () => void }) {
         One question a day, sealed until tomorrow, then revealed with names to the people in it.
       </div>
       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <LdBtn primary disabled={busy} onClick={() => void join()}>{busy ? "\u2026" : "Join"}</LdBtn>
+        {/* ASK, not Join (D234). The link no longer admits its holder —
+            a forwarded one puts you forward instead of in, and the
+            button says which. */}
+        <LdBtn primary disabled={busy} onClick={() => void ask()}>{busy ? "\u2026" : "Ask to join"}</LdBtn>
         <LdBtn small disabled={busy} onClick={onDone}>Not now</LdBtn>
       </div>
       {err && <div role="status" style={{ fontSize: 12.5, fontWeight: 600, color: "oklch(0.5 0.19 25)" }}>{err}</div>}
@@ -854,6 +936,7 @@ function LdManage({ g, onClose }: { g: LiveGroup; onClose: () => void }) {
         </div>
       </div>
 
+      <LdPendingRequests g={g} />
       {members.length < (duo ? 2 : 32) && <LdAddByHandle g={g} />}
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, borderTop: LD_HAIR, paddingTop: 10 }}>
@@ -1026,6 +1109,7 @@ function LdCard({ g, vh, nextName, newest }: {
         <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", maxWidth: 260, textWrap: "pretty" }}>
           Add them, or send the link.
         </div>
+        <LdPendingRequests g={g} />
         <LdAddByHandle g={g} />
         <LdCopyLink g={g} />
       </div>

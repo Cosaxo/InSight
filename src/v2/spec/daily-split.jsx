@@ -92,6 +92,17 @@ const liveReady = () => {
   return !!(L && L.enabled && L.ready);
 };
 
+// The mode of the circle this gid names, or null when it names none this
+// account is in. Shared by both gid-shaped pending targets — a tapped
+// reveal, and a tapped join request or approval (D234) — so the store is
+// reached once here rather than once in each of them, which is the
+// difference check:globals rule 4 counts.
+const modeOfGroup = (gid) => {
+  if (!gid || !liveReady()) return null;
+  const g = window.LIVE.social.groups().find((x) => x.id === gid);
+  return g ? (g.mode === 'duo' ? 'duo' : 'group') : null;
+};
+
 class DailySplit extends React.Component {
   state = {
     mode: this.props.mode || 'world', feedOpen: false, condensed: false, earlierOpen: false, reportFor: null,
@@ -168,11 +179,10 @@ class DailySplit extends React.Component {
   consumePendingReveal() {
     let gid = null;
     try { gid = sessionStorage.getItem('insight.pendingReveal'); } catch { /* best-effort */ }
-    if (!gid || !liveReady()) return false;
-    const g = window.LIVE.social.groups().find((x) => x.id === gid);
-    if (!g) return false;
+    const mode = modeOfGroup(gid);
+    if (!mode) return false;
     try { sessionStorage.removeItem('insight.pendingReveal'); } catch { /* best-effort */ }
-    this.setState({ mode: g.mode === 'duo' ? 'duo' : 'group' });
+    this.setState({ mode });
     return true;
   }
 
@@ -189,11 +199,30 @@ class DailySplit extends React.Component {
     return true;
   }
 
-  // A reveal outranks an invitation: it is a circle you are already in,
-  // and it expires today. Both can be waiting after a batch of
-  // notifications, and landing on the invitation would bury the reveal.
+  // A tapped join request, or an approval of one (D234). Same shape as
+  // the reveal above and for the same reason — both name a circle this
+  // account is IN, so groups() resolves the gid — but it is its own key
+  // because it is not a reveal and a key that lied about that is how the
+  // next reader gets it wrong.
+  consumePendingCircle() {
+    let gid = null;
+    try { gid = sessionStorage.getItem('insight.pendingCircle'); } catch { /* best-effort */ }
+    const mode = modeOfGroup(gid);
+    if (!mode) return false;
+    try { sessionStorage.removeItem('insight.pendingCircle'); } catch { /* best-effort */ }
+    this.setState({ mode });
+    return true;
+  }
+
+  // A reveal outranks the rest: it is the one that expires today. An
+  // invitation is last because it is the only one that is not about a
+  // circle this account is already in. Several can be waiting after a
+  // batch of notifications, and landing on the wrong one buries the
+  // reveal.
   consumePending() {
-    if (!this.consumePendingReveal()) this.consumePendingInvite();
+    if (this.consumePendingReveal()) return;
+    if (this.consumePendingCircle()) return;
+    this.consumePendingInvite();
   }
 
   // ── docking: once the in-flow ruler has scrolled away, the wordmark steps

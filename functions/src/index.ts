@@ -181,6 +181,9 @@ export const deleteAccount = onCall(
       // count: it is one document at a known id, so a 0 here means the
       // delete threw, not that nothing matched.
       peopleRow: 0,
+      // Circles this account had ASKED to join and was never approved
+      // into (D234) — invisible to the membership sweep by definition.
+      pendingJoins: 0,
       invitesTo: 0,
       invitesFrom: 0,
       // Question suggestions swept by phase 4d (docs/NEXT-FUNCTIONALITY.md
@@ -591,6 +594,31 @@ export const deleteAccount = onCall(
       failed.push("handle");
     }
 
+    // 3c-bis. Pending join requests in circles this account never joined
+    //     (D234). `pending` and `pendingNames` live ON the group document,
+    //     so phase 1c misses them entirely — that phase matches on
+    //     `memberUids`, and the whole point of a pending request is that
+    //     the asker is not in that array. The name is the leak: an erased
+    //     account would sit in a stranger's circle, by name, waiting to
+    //     be approved.
+    //
+    //     `array-contains` on a single field, so Firestore indexes it
+    //     automatically and this needs no index entry.
+    try {
+      const waiting = await db.collection("v2_groups")
+        .where("pending", "array-contains", uid).get();
+      for (const g of waiting.docs) {
+        await g.ref.update({
+          pending: FieldValue.arrayRemove(uid),
+          [`pendingNames.${uid}`]: FieldValue.delete(),
+        });
+      }
+      counts.pendingJoins = waiting.size;
+    } catch (err) {
+      logger.error("[deleteAccount] pending-join wipe failed:", err);
+      failed.push("pendingJoins");
+    }
+
     // 3d. The people directory (D233). Keyed by uid but a TOP-LEVEL
     //     document, so phase 1b's recursiveDelete of v2_users/{uid} walks
     //     straight past it — the same trap 3b describes for the handle
@@ -733,7 +761,13 @@ export {
   createGroupV2,
   declineGroupInviteV2,
   inviteToGroupV2,
+  // joinGroupV2 is the DEPRECATED ALIAS (D234) — same implementation
+  // as requestJoinV2, kept exported so builds already installed keep
+  // working and start asking to join instead of admitting themselves.
   joinGroupV2,
+  requestJoinV2,
+  approveJoinV2,
+  declineJoinV2,
   leaveGroupV2,
   nearbyCountV2,
   nearbyRoomV2,

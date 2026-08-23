@@ -177,7 +177,10 @@ describe("channels", () => {
     await grant();
     const byId = Object.fromEntries(h.channels.map((c) => [c.id, c]));
     expect(byId.reveals.description).toBe("When a group or duo day is revealed.");
-    expect(byId.invites.description).toBe("When someone invites you to a circle or a 1v1.");
+    // Both directions since D234 — an invitation to you, and somebody
+    // asking to join a circle you are in. One channel, because a
+    // person muting one would mean to mute both.
+    expect(byId.invites.description).toBe("When someone invites you, or asks to join your circle.");
   });
 
   it("creates none on iOS, which has no channels", async () => {
@@ -230,5 +233,48 @@ describe("a tapped notification lands somewhere", () => {
     const goTab = await tap({ kind: "something-later", gid: "g1" });
     expect(goTab).not.toHaveBeenCalled();
     expect(sessionStorage.getItem("insight.pendingInvite")).toBeNull();
+  });
+});
+
+// ── a circle you are in, either direction (D234) ───────────────────
+describe("a tapped join notification", () => {
+  const tap = async (data: Record<string, unknown>) => {
+    h.platform = "android";
+    h.permission = "granted";
+    const goTab = vi.fn();
+    (window as unknown as { goTab: unknown }).goTab = goTab;
+    const { registerPush } = await import("./push");
+    await registerPush("u1");
+    h.handlers.pushNotificationActionPerformed({ notification: { data } });
+    return goTab;
+  };
+
+  // BOTH name a circle this account is IN — you are a member of the one
+  // somebody is asking to join, and you have just become a member of the
+  // one that let you in — so the gid resolves and DailySplit can land on
+  // that circle's own mode. That is the difference from an invitation,
+  // whose gid resolves to nothing because the invitee is not a member.
+  it("routes a request to the circle it is about", async () => {
+    const goTab = await tap({ kind: "join-request", gid: "g1" });
+    expect(sessionStorage.getItem("insight.pendingCircle")).toBe("g1");
+    expect(goTab).toHaveBeenCalledWith("track");
+  });
+
+  it("routes an approval the same way", async () => {
+    const goTab = await tap({ kind: "join-approved", gid: "g1" });
+    expect(sessionStorage.getItem("insight.pendingCircle")).toBe("g1");
+    expect(goTab).toHaveBeenCalledWith("track");
+  });
+
+  it("keeps the invitation path separate, since its gid resolves to nothing", async () => {
+    await tap({ kind: "invite", gid: "g1", mode: "duo" });
+    expect(sessionStorage.getItem("insight.pendingInvite")).toBe("duo");
+    expect(sessionStorage.getItem("insight.pendingCircle")).toBeNull();
+  });
+
+  it("ignores a join payload with no circle on it", async () => {
+    const goTab = await tap({ kind: "join-request" });
+    expect(goTab).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem("insight.pendingCircle")).toBeNull();
   });
 });
