@@ -57,6 +57,10 @@ export interface QuestionDoc {
   prompt: string;
   options: string[];
   topic: string | null;
+  // The catalogue key space a `type: "catalog"` question's `entity`
+  // answers validate against — pokemon/emoji/elements/… (D14/D15). The
+  // seed transports it on every doc; non-null only on catalog docs.
+  domain?: string | null;
   // The daily bank's [branch, sub-branch] subject path (D100) — "Mind" /
   // "Outlook". Absent on every other surface, and absent from any daily
   // doc seeded before D100 until the next seed run, so every reader has
@@ -139,6 +143,13 @@ export interface CallOutcome {
 export interface AggDoc {
   counts?: Record<string, number>;
   total?: number;
+  // The catalog canon (D14): the published board — the CANON_TOP_N biggest
+  // entities as key → count — and everything outside it summed into
+  // `rest`. Present only on catalog questions' aggregates, whose `by` maps
+  // hold entity keys (cut to the board's own entities, D17) rather than
+  // option indexes.
+  top?: Record<string, number>;
+  rest?: number;
   // Per-anchor breakdown, exact and complete (functions/src/pure.ts, D8
   // for the shape, D98 for the exactness). A cell that is absent here has
   // no answers in it — nothing is suppressed, so absent means zero and the
@@ -397,11 +408,14 @@ export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
     // vote cards — folding single options into aggregates that claim to be
     // a ranking. Wrong-shaped answers are worse than no card (the same
     // honesty rule as D5); the full arithmetic is in D12.
+    // type "catalog" is the feed lane's deliberate playable() exception,
+    // the duel lane's "pick" precedent: a catalog doc carries no options
+    // because the shipped catalogue is its answer space (D14), so the
+    // options gate that drops malformed docs would drop every pick card.
     feed: active.filter(
       (q) =>
         (q.surface === "feed" || q.surface === "test") &&
-        playable(q) &&
-        q.type !== "rank",
+        (q.type === "catalog" || (playable(q) && q.type !== "rank")),
     ),
     duel: active.filter(
       (q) =>

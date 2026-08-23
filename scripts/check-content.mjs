@@ -17,7 +17,7 @@
 // own test doesn't declare.
 //
 // Regeneration stays a deliberate step: `npm run build:content`.
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildAds, buildEntries, generate, loadContent, CONTENT_SOURCES, LENS_SCALE, LIKERT, dialOptions, fieldOptions, DIAL_BUCKETS } from "./gen-v2content.mjs";
@@ -57,7 +57,11 @@ if (generate(content) !== committed) {
 // immutable docs keyed by qid, so a malformed or colliding id is forever.
 const ID_SHAPE = {
   daily: /^daily-\d{3}$/,
-  feed: /^feed-[A-Za-z0-9]+$/,
+  // Two id families share the feed surface since D14 went live: ordinary
+  // feed entries, and catalogue picks promoted from the pick archive —
+  // `pick-<archive id>`, kept verbatim so a live card and its
+  // pick-data.js entry share one name.
+  feed: /^(feed|pick)-[A-Za-z0-9]+$/,
   group: /^group-[A-Za-z0-9]+$/,
   duo: /^duo-\d{3}$/,
   // Two id families share the test surface: the core instruments'
@@ -234,6 +238,30 @@ for (const q of entries) {
         errors.push(`${q.id}: field options are not the synthesized cell labels for its ax/ay`);
       }
     }
+  } else if (q.type === "catalog") {
+    // Catalogue picks (D14): the shipped catalogue is the answer space, an
+    // answer is an `entity` key, and the aggregate trigger validates it
+    // per-domain — so the entry carries NO options and MUST name a domain
+    // whose catalogue file is committed under public/ (QUESTION-FARM.md
+    // rule 2: a card whose catalogue is absent opens straight into the
+    // picker's error state). films/artists stay refused here until the D15
+    // operator step commits their files; promote-questions.mjs holds the
+    // same map at the other end of the pipe.
+    const CATALOG_FILES = {
+      pokemon: "pokedex.txt", emoji: "emoji.txt", elements: "elements.txt",
+      countries: "countries.txt", dogs: "dogs.txt", films: "films.txt",
+      artists: "artists.txt",
+    };
+    if (q.surface !== "feed") errors.push(`${q.id}: catalog type outside the feed surface`);
+    if (q.options.length !== 0) errors.push(`${q.id}: a catalog question carries no options — the catalogue is its answer space`);
+    const file = CATALOG_FILES[q.domain];
+    if (!file) errors.push(`${q.id}: domain ${JSON.stringify(q.domain)} is not a known catalogue domain (CATALOG_DOMAINS, functions/src/v2.ts)`);
+    else if (!existsSync(join(root, "public", file))) {
+      errors.push(`${q.id}: domain ${q.domain} has no committed catalogue (public/${file}) — the picker would open into its error state`);
+    }
+    if (q.core === true) {
+      errors.push(`${q.id}: a catalog question is never core — an entity answer has no option share for a cohort fold to read (D161)`);
+    }
   } else if (q.options.length < 2 || q.options.length > 10) {
     errors.push(`${q.id}: ${q.options.length} options (want 2..10)`);
   }
@@ -315,10 +343,14 @@ for (const q of entries) {
   promptsBySurface.set(key, q.id);
 }
 
-// ---- feed topics must exist in the taxonomy the client renders.
+// ---- feed topics must exist in the taxonomy the client renders. Catalog
+// picks are exempt BY SURFACE RULE, not oversight: they file against
+// WORLD_TOPICS — `fav` is a real topic the feed's chip row carries for
+// them (D145 §4) and deliberately not part of the feed's own subject
+// taxonomy; check:quality validates their `cat` against that wider set.
 const topicIds = new Set(content.feed.topics.map((t) => t.id));
 for (const q of entries) {
-  if (q.surface === "feed" && !topicIds.has(q.topic)) {
+  if (q.surface === "feed" && q.type !== "catalog" && !topicIds.has(q.topic)) {
     errors.push(`${q.id}: feed topic ${JSON.stringify(q.topic)} not in feed-questions.json topics`);
   }
 }

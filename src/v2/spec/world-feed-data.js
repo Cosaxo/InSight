@@ -44,17 +44,18 @@ window.WORLD_TOPICS = WORLD_TOPICS;
 // demo list, most of the seeded bank sat behind a door that no longer exists:
 // no chip, no follow, no search result could surface it. Until scenes have a
 // real backend, a live build runs every SUBJECT always-on; the chips' mute is
-// unchanged, so the coarse control a follow used to give is still there. The
-// two formats with no live stock stay out of the live row — the bank mapper
-// (data/live.ts) emits plain votes only, so `places` (rate cards) and `fav`
-// (catalogue picks) would be dead chips filtering nothing. Build flag rather
+// unchanged, so the coarse control a follow used to give is still there.
+// `fav` rides the live row since D14 went live — the bank mapper emits pick
+// cards from the seeded catalog questions, so the chip filters real stock.
+// `places` alone stays out: rate cards are still demo-only, and a chip over
+// no stock would be a dead filter. Build flag rather
 // than window.LIVE.enabled for learn-progress.js's reason: this runs at
 // module scope, before the live boot attaches — and the demoInProd fallback
 // needs the widening too, because a live build seeds zero follows and its
 // demo-pool fallback had the same dark subjects.
 const WFD_LIVE_BUILD = import.meta.env && import.meta.env.VITE_V2_LIVE === 'true';
 window.WORLD_CHANNELS = WFD_LIVE_BUILD
-  ? window.WORLD_TOPICS.filter((t) => t.id !== 'places' && t.id !== 'fav').map((t) => t.id)
+  ? window.WORLD_TOPICS.filter((t) => t.id !== 'places').map((t) => t.id)
   : ['dilemma', 'event', 'people', 'bigq', 'places', 'fav'];
 
 // ── question pool ──

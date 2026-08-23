@@ -210,11 +210,30 @@ describe("splitBanks (per-surface allowlists)", () => {
       qd("learn-cell1", { surface: "learn", options: ["a", "b", "c", "d"] }),
       qd("feed-f03", { surface: "feed", type: "rank" }), // D12: never in the live feed
       qd("daily-bad", { options: [] }), // unplayable — dropped
+      // D14 gone live: a catalog doc carries NO options (the catalogue is
+      // its answer space), so it rides the feed lane through the same kind
+      // of carve-out the duel lane gives "pick" days. Remove the exception
+      // and this drops out of the feed — which is the regression this line
+      // exists to catch.
+      qd("pick-pk04", { surface: "feed", type: "catalog", domain: "emoji", options: [] }),
     ]);
     expect(banks.learn.map((x) => x.id)).toEqual(["learn-cell1"]);
     expect(banks.daily.map((x) => x.id)).toEqual(["daily-000"]);
-    expect(banks.feed.map((x) => x.id)).toEqual(["feed-f01", "test-big5-00"]);
+    expect(banks.feed.map((x) => x.id)).toEqual(["feed-f01", "test-big5-00", "pick-pk04"]);
     expect(banks.duel.map((x) => x.id)).toEqual(["group-gu0", "group-gp0", "duo-000"]);
+  });
+
+  it("a catalog doc is feed-only — the carve-out widens no other lane", () => {
+    // The exception is options-shaped, so the thing to check is that it
+    // stays INSIDE the feed allowlist: a catalog doc on another surface
+    // must still be dropped as unplayable, not adopted.
+    const banks = splitBanks([
+      qd("pick-x", { surface: "daily", type: "catalog", options: [] }),
+      qd("pick-y", { surface: "learn", type: "catalog", options: [] }),
+    ]);
+    expect(banks.daily).toEqual([]);
+    expect(banks.learn).toEqual([]);
+    expect(banks.feed).toEqual([]);
   });
 });
 

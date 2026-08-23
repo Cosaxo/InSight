@@ -105,12 +105,14 @@ the live figures: `node scripts/farm-budget.mjs`,
   unblocks raising the farm budget; the sampled-audit rate is a starting
   figure, not a measured one. [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md)
   Phase 3–4.
-- **The catalog lane's blocked half** (decided, D14/D15): films and
-  artists are wired into the trigger's domains but their catalogues do
-  not exist — an operator run of `scripts/build-catalog.mjs` against
-  Wikidata (unreachable from sandboxes; measured), then the demo cards,
-  the trademark check, and go-live. The pick surface stays unscored
-  until it is live. [`CATALOG-QUESTIONS.md`](CATALOG-QUESTIONS.md).
+- **The catalog lane's blocked half** (decided, D14/D15 — narrowed at
+  D231): the pick surface went LIVE for the four unencumbered committed
+  domains (17 cards, `content/pick-questions.json`). What remains:
+  films/artists still need the operator run of
+  `scripts/build-catalog.mjs` against Wikidata (unreachable from
+  sandboxes; measured), and the six pokemon cards wait on the
+  trademark check — both now one `npm run promote` from live once
+  unblocked. [`CATALOG-QUESTIONS.md`](CATALOG-QUESTIONS.md).
 - ~~**Pulse templates**~~ — **done 2026-08-19** with the roster commit:
   `content/pulse-questions.json` carries all five (pace, energy, sleep,
   focus, social) through the ordinary content gates.

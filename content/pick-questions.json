@@ -1,0 +1,117 @@
+{
+  "_README": [
+    "Live catalogue-pick questions (D14) — 'favourite X from a shipped",
+    "catalogue'. Filled ONLY by `npm run promote -- --source farm --review",
+    "… pk<nn> …` from the pick archive (src/v2/spec/pick-data.js), never by",
+    "hand: live hydration and the quality gate join seed to archive by id",
+    "and prompt, so a retyped prompt silently unhooks the card. Append-only",
+    "like every bank. `cat` is a WORLD_TOPICS id ('fav' — the format",
+    "channel); `domain` must name a catalogue committed under public/",
+    "(check:content refuses the rest, QUESTION-FARM.md § the daily",
+    "catalog-question run rule 2)."
+  ],
+  "questions": [
+    {
+      "id": "pk04",
+      "domain": "emoji",
+      "cat": "fav",
+      "prompt": "Your most-used emoji?"
+    },
+    {
+      "id": "pk05",
+      "domain": "emoji",
+      "cat": "fav",
+      "prompt": "The most annoying emoji?"
+    },
+    {
+      "id": "pk08",
+      "domain": "emoji",
+      "cat": "fav",
+      "prompt": "The emoji you’d tattoo?"
+    },
+    {
+      "id": "pk10",
+      "domain": "emoji",
+      "cat": "fav",
+      "prompt": "The scariest emoji?"
+    },
+    {
+      "id": "pk11",
+      "domain": "elements",
+      "cat": "fav",
+      "prompt": "Your favourite element?"
+    },
+    {
+      "id": "pk12",
+      "domain": "elements",
+      "cat": "fav",
+      "prompt": "The element you’d be?"
+    },
+    {
+      "id": "pk13",
+      "domain": "elements",
+      "cat": "fav",
+      "prompt": "The best-named element?"
+    },
+    {
+      "id": "pk14",
+      "domain": "elements",
+      "cat": "fav",
+      "prompt": "The most dangerous element?"
+    },
+    {
+      "id": "pk15",
+      "domain": "emoji",
+      "cat": "fav",
+      "prompt": "The most misunderstood emoji?"
+    },
+    {
+      "id": "pk16",
+      "domain": "countries",
+      "cat": "fav",
+      "prompt": "The country you’d move to?"
+    },
+    {
+      "id": "pk17",
+      "domain": "dogs",
+      "cat": "fav",
+      "prompt": "The dog you’d get?"
+    },
+    {
+      "id": "pk18",
+      "domain": "countries",
+      "cat": "fav",
+      "prompt": "The country with the best food?"
+    },
+    {
+      "id": "pk19",
+      "domain": "dogs",
+      "cat": "fav",
+      "prompt": "The most beautiful dog?"
+    },
+    {
+      "id": "pk20",
+      "domain": "countries",
+      "cat": "fav",
+      "prompt": "The best flag in the world?"
+    },
+    {
+      "id": "pk21",
+      "domain": "dogs",
+      "cat": "fav",
+      "prompt": "The smartest dog?"
+    },
+    {
+      "id": "pk22",
+      "domain": "countries",
+      "cat": "fav",
+      "prompt": "The most beautiful country?"
+    },
+    {
+      "id": "pk23",
+      "domain": "dogs",
+      "cat": "fav",
+      "prompt": "The most fun breed to say out loud?"
+    }
+  ]
+}

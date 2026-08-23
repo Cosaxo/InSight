@@ -22,7 +22,7 @@
 // provenance row fails the gate, which is what makes the flag
 // unforgettable. Ids in the seed are explicit and append-only — the deck
 // epoch (D30) makes appends remap nothing.
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync } from "node:child_process";
@@ -57,6 +57,7 @@ const ids = argv;
 const usage =
   "promote: name a source and at least one archive id, e.g. " +
   "`npm run promote -- --source farm --review ai --audited dqx13 dqx13 dqx14`\n" +
+  "  (pk ids — pk04 pk11 … — promote the pick archive into content/pick-questions.json instead)\n" +
   "  --source editorial|farm|community   who wrote the archive entry (D97 provenance)\n" +
   "  --batch YYYY-MM-DD                  vintage label, default today (UTC)\n" +
   "  --review ai|human                   who read it before the bank (D162);" +
@@ -93,24 +94,113 @@ if (!/^\d{4}-\d{2}-\d{2}$/.test(batch)) {
   process.exit(1);
 }
 
+// ── the pick lane (D14 go-live) ─────────────────────────────────────
+// Same job, different archive: pick cards live in window.PICK_QS
+// (src/v2/spec/pick-data.js, the "favourite X" class) and promote into
+// content/pick-questions.json. Ids are kept VERBATIM (pk07 → bank id
+// pick-pk07) rather than renumbered like the daily's: the archive id is
+// already the stable name the demo store's crowd and BY data key on, and
+// a second number would be one more join to get wrong. Mixed-lane
+// invocations are refused — one promotion PR per lane keeps the diff
+// reviewable as one thing.
+const isPickId = (id) => /^pk\d+$/.test(id);
+if (ids.some(isPickId) && !ids.every(isPickId)) {
+  console.error("promote: dqx and pk ids in one run — promote each lane separately");
+  process.exit(1);
+}
+
+function extractFrom(source, marker, where) {
+  const start = source.indexOf(marker);
+  if (start < 0) throw new Error(`${marker} not found in ${where}`);
+  const open = source.indexOf("[", start);
+  let depth = 0;
+  for (let j = open; j < source.length; j++) {
+    if (source[j] === "[") depth++;
+    else if (source[j] === "]") {
+      depth--;
+      if (depth === 0) return source.slice(open, j + 1);
+    }
+  }
+  throw new Error(`${marker}: unbalanced brackets in ${where}`);
+}
+
+if (ids.every(isPickId)) {
+  const PICK_SEED = join(root, "content", "pick-questions.json");
+  const PICK_QS = vm.runInNewContext(extractFrom(
+    readFileSync(join(root, "src", "v2", "spec", "pick-data.js"), "utf8"),
+    "window.PICK_QS = [",
+    "pick-data.js",
+  ));
+  // Only domains whose catalogue file is committed under public/ may go
+  // live (QUESTION-FARM.md § the daily catalog-question run, rule 2) — a
+  // card whose catalogue is absent opens straight into the picker's error
+  // state. check-content.mjs holds the same map; both refuse films/artists
+  // until the D15 operator step commits their files.
+  const CATALOG_FILES = {
+    pokemon: "pokedex.txt", emoji: "emoji.txt", elements: "elements.txt",
+    countries: "countries.txt", dogs: "dogs.txt", films: "films.txt",
+    artists: "artists.txt",
+  };
+  const byPk = new Map(PICK_QS.map((q) => [q.id, q]));
+  const seed = JSON.parse(readFileSync(PICK_SEED, "utf8"));
+  const have = new Set(seed.questions.map((q) => q.id));
+  const havePrompts = new Set(seed.questions.map((q) => q.prompt));
+  const picked = [];
+  for (const id of ids) {
+    const q = byPk.get(id);
+    if (!q) {
+      console.error(`promote: ${id} is not in the pick archive (PICK_QS has ${PICK_QS.length} entries)`);
+      process.exit(1);
+    }
+    if (have.has(id) || havePrompts.has(q.prompt)) {
+      console.error(`promote: ${id} ${JSON.stringify(q.prompt)} is already in the live pick seed — refusing a re-promotion`);
+      process.exit(1);
+    }
+    const file = CATALOG_FILES[q.domain];
+    if (!file || !existsSync(join(root, "public", file))) {
+      console.error(
+        `promote: ${id} rides domain ${JSON.stringify(q.domain)}, which has no committed catalogue under public/ — ` +
+        "a card whose catalogue is absent opens into the picker's error state (QUESTION-FARM.md rule 2)",
+      );
+      process.exit(1);
+    }
+    // Byte-for-byte, the whole point of the script: prompt, domain and cat
+    // are COPIED, and check:quality's parity rule holds seed equal to
+    // archive by id afterwards.
+    seed.questions.push({ id: q.id, domain: q.domain, cat: q.cat, prompt: q.prompt });
+    have.add(id);
+    havePrompts.add(q.prompt);
+    picked.push(q);
+  }
+  writeFileSync(PICK_SEED, JSON.stringify(seed, null, 2) + "\n");
+  const prov = JSON.parse(readFileSync(PROV, "utf8"));
+  if (!prov.pick) prov.pick = {};
+  for (const q of picked) {
+    // No archiveId field: the seed id IS the archive id, so a second copy
+    // of it would be a join that can only ever agree or rot.
+    prov.pick[q.id] = {
+      source,
+      batch,
+      ...(reviewBy
+        ? { review: { by: reviewBy, at: batch, ...(reviewBy === "ai" ? { audited: auditedIds.has(q.id) } : {}) } }
+        : {}),
+    };
+  }
+  writeFileSync(PROV, JSON.stringify(prov, null, 2) + "\n");
+  execFileSync("node", [join(root, "scripts", "gen-v2content.mjs"), "--write"], { stdio: "inherit" });
+  console.log(`promote: appended ${picked.length} pick card(s) to content/pick-questions.json (provenance: ${source}, batch ${batch})`);
+  for (const q of picked) console.log(`  ${q.id} → pick-${q.id}  ${JSON.stringify(q.prompt)}`);
+  console.log("promote: run `npm run check:content` and `npm run check:quality`, then open the promotion PR (QUESTION-FARM.md § Promoting). After merge + deploy, an operator reseeds.");
+  process.exit(0);
+}
+
 // The Q array is pure data literals; extract it by bracket-matching and
 // evaluate in a bare context. DQ_BASE and the id formula are cross-read
 // from the spec the same way the scorecard cross-reads DECK_EPOCH — a
 // copy here would drift.
 const src = readFileSync(SPEC, "utf8");
 function extractArray(name) {
-  const start = src.indexOf(`const ${name} = [`);
-  if (start < 0) throw new Error(`${name} not found in daily-questions.js`);
-  const open = src.indexOf("[", start);
-  let depth = 0;
-  for (let j = open; j < src.length; j++) {
-    if (src[j] === "[") depth++;
-    else if (src[j] === "]") {
-      depth--;
-      if (depth === 0) return src.slice(open, j + 1);
-    }
-  }
-  throw new Error(`${name}: unbalanced brackets`);
+  return extractFrom(src, `const ${name} = [`, "daily-questions.js");
 }
 const Q = vm.runInNewContext(extractArray("Q"));
 const baseM = src.match(/const DQ_BASE = (\d+)/);

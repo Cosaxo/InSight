@@ -99,7 +99,7 @@ directions.
 | [`MODERATION.md`](MODERATION.md) | Flagged takes, the scheduled reviewer, confinement. Enforcing since D83 | tree |
 | [`CATALOG-QUESTIONS.md`](CATALOG-QUESTIONS.md) | "Favourite X" with a thousand options — how catalogue answers are keyed and validated | tree |
 | [`QUESTION-FARM.md`](QUESTION-FARM.md) | The instruction manual for the scheduled autonomous runs that deepen the archive. **If you are one of those runs, this is your brief** | tree |
-| [`RANK-CATALOG-LIVE.md`](RANK-CATALOG-LIVE.md) | The path back for the two withheld feed forms: rank (out at D12) and catalogue picks (built at D14, never seeded). No code exists | plan |
+| [`RANK-CATALOG-LIVE.md`](RANK-CATALOG-LIVE.md) | The path back for the two withheld feed forms. §2 (catalogue picks) shipped at D231; §3 (rank) is still a plan | mixed |
 | [`COSTS.md`](COSTS.md) | The bill at five sizes, as a prediction with its inputs written down. Reproduce with `npm run costs` | tree |
 | [`FIRESTORE-REGION.md`](FIRESTORE-REGION.md) | The one cost decision with a deadline, and the one that cannot be revisited | tree |
 | [`SHIP-CHECKLIST.md`](SHIP-CHECKLIST.md) | The reasoning for every remaining human step to the App Store. Canonical | tree |

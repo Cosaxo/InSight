@@ -199,6 +199,7 @@ export function collectMoney(cost) {
 export function collectPipeline() {
   const daily = readJson("content/daily-questions.json");
   const feed = readJson("content/feed-questions.json");
+  const pick = readJson("content/pick-questions.json");
   const duel = readJson("content/duel-questions.json");
   const learn = readJson("content/learn-questions.json");
   const tests = readJson("content/tests.json");
@@ -209,6 +210,12 @@ export function collectPipeline() {
   const banks = [
     { surface: "daily", count: daily.length, source: "content/daily-questions.json" },
     { surface: "feed", count: feed.questions.length, source: "content/feed-questions.json" },
+    // Catalogue picks (D231) — feed-surface docs from their own content
+    // file, promoted out of the pick archive. The two-path bank-size
+    // check caught this row missing the day the bank went live, which
+    // makes it FOUR for four: every new bank has arrived through that
+    // assertion rather than through anybody remembering this list.
+    { surface: "pick", count: pick.questions.length, source: "content/pick-questions.json" },
     { surface: "duel · group", count: duel.group.length, source: "content/duel-questions.json" },
     { surface: "duel · 1v1", count: duel.oneVsOne.length, source: "content/duel-questions.json" },
     // Seeded active:false until the mode-aware client is the fleet (D40

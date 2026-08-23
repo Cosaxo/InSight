@@ -1,6 +1,12 @@
 # Rank and catalog go-live — the two feed forms the live bank withholds
 
-**Status: plan only.** Nothing below is built. Written 2026-08-22 on the
+**Status: half built.** §2 (catalog) shipped 2026-08-23 —
+[D231](DECISIONS.md#d231--catalog-questions-go-live-seventeen-picks-promoted-through-one-pen)
+records what was built, the one planned item it reversed
+(`feed-budget.mjs`, whose regulator turns out to read only the subject
+taxonomy) and the two held tranches (pokemon behind the trademark
+check; films/artists behind the D15 operator step). §3 (rank) is still
+a plan. Written 2026-08-22 on the
 owner's direction after asking why ranking questions disappeared and
 catalogue ("favourite X") questions never appear: both absences are
 deliberate and recorded — `rank` was pulled from the live feed at
@@ -13,9 +19,9 @@ and never seeded live. This document is the path back for both. Each
 half ships as **one deliberate change or not at all** — D12's own
 discipline, because every step touches the answer-write path — and
 building either half graduates to a `DECISIONS.md` record citing this
-plan. Ship catalog first: its backend is finished and tested, so the
-change is client + content + gates, while rank needs a new answer shape
-end to end.
+plan. Catalog shipped first because its backend was finished and tested,
+so the change was client + content + gates; rank needs a new answer
+shape end to end.
 
 ## 1 · Where things actually stand (audited 2026-08-22, not assumed)
 
@@ -61,7 +67,12 @@ disclosure ones: the crowd order is the product, `n!` cells are not.
 
 ## 2 · Part one — catalog questions live
 
-The order inside this part is deploy order: content and gates first,
+**Built 2026-08-23 (D231).** The section below is the plan as written;
+D231 records the as-built deviations — item 3's `feed-budget` change
+was reversed as a no-op (the regulator reads only the subject
+taxonomy), and the reveal needed two live COPY divergences the plan did
+not price (the demo's floor sentences, false on an exact board). The
+order inside this part is deploy order: content and gates first,
 client last, so no build ever offers a card the bank cannot serve.
 
 1. **A content file and its seed mapping.** New

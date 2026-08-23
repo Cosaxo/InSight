@@ -35,7 +35,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 // jsdom, and the v15 revision roughly doubled the spec layer's feed weight —
 // the slowest cases sat at ~4.8s before it and tip over under suite load.
 vi.setConfig({ testTimeout: 15000 });
-import { FEED_OPTIONS, PATH_TITLE, fixtureSurfaceMismatch, installLive } from "./live-fixture";
+import { FEED_OPTIONS, PATH_TITLE, PICK_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
 import { awaitText, growFeed, openHeaderOverlay } from "./mount-app";
 import { list as anchorList } from "../spec/map-anchors.js";
 import { IS_TESTS, IS_TEST_RESULTS } from "../spec/test-definitions.js";
@@ -379,6 +379,50 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(screen.queryByText(/ended here$/)).toBeNull();
     expect(screen.queryByText(/walks your road$/)).toBeNull();
     expectNoBoundary("live feed, crossroads with no walks");
+  });
+
+  // Catalogue picks on a LIVE feed (D14 gone live): the card comes from
+  // the bank mapper — an optionless doc the old playable() gate would have
+  // dropped — and unanswered it offers the catalogue search.
+  it("serves the bank's pick card on a live feed", async () => {
+    const expectNoBoundary = mountLive({ pickCard: true });
+    await awaitText(/Fixture pick card/);
+    expect(
+      screen.getByText(PICK_PROMPT),
+      "the live pick card is missing — the mapper dropped the optionless doc",
+    ).toBeTruthy();
+    expectNoBoundary("live feed, pick card unanswered");
+  });
+
+  // The answered reveal draws the PUBLISHED canon — pickCanon's board,
+  // never the demo store's baked crowd — and wears the live copy: since
+  // D98 a spot needs one vote, so the demo's "needs 5 votes" clause would
+  // be a false claim about an exact number (COPY.md §3). The store knows
+  // the answer, WF_LS does not — the fresh-device path, which is also what
+  // exercises pickVal's myVotes fallback.
+  it("reveals the published board with the live copy, not the demo floor's", async () => {
+    const expectNoBoundary = mountLive({ pickCard: true }, (l) => {
+      l.votes["pick-fixture"] = "128514";
+    });
+    // An answered card parks behind the Answered expander at the stream's
+    // end (D133) — stock the tail, open the expander, then expand the
+    // collapsed row itself to reach the reveal.
+    await growFeed();
+    fireEvent.click(screen.getByRole("button", { name: /^Answered · 1$/ }));
+    await awaitText(/Fixture pick card/);
+    fireEvent.click(screen.getByText(PICK_PROMPT));
+    await awaitText(/of 10 spots on the board claimed/);
+    // the fixture canon: two rows on the board, three folded
+    expect(screen.getByText(/everyone else · 3/)).toBeTruthy();
+    expect(screen.getByText(/2 of 10 spots on the board claimed/)).toBeTruthy();
+    expect(
+      screen.queryByText(/a spot needs 5 votes/),
+      "a live board printed the demo floor's clause — D98 made counts exact",
+    ).toBeNull();
+    // D17's segment chips ride the published `by`
+    expect(screen.getByRole("button", { name: "everyone" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "18-24" })).toBeTruthy();
+    expectNoBoundary("live feed, pick card answered");
   });
 
   it("gives a live card who-voted and the named takes toggle — never the demo sheet", async () => {

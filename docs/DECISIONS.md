@@ -23365,3 +23365,113 @@ rather than assumed to:
   bar carries its second tone from four answers and carries none from
   zero. A colour is a name-level guard's blind spot twice over — the
   pill it copies lives in another file.
+
+## D231 · Catalog questions go live: seventeen picks, promoted through one pen
+
+**Decided:** 2026-08-23 · **Status:** built (this branch); the operator
+seed step and two held tranches remain
+
+**Decision.** D14's "one deliberate change" ships. Seventeen pick cards —
+every archive card whose domain has a committed catalogue and no open
+legal question: emoji ×5, elements ×4, countries ×4, dogs ×4 — are
+promoted from the demo archive (`src/v2/spec/pick-data.js`) into a new
+live bank, `content/pick-questions.json`, and served as live feed cards.
+The plan this executes is [RANK-CATALOG-LIVE.md](RANK-CATALOG-LIVE.md)
+§2, written the day before; deviations from it are recorded below.
+
+**What was already true, verified rather than assumed.** The backend
+needed zero changes: `firestore.rules` admits the entity shape
+(create-only, device-bound, each branch's `hasOnly` fencing the other's
+field), `onV2AnswerCreated` validates keys per-domain and publishes the
+canon — `{ total, top, rest, by }`, exact since D98 — and the committed
+catalogues carry drift gates. The e2e leg added here proved all of it
+against the emulator on the first run: fold, segment boards, all four
+shape refusals, the unknown-key drop at the trigger, and the Not-listed
+fold.
+
+**The pieces this change added, and the shape of each:**
+
+1. **Seed.** `pick` joins `CONTENT_SOURCES`; entries emit as
+   `surface: "feed"`, `type: "catalog"`, `options: []`, `topic: "fav"`,
+   id `pick-<archive id>` (kept verbatim — the archive id is the name
+   the demo's crowd data already keys on), seq continuing the feed's
+   counter (the romantic pool's precedent). Never `core`: an entity
+   answer has no option share for a cohort fold to read (D161's
+   absent-means-tail does the rest).
+2. **One pen.** `promote-questions.mjs` gained the pick lane: pk ids
+   promote byte-for-byte with provenance rows (`prov.pick`, D97/D162),
+   refusing unknown ids, re-promotions, mixed-lane runs and any domain
+   without a committed catalogue under `public/` (the QUESTION-FARM
+   rule, now enforced at both ends of the pipe — `check:content` holds
+   the same map). `check:quality` validates the seed with the same pick
+   rules AND holds it byte-equal to the archive by id, so a hand edit to
+   either copy fails CI.
+3. **Client.** `splitBanks` carves `type: "catalog"` into the feed lane
+   (the duel lane's "pick" precedent — no options is the doc's correct
+   shape, not damage). `buildFeedGlobals` emits the demo card's own
+   shape (`type: 'pick'`, `domain`, `n` from the agg). `LIVE.votePick`
+   is `vote()` transposed: create-only, optimistic with rollback, cached
+   on server ack, no edit path (the D86 arm cannot admit one — the old
+   doc carries no optionIdx — and `editVote` now says so before the
+   wire). `LIVE.pickCanon/pickSegs/pickSeg` hand the card its board in
+   exactly the shapes `PICKS.canon/segs/canonSeg` return, your unfolded
+   pick joined at read time (the store's own convention), so the card
+   switches source on `q.live` and reshapes nothing. Entity answers
+   hydrate through the same `votes` map as numeric strings; everything
+   that INTERPRETS the number routes through the question's type
+   (`mirrorVoteValue` wraps them `{ entity }`, the WF reconcile grew a
+   pick arm), which is what keeps a dex number out of an option index's
+   clothes.
+4. **The chip.** `fav` rejoins the live channel row — it filters real
+   stock now. `places` stays out: rate cards remain demo-only.
+5. **Copy, two live divergences (COPY.md §3 — claims, not word
+   counts).** The demo deliberately demonstrates the OLD floor's shape
+   (its store's comment says so), so its two floor sentences are false
+   on a live board: "a spot needs 5 votes" (exact counts since D98 — any
+   vote claims a spot) and the ghost row's "only you see this — too few
+   to count yet" (a live off-board pick counted, exactly, inside
+   "everyone else"). Live cards say "counted with everyone else — not on
+   the board yet" and drop the votes clause; the demo keeps both, still
+   true of what it demonstrates.
+
+**Held back, each with its reason:**
+
+- **The six pokemon cards** (pk01–03, 06, 07, 09) wait on the
+  nominative-use check CATALOG-QUESTIONS.md has required since the
+  sketch — "it gets a real answer, not an assumption." The promote lane
+  makes that tranche a one-command follow-up.
+- **Films/artists** stay the D15 operator step (Wikidata is refused at
+  CONNECT from every sandbox this repo has measured); both ends of the
+  pipe refuse their cards until `public/films.txt`/`artists.txt` exist.
+- **`feed-budget.mjs` deliberately unchanged**, reversing the plan's §2
+  item 3: the regulator computes per-SUBJECT breadth over
+  `feed-questions.json`'s ten topics, and pick cards live in a separate
+  file on a format channel with their own daily lane (D145) — adding
+  `catalog` to `SERVABLE_TYPES` would have been a no-op that implied the
+  opposite.
+- **No stats sheet, no who-voted for pick cards** — unchanged from the
+  demo: the card renders no engage row (`q.type !== 'pick'` at the
+  render site), so the D17 segment chips in the reveal are the whole
+  breakdown surface. Widening that is its own decision.
+- **`v2_users` answer docs gained no new collection** — the entity
+  answer rides the existing path, so `docs/data-inventory.md` is
+  unchanged (gate green).
+
+**Enforcement:** the e2e catalog leg (`firestore-tests/e2e-v2-loop.mjs`
+§9c); nine new client store cases (`vote.test.ts`: the mapper, the
+entity hydration + wrapped mirror, votePick's ack/rollback/create-only
+arms, editVote's refusal, canon/segs/seg shapes with the pending join
+and the Not-listed rule); `deck.test.ts` pins the carve-out inside the
+feed lane and nowhere else; two live smoke mounts (picker unanswered,
+published board answered — asserting the live copy and the absent floor
+clause); `world-channels.test.js` re-pinned to the new row;
+`check:quality`'s seed↔archive parity rule; `check:content`'s catalog
+arm (shape, domain, committed catalogue, never-core). Green at commit:
+1653 unit, 289 functions, 116 rules, the full e2e, lint, and every
+static gate — `check:globals`' ratchet came DOWN two (the pickSrc seam
+replaced two direct global reads), which the baseline now records.
+
+**The operator steps that make it visible:** merge, deploy (no backend
+change — the workflow chain reseeds), or run *Seed content* by hand;
+633 questions land, 17 of them picks. Nothing needs `bumpRev`: creates
+carry `updatedAt` and clients page them in.

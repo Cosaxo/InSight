@@ -21,6 +21,11 @@
 // forms' range/plane copy (D114), absent everywhere else; their options
 // are synthesized bucket/cell labels, so the D52 option freeze freezes
 // the range with them.
+// `domain` is non-null only on `type: "catalog"` (pick) entries — the
+// catalogue key space their `entity` answers validate against (D14/D15).
+// Pick entries carry no options: the shipped catalogue is the answer
+// space, and they are never `core` — an entity answer has no option
+// share for a cohort fold to read.
 // `also` is feed/pick-only (docs/TAGS-PLAN.md, D206): the topics a
 // question ALSO belongs to beside its `topic` home. Reach, never
 // placement — the client's filter/stock/search read topic ∪ also, the
@@ -4942,6 +4947,210 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "E-reader"
   ],
   "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk04",
+  "surface": "feed",
+  "seq": 112,
+  "type": "catalog",
+  "domain": "emoji",
+  "prompt": "Your most-used emoji?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk05",
+  "surface": "feed",
+  "seq": 113,
+  "type": "catalog",
+  "domain": "emoji",
+  "prompt": "The most annoying emoji?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk08",
+  "surface": "feed",
+  "seq": 114,
+  "type": "catalog",
+  "domain": "emoji",
+  "prompt": "The emoji you’d tattoo?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk10",
+  "surface": "feed",
+  "seq": 115,
+  "type": "catalog",
+  "domain": "emoji",
+  "prompt": "The scariest emoji?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk11",
+  "surface": "feed",
+  "seq": 116,
+  "type": "catalog",
+  "domain": "elements",
+  "prompt": "Your favourite element?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk12",
+  "surface": "feed",
+  "seq": 117,
+  "type": "catalog",
+  "domain": "elements",
+  "prompt": "The element you’d be?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk13",
+  "surface": "feed",
+  "seq": 118,
+  "type": "catalog",
+  "domain": "elements",
+  "prompt": "The best-named element?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk14",
+  "surface": "feed",
+  "seq": 119,
+  "type": "catalog",
+  "domain": "elements",
+  "prompt": "The most dangerous element?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk15",
+  "surface": "feed",
+  "seq": 120,
+  "type": "catalog",
+  "domain": "emoji",
+  "prompt": "The most misunderstood emoji?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk16",
+  "surface": "feed",
+  "seq": 121,
+  "type": "catalog",
+  "domain": "countries",
+  "prompt": "The country you’d move to?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk17",
+  "surface": "feed",
+  "seq": 122,
+  "type": "catalog",
+  "domain": "dogs",
+  "prompt": "The dog you’d get?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk18",
+  "surface": "feed",
+  "seq": 123,
+  "type": "catalog",
+  "domain": "countries",
+  "prompt": "The country with the best food?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk19",
+  "surface": "feed",
+  "seq": 124,
+  "type": "catalog",
+  "domain": "dogs",
+  "prompt": "The most beautiful dog?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk20",
+  "surface": "feed",
+  "seq": 125,
+  "type": "catalog",
+  "domain": "countries",
+  "prompt": "The best flag in the world?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk21",
+  "surface": "feed",
+  "seq": 126,
+  "type": "catalog",
+  "domain": "dogs",
+  "prompt": "The smartest dog?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk22",
+  "surface": "feed",
+  "seq": 127,
+  "type": "catalog",
+  "domain": "countries",
+  "prompt": "The most beautiful country?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk23",
+  "surface": "feed",
+  "seq": 128,
+  "type": "catalog",
+  "domain": "dogs",
+  "prompt": "The most fun breed to say out loud?",
+  "options": [],
+  "topic": "fav",
   "axis": null,
   "test": null
  },

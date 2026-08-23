@@ -1167,6 +1167,16 @@ async function hydrate(): Promise<void> {
     const fold = (d: { id: string; get: (f: string) => unknown }) => {
       const optionIdx = d.get("optionIdx");
       if (typeof optionIdx === "number") state.votes[d.id] = String(optionIdx);
+      // Catalog answers carry `entity`, never `optionIdx` (D14). They join
+      // the same map in the same string form — votes[] is "what did I
+      // answer", and every consumer that INTERPRETS the number goes
+      // through the question's type (mirrorVoteValue, buildFeedGlobals) —
+      // so skipping them here would re-offer the picker on a fresh device
+      // and the create-only rule would then refuse the re-pick.
+      else {
+        const entity = d.get("entity");
+        if (typeof entity === "number") state.votes[d.id] = String(entity);
+      }
       const at = d.get("answeredAt") as { toMillis?: () => number } | undefined;
       if (at && typeof at.toMillis === "function") maxTs = Math.max(maxTs, at.toMillis());
       const et = d.get("editedAt") as { toMillis?: () => number } | undefined;
@@ -1346,7 +1356,7 @@ function feedCounts(q: QuestionDoc & { id: string }): number[] {
 function mirrorVoteValue(
   q: QuestionDoc,
   idx: number,
-): number | { x: number; y: number } {
+): number | { x: number; y: number } | { entity: number } {
   if (q.type === "dial") {
     const lo = q.lo ?? 0;
     const hi = q.hi ?? 100;
@@ -1355,6 +1365,11 @@ function mirrorVoteValue(
   if (q.type === "field") {
     return { x: ((idx % 4) + 0.5) * 25, y: (Math.floor(idx / 4) + 0.5) * (100 / 3) };
   }
+  // A catalog answer's stored value IS the entity key (D14) — the control's
+  // unit and the store's coincide — but the card keeps it wrapped
+  // ({ entity }, setPick's own shape) so the feed can never mistake a dex
+  // number for an option index.
+  if (q.type === "catalog") return { entity: idx };
   return idx;
 }
 
@@ -1375,8 +1390,29 @@ function buildFeedGlobals(): void {
   // the stream. It rides its own accessor below; everything else about it
   // is ordinary (real options, real counts, the same fold and ledger).
   const feed = state.feedBank
-    .filter((q) => q.surface === "feed" && q.type !== "path" && (q.options || []).length >= 2)
+    .filter((q) => q.surface === "feed" && q.type !== "path"
+      && ((q.options || []).length >= 2 || q.type === "catalog"))
     .map((q) => {
+      // Catalogue picks (D14 gone live) keep their own card shape: no
+      // options — the catalogue is the answer space — so none of the
+      // option-counts apparatus below applies. The board itself is not
+      // here either: the reveal reads LIVE.pickCanon at render time, the
+      // pathQs() precedent, because the canon re-sorts as votes land and
+      // a snapshot baked into the pool would go stale between rebuilds.
+      // `n` is the one number the collapsed card prints.
+      if (q.type === "catalog") {
+        return {
+          id: q.id,
+          cat: q.topic || "fav",
+          type: "pick",
+          domain: q.domain,
+          prompt: q.prompt,
+          n: state.aggs[q.id]?.total ?? 0,
+          ...(q.also && q.also.length ? { also: q.also } : {}),
+          live: true,
+          noCountsYet: !hasPublishedCounts(state.aggs[q.id]),
+        };
+      }
       // Hoisted: feedCounts walks the whole option list, so calling it
       // inside the per-option map made this O(n^2) per card — and it
       // re-runs after every vote.
@@ -3557,6 +3593,77 @@ const LIVE = {
       .filter((q) => q.surface === "feed" && q.type === "path")
       .map((q) => ({ ...q, counts: feedCounts(q) }));
   },
+  /**
+   * The live pick card's board (D14 gone live): the published canon — the
+   * CANON_TOP_N biggest entities plus everything else summed into `rest` —
+   * in exactly the shape the demo store returns (spec/pick-data.js
+   * PICKS.canon), so the card switches source on q.live and reshapes
+   * nothing. Your own UNFOLDED pick joins at read time, the store's own
+   * convention: once the trigger folds it the published doc already counts
+   * it, so only `unaggregated` adds here. Entity 0 ("Not listed") joins
+   * the total and thereby `rest`, never the board — counted, not
+   * enumerated. `restEntities`/`restBelowFloor` are the DEMO fold's two
+   * tail scalars: the server publishes neither (post-D98 there is no
+   * floor and the tail is simply everything outside the top N), so they
+   * read empty here and the card's fold-note copy stays silent.
+   */
+  pickCanon(qid: string): {
+    top: Array<{ entity: number; count: number }>;
+    rest: number;
+    total: number;
+    restEntities: number;
+    restBelowFloor: boolean;
+  } {
+    const agg = state.aggs[qid];
+    const counts: Record<string, number> = { ...(agg?.top || {}) };
+    let total = agg?.total ?? 0;
+    if (qid in state.unaggregated) {
+      total += 1;
+      const k = String(state.unaggregated[qid]);
+      if (k !== "0") counts[k] = (counts[k] || 0) + 1;
+    }
+    const rows = Object.keys(counts)
+      .map((k) => ({ entity: Number(k), count: counts[k] }))
+      .sort((a, b) => b.count - a.count || a.entity - b.entity);
+    // The board size the fold publishes (CANON_TOP_N, functions/src/v2.ts)
+    // — the pending join above can push the list to N+1 for the seconds
+    // before the trigger folds, and the card's spots copy assumes the cap.
+    const top = rows.slice(0, 10);
+    const shown = top.reduce((a, r) => a + r.count, 0);
+    return { top, rest: total - shown, total, restEntities: 0, restBelowFloor: false };
+  },
+  /**
+   * The segment chips a live pick card offers — flattened from the
+   * published `by` (D17), in the doc's own order. PICKS.segs' shape.
+   */
+  pickSegs(qid: string): Array<{ dim: string; bucket: string }> {
+    const by = state.aggs[qid]?.by;
+    if (!by) return [];
+    const out: Array<{ dim: string; bucket: string }> = [];
+    for (const dim of Object.keys(by)) {
+      for (const bucket of Object.keys(by[dim] || {})) out.push({ dim, bucket });
+    }
+    return out;
+  },
+  /**
+   * One segment's ordering of the global board (D17): rows are the
+   * published cell — already cut to the board's own entities server-side —
+   * and `cohort` is the SHOWN total, the deliberately conservative "as N
+   * of them see it" number D17 records. Null when the question holds no
+   * slice for that segment. PICKS.canonSeg's contract.
+   */
+  pickSeg(
+    qid: string,
+    dim: string,
+    bucket: string,
+  ): { rows: Array<{ entity: number; count: number }>; cohort: number } | null {
+    const cell = state.aggs[qid]?.by?.[dim]?.[bucket];
+    if (!cell) return null;
+    const rows = Object.keys(cell)
+      .map((k) => ({ entity: Number(k), count: cell[k] }))
+      .sort((a, b) => b.count - a.count || a.entity - b.entity);
+    return { rows, cohort: rows.reduce((a, r) => a + r.count, 0) };
+  },
   // Votes the server has acknowledged (or that hydrate read back) —
   // excludes writes still in flight so permanent records (the Map)
   // never keep a vote whose setDoc may yet be refused. Keyed off
@@ -3802,6 +3909,63 @@ const LIVE = {
       }
     })();
   },
+  /**
+   * One favourite from a shipped catalogue (D14): `entity` is the
+   * catalogue key — never a string, never an option index — and the doc
+   * carries it in optionIdx's place, which is what routes it down the
+   * trigger's canon fold. vote()'s shape otherwise: create-only (no edit
+   * path exists for picks, and the rules' edit arm cannot admit one),
+   * optimistic with rollback, cached on server ack only. The outer bound
+   * mirrors the rules' sanity ceiling; the real validation is the
+   * trigger's, against the committed catalogue the question's domain
+   * names — an unknown key never aggregates.
+   */
+  votePick(qid: string, entity: number): void {
+    if (state.votes[qid]) return; // one answer per question, mirroring rules
+    if (!Number.isInteger(entity) || entity < 0 || entity >= 1_000_000_000) return;
+    state.votes[qid] = String(entity);
+    state.inflight[qid] = true;
+    state.unaggregated[qid] = entity;
+    notify();
+    void (async () => {
+      try {
+        const db = await getDb();
+        const uid = state.uid;
+        if (!uid) throw new Error("no session");
+        const q = state.feedBank.find((x) => x.id === qid);
+        await setDoc(doc(db, "v2_users", uid, "answers", qid), {
+          qid,
+          surface: q?.surface ?? "feed",
+          entity,
+          answeredAt: serverTimestamp(),
+          anchors: answerAnchors(q?.rates),
+        });
+        // Server ack only — the same answers-cache doctrine as vote():
+        // caching optimistically would let a refused write resurrect a
+        // phantom pick on every future boot.
+        delete state.inflight[qid];
+        cacheVote(qid, entity);
+        notify();
+        scheduleAggRefresh(db, qid);
+      } catch (err) {
+        delete state.votes[qid];
+        delete state.inflight[qid];
+        delete state.unaggregated[qid];
+        try {
+          const WF_LS = "insight.feedVotes.v1";
+          const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
+          if (qid in wf) {
+            delete wf[qid];
+            localStorage.setItem(WF_LS, JSON.stringify(wf));
+          }
+        } catch {
+          /* best-effort */
+        }
+        notify();
+        reportError(err, { where: "votePick", qid });
+      }
+    })();
+  },
   // D86: move an EXISTING answer to a different option — the one
   // repeatable answer write (vote() above is create-only and no-ops on an
   // answered question, mirroring the rules). Daily, feed and test cards
@@ -3817,6 +3981,12 @@ const LIVE = {
     const prev = state.votes[qid];
     if (!prev || prev === optionId) return false;
     if (qid in state.inflight) return false;
+    // Catalog picks are create-only (D14): the rules' edit arm keys on the
+    // OLD doc carrying optionIdx, which an entity answer never does, so
+    // the write below is doomed for them. The pick card offers no edit
+    // affordance — this mirror spares the round-trip if a future surface
+    // calls in anyway.
+    if (state.feedBank.find((x) => x.id === qid)?.type === "catalog") return false;
     const optionIdx = Number(optionId);
     if (!Number.isInteger(optionIdx) || optionIdx < 0) return false;
     if (Date.now() - (state.editedAt[qid] || 0) < 60_000) return false;

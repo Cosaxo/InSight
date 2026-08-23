@@ -344,6 +344,13 @@ class WorldFeed extends React.Component {
             } else if (q && q.type === 'field') {
               if (local && typeof local === 'object' && this.fieldCell(local.x, local.y) === n) continue;
               votes[id] = this.fieldCellMid(n); changed = true;
+            } else if (q && q.type === 'pick') {
+              // The store's number is the ENTITY KEY (D14) and the card
+              // keeps it wrapped ({ entity }, setPick's shape) — the plain
+              // copy below would put a dex number where an option index
+              // belongs and renderPick would read v.entity as undefined.
+              if (local && typeof local === 'object' && Number(local.entity) === n) continue;
+              votes[id] = { entity: n }; changed = true;
             } else if (local !== n) { votes[id] = n; changed = true; }
           }
           return changed ? { votes } : null;
@@ -1390,14 +1397,31 @@ class WorldFeed extends React.Component {
   }
 
   // pick cards: one favourite from a shipped catalogue; the vote stored is
-  // the entry's key (docs/CATALOG-QUESTIONS.md — a key, never a string)
+  // the entry's key (docs/CATALOG-QUESTIONS.md — a key, never a string).
+  // Live cards persist through LIVE.votePick — create-only, no edit path
+  // (D14) — and skip the demo store, whose baked crowd must not absorb
+  // real picks; the optimistic WF_LS write is shared, and a refused write
+  // is reconciled the same way votes are (LIVE scrubs the mirror, the
+  // subscribe hook above deletes the local echo).
   setPick(q, entity) {
     this.setState((s) => {
       const votes = { ...s.votes, [q.id]: { entity } };
       wfSave(votes);
       return { votes };
     });
-    if (window.PICKS) window.PICKS.pick(q.id, entity);
+    if (q.live && window.LIVE && window.LIVE.votePick) window.LIVE.votePick(q.id, entity);
+    else if (window.PICKS) window.PICKS.pick(q.id, entity);
+  }
+
+  // The live pick card's board source: LIVE's published canon for q.live,
+  // the demo store otherwise — one seam, so renderPick and the thin bar
+  // cannot disagree about where a board comes from.
+  pickSrc(q) {
+    if (q.live && window.LIVE && window.LIVE.pickCanon) {
+      const L = window.LIVE;
+      return { canon: (id) => L.pickCanon(id), segs: (id) => L.pickSegs(id), canonSeg: (id, d, b) => L.pickSeg(id, d, b), TOP_N: 10 };
+    }
+    return window.PICKS || null;
   }
 
   // Which catalogue a pick question resolves against (D15: pokemon is
@@ -1440,9 +1464,19 @@ class WorldFeed extends React.Component {
     return store.nameOf(list, entity);
   }
 
+  // a live pick may exist only server-side (fresh device, no local mirror
+  // yet) — myVotes holds the entity, and the card must show its reveal
+  // rather than offer the picker again (dialVal's precedent)
+  pickVal(q) {
+    const v = this.state.votes[q.id];
+    if (v != null || !q.live || !window.LIVE || !LIVE.myVotes) return v;
+    const b = LIVE.myVotes()[q.id];
+    return b == null ? null : { entity: Number(b) };
+  }
+
   renderPick(q, T, big) {
     if (q.catalog) return this.renderPickCatalog(q, T, big);
-    const v = this.state.votes[q.id];
+    const v = this.pickVal(q);
     const store = this.pickStore(q.domain);
     if (v == null) {
       return <PickSearch domain={q.domain} accent={T.color} big={big} onPick={(id) => this.setPick(q, id)} onNotListed={() => this.setPick(q, store ? store.NOT_LISTED : 0)} />;
@@ -1453,10 +1487,11 @@ class WorldFeed extends React.Component {
     // the copy says so instead of pretending it counted. Segment chips
     // (D17) reorder the SAME board by one cohort's counts — a segment
     // never surfaces entities the global board suppressed.
-    const c = window.PICKS ? window.PICKS.canon(q.id) : { top: [], rest: 0, total: 0 };
-    const segs = window.PICKS ? window.PICKS.segs(q.id) : [];
+    const PK = this.pickSrc(q);
+    const c = PK ? PK.canon(q.id) : { top: [], rest: 0, total: 0 };
+    const segs = PK ? PK.segs(q.id) : [];
     const sel = (this.state.pickSeg || {})[q.id] || null;
-    const seg = sel && window.PICKS ? window.PICKS.canonSeg(q.id, sel.dim, sel.bucket) : null;
+    const seg = sel && PK ? PK.canonSeg(q.id, sel.dim, sel.bucket) : null;
     const rows = seg ? seg.rows : c.top;
     const mineName = this.pickName(v.entity, q.domain);
     const max = rows.length ? rows[0].count : 1;
@@ -1482,7 +1517,7 @@ class WorldFeed extends React.Component {
       ? ` votes across ${Math.floor(c.restEntities / 5) * 5}+ other ${foldNoun}`
       : c.restEntities >= 2 ? ` votes across a few other ${foldNoun}` : '';
     const foldWhy = foldNote && c.restBelowFloor ? ' — none with 5 yet' : '';
-    const TOPN = (window.PICKS && window.PICKS.TOP_N) || 10;
+    const TOPN = (PK && PK.TOP_N) || 10;
     const tile = (ent, nm, label, strong, count, rank) => (
       <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
         <span style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: strong ? 'var(--ink-2)' : 'var(--ink-3)' }}>{label}</span>
@@ -1532,17 +1567,24 @@ class WorldFeed extends React.Component {
         {!seg && !inTop && !notListed && (
           <>
             {rows.length > 0 && <span aria-hidden="true" style={{ display: 'flex', gap: 3, padding: '1px 0 1px 27px' }}>{[0, 1, 2].map((d) => <span key={d} style={{ width: 3, height: 3, borderRadius: '50%', background: 'var(--ink-3)', opacity: 0.5 }}></span>)}</span>}
-            {/* the ghost row: YOUR below-floor pick, pinned under the board.
+            {/* the ghost row: YOUR off-board pick, pinned under the board.
                 Rendered from your own stored vote, never from published
                 data — no one else's board shows it, so searching always
-                ends in finding yourself without enumerating the tail. */}
+                ends in finding yourself without enumerating the tail. The
+                meta line diverges with the source: the demo demonstrates
+                the old floor's shape ("too few to count"), while a live
+                pick always counted — exactly counted, inside "everyone
+                else" — and is merely not among the board's top N, so
+                saying "too few to count" there would be a false claim
+                about a real number (COPY.md §3: claims are not word
+                counts). */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
               <span style={{ width: 18, flexShrink: 0, fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, color: 'var(--ink-3)', textAlign: 'right' }}>—</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 7 }}>
                   <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: big ? 14.5 : 13.5, color: 'var(--ink)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{mineName || '…'}</span>
                   <span aria-hidden="true" style={{ width: 9, height: 9, borderRadius: '50%', background: T.color, border: '2px solid var(--surface)', boxShadow: '0 0 0 1px ' + T.color, flexShrink: 0 }}></span>
-                  <span style={{ marginLeft: 'auto', fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 11.5, color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>only you see this — too few to count yet</span>
+                  <span style={{ marginLeft: 'auto', fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 11.5, color: 'var(--ink-3)', whiteSpace: 'nowrap' }}>{q.live ? 'counted with everyone else — not on the board yet' : 'only you see this — too few to count yet'}</span>
                 </div>
                 <div style={{ marginTop: 3, height: 5, borderRadius: 999, border: '1px dashed color-mix(in oklch, ' + T.color + ' 40%, var(--rule))', boxSizing: 'border-box', background: 'transparent' }}></div>
               </div>
@@ -1556,9 +1598,12 @@ class WorldFeed extends React.Component {
         )}
         {/* a sparse board reads as anticipation, not absence: name the empty
             spots and what claims one, instead of a shorter list that looks
-            like a bug. Demo boards are full, so this is a launch-era line. */}
+            like a bug. Demo boards are full, so this is a launch-era line.
+            The vote-count clause is the demo's alone: live boards are exact
+            since D98 — any vote claims a spot — so the live line names the
+            spots and stops. */}
         {!seg && rows.length < TOPN && (
-          <span style={{ paddingLeft: 27, fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)' }}>{rows.length} of {TOPN} spots on the board claimed — a spot needs 5 votes</span>
+          <span style={{ paddingLeft: 27, fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)' }}>{rows.length} of {TOPN} spots on the board claimed{q.live ? '' : ' — a spot needs 5 votes'}</span>
         )}
         {/* the below-floor case now lives in the ghost row above */}
         {(notListed || inTop) && (
@@ -1944,7 +1989,7 @@ class WorldFeed extends React.Component {
     // a live continuum answer may exist only server-side (fresh device, no
     // local raw value) — the bucket in myVotes is still an answer, and the
     // card must show its reveal rather than offer the question again
-    if ((q.type === 'dial' || q.type === 'field') && v == null && q.live && LIVE.myVotes) {
+    if ((q.type === 'dial' || q.type === 'field' || q.type === 'pick') && v == null && q.live && LIVE.myVotes) {
       return LIVE.myVotes()[q.id] != null;
     }
     return q.type === 'rank' ? !!(v && v.order) : v != null;
@@ -2320,8 +2365,9 @@ class WorldFeed extends React.Component {
     //
     // `n > 0` filters the same way SUBTOPICS.offers() does, and for D96's
     // reason rather than for tidiness: a room with nothing in it should not
-    // be advertised, and in a live build `places`/`fav` are precisely that
-    // (the bank mapper emits neither rate nor pick cards).
+    // be advertised — in a live build that is `places` (the bank mapper
+    // still emits no rate cards; pick cards ride `fav` since D14 went
+    // live).
     const catsOn = this.props.cats || {};
     const onToggle = this.props.onToggle;
     const stock = {};
@@ -3312,7 +3358,7 @@ class WorldFeed extends React.Component {
   // compact density: answered vote/duel cards collapse to one thin split bar
   renderThinBar(q, T) {
     if (q.type === 'pick') {
-      const v = this.state.votes[q.id];
+      const v = this.pickVal(q);
       const ent = v && typeof v === 'object' ? v.entity : v;
       const C = WF_CATALOGS[q.catalog];
       if (C) {
@@ -3321,7 +3367,8 @@ class WorldFeed extends React.Component {
         return <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><span aria-hidden="true" style={{ width: 18, height: 18, borderRadius: 5, background: wfCatArt(T.color, q.catalog + ':' + it.id), flexShrink: 0 }}></span><span style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--ink-2)' }}>{it.name}</span></div>;
       }
       const name = this.pickName(ent, q.domain);
-      const c = window.PICKS ? window.PICKS.canon(q.id) : null;
+      const PK = this.pickSrc(q);
+      const c = PK ? PK.canon(q.id) : null;
       const lead = c && c.top.length ? this.pickName(c.top[0].entity, q.domain) : null;
       return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>you {name || '\u2026'} · crowd {lead || '\u2014'}</span>;
     }

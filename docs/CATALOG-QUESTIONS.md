@@ -1,6 +1,10 @@
 # Catalog questions — "favourite X" with a thousand options
 
-**Status: built through step 4's machinery.** Written 2026-07-30 as a
+**Status: LIVE for the unencumbered committed domains (D231,
+2026-08-23).** Seventeen pick cards serve from the live bank —
+`content/pick-questions.json`, promoted from the archive through
+`npm run promote` — across emoji, elements, countries and dogs.
+Written 2026-07-30 as a
 design sketch, after the v15 UI merge; the same day, steps 1–3 shipped
 (Pokédex catalogue, demo `pick` card, canon backend — **D14**) and step
 4's machinery followed (QID key sets, domain-aware validation, the
@@ -8,8 +12,9 @@ Wikidata generator — **D15**). The load-bearing choices live in those
 decision records now; this document keeps the full arguments. What
 remains open: an operator run of `scripts/build-catalog.mjs` to generate
 the films/artists catalogues (needs network access to Wikidata — D15),
-the films/artists demo cards once those files exist, the pre-ship
-trademark check below, and going live per D14.
+the films/artists demo cards once those files exist, and the pre-ship
+trademark check below — which is now exactly what holds the six pokemon
+cards out of the live seed (one promote command once answered).
 
 ## The question class
 

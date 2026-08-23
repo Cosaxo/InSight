@@ -616,6 +616,114 @@ if (labove.counts["0"] !== 3 || labove.counts["1"] !== 1 || labove.counts["2"] !
   fail("learn counts wrong at total 5: " + JSON.stringify(labove));
 ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 right");
 
+// 9c · catalog picks (D14 gone live): an entity answer rides the same
+// create-only path, and the trigger folds it through the CANON — the
+// top/rest board plus per-segment orderings (D17) — instead of
+// per-option counts. The refusals sit exactly where the design puts
+// them: rules refuse the wrong SHAPES (each branch's hasOnly keeps the
+// other's field out; the D86 edit arm requires an old doc carrying
+// optionIdx), while a wrong KEY passes rules and dies at the trigger,
+// validated against the committed catalogue — an unknown key never
+// aggregates.
+{
+  const PK = "pick-pk04"; // "Your most-used emoji?" — content/pick-questions.json
+  const pkDoc = await getDoc(doc(db, "v2_questions", PK));
+  if (!pkDoc.exists() || pkDoc.get("type") !== "catalog" || pkDoc.get("domain") !== "emoji")
+    fail("the pick seed did not land as a catalog doc: " + JSON.stringify(pkDoc.data() || null));
+  ok("pick question seeded: type catalog, domain emoji, no options");
+  await setDoc(doc(db, "v2_users", uid, "answers", PK), {
+    qid: PK, surface: "feed", entity: 128514, // 😂 — a real committed key
+    answeredAt: serverTimestamp(),
+    anchors: { ageBand: "25-34", country: "NO", city: "Oslo, NO" },
+  });
+  let canon = null;
+  for (let i = 0; i < 40; i++) {
+    const snap = await getDoc(doc(db, "v2_question_aggs", PK));
+    if (snap.exists()) { canon = snap.data(); break; }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!canon) fail(`canon never published after ${40 * 500}ms — the entity fold did not fire, or did not finish in time`);
+  if (canon.total !== 1 || !canon.top || canon.top["128514"] !== 1 || canon.rest !== 0)
+    fail("first pick did not publish exactly: " + JSON.stringify(canon));
+  if (!canon.by || !canon.by.ageBand || !canon.by.ageBand["25-34"] || canon.by.ageBand["25-34"]["128514"] !== 1)
+    fail("the segment board (D17) is missing the pick: " + JSON.stringify(canon.by));
+  ok("canon published exactly: total 1, top {128514: 1}, segment board included");
+
+  // The shape refusals. A feed vote question refuses `entity` (its
+  // isCatalogAnswer lookup sees type "vote"), a catalog question refuses
+  // `optionIdx` (its bound reads options.size(), which is 0), and a pick
+  // cannot be moved (no old optionIdx for the D86 arm to key on).
+  const feedVoteSnap = await getDocs(query(
+    collection(db, "v2_questions"),
+    where("surface", "==", "feed"), where("type", "==", "vote"), limit(1),
+  ));
+  if (!feedVoteSnap.size) fail("no feed vote question in the bank to test the entity refusal against");
+  const FV = feedVoteSnap.docs[0].id;
+  await expectDenied("entity refused on a non-catalog question", () =>
+    setDoc(doc(db, "v2_users", uid, "answers", FV), {
+      qid: FV, surface: "feed", entity: 128514,
+      answeredAt: serverTimestamp(), anchors: {},
+    }));
+  await expectDenied("optionIdx refused on a catalog question", () =>
+    setDoc(doc(db, "v2_users", uid, "answers", "pick-pk05"), {
+      qid: "pick-pk05", surface: "feed", optionIdx: 0,
+      answeredAt: serverTimestamp(), anchors: {},
+    }));
+  await expectDenied("a pick cannot be edited (create-only, D14/D86)", () =>
+    updateDoc(doc(db, "v2_users", uid, "answers", PK), {
+      optionIdx: 1, editedAt: serverTimestamp(),
+    }));
+
+  // The key refusal is the TRIGGER's, so it cannot be a rules denial:
+  // 999999 clears the rules' sanity bound but names no emoji codepoint in
+  // the committed catalogue. Write it, then a VALID second pick — when the
+  // valid one lands at total 2, the invalid one has provably been dropped
+  // (a folded bogus key would have pushed the total past 2, and its key
+  // would stand on the board).
+  const pApps = [];
+  for (const [n, entity] of [[0, 999999], [1, 10084]]) {
+    const pApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "picker" + n);
+    pApps.push(pApp);
+    const pAuth = getAuth(pApp); connectAuthEmulator(pAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+    const pDb = getFirestore(pApp, E2E_DB_ID); connectFirestoreEmulator(pDb, "127.0.0.1", 8080);
+    const u = await signInAnonymously(pAuth);
+    await setDoc(doc(pDb, "v2_users", u.user.uid, "answers", PK), {
+      qid: PK, surface: "feed", entity,
+      answeredAt: serverTimestamp(), anchors: { ageBand: "35-44", country: "NO", city: "Bergen, NO" },
+    });
+  }
+  let two = null;
+  for (let i = 0; i < 40; i++) {
+    const snap = await getDoc(doc(db, "v2_question_aggs", PK));
+    if (snap.exists() && snap.get("total") >= 2) { two = snap.data(); break; }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!two) fail("canon never reached total 2");
+  if (two.total !== 2 || two.top["999999"] !== undefined || two.top["10084"] !== 1)
+    fail("an unknown key aggregated, or a valid one did not: " + JSON.stringify(two));
+  ok("unknown entity key dropped at the trigger; valid keys fold exactly");
+
+  // "Not listed" (entity 0): counted in the total, never enumerated on
+  // the board — it lands in `rest` and nowhere else.
+  const nlApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "pickerNL");
+  const nlAuth = getAuth(nlApp); connectAuthEmulator(nlAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+  const nlDb = getFirestore(nlApp, E2E_DB_ID); connectFirestoreEmulator(nlDb, "127.0.0.1", 8080);
+  const nlu = await signInAnonymously(nlAuth);
+  await setDoc(doc(nlDb, "v2_users", nlu.user.uid, "answers", PK), {
+    qid: PK, surface: "feed", entity: 0,
+    answeredAt: serverTimestamp(), anchors: {},
+  });
+  let three = null;
+  for (let i = 0; i < 40; i++) {
+    const snap = await getDoc(doc(db, "v2_question_aggs", PK));
+    if (snap.exists() && snap.get("total") === 3) { three = snap.data(); break; }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!three) fail("canon never reached total 3 after the Not-listed pick");
+  if (three.top["0"] !== undefined || three.rest !== 1)
+    fail("Not listed leaked onto the board, or missed the fold: " + JSON.stringify(three));
+  ok("Not listed: counted in the total, folded into rest, never enumerated");
+}
 
 // 10 · Near presence (D84 / D174 / D176 / D177): the write path through
 // the rules, the count and the ROOM through the real callables, and the

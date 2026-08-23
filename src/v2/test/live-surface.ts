@@ -123,6 +123,13 @@ export const LIVE_MEMBERS = [
   // spec/paths-card.jsx reads it here instead. Empty in a demo build, which
   // is the signal the card falls back to its authored pool on.
   "pathQs",
+  // Catalogue picks (D14 gone live): the create-only entity write, and the
+  // three reads that hand the live pick card its board in exactly the demo
+  // store's shapes (spec/pick-data.js PICKS.canon/segs/canonSeg) — the
+  // canon with your unfolded pick joined at read time, the segment chips
+  // flattened from the published `by`, and one segment's ordering of the
+  // global board (D17).
+  "votePick", "pickCanon", "pickSegs", "pickSeg",
   // Foresight CALL, tier A (D194): the bank's calls with their folded
   // counts, the published grades (null per call = fetched-and-ungraded,
   // the whole map null = nothing read yet — the card draws different
