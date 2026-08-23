@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 248 lines instead of
-24,877. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 249 lines instead of
+24,932. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -262,3 +262,4 @@ detect it.
 | **D242** | [The surface claim is an equality, and was the same test twice](DECISIONS.md#d242--the-surface-claim-is-an-equality-and-was-the-same-test-twice) | — | 24631 |
 | **D243** | [The inventory's reader column, held to the two rules a script may read literally](DECISIONS.md#d243--the-inventorys-reader-column-held-to-the-two-rules-a-script-may-read-literally) | — | 24721 |
 | **D244** | [Two shipped surfaces the bank never fetched](DECISIONS.md#d244--two-shipped-surfaces-the-bank-never-fetched) | — | 24804 |
+| **D245** | [Two numbers that contradicted the picture beside them](DECISIONS.md#d245--two-numbers-that-contradicted-the-picture-beside-them) | — | 24878 |

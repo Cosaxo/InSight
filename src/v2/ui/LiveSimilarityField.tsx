@@ -672,11 +672,21 @@ function PlacesField({ scope, myFlat }: {
     dim === "city" ? (PLACES.parse(key)?.name || key) : PLACES.countryName(key);
   const homeOf = (key: string) => (dim === "city" ? key === myCity : key === myCountry);
 
-  const positioned = profiles.filter((p) => p.score).slice(0, PLACE_FIELD_CAP);
-  const thin = profiles.length - positioned.length;
+  // THREE groups, not two. `positioned` used to be subtracted straight
+  // from `profiles`, which folded the cap's overflow into the count the
+  // sentence below calls "too few shared axes" — false about every place
+  // in it, since a place only reaches `scored` by clearing
+  // MIN_PLACE_AXES. profiles sorts scored-first by descending match, so
+  // the overflow is the LEAST alike rather than an arbitrary 24.
+  const scored = profiles.filter((p) => p.score);
+  const positioned = scored.slice(0, PLACE_FIELD_CAP);
+  const thin = profiles.length - scored.length;
+  const capped = scored.length - positioned.length;
   const loading = LIVE.similarityLoading();
   const pickedP = profiles.find((p) => p.key === picked) || null;
   const what = dim === "city" ? "city" : "country";
+  const plural = (n: number) =>
+    (n === 1 ? what : what === "city" ? "cities" : "countries");
 
   if (!profiles.length) {
     return (
@@ -729,8 +739,15 @@ function PlacesField({ scope, myFlat }: {
       )}
       {thin > 0 && positioned.length > 0 && (
         <SfEmpty>
-          {thin} more {thin === 1 ? what : what === "city" ? "cities" : "countries"} answered,
-          too few shared axes to place.
+          {thin} more {plural(thin)} answered, too few shared axes to place.
+        </SfEmpty>
+      )}
+      {/* Said rather than dropped: a cap that silently eats rows reads as
+          "that is all of them". These CAN be placed — they are simply the
+          least alike of the ones that can. */}
+      {capped > 0 && (
+        <SfEmpty>
+          {capped} more {plural(capped)} placed further out than this field draws.
         </SfEmpty>
       )}
       {pickedP && <PlaceCard p={pickedP} label={labelOf(pickedP.key)} myFlat={myFlat} />}

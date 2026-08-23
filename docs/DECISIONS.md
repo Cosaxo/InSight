@@ -24874,3 +24874,58 @@ is a list that had to be kept in step with a function in another file; the
 follows one is a list that had to be kept in step with the state
 declaration above it. Both failed the same way a `spec-index.js` reorder
 would — quietly, with the app still rendering something.
+
+## D245 · Two numbers that contradicted the picture beside them
+
+**2026-08-23.** **Status:** binding. Both are the same shape: a count
+computed one way while the thing directly above it was drawn another way.
+
+### 1 · `standingIn` divided locally
+
+`pct.ts` exists because *"two surfaces rounding differently on the same
+numbers is how a 51/49 becomes a 51/48 one screen over"*, and
+`headlineFor`'s scale branch already carries the correction in as many
+words: it *"used to do `Math.round((agree / n) * 100)`, which is the exact
+mistake the categorical branch's 62-not-63 case below exists to
+prevent — and it is worse here, because the number sits directly above the
+two bars it claims to summarize."*
+
+`standingIn` still did it, one function over, and its sentence sits
+directly **under** the same row's bar. `LiveAnswerRows` draws `ArStack`
+from `pctFor(row.counts)` and prints `standText` beneath it, so on
+`[1,7]` the bar reads **87%** and the sentence reads *"88% of Oslo are
+with you."* Two numbers for one claim, two lines apart.
+
+Now read off `pctFor`, whose shares sum to exactly 100 — so a share, a
+prefix or a suffix of them is right by construction, largest-remainder
+rounding included. **Which side** is still decided on the raw counts:
+shares can tie where counts do not, and "the bigger of the two" is a claim
+about the room rather than about the bar. All four pinned cases hold
+unchanged; the new ones are `[1,7]` (87, not 88) and `[1,1,4]` at index 2
+(34 below, not 33).
+
+### 2 · `PlacesField` counted the cap's overflow as missing axes
+
+`thin` was `profiles.length - positioned.length`, and `positioned` is
+`profiles.filter(p => p.score).slice(0, PLACE_FIELD_CAP)` — so it folded
+two different groups into one number and printed the sentence for one of
+them: *"N more countries answered, too few shared axes to place."*
+
+A place reaches `score` only by clearing `MIN_PLACE_AXES`, so every place
+the 24-cap dropped shares **enough** axes. With 30 scoreable countries the
+field said six were too thin when none of them was.
+
+Three groups now, not two: `thin` counts the places with no score, and
+`capped` counts the placeable ones past the cap — **said, not dropped**,
+because a cap that silently eats rows reads as "that is all of them", and
+`profiles` sorts scored-first by descending match, so the overflow is
+specifically the least alike rather than an arbitrary 24.
+
+### Neither is visible to any gate here
+
+`check:figures` holds figures quoted in *prose* to the tree; these are
+figures computed at render time. The nearest thing to a guard is
+`pct.ts`'s own existence — one implementation instead of two — and the
+lesson is that consolidating the implementation did not consolidate the
+**callers**: `standingIn` was left dividing beside it for as long as
+`pctFor` has existed.
