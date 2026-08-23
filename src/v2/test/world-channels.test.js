@@ -21,7 +21,7 @@ beforeEach(() => {
 });
 
 async function feedData() {
-  // WORLD_CHANNELS is imported by name since D243 — world-feed.jsx was its
+  // WORLD_CHANNELS is imported by name since D244 — world-feed.jsx was its
   // only consumer, so it no longer publishes. WORLD_TOPICS still mirrors,
   // for daily-split, search-overlay and suggestions.
   const { WORLD_CHANNELS } = await import("../spec/world-feed-data.js");

@@ -76,7 +76,7 @@ export function initDeepLinks(): void {
     const code = parseJoinCode(url);
     if (!code) return;
     stashJoinCode(code);
-    // The registry since D242 — was a `window as unknown as {…}` cast.
+    // The registry since D243 — was a `window as unknown as {…}` cast.
     NAV.goTab("track");
     window.dispatchEvent(new Event("insight-live-update"));
   };

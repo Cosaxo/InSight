@@ -23538,10 +23538,12 @@ distinct, four of six at seven days or fewer. One carries `political:
 true` (the Hormuz card); the heatwave card does not, because it asks what
 the reader makes of the weather rather than what should be done about it.
 
-**The line the batch drew:** the same week carried airstrikes with named
-death tolls in Lebanon and a Russian strike on Kramatorsk. A vote card
-under a casualty count is not an opinion question, it is a body count
-with buttons, and this lane declines them. Policy, economics, justice,
+**The line the batch drew** — *promoted to the lane's rule the same day,
+with a gate: see [D235](#d235--no-tragedies-this-app-does-not-put-suffering-to-a-vote).*
+The same week carried airstrikes with named death tolls in Lebanon and a
+Russian strike on Kramatorsk. A vote card under a casualty count is not
+an opinion question, it is a body count with buttons, and this lane
+declines them. Policy, economics, justice,
 culture, science and climate all had live stories that week, which is the
 answer to whether the line costs anything.
 
@@ -23864,7 +23866,106 @@ stored doc — `seedDocMatches` stays sentinel-free, so a repaired bank
 reseeds as a no-op. Third seed.test D234 case pins the sentinel and
 that a field absent on both sides gets none.
 
-## D235 · The de-overlap pass did not know the ring closes
+## D235 · No tragedies: this app does not put suffering to a vote
+
+**2026-08-23.** **Status:** binding, built. Owner's rule, given on reading
+D231's first current-events batch: *"one note on these they should
+generly avoid tradgedies like terror attack as that is a easy way to get
+this app in truoble"*.
+
+D231's record already carried a line of this shape — the first batch
+declined the week's casualty stories (airstrikes in Lebanon, a strike on
+Kramatorsk) on the reasoning that a vote card under a death toll is a
+body count with buttons. That was **one writer's judgement inside one
+batch**, recorded as a note about what a batch did. This makes it the
+lane's rule, and gives it a gate, because a judgement that lives only in
+prose is one the next run under time pressure re-decides from scratch.
+
+### The rule
+
+**This app does not put suffering to a vote.** Terror attacks are the
+named example and the clearest case. The rule is wider: mass-casualty
+events, atrocities, disasters with a death toll, a named person's killing
+or victimhood.
+
+It binds every lane and every surface. It bites hardest on `now`, because
+that lane's whole job is what is happening this week and news skews to
+catastrophe — the pressure to ask the obvious question is highest exactly
+when asking it is worst.
+
+**Two reasons, and the owner gave the second.** The first is that the
+question is wrong on its own terms: it asks a crowd to take a side on
+somebody's worst day, and since D98 the app then publishes the exact
+split doing so, with no k-floor to hide behind. The second is the
+practical one — *"an easy way to get this app in trouble"* — and it is
+correct in a way worth writing down rather than assuming: there is no
+answer to a journalist, a store reviewer or a bereaved family asking why
+the question exists. A single screenshot is the whole story, and it would
+be a fair one.
+
+**What the rule is NOT.** It is not "avoid serious news". Sanctions, a
+verdict, an economic shock, a resignation, a policy fight are all
+ordinary questions and several are in the D231 batch. The line runs
+between a question about a POLICY or a CONSEQUENCE and one that treats a
+specific atrocity as poll material. "Should the sanctions be lifted?" is
+ours. "Was the attack preventable?" is not.
+
+### The gate, and its honest limits
+
+`check:quality` grows a `tragedy` tripwire beside the place-civic one,
+two tiers deep:
+
+- **Plain** — words unambiguous whatever surrounds them: terror,
+  massacre, genocide, atrocity, war crime, assassination, hostage,
+  kidnapping, torture, and their kin.
+- **Conjunction** — an EVENT word (attack, crash, strike, quake, flood,
+  siege…) only when a CASUALTY word (death toll, killed, victims,
+  wounded, fatalities…) appears with it.
+
+The second tier is the whole design. One flat list would either miss the
+thing or fail honest content, and the split is what separates *"markets
+crashed 8% — panic or noise?"* from *"the crash that killed 14"*. **A
+gate that reliably cries wolf is one whose waivers stop being read** —
+this file's own sentence, one rule over.
+
+**Measured before it shipped, over the full 653-entry generated bank:
+zero entries fire.** The three that trip a single tier and pass are
+exactly what the conjunction exists to spare — the Library of
+Alexandria's earthquake, what a gladiator fight usually ended in, and the
+Book of the Dead. That measurement is why the gate could be scoped to
+every surface rather than to `now` alone, which is where the owner's note
+pointed: the risk is identical if a daily question does it, and today the
+widening costs nothing.
+
+**Learn is carved out**, the same shape as the place tripwire and for a
+sharper reason than symmetry: a learn card has a RIGHT ANSWER. "Who was
+assassinated in 44 BC?" is history with one correct response and asks
+nobody to take a side, which is the entire thing this rule is about.
+Every other surface asks for a side.
+
+**The tripwire is not the rule, and clearing it is not clearance.** The
+same prompt is ordinary in a quiet week and grotesque in the week of an
+attack — *"is airport security theatre?"* is the clean example — and no
+word list can see the week. What the gate catches is the unambiguous
+case; judging the rest stays the writing run's job and the audit's.
+Judged false positives go in `ALLOW` under `tragedy`, with the reason,
+the neighbours pattern. Nothing is waived there today.
+
+### Where it is written down
+
+The rule is in [`QUESTION-FARM.md`](QUESTION-FARM.md) beside the lane's
+other hard rules and in [`NEXT-FUNCTIONALITY.md`](NEXT-FUNCTIONALITY.md)
+§1's boundaries, which now number three — it sits above the CALL boundary
+and the editorial-lane one, because it is the only one of the three whose
+cost is not a design regret.
+
+Both halves of the tripwire were verified to FAIL against the pre-change
+file rather than assumed to: neutering the call site fails the plain-word
+case and the casualty-conjunction case, while the three
+false-positive cases keep passing, which is the property that would
+otherwise rot silently.
+
+## D236 · The de-overlap pass did not know the ring closes
 
 **2026-08-22.** **Status:** binding. Found on a project review, by
 probing `layout()` rather than reading it — the reading had been done
@@ -23945,9 +24046,9 @@ row it added to that table is the list. Two are worth naming here:
 
 `check:panel-suites` drops from 10 owed to 9.
 
-## D236 · The owed list reaches zero, and eight defects fall out of it
+## D237 · The owed list reaches zero, and eight defects fall out of it
 
-**2026-08-22.** **Status:** binding. The other half of D235's finding: that
+**2026-08-22.** **Status:** binding. The other half of D236's finding: that
 record fixed a bug in the one panel `check:panel-suites` called "the
 biggest one owed", and the obvious next question was what the other nine
 were hiding.
@@ -24063,9 +24164,9 @@ all, and two passed individually while failing together because a file was
 still being edited. Structure, stability and an independent mutation are
 three different questions.
 
-## D237 · Two data-layer defects D236 found, fixed
+## D238 · Two data-layer defects D237 found, fixed
 
-**2026-08-22.** **Status:** binding. D236 recorded eight defects and fixed
+**2026-08-22.** **Status:** binding. D237 recorded eight defects and fixed
 none, on the rule that a test sweep must not quietly become a behaviour
 change. These are the two the owner picked out of that list.
 
@@ -24175,7 +24276,7 @@ poison the next one, a real load still caches, and `force` still refetches
 
 ### A note on believing an agent's report
 
-D236's write-up said this bug's mechanism was `loadingToday` latching on a
+D237's write-up said this bug's mechanism was `loadingToday` latching on a
 settled promise, "the `finally` runs before the assignment". Reviewing it
 here, that looked wrong — there IS a `finally`, and the purge DOES reset —
 and this record was drafted describing a different mechanism (the
@@ -24186,10 +24287,10 @@ async function with no `await` before its return runs to completion
 synchronously, so its `finally` can execute before the caller has stored
 its promise. Reading the code was not enough; running it was.
 
-## D238 · The three behaviour bugs from D236's list
+## D239 · The three behaviour bugs from D237's list
 
-**2026-08-22.** **Status:** binding. D236 recorded eight defects and fixed
-none; D237 took the two data-layer ones. These are the three that change
+**2026-08-22.** **Status:** binding. D237 recorded eight defects and fixed
+none; D238 took the two data-layer ones. These are the three that change
 what a user sees. The remaining three on that list are honesty and
 accessibility findings and are still open.
 
@@ -24261,10 +24362,10 @@ so does over-applying it. That second half is the one worth keeping — it
 is what caught that removing `days()`'s schedule gate would have fixed the
 card by breaking the trend.
 
-## D239 · The three honesty findings from D236's list
+## D240 · The three honesty findings from D237's list
 
-**2026-08-22.** **Status:** binding. The rest of D236's eight, and the
-close of that list. Recorded under D238 because it is the same sweep: the
+**2026-08-22.** **Status:** binding. The rest of D237's eight, and the
+close of that list. Recorded under D239 because it is the same sweep: the
 behaviour half is above, this is the half where the app was telling the
 truth to the eye and not to everyone.
 
@@ -24332,13 +24433,13 @@ still in the DOM on purpose, so a text count cannot see this fix at all.
 
 ### The list is closed
 
-D236 found eight, D237 fixed two, D238 fixed three, and this record fixes
+D237 found eight, D238 fixed two, D239 fixed three, and this record fixes
 the last three. Every one was pinned as-found by the suite that found it,
 with a failure message naming the fix — so all eight announced themselves
 by turning their own case red the moment the source moved. That
 convention is the reason none of them needed re-finding.
 
-## D240 · The coupling ratchet, 392 → 352
+## D241 · The coupling ratchet, 392 → 352
 
 **2026-08-22.** **Status:** binding. `check:globals` rule 4's first move
 since D108, following the procedure `src/v2/README.md` records rather than
@@ -24426,10 +24527,10 @@ The three eager `spec-index.js` lines stay — the modules are still in the
 eager graph, and keeping them preserves the load order those comments
 document.
 
-## D241 · PLACESTATS off the bridge, 352 → 337
+## D242 · PLACESTATS off the bridge, 352 → 337
 
 **2026-08-22.** **Status:** binding. The next name down the provider view
-D240 built, and the one that finally tests D108's suppression prediction
+D241 built, and the one that finally tests D108's suppression prediction
 on a component the prediction is actually about.
 
 `place-stats.js` is a **pure provider** — the graph shows it reading
@@ -24451,7 +24552,7 @@ stays; only the guard went. Same for `if (!S)` in the card.
 
 ### D108's prediction, tested properly this time — and it still did not fire
 
-D240 recorded that the prediction (a conversion RAISES the suppression
+D241 recorded that the prediction (a conversion RAISES the suppression
 count, because the React Compiler bails out of components reading through
 global scope and the bridge is therefore hiding `react-hooks` findings)
 did not fire, and gave a specific reason: every read was in a **class**
@@ -24474,7 +24575,7 @@ follow that it will. This component was already hook-correct, so the
 compiler gained the ability to analyse it and found nothing to say. The
 prediction is a risk to plan for, not a cost to budget.
 
-## D242 · The shell's cross-links become a registry, 337 → 295
+## D243 · The shell's cross-links become a registry, 337 → 295
 
 **2026-08-22.** **Status:** binding. `app-shell.jsx`'s forty-odd nav reads
 — the largest seam left after `LIVE` — and the first one that could not be
@@ -24560,22 +24661,22 @@ just as loudly if the shell ever stops registering.
 
 ### What is left
 
-295 across 37 files, from 392 at D240. `world-feed.jsx` (68) is the
+295 across 37 files, from 392 at D241. `world-feed.jsx` (68) is the
 largest remaining consumer and `LIVE` (80 reads, 13 consumers) the largest
 provider — and that one is deliberate: `live.ts` publishes `window.LIVE`
 because the whole spec layer reads it, and moving it is the end of the
 migration rather than a step in it.
 
-## D243 · world-feed.jsx, 295 → 267
+## D244 · world-feed.jsx, 295 → 267
 
 **2026-08-22.** **Status:** binding. The largest remaining CONSUMER, after
-D242 took the largest provider that was not `LIVE`.
+D243 took the largest provider that was not `LIVE`.
 
 The graph said this one was safe before any of it was written:
 `world-feed.jsx` publishes only three names, read by `map-tab.jsx`,
 `daily-split.jsx` and `search-overlay.jsx` — none of which provides
 anything it reads. **No cycle with any of its nine providers**, so unlike
-D242 this was an ordinary conversion.
+D243 this was an ordinary conversion.
 
 ### Six reads were of modules that already export
 
@@ -24589,7 +24690,7 @@ reached that way. Those six cost nothing to move.
 The publications came off only where `world-feed.jsx` was the LAST reader
 — the rest keep a mirror with a comment naming who still needs it, which
 is the honest shape a half-converted module has (`vote-cuts.js` carried
-exactly that until D240 removed the last global reader):
+exactly that until D241 removed the last global reader):
 
 | name | reads | mirror |
 | --- | --- | --- |
@@ -24617,7 +24718,7 @@ caught and no test would have.
 
 `world-feed-comments.js` is no longer awaited in `loadWorldFeed()` —
 `world-feed.jsx` imports it, so the module graph orders it, the same
-reasoning `world-feed-math.js` and (since D240) `world-feed-counters.js`
+reasoning `world-feed-math.js` and (since D241) `world-feed-counters.js`
 already carry.
 
 `consequence-beat.jsx` **stays awaited**, and the difference is the point:
@@ -24628,10 +24729,10 @@ draws. Its two reads in `world-feed.jsx` are left on the bridge with it.
 Eager graph unchanged at 831 KB, bundle at 2352 KB. `world-feed.jsx` is
 60 → 32, of which 16 are `LIVE`.
 
-## D243 amendment (2026-08-23) · world-feed.jsx meets main's live pick/rank seam
+## D244 amendment (2026-08-23) · world-feed.jsx meets main's live pick/rank seam
 
 **Status:** binding. Not a new decision — a note on what the third merge
-with main did to the file D243 had just taken off the bridge.
+with main did to the file D244 had just taken off the bridge.
 
 main's #263 (D232/D233) added a live seam to the same file: `pickSrc(q)`
 routes a pick board through `LIVE.pickCanon` for a live question and the
@@ -24642,7 +24743,7 @@ back through `LIVE.myVotes`. Written against `window.LIVE` and
 Merged as main's LOGIC on this branch's BINDINGS, which is what the file's
 own header already required: *"the window.LIVE reads elsewhere in this file
 predate the ratchet; new ones may not join them."* Six sites, all of them
-`window.X` → the import that D243 had just added:
+`window.X` → the import that D244 had just added:
 
 - `setPick` → `PICKS.pick`, and `pickSrc` returns `PICKS` rather than
   `window.PICKS || null`
@@ -24659,9 +24760,9 @@ LIVE expose the method), `q.live &&` (is this a live question).
 against a baseline of 32 and failed `check:globals` — the ratchet catching
 exactly what it is for, on a merge rather than on a commit. Converted, the
 file reads 32 and the tree reads **267 across 37 files**, which is the
-figure D243 left and `src/v2/README.md` still states.
+figure D244 left and `src/v2/README.md` still states.
 
-## D244 · The a11y ratchet: six were right, one was hiding
+## D245 · The a11y ratchet: six were right, one was hiding
 
 **2026-08-22.** **Status:** binding. The a11y baseline, examined rather
 than paid down — and the difference between those two is the record.
@@ -24734,7 +24835,7 @@ identically with and without the trap.
 
 `preventDefault` is what actually stops the browser taking focus out, so
 that is what the case asserts now, and reverting the fix fails it. Same
-lesson as D236's `duelMarks` gap, arriving from a different direction: a
+lesson as D237's `duelMarks` gap, arriving from a different direction: a
 test that cannot fail is worse than no test, and only the mutation says
 which one you wrote.
 

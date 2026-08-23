@@ -117,7 +117,7 @@ export function mountApp() {
 // outside React's event system, and without act() the assertion runs against
 // the frame before the overlay rendered.
 export async function openVia(name, ...args) {
-  // The REGISTRY since D242, not `window.*` — app-shell registers its doors
+  // The REGISTRY since D243, not `window.*` — app-shell registers its doors
   // into data/nav rather than publishing them, so this asserts the door
   // exists there. Same guarantee, and it still fails loudly if the shell
   // stopped registering: `can()` is false and the expect below names it.

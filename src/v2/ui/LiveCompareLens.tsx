@@ -190,7 +190,7 @@ function LiveCompareLens({ pop, whom, emptyThem }: {
     // People rather than answers, and counted over the whole roster so
     // the denominator is the population the tab names.
     //
-    // `peopleIn(the drawn kinds)`, not `fold.people` (D238) — the same
+    // `peopleIn(the drawn kinds)`, not `fold.people` (D239) — the same
     // refusal the `cells` branch makes eight lines up. The fold measures
     // every instrument the roster has finished, and a set whose only card
     // is Big Five would otherwise print the three people who between them

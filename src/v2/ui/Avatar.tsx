@@ -31,7 +31,7 @@ export default function Avatar({ uid, name, size = 38 }: {
   // under a mounted component and React keeps state at the POSITION, so a
   // boolean would carry one person's dead token onto whoever scrolls into
   // their row. What it did NOT handle is the same person's NEW token
-  // (D238): after a transient failure — a flaky network, an object
+  // (D239): after a transient failure — a flaky network, an object
   // mid-replace — a fresh upload from the account panel kept drawing
   // initials for the life of the mount, because the uid had not changed.
   // The URL changes on either, so both are one condition.

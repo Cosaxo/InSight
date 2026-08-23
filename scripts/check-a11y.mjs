@@ -32,7 +32,7 @@ import { ESLint } from "eslint";
 //   no-autofocus — the rule is right in general: focus moving without being
 //     asked is disorienting on a screen reader.
 //
-// EVERY ONE OF THE EIGHT IS A DELIBERATE KEEP (D244), and the reason is
+// EVERY ONE OF THE EIGHT IS A DELIBERATE KEEP (D245), and the reason is
 // recorded here rather than silenced with an inline disable — `npm run
 // lint` runs --report-unused-disable-directives against a config that has
 // no jsx-a11y rules in it, so a disable comment naming one would itself
@@ -63,7 +63,7 @@ import { ESLint } from "eslint";
 // trap, so Tab walked straight out into the app behind it, which is still
 // in the DOM under an absolutely positioned overlay. Focus containment is
 // runtime, so no linter could see it and this gate reported the file as
-// one deliberate autoFocus. D244 routed it through `useDialog` (the hook
+// one deliberate autoFocus. D245 routed it through `useDialog` (the hook
 // D24 gave the other eight overlays), which traps Tab, restores focus on
 // unmount, and focuses the button itself — so the prop went with it.
 //

@@ -138,7 +138,7 @@ describe("LiveGroupsMirrorBody · states it refuses to fake", () => {
     // group and delivers a duel. The pin is on the goNav key, because the
     // difference is one argument and the wrong one still "navigates".
     const goNav = vi.fn();
-    // The nav registry since D242, not a window global.
+    // The nav registry since D243, not a window global.
     const dropNav = registerNav({ goNav });
     try {
       LIVE.social.groups = () => [];

@@ -62,7 +62,7 @@ export default function EmptyField({ caption, children, action }: {
 }) {
   const go = () => {
     if (action!.prime) action!.prime();
-    // The registry since D242, replacing a `window as unknown as {…}` cast.
+    // The registry since D243, replacing a `window as unknown as {…}` cast.
     // The goTab FALLBACK is behaviour, not a guard: it takes the tab id
     // alone, because a shell without `goNav` cannot honour a nav KEY.
     if (NAV.can("goNav")) NAV.goNav(action!.nav);

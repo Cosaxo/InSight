@@ -38,7 +38,7 @@ async function learn(state) {
   // window.LEARN_CARDS at module scope. It imports it now, so the ordering is
   // the module graph's problem and no longer a step a caller can forget.
   const { LEARN } = await import("../spec/learn-progress.js");
-  // Imported by name since D240 — `learn-feed.js` no longer publishes to
+  // Imported by name since D241 — `learn-feed.js` no longer publishes to
   // window, so reaching it through the bridge would read undefined.
   const { LEARN_FEED } = await import("../spec/learn-feed.js");
   return { L: LEARN, LF: LEARN_FEED };

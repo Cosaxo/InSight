@@ -32,7 +32,7 @@
 //      account that HAS a name, or two letters lifted from the wrong
 //      words, is a person mislabelled in the one place the app draws
 //      identity. The astral-character case was a DEFECT when this suite
-//      was written and is fixed at D237; the case now holds the fix.
+//      was written and is fixed at D238; the case now holds the fix.
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
@@ -149,7 +149,7 @@ describe("a photo that will not load", () => {
     expect(container.querySelector("img")?.getAttribute("src")).toContain("avatars%2Fu_grace");
   });
 
-  it("retries a NEW token for the same person (D238)", () => {
+  it("retries a NEW token for the same person (D239)", () => {
     // The other way a slot stops being about the same picture, and the one
     // keying by uid could not see: same person, new upload. After a
     // transient failure — a flaky network, an object caught mid-replace —
@@ -255,7 +255,7 @@ describe("the initials, which are the permanent fallback", () => {
     expect(initialsFor("山田太郎")).toBe("山田");
   });
 
-  it("keeps a whole astral character, first word or last (D237)", () => {
+  it("keeps a whole astral character, first word or last (D238)", () => {
     // WAS A PINNED DEFECT, now the fix. `initialsOf` indexed UTF-16 code
     // UNITS, so a word beginning with an emoji, a mathematical
     // alphanumeric or a CJK extension B glyph contributed HALF of it —

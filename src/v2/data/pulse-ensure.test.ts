@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// `ensureToday`'s one caching decision (D237) — its own file because the
+// `ensureToday`'s one caching decision (D238) — its own file because the
 // question needs a LIVE store with a bank that changes underneath it, and
 // `pulse.test.ts` mocks the store as `enabled: false`, which returns from
 // the first line of this function. Vitest gives each file its own module

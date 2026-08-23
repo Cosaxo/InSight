@@ -419,7 +419,7 @@ describe("the basis under the header counts what was drawn", () => {
     expect(screen.queryByText(/test answers/)).toBeNull();
   });
 
-  it("counts only the people the DRAWN cards rest on (D238)", () => {
+  it("counts only the people the DRAWN cards rest on (D239)", () => {
     // WAS A PINNED OVERSTATEMENT, now the fix. `peopleAxisMap`'s `people`
     // counts everyone who contributed an axis to ANY instrument, and the
     // lens printed it under cards that can rest on far fewer. The `cells`
