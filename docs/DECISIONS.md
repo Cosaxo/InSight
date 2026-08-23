@@ -25124,3 +25124,70 @@ future consumer, and it disagreed.
 `e2e-delete-account.mjs` gains the control the take case already had: a
 third party's queued face, which must survive an unrelated erasure with its
 flag count intact. It fails against the previous implementation.
+
+## D248 · Four sentences that stopped being true, and two of them are now counted
+
+**2026-08-23.** **Status:** binding. Documentation drift, found by reading
+the prose against the tree rather than against itself.
+
+### The four
+
+- **`README.md`'s opening paragraph still described a three-tab app.**
+  *"InSight is a three-tab app — patterns · daily · mirror, the first on
+  trial (D166 §1). The middle tab is where you answer."* D217 unmounted
+  patterns for the release two days earlier. Every clause was wrong: daily
+  is the first of two, not the middle of three, and the tab a reader is
+  told to expect is not in the built app. The first paragraph of the
+  repo's front page, and D217's own record is about exactly this — that
+  advertising a tab v1 does not ship is the failure it was written to
+  prevent.
+
+- **The Mirror's lens row was quoted in an order no stop draws.** README
+  and `CLAUDE.md` both printed `Answers · People · Compare · Explore ·
+  Scores`. `lensTabs.ts` returns `["people", "scores", "explore",
+  "compare"]` at World and `["people", "scores", "compare"]` everywhere
+  else — so Explore is the globe's alone (D152) and Compare is last
+  (D184). `docs/MIRROR.md` had D152 right and D184 wrong, in the document
+  whose stated job is to be the read path's source of truth. The failure
+  is not cosmetic: somebody reading README to learn what a City stop shows
+  looks for the missing Explore tab, and the plausible repair is to put
+  back the reading D152 removed for being a cut of a cut.
+
+- **README said five callables are App Check exempt; the gate reports
+  seven.** This is the security-relevant version of the whole problem — a
+  reviewer auditing the exempt surface against the README counts five,
+  finds seven, and cannot tell whether two exemptions were added without a
+  record or the sentence simply rotted. The question the number exists to
+  answer is "did an exemption spread by copy-paste", and a stale count
+  makes it unanswerable.
+
+- **`MIRROR.md` quoted a 114-question daily bank against a tree of 128.**
+  Its next clause reasons from the ratio — *"twenty-four in a hundred and
+  fourteen … so a given week's deck serves at most one"* — so anyone
+  re-deriving how often a City stop gets a fresh place question was about
+  12% optimistic.
+
+### Two of them are countable, so they are counted now
+
+D39's finding was that *"a hand-maintained figure is the one documentation
+error this repo keeps re-committing"*, and `check:figures` is the answer
+wherever the figure can be read off the tree. Both numbers above can:
+
+- The exemption count comes out of `check-appcheck.mjs`'s own `EXEMPT`
+  keys — read from that file rather than re-derived, so the two cannot
+  disagree about what "exempt" means.
+- The ratio's denominator is the daily bank, which `check:figures` already
+  computes for three other rules.
+
+Both are spelled out as words, which the file now has a small table for.
+Mutation-tested: restoring either old number fails the gate with the
+correct sentence quoted back. 36 → 38 figures across 34 files.
+
+**The other two are not counted, and that is the honest line.** "How many
+tabs does the app have" and "what order is the lens row in" are not
+figures; they are claims about shape, and `check:docs`'s own header says
+it holds the maps rather than the prose. D106 declined to gate "the prose
+agrees with the rules" on the same ground and was right. What would have
+caught the tab sentence is the thing D217 asked for and this record
+repeats: when a tab is mounted or unmounted, the front page's first
+paragraph is one of the joints.

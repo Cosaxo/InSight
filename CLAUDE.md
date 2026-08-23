@@ -271,7 +271,8 @@ an emergency rules fix.
   lists' name resolution). Near is presence-only since D111; the city
   cohort is the City stop's. Since D119 the row is the stop's TAB BAR
   rather than a strip under the answer rows, and **D136 reshaped it to
-  Answers · People · Compare · Explore · Scores**: the field left the row
+  Answers · People · Scores · Compare**, Explore at World alone (D152) and
+  Compare last of all (D184): the field left the row
   to draw ABOVE it always (D119 made it a tab, D135 made it the landing
   tab, D136 finished the move — the field is the sentence the Mirror
   exists to say, and a tab is something you can be looking away from),
