@@ -210,7 +210,7 @@ export function collectPipeline() {
   const banks = [
     { surface: "daily", count: daily.length, source: "content/daily-questions.json" },
     { surface: "feed", count: feed.questions.length, source: "content/feed-questions.json" },
-    // Catalogue picks (D231) — feed-surface docs from their own content
+    // Catalogue picks (D232) — feed-surface docs from their own content
     // file, promoted out of the pick archive. The two-path bank-size
     // check caught this row missing the day the bank went live, which
     // makes it FOUR for four: every new bank has arrived through that

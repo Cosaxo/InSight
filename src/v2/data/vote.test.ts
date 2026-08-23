@@ -734,7 +734,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
   });
 
   it("rank-type feed questions serve as RANK cards — never flattened to votes", async () => {
-    // D12's exclusion, retired at D232. What must never come back is the
+    // D12's exclusion, retired at D233. What must never come back is the
     // failure D12 pulled the cards for: a rank doc flattened to a
     // pick-one vote card, folding single choices into an aggregate that
     // claims to be a ranking. Served — and served in its own shape.
@@ -1083,7 +1083,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     });
   });
 
-  // ── rank answers (D232) ──────────────────────────────────────────
+  // ── rank answers (D233) ──────────────────────────────────────────
   const RANK_BANK = {
     id: "feed-f03",
     data: {
@@ -1135,7 +1135,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(wf["feed-f03"]).toEqual({ order: [2, 0, 1, 3] });
   });
 
-  describe("voteRank (D232): the create-only order write", () => {
+  describe("voteRank (D233): the create-only order write", () => {
     it("writes the order doc — no optionIdx — and caches only on server ack", async () => {
       h.bankDocs.push(RANK_BANK);
       const LIVE = await bootLive();
@@ -1183,7 +1183,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
       expect(h.setDocCalls.length).toBe(before);
     });
 
-    it("editVote refuses to move a ranking — create-only has no edit arm (D232)", async () => {
+    it("editVote refuses to move a ranking — create-only has no edit arm (D233)", async () => {
       h.bankDocs.push(RANK_BANK);
       const LIVE = await bootLive();
       LIVE.voteRank("feed-f03", [2, 0, 1, 3]);

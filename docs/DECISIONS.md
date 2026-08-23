@@ -23366,7 +23366,7 @@ rather than assumed to:
   zero. A colour is a name-level guard's blind spot twice over — the
   pill it copies lives in another file.
 
-## D231 · Catalog questions go live: seventeen picks, promoted through one pen
+## D232 · Catalog questions go live: seventeen picks, promoted through one pen
 
 **Decided:** 2026-08-23 · **Status:** built (this branch); the operator
 seed step and two held tranches remain
@@ -23476,7 +23476,7 @@ change — the workflow chain reseeds), or run *Seed content* by hand;
 633 questions land, 17 of them picks. Nothing needs `bumpRev`: creates
 carry `updatedAt` and clients page them in.
 
-## D232 · Rank questions live: an answer carries an order, and the exclusion retires
+## D233 · Rank questions live: an answer carries an order, and the exclusion retires
 
 **Decided:** 2026-08-23 · **Status:** built (this branch); D12's "binding
 until the pipeline below exists" clause is hereby satisfied and that
@@ -23489,7 +23489,7 @@ optionIdx at all**: D12's sketch said "order alongside optionIdx", and
 the refinement matters, because a synthetic index would let an order
 answer leak into every option-shaped fold, which is the poisoning D12
 pulled the cards for wearing a seatbelt. The plan this executes is
-[RANK-CATALOG-LIVE.md](RANK-CATALOG-LIVE.md) §3; D231's catalog
+[RANK-CATALOG-LIVE.md](RANK-CATALOG-LIVE.md) §3; D232's catalog
 go-live is the pattern it copies joint for joint.
 
 **The pieces:**
@@ -23501,7 +23501,7 @@ go-live is the pattern it copies joint for joint.
    iterate a list, so ELEMENTS are the trigger's — a rules test pins
    that a non-permutation is admitted here by design and dies there.
 2. **The hole the same change closes.** `isWorldAnswer` now refuses
-   `type == "rank"` questions. Before D232 this was open in principle:
+   `type == "rank"` questions. Before D233 this was open in principle:
    a rank doc carries real options, so a raw-API `optionIdx` write
    passed the size bound and the vote fold would have clobbered a rank
    aggregate's `{pos, total}` with `{counts}` — D12's failure through
@@ -23529,7 +23529,7 @@ go-live is the pattern it copies joint for joint.
    behind it, renderRankStats, is a fabricated friends cohort). The
    stored form is the joined order ("2,0,1,3") in the same votes map,
    and every consumer that interprets a value routes through the
-   question's type — the D231 discipline.
+   question's type — the D232 discipline.
 5. **Corpus honesty.** The eight rank seeds now declare `core: false`
    (check:quality demands the declaration be explicit) — an order
    answer has no option share for a cohort reading to fold, so tail by
@@ -23565,17 +23565,17 @@ absorbed into TRIGGER_READS' stated approximation). Green at commit:
 1665 unit, 292 functions, 120 rules, the full e2e, lint, and every
 static gate.
 
-**Deploy order, which matters here where D231 needed none:** functions
+**Deploy order, which matters here where D232 needed none:** functions
 first (the fold accepts orders), rules second (clients may write them),
 client last (clients start writing them) — no window where a shipped
 client writes a shape the backend refuses or drops. The deploy chain
 runs backend before hosting, which is this order; the record states it
 so a partial manual deploy cannot invert it.
 
-## D233 · The seed transports the doc shape the schema promises
+## D234 · The seed transports the doc shape the schema promises
 
 **Decided:** 2026-08-23 · **Status:** built (this branch), rides the
-D231/D232 PR; the reseed after it merges is the one-time repair
+D232/D233 PR; the reseed after it merges is the one-time repair
 
 **The finding, verified at every layer before anything moved.**
 `runSeedV2`'s payload is a whitelist, and its own comment warns that "a
@@ -23617,7 +23617,7 @@ docs, and the schema does not list it) or invent per-field backfill
 tooling — the ordinary reseed IS the backfill, `updatedAt` moves, and
 clients page the repaired docs in through the cursor like any edit.
 
-**Enforcement:** seed.test's two D233 cases (the transport proven
+**Enforcement:** seed.test's two D234 cases (the transport proven
 against the real bank — each self-reporting if the bank stops carrying
 an example — and the missing-field mismatch that drives the repair
 write); the e2e's 3b; the no-op control now compares the FULL written
@@ -23627,7 +23627,7 @@ the build.
 **Amendment (same day, the PR's review pass): dropped fields are
 deleted, not orphaned.** The compare gained the twelve fields; the
 WRITE could still not remove one — `{merge: true}` cannot delete — so a
-doc whose source dropped an emit-when-set field (D232's rank `core`
+doc whose source dropped an emit-when-set field (D233's rank `core`
 flip is the live instance: eight docs would have stored `core: true`
 forever had the seed run between the two commits) would mismatch on
 every reseed, rewrite, and keep the field anyway: `updatedAt` churn
@@ -23635,5 +23635,5 @@ with no convergence. The rewrite path now walks `SEEDED_FIELDS` and
 writes `FieldValue.delete()` for any field the stored doc carries that
 the payload does not. Computed on the rewrite path only, against the
 stored doc — `seedDocMatches` stays sentinel-free, so a repaired bank
-reseeds as a no-op. Third seed.test D233 case pins the sentinel and
+reseeds as a no-op. Third seed.test D234 case pins the sentinel and
 that a field absent on both sides gets none.

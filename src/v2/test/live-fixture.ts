@@ -95,7 +95,7 @@ export interface LiveFixtureOptions {
    */
   pickCard?: boolean;
   /**
-   * Append one live rank card (D232), shaped as buildFeedGlobals emits
+   * Append one live rank card (D233), shaped as buildFeedGlobals emits
    * it: items, a DERIVED crowd (1-based rank per item), votes from the
    * agg total. Opt-in for pickCard's reason. `tooSmall` empties the
    * crowd to null — the first-voter state, where the card must render
@@ -118,7 +118,7 @@ export const PATH_TITLE = "Fixture Crossroads: the forked road";
 // must be able to say which card it has hold of.
 export const PICK_PROMPT = "Fixture pick card: your favourite fixture?";
 
-// The rank card's prompt (D232), same rule.
+// The rank card's prompt (D233), same rule.
 export const RANK_PROMPT = "Fixture rank card: order the fixtures";
 
 function liveQuestion(
@@ -490,7 +490,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       !tooSmall && dim === "ageBand" && bucket === "18-24"
         ? { rows: [{ entity: 128514, count: 5 }, { entity: 10084, count: 2 }], cohort: 7 }
         : null),
-    // Rank answers (D232): the create-only order write, into the shared
+    // Rank answers (D233): the create-only order write, into the shared
     // votes map in the store's own joined form.
     voteRank: (qid: string, order: number[]) => {
       if (!votes[qid]) votes[qid] = order.join(",");
@@ -682,7 +682,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       noCountsYet: !!tooSmall,
     });
   }
-  // The live rank card (D232), buildFeedGlobals' own shape. The crowd is
+  // The live rank card (D233), buildFeedGlobals' own shape. The crowd is
   // pre-derived (the store does that, not the card) — null in the
   // tooSmall/first-voter arm, where renderRank must show your order and
   // no crowd column rather than crashing on q.crowd[it].

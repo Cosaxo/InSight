@@ -1998,7 +1998,7 @@ class WorldFeed extends React.Component {
     const order = done.order;
     const v2 = this.opts.v2;
     // A live board nobody ELSE has ranked has no crowd to compare against
-    // (the store subtracts your own folded order \u2014 D232): your sequence
+    // (the store subtracts your own folded order \u2014 D233): your sequence
     // stands alone, said plainly, instead of a comparison against a crowd
     // that is only you reading as perfect agreement.
     if (!q.crowd) {
@@ -2031,7 +2031,7 @@ class WorldFeed extends React.Component {
         {/* The sheet behind the demo's arrow is renderRankStats \u2014 a
             fabricated friends-cohort read. A live card has no honest
             rank breakdown to open (the fold publishes sums, no by \u2014
-            D232), so the line states the match and stops. */}
+            D233), so the line states the match and stops. */}
         {q.live
           ? <span style={{ alignSelf: 'flex-start', padding: '2px 0', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-3)' }}>{matchLine}</span>
           : <button className="press" onClick={() => this.setState({ sheet: { q, T, panel: 'stats' }, sideFilter: null, replyTo: null })} style={{ alignSelf: 'flex-start', display: 'inline-flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', padding: '2px 0', cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>{matchLine}<span aria-hidden="true" style={{ fontWeight: 700 }}>{'\u2192'}</span></button>}
@@ -3440,7 +3440,7 @@ class WorldFeed extends React.Component {
     if (q.type === 'rank') {
       const done = this.rankVal(q);
       if (!done || !done.order) return null;
-      // no crowd yet (live first voter, D232) — "ranked" is the whole read
+      // no crowd yet (live first voter, D233) — "ranked" is the whole read
       if (!q.crowd) return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>ranked</span>;
       const m = done.order.filter((it, pos) => q.crowd[it] === pos + 1).length;
       return <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink-3)' }}>ranked{' · '}{m}/{q.items.length} with the crowd</span>;

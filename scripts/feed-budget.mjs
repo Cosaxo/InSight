@@ -74,7 +74,7 @@
 // WHAT COUNTS AS DEPTH, and why the count is not `questions.length`. One feed
 // type is in the bank and cannot reach a reader: `duel`-type feed cards are
 // prototype legacy. Counting them would let a topic read as covered on
-// questions nobody can be served. `rank` left this exclusion at D232 — an
+// questions nobody can be served. `rank` left this exclusion at D233 — an
 // answer can carry an order now, so a rank card covers its topic like any
 // other. Scene-attached `sNN` entries DO count: they are ordinary votes, the
 // seed emits them, and a reader cannot tell them from any other card. They
@@ -96,7 +96,7 @@ export const TOPIC_TARGET = 24;
 export const OPEN_MAX = 6;
 
 // The forms a reader can actually be served (QUESTION-FARM.md § The feed lane,
-// plus D136 for path and D232 for rank). `path` joined the servable set when
+// plus D136 for path and D233 for rank). `path` joined the servable set when
 // Crossroads went live and `rank` when answers learned to carry an order; the
 // lane's authorable list is a subset of this one, because a legacy `duel`
 // card still covers its topic for a reader.

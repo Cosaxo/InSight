@@ -478,7 +478,7 @@ let torndown = false;
 
 // `stored` is the answer's value in the cache's own string form: an
 // optionIdx or entity as digits, a rank order as the joined "2,0,1,3"
-// (D232) — exactly what hydrate's fold would re-derive from the doc.
+// (D233) — exactly what hydrate's fold would re-derive from the doc.
 function cacheVote(aid: string, stored: number | string): void {
   if (torndown) return;
   try {
@@ -1173,7 +1173,7 @@ async function hydrate(): Promise<void> {
       const optionIdx = d.get("optionIdx");
       if (typeof optionIdx === "number") state.votes[d.id] = String(optionIdx);
       // Catalog answers carry `entity` and rank answers carry `order` —
-      // never `optionIdx` (D14/D232). Both join the same map in string
+      // never `optionIdx` (D14/D233). Both join the same map in string
       // form (the entity's digits; the order joined with commas) —
       // votes[] is "what did I answer", and every consumer that
       // INTERPRETS the value goes through the question's type
@@ -1367,7 +1367,7 @@ function feedCounts(q: QuestionDoc & { id: string }): number[] {
 // (world-feed.jsx) because data/ cannot import the spec layer;
 // vote.test.ts pins the values so the twins cannot drift apart silently.
 // A rank answer's stored form is its order joined with commas ("2,0,1,3"
-// — D232), the one non-numeric value the votes map holds. Parsed back
+// — D233), the one non-numeric value the votes map holds. Parsed back
 // strictly: anything that is not a clean integer list reads as null, and
 // a null never reaches the mirror.
 function storedOrder(v: string | undefined): number[] | null {
@@ -1410,8 +1410,8 @@ function mirrorVoteValue(
 // options path — EXCEPT the forms that keep their bank type because
 // their answer space is not an option row: the continuum pair
 // (dial/field, D114, synthesized bucket/cell labels whose counts ARE
-// the crowd's distribution), catalogue picks (D14/D231, the board from
-// the published canon) and rankings (D232, the crowd order derived
+// the crowd's distribution), catalogue picks (D14/D232, the board from
+// the published canon) and rankings (D233, the crowd order derived
 // from the published position sums).
 function buildFeedGlobals(): void {
   if (!state.feedBank.length) return;
@@ -1445,7 +1445,7 @@ function buildFeedGlobals(): void {
           noCountsYet: !hasPublishedCounts(state.aggs[q.id]),
         };
       }
-      // Rank cards (D12 → D232) keep their own shape too: `items` are the
+      // Rank cards (D12 → D233) keep their own shape too: `items` are the
       // seeded options, `crowd` is DERIVED from the published position
       // sums — 1-based rank per item, the demo's exact contract — with
       // the viewer's own folded order subtracted first (rankCrowdFor),
@@ -4022,7 +4022,7 @@ const LIVE = {
     })();
   },
   /**
-   * A ranking (D232): `order` is the item indexes in the answerer's
+   * A ranking (D233): `order` is the item indexes in the answerer's
    * sequence — an ORDER, never an index — and the doc carries it in
    * optionIdx's place, which routes it down the trigger's position-sum
    * fold. vote()'s shape otherwise: create-only (no edit path exists,
@@ -4097,7 +4097,7 @@ const LIVE = {
     const prev = state.votes[qid];
     if (!prev || prev === optionId) return false;
     if (qid in state.inflight) return false;
-    // Catalog picks and rank answers are create-only (D14/D232): the
+    // Catalog picks and rank answers are create-only (D14/D233): the
     // rules' edit arm keys on the OLD doc carrying optionIdx, which an
     // entity or order answer never does, so the write below is doomed for
     // both. Neither card offers an edit affordance — this mirror spares

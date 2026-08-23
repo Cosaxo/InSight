@@ -420,7 +420,7 @@ service cloud.firestore {
             && request.resource.data.qid == aid
             && request.resource.data.optionIdx
               < get(/databases/$(database)/documents/v2_questions/$(aid)).data.options.size()
-            // A rank question takes an ORDER, never an index (D12/D232).
+            // A rank question takes an ORDER, never an index (D12/D233).
             // Without this clause a raw-API optionIdx write would pass —
             // rank docs carry real options, so the size bound holds — and
             // the vote fold would then clobber the rank aggregate's
@@ -457,7 +457,7 @@ service cloud.firestore {
         // (CATALOG_DOMAINS, functions/src/v2.ts) and an unknown key
         // never aggregates; a thousand-entry `in` list is not a rules
         // construct.
-        // Rank answers (D12 → D232): a ranking is an ORDER, not an index —
+        // Rank answers (D12 → D233): a ranking is an ORDER, not an index —
         // `order` is the item indexes in the answerer's sequence, and
         // there is no optionIdx at all (a synthetic one would let the
         // answer leak into option-shaped folds, which is D12's poisoning
@@ -492,7 +492,7 @@ service cloud.firestore {
           return request.resource.data.keys().hasOnly([
               "qid", "surface", "entity", "answeredAt", "anchors",
             ])
-            // Feed-only since D233's review pass (it read `in ["daily",
+            // Feed-only since D234's review pass (it read `in ["daily",
             // "feed", "test"]` from birth): catalog questions exist on no
             // other surface — the seed emits feed and check:content
             // refuses the rest — so the wider list only ever admitted
@@ -703,7 +703,7 @@ service cloud.firestore {
             // field out. They feed aggregates, so they carry the D29
             // binding the duel branch is exempt from.
             || (isCatalogAnswer() && deviceBound())
-            // Rank answers carry `order` (D232) — same arrangement: their
+            // Rank answers carry `order` (D233) — same arrangement: their
             // own branch beside the optionIdx block, the same binding.
             || (isRankAnswer() && deviceBound())
           );
@@ -720,7 +720,7 @@ service cloud.firestore {
         //     the `resource.data.optionIdx is int` guard (the OLD doc must
         //     already have one) keeps them out until a delta path for the
         //     canon exists;
-        //   - rank answers (D232): they carry `order`, not `optionIdx`,
+        //   - rank answers (D233): they carry `order`, not `optionIdx`,
         //     so the same OLD-doc guard keeps them create-only — moving a
         //     ranking would need a -old/+new delta through the position
         //     sums, a path nobody has wanted yet;

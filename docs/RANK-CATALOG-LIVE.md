@@ -1,14 +1,14 @@
 # Rank and catalog go-live — the two feed forms the live bank withholds
 
 **Status: BOTH HALVES BUILT.** §2 (catalog) shipped 2026-08-23 as
-[D231](DECISIONS.md#d231--catalog-questions-go-live-seventeen-picks-promoted-through-one-pen);
+[D232](DECISIONS.md#d231--catalog-questions-go-live-seventeen-picks-promoted-through-one-pen);
 §3 (rank) shipped the same day as
-[D232](DECISIONS.md#d232--rank-questions-live-an-answer-carries-an-order-and-the-exclusion-retires),
+[D233](DECISIONS.md#d232--rank-questions-live-an-answer-carries-an-order-and-the-exclusion-retires),
 which also closes D12. The records carry the as-built deviations —
-D231 reversed one planned item (`feed-budget.mjs`, whose regulator
-reads only the subject taxonomy — a call D232 then reversed BACK when
+D232 reversed one planned item (`feed-budget.mjs`, whose regulator
+reads only the subject taxonomy — a call D233 then reversed BACK when
 rank joined the servable set, since rank questions live in that
-taxonomy and pick cards do not) and D232 refined the answer shape (no
+taxonomy and pick cards do not) and D233 refined the answer shape (no
 optionIdx at all) and closed a rules hole the plan had not seen
 (optionIdx on a rank doc). What remains open is inventory, not
 machinery: the pokemon tranche cleared and promoted 2026-08-23 (the
@@ -78,8 +78,8 @@ disclosure ones: the crowd order is the product, `n!` cells are not.
 
 ## 2 · Part one — catalog questions live
 
-**Built 2026-08-23 (D231).** The section below is the plan as written;
-D231 records the as-built deviations — item 3's `feed-budget` change
+**Built 2026-08-23 (D232).** The section below is the plan as written;
+D232 records the as-built deviations — item 3's `feed-budget` change
 was reversed as a no-op (the regulator reads only the subject
 taxonomy), and the reveal needed two live COPY divergences the plan did
 not price (the demo's floor sentences, false on an exact board). The
@@ -145,8 +145,8 @@ client last, so no build ever offers a card the bank cannot serve.
 
 ## 3 · Part two — rank questions live
 
-**Built 2026-08-23 (D232).** The section below is the plan as written;
-D232 records the as-built refinements — the answer carries `order`
+**Built 2026-08-23 (D233).** The section below is the plan as written;
+D233 records the as-built refinements — the answer carries `order`
 with NO optionIdx (item 1's "alongside" was the sketch, not the ship),
 `isWorldAnswer` gained the rank refusal item 1 had not priced, and the
 derived crowd subtracts the viewer's own folded order so the first

@@ -288,7 +288,7 @@ export const RULE_READS = { world: 1, duel: 3, call: 2 };
 //
 // The world trigger's aggregate transaction does exactly two: tx.get on the
 // ledger event (dedup) and tx.get on the private aggregate. The catalog
-// branch (live since D231) and the rank branch (D232) each add a third —
+// branch (live since D232) and the rank branch (D233) each add a third —
 // the question doc, for the domain and the item count respectively — so a
 // pick or rank answer costs 3 where a vote costs 2. The model still
 // charges the vote path for every world answer, a DELIBERATE

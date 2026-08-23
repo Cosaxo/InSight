@@ -86,10 +86,10 @@ function storedForm(q: typeof victim, overrides: Record<string, unknown> = {}) {
     ...(typeof q.hue === "number" ? { hue: q.hue } : {}),
     ...(q.nodes ? { nodes: q.nodes } : {}),
     ...(q.endings ? { endings: q.endings } : {}),
-    // D233's repaired transports — mirrored here for storedForm's whole
+    // D234's repaired transports — mirrored here for storedForm's whole
     // reason to exist: this is exactly what the seed writes. The first
     // three were always in the payload and only joined the COMPARE at
-    // D233, which is when this mirror had to start carrying them too.
+    // D234, which is when this mirror had to start carrying them too.
     ...(typeof q.mode === "string" ? { mode: q.mode } : {}),
     ...(typeof q.branch === "string" ? { branch: q.branch } : {}),
     ...(typeof q.sub === "string" ? { sub: q.sub } : {}),
@@ -106,14 +106,14 @@ function storedForm(q: typeof victim, overrides: Record<string, unknown> = {}) {
   };
 }
 
-// D233: the payload transports every field SCHEMA-V2.md promises on the
+// D234: the payload transports every field SCHEMA-V2.md promises on the
 // doc, proven against the REAL bank rather than a fixture — for two
 // releases core/tag/rates/until/sponsor/also (and the call trio) were in
 // the schema, in the client's readers, and in no write. Each case skips
 // itself only if the bank stops carrying an example, so a future content
 // change cannot hollow it silently — the daily/feed rows below all exist
 // today.
-describe("the seed transports the doc shape the schema promises (D233)", () => {
+describe("the seed transports the doc shape the schema promises (D234)", () => {
   it("writes core, tag, rates, also and the call trio when the source carries them", async () => {
     const { db, written } = fakeDb({});
     await runSeedV2(db as never);
@@ -141,7 +141,7 @@ describe("the seed transports the doc shape the schema promises (D233)", () => {
     const stored = storedForm(q);
     delete (stored as Record<string, unknown>).core;
     // Without `core` in SEEDED_FIELDS this compared equal and production
-    // docs kept their pre-D233 shape forever — the repair write is the
+    // docs kept their pre-D234 shape forever — the repair write is the
     // point of the field being in the compare.
     expect(seedDocMatches(stored, storedForm(q))).toBe(false);
     expect(seedDocMatches(storedForm(q), storedForm(q))).toBe(true);
@@ -150,7 +150,7 @@ describe("the seed transports the doc shape the schema promises (D233)", () => {
   it("a stored field the source DROPPED is deleted, not orphaned — merge:true cannot remove it", async () => {
     // The other direction of the repair, and the one `{merge: true}` hides:
     // an emit-when-set field the source stopped carrying stays on the doc
-    // forever unless the payload says delete. The D232 rank flip is the
+    // forever unless the payload says delete. The D233 rank flip is the
     // live instance — those eight stored `core: true` before the flip.
     const q = V2_QUESTIONS.find((x) => x.type === "rank");
     expect(q, "the bank no longer carries a rank question — pick another core-less example").toBeDefined();

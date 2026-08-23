@@ -143,7 +143,7 @@ export interface CallOutcome {
 export interface AggDoc {
   counts?: Record<string, number>;
   total?: number;
-  // Rank questions' aggregate (D232): per-item POSITION SUMS — pos[i] is
+  // Rank questions' aggregate (D233): per-item POSITION SUMS — pos[i] is
   // the sum of the 0-based positions every answerer gave item i — from
   // which the crowd order derives (rankCrowdFor below). Present only on
   // rank questions' aggregates, which carry no counts and no by.
@@ -308,7 +308,7 @@ export function hasPublishedCounts(agg: AggDoc | undefined): boolean {
 export const CANON_BOARD_N = 10;
 
 /**
- * The crowd's 1-based rank per item for a rank question (D232), derived
+ * The crowd's 1-based rank per item for a rank question (D233), derived
  * from the published position sums — EXCLUDING the viewer's own folded
  * order, the same subtract-own convention countsFor keeps. The demo's
  * crowd is authored strangers; live, a "crowd" that is mostly you would
@@ -476,7 +476,7 @@ export function splitBanks(active: Array<QuestionDoc & { id: string }>): {
     // surface would be a hand-edited console doc this fence exists to
     // drop.
     //
-    // Rank rides the plain lane since D232 — D12's exclusion lived here
+    // Rank rides the plain lane since D233 — D12's exclusion lived here
     // for as long as an answer could not carry an order (served as vote
     // cards, rank docs folded single picks into aggregates that claimed
     // to be rankings). An answer carries one now (`order`, rules + fold +

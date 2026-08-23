@@ -425,7 +425,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expectNoBoundary("live feed, pick card answered");
   });
 
-  // Rank on a LIVE feed (D232): the whole loop through the real card —
+  // Rank on a LIVE feed (D233): the whole loop through the real card —
   // tap the four items into an order, watch the completed ranking reach
   // the store, and read the reveal against the DERIVED crowd. The demo's
   // arrow into renderRankStats (a fabricated friends cohort) must be gone.

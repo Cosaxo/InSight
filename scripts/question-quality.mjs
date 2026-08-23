@@ -620,7 +620,7 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     if (!FEED_TYPES.has(q.type)) {
       err("type-shape", `unknown feed type ${JSON.stringify(q.type)} — vote|rank|duel|dial|field|path`);
     }
-    // rank is live-servable since D232 (answers carry an order); whether
+    // rank is live-servable since D233 (answers carry an order); whether
     // the FARM may author one is the lane contract's question
     // (QUESTION-FARM.md), not a per-question warning's.
     // `cat` is REQUIRED, not merely validated-if-present. Every feed question
@@ -1432,7 +1432,7 @@ if (invokedDirectly) {
   corpus.feed.questions.forEach((q) => {
     const { errs } = checkQuestion(q, "feed", corpus);
     // warns stay out of the feed walk's gate output (the old rank
-    // exclusion warning printed 8 times per run until D232 retired it;
+    // exclusion warning printed 8 times per run until D233 retired it;
     // the suppression outlived it in case a future type earns one).
     report("feed", q.id, errs, []);
   });

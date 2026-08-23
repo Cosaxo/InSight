@@ -1,6 +1,6 @@
 # Catalog questions — "favourite X" with a thousand options
 
-**Status: LIVE (D231, 2026-08-23).**
+**Status: LIVE (D232, 2026-08-23).**
 Twenty-three pick cards serve from the live bank —
 `content/pick-questions.json`, promoted from the archive through
 `npm run promote` — across pokemon, emoji, elements, countries and

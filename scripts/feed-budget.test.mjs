@@ -109,7 +109,7 @@ describe("loadFeedTopics", () => {
   it("counts only servable forms, once per carried topic", () => {
     // duel-type feed cards are prototype legacy; a topic must not read as
     // covered on questions nobody can meet. rank joined the servable set
-    // at D232 — an answer carries an order now — so its exclusion pin
+    // at D233 — an answer carries an order now — so its exclusion pin
     // flipped to an inclusion pin the same day.
     expect(SERVABLE_TYPES.has("rank")).toBe(true);
     expect(SERVABLE_TYPES.has("duel")).toBe(false);

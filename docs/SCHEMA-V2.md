@@ -103,7 +103,7 @@ v2_users/{uid}/answers/{qid}
     trigger validates against the question's own domain (a range for
     pokemon, generated QID key sets for films/artists) and an unknown
     key never aggregates.
-    Rank questions (bank type "rank" — D232) store `order` in place of
+    Rank questions (bank type "rank" — D233) store `order` in place of
     optionIdx: the item indexes in the answerer's sequence. Rules bound
     the list's SIZE to the question's own item count and refuse a plain
     optionIdx on a rank question (the D12 side door); the trigger
@@ -116,7 +116,7 @@ request.time), on surfaces daily|feed|test only, bounded by the
 question's options, once per 60 s per answer. Everything else is frozen:
 anchors and answeredAt (the cohort stamp, D8), learn (D32's
 first-attempt measurement), duels (the seal), catalog answers (no canon
-delta path), rank answers (no order delta path — D232). The aggregate stays a plain fold because onV2AnswerUpdated
+delta path), rank answers (no order delta path — D233). The aggregate stays a plain fold because onV2AnswerUpdated
 applies the matching -old/+new delta with the total unchanged — the
 reconciliation D5 avoided now exists, in one trigger, ledger-deduped.
 Since D226 the same trigger also counts the move itself into the
@@ -139,7 +139,7 @@ v2_aggs_private/{qid}              the trigger's working state (no readers)
            { entity: n } } }       slices (D17), the vote fold transposed
                                    with its own per-cell entity cap (32)
                                    on top of the bucket cap
-  pos [ int ], total               rank questions (D232): per-item
+  pos [ int ], total               rank questions (D233): per-item
                                    position sums in place of counts —
                                    pos[i] is the summed 0-based position
                                    of item i, fixed-length at the item
@@ -182,7 +182,7 @@ v2_question_aggs/{qid}             the PUBLIC mirror, EXACT (D98)
                                    An absent cell is ZERO, not withheld.
                                    Includes the political items, whose
                                    D44 carve-out D98 reversed (D8)
-  { total, pos }                   rank questions (D232): the position
+  { total, pos }                   rank questions (D233): the position
                                    sums published whole — the client
                                    derives the crowd order by ascending
                                    mean position (deck.ts rankCrowdFor),

@@ -1084,7 +1084,7 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     await assertFails(setDoc(ref(CQ), { qid: CQ, surface: "feed", optionIdx: 0,
       answeredAt: serverTimestamp(), anchors: {} }));                 // optionIdx on a catalog question
     await assertFails(setDoc(ref(CQ), cat({ surface: "group" })));    // not a world surface
-    // Feed-only since D233's review pass: the clause read `in ["daily",
+    // Feed-only since D234's review pass: the clause read `in ["daily",
     // "feed", "test"]` from birth, and "test" here passed BOTH halves of
     // it against this feed question. Now the claimed surface must be
     // exactly the one catalog questions exist on.
@@ -2317,7 +2317,7 @@ describe("circle invitations (D122)", () => {
   });
 });
 
-describe("rank answers (D232): an order, never an index", () => {
+describe("rank answers (D233): an order, never an index", () => {
   const RANK = "feed-f03";
   const seedRank = () => seed(async (db) => {
     await setDoc(doc(db, "v2_questions", RANK), {
@@ -2347,7 +2347,7 @@ describe("rank answers (D232): an order, never an index", () => {
     await assertFails(setDoc(mine(), rankAnswer({ order: 3 }))); // not a list
     await assertFails(setDoc(mine(), rankAnswer({ order: [2, 0, 1, 3], optionIdx: 1 }))); // both fields
     // THE hole this branch closes alongside itself: a rank doc carries
-    // real options, so before D232 a plain optionIdx write passed
+    // real options, so before D233 a plain optionIdx write passed
     // isWorldAnswer's size bound and its fold clobbered the rank
     // aggregate — D12's wrong-shaped poisoning through the raw API.
     await assertFails(setDoc(mine(), {

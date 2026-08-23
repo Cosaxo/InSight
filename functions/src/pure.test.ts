@@ -1794,7 +1794,7 @@ describe("roomQids", () => {
   });
 });
 
-describe("validRankOrder / foldRankOrder — the order fold's trust boundary (D232)", () => {
+describe("validRankOrder / foldRankOrder — the order fold's trust boundary (D233)", () => {
   it("admits exactly the permutations of 0..n-1", () => {
     expect(validRankOrder([2, 0, 1, 3], 4)).toEqual([2, 0, 1, 3]);
     expect(validRankOrder([1, 0], 2)).toEqual([1, 0]);

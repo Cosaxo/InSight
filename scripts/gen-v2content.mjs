@@ -139,7 +139,7 @@ export const CATALOG_FILES = {
   films: "films.txt", artists: "artists.txt",
 };
 
-// Catalogue picks run their own seq lane from here (D231, amended at
+// Catalogue picks run their own seq lane from here (D232, amended at
 // review): `feed.questions.length + i` — the first cut — renumbered every
 // shipped pick doc on any feed append, mismatching the whole pick bank at
 // the next reseed for nothing. A fixed base keeps a pick's seq as stable

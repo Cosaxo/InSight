@@ -308,7 +308,7 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       // twice over: the site count moves, the billed cost does not, and
       // RULE_READS.duel stays 3.
       //
-      // 25 → 30 gets at D232: isWorldAnswer gained the type != "rank"
+      // 25 → 30 gets at D233: isWorldAnswer gained the type != "rank"
       // clause (one site, the same /v2_questions doc its two existing
       // get()s read — deduped, cost unchanged), and isRankAnswer arrived
       // with four sites on that same one document, so a rank answer's
@@ -324,7 +324,7 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       (body.match(/tx\.get\(/g) || []).length,
       "onV2AnswerCreated changed how many documents it reads. TRIGGER_READS "
       + "in scripts/cost-arith.mjs charges the VOTE path (2: ledger event + "
-      + "private agg); the catalog (D231) and rank (D232) branches each read "
+      + "private agg); the catalog (D232) and rank (D233) branches each read "
       + "one more — the question doc — which the model deliberately absorbs "
       + "into the vote rate (see the constant's comment). Recount before "
       + "changing the constant.",

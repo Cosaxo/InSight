@@ -106,7 +106,7 @@ the live figures: `node scripts/farm-budget.mjs`,
   figure, not a measured one. [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md)
   Phase 3–4.
 - **The catalog lane's blocked half** (decided, D14/D15 — narrowed at
-  D231, again 2026-08-23): the pick surface is LIVE for every committed
+  D232, again 2026-08-23): the pick surface is LIVE for every committed
   domain (23 cards, `content/pick-questions.json` — the pokemon six
   joined when the owner cleared the nominative-use check). What
   remains: films/artists still need `scripts/build-catalog.mjs` run

@@ -209,7 +209,7 @@ describe("splitBanks (per-surface allowlists)", () => {
       qd("group-gp0", { surface: "group", type: "pick", topic: "pick", options: [] }),
       qd("duo-000", { surface: "duo" }),
       qd("learn-cell1", { surface: "learn", options: ["a", "b", "c", "d"] }),
-      // D12's exclusion, RETIRED at D232: an answer can carry an order now,
+      // D12's exclusion, RETIRED at D233: an answer can carry an order now,
       // so a rank doc rides the feed lane like any playable question. The
       // pin flipped with the pipeline — this line failing again would mean
       // the exclusion quietly returned.
@@ -247,7 +247,7 @@ describe("splitBanks (per-surface allowlists)", () => {
   });
 });
 
-describe("rankCrowdFor (D232): the crowd order, minus you", () => {
+describe("rankCrowdFor (D233): the crowd order, minus you", () => {
   it("ranks items by ascending position sum, ties broken by index", () => {
     // Three strangers folded to sums [4, 5, 3, 6]: item 2 leads, then 0,
     // 1, 3 — so the per-item 1-based ranks come back as [2, 3, 1, 4].

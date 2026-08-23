@@ -397,7 +397,7 @@ export async function runSeedV2(
       ...(typeof q.hue === "number" ? { hue: q.hue } : {}),
       ...(q.nodes ? { nodes: q.nodes } : {}),
       ...(q.endings ? { endings: q.endings } : {}),
-      // The fields the whitelist silently dropped (D233). Its own comment
+      // The fields the whitelist silently dropped (D234). Its own comment
       // above warned that "a field the seed does not name never reaches
       // Firestore" — and for two releases that was the fate of everything
       // below: SCHEMA-V2.md promised each on the doc, the CLIENT reads
@@ -438,8 +438,8 @@ export async function runSeedV2(
       continue;
     }
     // A retired emit-when-set field must be DELETED, not merely omitted
-    // (D233's amendment): `merge: true` cannot remove a field, so a doc
-    // whose source dropped `core` (the D232 rank flip is exactly this)
+    // (D234's amendment): `merge: true` cannot remove a field, so a doc
+    // whose source dropped `core` (the D233 rank flip is exactly this)
     // would keep it forever while every reseed re-detected the mismatch
     // and churned updatedAt. Computed against the stored doc, on the
     // rewrite path only, so seedDocMatches above stays sentinel-free and
@@ -698,7 +698,7 @@ export const onV2AnswerCreated = onDocumentCreated(
       });
       return;
     }
-    // Rank answers carry `order`, never `optionIdx` (D232) — the item
+    // Rank answers carry `order`, never `optionIdx` (D233) — the item
     // indexes in the answerer's sequence, admitted by rules only on
     // type=="rank" questions. Same ledger, same private/public docs, same
     // cadence; what publishes is per-item POSITION SUMS plus the total —

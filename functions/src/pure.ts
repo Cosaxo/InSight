@@ -1044,7 +1044,7 @@ export function canonTopN(
   return { top, rest: total - shown };
 }
 
-// ─── rank answers: the order fold (D12 → D232) ──────────────────────────
+// ─── rank answers: the order fold (D12 → D233) ──────────────────────────
 //
 // A ranking is an order, not an index. The published aggregate is one
 // number per item — the SUM of the (0-based) positions every answerer
@@ -1475,7 +1475,7 @@ export const SEEDED_FIELDS = [
   // renaming one is refused rather than written, which is correct: every
   // stored walk is one of those names.)
   "title", "intro", "hue", "nodes", "endings",
-  // The rest of what the payload writes (D233). Three of these were
+  // The rest of what the payload writes (D234). Three of these were
   // always in the payload and never here (`mode`, `branch`, `sub`) — an
   // edit to a daily's subject path could not reach a stored doc, because
   // a field the compare ignores is a field the skip below freezes at

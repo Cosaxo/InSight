@@ -279,7 +279,7 @@ calibration (authored `p` vs measured correct rate) and trap share
 and `weakTraps` advisories — read them before a learn run, cite them
 in its PR body, and remember they are proposals: editing a shipped
 card is a human PR at D32's production-level bar. The catalog surface
-went live at D231 with its ids defined (`pick-<archive id>`,
+went live at D232 with its ids defined (`pick-<archive id>`,
 seventeen cards at go-live), so the old refusal to score it — "any
 qid scored today would be an invented key" — no longer holds;
 scoring it is now unblocked work, not a rule.
@@ -511,7 +511,7 @@ maintainer, and giving it a weekday is what finally made it happen).
 Same governance as the farm: this section is the contract, the PR is the
 human gate, and every outcome logs to issue #31.
 
-The archive is no longer the whole surface: since D231 a pick card can
+The archive is no longer the whole surface: since D232 a pick card can
 be PROMOTED into the live seed (`content/pick-questions.json`) with
 `npm run promote -- --source farm --review … pk<nn> …` — the same
 one-pen rule as the daily lane, byte-for-byte with a provenance row,

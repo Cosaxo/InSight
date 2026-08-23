@@ -119,7 +119,7 @@ if (qsnap.empty) fail("daily bank empty");
 const q0 = qsnap.docs[0];
 ok("daily bank: " + qsnap.size + " questions; first: \"" + q0.get("prompt").slice(0, 40) + "…\"");
 
-// 3b · the doc shape the schema promises actually lands (D233). For two
+// 3b · the doc shape the schema promises actually lands (D234). For two
 // releases core/tag/rates (and until/sponsor/also/the call trio) were in
 // SCHEMA-V2.md, in the client's readers — and in no write: the seed's
 // payload whitelist dropped them, every client read absent, and every
@@ -128,11 +128,11 @@ ok("daily bank: " + qsnap.size + " questions; first: \"" + q0.get("prompt").slic
 {
   const coreQ = await getDoc(doc(db, "v2_questions", "feed-f01"));
   if (coreQ.get("core") !== true)
-    fail("feed-f01 lost its core flag in the seed — the Mirror's corpus reads hydrated docs (D161/D233)");
+    fail("feed-f01 lost its core flag in the seed — the Mirror's corpus reads hydrated docs (D161/D234)");
   const ratesQ = qsnap.docs.find((d) => d.get("rates") !== undefined);
-  if (!ratesQ) fail("no seeded daily doc carries `rates` — the Scores stop reads hydrated docs (D187/D233)");
+  if (!ratesQ) fail("no seeded daily doc carries `rates` — the Scores stop reads hydrated docs (D187/D234)");
   const tagQ = qsnap.docs.find((d) => typeof d.get("tag") === "string");
-  if (!tagQ) fail("no seeded daily doc carries `tag` — the Scores card is a column of nouns (D187/D233)");
+  if (!tagQ) fail("no seeded daily doc carries `tag` — the Scores card is a column of nouns (D187/D234)");
   ok("seed transports the promised doc shape: core, rates, tag present on live docs");
 }
 
@@ -742,7 +742,7 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
   ok("Not listed: counted in the total, folded into rest, never enumerated");
 }
 
-// 9d · rank answers (D232): an ORDER rides the create-only path and the
+// 9d · rank answers (D233): an ORDER rides the create-only path and the
 // trigger folds per-item position sums — {total, pos} — instead of
 // counts. The refusals split across the two boundaries by design: rules
 // refuse the wrong SHAPES (an index on a rank question — the D12
@@ -789,7 +789,7 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
       qid: "feed-f10", surface: "feed", order: [0, 1],
       answeredAt: serverTimestamp(), anchors: {},
     }));
-  await expectDenied("a ranking cannot be edited (create-only, D232)", () =>
+  await expectDenied("a ranking cannot be edited (create-only, D233)", () =>
     updateDoc(doc(db, "v2_users", uid, "answers", RQ), {
       order: [0, 1, 2, 3], editedAt: serverTimestamp(),
     }));
