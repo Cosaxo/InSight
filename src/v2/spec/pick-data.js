@@ -512,6 +512,28 @@
       367: 2,  // Otterhound — below the floor
       0: 9,    // Not listed
     },
+    // first card of the colors domain, 2026-08-23 (keys are the colour's
+    // own hex plus one — data/catalogs.ts, build-colors.mjs). The board
+    // is every favourite-colour survey ever run: blue wins the world,
+    // green and purple argue over second, and black polls like a colour
+    // because to the people who pick it, it is one.
+    pk24: {
+      256: 33,      // blue — the standing world champion
+      32769: 24,    // green
+      8388737: 18,  // purple
+      16711681: 15, // red
+      1: 13,        // black — the +1 key doing its one job
+      32897: 11,    // teal
+      16761036: 9,  // pink
+      16753921: 8,  // orange
+      4251857: 7,   // turquoise
+      16776961: 6,  // yellow
+      14423101: 5,  // crimson — clears the floor but not the top 10; folds
+      16766721: 5,  // gold — same
+      12632257: 3,  // silver — below the floor
+      15132411: 2,  // lavender — below the floor
+      0: 9,         // Not listed — the "it depends on the day" vote
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -791,6 +813,17 @@
         Men: { 449: 9, 86: 7, 164: 6, 551: 5, 52: 5 },
       },
     },
+    pk24: {
+      ageBand: {
+        // black and purple poll young everywhere; blue holds every cohort
+        '18-24': { 1: 9, 8388737: 7, 256: 6, 32897: 5, 16761036: 4 },
+        '25-34': { 256: 8, 32769: 7, 8388737: 6, 1: 5, 16711681: 4 },
+      },
+      gender: {
+        Women: { 8388737: 8, 32897: 7, 256: 6, 16761036: 5, 32769: 4 },
+        Men: { 256: 9, 32769: 7, 1: 6, 16711681: 5, 16753921: 5 },
+      },
+    },
   };
 
   const api = {
@@ -944,5 +977,6 @@
     { id: 'pk21', cat: 'fav', type: 'pick', domain: 'dogs', prompt: 'The smartest dog?', n: 164 },
     { id: 'pk22', cat: 'fav', type: 'pick', domain: 'countries', prompt: 'The most beautiful country?', n: 165 },
     { id: 'pk23', cat: 'fav', type: 'pick', domain: 'dogs', prompt: 'The most fun breed to say out loud?', n: 157 },
+    { id: 'pk24', cat: 'fav', type: 'pick', domain: 'colors', prompt: 'Your favourite colour?', n: 168 },
   ];
 })();
