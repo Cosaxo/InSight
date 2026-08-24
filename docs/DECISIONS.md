@@ -28066,3 +28066,98 @@ buys is the right to answer the pace question on its merits, which was
 not true this morning. Ceilings 2 (the localStorage bank cache, ~5,300
 cards) and 3 (the whole-bank fetch) are unmoved and remain years out;
 `BANK-DELIVERY.md` §5 holds the order.
+
+## D281 · The seed's whitelist, held to the generator — after the third time
+
+**2026-08-24.** **Status:** binding. Found by asking "so what next?" one
+hour after D277 and D280 were pushed, and the answer was that **neither
+of them would have reached a device.**
+
+### The mechanism, for the third and fourth time
+
+`runSeedV2` assembles a question document from a **whitelist**
+(`functions/src/v2.ts`), not a spread — deliberately, because `/content`
+carries authoring fields that have no business on a phone. The cost of a
+whitelist is that it must be kept in step with the generator, and nothing
+was keeping it:
+
+| | fields | what it cost |
+| --- | --- | --- |
+| **D234** | `core`, `tag`, `rates`, `until`, `sponsor`, `also`, `tier`, `resolvesAt`, `rubric`, `mode`, `branch`, `sub` | twelve fields promised by the schema, read by the client, written by nothing — for two releases |
+| **D277** | `bg` | the feed's `i` would have kept opening an empty sheet |
+| **D280** | `c`, `t`, `p`, `k`, `w` | **worse than dark** — the client drops a learn card with no `c` rather than guess an answer key, and no card would ever have got one, so **Learn would have gone permanently empty on every live device** |
+
+Every one of those passed `tsc`, `check:content`, the unit suites and the
+mount tests. They had to: **every test seeds its own fixtures**, so the
+bank under test always carries the field and only production does not.
+
+D234's own comment says it, directly above the two places the next fields
+died: *"a field the seed does not name never reaches Firestore."* Written
+as a warning, read by nobody, twice. That is the whole argument for this
+gate rather than a fourth paragraph of prose.
+
+### What it compares
+
+Four copies of one list, and all four matter for different reasons:
+
+1. **The generator's emitted keys** — `buildEntries(loadContent())` run
+   for real over `/content`, the union across every entry. Not a parse: a
+   field only counts if the generator actually puts it on a document.
+2. **The payload whitelist** — without it the field never reaches
+   Firestore at all.
+3. **`SEEDED_FIELDS`** — without it the field is written at create and
+   **frozen forever**, because a field the compare ignores is a field an
+   edit can never move.
+4. **`storedForm` in `seed.test.ts`** — without it the no-op case reports
+   every doc carrying the field as a phantom rewrite.
+
+2 and 4 are read from source rather than imported: importing `v2.ts`
+pulls firebase-admin and the whole function surface into a Node script,
+and `storedForm` is not exported. The scan is deliberately dumb — the
+emit-when-set idiom is one line per field and has been for every field
+ever added, so a regex over it is reading the list, not guessing at it.
+
+Comments are stripped first in all three source scans, on the D137
+lesson: these blocks are more prose than code, and a field name written
+in a comment would satisfy the check without reaching the object.
+
+### The two things it must not report
+
+**A retired field.** A field in the payload the generator no longer
+emits is how retirement WORKS — the generator stops, the payload keeps
+transporting nothing, and `SEEDED_FIELDS` keeps comparing so
+`FieldValue.delete()` can remove it from standing docs (D234's
+amendment). Reported as a note. Two today: `ends` and `sponsor`.
+
+**A field with no reader.** `political` (D52's marker on politically
+charged questions) is emitted onto six feed entries, transported by
+nothing, and read by nothing — every `political` in `src/` names the
+political TEST instrument, not this flag. So it is content-layer metadata
+the farm and `check:quality` reason about, and transporting it would ship
+a field for nobody.
+
+`NOT_TRANSPORTED` carries it with that reason, the `NOT_SEEDED` shape,
+and the bar for adding a line is stated: **nothing on a device may read
+it.** A field with a client reader is dark rather than deliberate, and
+dark is what the gate is for. Stale entries fail in both directions — a
+listing the generator stopped emitting, and a listing that has since
+grown a transport.
+
+### Verified against the defect, not argued
+
+Strip D277's and D280's transports back out and the gate reports twelve
+findings across the payload and the compare, naming each field and what
+its absence costs. Restore them and it is silent. The same probe D276's
+rule 6 got, for the same reason: a gate whose firing has never been seen
+is a gate nobody knows the shape of.
+
+### What this does not fix
+
+The whitelist is still four copies of one list, and this gate makes them
+agree rather than making them one. Collapsing them — a single declared
+field table the payload, the compare and the mirror all derive from — is
+the real repair and is not attempted here: `v2.ts` and `pure.ts` are
+deploy-path code, `seed.test.ts` is a fixture, and the script that would
+own the table is not shipped to either. A gate that fails loudly is worth
+more today than a refactor of the seed path on the same afternoon as two
+other changes to it.

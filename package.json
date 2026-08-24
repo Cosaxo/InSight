@@ -45,6 +45,7 @@
     "build:doc-index": "node scripts/doc-index.mjs --write",
     "check:content": "node scripts/check-content.mjs",
     "check:learn-sample": "node scripts/gen-learn-sample.mjs",
+    "check:seed-fields": "node scripts/check-seed-fields.mjs",
     "build:learn-sample": "node scripts/gen-learn-sample.mjs --write",
     "check:neighbors": "node scripts/question-neighbors.mjs",
     "check:quality": "node scripts/question-quality.mjs",
