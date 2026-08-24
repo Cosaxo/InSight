@@ -83,6 +83,11 @@ export interface QuestionDoc {
   // itself in a band rather than drawing a ring, so it needs no start.
   from?: string;
   until?: string;
+  // What the card's `i` opens (D277): the facts a reader needs before the
+  // question is answerable, never the arguments. Optional on every
+  // surface and absent from most — a question that needs no context
+  // carries none, and the button says "About this question" instead.
+  bg?: string;
   // Core/tail (D161). Feed-only, and ABSENT MEANS TAIL — a question is in
   // the Mirror's corpus only if it says so. Every other surface is core by
   // construction and carries no key, which is why readers must go through

@@ -149,6 +149,9 @@ import type { Verdict as ForesightVerdict } from "./foresight";
 // The passive tests' round-robin (D155). Lives with the feed's other
 // interleave arithmetic so both are testable without Firebase.
 import { roundRobinBy } from "./feed-interleave";
+// The feed's test-card pool. A named publisher rather than a `window`
+// cast, because a cast is what let D249 sever this seam in silence.
+import { publishTestFeed } from "./testFeed";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
 // this module passes its store state in.
 import {
@@ -1531,6 +1534,10 @@ function buildFeedGlobals(): void {
         // band, and the same fact in two shapes on one card reads as two
         // facts.
         ...(!q.sponsor && q.from && q.until ? { from: q.from, until: q.until } : {}),
+        // The background the card's `i` opens (D277). Emit-when-set: the
+        // feed reads `q.bg` first and falls back to the demo pool's map,
+        // so a card without one keeps exactly the sheet it had.
+        ...(q.bg ? { bg: q.bg } : {}),
         // Doors (docs/TAGS-PLAN.md §2): the topics this card also belongs
         // to. The feed's filter, stock and search read cat ∪ also; nothing
         // that PLACES the card does. Emit-when-set, same rule as sponsor.
@@ -1551,6 +1558,13 @@ function buildFeedGlobals(): void {
         prompt: q.prompt,
         options: q.options.map((label, i) => ({ label, count: counts[i] })),
         live: true,
+        // Carried for the same reason every other mapping above carries it,
+        // and it was the one mapping that did not: below the floor there is
+        // no split to draw, and `renderVote` reads exactly this flag to
+        // decide between the tiles (whose height IS the share) and the bars
+        // that degrade honestly. Without it a test item nobody has answered
+        // drew a five-way stack of zeroes as though that were a measurement.
+        noCountsYet: !hasPublishedCounts(state.aggs[q.id]),
       };
     });
   // The feed pool, in bank order (D173 retired D128's stated weights).
@@ -1565,9 +1579,21 @@ function buildFeedGlobals(): void {
   // 25 Big Five, then 30 Politics, then 30 Values, then 25 Social — and a
   // real account filled one bar while three sat at zero. The demo pool
   // never had this: spec/test-feed-data.js interleaves as it builds.
-  (window as unknown as Record<string, unknown>).TEST_FEED_QS =
-    roundRobinBy(tests, (q) => String(q.test || ""));
-  (window as unknown as Record<string, unknown>).WORLD_FEED_COMMENTS = {};
+  //
+  // PUBLISHED BY NAME, not onto `window` (D276). This write was a cast the
+  // shared-global scanner cannot see, so when D249 converted the feed's
+  // reader to a static import of the DEMO pool the two ends stopped
+  // meeting and every gate stayed green — see data/testFeed.ts for what
+  // that shipped.
+  publishTestFeed(roundRobinBy(tests, (q) => String(q.test || "")));
+  // WORLD_FEED_COMMENTS was blanked here as D11's second layer — no take
+  // data behind the render gate, in case the gate ever opened. D249 took
+  // its last reader off the bridge too, so this write has had no effect
+  // since; a no-op that reads as a safeguard is worse than no safeguard,
+  // because it is the safeguard people stop checking. The layer that
+  // actually holds is `renderEngage`'s `if (q.live)` early return, and it
+  // holds for test cards now that they arrive carrying the flag —
+  // asserted in the DOM by smoke-live rather than argued for here.
   LIVE.feedReady = true;
 }
 

@@ -39,7 +39,7 @@
 // admitted grading path, the earliest UTC day it may be graded, and the
 // expression the resolver RUNS. The outcome is not here — it lives in
 // v2_call_outcomes, so a reseed and the resolver never fight.
-export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }
+export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }
 export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "daily-000",
@@ -5140,6 +5140,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "from": "2026-08-23",
   "until": "2026-08-28",
+  "bg": "The Strait of Hormuz is the 33-kilometre channel between Iran and Oman that every tanker leaving the Gulf has to pass through. Roughly a fifth of the world's oil moves across it. The water is Iran's and Oman's; ships cross under the transit-passage right in the Law of the Sea.",
   "political": true
  },
  {
@@ -5157,7 +5158,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "from": "2026-08-23",
-  "until": "2026-08-31"
+  "until": "2026-08-31",
+  "bg": "Crude is the raw barrel, not the pump price. In much of Europe more than half of what you pay at the forecourt is tax and duty, with refining and retail margin on top, so a move in the crude price arrives diluted and several weeks late."
  },
  {
   "id": "feed-n03",
@@ -5174,7 +5176,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "from": "2026-08-23",
-  "until": "2026-08-27"
+  "until": "2026-08-27",
+  "bg": "Evergrande was China's largest property developer by sales, financed by pre-selling flats that were not yet built. It defaulted on its offshore debt in 2021 owing more than $300bn, and a Hong Kong court ordered it liquidated in January 2024, leaving unfinished towers across the country."
  },
  {
   "id": "feed-n04",
@@ -5191,7 +5194,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "from": "2026-08-23",
-  "until": "2026-09-03"
+  "until": "2026-09-03",
+  "bg": "The Duke and Duchess of Sussex stepped back from working royal duties in January 2020 and moved to California. They kept their titles and gave up what came with the roles: the public engagements, the Sovereign Grant funding, and publicly funded security in the UK."
  },
  {
   "id": "feed-n05",
@@ -5208,7 +5212,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "from": "2026-08-23",
-  "until": "2026-08-29"
+  "until": "2026-08-29",
+  "bg": "An open problem is one nobody has solved. A proof counts only once others can check it — by refereeing, or by writing it in a proof assistant like Lean that verifies each step mechanically. Computers have settled proofs before: the four-colour theorem went that way in 1976."
  },
  {
   "id": "feed-n06",
@@ -5225,7 +5230,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "from": "2026-08-23",
-  "until": "2026-08-26"
+  "until": "2026-08-26",
+  "bg": "Italy's health ministry grades heat city by city on a three-level scale, and red is the top one: the heat is rated a risk to everyone, not only to the old and the ill. Attribution studies find warming has made heatwaves of a given severity both more frequent and more intense."
  },
  {
   "id": "feed-f88",

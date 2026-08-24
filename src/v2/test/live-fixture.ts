@@ -39,6 +39,7 @@
 // (`enabled: false`, no network), which is what the paragraph above rules out.
 
 import realLive from "../data/live";
+import { publishTestFeed, resetTestFeed } from "../data/testFeed";
 import { LIVE_MEMBERS, LIVE_NEAR_MEMBERS, LIVE_SOCIAL_MEMBERS } from "./live-surface";
 
 type Dict = Record<string, unknown>;
@@ -103,6 +104,27 @@ export interface LiveFixtureOptions {
    */
   rankCard?: boolean;
   /**
+   * Publish one live TEST item into the feed's test stream (D276), shaped
+   * as buildFeedGlobals emits it: a bank id, the instrument key the
+   * progress row folds on, and counts from the aggregate.
+   *
+   * Opt-in for pickCard's reason and one more. The pool this replaces is
+   * the DEMO one — a hundred-odd cards whose counts are a hash of the
+   * question id — and until D276 it reached a live feed whatever this
+   * fixture did, because the store published onto `window` and the feed
+   * had been converted to import the demo array. Off, the live feed
+   * carries no test cards at all, which is what every case in this suite
+   * has always claimed to be asserting against.
+   */
+  testCard?: boolean;
+  /**
+   * Give the LAST world card a background (D277) — the paragraph the
+   * card's `i` opens. Opt-in like the rest: most of the bank carries
+   * none, and a fixture that always did would have the "About this
+   * question" arm of that button untested everywhere.
+   */
+  background?: boolean;
+  /**
    * Give the LAST world card a current-events window (D231). Opt-in for
    * the same reason `sponsored` is — a window is a property of one topic,
    * and a fixture that always carried one would have every other live case
@@ -156,6 +178,22 @@ export const PICK_PROMPT = "Fixture pick card: your favourite fixture?";
 
 // The rank card's prompt (D233), same rule.
 export const RANK_PROMPT = "Fixture rank card: order the fixtures";
+
+// The live TEST item's prompt and options (D276), same rule again — and
+// here the uniqueness is load-bearing rather than convenient: the whole
+// point of the case is telling a bank item apart from a demo one, and the
+// demo pool's prompts are the real instruments' wording.
+export const TEST_ITEM_PROMPT = "Fixture test item: the bank's own, not the demo pool's.";
+export const TEST_ITEM_OPTIONS = [
+  "Strongly agree", "Agree", "Neutral", "Disagree", "Strongly disagree",
+];
+
+// The background paragraph (D277), unique for FEED_PROMPT's reason — and
+// long enough to be one: the gate's own floor is 90 characters, so a
+// three-word fixture string would pin a shape the bank cannot contain.
+export const BG_TEXT =
+  "Fixture background: the durable facts this question cannot be answered without, "
+  + "stated plainly and taking no side between the options on the card.";
 
 function liveQuestion(
   id: string,
@@ -635,8 +673,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   const saved: Dict = {
     LIVE: w.LIVE,
     WORLD_FEED_QS: w.WORLD_FEED_QS,
-    TEST_FEED_QS: w.TEST_FEED_QS,
     WORLD_FEED_COMMENTS: w.WORLD_FEED_COMMENTS,
+    // TEST_FEED_QS is NOT here any more: since D276 the test pool travels
+    // through data/testFeed.ts rather than the window, and `restore()`
+    // hands it back with resetTestFeed(). A saved window key would have
+    // restored a value nothing reads.
   };
 
   // defineProperty, not Object.assign: four real members (stats, appBuild,
@@ -715,6 +756,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       ...(opts.windowed && i === Math.max(1, opts.feedCards ?? 1) - 1
         ? { from: dayKey(0), until: dayKey(3) }
         : {}),
+      // D277: the background rides ON the card too — same rule again, the
+      // feed reads the field buildFeedGlobals emits.
+      ...(opts.background && i === Math.max(1, opts.feedCards ?? 1) - 1
+        ? { bg: BG_TEXT }
+        : {}),
     }),
   );
   // The live pick card, shaped exactly as buildFeedGlobals emits it: no
@@ -750,7 +796,31 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       noCountsYet: !!tooSmall,
     });
   }
-  w.TEST_FEED_QS = [];
+  // The live test pool, through the publisher the store itself uses
+  // (D276). This used to be `w.TEST_FEED_QS = []`, which asserted nothing
+  // once D249 pointed the feed at the demo import instead — the fixture
+  // said "no demo test cards here" and the mounted app served a hundred of
+  // them, with hash-invented counts, through every case in this suite.
+  // Empty by default so a live feed holds exactly the cards a case asked
+  // for; `testCard` adds one bank item, shaped as buildFeedGlobals emits
+  // it, for the cases that need a real one to bind on.
+  publishTestFeed(
+    opts.testCard
+      ? [{
+        id: "test-political-99",
+        cat: "test",
+        type: "vote",
+        test: "political",
+        prompt: TEST_ITEM_PROMPT,
+        options: TEST_ITEM_OPTIONS.map((label, j) => ({
+          label,
+          count: tooSmall ? 0 : [11, 7, 5, 3, 2][j],
+        })),
+        live: true,
+        noCountsYet: !!tooSmall,
+      }]
+      : [],
+  );
   w.WORLD_FEED_COMMENTS = {};
 
   return {
@@ -759,6 +829,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     votes,
     restore() {
       restoreLive();
+      resetTestFeed();
       for (const [k, v] of Object.entries(saved)) {
         if (k === "LIVE") continue;          // restoreLive owns that one
         if (v === undefined) delete w[k];

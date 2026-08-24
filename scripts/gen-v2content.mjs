@@ -319,6 +319,23 @@ export function buildEntries(content = loadContent()) {
       // provenance.json is a repo file that never reaches a device.
       ...(typeof q.from === "string" ? { from: q.from } : {}),
       ...(typeof q.until === "string" ? { until: q.until } : {}),
+      // Background — what the card's `i` opens (D277). Facts and
+      // definitions where a question cannot be answered honestly without
+      // them, never the arguments: those are the reveal's job, and a
+      // sentence that leans is the app taking a side on its own poll.
+      //
+      // The reader has existed since the port (`WF_BGTEXT`,
+      // world-feed.jsx), backed by `WORLD_BG` — a demo-pool map keyed by
+      // demo ids. So a live build's `i` opened onto the rows and nothing
+      // else, on every card in the bank. The `now` lane is what made that
+      // cost visible: a reader who does not know what Evergrande is
+      // cannot answer whether a life sentence is proportionate, and the
+      // one control that would have told them was the one drawn palest.
+      //
+      // Emit-when-set, like every other optional above, and any surface
+      // may carry one — the field is about whether the question needs
+      // context, which is not a property of the lane.
+      ...(typeof q.bg === "string" && q.bg ? { bg: q.bg } : {}),
       // Sponsored questions (D195, docs/MONETIZATION.md path 2). A paid
       // question is an ORDINARY question with three extra facts: who
       // bought it (`buyer`), and at most one coarse audience tag the
@@ -630,7 +647,7 @@ const HEADER =
   "// admitted grading path, the earliest UTC day it may be graded, and the\n" +
   "// expression the resolver RUNS. The outcome is not here — it lives in\n" +
   "// v2_call_outcomes, so a reseed and the resolver never fight.\n" +
-  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
+  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
   "export const V2_QUESTIONS: V2SeedQuestion[] = ";
 
 // Feed ads (D197, docs/MONETIZATION.md path 3). A SEPARATE array from the

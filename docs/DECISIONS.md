@@ -27447,3 +27447,240 @@ did not need it — TestFlight internal testing has no review gate — but
 that no longer exists. LAUNCH-RUNBOOK 4.4 is the step, its count is
 gated by `check:figures` as of D273, and its purposes are not, so the
 printout is the artefact.
+
+## D276 · The feed's test cards came back demo, and the seam was a cast
+
+**2026-08-24.** **Status:** binding. Owner-reported from a release device
+— "on the test there seems to be sample data shown for how many answered
+different options" — with a photograph of a card reading *Adults should
+be free to harm themselves if they choose*, split 19/31/21/18/11 under
+**12K votes**. Every one of those numbers was invented, and the app was
+in live mode when it drew them.
+
+### The mechanism
+
+`spec/test-feed-data.js` builds the DEMO pool of test items — each core
+instrument's own questions, woven into the World feed as marked cards —
+and synthesizes their option counts from a hash of the question id:
+
+```js
+const w = 1 / (1 + Math.abs(oi - peak)) + h(id + ':' + oi) * 0.45;
+return { label, count: Math.round(260 + w * 2600) };
+```
+
+Five options at that scale total somewhere near twelve thousand. That
+pool is correct for a demo build and forbidden in a live one, and the
+thing that kept it out was `buildFeedGlobals()` overwriting
+`window.TEST_FEED_QS` with the bank's items at hydrate.
+
+**D249 converted the reader and could not see the writer.** Taking
+`world-feed.jsx` off the shared-global bridge turned
+
+```
+- (window.TEST_FEED_QS || [])
++ (TEST_FEED_QS || [])          // a static import of the demo array
+```
+
+and its table recorded `TEST_FEED_QS` under **removed — no reader left**.
+That was true of the spec layer, which is what `spec-globals.mjs` scans.
+The remaining writer was `data/live.ts`, through
+`(window as unknown as Record<string, unknown>).TEST_FEED_QS = …` — a
+cast, in a file the scanner does not read, assigning to a name no
+scanner could connect to an ESM import anyway. An imported binding cannot
+be reassigned from outside its module, so the live pool stopped arriving
+and nothing anywhere went red.
+
+### Four things went wrong at once, and only one was visible
+
+The demo cards do not carry `live: true`, so every gate keyed on that
+flag stood down with them:
+
+- **The counts.** Hash noise, presented as a measurement (D1).
+- **The takes.** `renderEngage` returns the live world-takes surface
+  `if (q.live)`; a demo card falls past it to `WORLD_FEED_COMMENTS` —
+  *Omar K.*, *Bea L.*, *Nina R.*, with upvotes and timestamps. Invented
+  people saying invented things on a real device, which is the D66 class
+  and the one D11 was written to make impossible.
+- **The friend dots**, from `friendSides`, a hash over `WF_FRIENDS`.
+- **The answers.** A demo card's id is `tq-<key>-<n>`; the bank's is
+  `test-<key>-<n>`. The vote path only reaches `LIVE.vote` for a live
+  question, so **every test item answered from the feed since D249 was
+  written to localStorage and nowhere else** — no answer document, no
+  fold, no aggregate, no contribution to the Scores lens or the
+  similarity fields. The visible symptom was fabricated numbers; the
+  expensive one was silent data loss on the surface the Mirror is
+  computed from.
+
+### Why no test caught it, which is the part worth keeping
+
+`test/live-fixture.ts` set `w.TEST_FEED_QS = []` and had done for as
+long as the fixture existed. After D249 that line asserted nothing: the
+mounted app read the import, so every case in `smoke-live.test.jsx` ran
+against a live feed carrying a hundred demo test cards while the fixture
+said there were none. A fixture that stubs the wrong end of a converted
+seam does not fail — it goes quiet, which is worse, because the suite
+keeps reporting on a feed that is not the one being rendered.
+
+Measured, not assumed: at the fixture's default one world card the demo
+stream has no slot to weave into and the leak is zero, which is why a
+naive regression case passes on the broken tree. At `feedCards: 24` the
+pre-fix tree leaks six, and the first of them is the item in the owner's
+photograph.
+
+### The fix
+
+`data/testFeed.ts` — a named publisher in the layer that already owns the
+direction (`spec/` imports `data/`, never the reverse; `topicSheet.ts` is
+D190's instance of the same shape). `live.ts` calls `publishTestFeed()`;
+`world-feed.jsx` calls `testFeedPool(TEST_FEED_QS)`, demo array as the
+fallback argument rather than as a module-level default, because `data/`
+cannot import the spec layer and the fallback is the caller's business
+anyway. `livePool ?? demo` and not `|| demo`: a live bank with no test
+items must serve none, not fall through, and that is the state a fresh
+backend is actually in.
+
+The coupling meter does not move — 244 across 34 files, unchanged — which
+is the point. D249's conversion was right; what it lacked was somewhere
+for the live half to land.
+
+Two things went with it. The live test mapping now carries
+`noCountsYet`, the one field of the family it had never carried: below
+the floor there is no split, and without the flag an unanswered item drew
+five zeroes as a tile stack, which is a measurement claim. And the dead
+`window.WORLD_FEED_COMMENTS = {}` write is gone — D11's second layer,
+ineffective since D249 for the same reason and therefore a safeguard
+people would keep believing in. What holds is the first layer,
+`renderEngage`'s `if (q.live)`, which holds for test cards now that they
+arrive carrying the flag.
+
+### What is pinned
+
+`data/testFeed.test.ts` (the operator, including the empty-live-pool
+arm), one case in `vote.test.ts` asserting the store publishes through
+the named function rather than onto a window key, and three in
+`smoke-live.test.jsx`: no demo test prompt on a live feed at
+`feedCards: 24`, the bank's own item woven in with its published counts,
+and no split drawn on one nobody has answered. The smoke case binds on
+`TEST_FEED_QS` itself rather than a copied prompt, so it cannot drift
+from the pool it is about.
+
+**The general form, for the next conversion.** Rule 5 sweeps publications
+nothing reads *within the spec layer*. A `window` write from `data/`
+is invisible to it in both directions, so converting a spec-layer READER
+whose provider is `live.ts` severs the seam silently. Before taking a
+name off the bridge, grep `data/` for it — the scanner cannot.
+
+## D277 · The `i` had a background slot, and it was empty in every live build
+
+**2026-08-24.** **Status:** binding. The same device report as D276, one
+sentence over: *"some of recent events need a way to view background
+info, should be in the info button as that is under-utilised. Like I
+don't know the background for the Evergrande case."*
+
+### What was already built
+
+Every feed card's kicker carries an `i`, and it has since the port. It
+opens `renderContext`, whose first element is one optional paragraph:
+
+```js
+const WF_BGTEXT = (q) => (q && (q.bg || (WORLD_BG || {})[q.id])) || null;
+```
+
+The button even changes weight on it — a stronger ring and *What you need
+to know* when there is a background, a hairline and *About this question*
+when there is not. The sheet's own comment says what the paragraph is
+for: **facts and definitions only, never the arguments.**
+
+`WORLD_BG` is a map in `world-subtopics.js` keyed by DEMO question ids —
+`f06`, `t04`, `s10`. Live cards carry live ids, and no live card had a
+`bg` field to carry, because the field did not exist past the demo layer.
+So on every live build, on every card in the bank, the `i` opened onto
+three rows and nothing else. Under-utilised is exact: it was not
+under-used, it was unfed.
+
+### Why the `now` lane is where it started to cost something
+
+The rest of the bank asks questions a reader already holds the terms for.
+News does not: it assumes its own week. A reader who has never heard of
+Evergrande cannot say whether a life sentence is proportionate, and the
+app asked them to anyway — then published the split as if it meant
+something. The one control that would have answered them was the one
+drawn palest.
+
+### The field
+
+`bg`, because the reader already exists and naming it anything else would
+have meant writing a second one. Emit-when-set through
+`content/*.json` → `gen-v2content.mjs` → `V2SeedQuestion` → the bank →
+`live.ts`'s feed mapping → `q.bg`. No new sheet, no new panel, no new
+component; the client hop was written years of decisions ago.
+
+Not `now`-only. Whether a question needs context is a property of the
+question, not of the lane — `f06`'s note about e-sports at the Asian
+Games is the same field pointed at a different shelf.
+
+### The bounds, and which of them is load-bearing
+
+`check:content` holds the shape (non-blank, no stray whitespace).
+`check:quality` holds the editorial part: 90–320 characters, no question
+asked back, and a short refusal list for the unambiguous arguing register
+(*should*, *obviously*, *most economists agree*). The corpus is the
+measurement — `WORLD_BG`'s 24 entries run 152–236 characters over one to
+three sentences — and the shipped bank has to pass its own gate, which is
+its own case.
+
+**The FLOOR is the half nobody expects.** A ceiling stops a card growing
+an essay, and that failure announces itself. The other one does not: a
+background reading *Evergrande is a Chinese property developer* promotes
+the button, opens a sheet, spends the reader's tap and leaves them
+exactly as unable to answer as before. If a question is worth a
+background it is worth the facts that make it answerable.
+
+### Six written, and what was deliberately left out
+
+The shipped `now` six now carry one each. Every sentence is a durable
+fact — what the strait is and what share of the world's oil crosses it,
+what Evergrande was and what it owed, what an Italian red alert means,
+what a proof assistant does — and none of them retells the news event,
+which the prompt already carries.
+
+Where a 2026 fact could not be checked, it is absent rather than
+approximated. That is D127's rule arriving on a new surface: a background
+is the app speaking in its own voice about the world, which is the one
+register this repo has always governed hardest. `QUESTION-FARM.md`'s
+`now` bullet says so to whoever writes the next batch.
+
+### The answer space, while the same six were open
+
+The owner's other note on the same lane: *"recent events should often
+have more options, some of them I feel have too few."* All six were
+binary. Nothing made them so — `check:content` allows 2–10, the fold
+allows twenty, and the feed's own bank already ships four-option votes —
+so the cause was a habit with nothing written against it.
+
+A BATCH rule, not a per-question one, and the distinction is the whole
+design. Two options is right often enough that a floor would be wrong:
+*about right / too far* on a sentence is a genuine binary, and no gate
+can tell that from a three-way story squeezed into two. What a gate can
+see is a whole batch in which no story turned out to have a third side,
+which is a claim about the news that is almost never true. Same
+three-question threshold and same "most" arithmetic as the window rule
+beside it.
+
+An error rather than a note, because the cost is asymmetric: a window can
+be re-authored, but **a shipped card's options are frozen for the life of
+the bank** (answers key on `optionIdx` — D30's re-key rule). The six that
+are live stay two-sided; the repair is a successor card, and that is
+exactly why the rule had to become arithmetic rather than a paragraph.
+
+### One more thing this found
+
+`fresh()` in `live.ts` — the line that actually retires a `now` card
+after its `until` — had no test. Every other part of D231's lane was
+pinned: the bounds in `question-quality.test.mjs`, the ring's arithmetic
+in `askWindow.test.ts`, the day-key shape in `check:content`. The one
+line that keeps the lane's promise was covered by none of them, which is
+why "does the question stop being shown" was a fair question to ask of a
+mechanism that works. `bank-cache.test.ts` now pins both boundaries as
+inclusive, both directions of `from`, and that the expired doc stays in
+the cache — the archive is the product, and this is a serving rule.

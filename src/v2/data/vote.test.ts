@@ -960,6 +960,78 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect("also" in (feed.find((q) => q.id === "q_feed_plain") || {})).toBe(false);
   });
 
+  // ── background, the card's `i` (D277) ────────────────────────────
+  //
+  // Emit-when-set in both directions, and the absent half is the half
+  // that matters: `WF_BGTEXT` falls back to the demo pool's `WORLD_BG`
+  // map, so a `bg: undefined` written onto every card would be indexed
+  // as present-and-falsy by nothing and cost nothing — but a `bg: null`
+  // would, and the whole family of optional fields on this mapping is
+  // emit-when-set for that reason. Asserted with `in`, not truthiness.
+  it("carries a question's background onto the live feed card, and only when it has one", async () => {
+    h.bankDocs.push(
+      {
+        id: "q_feed_bg",
+        data: { surface: "feed", seq: 5, type: "vote", prompt: "A question needing context",
+          options: ["A", "B"], topic: "event", test: null, active: true,
+          bg: "The durable facts a reader needs before this is answerable." },
+      },
+      {
+        id: "q_feed_nobg",
+        data: { surface: "feed", seq: 6, type: "vote", prompt: "A question needing none",
+          options: ["A", "B"], topic: "culture", test: null, active: true },
+      },
+    );
+    await bootLive();
+    const feed = (window as unknown as {
+      WORLD_FEED_QS?: Array<{ id: string; bg?: string }>;
+    }).WORLD_FEED_QS || [];
+    expect(feed.find((q) => q.id === "q_feed_bg")?.bg)
+      .toBe("The durable facts a reader needs before this is answerable.");
+    expect("bg" in (feed.find((q) => q.id === "q_feed_nobg") || {})).toBe(false);
+  });
+
+  // ── the feed's TEST stream (D276) ────────────────────────────────
+  //
+  // The store-side half of the same defect the smoke suite pins in the
+  // DOM. `buildFeedGlobals` used to publish this pool onto `window`, and
+  // when the feed's reader converted to a static import of the demo array
+  // the write became one nothing read — no gate could see it, because the
+  // write was a `window as unknown as Record<string, unknown>` cast on one
+  // side and an ESM binding on the other. So the assertion here is on the
+  // NAMED publisher rather than on a window key: if the seam is severed
+  // again, this fails.
+  it("publishes the bank's test items through testFeed, not onto window", async () => {
+    const { resetTestFeed, testFeedPool } = await import("./testFeed");
+    resetTestFeed();
+    h.bankDocs.push(
+      {
+        id: "test-political-3",
+        data: { surface: "test", seq: 8, type: "vote", prompt: "A political item",
+          options: ["Agree", "Neutral", "Disagree"], topic: null, test: "political", active: true },
+      },
+      {
+        id: "test-big5-4",
+        data: { surface: "test", seq: 9, type: "vote", prompt: "A big five item",
+          options: ["Agree", "Neutral", "Disagree"], topic: null, test: "big5", active: true },
+      },
+    );
+    await bootLive();
+    // A sentinel demo pool, so "fell through to the caller's array" and
+    // "published nothing" cannot pass as each other.
+    const DEMO = [{ id: "tq-political-0", test: "political" }];
+    const pool = testFeedPool(DEMO);
+    expect(pool.map((q) => q.id).sort()).toEqual(["test-big5-4", "test-political-3"]);
+    // Round-robined across instruments (D155), not served in bank order.
+    expect(pool.map((q) => q.test)).toEqual(["political", "big5"]);
+    // And the field the mapping did not carry until D276: with no agg
+    // document there is no split, and the card must be told so rather
+    // than drawing five zeroes as a measurement.
+    expect((pool[0] as { noCountsYet?: boolean }).noCountsYet).toBe(true);
+    expect((pool[0] as { live?: boolean }).live).toBe(true);
+    resetTestFeed();
+  });
+
   // ── catalogue picks (D14 gone live) ──────────────────────────────
   const PICK_BANK = {
     id: "pick-pk04",

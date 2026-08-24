@@ -35,12 +35,15 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 // jsdom, and the v15 revision roughly doubled the spec layer's feed weight —
 // the slowest cases sat at ~4.8s before it and tip over under suite load.
 vi.setConfig({ testTimeout: 15000 });
-import { FEED_OPTIONS, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
+import { BG_TEXT, FEED_OPTIONS, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, TEST_ITEM_OPTIONS, TEST_ITEM_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
 import NAV from "../data/nav";
 import { PATTERNS_EARNED_KEY, PATTERNS_MIN_BASIS, PATTERNS_MIN_MINE, PATTERNS_MIN_POOL } from "../data/patternsReady";
 import { awaitText, growFeed, openHeaderOverlay, swipeDaily } from "./mount-app";
 import { list as anchorList } from "../spec/map-anchors.js";
 import { IS_TESTS, IS_TEST_RESULTS } from "../spec/test-definitions.js";
+// The demo test pool, imported so the D276 case can bind on the actual
+// cards that must not appear rather than on a copy of their wording.
+import { TEST_FEED_QS } from "../spec/test-feed-data.js";
 import { PASSIVE } from "../spec/passive-progress.js";
 import { IS_ARCHETYPES } from "../spec/archetype-data.js";
 import { resetNormCache } from "../data/testNorms";
@@ -622,6 +625,120 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     fireEvent.click(toggle);
     expect(screen.getByText(/posted under your name/i)).toBeTruthy();
     expect(screen.getByText(/No takes yet/i)).toBeTruthy();
+  });
+
+  // D277 — the `i` on every feed card, and the slot behind it that was
+  // empty in every live build.
+  //
+  // The button has always been there and has always opened a sheet; what
+  // it had to say on a live card was the three rows (Asked in, Answers, On
+  // your map), because the only source of a background paragraph was
+  // `WORLD_BG` — a map keyed by DEMO question ids. So the two arms are
+  // both worth pinning: with a background the button promotes itself and
+  // the sheet leads with the paragraph, and without one the sheet is
+  // exactly what it was, which is what stops this from becoming a field
+  // every card has to carry.
+  const openTheI = () => {
+    const btns = screen.queryAllByRole("button", { name: /What you need to know/i });
+    expect(btns.length, "no card offered the stronger `i` — the background never reached one").toBeGreaterThan(0);
+    fireEvent.click(btns[0]);
+  };
+
+  it("opens a live card's background from the i, under its own heading", async () => {
+    const expectNoBoundary = mountLive({ background: true });
+    await growFeed();
+    openTheI();
+    expect(
+      screen.getByText(BG_TEXT),
+      "the sheet opened without the paragraph it exists to carry",
+    ).toBeTruthy();
+    // The heading is the promise the stronger ring makes — "About this
+    // question" is the other arm, and a card with facts behind it must not
+    // wear the label of one without.
+    expect(screen.getAllByText(/What you need to know/i).length).toBeGreaterThan(0);
+    expectNoBoundary("live feed, background sheet");
+  });
+
+  it("leaves a card with no background exactly as it was", async () => {
+    const expectNoBoundary = mountLive();
+    await growFeed();
+    expect(
+      screen.queryByRole("button", { name: /What you need to know/i }),
+      "a card with no background wore the promoted `i`",
+    ).toBeNull();
+    const about = screen.queryAllByRole("button", { name: /About this question/i });
+    expect(about.length, "the ordinary `i` went missing").toBeGreaterThan(0);
+    fireEvent.click(about[0]);
+    // The rows the sheet has always carried, and no paragraph above them.
+    expect(screen.getByText(/^On your map$/)).toBeTruthy();
+    expect(screen.queryByText(BG_TEXT)).toBeNull();
+    expectNoBoundary("live feed, no background");
+  });
+
+  // D276 — the defect this whole suite was supposed to make impossible,
+  // and did not.
+  //
+  // The feed weaves each core test's own items in as marked cards. The
+  // DEMO pool of those (spec/test-feed-data.js) carries option counts
+  // synthesized from a hash of the question id, so a card totals somewhere
+  // near ten thousand votes nobody cast. `buildFeedGlobals` replaced that
+  // pool with the bank's items — until D249 converted the feed's read of
+  // `window.TEST_FEED_QS` to a static import of the demo array and the
+  // store's write became a cast nothing read. A live device then drew
+  // invented splits under "politics test", and reported them.
+  //
+  // BINDING ON THE DEMO POOL ITSELF rather than on a hardcoded prompt: the
+  // pool is derived from IS_TESTS at module load, so a prompt copied into
+  // this file would be a second transcription to keep in step. The
+  // assertion is the honest one either way — none of those cards may be on
+  // a live screen, whichever instrument they came from.
+  const demoTestPrompts = () => TEST_FEED_QS.map((q) => q.prompt);
+
+  // feedCards: 24 rather than the default 1, and that number is the case
+  // rather than a detail. The test stream fires on WORLD indices, so a
+  // one-card feed has no slot to weave into and the assertion passes
+  // against a feed that was never long enough to hold the defect. At 24 the
+  // pre-fix tree leaks six, the first of them the item the owner
+  // photographed ("Adults should be free to harm themselves if they
+  // choose."). Measured in both directions before this was written down.
+  it("serves no demo test card on a live feed, whatever the bank holds", async () => {
+    const expectNoBoundary = mountLive({ feedCards: 24 });
+    await growFeed();
+    const body = document.body.textContent || "";
+    const leaked = demoTestPrompts().filter((p) => p && body.includes(p));
+    expect(
+      leaked.slice(0, 3),
+      "the live feed drew demo test cards — their counts are a hash of the question id (D1)",
+    ).toEqual([]);
+    expectNoBoundary("live feed, no demo test cards");
+  });
+
+  it("weaves the bank's own test item in, with the counts the aggregate published", async () => {
+    const expectNoBoundary = mountLive({ testCard: true, feedCards: 24 });
+    await growFeed();
+    await awaitText(/Fixture test item/);
+    const card = screen.getByText(TEST_ITEM_PROMPT).closest("div");
+    expect(card, "the live test item never reached the feed").not.toBeNull();
+    // Its five options, and no others — the demo pool's items share this
+    // Likert set, so the prompt above is what tells them apart.
+    TEST_ITEM_OPTIONS.forEach((label) => {
+      expect(screen.getAllByText(label).length, `${label} missing from the live test card`).toBeGreaterThan(0);
+    });
+    expect(demoTestPrompts().filter((p) => p && (document.body.textContent || "").includes(p))).toEqual([]);
+    expectNoBoundary("live feed, bank test item");
+  });
+
+  // The other half, and the one a launch actually opens on: a bank test
+  // item nobody has answered. `noCountsYet` was the one field the test
+  // mapping did not carry, so the card took the tiles path — a five-way
+  // stack of zeroes, drawn as though the shares had been measured.
+  it("draws no split on a bank test item nobody has answered yet", async () => {
+    const expectNoBoundary = mountLive({ testCard: true, tooSmall: true, feedCards: 24 });
+    await growFeed();
+    await awaitText(/Fixture test item/);
+    const card = screen.getByText(TEST_ITEM_PROMPT).closest("article, section, div");
+    expect(within(card).queryByText(/\d+%/), "a zero-count test item published a share").toBeNull();
+    expectNoBoundary("live feed, unanswered bank test item");
   });
 
   // D99's lens row, mounted on the Mirror's geographic stops — and since

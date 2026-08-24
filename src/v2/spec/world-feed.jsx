@@ -13,6 +13,10 @@ import { FEEDREAD, feedInsight } from './feed-read.js';
 import { WF_REPORT } from './world-feed-report.js';
 import { WORLD_FEED_COMMENTS } from './world-feed-comments.js';
 import { TEST_FEED_QS } from './test-feed-data.js';
+// …and which pool this BUILD gets. The import above is the demo one; a
+// live build's bank items arrive through data/testFeed.ts, which is where
+// the story of why that is not a `window` read lives (D276).
+import { testFeedPool } from '../data/testFeed.ts';
 import { WORLD_CHANNELS } from './world-feed-data.js';
 import PLACES from '../data/places';
 import { FILMS, ARTISTS, EMOJI } from '../data/catalogs';
@@ -3813,7 +3817,10 @@ class WorldFeed extends React.Component {
     // test with no bank, no result page and no progress row to land on.
     // testFor() returns null for any key PASSIVE.META has dropped, so this
     // fences the next retirement too without naming it.
-    const testSplit = partitionAnswered((TEST_FEED_QS || []).filter((q) => PASSIVE.testFor(q)), sunk);
+    // testFeedPool(), not the imported demo array: a live build's items
+    // come from the bank with published counts, and reading the import
+    // directly is what served fabricated ones for a build (D276).
+    const testSplit = partitionAnswered(testFeedPool(TEST_FEED_QS || []).filter((q) => PASSIVE.testFor(q)), sunk);
     // Deferred items leave the stream until their wait is up (D121).
     //
     // Sampled ONCE per build, like `sunk` above and for the same reason: a

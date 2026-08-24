@@ -934,7 +934,8 @@ Rules, each load-bearing:
   on three answers is noise either way, so the bound stands on the
   statistics rather than on the publishing rule.) Raising it stays the
   D97 amendment for when the scorecard shows the crowd keeping up.
-- **Four authorable forms.** A plain `vote` (2–4 options), one of the two
+- **Four authorable forms.** A plain `vote` (2–5 options — see the option
+  count below), one of the two
   **continuum forms** (`dial` / `field`, live since D114), or a **`path`**
   — the Crossroads branching scenario D136 made live, carrying `title`,
   `intro` and `nodes` whose endings are the answer space (it has no
@@ -993,6 +994,38 @@ Rules, each load-bearing:
   a `from`/`until` window with its own bounds and its own batch rule
   (`check:quality`), and refuses prediction-shaped prompts — see D231
   before writing one under an explicit instruction that lifts this rule.
+
+  Two rules for the editorial run that writes it, both from the owner's
+  2026-08-24 read of the shipped six (D277):
+
+  **Give the story the options it actually has.** All six of the first
+  batch were binary, and nothing made them so — the feed's own bank
+  already ships three- and four-option votes, `check:content` allows
+  2–10 and the fold allows twenty. Two is right when the story is
+  genuinely two-sided ("about right / too far" on a sentence). It is
+  wrong when it is not: "has the pump changed how you get around" has at
+  least a *driving less*, a *not yet* and a *do not drive* — and a
+  reader who does not drive answering "no change yet" makes the split
+  say something untrue about the ones who do. Forcing a binary onto a
+  three-way story produces a split about the question rather than about
+  the readers, and unlike a bad window it cannot be repaired later: a
+  shipped card's options are frozen (answers key on `optionIdx`, the D30
+  re-key rule), so the fix for a card that needed a third option is a
+  successor card, never an edit.
+
+  **A `now` card almost always needs a `bg`** (D277 — the field, and the
+  `i` that has always opened it). News assumes its own week: a reader
+  who has never heard of Evergrande cannot judge whether a life sentence
+  is proportionate, and the app asked them to anyway. The background is
+  the *durable* facts — what the company was, what the strait is, what a
+  red alert means — never a retelling of the news event, which the
+  prompt already carries, and never the arguments, which are the
+  reveal's. `check:quality` holds the bounds (90–320 characters, no
+  question back, no arguing register); whether the sentences are the
+  ones a reader actually needs is the reviewing run's, and is the whole
+  of the job. Where a fact cannot be checked, leave it out — a
+  background is the app speaking in its own voice, which is the register
+  D127 governs.
 - **Every question carries a topic from the taxonomy** (`topics` in the
   same file), and since D145 `check:quality` refuses one without a `cat`
   rather than only validating the value when present — true in the data,
@@ -1824,7 +1857,8 @@ Start with npm run feed:budget -- --open <count of questions on the
 open feed PR's diff>. Zero means the run is a logged no-op. Otherwise
 write exactly the allocation it prints — thinnest topics first, breadth
 across the ten is this lane's job — in one of the four authorable
-forms: vote (2-4 options), dial, field, or path. Continuum cards
+forms: vote (2-5 options — give the story the options it has,
+not two by habit), dial, field, or path. Continuum cards
 (dial/field) are written TWICE, the content entry with NO crowd texture
 plus its demo-pool twin in src/v2/spec/world-feed-data.js with the
 authored texture; lean scarce on them, they are a change of key and not

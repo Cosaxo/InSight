@@ -131,6 +131,20 @@ for (const q of entries) {
   if (typeof q.from === "string" && typeof q.until === "string" && q.until < q.from) {
     errors.push(`${q.id}: the window closes (${q.until}) before it opens (${q.from})`);
   }
+  // Background (D277) — the card's `i`. Shape only; whether the sentences
+  // are neutral, and whether the question needed them at all, is
+  // check:quality's and the reviewing run's, and is deliberately not
+  // restated here. An empty or whitespace `bg` is the failure worth
+  // catching in this file: the client's `WF_BGTEXT` falls back on a falsy
+  // value, so it would silently draw the pale button and no one would
+  // learn the field had been authored blank.
+  if (q.bg !== undefined) {
+    if (typeof q.bg !== "string" || !q.bg.trim()) {
+      errors.push(`${q.id}: \`bg\` is the background the card's i opens — a blank one is the same as none, but looks authored`);
+    } else if (q.bg !== q.bg.trim()) {
+      errors.push(`${q.id}: \`bg\` carries leading or trailing whitespace — the sheet renders it verbatim`);
+    }
+  }
   // docs/SCALE-PLAN.md §1, the sponsored rule below pointed one field over.
   // A core question is what the Mirror folds its cohort readings over, and
   // that corpus has to be answerable by everyone: a windowed question can
