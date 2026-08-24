@@ -1065,6 +1065,141 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect("also" in (feed.find((q) => q.id === "q_feed_plain") || {})).toBe(false);
   });
 
+  // ── background, the card's `i` (D281) ────────────────────────────
+  //
+  // Emit-when-set in both directions, and the absent half is the half
+  // that matters: `WF_BGTEXT` falls back to the demo pool's `WORLD_BG`
+  // map, so a `bg: undefined` written onto every card would be indexed
+  // as present-and-falsy by nothing and cost nothing — but a `bg: null`
+  // would, and the whole family of optional fields on this mapping is
+  // emit-when-set for that reason. Asserted with `in`, not truthiness.
+  it("carries a question's background onto the live feed card, and only when it has one", async () => {
+    h.bankDocs.push(
+      {
+        id: "q_feed_bg",
+        data: { surface: "feed", seq: 5, type: "vote", prompt: "A question needing context",
+          options: ["A", "B"], topic: "event", test: null, active: true,
+          bg: "The durable facts a reader needs before this is answerable." },
+      },
+      {
+        id: "q_feed_nobg",
+        data: { surface: "feed", seq: 6, type: "vote", prompt: "A question needing none",
+          options: ["A", "B"], topic: "culture", test: null, active: true },
+      },
+    );
+    await bootLive();
+    const feed = (window as unknown as {
+      WORLD_FEED_QS?: Array<{ id: string; bg?: string }>;
+    }).WORLD_FEED_QS || [];
+    expect(feed.find((q) => q.id === "q_feed_bg")?.bg)
+      .toBe("The durable facts a reader needs before this is answerable.");
+    expect("bg" in (feed.find((q) => q.id === "q_feed_nobg") || {})).toBe(false);
+  });
+
+  // ── the Learn bank (D284) ────────────────────────────────────────
+  //
+  // The bundle stopped carrying the card bank, so this publication is the
+  // only thing that puts cards in front of a live reader. The translation
+  // is real work rather than a pass-through — the bank speaks
+  // `learn-cell1`/`prompt`/`options`/`topic` and the engine speaks
+  // `cell1`/`q`/`a`/`f` — so it is asserted field by field.
+  it("publishes the bank's learn cards in the engine's own vocabulary", async () => {
+    const { learnCards, resetLearnBank } = await import("./learnBank");
+    resetLearnBank();
+    h.bankDocs.push({
+      id: "learn-cell1",
+      data: {
+        surface: "learn", seq: 0, type: "choice", topic: "cell", test: null, active: true,
+        prompt: "What do ribosomes build?",
+        options: ["Proteins", "Lipids", "DNA", "Sugars"],
+        c: 0, t: 2, p: 61, k: "Ribosomes build proteins",
+        w: "DNA is copied in the nucleus, not built here.",
+      },
+    });
+    await bootLive();
+    // A sentinel sample, so "fell through to the caller's array" and
+    // "published nothing" cannot pass as each other.
+    const cards = learnCards([{ id: "sample1", f: "cell", q: "s", a: ["a"], c: 0, t: 0, p: 50, k: "s" }]);
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toEqual({
+      // The `learn-` prefix is the BANK's id, never the card's: every
+      // device holds mastery state keyed on the bare id (`insight.learn.v3`),
+      // so publishing the prefixed one would read as a fresh account.
+      id: "cell1",
+      f: "cell",
+      q: "What do ribosomes build?",
+      a: ["Proteins", "Lipids", "DNA", "Sugars"],
+      c: 0,
+      t: 2,
+      p: 61,
+      k: "Ribosomes build proteins",
+      w: "DNA is copied in the nucleus, not built here.",
+    });
+    resetLearnBank();
+  });
+
+  it("drops a card with no answer key rather than guessing one", async () => {
+    const { learnCards, resetLearnBank } = await import("./learnBank");
+    resetLearnBank();
+    // Exactly the shape of a document seeded BEFORE D284 — prompt,
+    // options, topic, and no c/t/p/k/w. Defaulting `c` to 0 would mark
+    // option one correct on every pre-D284 card in the bank and teach the
+    // wrong answer, silently, on the one surface whose whole promise is
+    // that there is a right one. An empty Learn until the next seed run is
+    // the honest failure.
+    h.bankDocs.push({
+      id: "learn-old1",
+      data: {
+        surface: "learn", seq: 0, type: "choice", topic: "cell", test: null, active: true,
+        prompt: "A card from before the change", options: ["A", "B", "C", "D"],
+      },
+    });
+    await bootLive();
+    expect(learnCards([{ id: "sample1", f: "cell", q: "s", a: ["a"], c: 0, t: 0, p: 50, k: "s" }])).toEqual([]);
+    resetLearnBank();
+  });
+
+  // ── the feed's TEST stream (D280) ────────────────────────────────
+  //
+  // The store-side half of the same defect the smoke suite pins in the
+  // DOM. `buildFeedGlobals` used to publish this pool onto `window`, and
+  // when the feed's reader converted to a static import of the demo array
+  // the write became one nothing read — no gate could see it, because the
+  // write was a `window as unknown as Record<string, unknown>` cast on one
+  // side and an ESM binding on the other. So the assertion here is on the
+  // NAMED publisher rather than on a window key: if the seam is severed
+  // again, this fails.
+  it("publishes the bank's test items through testFeed, not onto window", async () => {
+    const { resetTestFeed, testFeedPool } = await import("./testFeed");
+    resetTestFeed();
+    h.bankDocs.push(
+      {
+        id: "test-political-3",
+        data: { surface: "test", seq: 8, type: "vote", prompt: "A political item",
+          options: ["Agree", "Neutral", "Disagree"], topic: null, test: "political", active: true },
+      },
+      {
+        id: "test-big5-4",
+        data: { surface: "test", seq: 9, type: "vote", prompt: "A big five item",
+          options: ["Agree", "Neutral", "Disagree"], topic: null, test: "big5", active: true },
+      },
+    );
+    await bootLive();
+    // A sentinel demo pool, so "fell through to the caller's array" and
+    // "published nothing" cannot pass as each other.
+    const DEMO = [{ id: "tq-political-0", test: "political" }];
+    const pool = testFeedPool(DEMO);
+    expect(pool.map((q) => q.id).sort()).toEqual(["test-big5-4", "test-political-3"]);
+    // Round-robined across instruments (D155), not served in bank order.
+    expect(pool.map((q) => q.test)).toEqual(["political", "big5"]);
+    // And the field the mapping did not carry until D280: with no agg
+    // document there is no split, and the card must be told so rather
+    // than drawing five zeroes as a measurement.
+    expect((pool[0] as { noCountsYet?: boolean }).noCountsYet).toBe(true);
+    expect((pool[0] as { live?: boolean }).live).toBe(true);
+    resetTestFeed();
+  });
+
   // ── catalogue picks (D14 gone live) ──────────────────────────────
   const PICK_BANK = {
     id: "pick-pk04",

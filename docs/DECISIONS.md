@@ -28189,4 +28189,716 @@ Nor does the gate read whether the table's DESCRIPTIONS are true; that is
 the same limit `doc-index.mjs`'s header states about its own rules. What
 it buys is that the count cannot silently drift and a row cannot silently
 go missing, which is how a table dies.
+## D280 · The feed's test cards came back demo, and the seam was a cast
 
+**2026-08-24.** **Status:** binding. Owner-reported from a release device
+— "on the test there seems to be sample data shown for how many answered
+different options" — with a photograph of a card reading *Adults should
+be free to harm themselves if they choose*, split 19/31/21/18/11 under
+**12K votes**. Every one of those numbers was invented, and the app was
+in live mode when it drew them.
+
+### The mechanism
+
+`spec/test-feed-data.js` builds the DEMO pool of test items — each core
+instrument's own questions, woven into the World feed as marked cards —
+and synthesizes their option counts from a hash of the question id:
+
+```js
+const w = 1 / (1 + Math.abs(oi - peak)) + h(id + ':' + oi) * 0.45;
+return { label, count: Math.round(260 + w * 2600) };
+```
+
+Five options at that scale total somewhere near twelve thousand. That
+pool is correct for a demo build and forbidden in a live one, and the
+thing that kept it out was `buildFeedGlobals()` overwriting
+`window.TEST_FEED_QS` with the bank's items at hydrate.
+
+**D249 converted the reader and could not see the writer.** Taking
+`world-feed.jsx` off the shared-global bridge turned
+
+```
+- (window.TEST_FEED_QS || [])
++ (TEST_FEED_QS || [])          // a static import of the demo array
+```
+
+and its table recorded `TEST_FEED_QS` under **removed — no reader left**.
+That was true of the spec layer, which is what `spec-globals.mjs` scans.
+The remaining writer was `data/live.ts`, through
+`(window as unknown as Record<string, unknown>).TEST_FEED_QS = …` — a
+cast, in a file the scanner does not read, assigning to a name no
+scanner could connect to an ESM import anyway. An imported binding cannot
+be reassigned from outside its module, so the live pool stopped arriving
+and nothing anywhere went red.
+
+### Four things went wrong at once, and only one was visible
+
+The demo cards do not carry `live: true`, so every gate keyed on that
+flag stood down with them:
+
+- **The counts.** Hash noise, presented as a measurement (D1).
+- **The takes.** `renderEngage` returns the live world-takes surface
+  `if (q.live)`; a demo card falls past it to `WORLD_FEED_COMMENTS` —
+  *Omar K.*, *Bea L.*, *Nina R.*, with upvotes and timestamps. Invented
+  people saying invented things on a real device, which is the D66 class
+  and the one D11 was written to make impossible.
+- **The friend dots**, from `friendSides`, a hash over `WF_FRIENDS`.
+- **The answers.** A demo card's id is `tq-<key>-<n>`; the bank's is
+  `test-<key>-<n>`. The vote path only reaches `LIVE.vote` for a live
+  question, so **every test item answered from the feed since D249 was
+  written to localStorage and nowhere else** — no answer document, no
+  fold, no aggregate, no contribution to the Scores lens or the
+  similarity fields. The visible symptom was fabricated numbers; the
+  expensive one was silent data loss on the surface the Mirror is
+  computed from.
+
+### Why no test caught it, which is the part worth keeping
+
+`test/live-fixture.ts` set `w.TEST_FEED_QS = []` and had done for as
+long as the fixture existed. After D249 that line asserted nothing: the
+mounted app read the import, so every case in `smoke-live.test.jsx` ran
+against a live feed carrying a hundred demo test cards while the fixture
+said there were none. A fixture that stubs the wrong end of a converted
+seam does not fail — it goes quiet, which is worse, because the suite
+keeps reporting on a feed that is not the one being rendered.
+
+Measured, not assumed: at the fixture's default one world card the demo
+stream has no slot to weave into and the leak is zero, which is why a
+naive regression case passes on the broken tree. At `feedCards: 24` the
+pre-fix tree leaks six, and the first of them is the item in the owner's
+photograph.
+
+### The fix
+
+`data/testFeed.ts` — a named publisher in the layer that already owns the
+direction (`spec/` imports `data/`, never the reverse; `topicSheet.ts` is
+D190's instance of the same shape). `live.ts` calls `publishTestFeed()`;
+`world-feed.jsx` calls `testFeedPool(TEST_FEED_QS)`, demo array as the
+fallback argument rather than as a module-level default, because `data/`
+cannot import the spec layer and the fallback is the caller's business
+anyway. `livePool ?? demo` and not `|| demo`: a live bank with no test
+items must serve none, not fall through, and that is the state a fresh
+backend is actually in.
+
+The coupling meter does not move — 244 across 34 files, unchanged — which
+is the point. D249's conversion was right; what it lacked was somewhere
+for the live half to land.
+
+Two things went with it. The live test mapping now carries
+`noCountsYet`, the one field of the family it had never carried: below
+the floor there is no split, and without the flag an unanswered item drew
+five zeroes as a tile stack, which is a measurement claim. And the dead
+`window.WORLD_FEED_COMMENTS = {}` write is gone — D11's second layer,
+ineffective since D249 for the same reason and therefore a safeguard
+people would keep believing in. What holds is the first layer,
+`renderEngage`'s `if (q.live)`, which holds for test cards now that they
+arrive carrying the flag.
+
+### What is pinned
+
+`data/testFeed.test.ts` (the operator, including the empty-live-pool
+arm), one case in `vote.test.ts` asserting the store publishes through
+the named function rather than onto a window key, and three in
+`smoke-live.test.jsx`: no demo test prompt on a live feed at
+`feedCards: 24`, the bank's own item woven in with its published counts,
+and no split drawn on one nobody has answered. The smoke case binds on
+`TEST_FEED_QS` itself rather than a copied prompt, so it cannot drift
+from the pool it is about.
+
+### The gate that did not exist, and now does
+
+Writing "grep `data/` before converting" into a document would have been
+the wrong fix — the whole argument of D39's ratchet is that a migration
+with no meter does not run, it gets described. So the scanner learned
+two things instead.
+
+**`spec-globals.mjs` can see the cast.** `DEFINE_RES` matched
+`window.X = …` and not
+`(window as unknown as Record<string, unknown>).X = …`, which is the form
+the typed layer has to use. `data/` was being scanned all along; the
+publication was simply unreadable. One regex.
+
+**`check:globals` rule 6.** Rule 5 asks whether a published name appears
+anywhere outside its publisher, and is deliberately over-generous because
+the convention's third shape — a bare cross-module call — is a real
+consumer no scanner can see. That generosity is exactly the blind spot: a
+name published to `window` by one file and imported from another is
+mentioned all over the tree, and reaches nobody. Rule 6 asks the narrow
+version — published to global scope, **exported by a different file**,
+imported from that file somewhere, and read through `window.` by nobody
+outside the publisher — and all four clauses are load-bearing. The third
+is what separates the defect from the residue: nine modules in this tree
+export a name and publish their own copy of it, where the two are one
+binding and the line is only D137's leftovers. Folding those in would
+bury the finding under eight that do not matter.
+
+Measured against `10d2704`, the commit the owner photographed: rule 6
+reports `TEST_FEED_QS` and `WORLD_FEED_COMMENTS`, and nothing else. Both
+were severed by D249 on the same afternoon, and the second is why D11's
+"second layer" is described above as having already been gone.
+
+## D281 · The `i` had a background slot, and it was empty in every live build
+
+**2026-08-24.** **Status:** binding. The same device report as D276, one
+sentence over: *"some of recent events need a way to view background
+info, should be in the info button as that is under-utilised. Like I
+don't know the background for the Evergrande case."*
+
+### What was already built
+
+Every feed card's kicker carries an `i`, and it has since the port. It
+opens `renderContext`, whose first element is one optional paragraph:
+
+```js
+const WF_BGTEXT = (q) => (q && (q.bg || (WORLD_BG || {})[q.id])) || null;
+```
+
+The button even changes weight on it — a stronger ring and *What you need
+to know* when there is a background, a hairline and *About this question*
+when there is not. The sheet's own comment says what the paragraph is
+for: **facts and definitions only, never the arguments.**
+
+`WORLD_BG` is a map in `world-subtopics.js` keyed by DEMO question ids —
+`f06`, `t04`, `s10`. Live cards carry live ids, and no live card had a
+`bg` field to carry, because the field did not exist past the demo layer.
+So on every live build, on every card in the bank, the `i` opened onto
+three rows and nothing else. Under-utilised is exact: it was not
+under-used, it was unfed.
+
+### Why the `now` lane is where it started to cost something
+
+The rest of the bank asks questions a reader already holds the terms for.
+News does not: it assumes its own week. A reader who has never heard of
+Evergrande cannot say whether a life sentence is proportionate, and the
+app asked them to anyway — then published the split as if it meant
+something. The one control that would have answered them was the one
+drawn palest.
+
+### The field
+
+`bg`, because the reader already exists and naming it anything else would
+have meant writing a second one. Emit-when-set through
+`content/*.json` → `gen-v2content.mjs` → `V2SeedQuestion` → the bank →
+`live.ts`'s feed mapping → `q.bg`. No new sheet, no new panel, no new
+component; the client hop was written years of decisions ago.
+
+Not `now`-only. Whether a question needs context is a property of the
+question, not of the lane — `f06`'s note about e-sports at the Asian
+Games is the same field pointed at a different shelf.
+
+### The bounds, and which of them is load-bearing
+
+`check:content` holds the shape (non-blank, no stray whitespace).
+`check:quality` holds the editorial part: 90–320 characters, no question
+asked back, and a short refusal list for the unambiguous arguing register
+(*should*, *obviously*, *most economists agree*). The corpus is the
+measurement — `WORLD_BG`'s 24 entries run 152–236 characters over one to
+three sentences — and the shipped bank has to pass its own gate, which is
+its own case.
+
+**The FLOOR is the half nobody expects.** A ceiling stops a card growing
+an essay, and that failure announces itself. The other one does not: a
+background reading *Evergrande is a Chinese property developer* promotes
+the button, opens a sheet, spends the reader's tap and leaves them
+exactly as unable to answer as before. If a question is worth a
+background it is worth the facts that make it answerable.
+
+### Six written, and what was deliberately left out
+
+The shipped `now` six now carry one each. Every sentence is a durable
+fact — what the strait is and what share of the world's oil crosses it,
+what Evergrande was and what it owed, what an Italian red alert means,
+what a proof assistant does — and none of them retells the news event,
+which the prompt already carries.
+
+Where a 2026 fact could not be checked, it is absent rather than
+approximated. That is D127's rule arriving on a new surface: a background
+is the app speaking in its own voice about the world, which is the one
+register this repo has always governed hardest. `QUESTION-FARM.md`'s
+`now` bullet says so to whoever writes the next batch.
+
+### The answer space, while the same six were open
+
+The owner's other note on the same lane: *"recent events should often
+have more options, some of them I feel have too few."* All six were
+binary. Nothing made them so — `check:content` allows 2–10, the fold
+allows twenty, and the feed's own bank already ships four-option votes —
+so the cause was a habit with nothing written against it.
+
+A BATCH rule, not a per-question one, and the distinction is the whole
+design. Two options is right often enough that a floor would be wrong:
+*about right / too far* on a sentence is a genuine binary, and no gate
+can tell that from a three-way story squeezed into two. What a gate can
+see is a whole batch in which no story turned out to have a third side,
+which is a claim about the news that is almost never true. Same
+three-question threshold and same "most" arithmetic as the window rule
+beside it.
+
+An error rather than a note, because the cost is asymmetric: a window can
+be re-authored, but **a shipped card's options are frozen for the life of
+the bank** (answers key on `optionIdx` — D30's re-key rule). The six that
+are live stay two-sided; the repair is a successor card, and that is
+exactly why the rule had to become arithmetic rather than a paragraph.
+
+### One more thing this found
+
+`fresh()` in `live.ts` — the line that actually retires a `now` card
+after its `until` — had no test. Every other part of D231's lane was
+pinned: the bounds in `question-quality.test.mjs`, the ring's arithmetic
+in `askWindow.test.ts`, the day-key shape in `check:content`. The one
+line that keeps the lane's promise was covered by none of them, which is
+why "does the question stop being shown" was a fair question to ask of a
+mechanism that works. `bank-cache.test.ts` now pins both boundaries as
+inclusive, both directions of `from`, and that the expired doc stays in
+the cache — the archive is the product, and this is a serving rule.
+
+## D282 · The topics door stops moving you, when it does not have to
+
+**2026-08-24.** **Status:** binding. The same device report as D276 and
+D277, and the second time this one has been made: *"still an issue — when
+you click add interest on the general info you are navigated to the
+feed."*
+
+### What D190 fixed, and which half it left
+
+The profile's scenes card, with nothing followed, offers **Pick topics
+→**. D190 found it jumping to the daily feed and stopping there — "a door
+that puts you in the room and does not point at the thing you asked for
+is a door that has to be followed by a search" — and fixed the ARRIVAL:
+`requestTopicSheet()` is an ask, the feed owns the list and answers it,
+mounted or not.
+
+That was right and it was half the report. The other half is the jump
+itself, and it is the half a reader feels: you asked for a list and were
+moved to another screen to get one. D190 could not see it as separable,
+because the list lives inside the feed and the feed is on another tab.
+
+### It was already separable, in the CSS
+
+The feed's sheet portals to the app frame (`document.querySelector('.app')`)
+and `.wf-scrim` is **z-index 40**. `.overlay` — the profile — is **20**.
+So a feed mounted behind the profile can answer the ask and the list
+draws *on top of the panel that asked*, closing back onto it. Nothing
+needed extracting, no second list, no shared component: D173's "one place
+a topic is tuned" is untouched, because it is still that one place doing
+the drawing.
+
+### The shape: the ask reports whether it was taken
+
+`requestTopicSheet()` returns a boolean. Not "is anything listening" — a
+mounted feed consumes the one-shot synchronously inside the notify loop,
+so `pending` is already false when the call returns, which makes the
+answer **a fact about what happened** rather than a guess about who was
+there. `EmptyField` skips the nav on an explicit `true`, and only on
+that: a `prime` returning nothing keeps the jump, so the other two call
+sites are byte-for-byte unchanged.
+
+This is the daily ruler's near-end exit one control over — `NAV.goNav`
+answers whether it navigated and a refusal springs the card back
+(CLAUDE.md names it as the layer's one licensed external dependence). A
+caller that asks and reads the answer is the shape this tree already has
+for "the other screen may or may not be able to help".
+
+**The jump survives as the case it was always the answer to**: the
+profile opened over the Mirror, where no feed is mounted, `prime` returns
+false, and D190's navigation runs exactly as before — carrying the
+pending request with it, which is the mechanism that made D190 work.
+
+### One thing the move breaks, and it is D211's
+
+D211 lifted the topic sheet clear of the tab bar, because "Pick topics →"
+sends people here and a destination that hides the app's own way out
+reads as a trap — reported from a device as the bottom navigation going
+missing. Over the profile that argument inverts: `.overlay` covers the
+bar at z-index 20, so the lift would leave a strip of the *profile*
+showing where the navigation should be. The sheet takes full cover when
+an overlay is present, which is what every content sheet does anyway.
+
+### What is pinned
+
+Three layers, because the fix spans three and each one fails silently on
+its own. `EmptyField.test.tsx`: an explicit `true` cancels the nav, and a
+`prime` returning nothing does not. `smoke-topics.test.jsx`: the ask
+reports `true` when a mounted feed takes it and `false` when nothing is
+there — **and the false arm asserts the request is still pending**, since
+a one-shot spent by a failed ask would break D190's arm rather than this
+one. `smoke-live.test.jsx`: the whole flow in the mounted app, where the
+assertion that matters is the second one — the sheet being open proves
+the ask was answered, the profile still being on screen proves it was
+answered *where the reader was standing*, which is the entire report.
+
+The live case has to empty the follow list to reach the door at all
+(these suites are a demo build as far as `import.meta.env` is concerned,
+so `SCENES` seeds the prototype's joined groups) — and then hand it back
+in a `finally`, because `SCENES` caches its set in module scope where
+`cleanup()` cannot reach it. Measured rather than reasoned: without the
+restore, fifteen later cases in that file fail on scene-attached cards
+that are suddenly not there.
+
+### What was checked and deliberately not changed
+
+`WF_BRANCH` has no `now` key, so the sheet's "On your map" row reads
+**Interests** for a Happening-now card, via the `|| 'Interests'`
+fallback. That looks like a missing entry and is not: the Map's real
+branch list (`map-branches.js`) is `health · craft · interests · home ·
+story · goals · values` plus the daily lane's emergent cats. "Mind",
+"Morals" and "Taste" — the vocabulary `WF_BRANCH` is written in — are
+**not branches on that map at all**. `Interests` is the one label in that
+row that names something a reader would actually find, so filling the gap
+with `now: 'Mind'` would replace a true fallback with a false claim, in
+the sheet D277 just made worth opening.
+
+## D283 · Every field is followed, and the follow list gets a way out
+
+**2026-08-24.** **Status:** binding. The owner's decision, taken against
+the arithmetic below after a device report: *"still seems like way too
+few learn questions are made — there should be hundreds created a day and
+in the app I can see maybe 60-80."*
+
+### The report was about production and the cause was distribution
+
+The bank holds **146 cards over 12 fields**. What a reader could reach
+was **34**: `LEARN.plan()` draws from `pool()`, `pool()` walks the
+FOLLOWED fields, and `freshF()` seeded three — `cell`, `solar`,
+`capitals`, 13 + 8 + 13.
+
+So the app was showing under a quarter of what had been written, and the
+lane was being asked to fix a shortage the bank did not have. That is
+worth separating from the volume question rather than answering with it:
+**the pool was the cheap lever and the only one that helps today.**
+
+### The three were right when they were chosen
+
+D115 derived FIELD_TARGET from exactly this seed: at 8 cards a field,
+three followed fields is 24 fresh cards, about eight days at the default
+serve rate. The three were "stocked from day one" — a true reading of a
+bank where every field held eight and nothing was behind it.
+
+What changed is that the bank grew and the seed did not. A default
+written against a starting condition became a ceiling on a bank four
+times its size, silently, because nothing measures what fraction of the
+corpus a fresh install can reach.
+
+### What was refused, and the arithmetic that refused it
+
+"Hundreds a day" is not a knob, and the reason is the same one
+`SCALE-PLAN.md` gives for the feed. The client fetches the WHOLE question
+bank on a cold boot and caches it in localStorage. Today that is 671 docs
+/ 166 KiB. At 200 learn cards a day it is **6,000 cards in a month** —
+exactly `check:quality`'s `BANK_WARN` — and **73,000 cards / 23.5 MiB in
+a year**, fetched by every device on every cold boot. The ceiling is the
+read path, not the writing, and raising the lane's cap against it would
+buy a bill rather than a product.
+
+Three levers were put to the owner with their costs: the pool (this), the
+lane's depth (`FIELD_TARGET` 24 → 60, +189 KiB), and the lane's pace (the
+Routine, Mon+Thu → daily). **The pool was chosen and the other two were
+not**, which is why `FIELD_TARGET`, `RUN_CAP` and
+`trig_01GtTNhRgSt1RMFWtR5K547Z` are all untouched here.
+
+### Following everything is not more cards a sitting
+
+The RATE is `LEARN_FEED`'s frequency dial — one learn card per seven feed
+cards by default, one in three at `lots` — and it is unchanged. What
+changes is the pool those cards are drawn from: same density, four times
+the bank, and a reader stops meeting the same field three times a day.
+
+This does reverse `learn-feed.js`'s *"how many knowledge fields you
+follow is already an intensity control"*, and only for the DEFAULT. The
+control is still there; it starts at everything, which is the posture the
+feed's own topics already take (D96: *"a live build runs EVERY subject
+its bank stocks, always on"*). Narrowing becomes something you choose
+rather than something you have to discover.
+
+### The half that makes it honest
+
+`LEARN.unfollow` existed and **nothing in the app called it**. The topic
+sheet listed only the fields you do NOT follow, each with a Follow
+button, so the follow list was one-way: you could add and never remove.
+Under the old default that was survivable — you started with three and
+grew. Under a default of everything it would have been a trap, and the
+sheet's Learn section would have shown nothing but the frequency dial.
+
+So the sheet gains the symmetric row, which is the argument the channel
+rows above it already make: *a thing that is always on has no management
+surface anywhere else, so this is where it lives*. Never on the last
+field — `unfollow` refuses to empty the list, because a reader with no
+fields gets no learn cards and no surface saying why, so a button that
+did nothing would be worse than no button.
+
+### What is pinned, and the number that moved
+
+`learn-serve.test.js`: a fresh install reaches every field, the served
+pool equals the whole bank, and narrowing works down to one but not to
+none. Asserted as RELATIONS, not against 146 — a case pinned to the
+bank's size fails every time the lane merges a batch, which this file has
+already been bitten by once. `smoke-topics.test.jsx` pins the rows in the
+DOM, including that an unfollowed field comes back as followable.
+
+Mutation-checked in both directions: with the old `freshF()`, the pool
+case reports 34 against 146.
+
+`learn-budget.mjs`'s `learnRunway` defaulted to three followed fields —
+that was the same seed, restated — and now defaults to all of them, with
+the old value still reachable as a parameter because "what has a reader
+who narrowed got left" is still a real question. The printed sentence
+goes from *29 fresh cards across the 3 thinnest fields, ~10 days* to
+*146 fresh cards across 12 followed fields, ~51 days*.
+
+**FIELD_TARGET stays 24 and its justification is now different**, which
+is the part a later run must not skim: it was a runway floor, and it is a
+shape goal — what makes a field worth following on its own. The emergency
+it was set against is gone. `QUESTION-FARM.md`'s learn bullet says so, so
+the next run to find every field level proposes rather than raises by
+reflex.
+
+## D284 · The learn bank leaves the JavaScript
+
+**2026-08-24.** **Status:** binding. Ceiling 1 of
+[`BANK-DELIVERY.md`](BANK-DELIVERY.md), built the day the plan was
+written, because it was the one with a deadline.
+
+### The finding
+
+`spec/learn-data.js` imported the whole of
+`content/learn-questions.json`, so **every learn card was compiled into
+the app**. Measured: 146 cards were 33 KiB of `cards` inside a 34.5 kB
+`learn-progress` chunk, against a `check:bundle` total of 2440 kB and a
+shipping build at 2427 — **13 kB, about 39 more cards.**
+
+The learn lane's own budget grants 24 a field, or 288 total. **Reaching
+the depth the regulator already permits would have failed the build by
+34 kB**, at 20 cards a week, so roughly a fortnight out. It fails CI
+rather than a device, which is the good version of this — but it stops
+the lane, and it would arrive as an error naming the bundle, on a run
+whose job is writing questions.
+
+Nothing was watching, and could not have been: no gate connects question
+count to bundle weight, and the two live in different halves of the tree.
+It surfaced only because the owner pushed back on being told volume was
+blocked, and asked what a real redesign would look like.
+
+`content/duel-questions.json` is compiled in the same way (14.6 KiB,
+weekly lane, years of slack) and is moved in the same pass's shape but
+not this one. **Every other bank is already clean** — daily, feed and
+test questions reach the client only through Firestore.
+
+### The shape, and the property that matters
+
+The bundle now carries `content/learn-sample.json` — **five cards per
+field, generated** by `scripts/gen-learn-sample.mjs` and held equal to
+its source by `check:learn-sample`. The live path reads the seeded bank
+through `data/learnBank.ts`.
+
+**The point is not that the sample is small. It is that its size does not
+move.** A one-off trim would have bought a few months and left the same
+trap armed; per-field-N means the bundle stops tracking the bank and the
+lane can write ten thousand cards without the build noticing.
+
+Five is a floor set by the demo's own seeded progress, not a taste call:
+`freshS()` marks `cell2`, `cell4`, `sol1`, `sol5`, `cap1`, `cap4` and
+`sol2` as already met, so a sample stopping at four would leave the demo
+holding mastery of a card it cannot draw. Subjects and fields ship whole
+— 1 KiB, they do not grow with the lane, and `freshF()` follows every
+field the bundle knows about (D279), so a trimmed taxonomy would silently
+narrow the demo's follow set too.
+
+Measured after: the chunk is 34.5 → **16.2 kB**, total 2427 → **2409**,
+eager 849 → **832**. Headroom on the total goes 13 → 31 kB — and stops
+being spent by content at all.
+
+### What this publishes, stated rather than done quietly
+
+The seed now carries `c`, `t`, `p`, `k` and `w`, so **the learn answer
+key is readable in a world-readable collection.**
+
+The old comment in `gen-v2content.mjs` had the reasoning right for its
+own sentence: *"nothing server-side reads correctness, and '% got it
+right' is counts[c]/total computed on the client, WHICH SHIPS c IN THE
+BUNDLE ANYWAY."* That last clause is what this removes. So the exposure
+does not change — the key has been readable out of the JavaScript, by
+anyone, since D32 — but the CHANNEL does, and a channel change nobody
+recorded is exactly the drift D98's discipline refuses. Learn has never
+claimed on screen that its answers are hidden, and it still does not. If
+the product ever wants a gradeable learn score, D57's logic shape is the
+door (the server mints, withholds and marks) and the seed's learn arm is
+where that decision lands.
+
+### The arm that had to be a refusal
+
+A document seeded before this carries no `c`. `publishLearnBank` **drops
+those cards** rather than defaulting the index.
+
+`c ?? 0` would have been the natural line and it would mark option one
+correct on every pre-D280 card in the bank — teaching the wrong answer,
+silently, on the one surface whose entire promise is that there is a
+right one. An empty Learn until the next seed run is the honest failure,
+and it is pinned in both `vote.test.ts` and the DOM.
+
+`learnCards()` uses `livePool ?? demo` and not `|| demo` for the same
+reason one level up: a live bank with no learn documents must serve
+NOTHING, not fall through to sixty demo cards with no aggregate behind
+any of them.
+
+### One bug the tests caught, which is the reason they were written first
+
+The publication was initially placed in `buildFeedGlobals()`, beside
+D276's. That function opens `if (!state.feedBank.length) return`, so **a
+bank with learn cards and no feed questions would have served none of
+them** — Learn does not depend on the feed existing and must not start
+to. It publishes beside the bank split now. Caught by the first case
+written against it, which is exactly the bank that shape describes.
+
+### What is pinned
+
+`data/learnBank.test.ts` (the operator, the empty-bank arm, and the
+subscription — which `testFeed` does not need and this does, because the
+engine indexes once at module scope and has to be woken). Two cases in
+`vote.test.ts`: the translation field by field — the bank speaks
+`learn-cell1`/`prompt`/`options`/`topic`, the engine speaks
+`cell1`/`q`/`a`/`f` — and the keyless-card refusal. Two in
+`smoke-live.test.jsx`: a live build serves the bank, and a live build
+given none serves none.
+
+The smoke cases bind on `LEARN_CARDS` itself rather than a copied prompt
+(D276's rule), so they cannot drift from the sample they are about.
+
+**Mutation-checked, and the first mutation was wrong in an instructive
+way.** Reverting `let CARDS = learnCards(LEARN_CARDS)` to `= LEARN_CARDS`
+left both cases green — because the `subscribeLearnBank` listener
+re-reads the pool when the bank lands, so the initial value never
+mattered. The mutation that actually tests the seam is `learnCards()`
+returning `demo` unconditionally, and under that one both fail. A green
+mutation is not evidence a test is vacuous; it is evidence the mutation
+missed.
+
+### The gate that did not exist
+
+Moving the bytes could not be the whole fix: nothing connected question
+count to bundle weight — the count lives in `/content`, the weight in
+`dist/`, and no gate joined them. It surfaced because somebody asked,
+which is not a mechanism.
+
+`BUNDLED_CONTENT` in `check-content.mjs` is the join. A `content/*.json`
+may be imported from `src/` only if it is named there with a **byte cap
+and a reason**; the cap is not a budget to spend but the size at which
+somebody has to think again, and the error says which thought. Both
+directions fail (the check-purge shape): an unlisted import, and a
+listing nothing imports any more. Tests are excluded and are most of the
+readers — `content-parity`, `lens-content` and `world-channels` all
+import a bank to compare the shipped copy against it, and none of that
+reaches a device.
+
+Two entries: `learn-sample.json` at 32 KiB (it grows with the number of
+FIELDS and never with the bank, so crossing it means re-deriving
+`PER_FIELD`, not raising the cap) and `duel-questions.json` at 24 KiB
+(the last bank compiled in whole — crossing it is the signal to give it
+learn's treatment).
+
+Verified against the defect rather than argued: point `learn-data.js`
+back at the full bank and `check:content` reports it, in both directions
+at once.
+
+### What it does not change
+
+`FIELD_TARGET`, `RUN_CAP` and the lanes' cadences are untouched. This is
+the capacity question and those are the pace question — what the change
+buys is the right to answer the pace question on its merits, which was
+not true this morning. Ceilings 2 (the localStorage bank cache, ~5,300
+cards) and 3 (the whole-bank fetch) are unmoved and remain years out;
+`BANK-DELIVERY.md` §5 holds the order.
+
+## D285 · The seed's whitelist, held to the generator — after the third time
+
+**2026-08-24.** **Status:** binding. Found by asking "so what next?" one
+hour after D277 and D280 were pushed, and the answer was that **neither
+of them would have reached a device.**
+
+### The mechanism, for the third and fourth time
+
+`runSeedV2` assembles a question document from a **whitelist**
+(`functions/src/v2.ts`), not a spread — deliberately, because `/content`
+carries authoring fields that have no business on a phone. The cost of a
+whitelist is that it must be kept in step with the generator, and nothing
+was keeping it:
+
+| | fields | what it cost |
+| --- | --- | --- |
+| **D234** | `core`, `tag`, `rates`, `until`, `sponsor`, `also`, `tier`, `resolvesAt`, `rubric`, `mode`, `branch`, `sub` | twelve fields promised by the schema, read by the client, written by nothing — for two releases |
+| **D277** | `bg` | the feed's `i` would have kept opening an empty sheet |
+| **D280** | `c`, `t`, `p`, `k`, `w` | **worse than dark** — the client drops a learn card with no `c` rather than guess an answer key, and no card would ever have got one, so **Learn would have gone permanently empty on every live device** |
+
+Every one of those passed `tsc`, `check:content`, the unit suites and the
+mount tests. They had to: **every test seeds its own fixtures**, so the
+bank under test always carries the field and only production does not.
+
+D234's own comment says it, directly above the two places the next fields
+died: *"a field the seed does not name never reaches Firestore."* Written
+as a warning, read by nobody, twice. That is the whole argument for this
+gate rather than a fourth paragraph of prose.
+
+### What it compares
+
+Four copies of one list, and all four matter for different reasons:
+
+1. **The generator's emitted keys** — `buildEntries(loadContent())` run
+   for real over `/content`, the union across every entry. Not a parse: a
+   field only counts if the generator actually puts it on a document.
+2. **The payload whitelist** — without it the field never reaches
+   Firestore at all.
+3. **`SEEDED_FIELDS`** — without it the field is written at create and
+   **frozen forever**, because a field the compare ignores is a field an
+   edit can never move.
+4. **`storedForm` in `seed.test.ts`** — without it the no-op case reports
+   every doc carrying the field as a phantom rewrite.
+
+2 and 4 are read from source rather than imported: importing `v2.ts`
+pulls firebase-admin and the whole function surface into a Node script,
+and `storedForm` is not exported. The scan is deliberately dumb — the
+emit-when-set idiom is one line per field and has been for every field
+ever added, so a regex over it is reading the list, not guessing at it.
+
+Comments are stripped first in all three source scans, on the D137
+lesson: these blocks are more prose than code, and a field name written
+in a comment would satisfy the check without reaching the object.
+
+### The two things it must not report
+
+**A retired field.** A field in the payload the generator no longer
+emits is how retirement WORKS — the generator stops, the payload keeps
+transporting nothing, and `SEEDED_FIELDS` keeps comparing so
+`FieldValue.delete()` can remove it from standing docs (D234's
+amendment). Reported as a note. Two today: `ends` and `sponsor`.
+
+**A field with no reader.** `political` (D52's marker on politically
+charged questions) is emitted onto six feed entries, transported by
+nothing, and read by nothing — every `political` in `src/` names the
+political TEST instrument, not this flag. So it is content-layer metadata
+the farm and `check:quality` reason about, and transporting it would ship
+a field for nobody.
+
+`NOT_TRANSPORTED` carries it with that reason, the `NOT_SEEDED` shape,
+and the bar for adding a line is stated: **nothing on a device may read
+it.** A field with a client reader is dark rather than deliberate, and
+dark is what the gate is for. Stale entries fail in both directions — a
+listing the generator stopped emitting, and a listing that has since
+grown a transport.
+
+### Verified against the defect, not argued
+
+Strip D277's and D280's transports back out and the gate reports twelve
+findings across the payload and the compare, naming each field and what
+its absence costs. Restore them and it is silent. The same probe D276's
+rule 6 got, for the same reason: a gate whose firing has never been seen
+is a gate nobody knows the shape of.
+
+### What this does not fix
+
+The whitelist is still four copies of one list, and this gate makes them
+agree rather than making them one. Collapsing them — a single declared
+field table the payload, the compare and the mirror all derive from — is
+the real repair and is not attempted here: `v2.ts` and `pure.ts` are
+deploy-path code, `seed.test.ts` is a fixture, and the script that would
+own the table is not shipped to either. A gate that fails loudly is worth
+more today than a refactor of the seed path on the same afternoon as two
+other changes to it.

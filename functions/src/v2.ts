@@ -450,6 +450,24 @@ export async function runSeedV2(
       ...(typeof q.tier === "string" ? { tier: q.tier } : {}),
       ...(typeof q.resolvesAt === "string" ? { resolvesAt: q.resolvesAt } : {}),
       ...(q.rubric ? { rubric: q.rubric } : {}),
+      // The card's background (D281) and the learn card's own metadata
+      // (D284) — the third and fourth times this whitelist has been the
+      // thing a new field died in. Both would have shipped dark: the
+      // background is what the feed's `i` opens, and without `c` the
+      // client DROPS every learn card rather than guessing an answer key,
+      // so Learn would have gone permanently empty on every live device
+      // while every gate stayed green on self-seeded fixtures.
+      //
+      // `check:seed-fields` exists now and is the reason this comment can
+      // be short: the generator's own field names are compared against
+      // this payload and against SEEDED_FIELDS, so the next one fails at
+      // the gate instead of in production.
+      ...(typeof q.bg === "string" ? { bg: q.bg } : {}),
+      ...(typeof q.c === "number" ? { c: q.c } : {}),
+      ...(typeof q.t === "number" ? { t: q.t } : {}),
+      ...(typeof q.p === "number" ? { p: q.p } : {}),
+      ...(typeof q.k === "string" ? { k: q.k } : {}),
+      ...(typeof q.w === "string" ? { w: q.w } : {}),
     };
     // Unchanged docs are not rewritten. Two things depend on this, and the
     // second is the expensive one: `updatedAt` only means something as an

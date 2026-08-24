@@ -81,6 +81,31 @@ export const TAG_WORDS_MAX = 4; // corpus max 4 — "a two-or-three-word label",
 // makes broad tagging pointless (credit is conserved, a door never adds any);
 // this cap is what makes it impossible to try at scale anyway.
 export const ALSO_MAX = 2;
+// Background text (D281) — what the card's `i` opens. The bounds are the
+// demo pool's own, measured: `WORLD_BG` in world-subtopics.js holds 24
+// entries running 152–236 characters over one to three sentences, written
+// by a person against the brief this field inherits ("facts and
+// definitions only, never the arguments" — world-feed.jsx's own comment on
+// the sheet it draws).
+//
+// The FLOOR is the load-bearing half and the one nobody expects. A ceiling
+// stops a card growing an essay; a floor stops the other failure, which is
+// worse because it looks like the feature working: a background that says
+// "Evergrande is a Chinese property developer" promotes the button to its
+// stronger ring, opens a sheet, and leaves the reader exactly as unable to
+// answer as before. If a question is worth a background at all it is worth
+// the facts that make it answerable, and 90 characters is under the
+// shortest thing in the corpus that ever did.
+export const BG_MIN = 90;
+export const BG_MAX = 320; // corpus max 236, plus room for a third clause
+// The unambiguous half of "never the arguments". Every one of these is a
+// sentence taking a side or telling the reader what to think, and none of
+// them appears anywhere in the 24 backgrounds the demo pool already ships
+// — which is the test that the list refuses a register rather than a
+// vocabulary. Deliberately short: a longer list would start catching
+// ordinary reporting ("critics said", "the ruling was upheld"), and the
+// half a regex cannot see belongs to the reviewing run either way.
+const BG_ARGUES = /\b(should(n't| not)?\b|obviously|clearly the|the (right|only) answer|it is (wrong|right) to|most (people|experts|economists) (agree|think)|there is no (real )?(case|argument) for)\b/i;
 // ── the current-events lane (D231, docs/NEXT-FUNCTIONALITY.md §1) ──
 //
 // `now` is the one topic whose questions expire. §1 asks for "a bounded
@@ -652,6 +677,36 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     err("prompt", `prompt is ${q.prompt.length} chars (max ${PROMPT_MAX}) — short, concrete, blind-answerable`);
   }
 
+  // ── background, the card's `i` (D281) ────────────────────────────
+  //
+  // check:content owns the SHAPE (a non-blank, untrimmed-free string).
+  // What lives here is editorial: is it long enough to be worth opening,
+  // short enough to read on a card, and is it FACTS rather than a case?
+  //
+  // The last of those three is the one a gate can only half-see, so it
+  // only refuses the unambiguous form: a background that asks a question
+  // back, or that tells the reader what to conclude. "Most economists
+  // agree the sentence is excessive" is a side wearing a fact's clothes,
+  // and a poll whose context argues for one option is not a poll. The
+  // rest is the reviewing run's, exactly like the tragedy tripwire — a
+  // sentence can lean without using any of these words.
+  if (q.bg !== undefined) {
+    const bg = String(q.bg).trim();
+    if (!bg) {
+      err("bg", "`bg` is present and empty — the card falls back to the pale button and nobody learns the field was authored");
+    } else if (bg.length < BG_MIN) {
+      err("bg", `background is ${bg.length} chars (min ${BG_MIN}) — a sheet that opens on a half-fact leaves the reader where they were`);
+    } else if (bg.length > BG_MAX) {
+      err("bg", `background is ${bg.length} chars (max ${BG_MAX}) — facts and definitions, not the arguments; the arguments are the reveal`);
+    }
+    if (bg && bg.endsWith("?")) {
+      err("bg", "the background asks a question — the card already asked one; this is where its terms get explained");
+    }
+    if (bg && BG_ARGUES.test(bg)) {
+      err("bg", "the background argues rather than informs — a poll whose context leans is a poll about its own framing (a judged false positive goes in ALLOW under `bg`)");
+    }
+  }
+
   const opts = (q.options || []).map((o) => (o && typeof o === "object" ? o.label : o));
   for (const o of opts) {
     if (String(o).length > OPTION_MAX) {
@@ -1148,6 +1203,31 @@ export function checkBatch(batch) {
     }).length;
     if (short * 2 < now.length) {
       errs.push(`${short} of ${now.length} ${NOW_TOPIC} questions run ${WINDOW_SHORT_DAYS} days or less — most of a batch should sit at the short end, or the lane is a monthly wearing a daily's name`);
+    }
+    // …and the same shape pointed at the answer space (D281). The lane's
+    // first batch was six questions and twelve options, and nothing had
+    // ever said not to: `check:content` allows 2–10, the fold allows
+    // twenty, and the bank already ships three- and four-option votes.
+    // The owner read the shipped six on a device and named it — "recent
+    // events should often have more options, some of them have too few".
+    //
+    // A BATCH RULE rather than a per-question one, because two is right
+    // often enough that a floor would be wrong: "about right / too far"
+    // on a sentence is a genuine binary, and a gate cannot tell that from
+    // a three-way story squeezed into two. What a gate CAN see is a whole
+    // batch in which no story turned out to have a third side, which is a
+    // claim about the news that is almost never true — it is the writer's
+    // habit showing. Same 3-question threshold and same "most" arithmetic
+    // as the window rule above, so the lane has one shape to learn.
+    //
+    // The cost of getting this wrong is asymmetric, which is why it is an
+    // error and not a note: a window can be re-authored, but a shipped
+    // card's options are frozen for the life of the bank (answers key on
+    // `optionIdx` — the D30 re-key rule), so the only repair for a card
+    // that needed a third option is a successor card.
+    const binary = now.filter((q) => (q.options || []).length <= 2).length;
+    if (binary * 2 > now.length) {
+      errs.push(`${binary} of ${now.length} ${NOW_TOPIC} questions offer two options — give a story the sides it has; two is for a story that is genuinely two-sided, and a whole batch of them is a habit rather than the news`);
     }
   }
   if (feed.length >= 3) {

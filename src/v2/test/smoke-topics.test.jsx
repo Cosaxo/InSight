@@ -77,6 +77,41 @@ describe("the add-a-topic sheet", () => {
   });
 });
 
+// ── the Learn rows (D283) ────────────────────────────────────────────
+//
+// Every field is followed on a fresh install now, which showed a reader
+// four times the bank — and made this sheet's Learn section the only place
+// the list can be narrowed again. `LEARN.unfollow` existed before D283 and
+// nothing in the app called it, so the follow list was one-way and a
+// default of everything would have been a trap rather than a fix.
+describe("the topic sheet's Learn rows", () => {
+  it("lists every field you follow, each with the way back out", () => {
+    const expectNoBoundary = mountApp();
+    fireEvent.click(screen.getByRole("button", { name: /add a topic/i }));
+    const unfollows = screen.getAllByRole("button", { name: /^Unfollow / });
+    expect(unfollows.length, "no field offered a way out — the list is one-way again").toBeGreaterThan(1);
+    // The rows are the FIELDS, not the subjects: "Cell biology", not
+    // "Biology". The subject rides in the meta line beside the card count.
+    expect(screen.getByRole("button", { name: "Unfollow Cell biology" })).toBeTruthy();
+    expectNoBoundary("add sheet, learn rows");
+  });
+
+  it("drops the field from the list when you unfollow it", () => {
+    const expectNoBoundary = mountApp();
+    fireEvent.click(screen.getByRole("button", { name: /add a topic/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Unfollow Cell biology" }));
+    expect(
+      screen.queryByRole("button", { name: "Unfollow Cell biology" }),
+      "the row stayed after unfollowing",
+    ).toBeNull();
+    // …and it comes back as something you can follow again, which is the
+    // half that makes this reversible rather than a one-way door pointed
+    // the other way.
+    expect(screen.getByText("Cell biology")).toBeTruthy();
+    expectNoBoundary("add sheet, learn unfollow");
+  });
+});
+
 // ── opened from somewhere else (D190) ────────────────────────────────
 //
 // The profile's scenes card offers "Pick topics →" when you follow nothing.
@@ -114,6 +149,34 @@ describe("the topic list opens on request", () => {
     const scrim = document.querySelector(".wf-scrim");
     expect(scrim.style.bottom, "the scrim still covers the tab bar").toBe("66px");
     expectNoBoundary("add sheet, lifted clear of the tab bar");
+  });
+
+  // D282 — the return value the profile's door reads, and the reason the
+  // door stopped being a jump. `requestTopicSheet` answers whether the ask
+  // was TAKEN, not whether anything was listening: a mounted feed consumes
+  // it synchronously, so the one-shot is already spent when the call
+  // returns. Both arms matter — a false negative sends the reader to the
+  // feed for a list that was already open, and a false positive leaves
+  // them on the profile with nothing having happened.
+  it("says it was answered when a mounted feed takes the request", () => {
+    const expectNoBoundary = mountApp();
+    let answered;
+    act(() => { answered = requestTopicSheet(); });
+    expect(answered, "a mounted feed took the request and said it had not").toBe(true);
+    expect(screen.getByText("Your topics")).not.toBeNull();
+    expectNoBoundary("add sheet, request answered");
+  });
+
+  it("says it was not, when nothing is mounted to take it", () => {
+    // The arm the profile's jump still exists for: opened over the Mirror,
+    // there is no feed behind the panel and the request has to travel with
+    // the navigation, exactly as D190 built it.
+    cleanup();
+    expect(requestTopicSheet(), "a request nobody heard reported itself as answered").toBe(false);
+    // …and it is still pending, so the next feed to mount opens the sheet.
+    const expectNoBoundary = mountApp();
+    expect(screen.getByText("Your topics"), "the unanswered request was swallowed").not.toBeNull();
+    expectNoBoundary("add sheet, request carried to the next mount");
   });
 
   it("consumes the request, so the sheet does not reopen by itself", () => {
