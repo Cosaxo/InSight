@@ -3,11 +3,13 @@
 // batch-mix rules, and — the liveness half — that the real corpus passes
 // and the provenance join is exactly in step with the banks.
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
 import {
   loadCorpus, checkQuestion, checkBatch, checkProvenance, checkHeadroom,
   checkPathGenre, placeCivicHit, PROMPT_MAX, OPTION_SHAPES, FEED_TYPES,
   DIAL_BUCKETS, PATH_AXES, PATH_AXIS_LEGACY,
   windowDays, NOW_TOPIC, WINDOW_MAX_DAYS, tragedyHit,
+  learnView, OPTION_MAX, PATH_CHOICE_MAX, LEARN_WHY_WORDS_MAX,
 } from "./question-quality.mjs";
 
 const corpus = loadCorpus();
@@ -60,10 +62,24 @@ describe("checkQuestion (daily card shape)", () => {
   });
 
   it("rejects unknown tones, oversized tags, and cats outside CAT_META", () => {
-    expect(checkQuestion(daily({ tone: "spicy" }), "daily", corpus).errs.length).toBe(1);
-    expect(checkQuestion(daily({ tag: "one two three four five" }), "daily", corpus).errs.length).toBe(1);
-    expect(checkQuestion(daily({ cat: ["Weather", "Sky"] }), "daily", corpus).errs.length).toBe(1);
-    expect(checkQuestion(daily({ alts: [["Mind", "x"]] }), "daily", corpus).errs.length).toBe(1);
+    // Count AND slug. The count is the older half and says "nothing else
+    // fired"; the slug says WHICH rule refused, which the count cannot —
+    // four of these read as covered for years on the count alone, and a
+    // rule that stopped firing while a neighbour started would have kept
+    // the count at 1. The liveness floor at the foot of this file is what
+    // now requires the second half.
+    const only = (q) => {
+      const { errs } = checkQuestion(q, "daily", corpus);
+      expect(errs.length).toBe(1);
+      return errs[0].rule;
+    };
+    expect(only(daily({ tone: "spicy" }))).toBe("tone");
+    expect(only(daily({ tag: "one two three four five" }))).toBe("tag");
+    expect(only(daily({ tag: "" }))).toBe("tag");
+    expect(only(daily({ cat: ["Weather", "Sky"] }))).toBe("cat");
+    expect(only(daily({ cat: "Travel" }))).toBe("cat");
+    expect(only(daily({ alts: [["Mind", "x"]] }))).toBe("alts");
+    expect(only(daily({ alts: [["Mind", "Preference"]] }))).toBe("alts");
   });
 });
 
@@ -565,5 +581,226 @@ describe("the tragedy tripwire", () => {
     expect(tragedyHit({ prompt: "Was the terror attack preventable?" })).toMatchObject({ kind: "plain" });
     expect(tragedyHit({ prompt: "The crash that killed 14 — who pays?" })).toMatchObject({ kind: "casualty" });
     expect(tragedyHit({ prompt: "Markets crashed 8%. Panic or noise?" })).toBe(null);
+  });
+});
+
+// ── the rules nothing was holding ───────────────────────────────────────
+//
+// WHY THIS BLOCK EXISTS. Measured 2026-08-24 by mutation: fifteen of the
+// thirty-four rule slugs this gate can emit could be DELETED with the whole
+// tree still green — `test:scripts` at 327/327 and `check:quality` still
+// printing "502 questions checked · all bounds hold". A gate that always
+// passes is worse than no gate, because it is also an argument against
+// looking.
+//
+// The corpus half of the suite (`describe("the corpus itself")`) cannot
+// catch this: it proves the committed bank passes, which is exactly as true
+// when a rule stops firing. Only a case that hands the gate a BAD card and
+// demands the refusal can tell the two apart.
+//
+// Four slugs — alts, cat, tag, tone — were already caught, incidentally, by
+// the error-count assertion in "stamps every error with the rule slug". They
+// are the control that makes the other fifteen evidence rather than a
+// counting exercise: the method distinguishes.
+describe("every rule refuses something (the fifteen that did not)", () => {
+  const ruleOf = (q, surface, mode) =>
+    checkQuestion(q, surface, corpus, mode).errs.map((e) => e.rule);
+
+  // ── daily: D187's scorecard join ──
+  it("refuses a `rates` scope that names no stop, and a type with nothing to average", () => {
+    // D187: the Scores lens draws a question only at the stop it rates, and
+    // averages it. A scope outside city|country|world lands the question on
+    // NO scorecard — it is written, answered, and then read by nothing.
+    expect(ruleOf(daily({ type: "rating", axis: "worth", rates: "region" }), "daily")).toContain("rates");
+    // …and a magnitude is what a scorecard averages, so a binary that
+    // declares `rates` would have its two labels averaged into a number
+    // that means nothing.
+    expect(ruleOf(daily({ rates: "city" }), "daily")).toContain("rates");
+    // The control: the shape D187 licenses draws clean. `options: []`
+    // because a rating synthesizes its own downstream (OPTION_SHAPES).
+    expect(checkQuestion(daily({ type: "rating", axis: "worth", rates: "city", options: [] }), "daily", corpus).errs).toEqual([]);
+  });
+
+  // ── feed: SCALE-PLAN's core/tail split, and the topic join ──
+  it("refuses a feed question that does not declare `core`", () => {
+    // D161 / docs/SCALE-PLAN.md §1. `core` decides whether a question is
+    // served to everyone and folded into the Mirror's corpus, or is
+    // personalized tail. Undeclared, it is neither — and the Mirror's
+    // readings are built from whatever answered it.
+    expect(ruleOf({ type: "vote", cat: "food", prompt: "Which?", options: ["A", "B"] }, "feed"))
+      .toContain("core");
+    // Not asked of the demo pool, which never reaches the seeded bank and
+    // so has nothing to classify — the carve-out, asserted so that
+    // widening it later is a visible change.
+    expect(ruleOf({ type: "vote", cat: "food", prompt: "Which?", options: ["A", "B"] }, "feed", TEX))
+      .not.toContain("core");
+  });
+
+  it("refuses a question with no topic, and one whose topic is not in the taxonomy", () => {
+    // Without a cat the kicker renders broken and the topic filter cannot
+    // reach the card — it is in the bank and unreachable from the UI.
+    expect(ruleOf({ type: "vote", core: true, prompt: "Which?", options: ["A", "B"] }, "feed"))
+      .toContain("topic");
+    expect(ruleOf({ type: "vote", core: true, cat: "nosuchtopic", prompt: "Which?", options: ["A", "B"] }, "feed"))
+      .toContain("topic");
+    // …and the pick surface keys on a different vocabulary (WORLD_TOPICS),
+    // so it needs its own case or half the rule is untested.
+    expect(ruleOf({ type: "pick", prompt: "Pick one", options: [] }, "pick"))
+      .toContain("topic");
+    expect(ruleOf({ type: "pick", cat: "nosuchworldtopic", prompt: "Pick one", options: [] }, "pick"))
+      .toContain("topic");
+  });
+
+  it("refuses demo-pool continuum copy with no authored answer count", () => {
+    // `n` is the count the card's footer SHOWS. A demo dial with texture and
+    // no n renders "answers" with a blank where the number goes.
+    expect(ruleOf(dial({ n: undefined }), "feed", TEX)).toContain("n");
+    expect(ruleOf(field({ n: 0 }), "feed", TEX)).toContain("n");
+  });
+
+  it("refuses an option longer than a label", () => {
+    // OPTION_MAX is measured off the corpus: an option is a label, not a
+    // sentence, and the card lays them out on one line.
+    const long = "x".repeat(OPTION_MAX + 1);
+    expect(ruleOf(daily({ options: ["Mountains", long] }), "daily")).toContain("option-length");
+    // …and the path variant, which has its own tighter bound because a
+    // choice composes into a cell label.
+    expect(ruleOf(path({}, { nodes: { ...path().nodes, _: { ...path().nodes._, a: [{ t: "y".repeat(PATH_CHOICE_MAX + 1) }, { t: "The other way" }] } } }), "feed"))
+      .toContain("option-length");
+  });
+
+  // ── Crossroads: the four shape rules ──
+  it("refuses a path with no title and no intro", () => {
+    // The title is what the card and the voters panel NAME; the intro is
+    // the scene before the first fork. A path missing either renders a
+    // story that starts mid-sentence under a blank heading.
+    expect(ruleOf(path({}, { title: "" }), "feed")).toContain("title");
+    expect(ruleOf(path({}, { intro: "   " }), "feed")).toContain("intro");
+  });
+
+  it("refuses a malformed node map — wrong keys, missing q, wrong arity", () => {
+    // The eight walks are the answer space. A node map that is not exactly
+    // the seven forks cannot be walked, and the reader lands nowhere.
+    expect(ruleOf(path({}, { nodes: [] }), "feed")).toContain("nodes");
+    const short = path().nodes; delete short.BB;
+    expect(ruleOf(path({}, { nodes: short }), "feed")).toContain("nodes");
+    const noQ = path(); noQ.nodes.A = { ...noQ.nodes.A, q: "" };
+    expect(ruleOf(noQ, "feed")).toContain("nodes");
+    const oneWay = path(); oneWay.nodes.B = { ...oneWay.nodes.B, a: [{ t: "Only one" }] };
+    expect(ruleOf(oneWay, "feed")).toContain("nodes");
+  });
+
+  it("refuses endings that are not the eight walks, or that repeat a name", () => {
+    expect(ruleOf(path({}, { endings: {} }), "feed")).toContain("endings");
+    const noLine = path(); noLine.endings.AAA = { name: "End AAA" };
+    expect(ruleOf(noLine, "feed")).toContain("endings");
+    // Two walks under one name is the sharpest of these: the labels ARE
+    // the answer space, so a repeat silently merges two endings and the
+    // reader cannot tell which one they earned.
+    const dupe = path(); dupe.endings.AAB = { ...dupe.endings.AAB, name: "End AAA" };
+    expect(ruleOf(dupe, "feed")).toContain("endings");
+  });
+
+  // ── learn: the whole family was unguarded ──
+  const learn = (over = {}) => learnView({
+    id: "lrnTest", f: "cell", q: "What do ribosomes build?",
+    a: ["Proteins", "Lipids", "DNA", "Sugars"], c: 0, t: 2, p: 71,
+    k: "Ribosomes build proteins", ...over,
+  });
+
+  it("passes a well-formed learn card, so the refusals below are about the rule", () => {
+    expect(checkQuestion(learn(), "learn", corpus).errs).toEqual([]);
+  });
+
+  it("refuses two options that are the same answer", () => {
+    // A card offers four. Two that fold to the same string offer three,
+    // and the reader who eliminates one has eliminated two.
+    expect(ruleOf(learn({ a: ["Proteins", "proteins ", "DNA", "Sugars"] }), "learn"))
+      .toContain("learn-dupe-option");
+  });
+
+  it("refuses an option that tests the FORM rather than the fact", () => {
+    expect(ruleOf(learn({ a: ["Proteins", "All of the above", "DNA", "Sugars"] }), "learn"))
+      .toContain("learn-filler");
+  });
+
+  it("refuses a correct option long enough to be findable without the fact", () => {
+    // LEARN_LENGTH_TELL: the classic multiple-choice tell. A reader who
+    // has never met the fact picks the longest option and is right.
+    expect(ruleOf(learn({ a: ["Proteins, which are assembled from amino acids", "DNA", "Fat", "Ash"] }), "learn"))
+      .toContain("learn-length-tell");
+  });
+
+  it("refuses a level outside the engine's own clamp", () => {
+    // Read from learn-progress.js rather than copied, so this case also
+    // fails if that cross-read stops resolving.
+    const { LMIN, LMAX } = corpus.learnLevels;
+    expect(ruleOf(learn({ p: LMIN - 1 }), "learn")).toContain("learn-p-range");
+    expect(ruleOf(learn({ p: LMAX + 1 }), "learn")).toContain("learn-p-range");
+    // A card at either edge is legal — the clamp is inclusive, and an
+    // off-by-one here would quietly retire the hardest and easiest cards.
+    expect(ruleOf(learn({ p: LMIN }), "learn")).not.toContain("learn-p-range");
+    expect(ruleOf(learn({ p: LMAX }), "learn")).not.toContain("learn-p-range");
+  });
+
+  it("refuses a why that has become an argument", () => {
+    expect(ruleOf(learn({ w: "word ".repeat(LEARN_WHY_WORDS_MAX + 1).trim() }), "learn"))
+      .toContain("learn-why");
+    expect(ruleOf(learn({ w: "word ".repeat(LEARN_WHY_WORDS_MAX).trim() }), "learn"))
+      .not.toContain("learn-why");
+  });
+
+  it("refuses a map label that is a question, or that restates the prompt", () => {
+    // The label is the FACT, and the Map files the card under it. A label
+    // that asks something files the card under its own question.
+    expect(ruleOf(learn({ k: "What do ribosomes build?" }), "learn")).toContain("learn-label");
+    expect(ruleOf(learn({ k: "Which organelle builds proteins" }), "learn")).toContain("learn-label");
+    expect(ruleOf(learn({ k: "what do ribosomes build?" }), "learn")).toContain("learn-label");
+  });
+});
+
+// ── the liveness floor ─────────────────────────────────────────────────
+//
+// The block above fixed fifteen rules that had stopped being held. This is
+// what stops the sixteenth: a rule this gate can emit must be named by an
+// assertion somewhere in this file.
+//
+// WHAT IT PROVES, exactly: that the slug appears as a quoted string
+// somewhere in this file. That is a NAME check, the same class as
+// check:globals — it cannot tell a real refusal case from a lazy one, and
+// writing the slug in a comment would satisfy it.
+//
+// It is deliberately that shape rather than a tighter scan for an assertion
+// idiom. A tighter one has to enumerate the ways a case may be written, and
+// then it fails on the next legitimate spelling — which trains the reader to
+// widen the scan instead of writing the case. A loose floor that nobody
+// argues with holds better than a strict one everybody edits.
+//
+// It is still the thing that was missing, because all fifteen failed it: the
+// gate grew rules and the suite did not, and nothing said so. Pair it with an
+// actual rejecting case; the block above is what one looks like.
+describe("the gate's own liveness", () => {
+  it("names every rule it can emit in an assertion here", () => {
+    const gate = readFileSync(new URL("./question-quality.mjs", import.meta.url), "utf8");
+    const mine = readFileSync(new URL("./question-quality.test.mjs", import.meta.url), "utf8");
+
+    const emittable = new Set();
+    for (const m of gate.matchAll(/\berr\(\s*["'`]([a-z0-9-]+)["'`]/g)) emittable.add(m[1]);
+    for (const m of gate.matchAll(/\brule:\s*["'`]([a-z0-9-]+)["'`]/g)) emittable.add(m[1]);
+
+    // A scan that stops matching would pass this test by finding nothing,
+    // which is the failure the whole block exists to name.
+    expect(emittable.size, "the err(…) scan matched nothing — fix this scan, not the gate").toBeGreaterThan(25);
+
+    const named = new Set();
+    for (const m of mine.matchAll(/["'`]([a-z0-9-]+)["'`]/g)) named.add(m[1]);
+
+    const unheld = [...emittable].filter((r) => !named.has(r)).sort();
+    expect(
+      unheld,
+      "these rules can fire and this file never names them. Add a case that "
+      + "hands checkQuestion a card breaking the rule and demands the refusal "
+      + "— see `every rule refuses something` above.",
+    ).toEqual([]);
   });
 });
