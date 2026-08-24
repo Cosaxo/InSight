@@ -524,6 +524,41 @@ run derisks the signing, not the build** — and the two are the same run
 only when both dispatches name one commit.
 
 
+**Runs 39 and 40 delivered build 24, and the bump was skipped by the
+session that had just made one** (D273, caught 2026-08-24). Both archived
+`1ade973` thirteen minutes apart — run 39 (`32573914036`, 12:46:43Z) step
+17 `skipped`, the dry run, 7m 21s; run 40 (`32574502233`, 12:59:43Z)
+`success`, 13:04:06Z → 13:05:33Z, 1m 27s of transfer. `UPLOAD SUCCEEDED
+with no errors`, delivery UUID `007fd1db-b647-4d7a-8133-6d3cc31b6094`,
+5,994,956 bytes. Seventh pair of this shape after 15/16, 23/24, 25/26,
+27/28, 32/33 and 37/38. Six that held (20, 21, 22, 28, 33, 36) against
+seven skipped (18, 19, 24, 26, 31, 38, 40).
+
+**`1ade973` is D229's own commit — the one that bumped 23 → 24 because
+build 23's upload was owed it — and run 39 was dispatched 68 seconds
+after it landed.** So the session that made the bump is the session that
+spent it. This is D198's shape with the last excuse removed: there was no
+gap between "the upload finished" and "someone came back to the tree",
+because the tree had been edited a minute earlier by the same hands. What
+D198 read as a verdict's shelf life is better stated about the number
+itself — **a bump has a shelf life of exactly one upload.** A session that
+bumps to N and then uploads N has discharged one debt and incurred an
+identical one in the same sitting, and nothing on screen distinguishes
+the two: `package.json` reads 24 both before the dispatch and after it,
+and step 18 printed its reminder into a session that had already done a
+bump that day.
+
+Both runs archived one commit, so D159's trap did not fire — the first
+release since run 21 where the dry run and the upload name the same
+tree, and the one place this release was clean.
+
+**No record was written either, which is the D184 shape for the third
+time** — nothing in `docs/` named run 39, run 40, or build 24's delivery
+until this pre-flight read the run list. The tree was returned to for two
+days and 27 commits, none of which had any reason to think about a build
+number.
+
+
 **Build 16's pre-flight found nothing to do either, which is the first
 time that has happened twice running** (D158, 2026-08-15). Run 21 was
 still the highest run in the list, its upload step still `success`,
