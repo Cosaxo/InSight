@@ -767,6 +767,45 @@ function perRev<T>(compute: () => T): () => T {
   };
 }
 
+/**
+ * A qid → question index over one of the banks, rebuilt only when that
+ * bank is REASSIGNED.
+ *
+ * Keyed on array identity rather than on `rev`, because the banks are the
+ * one piece of store state that does not move with a notify: they are
+ * written once in hydrate() and never mutated in place (no push, splice
+ * or sort touches them anywhere in this file). So identity is exact where
+ * `rev` would be merely safe — a perRev index would rebuild the whole Map
+ * on every agg publish, which for the bank that grows without bound is
+ * the cost this is removing.
+ *
+ * WHAT IT REPLACES. Seven `bank.find((x) => x.id === qid)` scans, the
+ * worst of them `lensAgg` — whose caller (spec/lens-defs.js's
+ * LENS_FEED_QS) is deliberately unmemoised in live mode and walks fifty
+ * lens rows per render of the world feed, which itself re-renders on
+ * every notify(). Fifty full scans of `feedBank` per render is survivable
+ * at today's bank and is exactly the shape docs/SCALE-PLAN.md says not to
+ * leave lying around, since D161 makes `feedBank` the collection with no
+ * upper bound.
+ */
+function indexById<T extends { id: string }>(): (bank: readonly T[]) => Map<string, T> {
+  let at: readonly T[] | null = null;
+  let map = new Map<string, T>();
+  return (bank) => {
+    if (at !== bank) {
+      map = new Map(bank.map((q) => [q.id, q]));
+      at = bank;
+    }
+    return map;
+  };
+}
+const feedIndex = indexById<QuestionDoc & { id: string }>();
+const dailyIndex = indexById<QuestionDoc & { id: string }>();
+/** The feed bank as a lookup. See `indexById`. */
+const feedById = (qid: string) => feedIndex(state.feedBank).get(qid);
+/** The daily bank as a lookup. See `indexById`. */
+const dailyById = (qid: string) => dailyIndex(state.questions).get(qid);
+
 const notify = () => {
   rev++;
   listeners.forEach((fn) => {
@@ -2541,6 +2580,36 @@ function takeFromDoc(id: string, d: Record<string, unknown>): TakeDoc {
 
 declare const __APP_BUILD__: number;
 
+/**
+ * The viewer's own answers among the questions the nightly fit folds —
+ * the second half of D265's gate.
+ *
+ * perRev, and the reason is which users pay for it. `usePatternsTab`
+ * (spec/app-shell.jsx) subscribes to the store ONLY while the gate is
+ * shut and drops the subscription the moment it opens, so this walk runs
+ * on every notify() for exactly the people who have not earned the tab
+ * yet — new accounts, the ones for whom the app should feel fastest —
+ * and never again afterwards. Two whole banks per notify (the daily bank
+ * plus `feedBank`, which docs/SCALE-PLAN.md makes the collection that
+ * grows without bound) to recompute a number that cannot have moved
+ * without a notify().
+ *
+ * Same argument as `testFeedItems` and `kindredPeople` above: notify() is
+ * the only way a store change reaches a renderer, so a value computed at
+ * rev N is correct until the next one by construction. Returns a number,
+ * so the shared-array condition in the perRev block does not apply.
+ */
+const patternsMine = perRev((): number => {
+  let mine = 0;
+  for (const q of state.questions) {
+    if (state.votes[q.id] !== undefined && patternsEligible(q)) mine += 1;
+  }
+  for (const q of state.feedBank) {
+    if (state.votes[q.id] !== undefined && patternsEligible(q)) mine += 1;
+  }
+  return mine;
+});
+
 const LIVE = {
   social: SOCIAL,
   near: NEAR,
@@ -3302,8 +3371,8 @@ const LIVE = {
   },
 
   lensAgg(qid: string): { counts: number[]; noCountsYet: boolean } | null {
-    const q = state.feedBank.find((x) => x.id === qid && x.surface === "test");
-    if (!q) return null;
+    const q = feedById(qid);
+    if (!q || q.surface !== "test") return null;
     return { counts: feedCounts(q), noCountsYet: !hasPublishedCounts(state.aggs[qid]) };
   },
   // The anchors the profile has collected, as a plain map. Empty until the
@@ -3537,14 +3606,7 @@ const LIVE = {
    */
   patternsSignal(): PatternsSignal {
     if (!this.enabled) return {};
-    let mine = 0;
-    for (const q of state.questions) {
-      if (state.votes[q.id] !== undefined && patternsEligible(q)) mine += 1;
-    }
-    for (const q of state.feedBank) {
-      if (state.votes[q.id] !== undefined && patternsEligible(q)) mine += 1;
-    }
-    return { pool: state.meta.patternsPool, basis: state.meta.patternsBasis, mine };
+    return { pool: state.meta.patternsPool, basis: state.meta.patternsBasis, mine: patternsMine() };
   },
   // ── Learn (D32) ──
   // The first attempt on a learn card is a plain world answer; the
@@ -3778,7 +3840,7 @@ const LIVE = {
     }
     return state.deckIds
       .map((qid, back) => {
-        const q = state.questions.find((x) => x.id === qid);
+        const q = dailyById(qid);
         // `active` is checked HERE, not when the bank is split — see the
         // tombstone note in hydrate(). A retired question drops out of the
         // pager without moving the days around it.
@@ -4075,8 +4137,8 @@ const LIVE = {
         const uid = state.uid;
         if (!uid) throw new Error("no session");
         const q =
-          state.questions.find((x) => x.id === qid) ||
-          state.feedBank.find((x) => x.id === qid) ||
+          dailyById(qid) ||
+          feedById(qid) ||
           // A call is voted through this same path (its answer doc has the
           // world shape), so it has to be findable here or the write would
           // claim `surface: "daily"` and rules would refuse it.
@@ -4162,7 +4224,7 @@ const LIVE = {
         const db = await getDb();
         const uid = state.uid;
         if (!uid) throw new Error("no session");
-        const q = state.feedBank.find((x) => x.id === qid);
+        const q = feedById(qid);
         await setDoc(doc(db, "v2_users", uid, "answers", qid), {
           qid,
           surface: q?.surface ?? "feed",
@@ -4209,7 +4271,7 @@ const LIVE = {
    */
   voteRank(qid: string, order: number[]): void {
     if (state.votes[qid]) return; // one answer per question, mirroring rules
-    const q = state.feedBank.find((x) => x.id === qid);
+    const q = feedById(qid);
     if (q?.type !== "rank") return;
     const n = q.options.length;
     if (!Array.isArray(order) || order.length !== n || n < 2) return;
@@ -4277,7 +4339,7 @@ const LIVE = {
     // entity or order answer never does, so the write below is doomed for
     // both. Neither card offers an edit affordance — this mirror spares
     // the round-trip if a future surface calls in anyway.
-    const editType = state.feedBank.find((x) => x.id === qid)?.type;
+    const editType = feedById(qid)?.type;
     if (editType === "catalog" || editType === "rank") return false;
     const optionIdx = Number(optionId);
     if (!Number.isInteger(optionIdx) || optionIdx < 0) return false;
@@ -4323,7 +4385,7 @@ const LIVE = {
             // was D218's rarest door in. The raw drag the mirror held is
             // gone (only the feed ever knew it) — the standing bucket's
             // midpoint is the closest the doc can testify to.
-            const q = state.feedBank.find((x) => x.id === qid);
+            const q = feedById(qid);
             const mv = q ? mirrorVoteValue(q, prev) : null;
             wf[qid] = mv != null ? mv : Number(prev);
             localStorage.setItem(WF_LS, JSON.stringify(wf));
