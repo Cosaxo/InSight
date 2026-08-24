@@ -61,6 +61,8 @@ export interface NavHandlers {
   openPerson: (who: unknown) => void;
   openSuggestions: () => void;
   openLogicTest: () => void;
+  /** Open the buyer's room — "Asked by you" (PAID-PLAN §7, D274). */
+  openAskedByYou: () => void;
 }
 
 export type NavKey = keyof NavHandlers;
@@ -115,6 +117,7 @@ const NAV = {
   openPerson(who: unknown): void { handlers.openPerson?.(who); },
   openSuggestions(): void { handlers.openSuggestions?.(); },
   openLogicTest(): void { handlers.openLogicTest?.(); },
+  openAskedByYou(): void { handlers.openAskedByYou?.(); },
   can: canNav,
 };
 

@@ -19,6 +19,9 @@ import LIVE from '../data/live';
 import { patternsEarned } from '../data/patternsReady';
 import { closeTopBackLayer } from '../data/backLayers';
 import { registerNav } from '../data/nav';
+// The buyer's room (PAID-PLAN §7, D274) — its own lazy chunk, not part of
+// the spec overlay group: typed, and nothing on first paint pays for it.
+const AskedByYouLazy = React.lazy(() => import('../ui/AskedByYouOverlay'));
 // R2/D270: the anonymous feature tally — a no-op until initLive arms it,
 // so every demo mount and jsdom suite stays silent without a test flag.
 import * as engagement from '../data/engagement';
@@ -434,11 +437,14 @@ function App() {
   useEffect(() => {
     const openSuggestions = () => openDeferred(() => { setOv('suggest'); });
     const openLogicTest = () => openDeferred(() => { closeAll(); setOv('logic'); });
+    // The buyer's room is its own lazy chunk (React.lazy below), not part
+    // of the spec overlay group — no loadOverlays() gate to await.
+    const openAskedByYou = () => { setOv('askedby'); };
     // Registered (D248) rather than published: these are closures over this
     // shell's state, so the registry is what lets a consumer import a door
     // without importing the shell that owns it — see data/nav.ts on why an
     // import would have drawn a real cycle here.
-    return registerNav({ openSuggestions, openLogicTest });
+    return registerNav({ openSuggestions, openLogicTest, openAskedByYou });
   }, [openDeferred]);
 
   useEffect(() => {
@@ -723,6 +729,14 @@ function App() {
           {city && window.CityOverlay && <window.CityOverlay city={city} onClose={() => setCity(null)} />}
           {ov === 'profile' && <ProfileOverlay onClose={() => setOv(null)} me={me} />}
           {ov === 'suggest' && window.SuggestOverlay && <window.SuggestOverlay onClose={() => setOv(null)} />}
+          {/* null fallback like the tabs' lazies: the room's own first frame
+              is its header, and a spinner in front of that is one loading
+              state too many. A failed chunk lands in this ErrorBoundary. */}
+          {ov === 'askedby' && (
+            <React.Suspense fallback={null}>
+              <AskedByYouLazy onClose={() => setOv(null)} />
+            </React.Suspense>
+          )}
           {/* samplePeople: the overlay's people rows are sample-data personas
               with invented relationships ("sister", "% match"), so they must
               not render in live mode — the gate rides down as a prop from the

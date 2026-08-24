@@ -3,8 +3,10 @@
 //
 //   node scripts/record-purchase.mjs --project prvfire33 \
 //     --uid <buyerUid> --qid pd01 --scope city --place Oslo \
+//     --prompt "Should the night buses run all night?" --options "All night,The hours are fine" \
 //     --start 2026-08-24 --until 2026-09-21 --rate 0.16 --cap 4000 --cap-eur 640
 //   node scripts/record-purchase.mjs --emulator --uid u1 --qid pd01 --scope world \
+//     --prompt "Sunrise or sunset?" --options "Sunrise,Sunset" \
 //     --start 2026-08-24 --until 2026-09-21 --rate 0.16 --cap 4000 --cap-eur 640
 //
 // Needs admin credentials (GOOGLE_APPLICATION_CREDENTIALS or `gcloud auth
@@ -65,6 +67,8 @@ const rate = Number(opt("rate"));
 const cap = Number(opt("cap"));
 const capEur = Number(opt("cap-eur"));
 const dims = (opt("dims") || "").split(",").map((s) => s.trim()).filter(Boolean);
+const prompt = opt("prompt");
+const options = (opt("options") || "").split(",").map((s) => s.trim()).filter(Boolean);
 const amend = flag("amend");
 
 if (!uid) die("--uid <buyerUid> is required");
@@ -76,6 +80,11 @@ if (cadence !== "once" && cadence !== "daily") die("--cadence must be once or da
 if (!(rate > 0)) die("--rate must be a positive per-answer figure (locked at booking, D164)");
 if (!(cap > 0) || !(capEur > 0)) die("--cap and --cap-eur must be positive (billing stops there)");
 if (dims.length > 3) die(`${dims.length} dims — D228 caps the audience at three, each printed on the band`);
+// The contract snapshots its own subject: the room must keep drawing a
+// campaign whose question has since left the bank, and a contract that
+// cannot state what was asked is not a record of anything.
+if (!prompt) die("--prompt <the question as asked> is required");
+if (options.length < 2) die("--options a,b[,c…] — at least two labels, comma-separated");
 
 const DAY = 24 * 60 * 60 * 1000;
 const parseDay = (s, name) => {
@@ -106,6 +115,8 @@ await ref.set({
   uid,
   kind,
   qid,
+  prompt,
+  options,
   scope,
   place,
   dims,
