@@ -27447,3 +27447,145 @@ did not need it — TestFlight internal testing has no review gate — but
 that no longer exists. LAUNCH-RUNBOOK 4.4 is the step, its count is
 gated by `check:figures` as of D273, and its purposes are not, so the
 printout is the artefact.
+## D276 · The suite audited itself: what stayed green while being wrong
+
+Ten findings from an audit of the four test runners and the 35 gates,
+all established by running something rather than by reading. What
+follows is the arithmetic, including the two measurements that bought
+nothing so nobody re-derives them.
+
+### The loop that could not converge
+
+`growFeed` waited for the feed's mounted window to stop growing. On the
+demo bank that cannot happen: the window opens at `WF_PAGE = 8` and adds
+`WF_STEP = 4` per tick against a list of **194**, so converging needs 47
+ticks and the bound was 40. Of twenty calls in a `test:unit` run,
+eighteen returned in ≤4 iterations (the live fixture's feed is short
+enough) and two — the only two that mount the DEMO feed — ran all forty
+at **11.6 s and 10.4 s**, and were the two slowest tests in the suite.
+
+It had been true since about 2026-08-20: `content/feed-questions.json`
+grows ~6 questions a day (94 → 124 over four days), and the reach fell
+below the list length with nothing measuring the gap. The bound also
+failed OPEN — falling out of the loop returned normally, so a window
+that really had grown forever was indistinguishable from one that
+settled.
+
+`growUntil(pred, what)` waits for what the case is about and throws on
+exhaustion; `growFeed` stays for the eighteen callers whose subject is
+the window, and throws now too. Those two files went **31.7 s → 11.8 s**
+of test-body time; the suite went **139.1 s → 122.5 s**.
+
+**And it unblocked `test:coverage` over the whole tree**, which
+`vite.config.ts` had recorded as impossible. Exactly one test timed out
+under v8 instrumentation and it was this one. The old scope
+(`--dir src/v2/data`) was also reporting wrong numbers, because a module
+exercised by a `ui/` or `test/` suite scored only what its own tests
+reached: **11 of 45 modules read 5+ points low**, `mutes.ts` read 0%
+against a real 81.5%, and `patternsReady.ts` — the D265 gate — read 64%
+against 96%. Whole layer 76.4/68.9 → 80.1/72.1.
+
+### Fifteen rules that were already dead
+
+Fifteen of the thirty-four rule slugs `question-quality.mjs` can emit
+could be deleted with the whole tree green — `test:scripts` at 327/327
+and `check:quality` still printing "502 questions checked · all bounds
+hold": `core`, `endings`, `intro`, `n`, `nodes`, `option-length`,
+`rates`, `title`, `topic`, and all six `learn-*`.
+
+`core` (D161) decides whether a question enters the Mirror's corpus;
+`rates` (D187) decides which stop's scorecard it lands on. Both fail
+silently by design — the row is simply not there, which looks like a
+question nobody has written.
+
+The corpus half of that suite cannot see this: proving the committed
+bank passes is exactly as true when a rule has stopped firing. Four more
+(`alts`, `cat`, `tag`, `tone`) were caught only by an error-COUNT
+assertion, and were the control that made the fifteen evidence rather
+than a counting exercise. All thirty are now held, re-measured by
+mutation, and `the gate's own liveness` reads the slugs out of the
+gate's source so the sixteenth cannot arrive unguarded.
+
+### Guards that could not fire
+
+- **Nine anchor length caps** lived in `firestore.rules` and in
+  `ANCHOR_FIELDS`, reconciled by the comment's own admission "by eye".
+  `saveAnchors` truncates to the CLIENT's number, so tightening a rule
+  below its client value makes the whole anchors write fail and the
+  profile silently stops saving. The rules suite covers three of nine,
+  against the ruleset rather than against `ANCHOR_FIELDS`.
+  `check:anchors` now holds both; mutation-checked five ways.
+- **App Check's build-time refusal** — the control D3 calls the only
+  thing between the public surface and unlimited free anonymous accounts
+  — was unreachable in every workflow: `ci.yml` sets no
+  `VITE_FIREBASE_API_KEY` so the condition short-circuits, and both
+  native builds are correctly exempt. Setting a dummy key there is NOT
+  the fix, because the site key is replaced at build time and would
+  change which branch of `appcheck.ts` survives — buying guard coverage
+  with a bundle nobody ships. The condition moved to
+  `scripts/appcheck-guard.ts` where `test:scripts` runs both directions.
+- **`check:labels` and `check:touch-zoom`** reported OK on an empty walk.
+  Both now carry the floor `check-deploy-targets.mjs` already uses.
+  `check:panel-suites` was on the same suspect list and is NOT a defect
+  — it already floors at `panels.length < 20`; the first mutation only
+  blanked `readFileSync`, which that gate does not read.
+
+### Assertions that held for the wrong reason
+
+The fixture surface pin computed three diffs and asserted on two, so
+`LIVE.near` could drift and every live case would keep passing against
+`undefined`. Four assertions were facts about ICU's resolved locale, not
+about the code — `LC_ALL=de_DE.UTF-8` fails exactly four; the scripts
+now pin it and `src/v2/test/locale.test.ts` says so in one failure
+instead of four that look like product bugs. And three tests passed only
+in declaration order (`--sequence.shuffle`), each a lazy chunk or a mock
+return value outliving the case that set it. Shuffling FILES leaves all
+of `--dir src` green, which confirms `vite.config.ts`'s claim that
+nothing leaks across the shared `threads` pool.
+
+`SignInGate`'s three are deliberate: `React.lazy` memoises per module
+registry, so its never-fetched cases must precede anything that resolves
+the chunk. Its comment guarded the first block only; the case in the
+second describe needs the same thing. That is why `--sequence.shuffle`
+cannot be run over that one file, which is now recorded there.
+
+### Surfaces and boundaries that ran nowhere
+
+`data/back.ts` (the Android back handler) was at a true 0% — every mount
+test takes its `isNativePlatform` early return, so inverting `consumed`,
+losing the teardown or letting a throwing handler out were all
+device-only failures. `spec/compare-breakdown.jsx` is 334 lines behind a
+lens tab nothing tapped, and is the DEMO Compare path the screenshots
+workflow draws. And two backend gates had no executable check at all:
+`logicStartV2`'s response (the seed IS the whole answer key, since
+`check:logic-sync` puts `generateForm` in the shipped client) and
+`declineJoinV2`'s membership gate, whose twin `approveJoinV2` was
+already driven.
+
+### The e2e job booted the emulator suite three times
+
+A boot is **22 s**; the three steps were **143 s** wall of which 66 s was
+booting, and two of the three asked for a byte-identical emulator set.
+`test:e2e:all` chains them on one boot: **90 s for 137 checks**. The
+order is load-bearing (the loop asserts exact global totals against a
+fresh database and must run first) and what would break it silently is a
+length or emptiness assertion added to the second or third driver —
+named at the step, with the remedy.
+
+### Two measurements that bought nothing
+
+- **Splitting `smoke-live.test.jsx`.** At 42.2 s it is over the ~30 s
+  threshold `src/v2/README.md` sets for adding a file, but total file
+  time is 185 s, so the 4-core floor is 46 s and the aggregate binds.
+  Splitting buys ~0 and costs another `spec-index` import.
+- **`"incremental": true` for functions.** The e2e job compiled that
+  tree four times, which looks like an obvious saving. A cold `tsc` is
+  0.92 s and a warm incremental one 0.50 s, so it buys under a second —
+  and lands a `tsconfig.tsbuildinfo` outside `lib/`, where
+  `functions/.gitignore` does not cover it. An earlier 4.6 s reading was
+  measuring cold npm startup rather than the compiler.
+
+Also recorded: `vite.config.ts`'s premise that "most of `--dir src` is
+pure logic and wants no DOM" has flipped — **81 of 129 files** opt into
+jsdom. The conclusion still holds (a global environment would add ~53 s
+to the 48 that do not), so only the reason is stale.

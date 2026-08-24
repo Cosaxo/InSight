@@ -111,11 +111,21 @@ npm run test:rules            # 136 security-rules tests (Firestore + Storage em
 npm run test:e2e              # full SDK loop (auth+firestore+functions)
 npm run test:e2e:erasure      # account deletion, end to end
 npm run test:e2e:moderation   # moderation transport
+npm run test:e2e:all          # all three, on ONE emulator boot — what CI runs
 ```
 
-The three e2e suites each have a `pre` script that builds `functions`
-first, so run them through npm rather than by hand — a raw
-`firebase emulators:exec` will happily run the *previous* build.
+The e2e suites each have a `pre` script that builds `functions` first, so
+run them through npm rather than by hand — a raw `firebase emulators:exec`
+will happily run the *previous* build.
+
+Reach for the three single-driver scripts while working on one: each gets a
+clean database, and the failure output is not buried under the other two.
+`test:e2e:all` is what `backend-checks.yml` runs, because a boot is ~22s and
+paying it three times cost ~48s of every PR and every deploy. It chains the
+drivers in one database, so its ORDER is load-bearing — the workflow
+comment beside that step has the argument, and it is the thing to read
+before adding a count or emptiness assertion to the erasure or moderation
+driver.
 
 **`npm install` at the root does not install the backend's dependencies**,
 and the way that surfaces looks like a broken suite rather than a missing
