@@ -77,7 +77,11 @@ describe("a due learn card is re-served answerable (D95)", () => {
     // gone with it — so the NEXT serve arrives fresh too.
     const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}");
     expect(Object.keys(wf).filter((k) => k.indexOf("lrn-") === 0)).toEqual([]);
-  });
+    // 30s, not the 15s default: growFeed() above renders the WHOLE feed, so
+    // this test's runtime grows with every content batch — at ~670 bank
+    // questions it sits exactly on the default and fails only under full-suite
+    // load, which is the worst kind of red (2026-08-24, twice in one day).
+  }, 30_000);
 
   it("does not serve an answered card inside its gap at all", () => {
     const card = L.plan(1)[0];
