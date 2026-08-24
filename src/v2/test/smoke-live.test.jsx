@@ -645,6 +645,12 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   };
 
   it("opens a live card's background from the i, under its own heading", async () => {
+    // The feed persists its votes to localStorage and this suite does not
+    // clear it between cases, so an earlier case's vote parks this card
+    // behind the Answered expander and the `i` is off screen — which fails
+    // here as "the background never reached one" and, in the absence
+    // assertions below, would pass vacuously instead.
+    localStorage.clear();
     const expectNoBoundary = mountLive({ background: true });
     await growFeed();
     openTheI();
@@ -660,6 +666,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   });
 
   it("leaves a card with no background exactly as it was", async () => {
+    localStorage.clear();
     const expectNoBoundary = mountLive();
     await growFeed();
     expect(
@@ -702,6 +709,10 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // photographed ("Adults should be free to harm themselves if they
   // choose."). Measured in both directions before this was written down.
   it("serves no demo test card on a live feed, whatever the bank holds", async () => {
+    // Cleared for this case's own sake: this asserts an ABSENCE, and a
+    // leftover vote that parks cards behind the Answered expander would
+    // satisfy it without the fix.
+    localStorage.clear();
     const expectNoBoundary = mountLive({ feedCards: 24 });
     await growFeed();
     const body = document.body.textContent || "";
@@ -714,6 +725,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   });
 
   it("weaves the bank's own test item in, with the counts the aggregate published", async () => {
+    localStorage.clear();
     const expectNoBoundary = mountLive({ testCard: true, feedCards: 24 });
     await growFeed();
     await awaitText(/Fixture test item/);
@@ -733,6 +745,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // mapping did not carry, so the card took the tiles path — a five-way
   // stack of zeroes, drawn as though the shares had been measured.
   it("draws no split on a bank test item nobody has answered yet", async () => {
+    localStorage.clear();
     const expectNoBoundary = mountLive({ testCard: true, tooSmall: true, feedCards: 24 });
     await growFeed();
     await awaitText(/Fixture test item/);

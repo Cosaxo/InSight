@@ -27564,11 +27564,37 @@ and no split drawn on one nobody has answered. The smoke case binds on
 `TEST_FEED_QS` itself rather than a copied prompt, so it cannot drift
 from the pool it is about.
 
-**The general form, for the next conversion.** Rule 5 sweeps publications
-nothing reads *within the spec layer*. A `window` write from `data/`
-is invisible to it in both directions, so converting a spec-layer READER
-whose provider is `live.ts` severs the seam silently. Before taking a
-name off the bridge, grep `data/` for it — the scanner cannot.
+### The gate that did not exist, and now does
+
+Writing "grep `data/` before converting" into a document would have been
+the wrong fix — the whole argument of D39's ratchet is that a migration
+with no meter does not run, it gets described. So the scanner learned
+two things instead.
+
+**`spec-globals.mjs` can see the cast.** `DEFINE_RES` matched
+`window.X = …` and not
+`(window as unknown as Record<string, unknown>).X = …`, which is the form
+the typed layer has to use. `data/` was being scanned all along; the
+publication was simply unreadable. One regex.
+
+**`check:globals` rule 6.** Rule 5 asks whether a published name appears
+anywhere outside its publisher, and is deliberately over-generous because
+the convention's third shape — a bare cross-module call — is a real
+consumer no scanner can see. That generosity is exactly the blind spot: a
+name published to `window` by one file and imported from another is
+mentioned all over the tree, and reaches nobody. Rule 6 asks the narrow
+version — published to global scope, **exported by a different file**,
+imported from that file somewhere, and read through `window.` by nobody
+outside the publisher — and all four clauses are load-bearing. The third
+is what separates the defect from the residue: nine modules in this tree
+export a name and publish their own copy of it, where the two are one
+binding and the line is only D137's leftovers. Folding those in would
+bury the finding under eight that do not matter.
+
+Measured against `10d2704`, the commit the owner photographed: rule 6
+reports `TEST_FEED_QS` and `WORLD_FEED_COMMENTS`, and nothing else. Both
+were severed by D249 on the same afternoon, and the second is why D11's
+"second layer" is described above as having already been gone.
 
 ## D277 · The `i` had a background slot, and it was empty in every live build
 

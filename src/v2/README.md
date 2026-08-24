@@ -525,6 +525,34 @@ redundant (ESM-exported *and* imported by name) survive it on purpose.
 failed on its publication — a dead line introduced by a merge neither
 side could see, caught before it landed.
 
+**Rule 6** (D276) is the case that generosity has to let through, and it
+cost a live D1 violation before anything asked about it. Rule 5 is
+satisfied by the name appearing *anywhere*, so a name published to
+`window` by one file and reached by `import { X }` from another passes —
+mentioned all over the tree, reaching nobody, because an imported binding
+cannot be reassigned from outside its own module. That is what D249 left
+when it converted `world-feed.jsx`'s read of `window.TEST_FEED_QS` into a
+static import of the DEMO pool while `data/live.ts` went on publishing
+the LIVE one: a release build drew hash-invented vote counts on real
+test cards for a build, with every gate green.
+
+So rule 6 asks the narrow version — published to global scope, **exported
+by a different file**, imported from that file somewhere, and read
+through `window.` by nobody outside the publisher. The third clause is
+what makes it usable rather than noisy: without it the rule also reports
+the redundant-publication class the paragraph above says survives on
+purpose (nine of them today, up from five), where the export and the
+publication are one binding and the line is only residue. Against the
+commit the defect was photographed on, rule 6 reports exactly two names,
+and both were severed by D249 on the same afternoon.
+
+The other half of the same fix is in `spec-globals.mjs`: `DEFINE_RES`
+matched `window.X = …` and not
+`(window as unknown as Record<string, unknown>).X = …`, which is the form
+the typed layer has to use. `data/` was scanned all along — the
+publication was simply unreadable, in both directions, which is why no
+rule could have fired.
+
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
