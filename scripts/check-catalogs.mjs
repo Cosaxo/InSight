@@ -17,6 +17,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseReview } from "./catalog-curate-lib.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const errors = [];
@@ -124,6 +125,72 @@ if (colors.present) {
   for (const [k, name] of want) {
     if (colors.names.get(k) !== name) {
       errors.push(`colors.txt: expected key ${k} to be ${name}, found ${colors.names.get(k) ?? "absent"}`);
+    }
+  }
+}
+
+// ── the artists domain's reviewed exceptions (D267) ────────────────────
+// content/artist-review.json is the one catalogue input a human edits by
+// hand, so it is the one that can go stale without anybody running
+// anything: the builder needs Wikidata and is an operator step, while this
+// runs on every push.
+//
+// The shape contract comes from catalog-curate-lib.mjs rather than a
+// second parser here. That is a deliberate exception to this file's
+// independence stance, and the line is: the KEY derivation stays
+// independent (a gate sharing the builder's derivation shares its bugs),
+// but a hand-edited file's contract should have exactly one definition,
+// or the gate and the builder disagree about what is legal and the
+// operator learns which one was right at 3am. The cross-check below —
+// review against the COMMITTED catalogue — is this file's own and shares
+// nothing.
+{
+  const REVIEW = join(root, "content", "artist-review.json");
+  let raw = null;
+  try {
+    raw = JSON.parse(readFileSync(REVIEW, "utf8"));
+  } catch (e) {
+    errors.push(`content/artist-review.json: ${existsSync(REVIEW) ? `unparseable — ${e.message}` : "missing"}`);
+  }
+  if (raw) {
+    const review = parseReview(raw);
+    for (const e of review.errors) errors.push(`content/artist-review.json ${e}`);
+
+    // Both directions against the committed catalogue, and only when it
+    // exists: absence is the designed state for this domain (D266), and a
+    // review file with no catalogue yet is exactly what a filled-in
+    // ruling looks like the moment before the operator runs the builder.
+    if (artists.present) {
+      const inCatalogue = new Set(artists.keys);
+      for (const [qid, entry] of review.reject) {
+        if (inCatalogue.has(qid)) {
+          errors.push(
+            `artists.txt still carries ${entry.name} (Q${qid}), which content/artist-review.json `
+            + "rejects — re-run scripts/build-catalog.mjs artists, never hand-edit the catalogue",
+          );
+        }
+      }
+      for (const [qid, entry] of review.admit) {
+        if (!inCatalogue.has(qid)) {
+          errors.push(
+            `content/artist-review.json admits ${entry.name} (Q${qid}) but artists.txt does not `
+            + "carry them — re-run scripts/build-catalog.mjs artists",
+          );
+        }
+      }
+      // A name in the review that disagrees with the catalogue's name for
+      // the same key means the reviewer ruled on somebody else. The keys
+      // are what bind, so this is the only place the names are checked
+      // against anything.
+      for (const [qid, entry] of [...review.reject, ...review.admit]) {
+        const name = artists.names.get(qid);
+        if (name && name !== entry.name) {
+          errors.push(
+            `content/artist-review.json calls Q${qid} ${JSON.stringify(entry.name)}, `
+            + `artists.txt calls it ${JSON.stringify(name)} — one of them is ruling on the wrong person`,
+          );
+        }
+      }
     }
   }
 }
