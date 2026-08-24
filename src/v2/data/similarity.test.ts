@@ -173,7 +173,7 @@ describe("scoreMatch — one hundred minus the average gap", () => {
       3,
     );
     // gaps 10, 0, 30 → mean 13.33 → 87. This is the PRINTED number and
-    // D275 §2 did not move it: the sentence on the card is still exactly
+    // D277 §2 did not move it: the sentence on the card is still exactly
     // this arithmetic.
     expect(m).toMatchObject({ match: 87, axes: 3, tests: 2 });
     // …and the sort key beside it, which nobody is shown:
@@ -481,7 +481,7 @@ describe("angleHash — stable layout, no wall clock", () => {
   });
 });
 
-// ── the width bias, and the property that catches it (D275 §2) ───────
+// ── the width bias, and the property that catches it (D277 §2) ───────
 //
 // Nothing in this file compared two candidates measured over DIFFERENT
 // numbers of axes, which is why `100 − gap/axes` could rank them against
@@ -556,7 +556,7 @@ describe("rankKindred — a thin comparison must not win on noise", () => {
   });
 });
 
-// ── which twelve questions the pool is built from (D275 §2) ──────────
+// ── which twelve questions the pool is built from (D277 §2) ──────────
 //
 // loadKindred had no test at all: grepping it across src/ finds only
 // mocks and call-count assertions, which is how a `.slice(0, 12)` could

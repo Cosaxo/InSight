@@ -54,7 +54,7 @@ import LIVE from "../data/live";
 import { VOTER_FETCH_CAP } from "../data/voters";
 import { bucketLabel } from "./cohortLabels";
 import {
-  COHORT_DIMS, DIM_LABEL, cellFor, divergence, mixFor, pctFor, byOf,
+  COHORT_DIMS, DIM_LABEL, cellFor, divergenceFor, mixFor, pctFor, byOf,
   type ByMap,
 } from "../data/cohort";
 import { typeDivergence, typeSplitFor, type TypeSplitRow } from "../data/typeSplit";
@@ -406,8 +406,8 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
   // the Mirror's Explore lens uses, so the two surfaces cannot disagree
   // about which option a group is unusual on.
   const diff = openDim && openBucket
-    ? divergence(by, openDim, overall, n).find((d) => d.bucket === openBucket)
-    : undefined;
+    ? divergenceFor(by, openDim, openBucket, overall, n)
+    : null;
   const overallPct = pctFor(overall);
 
   // The viewer's own bucket, so their cohort is findable in a long chip

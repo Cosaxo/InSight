@@ -59,7 +59,7 @@ export const LIVE_MEMBERS = [
   // Kindred (D99) — the People lens's ranking, derived on read from the
   // cached voter lists plus the viewer's own votes.
   "loadKindred", "kindred", "kindredLoading", "kindredDepth",
-  // D276 — the city-scoped half of the same pool. A second fan-out rather
+  // D278 — the city-scoped half of the same pool. A second fan-out rather
   // than a wider cap: the unscoped query returns the newest 200 answers
   // from anywhere and the City ring then filters them to one city, so at
   // any real population it discards nearly everything it paid for.
@@ -71,7 +71,7 @@ export const LIVE_MEMBERS = [
   // ingredients, exposed so the typed layer never needs a bridge read.
   "loadSimilarity", "similarityLoading", "kindredPeople",
   "testFeedItems", "myTestResults",
-  // D275 — the passive fold, persisted. Listed here rather than beside
+  // D277 — the passive fold, persisted. Listed here rather than beside
   // saveTestResult because it is what makes the D112 score tier able to
   // fire at all: without a writer for the four core keys, every
   // candidate's parsed scores are null and the ranking silently falls

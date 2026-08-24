@@ -24,6 +24,7 @@ import {
   STREAK_BROKEN_MIN,
   dayGap,
   dayOffset,
+  firestoreEngagementStore,
   runEngagementDigest,
   surfaceOfQid,
   utcDay,
@@ -456,5 +457,54 @@ describe("runRollupFold", () => {
     expect(d.rollups).toBe(1);
     expect(d.sessions).toBe(300); // clamped to the rules' own bound
     expect(d.dayparts).toEqual([0, 0, 0, 0]);
+  });
+});
+
+describe("the _state document is shared, so the digest must MERGE it", () => {
+  // TWO writers, one document. `runEngagementDigest` owns four named
+  // fields on v2_users/{uid}/engagement/_state (firstDay, lastDay,
+  // activeDays, streak); `runRollupFold` owns a fifth, `fg7` — the
+  // trailing seven-day foreground window that R3/D272's fade signal is
+  // computed from, and it writes that one with { merge: true }.
+  //
+  // Both run in the SAME nightly invocation of digestEngagementV2, digest
+  // first. A replacing write from the digest therefore deletes fg7 every
+  // night, minutes before the fold reads it back: advanceFgWindow gets
+  // `undefined`, restarts the window at length 1, and its own rule needs
+  // six readings before it will report fading. So the fade signal could
+  // never fire — not rarely, never — while the per-uid read and write that
+  // compute it were billed every night regardless.
+  //
+  // Asserted on the ADAPTER, because that is where the bug was and the
+  // pure passes above cannot see it: the injected memoryStore models a
+  // whole-object replace, which is exactly what the real store was doing.
+  it("putStates merges rather than replacing, so fg7 survives the night", async () => {
+    const calls: Array<{ path: string; data: unknown; opts: unknown }> = [];
+    const batch = {
+      set(ref: { path: string }, data: unknown, opts?: unknown) {
+        calls.push({ path: ref.path, data, opts });
+      },
+      async commit() {},
+    };
+    const doc = (path: string) => ({
+      path,
+      collection: (c: string) => ({ doc: (d: string) => doc(`${path}/${c}/${d}`) }),
+    });
+    const db = {
+      batch: () => batch,
+      collection: (c: string) => ({ doc: (d: string) => doc(`${c}/${d}`) }),
+    } as unknown as Parameters<typeof firestoreEngagementStore>[0];
+
+    const store = firestoreEngagementStore(db);
+    await store.putStates(new Map<string, DigestState>([
+      ["u1", { firstDay: "2026-08-01", lastDay: "2026-08-23", activeDays: 5, streak: 2 }],
+    ]));
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].path).toBe("v2_users/u1/engagement/_state");
+    expect(
+      calls[0].opts,
+      "the digest replaced _state instead of merging it, which deletes the fg7 window runRollupFold writes to the same document minutes later",
+    ).toEqual({ merge: true });
   });
 });

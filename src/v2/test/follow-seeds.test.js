@@ -30,8 +30,15 @@ async function scenes() {
   return (await import("../spec/scenes.js")).SCENES;
 }
 async function subtopics() {
-  await import("../spec/world-subtopics.js");
-  return window.SUBTOPICS;
+  // The named export, not window.SUBTOPICS — the mirror went with the
+  // module's move off the eager list, since search-overlay.jsx (its last
+  // global reader) imports the binding now too.
+  const m = await import("../spec/world-subtopics.js");
+  // …and the leaf STOCK is installed by the loaders rather than at module
+  // scope, which is what the deferral is. offers() below reads the pool, so
+  // the helper has to do what loadWorldFeed() does.
+  m.installSubtopicStock();
+  return m.SUBTOPICS;
 }
 
 describe("a live build starts with zero follows", () => {
@@ -112,7 +119,8 @@ describe("what the follow surfaces may advertise (D96)", () => {
 
   it("subtopics: only stocked leaves are offered", async () => {
     const ST = await subtopics();
-    // The demo pool stocks all three leaves at import.
+    // The demo pool stocks all three leaves once the stock is installed
+    // (the helper above calls it, as loadWorldFeed does).
     expect(ST.offers().map((s) => s.id)).toEqual(["sub_tennis", "sub_football", "sub_running"]);
     const pool = window.WORLD_FEED_QS;
     // What a live boot leaves behind: the bank replaces the pool and tags

@@ -27447,10 +27447,275 @@ did not need it — TestFlight internal testing has no review gate — but
 that no longer exists. LAUNCH-RUNBOOK 4.4 is the step, its count is
 gated by `check:figures` as of D273, and its purposes are not, so the
 printout is the artefact.
+## D275 · The private aggregate mirror collapses into the published one
+
+**2026-08-24.** **Status:** binding. Reverses the two-document shape for
+the vote, edit and rank paths; the catalog path keeps its accumulator.
+Named as the remedy by `functions/src/v2.ts`'s own header from the day
+D98 shipped, and by D98's contention paragraph before that.
+
+### What was there
+
+`onV2AnswerCreated` wrote two aggregate documents per world answer, in
+one transaction, both keyed by qid: `v2_aggs_private/{qid}` — the
+trigger's working state — and `v2_question_aggs/{qid}`, the published
+mirror. The split existed because the mirror was *floored*: the private
+doc held the true counts while the public one published only at or above
+`AGG_MIN_N`, on a `PUBLISH_EVERY` cadence, with complementary
+suppression. The private doc was where the truth lived that the public
+doc was not allowed to say.
+
+**D98 deleted the floor and left the split standing.** From that day the
+two documents held, on the vote and edit paths, byte-for-byte the same
+object — `{counts, total, by}` plus `edits` when set — and on the rank
+path the same two fields, `{pos, total}` against `{total, pos}`.
+`docs/data-inventory.md` had said so in prose for as long: *"Since D98 it
+holds the same numbers as the public document… a cache, not a curtain."*
+A cache with no readers is a second write.
+
+### The arithmetic
+
+Per world answer the trigger wrote three documents: the ledger entry, the
+private mirror, the published mirror. One of the three was a copy of
+another. The write term in `scripts/cost-arith.mjs` goes
+`worldAnswers × (1 + 2 + pub)` → `(1 + 1 + pub)`:
+
+| DAU | writes/day was | now | Firestore $/mo was | now |
+| ---: | ---: | ---: | ---: | ---: |
+| 500 | 12.1 K | 10.1 K | 1.16 | 1.16 |
+| 5,000 | 121 K | 101 K | 24 | 23 |
+| 50,000 | 1.21 M | 1.01 M | 262 | 257 |
+| 500,000 | 12.1 M | 10.1 M | 2,665 | 2,611 |
+
+−16.5% of writes at every size, ~2% of the bill. It is only 2% because
+reads dominate this model everywhere, and that is worth stating rather
+than rounding up: a third of the trigger's writes is a small slice of a
+small line. The free-tier write crossing moves ~1,408 → ~1,687 DAU, by
+exactly the write rate's ratio (24.2 → 20.2 per user-day).
+
+**It does NOT move D7's ceiling**, and the sentence in v2.ts that said it
+would has been corrected. Both documents were keyed by the same qid and
+written in the same transaction, so the transaction was already bounded
+by one of them and is now bounded by the survivor. Sharding is still the
+only thing that moves that wall.
+
+### Why the published document is safe as the accumulator
+
+`firestore.rules` gives `v2_question_aggs` `allow read: if request.auth
+!= null; allow write: if false`. No client can write it; the trigger
+through the Admin SDK is its only writer — exactly the guarantee the
+private doc had. The trigger now reads it and rewrites it inside the same
+transaction, which is what it already did with the private one.
+
+Nothing new becomes readable. Every field the accumulator holds was
+already being published in the same transaction, to the same qid, on the
+same answer.
+
+### What the catalog path keeps, and why that is not an exception
+
+`v2_aggs_private/{qid}` survives for `type: "catalog"` answers, where it
+is **not** a copy: it accumulates the whole `ent` map — a catalogue is
+~1k keys — and the whole `entBy`, while the published doc carries
+`canonTopN`'s bounded top-N board and a `by` cut to the board's own
+entities. Publishing the accumulator would grow the document every client
+re-reads on every answer, which is the opposite of what this change is
+for. The duel fold (`v2social.ts`) keeps its own for the same shape of
+reason, at one fold per revealed group-day rather than per answer.
+
+So the collection keeps a real purpose rather than becoming an empty
+match block, and the rules deny stays where it is.
+
+### Migration: none needed, and the reason is dated
+
+Switching the accumulator would corrupt counts if any live
+`v2_question_aggs` doc had been written under the floor — suppressed or
+absent while its private twin held the truth. That set is empty.
+`monitoring/pulse-trail.jsonl` records `answersCounted` 0 every day
+through 2026-08-14; the only non-zero readings are 5 answers across
+2026-08-15 to 08-18, all after D98 shipped. Every published aggregate in
+production was therefore written by the post-D98 trigger, in the same
+transaction as its private twin, with identical data. D98 made the same
+argument for the same reason — *"the backfill set is provably empty"* —
+off the same file.
+
+No fallback read of the private doc is left behind. One would cost a
+billed read on every answer forever to cover a set that is empty, which
+is the trade this record exists to refuse.
+
+### The gate
+
+`firestore-tests/e2e-v2-loop.mjs` asserts, through the admin handle
+because the collection is deny-all to clients, that after five answers
+`v2_aggs_private/{qid}` **does not exist** — beside the assertions that
+already pin the published counts exactly through eleven answers, an edit
+and a post-edit create. Verified by reverting the trigger alone: the case
+fails, and prints the duplicate's contents, which are byte-identical to
+the published document (`{"counts":{"0":2,"1":3},"total":5,"by":{…}}`).
+That output is the evidence for this record's central claim.
+
+### The edits this record made
+
+`functions/src/v2.ts` (three paths, the header, the contention note and
+the ledger-retention note), `functions/src/pure.ts`'s breakdown comment,
+`firestore.rules`' deny comment, `firestore-tests/rules.test.ts` (the
+fixture now names a catalogue qid, since a daily one no longer produces
+such a doc), `firestore-tests/e2e-delete-account.mjs` (the surviving
+tally is the published doc), `scripts/cost-arith.mjs`, and the paperwork:
+`data-inventory.md`, `SCHEMA-V2.md`, `MIRROR.md`, `COSTS.md` (figures,
+the walls section, and a dated note), `DEPLOYMENT.md`'s correction
+runbook — which gains a two-case split and loses its republication step
+for the common one, because the correction and the publication are now
+one write and cannot disagree.
+
+## D276 · The suite audited itself: what stayed green while being wrong
+
+Ten findings from an audit of the four test runners and the 35 gates,
+all established by running something rather than by reading. What
+follows is the arithmetic, including the two measurements that bought
+nothing so nobody re-derives them.
+
+### The loop that could not converge
+
+`growFeed` waited for the feed's mounted window to stop growing. On the
+demo bank that cannot happen: the window opens at `WF_PAGE = 8` and adds
+`WF_STEP = 4` per tick against a list of **194**, so converging needs 47
+ticks and the bound was 40. Of twenty calls in a `test:unit` run,
+eighteen returned in ≤4 iterations (the live fixture's feed is short
+enough) and two — the only two that mount the DEMO feed — ran all forty
+at **11.6 s and 10.4 s**, and were the two slowest tests in the suite.
+
+It had been true since about 2026-08-20: `content/feed-questions.json`
+grows ~6 questions a day (94 → 124 over four days), and the reach fell
+below the list length with nothing measuring the gap. The bound also
+failed OPEN — falling out of the loop returned normally, so a window
+that really had grown forever was indistinguishable from one that
+settled.
+
+`growUntil(pred, what)` waits for what the case is about and throws on
+exhaustion; `growFeed` stays for the eighteen callers whose subject is
+the window, and throws now too. Those two files went **31.7 s → 11.8 s**
+of test-body time; the suite went **139.1 s → 122.5 s**.
+
+**And it unblocked `test:coverage` over the whole tree**, which
+`vite.config.ts` had recorded as impossible. Exactly one test timed out
+under v8 instrumentation and it was this one. The old scope
+(`--dir src/v2/data`) was also reporting wrong numbers, because a module
+exercised by a `ui/` or `test/` suite scored only what its own tests
+reached: **11 of 45 modules read 5+ points low**, `mutes.ts` read 0%
+against a real 81.5%, and `patternsReady.ts` — the D265 gate — read 64%
+against 96%. Whole layer 76.4/68.9 → 80.1/72.1.
+
+### Fifteen rules that were already dead
+
+Fifteen of the thirty-four rule slugs `question-quality.mjs` can emit
+could be deleted with the whole tree green — `test:scripts` at 327/327
+and `check:quality` still printing "502 questions checked · all bounds
+hold": `core`, `endings`, `intro`, `n`, `nodes`, `option-length`,
+`rates`, `title`, `topic`, and all six `learn-*`.
+
+`core` (D161) decides whether a question enters the Mirror's corpus;
+`rates` (D187) decides which stop's scorecard it lands on. Both fail
+silently by design — the row is simply not there, which looks like a
+question nobody has written.
+
+The corpus half of that suite cannot see this: proving the committed
+bank passes is exactly as true when a rule has stopped firing. Four more
+(`alts`, `cat`, `tag`, `tone`) were caught only by an error-COUNT
+assertion, and were the control that made the fifteen evidence rather
+than a counting exercise. All thirty are now held, re-measured by
+mutation, and `the gate's own liveness` reads the slugs out of the
+gate's source so the sixteenth cannot arrive unguarded.
+
+### Guards that could not fire
+
+- **Nine anchor length caps** lived in `firestore.rules` and in
+  `ANCHOR_FIELDS`, reconciled by the comment's own admission "by eye".
+  `saveAnchors` truncates to the CLIENT's number, so tightening a rule
+  below its client value makes the whole anchors write fail and the
+  profile silently stops saving. The rules suite covers three of nine,
+  against the ruleset rather than against `ANCHOR_FIELDS`.
+  `check:anchors` now holds both; mutation-checked five ways.
+- **App Check's build-time refusal** — the control D3 calls the only
+  thing between the public surface and unlimited free anonymous accounts
+  — was unreachable in every workflow: `ci.yml` sets no
+  `VITE_FIREBASE_API_KEY` so the condition short-circuits, and both
+  native builds are correctly exempt. Setting a dummy key there is NOT
+  the fix, because the site key is replaced at build time and would
+  change which branch of `appcheck.ts` survives — buying guard coverage
+  with a bundle nobody ships. The condition moved to
+  `scripts/appcheck-guard.ts` where `test:scripts` runs both directions.
+- **`check:labels` and `check:touch-zoom`** reported OK on an empty walk.
+  Both now carry the floor `check-deploy-targets.mjs` already uses.
+  `check:panel-suites` was on the same suspect list and is NOT a defect
+  — it already floors at `panels.length < 20`; the first mutation only
+  blanked `readFileSync`, which that gate does not read.
+
+### Assertions that held for the wrong reason
+
+The fixture surface pin computed three diffs and asserted on two, so
+`LIVE.near` could drift and every live case would keep passing against
+`undefined`. Four assertions were facts about ICU's resolved locale, not
+about the code — `LC_ALL=de_DE.UTF-8` fails exactly four; the scripts
+now pin it and `src/v2/test/locale.test.ts` says so in one failure
+instead of four that look like product bugs. And three tests passed only
+in declaration order (`--sequence.shuffle`), each a lazy chunk or a mock
+return value outliving the case that set it. Shuffling FILES leaves all
+of `--dir src` green, which confirms `vite.config.ts`'s claim that
+nothing leaks across the shared `threads` pool.
+
+`SignInGate`'s three are deliberate: `React.lazy` memoises per module
+registry, so its never-fetched cases must precede anything that resolves
+the chunk. Its comment guarded the first block only; the case in the
+second describe needs the same thing. That is why `--sequence.shuffle`
+cannot be run over that one file, which is now recorded there.
+
+### Surfaces and boundaries that ran nowhere
+
+`data/back.ts` (the Android back handler) was at a true 0% — every mount
+test takes its `isNativePlatform` early return, so inverting `consumed`,
+losing the teardown or letting a throwing handler out were all
+device-only failures. `spec/compare-breakdown.jsx` is 334 lines behind a
+lens tab nothing tapped, and is the DEMO Compare path the screenshots
+workflow draws. And two backend gates had no executable check at all:
+`logicStartV2`'s response (the seed IS the whole answer key, since
+`check:logic-sync` puts `generateForm` in the shipped client) and
+`declineJoinV2`'s membership gate, whose twin `approveJoinV2` was
+already driven.
+
+### The e2e job booted the emulator suite three times
+
+A boot is **22 s**; the three steps were **143 s** wall of which 66 s was
+booting, and two of the three asked for a byte-identical emulator set.
+`test:e2e:all` chains them on one boot: **90 s for 137 checks**. The
+order is load-bearing (the loop asserts exact global totals against a
+fresh database and must run first) and what would break it silently is a
+length or emptiness assertion added to the second or third driver —
+named at the step, with the remedy.
+
+### Two measurements that bought nothing
+
+- **Splitting `smoke-live.test.jsx`.** At 42.2 s it is over the ~30 s
+  threshold `src/v2/README.md` sets for adding a file, but total file
+  time is 185 s, so the 4-core floor is 46 s and the aggregate binds.
+  Splitting buys ~0 and costs another `spec-index` import.
+- **`"incremental": true` for functions.** The e2e job compiled that
+  tree four times, which looks like an obvious saving. A cold `tsc` is
+  0.92 s and a warm incremental one 0.50 s, so it buys under a second —
+  and lands a `tsconfig.tsbuildinfo` outside `lib/`, where
+  `functions/.gitignore` does not cover it. An earlier 4.6 s reading was
+  measuring cold npm startup rather than the compiler.
+
+Also recorded: `vite.config.ts`'s premise that "most of `--dir src` is
+pure logic and wants no DOM" has flipped — **81 of 129 files** opt into
+jsdom. The conclusion still holds (a global environment would add ~53 s
+to the 48 that do not), so only the reason is stale.
 
 ---
 
-## D275 · The similarity surfaces were ranking on a tier that could not fire
+## D277 · The similarity surfaces were ranking on a tier that could not fire
+
+(Authored as D275; renumbered in the merge — main had minted D275/D276 for the
+optimization audit and the suite audit. The D68/D113 precedent.)
 
 **2026-08-24.** **Status:** binding. Follow-on to D98/D99/D112, and the
 half of D121 nobody costed at the time.
@@ -27712,7 +27977,9 @@ and the server-side alternative is unwritten.
 
 ---
 
-## D276 · The City constellation asks for its city, instead of filtering for it
+## D278 · The City constellation asks for its city, instead of filtering for it
+
+(Authored as D276; renumbered in the merge — see D277.)
 
 **2026-08-24.** **Status:** binding. Closes the recall half of D112's known
 limit 1, which D112 recorded and priced for cost only. Partially reverses

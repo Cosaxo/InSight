@@ -314,6 +314,37 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
   }, [nodes, cats, anchors]);
   const pos = laid.pos;
 
+  // edges: branch → sub → answer — trunks to topics, twigs to answers
+  //
+  // MEMOISED, and the dep list is the point: none of this reads `view`.
+  // `setView` runs on every `onPointerMove` of a drag or pinch and on every
+  // rAF step of the fly-to tween, so without the memo the whole block —
+  // one parent-chain walk plus one linear `cats.find` per node, and a fresh
+  // edge object each — re-ran per frame, to rebuild an identical array.
+  // `pos`, `byId`, `nodes` and `cats` are all memos themselves, so the
+  // identity check is exact rather than hopeful.
+  const edges = useMemo(() => {
+    const out = [];
+    // spokes: You → each branch hub — faint gravity lines so the whole map reads
+    // as one system radiating from You, not a scatter of unconnected islands
+    cats.forEach((c) => {
+      if (!pos[c.id] || !pos.root) return;
+      out.push({ from: 'root', to: c.id, hue: c.hue, w: 1.6, spoke: true });
+    });
+    // Built once instead of a `cats.find` per node — the same lookup, and
+    // `cats` is a list of branches or of groups, never long, but this walk
+    // is every answer the viewer has ever given. A Map rather than an
+    // object so a branch id that happens to name an Object.prototype member
+    // resolves to nothing, the way `.find` did.
+    const catOf = new Map(cats.map((c) => [c.id, c]));
+    nodes.forEach((n) => {
+      if (!pos[n.id] || !pos[n.parentId]) return;
+      const cat = catOf.get(mtTopCat(n, byId));
+      out.push({ from: n.parentId, to: n.id, hue: cat ? cat.hue : 250, w: n.sub ? 2.2 : 1.3 });
+    });
+    return out;
+  }, [cats, nodes, pos, byId]);
+
   // ── selection ──────────────────────────────────────────────────────────────
   const [sel, setSel] = useState(cue0.current && cue0.current.sel ? cue0.current.sel : null);     // 'root' | catId | nodeId | 'ax-<anchor>'
   // …and the already-mounted half of the same cue: a Map sitting open when
@@ -831,20 +862,6 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
     return keep;
   })();
 
-  // edges: branch → sub → answer — trunks to topics, twigs to answers
-  const edges = [];
-  // spokes: You → each branch hub — faint gravity lines so the whole map reads
-  // as one system radiating from You, not a scatter of unconnected islands
-  cats.forEach((c) => {
-    if (!pos[c.id] || !pos.root) return;
-    edges.push({ from: 'root', to: c.id, hue: c.hue, w: 1.6, spoke: true });
-  });
-  nodes.forEach((n) => {
-    if (!pos[n.id] || !pos[n.parentId]) return;
-    const catId = mtTopCat(n, byId);
-    const cat = cats.find((c) => c.id === catId);
-    edges.push({ from: n.parentId, to: n.id, hue: cat ? cat.hue : 250, w: n.sub ? 2.2 : 1.3 });
-  });
 
   // ---- card ----
   const tok = (n) => ({ id: n.id, ans: n.ans, note: n.note, q: n.prompt, hue: (cats.find((c) => c.id === mtTopCat(n, byId)) || { hue: 250 }).hue });

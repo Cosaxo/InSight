@@ -6,8 +6,8 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  agreement, agreementOf, byOf, cellFor, divergence, divisiveness, headlineFor, likenessRate,
-  MAP_ANCHOR_DIM, meanScore, mixFor, pctFor, sliceSplit, standingIn, typicality,
+  agreement, agreementOf, byOf, cellFor, divergence, divergenceFor, divisiveness, headlineFor,
+  likenessRate, MAP_ANCHOR_DIM, meanScore, mixFor, pctFor, sliceSplit, standingIn, typicality,
 } from "./cohort";
 
 // Two age bands and two genders over a 2-option question. Overall 12/8.
@@ -110,6 +110,52 @@ describe("divergence", () => {
     const by = { d: { tiny: { "0": 1 }, big: { "0": 6, "1": 4 } } };
     expect(divergence(by, "d", [7, 4], 2).length).toBe(2);
     expect(divergence(by, "d", [7, 4], 2, 5).map((x) => x.bucket)).toEqual(["big"]);
+  });
+});
+
+describe("divergenceFor — one slice, without folding the rest", () => {
+  // The helper exists to remove work, so what has to be pinned is that it
+  // removed NOTHING ELSE. Every case below states the expectation as the
+  // expression it replaced, evaluated live: if either implementation
+  // drifts, these fail rather than the Mirror and the breakdown sheet
+  // quietly disagreeing about which option a group is unusual on.
+  const asFind = (
+    by: Parameters<typeof divergence>[0], dim: string, bucket: string,
+    overall: readonly number[], k: number, minN?: number,
+  ) => divergence(by, dim, overall, k, minN).find((d) => d.bucket === bucket) ?? null;
+
+  it("agrees with divergence().find() on every bucket of every dim", () => {
+    for (const dim of ["ageBand", "gender"]) {
+      for (const bucket of Object.keys(BY[dim as keyof typeof BY] || {})) {
+        expect(divergenceFor(BY, dim, bucket, OVERALL, 2), `${dim}/${bucket}`)
+          .toEqual(asFind(BY, dim, bucket, OVERALL, 2));
+      }
+    }
+  });
+
+  it("is null exactly where find() is undefined — unknown dim, unknown bucket, empty cell", () => {
+    const by = { d: { real: { "0": 3, "1": 1 }, empty: { "0": 0, "1": 0 } } };
+    expect(divergenceFor(by, "nope", "real", [4, 4], 2)).toBeNull();
+    expect(divergenceFor(by, "d", "nope", [4, 4], 2)).toBeNull();
+    expect(divergenceFor(by, "d", "empty", [4, 4], 2)).toBeNull();
+    expect(asFind(by, "d", "empty", [4, 4], 2)).toBeNull();
+  });
+
+  it("goes null below minN, where find() also drops the bucket", () => {
+    const by = { d: { tiny: { "0": 1 }, big: { "0": 6, "1": 4 } } };
+    expect(divergenceFor(by, "d", "tiny", [7, 4], 2, 5)).toBeNull();
+    expect(asFind(by, "d", "tiny", [7, 4], 2, 5)).toBeNull();
+    expect(divergenceFor(by, "d", "big", [7, 4], 2, 5)).toEqual(asFind(by, "d", "big", [7, 4], 2, 5));
+  });
+
+  it("its pct IS sliceSplit — which is why Explore stopped calling both", () => {
+    // The two used to run side by side on the same cell, one for the
+    // split and one for the gap. They have to be the same array, and they
+    // have to go null together.
+    for (const bucket of ["25-34", "35-44", "45-54"]) {
+      const d = divergenceFor(BY, "ageBand", bucket, OVERALL, 2);
+      expect(d ? d.pct : null).toEqual(sliceSplit(BY, "ageBand", bucket, 2));
+    }
   });
 });
 
@@ -369,7 +415,7 @@ describe("standingIn — where you sit in the split", () => {
   });
 });
 
-// ── the ordering nobody was pinning (D275 §2) ────────────────────────
+// ── the ordering nobody was pinning (D277 §2) ────────────────────────
 //
 // circle.ts carried a comment describing this exact failure and asserting
 // that a secondary sort key prevented it. It did not, and no test said so:

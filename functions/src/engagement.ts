@@ -374,6 +374,19 @@ export function firestoreEngagementStore(db: Firestore): EngagementStore {
           batch.set(
             db.collection("v2_users").doc(uid).collection("engagement").doc("_state"),
             s,
+            // MERGE, because this document has a second writer. The digest
+            // owns four fields on it; `runRollupFold` owns `fg7`, the
+            // trailing foreground window R3/D272's fade signal is computed
+            // from — and both run in the same nightly invocation, this one
+            // first. A replacing write deleted fg7 every night minutes
+            // before the fold read it back, so `advanceFgWindow` restarted
+            // the window at length 1, and its own rule needs six readings
+            // before it will report fading: the signal could not fire, ever,
+            // while the read and the write that compute it were billed
+            // nightly regardless. Pinned in engagement.test.ts against THIS
+            // adapter — the injected store the pure passes run against
+            // models a whole-object replace, which is what this was doing.
+            { merge: true },
           );
         }
         await batch.commit();

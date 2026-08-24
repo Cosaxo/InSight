@@ -14,7 +14,7 @@
 
 // The one import: the likeness SORT key, shared with Kindred, Circle and
 // the People lens so a thin overlap is discounted the same way everywhere
-// (D275 §2). Pure arithmetic — it does not make this module less testable.
+// (D277 §2). Pure arithmetic — it does not make this module less testable.
 import { likenessRate } from "./cohort";
 
 export interface PortraitVote {
@@ -219,7 +219,7 @@ export function groupPortrait(reveals: PortraitReveal[], myUid: string | null): 
   const people: PortraitPerson[] = Object.entries(acc)
     .map(([uid, a]) => ({ uid, shared: a.shared, agree: a.agree, pct: a.shared ? Math.round((a.agree / a.shared) * 100) : 0 }))
     // Sorted on the confidence-bounded rate, not the printed percentage
-    // (D275 §2). This list feeds the "twin" and "breaks ranks" labels
+    // (D277 §2). This list feeds the "twin" and "breaks ranks" labels
     // below, which name a real person to their face — so a member who
     // overlapped on one question must not be able to take either label off
     // someone who overlapped on twenty. MIN_SHARED gates who is eligible;

@@ -312,7 +312,7 @@ export const MIN_PLACE_AXES = 3;
 
 /**
  * Pseudo-axes of prior, and the gap they carry — the shrinkage that stops
- * the thinnest comparison winning every list (D275 §2).
+ * the thinnest comparison winning every list (D277 §2).
  *
  * THE BIAS. `match` divided the summed gap by the candidate's OWN
  * intersection size, then the sort ranked candidates against each other on
@@ -344,7 +344,7 @@ export const TYPICAL_AXIS_GAP = 17;
 export interface ScoreMatch {
   /**
    * 100 − mean |gap| across shared axes, 0..100. The PRINTED number, and
-   * unchanged by D275: it is exactly the sentence D112 chose it for, and
+   * unchanged by D277: it is exactly the sentence D112 chose it for, and
    * it is what the constellation's radius encodes.
    */
   match: number;
@@ -387,7 +387,7 @@ export function flattenAxes(byTest: ParsedResults): Record<string, number> {
  * have. Same property `agreement` (cohort.ts) was chosen for — a number
  * on a screen that names someone must survive being explained to them.
  *
- * That sentence is `match`, and D275 §2 left it alone. What it added is
+ * That sentence is `match`, and D277 §2 left it alone. What it added is
  * `raw` beside it: the same comparison with a prior, used for the ORDER
  * and for nothing a reader sees. See AXIS_PRIOR for the bias that needed.
  */
@@ -420,7 +420,7 @@ export function scoreMatch(
 
 /**
  * Choose the questions Kindred compares people across — most divisive
- * first (D275 §2).
+ * first (D277 §2).
  *
  * THE BUG THIS REPLACES was a `.slice(0, cap)` over `Object.keys(votes)`,
  * under a comment claiming "the viewer's OWN most recent answers" — a
@@ -530,7 +530,7 @@ export function rankKindred(
           || b.like.rate - a.like.rate
           || a.uid.localeCompare(b.uid);
       }
-      // rate, not pct (D275 §2) — see cohort.likenessRate. A 1-of-1
+      // rate, not pct (D277 §2) — see cohort.likenessRate. A 1-of-1
       // stranger headed this list ahead of a 45-of-50 one, at every site
       // that sorted on the percentage.
       return b.like.rate - a.like.rate

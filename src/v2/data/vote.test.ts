@@ -44,7 +44,7 @@ const h = vi.hoisted(() => ({
   updateDocImpl: null as null | (() => Promise<void>),
   updateDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
   bankDocs: [] as FakeSnapshotDoc[],
-  // D276: the collection-group voter reads. Keyed by the city the query
+  // D278: the collection-group voter reads. Keyed by the city the query
   // asked for ("" = the unscoped pass), because the whole point of the
   // change is that the two return DIFFERENT people — a fixture that
   // ignored the filter could not tell a working narrowing from a no-op.
@@ -90,7 +90,19 @@ const h = vi.hoisted(() => ({
   hangSignIn: false,
 }));
 
-vi.mock("../../lib/firebase", () => ({
+vi.mock("../../lib/firebase", () => {
+  // MEMOISED, the way the real lib/firebase memoises its single `impl()`
+  // promise — and that is not tidiness. live.ts re-binds its whole
+  // Firestore namespace off this on EVERY `getDb()` (D110), so a factory
+  // that returns a fresh `import()` each time can hand the second call a
+  // different module object than the first: the store then holds the real
+  // `doc`/`collection` while this file's doubles record nothing, and the
+  // write fails with an invalid-argument the test reads as a refusal.
+  // Invisible while every case voted once; a case that votes three times
+  // sees the first succeed and the rest fail.
+  const fsApi = import("firebase/firestore");
+  const fnsApi = import("firebase/functions");
+  return {
   firebaseEnabled: true,
   anonSignIn: () => (h.hangSignIn
     ? new Promise<string>(() => { /* never settles, which is the case */ })
@@ -101,15 +113,16 @@ vi.mock("../../lib/firebase", () => ({
   // module (vi.mock hoists, so its position below is immaterial), so importing
   // it here hands the store exactly the doubles this file asserts on — and
   // every case in it now also exercises the bind step.
-  getFirestoreApi: () => import("firebase/firestore"),
-  getFunctionsApi: () => import("firebase/functions"),
+  getFirestoreApi: () => fsApi,
+  getFunctionsApi: () => fnsApi,
   linkGoogle: () => Promise.resolve(),
   googleSignOut: () => Promise.resolve(),
   subscribeToAuth: (cb: (u: { uid: string } | null) => void) => {
     h.authCb = cb;
     return () => { h.authCb = null; };
   },
-}));
+  };
+});
 
 vi.mock("../../lib/sentry", () => ({
   reportError: h.reportError,
@@ -147,7 +160,7 @@ vi.mock("firebase/firestore", () => {
     query: (src: { path?: string }, ...parts: unknown[]) => ({
       __kind: "query", path: src?.path, parts,
     }),
-    // `field` rides along since D276: the agg arm below keys on `value`
+    // `field` rides along since D278: the agg arm below keys on `value`
     // being an array and is unaffected, while the collection-group arm
     // needs to know WHICH equality it was handed.
     where: (field: unknown, _op: unknown, value: unknown) => ({ __kind: "where", field, value }),
@@ -178,7 +191,7 @@ vi.mock("firebase/firestore", () => {
       // `documentId() in deckIds` — so its fixtures are filtered by deck
       // membership rather than returned wholesale. That is the more faithful
       // mock of the two and the poll needs no special case.
-      // The voter fan-out (D102) and its city-scoped sibling (D276).
+      // The voter fan-out (D102) and its city-scoped sibling (D278).
       if (q?.path === "answers") {
         const wheres: Record<string, unknown> = {};
         for (const part of q.parts || []) {
@@ -482,6 +495,67 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(listener.mock.calls.length).toBeGreaterThan(notifiesBeforeAck);
     const cached = JSON.parse(storage.getItem(ANS_LS) || "{}");
     expect(cached.votes).toMatchObject({ q_1: "0" });
+  });
+
+  it("coalesces a sitting's post-vote refreshes into ONE drain, not one per answer", async () => {
+    // A feed sitting is ten to thirty answers, and each acked write asks
+    // for its question's freshly folded aggregate. This used to arm a
+    // separate 2500 ms timer per answer: one single-document round trip
+    // each, one complete buildFeedGlobals() each — which filters and maps
+    // the whole feed bank twice, per card — and one notify() each, which
+    // re-runs every subscriber's fold. Thirty answers bought thirty of
+    // each.
+    //
+    // Asserted on the ARMED TIMER and the pending set rather than on the
+    // query the drain eventually issues, for the reason `_aggPollForTest`
+    // exists: one timer holding three qids IS the claim, and a 2500 ms
+    // real-timer wait would put the assertion in whatever module state the
+    // clock has moved on to.
+    h.bankDocs = [h.bankDocs[0], {
+      id: "q_2",
+      data: {
+        surface: "daily", seq: 2, type: "vote", prompt: "Prompt q_2",
+        options: ["A", "B"], topic: null, test: null, active: true,
+      },
+    }, {
+      id: "q_3",
+      data: {
+        surface: "daily", seq: 3, type: "vote", prompt: "Prompt q_3",
+        options: ["A", "B"], topic: null, test: null, active: true,
+      },
+    }];
+    const LIVE = await bootLive();
+    const mod = await import("./live");
+
+    LIVE.vote("q_1", "0");
+    LIVE.vote("q_2", "1");
+    LIVE.vote("q_3", "0");
+    // Each write is its own promise chain (getDb → setDoc → ack), so wait
+    // for all three acks rather than for one macrotask.
+    // Each write is its own promise chain (getDb → setDoc → ack), so wait
+    // for all three acks rather than for one macrotask.
+    await vi.waitFor(() => {
+      expect(mod._aggRefreshForTest().pending).toHaveLength(3);
+    });
+
+    const r = mod._aggRefreshForTest();
+    expect(r.armed, "three answers must share one refresh timer").toBe(true);
+    expect([...r.pending].sort()).toEqual(["q_1", "q_2", "q_3"]);
+
+    // And the drain itself asks for the whole set in one query rather than
+    // one per qid — run directly, the `tick()` precedent.
+    h.aggDocs = [
+      { id: "q_1", data: { total: 3, counts: { "0": 3 } } },
+      { id: "q_2", data: { total: 4, counts: { "1": 4 } } },
+      { id: "q_3", data: { total: 5, counts: { "0": 5 } } },
+    ];
+    h.aggIdQueries.length = 0;
+    await r.drain({ __db: true } as never);
+    expect(h.aggIdQueries).toHaveLength(1);
+    expect([...h.aggIdQueries[0]].sort()).toEqual(["q_1", "q_2", "q_3"]);
+    expect(LIVE.aggFor("q_2")).toMatchObject({ total: 4 });
+    // Drained means drained — a second pass has nothing left to ask for.
+    expect(mod._aggRefreshForTest().pending).toEqual([]);
   });
 
   it("does NOT confirm an unacked vote when an agg poll lands mid-flight", async () => {
@@ -1881,7 +1955,7 @@ describe("rating questions and the confirmed city", () => {
   });
 });
 
-// ── the city half of the Kindred pool (D276) ─────────────────────────
+// ── the city half of the Kindred pool (D278) ─────────────────────────
 //
 // WHAT THIS IS FOR. The unscoped voter query returns the newest 200
 // answers from ANYWHERE and the City constellation then filters them to

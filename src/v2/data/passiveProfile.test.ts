@@ -129,12 +129,12 @@ describe("passiveProfile — every instrument at once", () => {
   });
 });
 
-// ── the round trip that makes the score tier able to fire (D275) ─────
+// ── the round trip that makes the score tier able to fire (D277) ─────
 //
 // WHY THIS SUITE GAINED A SECTION. The fold above was always correct and
 // was never written down anywhere another person could read it. D121
 // deleted the sit-down flow — the only thing that had ever written
-// `testResults` — so from that commit until D275 the four core keys were
+// `testResults` — so from that commit until D277 the four core keys were
 // absent on every live profile, `parseTestResults` returned null for every
 // candidate, `rankKindred`'s score tier could not fire, and the City ring
 // that D112 specified as "ranked primarily by test scores" ranked entirely

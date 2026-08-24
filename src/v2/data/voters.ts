@@ -143,28 +143,31 @@ export function uidFromAnswerPath(path: string): string | null {
 // ── the reads ───────────────────────────────────────────────────────
 
 /**
- * Everyone who answered `qid`, with their frozen cohort and their name.
+ * Who answered `qid` and what they picked — the ONE query, before any
+ * profile is read.
  *
- * `names` is an inout session cache owned by the caller (live.ts), so two
- * questions answered by overlapping crowds pay for each profile once.
- */
-/**
- * The same fetch, narrowed to one frozen city anchor (D276).
+ * Split out of `fetchVoters` because the name resolution beneath it is a
+ * second, larger read: up to VOTER_FETCH_CAP profile documents, chunked 30
+ * at a time. That is the `×2` the D98-surfaces column in docs/COSTS.md
+ * carries, and a caller that only wants the picks was paying it for a
+ * `names` map nothing ever read (data/patterns.ts's pair card).
  *
- * WHY A SECOND SHAPE EXISTS. The unscoped query returns the newest
- * VOTER_FETCH_CAP answers from anywhere, and the City constellation then
- * filters them to one city on the device (`rankKindred`'s `city` option).
- * At any real population that discards nearly everything it just paid
- * for: with a city holding 2% of active users, ~4 of every 200 rows
- * survive the filter, and because the cap binds before the filter the
- * number of reachable city-mates SATURATES around 50 no matter how large
- * the city grows. The ring draws 12, so it fills either way — the failure
- * has no symptom, which is what makes it worth a second query rather than
- * a bigger cap.
+ * Same query, same caps, same catalog skip — factored, not re-issued, so
+ * the two paths cannot drift apart on which answers count as votes.
  *
- * Same cap, same rows read, ~50× the usable rows. Modelled at 100k users
- * with a 2% city: reachable city-mates 51 → 1,387, and the chance the
- * single closest person is a candidate at all 23% → 90%.
+ * `city` NARROWS THE QUERY rather than the result (D278). The unscoped
+ * form returns the newest VOTER_FETCH_CAP answers from anywhere, and the
+ * City constellation then filters them to one city on the device
+ * (`rankKindred`'s `city` option). At any real population that discards
+ * nearly everything it just paid for: with a city holding 2% of active
+ * users, ~4 of every 200 rows survive, and because the cap binds BEFORE
+ * the filter the number of reachable city-mates saturates around 50 no
+ * matter how large the city grows. The ring draws 12, so it fills either
+ * way — the failure has no symptom, which is what makes it worth a second
+ * query rather than a bigger cap. Same cap, same rows read, ~50× the
+ * usable rows: modelled at 100k users with a 2% city, reachable city-mates
+ * 51 → 1,387 and the chance the single closest person is a candidate at
+ * all 23% → 90%.
  *
  * THE ANCHOR, NOT THE PROFILE. `anchors.city` is the snapshot the answer
  * froze at vote time (D8) — the same field the aggregate folds and the
@@ -172,13 +175,10 @@ export function uidFromAnswerPath(path: string): string | null {
  * agree about who counts as living where. Filtering on the live profile
  * would re-cohort history and disagree with both.
  */
-export async function fetchVoters(
+export async function fetchVoterPicks(
   db: Firestore,
   qid: string,
-  myUid: string | null,
-  names: Record<string, string>,
-  scores?: Record<string, ParsedResults | null>,
-  logic?: Record<string, number | null>,
+  myUid: string | null = null,
   city?: string,
 ): Promise<Voter[]> {
   const { collectionGroup, getDocs, limit: fsLimit, orderBy, query, where } = await getFirestoreApi();
@@ -208,7 +208,25 @@ export async function fetchVoters(
     const anchors = (d.get("anchors") || {}) as Record<string, string>;
     rows.push({ uid, optionIdx, anchors, name: "", isMe: uid === myUid });
   }
+  return rows;
+}
 
+/**
+ * Everyone who answered `qid`, with their frozen cohort and their name.
+ *
+ * `names` is an inout session cache owned by the caller (live.ts), so two
+ * questions answered by overlapping crowds pay for each profile once.
+ */
+export async function fetchVoters(
+  db: Firestore,
+  qid: string,
+  myUid: string | null,
+  names: Record<string, string>,
+  scores?: Record<string, ParsedResults | null>,
+  logic?: Record<string, number | null>,
+  city?: string,
+): Promise<Voter[]> {
+  const rows = await fetchVoterPicks(db, qid, myUid, city);
   await resolveNames(db, rows.map((r) => r.uid), names, scores, undefined, logic);
   for (const r of rows) r.name = names[r.uid] || "";
   return rows;

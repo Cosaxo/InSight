@@ -92,7 +92,7 @@ export interface Member {
  * question."
  *
  * It was right about the bug and wrong about the fix, and it shipped that
- * way (D275 §2). `b.pct - a.pct || b.shared - a.shared` sorts on pct
+ * way (D277 §2). `b.pct - a.pct || b.shared - a.shared` sorts on pct
  * FIRST, so `shared` only ever separates two people who already have the
  * same percentage — the 1-of-1 still headed the list, above the 40-of-50,
  * exactly as feared. Five sites sorted this way.

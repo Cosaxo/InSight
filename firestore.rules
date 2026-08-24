@@ -980,8 +980,17 @@ service cloud.firestore {
 
     // Server-side aggregate internals — the trigger's working state and
     // its idempotency ledger. Closed to clients because nothing needs it,
-    // not because it hides anything: since D98 the public mirror above
-    // carries the same exact counts, so this collection is bookkeeping.
+    // not because it hides anything.
+    //
+    // What is left in v2_aggs_private is the CATALOG accumulator (and the
+    // duel fold's own). It used to also hold a byte-identical copy of every
+    // vote, edit and rank aggregate — dead weight once D98 removed the
+    // floor those copies existed to sit above — and that copy is gone: the
+    // published document above is the accumulator on those paths now, which
+    // it can be because `allow write: if false` leaves the trigger as its
+    // only writer. A catalogue keeps its own because the accumulator there
+    // is the whole ~1k-entity map, of which the public board publishes a
+    // bounded top-N — more than publishes, never other than it.
     match /v2_aggs_private/{qid} {
       allow read, write: if false;
     }
