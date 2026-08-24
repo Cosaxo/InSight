@@ -755,6 +755,19 @@ grantable budget of 10. Rules for a learn run:
   call, and the runway sentence the target is derived from. Zero means
   the run is a logged no-op and review is the work.
 
+  **The runway premise moved at D279 and the target did not.** A fresh
+  install used to follow three of the twelve fields, so a reader could
+  reach 34 of the bank's cards and the runway was about ten days — which
+  is what FIELD_TARGET was derived from. Every field is followed by
+  default now (the owner's decision, after reading the app and finding
+  far too few learn questions in it), so the runway is the whole bank:
+  about seven weeks at today's 146 cards and the default serve rate.
+  `learn:budget` prints it that way. **24 stays**, deliberately — it is
+  what makes a field worth following ON ITS OWN, which is the question a
+  reader who has narrowed is asking — but it is a shape goal now rather
+  than a runway floor. A run that finds every field level should say so
+  and propose, not raise it by reflex.
+
   This replaced D32's flat "≤8 cards/run, thinnest fields first", which
   could not produce anything: every field holds exactly 8, the spacing
   floor reads as the thinness test, so no field was ever thinnest. The

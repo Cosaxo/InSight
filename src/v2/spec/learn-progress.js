@@ -74,8 +74,32 @@ export const LEARN = (function () {
     s.lvl = { cell: 54, solar: 66, capitals: 58 };
     return s;
   }
+  // EVERY FIELD, not three (D279 — the owner's decision, 2026-08-24).
+  //
+  // This used to seed `['cell', 'solar', 'capitals']`, and D115 derived
+  // FIELD_TARGET from exactly that: at 8 cards a field, three followed
+  // fields is 24 fresh cards and about eight days of runway. The three
+  // were "stocked from day one", which was the right reading of a bank
+  // that had 8 per field and nothing behind it.
+  //
+  // What it cost, once the bank had grown: `pool()` serves the followed
+  // fields and nothing else, so a fresh install could only ever meet 34
+  // of the 146 cards in it. Reported from a device as there being far too
+  // few learn questions — and the app was showing under a quarter of what
+  // it had. Following everything is not more cards a sitting, it is the
+  // same cards drawn from four times the bank: the RATE is LEARN_FEED's
+  // frequency dial (one card in seven by default), and it is untouched.
+  //
+  // That reverses learn-feed.js's "how many fields you follow is already
+  // an intensity control", deliberately and only for the DEFAULT. The
+  // control is still there — it just starts at everything, the way the
+  // feed's topics do (D96: "a live build runs EVERY subject its bank
+  // stocks, always on"), and narrowing is a thing you choose rather than
+  // a thing you have to discover. The topic sheet gained the row that
+  // makes that possible in the same change; before it, the follow list
+  // was one-way and this default would have been a trap.
   function freshF() {
-    const f = ['cell', 'solar', 'capitals'].filter((id) => FBY[id]);   // stocked from day one
+    const f = FIELDS.map((x) => x.id).filter((id) => FBY[id]);
     return f.length ? f : ['cell'];
   }
   if (!S) S = freshS();

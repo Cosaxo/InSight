@@ -95,3 +95,53 @@ describe("LEARN_FEED.cards serves fresh or due, never a frozen replay (D95)", ()
     expect(qs[0]).toMatchObject({ id: "lrn-cell1", type: "know", f: "cell" });
   });
 });
+
+// ── the pool a fresh install starts with (D279) ──────────────────────
+//
+// `pool()` serves the FOLLOWED fields and nothing else, so the default
+// follow list is the ceiling on what a reader can ever meet. It seeded
+// three fields, which was right when every field held eight cards and
+// D115 derived FIELD_TARGET from exactly that runway — and wrong once the
+// bank grew, because it left a fresh install able to reach under a
+// quarter of what had been written. Reported from a device as there being
+// far too few learn questions.
+//
+// Asserted as a RELATION rather than against a number: the point is that
+// the default reaches the whole bank, and a case pinned to "146" would
+// fail every time the lane merges a batch.
+describe("what a fresh install can reach (D279)", () => {
+  it("follows every field the bank ships, not a seeded three", async () => {
+    localStorage.clear();
+    const { LEARN } = await import("../spec/learn-progress.js");
+    const all = LEARN.fields().map((f) => f.id);
+    expect(all.length, "no fields at all — this case is vacuous").toBeGreaterThan(3);
+    for (const id of all) {
+      expect(LEARN.has(id), `a fresh install cannot reach the ${id} field`).toBe(true);
+    }
+  });
+
+  it("puts the whole bank in the served pool", async () => {
+    localStorage.clear();
+    const { LEARN } = await import("../spec/learn-progress.js");
+    const banked = LEARN.fields().reduce((n, f) => n + LEARN.total(f.id), 0);
+    // plan() draws from pool(); asking for more than the bank holds is how
+    // the pool's SIZE is observable from outside the module.
+    const planned = LEARN.plan(banked + 10);
+    expect(planned.length, "the served pool is smaller than the bank").toBe(banked);
+  });
+
+  // The half that makes the default honest. Following everything is only
+  // defensible if narrowing is available, and `LEARN.unfollow` had no
+  // caller anywhere in the app before D279 — the follow list was one-way.
+  it("still lets a reader narrow, down to one field but never to none", async () => {
+    localStorage.clear();
+    const { LEARN } = await import("../spec/learn-progress.js");
+    const all = LEARN.fields().map((f) => f.id);
+    for (const id of all.slice(1)) LEARN.unfollow(id);
+    expect(LEARN.fields().filter((f) => LEARN.has(f.id)).map((f) => f.id)).toEqual([all[0]]);
+    // A reader with no fields gets no learn cards and no surface saying so,
+    // which is why the store refuses rather than the caller remembering.
+    LEARN.unfollow(all[0]);
+    expect(LEARN.has(all[0]), "the last field was unfollowed — the stream is now silent").toBe(true);
+  });
+});

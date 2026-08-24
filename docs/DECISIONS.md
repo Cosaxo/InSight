@@ -27806,3 +27806,107 @@ story · goals · values` plus the daily lane's emergent cats. "Mind",
 row that names something a reader would actually find, so filling the gap
 with `now: 'Mind'` would replace a true fallback with a false claim, in
 the sheet D277 just made worth opening.
+
+## D279 · Every field is followed, and the follow list gets a way out
+
+**2026-08-24.** **Status:** binding. The owner's decision, taken against
+the arithmetic below after a device report: *"still seems like way too
+few learn questions are made — there should be hundreds created a day and
+in the app I can see maybe 60-80."*
+
+### The report was about production and the cause was distribution
+
+The bank holds **146 cards over 12 fields**. What a reader could reach
+was **34**: `LEARN.plan()` draws from `pool()`, `pool()` walks the
+FOLLOWED fields, and `freshF()` seeded three — `cell`, `solar`,
+`capitals`, 13 + 8 + 13.
+
+So the app was showing under a quarter of what had been written, and the
+lane was being asked to fix a shortage the bank did not have. That is
+worth separating from the volume question rather than answering with it:
+**the pool was the cheap lever and the only one that helps today.**
+
+### The three were right when they were chosen
+
+D115 derived FIELD_TARGET from exactly this seed: at 8 cards a field,
+three followed fields is 24 fresh cards, about eight days at the default
+serve rate. The three were "stocked from day one" — a true reading of a
+bank where every field held eight and nothing was behind it.
+
+What changed is that the bank grew and the seed did not. A default
+written against a starting condition became a ceiling on a bank four
+times its size, silently, because nothing measures what fraction of the
+corpus a fresh install can reach.
+
+### What was refused, and the arithmetic that refused it
+
+"Hundreds a day" is not a knob, and the reason is the same one
+`SCALE-PLAN.md` gives for the feed. The client fetches the WHOLE question
+bank on a cold boot and caches it in localStorage. Today that is 671 docs
+/ 166 KiB. At 200 learn cards a day it is **6,000 cards in a month** —
+exactly `check:quality`'s `BANK_WARN` — and **73,000 cards / 23.5 MiB in
+a year**, fetched by every device on every cold boot. The ceiling is the
+read path, not the writing, and raising the lane's cap against it would
+buy a bill rather than a product.
+
+Three levers were put to the owner with their costs: the pool (this), the
+lane's depth (`FIELD_TARGET` 24 → 60, +189 KiB), and the lane's pace (the
+Routine, Mon+Thu → daily). **The pool was chosen and the other two were
+not**, which is why `FIELD_TARGET`, `RUN_CAP` and
+`trig_01GtTNhRgSt1RMFWtR5K547Z` are all untouched here.
+
+### Following everything is not more cards a sitting
+
+The RATE is `LEARN_FEED`'s frequency dial — one learn card per seven feed
+cards by default, one in three at `lots` — and it is unchanged. What
+changes is the pool those cards are drawn from: same density, four times
+the bank, and a reader stops meeting the same field three times a day.
+
+This does reverse `learn-feed.js`'s *"how many knowledge fields you
+follow is already an intensity control"*, and only for the DEFAULT. The
+control is still there; it starts at everything, which is the posture the
+feed's own topics already take (D96: *"a live build runs EVERY subject
+its bank stocks, always on"*). Narrowing becomes something you choose
+rather than something you have to discover.
+
+### The half that makes it honest
+
+`LEARN.unfollow` existed and **nothing in the app called it**. The topic
+sheet listed only the fields you do NOT follow, each with a Follow
+button, so the follow list was one-way: you could add and never remove.
+Under the old default that was survivable — you started with three and
+grew. Under a default of everything it would have been a trap, and the
+sheet's Learn section would have shown nothing but the frequency dial.
+
+So the sheet gains the symmetric row, which is the argument the channel
+rows above it already make: *a thing that is always on has no management
+surface anywhere else, so this is where it lives*. Never on the last
+field — `unfollow` refuses to empty the list, because a reader with no
+fields gets no learn cards and no surface saying why, so a button that
+did nothing would be worse than no button.
+
+### What is pinned, and the number that moved
+
+`learn-serve.test.js`: a fresh install reaches every field, the served
+pool equals the whole bank, and narrowing works down to one but not to
+none. Asserted as RELATIONS, not against 146 — a case pinned to the
+bank's size fails every time the lane merges a batch, which this file has
+already been bitten by once. `smoke-topics.test.jsx` pins the rows in the
+DOM, including that an unfollowed field comes back as followable.
+
+Mutation-checked in both directions: with the old `freshF()`, the pool
+case reports 34 against 146.
+
+`learn-budget.mjs`'s `learnRunway` defaulted to three followed fields —
+that was the same seed, restated — and now defaults to all of them, with
+the old value still reachable as a parameter because "what has a reader
+who narrowed got left" is still a real question. The printed sentence
+goes from *29 fresh cards across the 3 thinnest fields, ~10 days* to
+*146 fresh cards across 12 followed fields, ~51 days*.
+
+**FIELD_TARGET stays 24 and its justification is now different**, which
+is the part a later run must not skim: it was a runway floor, and it is a
+shape goal — what makes a field worth following on its own. The emergency
+it was set against is gone. `QUESTION-FARM.md`'s learn bullet says so, so
+the next run to find every field level proposes rather than raises by
+reflex.

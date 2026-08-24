@@ -2578,6 +2578,7 @@ class WorldFeed extends React.Component {
     const open = SCENES.offers().filter((g) => !SCENES.has(g.id)).sort((a, b) => b.match - a.match);
     const LF = LEARN_FEED;
     const learnOpen = LEARN.fields().filter((f) => !LEARN.has(f.id));
+    const learnMine = LEARN.fields().filter((f) => LEARN.has(f.id));
     const row = (key, col, name, meta, onFollow, ring) => (
       <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 2px', borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 25%)' }}>
         {col && <span aria-hidden="true" style={ring ? { width: 10, height: 10, borderRadius: '50%', background: 'transparent', boxShadow: `inset 0 0 0 2.5px ${col}`, flexShrink: 0 } : { width: 9, height: 9, borderRadius: '50%', background: col, flexShrink: 0 }}></span>}
@@ -2603,7 +2604,7 @@ class WorldFeed extends React.Component {
         {/* "you follow every topic" is now only true when there is also
             nothing to manage — with the channel list above it, an empty
             offers() is no longer an empty sheet */}
-        {mine.length === 0 && open.length === 0 && openLeaves.length === 0 && !learnOpen.length && (
+        {mine.length === 0 && open.length === 0 && openLeaves.length === 0 && !learnOpen.length && !learnMine.length && (
           <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)', textAlign: 'center', padding: '28px 0' }}>You follow every topic.</div>
         )}
         {/* knowledge — the frequency control lives where follows live, and stays
@@ -2617,6 +2618,34 @@ class WorldFeed extends React.Component {
                 return <button key={v} className="press" onClick={() => { LF.setFreq(v); this.forceUpdate(); }} aria-pressed={on} style={{ flex: 1, border: 'none', borderRadius: 999, padding: '8px 0', cursor: 'pointer', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontWeight: on ? 800 : 600, fontSize: 12.5, background: on ? 'var(--ink)' : 'transparent', color: on ? 'var(--surface)' : 'var(--ink-3)', transition: 'background .2s ease, color .2s ease' }}>{v}</button>;
               })}
             </div>
+            {/* Your fields, with the way back out (D279). Every field is
+                followed on a fresh install now — the pool used to be three
+                of twelve, which showed a reader under a quarter of the
+                bank — and a default of everything is only honest if
+                narrowing is one tap away. Exactly the argument the channel
+                rows above make: a thing that is always on has no
+                management surface anywhere else, so this is where it
+                lives. `LEARN.unfollow` existed before this and nothing in
+                the app called it, which is what made the old default the
+                only workable one. */}
+            {learnMine.map((f) => (
+              <div key={'lrnm-' + f.id} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 2px', borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 25%)' }}>
+                <span aria-hidden="true" style={{ width: 10, height: 10, borderRadius: '50%', background: 'transparent', boxShadow: `inset 0 0 0 2.5px ${WPAL.c(LEARN.colorOf(f.id))}`, flexShrink: 0 }}></span>
+                <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <span style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14.5 }}>{f.label}</span>
+                  <span style={{ fontFamily: 'var(--sans)', fontWeight: 600, fontSize: 11.5, color: 'var(--ink-3)' }}>{`${(LEARN.subject(f.subject) || {}).label || ''} · ${LEARN.total(f.id)} cards`}</span>
+                </div>
+                {/* Never on the last one: LEARN.unfollow refuses to empty
+                    the list (a reader with no fields gets no learn cards
+                    and no way to say so), so a button that did nothing
+                    would be worse than no button. */}
+                {learnMine.length > 1 && (
+                  <button className="press" onClick={() => { LEARN.unfollow(f.id); this.forceUpdate(); }}
+                    aria-label={'Unfollow ' + f.label}
+                    style={{ flexShrink: 0, border: '0.5px solid var(--rule)', borderRadius: 999, padding: '7px 14px', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12.5, cursor: 'pointer', background: 'var(--surface-2)', color: 'var(--ink-2)', WebkitAppearance: 'none' }}>Unfollow</button>
+                )}
+              </div>
+            ))}
             {learnOpen.map((f) => row('lrn-' + f.id, WPAL.c(LEARN.colorOf(f.id)), f.label,
               `${(LEARN.subject(f.subject) || {}).label || ''} · ${LEARN.total(f.id)} cards`,
               () => { LEARN.follow(f.id); this.forceUpdate(); }, true))}

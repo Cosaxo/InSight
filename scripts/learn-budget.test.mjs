@@ -149,20 +149,34 @@ describe("learnBudget", () => {
 });
 
 describe("learnRunway", () => {
-  it("reports the shipped bank's runway in days, from the serve rate", () => {
-    // The sentence the header derives FIELD_TARGET from, recomputed: three
-    // followed fields at 8 cards is about a week at the default serve rate.
+  it("reports the runway over every followed field, from the serve rate", () => {
     // A fixture, not loadLearnFields(): the derivation is about the
     // constants, and pinning it to the live bank made every learn append
     // that lifts a thinnest field a test failure (first tripped 2026-08-24,
     // when gene and origins went 8 → 13 and the thinnest three summed 29).
+    //
+    // Twelve fields at 8, and the default denominator is now all twelve
+    // (D279) rather than the three learn-progress.js used to seed. Same
+    // method, different input — and the input is the whole of what D279
+    // changed, so this case is where that shows.
     const r = learnRunway(level(12, 8));
-    expect(r.fresh).toBe(24);
+    expect(r.fresh).toBe(96);
+    expect(r.followed).toBe(12);
     expect(r.someDays).toBeGreaterThan(r.lotsDays);
   });
 
+  it("still answers for a reader who has narrowed", () => {
+    // The old default, kept reachable rather than deleted: unfollowing is
+    // a real control (the topic sheet's Learn rows, D279), so "what has a
+    // reader on three fields got left" stays a question worth asking — it
+    // is just no longer the one a fresh install is in.
+    const r = learnRunway(level(12, 8), { followed: 3 });
+    expect(r.fresh).toBe(24);
+    expect(r.followed).toBe(3);
+  });
+
   it("scales with the target, which is the argument for raising it", () => {
-    const atTarget = learnRunway(level(12, FIELD_TARGET));
+    const atTarget = learnRunway(level(12, FIELD_TARGET), { followed: 3 });
     expect(atTarget.someDays).toBeGreaterThanOrEqual(25);
   });
 });

@@ -25,6 +25,18 @@
 //      cards a day is about EIGHT DAYS at the default rate and under four at
 //      `lots`. That is the honest state of the shipped bank, and it is the
 //      argument for FIELD_TARGET below.
+//
+//      **THE DENOMINATOR MOVED AT D279 AND THE CONSTANT DID NOT.** A fresh
+//      install follows every field now, not three, so the runway is the
+//      whole bank rather than the three thinnest slices of it — which at
+//      today's 146 cards is about seven weeks at the default rate instead
+//      of about ten days. FIELD_TARGET stays 24 deliberately: the owner
+//      picked the pool lever and not the depth one, and 24 is still what
+//      makes a field worth following ON ITS OWN, which is the question a
+//      reader who narrows is asking. What HAS gone is the emergency in the
+//      paragraph above — the target is now a shape goal rather than a
+//      runway floor, and the next run to find every field level should say
+//      so rather than raising the number by reflex.
 //   2. Review capacity, tighter here than anywhere else. A learn card review
 //      is not a taste judgment: the reviewer checks the fact, argues the trap,
 //      and sanity-checks the calibration, with no second gate behind them.
@@ -165,7 +177,15 @@ export function learnBudget({ fields, open = 0 }) {
 // figure: the same reasoning as the header's, recomputed against whatever the
 // bank holds now. `feedCardsPerDay` is the one estimate here and it is named
 // as one wherever it is printed.
-export function learnRunway(fields, { followed = 3, feedCardsPerDay = 20 } = {}) {
+//
+// `followed` DEFAULTS TO EVERY FIELD since D279, and that is a change of
+// input rather than of method. It was 3 because learn-progress.js seeded
+// three follows, so three thin fields were what a fresh install could
+// actually reach; the default now follows every field the bank ships, so
+// the honest denominator is the whole bank. Passing a smaller number still
+// answers the old question — what a reader who has narrowed to n fields
+// has left — which is why this stays a parameter.
+export function learnRunway(fields, { followed = fields.length, feedCardsPerDay = 20 } = {}) {
   const shallowest = fields.slice().sort((a, b) => a.cards - b.cards).slice(0, followed);
   const fresh = shallowest.reduce((n, f) => n + f.cards, 0);
   return {
@@ -221,7 +241,7 @@ if (invokedDirectly) {
   // different afternoon from a lane whose readers are days from the bottom.
   const r = learnRunway(fields);
   console.log(
-    `  runway: ${r.fresh} fresh cards across the ${r.followed} thinnest fields — ` +
+    `  runway: ${r.fresh} fresh cards across ${r.followed} followed field${r.followed === 1 ? "" : "s"} — ` +
       `~${r.someDays} days at the default serve rate, ~${r.lotsDays} at "lots" ` +
       "(assuming ~20 feed cards a day)",
   );

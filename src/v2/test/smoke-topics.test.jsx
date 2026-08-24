@@ -77,6 +77,41 @@ describe("the add-a-topic sheet", () => {
   });
 });
 
+// ── the Learn rows (D279) ────────────────────────────────────────────
+//
+// Every field is followed on a fresh install now, which showed a reader
+// four times the bank — and made this sheet's Learn section the only place
+// the list can be narrowed again. `LEARN.unfollow` existed before D279 and
+// nothing in the app called it, so the follow list was one-way and a
+// default of everything would have been a trap rather than a fix.
+describe("the topic sheet's Learn rows", () => {
+  it("lists every field you follow, each with the way back out", () => {
+    const expectNoBoundary = mountApp();
+    fireEvent.click(screen.getByRole("button", { name: /add a topic/i }));
+    const unfollows = screen.getAllByRole("button", { name: /^Unfollow / });
+    expect(unfollows.length, "no field offered a way out — the list is one-way again").toBeGreaterThan(1);
+    // The rows are the FIELDS, not the subjects: "Cell biology", not
+    // "Biology". The subject rides in the meta line beside the card count.
+    expect(screen.getByRole("button", { name: "Unfollow Cell biology" })).toBeTruthy();
+    expectNoBoundary("add sheet, learn rows");
+  });
+
+  it("drops the field from the list when you unfollow it", () => {
+    const expectNoBoundary = mountApp();
+    fireEvent.click(screen.getByRole("button", { name: /add a topic/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Unfollow Cell biology" }));
+    expect(
+      screen.queryByRole("button", { name: "Unfollow Cell biology" }),
+      "the row stayed after unfollowing",
+    ).toBeNull();
+    // …and it comes back as something you can follow again, which is the
+    // half that makes this reversible rather than a one-way door pointed
+    // the other way.
+    expect(screen.getByText("Cell biology")).toBeTruthy();
+    expectNoBoundary("add sheet, learn unfollow");
+  });
+});
+
 // ── opened from somewhere else (D190) ────────────────────────────────
 //
 // The profile's scenes card offers "Pick topics →" when you follow nothing.
