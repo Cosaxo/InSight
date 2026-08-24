@@ -52,7 +52,7 @@ Every constant below is sourced, not assumed:
 | One duel answer | 1 client write + 1 `pendingDays` arrayUnion | v2.ts group branch |
 | One trigger invocation | 512 MiB, 1 vCPU, concurrency 20, ~200 ms | `HOT_TRIGGER`, functions/src/ops.ts |
 | One warm boot | ~15 reads (meta, profile, answers query, 7 deck aggregates, groups, 2 group docs, 2 reveals) | `hydrate()`, src/v2/data/live.ts. The deck reads are one batched fetch since D129, not seven listener attachments |
-| One cold boot | **+655 reads** — the whole question bank | `V2_QUESTIONS`, 655 docs / 161.0 KiB of JSON |
+| One cold boot | **+671 reads** — the whole question bank | `V2_QUESTIONS`, 671 docs / 164.6 KiB of JSON |
 | Agg top-up | ≤120 reads, ≤1 per qid per 6 h | `AGG_ID_CAP`, `AGG_RECHECK_MS` |
 | One world answer, again | +1 **rule** read (the question doc) + 2 **server** reads (ledger event, private agg) | `isWorldAnswer` in firestore.rules; the `runAggTransaction` in v2.ts |
 | One duel answer, again | +3 rule reads (group, reveal, question); the trigger's duel branch reads nothing | `isDuelAnswer`; "one blind write, no read" |
@@ -63,6 +63,9 @@ Every constant below is sourced, not assumed:
 | One pulse open | **Today only: one `documentId() in` query over as many per-day agg ids as there are pulses** (≤5), once per UTC day per session — a same-day answer forces one refresh so the reveal's bins include you. The 21-day window is `ensureTrend`, one 21-id query, paid on the tap that opens a reading | `DAYS`, src/v2/data/pulse.ts (D139, roster D203). **Five pulses cost FEWER reads per open than one did**, and that is the point of the split: D139 fetched the whole 21-day window on every open although the card only ever draws today, so a naive ×5 would have been 105 ids — over the 30-clause `documentId() in` cap, hence 4+ queries per open for data the first screen never reads. The template read is gone too: `splitBanks` now keeps a pulse lane, so the roster's prompts come from the bank `hydrate()` already cached (it also means `active: false` finally reaches the client — before D203 a killed pulse still drew a tappable card whose every write the rules refused). Your own series still costs zero — derived from the hydrated vote mirror |
 | One Roles tab open | Up to 14 day-key `getDoc`s per room, once per room per session — the SAME cache the duel panel fills, so a room you have already opened costs nothing here | `REVEAL_HIST_DAYS`, src/v2/data/live.ts (D156, D204). This is the first surface that wants EVERY room's history rather than the one you are looking at, so on a cold session it pays for the rooms you have not opened yet: ~14 reads each, loaded sequentially rather than in parallel so a profile tab does not spike the read rate. The fold itself is free — `data/roles.ts` is pure arithmetic over documents already in hand, with no new field and no new collection |
 | The Patterns fit, nightly | The day's ledger entries re-read as the vote log (the velocity scan's shape, second reader), one private state read+write per active answerer, one model doc read+write per project, one merged write to `v2_meta/app` (the tab's mount gate, D265) | functions/src/patterns.ts (v28 §2, trial D166 §1). Measured BEFORE the fold shipped — the dated note under the scenario table has the movement |
+| The engagement digest, nightly | The day's ledger entries re-read a THIRD time as the activity log, one bookkeeping state read+write per active answerer, one public day doc per project | functions/src/engagement.ts (R1/D268). A separate scan rather than a rider on velocity's, deliberately — its header carries the windowing argument. Measured before the deploy — dated note below |
+| One attention shard | 1 write the day after (the device's flush), then 1 read + 1 delete the night the fold sweeps it — per SAMPLED device per day, at the client's own `SHARD_SAMPLE_RATE` | src/v2/data/engagement.ts + the fold in functions/src/engagement.ts (R2/D270). The rate is read from source by the model (`ATTN_SAMPLE_RATE`), because it is the designed lever if this term ever matters |
+| One person rollup | 1 write the day after (unsampled — the person channel), then the fold's 1 read + 1 folded-mark write + 1 fg-window read + write on `_state`; the TTL deletes it 90 days on | src/v2/data/engagement.ts + runRollupFold (R3/D272). Not deleted by the fold — the TTL is the deletion, and the flag is what makes the sweep exactly-once |
 | One Circle open | 1 + one query per member: ≤50 members × ≤300 answers, +1 followers query | `FOLLOW_CAP` / `CIRCLE_ANSWER_CAP`, src/v2/data/circle.ts (D101). Also once per session since 2026-08-13, with `setFollowing` the one caller that may force a refetch — it changes the membership the fold is over |
 | One takes panel | ≤100 world takes per question, ≤500 per group, once per scope per session | `TAKE_FETCH_CAP` / `TAKE_GROUP_FETCH_CAP`, src/v2/data/live.ts — both caps and the cache are new on 2026-08-13; the world query had no `limit()` and returned roughly everyone who spoke that day |
 
@@ -92,11 +95,11 @@ roughly double on the three operation lines.
 
 | Scenario | DAU | reads/day | writes/day | Firestore $/mo | Functions $/mo | **Total $/mo** |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Launch / TestFlight | 50 | 10.0 K | 1.0 K | 0.00 | 0.00 | **0.00** |
-| Friends-of-friends | 500 | 175 K | 9.6 K | 1.12 | 0.00 | **1.12** |
-| Real traction | 5,000 | 2.2 M | 96 K | 23 | 0.00 | **23** |
-| Scale | 50,000 | 22.0 M | 960 K | 249 | 2.20 | **251** |
-| Hit | 500,000 | 220 M | 9.6 M | 2,512 | 43 | **2,555** |
+| Launch / TestFlight | 50 | 10.2 K | 1.2 K | 0.00 | 0.00 | **0.00** |
+| Friends-of-friends | 500 | 179 K | 12.1 K | 1.16 | 0.00 | **1.16** |
+| Real traction | 5,000 | 2.2 M | 121 K | 24 | 0.00 | **24** |
+| Scale | 50,000 | 22.4 M | 1.2 M | 260 | 2.20 | **262** |
+| Hit | 500,000 | 224 M | 12.1 M | 2,622 | 43 | **2,665** |
 
 > **Measured 2026-08-19, BEFORE the fold shipped (VISION-V28 §11.4).**
 > The Patterns fit (v28 §2, trial D166 §1) joined the model:
@@ -123,6 +126,43 @@ roughly double on the three operation lines.
 > loadings doc at every cold start to decide whether to draw a BUTTON —
 > is the read the bank cache exists to avoid, on every device including
 > the ones that never open the tab.
+
+> **Measured 2026-08-23, before the deploy.** The engagement digest
+> (R1/D268, `docs/ENGAGEMENT-PLAN.md` rung 0) joined the model:
+> `ENGAGEMENT_READS_PER_LEDGER_ENTRY` and `ENGAGEMENT_USER_STATE_OPS` in
+> `scripts/cost-arith.mjs`. A THIRD nightly reader of the same ledger
+> entries plus one bookkeeping state read+write per active answerer —
+> server reads 22 → 27 per user-day, one more write per user-day,
+> $251 → $255 at 50 k and $2,555 → $2,593 at 500 k. A separate scan
+> rather than a rider on the velocity pass, deliberately: velocity's
+> window is a cursor (lastScanAt → now, capped 72 h) and the digest's is
+> the calendar day, and coupling the two semantics to save one read per
+> entry per night is the wrong trade — the argument lives in
+> functions/src/engagement.ts's header, where a revisit would start.
+
+> **Measured 2026-08-23, same day, before the deploy.** Rung 1's
+> attention shards (R2/D270) joined the model: `ATTN_SAMPLE_RATE` in
+> `scripts/cost-arith.mjs`, read from the client's own
+> `SHARD_SAMPLE_RATE` so the model tracks the lever rather than a memory
+> of it. One anonymous shard write per sampled device-day, one fold read
+> and one fold delete the night after — at the launch rate of 1: server
+> reads 27 → 28 per user-day, one more write and one more delete per
+> user-day, **$255 → $257 at 50 k and $2,593 → $2,613 at 500 k**. This
+> is the term sampling exists to shrink: at 0.1 the whole addition is a
+> tenth of these lines, and the shard carries its rate so the fold's
+> estimates rescale with no server change.
+
+> **Measured 2026-08-24, before the deploy.** Rung 2's person rollups
+> (R3/D272) joined the model — `ENGAGEMENT_ROLLUP_CLIENT_WRITES` and the
+> two fold constants in `scripts/cost-arith.mjs`: one uid-keyed rollup
+> write per active device-day, the fold's two reads and two writes (the
+> rollup's mark and the `_state` fg window), and a TTL delete 90 days on.
+> Server reads 28 → 30 per user-day, three more writes and one more
+> delete per user-day, **$257 → $262 at 50 k and $2,613 → $2,665 at
+> 500 k**. This is deliberately the ladder's priciest rung per user —
+> the person channel is unsampled by design — and it is still under 2 %
+> of the bill at every size, because the bill is read-dominated and this
+> channel adds no client reads at all.
 
 > **The tab's client half (2026-08-19, same day)** adds reads too small
 > for the model's terms, stated so nobody hunts for them later: ONE

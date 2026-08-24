@@ -726,12 +726,86 @@ function panelPopulation(p) {
     </div>
 
     <p class="note">The middle column is where the honest wins are. The largest —
-      real DAU and retention — needs <b>no new collection</b>: <code>v2_agg_events</code>
-      already holds (qid, uid, at) with a 90-day TTL, erased with the account. But it was
-      justified as fake-account attribution, and counting distinct users per day is a new
-      purpose for existing data. That is a decision record, not a script — which is
-      exactly the sort of thing this console exists to make visible rather than to
-      quietly do.</p>
+      real DAU and retention — needed <b>no new collection</b>, only a recorded decision:
+      counting people with <code>v2_agg_events</code> was a new purpose for data justified
+      as fake-account attribution (D28), and this console listed it as blocked on exactly
+      that record until <b>D268 took it</b> (2026-08-23). The digest that came with the
+      record is the engagement panel below — the row moved columns the way this console
+      exists to make visible rather than to quietly do.</p>
+  </section>`;
+}
+
+// ── panel 4b · engagement ───────────────────────────────────────
+
+function panelEngagement(p) {
+  const e = p.engagement;
+  const head = `<h2>Engagement — the digest trail (R1/D268)</h2>
+    <p class="decision"><b>The decision:</b> is anyone coming back — and which surfaces hold
+      them? Counts of <b>answering</b> accounts, folded nightly from the ledger by
+      <code>digestEngagementV2</code>: floors, not measurements (a person who opens and answers
+      nothing is invisible at rung 0), and a day the digest never folded is a gap in the
+      trail, never a zero.</p>`;
+  if (!e || !e.present) {
+    return `<section class="panel">
+    ${head}
+    <div class="banner">
+      <div><strong>No trail yet.</strong> ${esc(e?.note || "monitoring/engagement.json is not committed.")}</div>
+    </div>
+  </section>`;
+  }
+  const pct = (r) =>
+    r.rate == null
+      ? `<em>unknown — ${r.of === 0 ? "empty cohort" : "cohort day never folded"}</em>`
+      : `<b>${Math.round(r.rate * 100)}%</b> (${int(r.returned)}/${int(r.of)})`;
+  const surfaces = Object.entries(e.latest.bySurface || {}).sort((a, b) => b[1] - a[1]);
+  return `<section class="panel">
+    ${head}
+    ${tiles([
+      { k: `actives · ${e.latest.day}`, v: int(e.latest.actives) },
+      { k: "first-time answerers", v: int(e.latest.firstTime) },
+      { k: "votes (deduped)", v: int(e.latest.votes) },
+      { k: "7-day mean actives", v: e.weekMeanActives },
+      { k: "streaks broken", v: int(e.latest.streaksBroken) },
+    ])}
+    <div class="scroll"><table>
+      <thead><tr><th>signup-cohort return</th><th>reading</th></tr></thead>
+      <tbody>
+        <tr><td>D1 — first answered the day before</td><td>${pct(e.returned.d1)}</td></tr>
+        <tr><td>D7</td><td>${pct(e.returned.d7)}</td></tr>
+        <tr><td>D30</td><td>${pct(e.returned.d30)}</td></tr>
+      </tbody>
+    </table></div>
+    ${surfaces.length ? `<div class="scroll"><table>
+      <thead><tr><th>surface · ${esc(e.latest.day)}</th><th>votes</th></tr></thead>
+      <tbody>${surfaces.map(([s, n]) => `<tr><td>${esc(s)}</td><td>${int(n)}</td></tr>`).join("")}</tbody>
+    </table></div>` : ""}
+    ${e.attn ? `<div class="scroll"><table>
+      <thead><tr><th>feature · ${esc(e.attn.day)} · ~${int(Math.round(e.attn.devices))} device(s)</th><th>reach</th><th>est. uses</th></tr></thead>
+      <tbody>${e.attn.features.slice(0, 14).map((f) =>
+        `<tr><td>${esc(f.key)}</td><td>${int(Math.round(f.reach))}</td><td>${int(Math.round(f.est))}</td></tr>`).join("")}</tbody>
+    </table></div>
+    <p class="note">The feature rows are rung 1's anonymous device shards (R2/D270), folded
+      and deleted nightly: <b>reach</b> counts devices that used the feature at all —
+      bucketing cannot distort it — and <b>est.</b> sums bucket midpoints, scaled by the
+      sampling rate: an estimate, and labelled one.${e.attn.qidCount
+        ? ` Per-question attention (${int(e.attn.qidCount)} qid(s), D271) lives in the
+      scorecard, where its D33 warning travels with it.` : ""}</p>` : ""}
+    ${e.people ? tiles([
+      { k: `rollups · ${e.people.day}`, v: int(e.people.rollups) },
+      { k: "sessions", v: int(e.people.sessions) },
+      { k: "quiet-session share", v: e.people.quietShare == null ? "—" : Math.round(e.people.quietShare * 100) + "%" },
+      { k: "fading people", v: int(e.people.fading) },
+      { k: "hit the feed's end", v: int(e.people.reachedEnd) },
+    ]) + `
+    <p class="note">The person channel (R3/D272): uid-keyed day rollups readable by nobody,
+      folded here into counts — <b>fading</b> is a trailing foreground window sinking two
+      buckets, the win-back trigger rung 2 exists for. Per-person rows never leave the
+      fold; what prints is how many.</p>` : ""}
+    <p class="note">Read it against its moment, not in isolation: a new surface's share is
+      inflated for as long as it is new — judge shares against neighbours over ≥ a month —
+      and a rate whose cohort day predates the digest reads <em>unknown</em>, never 0%
+      (docs/ENGAGEMENT-PLAN.md §3.4). Trail: ${int(e.days)} day(s)${e.gaps ? `, ${int(e.gaps)} gap(s)` : ""},
+      fetched ${esc(e.fetchedOn || "?")} via <code>npm run scorecard -- --fetch</code>.</p>
   </section>`;
 }
 
@@ -821,6 +895,7 @@ export function renderPulse(p, trail = []) {
   ${panelCost(p)}
   ${panelMoney(p)}
   ${panelPopulation(p)}
+  ${panelEngagement(p)}
   ${panelInstrumentation(p)}
 
   <footer>

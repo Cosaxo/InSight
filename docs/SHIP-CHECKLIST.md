@@ -55,10 +55,10 @@ the verification — treat a successful seed as proof of both.
 3. **The remaining step: Actions → *Seed content* → Run workflow.** No
    sign-in, no dev machine, nothing to install.
 
-   655 questions land in `v2_questions`. Re-running is safe (idempotent,
+   671 questions land in `v2_questions`. Re-running is safe (idempotent,
    never resets the `active` kill switch) and, since D34, genuinely cheap:
    it rewrites only documents whose content changed and leaves `contentRev`
-   alone, so a reseed no longer costs every returning device a 655-read
+   alone, so a reseed no longer costs every returning device a 671-read
 bank refetch. The job summary reports `{written, skipped}` — a no-op
    reseed reports `written: 0`.
 
@@ -584,6 +584,16 @@ anything a user does.
 - **TTL for the aggregate event ledger** (one-time, console or gcloud):
   `gcloud firestore fields ttls update expireAt --collection-group=v2_agg_events --enable-ttl --project=prvfire33`
   — the trigger stamps `expireAt` (+90 days, `LEDGER_RETENTION_DAYS`).
+
+- **TTL for the engagement rollups** (one-time, same shape — D272):
+  `gcloud firestore fields ttls update expireAt --collection-group=engagement --enable-ttl --project=prvfire33`
+  — the client stamps `expireAt` (+90 days, `ROLLUP_TTL_DAYS`). This is
+  the deletion for the person channel's uid-keyed trail: the fold marks
+  rollups, it never deletes them, so a policy never applied means the
+  rolling window quietly stops rolling — the privacy promise on
+  `web/privacy.html` ("deletes itself 90 days after its day") is what
+  this command makes true. The `_state` doc carries no expireAt and
+  correctly never expires; it dies with the account.
   The window is sized for attribution, not dedup: entries carry the
   answering uid so a discovered fake-account ring can be subtracted from
   the exact counts months later (D28; the correction runbook is in

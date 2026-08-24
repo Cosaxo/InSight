@@ -319,6 +319,34 @@ export const VELOCITY_READS_PER_LEDGER_ENTRY = 1;
 // composite index), which drops the term by the ineligible share.
 export const PATTERNS_READS_PER_LEDGER_ENTRY = 1;
 export const PATTERNS_USER_STATE_OPS = 1;
+// The engagement digest (R1/D268): a THIRD nightly reader of the same
+// ledger entries. ENGAGEMENT-RUNBOOK 1.1's named decision, taken as a
+// separate scan because velocity's cursor window and the digest's
+// calendar days are different windowing semantics, and the coupling
+// would cost more than the read this constant charges. Plus one
+// bookkeeping state read+write per active answerer per night (the
+// patterns shape — v2_users/{uid}/engagement/_state), and one public
+// day doc per PROJECT per night, under any rounding here.
+export const ENGAGEMENT_READS_PER_LEDGER_ENTRY = 1;
+export const ENGAGEMENT_USER_STATE_OPS = 1;
+// Rung 1's attention shards (R2/D270): one anonymous device shard per
+// SAMPLED device per day — the client's own sampling constant, read from
+// source (the D47 rule) because it is the designed lever if the fold's
+// budget ever matters, and a model quoting yesterday's rate is the D34
+// failure again. Each sampled device-day costs one shard write, one fold
+// read, and one fold delete; the day-doc merge writes are per batch per
+// day, under any rounding here.
+export const ATTN_SAMPLE_RATE = readNum(
+  "src/v2/data/engagement.ts", /SHARD_SAMPLE_RATE = ([\d.]+)/, "SHARD_SAMPLE_RATE");
+// Rung 2's person rollups (R3/D272): one uid-keyed day rollup per active
+// device per day (client-written, NOT sampled — it is the person channel),
+// then the nightly fold's sweep: one page read and one folded-mark write
+// per rollup, one fg-window read and write on the _state doc per rollup —
+// and, 90 days later, the TTL delete. The fold does not delete rollups;
+// the TTL is the deletion, which is why the delete line carries it.
+export const ENGAGEMENT_ROLLUP_CLIENT_WRITES = 1;
+export const ENGAGEMENT_ROLLUP_FOLD_READS = 2;
+export const ENGAGEMENT_ROLLUP_FOLD_WRITES = 2;
 
 // The reveal pipeline (revealGroupDay), per group-day actually revealed, for
 // a group of M members:
@@ -634,16 +662,21 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     // Charged to the project on every answer create, on top of the write.
     const rules =
       B.worldAnswers * RULE_READS.world + B.duelAnswers * RULE_READS.duel;
-    // Reads the SERVER issues: the aggregate transaction, the nightly
-    // velocity scan walking the day's ledger, the nightly Patterns fit
-    // walking it again (plus one state read per active user), and the
-    // reveal pipeline.
+    // Reads the SERVER issues: the aggregate transaction, the three
+    // nightly ledger readers (velocity scan, Patterns fit, engagement
+    // digest — each re-reads the day's entries, the fit and the digest
+    // each adding one state read per active user), and the reveal
+    // pipeline.
     const server =
       B.worldAnswers * TRIGGER_READS.world
       + B.duelAnswers * TRIGGER_READS.duel
       + B.worldAnswers * VELOCITY_READS_PER_LEDGER_ENTRY
       + B.worldAnswers * PATTERNS_READS_PER_LEDGER_ENTRY
       + PATTERNS_USER_STATE_OPS
+      + B.worldAnswers * ENGAGEMENT_READS_PER_LEDGER_ENTRY
+      + ENGAGEMENT_USER_STATE_OPS
+      + ATTN_SAMPLE_RATE // the shard fold reads each sampled device's shard once
+      + ENGAGEMENT_ROLLUP_FOLD_READS // the rollup fold's rollup + fg-state reads
       + B.duelAnswers * revealReadsPerMember(B.duelGroupSize);
     // The D98 surfaces (D102): who-voted, Kindred, Circle — a client
     // reading OTHER users' answers on demand. One key rather than three
@@ -681,9 +714,13 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     // returns (as a performance measure — PUBLISH_EVERY's note), it now
     // discounts every phase, which is what a floorless world means.
     const pub = 1 / PUBLISH_EVERY;
-    // + the Patterns fit's one state write per active user per night.
-    const writes = dau * (B.worldAnswers * (1 + 2 + pub) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + 0.2);
-    const deletes = dau * B.worldAnswers; // ledger TTL, 90 days later
+    // + the Patterns fit's and the engagement digest's one state write
+    // each per active user per night, + one attention shard per sampled
+    // device per day (its fold-side day-doc merge rides per batch).
+    const writes = dau * (B.worldAnswers * (1 + 2 + pub) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + ATTN_SAMPLE_RATE + ENGAGEMENT_ROLLUP_CLIENT_WRITES + ENGAGEMENT_ROLLUP_FOLD_WRITES + 0.2);
+    // ledger TTL 90 days later, + the shard fold deleting what it folded,
+    // + the rollup TTL 90 days later (R3/D272)
+    const deletes = dau * (B.worldAnswers + ATTN_SAMPLE_RATE + 1);
     const inv = dau * (B.worldAnswers + B.duelAnswers);
     // Concurrency 20 only pays off under queue pressure; at low volume each
     // invocation effectively owns its instance for the request.

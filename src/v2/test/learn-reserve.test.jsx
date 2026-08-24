@@ -81,6 +81,25 @@ describe("a due learn card is re-served answerable (D95)", () => {
     // gone with it — so the NEXT serve arrives fresh too.
     const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}");
     expect(Object.keys(wf).filter((k) => k.indexOf("lrn-") === 0)).toEqual([]);
+    // BACK TO THE FILE'S 15s, and the 30s that was here is worth recording
+    // because it and the `growUntil` above are the same bug from two ends,
+    // found the same day by two people who did not know about each other.
+    //
+    // The 30s came first: "growFeed() above renders the WHOLE feed, so this
+    // test's runtime grows with every content batch — at ~670 bank questions
+    // it sits exactly on the default and fails only under full-suite load,
+    // which is the worst kind of red (2026-08-24, twice in one day)." Every
+    // word of that was true, and raising the budget was the right call
+    // without the measurement that came later.
+    //
+    // The measurement (D276) is that `growFeed` could not converge here AT
+    // ALL: the window opens at 8 and adds 4 per tick against a list of 194,
+    // so it needs 47 ticks and the bound is 40. It was not slow because the
+    // bank grew — it ran its bound out every time and gave up silently, and
+    // the bank growing is what pushed that ~10s past the budget. `growUntil`
+    // waits for the card instead, which is what this case was ever about, so
+    // the runtime no longer tracks the bank at all and the default is
+    // comfortable again.
   });
 
   it("does not serve an answered card inside its gap at all", () => {

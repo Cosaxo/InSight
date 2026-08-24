@@ -25,6 +25,7 @@ import { execFileSync } from "node:child_process";
 
 import {
   collect, collectArchive, bucketEvenness, addressablePlaces, isoDay, ROOT,
+  collectEngagement, engagementFromDays,
 } from "./pulse-collect.mjs";
 import { renderPulse } from "./pulse-render.mjs";
 import { PEN_TARGET } from "./farm-budget.mjs";
@@ -719,5 +720,132 @@ describe("the rendered page", () => {
     const html = renderPulse(nasty, []);
     expect(html).not.toContain("<img src=x>");
     expect(html).toContain("&lt;/script&gt;");
+  });
+});
+
+describe("the engagement panel (R1/D268)", () => {
+  // The digest has not deployed, so the TREE holds no committed trail —
+  // and the collector must say so rather than inventing zeros. The day the
+  // first monitoring/engagement.json is committed, this case flips to
+  // asserting the present shape against the real artifact, the
+  // collectScorecard lesson: a fixture you wrote yourself proves nothing.
+  it("reads the tree honestly: no committed trail yet → present: false, with the fix in the note", () => {
+    const e = collectEngagement();
+    expect(e.present).toBe(false);
+    expect(e.note).toMatch(/scorecard -- --fetch/);
+    expect(e.note).toMatch(/digestEngagementV2/);
+  });
+
+  it("renders the honest-absence banner, not an empty chart", () => {
+    const html = renderPulse(collect(), []);
+    expect(html).toContain("Engagement — the digest trail");
+    expect(html).toContain("No trail yet");
+  });
+
+  const DAYS = [
+    { day: "2026-08-20", actives: 10, firstTime: 10, votes: 30, events: 31,
+      bySurface: { daily: 10, feed: 20 },
+      returned: { d1: { returned: 0, of: null }, d7: { returned: 0, of: null }, d30: { returned: 0, of: null } },
+      streaksBroken: 0 },
+    // 08-21 deliberately missing — a day the digest never folded
+    { day: "2026-08-22", actives: 6, firstTime: 2, votes: 12, events: 12,
+      bySurface: { daily: 6, feed: 6 },
+      returned: { d1: { returned: 0, of: 0 }, d7: { returned: 3, of: 10 }, d30: { returned: 0, of: null } },
+      streaksBroken: 1 },
+  ];
+
+  it("folds the day docs null-aware: unknown cohorts stay unknown, empty ones stay empty", () => {
+    const e = engagementFromDays(DAYS);
+    expect(e).toMatchObject({ days: 2, gaps: 1, lastDay: "2026-08-22" });
+    expect(e.latest).toMatchObject({ actives: 6, firstTime: 2, streaksBroken: 1 });
+    // of: 10 → a real rate; of: 0 → known-empty cohort, rate null; of:
+    // null → cohort day never folded, rate null. The render tells the
+    // last two apart, so the fold must keep them apart.
+    expect(e.returned.d7).toEqual({ returned: 3, of: 10, rate: 0.3 });
+    expect(e.returned.d1).toEqual({ returned: 0, of: 0, rate: null });
+    expect(e.returned.d30).toEqual({ returned: 0, of: null, rate: null });
+    expect(e.weekMeanActives).toBe(8);
+  });
+
+  it("renders a populated trail with rates and the unknown-cohort wording", () => {
+    const p = collect();
+    const e = { present: true, fetchedOn: "2026-08-23", ...engagementFromDays(DAYS) };
+    const html = renderPulse({ ...p, engagement: e }, []);
+    expect(html).not.toContain("No trail yet");
+    expect(html).toContain("30%");
+    expect(html).toContain("empty cohort");
+    expect(html).toContain("cohort day never folded");
+    expect(html).toContain("1 gap(s)");
+  });
+
+  it("an empty trail file folds to zero days, not to an invented reading", () => {
+    expect(engagementFromDays([])).toEqual({ days: 0 });
+    expect(engagementFromDays(undefined)).toEqual({ days: 0 });
+  });
+});
+
+describe("the attention section (R2/D270)", () => {
+  it("carries the newest attn block and keeps attn-only strays out of the digest counts", () => {
+    const withAttn = [
+      // late shards for a day the digest never folded: attention only, no
+      // `actives` — it must not read as a zero-actives digest day
+      { day: "2026-08-10", attn: { devices: 2, s: { feedSeen: { reach: 2, est: 8 } } } },
+      { day: "2026-08-20", actives: 10, firstTime: 10, votes: 30, events: 31,
+        bySurface: { daily: 10 },
+        returned: { d1: { returned: 0, of: null }, d7: { returned: 0, of: null }, d30: { returned: 0, of: null } },
+        streaksBroken: 0 },
+      { day: "2026-08-22", actives: 6, firstTime: 2, votes: 12, events: 12,
+        bySurface: { daily: 6 },
+        returned: { d1: { returned: 0, of: 0 }, d7: { returned: 3, of: 10 }, d30: { returned: 0, of: null } },
+        streaksBroken: 1,
+        attn: { devices: 5, s: { feedSeen: { reach: 5, est: 30 }, lensPeople: { reach: 1, est: 1.5 } } } },
+    ];
+    const e = engagementFromDays(withAttn);
+    expect(e.days).toBe(2); // the stray is not a digest day
+    expect(e.latest.day).toBe("2026-08-22");
+    expect(e.attn.day).toBe("2026-08-22");
+    expect(e.attn.devices).toBe(5);
+    expect(e.attn.features[0]).toEqual({ key: "feedSeen", reach: 5, est: 30 });
+    const html = renderPulse({ ...collect(), engagement: { present: true, fetchedOn: "2026-08-23", ...e } }, []);
+    expect(html).toContain("est. uses");
+    expect(html).toContain("feedSeen");
+    expect(html).toContain("bucketing cannot distort it");
+  });
+
+  it("an attn-only trail still renders the attention table under the no-digest banner logic", () => {
+    const e = engagementFromDays([
+      { day: "2026-08-10", attn: { devices: 2, s: { opens: { reach: 2, est: 3 } } } },
+    ]);
+    expect(e.days).toBe(0);
+    expect(e.attn.devices).toBe(2);
+  });
+});
+
+describe("the person channel in the console (R3/D272)", () => {
+  it("passes the newest people fold through with a null-safe quiet share", () => {
+    const e = engagementFromDays([
+      { day: "2026-08-22", actives: 6, firstTime: 2, votes: 12, events: 12,
+        bySurface: { daily: 6 },
+        returned: { d1: { returned: 0, of: 0 }, d7: { returned: 0, of: null }, d30: { returned: 0, of: null } },
+        streaksBroken: 0,
+        attn: { devices: 5, s: { opens: { reach: 5, est: 8 } }, q: { "feed-001": { s: { reach: 2, est: 4 } } } },
+        people: { rollups: 4, sessions: 10, quiet: 3, fading: 1, depthEnd: 2 } },
+    ]);
+    expect(e.people).toMatchObject({ rollups: 4, sessions: 10, quietShare: 0.3, fading: 1, reachedEnd: 2 });
+    expect(e.attn.qidCount).toBe(1);
+    const html = renderPulse({ ...collect(), engagement: { present: true, fetchedOn: "2026-08-24", ...e } }, []);
+    expect(html).toContain("quiet-session share");
+    expect(html).toContain("fading people");
+    expect(html).toContain("Per-question attention");
+  });
+
+  it("zero sessions reads as an unknown share, never a divide-by-zero", () => {
+    const e = engagementFromDays([
+      { day: "2026-08-22", actives: 1, firstTime: 0, votes: 1, events: 1, bySurface: {},
+        returned: { d1: { returned: 0, of: null }, d7: { returned: 0, of: null }, d30: { returned: 0, of: null } },
+        streaksBroken: 0,
+        people: { rollups: 0, sessions: 0, quiet: 0, fading: 0, depthEnd: 0 } },
+    ]);
+    expect(e.people.quietShare).toBeNull();
   });
 });

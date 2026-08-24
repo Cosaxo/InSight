@@ -152,7 +152,11 @@ describe("learnRunway", () => {
   it("reports the shipped bank's runway in days, from the serve rate", () => {
     // The sentence the header derives FIELD_TARGET from, recomputed: three
     // followed fields at 8 cards is about a week at the default serve rate.
-    const r = learnRunway(loadLearnFields());
+    // A fixture, not loadLearnFields(): the derivation is about the
+    // constants, and pinning it to the live bank made every learn append
+    // that lifts a thinnest field a test failure (first tripped 2026-08-24,
+    // when gene and origins went 8 → 13 and the thinnest three summed 29).
+    const r = learnRunway(level(12, 8));
     expect(r.fresh).toBe(24);
     expect(r.someDays).toBeGreaterThan(r.lotsDays);
   });

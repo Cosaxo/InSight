@@ -2473,6 +2473,102 @@
           "label": "Still an emergency"
         }
       ]
+    },
+    {
+      "id": "f88",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "One more work from a lost genius: Mozart, or Van Gogh?",
+      "options": [
+        {
+          "label": "Mozart",
+          "count": 2700
+        },
+        {
+          "label": "Van Gogh",
+          "count": 2900
+        }
+      ]
+    },
+    {
+      "id": "f89",
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "Karaoke: joy, or ordeal?",
+      "options": [
+        {
+          "label": "Joy",
+          "count": 2800
+        },
+        {
+          "label": "Ordeal",
+          "count": 2600
+        }
+      ]
+    },
+    {
+      "id": "f90",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "A film you love gets a remake — excited, or bracing?",
+      "options": [
+        {
+          "label": "Excited",
+          "count": 1900
+        },
+        {
+          "label": "Bracing for it",
+          "count": 3400
+        }
+      ]
+    },
+    {
+      "id": "f91",
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "political": true,
+      "prompt": "Daylight saving time: keep it, or scrap it?",
+      "options": [
+        {
+          "label": "Keep it",
+          "count": 2100
+        },
+        {
+          "label": "Scrap it",
+          "count": 3300
+        }
+      ]
+    },
+    {
+      "id": "dl11",
+      "core": false,
+      "cat": "tech",
+      "type": "dial",
+      "prompt": "How many hours a day on a phone is too many?",
+      "lo": 0,
+      "hi": 12,
+      "unit": "h"
+    },
+    {
+      "id": "f92",
+      "core": false,
+      "cat": "bigq",
+      "type": "vote",
+      "prompt": "Know exactly what people think of you — would you?",
+      "options": [
+        {
+          "label": "Yes, all of it",
+          "count": 2400
+        },
+        {
+          "label": "Spare me",
+          "count": 2800
+        }
+      ]
     }
   ]
 }

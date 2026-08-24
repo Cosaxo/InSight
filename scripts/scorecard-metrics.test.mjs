@@ -4,7 +4,10 @@
 // assertion here fails if someone routes scale/rating back through
 // evennessOf.
 import { describe, it, expect } from "vitest";
-import { evennessOf, ordinalSplit, splitQualityOf, rollupProduction, creditShares, HOME_SHARES } from "./scorecard-metrics.mjs";
+import {
+  evennessOf, ordinalSplit, splitQualityOf, rollupProduction, creditShares, HOME_SHARES,
+  attentionFromTrail, ATTENTION_WARNING,
+} from "./scorecard-metrics.mjs";
 
 describe("categorical evenness (unchanged bar)", () => {
   it("scores the canonical cases", () => {
@@ -157,5 +160,42 @@ describe("production rollup (D97)", () => {
   it("ignores qids from surfaces provenance does not cover", () => {
     const out = rollupProduction([row("learn-cell1"), row("duel-duo-000")], prov);
     expect(Object.keys(out.bySource)).toEqual([]);
+  });
+});
+
+describe("attentionFromTrail (R4/D271)", () => {
+  const day = (q, qOther = 0) => ({ day: "2026-08-22", attn: { devices: 5, q, qOther } });
+
+  it("sums estimates per kind and rates against the seen denominator", () => {
+    const att = attentionFromTrail([
+      day({ "feed-001": { s: { reach: 4, est: 10 }, a: { reach: 2, est: 4 }, p: { reach: 1, est: 1.5 } } }),
+      day({ "feed-001": { s: { reach: 2, est: 10 }, a: { reach: 1, est: 1 } } }),
+    ]);
+    expect(att.daysWithQ).toBe(2);
+    expect(att.qids["feed-001"]).toMatchObject({
+      seen: 20, answered: 5, passed: 1.5, conv: 0.25, passRate: 0.08,
+    });
+  });
+
+  it("refuses a rate under the basis floor rather than printing noise", () => {
+    const att = attentionFromTrail([
+      day({ "feed-002": { s: { reach: 1, est: 1.5 }, a: { reach: 1, est: 1.5 } } }),
+    ]);
+    expect(att.qids["feed-002"].conv).toBeNull();
+    expect(att.qids["feed-002"].passRate).toBeNull();
+  });
+
+  it("carries the truncation count and tolerates attn-less days", () => {
+    const att = attentionFromTrail([
+      { day: "2026-08-20", actives: 3 },
+      day({}, 4),
+    ]);
+    expect(att.truncatedDevices).toBe(4);
+    expect(Object.keys(att.qids)).toHaveLength(0);
+  });
+
+  it("the warning names the discipline, because the dashboard doubles the temptation", () => {
+    expect(ATTENTION_WARNING).toMatch(/skip is not dislike/);
+    expect(ATTENTION_WARNING).toMatch(/D33/);
   });
 });

@@ -22,7 +22,7 @@ the count is zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
 `check:store-listing` and `check:versions` pass; the daily bank is at 130
-questions of 655 seeded; the production backend is deployed. **Measured
+questions of 671 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -168,7 +168,7 @@ arithmetic.
       below because it documents how the gap was reasoned about while it
       was real.
       Actions → **Seed content** → Run workflow.
-      655 questions land in `v2_questions` — idempotent and, since D34,
+      671 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -179,7 +179,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **655** after the K=5 test expansion, D103's
+      and the bank is **671** after the K=5 test expansion, D103's
       retirement of the Thinking test, D114's continuum questions and the
       D14 go-live's pick promotion — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
@@ -982,7 +982,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 655 seeded questions are live regardless.
+      working, not a leak — the 671 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
@@ -1169,17 +1169,38 @@ That is a tester-count problem, not a workflow problem.
       no App Privacy resource in the App Store Connect API at all, verified
       three ways (D73). So **Actions → App Store metadata** with *privacy*
       selected prints the form, row by row, in the order App Store Connect
-      asks, and you copy it across: **9 data types**, each **App
-      Functionality / linked Yes / tracking No**, tracking overall **No**.
-      ~15 minutes, and nothing recalled from memory — least of all from
-      this paragraph, which is why the printout is the artefact and the
-      prose is not.
+      asks, and you copy it across: **11 data types**, each **linked Yes
+      / tracking No**, ten of them **App Functionality** and Product
+      Interaction **Analytics**, tracking overall **No**. ~15 minutes, and
+      nothing recalled from memory — least of all from this paragraph,
+      which is why the printout is the artefact and the prose is not.
 
       **The two new rows ship in build 18, so the label and the binary move
       together or the label is wrong.** Uploading does not need it —
       TestFlight internal testing has no review gate — but **submission
       (6.2) does**, and the gap between them is the window where the live
       label describes a build that no longer exists.
+
+      **IT WENT STALE TWICE MORE, THE SAME WAY, AND THE SECOND TIME MADE
+      A SENTENCE FALSE RATHER THAN SHORT** (D273, build 25's pre-flight).
+      `ca8f4eb` took `app-privacy.json` to ten rows — D203's Health row,
+      the pulse's sleep and energy questions — and did not come back here,
+      two days after D180 diagnosed exactly that. D272 then took it to
+      eleven, and Product Interaction is the first row in the filing whose
+      purpose is **Analytics** rather than App Functionality, so the
+      blanket "each App Functionality" above stopped being a shorthand and
+      started being wrong. Under-declaring by two rows, twice, in the one
+      step whose output is a legal statement.
+
+      **`check:figures` owns the row count now**, read off
+      `app-privacy.json`'s `collected` array, so this sentence is current
+      or CI is red. That is 5.6's remedy applied to 4.4 — the same fix,
+      after the same failure, for the reason D39 gives. It holds the
+      *count*; nothing can hold the purposes, so read the printout.
+
+      **The engagement ladder's row ships in build 25** (D268–D272), so
+      this is build 18's situation again: the label and the binary move
+      together or the label is wrong.
 
       **Read `STORE-FORMS.md` before typing.** What you are entering is a
       legal statement about what the app collects. The printout transcribes
@@ -1302,7 +1323,7 @@ That is a tester-count problem, not a workflow problem.
       it for two policies is the worse trade. Both cover failures that look like nothing from the
       outside: the app keeps serving while the Mirror stops moving, or
       keeps moving while falling further behind. `DEPLOYMENT.md § Alerting`.
-- [x] **5.6 Version lockstep — holds at 2.0.0 build 24.**
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 26.**
       *This line was stale three times, each one a bump behind 2.4 — build
       11 on 2026-08-13, build 12 later the same day, then 13 against a tree
       at 22.* It is the D39 shape — a figure kept current by intention —

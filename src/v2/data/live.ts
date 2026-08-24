@@ -80,6 +80,9 @@ import {
   linkGoogle,
   subscribeToAuth,
 } from "../../lib/firebase";
+// R2/D270: the anonymous feature tally. Imported, never a global (rule 4
+// only moves down); armed in initLive below and a no-op everywhere else.
+import * as engagement from "./engagement";
 
 async function getDb(): Promise<import("firebase/firestore").Firestore> {
   // Promise.all, not three awaits: all three resolve from the SAME memoised
@@ -4098,6 +4101,21 @@ const LIVE = {
         // future boot with nothing left to reconcile it away.
         delete state.inflight[qid];
         cacheVote(qid, optionIdx);
+        // Counted on the ACK, not the tap: a refused create rolls the
+        // optimistic state back below, and the tally should agree with
+        // the server about what was answered (R2/D270).
+        engagement.noteAnswer(q?.surface ?? "daily");
+        // …and the per-question map (R4/D271), for the feed-rendered
+        // surfaces only: the seen denominator comes from feed cards, so
+        // the answered numerator matches its population. The daily is
+        // not a feed card, duels never ride this path, and a pulse
+        // answers through votePulse — none of them belongs here.
+        {
+          const s = q?.surface ?? "daily";
+          if (s === "feed" || s === "test" || s === "learn" || s === "call") {
+            engagement.noteQid(qid, "a");
+          }
+        }
         notify(); // confirmedVotes() changed — let persistent records (the Map) pick it up
         scheduleAggRefresh(db, qid);
       } catch (err) {
@@ -4286,6 +4304,7 @@ const LIVE = {
         delete state.inflight[qid];
         state.editedAt[qid] = Date.now();
         cacheVote(qid, optionIdx); // keep the answers-cache mirror true to the doc
+        engagement.note("edits"); // acked, same rule as the create's count
         notify();
         scheduleAggRefresh(db, qid);
       } catch (err) {
@@ -4782,6 +4801,41 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
   const flag = import.meta.env.VITE_V2_LIVE === "true";
   if (!flag || !firebaseEnabled) return;
   const boot = refreshLive();
+
+  // R2/D270: arm the anonymous feature tally. The writer is the ordinary
+  // SDK path — offline queue included, so a shard written on a dead train
+  // arrives when the phone wakes — and the shard carries no uid: the
+  // session matters only for the signed-in create the rules demand.
+  // Armed HERE and nowhere else, which is the tally's whole inertness
+  // story: jsdom mounts and the demo build never run initLive.
+  engagement.arm({
+    write: async (shard) => {
+      const db = await getDb();
+      await setDoc(doc(db, "v2_attention", crypto.randomUUID()), shard);
+    },
+    // R3/D272: the person rollup rides the same queue but under the
+    // session's own uid — throwing on a missing session is the contract
+    // (engagement retains the tally and retries next boot), not an error.
+    writeRollup: async (rollup) => {
+      const db = await getDb();
+      const uid = state.uid;
+      if (!uid) throw new Error("no session");
+      await setDoc(doc(db, "v2_users", uid, "engagement", rollup.day), rollup);
+    },
+    hasUid: () => !!state.uid,
+    build: typeof __APP_BUILD__ === "number" ? __APP_BUILD__ : 0,
+  });
+  // A slow first paint is a boredom input like any other. Measured from
+  // the arm rather than inside hydrate(): same tick as the boot's start,
+  // and it keeps the timing out of the code path it times.
+  const armT0 = Date.now();
+  void boot.then(
+    () => { if (Date.now() - armT0 > 4000) engagement.note("slowBoots"); },
+    // A failed boot is the error path's fact, not a slow-boot one — and a
+    // bare .finally here would mint a second, unhandled rejection chain
+    // off a promise the caller below already races and handles.
+    () => { /* counted nowhere */ },
+  );
 
   // Observe auth for the rest of the session. state.uid used to be sampled
   // once and never watched, so if the session changed underneath us — a

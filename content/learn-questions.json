@@ -2166,6 +2166,166 @@
       "t": 0,
       "p": 44,
       "k": "Fitness counts offspring"
+    },
+    {
+      "id": "gene9",
+      "f": "gene",
+      "q": "How different is your DNA from a stranger's?",
+      "a": [
+        "About 5%",
+        "About 0.1%",
+        "About 1%",
+        "About 10%"
+      ],
+      "c": 1,
+      "t": 2,
+      "p": 52,
+      "k": "Humans differ by 0.1%",
+      "w": "Any two people are about 99.9% identical — the ~1% figure people reach for is the human-chimp comparison."
+    },
+    {
+      "id": "gene10",
+      "f": "gene",
+      "q": "The first mammal cloned from an adult cell was a…",
+      "a": [
+        "Mouse",
+        "Sheep",
+        "Cat",
+        "Monkey"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 75,
+      "k": "Dolly: cloned from adult cell",
+      "w": "Dolly (1996), grown from a mammary-gland cell — mice, the lab default, weren't cloned until two years later."
+    },
+    {
+      "id": "gene11",
+      "f": "gene",
+      "q": "Roughly how many protein-coding genes do you have?",
+      "a": [
+        "20,000",
+        "100,000",
+        "1 million",
+        "3 billion"
+      ],
+      "c": 0,
+      "t": 3,
+      "p": 44,
+      "k": "About 20,000 human genes",
+      "w": "Far fewer than the pre-genome guess of 100,000. The famous 3 billion counts base pairs, not genes."
+    },
+    {
+      "id": "gene12",
+      "f": "gene",
+      "q": "Mitochondrial DNA is inherited from…",
+      "a": [
+        "Your mother",
+        "Your father",
+        "Both parents",
+        "A random parent"
+      ],
+      "c": 0,
+      "t": 2,
+      "p": 58,
+      "k": "Mitochondrial DNA: maternal",
+      "w": "Sperm mitochondria are destroyed after fertilisation, so the egg's line carries it — the basis of the 'Mitochondrial Eve' idea."
+    },
+    {
+      "id": "gene13",
+      "f": "gene",
+      "q": "A baby's chromosomal sex is settled by…",
+      "a": [
+        "The mother's egg",
+        "Either cell equally",
+        "The father's sperm",
+        "Nothing until after conception"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 60,
+      "k": "Sperm carries X or Y",
+      "w": "Eggs always carry an X; sperm carry X or Y — history blamed mothers for a coin the father's side flips."
+    },
+    {
+      "id": "org9",
+      "f": "origins",
+      "q": "“Ketchup” most likely began as a…",
+      "a": [
+        "Tomato jam",
+        "Fish sauce",
+        "Berry paste",
+        "Meat glaze"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 40,
+      "k": "Ketchup began as fish sauce",
+      "w": "From a Chinese fermented fish sauce (kê-tsiap); tomatoes joined the recipe centuries later."
+    },
+    {
+      "id": "org10",
+      "f": "origins",
+      "q": "“Trivia” comes from the Latin for…",
+      "a": [
+        "Idle talk",
+        "Small things",
+        "Three roads",
+        "Riddles"
+      ],
+      "c": 2,
+      "t": 1,
+      "p": 31,
+      "k": "Trivia: three roads",
+      "w": "A trivium was a crossroads — the place where commonplace, everyday talk circulated."
+    },
+    {
+      "id": "org11",
+      "f": "origins",
+      "q": "A “clue” was originally a…",
+      "a": [
+        "Whisper",
+        "Footprint",
+        "Key",
+        "Ball of thread"
+      ],
+      "c": 3,
+      "t": 1,
+      "p": 35,
+      "k": "Clue: a ball of thread",
+      "w": "A “clew” of yarn — like the one Theseus unwound to find his way out of the labyrinth."
+    },
+    {
+      "id": "org12",
+      "f": "origins",
+      "q": "“Disaster” literally means a bad…",
+      "a": [
+        "Storm",
+        "Star",
+        "Day",
+        "Omen"
+      ],
+      "c": 1,
+      "t": 3,
+      "p": 48,
+      "k": "Disaster: an ill star",
+      "w": "Dis- plus astrum: born under an unfavourable star, back when the sky took the blame."
+    },
+    {
+      "id": "org13",
+      "f": "origins",
+      "q": "“Denim” is named after a city in…",
+      "a": [
+        "Italy",
+        "France",
+        "America",
+        "India"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 55,
+      "k": "Denim: de Nîmes",
+      "w": "Serge de Nîmes. Italy is the half-knowledge trap: that city named the jeans — Genoa — not the cloth."
     }
   ]
 }

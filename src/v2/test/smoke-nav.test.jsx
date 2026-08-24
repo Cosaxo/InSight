@@ -239,3 +239,18 @@ describe("the surfaces that own their drag are excluded from the axis swipes", (
     expectNoBoundary("profile → lenses → explain sheet");
   });
 });
+
+// ── the engagement tally stays silent in an unarmed mount (D270) ────────
+// The inertness half of data/engagement.test.ts's first case, asserted
+// where a REAL render exists: these suites never run initLive, so a full
+// mount — the shell's tab/stop/overlay effects included — must tally
+// nothing and write nothing. If this fails, a demo build is collecting.
+describe("the anonymous tally is inert unarmed", () => {
+  it("a full mount and a tab switch write no insight.engagement.v1", async () => {
+    const expectNoBoundary = mountApp();
+    const mirror = await awaitNode(() => document.querySelector('[data-nav="mirror"], [data-tab-btn="mirror"]'), "mirror tab button").catch(() => null);
+    if (mirror) fireEvent.click(mirror);
+    expect(localStorage.getItem("insight.engagement.v1")).toBeNull();
+    expectNoBoundary();
+  });
+});

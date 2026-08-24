@@ -5228,6 +5228,110 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "until": "2026-08-26"
  },
  {
+  "id": "feed-f88",
+  "surface": "feed",
+  "seq": 124,
+  "type": "vote",
+  "domain": null,
+  "prompt": "One more work from a lost genius: Mozart, or Van Gogh?",
+  "options": [
+   "Mozart",
+   "Van Gogh"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f89",
+  "surface": "feed",
+  "seq": 125,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Karaoke: joy, or ordeal?",
+  "options": [
+   "Joy",
+   "Ordeal"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f90",
+  "surface": "feed",
+  "seq": 126,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A film you love gets a remake — excited, or bracing?",
+  "options": [
+   "Excited",
+   "Bracing for it"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f91",
+  "surface": "feed",
+  "seq": 127,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Daylight saving time: keep it, or scrap it?",
+  "options": [
+   "Keep it",
+   "Scrap it"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "political": true
+ },
+ {
+  "id": "feed-dl11",
+  "surface": "feed",
+  "seq": 128,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many hours a day on a phone is too many?",
+  "options": [
+   "0–1 h",
+   "1–2 h",
+   "2–3 h",
+   "3–4 h",
+   "4–5 h",
+   "5–6 h",
+   "6–7 h",
+   "7–8 h",
+   "8–9 h",
+   "9–10 h",
+   "10–11 h",
+   "11–12 h"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 12,
+  "unit": "h"
+ },
+ {
+  "id": "feed-f92",
+  "surface": "feed",
+  "seq": 129,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Know exactly what people think of you — would you?",
+  "options": [
+   "Yes, all of it",
+   "Spare me"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,
@@ -11900,6 +12004,176 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
    "Beats its rivals"
   ],
   "topic": "evo",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-gene9",
+  "surface": "learn",
+  "seq": 136,
+  "type": "choice",
+  "domain": null,
+  "prompt": "How different is your DNA from a stranger's?",
+  "options": [
+   "About 5%",
+   "About 0.1%",
+   "About 1%",
+   "About 10%"
+  ],
+  "topic": "gene",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-gene10",
+  "surface": "learn",
+  "seq": 137,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The first mammal cloned from an adult cell was a…",
+  "options": [
+   "Mouse",
+   "Sheep",
+   "Cat",
+   "Monkey"
+  ],
+  "topic": "gene",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-gene11",
+  "surface": "learn",
+  "seq": 138,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Roughly how many protein-coding genes do you have?",
+  "options": [
+   "20,000",
+   "100,000",
+   "1 million",
+   "3 billion"
+  ],
+  "topic": "gene",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-gene12",
+  "surface": "learn",
+  "seq": 139,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Mitochondrial DNA is inherited from…",
+  "options": [
+   "Your mother",
+   "Your father",
+   "Both parents",
+   "A random parent"
+  ],
+  "topic": "gene",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-gene13",
+  "surface": "learn",
+  "seq": 140,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A baby's chromosomal sex is settled by…",
+  "options": [
+   "The mother's egg",
+   "Either cell equally",
+   "The father's sperm",
+   "Nothing until after conception"
+  ],
+  "topic": "gene",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-org9",
+  "surface": "learn",
+  "seq": 141,
+  "type": "choice",
+  "domain": null,
+  "prompt": "“Ketchup” most likely began as a…",
+  "options": [
+   "Tomato jam",
+   "Fish sauce",
+   "Berry paste",
+   "Meat glaze"
+  ],
+  "topic": "origins",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-org10",
+  "surface": "learn",
+  "seq": 142,
+  "type": "choice",
+  "domain": null,
+  "prompt": "“Trivia” comes from the Latin for…",
+  "options": [
+   "Idle talk",
+   "Small things",
+   "Three roads",
+   "Riddles"
+  ],
+  "topic": "origins",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-org11",
+  "surface": "learn",
+  "seq": 143,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A “clue” was originally a…",
+  "options": [
+   "Whisper",
+   "Footprint",
+   "Key",
+   "Ball of thread"
+  ],
+  "topic": "origins",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-org12",
+  "surface": "learn",
+  "seq": 144,
+  "type": "choice",
+  "domain": null,
+  "prompt": "“Disaster” literally means a bad…",
+  "options": [
+   "Storm",
+   "Star",
+   "Day",
+   "Omen"
+  ],
+  "topic": "origins",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-org13",
+  "surface": "learn",
+  "seq": 145,
+  "type": "choice",
+  "domain": null,
+  "prompt": "“Denim” is named after a city in…",
+  "options": [
+   "Italy",
+   "France",
+   "America",
+   "India"
+  ],
+  "topic": "origins",
   "axis": null,
   "test": null
  },

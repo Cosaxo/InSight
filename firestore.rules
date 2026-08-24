@@ -139,6 +139,91 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Engagement day docs (R1/D268) — the nightly digest's anonymous
+    // population counts (actives, first answerers, cohort returns,
+    // answers by surface), one doc per UTC day plus the fold's own
+    // `meta` cursor. World-readable per D268's adopted default — nothing
+    // per-person is in any of them, and the public read is what lets the
+    // scorecard's credential-free fetch and the pulse console read the
+    // trail. Written by NOBODY but the digest on the admin SDK: a
+    // client-writable count would make the whole trail forgeable in one
+    // request (the v2_patterns posture, one shelf up).
+    match /v2_engagement_daily/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // Attention shards (R2/D270) — rung 1's anonymous device tallies:
+    // one create-only doc per device per FINISHED UTC day, under a random
+    // per-write id, holding bucketed feature counts and nothing else. The
+    // nightly fold sums shards into v2_engagement_daily and DELETES them.
+    //
+    // READABLE BY NOBODY, and that is the channel's own promise kept in
+    // rules: a readable shard pile is the raw material of the per-device
+    // funnel this rung exists not to be (ATTENTION.md §6's "an operator
+    // who keeps the raw shards has a funnel" — a READER of them is the
+    // same failure from the other side). Update and delete are refused
+    // too: the fold deletes on the admin SDK, and a client-editable shard
+    // would un-fix the create-only shape.
+    //
+    // The day is a FIELD with the pulse arm's parse-and-bound idiom: an
+    // 8-day back-window (yesterday-flush plus a dormant phone's slack —
+    // the client drops older tallies itself) and 2 days forward for
+    // clock skew. Bucket VALUES are deliberately not bounded here: rules
+    // cannot iterate a map, thirty enumerated clauses would be this
+    // file's most brittle block, and the fold — the only reader — clamps
+    // every value to the 0..4 bucket range in one line instead.
+    match /v2_attention/{shardId} {
+      allow read: if false;
+      allow update, delete: if false;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly([
+          "day", "build", "platform", "sampled", "rate", "s", "qids",
+        ])
+        && request.resource.data.day is string
+        && request.resource.data.day.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+        && timestamp.date(
+             int(request.resource.data.day[0:4]),
+             int(request.resource.data.day[5:7]),
+             int(request.resource.data.day[8:10]))
+           > request.time - duration.value(8, 'd')
+        && timestamp.date(
+             int(request.resource.data.day[0:4]),
+             int(request.resource.data.day[5:7]),
+             int(request.resource.data.day[8:10]))
+           < request.time + duration.value(2, 'd')
+        && request.resource.data.build is int
+        && request.resource.data.platform in ["ios", "android", "web"]
+        && request.resource.data.sampled == true
+        && request.resource.data.rate is number
+        && request.resource.data.rate > 0
+        && request.resource.data.rate <= 1
+        && request.resource.data.s is map
+        && request.resource.data.s.keys().hasOnly([
+          "opens", "slowBoots", "errors",
+          "tabDaily", "tabMirror", "tabPatterns", "overlays",
+          "stopYou", "stopNear", "stopCircle", "stopGroups", "stopCity",
+          "stopCountry", "stopWorld",
+          "lensPeople", "lensCompare", "lensExplore", "lensScores",
+          "feedSeen", "feedPass", "feedDefer",
+          "ansDaily", "ansFeed", "ansTest", "ansLearn", "ansPulse",
+          "ansCall", "ansDuel", "edits",
+          "revealSeen", "notifOpen",
+        ])
+        // The R4 arm, OPEN since D271's adoption: per-question tallies —
+        // bucketed seen/answered/passed/deferred per qid, still fully
+        // anonymous (this doc carries no uid, by the whitelist above),
+        // so the server learns a QUESTION's pass rate and never a
+        // person's passes. Capped INCLUDING the client's overflow cell,
+        // which is why this cap and QIDS_CAP in
+        // src/v2/data/engagement.ts are one number, held equal by hand
+        // and pinned by both sides' tests. Values are clamped by the
+        // fold — the `s` map's reasoning above, one shelf up.
+        && (!("qids" in request.resource.data)
+          || (request.resource.data.qids is map
+            && request.resource.data.qids.size() <= 120));
+    }
+
     function isValidV2Anchors(anchors) {
       return anchors is map
         && anchors.keys().hasOnly([
@@ -242,6 +327,84 @@ service cloud.firestore {
       // recursive delete of v2_users/{uid} takes it with the account.
       match /patterns/{docId} {
         allow read, write: if false;
+      }
+
+      // Engagement, two shapes under one path, split by the ID DISCIPLINE:
+      //
+      //   `_state` (R1/D268) — the digest's bookkeeping (first/last
+      //   active day, streak, and since D272 the trailing fg window).
+      //   Server-written only; it fails the date regex below, so no
+      //   client arm can ever reach it.
+      //
+      //   `{yyyy-mm-dd}` (R3/D272) — the person channel's day rollup:
+      //   sessions, foreground bucket, quiet sessions, dayparts, depth.
+      //   Create-only, owner-only, for a FINISHED day, `folded: false`
+      //   at birth (the fold flips it on the admin SDK — which is also
+      //   why update is denied to clients).
+      //
+      // READABLE BY NOBODY either way — not even the owner (the
+      // push-tokens posture): this is measurement, not a Mirror surface,
+      // and a path with no read grant is not one edit from being
+      // readable. THE hasOnly BELOW IS THE TWO-CHANNEL PIN: no `qids`,
+      // no question id, no field that could carry reading history — the
+      // rules test that smuggles one in and is refused is the plan's
+      // §4.2 enforcement, not decoration. Erased with the account by
+      // deleteAccount's recursive delete (no new arm); expireAt powers
+      // the 90-day TTL (SHIP-CHECKLIST §5's second gcloud line).
+      match /engagement/{docId} {
+        allow read: if false;
+        allow update, delete: if false;
+        allow create: if request.auth != null
+          && request.auth.uid == uid
+          && docId.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}')
+          && timestamp.date(
+               int(docId[0:4]), int(docId[5:7]), int(docId[8:10]))
+             > request.time - duration.value(8, 'd')
+          && timestamp.date(
+               int(docId[0:4]), int(docId[5:7]), int(docId[8:10]))
+             < request.time + duration.value(2, 'd')
+          && request.resource.data.keys().hasOnly([
+            "day", "sessions", "fgMin", "quiet", "dayparts", "answers",
+            "feedB", "depthEnd", "stops", "lenses", "folded", "build",
+            "platform", "expireAt",
+          ])
+          && request.resource.data.day == docId
+          && request.resource.data.sessions is int
+          && request.resource.data.sessions >= 0
+          && request.resource.data.sessions <= 300
+          && request.resource.data.fgMin is int
+          && request.resource.data.fgMin >= 0
+          && request.resource.data.fgMin <= 4
+          && request.resource.data.quiet is int
+          && request.resource.data.quiet >= 0
+          && request.resource.data.quiet <= 300
+          && request.resource.data.dayparts is list
+          && request.resource.data.dayparts.size() == 4
+          && request.resource.data.dayparts[0] is int
+          && request.resource.data.dayparts[1] is int
+          && request.resource.data.dayparts[2] is int
+          && request.resource.data.dayparts[3] is int
+          && request.resource.data.answers is int
+          && request.resource.data.answers >= 0
+          && request.resource.data.answers <= 2000
+          && request.resource.data.feedB is int
+          && request.resource.data.feedB >= 0
+          && request.resource.data.feedB <= 4
+          && request.resource.data.depthEnd is int
+          && request.resource.data.depthEnd >= 0
+          && request.resource.data.depthEnd <= 1
+          && request.resource.data.stops is int
+          && request.resource.data.stops >= 0
+          && request.resource.data.stops <= 2000
+          && request.resource.data.lenses is int
+          && request.resource.data.lenses >= 0
+          && request.resource.data.lenses <= 2000
+          && request.resource.data.folded == false
+          && request.resource.data.build is int
+          && request.resource.data.platform in ["ios", "android", "web"]
+          && request.resource.data.expireAt is timestamp
+          && request.resource.data.expireAt > request.time
+          && request.resource.data.expireAt < request.time + duration.value(100, 'd');
       }
 
       // The follow graph (D101) — the Mirror's Circle stop.
