@@ -327,7 +327,12 @@ export function firestoreEngagementStore(db: Firestore): EngagementStore {
         .where("at", ">=", start)
         .where("at", "<", end)
         .orderBy("at")
-        .select("uid", "qid")
+        // "at" is in the projection because the CURSOR is built from it:
+        // startAfter() reads every orderBy field off the snapshot, and
+        // select() decides which fields that snapshot carries. Projecting
+        // only uid + qid made page two throw. patterns.ts and velocity.ts
+        // page the same way and both already include it.
+        .select("uid", "qid", "at")
         .limit(5000);
       for (;;) {
         const snap = await query.get();
