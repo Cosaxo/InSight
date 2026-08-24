@@ -1001,6 +1001,31 @@ function computeDeck(): void {
 async function hydrate(): Promise<void> {
   const db = await getDb();
 
+  // The viewer's own profile, STARTED HERE and awaited where it is read,
+  // some six round trips down.
+  //
+  // It depends on `db` and `state.uid` and on nothing else in this
+  // function — not the meta document, not `contentRev`, not the bank — so
+  // every trip between here and its `await` was the boot race waiting on
+  // work that had no reason to be behind them. `initLive` gives that race
+  // 2500 ms, and losing it puts a real user on the demo deck under a
+  // "still connecting" label; on a 200 ms mobile RTT this is most of a
+  // fifth of the budget, spent for nothing. No extra read either way.
+  //
+  // Rejections are captured to null rather than left floating: an
+  // in-flight promise nobody is awaiting yet would raise
+  // `unhandledrejection` on the way to its own catch. Null lands in the
+  // same branch a failed read already took — a missing display name is a
+  // cosmetic loss, not a reason to spend the session on demo data — and
+  // the reporting stays at the read site.
+  const uidEarly = state.uid;
+  const profileP = uidEarly
+    ? getDoc(doc(db, "v2_users", uidEarly)).catch((err) => {
+      reportError(err, { where: "hydrate.profile" });
+      return null;
+    })
+    : null;
+
   // ── one meta read runs the whole cache story ──
   // contentRev invalidates the local question-bank cache; latest/min
   // build drive the in-app update prompts.
@@ -1410,8 +1435,13 @@ async function hydrate(): Promise<void> {
   const uid0 = state.uid;
   if (uid0) {
     try {
-      const prof = await getDoc(doc(db, "v2_users", uid0));
-      if (prof.exists()) {
+      // Started at the top of hydrate — see the note there. Re-read here
+      // only if the uid changed under us between then and now, which the
+      // auth flip can do.
+      const prof = uid0 === uidEarly && profileP
+        ? await profileP
+        : await getDoc(doc(db, "v2_users", uid0));
+      if (prof && prof.exists()) {
         state.profile.displayName = (prof.get("displayName") as string) || "";
         state.profile.handle = (prof.get("handle") as string) || "";
         state.profile.testResults =
@@ -3619,15 +3649,28 @@ const LIVE = {
    * No new read. Every aggregate here was already fetched and cached for
    * the card that displayed it; this is the same map, walked rather than
    * indexed.
+   *
+   * perRev (D169), because the walk is not free and every caller is on a
+   * render path: it builds a whole `LiveQuestion` per surviving question,
+   * each with its own mapped `options` array. `LiveCohortBody` folds it
+   * twice per render of a Mirror stop, `LiveCircleBody` and `LiveReadGame`
+   * once each, and `PATTERNS.pool()` (data/patterns.ts) two to four times
+   * per render of the Patterns tab — while `patternsSignal()`'s note below
+   * cites exactly this cost as the reason IT walks the banks directly.
+   *
+   * `now` is captured per fold, and freezing it across a revision changes
+   * nothing: `back` is null here, so `buildS` never reaches `dayLabel` and
+   * the date is unused. The shared-array condition applies as ever — the
+   * four callers `.filter()`, `.map()`, spread or iterate, none mutate.
    */
-  aggregated(): LiveQuestion[] {
+  aggregated: perRev((): LiveQuestion[] => {
     const now = new Date();
     return state.questions
       .filter((q) => q.active !== false && hasPublishedCounts(state.aggs[q.id]))
       // No `back`, so no day label: these come from any day and a pager
       // label on them would be a guess (deck.ts's buildS takes null).
       .map((q) => buildSPure(q, null, voteCtx(q.id), now));
-  },
+  }),
   /**
    * The core feed questions with a published aggregate, as the same view
    * models — the Patterns pool's other half (the nightly fit folds
@@ -3639,13 +3682,13 @@ const LIVE = {
    * Same walk as aggregated(): every aggregate here is already cached for
    * the feed card that displayed it, so this is no new read.
    */
-  coreFeedAggregated(): LiveQuestion[] {
+  coreFeedAggregated: perRev((): LiveQuestion[] => {
     const now = new Date();
     return state.feedBank
       .filter((q) => q.surface === "feed" && isCore(q) && q.active !== false
         && (q.options || []).length === 2 && hasPublishedCounts(state.aggs[q.id]))
       .map((q) => buildSPure(q, null, voteCtx(q.id), now));
-  },
+  }),
   /**
    * What the Patterns tab's mount gate reads (D265) — the crowd's number
    * as the nightly fit published it, and the viewer's own answers among
