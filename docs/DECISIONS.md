@@ -27375,3 +27375,123 @@ build 24 record, with the delivery UUID and byte count read out of the
 logs rather than recalled. `LAUNCH-RUNBOOK.md` 4.4 goes to eleven rows
 with the Analytics purpose named, and `check-figures.mjs` gains the
 rule that keeps it there.
+
+## D275 · The private aggregate mirror collapses into the published one
+
+**2026-08-24.** **Status:** binding. Reverses the two-document shape for
+the vote, edit and rank paths; the catalog path keeps its accumulator.
+Named as the remedy by `functions/src/v2.ts`'s own header from the day
+D98 shipped, and by D98's contention paragraph before that.
+
+### What was there
+
+`onV2AnswerCreated` wrote two aggregate documents per world answer, in
+one transaction, both keyed by qid: `v2_aggs_private/{qid}` — the
+trigger's working state — and `v2_question_aggs/{qid}`, the published
+mirror. The split existed because the mirror was *floored*: the private
+doc held the true counts while the public one published only at or above
+`AGG_MIN_N`, on a `PUBLISH_EVERY` cadence, with complementary
+suppression. The private doc was where the truth lived that the public
+doc was not allowed to say.
+
+**D98 deleted the floor and left the split standing.** From that day the
+two documents held, on the vote and edit paths, byte-for-byte the same
+object — `{counts, total, by}` plus `edits` when set — and on the rank
+path the same two fields, `{pos, total}` against `{total, pos}`.
+`docs/data-inventory.md` had said so in prose for as long: *"Since D98 it
+holds the same numbers as the public document… a cache, not a curtain."*
+A cache with no readers is a second write.
+
+### The arithmetic
+
+Per world answer the trigger wrote three documents: the ledger entry, the
+private mirror, the published mirror. One of the three was a copy of
+another. The write term in `scripts/cost-arith.mjs` goes
+`worldAnswers × (1 + 2 + pub)` → `(1 + 1 + pub)`:
+
+| DAU | writes/day was | now | Firestore $/mo was | now |
+| ---: | ---: | ---: | ---: | ---: |
+| 500 | 12.1 K | 10.1 K | 1.16 | 1.16 |
+| 5,000 | 121 K | 101 K | 24 | 23 |
+| 50,000 | 1.21 M | 1.01 M | 262 | 257 |
+| 500,000 | 12.1 M | 10.1 M | 2,665 | 2,611 |
+
+−16.5% of writes at every size, ~2% of the bill. It is only 2% because
+reads dominate this model everywhere, and that is worth stating rather
+than rounding up: a third of the trigger's writes is a small slice of a
+small line. The free-tier write crossing moves ~1,408 → ~1,687 DAU, by
+exactly the write rate's ratio (24.2 → 20.2 per user-day).
+
+**It does NOT move D7's ceiling**, and the sentence in v2.ts that said it
+would has been corrected. Both documents were keyed by the same qid and
+written in the same transaction, so the transaction was already bounded
+by one of them and is now bounded by the survivor. Sharding is still the
+only thing that moves that wall.
+
+### Why the published document is safe as the accumulator
+
+`firestore.rules` gives `v2_question_aggs` `allow read: if request.auth
+!= null; allow write: if false`. No client can write it; the trigger
+through the Admin SDK is its only writer — exactly the guarantee the
+private doc had. The trigger now reads it and rewrites it inside the same
+transaction, which is what it already did with the private one.
+
+Nothing new becomes readable. Every field the accumulator holds was
+already being published in the same transaction, to the same qid, on the
+same answer.
+
+### What the catalog path keeps, and why that is not an exception
+
+`v2_aggs_private/{qid}` survives for `type: "catalog"` answers, where it
+is **not** a copy: it accumulates the whole `ent` map — a catalogue is
+~1k keys — and the whole `entBy`, while the published doc carries
+`canonTopN`'s bounded top-N board and a `by` cut to the board's own
+entities. Publishing the accumulator would grow the document every client
+re-reads on every answer, which is the opposite of what this change is
+for. The duel fold (`v2social.ts`) keeps its own for the same shape of
+reason, at one fold per revealed group-day rather than per answer.
+
+So the collection keeps a real purpose rather than becoming an empty
+match block, and the rules deny stays where it is.
+
+### Migration: none needed, and the reason is dated
+
+Switching the accumulator would corrupt counts if any live
+`v2_question_aggs` doc had been written under the floor — suppressed or
+absent while its private twin held the truth. That set is empty.
+`monitoring/pulse-trail.jsonl` records `answersCounted` 0 every day
+through 2026-08-14; the only non-zero readings are 5 answers across
+2026-08-15 to 08-18, all after D98 shipped. Every published aggregate in
+production was therefore written by the post-D98 trigger, in the same
+transaction as its private twin, with identical data. D98 made the same
+argument for the same reason — *"the backfill set is provably empty"* —
+off the same file.
+
+No fallback read of the private doc is left behind. One would cost a
+billed read on every answer forever to cover a set that is empty, which
+is the trade this record exists to refuse.
+
+### The gate
+
+`firestore-tests/e2e-v2-loop.mjs` asserts, through the admin handle
+because the collection is deny-all to clients, that after five answers
+`v2_aggs_private/{qid}` **does not exist** — beside the assertions that
+already pin the published counts exactly through eleven answers, an edit
+and a post-edit create. Verified by reverting the trigger alone: the case
+fails, and prints the duplicate's contents, which are byte-identical to
+the published document (`{"counts":{"0":2,"1":3},"total":5,"by":{…}}`).
+That output is the evidence for this record's central claim.
+
+### The edits this record made
+
+`functions/src/v2.ts` (three paths, the header, the contention note and
+the ledger-retention note), `functions/src/pure.ts`'s breakdown comment,
+`firestore.rules`' deny comment, `firestore-tests/rules.test.ts` (the
+fixture now names a catalogue qid, since a daily one no longer produces
+such a doc), `firestore-tests/e2e-delete-account.mjs` (the surviving
+tally is the published doc), `scripts/cost-arith.mjs`, and the paperwork:
+`data-inventory.md`, `SCHEMA-V2.md`, `MIRROR.md`, `COSTS.md` (figures,
+the walls section, and a dated note), `DEPLOYMENT.md`'s correction
+runbook — which gains a two-case split and loses its republication step
+for the common one, because the correction and the publication are now
+one write and cannot disagree.

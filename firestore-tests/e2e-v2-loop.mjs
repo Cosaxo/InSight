@@ -235,6 +235,27 @@ if (above.counts["0"] !== 2 || above.counts["1"] !== 3)
   fail("counts wrong at total 5: " + JSON.stringify(above));
 ok("five answers: exact public counts {0:2, 1:3} — no double counting");
 
+// 7a-bis · and the second copy is gone. The trigger used to write those
+// same five numbers twice — v2_aggs_private/{qid} byte-for-byte alongside
+// the published doc — which is a third of its writes on every answer, for
+// a document with no reader. The counts above are the proof the fold is
+// right; this is the proof it costs one write to be right.
+//
+// Read through the ADMIN handle, because the collection is deny-all to
+// clients: a client read would fail whether the document existed or not,
+// which is the assertion that passes for the wrong reason.
+{
+  const privSnap = await adminDb.doc(`v2_aggs_private/${q0.id}`).get();
+  if (privSnap.exists) {
+    fail(
+      "the vote path wrote v2_aggs_private/" + q0.id + " again — the private "
+      + "mirror was collapsed into the published document; a second write of "
+      + "a public fact is what this removed: " + JSON.stringify(privSnap.data()),
+    );
+  }
+}
+ok("no private mirror: the published aggregate is the only document the fold writes");
+
 // 7b · the breakdown, whole (D98). At total 5 the age bands hold 3 and 2
 // and the cities 3 and 2, and every one of those cells publishes exactly.
 // Country is a single bucket of 5 — once withheld as "a population

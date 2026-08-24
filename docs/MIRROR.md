@@ -62,10 +62,11 @@ one write — an answer — and the surfaces differ only in how they cut it.
                                     │                    │
                         the aggregate trigger            ├──────► the four core TESTS
                                     ↓                    │        and the lenses,
-                     v2_aggs_private/{qid}               │        filled passively
-                       the trigger's working state       │
-                       (no readers — a cache,            └──────► your PROFILE, and
-                        not a curtain)                            Compare's "you vs them"
+                     v2_question_aggs/{qid}              │        filled passively
+                       read and rewritten in one         │
+                       transaction — the fold's          └──────► your PROFILE, and
+                       working document IS the                    Compare's "you vs them"
+                       published one
                                     ↓
                        published on EVERY answer,
                        exact — no floor, no cadence
@@ -103,8 +104,10 @@ server ever reading another user's document.
 **Nothing is withheld (D98).** Every cohort publishes, at every size,
 exactly, from its first answer — no `AGG_MIN_N` floor, no `PUBLISH_EVERY`
 cadence, no complementary suppression, no `tooSmall`. `v2_aggs_private`
-survives as the trigger's working state, holding the same numbers as the
-public document: a cache, not a curtain.
+used to survive alongside it holding the same numbers — a cache, not a
+curtain — and on the vote, edit and rank paths it is now not written at
+all: the published document is the accumulator. What is left there is the
+catalog fold's full entity map, of which the board publishes a top-N.
 
 An absent cell therefore means **zero**, and the whole
 absent-is-not-the-same-as-zero doctrine this file used to carry is gone

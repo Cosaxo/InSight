@@ -189,8 +189,9 @@ pinned in rules, day format validated, bounded to a −4d/+2d window of
 - **The aggregate trigger needs no changes.** `onV2AnswerCreated`'s vote
   branch never reads the question doc — rules did the validating — so it
   will fold composite qids into per-day aggregate docs
-  (`v2_aggs_private/{qid_day}`, `v2_question_aggs/{qid_day}`) exactly as
-  it folds everything else, anchors breakdown included. Per-day docs are
+  (`v2_question_aggs/{qid_day}` — one document, since the vote branch's
+  private mirror collapsed into the published one) exactly as it folds
+  everything else, anchors breakdown included. Per-day docs are
   the right grain anyway: a single growing series doc would fight the
   1 MiB ceiling *and* the egress bill (the published agg ships whole per
   delivery — `docs/COSTS.md`), where per-day docs stay the size of any
