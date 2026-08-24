@@ -27543,7 +27543,10 @@ worry was the entry graph, which `check:bundle` records as having no
 headroom — but both modules are already in it: `test-definitions.js`
 arrives through `daily-split.jsx`, which `spec-index.js` imports eagerly
 above the `loadWorldFeed` deferrals, and `passiveProfile.ts` pulls only
-`similarity.ts`, which `voters.ts` already imports statically.
+`similarity.ts`, which `voters.ts` already imports statically. Measured
+across all three sections of this record: **849 → 850 KB eager, 2425 → 2427
+KB total, 106 chunks either side** — so nothing moved from lazy to eager,
+and the delta is the new code itself.
 
 **What this does NOT fix**, recorded so it is not mistaken for closed: the
 candidate pool is still `KINDRED_QUESTIONS` (12) × `VOTER_FETCH_CAP`
