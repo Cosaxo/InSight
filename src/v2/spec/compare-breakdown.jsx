@@ -313,7 +313,7 @@ function CompareCarousel({ pop, accent = 'var(--accent)', label, aligns = {}, ex
       </div>
       <div style={{ display: 'flex', justifyContent: 'center', gap: 7, marginTop: 10 }}>
         {slides.map((s, i) => (
-          <button key={s.kind} onClick={() => goTo(i)} aria-label={s.title} style={{
+          <button key={s.kind} className="tap44 is-tight" onClick={() => goTo(i)} aria-label={s.title} style={{
             width: 7, height: 7, borderRadius: '50%', border: 'none', padding: 0, cursor: 'pointer',
             background: i === idx ? accent : 'var(--rule)', transition: 'background .15s',
           }}></button>

@@ -81,7 +81,17 @@ export function usePeopleFinder(query: string, exclude: readonly string[] = []):
   React.useEffect(() => {
     setRows([]);
     setEmpty(null);
-    if (!key) return undefined;
+    // Lowered HERE and only here. This is the one exit that starts no
+    // replacement lookup, so it is the one path where nothing else will
+    // ever lower the flag: the cleanup below sets `live = false` for the
+    // run being superseded, which is exactly what stops its `finally`
+    // from firing. Clearing a field mid-lookup therefore left "Looking…"
+    // under an empty box for the life of the panel.
+    //
+    // Not lowered for a supersede by a NON-empty query, deliberately:
+    // that run's own finally lowers it, and clearing it here would blink
+    // the spinner off and back on once per keystroke.
+    if (!key) { setBusy(false); return undefined; }
     let live = true;
     const drop = new Set(skip ? skip.split(",") : []);
     const t = setTimeout(() => {

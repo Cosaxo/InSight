@@ -773,6 +773,59 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     await assertFails(updateDoc(ref, { optionIdx: 0, editedAt: serverTimestamp() }));
   });
 
+  it("the answer's surface must BE the question's, not merely be world-scoped", async () => {
+    // isWorldAnswer() checks the question's own surface, and its comment
+    // says "the claimed surface must match the question's own". It used to
+    // check MEMBERSHIP of the same four-name list on both sides instead of
+    // equality, which is the same test twice and no comparison at all.
+    //
+    // The comment's stated case still held either way — a duel-bank
+    // question carries surface "group"/"duo", which is in neither list.
+    // What did not hold is the four world surfaces against each other, and
+    // one of those pairs is load-bearing: the D86 edit arm keys on the
+    // ANSWER's self-declared surface, and excludes "learn" because
+    // first-attempt-only IS D32's measurement. Answer a learn question as
+    // "feed" and the edit arm lets you move it afterwards.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "learn-mislabel"), {
+        surface: "learn", seq: 0, type: "choice",
+        prompt: "?", options: ["a", "b", "c"], active: true,
+      });
+    });
+    const mref = doc(asUser(OWNER), "v2_users", OWNER, "answers", "learn-mislabel");
+    await assertFails(setDoc(mref, {
+      qid: "learn-mislabel", surface: "feed", optionIdx: 2,
+      answeredAt: serverTimestamp(), anchors: {},
+    }));
+    // …and the honest label is still accepted, so this refuses the lie
+    // rather than the question.
+    await assertSucceeds(setDoc(mref, {
+      qid: "learn-mislabel", surface: "learn", optionIdx: 2,
+      answeredAt: serverTimestamp(), anchors: {},
+    }));
+  });
+
+  it("a question with no surface field is answerable as daily, and only as daily", async () => {
+    // The default on the get() keeps a field-less bank doc answerable
+    // rather than permanently bricked — that half of the clause predates
+    // the equality and survives it. What the equality adds is that the
+    // answer has to make the same claim the default does.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "surfaceless"), {
+        seq: 0, type: "classic", prompt: "?", options: ["a", "b"], active: true,
+      });
+    });
+    const sref = doc(asUser(OWNER), "v2_users", OWNER, "answers", "surfaceless");
+    await assertFails(setDoc(sref, {
+      qid: "surfaceless", surface: "test", optionIdx: 0,
+      answeredAt: serverTimestamp(), anchors: {},
+    }));
+    await assertSucceeds(setDoc(sref, {
+      qid: "surfaceless", surface: "daily", optionIdx: 0,
+      answeredAt: serverTimestamp(), anchors: {},
+    }));
+  });
+
   it("D86 reaches only opinion surfaces: learn and duel answers stay frozen", async () => {
     // learn: first-attempt-only IS the measurement (D32) — "not knowledge,
     // obviously", in the owner's own words.

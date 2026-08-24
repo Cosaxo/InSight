@@ -528,7 +528,7 @@ side could see, caught before it landed.
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
-prints the current total on every run. The count today is **251 across 35
+prints the current total on every run. The count today is **244 across 34
 files**, down from 799 when the ratchet landed.
 
 The mechanism needs no bookkeeping, which is what makes it usable. The
@@ -789,3 +789,59 @@ Two things that probe cheaply and are worth doing before planning around a
 cycle at all: a global-reference cycle is not an ESM import cycle (`spec/`
 currently has none of the latter), and a name with more than one writer can
 manufacture an edge that no code actually has.
+
+### `result-card.jsx` — the guard list, run as a sweep instead of per module
+
+386 → 379 on the branch this was written on, landing alongside D246–D249's
+own sweep of the same meter — the two together take `result-card.jsx` to
+**zero** and the tree to 244. The interesting part is not the seven. Every conversion
+above ended by grepping its own name for the guard shapes; `follows.js`'s
+section says so in as many words ("the guard shapes are a list, not a
+pattern"). What nothing had done was ask the same question of the tree at
+once — *which imported binding is still read behind a load-order guard,
+anywhere* — and the answer was eleven sites across six files that four
+separate conversions had each left behind:
+
+| File | Binding | Shape |
+| --- | --- | --- |
+| `daily-split.jsx` ×6 | `VOTECUTS` | `X ? X.m() : fallback`, `X && X.m()` |
+| `mirror-tab.jsx` ×2 | `HAPTIC` | `if (X) X.m()` |
+| `person-overlay.jsx` | `FRIENDS` | `X ? X.subscribe(f) : undefined` |
+| `duels-data.js` | `FRIENDS` | `X ? X.list() : IDS` |
+| `passive-meter.jsx` | `TypeMark` | `{X ? <X/> : null}` |
+| `result-card.jsx` | `TestRose` | `X ? <X/> : null` |
+
+None of them cost anything at runtime and none of them could fail — which
+is exactly why they survived. They are dead in the sense the whole
+migration section means: an imported binding cannot be unset, so the false
+branch is unreachable. **The scan is four lines of node** — collect the
+named imports from relative specifiers per file, then look for the six
+shapes around each name — and it is worth re-running after any conversion
+rather than trusting the grep that conversion did of its own name.
+
+**One real conversion came out of the same pass.** `result-card.jsx` was
+reading `window.TypeMark` and `window.TypeIndexSheet`, both defined in
+`type-marks.jsx` (which already exported `TypeMark`; `TypeIndexSheet`
+needed the keyword). No cycle — checked against the import graph, not
+assumed, per the paragraph above: `type-marks.jsx` reaches 33 modules and
+`result-card.jsx` is not among them. It took the file 17 → 10; the
+parallel pass recorded in D246–D249 took the remainder, so the entry is
+gone from the baseline entirely rather than merely smaller.
+
+The guards went with it rather than being rewritten as `{TypeMark ? …}`,
+which is the rule `primitives.jsx` set with `window.Av`. Two pieces of dead
+code fell out and are worth naming, because both read as features:
+
+- **A fallback renderer.** `{window.TypeMark ? <window.TypeMark/> : (RoseMini
+  ? <RoseMini/> : null)}` had a whole second emblem behind it. It could only
+  ever have drawn in the frame where the global was unset, and there is no
+  such frame — `type-marks.jsx` is eager. `sigDims`, its only caller's only
+  caller, went too.
+- **A caption's guard on its own subject.** `hero` became unconditional when
+  `TestRose ?` went, so `{hero ? <caption/> : null}` underneath it did too.
+
+`RoseMini` keeps its one real consumer — `ui/LiveRolesPanel.tsx` draws it
+at size 34 — so only the import here went. Worth checking rather than
+assuming: the sentence above this one said "imported by nothing" until a
+grep said otherwise, and dropping the export on that reading would have
+broken a panel every gate here is blind to.

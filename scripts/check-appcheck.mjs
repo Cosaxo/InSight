@@ -130,6 +130,12 @@ const EXEMPT = {
 const CALLABLE =
   /export\s+const\s+(\w+)\s*=\s*onCall\s*(?:<[^>]*>)?\s*\(\s*(?:\/\/[^\n]*\n\s*)*\{([^}]*)\}/g;
 
+function stripComments(text) {
+  return text
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + " ".repeat(m.length - p1.length));
+}
+
 const enforcing = [];
 const missing = [];
 // name -> source text of the callable, for the exemption gate check.
@@ -144,7 +150,27 @@ for (const file of readdirSync(SRC, { recursive: true })
   .map((f) => String(f).split(sep).join("/"))
   .sort()) {
   if (!file.endsWith(".ts") || file.endsWith(".test.ts")) continue;
-  const src = readFileSync(join(SRC, file), "utf8");
+  // COMMENTS BLANKED FIRST, and this is the half of the gate below that
+  // was missing rather than a tidy-up.
+  //
+  // The exemption check asks "does this callable call its allowlist gate"
+  // with a plain regex over the raw source, so `// assertOperator(request);`
+  // answered yes. Verified by probe on this tree: commenting out that one
+  // line in seedContentV2 — the callable that rewrites the entire question
+  // bank — left this gate green, which is verbatim the failure its own
+  // header says it exists to prevent ("Removing assertOperator from
+  // seedContentV2 left every gate in the repo green"). It closed the hole
+  // for a DELETED line and not for a commented one, and a comment is how
+  // that line actually goes away: somebody runs the seed against a local
+  // emulator without an allowlisted uid and the comment survives the PR.
+  //
+  // Blanking rather than deleting, so every index and line number below
+  // still points at the real file. Deliberately a local copy of
+  // spec-globals.mjs's `stripComments` and not an import: this gate runs on
+  // backend-checks.yml, which firebase-deploy.yml calls, and that module
+  // scans the whole client spec layer at import time — a deploy gate must
+  // not be able to fail because src/v2/spec moved.
+  const src = stripComments(readFileSync(join(SRC, file), "utf8"));
 
   // Counted separately from the matches below so a callable written in a
   // form this regex cannot read fails the run instead of being skipped.
