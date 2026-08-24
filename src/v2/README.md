@@ -250,9 +250,16 @@ them: on a 4-core runner (which is what `ubuntu-latest` gives) the wall clock
 went 87 → 71 s rather than to the ~35 s the single-file floor suggested,
 because with the floor gone it is the aggregate that binds, not any one file;
 and per-TEST durations are unchanged (slowest 9.0 s either way), so this does
-**not** relax the reason `test:coverage` is scoped to `src/v2/data` — that
+**not** relax the reason `test:coverage` was scoped to `src/v2/data` — that
 constraint is the 15 s per-test timeout under v8 instrumentation, which a file
 split cannot move.
+
+*(What did move it: one test, not the split. `learn-reserve`'s D95 case spent
+~10 s of its 15 s budget inside a `growFeed` loop that could not converge —
+see **the feed's mounted window** in `test/mount-app.jsx`. With that fixed the
+instrumented run completes, and `test:coverage` runs the whole of `--dir src`
+as of 2026-08-24. The per-test constraint was real; it just had a single
+owner.)*
 
 They exist because **this layer's characteristic bug is invisible to every
 other gate.** A global that is defined but undefined *at render time* —

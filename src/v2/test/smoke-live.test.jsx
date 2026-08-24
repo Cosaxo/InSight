@@ -38,7 +38,7 @@ vi.setConfig({ testTimeout: 15000 });
 import { FEED_OPTIONS, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
 import NAV from "../data/nav";
 import { PATTERNS_EARNED_KEY, PATTERNS_MIN_BASIS, PATTERNS_MIN_MINE, PATTERNS_MIN_POOL } from "../data/patternsReady";
-import { awaitText, growFeed, openHeaderOverlay, swipeDaily } from "./mount-app";
+import { awaitText, growFeed, openHeaderOverlay, settleBeat, swipeDaily } from "./mount-app";
 import { list as anchorList } from "../spec/map-anchors.js";
 import { IS_TESTS, IS_TEST_RESULTS } from "../spec/test-definitions.js";
 import { PASSIVE } from "../spec/passive-progress.js";
@@ -104,8 +104,12 @@ describe("the fixture tracks the real store", () => {
     // `undefined` while still passing. data/vote.test.ts pins the same list
     // against the REAL object; this pins it against the stand-in.
     live = installLive();
-    const { live: liveDiff, social } = fixtureSurfaceMismatch(live);
-    expect({ liveDiff, social }).toEqual({ liveDiff: [], social: [] });
+    // ALL THREE diffs, not two. `near` was computed and dropped on the
+    // floor here until 2026-08-24, which left exactly the failure the
+    // paragraph above describes live for every `LIVE.near` member: the
+    // fixture could gain or lose one and the cases below would keep
+    // passing against `undefined`.
+    expect(fixtureSurfaceMismatch(live)).toEqual({ live: [], social: [], near: [] });
   });
 });
 
@@ -482,11 +486,12 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     screen.queryByRole("button", { name: /who voted/i })
     ?? screen.queryByRole("button", { name: /leans|flips|disagree/i });
 
-  const voteFeedCardAndSettle = async () => {
+  const voteFeedCardAndSettle = () => {
     fireEvent.click(screen.getByRole("button", { name: FEED_OPTIONS[0] }));
     // The reveal animation clears `beat` from its own onDone; until it does,
-    // the engage row is not mounted for either branch.
-    await act(async () => { await new Promise((r) => setTimeout(r, 1200)); });
+    // the engage row is not mounted for either branch. Skipped rather than
+    // outwaited — see settleBeat in mount-app.jsx.
+    settleBeat();
   };
 
   // Crossroads on a LIVE feed (D136): the story comes from the bank and
@@ -604,7 +609,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
 
   it("gives a live card who-voted and the named takes toggle — never the demo sheet", async () => {
     mountLive();
-    await voteFeedCardAndSettle();
+    voteFeedCardAndSettle();
     expect(
       openWhoVoted(),
       "the live engage row did not render at all — this test is now vacuous",
@@ -828,7 +833,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // were written against.
     localStorage.clear();
     mountLive();
-    await voteFeedCardAndSettle();
+    voteFeedCardAndSettle();
     const whoVoted = openWhoVoted();
     expect(whoVoted, "the live engage row did not render — this test is vacuous").not.toBeNull();
     fireEvent.click(whoVoted);
@@ -858,11 +863,11 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // The control for the case above. Without it, that assertion passes for
   // any reason the engage row fails to render — a broken fixture included —
   // and stops being a statement about the gate at all.
-  const voteFirstDemoCard = async () => {
+  const voteFirstDemoCard = () => {
     const opt = screen.queryAllByRole("button", { name: /^(Yes|No|Agree|Disagree)$/i })[0];
     expect(opt, "no demo feed card to vote on").toBeDefined();
     fireEvent.click(opt);
-    await act(async () => { await new Promise((r) => setTimeout(r, 1200)); });
+    settleBeat();
   };
 
   it("offers no fabricated cut sheet on the live daily", async () => {
@@ -948,7 +953,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
 
   it("still renders the takes button on a demo card", async () => {
     render(<App />);
-    await voteFirstDemoCard();
+    voteFirstDemoCard();
     expect(
       screen.queryByRole("button", { name: /\d+ takes$/i }),
       "demo mode lost the takes button — the live gate is now unconditional",
@@ -962,7 +967,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // renderEngage's demoInProd check. The whole row goes, who-voted included.
   it("suppresses the entire engage row in the demoInProd fallback", async () => {
     mountLive({ demoInProd: true });
-    await voteFirstDemoCard();
+    voteFirstDemoCard();
     expect(
       screen.queryByRole("button", { name: /\btakes$/i }),
       "demoInProd showed seeded takes to a real user",
@@ -1204,8 +1209,13 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     const card = screen.getByText(q0).parentElement;
     try {
       fireEvent.click(within(card).getByRole("button", { name: "Strongly agree" }));
-      // A live lens card plays the consequence beat like any live card, so
-      // wait it out before asserting on the answered state.
+      // A live lens card plays the consequence beat like any live card.
+      //
+      // OUTWAITED HERE AND SKIPPED EVERYWHERE ELSE, on purpose: this is the
+      // one case that drives the rAF loop all the way to its own T5 and
+      // lands `onDone` without a tap, so the animation's exit path keeps a
+      // mount behind it. The other five click Skip (mount-app.jsx), which is
+      // both faster and not a race.
       await act(async () => { await new Promise((r) => setTimeout(r, 1200)); });
       // 1. The vote left the device: LIVE.vote heard the lens card, under
       //    its own id, as option "0".
@@ -1296,7 +1306,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     removeInsightKeys();
     const expectNoBoundary = mountLive();
     fireEvent.click(screen.getByRole("button", { name: FEED_OPTIONS[0] }));
-    await act(async () => { await new Promise((r) => setTimeout(r, 1200)); });
+    settleBeat();
     expect(
       screen.queryByRole("button", { name: FEED_OPTIONS[1] }),
       "the fixture card did not reach its answered state",

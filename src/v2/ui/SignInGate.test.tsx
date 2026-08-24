@@ -151,6 +151,19 @@ describe("the screen is fetched only by a build that will show it", () => {
 describe("with the wall on", () => {
   beforeEach(() => vi.stubEnv("VITE_REQUIRE_SIGNIN", "true"));
 
+  // …AND BEFORE THE CASE BELOW IT, for the same reason the block above must
+  // be first — which the note up there does not cover, because it is written
+  // as if only that block cared. `React.lazy` memoises per module registry,
+  // so once ANY case has resolved the screen chunk, a later render commits
+  // the real component on its first pass and there is no pre-landing frame
+  // left to assert on. This case reads that frame; the one after it is what
+  // resolves the chunk. So the file's order is: the two never-fetched cases,
+  // then this, then anything that lets the screen land.
+  //
+  // That ordering is a property of `React.lazy`, not a preference, and it is
+  // why `--sequence.shuffle` cannot be run over this file — it fails three
+  // cases here on seed 4242 while the rest of `--dir src` is green. Recorded
+  // so the next person to try it stops at "known" rather than at "broken".
   it("draws nothing in the frame before the screen lands — never the app", () => {
     // Deliberately not awaited: this IS the frame between the decision and
     // the chunk. `fallback={null}` means an empty screen over the body's

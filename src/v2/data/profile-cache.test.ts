@@ -142,8 +142,17 @@ async function bootLive() {
   return mod;
 }
 
+// Every write to the cache key, counted — see `settle` below for why.
+let cacheWrites = 0;
+const realSetItem = Storage.prototype.setItem;
+Storage.prototype.setItem = function (k: string, v: string) {
+  if (k === PROFILE_LS) cacheWrites++;
+  return realSetItem.call(this, k, v);
+};
+
 beforeEach(() => {
   vi.resetModules();
+  cacheWrites = 0;
   localStorage.clear();
   h.reportError.mockClear();
   h.bankDocs = bank();
@@ -162,9 +171,44 @@ beforeEach(() => {
 
 afterEach(() => { vi.unstubAllEnvs(); });
 
-// The write is coalesced (AGG_CACHE_MS), so every case that inspects disk
-// has to outlast the window rather than assume a synchronous write.
-const settle = () => new Promise((r) => setTimeout(r, 1200));
+// The write is coalesced (live.ts AGG_CACHE_MS), so every case that inspects
+// disk has to wait for it rather than assume a synchronous write.
+//
+// WAIT FOR THE WRITE, NOT FOR A NUMBER. This was `setTimeout(1200)` against
+// a 1000 ms window — a 200 ms margin on a runner where four workers share
+// four cores, and the measured settle is 1011 ms, so the real slack was
+// 189 ms. It was also a figure with nothing behind it: raise AGG_CACHE_MS in
+// live.ts and all six start failing with nothing pointing back here.
+//
+// Measured both ways at AGG_CACHE_MS = 2500: the old sleep failed three
+// cases, this fails none of them on the wait itself — the one case that
+// still reds does so on vitest's 5 s per-test default, because it boots the
+// store twice and so spends two windows. That is a per-test budget rather
+// than a drifted constant, and it says so when it happens.
+//
+// FAKE TIMERS WERE THE OTHER OPTION AND ARE NOT USED, recorded so nobody
+// re-derives it: the coalescer is scheduled during `bootLive()`, so the
+// clock would have to be faked from before that — which puts `bootLive`'s
+// own `vi.waitFor` under the fake clock and needs every await in the store's
+// boot advanced by hand. That is a lot of machinery to save ~6 s of a ~120 s
+// suite, and it buys accuracy this does not already have.
+// `pred` is for the cases that need a PARTICULAR write rather than the next
+// one. The store coalesces per window, so a case whose subject arrives on a
+// later write (the logic percentile below is one) would otherwise resume on
+// the first and read a cache that is correct but not yet complete — which
+// the old fixed sleep hid by outlasting all of them.
+const settle = async (pred?: (raw: { e: Record<string, { l?: number | null }> } | null) => boolean) => {
+  const before = cacheWrites;
+  await vi.waitFor(
+    () => {
+      expect(cacheWrites, "the coalesced cache write never landed").toBeGreaterThan(before);
+      if (!pred) return;
+      const raw = JSON.parse(localStorage.getItem(PROFILE_LS) || "null");
+      expect(pred(raw), "a cache write landed, but not the one this case waits for").toBe(true);
+    },
+    { timeout: 5000, interval: 25 },
+  );
+};
 
 describe("the profile cache survives a session", () => {
   it("writes names AND scores, because a names-only cache saves nothing", async () => {
@@ -250,7 +294,7 @@ describe("the profile cache survives a session", () => {
     h.profiles.uid_a = { displayName: "Ada", testResults: { logic: { pctile: 88 } } };
     const first = await bootLive();
     await first.default.loadVoters("q_1");
-    await settle();
+    await settle((raw) => raw?.e?.uid_a?.l === 88);
 
     const raw = JSON.parse(localStorage.getItem(PROFILE_LS) || "null");
     expect(raw.e.uid_a.l).toBe(88);

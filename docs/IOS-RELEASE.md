@@ -559,6 +559,42 @@ days and 27 commits, none of which had any reason to think about a build
 number.
 
 
+**Runs 41 and 42 delivered build 25, and the bump landed off step 17's
+conclusion** (D274, 2026-08-24). Run 41 (`32715780408`, 10:14:34Z)
+archived `fcc51d4` with step 17 `skipped` — the dry run, 4m 55s; run 42
+(`32716503010`, 10:23:03Z) archived `01d5570`, step 17 `success`,
+10:28:28Z → 10:29:42Z, 1m 14s of transfer. `UPLOAD SUCCEEDED with no
+errors`, delivery UUID `857d1e15-7b99-40b8-a457-7b0095d8a29e`,
+6,039,930 bytes. Eighth pair of this shape. Seven that held (20, 21, 22,
+28, 33, 36, 42) against seven skipped (18, 19, 24, 26, 31, 38, 40).
+
+**The bump was made in the same session, from step 17's step list rather
+than from a memory of it** — the arrangement D186 named and the only one
+that has ever made it stick. D273 had just been written *about* this
+release's predecessor skipping it.
+
+**D159's trap fired, and this is the fourth worked example.** The dry run
+archived `fcc51d4` and the upload archived `01d5570`: two commits landed
+in the eight and a half minutes between the dispatches — `c304647`, a
+content batch of six feed questions (#278), and a pulse trail row. So the
+gap held a **content** change this time, between run 22's pulse row and
+build 23's feature. `appBuild` was 25 at both, so the comparison this
+file is about cost nothing.
+
+**What the gap cost is again the bundle, and again not the signing.** The
+diff is content plus a JSONL row; every step from the plist write through
+the ad-hoc archive, the cloud-signed export and both entitlement gates is
+identical, so what run 41 proved was proved on the inputs run 42 used.
+Six more feed questions than the dry run archived did reach the binary —
+but unlike build 23, nothing about that shipped unguarded: `check:bundle`
+and `check:web-firebase` run on the release path *before* `cap sync`, so
+run 42 measured its own bundle against the ceiling before it archived
+anything, and a break would have failed the job with no number spent.
+**A dry run derisks the signing; the gates on the release path derisk the
+bundle** — which is the half D229 could not say, because it was reading a
+run where the unrehearsed change was behavioural rather than content.
+
+
 **Build 16's pre-flight found nothing to do either, which is the first
 time that has happened twice running** (D158, 2026-08-15). Run 21 was
 still the highest run in the list, its upload step still `success`,
