@@ -452,7 +452,9 @@ function PeopleLens({ qs, scope, shortName }: {
   // paid for.
   const people = LIVE.kindredPeople()
     .filter((p) => p.like.shared >= 2)
-    .sort((a, b) => b.like.pct - a.like.pct
+    // rate, not pct (D275 §2): the percentage alone puts a 1-of-1 stranger
+    // above a 45-of-50 one. cohort.likenessRate has the measurements.
+    .sort((a, b) => b.like.rate - a.like.rate
       || b.like.shared - a.like.shared
       || a.uid.localeCompare(b.uid))
     .map((p) => ({ ...p, type: typeOfPerson(p) }));

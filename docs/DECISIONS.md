@@ -27550,3 +27550,90 @@ candidate pool is still `KINDRED_QUESTIONS` (12) × `VOTER_FETCH_CAP`
 (200), so the ranking is still an argmax over a bounded sample and not
 over the population. §2 and §3 take the ranking's arithmetic and its copy;
 the recall bound is D101's paging question and is untouched here.
+
+### 2 · The ranking sorted on the printed number, and the printed number cannot rank
+
+Five sites sorted people by likeness, all the same way:
+
+```
+b.like.pct - a.like.pct || b.like.shared - a.like.shared || …
+```
+
+`circle.ts` carried a comment describing the failure in that line exactly,
+and asserting the second key prevented it: *"a single shared question that
+happened to match scores 100% — and without the second key that person
+would head the list forever, above someone who matched on forty of fifty.
+Sorting on `pct` alone is the ranking bug this app is most likely to ship,
+because it looks completely right until someone answers one question."*
+
+**`pct` is first.** `shared` only ever separates two people who already
+have the same percentage, so the 1-of-1 headed the list above the 40-of-50
+at every one of the five sites, exactly as the comment feared. No test
+caught it because no test in `cohort.test.ts` was about ORDER — every case
+passed one pair of answer maps and checked the number that came back.
+
+**`likenessRate`** is the fix: a Wilson score lower bound on `same/shared`
+at z = 1.2816, a **sort key that is never printed**. Measured:
+
+| | pct | rate | | pct | rate |
+|---|---|---|---|---|---|
+| 1/1 | 100 | 0.378 | 8/12 | 67 | 0.482 |
+| 2/2 | 100 | 0.549 | 40/50 | 80 | 0.719 |
+| 3/3 | 100 | 0.646 | 45/50 | 90 | 0.832 |
+| 12/12 | 100 | 0.880 | 95/100 | 95 | 0.914 |
+
+45-of-50 now outranks 2-of-2, 8-of-12 outranks 1-of-1, and a perfect
+twelve still beats a 90% of fifty — the ordering a reader would defend. A
+lower bound rather than a minimum-overlap gate because `minShared` already
+exists at every call site and is a different instrument: a gate decides
+who is ranked at all, this decides the order of the ones who are. Raising
+the gate to fix the order would silently delete people from a list whose
+whole point is that it is small.
+
+`pct` is untouched. D99 chose it because a number on a screen that names
+someone has to survive being explained to them, and a Wilson bound does
+not survive that where "the share of questions you both answered the same
+way" does.
+
+**The same bias, one metric over.** `scoreMatch` divided the summed gap by
+the candidate's OWN intersection size and the sort then ranked candidates
+against each other on the result. A mean of three draws is far noisier
+than a mean of twenty-two, and the top of a ranked list is where noise
+collects — so the most-like-you slot went, structurally, to whoever you
+shared fewest axes with. Simulated over 200 candidates with **zero** true
+similarity, axes drawn N(50, 15), top score by intersection width
+3/5/8/12/16/22:
+
+```
+  97.6  95.3  93.2  91.6  90.5  89.6     no prior      — an 8.0 spread
+  87.9  88.7  88.8  88.8  88.4  88.2     AXIS_PRIOR 6  — 0.9
+```
+
+λ = 6 is the flattest of the values tried (3 → 1.9, 10 → 1.3) and is one
+instrument's worth of axes, the unit `minAxes` already counts in.
+`TYPICAL_AXIS_GAP` = 17 is E|X − Y| for two independent N(50, 15) draws:
+16.93 closed form, 17.16 simulated with the parser's 0..100 clamp.
+
+**The shrinkage is the sort key and NOT the drawn number**, which is a
+correction to the plan rather than the plan. Shrinking `match` itself
+would pull a perfect match from the ring's inner bound (44 px) to 52 and
+the exact opposite from 138 to 95: the constellation would lose most of
+its spread, and the spread is the reading. That is a design change to the
+Mirror's primary surface, not a ranking fix. What the prior is for is
+deciding **which twelve people the field draws at all** (`CITY_FIELD_CAP`),
+which is where the bias actually bit. `raw` is also unrounded, because
+`match` collapses a pool onto ~20 integers and sent a large tied block to
+`uid.localeCompare` to be crowned alphabetically.
+
+**What is now pinned that was not.** The first ordering cases in this tree:
+45/50 above 2/2 (with the same list sorted by `pct` asserted to get it
+backwards, so the test states the bug it prevents), monotonicity in
+agreement at fixed overlap and in overlap at fixed rate, equal-mean-gap
+comparisons resolving to the wider one, strict-monotonicity across every
+width the four instruments produce, and a rounding tie resolving by
+distance rather than alphabetically.
+
+**Untouched, and still the largest error:** recall. The pool is still
+`KINDRED_QUESTIONS` (12) × `VOTER_FETCH_CAP` (200). Every fix here makes
+the ranking of the sample correct; none of them makes the sample the
+population.

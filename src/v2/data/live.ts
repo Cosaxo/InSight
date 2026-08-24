@@ -2911,9 +2911,14 @@ const LIVE = {
     return Object.keys(theirs)
       .map((uid) => ({ uid, name: state.names[uid] || "", like: agreement(mine, theirs[uid]) }))
       .filter((p) => p.like.shared >= minShared)
-      // Most alike first; more shared questions breaks a tie, because a
-      // 100% over two questions is a weaker claim than 80% over ten.
-      .sort((a, b) => b.like.pct - a.like.pct
+      // Most alike first, on the confidence-bounded rate rather than the
+      // raw percentage (D275 §2). The old comment here had the reasoning
+      // right — "a 100% over two questions is a weaker claim than 80% over
+      // ten" — and the wrong key: with pct FIRST, `shared` only ever broke
+      // a tie between two people who already had the same percentage, so
+      // the 100%-of-two still headed the list. `rate` is what makes the
+      // sentence true. `pct` is still what gets printed.
+      .sort((a, b) => b.like.rate - a.like.rate
         || b.like.shared - a.like.shared
         || a.uid.localeCompare(b.uid));
   },

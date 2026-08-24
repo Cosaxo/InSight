@@ -42,6 +42,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { KindredPerson, ParsedResults } from "../data/similarity";
+import { agreementOf } from "../data/cohort";
 
 interface RoomRead { people: Array<{ uid: string; type?: string }>; qs: Record<string, Record<string, number>> }
 
@@ -107,7 +108,7 @@ const person = (
     uid,
     name: opts.name ?? uid.toUpperCase(),
     city: opts.city ?? "Oslo, NO",
-    like: { shared, same, pct: shared ? Math.round((same / shared) * 100) : 0 },
+    like: agreementOf(same, shared),
     results: opts.results ?? null,
   };
 };

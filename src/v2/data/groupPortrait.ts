@@ -12,6 +12,11 @@
 // the cases that produce a wrong-but-plausible portrait, and those are
 // what groupPortrait.test.ts pins.
 
+// The one import: the likeness SORT key, shared with Kindred, Circle and
+// the People lens so a thin overlap is discounted the same way everywhere
+// (D275 §2). Pure arithmetic — it does not make this module less testable.
+import { likenessRate } from "./cohort";
+
 export interface PortraitVote {
   optionIdx: number;
   /** set only when this member answered a different question — see voteQid */
@@ -213,7 +218,15 @@ export function groupPortrait(reveals: PortraitReveal[], myUid: string | null): 
   }
   const people: PortraitPerson[] = Object.entries(acc)
     .map(([uid, a]) => ({ uid, shared: a.shared, agree: a.agree, pct: a.shared ? Math.round((a.agree / a.shared) * 100) : 0 }))
-    .sort((x, y) => y.pct - x.pct || y.shared - x.shared || (x.uid < y.uid ? -1 : 1));
+    // Sorted on the confidence-bounded rate, not the printed percentage
+    // (D275 §2). This list feeds the "twin" and "breaks ranks" labels
+    // below, which name a real person to their face — so a member who
+    // overlapped on one question must not be able to take either label off
+    // someone who overlapped on twenty. MIN_SHARED gates who is eligible;
+    // this decides the order of the ones who are.
+    .sort((x, y) => likenessRate(y.agree, y.shared) - likenessRate(x.agree, x.shared)
+      || y.shared - x.shared
+      || (x.uid < y.uid ? -1 : 1));
 
   const eligible = people.filter((p) => p.shared >= MIN_SHARED);
   // Both labels need a SPREAD, not just a sample.
