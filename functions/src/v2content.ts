@@ -2724,6 +2724,44 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "daily-128",
+  "surface": "daily",
+  "seq": 128,
+  "type": "choice",
+  "domain": null,
+  "prompt": "First thing you want in the morning?",
+  "options": [
+   "Quiet",
+   "Coffee",
+   "Movement",
+   "Ten more minutes"
+  ],
+  "topic": "light",
+  "branch": "Body",
+  "sub": "Mornings",
+  "tag": "First thing",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "daily-129",
+  "surface": "daily",
+  "seq": 129,
+  "type": "binary",
+  "domain": null,
+  "prompt": "At a concert: front row, or back with space?",
+  "options": [
+   "Front row",
+   "Back with space"
+  ],
+  "topic": "light",
+  "branch": "Music",
+  "sub": "Going out",
+  "tag": "Where you stand",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "feed-f01",
   "surface": "feed",
   "seq": 0,
