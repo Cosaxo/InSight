@@ -78,11 +78,18 @@ import './spec/read-run.jsx';
 // `window.DuoBody` arm is dead code the installed app cannot execute — the
 // same argument D200 used to take relmap.jsx off this list. group-daily.jsx
 // stays, because GDAv is read from the Mirror (group-mirror, group-role-map).
-// place-stats.js and pick-data.js must precede world-feed-data.js: the feed
-// pool concatenates window.PLACE_RATE_QS and window.PICK_QS at module scope,
-// so both card sets must already exist.
+// place-stats.js must precede world-feed-data.js: the feed pool
+// concatenates window.PLACE_RATE_QS at module scope, so that card set has
+// to exist already. It would be eager regardless — the eager
+// place-stats.jsx imports PLACESTATS from it by name.
+//
+// pick-data.js is NO LONGER HERE, and it was the expensive half: 48 KB of
+// catalogue demo stock, eager only because the pool concatenated
+// window.PICK_QS at module scope too. That concat is `joinDemoPicks()` now
+// (world-feed-data.js), called from loadWorldFeed() with the module's own
+// named export — so pick-data rides the feed's chunk, where its only other
+// reader (world-feed.jsx's `PICKS`) already lives.
 import './spec/place-stats.js';
-import './spec/pick-data.js';
 // world-palette.js — the hue gate every World surface runs its colours
 // through. A named-export module; its position here is the standalone's, and
 // it reads no other module at load time.
@@ -93,11 +100,17 @@ import './spec/world-palette.js';
 // five-entry fallback — the failure mode being a wrong chip row rather than
 // an error anyone would see.
 import './spec/world-feed-data.js';
-// world-catalogs appends its questions to window.WORLD_FEED_QS at module
-// scope, so it has to follow world-feed-data (which creates the pool) — and
-// it stays eager for the same reason the pool does. In live mode live.ts
-// replaces the pool wholesale, so the demo catalogue cards never leak there.
-import './spec/world-catalogs.js';
+// world-catalogs.js is NOT here either, for pick-data's reason exactly:
+// its module-scope append to window.WORLD_FEED_QS was the only thing
+// holding a demo catalogue in the first-paint graph, since its one importer
+// (world-feed.jsx) is deferred. It exports `WF_CATALOG_QS` now and
+// loadWorldFeed() joins it.
+//
+// world-subtopics.js STAYS, and the difference is worth naming: it appends
+// to the pool IN PLACE (`pool.push`) and retags an existing question, so
+// deferring it needs the same install treatment applied to a mutation
+// rather than a concat — a separate change, and its bytes are the smaller
+// half of what is left.
 import './spec/world-subtopics.js';
 // The report store stays eager. The Learn stack does NOT, any more, and
 // the sentence that used to keep it here is the whole reason: it read
@@ -219,10 +232,11 @@ import './spec/app-shell.jsx';
 // happened to finish in.
 //
 // The v15 modules that landed AROUND these four in the standalone's order
-// (world-catalogs, world-subtopics, world-feed-report, the learn stack) are
-// all eager imports above: each publishes a self-contained store nothing in
-// this group needs at module scope, so the deferred set stays exactly the
-// four it was.
+// no longer split the same way, and the sentence here used to say they did
+// ("all eager imports above"). world-subtopics.js and world-feed-report.js
+// still are; the learn stack, pick-data.js and world-catalogs.js are in
+// this group now, at its head, each for its own reason recorded where its
+// eager import used to sit.
 //
 // Memoised, so the second caller waits on the first load rather than
 // starting another — main.jsx calls it once, the mount tests call it in
@@ -240,6 +254,19 @@ import './spec/app-shell.jsx';
 // reasoning and the tests; the sharing every comment here relies on is
 // unchanged.
 export const loadWorldFeed = retryable(async () => {
+  // The catalogue pick cards and their demo store (48 KB), then the join
+  // that used to happen at world-feed-data.js's module scope and made this
+  // module eager. Ordered, not parallel: the pool has to take the array
+  // this import produces.
+  //
+  // `joinDemoPicks` refuses when LIVE.enabled — read its note, the guard is
+  // the whole reason this deferral is safe. main.jsx runs
+  // `initLive().finally(() => … loadWorldFeed())`, so unlike the module
+  // scope it replaces, this runs after the live pool has been published.
+  const picks = await import('./spec/pick-data.js');
+  const cats = await import('./spec/world-catalogs.js');
+  const pool = await import('./spec/world-feed-data.js');
+  pool.joinDemoPicks(picks.PICK_QS, cats.WF_CATALOG_QS);
   // The Learn stack, in the order the eager list held it — learn-data
   // before learn-progress before learn-feed, because each reads the one
   // above at module scope. learn-data/learn-progress/learn-feed are also

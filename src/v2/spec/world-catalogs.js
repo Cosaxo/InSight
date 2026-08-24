@@ -92,23 +92,26 @@ export const WF_CATALOGS = {
   },
 };
 
-// the questions themselves — appended to the pool the feed already reads
-(function () {
-  const QS = [
+// the questions themselves — joined to the pool by loadWorldFeed().
+//
+// A named export rather than a module-scope append, and the append was the
+// only thing keeping this file in the first-paint graph: its one importer
+// (world-feed.jsx's WF_CATALOGS) is deferred, so the pool was the entire
+// reason a demo catalogue shipped eagerly. `joinDemoPicks`
+// (world-feed-data.js) takes it now, past the live guard.
+export const WF_CATALOG_QS = [
     { id: 'c01', cat: 'fav', type: 'pick', catalog: 'athletes', prompt: 'The greatest athlete who ever lived' },
     { id: 'c02', cat: 'fav', type: 'pick', catalog: 'films', prompt: 'Your favourite film of all time' },
     // c03 ('Your favourite Pokémon') is dropped from the prototype's list:
     // the repo already ships that exact question as pk01 (pick-data.js),
     // keyed to the real committed Pokédex rather than this 20-entry demo
     // head — two cards asking the same thing would race each other in the feed.
-  ];
-  // WORLD_FEED_QS stays a shared global, deliberately (D39). It is not this
-  // module's export to convert: world-feed-data.js CREATES the pool, this
-  // file and world-subtopics.js APPEND to it, and data/live.ts REPLACES it
-  // wholesale in live mode. Turning that into an ESM export means designing
-  // an owner with an add/replace API and moving four writers onto it — a
-  // design change, not a mechanical conversion, and one that touches the
-  // live/demo boundary. WF_CATALOGS above has a single writer and converted
-  // on its own.
-  window.WORLD_FEED_QS = (window.WORLD_FEED_QS || []).concat(QS);
-})();
+];
+// WORLD_FEED_QS is still a shared global and this file no longer writes it.
+// The note that stood here said converting the POOL means designing an
+// owner with an add/replace API and moving four writers onto it — a design
+// change, not a mechanical conversion. That is still true and still not
+// done: what changed is only that this writer hands its array to the one
+// function that appends, instead of appending itself at module scope.
+// world-feed-data.js CREATES the pool, world-subtopics.js still APPENDS to
+// it, and data/live.ts REPLACES it wholesale in live mode.

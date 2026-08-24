@@ -4,6 +4,12 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+// The imported binding, not `window.LIVE` — the seam world-feed.jsx already
+// uses, and the reason joinDemoPicks below can ask whether this session is
+// on live data without adding a shared-global reference the rule-4 ratchet
+// would count. data/live is eager either way (main.jsx imports initLive),
+// and it imports nothing from spec/, so this closes no cycle.
+import LIVE from '../data/live.ts';
 
 // world-feed-data.js — the World question feed. Your SCENES (scenes.js) are the
 // subscription: each scene has its own questions plus the broad topic it pulls
@@ -191,7 +197,50 @@ window.WORLD_FEED_QS = [
   { id: 's17', scene: 'ferment', cat: 'food', type: 'vote', prompt: 'Kombucha or kefir?', options: [ { label: 'Kombucha', count: 900 }, { label: 'Kefir', count: 600 } ] },
 ];
 
-// the scorecard 'rate' questions (place-stats.js) join the pool
+// the scorecard 'rate' questions (place-stats.js) join the pool at module
+// scope, as they always have — place-stats.js is still eager, because the
+// eager place-stats.jsx imports it by name and would drag it in anyway.
 if (window.PLACE_RATE_QS) window.WORLD_FEED_QS = window.WORLD_FEED_QS.concat(window.PLACE_RATE_QS);
-// …and the catalogue 'pick' questions (pick-data.js)
-if (window.PICK_QS) window.WORLD_FEED_QS = window.WORLD_FEED_QS.concat(window.PICK_QS);
+
+/**
+ * …and the catalogue 'pick' questions (pick-data.js), joined ON DEMAND
+ * rather than at module scope.
+ *
+ * WHY IT MOVED. This used to read `window.PICK_QS` right here, which made
+ * pick-data.js a module-scope dependency of the pool and therefore eager —
+ * 48 KB of catalogue demo stock in the first-paint graph of a build whose
+ * feed is deferred and whose pool `live.ts` replaces wholesale. Called from
+ * `loadWorldFeed()` instead, after pick-data lands in the feed's own chunk.
+ *
+ * THE GUARD IS LOAD-BEARING, and the ordering is why. `main.jsx` runs
+ * `initLive().finally(() => … loadWorldFeed())`, so this now runs AFTER the
+ * live boot rather than before it: where the old module-scope concat could
+ * only ever be overwritten by `buildFeedGlobals`, this one could append
+ * demo catalogue cards ON TOP of the published live pool. `LIVE.enabled` is
+ * the test, read through the imported binding rather than off `window` (the
+ * seam world-feed.jsx already uses) so the coupling meter does not count it.
+ *
+ * It reads a settled value on the ordinary path — `initLive` resolves
+ * before `loadWorldFeed` is called — and the one path where it does not is
+ * covered from the other side: a boot that lost the 2500 ms race leaves
+ * `enabled` false here, the demo pool joins, and `buildFeedGlobals()`
+ * replaces it wholesale the moment the late boot lands. That is exactly
+ * what happened before this change, on every boot.
+ *
+ * Idempotent: `loadWorldFeed` is memoised, but a second call must not
+ * double the pool.
+ *
+ * Variadic because there are two demo catalogue sets and they were eager
+ * for the same reason: pick-data.js's `PICK_QS` (25 cards, the 48 KB
+ * module) and world-catalogs.js's `WF_CATALOG_QS` (2). Both used to reach
+ * the pool by writing it at module scope — one here, one there — and both
+ * now hand it over instead.
+ */
+let picksJoined = false;
+export function joinDemoPicks(...sets) {
+  if (picksJoined || LIVE.enabled) return;
+  const add = sets.filter((s) => Array.isArray(s) && s.length).flat();
+  if (!add.length) return;
+  picksJoined = true;
+  window.WORLD_FEED_QS = (window.WORLD_FEED_QS || []).concat(add);
+}
