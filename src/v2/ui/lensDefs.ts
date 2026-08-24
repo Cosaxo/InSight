@@ -61,8 +61,10 @@ export interface LensQuestion {
    */
   counts: number[];
   /**
-   * The published GLOBE, whatever stop this is — Explore's baseline and
-   * only Explore's.
+   * The published GLOBE, whatever stop this is — Explore's baseline,
+   * and since D274 §2 the Scores card's second crowd (`all − counts` =
+   * everyone who is NOT the stop's own cohort, drawn as the "from
+   * elsewhere" ring).
    *
    * Explore is global by construction and says so: its slices are
    * `by[dim]` buckets across everyone (there is no city × age cell to
