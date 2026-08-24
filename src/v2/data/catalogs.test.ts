@@ -1,8 +1,9 @@
 // Pins the QID-catalogue contract (docs/CATALOG-QUESTIONS.md, D15).
-// Fixture-based, unlike pokedex.test.ts's shipped-file leg: the real
-// films/artists files land via an operator run of build-catalog.mjs, and
-// their committed form is gated by scripts/check-catalogs.mjs — what this
-// suite pins is the parse/search/resolve behaviour those files rely on.
+// Fixture-based, unlike pokedex.test.ts's shipped-file leg: the real files
+// land via an operator run of build-catalog.mjs (films at D266; artists
+// waits on the curation ruling D267 built the machinery for), and their
+// committed form is gated by scripts/check-catalogs.mjs — what this suite
+// pins is the parse/search/resolve behaviour those files rely on.
 import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";

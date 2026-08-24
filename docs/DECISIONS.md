@@ -26739,6 +26739,189 @@ is the precondition the trial was always waiting on.
 
 It also does not touch what the tab IS. D214–D216 stand untouched: the
 People lens, the 2026-08-20 shapes, the population chips.
+---
+
+## D266 · The films catalogue ships; artists is refused on its content, not on the network
+
+**2026-08-23.** **Status:** binding, built. The D15 operator step ran.
+Films is committed; artists was generated, measured and thrown away,
+which is the whole substance of this record — a catalogue that passes
+every gate can still be the wrong catalogue, and nothing in the tree
+was in a position to say so.
+
+### The network blocker is gone, and three documents were wrong about why
+
+`query.wikidata.org` answers **200** from this session, and node's
+`fetch` takes the session proxy unaided — `NODE_USE_ENV_PROXY=1`, the
+documented fix, was not needed. The CONNECT 403 measured 2026-08-14 and
+re-recorded 2026-08-23 in FEATURE-COMPLETE, RANK-CATALOG-LIVE and
+QUESTION-FARM was the environment's network policy, exactly as those
+records diagnosed; the policy has since been widened. The diagnosis was
+right and is now history, so the three sentences carrying it as a
+standing blocker are retired rather than corrected — a blocker that has
+lifted reads as an open task until someone deletes it.
+
+### Films: committed
+
+1,000 rows, `public/films.txt`, sitelink-ranked, every entry
+disambiguated by publication year (P577) — 1915 through 2026, no
+yearless labels. `FILM_KEYS` carries the 1,000 QID numeric parts and
+`check:catalogs` binds file and key set in both directions. The key
+space is append-only from this commit: a QID names the same film
+forever, which is the property D15 chose it for.
+
+### Artists: generated, measured, refused
+
+The count is honest and fully explained — 1,036 items clear
+`FILTER(?links >= 60)`, 65 carry no English label, 971 remain. The count
+is also the only thing that looked right. Sitelink fame ranks the
+*person*, and Wikidata's P106 lists "musician" or "composer" for anyone
+who ever played or wrote, so the two compose into a canon of famous
+people who once touched music. As generated, the top twenty read:
+
+> Michael Jackson · **Leonardo da Vinci** · **Goethe** · Beethoven ·
+> **Chaplin** · **Martin Luther** · Bach · **Nietzsche** · The Beatles ·
+> **Tagore** · **Marilyn Monroe** · **Rousseau** · Shakira · Corbin
+> Bleu · Basshunter · Elvis Presley · Wagner · Chopin · **Marlene
+> Dietrich** · **Mother Teresa**
+
+Ten of the first twenty are not music artists in the sense the question
+"favourite music artist" asks. Across the whole file, **205 of 971
+(21%)** carry no recording-artist property at all: no Spotify id, no
+record label, no discography, no voice type, no AllMusic id, and not a
+musical group.
+
+**The obvious narrowing was tried, and does not close it.** Requiring
+one of those properties *alongside* the music occupation drops Leonardo,
+Goethe, Rousseau, Tagore, Mother Teresa and Pelé, and still returns
+1,887 usable rows at a sitelink floor of 41 — so the fix is not blocked
+on inventory. It leaves Chaplin 3rd, Martin Luther 4th, Nietzsche 6th
+and Marilyn Monroe 8th. Chaplin scored his own films, Luther wrote
+hymns, Nietzsche composed lieder, Monroe cut records: every mechanical
+music signal is *true* of them. The predicate the catalogue needs is
+"famous **for** music", and no Wikidata property states it. That is a
+curation problem, not a query typo, and improvising an answer to it
+inside an operator errand is how a wrong catalogue ships quietly.
+
+### Why deferring costs nothing, which is what makes refusing cheap
+
+`ARTIST_KEYS` is the empty set — the fail-safe D15 built, not a hole:
+`check:catalogs` binds the empty set to the absent file in both
+directions, and the trigger aggregates nothing for a domain whose key
+set is empty. No live card, no archive entry and no stored answer exists
+for the domain, and a QID never repoints, so whatever catalogue
+eventually lands can drop or add rows without orphaning anything. The
+cost of waiting is zero; the cost of committing 971 rows and promoting a
+card against them is a picker that offers Mother Teresa as a favourite
+musician.
+
+### What the artists catalogue would take
+
+Each of these is a curation decision with an owner's call in it, which
+is why none is in this PR: rank by a music-native popularity source
+rather than by Wikipedia sitelinks; or filter on what an item is
+*described as* rather than what it has ever done; or hand-curate the
+top few hundred and let "Not listed" carry the rest, which the design
+already permits ("curated, not complete"). The recorded query in
+`scripts/build-catalog.mjs` is left exactly as D15 wrote it — it is the
+honest expression of the rule it states, and editing it to chase a
+better top-20 without deciding the rule first would bury the problem
+one layer down.
+
+### Not in this change
+
+No pick cards were promoted, for films or anything else. Promotion is
+its own deliberate step through `promote-questions.mjs` with the human
+gate intact (D232), and the archive has no film cards to promote yet.
+
+---
+
+## D267 · The artists catalogue gets a rule and a reviewer, because no rule alone finishes
+
+**2026-08-23.** **Status:** binding, built. D266 refused the generated
+artists catalogue and named three routes out. This is the route taken,
+and the reason it is two stages rather than one is a measurement, not a
+preference: **there is no predicate over Wikidata that separates "famous
+for music" from "famous, and also made music."** Four candidate rules
+were run against the 972 rows D15's query returns.
+
+### What was measured
+
+| Rule | Kept | What it does |
+| --- | --- | --- |
+| D15 as written | 972 | Ten of the top twenty are not musicians |
+| Require a music genre (`P136`) | **93** | **A trap — see below** |
+| A recording-artist property | 766 | Still seats Chaplin 3rd |
+| ≥ ½ of occupations musical | 479 | Drops Wagner, Tchaikovsky, Dylan, Lennon, Sinatra, Whitney Houston |
+| ≥ ⅓ of occupations musical | 1,752 | What ships |
+
+**The genre rule is the one to record loudest, because it looks like the
+answer.** Its top 25 reads as 25 real bands and its output is clean. It
+kept 93 rows; there are exactly 93 musical groups in the set. Wikidata
+puts `P136` on bands and essentially never on people, so the rule
+silently discarded Michael Jackson, Beethoven, Bach, Elvis, Madonna and
+Beyoncé — total recall failure wearing precision's clothes. Anyone
+reaching for a cleaner artists rule will find this one first; it is
+written into `scripts/catalog-curate-lib.mjs` so they find the number
+next to it.
+
+**The root cause decides the shape.** `P106` records what a person DID,
+never what they are KNOWN FOR, and the list grows with fame — Goethe
+carries 40 occupations, Leonardo 30. So every ratio punishes exactly the
+people a popularity-ranked catalogue most wants, and no threshold
+escapes it. A third rather than a majority buys back Tchaikovsky (4/11),
+Dylan (8/22), Lennon (9/22), Whitney Houston (4/9), Berlioz (3/9) and
+Schumann (4/9). It does not buy back Wagner (3/11) or Sinatra (2/10),
+and every threshold low enough to reach them re-admits Chaplin (3/15)
+and Marilyn Monroe (2/8) — who genuinely scored films and cut records.
+That crossing is pinned as a test, so the constant cannot be re-tuned in
+the belief that it might close.
+
+### What ships
+
+- `scripts/catalog-curate-lib.mjs` — the rule as pure functions, with
+  every measurement above in its header and 36 cases in
+  `catalog-curate-lib.test.mjs` named after the people they are about.
+  A test asserting `{ music: 2, total: 30 }` would not have caught the
+  regression that matters, which is Leonardo da Vinci placing 2nd.
+- `scripts/build-catalog.mjs` — the artists query stays the **candidate
+  generator** and is left broad (its floor drops 60 → 40 because the rule
+  removes about half the pool, and recall is the one thing no later stage
+  can recover). `--review-list [N]` prints the ranked candidates with the
+  fraction that decided each, and writes nothing.
+- `content/artist-review.json` — the reviewed exceptions, shipped
+  **empty**. The ruling is the owner's; D266 recorded it as owed rather
+  than guessed, and building the machinery does not change who decides.
+- `check:catalogs` — holds every review entry against the committed
+  catalogue in both directions, plus a name check that catches a reviewer
+  ruling on the wrong person behind a right key. All four refusals were
+  run against a deliberately broken tree rather than assumed.
+
+### Why a hand-edited file does not breach never-from-model-memory
+
+QUESTION-FARM.md's rule exists because a wrong key silently resolves
+someone's stored favourite to the wrong entity, forever. `applyReview`
+can only drop a row or restore one **from the candidate pool the query
+returned** — it cannot mint a key. So a rejection can only omit
+somebody, which the design already permits ("curated, not complete",
+plus the "Not listed" bucket), and an admission can only restore a row
+the generator itself produced. Neither side can mis-resolve, which is
+the property the rule is actually protecting. A rejection carries a
+`why` for the same reason: one nobody can audit is one nobody can
+reverse.
+
+Staleness is fatal in the builder rather than tolerated: an exception
+whose subject has left the candidate pool records a judgement about
+somebody the catalogue no longer contains, and the next reader would
+trust it.
+
+### Still owed, in order
+
+The ruling over the top ~300 candidates, then the operator build, then
+the archive cards and their own promote run. `ARTIST_KEYS` stays the
+empty set until the first of those, so the domain remains fail-safe
+exactly as D15 built it — this change adds the machinery and moves
+nothing into the answer path.
 
 ## D268 · The ledger learns to count people: engagement rung 0
 

@@ -350,7 +350,7 @@ describe("foldShards · qids", () => {
 
 // ── the rollup fold (R3/D272) ───────────────────────────────────────────
 import {
-  ROLLUP_FOLD_CAP, advanceFgWindow, foldRollups, runRollupFold,
+  ROLLUP_FOLD_CAP, advanceFgWindow, runRollupFold,
   type PeopleDelta, type RollupRow, type RollupStore,
 } from "./engagement";
 
