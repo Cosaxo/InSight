@@ -367,3 +367,45 @@ describe("LiveGroupsMirrorBody · Compare averages the members' own results", ()
     });
   });
 });
+
+// ── the cross-group line (D273's groups half, D274 runbook phase 6) ──
+//
+// "Runs most like you" is a superlative, so it renders only when it is a
+// real comparison: two or more groups whose history clears the roles floor
+// (MIN_GROUP days the viewer played). Below either bar the picture stands
+// alone — one group is a caption, thin history is a guess.
+describe("LiveGroupsMirrorBody · which scene runs most like you", () => {
+  const GROUP2 = {
+    id: "g2",
+    name: "Book Club",
+    mode: "group",
+    memberUids: ["u_me", "u_ada", "u_bo"],
+    memberNames: { u_me: "Me", u_ada: "Ada", u_bo: "Bo" },
+  };
+  // The Crew: with the majority on all three days · Book Club: on one of three
+  const CREW_DAYS = [day("2026-08-01", 0, 0, 1), day("2026-08-02", 1, 1, 0), day("2026-08-03", 0, 0, 0)];
+  const CLUB_DAYS = [day("2026-08-01", 1, 0, 0), day("2026-08-02", 0, 1, 1), day("2026-08-03", 0, 0, 0)];
+
+  it("names the most-aligned group, with the count the claim is made of", () => {
+    LIVE.social.groups = () => [GROUP, GROUP2];
+    LIVE.social.revealHistory = ((gid: string) => (gid === "g1" ? CREW_DAYS : CLUB_DAYS)) as never;
+    render(<LiveGroupsMirrorBody />);
+    const line = screen.getByText(/runs most like you/);
+    expect(line.textContent).toContain("The Crew");
+    expect(line.textContent).toContain("3 of the 3 days you played");
+  });
+
+  it("says nothing with one group — a superlative of one is a caption", () => {
+    LIVE.social.groups = () => [GROUP];
+    LIVE.social.revealHistory = (() => CREW_DAYS) as never;
+    render(<LiveGroupsMirrorBody />);
+    expect(screen.queryByText(/runs most like you/)).toBeNull();
+  });
+
+  it("says nothing while the second group is under the floor", () => {
+    LIVE.social.groups = () => [GROUP, GROUP2];
+    LIVE.social.revealHistory = ((gid: string) => (gid === "g1" ? CREW_DAYS : CLUB_DAYS.slice(0, 1))) as never;
+    render(<LiveGroupsMirrorBody />);
+    expect(screen.queryByText(/runs most like you/)).toBeNull();
+  });
+});
