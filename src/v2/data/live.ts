@@ -2761,7 +2761,13 @@ const LIVE = {
     state.votersLoading[qid] = true;
     try {
       const db = await getDb();
-      state.voters[qid] = await fetchVoters(db, qid, state.uid, state.names, state.scores, state.logicPcts);
+      // SORTED HERE, once, rather than on every read. Both keys the
+      // comparator uses — `isMe` and the resolved `name` — are fixed when
+      // the rows are built and never revised afterwards, so the order the
+      // list will ever have is knowable now.
+      state.voters[qid] = sortVoters(
+        await fetchVoters(db, qid, state.uid, state.names, state.scores, state.logicPcts),
+      );
       saveProfileCache();
     } catch (err) {
       // Leave the key ABSENT rather than caching an empty list. The two
@@ -3376,8 +3382,25 @@ const LIVE = {
 
   // null while unfetched or failed; an array (possibly empty) once known.
   voters(qid: string): Voter[] | null {
-    const rows = state.voters[qid];
-    return rows ? sortVoters(rows) : null;
+    // The STORED array, already ordered (loadVoters sorts once). This used
+    // to copy and re-sort on every read, and the comparator reaches
+    // `localeCompare` for the common pair, so the cost is not nominal:
+    // `PatternsPeople` asks for all PEOPLE_QUESTIONS lists inside a memo
+    // that re-runs on every notify, and `foldPeople` is order-independent,
+    // so every one of those sorts was thrown away.
+    //
+    // A shared array, so the perRev block's condition applies: safe only
+    // while no consumer mutates what it gets back. The three live callers
+    // — LiveTakesPanel's `sideOf` fold, LiveBreakdownPanel, and
+    // PatternsPeople (which takes it as `readonly`) — all read only, and
+    // `votersByOption` below re-sorts fresh arrays out of `groupByOption`.
+    // A future caller that sorts in place would reorder everybody else's,
+    // so sort a copy.
+    //
+    // The stable identity is a second win rather than an accident:
+    // LiveTakesPanel memoises `sideOf` on this value, and a fresh array per
+    // render meant that memo could never hit.
+    return state.voters[qid] || null;
   },
   // The same list, split into one column per option. optionCount comes
   // from the question rather than the data, so an option nobody picked
