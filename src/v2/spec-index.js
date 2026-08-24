@@ -73,7 +73,11 @@ import './spec/result-rose.jsx';
 import './spec/result-card.jsx';
 import './spec/group-daily.jsx';
 import './spec/read-run.jsx';
-import './spec/duo-daily.jsx';
+// duo-daily.jsx moved to loadOverlays(): in a SHIPPING build daily-split
+// picks LiveDuelPanel (React.lazy since D156) whenever LIVE.enabled, so the
+// `window.DuoBody` arm is dead code the installed app cannot execute — the
+// same argument D200 used to take relmap.jsx off this list. group-daily.jsx
+// stays, because GDAv is read from the Mirror (group-mirror, group-role-map).
 // place-stats.js and pick-data.js must precede world-feed-data.js: the feed
 // pool concatenates window.PLACE_RATE_QS and window.PICK_QS at module scope,
 // so both card sets must already exist.
@@ -95,15 +99,19 @@ import './spec/world-feed-data.js';
 // replaces the pool wholesale, so the demo catalogue cards never leak there.
 import './spec/world-catalogs.js';
 import './spec/world-subtopics.js';
-// The report store and the Learn stack are eager: SUBTOPICS/LEARN/LEARN_FEED
-// are subscribed to from eager screens (search, map) as well as the deferred
-// feed, and together they are a fraction of the feed chunk's weight.
+// The report store stays eager. The Learn stack does NOT, any more, and
+// the sentence that used to keep it here is the whole reason: it read
+// "SUBTOPICS/LEARN/LEARN_FEED are subscribed to from eager screens
+// (search, map) as well as the deferred feed" — D27's arithmetic verbatim,
+// and both named screens have since left the eager graph. search-overlay
+// moved into loadOverlays at D223; the Map's seven moved into loadMapTab at
+// v28 §5. Nothing on the first frame reaches any of the five now, and the
+// recorded reason expired without anything noticing.
+//
+// They load at the head of loadWorldFeed() instead, and learn-bits.jsx
+// loads in loadMapTab() as well — see both. Measured: eager graph 849 → 813
+// KB.
 import './spec/world-feed-report.js';
-import './spec/learn-data.js';
-import './spec/learn-progress.js';
-import './spec/learn-social.js';
-import './spec/learn-feed.js';
-import './spec/learn-bits.jsx';
 // feed-read.js is the feed's MEMORY, not the feed: the Mirror reads its
 // stats (mirror-field-pops.jsx, app-shell.jsx) on screens the feed never
 // opens on. 1.6 KB, and eager.
@@ -157,7 +165,12 @@ import './spec/mirror-tab.jsx';
 // logic-test.jsx loads after first paint; it imports data/logic-gen
 // directly (D53), so the generator rides the same deferred chunk without
 // a listing of its own.
-import './spec/profile-general.jsx';
+// profile-general.jsx is NOT here any more — it loads in loadOverlays(),
+// immediately before the overlay that is its only reader. Nothing imports
+// it by name and nothing outside profile-overlay.jsx reads
+// window.GeneralPanel, so it could never be reached before that group had
+// resolved — yet it and its whole static tail sat in the modulepreload set
+// on every cold start. Measured: 20 KB of first paint.
 // These were born in this repo (never in design/) and live as typed TSX
 // under ui/; they self-register on globalThis so the render-time lookups
 // in profile-overlay / profile-general still work.
@@ -227,6 +240,18 @@ import './spec/app-shell.jsx';
 // reasoning and the tests; the sharing every comment here relies on is
 // unchanged.
 export const loadWorldFeed = retryable(async () => {
+  // The Learn stack, in the order the eager list held it — learn-data
+  // before learn-progress before learn-feed, because each reads the one
+  // above at module scope. learn-data/learn-progress/learn-feed are also
+  // reached through the ESM graph (world-feed.jsx and map-tab.jsx import
+  // them by name), but learn-social.js and learn-bits.jsx publish onto
+  // window and nothing imports them, so those two are here on their own
+  // account and rule 2 needs the literals.
+  await import('./spec/learn-data.js');
+  await import('./spec/learn-progress.js');
+  await import('./spec/learn-social.js');
+  await import('./spec/learn-feed.js');
+  await import('./spec/learn-bits.jsx');
   // world-feed-comments.js and world-feed-counters.js are NOT awaited here
   // and do not need to be — world-feed.jsx imports both by name (D246,
   // D249), so the module graph orders them and they stay in the feed
@@ -330,6 +355,19 @@ export const loadWorldFeed = retryable(async () => {
 // now, so the overlay chunk does not depend on this loader having run —
 // the ESM graph is the guarantee there too.
 export const loadMapTab = retryable(async () => {
+  // learn-bits.jsx, and NOT because map-tab needs it: map-learn-card.jsx
+  // reads the bare `window.LMStreak` at render (its one guard renders null
+  // instead), and that module moved out of the eager list into
+  // loadWorldFeed above. Two groups importing it is free — a dynamic import
+  // is memoised, so whichever loader gets there first pays — and it keeps
+  // this group's contract what it has always been: reachable without any
+  // other group having run. The alternative is a Map that silently drops
+  // its streak pips whenever it wins the race against the feed.
+  //
+  // learn-data/learn-progress ride the ESM graph here already (map-tab.jsx
+  // and map-learn-card.jsx import them by name), which is why they are not
+  // repeated.
+  await import('./spec/learn-bits.jsx');
   await import('./spec/map-tab.jsx');
 });
 
@@ -337,9 +375,19 @@ export const loadOverlays = retryable(async () => {
   // First, because this list is spec-index's own order with the eager
   // modules removed and relmap.jsx sat above every other member of it.
   await import('./spec/relmap.jsx');
+  // Demo-only in practice (see the note where this used to sit eager). A
+  // demo build can reach the duo tab before this group resolves; the render
+  // site's existing `window.DuoBody || 'div'` guard draws an empty div for
+  // that frame rather than throwing, which is the same frame loadWorldFeed's
+  // own guard accepts.
+  await import('./spec/duo-daily.jsx');
   // …then the two the header opens, in the order they held in the eager
   // list above (D223). ~12 KB of the entry chunk that only a tap reaches.
   await import('./spec/search-overlay.jsx');
+  // Before its reader, which is the whole contract: profile-overlay looks
+  // up window.GeneralPanel at render time, and these sequential awaits are
+  // what order the two.
+  await import('./spec/profile-general.jsx');
   await import('./spec/profile-overlay.jsx');
   await import('./spec/person-mindmap.jsx');
   await import('./spec/person-overlay.jsx');
