@@ -1525,8 +1525,13 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
       name: "The Crew", mode: "duo", ownerUid: OWNER,
       memberUids: members, inviteCode: "ABCD2345", streak: 0,
     });
+    // "duo", matching both the group's own mode above and the surface the
+    // answers below claim. duelQFor (data/deck.ts) draws the day's question
+    // with `q.surface === mode`, so a duo group answering a group-surface
+    // question is a shape the client cannot produce — and the create rule
+    // compares the two, so seeding them crossed would test nothing real.
     await setDoc(doc(db, "v2_questions", "group-gu0"), {
-      surface: "group", seq: 0, type: "choice", prompt: "?",
+      surface: "duo", seq: 0, type: "choice", prompt: "?",
       options: ["Food", "Banter", "Showing up", "History"], active: true,
     });
   });
@@ -1617,6 +1622,47 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
     // sealed answers stay owner-only before the reveal
     await assertFails(getDoc(
       doc(asUser(FRIEND), "v2_users", OWNER, "answers", aid)));
+  });
+
+  // The duel shape used to check only that the question EXISTED — the one
+  // answer shape with neither the kill switch nor surface agreement, while
+  // every sibling carries both. Duel votes are not inert: revealQid derives
+  // the day's question from the members' own answer docs and foldDuelSignal
+  // publishes it into the world-readable duel-{qid} aggregate.
+  it("a duel answer honours the kill switch and must name duel material", async () => {
+    await seedGroup();
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "duo-retired"), {
+        surface: "duo", seq: 1, type: "choice", prompt: "?",
+        options: ["a", "b"], active: false,
+      });
+      // A catalog question is the sharp case: its options list is empty, so
+      // duelIndexSpace() falls through to the group's member count and the
+      // vote would be folded as if it were a "pick".
+      await setDoc(doc(db, "v2_questions", "feed-cat0"), {
+        surface: "feed", seq: 2, type: "catalog", prompt: "?",
+        options: [], active: true,
+      });
+      await setDoc(doc(db, "v2_questions", "daily-000"), {
+        surface: "daily", seq: 3, type: "binary", prompt: "?",
+        options: ["a", "b"], active: true,
+      });
+    });
+    // Retired: pulled for being broken or harmful, and still duel material.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid),
+      duelAnswer({ qid: "duo-retired", optionIdx: 0, guessIdx: 0 })));
+    // Live, but not this surface.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid),
+      duelAnswer({ qid: "feed-cat0", optionIdx: 0, guessIdx: 0 })));
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid),
+      duelAnswer({ qid: "daily-000", optionIdx: 0, guessIdx: 0 })));
+    // The ordinary day still lands — the refusals above are the narrowing,
+    // not a seal on the surface.
+    await assertSucceeds(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid), duelAnswer()));
   });
 
   it("the duel day must be near now — no pre-sealing the future, no deep backfill", async () => {
@@ -2246,8 +2292,10 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
         surface: "feed", seq: 0, type: "catalog",
         prompt: "?", options: [], active: true,
       });
+      // "duo", to match the group's mode below and the answer's own
+      // surface — see the same correction in the duel block above.
       await setDoc(doc(db, "v2_questions", "group-gu0"), {
-        surface: "group", seq: 0, type: "choice",
+        surface: "duo", seq: 0, type: "choice",
         prompt: "?", options: ["A", "B", "C", "D"], active: true,
       });
       await setDoc(doc(db, "v2_groups", GID), {

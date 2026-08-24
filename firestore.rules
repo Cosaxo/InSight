@@ -734,6 +734,31 @@ service cloud.firestore {
             // fit its options ("pick" questions have empty bank options —
             // their options are the group's members)
             && exists(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
+            // Same kill switch and surface agreement as isWorldAnswer, and
+            // for the same reason — this was the ONE answer shape that
+            // checked only that the question existed. Duel votes are not an
+            // inert member-only surface: revealQid derives the day's
+            // question from the members' own answer docs and foldDuelSignal
+            // publishes it into the world-readable duel-{qid} aggregate, so
+            // a question pulled for being broken or harmful kept taking
+            // votes, kept being published in reveals, and kept feeding a
+            // public aggregate.
+            && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
+                 .data.get("active", true) == true
+            // EQUALITY, like isWorldAnswer's: duelQFor (data/deck.ts) draws
+            // the day's question with `q.surface === mode`, so the bank a
+            // group can legitimately answer from is exactly the one whose
+            // surface matches the answer's own "group"/"duo". Without it a
+            // group could seal a vote against a daily, feed or catalog
+            // question — and for a catalog question `options` is empty, so
+            // duelIndexSpace() falls through to the member count and the
+            // vote is folded as if it were a "pick".
+            //
+            // The get() is the same document duelIndexSpace() already
+            // reads, and rules dedupe identical gets within a request, so
+            // neither clause costs an extra read.
+            && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
+                 .data.get("surface", "daily") == request.resource.data.surface
             && request.resource.data.optionIdx < duelIndexSpace()
             && (request.resource.data.get("guessIdx", 0) is int)
             && request.resource.data.get("guessIdx", 0) >= 0
