@@ -31,6 +31,16 @@ its population chips at D216 — the Patterns tab ported whole
 its port and lists the behaviours the ports refused). Same rule again:
 it does not re-point this file.
 
+**Two more followed in the same numbered series** (`InSight_2`,
+`InSight_3`): the **2026-08-22** upload carried the paid question
+report's design, extracted to `standalone-2026-08-22/` and implemented
+by the report builder (D251); the **2026-08-24** upload turns the
+suggestion board into the paid door, adds the buyer's room, splits the
+place scorecards into locals and visitors, and makes five smaller moves
+— extracted to `standalone-2026-08-24/`, with the plan at
+[`docs/VISION-2026-08-24.md`](../docs/VISION-2026-08-24.md). Each
+directory README is its inventory; neither re-points this file.
+
 The earlier v9 prototype and the extracted `spec-modules/`
 directory were deleted on 2026-07-29, v14 on 2026-07-30, v15 on
 2026-08-04 when v17 superseded it, and v17 on 2026-08-07 when v18 did:
