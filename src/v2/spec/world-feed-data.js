@@ -79,6 +79,14 @@ export const WORLD_CHANNELS = WFD_LIVE_BUILD
 // imagery in never shifts layout. Without one, the generated tile art stands in.
 // One treatment is applied in CSS (.wf-tileimg), not per photo.
 // rank: items + crowd, where crowd[i] = the crowd's rank (1-based) of items[i].
+// EAGER, and this assignment is the second reason why (the first is
+// daily-split.jsx reading window.WORLD_TOPICS at module scope — see
+// spec-index.js). It replaces the pool unconditionally, which is safe only
+// because this module runs BEFORE `initLive`: in live mode
+// `buildFeedGlobals` then overwrites it. Deferring this file would put an
+// unguarded clobber after the live boot, which is exactly what
+// `joinDemoPicks` and `installSubtopicStock` exist to avoid — so if it ever
+// moves, this line moves behind `demoPoolOpen()` with them.
 window.WORLD_FEED_QS = [
   // sport
   { id: 'f01', cat: 'sport', type: 'duel', prompt: 'The better night in front of the TV?', options: [ { label: 'Champions League final', count: 6300 }, { label: 'Super Bowl', count: 4900 } ] },
@@ -236,9 +244,22 @@ if (window.PLACE_RATE_QS) window.WORLD_FEED_QS = window.WORLD_FEED_QS.concat(win
  * the pool by writing it at module scope — one here, one there — and both
  * now hand it over instead.
  */
+/**
+ * Whether the demo pool may still be written.
+ *
+ * The predicate has ONE definition on purpose. Two demo modules now hand
+ * their stock over instead of writing the pool at module scope — this
+ * file's `joinDemoPicks` and world-subtopics.js's `installSubtopicStock` —
+ * and both run past the live boot, so both need exactly this test. A second
+ * copy of it is a second chance to get the live/demo boundary wrong.
+ */
+export function demoPoolOpen() {
+  return !LIVE.enabled;
+}
+
 let picksJoined = false;
 export function joinDemoPicks(...sets) {
-  if (picksJoined || LIVE.enabled) return;
+  if (picksJoined || !demoPoolOpen()) return;
   const add = sets.filter((s) => Array.isArray(s) && s.length).flat();
   if (!add.length) return;
   picksJoined = true;

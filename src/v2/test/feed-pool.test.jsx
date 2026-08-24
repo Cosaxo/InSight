@@ -71,6 +71,53 @@ describe("joinDemoPicks — the deferred half of the demo pool", () => {
     }
   });
 
+  it("installs the subtopic leaf stock, once, and refuses it on a live session", async () => {
+    // The awkward one. This stock reaches the pool by `push` — it MUTATES
+    // the array rather than replacing it — so on a live session a later
+    // republish would not undo it: `buildFeedGlobals` hands over an array
+    // and this would be writing into that same array.
+    const LIVE = (await import("../data/live.ts")).default;
+    const subs = await import("../spec/world-subtopics.js");
+
+    subs.installSubtopicStock();
+    const pool = window.WORLD_FEED_QS;
+    expect(pool.some((q) => q.sub === "sub_tennis")).toBe(true);
+    // the retag that travels with the stock
+    const var04 = pool.find((q) => q.id === "f04");
+    expect(var04 && var04.sub).toBe("sub_football");
+    const after = pool.length;
+    subs.installSubtopicStock();
+    expect(pool.length).toBe(after);
+
+    // …and against a live pool it does nothing at all, in place or otherwise.
+    //
+    // The fresh module comes FIRST and the live fixture second, deliberately.
+    // world-subtopics.js imports `demoPoolOpen` from world-feed-data.js,
+    // whose own module scope assigns the base demo pool — so a fixture set
+    // before that evaluation would be overwritten by the import rather than
+    // by the thing under test. (In the app that assignment cannot land late:
+    // world-feed-data is eager, so it has run before any loader, and the
+    // import here is a cache hit. Its note says why it stays that way.)
+    vi.resetModules();
+    const fresh = await import("../spec/world-subtopics.js");
+    // The store from the SAME fresh graph. `vi.resetModules()` gives
+    // world-subtopics a new world-feed-data, which imports a new data/live —
+    // so flipping `enabled` on the instance captured above would set it on a
+    // module the guard is not reading, and the case would pass for nothing.
+    const freshLive = (await import("../data/live.ts")).default;
+    const live = [{ id: "feed-000", cat: "life", type: "vote", live: true, options: [] }];
+    window.WORLD_FEED_QS = live;
+    const wasEnabled = freshLive.enabled;
+    freshLive.enabled = true;
+    try {
+      fresh.installSubtopicStock();
+      expect(window.WORLD_FEED_QS).toBe(live);
+      expect(live.length).toBe(1);
+    } finally {
+      freshLive.enabled = wasEnabled;
+    }
+  });
+
   it("survives an absent or empty array rather than minting an empty pool", async () => {
     const { joinDemoPicks } = await import("../spec/world-feed-data.js");
     const before = window.WORLD_FEED_QS.length;

@@ -4,6 +4,8 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+// The pool's own live/demo guard, defined once there — see demoPoolOpen.
+import { demoPoolOpen } from './world-feed-data.js';
 
 // world-subtopics.js — the second level of the topic tree. A topic (Sport) can
 // split into subtopics (Tennis, Football, Running) once each can be STOCKED;
@@ -58,8 +60,12 @@ export const WORLD_BG = {
 WORLD_BG.s03 = WORLD_BG.t04;
 
 // ── the stocked leaves ──────────────────────────────────────────────────────
-(function () {
-  const QS = [
+//
+// The questions that make each leaf followable. A module-local const, and
+// `installSubtopicStock()` below is what puts them in the pool — this used
+// to be an IIFE that pushed at module scope, which is the whole reason a
+// 17 KB demo module had to load before first paint.
+const WORLD_SUB_QS = [
     // ─── Tennis ───
     { id: 't01', cat: 'sport', sub: 'sub_tennis', type: 'vote', prompt: 'The surface that brings out the best tennis?', options: [{ label: 'Clay', count: 1900 }, { label: 'Grass', count: 2400 }, { label: 'Hard', count: 1100 }] },
     { id: 't02', cat: 'sport', sub: 'sub_tennis', type: 'vote', prompt: 'Best-of-five sets belongs in the past.', options: [{ label: 'Keep five', count: 2600 }, { label: 'Three is enough', count: 1500 }] },
@@ -98,14 +104,39 @@ WORLD_BG.s03 = WORLD_BG.t04;
     { id: 'r08', cat: 'sport', sub: 'sub_running', type: 'vote', prompt: 'Ultras are more about eating than running.', options: [{ label: 'It is an eating contest', count: 1600 }, { label: 'It is running', count: 1100 }] },
     { id: 'r09', cat: 'sport', sub: 'sub_running', type: 'vote', prompt: 'Almost anyone could run a sub-3 marathon with enough training.', options: [{ label: 'Anyone could', count: 900 }, { label: 'Talent decides', count: 2500 }] },
     { id: 'r10', cat: 'sport', sub: 'sub_running', type: 'vote', prompt: 'Pace groups ruin the race.', options: [{ label: 'They ruin it', count: 800 }, { label: 'They save it', count: 2000 }] },
-  ];
+];
+
+/**
+ * Put the leaf stock in the demo pool. Called by `loadWorldFeed()` and by
+ * `loadOverlays()` — both, because both groups have a member that needs it
+ * and neither may depend on the other having run: the feed renders these
+ * cards, and search-overlay.jsx's discover sheet asks `SUBTOPICS.offers()`,
+ * which is "only the stocked leaves" and reads the pool to decide. Two
+ * callers cost nothing; the work happens once.
+ *
+ * REFUSED ON A LIVE SESSION, through the same predicate joinDemoPicks uses
+ * and for the same reason. This used to run at module scope, before
+ * `initLive`, where `buildFeedGlobals` would replace whatever it wrote;
+ * `main.jsx` runs `initLive().finally(() => … loadWorldFeed())`, so it runs
+ * after the live boot now and would otherwise push thirty demo sport
+ * questions into the published pool — IN PLACE, which no later republish
+ * would undo, because `push` mutates the array live.ts handed over.
+ *
+ * `offers()` already tolerates the gap this opens in demo mode: its comment
+ * says it recomputes per call "because the pool changes under it at boot".
+ * This is that, one loader later.
+ */
+let stockInstalled = false;
+export function installSubtopicStock() {
+  if (stockInstalled || !demoPoolOpen()) return;
+  stockInstalled = true;
   const pool = (window.WORLD_FEED_QS = window.WORLD_FEED_QS || []);
   const have = new Set(pool.map((q) => q.id));
-  QS.forEach((q) => { if (!have.has(q.id)) pool.push(q); });
+  WORLD_SUB_QS.forEach((q) => { if (!have.has(q.id)) pool.push(q); });
   // the existing general sport question about VAR is really a football question
   const var04 = pool.find((q) => q.id === 'f04');
   if (var04) var04.sub = 'sub_football';
-})();
+}
 
 // ── follow state — a leaf is followed exactly like a topic ──────────────────
 export const SUBTOPICS = (function () {
@@ -154,5 +185,6 @@ export const SUBTOPICS = (function () {
     subscribe: (f) => { listeners.add(f); return () => listeners.delete(f); },
   };
 })();
-// The mirror stays for search-overlay.jsx, which has not moved.
-window.SUBTOPICS = SUBTOPICS;
+// The window mirror is gone: search-overlay.jsx imports the binding by name
+// now, so nothing looked this up through global scope any more and
+// check:globals rule 5 would have called the publication residue.

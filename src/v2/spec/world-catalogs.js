@@ -113,5 +113,6 @@ export const WF_CATALOG_QS = [
 // change, not a mechanical conversion. That is still true and still not
 // done: what changed is only that this writer hands its array to the one
 // function that appends, instead of appending itself at module scope.
-// world-feed-data.js CREATES the pool, world-subtopics.js still APPENDS to
-// it, and data/live.ts REPLACES it wholesale in live mode.
+// world-feed-data.js CREATES the pool, world-subtopics.js APPENDS to it —
+// through its own installer now, past the same guard — and data/live.ts
+// REPLACES it wholesale in live mode.

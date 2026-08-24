@@ -106,12 +106,15 @@ import './spec/world-feed-data.js';
 // (world-feed.jsx) is deferred. It exports `WF_CATALOG_QS` now and
 // loadWorldFeed() joins it.
 //
-// world-subtopics.js STAYS, and the difference is worth naming: it appends
-// to the pool IN PLACE (`pool.push`) and retags an existing question, so
-// deferring it needs the same install treatment applied to a mutation
-// rather than a concat — a separate change, and its bytes are the smaller
-// half of what is left.
-import './spec/world-subtopics.js';
+// world-subtopics.js is NOT here any more either. It was the awkward one:
+// it appended to the pool IN PLACE (`pool.push`) and retagged an existing
+// question, where the other two concatenated — so the treatment had to be
+// applied to a mutation. `installSubtopicStock()` is that, past the same
+// `demoPoolOpen()` guard, and both loadWorldFeed() and loadOverlays() call
+// it: the feed draws these cards and search-overlay's discover sheet asks
+// `SUBTOPICS.offers()`, which reads the pool to decide which leaves are
+// stocked. Its window mirror is gone with it — search-overlay imports the
+// binding by name now.
 // The report store stays eager. The Learn stack does NOT, any more, and
 // the sentence that used to keep it here is the whole reason: it read
 // "SUBTOPICS/LEARN/LEARN_FEED are subscribed to from eager screens
@@ -233,10 +236,10 @@ import './spec/app-shell.jsx';
 //
 // The v15 modules that landed AROUND these four in the standalone's order
 // no longer split the same way, and the sentence here used to say they did
-// ("all eager imports above"). world-subtopics.js and world-feed-report.js
-// still are; the learn stack, pick-data.js and world-catalogs.js are in
-// this group now, at its head, each for its own reason recorded where its
-// eager import used to sit.
+// ("all eager imports above"). world-feed-report.js still is; the learn
+// stack, pick-data.js, world-catalogs.js and world-subtopics.js are in this
+// group now, at its head, each for its own reason recorded where its eager
+// import used to sit.
 //
 // Memoised, so the second caller waits on the first load rather than
 // starting another — main.jsx calls it once, the mount tests call it in
@@ -267,6 +270,9 @@ export const loadWorldFeed = retryable(async () => {
   const cats = await import('./spec/world-catalogs.js');
   const pool = await import('./spec/world-feed-data.js');
   pool.joinDemoPicks(picks.PICK_QS, cats.WF_CATALOG_QS);
+  // …and the subtopic leaves' stock, which pushes rather than concatenates.
+  // After the two concats, the order the eager list held.
+  (await import('./spec/world-subtopics.js')).installSubtopicStock();
   // The Learn stack, in the order the eager list held it — learn-data
   // before learn-progress before learn-feed, because each reads the one
   // above at module scope. learn-data/learn-progress/learn-feed are also
@@ -402,6 +408,12 @@ export const loadOverlays = retryable(async () => {
   // First, because this list is spec-index's own order with the eager
   // modules removed and relmap.jsx sat above every other member of it.
   await import('./spec/relmap.jsx');
+  // The subtopic stock, installed for THIS group too — search-overlay.jsx
+  // below reads SUBTOPICS.offers(), which is "only the stocked leaves" and
+  // reads the pool to decide. Idempotent and guarded, so whichever loader
+  // arrives first does the work; the point is that neither group has to
+  // wait on the other. Same shape as learn-bits.jsx in loadMapTab.
+  (await import('./spec/world-subtopics.js')).installSubtopicStock();
   // Demo-only in practice (see the note where this used to sit eager). A
   // demo build can reach the duo tab before this group resolves; the render
   // site's existing `window.DuoBody || 'div'` guard draws an empty div for

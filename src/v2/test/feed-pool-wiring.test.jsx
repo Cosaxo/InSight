@@ -36,6 +36,7 @@ describe("loadWorldFeed assembles the whole demo pool", () => {
     // this is a count rather than a presence test.
     expect(eager.some((q) => q.id === "pk01"), "pick-data ran eagerly — the 48 KB module is back in the first-paint graph").toBe(false);
     expect(eager.some((q) => q.id === "c02"), "world-catalogs ran eagerly — its module-scope append is back").toBe(false);
+    expect(eager.some((q) => q.sub === "sub_tennis"), "world-subtopics ran eagerly — its module-scope push is back").toBe(false);
 
     await specIndex.loadWorldFeed();
 
@@ -47,7 +48,26 @@ describe("loadWorldFeed assembles the whole demo pool", () => {
     };
     expect(pool.some((q) => q.id === "pk01"), `loadWorldFeed did not join pick-data's cards: ${JSON.stringify(shape)}`).toBe(true);
     expect(pool.some((q) => q.id === "c02"), `loadWorldFeed did not join world-catalogs' cards: ${JSON.stringify(shape)}`).toBe(true);
+    expect(pool.some((q) => q.sub === "sub_tennis"), `loadWorldFeed did not install the subtopic stock: ${JSON.stringify(shape)}`).toBe(true);
     expect(shape.rate, `the eager half was lost on the way: ${JSON.stringify(shape)}`).toBe(eagerShape.rate);
     expect(shape.pick).toBeGreaterThan(eagerShape.pick);
+  });
+});
+
+describe("loadOverlays carries the subtopic stock too", () => {
+  it("the discover sheet's leaves are stocked without the feed group", async () => {
+    // search-overlay.jsx reads `SUBTOPICS.offers()`, which is "only the
+    // stocked leaves" and reads the pool to decide. The stock is installed
+    // by a loader now, so the overlays group has to install it as well —
+    // main.jsx starts the two concurrently and neither may wait on the
+    // other. Asserted through loadOverlays ALONE, which is the only way to
+    // see the dependency if it comes back.
+    const specIndex = await import("../spec-index.js");
+    await specIndex.loadOverlays();
+    const { SUBTOPICS } = await import("../spec/world-subtopics.js");
+    expect(
+      SUBTOPICS.offers().map((s) => s.id),
+      "loadOverlays left the leaves unstocked — search's discover sheet would offer nothing",
+    ).toEqual(["sub_tennis", "sub_football", "sub_running"]);
   });
 });
