@@ -464,6 +464,65 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
   ok("report builder: 12-row roll, 9/3 split, the 1→0 move, four all-untested type cuts with their axis bands, every read inside REPORT_READ_SET");
 }
 
+// 7h · D275: the replay tool, against the aggregate 7e/7f just built.
+// `replay.test.ts` pins the FOLD; nothing until here has executed the half
+// that touches Firestore — the collection-group scan, the uid recovered
+// from `doc.ref.parent.parent`, the paging cursor, the optimistic
+// concurrency check, and the D226 carry through a real whole-doc rewrite.
+//
+// The standing state is 12 answers, counts {0:9, 1:3}, edits {1:{0:1}}.
+// A rebuild of that must be a NO-OP — which is the strongest assertion
+// available here, because it says the batch scan and the incremental
+// trigger reached the same aggregate by different routes over the same
+// answers.
+//
+// WHAT THIS DOES NOT PROVE: the emulator creates composite indexes on
+// demand, so the `qid, answeredAt` collection-group index this scan orders
+// by is exercised but not REQUIRED here. Production needs the entry in
+// firestore.indexes.json; a missing one there fails the call with a
+// console link rather than a wrong answer.
+{
+  const dry = (await httpsCallable(fns, "rebuildAggregateV2")({ qid: q0.id })).data;
+  if (dry.applied !== false) fail("the rebuild wrote without --apply");
+  if (dry.scanned !== 12 || dry.folded !== 12 || dry.skipped !== 0)
+    fail("the scan missed answers: " + JSON.stringify(dry));
+  if (dry.total !== 12 || dry.counts["0"] !== 9 || dry.counts["1"] !== 3)
+    fail("replay disagrees with the trigger: " + JSON.stringify(dry.counts));
+  if (dry.drift.total !== 0 || Object.keys(dry.drift.counts).length)
+    fail("drift on an untouched aggregate: " + JSON.stringify(dry.drift));
+  if (dry.carriedEdits !== true) fail("the stored edit matrix was not carried");
+  if (dry.cappedDims.length) fail("two cities should not saturate a 24-bucket dim: " + dry.cappedDims);
+  ok("D275: replay of 12 answers reproduces the trigger's aggregate exactly, drift none");
+
+  // The dry run must not have touched the document it just described.
+  const untouched = await getDoc(doc(db, "v2_question_aggs", q0.id));
+  if (untouched.get("total") !== 12 || JSON.stringify(untouched.get("edits")) !== JSON.stringify({ "1": { "0": 1 } }))
+    fail("the DRY run wrote: " + JSON.stringify(untouched.data()));
+  ok("D275: dry run wrote nothing");
+
+  // D28's ring subtraction, on the one uid whose answer this suite knows:
+  // the primary voter, whose 1→0 edit is the matrix above — so excluding
+  // them takes a vote out of option 0, not option 1.
+  const less = (await httpsCallable(fns, "rebuildAggregateV2")({ qid: q0.id, exclude: [uid] })).data;
+  if (less.excluded !== 1 || less.total !== 11 || less.counts["0"] !== 8 || less.counts["1"] !== 3)
+    fail("exclusion did not subtract exactly one answer: " + JSON.stringify(less));
+  if (less.drift.total !== -1) fail("drift should report the subtraction: " + JSON.stringify(less.drift));
+  ok("D28/D275: excluding one uid subtracts exactly its answer, drift -1");
+
+  // …and the exclusion leaves the breakdown as well as the headline: the
+  // primary voter is the Oslo/25-34 cell's fourth member.
+  const applied = (await httpsCallable(fns, "rebuildAggregateV2")({ qid: q0.id, apply: true })).data;
+  if (applied.applied !== true || applied.total !== 12) fail("apply did not run: " + JSON.stringify(applied));
+  const after = await getDoc(doc(db, "v2_question_aggs", q0.id));
+  if (after.get("total") !== 12 || after.get("counts")["0"] !== 9 || after.get("counts")["1"] !== 3)
+    fail("a no-op rebuild changed the counts: " + JSON.stringify(after.data()));
+  if (JSON.stringify(after.get("edits")) !== JSON.stringify({ "1": { "0": 1 } }))
+    fail("the rebuild's whole-doc rewrite dropped the edit matrix: " + JSON.stringify(after.get("edits")));
+  if (JSON.stringify(after.get("by").ageBand) !== JSON.stringify(untouched.get("by").ageBand))
+    fail("the rebuild changed the breakdown: " + JSON.stringify(after.get("by").ageBand));
+  ok("D275: --apply round-trips the aggregate unchanged, matrix and breakdown intact");
+}
+
 // 8 · the duel loop: create → join by code → sealed answers → reveal → streak
 const YESTER = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
 const created = await httpsCallable(fns, "createGroupV2")({ name: "The Crew", mode: "duo" });
@@ -931,6 +990,26 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
   if (rtwo.total !== 2 || JSON.stringify(rtwo.pos) !== JSON.stringify([4, 4, 1, 3]))
     fail("a non-permutation folded, or a valid order did not: " + JSON.stringify(rtwo));
   ok("rank: non-permutation dropped at the trigger; valid orders sum exactly");
+}
+
+// 9e · D275: the two fold arms the replay tool refuses BY NAME. A rebuild
+// that quietly wrote vote-shaped counts over a canon board (9c) or a
+// position-sum doc (9d) would be worse than no rebuild — it would replace
+// a correct aggregate with a confident wrong one, during an incident.
+// Unit tests cannot reach this: the refusal keys off the SHAPE of the
+// answer documents in Firestore, so it needs answers that exist.
+{
+  const refuses = async (label, qid) => {
+    try {
+      await httpsCallable(fns, "rebuildAggregateV2")({ qid });
+    } catch (e) {
+      if (String(e?.code || "").includes("failed-precondition")) return ok(label);
+      return fail(`${label} — expected failed-precondition, got ${e?.code || e}`);
+    }
+    fail(`${label} — the rebuild was ALLOWED`);
+  };
+  await refuses("D275: catalog question refused by the replay tool (D14)", "pick-pk04");
+  await refuses("D275: rank question refused by the replay tool (D233)", "feed-f03");
 }
 
 // 10 · Near presence (D84 / D174 / D176 / D177): the write path through
