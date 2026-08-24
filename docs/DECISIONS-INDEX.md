@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 278 lines instead of
-27,378. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 279 lines instead of
+27,450. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -90,7 +90,7 @@ detect it.
 | **D70** | [The two duel indexes were bounded twice and diverged, and a reveal folded votes into a question nobody answered](DECISIONS.md#d70--the-two-duel-indexes-were-bounded-twice-and-diverged-and-a-reveal-folded-votes-into-a-question-nobody-answered) | D156 (+3) | 7010 |
 | **D71** | [A reveal now says which question each answer was to, and nothing compares across that line](DECISIONS.md#d71--a-reveal-now-says-which-question-each-answer-was-to-and-nothing-compares-across-that-line) | D156 (+3) | 7103 |
 | **D72** | [Two fabrications that outlived the badge: the Map's group stats and the results card's friends](DECISIONS.md#d72--two-fabrications-that-outlived-the-badge-the-maps-group-stats-and-the-results-cards-friends) | D211 (+11) | 7170 |
-| **D73** | [The privacy label has no endpoint, so the script prints the form instead](DECISIONS.md#d73--the-privacy-label-has-no-endpoint-so-the-script-prints-the-form-instead) | D273 (+10) | 7287 |
+| **D73** | [The privacy label has no endpoint, so the script prints the form instead](DECISIONS.md#d73--the-privacy-label-has-no-endpoint-so-the-script-prints-the-form-instead) | D274 (+11) | 7287 |
 | **D74** | [A tick is a claim, and this one was printed before the write](DECISIONS.md#d74--a-tick-is-a-claim-and-this-one-was-printed-before-the-write) | D208 (+5) | 7355 |
 | **D75** | [Apple's eight new age-rating questions, and the half of the form nothing was checking](DECISIONS.md#d75--apples-eight-new-age-rating-questions-and-the-half-of-the-form-nothing-was-checking) | D116 (+3) | 7414 |
 | **D76** | [Crash reporting flips to opt-out, and the ErrorBoundary reports what it catches](DECISIONS.md#d76--crash-reporting-flips-to-opt-out-and-the-errorboundary-reports-what-it-catches) | D269 (+2) | 7489 |
@@ -176,7 +176,7 @@ detect it.
 | **D156** | [The live 1v1 and Group get the sample's shape — a rail, marks, bars, and a guess that arrives second](DECISIONS.md#d156--the-live-1v1-and-group-get-the-samples-shape--a-rail-marks-bars-and-a-guess-that-arrives-second) | D204 (+2) | 15313 |
 | **D157** | [The test surfaces stop describing a crowd they never counted](DECISIONS.md#d157--the-test-surfaces-stop-describing-a-crowd-they-never-counted) | D204 (+6) | 15460 |
 | **D158** | [Build 16's pre-flight: the number was already right for the second time running](DECISIONS.md#d158--build-16s-pre-flight-the-number-was-already-right-for-the-second-time-running) | D191 (+4) | 15640 |
-| **D159** | [Run 22 delivered build 16, and the comparison gains the commit it is made at](DECISIONS.md#d159--run-22-delivered-build-16-and-the-comparison-gains-the-commit-it-is-made-at) | D273 (+7) | 15755 |
+| **D159** | [Run 22 delivered build 16, and the comparison gains the commit it is made at](DECISIONS.md#d159--run-22-delivered-build-16-and-the-comparison-gains-the-commit-it-is-made-at) | D274 (+8) | 15755 |
 | **D160** | [An empty field is still a field, the row actually snaps, and Near's switch goes in the corner](DECISIONS.md#d160--an-empty-field-is-still-a-field-the-row-actually-snaps-and-nears-switch-goes-in-the-corner) | D190 (+1) | 15827 |
 | **D161** | [The feed goes unbounded, and the Mirror gets a corpus of its own](DECISIONS.md#d161--the-feed-goes-unbounded-and-the-mirror-gets-a-corpus-of-its-own) | D265 (+13) | 15921 |
 | **D162** | [Review at volume: the AI reads, and the human approves and audits](DECISIONS.md#d162--review-at-volume-the-ai-reads-and-the-human-approves-and-audits) | D271 (+3) | 16059 |
@@ -203,7 +203,7 @@ detect it.
 | **D183** | [The disclosures leave the app, and get a gate on the way out](DECISIONS.md#d183--the-disclosures-leave-the-app-and-get-a-gate-on-the-way-out) | D225 (+5) | 18249 |
 | **D184** | [Build 19's pre-flight: this time neither edit happened](DECISIONS.md#d184--build-19s-pre-flight-this-time-neither-edit-happened) | D273 (+6) | 18408 |
 | **D185** | [Crossroads gets a brief, and the gates learn what a story is](DECISIONS.md#d185--crossroads-gets-a-brief-and-the-gates-learn-what-a-story-is) | D187 (+1) | 18559 |
-| **D186** | [Build 19 is delivered, and the bump was made from the step list](DECISIONS.md#d186--build-19-is-delivered-and-the-bump-was-made-from-the-step-list) | D198 (+2) | 18733 |
+| **D186** | [Build 19 is delivered, and the bump was made from the step list](DECISIONS.md#d186--build-19-is-delivered-and-the-bump-was-made-from-the-step-list) | D274 (+3) | 18733 |
 | **D187** | [The place scorecard rates the place](DECISIONS.md#d187--the-place-scorecard-rates-the-place) | D234 (+2) | 18803 |
 | **D188** | [The Mirror's tab row sits where a tab bar sits, and stops arguing with the stop about colour](DECISIONS.md#d188--the-mirrors-tab-row-sits-where-a-tab-bar-sits-and-stops-arguing-with-the-stop-about-colour) | D191 (+2) | 18963 |
 | **D189** | [The design gate was never looking, and two group hues never met the palette](DECISIONS.md#d189--the-design-gate-was-never-looking-and-two-group-hues-never-met-the-palette) | D191 | 19086 |
@@ -215,7 +215,7 @@ detect it.
 | **D195** | [The paid slot is built, and nobody has bought it yet](DECISIONS.md#d195--the-paid-slot-is-built-and-nobody-has-bought-it-yet) | D252 (+8) | 20033 |
 | **D196** | [The reading game is the one that ships, and it waits for a crowd](DECISIONS.md#d196--the-reading-game-is-the-one-that-ships-and-it-waits-for-a-crowd) | D265 (+3) | 20146 |
 | **D197** | [The feed gets real ads, and they are not sponsored questions](DECISIONS.md#d197--the-feed-gets-real-ads-and-they-are-not-sponsored-questions) | D228 (+2) | 20254 |
-| **D198** | [Build 21's pre-flight: the number run 31 spent, and the bundle gate's artifact claim](DECISIONS.md#d198--build-21s-pre-flight-the-number-run-31-spent-and-the-bundle-gates-artifact-claim) | D273 (+2) | 20403 |
+| **D198** | [Build 21's pre-flight: the number run 31 spent, and the bundle gate's artifact claim](DECISIONS.md#d198--build-21s-pre-flight-the-number-run-31-spent-and-the-bundle-gates-artifact-claim) | D274 (+3) | 20403 |
 | **D199** | [Build 21 is in TestFlight, and the number moved with it](DECISIONS.md#d199--build-21-is-in-testflight-and-the-number-moved-with-it) | D202 (+1) | 20599 |
 | **D200** | [Three things were true and stopped being, and nothing was looking](DECISIONS.md#d200--three-things-were-true-and-stopped-being-and-nothing-was-looking) | D223 (+2) | 20681 |
 | **D201** | [The functions follow the database to europe-west1](DECISIONS.md#d201--the-functions-follow-the-database-to-europe-west1) | — | 20830 |
@@ -246,7 +246,7 @@ detect it.
 | **D226** | [The edit-flow matrix — second thoughts become a published number](DECISIONS.md#d226--the-edit-flow-matrix--second-thoughts-become-a-published-number) | D251 (+3) | 23001 |
 | **D227** | [The logic cut — the who-voted sheet groups answers by the verified score](DECISIONS.md#d227--the-logic-cut--the-who-voted-sheet-groups-answers-by-the-verified-score) | D252 (+2) | 23071 |
 | **D228** | [The buyer model: three dims, nameless if wanted, and the lens waits](DECISIONS.md#d228--the-buyer-model-three-dims-nameless-if-wanted-and-the-lens-waits) | D252 (+1) | 23138 |
-| **D229** | [Two releases shipped unrecorded, and the sixth skip is the one that costs](DECISIONS.md#d229--two-releases-shipped-unrecorded-and-the-sixth-skip-is-the-one-that-costs) | D273 (+1) | 23210 |
+| **D229** | [Two releases shipped unrecorded, and the sixth skip is the one that costs](DECISIONS.md#d229--two-releases-shipped-unrecorded-and-the-sixth-skip-is-the-one-that-costs) | D274 (+2) | 23210 |
 | **D230** | [An instrument's colour is where you stand now, not where you finished](DECISIONS.md#d230--an-instruments-colour-is-where-you-stand-now-not-where-you-finished) | D251 | 23273 |
 | **D231** | [Current events get a lane: a topic that expires, and the questions to fill it](DECISIONS.md#d231--current-events-get-a-lane-a-topic-that-expires-and-the-questions-to-fill-it) | D254 (+2) | 23364 |
 | **D232** | [Catalog questions go live: seventeen picks, promoted through one pen](DECISIONS.md#d232--catalog-questions-go-live-seventeen-picks-promoted-through-one-pen) | D266 (+3) | 23591 |
@@ -286,9 +286,10 @@ detect it.
 | **D265** | [Patterns comes back on the data, not on a flag](DECISIONS.md#d265--patterns-comes-back-on-the-data-not-on-a-flag) | — | 26496 |
 | **D266** | [The films catalogue ships; artists is refused on its content, not on the network](DECISIONS.md#d266--the-films-catalogue-ships-artists-is-refused-on-its-content-not-on-the-network) | D267 | 26744 |
 | **D267** | [The artists catalogue gets a rule and a reviewer, because no rule alone finishes](DECISIONS.md#d267--the-artists-catalogue-gets-a-rule-and-a-reviewer-because-no-rule-alone-finishes) | — | 26839 |
-| **D268** | [The ledger learns to count people: engagement rung 0](DECISIONS.md#d268--the-ledger-learns-to-count-people-engagement-rung-0) | D270 (+1) | 26926 |
+| **D268** | [The ledger learns to count people: engagement rung 0](DECISIONS.md#d268--the-ledger-learns-to-count-people-engagement-rung-0) | D274 (+2) | 26926 |
 | **D269** | [The ceiling: what stays refused at every engagement rung](DECISIONS.md#d269--the-ceiling-what-stays-refused-at-every-engagement-rung) | D272 (+1) | 27014 |
 | **D270** | [The anonymous channel: engagement rung 1 collects, unlinkably](DECISIONS.md#d270--the-anonymous-channel-engagement-rung-1-collects-unlinkably) | D273 (+2) | 27053 |
 | **D271** | [Per-question attention, aggregate-only — the R4 gate](DECISIONS.md#d271--per-question-attention-aggregate-only--the-r4-gate) | — | 27145 |
-| **D272** | [The person channel: engagement rung 2, scoped to the bone](DECISIONS.md#d272--the-person-channel-engagement-rung-2-scoped-to-the-bone) | D273 | 27186 |
-| **D273** | [A bump has a shelf life of exactly one upload, and 4.4 under-declares by two rows](DECISIONS.md#d273--a-bump-has-a-shelf-life-of-exactly-one-upload-and-44-under-declares-by-two-rows) | — | 27257 |
+| **D272** | [The person channel: engagement rung 2, scoped to the bone](DECISIONS.md#d272--the-person-channel-engagement-rung-2-scoped-to-the-bone) | D274 (+1) | 27186 |
+| **D273** | [A bump has a shelf life of exactly one upload, and 4.4 under-declares by two rows](DECISIONS.md#d273--a-bump-has-a-shelf-life-of-exactly-one-upload-and-44-under-declares-by-two-rows) | D274 | 27257 |
+| **D274** | [Build 25 is delivered, and the bump was the reading of step 17](DECISIONS.md#d274--build-25-is-delivered-and-the-bump-was-the-reading-of-step-17) | — | 27379 |

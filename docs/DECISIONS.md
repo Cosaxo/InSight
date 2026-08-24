@@ -27375,3 +27375,75 @@ build 24 record, with the delivery UUID and byte count read out of the
 logs rather than recalled. `LAUNCH-RUNBOOK.md` 4.4 goes to eleven rows
 with the Analytics purpose named, and `check-figures.mjs` gains the
 rule that keeps it there.
+
+## D274 · Build 25 is delivered, and the bump was the reading of step 17
+
+**2026-08-24.** **Status:** binding. The other half of D273, made in the
+same session and deliberately so.
+
+### What shipped
+
+Run 41 (`32715780408`, 10:14:34Z) archived `fcc51d4` as the dry run —
+step 17 `skipped`, 4m 55s, both entitlement gates green. Run 42
+(`32716503010`, 10:23:03Z) archived `01d5570` with step 17 `success`:
+`UPLOAD SUCCEEDED with no errors`, delivery UUID
+`857d1e15-7b99-40b8-a457-7b0095d8a29e`, 6,039,930 bytes, 10:28:28Z →
+10:29:42Z. `appBuild` went 25 → 26 off that step's conclusion, with
+`check:versions --fix` into both native projects and 5.6's figure
+following.
+
+Seven bumps have now held (runs 20, 21, 22, 28, 33, 36, 42) against
+seven skipped (18, 19, 24, 26, 31, 38, 40).
+
+### Why this one is worth a record and not just a row
+
+D273 was written *about* the release before this one spending its own
+number, and the session that wrote it is the session that then dispatched
+twice. That is exactly the configuration D198 and D273 describe going
+wrong — hold the run list, get a verdict, spend the number the verdict was
+about. It did not go wrong here, and the only thing done differently is
+the one D186 named: **the bump was read off step 17's step list while it
+was on screen, not recalled afterwards.**
+
+So D273's formulation survives its first test: a bump has a shelf life of
+exactly one upload, and the discharge is not a follow-up task but the
+reading of a step. Recorded because the correspondence — every bump that
+held made off the step list, every skip a session that came back later or
+not at all — is now eight for eight in both directions, and a claim that
+strong should say when it was tested rather than only when it failed.
+
+### D159's trap fired, and it separated two things D229 had joined
+
+The dry run archived `fcc51d4`; the upload archived `01d5570`. Two
+commits landed in the eight and a half minutes between the dispatches:
+`c304647`, six feed questions (#278), and a pulse trail row. Fourth
+worked example, and the first where the in-between commit is **content**
+— run 22's and runs 32/33's were pulse rows, build 23's was a feature.
+
+D229 concluded from build 23 that "a dry run derisks the signing, not the
+build", with the bundle left unrehearsed. That is right about the dry run
+and incomplete about the release. **The release path carries its own
+bundle gates**: `check:web-firebase` and `check:bundle` run after the
+build and *before* `cap sync`, so run 42 measured the bundle it was about
+to ship — six questions heavier than the one run 41 archived — against
+the ceiling before it archived anything. A break there fails the job with
+no number spent and no binary transferred.
+
+So the sharper statement is: **a dry run derisks the signing; the gates on
+the release path derisk the bundle.** D229 could not reach it because
+build 23's unrehearsed change was behavioural — `VITE_REQUIRE_SIGNIN`
+flipping the wall — and no gate in this tree measures a wall. A content
+delta is exactly the case the gates do cover, which is why this gap cost
+nothing and build 23's is still the one worth naming.
+
+### What is now owed, and it is not a number
+
+Build 25 is the first build carrying the engagement ladder (D268–D272),
+and D273's second finding attaches here: `app-privacy.json` declares
+**eleven** rows now, one of them Usage Data → Product Interaction with
+purpose **Analytics**. Under D73 that form has no API endpoint. Uploading
+did not need it — TestFlight internal testing has no review gate — but
+**submission (6.2) does**, and the live label currently describes a build
+that no longer exists. LAUNCH-RUNBOOK 4.4 is the step, its count is
+gated by `check:figures` as of D273, and its purposes are not, so the
+printout is the artefact.
