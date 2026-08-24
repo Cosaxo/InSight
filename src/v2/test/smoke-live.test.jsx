@@ -125,6 +125,32 @@ describe("spec layer mounts in live mode", () => {
     expectNoBoundary("daily/live");
   });
 
+  // An empty live deck is the SLOW BOOT, not just an unseeded day:
+  // `daily-split`'s `get data` returns [] for the whole window where
+  // `LIVE.enabled` is true and `LIVE.ready` is not, so this is the first
+  // frame of every live launch. It reached the tree returning a bare
+  // element from `renderVals()` while `render()` destructured
+  // `{ rootRef, screen }` off it — both undefined, so the tab painted an
+  // empty div: no loading card, no ruler, and no root ref, which also
+  // means `setupGestures` never ran.
+  //
+  // The ErrorBoundary cannot see this: destructuring absent keys off a
+  // React element throws nothing, so the crash is silent and the smoke
+  // tests above pass on a blank screen. Assert on the card's own words.
+  it("renders the loading card, not a blank tab, on an empty live deck", () => {
+    const expectNoBoundary = mountLive({}, (l) => {
+      l.LIVE.deck = () => [];
+    });
+    expectNoBoundary("daily/live/empty-deck");
+    expect(screen.getByText(/Fetching today’s question/i)).toBeTruthy();
+    // The blank tab and the loading card both trip no boundary and both
+    // render a div, so the screen root has to be asserted non-empty too —
+    // that is the half `getByText` alone would keep passing without.
+    const root = document.querySelector('[data-screen-label="Split daily v2"]');
+    expect(root, "daily screen root missing").toBeTruthy();
+    expect(root.childElementCount).toBeGreaterThan(0);
+  });
+
   it("renders the mirror tab without tripping the boundary", () => {
     const expectNoBoundary = mountLive();
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));

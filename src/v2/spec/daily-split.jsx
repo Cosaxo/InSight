@@ -632,7 +632,13 @@ class DailySplit extends React.Component {
       const placeholder = h('div', { className: 'card', style: { padding: '26px 18px', textAlign: 'center', margin: '4px 1px' } },
         h('div', { style: { fontWeight: 800, fontSize: 17, marginBottom: 6 } }, 'Fetching today\u2019s question\u2026'),
         h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--ink-2)' } }, 'One moment \u2014 or check your connection.'));
-      return placeholder;
+      // The SAME shape as the return at the end of this method, because
+      // render() destructures `{ rootRef, screen }` off whatever comes back.
+      // A bare element gave it undefined for both, so the loading card this
+      // branch exists to draw never reached the screen and the tab painted
+      // an empty div instead \u2014 silently, since destructuring absent keys
+      // throws nothing for the ErrorBoundary to catch.
+      return { rootRef: (el) => this.setupGestures(el), screen: placeholder };
     }
     const wIdx = Math.min(st.idx, DATA.length - 1), S = DATA[wIdx];
     const myVote = st.votes[S.id], voted = !!myVote;
