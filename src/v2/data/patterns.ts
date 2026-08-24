@@ -28,7 +28,7 @@
 // sharing an endpoint cost four lists, not six.
 import LIVE from "./live";
 import { getDb, getFirestoreApi } from "../../lib/firebase";
-import { fetchVoters, VOTER_FETCH_CAP } from "./voters";
+import { fetchVoterPicks, VOTER_FETCH_CAP } from "./voters";
 import type { LiveQuestion } from "./deck";
 import {
   estimateTheta,
@@ -103,17 +103,24 @@ const saySessionCache = new Map<string, PairSay | null>();
 const tellSessionCache = new Map<string, TellShare | null>();
 // One bounded voter fetch per question per session, shared by every pair
 // that touches it — say() used to refetch both lists per NEW pair, and the
-// three-link card (2026-08-20 standalone) would have tripled that. The
-// names map is shared for the same reason resolveNames caches: crowds
-// overlap. Cleared with everything else on the purge event.
+// three-link card (2026-08-20 standalone) would have tripled that.
+// Cleared with everything else on the purge event.
+//
+// PICKS ONLY, no names. This called `fetchVoters`, whose second half
+// resolves every uid it saw into a profile — up to VOTER_FETCH_CAP
+// documents, chunked 30 at a time, billed. The map it filled was a
+// module-local `sayNames` that nothing on this path ever read: the pair
+// card counts agreements, it does not name anybody. At four questions per
+// Map-lens selection that was up to ~800 profile reads a session bought
+// and thrown away. `fetchVoterPicks` is the same query without the second
+// one.
 const sayRowCache = new Map<string, Promise<{ uid: string; optionIdx: number }[]>>();
-const sayNames: Record<string, string> = {};
 function sayRows(qid: string): Promise<{ uid: string; optionIdx: number }[]> {
   let p = sayRowCache.get(qid);
   if (!p) {
     p = (async () => {
       const db = await getDb();
-      return fetchVoters(db, qid, null, sayNames);
+      return fetchVoterPicks(db, qid);
     })();
     // a failed fetch must not be cached as the crowd — drop it so the next
     // open retries (the loadVoters absent-vs-empty rule, applied here)
@@ -371,7 +378,6 @@ window.addEventListener("insight:local-purge", () => {
   saySessionCache.clear();
   tellSessionCache.clear();
   sayRowCache.clear();
-  for (const k of Object.keys(sayNames)) delete sayNames[k];
   notify();
 });
 

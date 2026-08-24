@@ -143,18 +143,22 @@ export function uidFromAnswerPath(path: string): string | null {
 // ── the reads ───────────────────────────────────────────────────────
 
 /**
- * Everyone who answered `qid`, with their frozen cohort and their name.
+ * Who answered `qid` and what they picked — the ONE query, before any
+ * profile is read.
  *
- * `names` is an inout session cache owned by the caller (live.ts), so two
- * questions answered by overlapping crowds pay for each profile once.
+ * Split out of `fetchVoters` because the name resolution beneath it is a
+ * second, larger read: up to VOTER_FETCH_CAP profile documents, chunked 30
+ * at a time. That is the `×2` the D98-surfaces column in docs/COSTS.md
+ * carries, and a caller that only wants the picks was paying it for a
+ * `names` map nothing ever read (data/patterns.ts's pair card).
+ *
+ * Same query, same caps, same catalog skip — factored, not re-issued, so
+ * the two paths cannot drift apart on which answers count as votes.
  */
-export async function fetchVoters(
+export async function fetchVoterPicks(
   db: Firestore,
   qid: string,
-  myUid: string | null,
-  names: Record<string, string>,
-  scores?: Record<string, ParsedResults | null>,
-  logic?: Record<string, number | null>,
+  myUid: string | null = null,
 ): Promise<Voter[]> {
   const { collectionGroup, getDocs, limit: fsLimit, orderBy, query, where } = await getFirestoreApi();
   const snap = await getDocs(query(
@@ -177,7 +181,24 @@ export async function fetchVoters(
     const anchors = (d.get("anchors") || {}) as Record<string, string>;
     rows.push({ uid, optionIdx, anchors, name: "", isMe: uid === myUid });
   }
+  return rows;
+}
 
+/**
+ * Everyone who answered `qid`, with their frozen cohort and their name.
+ *
+ * `names` is an inout session cache owned by the caller (live.ts), so two
+ * questions answered by overlapping crowds pay for each profile once.
+ */
+export async function fetchVoters(
+  db: Firestore,
+  qid: string,
+  myUid: string | null,
+  names: Record<string, string>,
+  scores?: Record<string, ParsedResults | null>,
+  logic?: Record<string, number | null>,
+): Promise<Voter[]> {
+  const rows = await fetchVoterPicks(db, qid, myUid);
   await resolveNames(db, rows.map((r) => r.uid), names, scores, undefined, logic);
   for (const r of rows) r.name = names[r.uid] || "";
   return rows;
