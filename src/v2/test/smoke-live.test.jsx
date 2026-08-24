@@ -104,8 +104,12 @@ describe("the fixture tracks the real store", () => {
     // `undefined` while still passing. data/vote.test.ts pins the same list
     // against the REAL object; this pins it against the stand-in.
     live = installLive();
-    const { live: liveDiff, social } = fixtureSurfaceMismatch(live);
-    expect({ liveDiff, social }).toEqual({ liveDiff: [], social: [] });
+    // ALL THREE diffs, not two. `near` was computed and dropped on the
+    // floor here until 2026-08-24, which left exactly the failure the
+    // paragraph above describes live for every `LIVE.near` member: the
+    // fixture could gain or lose one and the cases below would keep
+    // passing against `undefined`.
+    expect(fixtureSurfaceMismatch(live)).toEqual({ live: [], social: [], near: [] });
   });
 });
 

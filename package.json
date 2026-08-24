@@ -85,9 +85,9 @@
     "check:monitoring": "node scripts/check-monitoring.mjs",
     "build:feature-graphic": "node scripts/gen-feature-graphic.mjs",
     "testuser": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/test-users.mjs",
-    "test:unit": "vitest run --dir src",
-    "test:scripts": "vitest run --dir scripts",
-    "test:coverage": "vitest run --dir src --coverage",
+    "test:unit": "LC_ALL=en_US.UTF-8 vitest run --dir src",
+    "test:scripts": "LC_ALL=en_US.UTF-8 vitest run --dir scripts",
+    "test:coverage": "LC_ALL=en_US.UTF-8 vitest run --dir src --coverage",
     "check:store-forms": "node scripts/check-store-forms.mjs",
     "seed": "node scripts/seed-content.mjs"
   },
