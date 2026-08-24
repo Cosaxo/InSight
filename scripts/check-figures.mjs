@@ -23,7 +23,10 @@
 // are check:bundle's business. This script owns test COUNTS, which are a
 // cheap static scan and the ones that move most often.
 //
-// Adding a figure is one entry in FIGURES below.
+// Adding a figure is one entry in FIGURES below. The one exception is at
+// the bottom, where CLAUDE.md §2's table is held to its own heading: that
+// figure is written as ROWS rather than as a number, so it cannot be a
+// pattern with a capture group (D277).
 //
 // It started README-only and grew a `file` field when the launch docs
 // began quoting the question-bank size. That was the right moment: those
@@ -251,6 +254,48 @@ const NUMBER_WORDS = {
   135: "a hundred and thirty-five", 136: "a hundred and thirty-six",
 };
 
+// How many test runners this repo has, off package.json — the figure
+// CLAUDE.md §2's heading quotes and ORIENTATION §1 and §5 repeat.
+//
+// This entry exists because that answer was FOUR while the tree ran five,
+// and the missing one is `test:scripts`. It is the only suite wired into
+// CI's LINT job, so `npm run lint` locally is eslint alone and says
+// nothing about it, and doc-index.mjs rule 4 — the rule that keeps the
+// map from silently omitting a thing — reads `check:*` names only and so
+// could not see the omission either. Three branches shipped a broken gate
+// script through that gap (D179, D197, and D275's), each of them a script
+// that CHECKS something, which is why nothing else went red. D277 makes
+// the count something a gate owns instead of something a table remembers.
+//
+// Counted GROUPED, the way the table tabulates them — one row per suite,
+// not one per npm script — so NOT_A_RUNNER is an explicit list of the
+// aliases: a script that runs a suite already tabulated, under different
+// flags or chained with its siblings. A new `test:*` script that is
+// neither fails this gate until someone decides which it is, and that is
+// the whole point: the failure being closed is a runner arriving with
+// nobody writing it down.
+const NOT_A_RUNNER = new Set([
+  "test:e2e:erasure",    // the `:erasure` and `:moderation` halves of the
+  "test:e2e:moderation", // table's `test:e2e` row, not rows of their own
+  "test:e2e:all",        // those three drivers on one emulator boot (D276)
+  "test:coverage",       // test:unit again, instrumented
+]);
+const testRunners = (() => {
+  const own = Object.keys(appPkg.scripts)
+    .filter((k) => k.startsWith("test:") && !NOT_A_RUNNER.has(k));
+  // Plus `npm run test --prefix functions`, whose script lives in the
+  // functions package rather than this one — read rather than assumed, so
+  // deleting it there fails here instead of leaving the count one high.
+  const fns = JSON.parse(read("functions/package.json")).scripts.test;
+  if (!fns) {
+    throw new Error(
+      "check-figures: functions/package.json no longer declares a `test` "
+      + "script — fix this scan, a figure gate reading low is worse than none.",
+    );
+  }
+  return own.length + 1;
+})();
+
 // The exemption list check:appcheck owns, counted from that file rather
 // than restated here — a second copy of the number is what this gate is
 // for.
@@ -277,6 +322,31 @@ const FIGURES = [
     re: /the eligible corpus is (\d+) questions today/,
     actual: String(patternsEligibleCount),
     fix: (n) => `"the eligible corpus is ${n} questions today"`,
+  },
+  // The runner count, in the three sentences that quote it. All three
+  // together, because the whole failure D277 records is one of them being
+  // updated and the others not — the §1 line and the §5 line are the two a
+  // newcomer reads before they ever open CLAUDE.md §2.
+  {
+    file: "CLAUDE.md",
+    what: "test runners (the §2 heading)",
+    re: /There are (\w+) test runners, and they are not interchangeable/,
+    actual: NUMBER_WORDS[testRunners] || String(testRunners),
+    fix: (n) => `"There are ${n} test runners, and they are not interchangeable"`,
+  },
+  {
+    file: "docs/ORIENTATION.md",
+    what: "test runners (§1's reading order)",
+    re: /global scope; (\w+) non-interchangeable test runners/,
+    actual: NUMBER_WORDS[testRunners] || String(testRunners),
+    fix: (n) => `"the spec layer's global scope; ${n} non-interchangeable test runners"`,
+  },
+  {
+    file: "docs/ORIENTATION.md",
+    what: "test runners (§5's gate map)",
+    re: /There are (\w+) test runners, \*\*not interchangeable\*\*/,
+    actual: NUMBER_WORDS[testRunners] || String(testRunners),
+    fix: (n) => `"There are ${n} test runners, **not interchangeable**"`,
   },
   {
     file: "functions/README.md",
@@ -648,6 +718,29 @@ for (const fig of FIGURES) {
       + `    Correct the sentence to: ${fig.fix(fig.actual)}.`,
     );
   }
+}
+
+// The heading's number is only half the claim: the TABLE under it has to
+// have that many rows. Held here rather than as a FIGURES entry because
+// this figure is not written as a word — it is the rows themselves — and
+// a heading corrected to "six" over a five-row table is exactly the drift
+// D277 is about, one edit short of the fix.
+const runnerTable = /\n### 2\. There are [^\n]*\n([\s\S]*?)\n#{2,3} /.exec(read("CLAUDE.md"));
+if (!runnerTable) {
+  throw new Error(
+    "check-figures: CLAUDE.md no longer opens §2 with `### 2. There are …` —\n"
+    + "    fix this scan. A gate that cannot find its subject reports zero rows,\n"
+    + "    and a figure gate reading zero is worse than no gate.",
+  );
+}
+const runnerRows = runnerTable[1].split("\n")
+  .filter((l) => l.startsWith("| `npm run test")).length;
+if (runnerRows !== testRunners) {
+  errors.push(
+    `CLAUDE.md §2's table has ${runnerRows} runner rows; the tree has `
+    + `${testRunners} runners.\n`
+    + "    Add or remove the ROW, not just the heading — the two are one claim.",
+  );
 }
 
 if (errors.length) {
