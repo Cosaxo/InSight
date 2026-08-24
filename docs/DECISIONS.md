@@ -27253,3 +27253,85 @@ panel's people tiles (quiet share null-safe, fading counted), three new
 `check:policy-claims` rows, the store forms moved together —
 **Product Interaction → Linked** — and the same-PR paperwork across
 inventory, SCHEMA-V2, MONITORING and the farm doc.
+
+## D273 · The 2026-08-24 visual passes ship; the paid door and the two-crowd scorecards wait on their owners
+
+**Decided:** 2026-08-24 · **Status:** binding — the owner's words were
+"implement the new visuals", read against `docs/VISION-2026-08-24.md`'s
+own split: the visual scope ships now; the two items that plan marked
+as owner decisions (§1 the paid door replacing the community board, §3
+the locals/visitors labels) and the backend items (§2 the buyer's room,
+§1.2 the demand board) stay where the plan put them, undecided and
+unbuilt. Nothing here anticipates them.
+
+**What shipped, mapped file by file in
+`design/standalone-2026-08-24/README.md`:**
+
+- **Patterns polish (ui/).** The ruler names what the wider lenses map —
+  Oracle · **Question map** · **People map**; the shell's one-time
+  explainer and its `insight.patterns.used.v1` key are deleted whole
+  (each lens teaches its own marks; the purge sweeps any stale key by
+  prefix); the Question map draws a **resting constellation** — the ten
+  strongest ties at full voice, their dots fully inked, off the same
+  strength-sorted `edgesOf` order the idle card already leaned on — and
+  the next-up beacon rides its own top SVG layer so no neighbour buries
+  it; the Oracle's sealed state reads as a vessel (dusk aura that lifts
+  on the vote, foot shade, a dashed landing seat identical both sides —
+  nothing leaks the call, and the seal pin in patterns.test.ts stands
+  untouched) and the un-picked tile wears the topic's muted hue at
+  reveal; `.qm-nextlab` joins the tab's own 10.5px floor; the People
+  lens legend swatch stops lying about its hue (40 → 250, the dots'
+  own) and the basis line reads "the crowd's latest answers".
+- **The small pass (spec + styles).** The suggestion door's buyer line
+  stops promising "counts and cuts — never names" (false since D98;
+  `SponsorMark` corrected the card first, its test pins the old words
+  out); `--ink-3` 0.51 → 0.472 for AA on the 10–11px captions it
+  carries; the test-viz wheel swaps moss for berry; search hits stop
+  stating distance (Near's own direction — a stranger's proximity is
+  itself a leak); the profile subnav places its active chip after
+  layout, twice, clamped (the smooth scrollTo lost the race with the
+  tab re-mount — real since D204 made it seven chips); and the
+  `compact` rose ships — **its consumer was already live**:
+  `LiveRolesPanel` has passed `compact={true}` since D204 and the prop
+  was silently ignored, so the Roles roses drew full-size. The plan's
+  own "take it with the v28 brief card, not before" was wrong and this
+  record corrects it.
+- **The roles get their ⓘ.** `duo`/`group` join the explain sheet
+  (read/seen/like/steady · own/pull/settle — no `cast` line: the dim is
+  not computed, D204, and copy for it would only be waiting to describe
+  a fabrication), a per-setting key (`duo:<room>`) answers as its
+  family, a `note` row says "yours: …", and each Roles section carries
+  the same ExplainBtn every test wears. Three new unit cases.
+- **The "so what" line.** The demo Mirror field says the picture once,
+  under Circle and Groups (the design's only mount points — its other
+  branches were unreachable and are not carried): who mirrors you
+  closest/least, which topic you are most/least in step on, folded from
+  the drawn nodes and the same per-audience splits the Answers lens
+  reads. **Live**, the one body whose data honestly carries it —
+  `LiveCircleBody`, `m.like.pct` with its shared-answer basis — says
+  the names-only version ("by the answers you share", no number the
+  rows beneath don't already state), quiet below two placeable NAMED
+  members: "Someone mirrors you closest" reads as a bug, and inventing
+  names is the D214 refusal. The groups half waits: no per-scene
+  likeness exists live, and the demo's `g.match` is authored.
+
+**Refused or not portable, with reasons:** the `friendVotes`
+rows/footer/off control (a tweaks-lab comparison tool; the lab is
+dismantled, `rows` is the shipped behaviour); the `map-layout` ring
+bullseye (its only declaring branch rolled it back inside the same
+prototype build); the prototype's `feed-read.js` strong-tier hunk (the
+app's `feedInsight` is a live rewrite that already refused the
+`friends` kind and already outranks flips over leans); the oracle
+sub-row's "N from feed votes" count (the live store records seals and
+grades, not vote provenance — `answered − graded` would miscount the
+Question map's own votes as feed votes); and the embedded fonts
+(packaging for the Hanken Grotesk `styles.css` has always shipped).
+
+**Enforcement:** the four patterns suites re-pinned around the removed
+explainer (row queries now select by `aria-expanded`, which the new ⓘ
+buttons do not carry), two new LiveCircleBody cases (the line with two
+placed members; silence with one), one new LiveRolesPanel case (the ⓘ
+opens the instrument's sheet), 1946 unit tests green, lint clean, the
+coupling ratchet unmoved at its baseline, `check:purge` green with the
+key's reader deleted whole, and the shipping bundle inside both
+ceilings (852 KB eager / 880 max) — measured, not assumed.

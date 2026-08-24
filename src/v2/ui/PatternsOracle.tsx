@@ -41,6 +41,14 @@ const OR_LAND_MS = 780; // travel + settle, when the verdict glyph resolves
 interface Topic { id: string; label: string; color: string }
 const orTopic = (cat: string | null | undefined): Topic | undefined =>
   (WORLD_TOPICS as Topic[]).find((t) => t.id === cat);
+// topic hue as a number, worn only where it carries meaning — the same
+// muted-dot recipe the Map and People lenses use. At reveal the tile that
+// is NOT yours wears it (2026-08-24), so the pair reads as your accent
+// against the question's own colour rather than two grey boxes.
+const orHue = (c: string | undefined): number | null => {
+  const m = /([-\d.]+)\s*\)\s*$/.exec(c || "");
+  return m ? parseFloat(m[1]) : null;
+};
 const orQuiet = (): boolean => {
   try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; }
 };
@@ -202,10 +210,9 @@ function OrDone({ log, qOf, anyOpen }: {
   );
 }
 
-export default function PatternsOracle({ items, onUse }: {
+export default function PatternsOracle({ items }: {
   items: PoolItem[];
   version: number;
-  onUse: () => void;
 }): React.ReactElement {
   const [rec, setRec] = React.useState<OracleRecord | null>(null); // the reveal, held until you move on
   const [landed, setLanded] = React.useState(false); // the verdict has resolved
@@ -284,6 +291,7 @@ export default function PatternsOracle({ items, onUse }: {
   const q = curItem.q;
   const t = orTopic(q.cat);
   const tint = t ? (WPAL.c(t.color) as string) : null;
+  const th = t ? orHue(t.color) : null; // the un-picked tile wears this at reveal
   // the disc rides to the centre of the tile it called — exact, gap included
   const seat = (i: number) =>
     i === 0 ? "calc((100% - var(--or-gap)) / 4)" : "calc(100% - (100% - var(--or-gap)) / 4)";
@@ -316,7 +324,6 @@ export default function PatternsOracle({ items, onUse }: {
     if (g && g.mine != null) {
       if (!hints.seal) { orSeen("seal"); setHints({ ...orHints() }); }
       setRec(g);
-      onUse();
     }
   };
 
@@ -330,12 +337,15 @@ export default function PatternsOracle({ items, onUse }: {
           clickable <div> a keyboard can never reach (the a11y ratchet's
           exact case), and Next already does the job — so the instrument
           is a labeled group and only real controls take input */}
-      <div key={q.id + "-inst"} className="or-inst" role="group"
+      <div key={q.id + "-inst"} className={"or-inst" + (rec ? " is-live" : "")} role="group"
         aria-label={rec
           ? "It called " + (q.options[rec.pred]?.label ?? "") + "; you said " + (rec.mine != null ? q.options[rec.mine]?.label ?? "" : "")
           : "Its guess is sealed — pick a side"}>
         {q.options.map((op, i) => rec ? (
-          <div key={op.id} className={"or-tile" + (i === rec.mine ? " is-mine" : "")}>
+          <div key={op.id} className={"or-tile" + (i === rec.mine ? " is-mine" : "")}
+            style={i !== rec.mine && th != null
+              ? { "--or-fill": `oklch(0.92 0.04 ${th})`, "--or-edge": `oklch(0.56 0.09 ${th})` } as React.CSSProperties
+              : undefined}>
             <span className="or-fill" style={{ "--p": Math.round((i === rec.pred ? conf : 1 - conf) * 100) + "%" } as React.CSSProperties}></span>
             <span className="or-lab">{op.label}</span>
           </div>

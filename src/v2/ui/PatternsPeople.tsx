@@ -76,11 +76,10 @@ const chipStyle: React.CSSProperties = {
   color: "var(--accent-ink, var(--accent))",
 };
 
-export default function PatternsPeople({ items, version, pop = "world", onUse, onOracle }: {
+export default function PatternsPeople({ items, version, pop = "world", onOracle }: {
   items: PoolItem[];
   version: number;
   pop?: PeoplePop;
-  onUse: () => void;
   onOracle: () => void;
 }): React.ReactElement {
   const [sel, setSel] = React.useState<string | null>(null);
@@ -165,7 +164,6 @@ export default function PatternsPeople({ items, version, pop = "world", onUse, o
   const selP = sel == null ? null : placed.find((p) => p.uid === sel) ?? null;
   const pick = (p: PlacedPerson) => {
     setSel((s) => (s === p.uid ? null : p.uid));
-    onUse();
   };
   const meLeft = me.x > PEOPLE_W - 46; // keep the "you" word inside the frame
 
@@ -206,7 +204,9 @@ export default function PatternsPeople({ items, version, pop = "world", onUse, o
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, padding: "6px 6px 9px", fontFamily: SANS, fontSize: 11, fontWeight: 600, color: "var(--ink-3)" }}>
           <span style={{ width: 9, height: 9, borderRadius: "50%", background: "oklch(0.56 0.09 250)", flexShrink: 0 }}></span><span>placed</span>
           <span style={{ color: "var(--rule)" }}>·</span>
-          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "oklch(0.56 0.09 40)", opacity: 0.5, flexShrink: 0 }}></span><span>= fewer shared answers</span>
+          {/* 250, not 40 — the swatch must be the same hue as the dots it
+              explains (2026-08-24: the prototype's own legend fix) */}
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "oklch(0.56 0.09 250)", opacity: 0.5, flexShrink: 0 }}></span><span>= fewer shared answers</span>
           <span style={{ color: "var(--rule)" }}>·</span>
           <span style={{ width: 9, height: 9, borderRadius: "50%", border: "1.4px solid var(--accent)", boxSizing: "border-box", flexShrink: 0 }}></span><span>you</span>
         </div>
@@ -248,7 +248,7 @@ export default function PatternsPeople({ items, version, pop = "world", onUse, o
           </div>
           {/* The stated sample: newest-first, capped lists (VOTER_FETCH_CAP) — the who-voted sheet's own honest bias. */}
           <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid color-mix(in oklch, var(--rule), transparent 30%)", fontFamily: SANS, fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
-            Drawn from each question’s latest answers.
+            Drawn from the crowd’s latest answers.
           </div>
         </div>
       )}

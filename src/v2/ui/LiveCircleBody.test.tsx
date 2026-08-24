@@ -117,6 +117,26 @@ describe("LiveCircleBody · the row is the stop's, not the data's", () => {
     expect(tabNames()).toEqual(["Answers", "People", "Compare"]);
   });
 
+  // The "so what" line (2026-08-24): the field's two extremes said once,
+  // names only — and quiet below two placeable NAMED members, because
+  // "Someone mirrors you closest" reads as a bug and invented names are
+  // the D214 refusal.
+  it("names the closest and least-alike members under the field — with two placed", () => {
+    LIVE.circle = () => [
+      MEMBER,
+      { uid: "u_bo", name: "Bo", mutual: false, like: { pct: 30, same: 1, shared: 4 }, answers: {} },
+    ];
+    render(<LiveCircleBody />);
+    expect(screen.getByText(/mirrors you closest/).textContent).toContain("Ada");
+    expect(screen.getByText(/mirrors you closest/).textContent).toContain("Bo");
+  });
+
+  it("says nothing under the field of one — the picture already says it", () => {
+    LIVE.circle = () => [MEMBER];
+    render(<LiveCircleBody />);
+    expect(screen.queryByText(/mirrors you closest/)).toBeNull();
+  });
+
   it("draws the same row on an empty circle, over the empty field", () => {
     LIVE.circle = () => [];
     const { container } = render(<LiveCircleBody />);

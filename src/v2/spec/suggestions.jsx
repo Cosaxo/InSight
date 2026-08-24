@@ -330,8 +330,12 @@ function SgForm({ SG, onDone, onCancel }) {
             <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.5, textWrap: 'pretty' }}>
               Runs in that frame for a window you choose, and skips the queue — never the review. The band stays as it is.
             </span>
+            {/* "counts and cuts — never names" was the pre-D98 promise, false
+                since answers went public: the buyer reads what any signed-in
+                user reads. SponsorMark.tsx says the honest version on the card
+                and its test pins the old words out; this door says the same. */}
             <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.5 }}>
-              You get the counts and the standard cuts — never names.
+              You get the same public numbers everyone reads — there is no private cut.
             </span>
             {LIVE.enabled ? (
               <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, color: 'var(--ink-3)', lineHeight: 1.5 }}>

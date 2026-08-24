@@ -22,6 +22,28 @@ const { useState } = React;
 // ── the copy ───────────────────────────────────────────────────────────────
 // about: what the whole instrument measures · dims: what each axis means
 const EX = {
+  // the 1v1 and group readings as instruments (2026-08-24) — the Roles
+  // panel's roses read these through the same ⓘ as every test
+  duo: {
+    about: 'How a single 1v1 goes: who calls whom, how alike you answer, and whether it holds.',
+    dims: {
+      read:   'Of your guesses at their answer, the share you call right.',
+      seen:   'Of their guesses at yours, the share they call right.',
+      like:   'How often the two of you give the same answer.',
+      steady: 'Whether your right calls come in runs or scattered.',
+    },
+  },
+  group: {
+    about: 'Where you sit in a circle: with it, against it, or the one it names.',
+    // no `cast` line: the prototype's fourth dimension is not computed here
+    // (D204 — its only source was a demo scenario generator), and copy for a
+    // dim that cannot render would only be waiting to describe a fabrication
+    dims: {
+      own:    'The share of days you land away from the majority.',
+      pull:   'How often the others land where you land.',
+      settle: 'Whether which side you’re on holds from day to day.',
+    },
+  },
   big5: {
     about: 'Five broad traits psychologists use to describe personality. Everyone sits somewhere on each one — neither end is better.',
     dims: {
@@ -166,7 +188,9 @@ export function ExplainBtn({ onClick, label }) {
 export function ExplainSheet({ title, kicker, keyRows, dims, dimKey, onClose }) {
   const [closing, setClosing] = useState(false);
   const close = () => { if (closing) return; setClosing(true); setTimeout(onClose, 240); };
-  const ex = EX[dimKey] || { about: '', dims: {} };
+  // a per-setting key ('duo:f1') explains the same instrument as its family
+  // (2026-08-24) — one entry serves every 1v1, not one per pairing
+  const ex = EX[dimKey] || EX[String(dimKey || '').split(':')[0]] || { about: '', dims: {} };
   const sheet = (
     <Sheet onClose={close} closing={closing} label={title + ' — what this measures'}>
       <div style={{ padding: '10px 18px 8px', display: 'flex', alignItems: 'baseline', gap: 10 }}>
@@ -197,6 +221,9 @@ export function ExplainSheet({ title, kicker, keyRows, dims, dimKey, onClose }) 
                   {d.poles && <span style={{ fontFamily: exSans, fontSize: 12, fontWeight: 600, color: 'var(--ink-3)' }}>{d.poles[0]} → {d.poles[1]}</span>}
                 </div>
                 {ex.dims[d.id] && <div style={{ marginTop: 2, fontFamily: exSans, fontSize: 13.5, fontWeight: 500, lineHeight: 1.45, color: 'var(--ink-2)', textWrap: 'pretty' }}>{ex.dims[d.id]}</div>}
+                {/* a caller may pin the viewer's own reading under the
+                    definition (2026-08-24) — a word, not a lecture */}
+                {d.note && <div style={{ marginTop: 3, fontFamily: exSans, fontSize: 12, fontWeight: 700, color: 'var(--ink-3)' }}>yours: {d.note}</div>}
               </div>
             ))}
           </div>

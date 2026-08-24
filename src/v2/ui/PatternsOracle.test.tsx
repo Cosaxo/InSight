@@ -44,7 +44,6 @@ const QA = item("qa");
 const SEALED: OracleRecord = { qid: "qa", p0: 0.82, pred: 0, at: 1 };
 const GRADED: OracleRecord = { ...SEALED, mine: 1, bits: 2.47, ev: ["qb"] };
 
-const noop = () => {};
 
 beforeEach(() => {
   localStorage.clear();
@@ -58,7 +57,7 @@ afterEach(cleanup);
 
 describe("the sealed instrument", () => {
   it("shows the sealed badge and votes through the ordinary path on a tap", () => {
-    render(<PatternsOracle items={[QA, item("qb", 1)]} version={1} onUse={noop} />);
+    render(<PatternsOracle items={[QA, item("qb", 1)]} version={1} />);
     expect(screen.getByText("sealed")).toBeTruthy();
     expect(PATTERNS.seal).toHaveBeenCalledWith("qa");
     fireEvent.click(screen.getByText("qa-no"));
@@ -83,7 +82,7 @@ describe("the sealed instrument", () => {
     const pct = () => [...document.querySelectorAll<HTMLElement>(".or-fill")]
       .map((el) => el.style.getPropertyValue("--p"));
 
-    render(<PatternsOracle items={[QA, item("qb", 1)]} version={1} onUse={noop} />);
+    render(<PatternsOracle items={[QA, item("qb", 1)]} version={1} />);
     fireEvent.click(screen.getByText("qa-no"));
     // GRADED calls option 0 at p0 = 0.82: tile 0 is the call, and it is the
     // one that fills.
@@ -92,7 +91,7 @@ describe("the sealed instrument", () => {
 
   it("refuses the tap when no seal exists — no guess, no vote", () => {
     PATTERNS.seal.mockReturnValue(null);
-    render(<PatternsOracle items={[QA]} version={1} onUse={noop} />);
+    render(<PatternsOracle items={[QA]} version={1} />);
     fireEvent.click(screen.getByText("qa-yes"));
     expect(LIVE.vote).not.toHaveBeenCalled();
   });
@@ -101,7 +100,7 @@ describe("the sealed instrument", () => {
 describe("the done states", () => {
   it("says why nothing is askable when the record is empty too", () => {
     PATTERNS.nextAsk.mockReturnValue(null);
-    render(<PatternsOracle items={[item("qa", 1)]} version={1} onUse={noop} />);
+    render(<PatternsOracle items={[item("qa", 1)]} version={1} />);
     expect(screen.getByText("Nothing left to guess")).toBeTruthy();
   });
 
@@ -115,7 +114,7 @@ describe("the done states", () => {
       called: 1,
       avgBits: 1.4,
     });
-    render(<PatternsOracle items={[item("qa", 1), item("qb", 1)]} version={1} onUse={noop} />);
+    render(<PatternsOracle items={[item("qa", 1), item("qb", 1)]} version={1} />);
     expect(screen.getByText("biggest break")).toBeTruthy();
     expect(screen.getByText("Q qa")).toBeTruthy();
     expect(screen.queryByText("Start over")).toBeNull();

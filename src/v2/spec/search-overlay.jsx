@@ -336,10 +336,13 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
 
         {samplePeople === false && <LivePeopleSearch query={q} onActive={setLivePeople} />}
         {!!people.length && <div className="search-group">{query ? 'People' : 'Friends'}</div>}
+        {/* the sub-line stopped stating distance (2026-08-24) — the same
+            direction Near took: knowing how close a stranger is, is itself
+            a leak, and role · since · match already carry the hit */}
         {people.map(p => (
           <SrchHit key={p.id}
             glyph={p.anon ? <AnonAv hue={p.hue} size={32} /> : <Av init={p.init} hue={p.hue} size={32} />}
-            title={anonName(p)} sub={[p.role || p.rel, p.dist || (p.since ? 'since ' + p.since : null), p.match != null ? Math.round(p.match) + '% match' : null].filter(Boolean).join(' · ')} q={query}
+            title={anonName(p)} sub={[p.role || p.rel, p.since ? 'since ' + p.since : null, p.match != null ? Math.round(p.match) + '% match' : null].filter(Boolean).join(' · ')} q={query}
             onClick={() => go(() => onPerson(p))} />
         ))}
       </div>
