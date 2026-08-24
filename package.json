@@ -44,6 +44,8 @@
     "build:catalog": "node scripts/build-catalog.mjs",
     "build:doc-index": "node scripts/doc-index.mjs --write",
     "check:content": "node scripts/check-content.mjs",
+    "check:learn-sample": "node scripts/gen-learn-sample.mjs",
+    "build:learn-sample": "node scripts/gen-learn-sample.mjs --write",
     "check:neighbors": "node scripts/question-neighbors.mjs",
     "check:quality": "node scripts/question-quality.mjs",
     "build:content": "node scripts/gen-v2content.mjs --write",

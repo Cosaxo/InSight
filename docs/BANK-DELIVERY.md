@@ -1,6 +1,6 @@
 # Bank delivery — three ceilings, in the order they bite
 
-**Status: plan only.** Nothing below is built. Written 2026-08-24 on the
+**Status: mixed — §2 is BUILT (D280, 2026-08-24); §3 and §4 are plan.** Written 2026-08-24 on the
 owner's direction after D279: the question banks should grow by an order
 of magnitude, and *"it's a good thing they don't run out"* is the product
 argument that outranks any figure on this page. Nothing here refuses
@@ -46,7 +46,16 @@ are #2 and #3; the one that actually stops the next batch is **#1**, and
 nothing had measured it because no gate connects question count to
 bundle size.
 
-## 2 · Ceiling 1 — the learn bank is compiled into the app
+## 2 · Ceiling 1 — the learn bank is compiled into the app · **BUILT (D280)**
+
+> Shipped the day this was written, because it was the one with a
+> deadline. Option A below is what was built, with C as its second half.
+> The chunk went 34.5 → 16.2 kB, the total 2427 → 2409, and the headroom
+> 13 → 31 kB — and stopped being spent by content at all. What follows is
+> the reasoning as it stood; D280 records the as-built, including one bug
+> the tests caught (the publication first sat inside `buildFeedGlobals`,
+> which returns early on an empty feed bank) and one mutation that passed
+> for the wrong reason.
 
 `src/v2/spec/learn-data.js:18`:
 
@@ -126,12 +135,25 @@ half.
 
 ### What proves it
 
-A gate. The lesson of this whole finding is that nothing connected
-question count to bundle weight, so the fix is not only to move the bytes
-but to make the next collision visible: `check:bundle` should attribute
-the content chunks, or `check:quality`'s headroom report should carry a
-bundle line beside its localStorage one. Without that, the same surprise
-returns the first time another bank is bundled for a demo build.
+A gate, and it is built: `BUNDLED_CONTENT` in `check-content.mjs`. The
+lesson of this finding is that nothing connected question count to bundle
+weight — the count lives in /content, the weight in dist/, and no gate
+joined them — so the fix could not only be to move the bytes.
+
+The rule: a `content/*.json` may be imported from `src/` only if it is
+named there with a **byte cap and a reason**, and the cap is not a budget
+to spend but the size at which somebody has to think again. Tests are
+excluded, and they are most of the readers — a suite comparing the
+shipped bank against its source has to import the source, and none of it
+reaches a device. Both directions fail, the check-purge shape: an
+unlisted import, and a listing nothing imports any more.
+
+Two entries today. `learn-sample.json` at 32 KiB — it grows with the
+number of FIELDS and never with the bank, so crossing it means the
+taxonomy roughly doubled and `PER_FIELD` wants re-deriving rather than
+the cap raising. `duel-questions.json` at 24 KiB — the last bank still
+compiled in whole, on a weekly lane at 14.6 KiB, and crossing it is the
+signal to give it learn's treatment.
 
 ## 3 · Ceiling 2 — the bank cache is in the small box
 
@@ -213,9 +235,14 @@ convert later, and a published count is usually as good.
 
 ## 5 · Order of work
 
-1. **Ceiling 1, now.** It is weeks away and it stops the lane. Option A
-   plus the demo trim, plus the gate that makes the next collision
-   visible.
+1. ~~**Ceiling 1, now.**~~ **Done — D280**, gate included. Option A plus
+   the demo trim; `check:learn-sample` holds the generated sample to its
+   source, and `check:content`'s `BUNDLED_CONTENT` is the join that did
+   not exist — a /content file may be imported by `src/` only if it is
+   named there with a byte cap and a reason, and both directions fail
+   (unlisted import, and a listing nothing imports). Verified against the
+   defect itself: point `learn-data.js` back at the full bank and the
+   gate reports it.
 2. **Ceiling 2, when the bank passes ~2,000 documents** — comfortably
    before `BANK_WARN`, because the failure is silent and a gate that
    warns at the cliff edge warns too late. Three call sites.

@@ -40,6 +40,7 @@
 
 import realLive from "../data/live";
 import { publishTestFeed, resetTestFeed } from "../data/testFeed";
+import { publishLearnBank, resetLearnBank } from "../data/learnBank";
 import { LIVE_MEMBERS, LIVE_NEAR_MEMBERS, LIVE_SOCIAL_MEMBERS } from "./live-surface";
 
 type Dict = Record<string, unknown>;
@@ -118,6 +119,17 @@ export interface LiveFixtureOptions {
    */
   testCard?: boolean;
   /**
+   * Publish one live LEARN card (D280), in the engine's own vocabulary —
+   * the shape `buildLearnBank` translates a bank document into.
+   *
+   * Opt-in, and the DEFAULT is the case that matters: with this off the
+   * fixture publishes an EMPTY live bank, which is what a live build with
+   * no seeded learn documents actually has. Before D280 the bundle carried
+   * the whole card bank, so a live build served 146 demo cards whatever the
+   * backend held — the same class of thing D276 fixed for test cards.
+   */
+  learnCard?: boolean;
+  /**
    * Give the LAST world card a background (D277) — the paragraph the
    * card's `i` opens. Opt-in like the rest: most of the bank carries
    * none, and a fixture that always did would have the "About this
@@ -184,6 +196,12 @@ export const RANK_PROMPT = "Fixture rank card: order the fixtures";
 // point of the case is telling a bank item apart from a demo one, and the
 // demo pool's prompts are the real instruments' wording.
 export const TEST_ITEM_PROMPT = "Fixture test item: the bank's own, not the demo pool's.";
+
+// The live LEARN card (D280), unique for the same reason and with the same
+// weight: the demo sample's prompts are the real cards' wording, so the
+// prompt is what tells a bank card apart from a compiled-in one.
+export const LEARN_CARD_PROMPT = "Fixture learn card: which bank is this from?";
+export const LEARN_CARD_OPTIONS = ["The seeded bank", "The bundle", "Neither", "Both"];
 export const TEST_ITEM_OPTIONS = [
   "Strongly agree", "Agree", "Neutral", "Disagree", "Strongly disagree",
 ];
@@ -821,6 +839,36 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       }]
       : [],
   );
+  // The live learn bank. Empty by default — see `learnCard` — and that
+  // default is the assertion: a live build serves the cards its backend
+  // holds, never the sample compiled in for the demo build.
+  //
+  // SIX cards, not one, and the number is the scheduler's rather than a
+  // taste call: `learn-progress.js`'s GAP is 4, so a case that walks a
+  // card's spacing has to be able to plan four others without repeating.
+  // A one-card bank is a degenerate pool no real backend has.
+  publishLearnBank(
+    opts.learnCard
+      ? Array.from({ length: 6 }, (_, i) => ({
+        id: `fixlearn${i + 1}`,
+        f: "cell",
+        q: i === 0 ? LEARN_CARD_PROMPT : `${LEARN_CARD_PROMPT} (${i + 1})`,
+        // Distinct labels per card, which is what the bank has and what a
+        // test needs: the reveal cases find a row by its option's
+        // accessible name, and six cards sharing one option set puts four
+        // identical buttons on screen at once.
+        a: i === 0 ? LEARN_CARD_OPTIONS : LEARN_CARD_OPTIONS.map((o) => `${o} ${i + 1}`),
+        // Varied, like the bank's own: `LEARN_ORDER` permutes at render,
+        // so an authored index is invisible to a reader either way — but
+        // a fixture whose answer is always index 0 would pass a test that
+        // reads the first button and calls it correct.
+        c: i % LEARN_CARD_OPTIONS.length,
+        t: (i + 1) % LEARN_CARD_OPTIONS.length,
+        p: 50 + i * 4,
+        k: `The bank, not the bundle (${i + 1})`,
+      }))
+      : [],
+  );
   w.WORLD_FEED_COMMENTS = {};
 
   return {
@@ -830,6 +878,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     restore() {
       restoreLive();
       resetTestFeed();
+      resetLearnBank();
       for (const [k, v] of Object.entries(saved)) {
         if (k === "LIVE") continue;          // restoreLive owns that one
         if (v === undefined) delete w[k];

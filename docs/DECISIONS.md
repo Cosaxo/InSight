@@ -27910,3 +27910,159 @@ shape goal — what makes a field worth following on its own. The emergency
 it was set against is gone. `QUESTION-FARM.md`'s learn bullet says so, so
 the next run to find every field level proposes rather than raises by
 reflex.
+
+## D280 · The learn bank leaves the JavaScript
+
+**2026-08-24.** **Status:** binding. Ceiling 1 of
+[`BANK-DELIVERY.md`](BANK-DELIVERY.md), built the day the plan was
+written, because it was the one with a deadline.
+
+### The finding
+
+`spec/learn-data.js` imported the whole of
+`content/learn-questions.json`, so **every learn card was compiled into
+the app**. Measured: 146 cards were 33 KiB of `cards` inside a 34.5 kB
+`learn-progress` chunk, against a `check:bundle` total of 2440 kB and a
+shipping build at 2427 — **13 kB, about 39 more cards.**
+
+The learn lane's own budget grants 24 a field, or 288 total. **Reaching
+the depth the regulator already permits would have failed the build by
+34 kB**, at 20 cards a week, so roughly a fortnight out. It fails CI
+rather than a device, which is the good version of this — but it stops
+the lane, and it would arrive as an error naming the bundle, on a run
+whose job is writing questions.
+
+Nothing was watching, and could not have been: no gate connects question
+count to bundle weight, and the two live in different halves of the tree.
+It surfaced only because the owner pushed back on being told volume was
+blocked, and asked what a real redesign would look like.
+
+`content/duel-questions.json` is compiled in the same way (14.6 KiB,
+weekly lane, years of slack) and is moved in the same pass's shape but
+not this one. **Every other bank is already clean** — daily, feed and
+test questions reach the client only through Firestore.
+
+### The shape, and the property that matters
+
+The bundle now carries `content/learn-sample.json` — **five cards per
+field, generated** by `scripts/gen-learn-sample.mjs` and held equal to
+its source by `check:learn-sample`. The live path reads the seeded bank
+through `data/learnBank.ts`.
+
+**The point is not that the sample is small. It is that its size does not
+move.** A one-off trim would have bought a few months and left the same
+trap armed; per-field-N means the bundle stops tracking the bank and the
+lane can write ten thousand cards without the build noticing.
+
+Five is a floor set by the demo's own seeded progress, not a taste call:
+`freshS()` marks `cell2`, `cell4`, `sol1`, `sol5`, `cap1`, `cap4` and
+`sol2` as already met, so a sample stopping at four would leave the demo
+holding mastery of a card it cannot draw. Subjects and fields ship whole
+— 1 KiB, they do not grow with the lane, and `freshF()` follows every
+field the bundle knows about (D279), so a trimmed taxonomy would silently
+narrow the demo's follow set too.
+
+Measured after: the chunk is 34.5 → **16.2 kB**, total 2427 → **2409**,
+eager 849 → **832**. Headroom on the total goes 13 → 31 kB — and stops
+being spent by content at all.
+
+### What this publishes, stated rather than done quietly
+
+The seed now carries `c`, `t`, `p`, `k` and `w`, so **the learn answer
+key is readable in a world-readable collection.**
+
+The old comment in `gen-v2content.mjs` had the reasoning right for its
+own sentence: *"nothing server-side reads correctness, and '% got it
+right' is counts[c]/total computed on the client, WHICH SHIPS c IN THE
+BUNDLE ANYWAY."* That last clause is what this removes. So the exposure
+does not change — the key has been readable out of the JavaScript, by
+anyone, since D32 — but the CHANNEL does, and a channel change nobody
+recorded is exactly the drift D98's discipline refuses. Learn has never
+claimed on screen that its answers are hidden, and it still does not. If
+the product ever wants a gradeable learn score, D57's logic shape is the
+door (the server mints, withholds and marks) and the seed's learn arm is
+where that decision lands.
+
+### The arm that had to be a refusal
+
+A document seeded before this carries no `c`. `publishLearnBank` **drops
+those cards** rather than defaulting the index.
+
+`c ?? 0` would have been the natural line and it would mark option one
+correct on every pre-D280 card in the bank — teaching the wrong answer,
+silently, on the one surface whose entire promise is that there is a
+right one. An empty Learn until the next seed run is the honest failure,
+and it is pinned in both `vote.test.ts` and the DOM.
+
+`learnCards()` uses `livePool ?? demo` and not `|| demo` for the same
+reason one level up: a live bank with no learn documents must serve
+NOTHING, not fall through to sixty demo cards with no aggregate behind
+any of them.
+
+### One bug the tests caught, which is the reason they were written first
+
+The publication was initially placed in `buildFeedGlobals()`, beside
+D276's. That function opens `if (!state.feedBank.length) return`, so **a
+bank with learn cards and no feed questions would have served none of
+them** — Learn does not depend on the feed existing and must not start
+to. It publishes beside the bank split now. Caught by the first case
+written against it, which is exactly the bank that shape describes.
+
+### What is pinned
+
+`data/learnBank.test.ts` (the operator, the empty-bank arm, and the
+subscription — which `testFeed` does not need and this does, because the
+engine indexes once at module scope and has to be woken). Two cases in
+`vote.test.ts`: the translation field by field — the bank speaks
+`learn-cell1`/`prompt`/`options`/`topic`, the engine speaks
+`cell1`/`q`/`a`/`f` — and the keyless-card refusal. Two in
+`smoke-live.test.jsx`: a live build serves the bank, and a live build
+given none serves none.
+
+The smoke cases bind on `LEARN_CARDS` itself rather than a copied prompt
+(D276's rule), so they cannot drift from the sample they are about.
+
+**Mutation-checked, and the first mutation was wrong in an instructive
+way.** Reverting `let CARDS = learnCards(LEARN_CARDS)` to `= LEARN_CARDS`
+left both cases green — because the `subscribeLearnBank` listener
+re-reads the pool when the bank lands, so the initial value never
+mattered. The mutation that actually tests the seam is `learnCards()`
+returning `demo` unconditionally, and under that one both fail. A green
+mutation is not evidence a test is vacuous; it is evidence the mutation
+missed.
+
+### The gate that did not exist
+
+Moving the bytes could not be the whole fix: nothing connected question
+count to bundle weight — the count lives in `/content`, the weight in
+`dist/`, and no gate joined them. It surfaced because somebody asked,
+which is not a mechanism.
+
+`BUNDLED_CONTENT` in `check-content.mjs` is the join. A `content/*.json`
+may be imported from `src/` only if it is named there with a **byte cap
+and a reason**; the cap is not a budget to spend but the size at which
+somebody has to think again, and the error says which thought. Both
+directions fail (the check-purge shape): an unlisted import, and a
+listing nothing imports any more. Tests are excluded and are most of the
+readers — `content-parity`, `lens-content` and `world-channels` all
+import a bank to compare the shipped copy against it, and none of that
+reaches a device.
+
+Two entries: `learn-sample.json` at 32 KiB (it grows with the number of
+FIELDS and never with the bank, so crossing it means re-deriving
+`PER_FIELD`, not raising the cap) and `duel-questions.json` at 24 KiB
+(the last bank compiled in whole — crossing it is the signal to give it
+learn's treatment).
+
+Verified against the defect rather than argued: point `learn-data.js`
+back at the full bank and `check:content` reports it, in both directions
+at once.
+
+### What it does not change
+
+`FIELD_TARGET`, `RUN_CAP` and the lanes' cadences are untouched. This is
+the capacity question and those are the pace question — what the change
+buys is the right to answer the pace question on its merits, which was
+not true this morning. Ceilings 2 (the localStorage bank cache, ~5,300
+cards) and 3 (the whole-bank fetch) are unmoved and remain years out;
+`BANK-DELIVERY.md` §5 holds the order.

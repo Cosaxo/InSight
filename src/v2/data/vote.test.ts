@@ -991,6 +991,69 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect("bg" in (feed.find((q) => q.id === "q_feed_nobg") || {})).toBe(false);
   });
 
+  // ── the Learn bank (D280) ────────────────────────────────────────
+  //
+  // The bundle stopped carrying the card bank, so this publication is the
+  // only thing that puts cards in front of a live reader. The translation
+  // is real work rather than a pass-through — the bank speaks
+  // `learn-cell1`/`prompt`/`options`/`topic` and the engine speaks
+  // `cell1`/`q`/`a`/`f` — so it is asserted field by field.
+  it("publishes the bank's learn cards in the engine's own vocabulary", async () => {
+    const { learnCards, resetLearnBank } = await import("./learnBank");
+    resetLearnBank();
+    h.bankDocs.push({
+      id: "learn-cell1",
+      data: {
+        surface: "learn", seq: 0, type: "choice", topic: "cell", test: null, active: true,
+        prompt: "What do ribosomes build?",
+        options: ["Proteins", "Lipids", "DNA", "Sugars"],
+        c: 0, t: 2, p: 61, k: "Ribosomes build proteins",
+        w: "DNA is copied in the nucleus, not built here.",
+      },
+    });
+    await bootLive();
+    // A sentinel sample, so "fell through to the caller's array" and
+    // "published nothing" cannot pass as each other.
+    const cards = learnCards([{ id: "sample1", f: "cell", q: "s", a: ["a"], c: 0, t: 0, p: 50, k: "s" }]);
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toEqual({
+      // The `learn-` prefix is the BANK's id, never the card's: every
+      // device holds mastery state keyed on the bare id (`insight.learn.v3`),
+      // so publishing the prefixed one would read as a fresh account.
+      id: "cell1",
+      f: "cell",
+      q: "What do ribosomes build?",
+      a: ["Proteins", "Lipids", "DNA", "Sugars"],
+      c: 0,
+      t: 2,
+      p: 61,
+      k: "Ribosomes build proteins",
+      w: "DNA is copied in the nucleus, not built here.",
+    });
+    resetLearnBank();
+  });
+
+  it("drops a card with no answer key rather than guessing one", async () => {
+    const { learnCards, resetLearnBank } = await import("./learnBank");
+    resetLearnBank();
+    // Exactly the shape of a document seeded BEFORE D280 — prompt,
+    // options, topic, and no c/t/p/k/w. Defaulting `c` to 0 would mark
+    // option one correct on every pre-D280 card in the bank and teach the
+    // wrong answer, silently, on the one surface whose whole promise is
+    // that there is a right one. An empty Learn until the next seed run is
+    // the honest failure.
+    h.bankDocs.push({
+      id: "learn-old1",
+      data: {
+        surface: "learn", seq: 0, type: "choice", topic: "cell", test: null, active: true,
+        prompt: "A card from before the change", options: ["A", "B", "C", "D"],
+      },
+    });
+    await bootLive();
+    expect(learnCards([{ id: "sample1", f: "cell", q: "s", a: ["a"], c: 0, t: 0, p: 50, k: "s" }])).toEqual([]);
+    resetLearnBank();
+  });
+
   // ── the feed's TEST stream (D276) ────────────────────────────────
   //
   // The store-side half of the same defect the smoke suite pins in the

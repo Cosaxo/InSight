@@ -82,6 +82,13 @@ jobs:
       # without a regen, ships a bank nobody reviewed. Regenerates in
       # memory and compares bytes. Node stdlib only, no root node_modules.
       - run: npm run check:content
+      # The slice of the learn bank the JS bundle carries (D280). On the
+      # backend path beside check:content and for its reason: both hold a
+      # DERIVED copy of /content equal to its source, and both failures are
+      # silent — a drifted sample makes the demo build serve cards the bank
+      # does not have, which the demo build is by definition unable to
+      # notice. Node stdlib only, no root node_modules.
+      - run: npm run check:learn-sample
       # The CALL rubric's two copies, and a dry run of every rubric in the
       # bank the same seed callable ships (D194). Deploy-path for both
       # halves: a drifted copy makes the deployed resolver and the shipped

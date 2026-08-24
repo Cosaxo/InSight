@@ -152,6 +152,9 @@ import { roundRobinBy } from "./feed-interleave";
 // The feed's test-card pool. A named publisher rather than a `window`
 // cast, because a cast is what let D249 sever this seam in silence.
 import { publishTestFeed } from "./testFeed";
+// The Learn engine's cards. Published by name for testFeed's reason, and
+// because the bundle stopped carrying the bank at D280.
+import { publishLearnBank, type LearnCard } from "./learnBank";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
 // this module passes its store state in.
 import {
@@ -1160,6 +1163,46 @@ async function hydrate(): Promise<void> {
   state.feedBank = banks.feed;
   state.duelBank = banks.duel;
   state.learnBank = banks.learn;
+  // The Learn bank (D280). Published HERE, beside the split, and not in
+  // buildFeedGlobals: that function opens `if (!state.feedBank.length)
+  // return`, so a bank with learn cards and no feed questions would have
+  // served none of them — Learn does not depend on the feed existing and
+  // must not start doing so. Caught by vote.test.ts's first learn case,
+  // which is exactly the bank that shape describes.
+  //
+  // Translated from the bank's vocabulary into the
+  // engine's — `learn-cell1`/`prompt`/`options`/`topic` become
+  // `cell1`/`q`/`a`/`f` — because the two spellings are real and the
+  // translation belongs at one end rather than at nine call sites.
+  //
+  // Costs no read: `state.learnBank` is the slice `splitBanks` already cut
+  // out of the bank `hydrate()` fetched. What it replaces is the whole of
+  // `content/learn-questions.json` being compiled into the app.
+  //
+  // A doc seeded before D280 carries no `c`, and a card with no correct
+  // answer is unanswerable rather than merely thin — so those are dropped
+  // rather than defaulted. On a bank seeded before the change that empties
+  // Learn until the next seed run, which is the honest failure: the
+  // alternative is `c ?? 0`, which would mark option one correct on every
+  // card in the bank and teach the wrong answer, silently, on a surface
+  // whose entire promise is that there is a right one.
+  publishLearnBank(
+    state.learnBank.flatMap((q): LearnCard[] => {
+      if (typeof q.c !== "number" || typeof q.t !== "number") return [];
+      return [{
+        id: q.id.startsWith("learn-") ? q.id.slice(6) : q.id,
+        f: q.topic || "",
+        q: q.prompt,
+        a: q.options,
+        c: q.c,
+        t: q.t,
+        p: typeof q.p === "number" ? q.p : 50,
+        k: q.k || "",
+        ...(q.w ? { w: q.w } : {}),
+      }];
+    }),
+  );
+
   state.callBank = banks.call;
   state.pulseBank = banks.pulse;
   // A completely unseeded project is a real failure: throw so boot leaves

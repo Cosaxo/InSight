@@ -6,6 +6,10 @@
 // global left here, read at call time.
 import React from 'react';
 import { LEARN_CARDS, LEARN_FIELDS, LEARN_SPLIT, LEARN_SUBJECTS } from './learn-data.js';
+// Which build's cards these are (D280). `LEARN_CARDS` above is the demo
+// SAMPLE now — five a field, compiled in so the demo build has something
+// to serve — and a live build's bank arrives here after boot.
+import { learnCards, subscribeLearnBank } from '../data/learnBank.ts';
 
 // learn-progress.js — the engine behind Learn. Three ideas, no more:
 //
@@ -31,7 +35,13 @@ export const LEARN = (function () {
   // the failure D109's learn-data.js header describes. An imported binding
   // cannot be unset, and learn-data.js depends on nothing that could put it in
   // TDZ, so the fallbacks are gone rather than rewritten.
-  const CARDS = LEARN_CARDS;
+  // `let`, and the reason is the one thing about D280 that touches this
+  // file: the bank is no longer known at module scope. A demo build's
+  // sample is (it is compiled in), but a live build's cards arrive when
+  // `hydrate()` publishes them, which is after every line here has run. So
+  // the cards are re-read and re-indexed on that signal rather than
+  // captured once — see `adopt()` below.
+  let CARDS = learnCards(LEARN_CARDS);
   const FIELDS = LEARN_FIELDS;
   const SUBJECTS = LEARN_SUBJECTS;
   const GAP = 4;        // cards that must pass before a repeat counts
@@ -40,13 +50,36 @@ export const LEARN = (function () {
   const L0 = 62;        // everyone starts where ~62% of the crowd is right
   const LMIN = 24, LMAX = 92;
 
-  const BYID = {}, BYF = {}, FBY = {}, SBY = {};
-  CARDS.forEach((c) => { BYID[c.id] = c; (BYF[c.f] = BYF[c.f] || []).push(c); });
+  // FIELDS and SUBJECTS are the taxonomy and still ship whole, so their two
+  // indexes are built once. The card indexes are rebuilt whenever the pool
+  // changes — `let` for the same reason CARDS is.
+  let BYID = {}, BYF = {};
+  const FBY = {}, SBY = {};
+  const indexCards = () => {
+    BYID = {}; BYF = {};
+    CARDS.forEach((c) => { BYID[c.id] = c; (BYF[c.f] = BYF[c.f] || []).push(c); });
+  };
+  indexCards();
   FIELDS.forEach((f) => { FBY[f.id] = f; });
   SUBJECTS.forEach((s) => { SBY[s.id] = s; });
 
   const listeners = new Set();
   const fire = () => listeners.forEach((f) => { try { f(); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } });
+
+  // The live bank, when it lands (D280). `hydrate()` publishes it well
+  // after this module evaluated, so the pool is re-read and the two card
+  // indexes rebuilt — then `fire()`, because every mounted consumer is
+  // holding a render made against the sample and none of them polls.
+  //
+  // A demo build never calls the publisher, so this never fires there and
+  // the sample stays. No unsubscribe: the engine is a singleton for the
+  // life of the tab, and a store that outlives every subscriber has
+  // nothing to tear down.
+  subscribeLearnBank(() => {
+    CARDS = learnCards(LEARN_CARDS);
+    indexCards();
+    fire();
+  });
 
   let S;
   try { S = JSON.parse(localStorage.getItem(LS) || 'null'); } catch (e) { S = null; }

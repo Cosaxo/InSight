@@ -527,12 +527,32 @@ export function buildEntries(content = loadContent()) {
     });
   }
 
-  // Learn cards (D32): the server doc carries ONLY what rules and the
-  // aggregate fold need — prompt, options, the field as topic. The
-  // correctness metadata (c, t, p, k, w) stays client-side in
-  // content/learn-questions.json / window.LEARN_CARDS: nothing server-side
-  // reads correctness, and "% got it right" is counts[c]/total computed on
-  // the client, which ships c in the bundle anyway.
+  // Learn cards (D32, amended at D280): the doc now carries the WHOLE card
+  // — prompt, options, the field as topic, and the correctness metadata
+  // `c`/`t`/`p`/`k`/`w`.
+  //
+  // It used to carry only the first three, and the reasoning was sound
+  // for its own sentence: "nothing server-side reads correctness, and
+  // '% got it right' is counts[c]/total computed on the client, WHICH
+  // SHIPS c IN THE BUNDLE ANYWAY." That last clause is the part D280
+  // removed. `spec/learn-data.js` imported the entire card bank into the
+  // JavaScript, so every card was compiled into the app — and
+  // `check:bundle` had about thirteen kilobytes left, which is thirty-nine
+  // more cards. The lane's own target of 24 a field would have failed the
+  // build. The bundle now carries a FIXED demo sample and the live path
+  // reads the bank, so the metadata has to travel with the document.
+  //
+  // WHAT THIS PUBLISHES, stated rather than assumed: the learn answer key
+  // is now readable in a world-readable collection. It was already
+  // readable — out of the JavaScript, by anyone, since D32 — so this
+  // changes the channel and not the exposure, and Learn has never claimed
+  // otherwise on screen. If the product ever wants a gradeable learn
+  // score, D57's logic shape is the door (the server mints, withholds and
+  // marks) and this line is where that decision lands.
+  //
+  // `w` is emit-when-set, like every other optional in this file: most
+  // cards carry no why line and writing `w: null` across the bank would
+  // rewrite every learn document to say nothing.
   learn.cards.forEach((q, i) => {
     entries.push({
       id: `learn-${requireId(q, `learn-questions.json[${i}]`)}`,
@@ -545,6 +565,11 @@ export function buildEntries(content = loadContent()) {
       topic: q.f,
       axis: null,
       test: null,
+      c: q.c,
+      t: q.t,
+      p: q.p,
+      k: q.k,
+      ...(typeof q.w === "string" && q.w ? { w: q.w } : {}),
     });
   });
 
@@ -647,7 +672,7 @@ const HEADER =
   "// admitted grading path, the earliest UTC day it may be graded, and the\n" +
   "// expression the resolver RUNS. The outcome is not here — it lives in\n" +
   "// v2_call_outcomes, so a reseed and the resolver never fight.\n" +
-  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
+  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
   "export const V2_QUESTIONS: V2SeedQuestion[] = ";
 
 // Feed ads (D197, docs/MONETIZATION.md path 3). A SEPARATE array from the

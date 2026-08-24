@@ -35,7 +35,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 // jsdom, and the v15 revision roughly doubled the spec layer's feed weight —
 // the slowest cases sat at ~4.8s before it and tip over under suite load.
 vi.setConfig({ testTimeout: 15000 });
-import { BG_TEXT, FEED_OPTIONS, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, TEST_ITEM_OPTIONS, TEST_ITEM_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
+import { BG_TEXT, FEED_OPTIONS, LEARN_CARD_PROMPT, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, TEST_ITEM_OPTIONS, TEST_ITEM_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
 import NAV from "../data/nav";
 import { PATTERNS_EARNED_KEY, PATTERNS_MIN_BASIS, PATTERNS_MIN_MINE, PATTERNS_MIN_POOL } from "../data/patternsReady";
 import { awaitText, growFeed, openHeaderOverlay, swipeDaily } from "./mount-app";
@@ -44,6 +44,9 @@ import { IS_TESTS, IS_TEST_RESULTS } from "../spec/test-definitions.js";
 // The demo test pool, imported so the D276 case can bind on the actual
 // cards that must not appear rather than on a copy of their wording.
 import { TEST_FEED_QS } from "../spec/test-feed-data.js";
+// The bundled demo SAMPLE (D280) — imported so the live cases can assert
+// on the actual cards that must not appear, rather than on a copy.
+import { LEARN_CARDS } from "../spec/learn-data.js";
 import { PASSIVE } from "../spec/passive-progress.js";
 import { IS_ARCHETYPES } from "../spec/archetype-data.js";
 import { resetNormCache } from "../data/testNorms";
@@ -742,6 +745,53 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(screen.getByText(/^On your map$/)).toBeTruthy();
     expect(screen.queryByText(BG_TEXT)).toBeNull();
     expectNoBoundary("live feed, no background");
+  });
+
+  // D280 — the learn bank left the JavaScript, and this is what proves the
+  // live path picked it up.
+  //
+  // `spec/learn-data.js` used to import the whole of
+  // content/learn-questions.json, so every card was compiled into the app
+  // and a live build served them whatever the backend held. It carries a
+  // fixed demo sample now and the live engine reads the seeded bank — so
+  // the two arms below are the whole change: a live build serves the bank
+  // it was given, and a live build given none serves none.
+  //
+  // Binding on the SAMPLE itself rather than a copied prompt, the D276
+  // rule: the sample is generated from the bank, so a prompt transcribed
+  // into this file would be a second copy to keep in step.
+  const sampleLearnPrompts = () => LEARN_CARDS.map((c) => c.q);
+
+  it("serves the bank's learn cards on a live feed, never the compiled-in sample", async () => {
+    localStorage.clear();
+    const expectNoBoundary = mountLive({ learnCard: true, feedCards: 24 });
+    await growFeed();
+    await awaitText(/Fixture learn card/);
+    expect(screen.getByText(LEARN_CARD_PROMPT)).toBeTruthy();
+    const body = document.body.textContent || "";
+    const leaked = sampleLearnPrompts().filter((q) => q && body.includes(q));
+    expect(
+      leaked.slice(0, 3),
+      "the live feed drew cards from the bundled demo sample",
+    ).toEqual([]);
+    expectNoBoundary("live feed, bank learn cards");
+  });
+
+  it("serves no learn card at all when the bank has none", async () => {
+    // A project seeded before D280 carries learn documents with no answer
+    // key, so the store drops every one and publishes an empty bank. Empty
+    // has to mean empty: falling back to the sample would put sixty demo
+    // cards on a real device, each with a "% got this right" line drawn
+    // from an aggregate that does not exist.
+    localStorage.clear();
+    const expectNoBoundary = mountLive({ feedCards: 24 });
+    await growFeed();
+    const body = document.body.textContent || "";
+    expect(
+      sampleLearnPrompts().filter((q) => q && body.includes(q)).slice(0, 3),
+      "an empty live learn bank fell through to the bundled sample",
+    ).toEqual([]);
+    expectNoBoundary("live feed, no learn bank");
   });
 
   // D276 — the defect this whole suite was supposed to make impossible,
