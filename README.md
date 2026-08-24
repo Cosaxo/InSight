@@ -2,11 +2,12 @@
 
 **Answer things. See what they add up to.**
 
-InSight is a three-tab app — **patterns · daily · mirror**, the first on
-trial (D166 §1). The middle tab is where you answer; the other two are
-where the answering turns into pictures: how your answers tie to
-everyone else's, and you against every population you belong to.
-Answering is the smaller half.
+InSight ships v1 as a two-tab app — **daily · mirror**. The first is
+where you answer; the second is where the answering turns into pictures:
+you against every population you belong to. Answering is the smaller
+half. A third tab, **patterns**, is built and **unmounted for the
+release** (D217): the trial D166 §1 opened is paused rather than
+verdicted, and remounting is three restorations D217 names.
 
 *Working on it rather than reading about it?*
 [`docs/ORIENTATION.md`](./docs/ORIENTATION.md) is the map — every
@@ -50,7 +51,8 @@ are (decision D101) — a follow is a bookmark, not a permission grant, so
 there is no request to send and nothing to accept.
 
 A live stop is not one reading. City, Country and World carry a tab row —
-**Answers · People · Compare · Explore · Scores** — under a similarity
+**Answers · People · Scores · Compare**, plus **Explore at the World stop
+only** (D152) — under a similarity
 field that draws above it always: your city's people ranked by test-score
 match, and cities and countries placed by their real average-score
 profiles (decisions D112, D136). Circle and Groups carry the three of
@@ -146,7 +148,7 @@ src/lib/           firebase init + anonymous-first auth + emulator wiring
 functions/src/     v2.ts (seed + aggregates) · v2social.ts (groups, duos,
                    reveals, push) · index.ts (account deletion)
 firestore.rules    the access model (public answers, exact aggs,
-                   member-only groups/reveals) — 128 emulator tests
+                   member-only groups, sealed duels) — 130 emulator tests
 firestore.rules.v1-archive  the retired v1 client rules (D4) — reference,
                    NOT deployed
 monitoring/        Cloud Monitoring policies, put live by
@@ -177,7 +179,7 @@ Local:
 - `npm run test:unit` — client store, pure deck logic, and the spec-layer
   mount tests (vitest + jsdom, no emulator).
 - `npm run test --prefix functions` — the aggregate fold, reveal and streak math.
-- `npm run test:rules` — 128 security-rules tests (Firestore + Storage)
+- `npm run test:rules` — 130 security-rules tests (Firestore + Storage)
   against the emulator. `npm run check:figures` holds this number and the
   one in the repo map above equal to the suites, because both said 40 for
   long enough to be quoted twice.
@@ -210,7 +212,7 @@ Local:
   exported function appearing in the deploy list.
 - `npm run check:appcheck` — every callable either demands App Check
   attestation or is named with the reason it cannot (decision D36). The
-  five that cannot are the operator and moderator instruments, gated on
+  seven that cannot are the operator and moderator instruments, gated on
   uid allowlists instead; the gate fails in both directions, so an
   exemption cannot outlive its reason or spread by copy-paste.
 - `npm run check:monitoring` — the alert chain, from the log line a

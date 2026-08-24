@@ -25707,10 +25707,795 @@ inclusive, the 50 fallback, a skewed baseline moving its bands);
 e2e §7g holds the all-untested shape; the roll CSV is unchanged — the
 axes are the page's reading, and the roll already lets a buyer
 recompute any of it.
+## D255 · Both doors at once: accepting an invitation clears the ask
+
+**2026-08-23.** **Status:** binding. A gap in D240, found by reading the
+three writers of `memberUids` against each other rather than by a report.
+
+### The state
+
+D240 named one of the two orders and handled it. `requestJoinImpl`'s
+`admit()` clears the queue — *"whichever way they arrived, they are not
+waiting any more"* — so **invited by handle, then taps the link** ends
+with one membership and no queue row.
+
+The other order had nothing. `inviteToGroupV2` skips a target who is
+already a **member** and says nothing about one who is already **waiting**
+— correctly, and D240's own reasoning is why: inviting somebody who asked
+is exactly how a member says yes from the picker instead of from the
+queue. So the ask outlives the invitation, and `acceptGroupInviteV2` wrote
+`memberUids` without touching `pending`.
+
+The circle then draws *"Wants to join — Bob"* about somebody sitting in
+its own member list, forever, and consumes one of the twenty
+`PENDING_CAP` slots doing it.
+
+### Why it could not be cleared
+
+The row is drawn under a **Let in** button, and that button is the one
+action that cannot fix it. `approveJoinV2` returned early on an existing
+member — before any write — while the push after the transaction fired
+anyway and carries no rate budget of its own. So the only visible remedy
+was **No**, on a member, which is the wrong sentence for the wrong person.
+
+### The fix, in both places, and why both
+
+- **`acceptGroupInviteV2` clears the queue on both branches** — the admit
+  path and the already-a-member early return. This is the source: no new
+  stale row can be created.
+- **`approveJoinV2`'s already-a-member return clears it too.** Not
+  redundant. It is the ONLY path a row that already exists can be cleared
+  from, and it is where the accept/approve race lands: whichever
+  transaction is second sees a member and arrives exactly there. A button
+  that does nothing to the row it is drawn on is a worse failure than the
+  duplicate write it avoids.
+
+### What made it findable
+
+Three callables write `memberUids` and only one of them was audited
+against the other two. The queue is a second piece of state that every
+one of them has to leave consistent, and D240's record reasoned about the
+queue's *cost* (on the group document, not a subcollection) and its
+*authorisation* (`duoMode`'s `hasOnly`) without enumerating its writers.
+The enumeration is the check: `pending` is written by
+`requestJoinImpl`, `approveJoinV2`, `declineJoinV2`, `deleteAccount`
+phase 3c-bis and — now — `acceptGroupInviteV2`. Any sixth writer of
+`memberUids` has to appear on that list or explain why not.
+
+### Measured rather than assumed
+
+`e2e-v2-loop.mjs` runs the crossing in the order that broke: ask by link,
+then get invited by handle, then accept. It asserts the membership lands
+**and** that neither `pending` nor `pendingNames` still names the joiner.
+A second case writes a stale row by hand — no callable can produce one
+any more — and asserts that **Let in** clears it rather than sitting
+there being re-notified. Both fail against the previous implementation;
+the first was written before the fix and watched to fail.
+
+## D256 · The surface claim is an equality, and was the same test twice
+
+**2026-08-23.** **Status:** binding. A rules defect, found by reading
+`isWorldAnswer()` against the five sibling shapes that were written from
+it.
+
+### What the clause said and what it did
+
+`isWorldAnswer()`'s last clause carried this comment:
+
+> …and the claimed surface must match the question's own, so a duel-bank
+> question can't be answered as a world question and land in the public
+> aggregate.
+
+and this code:
+
+```
+&& get(…/v2_questions/$(aid)).data.get("surface", "daily")
+     in ["daily", "feed", "test", "learn"]
+```
+
+The answer's own surface is checked against that same list eleven lines
+above. So both sides were tested for membership of one list and neither
+was ever compared to the other: **the same test twice, and no comparison
+at all.**
+
+### The stated case held; the one underneath it did not
+
+A duel-bank question carries `surface` `"group"` or `"duo"`, which is in
+neither list, so the sentence the comment actually wrote down was true
+either way. That is why it read as correct for as long as it did.
+
+What it did not cover is the four world surfaces **against each other**,
+and one of those pairs is load-bearing. The D86 edit arm forty lines
+below keys on the ANSWER's self-declared surface:
+
+```
+allow update: … && resource.data.surface in ["daily", "feed", "test"]
+```
+
+`learn` is excluded there deliberately — *"first-attempt-only is D32's
+whole measurement… 'not knowledge, obviously' — the owner's own words."*
+But `learn` was not excluded from what a learn question could be
+*labelled* on the way in. Answer a learn-bank question with
+`surface: "feed"` and the create passes; the answer is then a feed answer
+as far as every later check can tell, and the edit arm moves it. D32's
+measurement was one field away from optional.
+
+### The client already assumed the equality
+
+`src/v2/data/live.ts:4027` explains why a call question has to be
+findable in the local banks before voting: *"the write would claim
+`surface: "daily"` and rules would refuse it."* That refusal is exactly
+the equality this clause was supposed to be. The client was written
+against the comment; the rule implemented something weaker.
+
+### And so did the two shapes copied from it
+
+`isRankAnswer()` and `isCatalogAnswer()` both carry the comment *"same
+kill switch and surface agreement as isWorldAnswer"* — and both wrote
+`== "feed"`. `isPulseAnswer()` writes `== "pulse"`, `isCallAnswer()`
+writes `== "call"`. Every branch that names ONE surface got the
+comparison right. The only branch that names four is the only one that
+got it wrong, which is the shape to expect: a list makes `in` read like
+the natural operator even where the question is equality.
+
+### The fix, and what the default still buys
+
+```
+&& get(…/v2_questions/$(aid)).data.get("surface", "daily")
+     == request.resource.data.surface
+```
+
+The default keeps a field-less bank doc answerable rather than
+permanently bricked — that half predates this and survives it — and under
+equality it means answerable **as `"daily"` specifically**. The
+membership check on the answer's own surface still bounds the agreed pair
+to the four world names, so nothing widens.
+
+### Measured rather than assumed
+
+Two rules cases, both written before the fix and watched to fail: a
+learn-bank question refuses the label `"feed"` and still accepts
+`"learn"`, and a question with no `surface` field refuses `"test"` and
+accepts `"daily"`. The rules suite is 130 with them. `test:e2e` runs the
+whole loop unchanged, which is the check that mattered here — an
+equality is exactly the kind of tightening that breaks a legitimate
+write, and every legitimate write in `live.ts` passes the question's own
+`surface` through.
+
+## D257 · The inventory's reader column, held to the two rules a script may read literally
+
+**2026-08-23.** **Status:** binding. Extends D130's gate, because D130's
+stated limit turned out to describe two live errors rather than an
+acceptable gap.
+
+### The two errors
+
+`docs/data-inventory.md` is what `design/store/app-privacy.json` derives
+from, and that file is the App Store privacy label. Two of its rows
+disagreed with `firestore.rules`, in opposite directions:
+
+- **Reveals** said `members`. The rule has been
+  `allow read: if request.auth != null` since D98, which retired the
+  member gate on the reasoning that *"withholding the materialized copy
+  while publishing the source would be a lock on a door with no wall."*
+  The row was three months stale, and so was the comment at the write
+  site (`v2social.ts`) and the schema line in `SCHEMA-V2.md`, both of
+  which still said the read rule gates on the `members` array.
+- **Sealed duel answers** said `any signed-in user`. The cross-user arm
+  admits `surface in ["daily","feed","test","learn","pulse","call"]`, and
+  a duel answer's surface is `group`/`duo` — so the document itself is
+  read by nobody but its author, and the public copy is the reveal.
+
+Each is the other's mirror, which is worth noting: this is not a bias
+toward over- or under-claiming. It is a column nothing was reading.
+
+There was also a **duplicate Pulse answers row** — D203's update wrote a
+new row instead of editing D166's, and the two disagreed about the
+cadence key (`insight.pulseCadence.v1` is the one in `pulse.ts`).
+
+### Why D130 declined this, and what changed
+
+D130's header is explicit: *"It does NOT read the row, verify who the row
+says may read it, or notice a row that has gone stale in place — a name is
+cheap to check and a claim is not."* That reasoning is correct. "Who may
+read this" is a general question about a rules expression, and D106 made
+the same call for prose about privacy and was right to.
+
+The answer is to check **less**, not to check loosely. Rule 2 interprets
+nothing: it classifies a read condition only when the WHOLE condition is
+one of two literal strings —
+
+```
+request.auth != null   → PUBLIC   (the row must say "any signed-in user")
+false                  → NOBODY   (the row must say "nobody" / "no one")
+```
+
+— and skips every collection whose read rules are anything else, or whose
+read rules do not all classify the same way. `answers`, `v2_groups`,
+`v2_takes`, `invites` and `v2_suggestions` are all skipped, deliberately:
+they are conditional per document, so no single sentence in a table is
+their answer anyway. That is a smaller claim than "the inventory is
+correct", and it is the whole claim.
+
+**27 rows are covered** on the tree this landed against, and `reveals` is
+one of them.
+
+### The attribution rule, which is the part that could go wrong
+
+A row is attributed to a collection by the **last known collection name in
+its first backticked path**, so `v2_users/{uid}/push/tokens` attributes to
+`push` rather than to the document id at the end of it, and
+`v2_users/{uid}/answers` attributes to `answers` rather than `v2_users`. A
+row beginning "same subcollection…" inherits from the row above, which is
+how the document is actually written. A row naming no known collection is
+skipped rather than guessed at — the device-local, auth and Sentry rows
+are not Firestore and have no rule to be held to.
+
+The collection-group form (`match /{path=**}/answers/{aid}`) is matched
+explicitly. Without it that block's read lands on whatever encloses it,
+and the enclosing collection inherits a classification it never wrote —
+which in this file would have mis-classified `foresight` as `answers`'
+conditional arm.
+
+### Measured rather than assumed
+
+Mutation-tested both ways: with the `Reveals` row restored to `members`
+the gate fails naming the row and the rule; with it corrected the gate
+passes and reports the covered count. The count is in the success line on
+purpose — a coverage number that silently falls to zero is the failure
+mode every gate in this repo that globs files has to answer for.
+
+## D258 · Two shipped surfaces the bank never fetched
+
+**2026-08-23.** **Status:** binding. Two defects in `live.ts`'s account
+state, found by reading the boot fetch against `splitBanks` and
+`resetForNewUid` against its own list.
+
+### 1 · `pulse` and `call` were absent from `BANK_SURFACES`
+
+`hydrate()` decides what the bank IS in one constant, spelled twice — as
+the `in` constraint on the full paged fetch, and as the client-side filter
+the delta path shares (the delta queries on `updatedAt` with no surface
+clause, so it *would* have brought them in, and the filter dropped them
+again). It listed six names. `splitBanks` returns six **lanes**, and two
+of them — `pulse` and `call` — were not among the six.
+
+So on every live device:
+
+- `state.pulseBank` and `state.callBank` were `[]`, always;
+- `LIVE.pulseQs()` returned `[]`, so `pulse.ts`'s `roster()` returned `[]`
+  whenever `LIVE.enabled`, and **the entire D203 pulse roster never drew**;
+- `LIVE.callQs()` returned `[]`, so **no Foresight CALL ever drew** (D194).
+
+Five pulse documents and three call documents were seeded, active, and
+admitted by their own rules arms (`isPulseAnswer`, `isCallAnswer`), and
+none of them existed as far as the app was concerned.
+
+**Why nothing looked wrong.** The demo build draws both from its own
+fixtures, so every place a human would look — the demo, the mount tests,
+the screenshots — showed a working pulse card and working calls. And
+`docs/COSTS.md` §"One pulse open" states the intended arrangement as
+fact: *"`splitBanks` now keeps a pulse lane, so the roster's prompts come
+from the bank `hydrate()` already cached."* Half of that shipped. The
+lane was added; the fetch that fills it was not.
+
+**The invariant, now written where the constant is:** every surface
+`splitBanks` can return must appear here. Not "add the new one when you
+add a lane" — that is the discipline that failed. Pinned in
+`bank-cache.test.ts` on the QUERY as well as on the output, because a
+surface dropped by the server-side `in` and one dropped by the
+client-side filter look identical from the bank and only one of them
+costs a read. Firestore's `in` takes 30 values; eight is not near it.
+
+### 2 · `resetForNewUid` left `state.follows` standing
+
+The function is a careful list — votes, aggs, groups, reveals, takes,
+flags, voters, names, scores, faces, learn state, profile-seen ages,
+circle, foresight, invites, push and device-bind flags — each with the
+reason it belongs to the outgoing account. `follows` was missed.
+
+It is the same graph as `circle`, one view over, and `setFollowing`
+already drops it before a refetch for exactly this reason ("leaving the
+old list standing in between is how a just-followed friend fails to
+appear"). Left across a uid change it does worse than go stale, because
+**`loadFollows()` early-returns on a non-null cache** — `if
+(state.follows) return` — so unlike almost everything else in that list it
+is not corrected by the next load. It stands for the session, putting the
+previous account's friends on the Friends cut of every who-voted sheet.
+
+Reachable without a sign-out: `linkGoogle()` falls back to
+`googleSignIn()` when there is no `currentUser`, which produces a
+different uid in the same process.
+
+The null/`[]` distinction is what the test asserts, not the contents:
+`null` is "not asked or failed", `[]` is "you follow nobody", and only the
+reset can put it back to the first.
+
+### What both have in common
+
+Neither is visible to any gate here, and both are one line. The bank one
+is a list that had to be kept in step with a function in another file; the
+follows one is a list that had to be kept in step with the state
+declaration above it. Both failed the same way a `spec-index.js` reorder
+would — quietly, with the app still rendering something.
+
+## D259 · Two numbers that contradicted the picture beside them
+
+**2026-08-23.** **Status:** binding. Both are the same shape: a count
+computed one way while the thing directly above it was drawn another way.
+
+### 1 · `standingIn` divided locally
+
+`pct.ts` exists because *"two surfaces rounding differently on the same
+numbers is how a 51/49 becomes a 51/48 one screen over"*, and
+`headlineFor`'s scale branch already carries the correction in as many
+words: it *"used to do `Math.round((agree / n) * 100)`, which is the exact
+mistake the categorical branch's 62-not-63 case below exists to
+prevent — and it is worse here, because the number sits directly above the
+two bars it claims to summarize."*
+
+`standingIn` still did it, one function over, and its sentence sits
+directly **under** the same row's bar. `LiveAnswerRows` draws `ArStack`
+from `pctFor(row.counts)` and prints `standText` beneath it, so on
+`[1,7]` the bar reads **87%** and the sentence reads *"88% of Oslo are
+with you."* Two numbers for one claim, two lines apart.
+
+Now read off `pctFor`, whose shares sum to exactly 100 — so a share, a
+prefix or a suffix of them is right by construction, largest-remainder
+rounding included. **Which side** is still decided on the raw counts:
+shares can tie where counts do not, and "the bigger of the two" is a claim
+about the room rather than about the bar. All four pinned cases hold
+unchanged; the new ones are `[1,7]` (87, not 88) and `[1,1,4]` at index 2
+(34 below, not 33).
+
+### 2 · `PlacesField` counted the cap's overflow as missing axes
+
+`thin` was `profiles.length - positioned.length`, and `positioned` is
+`profiles.filter(p => p.score).slice(0, PLACE_FIELD_CAP)` — so it folded
+two different groups into one number and printed the sentence for one of
+them: *"N more countries answered, too few shared axes to place."*
+
+A place reaches `score` only by clearing `MIN_PLACE_AXES`, so every place
+the 24-cap dropped shares **enough** axes. With 30 scoreable countries the
+field said six were too thin when none of them was.
+
+Three groups now, not two: `thin` counts the places with no score, and
+`capped` counts the placeable ones past the cap — **said, not dropped**,
+because a cap that silently eats rows reads as "that is all of them", and
+`profiles` sorts scored-first by descending match, so the overflow is
+specifically the least alike rather than an arbitrary 24.
+
+### Neither is visible to any gate here
+
+`check:figures` holds figures quoted in *prose* to the tree; these are
+figures computed at render time. The nearest thing to a guard is
+`pct.ts`'s own existence — one implementation instead of two — and the
+lesson is that consolidating the implementation did not consolidate the
+**callers**: `standingIn` was left dividing beside it for as long as
+`pctFor` has existed.
+
+## D260 · The volume ceiling was budgeting a window the scan does not read
+
+**2026-08-23.** **Status:** binding for the two fixes; §3 is a finding
+recorded, deliberately not acted on.
+
+### 1 · The ceiling described the ledger, the count describes the window
+
+`VOLUME_CEILING` is compared against `fold.perUid.get(uid).length` — a
+uid's ledger entries **inside the scan's window**, which `WINDOW_CAP_MS`
+caps at 72 hours. The pulse allowance was derived from the ledger's
+90-day `expireAt` TTL instead, two hundred lines away from the constant it
+had to agree with:
+
+```
+was:  AGG_BANK_SIZE + PULSE_BANK_SIZE × 90   =  576 + 450  = 1026
+now:  AGG_BANK_SIZE + PULSE_BANK_SIZE ×  4   =  579 +  20  =  599
+```
+
+The stated target is *"dedup failure or forged writes"*, which shows as
+roughly **2×** a uid's real entry count. At 1026 a user who answered 300
+questions in the window and had every entry duplicated reports 600 and is
+never flagged; the check only fired for somebody who answered essentially
+the whole bank inside three days **and** was doubled. The signal was not
+wrong — it was asleep.
+
+`WINDOW_CAP_MS` moves up beside the ceiling for that reason: the ceiling
+has to describe the window it is compared against, and the two could not
+disagree if they were adjacent. +1 day because a 72-hour window can touch
+four calendar days.
+
+### 2 · `isAggregateSurface` did not name `call`
+
+Its criterion is "reaches the ledger". `onV2AnswerCreated` diverts
+`group`/`duo` and folds everything else, so a call answer writes a
+`v2_agg_events` row like any other — *"an ordinary world answer in every
+respect"*, in `isCallAnswer`'s own words. The ceiling was three short.
+
+The test that should have caught it listed `["daily","feed","test",
+"learn"]` by hand, so it stayed green through `pulse` **and** `call`. It
+now derives the expectation from the trigger's rule: for every surface in
+the committed bank, `isAggregateSurface(s)` must be true iff `s` is
+neither `group` nor `duo`. Both fixes are mutation-tested — reverting
+either fails the new cases.
+
+### 3 · `burstSignal`'s baseline counts scan days, not days the qid was seen — RECORDED, NOT CHANGED
+
+`BASELINE_MIN_DAYS`'s own comment states the intent plainly:
+
+> The deck makes naive burst detection lie: the daily question is answered
+> by everyone on its day, and a freshly promoted question debuts from
+> zero — **both are bursts by design.** BASELINE_MIN_DAYS is the guard: a
+> question must have an ESTABLISHED quiet history before a jump flags.
+
+`baselineDays` is `Object.keys(days).filter(d => d < day).length` — prior
+days **the scan recorded**, not prior days **the qid appeared on**. So a
+qid with no history at all gets `baselineDays = 3+` and
+`baselineMean = 0`, clears the guard, and flags at `BURST_MIN`. Two feeds
+produce such a qid every single day:
+
+- **The deck.** `deck.ts` indexes by `(today - DECK_EPOCH - back) % n`, so
+  a daily question reappears every *n* days — 128 today, far outside the
+  seven-day baseline window and the 72-hour scan window alike.
+- **The pulse.** The ledger row carries `event.params.qid`, which for a
+  pulse is the composite `{baseQid}_{day}`. A pulse qid is **structurally
+  incapable** of having a prior day.
+
+So at ten answers a day the scan would log the daily question and all five
+pulses as bursts, every day, forever — exactly the two cases the guard is
+described as excluding.
+
+**Not changed here, because the opposite reading is pinned** — the test
+`"reads a recorded day with no entries for the qid as zero, and skips
+unrecorded days"` asserts `flagged === true` for precisely this shape,
+with the reasoning that *"three days of genuine silence followed by 12
+votes is the stuffed-question shape."* Both readings are defensible and
+they are the same code path, because `days` cannot distinguish "not yet
+born" from "dormant all window". Choosing between them is a product call
+about an alerting channel, not a defect to quietly flip under a pinned
+test.
+
+**What the answer probably is,** for whoever takes it: split the two.
+A composite `{qid}_{YYYY-MM-DD}` id can never establish a baseline and
+should be excluded outright — no reading of the signal has anything to
+say about it. The daily question is the real judgement: it persists
+across days, so "dormant then busy" is literally its shape on its own
+day, and excluding it needs the deck rather than the ledger. The dormant
+old feed question the test defends is the remainder, and it is the case
+worth keeping.
+
+## D261 · Three gates that did not hold, and the queue sweep that took someone else's evidence
+
+**2026-08-23.** **Status:** binding. This repo's safety model is that a
+gate exists for each class of silent failure. Three of them were the class
+they were written to catch.
+
+### 1 · `check:tap-targets` stopped reading at the first `>` — and that is almost never the tag's
+
+`const head = chunk.split(/>|\n\s*h\(/)[0]`. The `>` that ends a control's
+attributes is hardly ever the first one after `<button`: `onClick={() =>
+…}` puts one there, three attributes earlier. So every head was truncated
+at the arrow and a `width: 26` after it was invisible.
+
+Measured against a quote- and depth-aware scan on the same tree: the split
+found **0** undersized controls; the scan finds **17**.
+
+```
+compare-breakdown  7px page dots      relmap            34px close, 38px search,
+daily-split       22px day dots                          34px zoom pair, 18px remove
+group-daily       24px remove, 22px   search-overlay    26px "Close question", 18px clear
+profile-general   17px unfollow       world-feed        30px add-a-topic
+relmap-panels     30px close ×2       LiveDuelPanel     22px day dots ×2
+                                      PulseTrends       34px scope row
+```
+
+A gate written because *"check:a11y reported 8 findings and green while
+fourteen controls sat at 7-26px of real hit area — including the Close
+button on every bottom sheet in the app"* had the identical hole one layer
+down, and its EXEMPT map said *"none today — every small control in the
+tree carries .tap44"* while seventeen did not.
+
+**`check-touch-zoom.mjs` already carried the answer**, for the same
+problem, with the reason written out: *"a naive `/<input[^>]*>/` stops
+inside the first onChange."* The scan is now that one, generalised to
+hyperscript's balanced props object.
+
+All seventeen fixed rather than exempted. Five are dot rows and take
+`tap44 is-tight`, because the wide box would cover a neighbour and a
+near-miss would land on the wrong day — the case that variant exists for.
+The relmap zoom pair is the one that needed more than a class: `is-tight`
+narrows width and never height, so two 34px controls 6px apart still
+overlapped by 4px vertically. Their gap goes to 10 and the boxes meet
+instead.
+
+### 2 · `check:appcheck` accepted a commented-out gate
+
+Its exemption arm tests `\bassertOperator\s*\(` against the callable's raw
+source, so `// assertOperator(request);` answers yes. Probed on this tree:
+commenting out that one line in `seedContentV2` — the callable that
+rewrites the entire question bank — left the gate green, on
+`backend-checks.yml`, which `firebase-deploy.yml` calls.
+
+That is verbatim the failure the arm's own header describes: *"Removing
+assertOperator from seedContentV2 left every gate in the repo green."* It
+closed the hole for a **deleted** line and not for a **commented** one —
+and a comment is how that line actually goes away, when somebody runs the
+seed against a local emulator without an allowlisted uid and the comment
+survives the PR.
+
+Comments are blanked before the scan now, preserving every index and line
+number. A local copy of `spec-globals.mjs`'s `stripComments` rather than an
+import, deliberately: that module scans the whole client spec layer at
+import time, and a deploy gate must not be able to fail because
+`src/v2/spec` moved.
+
+### 3 · D257's own parser mis-attributed a nested match
+
+Two hours old and the same class. `match /v2_users/{` ends on the
+**wildcard segment's** `{`, not the block's, and the first version
+compensated with a manual `depth++` that balanced only while no match was
+nested inside another. With one nested, the parent's `allow read` was
+attributed to the CHILD — and since a name with two classifications is
+skipped, both dropped out of rule 2 silently.
+
+`firestore.rules` happens to write every parent's own read above its
+subcollections, so the tree was correct and the parser was not. Moving one
+read below one nested block would have cost `v2_users` and its last
+subcollection their coverage with nothing failing.
+
+Two answers, because the parser is not the only way rule 2 can go quiet:
+the whole match header is consumed now and the depth arithmetic left to
+the brace branches; and `READER_FLOOR` pins the covered count at 27, so a
+row leaving the checked set has to say so. `scripts/check-data-inventory.test.mjs`
+pins the parsers against nesting, the collection-group form, comments and
+the row-attribution rule — mutation-tested, like the other two.
+
+### 4 · `deleteOrphanedModQueue` deleted every queued avatar report
+
+Not a gate — the thing the gates are for. The sweep keys on the moderation
+target being **absent**, which is what lets it run without an author on the
+queue entry, and it asked `v2_takes/{takeId}` about every entry. Avatars
+share that queue (D178) under an `av_<uid>` id, and `v2_takes/av_<uid>` can
+never exist. So every queued face read as an orphan, and **any** account
+deleting itself swept them all.
+
+Accounts are free (D3) and the queue is rebuilt daily, so a flagged photo
+could be kept out of moderation indefinitely, once a day, by a throwaway.
+`moderation.ts`'s `avatarTarget` — whose docstring says it exists so *"the
+queue build, the verdict and any future consumer cannot disagree about what
+an avatar target looks like"* — is exported and used here. This was that
+future consumer, and it disagreed.
+
+`e2e-delete-account.mjs` gains the control the take case already had: a
+third party's queued face, which must survive an unrelated erasure with its
+flag count intact. It fails against the previous implementation.
+
+## D262 · Four sentences that stopped being true, and two of them are now counted
+
+**2026-08-23.** **Status:** binding. Documentation drift, found by reading
+the prose against the tree rather than against itself.
+
+### The four
+
+- **`README.md`'s opening paragraph still described a three-tab app.**
+  *"InSight is a three-tab app — patterns · daily · mirror, the first on
+  trial (D166 §1). The middle tab is where you answer."* D217 unmounted
+  patterns for the release two days earlier. Every clause was wrong: daily
+  is the first of two, not the middle of three, and the tab a reader is
+  told to expect is not in the built app. The first paragraph of the
+  repo's front page, and D217's own record is about exactly this — that
+  advertising a tab v1 does not ship is the failure it was written to
+  prevent.
+
+- **The Mirror's lens row was quoted in an order no stop draws.** README
+  and `CLAUDE.md` both printed `Answers · People · Compare · Explore ·
+  Scores`. `lensTabs.ts` returns `["people", "scores", "explore",
+  "compare"]` at World and `["people", "scores", "compare"]` everywhere
+  else — so Explore is the globe's alone (D152) and Compare is last
+  (D184). `docs/MIRROR.md` had D152 right and D184 wrong, in the document
+  whose stated job is to be the read path's source of truth. The failure
+  is not cosmetic: somebody reading README to learn what a City stop shows
+  looks for the missing Explore tab, and the plausible repair is to put
+  back the reading D152 removed for being a cut of a cut.
+
+- **README said five callables are App Check exempt; the gate reports
+  seven.** This is the security-relevant version of the whole problem — a
+  reviewer auditing the exempt surface against the README counts five,
+  finds seven, and cannot tell whether two exemptions were added without a
+  record or the sentence simply rotted. The question the number exists to
+  answer is "did an exemption spread by copy-paste", and a stale count
+  makes it unanswerable.
+
+- **`MIRROR.md` quoted a 114-question daily bank against a tree of 128.**
+  Its next clause reasons from the ratio — *"twenty-four in a hundred and
+  fourteen … so a given week's deck serves at most one"* — so anyone
+  re-deriving how often a City stop gets a fresh place question was about
+  12% optimistic.
+
+### Two of them are countable, so they are counted now
+
+D39's finding was that *"a hand-maintained figure is the one documentation
+error this repo keeps re-committing"*, and `check:figures` is the answer
+wherever the figure can be read off the tree. Both numbers above can:
+
+- The exemption count comes out of `check-appcheck.mjs`'s own `EXEMPT`
+  keys — read from that file rather than re-derived, so the two cannot
+  disagree about what "exempt" means.
+- The ratio's denominator is the daily bank, which `check:figures` already
+  computes for three other rules.
+
+Both are spelled out as words, which the file now has a small table for.
+Mutation-tested: restoring either old number fails the gate with the
+correct sentence quoted back. 36 → 38 figures across 34 files.
+
+**The other two are not counted, and that is the honest line.** "How many
+tabs does the app have" and "what order is the lens row in" are not
+figures; they are claims about shape, and `check:docs`'s own header says
+it holds the maps rather than the prose. D106 declined to gate "the prose
+agrees with the rules" on the same ground and was right. What would have
+caught the tab sentence is the thing D217 asked for and this record
+repeats: when a tab is mounted or unmounted, the front page's first
+paragraph is one of the joints.
+
+## D263 · The room cache is keyed by one cell and folded over nine
+
+**2026-08-23.** **Status:** binding. An erasure gap, in the sweep whose
+own comment said the gap was closed.
+
+### The asymmetry
+
+`nearbyRoomV2` caches at `v2_presence_room/{own}` — the CALLER's cell —
+while the roster inside it is folded over `presenceNeighbors(cell)`, that
+cell's whole 3×3 block. `presenceNeighbors` is symmetric, so a phone
+standing in cell **X** appears in the cached roster of every cell **C**
+with X ∈ neighbors(C) — up to **nine** documents, one of which is X's own.
+
+`deleteAccount` deleted that one:
+
+```ts
+const presCell = pres.get("cell");
+await db.collection("v2_presence").doc(uid).delete();
+if (typeof presCell === "string" && presCell) {
+  await db.collection("v2_presence_room").doc(presCell).delete();
+}
+```
+
+with the comment above it stating the opposite in as many words:
+*"deleting the presence doc alone would leave this account listed in a
+room for up to one beat window after it asked to be erased. Read the cell
+first, then drop the cached fold for it."* Right about the mechanism,
+wrong about the count — so the window it describes stayed open for eight
+cells out of nine, and `docs/data-inventory.md` repeated the claim in the
+row for the collection it calls *"the one derived document that holds
+uids."*
+
+### What it actually leaks, stated exactly
+
+A uid and the archetype string the phone wrote, inside a roster a viewer
+standing in an adjacent cell reads through `nearbyRoomV2`, until the next
+beat window re-folds that cell from `v2_presence` — which no longer holds
+the account. Bounded and short-lived. It is not the presence CELL itself,
+which is one of D98's three denies and was deleted correctly.
+
+Small, and it is the kind of small this repo does not get to have: an
+erasure claim is held to the letter here, `check:policy-claims` exists
+because a promise deleted from the page is a promise deleted from the
+product, and this one was written down twice.
+
+### The fix, and its own edge
+
+`presenceNeighbors(presCell)` rather than the block derived again — which
+is also what handles the pole, where it returns fewer than nine rather
+than wrapping past the top of the world. Nine deletes on a path that
+already does far more.
+
+`e2e-delete-account.mjs` gains a NEIGHBOUR cell's cached roster naming the
+account, which must go, **and a cell two away, which must not** — outside
+the block, so its roster cannot name this account and reaching it would be
+the sweep taking a roster it has no claim on. The first fails against the
+previous implementation.
+
+## D264 · Five the skeptics found, and one of them was two hours old
+
+**2026-08-23.** **Status:** binding. The adversarial pass over D255–D263
+refuted almost every finding as "already fixed at HEAD" and turned up five
+that were not.
+
+### 1 · `READER_FLOOR` was unreachable — a gate against silent loss, failing silently
+
+D261 §3 added a floor so rule 2's coverage could not fall without saying
+so. It pushed onto `problems` **after** the block that reads `problems`
+and exits, so the finding was never printed and the exit code stayed 0.
+
+Not a typo — a sequencing mistake with a cause worth naming: the CLI guard
+was inserted by putting a `// ── CLI ──` marker above an existing block,
+rather than by moving that block below everything that contributes to
+`problems`. Anything added between the two ends up dead. The floor moved
+above the report, and mutation-testing it (`READER_FLOOR = 28`) now fails
+as it should.
+
+### 2 · The daily ruler wore the demo's queue on every live install
+
+`daily-split.jsx` computed the "something waiting" dot from `DUELS` — the
+prototype store — three lines after it had already branched the duel
+bodies on `window.LIVE && window.LIVE.enabled`:
+
+```js
+const liveDuels = window.LIVE && window.LIVE.enabled;   // :993
+…
+const pendG = DUELS.groupsPending();                    // :999
+const pendD = DUELS.pendingDuos();
+```
+
+`groupsPending()` counts four hardcoded groups and `pendingDuos()` eight
+seeded partners. The only writers that can lower either —
+`answerGroup`/`answerDuo` — are called from `group-daily.jsx` and
+`duo-daily.jsx`, the demo bodies live mode never mounts, and the D51 purge
+resets to `normalize({})`, which **is** the 4/8 state. So every live
+install wore a permanent dot on Circle and 1v1, on day one, for a queue
+that does not exist and cannot empty.
+
+Live mode draws nothing there now. A live count would be a feature —
+nothing on `LIVE.social` computes "duels you have not answered today" — and
+D1 is the rule: where a live surface shows nothing, the data is absent.
+
+### 3 · The one control that points at the Map did nothing
+
+`window.goTab('map')`, on the "added to your map →" confirmation.
+`goTab` accepts a `MIRROR_POP_ID` (`you`/`circle`/`groups`/`near`/`world`)
+or a `TABS` id (`track`/`mirror`); `'map'` is neither, so it ran
+`closeAll()` and returned. A dead button rather than an error, on the one
+affordance the vote payoff offers.
+
+The Map **is** the Mirror's You stop — *"fully retracted — you, alone,
+visualized: the Map lives here"* (`mirror-tab.jsx`) — so `'you'` is the
+destination the toast was always naming.
+
+### 4 · A held-open re-pick was closed by the next store notify
+
+D86's re-pick opens by DELETING the local vote (`onReset`), and the live
+reconcile copies `LIVE.myVotes()` back over `state.votes` for every deck
+question with no edit-in-progress guard. The store still holds the old
+option — only `editVote` moves it — so any notify landing before the
+re-pick tap silently restored the vote and closed the affordance: the 60s
+aggregate refresh, the 4-minute presence beat, a take arriving. Held down
+for half a second, and the app took it away again, with nothing on screen
+saying why.
+
+`repick` is now an id, not a boolean — the same shape as `liveTakes` three
+lines below it and for the same reason, so paging to another day closes it
+implicitly. The reconcile skips that one question; a landed vote and
+`jumpTo` both clear it.
+
+### 5 · Two React panels, one frozen and one stuck
+
+- **`LiveRolesPanel`** memoised its room list on `[S]`, where `S` is
+  `LIVE.social` — a plain property on a module-level `const`, so the same
+  reference forever and a memo that runs once per mount. A circle that
+  finished hydrating a moment after the screen opened never appeared. The
+  memo was there for a real reason, which is why the naive fix is wrong:
+  `S.groups()` builds a new array per call, so keying the reveal-history
+  effect on the array re-runs the loader every render. The **ids** are the
+  stable thing to depend on.
+- **`usePeopleFinder`** left `busy` raised when a query was cleared
+  mid-lookup. The flag is raised inside the debounce and lowered in the
+  lookup's `finally` under `if (live)`, and the cleanup sets `live = false`
+  for the superseded run — so the empty-query exit, the one path that
+  starts no replacement lookup, had nothing left to lower it. Lowered
+  there and only there: a supersede by a non-empty query has its own run
+  to do it, and clearing unconditionally would blink the spinner once per
+  keystroke.
+
+  **Pinned at the hook, not through a panel, and that distinction is the
+  finding.** `LivePeopleSearch` hides its whole section on an empty query,
+  so a stuck flag reads there as "the section closed" — a test through it
+  passes either way, which one written first did.
+  `LdAddByHandle` keeps its field mounted and draws `Looking…`
+  unconditionally, which is where it becomes a permanent status message
+  under an empty box.
 
 ---
 
-## D255 · The films catalogue ships; artists is refused on its content, not on the network
+## D265 · The films catalogue ships; artists is refused on its content, not on the network
 
 **2026-08-23.** **Status:** binding, built. The D15 operator step ran.
 Films is committed; artists was generated, measured and thrown away,
@@ -25805,9 +26590,9 @@ gate intact (D232), and the archive has no film cards to promote yet.
 
 ---
 
-## D256 · The artists catalogue gets a rule and a reviewer, because no rule alone finishes
+## D266 · The artists catalogue gets a rule and a reviewer, because no rule alone finishes
 
-**2026-08-23.** **Status:** binding, built. D255 refused the generated
+**2026-08-23.** **Status:** binding, built. D265 refused the generated
 artists catalogue and named three routes out. This is the route taken,
 and the reason it is two stages rather than one is a measurement, not a
 preference: **there is no predicate over Wikidata that separates "famous
@@ -25859,7 +26644,7 @@ the belief that it might close.
   can recover). `--review-list [N]` prints the ranked candidates with the
   fraction that decided each, and writes nothing.
 - `content/artist-review.json` — the reviewed exceptions, shipped
-  **empty**. The ruling is the owner's; D255 recorded it as owed rather
+  **empty**. The ruling is the owner's; D265 recorded it as owed rather
   than guessed, and building the machinery does not change who decides.
 - `check:catalogs` — holds every review entry against the committed
   catalogue in both directions, plus a name check that catches a reviewer

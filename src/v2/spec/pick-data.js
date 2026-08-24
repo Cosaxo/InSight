@@ -905,9 +905,9 @@ export let PICKS;
 
   // the feed questions — one per COMMITTED catalogue. A card whose
   // catalogue is absent would open straight into the picker's error state,
-  // which is worse than no card. films.txt landed at D255 and its cards
+  // which is worse than no card. films.txt landed at D265 and its cards
   // are owed; artists.txt does not exist yet and is not an errand away —
-  // D256 built the curation rule its catalogue waits on.
+  // D266 built the curation rule its catalogue waits on.
   //
   // cat 'fav', all of them: the v15 revision makes catalogue picks a FORMAT
   // with a channel of their own (world-feed-data.js), replacing this repo's

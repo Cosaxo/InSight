@@ -272,9 +272,9 @@ for (const q of entries) {
     // per-domain — so the entry carries NO options and MUST name a domain
     // whose catalogue file is committed under public/ (QUESTION-FARM.md
     // rule 2: a card whose catalogue is absent opens straight into the
-    // picker's error state). Films joined the committed set at D255;
+    // picker's error state). Films joined the committed set at D265;
     // artists is still refused here, because its catalogue waits on a
-    // curation ruling rather than an errand (D256). The rule is
+    // curation ruling rather than an errand (D266). The rule is
     // existsSync, not a name list, so this comment can go stale and the
     // check cannot. CATALOG_FILES is the generator's (one map —
     // promote-questions.mjs imports the same one).
@@ -472,7 +472,7 @@ const NOT_SEEDED = {
     + "an input to the bank",
   "artist-review.json":
     "build input, not content — the hand-reviewed exceptions to the artists "
-    + "catalogue's mechanical rule (D256), read by scripts/build-catalog.mjs "
+    + "catalogue's mechanical rule (D266), read by scripts/build-catalog.mjs "
     + "and gated by check:catalogs against the committed catalogue",
 };
 

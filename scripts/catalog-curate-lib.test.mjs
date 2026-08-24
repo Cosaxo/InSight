@@ -1,7 +1,7 @@
 // catalog-curate-lib.test.mjs — pins the artists domain's curation rule.
 //
 // The cases below are the real ones, with their real occupation counts as
-// measured against Wikidata on 2026-08-23 (D255). They are named after the
+// measured against Wikidata on 2026-08-23 (D265). They are named after the
 // people they are about on purpose: the rule exists because a mechanically
 // valid catalogue put Leonardo da Vinci 2nd in a list of musicians, and a
 // test that says `{ music: 2, total: 30 }` would not have caught the
@@ -39,7 +39,7 @@ describe("musicShare", () => {
 });
 
 describe("keepsAsArtist — the people the rule exists for", () => {
-  // Every count here is D255's measurement, not an invention.
+  // Every count here is D265's measurement, not an invention.
   const KEEP = [
     ["Bob Dylan", 8, 22],
     ["John Lennon", 9, 22],

@@ -1,7 +1,7 @@
 {
   "_README": [
     "Hand-reviewed exceptions to the artists catalogue's mechanical rule",
-    "(D255, scripts/catalog-curate-lib.mjs). NOT seeded to Firestore and",
+    "(D265, scripts/catalog-curate-lib.mjs). NOT seeded to Firestore and",
     "not a question bank — it is build input for `node",
     "scripts/build-catalog.mjs artists`, listed in check-content.mjs's",
     "NOT_SEEDED with that reason.",
@@ -38,7 +38,7 @@
     "both sides against the committed catalogue.",
     "",
     "Keys are Wikidata QID numeric parts: 1511 means Q1511. Ships EMPTY —",
-    "the curation call is the owner's, and D255 recorded it as owed rather",
+    "the curation call is the owner's, and D265 recorded it as owed rather",
     "than guessed."
   ],
   "reject": [],
