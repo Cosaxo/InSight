@@ -1888,14 +1888,14 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
     await seedCircle();
     // Omitted: the read gate is an equality, so a take without the field
     // could never be read back — better refused at the door.
-    await assertFails(setDoc(doc(asUser(OWNER), "v2_takes", "t_nofield"), {
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_takes", "tnofield"), {
       gid: GID, authorUid: OWNER, text: "no flag", createdAt: serverTimestamp(),
     }));
     // Pre-hidden: would hide the author's own words from the circle while
     // leaving them in the moderation queue.
-    await assertFails(setDoc(doc(asUser(OWNER), "v2_takes", "t_prehidden"),
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_takes", "tprehidden"),
       take({ hidden: true })));
-    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_takes", "t_ok"), take()));
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_takes", "tok"), take()));
   });
 
   it("flags: one per (take, user), any signed-in user, write-only, never on hidden takes", async () => {
@@ -2112,6 +2112,34 @@ describe("world takes (D83 — anonymous, one per person per question)", () => {
     // while leaving them in the moderation queue.
     await assertFails(setDoc(
       doc(asUser(OWNER), "v2_takes", wid(OWNER)), wtake(OWNER, { hidden: true })));
+  });
+
+  // Circle takes and world takes share ONE collection, and the id bound
+  // used to live on the world branch alone. So a circle member could post
+  // a circle take AT SOMEBODY ELSE'S world id: update is denied and delete
+  // is author-only, so that person could never post their one world take
+  // on that question — permanently, from one write, with no recovery path
+  // and nothing to rate-limit it (any free account can make a group and be
+  // a member of it).
+  it("a circle take cannot squat the id a world take must occupy", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_groups", "gsquat"), {
+        name: "Squat", mode: "group", memberUids: [OWNER],
+      });
+    });
+    const squat = (over: Record<string, unknown> = {}) => ({
+      gid: "gsquat", authorUid: OWNER, text: "mine now",
+      createdAt: serverTimestamp(), hidden: false, ...over,
+    });
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_takes", wid(STRANGER)), squat({ qid: QID })));
+    // The victim's own world take still lands — the point of refusing it.
+    await assertSucceeds(setDoc(
+      doc(asUser(STRANGER), "v2_takes", wid(STRANGER)), wtake(STRANGER)));
+    // And an ordinary circle take is untouched: what postTake mints is a
+    // Firestore auto-id, which carries no separator to collide on.
+    await assertSucceeds(setDoc(
+      doc(asUser(OWNER), "v2_takes", "AbCd1234EfGh5678IjKl"), squat()));
   });
 
   it("a world list is refused without both equalities, and never returns a hidden take", async () => {
