@@ -524,7 +524,8 @@ floor; re-enabled the same day with the emoji domain (this PR's
 catalogue, the first built under the rules below). Films joined
 2026-08-23 (D255) and is available to the lane; artists does not exist
 and is not pending an errand — D255 refused the generated catalogue on
-content.
+content, and the rule D256 built for it is waiting on a human ruling,
+not on a run.
 
 Rules, each load-bearing:
 
@@ -532,9 +533,9 @@ Rules, each load-bearing:
    the domain slot). Ids continue the `pkNN` sequence.
 2. **Only domains whose catalogue file is committed** under `public/`
    (`films.txt` joined 2026-08-23, D255; `artists.txt` does not exist
-   and is not scheduled — see the status note above). A card whose
-   catalogue is absent opens straight into the picker's error state —
-   never ship one. When no usable domain can
+   and is not scheduled — D256's rule needs a ruling first, see the
+   status note above). A card whose catalogue is absent opens straight
+   into the picker's error state — never ship one. When no usable domain can
    carry an honest new question, the run is a **no-op, logged with the
    reason**; a skipped day is fine, a filler question is not.
 3. **Every card carries a `cat`, always** — an existing `WORLD_TOPICS`
@@ -618,7 +619,9 @@ Two consequences worth stating, because they were the standing blockers:
   `periodic-table` for elements, and Wikidata is now a second one. A
   reachable source is still not a sufficient one: D255 refused the
   artists catalogue it fetched successfully, because the query was
-  honest and its output was not a music catalogue.
+  honest and its output was not a music catalogue. D256 is what that
+  costs when it happens — a rule, a test suite, a reviewed exception
+  file and a gate, none of which a domain day can improvise.
 
 Rules, each load-bearing:
 

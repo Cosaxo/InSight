@@ -118,9 +118,14 @@ the live figures: `node scripts/farm-budget.mjs`,
   2nd, Goethe 3rd, Mother Teresa 20th; 21% of 971 rows carry no
   recording-artist property at all), and the obvious narrowing still
   seats Chaplin 3rd. D255 carries the arithmetic and the three routes
-  out, each a curation decision rather than a script run. Films'
-  archive cards and `npm run promote` are the remaining step for the
-  domain that did land.
+  out; **D256 took one** — a measured mechanical rule plus a reviewed
+  exception file — and shipped it with the exception file empty,
+  because no predicate over Wikidata separates "famous for music" from
+  "famous, and also made music", so the last names are a judgement and
+  the judgement is the owner's. What is owed for artists is now a
+  ruling over `--review-list 300`, then the build. Films' archive cards
+  and `npm run promote` are the remaining step for the domain that did
+  land.
   [`CATALOG-QUESTIONS.md`](CATALOG-QUESTIONS.md).
 - ~~**Pulse templates**~~ — **done 2026-08-19** with the roster commit:
   `content/pulse-questions.json` carries all five (pace, energy, sleep,

@@ -136,8 +136,9 @@ if (ids.every(isPickId)) {
   // live (QUESTION-FARM.md § the daily catalog-question run, rule 2) — a
   // card whose catalogue is absent opens straight into the picker's error
   // state. CATALOG_FILES is the generator's one map (check-content.mjs
-  // reads the same import); both refuse films/artists until the D15
-  // operator step commits their files.
+  // reads the same import); both read the filesystem rather than a name
+  // list, so films became promotable the moment D255 committed its
+  // catalogue and artists stays refused until D256's ruling lands.
   const byPk = new Map(PICK_QS.map((q) => [q.id, q]));
   const seed = JSON.parse(readFileSync(PICK_SEED, "utf8"));
   const have = new Set(seed.questions.map((q) => q.id));

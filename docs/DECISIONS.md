@@ -25802,3 +25802,92 @@ one layer down.
 No pick cards were promoted, for films or anything else. Promotion is
 its own deliberate step through `promote-questions.mjs` with the human
 gate intact (D232), and the archive has no film cards to promote yet.
+
+---
+
+## D256 · The artists catalogue gets a rule and a reviewer, because no rule alone finishes
+
+**2026-08-23.** **Status:** binding, built. D255 refused the generated
+artists catalogue and named three routes out. This is the route taken,
+and the reason it is two stages rather than one is a measurement, not a
+preference: **there is no predicate over Wikidata that separates "famous
+for music" from "famous, and also made music."** Four candidate rules
+were run against the 972 rows D15's query returns.
+
+### What was measured
+
+| Rule | Kept | What it does |
+| --- | --- | --- |
+| D15 as written | 972 | Ten of the top twenty are not musicians |
+| Require a music genre (`P136`) | **93** | **A trap — see below** |
+| A recording-artist property | 766 | Still seats Chaplin 3rd |
+| ≥ ½ of occupations musical | 479 | Drops Wagner, Tchaikovsky, Dylan, Lennon, Sinatra, Whitney Houston |
+| ≥ ⅓ of occupations musical | 1,752 | What ships |
+
+**The genre rule is the one to record loudest, because it looks like the
+answer.** Its top 25 reads as 25 real bands and its output is clean. It
+kept 93 rows; there are exactly 93 musical groups in the set. Wikidata
+puts `P136` on bands and essentially never on people, so the rule
+silently discarded Michael Jackson, Beethoven, Bach, Elvis, Madonna and
+Beyoncé — total recall failure wearing precision's clothes. Anyone
+reaching for a cleaner artists rule will find this one first; it is
+written into `scripts/catalog-curate-lib.mjs` so they find the number
+next to it.
+
+**The root cause decides the shape.** `P106` records what a person DID,
+never what they are KNOWN FOR, and the list grows with fame — Goethe
+carries 40 occupations, Leonardo 30. So every ratio punishes exactly the
+people a popularity-ranked catalogue most wants, and no threshold
+escapes it. A third rather than a majority buys back Tchaikovsky (4/11),
+Dylan (8/22), Lennon (9/22), Whitney Houston (4/9), Berlioz (3/9) and
+Schumann (4/9). It does not buy back Wagner (3/11) or Sinatra (2/10),
+and every threshold low enough to reach them re-admits Chaplin (3/15)
+and Marilyn Monroe (2/8) — who genuinely scored films and cut records.
+That crossing is pinned as a test, so the constant cannot be re-tuned in
+the belief that it might close.
+
+### What ships
+
+- `scripts/catalog-curate-lib.mjs` — the rule as pure functions, with
+  every measurement above in its header and 36 cases in
+  `catalog-curate-lib.test.mjs` named after the people they are about.
+  A test asserting `{ music: 2, total: 30 }` would not have caught the
+  regression that matters, which is Leonardo da Vinci placing 2nd.
+- `scripts/build-catalog.mjs` — the artists query stays the **candidate
+  generator** and is left broad (its floor drops 60 → 40 because the rule
+  removes about half the pool, and recall is the one thing no later stage
+  can recover). `--review-list [N]` prints the ranked candidates with the
+  fraction that decided each, and writes nothing.
+- `content/artist-review.json` — the reviewed exceptions, shipped
+  **empty**. The ruling is the owner's; D255 recorded it as owed rather
+  than guessed, and building the machinery does not change who decides.
+- `check:catalogs` — holds every review entry against the committed
+  catalogue in both directions, plus a name check that catches a reviewer
+  ruling on the wrong person behind a right key. All four refusals were
+  run against a deliberately broken tree rather than assumed.
+
+### Why a hand-edited file does not breach never-from-model-memory
+
+QUESTION-FARM.md's rule exists because a wrong key silently resolves
+someone's stored favourite to the wrong entity, forever. `applyReview`
+can only drop a row or restore one **from the candidate pool the query
+returned** — it cannot mint a key. So a rejection can only omit
+somebody, which the design already permits ("curated, not complete",
+plus the "Not listed" bucket), and an admission can only restore a row
+the generator itself produced. Neither side can mis-resolve, which is
+the property the rule is actually protecting. A rejection carries a
+`why` for the same reason: one nobody can audit is one nobody can
+reverse.
+
+Staleness is fatal in the builder rather than tolerated: an exception
+whose subject has left the candidate pool records a judgement about
+somebody the catalogue no longer contains, and the next reader would
+trust it.
+
+### Still owed, in order
+
+The ruling over the top ~300 candidates, then the operator build, then
+the archive cards and their own promote run. `ARTIST_KEYS` stays the
+empty set until the first of those, so the domain remains fail-safe
+exactly as D15 built it — this change adds the machinery and moves
+nothing into the answer path.

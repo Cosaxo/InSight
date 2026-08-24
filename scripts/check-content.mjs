@@ -272,9 +272,12 @@ for (const q of entries) {
     // per-domain — so the entry carries NO options and MUST name a domain
     // whose catalogue file is committed under public/ (QUESTION-FARM.md
     // rule 2: a card whose catalogue is absent opens straight into the
-    // picker's error state). films/artists stay refused here until the D15
-    // operator step commits their files; CATALOG_FILES is the generator's
-    // (one map — promote-questions.mjs imports the same one).
+    // picker's error state). Films joined the committed set at D255;
+    // artists is still refused here, because its catalogue waits on a
+    // curation ruling rather than an errand (D256). The rule is
+    // existsSync, not a name list, so this comment can go stale and the
+    // check cannot. CATALOG_FILES is the generator's (one map —
+    // promote-questions.mjs imports the same one).
     if (q.surface !== "feed") errors.push(`${q.id}: catalog type outside the feed surface`);
     if (q.options.length !== 0) errors.push(`${q.id}: a catalog question carries no options — the catalogue is its answer space`);
     const file = CATALOG_FILES[q.domain];
@@ -467,6 +470,10 @@ const NOT_SEEDED = {
   "scorecard.json":
     "generated measurement output, read by the scorecard renderer; never "
     + "an input to the bank",
+  "artist-review.json":
+    "build input, not content — the hand-reviewed exceptions to the artists "
+    + "catalogue's mechanical rule (D256), read by scripts/build-catalog.mjs "
+    + "and gated by check:catalogs against the committed catalogue",
 };
 
 const contentFiles = readdirSync(join(root, "content"))

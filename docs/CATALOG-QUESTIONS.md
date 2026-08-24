@@ -19,9 +19,13 @@ decision records now; this document keeps the full arguments. What
 remains open: **artists**. The same run generated it and D255 refused
 it — sitelink fame ranks the person and P106 calls anyone who ever
 played or wrote a musician, so ten of the top twenty were Leonardo da
-Vinci, Goethe, Chaplin and company. Its key set stays empty until a
-curation rule exists that says "famous *for* music", which no Wikidata
-property states.
+Vinci, Goethe, Chaplin and company. **D256 built what it waits on**: a
+mechanical rule (at least a third of an entry's occupations musical,
+groups exempt) plus `content/artist-review.json` for the names no rule
+reaches, because no Wikidata property states "famous *for* music" and
+the measurements say none can be made to. The key set stays empty until
+someone rules on the candidates — `node scripts/build-catalog.mjs
+artists --review-list 300` prints them — and then runs the build.
 
 ## The question class
 

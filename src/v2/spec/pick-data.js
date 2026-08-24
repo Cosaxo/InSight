@@ -903,10 +903,11 @@ export let PICKS;
   window.addEventListener('insight:local-purge', () => { mine = {}; subs.forEach((f) => f()); });
   PICKS = api;
 
-  // the feed questions — one per COMMITTED catalogue. Films/artists cards
-  // land here the day scripts/build-catalog.mjs output is committed (an
-  // operator step, D15) — a card whose catalogue is absent would open
-  // straight into the picker's error state, which is worse than no card.
+  // the feed questions — one per COMMITTED catalogue. A card whose
+  // catalogue is absent would open straight into the picker's error state,
+  // which is worse than no card. films.txt landed at D255 and its cards
+  // are owed; artists.txt does not exist yet and is not an errand away —
+  // D256 built the curation rule its catalogue waits on.
   //
   // cat 'fav', all of them: the v15 revision makes catalogue picks a FORMAT
   // with a channel of their own (world-feed-data.js), replacing this repo's
