@@ -27627,3 +27627,88 @@ is what replay reads.**
 
 Without that written down, a later pass "optimizes" the answer document
 and layers 2 through 5 die silently, with every gate still green.
+
+## D275 amendment (2026-08-24) · The collapse is done for three arms, and refused for the fourth
+
+The ladder in the record above gated the `v2_aggs_private` collapse on
+`agg_contention` firing. **That gate was wrong and is removed**, on the
+test the record itself uses for the Supabase question and then failed to
+apply one row down: *does the cost rise with data?*
+
+For this change it does. The collection holds zero documents and has no
+readers (`allow read, write: if false`), so today it is a deletion; at
+14,400 DAU it is a migration with a backfill. Gating it on contention
+scheduled it for the moment it would be most expensive. It is also not
+really a ceiling change — the ceiling is a side effect. It is **one fewer
+write per answer, permanently, at every size**, on the app's hottest path.
+
+Sharding stays gated, and now for a stated reason rather than by
+association: **its cost does not rise with data.** A hot question can be
+sharded later and the aggregate rebuilt from the answers, so waiting is
+free — and it adds a scheduled function, an operator callable, another
+App Check exemption and a rewrite of every exact-count assertion in the
+e2e. The bucket-cap raise is deferrable for the same reason and only
+since this record: eviction is destructive, so before the replay tool a
+late raise lost the evicted buckets forever. **Step 0 is what made steps
+2 and 3 safely deferrable.**
+
+### What the four arms actually hold, which is not what D98 assumed
+
+D98 said collapsing was "now trivial, because the private doc has no
+readers and no secrets". Right about readers and secrets, and right about
+triviality for three arms out of four:
+
+| arm | private | published | collapsible |
+| --- | --- | --- | --- |
+| vote | `{counts, total, by, edits}` | identical | **yes — done** |
+| rank | `{pos, total}` | identical | **yes — done** |
+| edit | `{counts, total, by, edits}` | identical | **yes — done** |
+| duel | `{plays, total, counts, guess*}` | same, empties omitted | yes, not done |
+| **catalog** | `{ent, entBy, total}` | `{total, top, rest, by}` | **no** |
+
+The catalog arm's private document is an **accumulator, not a mirror**.
+`ent` holds every entity the catalogue admits (~1k); what publishes is
+`canonTopN`'s board — the top N plus a single `rest` scalar, with `by`
+cut to the board's own entities. Fold the next answer from that and every
+entity outside the board is lost. The obstacle is not privacy, which is
+what "no readers and no secrets" was measuring; it is that the published
+document is lossy **by design**, and D17 is the design.
+
+So the sentence to carry forward is narrower than D98's: *the private
+aggregate was a duplicate wherever the published document is whole, and
+an accumulator wherever it is a projection.*
+
+Duel is collapsible too — `publishableDuelAgg` only omits empty maps and
+zero counters, all recoverable as defaults — and was left alone because
+the scope approved was vote and rank. It is a follow-on with no deadline;
+duel folds run once per reveal, not per answer, so there is no write-rate
+argument for it at all.
+
+### What moved
+
+Trigger writes per world answer go **3 → 2** (ledger + aggregate), and
+the client's own answer document makes the billed total **4 → 3**.
+`npm run costs` at 5,000 DAU: writes/day 121,000 → 101,000, Firestore
+$24 → $23. D7's ceiling roughly doubles, to ~28,000 DAU, because the
+transaction now takes one hot lock instead of two.
+
+`scripts/cost-arith.mjs` carries the one soft edge, named rather than
+hidden: catalog answers still write a third document, so the model now
+under-counts them by one write. The error is toward optimism, which is
+the wrong direction, and it is a fraction of one write against a bill
+whose largest term is reads — a per-type split is more machinery than the
+number deserves.
+
+### The assertion that would have passed for the wrong reason
+
+`e2e-delete-account.mjs` checked that `v2_aggs_private/daily-000` still
+existed after an erasure — the standing rule that erasure removes the
+attribution, not the aggregate. For a vote question that path is no
+longer written, so an existence check against it fails loudly here and
+would have been meaningless had it been an absence check. It now asserts
+on `v2_question_aggs/daily-000`, which is the document that actually has
+to survive.
+
+Green across all four runners: 342 functions tests, 1943 client tests,
+347 script tests, the rules suite, 101 e2e checks and the 19-check
+erasure suite.

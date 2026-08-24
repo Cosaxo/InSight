@@ -511,7 +511,8 @@ export function publishableDuelAgg(state: DuelAggState): Record<string, unknown>
 // Two hard constraints shape everything below.
 //
 // 1. DOCUMENT GROWTH. The counts live inside the existing
-//    v2_aggs_private/{qid} document rather than new per-dimension docs, so
+//    v2_question_aggs/{qid} document rather than new per-dimension docs
+//    (it was v2_aggs_private until D275 collapsed the two), so
 //    D7's ~1-write-per-second-per-document ceiling does not move. That only
 //    holds if the document cannot grow without bound — so breakdowns are
 //    restricted to low-cardinality anchors, and each dimension is capped at

@@ -129,7 +129,7 @@ Game timing, not privacy. Cross-user reads go through the collection-group
 grant `match /{path=**}/answers/{aid}` and must carry a matching
 `where("surface","in",[…])` or Firestore refuses the query wholesale (D65)
 
-v2_aggs_private/{qid}              the trigger's working state (no readers)
+v2_aggs_private/{qid}              CATALOG ONLY since D275 (no readers)
   counts, total                    exact — same numbers as the public doc
   ent { entity: n }                catalog questions: per-entity counts
                                    in place of counts — bounded by the
@@ -564,7 +564,8 @@ MOD_UIDS-gated callables (the D22 confinement)
   operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
 - `onV2AnswerCreated` (Firestore trigger, retry on) — transactionally
-  folds each answer into `v2_aggs_private` and mirrors the exact
+  folds each answer into `v2_question_aggs` (one document since D275;
+  catalog answers alone also carry a private accumulator) — the exact
   public doc; idempotent via the `v2_agg_events` ledger (at-least-once
   delivery can't double-count), which also records uid attribution so a
   discovered fake-account ring can be subtracted after the fact (D28).

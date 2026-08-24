@@ -548,7 +548,14 @@ if (!(await exists(`v2_agg_events/evt_theirs`))) fail("someone else's agg-ledger
 // And the tally the answer fed stays, per 1b's standing decision: counts
 // are k-floored and — once the ledger entry is gone — anonymous again.
 // Erasure removes the attribution, not the aggregate.
-if (!(await exists(`v2_aggs_private/daily-000`))) fail("erasure destroyed the aggregate tally itself");
+//
+// This used to assert on `v2_aggs_private/daily-000`. Since D275 the vote
+// arm writes ONE aggregate document, so the private copy this checked no
+// longer exists for a vote question — and an existence check against a
+// path nothing writes any more passes for the wrong reason in one
+// direction and fails loudly in the other. It is the published document
+// that has to survive an erasure, which is what this now says.
+if (!(await exists(`v2_question_aggs/daily-000`))) fail("erasure destroyed the aggregate tally itself");
 ok("someone else's ledger entry and the anonymous tally both survive");
 
 // The follow sweep stopped at the rows that named this uid.

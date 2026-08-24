@@ -533,7 +533,10 @@ Both are refused by name rather than folded into a shape they do not
 have. For those, subtract by hand in a transaction per qid: decrement
 `ent[entity]` and `total` per attributed answer plus the `entBy` cells
 for that answer's anchors, then rewrite `v2_question_aggs/{qid}` from the
-corrected private doc exactly as the trigger would.
+corrected private doc exactly as the trigger would. (Catalog is the one
+arm that still HAS a private document — D275 collapsed the others, and
+kept this one because the published board is a lossy top-N projection
+nothing can re-fold from.)
 
 **`edits` is never rebuilt, on any path** (D226/D275). An edited answer
 records where it landed, never where it came from, so the matrix is not

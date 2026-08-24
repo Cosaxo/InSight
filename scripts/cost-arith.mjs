@@ -714,10 +714,24 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     // returns (as a performance measure — PUBLISH_EVERY's note), it now
     // discounts every phase, which is what a floorless world means.
     const pub = 1 / PUBLISH_EVERY;
+    // Per world answer: the client's own answer document, the idempotency
+    // ledger entry, and the published aggregate. That middle term was 2
+    // until D275, when the vote, rank and edit arms stopped writing a
+    // byte-identical private copy of the aggregate beside the public one.
+    //
+    // Softest edge, named rather than hidden: CATALOG answers still write
+    // a third document (their private doc is an accumulator, not a copy —
+    // functions/src/v2.ts), so this now under-counts them by one write.
+    // Catalog is a small share of the bank and the direction of the error
+    // is toward optimism, which is the wrong direction — but it is a
+    // fraction of one write per answer against a bill whose largest term
+    // is reads, and a per-type split would be more machinery than the
+    // number deserves.
+    //
     // + the Patterns fit's and the engagement digest's one state write
     // each per active user per night, + one attention shard per sampled
     // device per day (its fold-side day-doc merge rides per batch).
-    const writes = dau * (B.worldAnswers * (1 + 2 + pub) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + ATTN_SAMPLE_RATE + ENGAGEMENT_ROLLUP_CLIENT_WRITES + ENGAGEMENT_ROLLUP_FOLD_WRITES + 0.2);
+    const writes = dau * (B.worldAnswers * (1 + 1 + pub) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + ATTN_SAMPLE_RATE + ENGAGEMENT_ROLLUP_CLIENT_WRITES + ENGAGEMENT_ROLLUP_FOLD_WRITES + 0.2);
     // ledger TTL 90 days later, + the shard fold deleting what it folded,
     // + the rollup TTL 90 days later (R3/D272)
     const deletes = dau * (B.worldAnswers + ATTN_SAMPLE_RATE + 1);

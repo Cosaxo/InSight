@@ -235,7 +235,10 @@ export async function runRebuild(
   opts: { apply: boolean; exclude: ReadonlySet<string> },
 ): Promise<RebuildReport> {
   const db = firestore();
-  const privRef = db.collection("v2_aggs_private").doc(qid);
+  // One document since D275 — the vote arm no longer keeps a private copy,
+  // so there is exactly one thing to compare against and exactly one to
+  // rewrite. (The catalog arm's private accumulator is untouched by this
+  // tool, which refuses catalog questions by name.)
   const pubRef = db.collection("v2_question_aggs").doc(qid);
 
   // Optimistic concurrency, and the reason it is here rather than a
@@ -244,7 +247,7 @@ export async function runRebuild(
   // transaction may hold. So the scan runs outside one and the WRITE checks
   // that the stored total has not moved since the scan began. A live answer
   // landing mid-scan aborts the rebuild instead of being erased by it.
-  const before = await privRef.get();
+  const before = await pubRef.get();
   const beforeTotal = (before.exists && (before.get("total") as number)) || 0;
   // D226's matrix, carried rather than recomputed — see the header.
   const edits = before.exists ? (before.get("edits") as unknown) : undefined;
@@ -302,7 +305,7 @@ export async function runRebuild(
   }
 
   if (opts.apply) {
-    const now = await privRef.get();
+    const now = await pubRef.get();
     const nowTotal = (now.exists && (now.get("total") as number)) || 0;
     if (nowTotal !== beforeTotal) {
       throw new HttpsError(
@@ -316,10 +319,8 @@ export async function runRebuild(
       by: out.by,
       ...(edits ? { edits } : {}),
     };
-    // Both documents, same payload, same `merge: false` the trigger uses —
-    // a rebuild that left the two disagreeing would be a worse state than
-    // the one it repaired.
-    await privRef.set(payload, { merge: false });
+    // Same `merge: false` the trigger uses: a rebuild is a whole-document
+    // replacement, so a key the fold no longer produces does not survive it.
     await pubRef.set(payload, { merge: false });
     logger.warn(`[replay] rebuilt ${qid}`, {
       metric: "agg_rebuild",
