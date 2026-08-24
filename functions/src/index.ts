@@ -825,6 +825,11 @@ export { resolveCallsV2 } from "./calls";
 // loading vectors from the vote log, core corpus only (D161). The fold
 // that has to exist before the Patterns tab may ship (D167).
 export { fitPatternsV2 } from "./patterns";
+// R1/D268: the nightly engagement digest — anonymous population counts
+// (actives, retention returns, answers by surface) folded from the same
+// ledger, one public day doc per UTC day. The rung-0 half of
+// docs/ENGAGEMENT-PLAN.md; nothing per-person leaves it.
+export { digestEngagementV2 } from "./engagement";
 // "Suggest a question" — the community board's write path and the
 // operator review instruments (docs/NEXT-FUNCTIONALITY.md §6).
 export { suggestQuestionV2, fetchSuggestionsV2, reviewSuggestionV2 } from "./suggestions";

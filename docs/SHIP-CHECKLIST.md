@@ -584,6 +584,16 @@ anything a user does.
 - **TTL for the aggregate event ledger** (one-time, console or gcloud):
   `gcloud firestore fields ttls update expireAt --collection-group=v2_agg_events --enable-ttl --project=prvfire33`
   — the trigger stamps `expireAt` (+90 days, `LEDGER_RETENTION_DAYS`).
+
+- **TTL for the engagement rollups** (one-time, same shape — D272):
+  `gcloud firestore fields ttls update expireAt --collection-group=engagement --enable-ttl --project=prvfire33`
+  — the client stamps `expireAt` (+90 days, `ROLLUP_TTL_DAYS`). This is
+  the deletion for the person channel's uid-keyed trail: the fold marks
+  rollups, it never deletes them, so a policy never applied means the
+  rolling window quietly stops rolling — the privacy promise on
+  `web/privacy.html` ("deletes itself 90 days after its day") is what
+  this command makes true. The `_state` doc carries no expireAt and
+  correctly never expires; it dies with the account.
   The window is sized for attribution, not dedup: entries carry the
   answering uid so a discovered fake-account ring can be subtracted from
   the exact counts months later (D28; the correction runbook is in

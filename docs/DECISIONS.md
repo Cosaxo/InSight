@@ -26922,3 +26922,334 @@ the archive cards and their own promote run. `ARTIST_KEYS` stays the
 empty set until the first of those, so the domain remains fail-safe
 exactly as D15 built it — this change adds the machinery and moves
 nothing into the answer path.
+
+## D268 · The ledger learns to count people: engagement rung 0
+
+**Decided:** 2026-08-23 · **Status:** binding — adopted by the owner in
+those words ("i adopt R1"), recorded and built in the same change.
+Adopts `docs/ENGAGEMENT-PLAN.md` §8 R1 (rung 0); widens D28; graduates
+the row `docs/MONITORING.md` § Population listed as "unbuilt, not
+forbidden" on exactly the condition that record demanded.
+
+**Decision.** `v2_agg_events` gains a **third purpose**: population
+counting. D28 justified the ledger as trigger dedup and fake-account
+attribution, and `velocity.ts` still states that counting people with it
+"remains a new purpose for this data and remains undone until its own
+record says otherwise." This is that record. What the purpose grants is
+exactly what shipped with it:
+
+- **`digestEngagementV2`** (`functions/src/engagement.ts`) — a nightly
+  `onSchedule` sweep (02:23 UTC) folding each finished UTC day's ledger
+  into one **public** day document, `v2_engagement_daily/{day}`: actives,
+  first-time answerers, deduped votes vs raw events, answers by surface,
+  signup-cohort returns (D1/D7/D30), broken streaks. Counts only — no
+  uid, name or anchor anywhere in the document. The patterns-fit shape
+  throughout: injected store, `lastDay` idempotence, bounded 7-day
+  catch-up, an empty day writing a zero doc because an ABSENT doc means
+  "never folded" and the console draws that as a gap.
+- **The bookkeeping the counts need, stated rather than smuggled:**
+  `v2_users/{uid}/engagement/_state` — first active day, last active
+  day, distinct active days, current streak. Uid-keyed, server-written,
+  readable by NOBODY (the push-tokens posture), erased by the recursive
+  delete with no new arm. The alternative was four windowed ledger scans
+  per night; one small pair per active account is the honest trade, and
+  it is bookkeeping for anonymous outputs, not a reading anyone can
+  query.
+- **The read side:** `npm run scorecard -- --fetch` commits the trail to
+  `monitoring/engagement.json` on the scorecard's own credential-free
+  fetch (one fetch path — `docs/MONITORING.md` already rejected a drift
+  pair), and `npm run pulse` gains the engagement panel and two trail
+  columns (`dau`, `retD7`), honesty rules printed beside the numbers.
+
+**Two sub-decisions the runbook left open, taken here.** The day docs are
+**world-readable** (ENGAGEMENT-RUNBOOK 0.2) — the plan §5 recommendation
+adopted as the default, since the adoption named R1 without the toggle;
+nothing per-person is in them, and the public read is what keeps the
+console credential-free. Reversing is one rules line, and the arm's
+comment says so. And the digest is a **separate nightly scan** rather
+than a rider on `velocity.ts`'s (ENGAGEMENT-RUNBOOK 1.1): velocity's
+window is a cursor capped at 72 h, the digest's is the calendar day, and
+coupling two windowing semantics to save ~3 reads per user per night is
+the wrong trade. Arithmetic in `engagement.ts`'s header; the cost model
+carries it (`ENGAGEMENT_READS_PER_LEDGER_ENTRY`,
+`ENGAGEMENT_USER_STATE_OPS`) — server reads 22 → 27 per user-day,
+**$251 → $255/mo at 50 k DAU, $2,555 → $2,593 at 500 k**, measured
+before the deploy per the house rule.
+
+**What this deliberately does not change.** Nothing new is collected:
+the client sends nothing, no SDK ships, and the store forms' Product
+Interaction row stays **No** — re-answered rather than assumed
+(`docs/STORE-FORMS.md`), because Apple's row asks what is collected from
+the app and a server-side fold of already-stored answers is not that.
+`data-inventory.md`'s "not collected" paragraph is rewritten to say
+precisely this. The counts are **floors**: a person who opens the app
+and answers nothing is invisible at rung 0, and every reader says so.
+The refusals around this record stand — per-user funnels, session
+analytics and engagement scoring (client collection, ENGAGEMENT-PLAN
+rungs 1–2) each wait on their own unadopted record; anchor-sliced and
+Art. 9-sliced engagement stay refused outright, and the digest holds
+that line by construction: its store reads uid, qid and dates and can
+reach no anchor.
+
+**Honest limits, recorded rather than papered over.** `streaksBroken` is
+detected on RETURN — an account that never comes back is a retention
+fact, not a streak one. A crash in the two writes between a day doc and
+its cursor can undercount that one figure for that one day on the replay
+(the write-order comment in `runEngagementDigest` prices the windows).
+An outage longer than the 7-day catch-up leaves days permanently
+unfolded — gaps, visible as gaps. And the day docs persist indefinitely
+on purpose: ~365 small anonymous documents a year IS the trail, and a
+TTL on them would delete the product of the fold, not a liability.
+
+**Enforcement:** 14 unit tests on the fold (`engagement.test.ts` —
+idempotence, crash-replay, null denominators, surface derivation), two
+rules tests (world-read/write-nobody on the day docs; deny-both-ways on
+`_state`, including a rung-2-shaped id refused today), the
+`check:monitoring` chain (heartbeat metric → log-based metric → absence
+policy), `check:deploy-targets`, `check:fn-runtime`, two new
+`check:policy-claims` rows over the `web/privacy.html` disclosure, the
+inventory rows, and the `SCHEMA-V2.md` entries. 265 script tests carry
+the console half, absent-trail case included.
+
+## D269 · The ceiling: what stays refused at every engagement rung
+
+**Decided:** 2026-08-23 · **Status:** **binding** — adopted by the owner
+in those words ("i adopt R5"), the same day it was drafted. The
+drafting-day status is kept below verbatim, because the sequence —
+drafted Proposed, adopted only on the owner's explicit word — is the D28
+lesson working rather than the D28 mistake repeating.
+
+*(As drafted:)* Proposed — drafted with D268 per
+ENGAGEMENT-RUNBOOK 0.1, awaiting the owner's explicit word (the D28
+lesson: this file once marked a record binding ahead of the owner's
+decision and reclassified it the same day; the owner's adoption named R1
+alone, so this one waits rather than presumes). Until adopted, every
+refusal below still binds through the documents that already record it.
+
+**The record** (`docs/ENGAGEMENT-PLAN.md` §8 R5, §4.3–4.4): one
+standing record that the following are refused at every rung, whatever
+is adopted above them, so the next "track more" ask starts from a
+written line rather than drift —
+
+- raw per-event upload (the event stream: two orders of magnitude more
+  writes than the app, and a uid-keyed behavioural log is the dossier
+  every standing document promises does not exist);
+- third-party analytics SDKs (outside `deleteAccount`'s reach, outside
+  the emulator suites, outside `firestore.rules` — unprovable by exactly
+  the machinery this repo trusts promises to; Sentry stays the one
+  third party, crash-scoped, D76/D211);
+- per-target reads (who viewed whom — the flag-authorship deny's
+  anti-retaliation reasoning applied to viewing);
+- hesitation and per-option deliberation timing (QUESTION-FARM's row;
+  the D57 posture that per-item timings never leave the device);
+- anything from a sealed duel before its reveal; keystrokes, drafts and
+  free text before posting; coordinates beyond the presence cell's
+  existing coarseness; the pulse cadence;
+- engagement sliced by anchor or by any test result (Art. 9 included);
+- and the daily and the Mirror ever adapting to any of it (D128/D163's
+  invariant — one blind question, the same for everyone, is
+  load-bearing).
+
+## D270 · The anonymous channel: engagement rung 1 collects, unlinkably
+
+**Decided:** 2026-08-23 · **Status:** binding — the owner's words were
+"start building phase 2", and phase 2's own gate (ENGAGEMENT-RUNBOOK
+2.1) defines building it as adopting `docs/ENGAGEMENT-PLAN.md` §8 R2, so
+the instruction *is* the adoption and this record says so rather than
+inferring silently. R4 was NOT named and is NOT adopted — it is D271
+below, Proposed, and the rules refuse its field until that changes.
+Recorded and built in the same change.
+
+**Decision.** The app collects its first product analytics: one
+**anonymous, bucketed feature tally per sampled device per finished UTC
+day** — the attention shard (`v2_attention/{randomId}`), rung 1 of the
+engagement plan, ATTENTION.md tier 3 generalized. This reverses the
+"collected" half of the data-inventory sentence D268 had preserved, and
+the store forms move with it in this same change: **Product Interaction
+→ collected, NOT linked**, the label's first unlinked row.
+
+**Unlinkability is the design, enforced rather than promised.** The
+shard carries bucketed counts of WHICH features were used (30 keys:
+tabs, Mirror stops, lens taps, feed seen/pass/defer, answers by surface,
+reveals viewed, notification taps, errors, slow boots), a build number,
+a platform name and the sampling rate — and nothing else: the rules
+whitelist the fields (a uid is refused, asserted by test), the document
+id is random per write, and no stable device token exists anywhere in
+the path, so two days from one phone are not joinable even by us.
+Shards are readable by NOBODY — a readable pile would be the raw
+material of the per-device funnel this rung promises not to be — and
+the nightly fold sums them into the public day doc's `attn` section
+(reach + bucket-midpoint estimates, scaled by the rate) and **deletes
+them**, per-chunk atomically so a crash can never double-count.
+`deleteAccount` has nothing to reach here, because nothing links a
+shard to an account; that is the contract, not a gap.
+
+**The seams, all riding what existed:** `LIVE.vote`/`editVote` count
+answers on the server ACK; the shell's tab/stop/overlay state gets three
+one-line effects; the feed's entrance IntersectionObserver doubles as
+"seen" and its pass/defer sites count themselves; the lens row counts
+its taps; the duel panel's reveal bars count the loop's payoff being
+collected — the one signal rung 0 could never see; the push tap closes
+the sent→opened funnel. Everything is an ESM import of
+`src/v2/data/engagement.ts` — no globals, rule 4 unmoved at its
+baseline — and every note() is a no-op until `initLive` arms it, which
+is why the demo build, the ui suites and the jsdom mounts stay silent
+with no test flag (pinned in smoke-nav).
+
+**Sub-decisions taken here, each reversible where stated:**
+
+- **"Seen" is the entrance-observer's event** — first scroll into view —
+  not ATTENTION.md §3's ≥50%-for-≥1s refinement: one observer instead of
+  two, and every card measured identically, so the fold's ratios compare
+  like with like. Tightening is one line in world-feed.jsx if the
+  coarser read misleads.
+- **The shards live flat** (`v2_attention/{id}`, day as a field) rather
+  than the plan's day-nested sketch: a collection-group query and its
+  index question disappear, and the pulse day-parse idiom moves onto the
+  field unchanged.
+- **The sampling rate ships at 1** (`SHARD_SAMPLE_RATE`): at launch DAU
+  a sample would read as noise. It is the designed lever — the shard
+  carries its rate so estimates rescale server-side with no deploy —
+  and the cost model reads it from source (`ATTN_SAMPLE_RATE`), so the
+  bill tracks the lever rather than a memory of it.
+- **Late shards are the normal case**: a device flushes yesterday on its
+  next boot, so the fold merges additively into ANY day's doc, however
+  old; an attn-only doc (day older than the digest's catch-up) carries
+  no `actives` and every reader treats it as not-digested, never zero.
+
+**Honest limits, recorded:** the flush is fire-and-forget into the SDK's
+offline queue, so an app killed in its first seconds can lose a tally
+(priced: one anonymous day, one device); a StrictMode dev build
+double-fires the shell's effects (production fires once, and production
+is what ships shards); `est` is a bucket-midpoint estimate and is
+labelled one everywhere it prints — `reach` is the figure bucketing
+cannot distort; and junk shards are unsubtractable by design (no uid),
+so the fold clamps values, the cap bounds a night's sweep, and the
+channel informs keep/kill decisions, never published product claims.
+
+**The arithmetic** (measured before the deploy, `docs/COSTS.md`): one
+shard write per sampled device-day, one fold read and one fold delete
+the night after — server reads 27 → 28 per user-day, $255 → $257/mo at
+50 k DAU, $2,593 → $2,613 at 500 k, all shrinking linearly with the
+rate.
+
+**Enforcement:** 13 client unit tests (`engagement.test.ts` —
+inertness, rollover, buckets, sampling, purge), the purge-wipe cycle
+case, the smoke-nav inertness pin, 2 rules tests over the shard arm
+(vocabulary, day window, uid refusal, read/update/delete denies, the
+qids refusal), 8 functions tests on the fold (midpoints, clamps, rate
+scaling, per-chunk atomicity, the cap), the console's attn cases, both
+store-form files moved together under `check:store-forms`, two new
+`check:policy-claims` rows, and `check:purge` counting the new listener.
+
+## D271 · Per-question attention, aggregate-only — the R4 gate
+
+**Decided:** 2026-08-24 · **Status:** **binding** — adopted by the owner
+in those words ("adopt R4"), the day after drafting; built the same day.
+The drafting-day status is kept below verbatim (the D269 sequence,
+holding).
+
+*(As drafted:)* Proposed — drafted with D270 because the shard schema
+carries its field, awaiting the owner's explicit word (the D269
+sequence). Until adopted, `firestore.rules` refuses a non-empty `qids`
+map outright, so per-question collection is structurally off — not
+merely something the client politely omits.
+
+**The record** (`docs/ENGAGEMENT-PLAN.md` §8 R4): the shard's `qids`
+map opens to bucketed per-question `{seen, answered, passed, deferred}`
+counts, capped, still anonymous — narrowing QUESTION-FARM.md's
+skip/pass refusal the way D163 narrowed MONITORING.md's row: the server
+learns a QUESTION's pass rate, never a person's passes. Hesitation
+stays refused outright. Adoption is: widen the one rules clause to a
+size cap, let the client populate the map from the pass/defer/seen
+signals it already tallies, fold into the day doc's `qids` section, and
+land the scorecard's seen→answer and pass-rate columns (ENGAGEMENT-
+RUNBOOK 2.8) with D33's goodhart warning printed beside them — the
+denominator measure-and-retire (D162) has been missing.
+
+**As built, the deviations worth naming:** the cap is 120 keys
+INCLUDING the client's `_other` overflow cell (so a capped shard is
+rules-legal by construction, and the fold counts the truncation apart
+as `qOther` — never a phantom qid); "seen" per question rides the same
+entrance-intersection the feature tally uses, stamped with the card's
+qid at the ref; the answered kind covers the feed-RENDERED surfaces
+(feed, test, learn, call) so numerator and denominator describe one
+population, with the daily, pulses and duels deliberately out; and the
+scorecard stores the D33 warning ON the card (`card.attention.warning`)
+rather than trusting each renderer to remember it. Rates refuse under
+`ATTENTION_MIN_SEEN` — three devices' buckets cannot say a question
+bores anyone. `web/privacy.html`'s "never says which questions" sentence
+was rewritten in this same change to the true, narrower claim — counts
+about a question, never a list of what you looked at — and
+`check:policy-claims` pins the new form.
+
+## D272 · The person channel: engagement rung 2, scoped to the bone
+
+**Decided:** 2026-08-24 · **Status:** binding — the owner's words were
+"build phase 3", and phase 3's own gate (ENGAGEMENT-RUNBOOK 3.1)
+defines building it as adopting `docs/ENGAGEMENT-PLAN.md` §8 R3, the
+D270 provenance shape. Recorded and built in the same change. This is
+the reversal MONITORING.md's first refused row was guarding — per-user
+session analytics — taken with the row rewritten into the record of
+its ceiling (D269) rather than silently blanked.
+
+**Decision.** Each account writes one **day rollup** —
+`v2_users/{uid}/engagement/{yyyy-mm-dd}`, create-only, for a FINISHED
+day: session count, foreground time as a BRACKET (never minutes), quiet
+sessions (opened, answered nothing), local dayparts, answer count, a
+feed-depth bracket and the reached-the-end bit, stop and lens counts.
+The nightly fold sums rollups into the public day doc's `people`
+section (counts of people, never rows), marks each rollup
+`folded: true` — the flag, not deletion, is what makes the sweep
+exactly-once, because the rollups' own 90-day TTL is the deletion — and
+advances a trailing foreground window (`_state.fg7`) from which
+**fading** is read: six readings with the newest three averaging two
+brackets under the first three. Fading is the reading only this channel
+can produce, and the win-back trigger the plan priced rung 2 for.
+
+**Scoped to the bone, each bound enforced rather than promised:**
+
+- **No question id, structurally.** The rules' `hasOnly` is the
+  two-channel pin, and the suite's smuggle-a-qids-field test is the
+  enforcement. No uid-keyed path holds reading history.
+- **Readable by NOBODY, the owner included** — the push-tokens posture.
+  This is measurement, not a profile surface; if a "your year" product
+  screen is ever wanted, that is its own decision reading its own shape.
+- **A rolling window.** `expireAt` = day + 90 (`ROLLUP_TTL_DAYS`);
+  SHIP-CHECKLIST §5 carries the second `gcloud` TTL line and names what
+  an unapplied policy quietly breaks. Erasure is phase 1b's recursion,
+  asserted in `e2e-delete-account.mjs` — the rollup and `_state` die
+  with the account, and a control pins that another account's survive.
+- **Bounded values, twice.** The rules bound every field (sessions ≤
+  300, brackets ≤ 4, counts ≤ 2000, `folded == false`, `expireAt`
+  inside 100 d); the fold clamps again, trusting no client.
+
+**Mechanics worth recording:** sessions are foreground episodes split at
+30 minutes hidden (`SESSION_GAP_MS` — attention semantics, deliberately
+not live.ts's 60 s billing detach); quiet is decided when a session
+CLOSES and lands on its start day; the rollup is NOT sampled (the
+person channel is one write regardless, priced); and a rollup with no
+session to own it yet is RETAINED locally and retried next boot rather
+than lost — uid-keyed data loses nothing by waiting, where the
+anonymous shard's fire-and-forget stays the right trade. Foreground
+time spanning midnight lands on the hidden day; a session open when its
+day flushes never gets its quiet verdict — minutes-level noise on
+bracketed fields, accepted and stated.
+
+**The arithmetic** (measured before the deploy, `docs/COSTS.md`): one
+client write, the fold's two reads and two writes, a TTL delete 90 days
+on — server reads 28 → 30 per user-day, **$257 → $262/mo at 50 k,
+$2,613 → $2,665 at 500 k**. Deliberately the ladder's priciest rung per
+user and still under 2 % of a read-dominated bill.
+
+**Enforcement:** 20 client unit tests (sessions, gaps, quiet, dayparts,
+retention-and-retry, the rollup carrying no qids), 134 rules tests (the
+create arm's bounds, the `_state` id split, the qids smuggle refused,
+read denied to the owner), 8 rollup-fold functions tests (fade window,
+day-ordered advancement, chunk atomicity via the folded flag, clamps),
+the erasure e2e legs, the collection-group `folded` fieldOverride in
+`firestore.indexes.json` riding the existing indexes deploy, the pulse
+panel's people tiles (quiet share null-safe, fading counted), three new
+`check:policy-claims` rows, the store forms moved together —
+**Product Interaction → Linked** — and the same-PR paperwork across
+inventory, SCHEMA-V2, MONITORING and the farm doc.

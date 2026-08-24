@@ -140,3 +140,59 @@ export function rollupProduction(rows, prov) {
   };
   return { bySource: finish(bySource), byVintage: finish(byVintage) };
 }
+
+// ── per-question attention (R4/D271) ────────────────────────────────────
+//
+// The denominator the scorecard never had: what the feed SHOWED, not only
+// what got answered. Folded from the engagement trail's day docs
+// (monitoring/engagement.json ← v2_engagement_daily.attn.q), which are
+// bucket-midpoint ESTIMATES scaled by the sampling rate — labelled so at
+// every consumer, because an estimate quoted as a count is the D67
+// failure with a new face.
+
+/** Below this estimated seen-count a ratio is null, not a number: three
+ * devices' buckets cannot say a question bores anyone. */
+export const ATTENTION_MIN_SEEN = 5;
+
+/** Printed beside the metrics wherever they render — the D33 rule, which
+ * a per-question dashboard doubles: a skip is not dislike, a new
+ * question's numbers are novelty-inflated for weeks, and a metric this
+ * simple invites writing questions AT it. Warmth outranks conversion. */
+export const ATTENTION_WARNING =
+  "attention is an estimate from bucketed, sampled shards; a skip is not dislike "
+  + "(seen-denominators only), novelty inflates new questions, and no attention "
+  + "figure outranks the content rules (D33/D271)";
+
+/**
+ * Fold the trail's per-question attention into per-qid metrics.
+ * `days` is the committed trail's array of v2_engagement_daily docs.
+ */
+export function attentionFromTrail(days) {
+  const qids = {};
+  let daysWithQ = 0;
+  let truncatedDevices = 0;
+  for (const d of days || []) {
+    const q = d?.attn?.q;
+    truncatedDevices += d?.attn?.qOther || 0;
+    if (!q || typeof q !== "object") continue;
+    daysWithQ++;
+    for (const [qid, kinds] of Object.entries(q)) {
+      const row = qids[qid] || (qids[qid] = { seen: 0, answered: 0, passed: 0, deferred: 0 });
+      row.seen += kinds?.s?.est || 0;
+      row.answered += kinds?.a?.est || 0;
+      row.passed += kinds?.p?.est || 0;
+      row.deferred += kinds?.d?.est || 0;
+    }
+  }
+  const round2 = (n) => Math.round(n * 100) / 100;
+  for (const row of Object.values(qids)) {
+    row.seen = round2(row.seen);
+    row.answered = round2(row.answered);
+    row.passed = round2(row.passed);
+    row.deferred = round2(row.deferred);
+    const enough = row.seen >= ATTENTION_MIN_SEEN;
+    row.conv = enough ? round2(row.answered / row.seen) : null;
+    row.passRate = enough ? round2(row.passed / row.seen) : null;
+  }
+  return { daysWithQ, truncatedDevices, qids };
+}

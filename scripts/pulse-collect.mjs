@@ -468,19 +468,22 @@ export function collectPopulation(pipeline) {
         caveat: "one answer per user per day on the shared daily makes its total a DAU floor. "
           + "Not yet extracted — the scorecard scores questions, it does not date them",
       },
+      {
+        metric: "DAU, D1/D7/D30 cohort returns, streak deaths — nightly since D268",
+        value: null,
+        source: "monitoring/engagement.json ← v2_engagement_daily ← digestEngagementV2",
+        caveat: "counts ANSWERING accounts — floors, not measurements: a person who opens and "
+          + "answers nothing is invisible at rung 0 (docs/ENGAGEMENT-PLAN.md §2). The "
+          + "engagement panel below draws the trail",
+      },
     ],
     // Unbuilt, not forbidden. The distinction matters: each of these could
     // be built without reversing anything, and each has a real cost.
     blocked: [
-      {
-        metric: "DAU / D1–D7 retention / answers-per-user",
-        unblockedBy: "a server-side counting job over v2_agg_events",
-        cost: "one scheduled function; the collection already exists (qid, uid, at, 90-day TTL) "
-          + "and is already erased with the account",
-        catch: "v2_agg_events was justified as fake-account attribution (D28). Counting distinct "
-          + "uids per day is a NEW PURPOSE for existing data, which needs a recorded decision "
-          + "before it is built — not new collection, but not free either",
-      },
+      // The DAU/retention row that stood here graduated to the live column
+      // on 2026-08-23: D268 is the recorded decision its catch demanded,
+      // and digestEngagementV2 is the counting job. The catch was real and
+      // was honoured in the order it asked for — record first, then build.
       {
         metric: "real spend vs the modelled bill",
         unblockedBy: "a Cloud Billing BigQuery export, or a monthly figure pasted into rates.json",
@@ -499,16 +502,25 @@ export function collectPopulation(pipeline) {
     // "we decided not to" is only useful with the decision attached.
     refused: [
       {
-        metric: "per-user funnels, session analytics, engagement scoring",
-        record: "docs/data-inventory.md — 'No product analytics of any kind ship today'",
-        why: "there is no client event pipeline to read, by design. Adding one is a privacy "
-          + "decision, not a monitoring tweak",
+        metric: "per-user RAW behaviour — event streams, reading history, per-target views",
+        record: "D269, the binding ceiling. The old row here ('per-user funnels, session "
+          + "analytics, engagement scoring') was reversed rung by rung — D268, D270, D271, "
+          + "D272 — each with its record, its rules arms and its store-form move",
+        why: "what ships is bounded by construction: the rollup carries no question id "
+          + "(rules-refused), is readable by nobody including its owner, and expires at 90 "
+          + "days; the shards are unlinkable even to a device. What D269 keeps out is the "
+          + "dossier shapes — logs, sequences, who-viewed-whom, hesitation — and any anchor "
+          + "or Art. 9 slice",
       },
       {
         metric: "retention or engagement sliced by anchor (age, gender, country, education…)",
-        record: "D8 / D18 — the k-floor and complementary suppression",
-        why: "the same suppression that stops a buyer identifying a person stops the owner "
-          + "doing it. That is the guarantee working, not a gap in the tooling",
+        record: "docs/MONITORING.md § Off the table — re-affirmed after D98 as an analytics "
+          + "decision standing on its own; D8",
+        why: "nothing technical stops this since D98 deleted the floor — the anchors are public "
+          + "and the fold is a query away. It stays refused because per-cohort engagement "
+          + "scoring is the behavioural model MONETIZATION.md rules out, and the digest holds "
+          + "the line by construction: its store reads uid, qid and dates, and can reach no "
+          + "anchor",
       },
       {
         metric: "anything sliced by political result",
@@ -516,10 +528,14 @@ export function collectPopulation(pipeline) {
         why: "special-category data. Never sliced by, never published, never leaves the owner doc",
       },
       {
-        metric: "skip / pass / hesitation rates on questions",
-        record: "docs/QUESTION-FARM.md, 'Deliberately out of scope'",
-        why: "server-side telemetry on what a user declined to answer is a behavioural profile "
-          + "with a friendlier name",
+        metric: "per-PERSON skip/pass lists, and hesitation timing anywhere",
+        record: "docs/QUESTION-FARM.md's line, narrowed at D271 the way D163 narrowed this "
+          + "table's last row: per-QUESTION aggregate skip rates now ship (the scorecard's "
+          + "attention columns); a person's list and per-option deliberation timing stay "
+          + "refused under D269",
+        why: "a question's pass rate is a fact about content; a person's passes are a "
+          + "behavioural profile with a friendlier name, and the shards' unlinkability is "
+          + "what keeps the first from ever becoming the second",
       },
       {
         metric: "per-user content selection, ad targeting profiles",
@@ -529,6 +545,116 @@ export function collectPopulation(pipeline) {
       },
     ],
   };
+}
+
+// ── 4b · engagement (R1/D268) ───────────────────────────────────
+// The digest trail: anonymous per-day population counts, folded nightly
+// by digestEngagementV2 into v2_engagement_daily and committed here by
+// `npm run scorecard -- --fetch` (one fetch path — the scorecard's own).
+// Everything below is a fold over the committed file; the pure half is
+// exported separately so the arithmetic tests without a tree.
+
+/** Fold an array of v2_engagement_daily day docs into the panel reading.
+ * Null-aware on purpose: a cohort day the digest never folded has no
+ * firstTime count, so its rate is UNKNOWN (null), never 0% — and a `of`
+ * of zero is a known-empty cohort, which is a different fact. */
+export function engagementFromDays(days) {
+  const all = [...(days || [])]
+    .filter((d) => d && typeof d.day === "string")
+    .sort((a, b) => (a.day < b.day ? -1 : 1));
+  // Digest rows only, for the digest's own metrics: a doc holding just
+  // late-shard attention (its day predates the digest's catch-up) has no
+  // `actives`, and reading it as a zero-actives day would be the
+  // absent≠zero failure wearing a new face.
+  const rows = all.filter((d) => typeof d.actives === "number");
+  // The newest attention section, wherever it landed (R2/D270): reach is
+  // devices that used the feature at all — bucketing cannot distort it —
+  // and est is the midpoint estimate, both already scaled by the
+  // sampling rate at fold time.
+  const attnRow = [...all].reverse().find((d) => d.attn && typeof d.attn === "object");
+  const attn = attnRow
+    ? {
+        day: attnRow.day,
+        devices: attnRow.attn.devices ?? 0,
+        features: Object.entries(attnRow.attn.s || {})
+          .map(([key, v]) => ({ key, reach: v?.reach ?? 0, est: v?.est ?? 0 }))
+          .sort((a, b) => b.reach - a.reach),
+        // R4/D271: how many questions carried counts, not the counts
+        // themselves — the per-question table is the scorecard's job.
+        qidCount: Object.keys(attnRow.attn.q || {}).length,
+      }
+    : null;
+  // The person channel's fold (R3/D272), newest day that has one.
+  const peopleRow = [...all].reverse().find((d) => d.people && typeof d.people === "object");
+  const people = peopleRow
+    ? (() => {
+        const p = peopleRow.people;
+        const sessions = p.sessions ?? 0;
+        return {
+          day: peopleRow.day,
+          rollups: p.rollups ?? 0,
+          sessions,
+          quiet: p.quiet ?? 0,
+          quietShare: sessions > 0 ? round2((p.quiet ?? 0) / sessions) : null,
+          fading: p.fading ?? 0,
+          reachedEnd: p.depthEnd ?? 0,
+        };
+      })()
+    : null;
+  if (!rows.length) {
+    const bare = { days: 0 };
+    if (attn) bare.attn = attn;
+    if (people) bare.people = people;
+    return bare;
+  }
+  const latest = rows[rows.length - 1];
+  const last7 = rows.slice(-7);
+  // Days inside the span the digest never folded — the console draws
+  // these as gaps, never as zeros (the pulse-trail rule; a zero day is a
+  // REAL doc with actives: 0).
+  const spanDays =
+    Math.round((Date.parse(`${latest.day}T00:00:00Z`) - Date.parse(`${rows[0].day}T00:00:00Z`)) / 86400000) + 1;
+  const rate = (r) => {
+    const returned = r?.returned ?? 0;
+    const of = r?.of ?? null;
+    return { returned, of, rate: of == null || of === 0 ? null : round2(returned / of) };
+  };
+  return {
+    days: rows.length,
+    gaps: spanDays - rows.length,
+    firstDay: rows[0].day,
+    lastDay: latest.day,
+    latest: {
+      day: latest.day,
+      actives: latest.actives ?? 0,
+      firstTime: latest.firstTime ?? 0,
+      votes: latest.votes ?? 0,
+      events: latest.events ?? 0,
+      streaksBroken: latest.streaksBroken ?? 0,
+      bySurface: latest.bySurface || {},
+    },
+    weekMeanActives: round2(last7.reduce((a, d) => a + (d.actives || 0), 0) / last7.length),
+    returned: {
+      d1: rate(latest.returned?.d1),
+      d7: rate(latest.returned?.d7),
+      d30: rate(latest.returned?.d30),
+    },
+    attn,
+    people,
+  };
+}
+
+export function collectEngagement() {
+  if (!has("monitoring/engagement.json")) {
+    return {
+      present: false,
+      note: "no committed monitoring/engagement.json — `npm run scorecard -- --fetch` writes it "
+        + "from the public v2_engagement_daily trail once digestEngagementV2 has folded a day "
+        + "(R1/D268). Before the first deploy this is expected: the digest has never run.",
+    };
+  }
+  const raw = readJson("monitoring/engagement.json");
+  return { present: true, fetchedOn: raw.fetchedOn || null, ...engagementFromDays(raw.days) };
 }
 
 // ── 5 · instrumentation ─────────────────────────────────────────
@@ -639,6 +765,7 @@ export function collect({ regional = REGIONAL } = {}) {
     money: collectMoney(cost),
     pipeline,
     population: collectPopulation(pipeline),
+    engagement: collectEngagement(),
     instrumentation: collectInstrumentation(),
   };
 }
