@@ -285,13 +285,21 @@ absorbed by that cache; lose it and bank size starts billing per boot per
 user, which is precisely the regression the table says to watch for.
 
 **The remedy is named at the call site: move the cache to IndexedDB
-before promoting past the budget.** It is a smaller piece of work than
-§1's core/tail split and unrelated to it — this one is about what a
-device can hold, that one about what a cohort reading may honestly fold.
+before promoting past the budget** — and it is smaller than it sounds,
+because `persistentLocalCache()` already puts Firestore's own document
+cache there. [`BANK-DELIVERY.md`](BANK-DELIVERY.md) is the plan, and it
+carries a finding this section did not have: the cache is the SECOND
+ceiling, not the first. The learn bank is compiled into the JS bundle,
+`check:bundle` has about 39 cards of headroom, and that one is weeks
+away rather than years.**
 
-**Order: watch the cache budget before accelerating.** At today's 671
-docs the headroom is ~5,300 more questions; at a hundred a day that is
-about two months, and at the lanes' current combined pace it is years.
+Both are smaller pieces of work than §1's core/tail split and unrelated
+to it — those are about what a device can hold, this one about what a
+cohort reading may honestly fold.
+
+**Order: the bundle, then the cache, then accelerate.** The cache leaves
+~5,300 questions of headroom, which is years at the lanes' combined
+pace; the bundle leaves about a fortnight.
 
 **Point volume at the surface that can retire.** Feed questions carry
 `active: false` (D52's shape, honoured by `deck.ts`; six duplicates
