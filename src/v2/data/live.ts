@@ -357,6 +357,14 @@ const state = {
   // against its own inputs.
   kindredLoading: false,
   kindredAt: 0,
+  // D276: the city-scoped half of the pool, kept SEPARATE from
+  // state.voters rather than merged into it. The who-voted sheet draws
+  // state.voters and means "who answered this" — a city-filtered list
+  // under that heading would be a different claim wearing the same words.
+  // kindredPeople() unions the two; nothing else reads this.
+  cityVoters: {} as Record<string, Voter[]>,
+  cityVotersAt: "",
+  cityKindredLoading: false,
   // Similarity (D112): the constellation fields' one-per-session agg
   // top-up (the bank's core test items) and its in-flight flag.
   similarityLoading: false,
@@ -2985,7 +2993,75 @@ const LIVE = {
         || a.uid.localeCompare(b.uid));
   },
   kindredLoading(): boolean {
-    return state.kindredLoading;
+    return state.kindredLoading || state.cityKindredLoading;
+  },
+  // ── the city half of the pool (D276) ──────────────────────────────
+  //
+  // THE BUG THIS CLOSES is recall, and it is the one D112 recorded as
+  // known limit 1 and priced only for cost. `loadKindred` asks each
+  // question for the newest VOTER_FETCH_CAP answers from ANYWHERE, and
+  // the City constellation then filters them to your city on the device.
+  // With a city holding 2% of active users, ~4 of every 200 rows survive
+  // that filter — and because the cap binds BEFORE the filter, the number
+  // of reachable city-mates saturates around 50 however large the city
+  // gets. Modelled: at 100k users the ring is choosing its twelve from
+  // 2.6% of your city, and the chance the single closest person is even a
+  // candidate is 23%.
+  //
+  // The city is already ON the answer (`anchors.city`, frozen at vote
+  // time, D8 — the same field the aggregate folds and `kindredPeople`
+  // reads back), so the fix is to ask for it rather than to ask for more:
+  // same twelve questions, same 200-row cap, same rows read, ~50× the
+  // usable rows. Modelled at the same 100k: reachable city-mates 51 →
+  // 1,387, top-1 recall 23% → 90%.
+  //
+  // AN ADDITIONAL PASS, not a replacement, and that is the cost. The
+  // People lens ranks strangers from anywhere (it takes a `scope` and
+  // does not filter on it), so narrowing the shared pool would silently
+  // turn "everyone" into "everyone in your city". So this is a second
+  // read: +12 collection-group queries of ≤200 rows, once per session,
+  // and only for a viewer who has a city and opened the stop that draws
+  // it. Name and score resolution is mostly free on top — the same faces
+  // recur across a city's twelve lists and the profile cache is
+  // disk-backed (D129).
+  //
+  // Not paging, deliberately (the D101 rule is satisfied, not bypassed):
+  // the cap is unchanged and no cursor is walked. What changes is WHICH
+  // 200, which is a different lever from HOW MANY — and it is the lever
+  // that pays, because paging is linear in reads while this is free.
+  async loadCityKindred(): Promise<void> {
+    const city = this.myCity;
+    if (!this.enabled || !city || state.cityKindredLoading) return;
+    // The anchor can change (a move, a corrected city). Keyed rather than
+    // guarded by a boolean so the pool refetches for the new city instead
+    // of serving the old one forever.
+    if (state.cityVotersAt === city) return;
+    state.cityKindredLoading = true;
+    notify();
+    try {
+      const db = await getDb();
+      const qids = pickKindredQids(state.votes, divisivenessOf, KINDRED_QUESTIONS);
+      const next: Record<string, Voter[]> = {};
+      // Sequential, for the reason loadKindred is: twelve collection-group
+      // queries fired at once is the shape that gets a client rate-limited.
+      for (const qid of qids) {
+        try {
+          next[qid] = await fetchVoters(db, qid, state.uid, state.names, state.scores, state.logicPcts, city);
+        } catch (err) {
+          // One question failing must not cost the other eleven. Absent
+          // rather than empty, the loadVoters rule.
+          reportError(err, { where: "loadCityKindred", qid });
+        }
+      }
+      state.cityVoters = next;
+      state.cityVotersAt = city;
+      saveProfileCache();
+    } catch (err) {
+      reportError(err, { where: "loadCityKindred" });
+    } finally {
+      state.cityKindredLoading = false;
+      notify();
+    }
   },
 
   // ── the follow graph and the Circle stop (D101) ──
@@ -3321,7 +3397,12 @@ const LIVE = {
     }
     const theirs: Record<string, Record<string, number>> = {};
     const anchors: Record<string, Record<string, string>> = {};
-    for (const [qid, rows] of Object.entries(state.voters)) {
+    // Both halves of the pool (D276). The city pass and the unscoped pass
+    // overlap heavily — a city-mate near the top of a question's newest
+    // 200 is in both — and the inner loop is idempotent per (uid, qid), so
+    // the union needs no dedupe of its own.
+    const pools = [...Object.entries(state.voters), ...Object.entries(state.cityVoters)];
+    for (const [qid, rows] of pools) {
       for (const r of rows) {
         if (r.uid === state.uid) continue;
         (theirs[r.uid] || (theirs[r.uid] = {}))[qid] = r.optionIdx;
@@ -4575,6 +4656,9 @@ function resetForNewUid(uid: string): void {
   }
   state.kindredLoading = false;
   state.kindredAt = 0;
+  state.cityVoters = {};
+  state.cityVotersAt = "";
+  state.cityKindredLoading = false;
   state.similarityLoading = false;
   // state.aggs was dropped above, so the test-item top-up has to run
   // again for the new account.

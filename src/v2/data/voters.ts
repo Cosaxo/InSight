@@ -148,6 +148,30 @@ export function uidFromAnswerPath(path: string): string | null {
  * `names` is an inout session cache owned by the caller (live.ts), so two
  * questions answered by overlapping crowds pay for each profile once.
  */
+/**
+ * The same fetch, narrowed to one frozen city anchor (D276).
+ *
+ * WHY A SECOND SHAPE EXISTS. The unscoped query returns the newest
+ * VOTER_FETCH_CAP answers from anywhere, and the City constellation then
+ * filters them to one city on the device (`rankKindred`'s `city` option).
+ * At any real population that discards nearly everything it just paid
+ * for: with a city holding 2% of active users, ~4 of every 200 rows
+ * survive the filter, and because the cap binds before the filter the
+ * number of reachable city-mates SATURATES around 50 no matter how large
+ * the city grows. The ring draws 12, so it fills either way — the failure
+ * has no symptom, which is what makes it worth a second query rather than
+ * a bigger cap.
+ *
+ * Same cap, same rows read, ~50× the usable rows. Modelled at 100k users
+ * with a 2% city: reachable city-mates 51 → 1,387, and the chance the
+ * single closest person is a candidate at all 23% → 90%.
+ *
+ * THE ANCHOR, NOT THE PROFILE. `anchors.city` is the snapshot the answer
+ * froze at vote time (D8) — the same field the aggregate folds and the
+ * same one `kindredPeople` reads back — so this query and the ranking
+ * agree about who counts as living where. Filtering on the live profile
+ * would re-cohort history and disagree with both.
+ */
 export async function fetchVoters(
   db: Firestore,
   qid: string,
@@ -155,12 +179,19 @@ export async function fetchVoters(
   names: Record<string, string>,
   scores?: Record<string, ParsedResults | null>,
   logic?: Record<string, number | null>,
+  city?: string,
 ): Promise<Voter[]> {
   const { collectionGroup, getDocs, limit: fsLimit, orderBy, query, where } = await getFirestoreApi();
   const snap = await getDocs(query(
     collectionGroup(db, "answers"),
     where("qid", "==", qid),
     where("surface", "in", [...WORLD_ANSWER_SURFACES]),
+    // The surface clause above is not optional and this one does not
+    // replace it: firestore.rules grants this read as a VALUE test on
+    // `surface`, so a query missing that `where` is refused wholesale
+    // (D65). An EXTRA equality only narrows what the rule already allows,
+    // which rules.test.ts pins rather than assumes.
+    ...(city ? [where("anchors.city", "==", city)] : []),
     orderBy("answeredAt", "desc"),
     fsLimit(VOTER_FETCH_CAP),
   ));

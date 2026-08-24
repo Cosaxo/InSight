@@ -824,6 +824,15 @@ function SimilaritySection({ scope }: {
   // the stop — no tab to open first, nothing to opt into. The loader is
   // bounded and session-cached; see live.ts loadSimilarity.
   React.useEffect(() => { void LIVE.loadSimilarity(); }, []);
+  // The city half of the pool, for the one stop that filters by city
+  // (D276). Scoped to this effect rather than folded into loadSimilarity
+  // because Country and World never filter on it — they read place
+  // aggregates, not voter rows — so paying a second fan-out there would
+  // buy nothing. Session-cached and keyed on the anchor; a viewer with no
+  // city returns immediately.
+  React.useEffect(() => {
+    if (scope === "city") void LIVE.loadCityKindred();
+  }, [scope]);
   if (!LIVE.enabled) return null;
 
   const myParsed = parseTestResults(LIVE.myTestResults(), CORE_TEST_KINDS);

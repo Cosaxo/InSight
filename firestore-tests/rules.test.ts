@@ -1306,6 +1306,50 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     expect((snap as { size: number }).size).toBe(3);
   });
 
+  // D276 narrows the SAME query by the frozen city anchor, so the City
+  // constellation stops paying for 200 rows from anywhere and keeping the
+  // four that happen to live where the viewer does. That adds a `where`
+  // to a read the rule grants as a value test on `surface` — which is
+  // exactly the shape D65 says can be refused wholesale — so whether an
+  // EXTRA equality still satisfies the grant is a rules question, and it
+  // is pinned here rather than discovered in production.
+  it("allows the city-scoped narrowing of that same query", async () => {
+    await seedQuestion();
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER, "answers", QID), {
+        qid: QID, surface: "daily", optionIdx: 1, anchors: { city: "Oslo, NO" },
+      });
+      await setDoc(doc(db, "v2_users", FRIEND, "answers", QID), {
+        qid: QID, surface: "daily", optionIdx: 0, anchors: { city: "Bergen, NO" },
+      });
+    });
+    const snap = await assertSucceeds(getDocs(query(
+      collectionGroup(asUser(STRANGER), "answers"),
+      where("qid", "==", QID),
+      where("surface", "in", ["daily", "feed", "test", "learn", "pulse", "call"]),
+      where("anchors.city", "==", "Oslo, NO"),
+    )));
+    // Narrowed, not widened: one of the two answers, and it is the one
+    // whose ANSWER froze that city (D8) rather than whoever lives there
+    // today.
+    expect((snap as { size: number }).size).toBe(1);
+  });
+
+  // …and the narrowing must not become a way around the duel seal, which
+  // is the one thing the surface clause exists to hold.
+  it("cannot reach a sealed duel answer by adding the city filter", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER, "answers", "g_g2_2026-08-10"), {
+        qid: "group-gu0", surface: "duo", optionIdx: 1,
+        gid: "g2", day: "2026-08-10", anchors: { city: "Oslo, NO" },
+      });
+    });
+    await assertFails(getDocs(query(
+      collectionGroup(asUser(FRIEND), "answers"),
+      where("anchors.city", "==", "Oslo, NO"),
+    )));
+  });
+
   // The rule's `surface` test is a VALUE test so a list query can be
   // compared against it. That has a consequence worth pinning rather than
   // rediscovering: a collection-group read that does NOT carry the

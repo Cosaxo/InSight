@@ -27709,3 +27709,112 @@ true. Neither makes the sample the population, and no copy anywhere yet
 says the field ranks a sample at all. Widening it is D101's rule — page
 from the cursor the ordering already provides, never a quiet cap raise —
 and the server-side alternative is unwritten.
+
+---
+
+## D276 · The City constellation asks for its city, instead of filtering for it
+
+**2026-08-24.** **Status:** binding. Closes the recall half of D112's known
+limit 1, which D112 recorded and priced for cost only. Partially reverses
+D64 §1 for exactly one field.
+
+### The bug is invisible, which is why it survived
+
+`fetchVoters` asks each question for the newest `VOTER_FETCH_CAP` (200)
+answers **from anywhere**, and `rankKindred` then filters them to your city
+on the device. With a city holding 2% of active users, about 4 of every 200
+rows survive that filter. And because the cap binds **before** the filter,
+the number of reachable city-mates *saturates*: 12 questions × 200 rows ×
+2% ≈ 50, and it stays ≈ 50 whether your city holds 20 people or 20,000.
+
+Modelled — the ring draws 12, so it fills every time:
+
+| app users | your city | city-mates reachable | ring fills? | P(closest person is a candidate) |
+|---|---|---|---|---|
+| 1,000 | 20 | 19 | yes | 99% |
+| 20,000 | 400 | 49 | yes | 46% |
+| 100,000 | 2,000 | 51 | yes | 23% |
+| 1,000,000 | 20,000 | 52 | yes | 0.3% |
+
+There is no empty state, no thinning, no caption that changes. D112's
+honesty rules are satisfied about thin DATA and say nothing about a thin
+SAMPLE, so nothing on the screen would ever have said this was happening.
+
+### Ask for the city; do not ask for more
+
+The city is already on the answer — `anchors.city`, frozen at vote time
+(D8), the same field the aggregate folds and `kindredPeople` reads back.
+Adding it to the query as a fourth equality costs nothing extra to read:
+
+| | reachable city-mates | % of your city | P(closest is a candidate) |
+|---|---|---|---|
+| today, at 100k users | 51 | 2.6% | 23% |
+| city-scoped | 1,387 | 69% | 90% |
+
+**This is not paging, and D101 is satisfied rather than bypassed.** The cap
+is unchanged and no cursor is walked. What changes is WHICH 200, which is a
+different lever from HOW MANY — and it is the one that pays: paging is
+linear in reads and would need `N/200` pages per question to be exhaustive
+(500 at 100k users), while this is free.
+
+**What it does not fix.** The limit stops depending on the app's size and
+starts depending on your city's size — 2,400 draws into a city of 2,000
+covers 70% of it, into 20,000 covers 11%. So this buys the realistic growth
+path, not permanence. The permanent answer is a server-side pass with no
+cap; it is unwritten and should stay unwritten until this runs out.
+
+### An additional pass, and that is the cost
+
+`PeopleLens` takes a `scope` and does **not** filter on it — it ranks
+strangers from anywhere. So narrowing the shared pool would silently turn
+"everyone" into "everyone in your city". The city rows therefore live in
+their own `state.cityVoters` and `kindredPeople()` unions the two; the
+who-voted sheet still draws `state.voters` alone, because a city-filtered
+list under "who answered this" would be a different claim wearing the same
+words.
+
+The bill: **+12 collection-group queries of ≤200 rows, once per session**,
+and only for a viewer who has a city and opened the stop that draws it
+(the effect is `scope === "city"`; Country and World read place aggregates
+and would buy nothing). Name and score resolution is mostly free on top —
+the same faces recur across a city's twelve lists and the profile cache is
+disk-backed (D129). Keyed on the anchor rather than a boolean, so a move
+refetches instead of serving the old city forever.
+
+### The index, and the D64 line it crosses
+
+A fourth equality needs its own composite:
+`answers (qid, surface, anchors.city, answeredAt DESC)`, collection-group.
+
+D64 §1 found `answers` indexed on fourteen fields nobody queried — 22 index
+entries per answer, cut to 2 — and its premise has already moved: *"there
+is no `collectionGroup("answers")` anywhere in `src/` or `functions/`"* was
+true when written and D98 added one.
+
+**The single-field exemption on `anchors.city` stays.** A composite index is
+declared explicitly and is not governed by a single-field exemption, so the
+cost is one composite entry per answer rather than the two single-field
+entries un-exempting would add. That is documented Firestore behaviour and
+**not something this tree can prove** — the emulator does not enforce index
+configuration at all (the reason `indexes.test.ts` exists), so first deploy
+is where it is confirmed. If it turns out a composite needs the exemption
+lifted, the fix is to lift it for this one field and record the write cost.
+
+### What is pinned
+
+- **Rules**: that the extra `where` still satisfies a grant written as a
+  value test on `surface` was a real question — D65's lesson is that a
+  collection-group read the rule cannot be compared against is refused
+  *wholesale*. Two cases in `rules.test.ts`: the narrowed query succeeds and
+  returns only the matching city, and it still cannot reach a sealed duel
+  answer.
+- **Index**: `indexes.test.ts` pins the new composite and that the unscoped
+  one survives beside it.
+- **Store**: four cases in `vote.test.ts`, over a fixture that keys voter
+  rows by the city the query asked for — so a narrowing that silently did
+  nothing would return the same people and fail. They pin that the equality
+  is in the QUERY and not a device-side filter, that the surface clause
+  survives beside it, that the pool is a union rather than a replacement,
+  that a viewer with no city issues no query at all (an empty string would
+  match every author who never set one), and that the cache refetches on a
+  move.

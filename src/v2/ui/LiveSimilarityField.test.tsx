@@ -50,6 +50,10 @@ const LIVE = vi.hoisted(() => ({
   enabled: true,
   subscribe: () => () => {},
   loadSimilarity: vi.fn(() => Promise.resolve()),
+  // D276: the City stop asks for its own city-scoped pass beside the
+  // unscoped one. Stubbed rather than exercised here — this file is about
+  // what the field DRAWS; the pool it draws from is pinned in vote.test.ts.
+  loadCityKindred: vi.fn(() => Promise.resolve()),
   loadNames: vi.fn(() => Promise.resolve()),
   similarityLoading: (): boolean => false,
   kindredLoading: (): boolean => false,

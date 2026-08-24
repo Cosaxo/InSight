@@ -84,6 +84,42 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
     expect(o!.indexes.some((i) => i.queryScope === "COLLECTION_GROUP" && i.order === "ASCENDING")).toBe(true);
   });
 
+  it("voters.ts fetchVoters(city): the city-scoped narrowing has its composite", () => {
+    // D276 adds a fourth clause to the voter query — equality on the
+    // frozen `anchors.city` — so it needs its own composite. Without it
+    // the query is FAILED_PRECONDITION in production and nowhere else:
+    // this file's header records why (the emulator does not enforce index
+    // configuration, so rules tests and e2e both pass regardless).
+    //
+    // Note the single-field EXEMPTION on anchors.city stays (D64 removed
+    // fourteen indexes nobody queried, and this does not put them back).
+    // A composite is declared explicitly and is not affected by a
+    // single-field exemption — which is the documented behaviour, not
+    // something these tests can prove, so the deploy is where it is
+    // confirmed.
+    const hit = cfg.indexes.find((ix) =>
+      ix.collectionGroup === "answers"
+      && ix.queryScope === "COLLECTION_GROUP"
+      && JSON.stringify(ix.fields) === JSON.stringify([
+        { fieldPath: "qid", order: "ASCENDING" },
+        { fieldPath: "surface", order: "ASCENDING" },
+        { fieldPath: "anchors.city", order: "ASCENDING" },
+        { fieldPath: "answeredAt", order: "DESCENDING" },
+      ]),
+    );
+    expect(hit, "the answers (qid, surface, anchors.city, answeredAt DESC) composite is missing or reshaped").toBeDefined();
+    // The unscoped query still has to work — this is an ADDITIONAL shape,
+    // because the People lens ranks strangers from anywhere.
+    expect(cfg.indexes.some((ix) =>
+      ix.collectionGroup === "answers"
+      && JSON.stringify(ix.fields) === JSON.stringify([
+        { fieldPath: "qid", order: "ASCENDING" },
+        { fieldPath: "surface", order: "ASCENDING" },
+        { fieldPath: "answeredAt", order: "DESCENDING" },
+      ]),
+    )).toBe(true);
+  });
+
   it("engagement.ts rollupPage: engagement.folded keeps its collection-group index", () => {
     // This one was in the file and NOT in the deployment. firestore.indexes.json
     // carried two top-level "fieldOverrides" keys; JSON.parse keeps the last,

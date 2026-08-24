@@ -44,6 +44,15 @@ const h = vi.hoisted(() => ({
   updateDocImpl: null as null | (() => Promise<void>),
   updateDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
   bankDocs: [] as FakeSnapshotDoc[],
+  // D276: the collection-group voter reads. Keyed by the city the query
+  // asked for ("" = the unscoped pass), because the whole point of the
+  // change is that the two return DIFFERENT people — a fixture that
+  // ignored the filter could not tell a working narrowing from a no-op.
+  voterDocs: {} as Record<string, FakeSnapshotDoc[]>,
+  // Every collection-group query issued, with the field/value pairs it
+  // carried. What proves the `where` reached Firestore rather than being
+  // applied on the device afterwards.
+  voterQueries: [] as Array<Record<string, unknown>>,
   // Documents `v2_question_aggs` queries resolve to, and the id lists they
   // were asked for (D125). The learn prefetch's whole failure mode is
   // asking for a document id nobody writes — getDocs returns nothing, the
@@ -124,15 +133,24 @@ vi.mock("firebase/firestore", () => {
       id: d.id,
       data: () => d.data,
       get: (k: string) => d.data[k],
+      // voters.ts recovers the author's uid from the document PATH — that
+      // is what turns a collection-group row into a named person — so a
+      // fixture without one parses to nobody. `__path` lets a case state
+      // the author; everything else keeps the old shape.
+      ref: { path: (d.data.__path as string) || `v2_users/uid_x/answers/${d.id}` },
     })),
   });
   return {
     collection: (_db: unknown, ...path: string[]) => ref("collection", path),
+    collectionGroup: (_db: unknown, name: string) => ref("collectionGroup", [name]),
     doc: (_db: unknown, ...path: string[]) => ref("doc", path),
     query: (src: { path?: string }, ...parts: unknown[]) => ({
       __kind: "query", path: src?.path, parts,
     }),
-    where: (_field: unknown, _op: unknown, value: unknown) => ({ __kind: "where", value }),
+    // `field` rides along since D276: the agg arm below keys on `value`
+    // being an array and is unaffected, while the collection-group arm
+    // needs to know WHICH equality it was handed.
+    where: (field: unknown, _op: unknown, value: unknown) => ({ __kind: "where", field, value }),
     orderBy: () => ({ __kind: "orderBy" }),
     // Required since D161 paged the bank fetch: live.ts destructures the
     // whole Firestore surface, so a missing member throws at boot.
@@ -160,6 +178,17 @@ vi.mock("firebase/firestore", () => {
       // `documentId() in deckIds` — so its fixtures are filtered by deck
       // membership rather than returned wholesale. That is the more faithful
       // mock of the two and the poll needs no special case.
+      // The voter fan-out (D102) and its city-scoped sibling (D276).
+      if (q?.path === "answers") {
+        const wheres: Record<string, unknown> = {};
+        for (const part of q.parts || []) {
+          const w = part as { __kind: string; field?: unknown; value?: unknown };
+          if (w && w.__kind === "where" && typeof w.field === "string") wheres[w.field] = w.value;
+        }
+        h.voterQueries.push(wheres);
+        const city = typeof wheres["anchors.city"] === "string" ? wheres["anchors.city"] as string : "";
+        return Promise.resolve(snapOf(h.voterDocs[city] || []));
+      }
       if (q?.path === "v2_question_aggs") {
         const ids = (q.parts || [])
           .filter((p) => p && p.__kind === "where" && Array.isArray(p.value))
@@ -291,6 +320,8 @@ beforeEach(() => {
   h.answerDocs.length = 0;
   h.aggIdQueries.length = 0;
   h.aggFailIds.length = 0;
+  h.voterDocs = {};
+  h.voterQueries.length = 0;
   h.bankDocs = [
     {
       id: "q_1",
@@ -1847,5 +1878,92 @@ describe("rating questions and the confirmed city", () => {
     LIVE.vote("q_1", "1");
     await flush();
     expect(anchorsOf("q_1").city).toBe("Oslo, NO");
+  });
+});
+
+// ── the city half of the Kindred pool (D276) ─────────────────────────
+//
+// WHAT THIS IS FOR. The unscoped voter query returns the newest 200
+// answers from ANYWHERE and the City constellation then filters them to
+// one city on the device. Because the cap binds before the filter, the
+// number of reachable city-mates saturates around 50 however large the
+// city grows — and the ring only draws 12, so it fills either way. The
+// failure has no symptom, which is exactly why it needs a test rather
+// than a screenshot.
+//
+// The fixture keys voter rows by the city the query asked for, so a
+// narrowing that silently did nothing would return the same people and
+// fail here.
+describe("loadCityKindred — asking for the city instead of filtering for it", () => {
+  const OSLO = "Oslo, NO";
+  const answerDoc = (uid: string, qid: string, optionIdx: number, city: string) => ({
+    id: qid,
+    data: {
+      __path: `v2_users/${uid}/answers/${qid}`,
+      qid, surface: "daily", optionIdx, anchors: { city },
+    },
+  });
+
+  const bootInOslo = async () => {
+    h.getDocImpl = (path: string) => (path === "v2_users/uid_test" ? { anchors: { city: OSLO } } : null);
+    h.answerDocs.push({ id: "q_1", data: { qid: "q_1", surface: "daily", optionIdx: 1 } });
+    return bootLive();
+  };
+
+  it("sends the frozen city anchor to Firestore, not to a device-side filter", async () => {
+    h.voterDocs[OSLO] = [answerDoc("u_oslo", "q_1", 1, OSLO)];
+    const LIVE = await bootInOslo();
+    h.voterQueries.length = 0;
+    await LIVE.loadCityKindred();
+    // The whole point of the change: the equality is IN the query. A
+    // client-side filter would show up here as no `anchors.city` clause
+    // and would read identically on screen.
+    const scoped = h.voterQueries.filter((w) => w["anchors.city"] === OSLO);
+    expect(scoped.length).toBeGreaterThan(0);
+    // …and the surface clause survives beside it, which is not optional:
+    // firestore.rules grants this read as a value test on `surface`, so a
+    // query that dropped it would be refused wholesale (D65).
+    expect(scoped[0].surface).toEqual(["daily", "feed", "test", "learn", "pulse", "call"]);
+  });
+
+  it("adds the city people to the pool without displacing the unscoped ones", async () => {
+    // The People lens ranks strangers from anywhere and reads the same
+    // fold, so the city pass has to be a UNION. If it replaced, that lens
+    // would silently become "everyone in your city".
+    h.voterDocs[""] = [answerDoc("u_far", "q_1", 1, "Lima, PE")];
+    h.voterDocs[OSLO] = [answerDoc("u_near", "q_1", 1, OSLO)];
+    const LIVE = await bootInOslo();
+    await LIVE.loadKindred();
+    expect(LIVE.kindredPeople().map((p) => p.uid)).toEqual(["u_far"]);
+    await LIVE.loadCityKindred();
+    expect(LIVE.kindredPeople().map((p) => p.uid).sort()).toEqual(["u_far", "u_near"]);
+  });
+
+  it("does nothing at all for a viewer with no city", async () => {
+    h.voterDocs[OSLO] = [answerDoc("u_oslo", "q_1", 1, OSLO)];
+    h.answerDocs.push({ id: "q_1", data: { qid: "q_1", surface: "daily", optionIdx: 1 } });
+    const LIVE = await bootLive();
+    h.voterQueries.length = 0;
+    await LIVE.loadCityKindred();
+    // No anchor means no city to ask for — and asking with an empty string
+    // would match every answer whose author never set one.
+    expect(h.voterQueries).toEqual([]);
+  });
+
+  it("is session-cached, and refetches when the anchor moves", async () => {
+    h.voterDocs[OSLO] = [answerDoc("u_oslo", "q_1", 1, OSLO)];
+    const LIVE = await bootInOslo();
+    await LIVE.loadCityKindred();
+    const first = h.voterQueries.length;
+    await LIVE.loadCityKindred();
+    expect(h.voterQueries.length).toBe(first); // cached, not refetched
+
+    // A move must not serve the old city forever — the guard is keyed on
+    // the anchor rather than being a boolean. saveAnchors is the real
+    // setter and updates state.profile.anchors synchronously.
+    h.voterDocs["Bergen, NO"] = [answerDoc("u_bergen", "q_1", 1, "Bergen, NO")];
+    LIVE.saveAnchors({ city: "Bergen, NO" });
+    await LIVE.loadCityKindred();
+    expect(h.voterQueries.some((w) => w["anchors.city"] === "Bergen, NO")).toBe(true);
   });
 });

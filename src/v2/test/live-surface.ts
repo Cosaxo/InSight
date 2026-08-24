@@ -59,6 +59,11 @@ export const LIVE_MEMBERS = [
   // Kindred (D99) — the People lens's ranking, derived on read from the
   // cached voter lists plus the viewer's own votes.
   "loadKindred", "kindred", "kindredLoading", "kindredDepth",
+  // D276 — the city-scoped half of the same pool. A second fan-out rather
+  // than a wider cap: the unscoped query returns the newest 200 answers
+  // from anywhere and the City ring then filters them to one city, so at
+  // any real population it discards nearly everything it paid for.
+  "loadCityKindred",
   // Similarity (D112) — the constellation fields. `loadSimilarity` tops up
   // the bank's test-item aggregates (once per session) and runs
   // loadKindred; `kindredPeople` is kindred() plus frozen city and parsed
