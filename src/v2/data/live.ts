@@ -117,13 +117,25 @@ import { fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from
 // catch. Every call site is already async and already awaits getDb(), so
 // the dynamic import costs no round trip that was not happening anyway.
 import type { Invite } from "./invites";
-import { type KindredPerson, type ParsedResults } from "./similarity";
+import { passiveResult, passiveTest } from "./passiveProfile";
+// @ts-expect-error TS7016 — untyped spec module (the testNorms.ts /
+// LiveSimilarityField.tsx pattern). The cast below is pinned rather than
+// hopeful: content-parity.test.jsx holds IS_TESTS to exactly this shape.
+import { IS_TESTS } from "../spec/test-definitions.js";
+import {
+  CORE_TEST_KINDS,
+  pickKindredQids,
+  voteIndices,
+  type KindredPerson,
+  type ParsedResults,
+  type TestDefs,
+} from "./similarity";
 import {
   AVATAR_MAX_BYTES, avatarPath, shrinkToSquare, tokenFromUrl,
 } from "./avatar";
 // Pure folds over the published breakdown, and the likeness metric behind
 // Kindred. No Firebase in there — this module supplies the documents.
-import { agreement, type Agreement } from "./cohort";
+import { agreement, divisiveness, type Agreement } from "./cohort";
 // The follow graph (D101), TYPE-ONLY at module scope and imported for
 // real inside the two methods that use it.
 //
@@ -345,6 +357,14 @@ const state = {
   // against its own inputs.
   kindredLoading: false,
   kindredAt: 0,
+  // D278: the city-scoped half of the pool, kept SEPARATE from
+  // state.voters rather than merged into it. The who-voted sheet draws
+  // state.voters and means "who answered this" — a city-filtered list
+  // under that heading would be a different claim wearing the same words.
+  // kindredPeople() unions the two; nothing else reads this.
+  cityVoters: {} as Record<string, Voter[]>,
+  cityVotersAt: "",
+  cityKindredLoading: false,
   // Similarity (D112): the constellation fields' one-per-session agg
   // top-up (the bank's core test items) and its in-flight flag.
   similarityLoading: false,
@@ -397,6 +417,30 @@ let adsInflight: Promise<void> | null = null;
  * are mine.
  */
 const AD_POOL_CAP = 200;
+
+/**
+ * How divisive a question the viewer answered turned out to be, 0..1, or
+ * -1 when this device holds no published counts for it (D277 §2).
+ *
+ * The selection key for loadKindred's twelve. -1 rather than 0 for the
+ * unknown case so a question with real counts always outranks one with
+ * none, while a brand-new account — which has answered questions whose
+ * aggregates have not landed yet — still gets a full twelve rather than an
+ * empty pool. `divisiveness` normalises by option count (cohort.ts), so a
+ * 2-option daily and a 5-option scale item are comparable.
+ */
+function divisivenessOf(qid: string): number {
+  const counts = state.aggs[qid]?.counts;
+  if (!counts) return -1;
+  const dense: number[] = [];
+  for (let i = 0; i < 20; i++) {
+    const c = counts[String(i)];
+    if (typeof c !== "number") break;
+    dense.push(c);
+  }
+  if (dense.length < 2) return -1;
+  return divisiveness(dense);
+}
 
 // How many of the viewer's own answers the Kindred ranking reads across.
 // Twelve shared questions is a legible likeness claim and the cost is
@@ -1464,6 +1508,13 @@ async function hydrate(): Promise<void> {
     // Live mode shows only REAL results: purge the demo's baked test
     // results and rebuild from server + this device's saves.
     publishTestResults();
+    // …and then publish anything the viewer's own answers have already
+    // earned (D277). Fire-and-forget: an account that has answered enough
+    // test cards should not have to answer one MORE to get a stored
+    // result, which is what hanging this on the vote path alone would
+    // mean for every user who already cleared the threshold. state.feedBank
+    // is loaded well before this point, so the fold has its items.
+    LIVE.syncPassiveResults();
   }
 
   // Other people's names and scores, from this account's previous sessions
@@ -2986,18 +3037,51 @@ const LIVE = {
   // question whose sheet has been opened costs nothing here, and the
   // names are resolved once into the shared cache for both surfaces.
   //
-  // Bounded at KINDRED_QUESTIONS of the viewer's OWN most recent answers.
-  // Likeness over 12 shared questions is already a legible claim, and the
-  // cost is linear in that number — an unbounded version would fan out
-  // over every question the account has ever answered, on a screen the
-  // user may open casually.
+  // Bounded at KINDRED_QUESTIONS of the viewer's own answers, CHOSEN
+  // rather than inherited (D277 §2). The bound itself is the affordable
+  // part and is not what changed: likeness over 12 shared questions is a
+  // legible claim, and an unbounded version would fan out over every
+  // question the account has ever answered, on a screen opened casually.
+  //
+  // WHICH TWELVE was the bug. This read
+  //
+  //     Object.keys(state.votes).filter(…).slice(0, KINDRED_QUESTIONS)
+  //
+  // under a comment claiming "the viewer's OWN most recent answers", and
+  // D112 recorded the pool as recency-biased on the same belief. Neither
+  // was true: Object.keys is insertion order, hydrate assigns the
+  // persisted cache FIRST (the answers-cache block above), the warm delta
+  // query carries an inequality with no orderBy, and new votes append at
+  // the tail — and re-assigning a key that already exists does not move
+  // it. So the twelve froze at whatever the first cold boot happened to
+  // put first and never moved again, and the two boot paths disagree, so
+  // the same account ranked strangers differently on a second device.
+  //
+  // Recency is not the replacement either, and cannot be: the vote map
+  // carries no timestamps. peopleMap.ts:124-130 already reached this
+  // conclusion for the sibling surface — "Recency would match Kindred's
+  // choice but the client vote map carries no timestamps" — while this
+  // file's comment claimed the recency it could not have.
+  //
+  // DIVISIVENESS is the honest choice and a better one than recency ever
+  // was. Agreeing on a question 95% of people answer the same way is
+  // nearly no evidence; agreeing on a 50/50 split is a lot. cohort.ts has
+  // measured that as `divisiveness` since D99 and nothing has ever used
+  // it to pick anything. Every input is already resident — hydrate tops up
+  // aggregates for answered questions (AGG_ID_CAP 120) — so this costs one
+  // sort and no read.
+  //
+  // Non-integer votes are dropped in the same pass. A catalog answer
+  // stores an entity id and a rank answer a joined order (see the fold in
+  // hydrate), both on `surface: "feed"`, which IS in WORLD_ANSWER_SURFACES
+  // — so those qids issued a collection-group query, got documents back,
+  // and voters.ts discarded every row for want of a numeric optionIdx.
+  // Up to a quarter of the twelve slots bought an empty list.
   async loadKindred(): Promise<void> {
     if (state.kindredLoading) return;
     state.kindredLoading = true;
     try {
-      const qids = Object.keys(state.votes)
-        .filter((id) => !id.startsWith("g_"))
-        .slice(0, KINDRED_QUESTIONS);
+      const qids = pickKindredQids(state.votes, divisivenessOf, KINDRED_QUESTIONS);
       // Sequential rather than parallel on purpose: each call is a
       // collection-group query, most of them are cache hits after the
       // first surface has run, and firing twelve at once at boot-adjacent
@@ -3005,7 +3089,11 @@ const LIVE = {
       for (const qid of qids) {
         if (!state.voters[qid]) await this.loadVoters(qid);
       }
-      state.kindredAt = qids.length;
+      // Counted from what actually LANDED, not from what was asked for:
+      // loadVoters swallows its own failure (reportError, then the list
+      // stays unset), so the old line reported twelve to the caption after
+      // twelve failed queries.
+      state.kindredAt = qids.filter((id) => state.voters[id]).length;
     } catch (err) {
       reportError(err, { where: "loadKindred" });
     } finally {
@@ -3040,14 +3128,87 @@ const LIVE = {
     return Object.keys(theirs)
       .map((uid) => ({ uid, name: state.names[uid] || "", like: agreement(mine, theirs[uid]) }))
       .filter((p) => p.like.shared >= minShared)
-      // Most alike first; more shared questions breaks a tie, because a
-      // 100% over two questions is a weaker claim than 80% over ten.
-      .sort((a, b) => b.like.pct - a.like.pct
+      // Most alike first, on the confidence-bounded rate rather than the
+      // raw percentage (D277 §2). The old comment here had the reasoning
+      // right — "a 100% over two questions is a weaker claim than 80% over
+      // ten" — and the wrong key: with pct FIRST, `shared` only ever broke
+      // a tie between two people who already had the same percentage, so
+      // the 100%-of-two still headed the list. `rate` is what makes the
+      // sentence true. `pct` is still what gets printed.
+      .sort((a, b) => b.like.rate - a.like.rate
         || b.like.shared - a.like.shared
         || a.uid.localeCompare(b.uid));
   },
   kindredLoading(): boolean {
-    return state.kindredLoading;
+    return state.kindredLoading || state.cityKindredLoading;
+  },
+  // ── the city half of the pool (D278) ──────────────────────────────
+  //
+  // THE BUG THIS CLOSES is recall, and it is the one D112 recorded as
+  // known limit 1 and priced only for cost. `loadKindred` asks each
+  // question for the newest VOTER_FETCH_CAP answers from ANYWHERE, and
+  // the City constellation then filters them to your city on the device.
+  // With a city holding 2% of active users, ~4 of every 200 rows survive
+  // that filter — and because the cap binds BEFORE the filter, the number
+  // of reachable city-mates saturates around 50 however large the city
+  // gets. Modelled: at 100k users the ring is choosing its twelve from
+  // 2.6% of your city, and the chance the single closest person is even a
+  // candidate is 23%.
+  //
+  // The city is already ON the answer (`anchors.city`, frozen at vote
+  // time, D8 — the same field the aggregate folds and `kindredPeople`
+  // reads back), so the fix is to ask for it rather than to ask for more:
+  // same twelve questions, same 200-row cap, same rows read, ~50× the
+  // usable rows. Modelled at the same 100k: reachable city-mates 51 →
+  // 1,387, top-1 recall 23% → 90%.
+  //
+  // AN ADDITIONAL PASS, not a replacement, and that is the cost. The
+  // People lens ranks strangers from anywhere (it takes a `scope` and
+  // does not filter on it), so narrowing the shared pool would silently
+  // turn "everyone" into "everyone in your city". So this is a second
+  // read: +12 collection-group queries of ≤200 rows, once per session,
+  // and only for a viewer who has a city and opened the stop that draws
+  // it. Name and score resolution is mostly free on top — the same faces
+  // recur across a city's twelve lists and the profile cache is
+  // disk-backed (D129).
+  //
+  // Not paging, deliberately (the D101 rule is satisfied, not bypassed):
+  // the cap is unchanged and no cursor is walked. What changes is WHICH
+  // 200, which is a different lever from HOW MANY — and it is the lever
+  // that pays, because paging is linear in reads while this is free.
+  async loadCityKindred(): Promise<void> {
+    const city = this.myCity;
+    if (!this.enabled || !city || state.cityKindredLoading) return;
+    // The anchor can change (a move, a corrected city). Keyed rather than
+    // guarded by a boolean so the pool refetches for the new city instead
+    // of serving the old one forever.
+    if (state.cityVotersAt === city) return;
+    state.cityKindredLoading = true;
+    notify();
+    try {
+      const db = await getDb();
+      const qids = pickKindredQids(state.votes, divisivenessOf, KINDRED_QUESTIONS);
+      const next: Record<string, Voter[]> = {};
+      // Sequential, for the reason loadKindred is: twelve collection-group
+      // queries fired at once is the shape that gets a client rate-limited.
+      for (const qid of qids) {
+        try {
+          next[qid] = await fetchVoters(db, qid, state.uid, state.names, state.scores, state.logicPcts, city);
+        } catch (err) {
+          // One question failing must not cost the other eleven. Absent
+          // rather than empty, the loadVoters rule.
+          reportError(err, { where: "loadCityKindred", qid });
+        }
+      }
+      state.cityVoters = next;
+      state.cityVotersAt = city;
+      saveProfileCache();
+    } catch (err) {
+      reportError(err, { where: "loadCityKindred" });
+    } finally {
+      state.cityKindredLoading = false;
+      notify();
+    }
   },
 
   // ── the follow graph and the Circle stop (D101) ──
@@ -3383,7 +3544,12 @@ const LIVE = {
     }
     const theirs: Record<string, Record<string, number>> = {};
     const anchors: Record<string, Record<string, string>> = {};
-    for (const [qid, rows] of Object.entries(state.voters)) {
+    // Both halves of the pool (D278). The city pass and the unscoped pass
+    // overlap heavily — a city-mate near the top of a question's newest
+    // 200 is in both — and the inner loop is idempotent per (uid, qid), so
+    // the union needs no dedupe of its own.
+    const pools = [...Object.entries(state.voters), ...Object.entries(state.cityVoters)];
+    for (const [qid, rows] of pools) {
       for (const r of rows) {
         if (r.uid === state.uid) continue;
         (theirs[r.uid] || (theirs[r.uid] = {}))[qid] = r.optionIdx;
@@ -3517,6 +3683,75 @@ const LIVE = {
         reportError(err, { where: "saveTestResult" });
       }
     })();
+  },
+  // ── the passive fold, persisted (D277) ────────────────────────────
+  //
+  // D112 recorded as known limit 2 that a person's own passive feed
+  // answers never reach their STORED result, and sidestepped it by
+  // folding the viewer's answers directly wherever the viewer's own vector
+  // was needed. D121 then deleted the sit-down flow — the only writer
+  // `testResults` ever had — and the limit quietly became a hole: with
+  // nothing writing the four core keys, `state.scores[uid]` parses to
+  // null for EVERY candidate, `rankKindred`'s score tier can never fire,
+  // and the City ring that D112 specified as "ranked primarily by test
+  // scores" ranks entirely on answer agreement instead. Two comments in
+  // the tree already say the writer is gone (passive-meter.jsx,
+  // passiveProfile.ts); neither noticed that the person-to-person half of
+  // D112 went with it.
+  //
+  // NOTHING NEW IS COMPUTED HERE. `passiveResult` already emits the shape
+  // the sit-down flow wrote — `dims: [{ id, label, value }]`, which is
+  // exactly what `parseTestResults` reads back off a stranger profile —
+  // and already refuses an instrument with any axis under MIN_AXIS_ITEMS.
+  // So what publishes is precisely what D121 decided had earned the right
+  // to be called a result; this only stops throwing it away.
+  //
+  // A STORED RESULT ALWAYS WINS. A pre-D121 sit-down result is a finished
+  // instrument and this fold is an estimate of the same thing from fewer
+  // answers, so only an absent key — or one this fold wrote before, which
+  // `passive: true` marks — is ever moved. result-card.jsx's `ownResult`
+  // makes the same call for the same reason.
+  //
+  // STATIC IMPORTS, and that is measured rather than assumed. The worry
+  // was the entry graph — check:bundle records MAX_EAGER_KB as having no
+  // headroom — but both modules are already in it: `test-definitions.js`
+  // arrives through `daily-split.jsx`, which spec-index.js imports eagerly
+  // (line 113, above the loadWorldFeed deferrals), and `passiveProfile.ts`
+  // pulls only `similarity.ts`, which `voters.ts` already imports
+  // statically for parseTestResults. So the honest cost here is this
+  // module's own body and nothing else.
+  syncPassiveResults(): void {
+    if (!this.enabled || !state.uid) return;
+    try {
+      const defs = IS_TESTS as TestDefs;
+      const items = this.testFeedItems();
+      const votes = voteIndices(state.votes);
+      let wrote = false;
+      for (const kind of CORE_TEST_KINDS) {
+        const def = defs[kind];
+        if (!def) continue;
+        const stored = state.profile.testResults[kind] as { passive?: boolean } | undefined;
+        if (stored && !stored.passive) continue;
+        const next = passiveResult(
+          passiveTest(kind, def, items, defs, votes),
+          def.title || kind,
+        );
+        if (!next) continue;
+        // The fold re-runs on every test answer and most answers do not
+        // move a rounded axis value, so an unchanged result must not buy a
+        // profile write. Comparing the serialised doc is the cheap version
+        // of "did anything a reader could see change".
+        if (stored && JSON.stringify(stored) === JSON.stringify(next)) continue;
+        this.saveTestResult(kind, next);
+        wrote = true;
+      }
+      // Only when something moved: publishTestResults dispatches to every
+      // consumer holding the results object, and an event that changes
+      // nothing is a re-render nobody asked for.
+      if (wrote) publishTestResults();
+    } catch (err) {
+      reportError(err, { where: "syncPassiveResults" });
+    }
   },
   async linkGoogle(): Promise<void> {
     return linkGoogle();
@@ -4286,6 +4521,11 @@ const LIVE = {
             engagement.noteQid(qid, "a");
           }
         }
+        // A test answer can move an axis, and an axis can cross
+        // MIN_AXIS_ITEMS (D277). On the ACK rather than the tap, like the
+        // two counters above: a refused create must not publish a result
+        // built on an answer the server rejected.
+        if (q?.surface === "test") LIVE.syncPassiveResults();
         notify(); // confirmedVotes() changed — let persistent records (the Map) pick it up
         scheduleAggRefresh(db, qid);
       } catch (err) {
@@ -4586,6 +4826,9 @@ function resetForNewUid(uid: string): void {
   }
   state.kindredLoading = false;
   state.kindredAt = 0;
+  state.cityVoters = {};
+  state.cityVotersAt = "";
+  state.cityKindredLoading = false;
   state.similarityLoading = false;
   // state.aggs was dropped above, so the test-item top-up has to run
   // again for the new account.

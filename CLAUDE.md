@@ -239,7 +239,7 @@ Two rules for working with it:
 `npm run lint` locally is eslint alone and says nothing about it, and
 `check:docs` rule 4 reads only `check:*` names, so no gate could see it
 missing from the table above either — which is how the table stayed at
-four until D277. What breaks is always a script that CHECKS something, so
+four until D279. What breaks is always a script that CHECKS something, so
 nothing else goes red: **D179** (a billed-read tripwire and a store-form
 assertion, both stale — and the record that first wrote down that
 `npm run lint` is eslint alone, so running it and calling it "lint
@@ -248,7 +248,7 @@ with a `try/catch` reported an invented wire size instead of failing),
 **D275**'s branch (a read tripwire counting `tx.get(` after the code moved
 to `tx.getAll(`, so it counted zero and called it a regression). Run it
 before you push. Both the count in that heading and the number of rows in
-the table are `check:figures`'s now, off package.json — D277 has what it
+the table are `check:figures`'s now, off package.json — D279 has what it
 does and does not decide is a runner.
 
 Plus the non-test gates: `check:globals`, `check:labels`, `check:quality`

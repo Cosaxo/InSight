@@ -40,6 +40,7 @@
 
 import realLive from "../data/live";
 import { LIVE_MEMBERS, LIVE_NEAR_MEMBERS, LIVE_SOCIAL_MEMBERS } from "./live-surface";
+import { agreementOf } from "../data/cohort";
 
 type Dict = Record<string, unknown>;
 
@@ -377,7 +378,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     circle: () => [
       {
         uid: "u_other", name: "Ada", mutual: true,
-        like: { shared: 2, same: 1, pct: 50 },
+        like: agreementOf(1, 2),
         answers: { "daily-000": 1, "daily-001": 0 },
       },
     ],
@@ -429,7 +430,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // ranked row rather than only the empty state.
     loadKindred: async () => {},
     kindred: () => [
-      { uid: "u_other", name: "Ada", like: { shared: 6, same: 5, pct: 83 } },
+      { uid: "u_other", name: "Ada", like: agreementOf(5, 6) },
     ],
     kindredLoading: () => false,
     kindredDepth: () => 6,
@@ -455,7 +456,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     kindredPeople: () => [
       {
         uid: "u_other", name: "Ada", city: opts.myCity ?? "Oslo, NO",
-        like: { shared: 6, same: 5, pct: 83 },
+        like: agreementOf(5, 6),
         results: { big5: { O: 80, C: 50, E: 45, A: 60, N: 50 } },
       },
     ],
@@ -603,6 +604,8 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     saveDisplayName: async () => {},
     saveAnchors: () => {},
     saveTestResult: () => {},
+    syncPassiveResults: () => {},
+    loadCityKindred: async () => {},
     // Learn (D32): the fixture answers nothing and has no aggregates, so
     // every learn reveal renders the ESTIMATE path with its label — which
     // is exactly the honest cold-start state the live tests should see.

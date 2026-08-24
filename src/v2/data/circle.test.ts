@@ -6,10 +6,11 @@
 
 import { describe, expect, it } from "vitest";
 import { capFollows, circleSplit, rankMembers, FOLLOW_CAP, type Member } from "./circle";
+import { agreementOf } from "./cohort";
 
 const m = (uid: string, name: string, pct: number, shared: number, over: Partial<Member> = {}): Member => ({
   uid, name, mutual: false,
-  like: { pct, shared, same: Math.round((pct / 100) * shared) },
+  like: agreementOf(Math.round((pct / 100) * shared), shared),
   answers: {},
   ...over,
 });

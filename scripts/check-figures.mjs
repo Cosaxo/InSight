@@ -26,7 +26,7 @@
 // Adding a figure is one entry in FIGURES below. The one exception is at
 // the bottom, where CLAUDE.md §2's table is held to its own heading: that
 // figure is written as ROWS rather than as a number, so it cannot be a
-// pattern with a capture group (D277).
+// pattern with a capture group (D279).
 //
 // It started README-only and grew a `file` field when the launch docs
 // began quoting the question-bank size. That was the right moment: those
@@ -264,7 +264,7 @@ const NUMBER_WORDS = {
 // map from silently omitting a thing — reads `check:*` names only and so
 // could not see the omission either. Three branches shipped a broken gate
 // script through that gap (D179, D197, and D275's), each of them a script
-// that CHECKS something, which is why nothing else went red. D277 makes
+// that CHECKS something, which is why nothing else went red. D279 makes
 // the count something a gate owns instead of something a table remembers.
 //
 // Counted GROUPED, the way the table tabulates them — one row per suite,
@@ -324,7 +324,7 @@ const FIGURES = [
     fix: (n) => `"the eligible corpus is ${n} questions today"`,
   },
   // The runner count, in the three sentences that quote it. All three
-  // together, because the whole failure D277 records is one of them being
+  // together, because the whole failure D279 records is one of them being
   // updated and the others not — the §1 line and the §5 line are the two a
   // newcomer reads before they ever open CLAUDE.md §2.
   {
@@ -724,7 +724,7 @@ for (const fig of FIGURES) {
 // have that many rows. Held here rather than as a FIGURES entry because
 // this figure is not written as a word — it is the rows themselves — and
 // a heading corrected to "six" over a five-row table is exactly the drift
-// D277 is about, one edit short of the fix.
+// D279 is about, one edit short of the fix.
 const runnerTable = /\n### 2\. There are [^\n]*\n([\s\S]*?)\n#{2,3} /.exec(read("CLAUDE.md"));
 if (!runnerTable) {
   throw new Error(

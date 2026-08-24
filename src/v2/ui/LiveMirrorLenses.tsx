@@ -451,7 +451,9 @@ function PeopleLens({ qs, scope, shortName }: {
   // over, so the card costs no read the list has not already paid for.
   const ranked = LIVE.kindredPeople()
     .filter((p) => p.like.shared >= 2)
-    .sort((a, b) => b.like.pct - a.like.pct
+    // rate, not pct (D277 §2): the percentage alone puts a 1-of-1 stranger
+    // above a 45-of-50 one. cohort.likenessRate has the measurements.
+    .sort((a, b) => b.like.rate - a.like.rate
       || b.like.shared - a.like.shared
       || a.uid.localeCompare(b.uid));
   // Typed AFTER the cut, not before. `typeOfPerson` runs the archetype
@@ -487,9 +489,16 @@ function PeopleLens({ qs, scope, shortName }: {
             {shown.map((p) => <KindredCard key={p.uid} p={p} />)}
             {/* The metric, in one sentence, on the screen that uses it —
                 a likeness number nobody can explain is a number nobody
-                should trust. */}
+                should trust.
+
+                "last N" was the wrong word twice over (D277 §2): the
+                twelve were never the most recent — Object.keys order froze
+                them at the first cold boot — and they are now chosen by
+                how divisive each question was, which is not an ordering in
+                time at all. "across N" is what the number is actually
+                over, and it is the same length. */}
             <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 2, lineHeight: 1.5 }}>
-              same picks &divide; shared &middot; last {LIVE.kindredDepth()}
+              same picks &divide; shared &middot; across {LIVE.kindredDepth()}
             </span>
           </div>
         )}

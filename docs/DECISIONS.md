@@ -27710,7 +27710,383 @@ pure logic and wants no DOM" has flipped — **81 of 129 files** opt into
 jsdom. The conclusion still holds (a global environment would add ~53 s
 to the 48 that do not), so only the reason is stale.
 
-## D277 · There were always five test runners, and the table said four
+---
+
+## D277 · The similarity surfaces were ranking on a tier that could not fire
+
+(Authored as D275; renumbered in the merge — main had minted D275/D276 for the
+optimization audit and the suite audit. The D68/D113 precedent.)
+
+**2026-08-24.** **Status:** binding. Follow-on to D98/D99/D112, and the
+half of D121 nobody costed at the time.
+
+### 0 · An index that was in the file and not in the deployment
+
+`firestore.indexes.json` carried **two top-level `"fieldOverrides"`
+keys**. JSON keeps the last, so the first block — whose only entry was
+the collection-group single-field index on `engagement.folded` — was
+discarded on every read, `firebase deploy` included. `engagement.ts`'s
+`rollupPage` has therefore been issuing
+
+```
+db.collectionGroup("engagement").where("folded", "==", false)
+```
+
+against an index that does not exist, while its own comment says the
+override "is a fieldOverride in firestore.indexes.json — deployed with
+the rules, per the existing --only path."
+
+It is the quietest shape a config error takes: the file is valid JSON,
+the override reads correctly to anyone opening it, and **the emulator
+does not enforce index configuration** — the reason `indexes.test.ts`
+exists at all (D101's `fetchAnswersOf`, the same class of failure). The
+fix merges the blocks; nothing else moves, verified structurally rather
+than by eye. Two cases now pin it: the override must survive a *parse*,
+and every top-level key must appear exactly once — depth-aware, because
+`"indexes"` is also a key inside every override and matching it anywhere
+counts 21 and proves nothing. Both were confirmed to FAIL against the
+pre-fix file before being kept.
+
+### 1 · D121 deleted the only writer `testResults` ever had
+
+D112 shipped the constellation on the owner's direction, quoted in its
+own record: *"the city country and persons in the city should be based on
+who is the closest to you primarily based on test scores."* It recorded
+as **known limit 2** that a person's own passive feed answers never reach
+their STORED result, and sidestepped it by folding the viewer's answers
+directly wherever the viewer's own vector was needed.
+
+D121 then removed the sit-down flow, and its §1 states plainly what that
+flow was: *"The only writer of a `testResults` entry was the sit-down
+flow."* Nothing replaced it. From that commit until this one, in any live
+build:
+
+- no client path writes the four core keys — `persistTestResult`
+  (test-definitions.js) has zero production callers, `daily-split.jsx`
+  imports the name and never calls it, and the one server writer
+  (`logic.ts`) writes `logic`, which `CORE_TEST_KINDS` deliberately
+  excludes;
+- so `parseTestResults` returns **null for every candidate**,
+  `state.scores[uid]` is null, `rankKindred`'s `score` is null for
+  everyone, and its two-tier sort collapses;
+- so the City ring — specified as *ranked primarily by test scores* —
+  ranked entirely on `agreement()`: exact-option-match over at most
+  twelve shared questions.
+
+The tree already said the writer was gone, twice (`passive-meter.jsx`,
+`passiveProfile.ts`). Neither noticed that the person-to-person half of
+D112 had gone with it. **Every gate was green the whole time**, and that
+is the finding worth keeping: the two halves — what the fold emits, and
+what a stranger's client reads back — had no test that put them in the
+same sentence.
+
+**What changes is a write, not an arithmetic.** `passiveResult` already
+emits the shape the sit-down flow wrote (`dims: [{ id, label, value }]`,
+which is exactly what `parseTestResults` reads), and already refuses an
+instrument with any axis under `MIN_AXIS_ITEMS`. `LIVE.syncPassiveResults`
+persists what it produces and nothing else. A stored result always wins —
+a pre-D121 sit-down result is a finished instrument and this fold is an
+estimate of the same thing from fewer answers — so only an absent key, or
+one this fold wrote before (`passive: true` marks it), is ever moved.
+
+It runs at two moments: **on hydrate**, because an account that already
+cleared the threshold must not have to answer one MORE card to get a
+result, and **on the ack of a test answer**, not the tap — a refused
+create must not publish a result built on an answer the server rejected,
+the same rule the two engagement counters beside it follow. An unchanged
+result buys no write.
+
+**Bounds.** Zero new reads. Writes are one `setDoc` merge per instrument
+per *change*, bounded by the bank's 110 test items over an account's life,
+to the user's own profile document — not a contended aggregate, so D7's
+wall never hears about it. `firestore.rules` already permitted this write:
+owner-bound, `testResults.keys().size() <= 8`, `logic` immutable. Four
+core keys plus `logic` is five.
+
+**Imports are static, and that is measured rather than assumed.** The
+worry was the entry graph, which `check:bundle` records as having no
+headroom — but both modules are already in it: `test-definitions.js`
+arrives through `daily-split.jsx`, which `spec-index.js` imports eagerly
+above the `loadWorldFeed` deferrals, and `passiveProfile.ts` pulls only
+`similarity.ts`, which `voters.ts` already imports statically. Measured
+across all three sections of this record: **849 → 850 KB eager, 2425 → 2427
+KB total, 106 chunks either side** — so nothing moved from lazy to eager,
+and the delta is the new code itself.
+
+**What this does NOT fix**, recorded so it is not mistaken for closed: the
+candidate pool is still `KINDRED_QUESTIONS` (12) × `VOTER_FETCH_CAP`
+(200), so the ranking is still an argmax over a bounded sample and not
+over the population. §2 and §3 take the ranking's arithmetic and its copy;
+the recall bound is D101's paging question and is untouched here.
+
+### 2 · The ranking sorted on the printed number, and the printed number cannot rank
+
+Five sites sorted people by likeness, all the same way:
+
+```
+b.like.pct - a.like.pct || b.like.shared - a.like.shared || …
+```
+
+`circle.ts` carried a comment describing the failure in that line exactly,
+and asserting the second key prevented it: *"a single shared question that
+happened to match scores 100% — and without the second key that person
+would head the list forever, above someone who matched on forty of fifty.
+Sorting on `pct` alone is the ranking bug this app is most likely to ship,
+because it looks completely right until someone answers one question."*
+
+**`pct` is first.** `shared` only ever separates two people who already
+have the same percentage, so the 1-of-1 headed the list above the 40-of-50
+at every one of the five sites, exactly as the comment feared. No test
+caught it because no test in `cohort.test.ts` was about ORDER — every case
+passed one pair of answer maps and checked the number that came back.
+
+**`likenessRate`** is the fix: a Wilson score lower bound on `same/shared`
+at z = 1.2816, a **sort key that is never printed**. Measured:
+
+| | pct | rate | | pct | rate |
+|---|---|---|---|---|---|
+| 1/1 | 100 | 0.378 | 8/12 | 67 | 0.482 |
+| 2/2 | 100 | 0.549 | 40/50 | 80 | 0.719 |
+| 3/3 | 100 | 0.646 | 45/50 | 90 | 0.832 |
+| 12/12 | 100 | 0.880 | 95/100 | 95 | 0.914 |
+
+45-of-50 now outranks 2-of-2, 8-of-12 outranks 1-of-1, and a perfect
+twelve still beats a 90% of fifty — the ordering a reader would defend. A
+lower bound rather than a minimum-overlap gate because `minShared` already
+exists at every call site and is a different instrument: a gate decides
+who is ranked at all, this decides the order of the ones who are. Raising
+the gate to fix the order would silently delete people from a list whose
+whole point is that it is small.
+
+`pct` is untouched. D99 chose it because a number on a screen that names
+someone has to survive being explained to them, and a Wilson bound does
+not survive that where "the share of questions you both answered the same
+way" does.
+
+**The same bias, one metric over.** `scoreMatch` divided the summed gap by
+the candidate's OWN intersection size and the sort then ranked candidates
+against each other on the result. A mean of three draws is far noisier
+than a mean of twenty-two, and the top of a ranked list is where noise
+collects — so the most-like-you slot went, structurally, to whoever you
+shared fewest axes with. Simulated over 200 candidates with **zero** true
+similarity, axes drawn N(50, 15), top score by intersection width
+3/5/8/12/16/22:
+
+```
+  97.6  95.3  93.2  91.6  90.5  89.6     no prior      — an 8.0 spread
+  87.9  88.7  88.8  88.8  88.4  88.2     AXIS_PRIOR 6  — 0.9
+```
+
+λ = 6 is the flattest of the values tried (3 → 1.9, 10 → 1.3) and is one
+instrument's worth of axes, the unit `minAxes` already counts in.
+`TYPICAL_AXIS_GAP` = 17 is E|X − Y| for two independent N(50, 15) draws:
+16.93 closed form, 17.16 simulated with the parser's 0..100 clamp.
+
+**The shrinkage is the sort key and NOT the drawn number**, which is a
+correction to the plan rather than the plan. Shrinking `match` itself
+would pull a perfect match from the ring's inner bound (44 px) to 52 and
+the exact opposite from 138 to 95: the constellation would lose most of
+its spread, and the spread is the reading. That is a design change to the
+Mirror's primary surface, not a ranking fix. What the prior is for is
+deciding **which twelve people the field draws at all** (`CITY_FIELD_CAP`),
+which is where the bias actually bit. `raw` is also unrounded, because
+`match` collapses a pool onto ~20 integers and sent a large tied block to
+`uid.localeCompare` to be crowned alphabetically.
+
+**What is now pinned that was not.** The first ordering cases in this tree:
+45/50 above 2/2 (with the same list sorted by `pct` asserted to get it
+backwards, so the test states the bug it prevents), monotonicity in
+agreement at fixed overlap and in overlap at fixed rate, equal-mean-gap
+comparisons resolving to the wider one, strict-monotonicity across every
+width the four instruments produce, and a rounding tie resolving by
+distance rather than alphabetically.
+
+**Untouched, and still the largest error:** recall. The pool is still
+`KINDRED_QUESTIONS` (12) × `VOTER_FETCH_CAP` (200). Every fix here makes
+the ranking of the sample correct; none of them makes the sample the
+population.
+
+### 3 · Which twelve questions, and two captions that had stopped being true
+
+`loadKindred` read
+
+```
+Object.keys(state.votes).filter((id) => !id.startsWith("g_")).slice(0, 12)
+```
+
+under a comment claiming **"the viewer's OWN most recent answers"**, and
+D112 recorded the pool as recency-biased on the same belief. Neither was
+true. `Object.keys` is insertion order; hydrate assigns the persisted
+answers cache *before* the query; the warm delta query carries an
+inequality with **no `orderBy`**; new votes append at the tail; and
+re-assigning a key that already exists does not move it. So the twelve
+froze at whatever the first cold boot happened to put first and never
+moved again — and because the warm and cold paths order oppositely, **the
+same account ranked strangers differently on a second device.**
+
+Recency is not the replacement, because it cannot be: the client vote map
+carries no timestamps. `peopleMap.ts` had already written that down for
+the sibling surface — *"Recency would match Kindred's choice but the
+client vote map carries no timestamps; basis is the honest second
+choice"* — while this file claimed the recency it could not have.
+
+**Divisiveness is the better key anyway.** Agreeing on a question 95% of
+people answer the same way is nearly no evidence about two people;
+agreeing on a 50/50 split is a great deal. `cohort.divisiveness` has
+measured exactly that since D99, normalised by option count, and had never
+been used to pick anything. Every input is already resident — hydrate tops
+up aggregates for answered questions, `AGG_ID_CAP` 120 — so the new
+selection costs one sort and **no read**. A question with no published
+counts scores −1 rather than 0, so a measured question always outranks an
+unmeasured one while a brand-new account still fills its whole quota.
+
+**A quarter of the slots were buying nothing.** Catalog answers store an
+entity id and rank answers a joined order (`live.ts`'s hydrate fold), both
+on `surface: "feed"`, which IS in `WORLD_ANSWER_SURFACES` — so those qids
+issued a collection-group query, received documents, and had every row
+discarded by `voters.ts` for want of a numeric `optionIdx`. They are
+filtered out in the same pass.
+
+`state.kindredAt` also counted what was *asked for* rather than what
+landed; `loadVoters` swallows its own failure, so the caption reported
+twelve after twelve failed queries. It now counts the lists that exist.
+
+The selection moved to `similarity.pickKindredQids` — pure, so it has the
+first tests it has ever had. Grepping `loadKindred` across `src/` finds
+only mocks and call-count assertions, which is how a `.slice(0, 12)` sat
+under a comment describing a different selection for as long as it did.
+The cases pin the property that actually failed: **the result must not
+depend on insertion order.**
+
+**Two captions.** `LiveMirrorLenses`'s metric line said `last {N}` — the
+wrong word twice, since the twelve were never the most recent and are now
+chosen by divisiveness, which is not an ordering in time at all. It says
+`across {N}`, the same length. And the City ring truncates at
+`CITY_FIELD_CAP` (12) and said nothing, while `PlacesField` directly below
+it names its own overflow ("N more placed further out than this field
+draws"); the ring now names its own the same way. D112's third honesty
+rule is that thin is named — this is the cap's half of it.
+
+**Still not fixed, and now the only thing left in this record's scope:**
+the pool is `KINDRED_QUESTIONS` (12) × `VOTER_FETCH_CAP` (200) with no
+paging. §2 and §3 make the ranking of that sample correct and its captions
+true. Neither makes the sample the population, and no copy anywhere yet
+says the field ranks a sample at all. Widening it is D101's rule — page
+from the cursor the ordering already provides, never a quiet cap raise —
+and the server-side alternative is unwritten.
+
+---
+
+## D278 · The City constellation asks for its city, instead of filtering for it
+
+(Authored as D276; renumbered in the merge — see D277.)
+
+**2026-08-24.** **Status:** binding. Closes the recall half of D112's known
+limit 1, which D112 recorded and priced for cost only. Partially reverses
+D64 §1 for exactly one field.
+
+### The bug is invisible, which is why it survived
+
+`fetchVoters` asks each question for the newest `VOTER_FETCH_CAP` (200)
+answers **from anywhere**, and `rankKindred` then filters them to your city
+on the device. With a city holding 2% of active users, about 4 of every 200
+rows survive that filter. And because the cap binds **before** the filter,
+the number of reachable city-mates *saturates*: 12 questions × 200 rows ×
+2% ≈ 50, and it stays ≈ 50 whether your city holds 20 people or 20,000.
+
+Modelled — the ring draws 12, so it fills every time:
+
+| app users | your city | city-mates reachable | ring fills? | P(closest person is a candidate) |
+|---|---|---|---|---|
+| 1,000 | 20 | 19 | yes | 99% |
+| 20,000 | 400 | 49 | yes | 46% |
+| 100,000 | 2,000 | 51 | yes | 23% |
+| 1,000,000 | 20,000 | 52 | yes | 0.3% |
+
+There is no empty state, no thinning, no caption that changes. D112's
+honesty rules are satisfied about thin DATA and say nothing about a thin
+SAMPLE, so nothing on the screen would ever have said this was happening.
+
+### Ask for the city; do not ask for more
+
+The city is already on the answer — `anchors.city`, frozen at vote time
+(D8), the same field the aggregate folds and `kindredPeople` reads back.
+Adding it to the query as a fourth equality costs nothing extra to read:
+
+| | reachable city-mates | % of your city | P(closest is a candidate) |
+|---|---|---|---|
+| today, at 100k users | 51 | 2.6% | 23% |
+| city-scoped | 1,387 | 69% | 90% |
+
+**This is not paging, and D101 is satisfied rather than bypassed.** The cap
+is unchanged and no cursor is walked. What changes is WHICH 200, which is a
+different lever from HOW MANY — and it is the one that pays: paging is
+linear in reads and would need `N/200` pages per question to be exhaustive
+(500 at 100k users), while this is free.
+
+**What it does not fix.** The limit stops depending on the app's size and
+starts depending on your city's size — 2,400 draws into a city of 2,000
+covers 70% of it, into 20,000 covers 11%. So this buys the realistic growth
+path, not permanence. The permanent answer is a server-side pass with no
+cap; it is unwritten and should stay unwritten until this runs out.
+
+### An additional pass, and that is the cost
+
+`PeopleLens` takes a `scope` and does **not** filter on it — it ranks
+strangers from anywhere. So narrowing the shared pool would silently turn
+"everyone" into "everyone in your city". The city rows therefore live in
+their own `state.cityVoters` and `kindredPeople()` unions the two; the
+who-voted sheet still draws `state.voters` alone, because a city-filtered
+list under "who answered this" would be a different claim wearing the same
+words.
+
+The bill: **+12 collection-group queries of ≤200 rows, once per session**,
+and only for a viewer who has a city and opened the stop that draws it
+(the effect is `scope === "city"`; Country and World read place aggregates
+and would buy nothing). Name and score resolution is mostly free on top —
+the same faces recur across a city's twelve lists and the profile cache is
+disk-backed (D129). Keyed on the anchor rather than a boolean, so a move
+refetches instead of serving the old city forever.
+
+### The index, and the D64 line it crosses
+
+A fourth equality needs its own composite:
+`answers (qid, surface, anchors.city, answeredAt DESC)`, collection-group.
+
+D64 §1 found `answers` indexed on fourteen fields nobody queried — 22 index
+entries per answer, cut to 2 — and its premise has already moved: *"there
+is no `collectionGroup("answers")` anywhere in `src/` or `functions/`"* was
+true when written and D98 added one.
+
+**The single-field exemption on `anchors.city` stays.** A composite index is
+declared explicitly and is not governed by a single-field exemption, so the
+cost is one composite entry per answer rather than the two single-field
+entries un-exempting would add. That is documented Firestore behaviour and
+**not something this tree can prove** — the emulator does not enforce index
+configuration at all (the reason `indexes.test.ts` exists), so first deploy
+is where it is confirmed. If it turns out a composite needs the exemption
+lifted, the fix is to lift it for this one field and record the write cost.
+
+### What is pinned
+
+- **Rules**: that the extra `where` still satisfies a grant written as a
+  value test on `surface` was a real question — D65's lesson is that a
+  collection-group read the rule cannot be compared against is refused
+  *wholesale*. Two cases in `rules.test.ts`: the narrowed query succeeds and
+  returns only the matching city, and it still cannot reach a sealed duel
+  answer.
+- **Index**: `indexes.test.ts` pins the new composite and that the unscoped
+  one survives beside it.
+- **Store**: four cases in `vote.test.ts`, over a fixture that keys voter
+  rows by the city the query asked for — so a narrowing that silently did
+  nothing would return the same people and fail. They pin that the equality
+  is in the QUERY and not a device-side filter, that the surface clause
+  survives beside it, that the pool is a union rather than a replacement,
+  that a viewer with no city issues no query at all (an empty string would
+  match every author who never set one), and that the cache refetches on a
+  move.
+
+## D279 · There were always five test runners, and the table said four
 
 **Decided:** 2026-08-24 · **Status:** binding. Amends `CLAUDE.md` §2's
 table and `docs/ORIENTATION.md` §1 and §5. It adds nothing to CI — the
@@ -27813,3 +28189,4 @@ Nor does the gate read whether the table's DESCRIPTIONS are true; that is
 the same limit `doc-index.mjs`'s header states about its own rules. What
 it buys is that the count cannot silently drift and a row cannot silently
 go missing, which is how a table dies.
+

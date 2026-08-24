@@ -113,6 +113,28 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "answers",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "qid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "surface",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "anchors.city",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "answeredAt",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [
