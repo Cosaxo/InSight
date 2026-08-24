@@ -985,14 +985,35 @@ async function revealGroupDay(
 // reads; the option count bounds count folding, and a `pick` question
 // (options []) publishes plays/total only, because its optionIdx values
 // index each group's OWN member list and are meaningless summed across
-// groups. Fold, store the exact state privately, and rewrite the public
-// mirror on every fold (D98 — no floor, no cadence). Ids are
-// namespaced `duel-<qid>` in the same two collections the vote path uses:
-// v2_aggs_private stays client-opaque bookkeeping, v2_question_aggs is the
-// signed-in-readable exact mirror — which the scorecard's --fetch
-// already pages in full, so duels score with no new read path. Neither doc
-// carries a timestamp, matching the vote mirror's rule: a fresh timestamp
-// would date-stamp which scan window a group revealed in.
+// groups. Fold and rewrite the public mirror on every fold (D98 — no
+// floor, no cadence). Ids are namespaced `duel-<qid>` in
+// v2_question_aggs, the signed-in-readable exact mirror — which the
+// scorecard's --fetch already pages in full, so duels score with no new
+// read path. The doc carries no timestamp, matching the vote mirror's
+// rule: a fresh timestamp would date-stamp which scan window a group
+// revealed in.
+//
+// ONE DOCUMENT SINCE D275. This used to fold onto a private copy in
+// `v2_aggs_private/duel-<qid>` and publish a projection of it. The
+// projection is `publishableDuelAgg`, which omits an empty `counts` map
+// and zero guess counters — absent keys rather than zeroes, so a pick
+// question's doc never grows fields that invite reading meaning into
+// them. That makes it LOSSY in shape and not in value: every key it drops
+// is one `foldDuelAgg` already reconstructs as its default, because that
+// function was written to tolerate an absent or malformed prior doc (the
+// first reveal of a question creates it). So the published document is a
+// sufficient accumulator and the private one was a duplicate.
+//
+// pure.test.ts pins exactly that — folding a delta onto
+// `publishableDuelAgg(state)` equals folding it onto `state` — because it
+// is the single property this collapse rests on. The edit that would
+// break it is not another omission (dropping a key whose default is the
+// right prior stays safe, and that was measured rather than assumed) but
+// a projection that TRIMS a value: publish only the top counts entry, the
+// way `canonTopN` trims a catalog board, and duel aggregates start losing
+// options at every reveal with every other test still green. That is also
+// the line between this arm and the catalog one — drops defaults versus
+// drops data.
 async function foldDuelSignal(
   db: FirebaseFirestore.Firestore,
   mode: string,
@@ -1000,20 +1021,18 @@ async function foldDuelSignal(
   votes: DuelVoteLike[],
 ): Promise<void> {
   if (!qid || !votes.length) return;
-  const privRef = db.collection("v2_aggs_private").doc(`duel-${qid}`);
   const pubRef = db.collection("v2_question_aggs").doc(`duel-${qid}`);
   const qRef = db.collection("v2_questions").doc(qid);
   await db.runTransaction(async (tx) => {
-    const [privSnap, qSnap] = await tx.getAll(privRef, qRef);
+    const [aggSnap, qSnap] = await tx.getAll(pubRef, qRef);
     // Rules admit a duel answer only against a bank qid, so a missing
     // question doc means an operator deleted it since — skip rather than
     // mint an aggregate keyed by a ghost.
     if (!qSnap.exists) return;
     const options = qSnap.get("options");
     const delta = duelAggDelta(votes, mode, Array.isArray(options) ? options.length : 0);
-    const prev = privSnap.exists ? privSnap.data() : undefined;
+    const prev = aggSnap.exists ? aggSnap.data() : undefined;
     const next = foldDuelAgg(prev, delta);
-    tx.set(privRef, next);
     tx.set(pubRef, publishableDuelAgg(next));
   });
 }

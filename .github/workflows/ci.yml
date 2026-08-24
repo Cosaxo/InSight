@@ -44,6 +44,14 @@ jobs:
       # about whether a rules fix is safe to deploy, and this repo's rule is
       # that nothing which cannot answer that question gets to block one.
       - run: npm run check:figures
+      # D275's invariant: the answer document is the source of truth and
+      # every aggregate is a projection rebuilt from it, which holds only
+      # while the answer keeps carrying its `anchors` snapshot. Trim that to
+      # save a write and nothing else fails — the fold happily folds an
+      # answer with no anchors into nothing, so the Mirror just gets
+      # quieter. Client-side write path, so the same placement rule as
+      # check:figures: it cannot say whether a rules fix is safe to deploy.
+      - run: npm run check:answer-shape
       # The pulse console's collectors and renderer. Same placement rule and
       # the same reason: this is tooling, not the product, and nothing it
       # says bears on whether a rules fix is safe to deploy. Note this is the

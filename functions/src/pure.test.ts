@@ -1349,6 +1349,49 @@ describe("the duel question-level signal (D40 part 3)", () => {
     });
   });
 
+  // ── the property D275's duel collapse rests on ───────────────────
+  //
+  // `foldDuelSignal` used to accumulate onto a private copy and publish a
+  // projection of it. Since D275 it folds onto the PUBLISHED document, so
+  // the projection has to be a sufficient accumulator: folding a delta
+  // onto `publishableDuelAgg(state)` must equal folding it onto `state`.
+  //
+  // That holds because every key the projection omits — an empty `counts`,
+  // zero guess counters — is one `foldDuelAgg` reconstructs as its default.
+  //
+  // WHICH FUTURE EDIT ACTUALLY BREAKS IT, measured rather than guessed.
+  // Omitting a key is SAFE even for a non-empty state: making `plays`
+  // emit-when-set leaves this test green, because `num(undefined)` is 0
+  // and 0 is the right prior. What breaks it is a projection that TRIMS or
+  // CAPS a value instead of dropping a default — publishing only the top
+  // counts entry fails this test immediately.
+  //
+  // That distinction is the whole reason the catalog arm still keeps a
+  // private accumulator while this one does not: `canonTopN` is exactly a
+  // trimming projection, so a catalog board genuinely cannot be folded
+  // from. The line between the two arms is not "lossy vs whole" — it is
+  // "drops defaults vs drops data".
+  it("survives the publish projection: folding through it is identity (D275)", () => {
+    const cases: Array<[string, ReturnType<typeof duelAggDelta>, ReturnType<typeof duelAggDelta>]> = [
+      // The omitting case: a pick question publishes plays/total alone.
+      ["pick question, nothing to publish but plays/total",
+        { plays: 3, total: 7, counts: {}, guessTotal: 0, guessMatches: 0 },
+        duelAggDelta([v(0), v(1)], "group", 2)],
+      // Nothing omitted.
+      ["counts and guesses both present",
+        { plays: 2, total: 4, counts: { "0": 3, "1": 1 }, guessTotal: 2, guessMatches: 1 },
+        duelAggDelta([v(0, 1), v(1, 1)], "duo", 2)],
+      // The first reveal a question ever gets: no prior at all.
+      ["a zero state",
+        { plays: 0, total: 0, counts: {}, guessTotal: 0, guessMatches: 0 },
+        duelAggDelta([v(1), v(1)], "group", 2)],
+    ];
+    for (const [label, state, delta] of cases) {
+      expect(foldDuelAgg(publishableDuelAgg(state), delta), label)
+        .toEqual(foldDuelAgg(state, delta));
+    }
+  });
+
   it("scores duo guesses against the partner's actual pick", () => {
     // A picked 0 and guessed 1 — B did pick 1, so A called it. B picked 1
     // and guessed 1 — A picked 0, so B missed. Two guesses, one match.

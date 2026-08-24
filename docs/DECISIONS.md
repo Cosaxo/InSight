@@ -27678,11 +27678,35 @@ So the sentence to carry forward is narrower than D98's: *the private
 aggregate was a duplicate wherever the published document is whole, and
 an accumulator wherever it is a projection.*
 
-Duel is collapsible too — `publishableDuelAgg` only omits empty maps and
-zero counters, all recoverable as defaults — and was left alone because
-the scope approved was vote and rank. It is a follow-on with no deadline;
-duel folds run once per reveal, not per answer, so there is no write-rate
-argument for it at all.
+**Duel followed the same day**, because leaving it out made the
+documentation false: `SCHEMA-V2.md` and `data-inventory.md` had already
+been rewritten to say "catalog only since D275" while `foldDuelSignal`
+still wrote `v2_aggs_private/duel-{qid}`. `v2_aggs_private` now means
+exactly one thing.
+
+There was no write-rate argument for it — duel folds run once per reveal,
+not per answer — and the reason to do it anyway is that a collection
+meaning one thing is worth more than a collection meaning two.
+
+### Drops defaults versus drops data — the line between the two arms
+
+The duel collapse rests on one property: folding a delta onto
+`publishableDuelAgg(state)` must equal folding it onto `state`. That is
+now `pure.test.ts`'s "survives the publish projection".
+
+Writing the test produced a correction to its own first comment. The
+hazard named there was "a future edit omits another field" — and that is
+**provably harmless**: making `plays` emit-when-set leaves the test green,
+because `num(undefined)` is 0 and 0 is the right prior. Measured by
+mutating the function, not reasoned about.
+
+What actually breaks it is a projection that **trims or caps a value**
+rather than dropping a default: publishing only the top `counts` entry
+fails the test immediately. Which is exactly what `canonTopN` does to a
+catalog board — so the line between the arms is not "lossy versus whole",
+it is **drops defaults versus drops data**. Duel's projection is
+recoverable; catalog's is not, and that is why one collapsed and the other
+never will.
 
 ### What moved
 
@@ -27709,6 +27733,35 @@ would have been meaningless had it been an absence check. It now asserts
 on `v2_question_aggs/daily-000`, which is the document that actually has
 to survive.
 
-Green across all four runners: 342 functions tests, 1943 client tests,
+### The invariant finally has a gate
+
+This record's closing sentence — *nothing may be trimmed from an answer
+document, the `anchors` snapshot especially* — was prose with nothing
+enforcing it, which is the failure D35 and D39 exist to stop. It is
+`npm run check:answer-shape` now: every `setDoc` at the answers path
+carries `qid`, `answeredAt` and `anchors`; the D86 edit arm is exempt by
+name (it writes the one shape the rules admit); and `replay.ts` must still
+read `anchors` **off the document**, so the producer and the consumer
+cannot drift apart.
+
+Both directions were verified by mutation rather than trusted, and the
+consumer half failed its first attempt: the check was `/anchors/`, which a
+rename to `anchorsX` satisfies. A substring match cannot tell a live read
+from a rename that broke it. It demands the accessor now.
+
+### One flake, root-caused rather than re-run
+
+The e2e failed once mid-change at step 5 — "public agg never appeared —
+trigger did not fire" — with the trigger visibly executing (203 ms, no
+error, no log line) on code byte-identical to three green runs. Not a
+flake in the sense of "unexplained": step 5 is the **first trigger
+delivery of the run**, so it alone pays the functions runtime cold start
+and Eventarc's first-delivery setup, and its 30 × 500 ms window was the
+longest in the suite and still occasionally short. Raised to 60 × 500 ms
+with the reason at the site. The loop breaks the moment the document
+appears, so the longer ceiling costs nothing on a run that does not need
+it.
+
+Green across all four runners: 343 functions tests, 1943 client tests,
 347 script tests, the rules suite, 101 e2e checks and the 19-check
 erasure suite.

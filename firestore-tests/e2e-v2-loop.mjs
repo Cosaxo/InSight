@@ -175,8 +175,24 @@ ok("answer written: " + uid.slice(0, 8) + "/answers/" + q0.id);
 // 5 · the trigger folds the answer into the public mirror. Since D98 the
 // FIRST answer publishes, exactly, with the complete breakdown: no
 // tooSmall flag, no cadence, no suppressed cells.
+//
+// THE LONGEST WINDOW IN THE SUITE, and it is this step rather than a
+// busier one for a reason worth keeping: this is the FIRST trigger
+// delivery of the run, so it alone pays the functions runtime's cold
+// start and Eventarc's first-delivery setup on top of the fold. Every
+// later poll here runs against a warm runtime, which is why 20 × 400 ms
+// is plenty for them and 30 × 500 ms was not always enough for this one —
+// observed failing once on a sandbox runner with the trigger visibly
+// executing (203 ms, no error, no log line) and the aggregate landing
+// just after the poll gave up. That reads as "trigger did not fire",
+// which is the most misleading message this file can print.
+//
+// Raised rather than retried: a first-delivery window that is sometimes
+// too short is a flaky suite, and the cost of a longer ceiling is zero on
+// every run that does not need it — the loop breaks the moment the
+// document appears.
 let pub = null;
-for (let i = 0; i < 30; i++) {
+for (let i = 0; i < 60; i++) {
   const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
   if (snap.exists()) { pub = snap.data(); break; }
   await new Promise((r) => setTimeout(r, 500));

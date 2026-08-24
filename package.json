@@ -28,6 +28,7 @@
     "check:figures": "node scripts/check-figures.mjs",
     "check:a11y": "node scripts/check-a11y.mjs",
     "check:anchors": "node scripts/check-anchors.mjs",
+    "check:answer-shape": "node scripts/check-answer-shape.mjs",
     "check:labels": "node scripts/check-labels.mjs",
     "check:touch-zoom": "node scripts/check-touch-zoom.mjs",
     "check:tap-targets": "node scripts/check-tap-targets.mjs",
