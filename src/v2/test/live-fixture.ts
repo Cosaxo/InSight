@@ -124,7 +124,7 @@ export interface LiveFixtureOptions {
   windowed?: boolean;
   /**
    * The Patterns tab's mount gate as the fit would have published it
-   * (D251) — `{ pool, basis, mine }`, straight through to
+   * (D255) — `{ pool, basis, mine }`, straight through to
    * `patternsSignal()`. Absent by default, which is the state every other
    * live case was written against: no fit has run, so the bar is two tabs
    * and the third one is not there to be found.
@@ -462,7 +462,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     lensAgg: () => ((opts.lensBank ?? true)
       ? { counts: tooSmall ? [0, 0, 0, 0, 0] : [9, 6, 4, 3, 3], tooSmall }
       : null),
-    // The mount gate's two numbers (D251). Absent unless a case asks:
+    // The mount gate's two numbers (D255). Absent unless a case asks:
     // `{}` is "no fit has published", which reads as a closed gate through
     // patternsReady's own defaults rather than through a second branch.
     patternsSignal: () => ({ ...(opts.patterns ?? {}) }),

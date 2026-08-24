@@ -21,12 +21,12 @@ import { closeTopBackLayer } from '../data/backLayers';
 import { registerNav } from '../data/nav';
 import { useDialog } from './primitives.jsx';
 
-// The third tab, ON TRIAL (D166 §1) and MOUNTED ON THE DATA (D251) — lazy
+// The third tab, ON TRIAL (D166 §1) and MOUNTED ON THE DATA (D255) — lazy
 // by requirement, not taste: check:bundle has no eager headroom, and the
 // trial clause wants the reversal to be one import site and one TABS
 // entry. React.lazy is the same pattern daily-split uses for its typed
 // panels; the chunk loads on the first visit to the tab and never before —
-// which, since D251, is the first visit a gate opened for.
+// which, since D255, is the first visit a gate opened for.
 //
 // D217 unmounted this outright for the v1 release and priced the remount
 // at three joints; this is the first of them. It comes back conditional
@@ -129,7 +129,7 @@ function NavGlyph({ id, active }) {
 }
 
 // The bar: daily · mirror, and patterns in front of them once the data
-// can carry it (D251). v28 §1 wanted three with the daily in the middle so
+// can carry it (D255). v28 §1 wanted three with the daily in the middle so
 // a swipe either way lands somewhere; D217 unmounted the third for the v1
 // release; this is that entry back, on a condition instead of on a flag.
 //
@@ -249,7 +249,7 @@ export function UpdateRequiredBlocker() {
 }
 
 /**
- * Whether the Patterns tab exists in this session (D251).
+ * Whether the Patterns tab exists in this session (D255).
  *
  * The tab is absent until the nightly fit has published enough to draw
  * and the viewer has answered enough to be drawn in it — both numbers
@@ -311,7 +311,7 @@ function App() {
   const validTab = (id) => (TABS.some(x => x.id === id) ? id : 'track');
   const [tab, setTab] = useState(validTab(t.tab));
   // The nav effect below is mount-only and registers closures that outlive
-  // this render; the tab list stopped being a constant at D251, so they
+  // this render; the tab list stopped being a constant at D255, so they
   // read it through a ref for the same reason `backState` exists.
   const tabsRef = React.useRef(TABS);
   tabsRef.current = TABS;
@@ -481,7 +481,7 @@ function App() {
     };
     // one axis for the bottom bar: any nav key, from anywhere (swipe gestures use this)
     //
-    // Answers whether it NAVIGATED (D251). Every caller but one ignores it;
+    // Answers whether it NAVIGATED (D255). Every caller but one ignores it;
     // daily-split's near-end exit does not, because a swipe that reaches
     // for a tab the gate has not opened must spring back like any other
     // edge rather than sit where the finger left it. `patterns` is the
@@ -628,7 +628,7 @@ function App() {
                   than a blank card — the chunk arrives inside the tap's
                   own beat, and the ErrorBoundary above owns a failed one.
                   Unreachable while the gate is shut: 'patterns' is not in
-                  TABS then, so no tap and no swipe can set it (D251). */}
+                  TABS then, so no tap and no swipe can set it (D255). */}
               {tab === 'patterns' && (
                 <React.Suspense fallback={null}>
                   <PatternsTabLazy />

@@ -682,10 +682,10 @@ const MAX_CHUNK_KB = 735;
 // entry above.
 //
 // 2404 → 2440 (2026-08-23): the Patterns tab remounts, on the data rather
-// than on a flag (D251). D217 unmounted it for the v1 release and the
+// than on a flag (D255). D217 unmounted it for the v1 release and the
 // entry above is the raise that admitted it in the first place, so this
 // is the same 42 KB coming back. MEASURED against a clean HEAD build (git
-// worktree, same command), 2374 → 2417 across 103 → 105 chunks, and the
+// worktree, same command), 2374 → 2416 across 103 → 105 chunks, and the
 // two new files are not both new code:
 //
 //   +40.0 KB  PatternsTab-*.js — the tab and its three lenses, lazy
@@ -694,7 +694,7 @@ const MAX_CHUNK_KB = 735;
 //             chunk…
 //   −14.4 KB  …out of `catalogs` (63.1 → 48.7), which is where those
 //             bytes already were
-//   + 2.5 KB  entry (257.7 → 259.3) + live (64.5 → 65.4): the gate module,
+//   + 2.5 KB  entry (257.7 → 259.3) + live (64.3 → 65.1): the gate module,
 //             its wiring, and the earned-gate memory
 //
 // The eager graph is 839 → 841 for that last line alone: `world-feed-data`
@@ -792,7 +792,7 @@ const MAX_EAGER_KB = 880;
 // is deliberately small — these are not numbers that should drift upward
 // unnoticed, which is the whole reason they now have a gate.
 //
-// ── AND THEN ONE NUMBER WAS DOING TWO JOBS (D251) ────────────────────
+// ── AND THEN ONE NUMBER WAS DOING TWO JOBS (D255) ────────────────────
 //
 // `cssKb` sums every .css in dist/assets, and the sentence above — "CSS is
 // render-blocking, so its bytes are on the critical path" — stopped being

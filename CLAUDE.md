@@ -12,7 +12,7 @@ true.
 InSight ships v1 as a two-tab app (daily · mirror) **until the data can
 carry a third**: **patterns** is built, and it puts itself in the bar
 when the nightly fit has published enough to draw and you have answered
-enough to be drawn in it (D251 — see the patterns note below). Nobody
+enough to be drawn in it (D255 — see the patterns note below). Nobody
 flips a flag. The **daily** tab is where you
 answer: one blind question a day, a feed under it, and sealed
 group/1v1 duels revealed the next day. The feed is finite *today* and the
@@ -33,7 +33,7 @@ before changing anything on that tab. React 19 + TypeScript + Vite,
 Capacitor shells for iOS/Android, Firebase (anonymous-first auth,
 Firestore, Cloud Functions).
 
-**The patterns tab is MOUNTED ON THE DATA (D251, 2026-08-23).** Built and
+**The patterns tab is MOUNTED ON THE DATA (D255, 2026-08-23).** Built and
 shipped to main 2026-08-19 under D166 §1's trial, unmounted for the v1
 release at D217, and back — on a condition rather than on a flag. The
 gate is `src/v2/data/patternsReady.ts` and it is D196's shape one feature
@@ -51,7 +51,7 @@ is worse than one that arrives late. The purge is the only thing that
 closes the gate, and it has to — otherwise the next account inherits a
 tab it has not earned. It is not a
 privacy floor: nothing is withheld from anybody, only the TAB, until what
-it draws can be believed. The trial is still a trial; D251 resumes it
+it draws can be believed. The trial is still a trial; D255 resumes it
 rather than verdicting it. Three
 lenses over the loading vectors a nightly server fit publishes
 (`functions/src/patterns.ts` → `v2_patterns/loadings`): the **Map** places
@@ -71,7 +71,7 @@ where all of this lives — the `React.lazy` import site and the `TABS`
 entry in `app-shell.jsx`, plus the daily ruler's near-end exit, its one
 licensed external dependence (`daily-split.jsx`, which asks the shell
 rather than learning the condition: `NAV.goNav` answers whether it
-navigated, and a refusal springs the card back). D217 and D251 record the
+navigated, and a refusal springs the card back). D217 and D255 record the
 two directions between them; a silent change to either would be the
 failure D166 forbade. The plan was [`docs/VISION-V28.md`](docs/VISION-V28.md); the
 corpus is core only (D161), and which questions the fit folds is
@@ -141,11 +141,12 @@ This is deliberate and temporary (see `src/v2/README.md`), but it is
 load-bearing today — and "temporary" only became true when something
 started measuring it (D39; see **The convention is shrinking** below).
 
-Six modules are already off the bridge: `primitives.jsx`, `sample-data.js`,
-`daily-questions.js`, `world-catalogs.js`, `follows.js` and
-`result-rose.jsx` are ordinary ESM modules with named exports. They are
-still listed in `spec-index.js`, but nothing waits on their side effects —
-the line is inertia plus rule 2, not a dependency.
+Seven modules are already off the bridge: `primitives.jsx`, `sample-data.js`,
+`daily-questions.js`, `world-catalogs.js`, `follows.js`, `result-rose.jsx`
+and `archetype-data.js` (D253 — the conversion that also lets the report
+builder run the matcher under node) are ordinary ESM modules with named
+exports. They are still listed in `spec-index.js`, but nothing waits on
+their side effects — the line is inertia plus rule 2, not a dependency.
 
 **Rule 2 asks whether a file LOADS, not whether `spec-index.js` names it.**
 A spec module imported by another spec module satisfies it through the ESM

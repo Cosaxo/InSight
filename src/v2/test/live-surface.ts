@@ -112,7 +112,7 @@ export const LIVE_MEMBERS = [
   // Near-by-radius presence (D84): opt-in, foreground beats, and a count
   // that is the only thing the server ever returns about anyone.
   "near",
-  // The Patterns tab's mount gate (D251): the fit's published pool count
+  // The Patterns tab's mount gate (D255): the fit's published pool count
   // off `v2_meta/app`, plus the viewer's answers among the questions it
   // folds. Read by app-shell.jsx to decide whether the third tab exists —
   // so a rename here does not blank a screen, it silently hides a tab.

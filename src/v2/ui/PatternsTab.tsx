@@ -25,7 +25,7 @@
 // build with no published loadings — the demo included — says so instead
 // of inventing a crowd.
 //
-// SINCE D251 THIS FILE IS REACHED ONLY THROUGH A GATE. The tab is absent
+// SINCE D255 THIS FILE IS REACHED ONLY THROUGH A GATE. The tab is absent
 // from the bar until the fit has published enough to draw and the viewer
 // has answered enough to be drawn in it (`data/patternsReady.ts`), so the
 // two states below are no longer what a first-time visitor lands on —
@@ -158,7 +158,7 @@ export default function PatternsTab(): React.ReactElement {
     // no loadings published means nothing to draw, said out loud rather
     // than a fabricated crowd. The demo can no longer reach it, because
     // the gate that mounts this tab is shut on a build with no fit behind
-    // it (D251); the branch stays because the sentence it protects is the
+    // it (D255); the branch stays because the sentence it protects is the
     // rule, not the surface it happens to render on.
     //
     // check:public-copy does not scan this file, so the demo line below is

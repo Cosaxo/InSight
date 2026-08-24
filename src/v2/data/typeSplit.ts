@@ -54,15 +54,19 @@
 // **THIS MODULE NOW OWNS THAT SCOPE RATHER THAN INHERITING IT (D202).**
 // Until D202, `typeMix.TYPE_TEST` was an enforcement point and this file
 // could lean on it. D202 demoted that constant to a default so a reader
-// could switch the population MIX between instruments — and the promise
-// in `web/privacy.html` that survived D202 is precisely the one this file
-// keeps: *answers* are grouped by no other INSTRUMENT than the Big Five.
-// Leaning on someone else's default for that would mean the promise had
-// no owner, so `SPLIT_TEST` below is explicit, passed at every call site,
-// and pinned by a test. (Since D227 the verified logic score — not an
-// instrument, no dims, server-written — also groups answers, as its own
-// disclosed fold in logicSplit.ts; the page states both, and nothing
-// about that widening touches SPLIT_TEST's scope over the four.)
+// could switch the population MIX between instruments, so `SPLIT_TEST`
+// below is explicit, passed at every call site, and pinned by a test.
+// Since D252 the scope it holds is the app's CURRENT CHOICE, not a
+// promise: the "never used to group" sentence left `web/privacy.html`
+// with its claims pin (the owner's unwind-the-promises posture, D225's
+// shape), and the page now describes what groups answers today.
+// Widening this constant is therefore a product decision with a page
+// edit beside it — no pledge stands in the way, and nothing widens by
+// accident while this test-pinned constant is the single switch.
+// (Since D227 the verified logic score — not an instrument, no dims,
+// server-written — also groups answers, as its own disclosed fold in
+// logicSplit.ts; nothing about that widening touches SPLIT_TEST's
+// scope over the four.)
 //
 // Pure — no Firebase, no window, no LIVE. The caller joins voters to
 // scores (both already in the store) and hands the rows in, the way
@@ -73,13 +77,13 @@ import type { ParsedResults } from "./similarity";
 export { TYPE_TEST, TYPE_THIN };
 
 /**
- * The instrument answers may be grouped by — the whole of the D202-surviving
- * promise, in one constant.
+ * The instrument answers may be grouped by — the app's current scope,
+ * in one constant (a product choice since D252, not a promise).
  *
  * It is `TYPE_TEST` today and must be passed explicitly rather than left to
  * default: the point is that widening `typeMix`'s default can no longer
- * widen this. `web/privacy.html` states the scope to users and
- * `check:policy-claims` pins that sentence; this is the code half.
+ * widen this. `web/privacy.html` describes the scope to users; this
+ * constant and its test are what keep it from moving by accident.
  */
 export const SPLIT_TEST = TYPE_TEST;
 

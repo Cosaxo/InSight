@@ -70,7 +70,7 @@ beforeAll(async () => {
 });
 
 afterEach(() => {
-  // The Patterns gate is remembered per device (D251), so a case that
+  // The Patterns gate is remembered per device (D255), so a case that
   // opens it would hand the next one an app that has already earned the
   // third tab — including the cases that assert there are two.
   localStorage.removeItem(PATTERNS_EARNED_KEY);
@@ -128,7 +128,7 @@ describe("spec layer mounts in live mode", () => {
     expectNoBoundary("profile/live");
   });
 
-  // ── the patterns tab's mount gate, both sides (D251) ────────────────
+  // ── the patterns tab's mount gate, both sides (D255) ────────────────
   //
   // The tab is absent until the nightly fit has published enough to draw
   // and the viewer has answered enough to be drawn in it. smoke-nav owns

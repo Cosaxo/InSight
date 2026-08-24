@@ -271,7 +271,7 @@ const state = {
   },
   // `patterns*` are written by the nightly fit rather than the seed
   // (functions/src/patterns.ts) — the crowd half of the Patterns tab's
-  // mount gate (D251), riding the meta read hydrate already pays.
+  // mount gate (D255), riding the meta read hydrate already pays.
   meta: { latestBuild: 0, minBuild: 0, updateUrl: "", patternsPool: 0, patternsBasis: 0 },
   stats: { bankSource: "none", aggsFetched: 0, answersFetched: 0, callOutcomesFetched: 0 },
   groups: [] as Array<Record<string, unknown> & { id: string }>,
@@ -3498,7 +3498,7 @@ const LIVE = {
       .map((q) => buildSPure(q, null, voteCtx(q.id), now));
   },
   /**
-   * What the Patterns tab's mount gate reads (D251) — the crowd's number
+   * What the Patterns tab's mount gate reads (D255) — the crowd's number
    * as the nightly fit published it, and the viewer's own answers among
    * the questions that fit folds.
    *

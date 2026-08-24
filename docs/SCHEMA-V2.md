@@ -451,7 +451,7 @@ MOD_UIDS-gated callables (the D22 confinement)
 ## Functions
 
 - `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
-  into `v2_questions` (653 docs, stable ids `daily-000`, `feed-<id>`,
+  into `v2_questions` (655 docs, stable ids `daily-000`, `feed-<id>`,
   `pick-<id>`, `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
   operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
@@ -508,7 +508,7 @@ v2_meta/app                        operator/seed-written metadata
   updateUrl      store link the prompts open (web falls back to reload)
   patternsPool   questions the nightly fit has fitted on `patternsBasis`
                  answers or more — the crowd half of the Patterns tab's
-                 mount gate (D251). Written by fitPatternsV2, merged, and
+                 mount gate (D255). Written by fitPatternsV2, merged, and
                  the only field here the SWEEP owns (contentRev is the
                  seed's); it lives on this doc rather than on
                  v2_patterns/loadings so a client can read it without
@@ -522,7 +522,7 @@ read: signed-in · write: nobody
 ## Read economics (client)
 
 A live boot costs ~20 reads, not ~380: one `v2_meta/app` read decides
-everything. The question bank (653 docs) caches in localStorage keyed by
+everything. The question bank (655 docs) caches in localStorage keyed by
 `contentRev`, and refreshes **incrementally** — one query for docs newer
 than the cache's `updatedAt` cursor, so a promotion cycle costs the
 handful of questions it added rather than the whole bank (D34;

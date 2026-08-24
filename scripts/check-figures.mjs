@@ -121,7 +121,7 @@ const bankKiB = (() => {
   return Math.round((JSON.stringify(arr).length / 1024) * 10) / 10;
 })();
 
-// The Patterns fit's eligible corpus (D251) — two-option daily plus
+// The Patterns fit's eligible corpus (D255) — two-option daily plus
 // two-option core feed, the rule `PATTERNS_QIDS` compiles from this same
 // bank. Quoted in `src/v2/data/patternsReady.ts` as the scale the tab's
 // pool floor is a fraction of, which is precisely the kind of sentence

@@ -336,7 +336,7 @@ afterEach(() => {
 
 // ── tests ───────────────────────────────────────────────────────────
 
-// ── the Patterns tab's mount gate (D251) ────────────────────────────
+// ── the Patterns tab's mount gate (D255) ────────────────────────────
 //
 // `patternsSignal()` is the device half of the decision that puts a whole
 // tab in the bar, and every OTHER test of it runs against the mount
@@ -345,7 +345,7 @@ afterEach(() => {
 // the eligibility rule it applies. A typo in a meta key here (`patternPool`
 // for `patternsPool`) ships green everywhere else and hides the tab on
 // every device with no error anywhere.
-describe("patternsSignal (D251): the mount gate's two numbers", () => {
+describe("patternsSignal (D255): the mount gate's two numbers", () => {
   const bank = (id: string, over: Record<string, unknown>) => ({
     id,
     data: {

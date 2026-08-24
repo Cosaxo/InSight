@@ -1,4 +1,4 @@
-// When the Patterns tab may be OFFERED (D251), and the numbers behind the
+// When the Patterns tab may be OFFERED (D255), and the numbers behind the
 // word "hidden".
 //
 // D217 took the tab out of the v1 release by unmounting it, and left the
@@ -68,7 +68,7 @@ export const PATTERNS_MIN_BASIS = 8;
  * lowering it makes the first map a shape somebody could reasonably
  * disbelieve.
  *
- * For scale: the eligible corpus is 110 questions today (two-option
+ * For scale: the eligible corpus is 111 questions today (two-option
  * daily plus core feed, `PATTERNS_QIDS`), so this is roughly a fifth of
  * everything the fit can ever fold.
  */
@@ -113,8 +113,8 @@ export interface PatternsEligible {
  * It is deliberately NARROWER than the fit's, in two ways the fit has no
  * equivalent of: this rejects a retired question, and the bank it walks
  * has already dropped retired feed questions and expired windows. Five of
- * the 110 the fit folds are `active: false` today, so the device can see
- * at most 105 of them.
+ * the questions the fit folds are `active: false` today, so the device
+ * can see all but those five.
  *
  * Narrower is the safe direction for the number this feeds — it
  * under-counts, so the gate opens an answer or two LATE rather than

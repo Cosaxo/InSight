@@ -5,7 +5,7 @@
 InSight is a two-tab app — **daily · mirror** — that becomes a three-tab
 one when it has the data for it: **patterns** puts itself in front of the
 other two once the nightly fit has published enough to draw and you have
-answered enough to be drawn in it (D251; still on trial, D166 §1). The
+answered enough to be drawn in it (D255; still on trial, D166 §1). The
 daily tab is where you answer; the others are where the answering turns
 into pictures: how your answers tie to everyone else's, and you against
 every population you belong to. Answering is the smaller half.

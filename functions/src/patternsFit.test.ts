@@ -144,7 +144,7 @@ describe("honesty mechanics", () => {
     expect(encodeAnswer(1)).toBe(-1);
   });
 
-  it("counts only the loadings a basis makes drawable (D251)", () => {
+  it("counts only the loadings a basis makes drawable (D255)", () => {
     // The mount gate's crowd number. Publication has no floor and should
     // not get one — every vector publishes with its own n — but the count
     // the client opens a TAB on must not include the n=1 rows, which by

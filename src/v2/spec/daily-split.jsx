@@ -446,7 +446,7 @@ class DailySplit extends React.Component {
       // both, because the coupling meter (rule 4) counts occurrences and
       // only moves down.
       //
-      // The near end is a REQUEST since D251, not an instruction: the
+      // The near end is a REQUEST since D255, not an instruction: the
       // Patterns tab is absent from the bar until the fit can carry it,
       // goNav answers whether it navigated, and a refusal springs back
       // like any other edge. This file deliberately does not learn the
