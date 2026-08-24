@@ -386,13 +386,33 @@
     brackets (&ldquo;1&ndash;2 times&rdquo;, &ldquo;3&ndash;5
     times&rdquo;), under a fresh random label each day. The tally carries
     no account, no name and no device id, so it cannot be linked back to
-    you &mdash; or even to your own phone across two days. It never says
-    which questions you looked at. Each night the raw tallies are added
+    you &mdash; or even to your own phone across two days. The tally can
+    include which questions were shown, answered or skipped that day
+    &mdash; in the same coarse brackets, on the same unlinkable label, so
+    what it produces is counts about a question, never a list of what you
+    looked at: nobody can learn that <em>you</em> skipped anything. Each
+    night the raw tallies are added
     into the same public daily summary and deleted after that nightly
     fold. Some days your device sends nothing at all: tallies are
     sampled. There is still no analytics SDK in the app, no advertising
     identifier, and no usage data shared with anyone (see &ldquo;What we
     do not collect&rdquo;).
+  </p>
+
+  <p>
+    Separately, your device keeps one small usage note per day under your
+    own account &mdash; how many times you opened the app, roughly how
+    long it was on screen (as a bracket, never minutes), how many
+    sessions passed without answering, and which parts of the day you
+    tend to use it. It exists so the app can notice, in aggregate, when
+    people are drifting away. Three things hold it in check: it never
+    contains a question &mdash; not one id of anything you looked at, and
+    the rules of the database refuse the field outright; no user can read
+    it, you included &mdash; it is measurement, not a profile screen, and
+    what is published from it is only counts of people; and each note
+    deletes itself 90 days after its day, so the account-linked trail is
+    a rolling window, erased entirely &mdash; and immediately &mdash;
+    when you delete your account.
   </p>
 
   <h2>Who can see what</h2>

@@ -25666,13 +25666,18 @@ store-form files moved together under `check:store-forms`, two new
 
 ## D254 · Per-question attention, aggregate-only — the R4 gate
 
-**Status:** **Proposed** — drafted with D253 because the shard schema
+**Decided:** 2026-08-24 · **Status:** **binding** — adopted by the owner
+in those words ("adopt R4"), the day after drafting; built the same day.
+The drafting-day status is kept below verbatim (the D252 sequence,
+holding).
+
+*(As drafted:)* Proposed — drafted with D253 because the shard schema
 carries its field, awaiting the owner's explicit word (the D252
 sequence). Until adopted, `firestore.rules` refuses a non-empty `qids`
 map outright, so per-question collection is structurally off — not
 merely something the client politely omits.
 
-**The proposal** (`docs/ENGAGEMENT-PLAN.md` §8 R4): the shard's `qids`
+**The record** (`docs/ENGAGEMENT-PLAN.md` §8 R4): the shard's `qids`
 map opens to bucketed per-question `{seen, answered, passed, deferred}`
 counts, capped, still anonymous — narrowing QUESTION-FARM.md's
 skip/pass refusal the way D163 narrowed MONITORING.md's row: the server
@@ -25683,3 +25688,90 @@ signals it already tallies, fold into the day doc's `qids` section, and
 land the scorecard's seen→answer and pass-rate columns (ENGAGEMENT-
 RUNBOOK 2.8) with D33's goodhart warning printed beside them — the
 denominator measure-and-retire (D162) has been missing.
+
+**As built, the deviations worth naming:** the cap is 120 keys
+INCLUDING the client's `_other` overflow cell (so a capped shard is
+rules-legal by construction, and the fold counts the truncation apart
+as `qOther` — never a phantom qid); "seen" per question rides the same
+entrance-intersection the feature tally uses, stamped with the card's
+qid at the ref; the answered kind covers the feed-RENDERED surfaces
+(feed, test, learn, call) so numerator and denominator describe one
+population, with the daily, pulses and duels deliberately out; and the
+scorecard stores the D33 warning ON the card (`card.attention.warning`)
+rather than trusting each renderer to remember it. Rates refuse under
+`ATTENTION_MIN_SEEN` — three devices' buckets cannot say a question
+bores anyone. `web/privacy.html`'s "never says which questions" sentence
+was rewritten in this same change to the true, narrower claim — counts
+about a question, never a list of what you looked at — and
+`check:policy-claims` pins the new form.
+
+## D255 · The person channel: engagement rung 2, scoped to the bone
+
+**Decided:** 2026-08-24 · **Status:** binding — the owner's words were
+"build phase 3", and phase 3's own gate (ENGAGEMENT-RUNBOOK 3.1)
+defines building it as adopting `docs/ENGAGEMENT-PLAN.md` §8 R3, the
+D253 provenance shape. Recorded and built in the same change. This is
+the reversal MONITORING.md's first refused row was guarding — per-user
+session analytics — taken with the row rewritten into the record of
+its ceiling (D252) rather than silently blanked.
+
+**Decision.** Each account writes one **day rollup** —
+`v2_users/{uid}/engagement/{yyyy-mm-dd}`, create-only, for a FINISHED
+day: session count, foreground time as a BRACKET (never minutes), quiet
+sessions (opened, answered nothing), local dayparts, answer count, a
+feed-depth bracket and the reached-the-end bit, stop and lens counts.
+The nightly fold sums rollups into the public day doc's `people`
+section (counts of people, never rows), marks each rollup
+`folded: true` — the flag, not deletion, is what makes the sweep
+exactly-once, because the rollups' own 90-day TTL is the deletion — and
+advances a trailing foreground window (`_state.fg7`) from which
+**fading** is read: six readings with the newest three averaging two
+brackets under the first three. Fading is the reading only this channel
+can produce, and the win-back trigger the plan priced rung 2 for.
+
+**Scoped to the bone, each bound enforced rather than promised:**
+
+- **No question id, structurally.** The rules' `hasOnly` is the
+  two-channel pin, and the suite's smuggle-a-qids-field test is the
+  enforcement. No uid-keyed path holds reading history.
+- **Readable by NOBODY, the owner included** — the push-tokens posture.
+  This is measurement, not a profile surface; if a "your year" product
+  screen is ever wanted, that is its own decision reading its own shape.
+- **A rolling window.** `expireAt` = day + 90 (`ROLLUP_TTL_DAYS`);
+  SHIP-CHECKLIST §5 carries the second `gcloud` TTL line and names what
+  an unapplied policy quietly breaks. Erasure is phase 1b's recursion,
+  asserted in `e2e-delete-account.mjs` — the rollup and `_state` die
+  with the account, and a control pins that another account's survive.
+- **Bounded values, twice.** The rules bound every field (sessions ≤
+  300, brackets ≤ 4, counts ≤ 2000, `folded == false`, `expireAt`
+  inside 100 d); the fold clamps again, trusting no client.
+
+**Mechanics worth recording:** sessions are foreground episodes split at
+30 minutes hidden (`SESSION_GAP_MS` — attention semantics, deliberately
+not live.ts's 60 s billing detach); quiet is decided when a session
+CLOSES and lands on its start day; the rollup is NOT sampled (the
+person channel is one write regardless, priced); and a rollup with no
+session to own it yet is RETAINED locally and retried next boot rather
+than lost — uid-keyed data loses nothing by waiting, where the
+anonymous shard's fire-and-forget stays the right trade. Foreground
+time spanning midnight lands on the hidden day; a session open when its
+day flushes never gets its quiet verdict — minutes-level noise on
+bracketed fields, accepted and stated.
+
+**The arithmetic** (measured before the deploy, `docs/COSTS.md`): one
+client write, the fold's two reads and two writes, a TTL delete 90 days
+on — server reads 28 → 30 per user-day, **$257 → $262/mo at 50 k,
+$2,613 → $2,665 at 500 k**. Deliberately the ladder's priciest rung per
+user and still under 2 % of a read-dominated bill.
+
+**Enforcement:** 20 client unit tests (sessions, gaps, quiet, dayparts,
+retention-and-retry, the rollup carrying no qids), 134 rules tests (the
+create arm's bounds, the `_state` id split, the qids smuggle refused,
+read denied to the owner), 8 rollup-fold functions tests (fade window,
+day-ordered advancement, chunk atomicity via the folded flag, clamps),
+the erasure e2e legs, the collection-group `folded` fieldOverride in
+`firestore.indexes.json` riding the existing indexes deploy, the pulse
+panel's people tiles (quiet share null-safe, fading counted), three new
+`check:policy-claims` rows, the store forms moved together —
+**Product Interaction → Linked** — and the same-PR paperwork across
+inventory, SCHEMA-V2, MONITORING and the farm doc.

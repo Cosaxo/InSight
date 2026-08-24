@@ -124,6 +124,16 @@ export const CLAIMS = [
     /cannot be linked back to\s+you[\s\S]{0,80}?across two\s+days/i],
   ["D253 · the raw tallies are deleted after the nightly fold",
     /deleted after\s+(that|the) nightly\s+fold/i],
+  // D254 and D255 are the ladder's last two disclosures, each pinned on
+  // its load-bearing distinction: the per-question counts are about the
+  // QUESTION (the two-channel rule as a promise), and the account-linked
+  // note is unreadable, question-free and self-expiring.
+  ["D254 · per-question tallies are counts about a question, never a reading list",
+    /counts about a question, never a list of what you\s+looked at/i],
+  ["D255 · the per-account usage note carries no question and no user can read it",
+    /never\s+contains a question[\s\S]{0,120}?no user can read\s+it, you included/i],
+  ["D255 · each note deletes itself 90 days on, and the account's erasure takes it all",
+    /deletes itself 90 days after its day/i],
 ];
 
 /** Labels of every claim the given page source fails to state. */

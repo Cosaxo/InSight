@@ -338,6 +338,15 @@ export const ENGAGEMENT_USER_STATE_OPS = 1;
 // day, under any rounding here.
 export const ATTN_SAMPLE_RATE = readNum(
   "src/v2/data/engagement.ts", /SHARD_SAMPLE_RATE = ([\d.]+)/, "SHARD_SAMPLE_RATE");
+// Rung 2's person rollups (R3/D255): one uid-keyed day rollup per active
+// device per day (client-written, NOT sampled — it is the person channel),
+// then the nightly fold's sweep: one page read and one folded-mark write
+// per rollup, one fg-window read and write on the _state doc per rollup —
+// and, 90 days later, the TTL delete. The fold does not delete rollups;
+// the TTL is the deletion, which is why the delete line carries it.
+export const ENGAGEMENT_ROLLUP_CLIENT_WRITES = 1;
+export const ENGAGEMENT_ROLLUP_FOLD_READS = 2;
+export const ENGAGEMENT_ROLLUP_FOLD_WRITES = 2;
 
 // The reveal pipeline (revealGroupDay), per group-day actually revealed, for
 // a group of M members:
@@ -667,6 +676,7 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
       + B.worldAnswers * ENGAGEMENT_READS_PER_LEDGER_ENTRY
       + ENGAGEMENT_USER_STATE_OPS
       + ATTN_SAMPLE_RATE // the shard fold reads each sampled device's shard once
+      + ENGAGEMENT_ROLLUP_FOLD_READS // the rollup fold's rollup + fg-state reads
       + B.duelAnswers * revealReadsPerMember(B.duelGroupSize);
     // The D98 surfaces (D102): who-voted, Kindred, Circle — a client
     // reading OTHER users' answers on demand. One key rather than three
@@ -707,9 +717,10 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     // + the Patterns fit's and the engagement digest's one state write
     // each per active user per night, + one attention shard per sampled
     // device per day (its fold-side day-doc merge rides per batch).
-    const writes = dau * (B.worldAnswers * (1 + 2 + pub) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + ATTN_SAMPLE_RATE + 0.2);
-    // ledger TTL 90 days later, + the shard fold deleting what it folded
-    const deletes = dau * (B.worldAnswers + ATTN_SAMPLE_RATE);
+    const writes = dau * (B.worldAnswers * (1 + 2 + pub) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + ATTN_SAMPLE_RATE + ENGAGEMENT_ROLLUP_CLIENT_WRITES + ENGAGEMENT_ROLLUP_FOLD_WRITES + 0.2);
+    // ledger TTL 90 days later, + the shard fold deleting what it folded,
+    // + the rollup TTL 90 days later (R3/D255)
+    const deletes = dau * (B.worldAnswers + ATTN_SAMPLE_RATE + 1);
     const inv = dau * (B.worldAnswers + B.duelAnswers);
     // Concurrency 20 only pays off under queue pressure; at low volume each
     // invocation effectively owns its instance for the request.

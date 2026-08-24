@@ -502,13 +502,15 @@ export function collectPopulation(pipeline) {
     // "we decided not to" is only useful with the decision attached.
     refused: [
       {
-        metric: "per-user funnels, session analytics, engagement scoring",
-        record: "docs/data-inventory.md, narrowed twice: D251 (server-side derivation) and "
-          + "D253 (anonymous device tallies). The per-USER half is ENGAGEMENT-PLAN.md R3, "
-          + "unadopted, under D252's recorded ceiling",
-        why: "what ships is counts that cannot name anyone — the digest's folds and the "
-          + "unlinkable daily shards. Nothing uid-keyed about behaviour exists to read, and "
-          + "adding it is a recorded reversal, not a monitoring tweak",
+        metric: "per-user RAW behaviour — event streams, reading history, per-target views",
+        record: "D252, the binding ceiling. The old row here ('per-user funnels, session "
+          + "analytics, engagement scoring') was reversed rung by rung — D251, D253, D254, "
+          + "D255 — each with its record, its rules arms and its store-form move",
+        why: "what ships is bounded by construction: the rollup carries no question id "
+          + "(rules-refused), is readable by nobody including its owner, and expires at 90 "
+          + "days; the shards are unlinkable even to a device. What D252 keeps out is the "
+          + "dossier shapes — logs, sequences, who-viewed-whom, hesitation — and any anchor "
+          + "or Art. 9 slice",
       },
       {
         metric: "retention or engagement sliced by anchor (age, gender, country, education…)",
@@ -526,10 +528,14 @@ export function collectPopulation(pipeline) {
         why: "special-category data. Never sliced by, never published, never leaves the owner doc",
       },
       {
-        metric: "skip / pass / hesitation rates on questions",
-        record: "docs/QUESTION-FARM.md, 'Deliberately out of scope'",
-        why: "server-side telemetry on what a user declined to answer is a behavioural profile "
-          + "with a friendlier name",
+        metric: "per-PERSON skip/pass lists, and hesitation timing anywhere",
+        record: "docs/QUESTION-FARM.md's line, narrowed at D254 the way D163 narrowed this "
+          + "table's last row: per-QUESTION aggregate skip rates now ship (the scorecard's "
+          + "attention columns); a person's list and per-option deliberation timing stay "
+          + "refused under D252",
+        why: "a question's pass rate is a fact about content; a person's passes are a "
+          + "behavioural profile with a friendlier name, and the shards' unlinkability is "
+          + "what keeps the first from ever becoming the second",
       },
       {
         metric: "per-user content selection, ad targeting profiles",
@@ -573,9 +579,34 @@ export function engagementFromDays(days) {
         features: Object.entries(attnRow.attn.s || {})
           .map(([key, v]) => ({ key, reach: v?.reach ?? 0, est: v?.est ?? 0 }))
           .sort((a, b) => b.reach - a.reach),
+        // R4/D254: how many questions carried counts, not the counts
+        // themselves — the per-question table is the scorecard's job.
+        qidCount: Object.keys(attnRow.attn.q || {}).length,
       }
     : null;
-  if (!rows.length) return attn ? { days: 0, attn } : { days: 0 };
+  // The person channel's fold (R3/D255), newest day that has one.
+  const peopleRow = [...all].reverse().find((d) => d.people && typeof d.people === "object");
+  const people = peopleRow
+    ? (() => {
+        const p = peopleRow.people;
+        const sessions = p.sessions ?? 0;
+        return {
+          day: peopleRow.day,
+          rollups: p.rollups ?? 0,
+          sessions,
+          quiet: p.quiet ?? 0,
+          quietShare: sessions > 0 ? round2((p.quiet ?? 0) / sessions) : null,
+          fading: p.fading ?? 0,
+          reachedEnd: p.depthEnd ?? 0,
+        };
+      })()
+    : null;
+  if (!rows.length) {
+    const bare = { days: 0 };
+    if (attn) bare.attn = attn;
+    if (people) bare.people = people;
+    return bare;
+  }
   const latest = rows[rows.length - 1];
   const last7 = rows.slice(-7);
   // Days inside the span the digest never folded — the console draws
@@ -609,6 +640,7 @@ export function engagementFromDays(days) {
       d30: rate(latest.returned?.d30),
     },
     attn,
+    people,
   };
 }
 

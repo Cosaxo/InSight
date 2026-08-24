@@ -250,17 +250,21 @@ R4 can wait; the shard shape carries an empty map either way).
       untouched. · **Gate:** `npm test --prefix functions` (8 fold
       cases). · **Size:** M.
 
-- [ ] **2.8 R4 lands in the scorecard. OPEN — gated on D254 (Proposed),
-      deliberately.** The owner's phase-2 instruction named neither R4
-      nor per-question collection, so the `qids` map ships rules-pinned
-      EMPTY and nothing per-question is collected. Adoption is small
-      and staged: widen the one rules clause to a size cap, let the
-      client populate the map from the pass/defer/seen signals it
-      already tallies locally, fold into the day docs' `qids` section,
-      then `question-scorecard.mjs` merges seen→answer conversion and
-      pass rate with the D33 warning printed beside them — the
-      denominator `SCALE-RUNBOOK.md` 3.4 (measure-and-retire) has been
-      missing. · **Gate:** `test:rules`, `test:scripts`. · **Size:** S.
+- [x] **2.8 R4 lands in the scorecard. DONE 2026-08-24, on the owner's
+      "adopt R4" (D254 flips binding).** Exactly the staged shape the
+      open note promised: the rules clause widened to `size() <= 120`
+      (the cap INCLUDES the client's `_other` overflow cell, so a capped
+      shard is legal by construction); the client populates the map from
+      the seen/pass/defer seams it already had (the entrance observer's
+      ref now stamps the card's qid) plus answered on the feed-rendered
+      surfaces, so numerator and denominator describe one population;
+      the fold sums into `attn.q` with truncation counted apart as
+      `qOther`; and `attentionFromTrail` (scorecard-metrics.mjs) merges
+      `attnSeen`/`attnConv`/`attnPass` onto the card with the D33
+      warning STORED on it and a basis floor (`ATTENTION_MIN_SEEN`)
+      under which rates read null, not noise. QUESTION-FARM's two
+      skip/pass passages narrowed in the same change. ·
+      **Gate:** `test:rules` (134), `test:scripts` (275). · **Size:** S.
 
 - [x] **2.9 Paperwork, same PR. DONE 2026-08-23.** Inventory row +
       the "not collected" paragraph rewritten to the derive/collect/
@@ -296,74 +300,93 @@ R4 can wait; the shard shape carries an empty map either way).
 
 Gated on R3. Everything here extends phase 2's module and fold.
 
-- [ ] **3.1 [owner] Adopt R3** → `DECISIONS.md`, `build:doc-index`. ·
+- [x] **3.1 [owner] Adopt R3 — DONE 2026-08-24 as D255**: the owner's
+      words were "build phase 3", and this step is the gate that
+      defines building phase 3 AS adopting R3 (the D253 provenance
+      shape, stated in the record). · **Gate:** `check:docs` (255
+      records). · **Size:** S.
+
+- [x] **3.2 Session machinery. DONE 2026-08-24.** Foreground episodes
+      split at 30 min hidden (`SESSION_GAP_MS` — attention semantics,
+      deliberately not live.ts's 60 s billing detach; the two constants
+      are neighbours, not one number). Quiet is decided at session
+      CLOSE and lands on the start day; foreground time accumulates
+      visible→hidden; dayparts are LOCAL (when in their day people
+      come). Trimmed from the sketch: reveals/notifs stayed shard-only
+      rather than duplicating onto the rollup — the person channel
+      carries what only it can (sessions, fg, quiet, dayparts, depth).
+      Two priced edges stated in the record: midnight-spanning fg lands
+      on the hidden day, and a session open when its day flushes never
+      gets its quiet verdict. · **Gate:** `test:unit` (fake-timer
+      episode cases). · **Size:** M.
+
+- [x] **3.3 The rollup write. DONE 2026-08-24.** Create-only for
+      yesterday, `day` duplicating the id, `expireAt` = day + 90 d,
+      `folded: false` at birth — and, unlike the shard's
+      fire-and-forget, a rollup with no session to own it yet is
+      RETAINED and retried next boot: uid-keyed data loses nothing by
+      waiting. · **Gate:** `test:unit` (retention-and-retry case). ·
       **Size:** S.
 
-- [ ] **3.2 Session machinery.** Session = foreground episode:
-      visibility events plus Capacitor's app-state listener, ended by
-      >30 min hidden (a constant with its reasoning, beside
-      `IDLE_DETACH_MS`'s — note the idle detach fires at 60 s and is
-      about listener billing, not session semantics; the two constants
-      are neighbours, not one number). Tallies: sessions, foreground
-      minutes (bucketed), quiet sessions, dayparts (4), feed depth
-      bucket, reached-end, reveals viewed, notifications opened. ·
-      **Gate:** `test:unit` (fake timers over the episode state
-      machine). · **Size:** M.
+- [x] **3.4 The rules arm is the no-qids pin. DONE 2026-08-24.** Owner
+      create only, date-id parse with the pulse bounds, `hasOnly` over
+      the fourteen fields, every int bounded, `folded == false`,
+      `expireAt` inside 100 d; `_state` fails the date regex inside the
+      SAME match block and stays server-only. The smuggle-a-qids test
+      is in, and read is denied to the owner too. · **Gate:**
+      `test:rules` (134). · **Size:** S.
 
-- [ ] **3.3 The rollup write.** `v2_users/{uid}/engagement/{yyyy-mm-dd}`
-      for yesterday, create-only: a `day` field duplicating the id (the
-      collection-group query needs a field), `expireAt` = day + 90 d
-      (the TTL field, the ledger's own idiom). · **Size:** S.
+- [x] **3.5 Fold extension + index. DONE 2026-08-24**, one design
+      correction from the sketch: the query is
+      `where("folded", "==", false)`, not `where("day", "==", D)` —
+      rollups arrive LATE (a device flushes yesterday on its next
+      boot), so "unfolded" is the honest sweep and the flag, marked in
+      the same batch as the day-doc increments, is what makes it
+      exactly-once without deleting the trail the TTL owns. The
+      group-scope fieldOverride on `folded` landed in
+      `firestore.indexes.json`, riding the existing indexes deploy.
+      Derived into `people`: rollups, sessions, quiet, dayparts,
+      fg-bucket histograms, depth-end — and **fading**, from the
+      `_state.fg7` window the fold advances in day order. The store
+      interface reads uid, day and the rollup's own fields — no
+      profile, no anchor is reachable, which is the
+      anchor-slicing refusal as code. · **Gate:** `npm test --prefix
+      functions` (332 + the 8 rollup cases = 340). · **Size:** M.
 
-- [ ] **3.4 The rules arm is the no-qids pin.** Owner create only; id
-      parsed as a date with the pulse bounds; **`hasOnly` over the
-      exact field list** — this is where the two-channel rule becomes
-      enforcement rather than prose, so the rules test that tries to
-      smuggle a `qids` field in and is refused is not optional. Ints
-      bounded; `read: if false` (the push-tokens posture — not even
-      the owner); no update, no client delete; `_state` keeps failing
-      the date regex and stays server-only. · **Gate:** `test:rules`.
-      · **Size:** S.
-
-- [ ] **3.5 Fold extension + index.** The nightly fold reads
-      `collectionGroup("engagement").where("day", "==", D)` — the
-      group-scope index lands in `firestore.indexes.json` and deploys
-      through the existing `--only "firestore:rules,firestore:indexes"`
-      path. Derives the anonymous durables into the day doc: fade
-      counts (plan §3.3's definition), quiet-session share, depth
-      distributions, cohort funnels. **The fold never joins a profile:**
-      its injected store is handed engagement docs and nothing else, so
-      anchor-sliced engagement is unrepresentable in the code, not just
-      refused in prose — that is the test. · **Gate:** `npm test
-      --prefix functions`. · **Size:** M.
-
-- [ ] **3.6 TTL, actually applied.** `docs/SHIP-CHECKLIST.md` §5 gains
-      the second line beside the ledger's:
-      `gcloud firestore fields ttls update expireAt
-      --collection-group=engagement --enable-ttl --project=prvfire33`.
-      Hand-run, like the first one — and the same standing caveat
-      `MONITORING.md` records for the ledger applies: the repo cannot
-      see whether it ran, so the checklist is the control. · **Gate:**
-      review; the checklist row. · **Size:** S.
-
-- [ ] **3.7 Erasure asserted.** `e2e-delete-account.mjs` seeds a
-      rollup and adds its path to the must-be-gone list (the foresight
-      row's shape). Phase 1b's `recursiveDelete` of `v2_users/{uid}`
-      already reaches it — assert it anyway; the handle registry and
-      `v2_people` both looked covered and were not, which is why 3b
-      and 3d exist. · **Gate:** `test:e2e:erasure`. · **Size:** S.
-
-- [ ] **3.8 Paperwork.** Product Interaction → **linked** in both
-      store-form files; inventory row (fields, cap, TTL, "readable by
-      nobody", erasure); privacy.html + the *no other user — and no
-      one at all — can read* and *expires after 90 days* claim rows;
-      COSTS lever. · **Gate:** the same four gates as 2.9. ·
+- [x] **3.6 TTL, actually applied — the repo's half DONE 2026-08-24.**
+      `SHIP-CHECKLIST.md` §5 carries the second `gcloud` line, with
+      what an unapplied policy quietly breaks written beside it (the
+      privacy page's "deletes itself 90 days after its day" is what the
+      command makes true). The console half stays hand-run, the
+      ledger's own caveat. · **Gate:** review; the checklist row. ·
       **Size:** S.
+
+- [x] **3.7 Erasure asserted. DONE 2026-08-24, against the real
+      emulated functions.** The e2e seeds the rollup AND `_state`,
+      both on the must-be-gone list, plus a control that another
+      account's rollup survives (a sweep that took the collection
+      instead of the account would look identical from the deleted
+      side). ALL ERASURE CHECKS PASSED. · **Gate:**
+      `test:e2e:erasure`. · **Size:** S.
+
+- [x] **3.8 Paperwork. DONE 2026-08-24.** Product Interaction →
+      **Linked** in both store files (moved together, 11 types
+      agreeing), with the three-move history written at the bullet;
+      privacy.html's rollup paragraph + three claim rows (no question,
+      nobody reads it including you, 90-day self-expiry) → 27
+      disclosures; inventory rows and the ladder paragraph; SCHEMA-V2;
+      MONITORING's first refused row rewritten as the record of its
+      ceiling; COSTS lever ($257 → $262 at 50 k, the ladder's priciest
+      rung and under 2 % of a read-dominated bill). · **Gate:** all
+      four green. · **Size:** S.
 
 - [ ] **3.9 Done when:** rollups flow, the fold publishes fade and
-      quiet-session numbers with no uid anywhere downstream, a
-      smuggled `qids` field is refused by a passing test, the TTL row
-      is checked off, and the erasure e2e is green.
+      quiet-session numbers with no uid anywhere downstream, the TTL
+      policy is applied in the console, and the pulse panel's people
+      tiles draw from a real day. **Code-complete 2026-08-24; open
+      until the next production deploy (the fold), the next app release
+      (the writer), and the hand-run TTL command** — three different
+      hands, all named.
 
 ## Phase 4 — reading it well (optional, any time after 1.7)
 

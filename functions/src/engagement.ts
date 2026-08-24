@@ -422,6 +422,7 @@ export interface AttentionShardDoc {
   day: string;
   rate: unknown;
   s: unknown;
+  qids?: unknown;
 }
 
 export interface AttnCounter {
@@ -431,6 +432,11 @@ export interface AttnCounter {
 export interface AttnDelta {
   devices: number;
   s: Record<string, AttnCounter>;
+  /** D254: per-question counters — qid → kind (s|a|p|d) → counter. The
+   * client's `_other` overflow cell folds into qOther instead, so the
+   * truncation is reported rather than blended into a fake question. */
+  q: Record<string, Record<string, AttnCounter>>;
+  qOther: number;
 }
 
 export interface AttentionStore {
@@ -447,6 +453,9 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
  * The rules pin the key vocabulary but deliberately not the values
  * (rules cannot iterate a map) — so the clamps live HERE, on the only
  * reader: buckets to 0..4 integers, rates to (0, 1]. */
+const clampBucket = (raw: unknown): number =>
+  typeof raw === "number" && Number.isFinite(raw) ? Math.min(4, Math.max(0, Math.trunc(raw))) : 0;
+
 export function foldShards(shards: AttentionShardDoc[]): Map<string, AttnDelta> {
   const out = new Map<string, AttnDelta>();
   for (const shard of shards) {
@@ -456,19 +465,39 @@ export function foldShards(shards: AttentionShardDoc[]): Map<string, AttnDelta> 
     const weight = 1 / rate;
     let delta = out.get(shard.day);
     if (!delta) {
-      delta = { devices: 0, s: {} };
+      delta = { devices: 0, s: {}, q: {}, qOther: 0 };
       out.set(shard.day, delta);
     }
     delta.devices = round2(delta.devices + weight);
     const s = shard.s && typeof shard.s === "object" ? (shard.s as Record<string, unknown>) : {};
     for (const [key, raw] of Object.entries(s)) {
-      const bucket = typeof raw === "number" && Number.isFinite(raw)
-        ? Math.min(4, Math.max(0, Math.trunc(raw)))
-        : 0;
+      const bucket = clampBucket(raw);
       if (bucket <= 0) continue;
       const c = delta.s[key] || (delta.s[key] = { reach: 0, est: 0 });
       c.reach = round2(c.reach + weight);
       c.est = round2(c.est + BUCKET_MIDPOINTS[bucket] * weight);
+    }
+    // D254: the per-question map. The client's `_other` overflow cell is
+    // truncation, not a question — counted apart so a capped device
+    // reads as "…and more", never as a phantom qid.
+    const q = shard.qids && typeof shard.qids === "object"
+      ? (shard.qids as Record<string, unknown>)
+      : {};
+    for (const [qid, kindsRaw] of Object.entries(q)) {
+      if (!kindsRaw || typeof kindsRaw !== "object") continue;
+      if (qid === "_other") {
+        delta.qOther = round2(delta.qOther + weight);
+        continue;
+      }
+      for (const [kind, raw] of Object.entries(kindsRaw as Record<string, unknown>)) {
+        if (kind !== "s" && kind !== "a" && kind !== "p" && kind !== "d") continue;
+        const bucket = clampBucket(raw);
+        if (bucket <= 0) continue;
+        const kinds = delta.q[qid] || (delta.q[qid] = {});
+        const c = kinds[kind] || (kinds[kind] = { reach: 0, est: 0 });
+        c.reach = round2(c.reach + weight);
+        c.est = round2(c.est + BUCKET_MIDPOINTS[bucket] * weight);
+      }
     }
   }
   return out;
@@ -505,13 +534,20 @@ export function firestoreAttentionStore(db: Firestore): AttentionStore {
         day: String(d.get("day") ?? ""),
         rate: d.get("rate"),
         s: d.get("s"),
+        qids: d.get("qids"),
       }));
     },
     async applyAttention(day, delta, shardIds) {
       const batch = db.batch();
-      const s: Record<string, { reach: FirebaseFirestore.FieldValue; est: FirebaseFirestore.FieldValue }> = {};
-      for (const [key, c] of Object.entries(delta.s)) {
-        s[key] = { reach: FieldValue.increment(c.reach), est: FieldValue.increment(c.est) };
+      const inc = (c: AttnCounter) => ({
+        reach: FieldValue.increment(c.reach), est: FieldValue.increment(c.est),
+      });
+      const s: Record<string, unknown> = {};
+      for (const [key, c] of Object.entries(delta.s)) s[key] = inc(c);
+      const q: Record<string, Record<string, unknown>> = {};
+      for (const [qid, kinds] of Object.entries(delta.q)) {
+        q[qid] = {};
+        for (const [kind, c] of Object.entries(kinds)) q[qid][kind] = inc(c);
       }
       batch.set(
         db.collection("v2_engagement_daily").doc(day),
@@ -519,10 +555,228 @@ export function firestoreAttentionStore(db: Firestore): AttentionStore {
         // this merge then creates an attn-only one, and the console's
         // reader treats a doc with no `actives` as not-digested rather
         // than as a zero day (pulse-collect.mjs).
-        { day, attn: { devices: FieldValue.increment(delta.devices), s } },
+        {
+          day,
+          attn: {
+            devices: FieldValue.increment(delta.devices),
+            s,
+            ...(Object.keys(q).length ? { q } : {}),
+            ...(delta.qOther ? { qOther: FieldValue.increment(delta.qOther) } : {}),
+          },
+        },
         { merge: true },
       );
       for (const id of shardIds) batch.delete(db.collection("v2_attention").doc(id));
+      await batch.commit();
+    },
+  };
+}
+
+// ── rung 2: the rollup fold (R3/D255) ───────────────────────────
+//
+// Devices write one uid-keyed day rollup per finished day (v2_users/
+// {uid}/engagement/{day}); this fold sums them into the day docs'
+// `people` section and marks each rollup `folded: true` — the rollups
+// are NOT deleted (their 90-day TTL is the deletion; the trail under the
+// account is the point of the channel), so the folded flag is what makes
+// the sweep exactly-once. Late rollups are as normal as late shards: a
+// device flushes yesterday on its next boot, so the query is "unfolded",
+// not "yesterday". Exactly-once is per chunk, the shard fold's shape:
+// each chunk's day-doc increments, its folded-marks and its _state
+// updates commit in one batch.
+//
+// FADE — the reading only this channel can produce (ENGAGEMENT-PLAN
+// §3.3): the digest's `_state` doc gains `fg7`, the trailing window of
+// foreground buckets, advanced here as each rollup folds; a window that
+// sinks two buckets is a person going quiet while still opening the app.
+// The window advances in day order within a run; a rollup arriving days
+// late lands out of order and smears the window by one slot — noise on a
+// bucketed trend, accepted and stated.
+
+export const ROLLUP_FOLD_CAP = 10_000;
+const ROLLUP_CHUNK = 200; // 1 set + ≤200 marks + ≤200 states per batch, under 500
+
+export interface RollupRow {
+  uid: string;
+  day: string;
+  sessions: unknown;
+  fgMin: unknown;
+  quiet: unknown;
+  answers: unknown;
+  depthEnd: unknown;
+  dayparts: unknown;
+}
+
+export interface PeopleDelta {
+  rollups: number;
+  sessions: number;
+  quiet: number;
+  answers: number;
+  depthEnd: number;
+  dayparts: [number, number, number, number];
+  fgBuckets: [number, number, number, number, number];
+  fading: number;
+}
+
+export interface RollupStore {
+  /** Up to `cap` unfolded rollups, any day. */
+  rollupPage(cap: number): Promise<RollupRow[]>;
+  /** The uids' trailing fg windows (absent uid → no window yet). */
+  getFgStates(uids: string[]): Promise<Map<string, number[]>>;
+  /** ONE atomic commit: merge the delta into the day doc's `people`
+   * section, mark exactly these rollups folded, write these windows. */
+  applyRollups(
+    day: string,
+    delta: PeopleDelta,
+    rows: Array<{ uid: string; day: string }>,
+    fgWindows: Map<string, number[]>,
+  ): Promise<void>;
+}
+
+const clampInt = (raw: unknown, max: number): number =>
+  typeof raw === "number" && Number.isFinite(raw)
+    ? Math.min(max, Math.max(0, Math.trunc(raw)))
+    : 0;
+
+/** Advance a trailing fg window by one folded day. Fading: six or more
+ * readings, and the newest three average two buckets under the window's
+ * first three — sinking, not merely low. */
+export function advanceFgWindow(prev: number[] | undefined, fgMin: number): {
+  fg7: number[];
+  fading: boolean;
+} {
+  const win = [...(Array.isArray(prev) ? prev.map((v) => clampInt(v, 4)) : []), clampInt(fgMin, 4)]
+    .slice(-7);
+  let fading = false;
+  if (win.length >= 6) {
+    const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+    fading = avg(win.slice(-3)) + 2 <= avg(win.slice(0, 3));
+  }
+  return { fg7: win, fading };
+}
+
+/** Pure: fold one chunk's rollups (all of one day) into the people
+ * delta. Clamps every value — the rules bound honest clients; this
+ * bounds the rest. `fading` is added by the runner, which holds the
+ * windows. */
+export function foldRollups(rows: RollupRow[]): PeopleDelta {
+  const delta: PeopleDelta = {
+    rollups: 0, sessions: 0, quiet: 0, answers: 0, depthEnd: 0,
+    dayparts: [0, 0, 0, 0], fgBuckets: [0, 0, 0, 0, 0], fading: 0,
+  };
+  for (const row of rows) {
+    delta.rollups++;
+    delta.sessions += clampInt(row.sessions, 300);
+    delta.quiet += clampInt(row.quiet, 300);
+    delta.answers += clampInt(row.answers, 2000);
+    delta.depthEnd += clampInt(row.depthEnd, 1);
+    delta.fgBuckets[clampInt(row.fgMin, 4)]++;
+    const parts = Array.isArray(row.dayparts) ? row.dayparts : [];
+    for (let i = 0; i < 4; i++) delta.dayparts[i] += clampInt(parts[i], 300);
+  }
+  return delta;
+}
+
+export async function runRollupFold(
+  store: RollupStore,
+  cap = ROLLUP_FOLD_CAP,
+): Promise<{ rollups: number; days: number; capped: boolean }> {
+  const page = await store.rollupPage(cap);
+  const byDay = new Map<string, RollupRow[]>();
+  for (const row of page) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(row.day) || !row.uid) continue;
+    const list = byDay.get(row.day) || [];
+    list.push(row);
+    byDay.set(row.day, list);
+  }
+  // Oldest day first, so a uid with two late rollups advances its fg
+  // window in calendar order within this run.
+  const days = [...byDay.keys()].sort();
+  for (const day of days) {
+    const rows = byDay.get(day)!;
+    for (let i = 0; i < rows.length; i += ROLLUP_CHUNK) {
+      const chunk = rows.slice(i, i + ROLLUP_CHUNK);
+      const delta = foldRollups(chunk);
+      const states = await store.getFgStates(chunk.map((r) => r.uid));
+      const fgWindows = new Map<string, number[]>();
+      for (const row of chunk) {
+        const adv = advanceFgWindow(states.get(row.uid), clampInt(row.fgMin, 4));
+        fgWindows.set(row.uid, adv.fg7);
+        if (adv.fading) delta.fading++;
+      }
+      await store.applyRollups(day, delta, chunk.map((r) => ({ uid: r.uid, day: r.day })), fgWindows);
+    }
+  }
+  return { rollups: page.length, days: byDay.size, capped: page.length >= cap };
+}
+
+export function firestoreRollupStore(db: Firestore): RollupStore {
+  const stateRef = (uid: string) =>
+    db.collection("v2_users").doc(uid).collection("engagement").doc("_state");
+  return {
+    async rollupPage(cap) {
+      // The collection-group single-field index on `folded` is a
+      // fieldOverride in firestore.indexes.json — deployed with the
+      // rules, per the existing --only path.
+      const snap = await db.collectionGroup("engagement")
+        .where("folded", "==", false)
+        .limit(cap)
+        .get();
+      return snap.docs.map((d) => ({
+        uid: d.ref.parent.parent?.id ?? "",
+        day: String(d.get("day") ?? ""),
+        sessions: d.get("sessions"),
+        fgMin: d.get("fgMin"),
+        quiet: d.get("quiet"),
+        answers: d.get("answers"),
+        depthEnd: d.get("depthEnd"),
+        dayparts: d.get("dayparts"),
+      }));
+    },
+    async getFgStates(uids) {
+      const out = new Map<string, number[]>();
+      const unique = [...new Set(uids)];
+      for (let i = 0; i < unique.length; i += 300) {
+        const chunk = unique.slice(i, i + 300);
+        const snaps = await db.getAll(...chunk.map(stateRef));
+        snaps.forEach((snap, j) => {
+          if (snap.exists && Array.isArray(snap.get("fg7"))) {
+            out.set(chunk[j], snap.get("fg7") as number[]);
+          }
+        });
+      }
+      return out;
+    },
+    async applyRollups(day, delta, rows, fgWindows) {
+      const batch = db.batch();
+      batch.set(
+        db.collection("v2_engagement_daily").doc(day),
+        {
+          day,
+          people: {
+            rollups: FieldValue.increment(delta.rollups),
+            sessions: FieldValue.increment(delta.sessions),
+            quiet: FieldValue.increment(delta.quiet),
+            answers: FieldValue.increment(delta.answers),
+            depthEnd: FieldValue.increment(delta.depthEnd),
+            fading: FieldValue.increment(delta.fading),
+            // maps rather than lists: FieldValue.increment needs a field
+            // path, and a list element has none
+            dayparts: Object.fromEntries(delta.dayparts.map((v, i) => [`d${i}`, FieldValue.increment(v)])),
+            fgBuckets: Object.fromEntries(delta.fgBuckets.map((v, i) => [`b${i}`, FieldValue.increment(v)])),
+          },
+        },
+        { merge: true },
+      );
+      for (const row of rows) {
+        batch.update(
+          db.collection("v2_users").doc(row.uid).collection("engagement").doc(row.day),
+          { folded: true },
+        );
+      }
+      for (const [uid, fg7] of fgWindows) {
+        batch.set(stateRef(uid), { fg7 }, { merge: true });
+      }
       await batch.commit();
     },
   };
@@ -548,12 +802,21 @@ export const digestEngagementV2 = onSchedule(
         { metric: "engagement_shard_cap", shards: attn.shards },
       );
     }
+    // …and rung 2's rollups (R3/D255), unfolded-flag driven so late
+    // arrivals sweep like late shards do.
+    const roll = await runRollupFold(firestoreRollupStore(db));
+    if (roll.capped) {
+      logger.warn(
+        `[engagement] rollup fold hit its cap (${ROLLUP_FOLD_CAP}) — leftovers fold tomorrow`,
+        { metric: "engagement_rollup_cap", rollups: roll.rollups },
+      );
+    }
     // The heartbeat — monitoring/digestEngagementV2-silent.json watches
     // for this line's ABSENCE (the fitPatternsV2 pattern): a scheduled
     // function that stops running reports nothing, so the alert is on
     // silence, and this log is the pulse it listens for.
     logger.info(
-      `[engagement] digest: ${res.days} day(s) folded through ${res.lastDay || "—"} — actives=${res.actives} votes=${res.votes}; shards=${attn.shards} over ${attn.days} day(s)`,
+      `[engagement] digest: ${res.days} day(s) folded through ${res.lastDay || "—"} — actives=${res.actives} votes=${res.votes}; shards=${attn.shards} over ${attn.days} day(s); rollups=${roll.rollups} over ${roll.days} day(s)`,
       {
         metric: "engagement_digest",
         days: res.days,
@@ -562,6 +825,8 @@ export const digestEngagementV2 = onSchedule(
         votes: res.votes,
         shards: attn.shards,
         shardDays: attn.days,
+        rollups: roll.rollups,
+        rollupDays: roll.days,
       },
     );
   },

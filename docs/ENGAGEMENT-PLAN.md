@@ -1,14 +1,13 @@
 # Engagement — measuring what holds people and what loses them
 
-**Status: mixed — rungs 0 and 1 are built (R1/D251 and R2/D253, both
-2026-08-23, with R5's ceiling binding as D252); rung 2 and the
-per-question map remain proposals (R3 undrafted, R4 = D254 Proposed).**
+**Status: mixed — the adoptable ladder is BUILT (rung 0 = D251, rung 1 =
+D253, its per-question map = D254, rung 2 = D255, all 2026-08-23/24,
+under D252's binding ceiling); what remains plan is what the plan
+refuses: §4.3's event-stream rung and everything §4.4 keeps out.**
 Requested 2026-08-23: *track as much as possible about how a user uses
 the app — what engages them, what bores them, and whatever else is
-useful.* Read §2 and §4.1 as descriptions and everything above them as
-proposal, with what it reverses named at the top, the arithmetic in the
-middle, and the failure modes at the bottom. The build list, with both
-phases' as-built notes, is
+useful.* Read §2, §4.1 and §4.2 as descriptions; the records carry the
+as-built deviations. The build list, with every phase's notes, is
 [`ENGAGEMENT-RUNBOOK.md`](ENGAGEMENT-RUNBOOK.md).
 
 > **This generalizes [`ATTENTION.md`](ATTENTION.md), it does not replace
@@ -513,16 +512,19 @@ Drafted here, adopted only by the owner writing them into
   funnels/session-analytics/engagement-scoring row, scoped by the
   two-channel rule (no qids), no-reader rules, create-only, 90-day TTL,
   recursive-delete erasure. Anchor and test-result slicing stay refused
-  inside it. Product Interaction moves to linked.
+  inside it. Product Interaction moves to linked. **Taken as D255
+  (2026-08-24, "build phase 3" — the phase's own gate) and built the
+  same day**: sessions, quiet, dayparts, depth, and the fade window the
+  fold reads from `_state.fg7`.
 - **R4 · Per-question attention, aggregate-only.** Narrows
   QUESTION-FARM's skip/pass refusal the way D163 narrowed MONITORING's:
   seen/pass/defer reach the server **only** inside anonymous shards;
   hesitation stays refused outright. The scorecard gains
   attention metrics with D33's goodhart warning printed beside them, and
-  measure-and-retire (D162) gains its denominator. **Drafted as D254,
-  Status: Proposed** — the shard schema carries its field and the rules
-  refuse it non-empty until the owner's word; adoption is one rules
-  clause, the client populating the map, and the scorecard columns.
+  measure-and-retire (D162) gains its denominator. **Adopted as D254
+  (2026-08-24, "adopt R4") and built the same day** — the record carries
+  the as-built cap-includes-overflow design and the feed-population
+  scoping of the answered kind.
 - **R5 · The ceiling, recorded.** The §4.3–4.4 refusals as one standing
   record — event streams, third-party SDKs, per-target reads,
   hesitation, anchor/Art. 9 slicing, cadence, and the

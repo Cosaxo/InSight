@@ -130,6 +130,25 @@ await adb.doc(`insight_users/${OTHER}/relations/r1`).set({ linkedUid: uid });
 await adb.doc(`v2_users/${uid}/foresight/daily-000__ageBand__25-34`).set({
   qid: "daily-000", dim: "ageBand", bucket: "25-34", guess: 0, answerIdx: 0, n: 20, at: new Date(),
 });
+// The engagement subtree (D251/D255): the digest's bookkeeping pair and a
+// person rollup, both under the account's own subtree — phase 1b's
+// recursive delete is what takes them, and seeding both makes "covered by
+// the subtree wipe" a tested claim rather than an assumed one (the
+// foresight row's reasoning, one collection over). The OTHER control
+// below proves the wipe is the account's, not the collection's.
+await adb.doc(`v2_users/${uid}/engagement/_state`).set({
+  firstDay: "2026-08-01", lastDay: "2026-08-22", activeDays: 9, streak: 2, fg7: [2, 3, 2],
+});
+await adb.doc(`v2_users/${uid}/engagement/2026-08-22`).set({
+  day: "2026-08-22", sessions: 2, fgMin: 2, quiet: 1, dayparts: [0, 1, 1, 0],
+  answers: 3, feedB: 2, depthEnd: 0, stops: 4, lenses: 1, folded: false,
+  build: 24, platform: "web", expireAt: new Date(Date.now() + 90 * 86400000),
+});
+await adb.doc(`v2_users/${OTHER}/engagement/2026-08-22`).set({
+  day: "2026-08-22", sessions: 1, fgMin: 1, quiet: 0, dayparts: [1, 0, 0, 0],
+  answers: 1, feedB: 1, depthEnd: 0, stops: 0, lenses: 0, folded: false,
+  build: 24, platform: "web", expireAt: new Date(Date.now() + 90 * 86400000),
+});
 await adb.doc(`v2_users/${uid}/following/${OTHER}`).set({ to: OTHER, at: new Date() });
 await adb.doc(`v2_users/${OTHER}/following/${uid}`).set({ to: uid, at: new Date() });
 // The control: OTHER's follow of a third party must survive. A sweep that
@@ -427,6 +446,8 @@ for (const [path, label] of [
   [`v2_flags/${THEIR_TAKE}_${uid}`, "their flag on someone else's take"],
   [`v2_users/${uid}/following/${OTHER}`, "the account's own follow"],
   [`v2_users/${uid}/foresight/daily-000__ageBand__25-34`, "a foresight verdict"],
+  [`v2_users/${uid}/engagement/_state`, "the digest's bookkeeping pair (D251)"],
+  [`v2_users/${uid}/engagement/2026-08-22`, "a person-channel day rollup (D255)"],
   [`v2_users/${OTHER}/following/${uid}`, "someone else's follow OF this account"],
   [`v2_avatars/${uid}`, "their profile photo's document"],
   [`v2_presence/${uid}`, "their presence cell"],
@@ -474,6 +495,9 @@ ok("someone else's take, its queue entry and its escalation count survive untouc
 if (!(await exists(`v2_suggestions/${OTHER}_e2e`)))
   fail("someone else's suggestion was deleted — the sweep matched more than the uid");
 ok("someone else's question suggestion survives");
+if (!(await exists(`v2_users/${OTHER}/engagement/2026-08-22`)))
+  fail("someone else's engagement rollup was deleted — the wipe took the collection, not the account");
+ok("someone else's engagement rollup survives (D255)");
 
 // The ledger sweep is a uid query, and this is why it has to be: another
 // account's attribution record must outlive this deletion, or one erasure

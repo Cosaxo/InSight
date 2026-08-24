@@ -1,58 +1,65 @@
-// engagement.ts — rung 1's device half (R2/D253): the anonymous feature
-// tally. docs/ENGAGEMENT-PLAN.md §4.1 is the argument; this file is the
-// whole client surface of it.
+// engagement.ts — the device half of the engagement ladder: rung 1's
+// anonymous feature tally (R2/D253), its per-question map (R4/D254), and
+// rung 2's per-person day rollup (R3/D255). docs/ENGAGEMENT-PLAN.md is
+// the argument; this file is the whole client surface of all three.
 //
-// WHAT IT IS. A per-day counter map in memory, mirrored to
-// `insight.engagement.v1`, and — once the day is OVER — one create-only
-// shard written to `v2_attention/{randomId}`: bucketed counts of which
-// features this device used, under a fresh random id, with no uid, no
-// name, no anchor and no question id. The nightly fold sums the shards
-// into the public day doc and DELETES them (functions/src/engagement.ts),
-// so the raw pile never accumulates into the per-user funnel this rung
-// promises not to be.
+// WHAT IT IS. Counters in memory, mirrored to `insight.engagement.v1`,
+// and — once a day is OVER — at most two writes per device:
 //
-// THE COST RULE (ATTENTION.md §1, treated as binding by D164): never an
-// event per impression. Seams call note() — a memory increment — and the
-// server hears ONE write per device per day, after the day ends. Flushing
-// yesterday rather than today keeps the shard create-only: no rules arm
-// for mid-day updates exists to be widened later.
+//   · the SHARD (v2_attention/{randomId}): bucketed feature counts and,
+//     since D254, capped per-question seen/answer/pass/defer buckets —
+//     anonymous, sampled, under a fresh random id, no uid anywhere. The
+//     nightly fold sums shards into the public day doc and DELETES them.
+//   · the ROLLUP (v2_users/{uid}/engagement/{day}): the person channel —
+//     sessions, foreground time (bucketed), quiet sessions, dayparts,
+//     depth. Uid-keyed by definition, readable by NOBODY (the rules), a
+//     90-day TTL, erased with the account by the recursive delete.
 //
-// THE TWO-CHANNEL RULE (the plan's hard line): this shard is the QUESTION
-// channel's carrier and the FEATURE tally — it may never carry a uid, and
-// the per-question map (R4/D254) stays out until that record is adopted;
-// the rules pin `qids` absent-or-empty, so per-question collection is
-// structurally off, not merely polite.
+// THE TWO-CHANNEL RULE, now with all three pieces live: the rollup NEVER
+// carries a question id (the rules' hasOnly is the pin), and the qids map
+// rides only the anonymous shard. Answers are the standing exception —
+// they carry both by design and publish under D98.
 //
-// UNLINKABILITY IS LOAD-BEARING: the shard id is random PER WRITE, so two
-// days from one phone cannot be joined — or it is a per-user funnel with
-// extra steps (ATTENTION.md §4). Nothing here may add a stable device
-// token, an install id, or anything derived from one.
+// THE COST RULE (ATTENTION.md §1): never an event per impression. Seams
+// increment memory; the server hears ≤2 writes per device per day, after
+// the day ends. Flushing yesterday keeps both docs create-only.
 //
 // INERT UNTIL ARMED. Importing this module does nothing; every note() is
-// a no-op until initLive() calls arm() with a writer — which is what
-// keeps the demo build, the ui unit tests and the jsdom mounts free of
-// tallies without any test-mode flag. The seams (vote in live.ts, the
-// shell's tab/stop/overlay effects, the feed's pass/seen sites, the lens
-// row, the duel reveal, the push tap) all call the same note().
+// a no-op until initLive() calls arm() — which is what keeps the demo
+// build, the ui unit tests and the jsdom mounts silent with no test flag.
 
 export const LS_KEY = "insight.engagement.v1";
 
-/** The sampling lever (ATTENTION.md §4: 10% of devices answers a feature
- * question as well as 100% and costs a tenth). 1 for launch — at
- * launch-sized DAU a sample would leave the panel reading noise — and
- * the constant to drop when the fold's read budget starts to matter; the
- * shard carries the rate so the fold can scale its estimates either way. */
+/** The sampling lever for the SHARD (ATTENTION.md §4) — the rollup is
+ * the person channel and is not sampled. 1 for launch; the shard carries
+ * the rate so fold estimates rescale server-side when this drops. The
+ * cost model reads this constant from source (ATTN_SAMPLE_RATE). */
 export const SHARD_SAMPLE_RATE = 1;
 
-/** A tally older than this is dropped, not flushed: the rules arm refuses
- * days older than its window (clock-skew allowance included), and a
- * phone dormant for a week is a retention fact the digest already sees —
- * its lost feature tally is priced, stated, and small. */
+/** A finished day older than this is dropped, not flushed: the rules
+ * windows refuse it anyway, and a week-dormant phone is a retention fact
+ * the digest already sees. */
 export const MAX_SHARD_AGE_DAYS = 7;
 
-/** Counts leave the device as BUCKETS, never exact (ATTENTION.md §4: an
- * exact 137 is a fingerprint; a bucket is not): 0 · 1–2 · 3–5 · 6–10 ·
- * 11+ → indexes 0..4. The fold's midpoint estimates live server-side. */
+/** The qids map's key budget, INCLUDING the overflow cell — mirrored in
+ * firestore.rules' size cap. Real qids take at most QIDS_CAP − 1 slots;
+ * everything past them counts into QID_OTHER, reported rather than
+ * silently dropped (the no-silent-caps rule). */
+export const QIDS_CAP = 120;
+export const QID_OTHER = "_other";
+
+/** A foreground gap longer than this starts a new session — the
+ * boundary is about human attention, not listener billing, which is why
+ * it is not live.ts's 60 s IDLE_DETACH_MS. */
+export const SESSION_GAP_MS = 30 * 60_000;
+
+/** The rollup's TTL horizon (expireAt = day + this) — D28's window: the
+ * uid-keyed trail is rolling; the durable history is the anonymous fold. */
+export const ROLLUP_TTL_DAYS = 90;
+
+/** Counts leave the device as BUCKETS (0 · 1–2 · 3–5 · 6–10 · 11+ →
+ * 0..4): an exact 137 is a fingerprint on the anonymous channel and an
+ * over-sharp reading on the identified one. */
 export function bucketize(n: number): number {
   if (n <= 0) return 0;
   if (n <= 2) return 1;
@@ -61,10 +68,26 @@ export function bucketize(n: number): number {
   return 4;
 }
 
-/** The counter vocabulary — one key per feature reading the plan's §3
- * catalogue marked ○. A note() with a key off this list is ignored (and
- * the test pins the list), so a typo'd seam cannot mint a field the
- * rules arm would then refuse the whole shard over. */
+/** Foreground minutes, same shape: none · <5 · <15 · <45 · 45+. */
+export function bucketizeMinutes(min: number): number {
+  if (min < 1) return 0;
+  if (min < 5) return 1;
+  if (min < 15) return 2;
+  if (min < 45) return 3;
+  return 4;
+}
+
+/** Local daypart of a session's start — the one deliberately LOCAL
+ * reading here (when in THEIR day people come): night 0–5, morning 6–11,
+ * afternoon 12–17, evening 18–23. */
+export function daypartOf(ms: number): number {
+  const h = new Date(ms).getHours();
+  return h < 6 ? 0 : h < 12 ? 1 : h < 18 ? 2 : 3;
+}
+
+/** The shard counter vocabulary — mirrored in the rules' whitelist; a
+ * note() with a key off this list is ignored and the pair is pinned by
+ * test on both sides. */
 export const S_KEYS = [
   "opens", "slowBoots", "errors",
   "tabDaily", "tabMirror", "overlays",
@@ -77,6 +100,18 @@ export const S_KEYS = [
 export type SKey = (typeof S_KEYS)[number];
 const S_KEY_SET: ReadonlySet<string> = new Set(S_KEYS);
 
+// Shard keys that also feed the person channel's counters — the rollup
+// is unsampled, so these tally into `r` whether or not the shard coin
+// landed.
+const R_MAP: Partial<Record<SKey, keyof RollupCounters>> = {
+  feedSeen: "feedSeen",
+  lensPeople: "lenses", lensCompare: "lenses", lensExplore: "lenses", lensScores: "lenses",
+  stopYou: "stops", stopNear: "stops", stopCircle: "stops", stopGroups: "stops",
+  stopCity: "stops", stopCountry: "stops", stopWorld: "stops",
+};
+
+export type QidKind = "s" | "a" | "p" | "d"; // seen · answered · passed · deferred
+
 export interface AttentionShard {
   day: string;
   build: number;
@@ -84,21 +119,55 @@ export interface AttentionShard {
   sampled: true;
   rate: number;
   s: Record<string, number>; // bucket indexes 0..4
+  qids?: Record<string, Partial<Record<QidKind, number>>>; // buckets, D254
+}
+
+export interface EngagementRollup {
+  day: string;
+  sessions: number;
+  fgMin: number; // bucket 0..4
+  quiet: number;
+  dayparts: [number, number, number, number];
+  answers: number;
+  feedB: number; // bucket 0..4 of cards seen
+  depthEnd: number; // 0|1 — reached the feed's end
+  stops: number;
+  lenses: number;
+  folded: boolean; // false at create; the fold flips it (admin SDK)
+  build: number;
+  platform: string;
+  expireAt: Date;
 }
 
 export interface ArmCtx {
-  /** Writes one shard; the Firestore SDK's offline queue owns delivery,
-   * so the caller fires and forgets — a rollup written on a dead train
-   * arrives when the phone wakes. */
+  /** Writes one shard; the SDK's offline queue owns delivery. */
   write(shard: AttentionShard): Promise<void>;
+  /** Writes one rollup under the CURRENT session's uid; must throw when
+   * there is no session, so the tally is retained for the next boot
+   * rather than lost. */
+  writeRollup(rollup: EngagementRollup): Promise<void>;
+  hasUid(): boolean;
   build: number;
   nowMs?: () => number;
   rand?: () => number;
 }
 
+interface RollupCounters {
+  sessions: number;
+  fgMs: number;
+  quiet: number;
+  dayparts: [number, number, number, number];
+  answers: number;
+  feedSeen: number;
+  depthEnd: number;
+  stops: number;
+  lenses: number;
+}
 interface DayTally {
   sampled: boolean;
   s: Record<string, number>; // exact ints, device-local only
+  q: Record<string, Partial<Record<QidKind, number>>>; // exact, device-local
+  r: RollupCounters;
 }
 interface Stored {
   v: 1;
@@ -123,11 +192,35 @@ function platformName(): string {
   return "web";
 }
 
+function emptyR(): RollupCounters {
+  return {
+    sessions: 0, fgMs: 0, quiet: 0, dayparts: [0, 0, 0, 0],
+    answers: 0, feedSeen: 0, depthEnd: 0, stops: 0, lenses: 0,
+  };
+}
+// Older stored blobs (pre-D254/D255) lack q/r — normalized on read
+// rather than versioned away: the counters they do hold are still true.
+function normalize(t: Partial<DayTally> & { sampled?: boolean }): DayTally {
+  return {
+    sampled: !!t.sampled,
+    s: t.s && typeof t.s === "object" ? t.s : {},
+    q: t.q && typeof t.q === "object" ? t.q : {},
+    r: t.r && typeof t.r === "object" ? { ...emptyR(), ...t.r } : emptyR(),
+  };
+}
+
 let armed: ArmCtx | null = null;
 let days: Record<string, DayTally> = {};
 let loaded = false;
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let listenersOn = false;
+
+// session state (armed only; in-memory — a killed app ends its session)
+let visibleSince = 0;
+let lastHiddenAt = 0;
+let sessionOpen = false;
+let sessionHadAnswer = false;
+let sessionDay = "";
 
 function now(): number {
   return armed?.nowMs ? armed.nowMs() : Date.now();
@@ -144,17 +237,17 @@ function load(): void {
     if (raw) {
       const parsed = JSON.parse(raw) as Stored;
       if (parsed && parsed.v === 1 && parsed.days && typeof parsed.days === "object") {
-        days = parsed.days;
+        days = {};
+        for (const [day, t] of Object.entries(parsed.days)) days[day] = normalize(t);
       }
     }
   } catch { /* best-effort */ }
 }
 
 // Coalesced: note() fires per tap and per card, and a localStorage write
-// per increment would be the event-stream cost model sneaking back in at
-// the disk. The pending write flushes on hide — the last callback a
-// mobile WebView is guaranteed (the initLive visibility handler's own
-// reasoning) — so at most ~2s of taps can be lost to a kill.
+// per increment would be the event-stream cost sneaking back in at the
+// disk. The pending write flushes on hide — the last callback a mobile
+// WebView is guaranteed — so at most ~2s of taps can be lost to a kill.
 function save(): void {
   if (saveTimer) return;
   saveTimer = setTimeout(saveNow, 2000);
@@ -169,26 +262,26 @@ function saveNow(): void {
   } catch { /* best-effort */ }
 }
 
-function ensureToday(): DayTally | null {
+function ensureToday(): DayTally {
   const day = utcDay(now());
   let t = days[day];
   if (!t) {
-    // The day's coin, drawn once: an unsampled day tallies nothing at
-    // all — there is nothing half-collected to explain.
-    t = { sampled: rand() < SHARD_SAMPLE_RATE, s: {} };
+    // The shard's coin, drawn once per day; the rollup side is never
+    // sampled — it is the person channel and one write regardless.
+    t = { sampled: rand() < SHARD_SAMPLE_RATE, s: {}, q: {}, r: emptyR() };
     days[day] = t;
     save();
-    // A new day starting means at least one old one may be owed.
     void flushPast();
   }
-  return t.sampled ? t : null;
+  return t;
 }
 
-/** Flush every finished, sampled day as one shard each; drop what the
- * rules window would refuse anyway. Local state is cleared as soon as
- * the write is HANDED to the SDK — the offline queue owns it from there,
- * and re-writing on the next boot would double-count a shard the queue
- * already delivered. */
+/** Flush every finished day: one shard (if that day was sampled, and
+ * young enough for the rules window) and one rollup (if a session
+ * exists to own it — otherwise the rollup half is RETAINED for the next
+ * boot, since it is uid-keyed and loses nothing by waiting). Local
+ * state clears as soon as a write is HANDED to the SDK: the offline
+ * queue owns delivery, and re-writing next boot would double-count. */
 export async function flushPast(): Promise<void> {
   if (!armed) return;
   load();
@@ -197,48 +290,108 @@ export async function flushPast(): Promise<void> {
   let changed = false;
   for (const [day, tally] of Object.entries(days)) {
     if (day >= today) continue;
-    delete days[day];
-    changed = true;
-    if (!tally.sampled || day < cutoff) continue;
-    const s: Record<string, number> = {};
-    for (const [k, v] of Object.entries(tally.s)) {
-      if (S_KEY_SET.has(k) && v > 0) s[k] = bucketize(v);
+
+    // ── the anonymous shard ─────────────────────────────────
+    if (tally.sampled && day >= cutoff) {
+      const s: Record<string, number> = {};
+      for (const [k, v] of Object.entries(tally.s)) {
+        if (S_KEY_SET.has(k) && v > 0) s[k] = bucketize(v);
+      }
+      const qids: AttentionShard["qids"] = {};
+      for (const [qid, kinds] of Object.entries(tally.q)) {
+        const out: Partial<Record<QidKind, number>> = {};
+        for (const kind of ["s", "a", "p", "d"] as const) {
+          const v = kinds[kind] || 0;
+          if (v > 0) out[kind] = bucketize(v);
+        }
+        if (Object.keys(out).length) qids[qid] = out;
+      }
+      const shard: AttentionShard = {
+        day,
+        build: armed.build,
+        platform: platformName(),
+        sampled: true,
+        rate: SHARD_SAMPLE_RATE,
+        s,
+        ...(Object.keys(qids).length ? { qids } : {}),
+      };
+      armed.write(shard).catch(() => {
+        // One lost anonymous tally — priced as acceptable; see D253.
+      });
     }
-    const shard: AttentionShard = {
+    tally.sampled = false; // never re-shard this day
+    tally.s = {};
+    tally.q = {};
+    changed = true;
+
+    // ── the person rollup ───────────────────────────────────
+    const r = tally.r;
+    const hasRollup =
+      r.sessions > 0 || r.answers > 0 || r.feedSeen > 0 || r.stops > 0 || r.lenses > 0;
+    if (!hasRollup || day < cutoff) {
+      delete days[day];
+      continue;
+    }
+    if (!armed.hasUid()) continue; // retained — retried next flush
+    const rollup: EngagementRollup = {
       day,
+      sessions: r.sessions,
+      fgMin: bucketizeMinutes(r.fgMs / 60000),
+      quiet: r.quiet,
+      dayparts: [...r.dayparts] as [number, number, number, number],
+      answers: r.answers,
+      feedB: bucketize(r.feedSeen),
+      depthEnd: r.depthEnd,
+      stops: r.stops,
+      lenses: r.lenses,
+      folded: false,
       build: armed.build,
       platform: platformName(),
-      sampled: true,
-      rate: SHARD_SAMPLE_RATE,
-      s,
+      expireAt: new Date(Date.parse(`${day}T00:00:00Z`) + ROLLUP_TTL_DAYS * 86400000),
     };
-    armed.write(shard).catch(() => {
-      // A REFUSED write (rules window passed while queued, misconfig) is
-      // one lost anonymous tally — logged nowhere on purpose: wiring
-      // reportError here would couple every seam's import graph to
-      // Sentry's for a loss the design already prices as acceptable.
+    delete days[day];
+    armed.writeRollup(rollup).catch(() => {
+      // A refused rollup create usually means a previous hand-off
+      // already landed (create-only) — either way, not retried: the
+      // local copy is gone and the queue or the earlier write owns it.
     });
   }
   if (changed) saveNow();
 }
 
-/** The one entry point every seam calls. A no-op until armed, a no-op on
- * an unsampled day, a memory increment otherwise. */
+/** The one entry point most seams call. A no-op until armed; the shard
+ * half honours the day's coin, the rollup-mapped half tallies always. */
 export function note(key: SKey): void {
   if (!armed) return;
   if (!S_KEY_SET.has(key)) return;
   load();
   const t = ensureToday();
-  if (!t) return;
-  t.s[key] = (t.s[key] || 0) + 1;
+  if (t.sampled) t.s[key] = (t.s[key] || 0) + 1;
+  const rKey = R_MAP[key];
+  if (rKey) (t.r[rKey] as number)++;
   save();
 }
 
-/** The vote path's seam (live.ts), with the surface→key mapping held
- * here so it is tested where the vocabulary lives. The two duel halves
- * merge — which duel MODE ran is the reveal fold's fact, not this
- * tally's — and an unknown surface is ignored, never guessed. */
+/** The per-question map (R4/D254) — the anonymous shard's, NEVER the
+ * rollup's (the two-channel rule). Capped with an overflow cell so the
+ * shard can never outgrow the rules' size cap. */
+export function noteQid(qid: string, kind: QidKind): void {
+  if (!armed || !qid) return;
+  load();
+  const t = ensureToday();
+  if (!t.sampled) return;
+  let key = qid;
+  if (!(key in t.q) && Object.keys(t.q).length >= QIDS_CAP - 1) key = QID_OTHER;
+  const kinds = t.q[key] || (t.q[key] = {});
+  kinds[kind] = (kinds[kind] || 0) + 1;
+  save();
+}
+
+/** The vote path's seam (live.ts). The two duel halves merge; an unknown
+ * surface is ignored, never guessed. Also feeds the person channel's
+ * answer count and marks the session non-quiet. */
 export function noteAnswer(surface: string): void {
+  if (!armed) return;
   const k: SKey | null =
     surface === "daily" ? "ansDaily"
     : surface === "feed" ? "ansFeed"
@@ -248,7 +401,67 @@ export function noteAnswer(surface: string): void {
     : surface === "call" ? "ansCall"
     : surface === "group" || surface === "duo" ? "ansDuel"
     : null;
-  if (k) note(k);
+  if (!k) return;
+  note(k);
+  const t = ensureToday();
+  t.r.answers++;
+  sessionHadAnswer = true;
+  save();
+}
+
+/** The feed's end reached — a day-level bit, not a counter. */
+export function markDepthEnd(): void {
+  if (!armed) return;
+  load();
+  ensureToday().r.depthEnd = 1;
+  save();
+}
+
+// ── sessions (R3/D255) ────────────────────────────────────────────
+//
+// A session is a foreground episode; a gap over SESSION_GAP_MS starts a
+// new one. Quiet (no answer) is decided when the session CLOSES — at the
+// next session's start — and lands on the day the session STARTED. Two
+// honest edges, priced rather than engineered away: a session still open
+// when its day flushes never gets its quiet verdict (the day is gone),
+// and foreground time spanning midnight lands on the day the app went
+// hidden. Both are minutes-level noise on a bucketed field.
+
+function closeSession(): void {
+  if (!sessionOpen) return;
+  sessionOpen = false;
+  if (!sessionHadAnswer && sessionDay && days[sessionDay]) {
+    days[sessionDay].r.quiet++;
+    save();
+  }
+}
+
+function startSession(atMs: number): void {
+  closeSession();
+  const t = ensureToday();
+  t.r.sessions++;
+  t.r.dayparts[daypartOf(atMs)]++;
+  sessionOpen = true;
+  sessionHadAnswer = false;
+  sessionDay = utcDay(atMs);
+  save();
+}
+
+function onVisible(): void {
+  const ms = now();
+  if (!sessionOpen || ms - lastHiddenAt > SESSION_GAP_MS) startSession(ms);
+  visibleSince = ms;
+  note("opens");
+}
+
+function onHidden(): void {
+  const ms = now();
+  if (visibleSince) {
+    ensureToday().r.fgMs += Math.max(0, ms - visibleSince);
+    visibleSince = 0;
+  }
+  lastHiddenAt = ms;
+  saveNow();
 }
 
 /** Called by initLive() once the live session exists — never by tests'
@@ -259,19 +472,13 @@ export function arm(ctx: ArmCtx): void {
   if (!listenersOn && typeof document !== "undefined" && typeof document.addEventListener === "function") {
     listenersOn = true;
     document.addEventListener("visibilitychange", () => {
-      if (document.hidden) {
-        saveNow();
-      } else {
-        // A new foreground is an "open", and the cheapest rollover check
-        // there is: ensureToday() starts the new day's tally and kicks
-        // the flush of the finished one.
-        note("opens");
-      }
+      if (document.hidden) onHidden();
+      else onVisible();
     });
   }
-  note("opens");
-  // Let boot finish first: the flush is one queued write and can wait
-  // out the hydrate burst.
+  onVisible();
+  // Let boot finish first: the flush is at most two queued writes and
+  // can wait out the hydrate burst.
   setTimeout(() => { void flushPast(); }, 8000);
 }
 
@@ -284,6 +491,9 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
   window.addEventListener("insight:local-purge", () => {
     days = {};
     loaded = true; // fresh-boot state IS the loaded state now
+    sessionOpen = false;
+    sessionHadAnswer = false;
+    sessionDay = "";
     if (saveTimer) {
       clearTimeout(saveTimer);
       saveTimer = null;
@@ -297,6 +507,7 @@ export function _engagementForTest(): {
   days: Record<string, DayTally>;
   reset: () => void;
   saveNow: () => void;
+  visibility: (hidden: boolean) => void;
 } {
   return {
     armed: !!armed,
@@ -305,11 +516,17 @@ export function _engagementForTest(): {
       armed = null;
       days = {};
       loaded = false;
+      visibleSince = 0;
+      lastHiddenAt = 0;
+      sessionOpen = false;
+      sessionHadAnswer = false;
+      sessionDay = "";
       if (saveTimer) {
         clearTimeout(saveTimer);
         saveTimer = null;
       }
     },
     saveNow,
+    visibility: (hidden) => { if (hidden) onHidden(); else onVisible(); },
   };
 }

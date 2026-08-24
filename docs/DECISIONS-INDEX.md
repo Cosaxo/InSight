@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 259 lines instead of
-25,686. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 260 lines instead of
+25,778. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -270,6 +270,7 @@ detect it.
 |  | ↳ *amendment 2026-08-23* — [world-feed.jsx meets main's live pick/rank seam](DECISIONS.md#d249-amendment-2026-08-23--world-feedjsx-meets-mains-live-pickrank-seam) | — | 25331 |
 | **D250** | [The a11y ratchet: six were right, one was hiding](DECISIONS.md#d250--the-a11y-ratchet-six-were-right-one-was-hiding) | — | 25364 |
 | **D251** | [The ledger learns to count people: engagement rung 0](DECISIONS.md#d251--the-ledger-learns-to-count-people-engagement-rung-0) | D253 (+1) | 25448 |
-| **D252** | [The ceiling: what stays refused at every engagement rung](DECISIONS.md#d252--the-ceiling-what-stays-refused-at-every-engagement-rung) | D254 | 25536 |
-| **D253** | [The anonymous channel: engagement rung 1 collects, unlinkably](DECISIONS.md#d253--the-anonymous-channel-engagement-rung-1-collects-unlinkably) | D254 | 25575 |
+| **D252** | [The ceiling: what stays refused at every engagement rung](DECISIONS.md#d252--the-ceiling-what-stays-refused-at-every-engagement-rung) | D255 (+1) | 25536 |
+| **D253** | [The anonymous channel: engagement rung 1 collects, unlinkably](DECISIONS.md#d253--the-anonymous-channel-engagement-rung-1-collects-unlinkably) | D255 (+1) | 25575 |
 | **D254** | [Per-question attention, aggregate-only — the R4 gate](DECISIONS.md#d254--per-question-attention-aggregate-only--the-r4-gate) | — | 25667 |
+| **D255** | [The person channel: engagement rung 2, scoped to the bone](DECISIONS.md#d255--the-person-channel-engagement-rung-2-scoped-to-the-bone) | — | 25708 |

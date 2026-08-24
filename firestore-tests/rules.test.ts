@@ -705,9 +705,41 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "engagement", "_state")));
     await assertFails(getDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "_state")));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "_state"), { streak: 99 }));
-    // And the rung-2 shape is refused TODAY: a date-shaped rollup id has
-    // no create arm until R3 opens one (ENGAGEMENT-PLAN §4.2).
-    await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "2026-08-22"), { sessions: 1 }));
+  });
+
+  // A valid rung-2 rollup: yesterday's date-shaped id, the pinned field
+  // list, bounded ints, folded false at birth (R3/D255).
+  const rollupDay = () => new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const rollup = (over: Record<string, unknown> = {}) => ({
+    day: rollupDay(),
+    sessions: 2, fgMin: 2, quiet: 1, dayparts: [0, 1, 1, 0], answers: 3,
+    feedB: 2, depthEnd: 0, stops: 4, lenses: 1, folded: false,
+    build: 24, platform: "web",
+    expireAt: new Date(Date.now() + 90 * 86400000),
+    ...over,
+  });
+
+  it("a person's day rollup is owner-create-only, date-keyed, field-pinned (R3/D255)", async () => {
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", rollupDay()), rollup()));
+    // not someone else's subtree, not a bare-map id, not a mismatched day
+    await assertFails(setDoc(doc(asUser(STRANGER), "v2_users", OWNER, "engagement", rollupDay()), rollup()));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "_state"), rollup()));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "2026-01-01"), rollup({ day: "2026-01-01" })));
+    // folded is the fold's flag, never the client's
+    await assertFails(setDoc(doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()), rollup({ folded: true })));
+    await assertFails(setDoc(doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()), rollup({ sessions: 5000 })));
+  });
+
+  it("the rollup's hasOnly IS the two-channel pin: a question id is refused, and nobody reads", async () => {
+    const day = rollupDay();
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", day), rollup()));
+    // the smuggle: reading history on the person channel
+    await assertFails(setDoc(doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", day), rollup({ qids: { "feed-001": 1 } })));
+    // readable by NOBODY — the owner included (the push-tokens posture)
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", day)));
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "engagement", day)));
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", day), { folded: true }));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", day)));
   });
 
   // A valid rung-1 shard: yesterday's day, the pinned vocabulary, nothing
@@ -738,9 +770,14 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(deleteDoc(doc(asUser(OWNER), "v2_attention", "mine")));
     // empty is tolerated (an older client may send the field bare)…
     await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_attention", "q0"), shard({ qids: {} })));
-    // …anything IN it is refused: per-question collection is structurally
-    // off until the owner adopts R4 (D254, Proposed).
-    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "q1"), shard({ qids: { "daily-000": { s: 1 } } })));
+    // …and since D254's adoption the map is OPEN within its cap: a
+    // question's counts, on a doc that carries no uid by construction.
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_attention", "q1"), shard({ qids: { "feed-001": { s: 1, a: 1 } } })));
+    // over the cap — the client's overflow cell exists so this never
+    // happens honestly, and a dishonest client is refused wholesale
+    const over: Record<string, { s: number }> = {};
+    for (let i = 0; i <= 120; i++) over[`feed-${i}`] = { s: 1 };
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "q2"), shard({ qids: over })));
   });
 
   it("the option bound, the kill switch and the surface claim all read off the question", async () => {

@@ -1,4 +1,16 @@
 {
+  "fieldOverrides": [
+    {
+      "collectionGroup": "engagement",
+      "fieldPath": "folded",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "order": "ASCENDING"
+        }
+      ]
+    }
+  ],
   "indexes": [
     {
       "collectionGroup": "v2_suggestions",

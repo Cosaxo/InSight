@@ -119,11 +119,11 @@
     {
       "category": "USAGE_DATA",
       "type": "PRODUCT_INTERACTION",
-      "linked": false,
+      "linked": true,
       "purposes": [
         "ANALYTICS"
       ],
-      "$why": "Collected since D253 (the owner adopting docs/ENGAGEMENT-PLAN.md rung 1), and the label's first and only NOT-LINKED row — filed with a straight face because unlinkability is enforced rather than promised: one anonymous shard per sampled device per finished UTC day (v2_attention), holding bucketed counts of which features were used (the vocabulary in src/v2/data/engagement.ts), a build number, a platform name and the sampling rate. No uid, no device id, a random document id per write, so two days from one phone are not joinable even by us; firestore.rules whitelists the fields and the rules suite asserts a uid is refused. The raw shards are readable by nobody and are deleted by the nightly fold (functions/src/engagement.ts) after summing into a public daily total. NOT USED FOR TRACKING like every row here — there is still no analytics SDK, no advertising identifier and no third-party recipient. The per-user version (ENGAGEMENT-PLAN rung 2) is unadopted and would make this row linked; whoever ships it owns this entry."
+      "$why": "Collected since D253, LINKED since D255 (the owner adopting docs/ENGAGEMENT-PLAN.md rungs 1 and 2). Two shapes. THE ANONYMOUS TALLY (v2_attention): one shard per sampled device per finished UTC day — bucketed feature counts and, since D254, per-question seen/answered/skipped buckets — no uid, no device id, a random document id per write, so two days from one phone are not joinable even by us; firestore.rules whitelists the fields, the suite asserts a uid is refused, and the nightly fold deletes shards after summing into a public daily total. THE LINKED ROLLUP (v2_users/{uid}/engagement/{day}, D255): sessions, a foreground-time bracket, quiet sessions, local dayparts, answer count, depth — uid-keyed, hence this row's linked=true on Apple's definition, and bounded three ways, each enforced: NO QUESTION ID can ride it (the rules' field whitelist is the two-channel pin, asserted by the test that smuggles one in), NO USER can read it, the owner included (what publishes is counts of people in v2_engagement_daily.people), and each doc SELF-EXPIRES at 90 days with the whole subtree erased on account deletion (asserted in e2e-delete-account.mjs, with a control that other accounts' survive). NOT USED FOR TRACKING like every row here — no analytics SDK, no advertising identifier, no third-party recipient; D252 records the binding ceiling (no event streams, no per-target reads, no hesitation timing, no anchor or Art. 9 slicing)."
     }
   ],
   "notCollected": {

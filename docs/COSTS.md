@@ -65,6 +65,7 @@ Every constant below is sourced, not assumed:
 | The Patterns fit, nightly | The day's ledger entries re-read as the vote log (the velocity scan's shape, second reader), one private state read+write per active answerer, one model doc read+write per project | functions/src/patterns.ts (v28 §2, trial D166 §1). Measured BEFORE the fold shipped — the dated note under the scenario table has the movement |
 | The engagement digest, nightly | The day's ledger entries re-read a THIRD time as the activity log, one bookkeeping state read+write per active answerer, one public day doc per project | functions/src/engagement.ts (R1/D251). A separate scan rather than a rider on velocity's, deliberately — its header carries the windowing argument. Measured before the deploy — dated note below |
 | One attention shard | 1 write the day after (the device's flush), then 1 read + 1 delete the night the fold sweeps it — per SAMPLED device per day, at the client's own `SHARD_SAMPLE_RATE` | src/v2/data/engagement.ts + the fold in functions/src/engagement.ts (R2/D253). The rate is read from source by the model (`ATTN_SAMPLE_RATE`), because it is the designed lever if this term ever matters |
+| One person rollup | 1 write the day after (unsampled — the person channel), then the fold's 1 read + 1 folded-mark write + 1 fg-window read + write on `_state`; the TTL deletes it 90 days on | src/v2/data/engagement.ts + runRollupFold (R3/D255). Not deleted by the fold — the TTL is the deletion, and the flag is what makes the sweep exactly-once |
 | One Circle open | 1 + one query per member: ≤50 members × ≤300 answers, +1 followers query | `FOLLOW_CAP` / `CIRCLE_ANSWER_CAP`, src/v2/data/circle.ts (D101). Also once per session since 2026-08-13, with `setFollowing` the one caller that may force a refetch — it changes the membership the fold is over |
 | One takes panel | ≤100 world takes per question, ≤500 per group, once per scope per session | `TAKE_FETCH_CAP` / `TAKE_GROUP_FETCH_CAP`, src/v2/data/live.ts — both caps and the cache are new on 2026-08-13; the world query had no `limit()` and returned roughly everyone who spoke that day |
 
@@ -94,11 +95,11 @@ roughly double on the three operation lines.
 
 | Scenario | DAU | reads/day | writes/day | Firestore $/mo | Functions $/mo | **Total $/mo** |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Launch / TestFlight | 50 | 10.1 K | 1.1 K | 0.00 | 0.00 | **0.00** |
-| Friends-of-friends | 500 | 178 K | 10.6 K | 1.15 | 0.00 | **1.15** |
-| Real traction | 5,000 | 2.2 M | 106 K | 23 | 0.00 | **23** |
-| Scale | 50,000 | 22.3 M | 1.1 M | 255 | 2.20 | **257** |
-| Hit | 500,000 | 223 M | 10.6 M | 2,570 | 43 | **2,613** |
+| Launch / TestFlight | 50 | 10.2 K | 1.2 K | 0.00 | 0.00 | **0.00** |
+| Friends-of-friends | 500 | 179 K | 12.1 K | 1.16 | 0.00 | **1.16** |
+| Real traction | 5,000 | 2.2 M | 121 K | 24 | 0.00 | **24** |
+| Scale | 50,000 | 22.4 M | 1.2 M | 260 | 2.20 | **262** |
+| Hit | 500,000 | 224 M | 12.1 M | 2,622 | 43 | **2,665** |
 
 > **Measured 2026-08-19, BEFORE the fold shipped (VISION-V28 §11.4).**
 > The Patterns fit (v28 §2, trial D166 §1) joined the model:
@@ -139,6 +140,18 @@ roughly double on the three operation lines.
 > is the term sampling exists to shrink: at 0.1 the whole addition is a
 > tenth of these lines, and the shard carries its rate so the fold's
 > estimates rescale with no server change.
+
+> **Measured 2026-08-24, before the deploy.** Rung 2's person rollups
+> (R3/D255) joined the model — `ENGAGEMENT_ROLLUP_CLIENT_WRITES` and the
+> two fold constants in `scripts/cost-arith.mjs`: one uid-keyed rollup
+> write per active device-day, the fold's two reads and two writes (the
+> rollup's mark and the `_state` fg window), and a TTL delete 90 days on.
+> Server reads 28 → 30 per user-day, three more writes and one more
+> delete per user-day, **$257 → $262 at 50 k and $2,613 → $2,665 at
+> 500 k**. This is deliberately the ladder's priciest rung per user —
+> the person channel is unsampled by design — and it is still under 2 %
+> of the bill at every size, because the bill is read-dominated and this
+> channel adds no client reads at all.
 
 > **The tab's client half (2026-08-19, same day)** adds reads too small
 > for the model's terms, stated so nobody hunts for them later: ONE

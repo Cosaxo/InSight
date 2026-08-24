@@ -787,7 +787,20 @@ function panelEngagement(p) {
     <p class="note">The feature rows are rung 1's anonymous device shards (R2/D253), folded
       and deleted nightly: <b>reach</b> counts devices that used the feature at all —
       bucketing cannot distort it — and <b>est.</b> sums bucket midpoints, scaled by the
-      sampling rate: an estimate, and labelled one.</p>` : ""}
+      sampling rate: an estimate, and labelled one.${e.attn.qidCount
+        ? ` Per-question attention (${int(e.attn.qidCount)} qid(s), D254) lives in the
+      scorecard, where its D33 warning travels with it.` : ""}</p>` : ""}
+    ${e.people ? tiles([
+      { k: `rollups · ${e.people.day}`, v: int(e.people.rollups) },
+      { k: "sessions", v: int(e.people.sessions) },
+      { k: "quiet-session share", v: e.people.quietShare == null ? "—" : Math.round(e.people.quietShare * 100) + "%" },
+      { k: "fading people", v: int(e.people.fading) },
+      { k: "hit the feed's end", v: int(e.people.reachedEnd) },
+    ]) + `
+    <p class="note">The person channel (R3/D255): uid-keyed day rollups readable by nobody,
+      folded here into counts — <b>fading</b> is a trailing foreground window sinking two
+      buckets, the win-back trigger rung 2 exists for. Per-person rows never leave the
+      fold; what prints is how many.</p>` : ""}
     <p class="note">Read it against its moment, not in isolation: a new surface's share is
       inflated for as long as it is new — judge shares against neighbours over ≥ a month —
       and a rate whose cohort day predates the digest reads <em>unknown</em>, never 0%

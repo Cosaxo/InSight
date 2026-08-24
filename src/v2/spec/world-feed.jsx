@@ -416,7 +416,18 @@ class WorldFeed extends React.Component {
     // publishes compare like with like. Tightening the definition is a
     // one-line change here if the coarser read ever misleads.
     this._io = typeof IntersectionObserver !== 'undefined' ? new IntersectionObserver((es) => {
-      es.forEach((e) => { if (e.isIntersecting) { engagement.note('feedSeen'); e.target.classList.add('wf-in'); this._io.unobserve(e.target); } });
+      es.forEach((e) => {
+        if (e.isIntersecting) {
+          engagement.note('feedSeen');
+          // The per-question half (R4/D254): the ref that observed this
+          // element stamped its qid on it, so the same first-intersection
+          // is the question's seen denominator. Anonymous-shard only —
+          // noteQid never touches the person channel.
+          if (e.target._wfQid) engagement.noteQid(e.target._wfQid, 's');
+          e.target.classList.add('wf-in');
+          this._io.unobserve(e.target);
+        }
+      });
     }, { rootMargin: '0px 0px -8% 0px' }) : null;
   }
   componentDidUpdate() {
@@ -441,6 +452,12 @@ class WorldFeed extends React.Component {
     if (near && this.state.shown < (this._listLen || 0)) {
       clearTimeout(this._growT);
       this._growT = setTimeout(() => this.setState((st) => ({ shown: st.shown + WF_STEP })), 60);
+    } else if (near && s && this._listLen > 0 && this.state.shown >= this._listLen) {
+      // Every card is mounted and the bottom is on screen: the feed's end,
+      // SCALE-PLAN §2's "what trips first" as a lived event. A day-level
+      // bit on the person channel (R3/D255) — idempotent, so firing per
+      // update costs nothing.
+      engagement.markDepthEnd();
     }
   }
   componentWillUnmount() {
@@ -522,7 +539,8 @@ class WorldFeed extends React.Component {
   setPass(id, on) {
     // Counted OUTSIDE the updater (StrictMode double-invokes updaters in
     // dev), and count only the pass itself, never the un-pass (R2/D253).
-    if (on) engagement.note('feedPass');
+    // The qid half (R4/D254) rides the anonymous shard only.
+    if (on) { engagement.note('feedPass'); engagement.noteQid(id, 'p'); }
     this.setState((s) => {
       const passed = { ...s.passed };
       if (on) passed[id] = 1; else delete passed[id];
@@ -538,7 +556,8 @@ class WorldFeed extends React.Component {
   // second write path per question for something the user asked to be
   // shown again later.
   setDefer(id, on) {
-    if (on) engagement.note('feedDefer'); // the setPass rule, same reasons
+    // the setPass rule, same reasons
+    if (on) { engagement.note('feedDefer'); engagement.noteQid(id, 'd'); }
     this.setState((s) => {
       const now = Date.now();
       const deferred = pruneDeferred({ ...s.deferred }, now);
@@ -3641,7 +3660,7 @@ class WorldFeed extends React.Component {
     }
     if (collapsed) {
       return (
-        <div key={q.id} className={this._io ? 'wf-card' : ''} ref={(el) => { if (el && this._io && !el._wfSeen) { el._wfSeen = 1; this._io.observe(el); } }} role="button" tabIndex={0} onClick={() => this.setState((s) => ({ open: { ...s.open, [q.id]: true } }))} onKeyDown={(e) => { if (e.key === 'Enter') this.setState((s) => ({ open: { ...s.open, [q.id]: true } })); }} style={{ ...card, cursor: 'pointer' }}>
+        <div key={q.id} className={this._io ? 'wf-card' : ''} ref={(el) => { if (el && this._io && !el._wfSeen) { el._wfSeen = 1; el._wfQid = q.id; this._io.observe(el); } }} role="button" tabIndex={0} onClick={() => this.setState((s) => ({ open: { ...s.open, [q.id]: true } }))} onKeyDown={(e) => { if (e.key === 'Enter') this.setState((s) => ({ open: { ...s.open, [q.id]: true } })); }} style={{ ...card, cursor: 'pointer' }}>
           {kicker}
           <div style={{ fontFamily: 'var(--sans)', fontWeight: 750, fontSize: 14.5, lineHeight: 1.3, letterSpacing: -0.2, textWrap: 'pretty' }}>{q.prompt}</div>
           {answered && this.renderThinBar(q, T)}
@@ -3649,7 +3668,7 @@ class WorldFeed extends React.Component {
       );
     }
     return (
-      <div key={q.id} className={this._io ? 'wf-card' : ''} ref={(el) => { if (el && this._io && !el._wfSeen) { el._wfSeen = 1; this._io.observe(el); } }} style={card}>
+      <div key={q.id} className={this._io ? 'wf-card' : ''} ref={(el) => { if (el && this._io && !el._wfSeen) { el._wfSeen = 1; el._wfQid = q.id; this._io.observe(el); } }} style={card}>
         {kicker}
         {snap && !answered && <div aria-hidden="true" style={{ flex: '0.12 1 0' }}></div>}
         {/* the bare skin has no box to compete with, so the question can carry

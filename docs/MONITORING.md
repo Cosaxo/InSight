@@ -175,7 +175,7 @@ consoles, which are not in this repo and never will be.
 
 | Refused | Record |
 | --- | --- |
-| Per-user funnels, session analytics, engagement scoring | data-inventory.md, narrowed twice and holding: D251 lets the server *derive* anonymous daily counts from stored answers; D253 lets devices send *anonymous, unlinkable* daily feature tallies. What the row still refuses is the per-USER half — anything uid-keyed about behaviour — which is ENGAGEMENT-PLAN.md R3, unadopted, with D252 recording the ceiling above it |
+| Per-user funnels, session analytics, engagement scoring | **Reversed rung by rung, knowingly, and this row is now the record of the ceiling rather than the refusal**: D251 (server-side derivation), D253 (anonymous device tallies), D254 (per-question counts, aggregate-only), D255 (the uid-keyed day rollup — session analytics per person, scoped: no question id by rules-enforced construction, readable by nobody including the owner, 90-day TTL, erased with the account). What still binds is **D252**: no event streams, no third-party analytics, no per-target reads, no hesitation timing, no anchor or Art. 9 slicing, and the daily and the Mirror never adapt |
 | Retention or engagement sliced by anchor | D8 — the anchors exist; nothing suppresses them since D98 |
 | Anything sliced by political result | D8; GDPR Art. 9 |
 | Skip / pass / hesitation rates | QUESTION-FARM.md, "Deliberately out of scope" |

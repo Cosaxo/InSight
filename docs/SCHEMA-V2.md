@@ -296,14 +296,29 @@ v2_engagement_daily/{day}          the engagement digest's trail (R1/D251)
                                    never folded (absent ≠ zero). Plus the
                                    fold's own `meta` cursor doc {lastDay}
   attn {devices,                   D253: the shard fold's sums — per
-    s {key: {reach, est}}}         feature, devices that used it (reach)
-                                   and a bucket-midpoint estimate (est),
-                                   both scaled by the sampling rate.
-                                   Merged additively as late shards
-                                   arrive; a doc holding only attn (its
-                                   day predates the digest's catch-up)
-                                   has no `actives`, and readers treat
-                                   that as not-digested, never as zero
+    s {key: {reach, est}},         feature, devices that used it (reach)
+    q {qid: {s|a|p|d:              and a bucket-midpoint estimate (est),
+         {reach, est}}},           both scaled by the sampling rate.
+    qOther}                        D254 adds the per-question map (seen /
+                                   answered / passed / deferred) with the
+                                   clients' overflow cells counted apart
+                                   as qOther — truncation, never a
+                                   phantom qid. Merged additively as late
+                                   shards arrive; a doc holding only attn
+                                   (its day predates the digest's
+                                   catch-up) has no `actives`, and
+                                   readers treat that as not-digested,
+                                   never as zero
+  people {rollups, sessions,       D255: the rollup fold's counts of
+    quiet, answers, depthEnd,      PEOPLE — how many rollups folded, the
+    fading,                        sessions and quiet sessions they held,
+    dayparts {d0..d3},             how many hit the feed's end, how many
+    fgBuckets {b0..b4}}            trailing foreground windows are
+                                   SINKING (fading — the win-back
+                                   trigger), dayparts and foreground
+                                   brackets as histograms. Maps rather
+                                   than lists because increments need a
+                                   field path
 read: signed-in · write: NOBODY — written once per night by
 digestEngagementV2 (admin SDK). Counts only; no uid, name or anchor
 anywhere in it, so deleteAccount has nothing to reach here.
@@ -311,28 +326,53 @@ anywhere in it, so deleteAccount has nothing to reach here.
 v2_attention/{randomId}            rung 1's anonymous device shards (D253)
   day, build, platform,            one CREATE-ONLY doc per sampled device
   sampled, rate,                   per FINISHED UTC day: bucketed feature
-  s {key: 0..4}                    counts (the vocabulary lives in
-                                   src/v2/data/engagement.ts and the
-                                   rules' field whitelist — the pair is
+  s {key: 0..4},                   counts (the vocabulary lives in
+  qids? {qid:                      src/v2/data/engagement.ts and the
+    {s|a|p|d: 0..4}}               rules' field whitelist — the pair is
                                    held equal by hand and by the rules
                                    suite), plus build/platform/rate. The
-                                   `qids` map is rules-pinned EMPTY until
-                                   D254 (Proposed) opens it
+                                   `qids` map (D254) is capped at 120
+                                   keys INCLUDING the client's `_other`
+                                   overflow cell, so the cap is honest
 read: NOBODY · update/delete: NOBODY — the fold deletes on the admin SDK
 as it sums (fold-and-delete, asserted by test). A random id per write and
 no uid anywhere: two days from one phone are not joinable, which is the
-channel's whole contract (ENGAGEMENT-PLAN §4.1).
+channel's whole contract (ENGAGEMENT-PLAN §4.1) — and it is what makes
+the qids map counts about QUESTIONS rather than anyone's reading list.
+
+v2_users/{uid}/engagement/{day}    rung 2's person rollup (D255)
+  day (== doc id), sessions,       one CREATE-ONLY doc per account per
+  fgMin 0..4, quiet,               FINISHED UTC day: sessions, the
+  dayparts [4 ints],               foreground-time BRACKET (never
+  answers, feedB 0..4,             minutes), quiet sessions, local
+  depthEnd 0|1, stops,             dayparts, answers, the feed-depth
+  lenses, folded, build,           bracket and reached-the-end bit, stop
+  platform, expireAt               and lens counts. `folded: false` at
+                                   birth; the fold flips it (admin SDK) —
+                                   the flag is what makes the sweep
+                                   exactly-once, and the collection-group
+                                   index on it is a fieldOverride in
+                                   firestore.indexes.json
+read: NOBODY — the owner included (the push/ posture: measurement, not a
+profile surface; what publishes is `people` counts on the day doc).
+update/delete: NOBODY client-side; expireAt powers the 90-day TTL
+(SHIP-CHECKLIST §5), and the account's erasure takes the subtree
+(asserted in e2e-delete-account.mjs). THE hasOnly IS THE TWO-CHANNEL
+PIN: no qids, no question id, no reading history on any uid-keyed path.
 
 v2_users/{uid}/engagement/_state   the digest's bookkeeping pair (D251)
   firstDay, lastDay,               when this account first and last
-  activeDays, streak               answered, distinct active days, and the
-                                   consecutive-day streak — the smallest
-                                   state the cohort counts need without
-                                   rescanning history
+  activeDays, streak,              answered, distinct active days, the
+  fg7 [≤7 ints]                    consecutive-day streak — and, D255,
+                                   the trailing window of foreground
+                                   brackets the rollup fold advances;
+                                   "fading" (a window sinking two
+                                   brackets) is read from it
 read: NOBODY · write: NOBODY — the push/ shape again; digestEngagementV2
 (admin SDK) writes it, deleteAccount's recursive delete erases it with
-the account. The `_state` id deliberately fails the date-shaped id a
-future rung-2 rules arm would admit (ENGAGEMENT-PLAN §4.2).
+the account. The `_state` id deliberately fails the date-shaped id the
+rung-2 create arm admits, which is what keeps it server-only under the
+same match block.
 
 v2_avatars/{uid}                   the profile photo's document (D178)
   token: "…"                       the Storage download token for
@@ -599,7 +639,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 132 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 134 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

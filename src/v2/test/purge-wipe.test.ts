@@ -277,7 +277,9 @@ describe("engagement tally (insight.engagement.v1)", () => {
   it("seed → purge → fresh → remutate persists only the new data", () => {
     const t = _engagementForTest();
     t.reset();
-    engagementArm({ write: async () => {}, build: 1 });
+    engagementArm({
+      write: async () => {}, writeRollup: async () => {}, hasUid: () => true, build: 1,
+    });
     engagementNote("feedPass");
     t.saveNow();
     expect(localStorage.getItem(ENGAGEMENT_LS)).toContain("feedPass");

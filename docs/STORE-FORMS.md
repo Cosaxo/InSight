@@ -74,7 +74,7 @@ companies' apps or sites.
 | Location | **Precise Location** | Yes | App Functionality | Requested since D175; nothing precise is retained — see §"The three that bite" |
 | Sensitive Info | **Sensitive Info** | Yes | App Functionality | Politics test result (GDPR Art. 9); gender if entered |
 | Diagnostics | **Crash Data** | Yes | App Functionality | Sentry. **On** (D76; the in-app switch left at D211), carries the uid only |
-| Usage Data | **Product Interaction** | **No** | Analytics | **New at D253.** One anonymous, bucketed feature tally per sampled device per day (`v2_attention`) — which surfaces were used, in coarse buckets, under a fresh random id each day, folded into a public daily total and deleted. **Not linked**, and unlinkable by design: no uid, no stable device id, not even joinable to the same phone across two days. See the note below the table |
+| Usage Data | **Product Interaction** | **Yes** | Analytics | **Collected at D253, LINKED at D255.** Two shapes: the anonymous device tally (`v2_attention` — bucketed feature and, since D254, per-question counts under a fresh random id, unlinkable even to the same phone across days), and the per-account day rollup (`v2_users/{uid}/engagement` — sessions, a foreground bracket, quiet sessions, dayparts; no question id by rules-enforced construction, readable by nobody including the owner, 90-day TTL, erased with the account). The rollup is uid-keyed, so the row is Linked. See the note below the table |
 
 **The handle (D122) lands in *User ID*, and the answer does not move.**
 Worth a line anyway, because the row's stated basis was "the Firebase uid"
@@ -180,31 +180,30 @@ Four of those are worth knowing *why*, because each looks tickable:
   recently". The server stores **no device identifier**; the platforms
   hold the state. There is nothing here for `deleteAccount` to erase
   because nothing is held.
-- **Product Interaction — collected and NOT linked since D253, and the
-  linkage claim is the load-bearing half.** The history first, because
-  this row moved twice in two days and each move was deliberate: D251
-  re-answered it **No** (a server-side fold of answers already stored is
-  not data *collected from the app*), and D253 — the owner adopting
-  ENGAGEMENT-PLAN.md rung 1 — is what actually flips it: the app now
-  sends one anonymous feature tally per sampled device per finished day.
-  *What is collected:* bucketed counts of which surfaces were used
-  (tabs, Mirror stops, lens taps, feed seen/pass, reveals viewed,
-  notification taps — the shard vocabulary in `src/v2/data/
-  engagement.ts`), a build number, a platform name and the sampling
-  rate. *Why NOT linked, filed with a straight face:* the shard carries
-  no uid and no device id, its document id is random per write, and two
-  days from the same phone are not joinable even by us — unlinkability
-  is enforced by `firestore.rules` (the field whitelist) and asserted by
-  test, not promised. Apple's definition of "linked" is data connected
-  to identity by account, device, or other means; this is connected by
-  none. The raw shards are readable by nobody and deleted by the
-  nightly fold; what persists is the public daily total. *What is still
-  NOT collected:* anything per-user (`docs/ENGAGEMENT-PLAN.md` rung 2,
-  R3 unadopted — shipping it makes this row **linked** and whoever
-  ships it owns this bullet), any per-question tally (R4/D254,
-  Proposed; the rules refuse the field until it is adopted), and any
-  advertising or analytics identifier — there is still no analytics SDK
-  in the binary, so the tracking answer above is untouched.
+- **Product Interaction — Yes and LINKED since D255, and the row's
+  history is three deliberate moves in three days.** D251 re-answered it
+  **No** (a server-side fold of answers already stored is not data
+  *collected from the app*); D253 collected, **not linked** (the
+  anonymous device tally); D255 — the owner adopting ENGAGEMENT-PLAN.md
+  rung 2 — adds the uid-keyed day rollup, and a uid-keyed row is Linked
+  on Apple's definition however few can read it. *What the linked shape
+  is:* one small doc per account per finished day — session count, a
+  foreground-time BRACKET (never minutes), quiet-session count, local
+  dayparts, answer count, feed-depth bracket, stop/lens counts. *What
+  bounds it, each part enforced rather than promised:* it carries **no
+  question id** — the rules' field whitelist refuses one, asserted by
+  test, so no reading history exists on any uid-keyed path; it is
+  readable by **nobody, the owner included** (measurement, not a profile
+  surface — what publishes is counts of people, `v2_engagement_daily
+  .people`); each doc **self-expires at 90 days** (TTL) and the whole
+  subtree erases with the account, asserted in the erasure e2e. The
+  anonymous tally beside it is unchanged — still no uid, still
+  unlinkable across days, and since D254 its per-question counts are
+  facts about questions, not people. *Still not collected:* any
+  advertising or analytics identifier, any event stream, anything a
+  third party receives — no analytics SDK is in the binary, so the
+  tracking answer above is untouched. The ceiling on all of it is
+  D252, binding.
 - **Emails or Text Messages — still No, for the shape reason.** A take is
   a **post** — to a circle (D78 part 1) or, since D83, anonymously to the
   world — never a message to a person, and Apple files posts under *User

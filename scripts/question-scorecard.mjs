@@ -81,7 +81,10 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { splitQualityOf, rollupProduction, creditShares } from "./scorecard-metrics.mjs";
+import {
+  splitQualityOf, rollupProduction, creditShares,
+  attentionFromTrail, ATTENTION_WARNING,
+} from "./scorecard-metrics.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(root, "content", "scorecard.json");
@@ -576,6 +579,16 @@ function summarize(card) {
     `scorecard: ${c.scored}/${c.questions} scored (${c.belowFloor} below floor, ` +
       `${c.unserved} unserved) · generated ${card.generatedAt}`,
   );
+  if (card.attention) {
+    const rated = (card.perQuestion || []).filter((q) => q.attnPass != null);
+    const top = [...rated].sort((a, b) => b.attnPass - a.attnPass).slice(0, 3);
+    console.log(
+      `  attention (D254): ${rated.length} question(s) with a rated pass rate over ` +
+        `${card.attention.daysWithQ} day(s)` +
+        (top.length ? ` · most passed: ${top.map((q) => `${q.qid} ${Math.round(q.attnPass * 100)}%`).join(", ")}` : ""),
+    );
+    console.log(`  ⚠ ${card.attention.warning}`);
+  }
   const staleDays = (Date.now() - Date.parse(card.generatedAt)) / 864e5;
   if (staleDays > 14) {
     console.log(`  ⚠ ${Math.floor(staleDays)} days old — treat demand signals as advisory (D33)`);
@@ -635,8 +648,6 @@ if (FETCH || INPUT) {
     aggs = live.aggs;
   }
   const card = score(aggs);
-  writeFileSync(OUT, JSON.stringify(card, null, 2) + "\n");
-  console.log(`scorecard: wrote ${OUT}`);
   if (live) {
     const days = await fetchEngagementDays(live.idToken, live.project);
     // Day granularity on the stamp, the pulse artifact's reasoning: this
@@ -645,7 +656,31 @@ if (FETCH || INPUT) {
     const trail = { fetchedOn: new Date().toISOString().slice(0, 10), days };
     writeFileSync(ENGAGEMENT_OUT, JSON.stringify(trail, null, 2) + "\n");
     console.log(`scorecard: wrote ${ENGAGEMENT_OUT} (${days.length} day(s))`);
+    // R4/D254: the attention columns — the denominator the scorecard
+    // never had. Merged BEFORE the card writes, so the committed artifact
+    // the farm reads carries seen→answer and pass rates beside evenness,
+    // with the D33 warning stored on the card rather than trusted to
+    // whoever renders it.
+    const att = attentionFromTrail(days);
+    if (Object.keys(att.qids).length) {
+      for (const row of card.perQuestion || []) {
+        const a = att.qids[row.qid];
+        if (a) {
+          row.attnSeen = a.seen;
+          row.attnConv = a.conv;
+          row.attnPass = a.passRate;
+        }
+      }
+      card.attention = {
+        daysWithQ: att.daysWithQ,
+        truncatedDevices: att.truncatedDevices,
+        basis: "bucket-midpoint estimates from sampled anonymous shards (D254)",
+        warning: ATTENTION_WARNING,
+      };
+    }
   }
+  writeFileSync(OUT, JSON.stringify(card, null, 2) + "\n");
+  console.log(`scorecard: wrote ${OUT}`);
   summarize(card);
 } else {
   let card;

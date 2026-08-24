@@ -4053,6 +4053,17 @@ const LIVE = {
         // optimistic state back below, and the tally should agree with
         // the server about what was answered (R2/D253).
         engagement.noteAnswer(q?.surface ?? "daily");
+        // …and the per-question map (R4/D254), for the feed-rendered
+        // surfaces only: the seen denominator comes from feed cards, so
+        // the answered numerator matches its population. The daily is
+        // not a feed card, duels never ride this path, and a pulse
+        // answers through votePulse — none of them belongs here.
+        {
+          const s = q?.surface ?? "daily";
+          if (s === "feed" || s === "test" || s === "learn" || s === "call") {
+            engagement.noteQid(qid, "a");
+          }
+        }
         notify(); // confirmedVotes() changed — let persistent records (the Map) pick it up
         scheduleAggRefresh(db, qid);
       } catch (err) {
@@ -4740,6 +4751,16 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
       const db = await getDb();
       await setDoc(doc(db, "v2_attention", crypto.randomUUID()), shard);
     },
+    // R3/D255: the person rollup rides the same queue but under the
+    // session's own uid — throwing on a missing session is the contract
+    // (engagement retains the tally and retries next boot), not an error.
+    writeRollup: async (rollup) => {
+      const db = await getDb();
+      const uid = state.uid;
+      if (!uid) throw new Error("no session");
+      await setDoc(doc(db, "v2_users", uid, "engagement", rollup.day), rollup);
+    },
+    hasUid: () => !!state.uid,
     build: typeof __APP_BUILD__ === "number" ? __APP_BUILD__ : 0,
   });
   // A slow first paint is a boredom input like any other. Measured from

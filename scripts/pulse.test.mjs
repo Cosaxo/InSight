@@ -820,3 +820,32 @@ describe("the attention section (R2/D253)", () => {
     expect(e.attn.devices).toBe(2);
   });
 });
+
+describe("the person channel in the console (R3/D255)", () => {
+  it("passes the newest people fold through with a null-safe quiet share", () => {
+    const e = engagementFromDays([
+      { day: "2026-08-22", actives: 6, firstTime: 2, votes: 12, events: 12,
+        bySurface: { daily: 6 },
+        returned: { d1: { returned: 0, of: 0 }, d7: { returned: 0, of: null }, d30: { returned: 0, of: null } },
+        streaksBroken: 0,
+        attn: { devices: 5, s: { opens: { reach: 5, est: 8 } }, q: { "feed-001": { s: { reach: 2, est: 4 } } } },
+        people: { rollups: 4, sessions: 10, quiet: 3, fading: 1, depthEnd: 2 } },
+    ]);
+    expect(e.people).toMatchObject({ rollups: 4, sessions: 10, quietShare: 0.3, fading: 1, reachedEnd: 2 });
+    expect(e.attn.qidCount).toBe(1);
+    const html = renderPulse({ ...collect(), engagement: { present: true, fetchedOn: "2026-08-24", ...e } }, []);
+    expect(html).toContain("quiet-session share");
+    expect(html).toContain("fading people");
+    expect(html).toContain("Per-question attention");
+  });
+
+  it("zero sessions reads as an unknown share, never a divide-by-zero", () => {
+    const e = engagementFromDays([
+      { day: "2026-08-22", actives: 1, firstTime: 0, votes: 1, events: 1, bySurface: {},
+        returned: { d1: { returned: 0, of: null }, d7: { returned: 0, of: null }, d30: { returned: 0, of: null } },
+        streaksBroken: 0,
+        people: { rollups: 0, sessions: 0, quiet: 0, fading: 0, depthEnd: 0 } },
+    ]);
+    expect(e.people.quietShare).toBeNull();
+  });
+});

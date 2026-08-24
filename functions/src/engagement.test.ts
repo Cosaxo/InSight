@@ -317,3 +317,144 @@ describe("runAttentionFold", () => {
     expect(SHARD_FOLD_CAP).toBeGreaterThan(0);
   });
 });
+
+// ── the qids map in the shard fold (R4/D254) ────────────────────────────
+describe("foldShards · qids", () => {
+  it("folds per-question kinds and keeps the overflow cell apart", () => {
+    const out = foldShards([
+      { id: "a", day: "2026-08-22", rate: 1, s: {},
+        qids: { "feed-001": { s: 2, a: 1 }, _other: { s: 4 } } } as AttentionShardDoc & { qids: unknown },
+      { id: "b", day: "2026-08-22", rate: 1, s: {},
+        qids: { "feed-001": { s: 1, p: 3 } } } as AttentionShardDoc & { qids: unknown },
+    ]);
+    const d = out.get("2026-08-22")!;
+    expect(d.q["feed-001"].s).toEqual({ reach: 2, est: BUCKET_MIDPOINTS[2] + BUCKET_MIDPOINTS[1] });
+    expect(d.q["feed-001"].a).toEqual({ reach: 1, est: BUCKET_MIDPOINTS[1] });
+    expect(d.q["feed-001"].p).toEqual({ reach: 1, est: BUCKET_MIDPOINTS[3] });
+    expect(d.q._other).toBeUndefined();
+    expect(d.qOther).toBe(1); // truncation, reported apart, never a phantom qid
+  });
+
+  it("clamps garbage kinds and shapes", () => {
+    const out = foldShards([
+      { id: "a", day: "2026-08-22", rate: 1, s: {},
+        qids: { "feed-001": { s: 999, z: 3, a: "lots" }, "feed-002": "junk" } } as AttentionShardDoc & { qids: unknown },
+    ]);
+    const d = out.get("2026-08-22")!;
+    expect(d.q["feed-001"].s).toEqual({ reach: 1, est: BUCKET_MIDPOINTS[4] });
+    expect(d.q["feed-001"].z).toBeUndefined();
+    expect(d.q["feed-001"].a).toBeUndefined();
+    expect(d.q["feed-002"]).toBeUndefined();
+  });
+});
+
+// ── the rollup fold (R3/D255) ───────────────────────────────────────────
+import {
+  ROLLUP_FOLD_CAP, advanceFgWindow, foldRollups, runRollupFold,
+  type PeopleDelta, type RollupRow, type RollupStore,
+} from "./engagement";
+
+function rollupStore(rows: RollupRow[], fg: Record<string, number[]> = {}) {
+  const state = {
+    rows: [...rows],
+    fg: new Map(Object.entries(fg)),
+    applied: [] as Array<{ day: string; delta: PeopleDelta; marked: string[] }>,
+    days: new Map<string, PeopleDelta>(),
+  };
+  const store: RollupStore = {
+    async rollupPage(cap) { return state.rows.slice(0, cap); },
+    async getFgStates(uids) {
+      const out = new Map<string, number[]>();
+      for (const uid of uids) { const w = state.fg.get(uid); if (w) out.set(uid, w); }
+      return out;
+    },
+    // the memory twin of the batch: increments, marks, windows — atomic
+    async applyRollups(day, delta, rows2, fgWindows) {
+      state.applied.push({ day, delta, marked: rows2.map((r) => `${r.uid}/${r.day}`) });
+      state.rows = state.rows.filter((r) => !rows2.some((m) => m.uid === r.uid && m.day === r.day));
+      for (const [uid, w] of fgWindows) state.fg.set(uid, w);
+      const doc = state.days.get(day) ?? {
+        rollups: 0, sessions: 0, quiet: 0, answers: 0, depthEnd: 0,
+        dayparts: [0, 0, 0, 0], fgBuckets: [0, 0, 0, 0, 0], fading: 0,
+      };
+      doc.rollups += delta.rollups; doc.sessions += delta.sessions;
+      doc.quiet += delta.quiet; doc.answers += delta.answers;
+      doc.depthEnd += delta.depthEnd; doc.fading += delta.fading;
+      for (let i = 0; i < 4; i++) doc.dayparts[i] += delta.dayparts[i];
+      for (let i = 0; i < 5; i++) doc.fgBuckets[i] += delta.fgBuckets[i];
+      state.days.set(day, doc);
+      await Promise.resolve();
+    },
+  };
+  return { store, state };
+}
+
+const rr = (uid: string, day: string, over: Partial<RollupRow> = {}): RollupRow => ({
+  uid, day, sessions: 2, fgMin: 2, quiet: 1, answers: 3, depthEnd: 0,
+  dayparts: [0, 1, 1, 0], ...over,
+});
+
+describe("advanceFgWindow", () => {
+  it("keeps the last seven and clamps junk", () => {
+    const { fg7 } = advanceFgWindow([9, -1, 2, 3, 4, 0, 1], 3);
+    expect(fg7).toEqual([0, 2, 3, 4, 0, 1, 3]);
+  });
+  it("fades only on a sunk window, and only with enough history", () => {
+    expect(advanceFgWindow([4, 4, 4, 1, 1], 0).fading).toBe(true); // 6th reading sinks it
+    expect(advanceFgWindow([4, 4, 4, 4], 0).fading).toBe(false); // five readings — too soon
+    expect(advanceFgWindow([1, 1, 1, 1, 1], 1).fading).toBe(false); // low is not sinking
+  });
+});
+
+describe("runRollupFold", () => {
+  it("folds a day, marks exactly what it folded, and advances the windows", async () => {
+    const { store, state } = rollupStore([
+      rr("u1", "2026-08-22"), rr("u2", "2026-08-22", { quiet: 0, fgMin: 4 }),
+    ]);
+    const res = await runRollupFold(store);
+    expect(res).toMatchObject({ rollups: 2, days: 1, capped: false });
+    expect(state.rows).toHaveLength(0);
+    const d = state.days.get("2026-08-22")!;
+    expect(d).toMatchObject({ rollups: 2, sessions: 4, quiet: 1, answers: 6 });
+    expect(d.fgBuckets[2]).toBe(1);
+    expect(d.fgBuckets[4]).toBe(1);
+    expect(d.dayparts).toEqual([0, 2, 2, 0]);
+    expect(state.fg.get("u1")).toEqual([2]);
+  });
+
+  it("counts a fading window into the day it folded on", async () => {
+    const { store, state } = rollupStore(
+      [rr("sinker", "2026-08-22", { fgMin: 0 })],
+      { sinker: [4, 4, 4, 1, 1] },
+    );
+    await runRollupFold(store);
+    expect(state.days.get("2026-08-22")!.fading).toBe(1);
+    expect(state.fg.get("sinker")).toEqual([4, 4, 4, 1, 1, 0]);
+  });
+
+  it("advances one uid's window in day order across late rollups", async () => {
+    const { store, state } = rollupStore([
+      rr("u1", "2026-08-22", { fgMin: 3 }),
+      rr("u1", "2026-08-20", { fgMin: 1 }),
+    ]);
+    await runRollupFold(store);
+    // oldest day folded first, so the window reads 20th then 22nd
+    expect(state.fg.get("u1")).toEqual([1, 3]);
+    expect(state.applied.map((a) => a.day)).toEqual(["2026-08-20", "2026-08-22"]);
+  });
+
+  it("respects the cap, skips junk rows, and clamps values", async () => {
+    const junk = [
+      rr("", "2026-08-22"), // no uid — unreachable ref, skipped
+      rr("u1", "someday"), // malformed day, skipped
+      rr("u2", "2026-08-22", { sessions: 99999, dayparts: "junk" }),
+    ];
+    const { store, state } = rollupStore(junk);
+    const res = await runRollupFold(store, ROLLUP_FOLD_CAP);
+    expect(res.rollups).toBe(3); // the page saw them; the fold declined two
+    const d = state.days.get("2026-08-22")!;
+    expect(d.rollups).toBe(1);
+    expect(d.sessions).toBe(300); // clamped to the rules' own bound
+    expect(d.dayparts).toEqual([0, 0, 0, 0]);
+  });
+});
