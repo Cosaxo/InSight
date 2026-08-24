@@ -3,7 +3,7 @@
 // scripts/build-catalog.mjs supplies the Wikidata half; this file decides
 // what the answers mean.
 //
-// WHY THIS EXISTS AT ALL. D265 generated the artists catalogue from D15's
+// WHY THIS EXISTS AT ALL. D266 generated the artists catalogue from D15's
 // recorded query, measured it, and threw it away: sitelink rank plus a
 // P106 music occupation returns a canon of famous people who once touched
 // music, not of musicians. Leonardo da Vinci placed 2nd, Goethe 3rd,
@@ -11,7 +11,7 @@
 // mechanically valid and every gate was green, which is the whole lesson.
 //
 // FOUR RULES WERE MEASURED against the 972 rows that query returns. The
-// numbers are D265's and are recorded here because the next person to
+// numbers are D266's and are recorded here because the next person to
 // touch this will otherwise re-derive them:
 //
 //   - require a music GENRE (P136)          → kept 93. A TRAP: 93 is

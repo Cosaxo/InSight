@@ -78,7 +78,7 @@ ORDER BY DESC(?links) LIMIT 2000`,
     // it returns a canon of famous people who once touched music —
     // Leonardo da Vinci 2nd, Goethe 3rd, Mother Teresa 20th — because
     // sitelinks rank the person while P106 only asks whether they ever
-    // played or wrote (D265 has the measurements). `refine` below is what
+    // played or wrote (D266 has the measurements). `refine` below is what
     // turns candidates into a catalogue. Its recall is the reason the
     // query is left broad: everything the rule keeps has to be in here
     // first, and an over-tight query is the one mistake no later stage
@@ -211,7 +211,7 @@ if (!spec) {
 
 // `--review-list [N]` prints the top N candidates with the decision the
 // rule made about each, and writes NOTHING. It exists because the last
-// few names in the artists domain are a human's call (D265): a reviewer
+// few names in the artists domain are a human's call (D266): a reviewer
 // needs one ranked list showing both what was kept and what was dropped,
 // with the fraction that decided it, so filling
 // content/artist-review.json is reading rather than guessing.
@@ -244,7 +244,7 @@ async function sparql(query) {
     console.error(
       `build-catalog: cannot reach ${ENDPOINT} — this is an operator step and needs\n` +
         `network access to Wikidata (sandboxed sessions may not have it; D15 records\n` +
-        `the environment's network policy as the thing that decides, and D265 the run\n` +
+        `the environment's network policy as the thing that decides, and D266 the run\n` +
         `where it had been widened). Underlying error: ${e && e.message}`,
     );
     process.exit(1);

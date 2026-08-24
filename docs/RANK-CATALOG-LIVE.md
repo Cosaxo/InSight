@@ -15,10 +15,10 @@ machinery: the pokemon tranche cleared and promoted 2026-08-23 (the
 owner answered the nominative-use check), and films followed the same
 day — the network policy was widened, `query.wikidata.org` answers 200
 from a session, and the D15 operator run committed `public/films.txt`
-([D265](DECISIONS.md#d265--the-films-catalogue-ships-artists-is-refused-on-its-content-not-on-the-network)).
+([D266](DECISIONS.md#d266--the-films-catalogue-ships-artists-is-refused-on-its-content-not-on-the-network)).
 Artists is the one domain still out, and no longer for a network
-reason: the same run generated it and D265 refused it on content, and
-D266 built the curation rule its catalogue now waits on — the rule
+reason: the same run generated it and D266 refused it on content, and
+D267 built the curation rule its catalogue now waits on — the rule
 ships, the ruling it needs does not exist yet.
 Written 2026-08-22 on the
 owner's direction after asking why ranking questions disappeared and
@@ -56,8 +56,8 @@ questions (create-only, device-bound, each branch's `hasOnly` keeping
 the other's field out), and `onV2AnswerCreated`
 (`functions/src/v2.ts`) validates the key per-domain
 (`CATALOG_DOMAINS`: pokemon, elements, emoji, countries, dogs and now
-films live; artists empty — D265 refused the generated catalogue on
-content and D266's rule awaits its ruling, so the domain stays
+films live; artists empty — D266 refused the generated catalogue on
+content and D267's rule awaits its ruling, so the domain stays
 fail-safe) and publishes the
 canon — `{ total, top, rest, by }` to `v2_question_aggs`, exact counts
 since D98 retired the k-floor, per-segment board orderings per D17.
@@ -218,10 +218,10 @@ D12's four numbered costs, updated for D98 and made concrete:
 - **No permutation histogram, no rank breakdowns, no catalog
   breakdowns beyond D17's boards** — each is a recorded refusal with
   its arithmetic; nothing here reopens them.
-- **No films/artists cards.** Films' key set filled 2026-08-23 (D265)
+- **No films/artists cards.** Films' key set filled 2026-08-23 (D266)
   but its cards are their own promote run, deliberately not folded into
   the catalogue commit; artists' key set is still empty, waiting on the
-  ruling D266's machinery asks for rather than on a network or an
+  ruling D267's machinery asks for rather than on a network or an
   errand. The domain validation fail-safe (an unknown domain never
   aggregates) is already in place.
 - **No new farm lane behavior.** The catalog lane keeps writing the

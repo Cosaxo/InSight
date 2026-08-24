@@ -26,7 +26,7 @@ beforeEach(() => {
   // nothing and tearing that down is not enough, so register every key
   // and drop it.
   registerNav({
-    goTab: () => {}, goNav: () => {}, openOverlay: () => {},
+    goTab: () => {}, goNav: () => true, openOverlay: () => {},
     openProfileTab: () => {}, openCity: () => {}, openPerson: () => {},
     openSuggestions: () => {}, openLogicTest: () => {},
   })();

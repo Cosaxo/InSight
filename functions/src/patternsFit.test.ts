@@ -14,12 +14,14 @@
 import { describe, expect, it } from "vitest";
 import {
   PATTERNS_K,
+  PATTERNS_MIN_BASIS,
   emptyModel,
   emptyUser,
   encodeAnswer,
   foldUserDay,
   loadingCosine,
   publishableLoadings,
+  readyPool,
   seedLoading,
   type PatternsModel,
   type PatternsObservation,
@@ -140,5 +142,27 @@ describe("honesty mechanics", () => {
   it("encodes the two options symmetrically", () => {
     expect(encodeAnswer(0)).toBe(1);
     expect(encodeAnswer(1)).toBe(-1);
+  });
+
+  it("counts only the loadings a basis makes drawable (D265)", () => {
+    // The mount gate's crowd number. Publication has no floor and should
+    // not get one — every vector publishes with its own n — but the count
+    // the client opens a TAB on must not include the n=1 rows, which by
+    // the case above carry no signal beyond existing.
+    const model = emptyModel();
+    const user = emptyUser();
+    for (let d = 0; d < PATTERNS_MIN_BASIS; d++) {
+      // q-often on every day, q-once on the first only
+      const obs: PatternsObservation[] = [{ qid: "q-often", x: d % 2 ? 1 : -1 }];
+      if (d === 0) obs.push({ qid: "q-once", x: 1 });
+      foldUserDay(model, user, obs);
+    }
+    expect(model.q["q-often"].n).toBe(PATTERNS_MIN_BASIS);
+    expect(model.q["q-once"].n).toBe(1);
+    expect(Object.keys(publishableLoadings(model))).toHaveLength(2);
+    expect(readyPool(model)).toBe(1);
+    // One short of the floor is not drawable, at any floor.
+    expect(readyPool(model, PATTERNS_MIN_BASIS + 1)).toBe(0);
+    expect(readyPool(model, 1)).toBe(2);
   });
 });

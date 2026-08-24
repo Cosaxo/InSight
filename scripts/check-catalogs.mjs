@@ -129,7 +129,7 @@ if (colors.present) {
   }
 }
 
-// ── the artists domain's reviewed exceptions (D266) ────────────────────
+// ── the artists domain's reviewed exceptions (D267) ────────────────────
 // content/artist-review.json is the one catalogue input a human edits by
 // hand, so it is the one that can go stale without anybody running
 // anything: the builder needs Wikidata and is an operator step, while this
@@ -157,7 +157,7 @@ if (colors.present) {
     for (const e of review.errors) errors.push(`content/artist-review.json ${e}`);
 
     // Both directions against the committed catalogue, and only when it
-    // exists: absence is the designed state for this domain (D265), and a
+    // exists: absence is the designed state for this domain (D266), and a
     // review file with no catalogue yet is exactly what a filled-in
     // ruling looks like the moment before the operator runs the builder.
     if (artists.present) {
