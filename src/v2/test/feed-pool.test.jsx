@@ -5,7 +5,7 @@
 // WHY THIS FILE EXISTS. `pick-data.js` — 48 KB of catalogue demo stock —
 // was eager for one reason: `world-feed-data.js` concatenated
 // `window.PICK_QS` at MODULE SCOPE, so the pool could not be built until
-// that module had run. The concat is `joinDemoPicks()` now, called from
+// that module had run. The concat is `joinDemoStock()` now, called from
 // `loadWorldFeed()`, and pick-data rides the feed's own chunk.
 //
 // Both directions of that move are silent when broken, which is the whole
@@ -22,7 +22,7 @@
 
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
-describe("joinDemoPicks — the deferred half of the demo pool", () => {
+describe("joinDemoStock — the deferred half of the demo pool", () => {
   // Modules only. The window globals are deliberately left alone: the
   // eager graph sets several of them once (place-stats.js's
   // PLACE_RATE_QS among them), and deleting those makes a re-imported
@@ -30,7 +30,7 @@ describe("joinDemoPicks — the deferred half of the demo pool", () => {
   beforeEach(() => { vi.resetModules(); });
 
   it("joins the catalogue picks into the pool, once", async () => {
-    const { joinDemoPicks } = await import("../spec/world-feed-data.js");
+    const { joinDemoStock } = await import("../spec/world-feed-data.js");
     const { PICK_QS } = await import("../spec/pick-data.js");
 
     // The pool exists from world-feed-data's own module scope and does NOT
@@ -39,21 +39,24 @@ describe("joinDemoPicks — the deferred half of the demo pool", () => {
     expect(window.WORLD_FEED_QS.some((q) => q.type === "pick")).toBe(false);
 
     const { WF_CATALOG_QS } = await import("../spec/world-catalogs.js");
+    const { PLACE_RATE_QS } = await import("../spec/place-stats.js");
     expect(PICK_QS.length).toBeGreaterThan(0);
     expect(WF_CATALOG_QS.length).toBeGreaterThan(0);
-    joinDemoPicks(PICK_QS, WF_CATALOG_QS);
+    expect(PLACE_RATE_QS.length).toBeGreaterThan(0);
+    joinDemoStock(PICK_QS, WF_CATALOG_QS, PLACE_RATE_QS);
     expect(window.WORLD_FEED_QS.some((q) => q.id === "pk01")).toBe(true);
     expect(window.WORLD_FEED_QS.some((q) => q.id === "c02")).toBe(true);
+    expect(window.WORLD_FEED_QS.some((q) => q.type === "rate")).toBe(true);
     const after = window.WORLD_FEED_QS.length;
 
     // loadWorldFeed is memoised, but a retry must not double the pool.
-    joinDemoPicks(PICK_QS, WF_CATALOG_QS);
+    joinDemoStock(PICK_QS, WF_CATALOG_QS, PLACE_RATE_QS);
     expect(window.WORLD_FEED_QS.length).toBe(after);
   });
 
   it("REFUSES on a live session — the guard the deferral rests on", async () => {
     const LIVE = (await import("../data/live.ts")).default;
-    const { joinDemoPicks } = await import("../spec/world-feed-data.js");
+    const { joinDemoStock } = await import("../spec/world-feed-data.js");
     const { PICK_QS } = await import("../spec/pick-data.js");
 
     // What `buildFeedGlobals()` leaves behind, in miniature: the pool is
@@ -63,7 +66,7 @@ describe("joinDemoPicks — the deferred half of the demo pool", () => {
     const wasEnabled = LIVE.enabled;
     LIVE.enabled = true;
     try {
-      joinDemoPicks(PICK_QS);
+      joinDemoStock(PICK_QS);
       expect(window.WORLD_FEED_QS).toEqual(live);
       expect(window.WORLD_FEED_QS.some((q) => q.type === "pick")).toBe(false);
     } finally {
@@ -119,10 +122,10 @@ describe("joinDemoPicks — the deferred half of the demo pool", () => {
   });
 
   it("survives an absent or empty array rather than minting an empty pool", async () => {
-    const { joinDemoPicks } = await import("../spec/world-feed-data.js");
+    const { joinDemoStock } = await import("../spec/world-feed-data.js");
     const before = window.WORLD_FEED_QS.length;
-    joinDemoPicks(undefined);
-    joinDemoPicks([], undefined);
+    joinDemoStock(undefined);
+    joinDemoStock([], undefined);
     expect(window.WORLD_FEED_QS.length).toBe(before);
   });
 });

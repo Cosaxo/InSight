@@ -78,18 +78,23 @@ import './spec/read-run.jsx';
 // `window.DuoBody` arm is dead code the installed app cannot execute — the
 // same argument D200 used to take relmap.jsx off this list. group-daily.jsx
 // stays, because GDAv is read from the Mirror (group-mirror, group-role-map).
-// place-stats.js must precede world-feed-data.js: the feed pool
-// concatenates window.PLACE_RATE_QS at module scope, so that card set has
-// to exist already. It would be eager regardless — the eager
-// place-stats.jsx imports PLACESTATS from it by name.
+// place-stats.js and place-stats.jsx are gone from this list too, and they
+// were the last pair. The .js was eager because the pool concatenated
+// window.PLACE_RATE_QS at module scope; the .jsx was eager because the .js
+// was, and it would have dragged it back in on its own. Both are in
+// loadWorldFeed() now — the .jsx there rather than in loadOverlays because
+// its reader (mirror-field-pops.jsx's Scores lens) is NOT reached through
+// an opener, which is that group's whole contract, and main.jsx re-renders
+// the root after the feed group precisely for globals read this way. The
+// scorecard is "fed by rate questions in the World feed" anyway, which is
+// the group it belongs to.
 //
 // pick-data.js is NO LONGER HERE, and it was the expensive half: 48 KB of
 // catalogue demo stock, eager only because the pool concatenated
-// window.PICK_QS at module scope too. That concat is `joinDemoPicks()` now
+// window.PICK_QS at module scope too. That concat is `joinDemoStock()` now
 // (world-feed-data.js), called from loadWorldFeed() with the module's own
 // named export — so pick-data rides the feed's chunk, where its only other
 // reader (world-feed.jsx's `PICKS`) already lives.
-import './spec/place-stats.js';
 // world-palette.js — the hue gate every World surface runs its colours
 // through. A named-export module; its position here is the standalone's, and
 // it reads no other module at load time.
@@ -160,7 +165,6 @@ import './spec/lens-cards.jsx';
 // person-mindmap.jsx, person-overlay.jsx, city-overlay.jsx and
 // suggestions.jsx load after first paint too, from the same group.
 import './spec/demographics.jsx';
-import './spec/place-stats.jsx';
 import './spec/mirror-answers.jsx';
 import './spec/mirror-field.jsx';
 import './spec/mirror-field-pops.jsx';
@@ -262,14 +266,18 @@ export const loadWorldFeed = retryable(async () => {
   // module eager. Ordered, not parallel: the pool has to take the array
   // this import produces.
   //
-  // `joinDemoPicks` refuses when LIVE.enabled — read its note, the guard is
+  // `joinDemoStock` refuses when LIVE.enabled — read its note, the guard is
   // the whole reason this deferral is safe. main.jsx runs
   // `initLive().finally(() => … loadWorldFeed())`, so unlike the module
   // scope it replaces, this runs after the live pool has been published.
   const picks = await import('./spec/pick-data.js');
   const cats = await import('./spec/world-catalogs.js');
+  const places = await import('./spec/place-stats.js');
   const pool = await import('./spec/world-feed-data.js');
-  pool.joinDemoPicks(picks.PICK_QS, cats.WF_CATALOG_QS);
+  pool.joinDemoStock(picks.PICK_QS, cats.WF_CATALOG_QS, places.PLACE_RATE_QS);
+  // The scorecard CARD itself, which publishes window.PlaceStatsCard for
+  // mirror-field-pops' Scores lens. After its store, which it imports.
+  await import('./spec/place-stats.jsx');
   // …and the subtopic leaves' stock, which pushes rather than concatenates.
   // After the two concats, the order the eager list held.
   (await import('./spec/world-subtopics.js')).installSubtopicStock();

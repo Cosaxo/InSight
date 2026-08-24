@@ -255,7 +255,6 @@ const COUPLING_BASELINE = {
   "src/v2/spec/suggestions.jsx": 1,
   "src/v2/spec/test-definitions.js": 4,
   "src/v2/spec/vote-cuts.js": 1,
-  "src/v2/spec/world-feed-data.js": 2,
   "src/v2/spec/world-feed.jsx": 32,
 };
 

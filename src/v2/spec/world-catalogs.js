@@ -97,7 +97,7 @@ export const WF_CATALOGS = {
 // A named export rather than a module-scope append, and the append was the
 // only thing keeping this file in the first-paint graph: its one importer
 // (world-feed.jsx's WF_CATALOGS) is deferred, so the pool was the entire
-// reason a demo catalogue shipped eagerly. `joinDemoPicks`
+// reason a demo catalogue shipped eagerly. `joinDemoStock`
 // (world-feed-data.js) takes it now, past the live guard.
 export const WF_CATALOG_QS = [
     { id: 'c01', cat: 'fav', type: 'pick', catalog: 'athletes', prompt: 'The greatest athlete who ever lived' },

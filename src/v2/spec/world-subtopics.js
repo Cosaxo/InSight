@@ -114,7 +114,7 @@ const WORLD_SUB_QS = [
  * which is "only the stocked leaves" and reads the pool to decide. Two
  * callers cost nothing; the work happens once.
  *
- * REFUSED ON A LIVE SESSION, through the same predicate joinDemoPicks uses
+ * REFUSED ON A LIVE SESSION, through the same predicate joinDemoStock uses
  * and for the same reason. This used to run at module scope, before
  * `initLive`, where `buildFeedGlobals` would replace whatever it wrote;
  * `main.jsx` runs `initLive().finally(() => … loadWorldFeed())`, so it runs

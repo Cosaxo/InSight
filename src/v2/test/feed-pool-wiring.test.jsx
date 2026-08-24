@@ -17,26 +17,21 @@
 import { describe, expect, it } from "vitest";
 
 describe("loadWorldFeed assembles the whole demo pool", () => {
-  it("joins the deferred picks without dropping the eager rate cards", async () => {
+  it("joins every deferred set and leaves none of them eager", async () => {
     const specIndex = await import("../spec-index.js");
 
-    // Before the feed group: world-feed-data's own module scope has run,
-    // so the pool exists and already carries place-stats.js's rate cards
-    // (still concatenated eagerly — the eager place-stats.jsx imports that
-    // module by name, so deferring it would buy nothing).
+    // Before the feed group: world-feed-data's own module scope has run, so
+    // the pool exists — and holds nothing but its own literal. All four
+    // demo sets that used to reach it by writing at module scope are now
+    // handed over by a loader, so their absence HERE is the deferral seen
+    // from outside. Each id names the module that would be back in the
+    // first-paint graph if its assertion failed.
     const eager = window.WORLD_FEED_QS || [];
-    const eagerShape = {
-      n: eager.length,
-      rate: eager.filter((q) => q.type === "rate").length,
-      pick: eager.filter((q) => q.type === "pick").length,
-    };
-    expect(eagerShape.rate, `the eager rate cards went missing: ${JSON.stringify(eagerShape)}`).toBeGreaterThan(0);
-    // …and NOT pick-data's 25, which is the deferral seen from outside.
-    // world-catalogs.js contributes its own couple at module scope, so
-    // this is a count rather than a presence test.
-    expect(eager.some((q) => q.id === "pk01"), "pick-data ran eagerly — the 48 KB module is back in the first-paint graph").toBe(false);
-    expect(eager.some((q) => q.id === "c02"), "world-catalogs ran eagerly — its module-scope append is back").toBe(false);
-    expect(eager.some((q) => q.sub === "sub_tennis"), "world-subtopics ran eagerly — its module-scope push is back").toBe(false);
+    expect(eager.length).toBeGreaterThan(0);
+    expect(eager.some((q) => q.id === "pk01"), "pick-data ran eagerly (48 KB)").toBe(false);
+    expect(eager.some((q) => q.id === "c02"), "world-catalogs ran eagerly").toBe(false);
+    expect(eager.some((q) => q.sub === "sub_tennis"), "world-subtopics ran eagerly").toBe(false);
+    expect(eager.some((q) => q.type === "rate"), "place-stats ran eagerly").toBe(false);
 
     await specIndex.loadWorldFeed();
 
@@ -45,14 +40,19 @@ describe("loadWorldFeed assembles the whole demo pool", () => {
       n: pool.length,
       rate: pool.filter((q) => q.type === "rate").length,
       pick: pool.filter((q) => q.type === "pick").length,
+      sub: pool.filter((q) => q.sub).length,
     };
-    expect(pool.some((q) => q.id === "pk01"), `loadWorldFeed did not join pick-data's cards: ${JSON.stringify(shape)}`).toBe(true);
-    expect(pool.some((q) => q.id === "c02"), `loadWorldFeed did not join world-catalogs' cards: ${JSON.stringify(shape)}`).toBe(true);
-    expect(pool.some((q) => q.sub === "sub_tennis"), `loadWorldFeed did not install the subtopic stock: ${JSON.stringify(shape)}`).toBe(true);
-    expect(shape.rate, `the eager half was lost on the way: ${JSON.stringify(shape)}`).toBe(eagerShape.rate);
-    expect(shape.pick).toBeGreaterThan(eagerShape.pick);
+    expect(pool.some((q) => q.id === "pk01"), `pick-data's cards missing: ${JSON.stringify(shape)}`).toBe(true);
+    expect(pool.some((q) => q.id === "c02"), `world-catalogs' cards missing: ${JSON.stringify(shape)}`).toBe(true);
+    expect(pool.some((q) => q.sub === "sub_tennis"), `the subtopic stock missing: ${JSON.stringify(shape)}`).toBe(true);
+    expect(shape.rate, `place-stats' rate cards missing: ${JSON.stringify(shape)}`).toBeGreaterThan(0);
+    // …and the demo Mirror's Scores lens, which is the .jsx half: it reads
+    // this global at render, and its group is the one main.jsx re-renders
+    // the root after — which is why it rides here rather than loadOverlays.
+    expect(typeof window.PlaceStatsCard, "place-stats.jsx did not publish PlaceStatsCard").toBe("function");
   });
 });
+
 
 describe("loadOverlays carries the subtopic stock too", () => {
   it("the discover sheet's leaves are stocked without the feed group", async () => {

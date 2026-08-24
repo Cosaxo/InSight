@@ -5,7 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 // The imported binding, not `window.LIVE` — the seam world-feed.jsx already
-// uses, and the reason joinDemoPicks below can ask whether this session is
+// uses, and the reason joinDemoStock below can ask whether this session is
 // on live data without adding a shared-global reference the rule-4 ratchet
 // would count. data/live is eager either way (main.jsx imports initLive),
 // and it imports nothing from spec/, so this closes no cycle.
@@ -85,7 +85,7 @@ export const WORLD_CHANNELS = WFD_LIVE_BUILD
 // because this module runs BEFORE `initLive`: in live mode
 // `buildFeedGlobals` then overwrites it. Deferring this file would put an
 // unguarded clobber after the live boot, which is exactly what
-// `joinDemoPicks` and `installSubtopicStock` exist to avoid — so if it ever
+// `joinDemoStock` and `installSubtopicStock` exist to avoid — so if it ever
 // moves, this line moves behind `demoPoolOpen()` with them.
 window.WORLD_FEED_QS = [
   // sport
@@ -205,14 +205,10 @@ window.WORLD_FEED_QS = [
   { id: 's17', scene: 'ferment', cat: 'food', type: 'vote', prompt: 'Kombucha or kefir?', options: [ { label: 'Kombucha', count: 900 }, { label: 'Kefir', count: 600 } ] },
 ];
 
-// the scorecard 'rate' questions (place-stats.js) join the pool at module
-// scope, as they always have — place-stats.js is still eager, because the
-// eager place-stats.jsx imports it by name and would drag it in anyway.
-if (window.PLACE_RATE_QS) window.WORLD_FEED_QS = window.WORLD_FEED_QS.concat(window.PLACE_RATE_QS);
-
 /**
- * …and the catalogue 'pick' questions (pick-data.js), joined ON DEMAND
- * rather than at module scope.
+ * The demo stock that is not in the literal above, joined ON DEMAND rather
+ * than at module scope: the catalogue 'pick' questions (pick-data.js and
+ * world-catalogs.js) and the scorecard 'rate' questions (place-stats.js).
  *
  * WHY IT MOVED. This used to read `window.PICK_QS` right here, which made
  * pick-data.js a module-scope dependency of the pool and therefore eager —
@@ -238,18 +234,18 @@ if (window.PLACE_RATE_QS) window.WORLD_FEED_QS = window.WORLD_FEED_QS.concat(win
  * Idempotent: `loadWorldFeed` is memoised, but a second call must not
  * double the pool.
  *
- * Variadic because there are two demo catalogue sets and they were eager
- * for the same reason: pick-data.js's `PICK_QS` (25 cards, the 48 KB
- * module) and world-catalogs.js's `WF_CATALOG_QS` (2). Both used to reach
- * the pool by writing it at module scope — one here, one there — and both
- * now hand it over instead.
+ * Variadic because three demo modules were eager for the same reason and
+ * all three now hand their array over: pick-data.js's `PICK_QS` (25 cards,
+ * the 48 KB module), world-catalogs.js's `WF_CATALOG_QS` (2), and
+ * place-stats.js's `PLACE_RATE_QS` (13). The last of those was concatenated
+ * right here at module scope until its own pair left the eager list.
  */
 /**
  * Whether the demo pool may still be written.
  *
  * The predicate has ONE definition on purpose. Two demo modules now hand
  * their stock over instead of writing the pool at module scope — this
- * file's `joinDemoPicks` and world-subtopics.js's `installSubtopicStock` —
+ * file's `joinDemoStock` and world-subtopics.js's `installSubtopicStock` —
  * and both run past the live boot, so both need exactly this test. A second
  * copy of it is a second chance to get the live/demo boundary wrong.
  */
@@ -257,11 +253,11 @@ export function demoPoolOpen() {
   return !LIVE.enabled;
 }
 
-let picksJoined = false;
-export function joinDemoPicks(...sets) {
-  if (picksJoined || !demoPoolOpen()) return;
+let stockJoined = false;
+export function joinDemoStock(...sets) {
+  if (stockJoined || !demoPoolOpen()) return;
   const add = sets.filter((s) => Array.isArray(s) && s.length).flat();
   if (!add.length) return;
-  picksJoined = true;
+  stockJoined = true;
   window.WORLD_FEED_QS = (window.WORLD_FEED_QS || []).concat(add);
 }
