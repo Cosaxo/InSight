@@ -677,30 +677,72 @@ function saveAggCache(): void {
 // a vote (or a D86 edit) shows the folded-in count. Shared by both write
 // paths — it was inline in vote() until the edit path needed the identical
 // block.
-function scheduleAggRefresh(db: Awaited<ReturnType<typeof getDb>>, qid: string): void {
-  setTimeout(() => {
-    void (async () => {
-      try {
-        const snap = await getDoc(doc(db, "v2_question_aggs", qid));
-        if (snap.exists()) {
-          state.aggs[qid] = snap.data() as AggDoc;
-          saveAggCache();
-          // Clear the display flag only for an ACKED write — a
-          // still-inflight one cannot be in the agg we just read, and
-          // clearing would subtract a vote that isn't there. (Defensive:
-          // today this timer is only scheduled after the ack, so inflight
-          // is already clear.)
-          if (qid in state.unaggregated && !(qid in state.inflight)) {
-            delete state.unaggregated[qid];
-          }
-          buildFeedGlobals();
-          notify();
-        }
-      } catch {
-        /* refresh is best-effort */
+const AGG_REFRESH_MS = 2500;
+// The qids answered since the last drain, and the one timer that drains
+// them. COALESCED, because the caller is a vote and votes arrive in
+// bursts: a feed sitting is ten to thirty answers, and this used to arm a
+// separate timer per answer, each firing its own single-document round
+// trip, its own complete `buildFeedGlobals()` (which filters and maps the
+// whole feed bank twice, per card) and its own `notify()` — which re-runs
+// every subscriber's fold. Thirty answers bought thirty of each.
+//
+// One trailing timer instead, drained through the `in` query `refreshAggs`
+// already uses, so a burst costs one round trip per thirty questions and
+// exactly one rebuild and one notify.
+//
+// Leading-schedule/trailing-drain, the shape `saveAggCache` uses and for
+// the same reason: a restarting debounce would starve under a steady
+// stream of answers and refresh nothing until the user stopped. The set is
+// read at drain time, so nothing answered inside the window is lost.
+const pendingAggRefresh = new Set<string>();
+let aggRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+async function drainAggRefresh(db: Awaited<ReturnType<typeof getDb>>): Promise<void> {
+  const qids = [...pendingAggRefresh];
+  pendingAggRefresh.clear();
+  if (torndown || !qids.length) return;
+  let got = false;
+  // Firestore's `in` takes 30 keys, so a sitting longer than that pays a
+  // second query rather than being truncated. Concurrent, not sequential:
+  // they are independent reads of the same collection.
+  const chunks: string[][] = [];
+  for (let i = 0; i < qids.length; i += 30) chunks.push(qids.slice(i, i + 30));
+  const snaps = await Promise.all(chunks.map((c) => getDocs(query(
+    collection(db, "v2_question_aggs"),
+    where(documentId(), "in", c),
+  ))));
+  for (const snap of snaps) {
+    for (const d of snap.docs) {
+      state.aggs[d.id] = d.data() as AggDoc;
+      got = true;
+      // Clear the display flag only for an ACKED write — a
+      // still-inflight one cannot be in the agg we just read, and
+      // clearing would subtract a vote that isn't there. (Defensive:
+      // today this drain is only armed after the ack, so inflight
+      // is already clear.)
+      if (d.id in state.unaggregated && !(d.id in state.inflight)) {
+        delete state.unaggregated[d.id];
       }
-    })();
-  }, 2500);
+    }
+    state.stats.aggsFetched += snap.size;
+  }
+  // Once for the whole burst, and only if something came back — the old
+  // per-qid path was equally careful not to rebuild on an absent document.
+  if (!got) return;
+  saveAggCache();
+  buildFeedGlobals();
+  notify();
+}
+
+function scheduleAggRefresh(db: Awaited<ReturnType<typeof getDb>>, qid: string): void {
+  pendingAggRefresh.add(qid);
+  if (torndown || aggRefreshTimer) return;
+  aggRefreshTimer = setTimeout(() => {
+    aggRefreshTimer = null;
+    void drainAggRefresh(db).catch(() => {
+      /* refresh is best-effort — the next answer, or the poll, tries again */
+    });
+  }, AGG_REFRESH_MS);
 }
 
 // Drops a queued write. Hygiene rather than a leak fix, and it is worth
@@ -4846,6 +4888,22 @@ export function _aggPollForTest(): { running: boolean; tick: () => Promise<void>
   return {
     running: aggPollTimer !== null,
     tick: () => refreshAggs(state.deckIds.slice(0, 1)),
+  };
+}
+
+// Exported for the test, for the same reason `_aggPollForTest` is: the
+// whole claim of the post-vote coalescing is that a burst arms ONE timer
+// and drains ONE set, and an armed timer looks identical to an unarmed one
+// until something asks. `drain()` runs exactly what the timer body runs.
+export function _aggRefreshForTest(): {
+  armed: boolean;
+  pending: string[];
+  drain: (db: Parameters<typeof drainAggRefresh>[0]) => Promise<void>;
+} {
+  return {
+    armed: aggRefreshTimer !== null,
+    pending: [...pendingAggRefresh],
+    drain: (db) => drainAggRefresh(db),
   };
 }
 
