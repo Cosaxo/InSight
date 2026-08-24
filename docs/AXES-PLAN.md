@@ -1,5 +1,13 @@
 # Axes — the sources the app crosses, and the two it does not have yet
 
+> **Building rather than deciding?**
+> [`AXES-RUNBOOK.md`](AXES-RUNBOOK.md) is the same work as an ordered
+> build list — open steps only, dependency order, what "done" means and
+> which gate proves it — plus the routine program that executes it (§10
+> here is the reasoning behind that program). It holds order and status;
+> this file holds the reasoning and stays canonical. If they disagree,
+> this file is right and the runbook is stale.
+
 **Status: plan notes, not decisions.** Requested 2026-08-24 (the owner's
 framing: *axis* as a new term for the tests and the other places data is
 gathered from — general info is one, the logic test is one, the
@@ -64,6 +72,7 @@ plan more than any opinion could:
 | Genetic, stage 2: the consented tier | **Design now; adopt separately; legal work first** | Art. 9 data has no home in the world-readable model (NEXT-FUNCTIONALITY §5). Banded scores only, membership denied, floors return for this tier's publications — the one place post-D98 where suppression is the product, not a curtain. |
 | The corners | **Not as teasers — as earned doors, later; the map is the hub now** | D265: below a gate there is no button, no teaser, no "coming soon". A corner per future axis can open the way patterns did — when the data can carry it (§5). |
 | The per-axis gate | **Adopt the patternsReady shape for every future axis** | Numbers with their reasoning, a remembered crossing, a purge arm, nothing on screen below the gate. `src/v2/data/patternsReady.ts` is the template (§6). |
+| The program (routines that build this) | **Extend the farm's architecture to engineering, with the merge kept human** | The lanes, prompts and learning loop already exist for content (`docs/QUESTION-FARM.md`); what does not transfer is self-merge — D276 measured what stays green while being wrong (§10). |
 
 ## 1 · What an axis is, and what exists today
 
@@ -503,3 +512,75 @@ anything that changes read or write volume gets a `docs/COSTS.md` line
 (D124); store forms move with the data or the data does not ship; no
 invented anything (D1); figures by name and script, never by hand
 (D39).
+
+## 10 · The program — routines that build this, and how the work learns
+
+Requested the same day, second ask: run the axes work as scheduled
+Claude routines, as "a continuous improvement and a self-learning and
+evaluation system". Measured against the tree, most of that system
+already exists and has run for weeks — the design below is the farm's
+architecture (`docs/QUESTION-FARM.md`) extended to engineering, not a
+new invention. What exists: five scheduled content lanes whose canonical
+prompts defer to a versioned brief ("this file is the job… it outranks
+this prompt's summary; re-read it every run"), computed per-run budgets,
+a committed scorecard that runs read before writing and refresh
+themselves ("how runs measure, and how they learn", D33), an AI review
+contract with a retrospective human audit (D162), self-merge on green
+gates for content (D212), a run log where "correctly idle" and "silently
+broken" are distinguishable (hard rule 7), and a governance section
+whose delivery mechanics were measured rather than assumed. The runbook
+holds the roster, the phases and the canonical prompts; this section
+holds the three arguments that shape them.
+
+**Autonomy is tiered, and the tier boundary is measured, not felt.**
+The farm's self-merge (D212) was priced for append-only, single-file
+content where the gate set covers the whole blast radius. Engineering
+has no such gate set, and the repo has the receipt: D276 audited the
+suite and found what "stayed green while being wrong". So three tiers:
+
+- **Content lanes** (exist): self-merge on green, unchanged.
+- **Build lanes** (new): implement one runbook step per run, run every
+  gate, open the PR — and **never merge**. A separate skeptic run
+  reviews the diff adversarially first (the D264 pattern — a different
+  session, because a reviewing run shares its generator's tilt, D162's
+  correlated-blind-spot rule); the owner merges. The human moves from
+  writing code to reading verdicts, which is D162's reshaping applied
+  one layer up.
+- **Decisions** (never a run's): anything D-shaped — custody, schema,
+  privacy surface, adoption — a run may *draft* as a Proposed record,
+  and Proposed binds nothing (the D28 lesson, kept). The owner's
+  explicit word is the only adoption there is.
+
+**"Self-learning" means the repo is the memory and a diff is the
+update.** No hidden state anywhere: what a run knows arrives from the
+briefs, the decisions, the scorecards and the run log — all versioned —
+and what a run learns leaves only as a recorded change. The loop:
+build runs report what they hit; a weekly retro run turns those reports
+into brief and runbook amendments as a docs-only PR, drafts Proposed
+records where a lane keeps hitting the same wall, and writes the owner
+a digest of what advanced, what is blocked, and which decisions are
+waiting. One rule is load-bearing and absolute: **no run ever merges a
+change to any lane's contract, its own least of all** — self-modification
+always passes the owner, because the briefs are the system's weights and
+the owner is the gradient step. This is also why the learning is
+honest: the loss function is the gate suite, the scorecard's public
+aggregates and the owner's adoption — all of them outside the run.
+
+**Evaluation is a stack, and every layer already has a precedent.**
+Per commit: the gates (mechanical). Per PR: the skeptic run
+(adversarial, D264/D276 grammar). Retrospective: the owner's sampled
+audit, non-blocking, shortfall reported as a standing warning (the
+D162→D212 shape). Per feature: trial criteria recorded at ship time and
+verdicted by the owner (the D166/D265 pattern — every phase in the
+runbook names what would take it back out). Per product: the committed
+scorecards and the engagement digest (D268), which are what "is this
+actually better" is measured by — never a run's own opinion of its
+work.
+
+Cost and cadence stay the farm's economics: a no-op run that says why
+it idled costs nearly nothing, the lever for a struggling lane is its
+cadence rather than its caps, and a build lane whose no-ops all say
+"waiting on the owner" is *paused*, not left to nag — the runbook's
+stop-and-re-plan list carries that one, because an autonomous program
+that manufactures pressure on its one human gate has inverted its own
+purpose.

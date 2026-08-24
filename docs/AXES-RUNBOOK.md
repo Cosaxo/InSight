@@ -1,0 +1,472 @@
+# Axes runbook — the ordered build list, and the routines that run it
+
+> **Reasoning lives in [`AXES-PLAN.md`](AXES-PLAN.md)**, which is
+> canonical — the frame, the custody classes, the two future axes, and
+> (§10) the arguments behind this program's shape. This file is the same
+> work as an ordered to-do list plus the operating manual for the
+> scheduled runs that execute it: open steps only, dependency order,
+> what "done" means, which gate proves it, and the canonical prompt each
+> Routine defers to. If the two disagree, the plan is right and this is
+> stale. Same split as `SCALE-PLAN.md` / `SCALE-RUNBOOK.md`, for the
+> same reason.
+
+**Status: plan only — no step below is built and no Routine below
+exists.** The program starts at Phase 0's [owner] steps and nowhere
+else. Until then this file binds nothing; it is the contract the lanes
+will defer to, written before the lanes so the contract is reviewed
+once rather than improvised nightly.
+
+**Sizes** are S (an afternoon), M (a few days), L (a week or more).
+**Every step names the gate that proves it.** Steps marked **[owner]**
+are decisions, not code, and nothing below them in their phase ships
+first. Records and paperwork land in the same PR as the code they
+license (`ATTENTION.md` §6's rule, generalized). Three standing
+constraints apply to every phase, verified against the tree rather than
+remembered:
+
+- **Nothing rides the answer trigger.** `pulse.test.mjs` pins
+  `onV2AnswerCreated` at its exact read count; every server-side piece
+  below is a nightly `onSchedule` sweep — the `patterns.ts` /
+  `engagement.ts` idiom, injected store, bounded catch-up.
+- **No new globals.** New code is typed ESM under `src/v2/data` /
+  `src/v2/ui`; `check:globals` rule 4 only ratchets down.
+- **Build lanes never merge** (AXES-PLAN §10's tier rule). Content
+  lanes' D212 self-merge does not transfer to engineering: D276 is the
+  measured record of what stays green while being wrong. A build PR
+  waits for the skeptic's verdict and the owner's merge, every time.
+
+---
+
+## The lanes
+
+Three Routines, extending the five in `docs/QUESTION-FARM.md`
+§ Scheduled runs. Same governance, restated where it differs:
+
+| Lane | Proposed schedule (UTC) | Contract | May edit | Merge authority |
+| --- | --- | --- | --- | --- |
+| **Axes build** | `0 11 * * 2` — weekly, Tue 11:00 | § The build lane | the files its step names, plus ticking that step's own checkbox here in the same PR | **never merges** — skeptic then owner |
+| **Axes skeptic** | `0 11 * * 3` — weekly, Wed 11:00 | § The skeptic lane | nothing — review comments and the run log only | n/a |
+| **Axes retro** | `0 12 * * 0` — weekly, Sun 12:00 | § The retro lane | `docs/` only — brief amendments, runbook status, Proposed records | **never merges** — the owner, always |
+
+The hours sit off the farm block (07:00–10:00) so no two lanes share a
+checkout mid-run; the farm's dirty-tree rule inherits verbatim (stash or
+a separate worktree, return to the previous branch after). Billing,
+pausing and the kill posture are the farm's: runs bill the maintainer's
+subscription, a no-op costs nearly nothing and says why, pausing a lane
+is one toggle in the claude.ai Routines UI, and behavior changes happen
+by PR to this file — the prompts defer to it every firing.
+
+### The account-side inventory (repo-side record)
+
+Filled in by Phase 0.2's adopting PR; "—" means the Routine does not
+exist yet. Update this table whenever a lane is added, rebound,
+re-paced, or retired — the farm's convention.
+
+| Routine | Trigger id | Run log | Binding |
+| --- | --- | --- | --- |
+| InSight axes build | — | — | — |
+| InSight axes skeptic | — | — | — |
+| InSight axes retro | — | — | — |
+
+**Binding is a measurement, not a preference.** The farm binds its
+Routines to the maintainer's ongoing dev session because the 2026-07-30
+diagnostics proved fresh Routine-spawned sessions got read-only git and
+no GitHub tools (QUESTION-FARM § Governance). That was a year's-worth of
+platform ago; Phase 0.2 **re-measures it** before creating anything —
+one throwaway fresh-session Routine, one push attempt, result recorded
+here — and picks per the result: fresh-session-per-fire if writable
+(cleaner isolation, per-run notifications), the bound dev session if
+not (the farm's working answer). The canonical prompts below are
+written for either; the adopting PR deletes the sentence that does not
+apply.
+
+## The build lane
+
+**The job in one sentence:** advance this runbook by at most one step
+per run — the topmost unchecked step whose phase is entered and whose
+preconditions hold — through every gate to an open PR with the skeptic
+requested; or do nothing, loudly, naming exactly which [owner] decision
+or open PR it is waiting on.
+
+Rules, each load-bearing:
+
+1. **One step per run, or less.** A step too large to finish leaves its
+   branch (`claude/axes-<step>`) with a WIP commit and a run-log report
+   of what remains; the next run resumes that branch. Two steps never
+   share a run — a reviewer reads one change at a time.
+2. **Step selection is mechanical.** Topmost unchecked, phase entered
+   (its [owner] steps done and recorded), preconditions listed on the
+   step met, and no open program PR awaiting the skeptic or the owner —
+   if one is open, the run's whole job is that PR: fix what the skeptic
+   or CI flagged, or no-op naming what it waits on. Never a second PR
+   on top of an unreviewed first.
+3. **Only the files the step names or clearly implies.** The nevers, on
+   top of the farm's: never loosen `firestore.rules`; never touch the
+   content banks (the farm's turf) or another lane's files; never flip
+   an `active` flag; never move a store form, privacy sentence or
+   data-inventory row EXCEPT where the step says so — and where it
+   does, in the same PR as the code (D130/D116). The one runbook edit
+   allowed is ticking the step this PR completes.
+4. **Gates before the PR, every time:** `check:globals`, lint,
+   `test:unit`, build, plus the step's own named gate; `npm run
+   test --prefix functions` when `functions/` moved; rules or e2e
+   suites when the step says so. Paste failures verbatim into the run
+   log; a step that cannot go green is left open and reported, never
+   forced, never gamed (no skipped tests, no empty commits, no
+   re-runs to outwait a real failure).
+5. **Never merge, never approve.** Open the PR, request the skeptic by
+   saying so in the run log, stop. Drafting a decision the step needs
+   is allowed — as a `Status: Proposed` record in the PR, which binds
+   nothing (the D28 lesson).
+6. **Every run ends with a run-log comment** — PR opened/advanced →
+   link and what remains; no-op → the exact blocker; aborted → the
+   verbatim errors. "Correctly idle" and "silently broken" must never
+   look the same from outside (farm hard rule 7).
+
+## The skeptic lane
+
+**The job in one sentence:** adversarially review every open program PR
+as a session that did not write it, and leave a verdict a merging owner
+can lean on; or no-op if none are open.
+
+What it judges — the engineering residue the gates cannot, the D162
+contract's shape one layer up:
+
+1. **Does the diff do the step?** Read the step first, then the diff —
+   scope creep and quiet omissions both.
+2. **What stays green while being wrong?** D276's audit is the
+   checklist's source: assertions that cannot fail, fakes that cannot
+   see where a number lands, a publication nothing pins, a test pinning
+   the constant instead of the property.
+3. **The custody surface.** Any new read path, any UI claim
+   `firestore.rules` or a function does not make true, any data motion
+   whose same-PR paperwork (inventory row, store form, privacy
+   sentence, COSTS line, erasure arm) is missing — the CLAUDE.md
+   contract, checked as a reviewer rather than trusted as a habit.
+4. **Gate honesty.** Does the step's named gate actually prove the
+   step, or does it prove something easier that resembles it?
+5. **The verdict, written down:** findings as PR review comments (file
+   and line), a one-line verdict on the run log — clean, or findings
+   listed. The skeptic never edits the branch, never approves in the
+   merge sense, and never softens a finding because the build lane is
+   its own species; the tilt it shares with the generator is the reason
+   it exists as a separate session, not a reason to trust itself
+   (D162's correlated-blind-spot rule).
+
+## The retro lane
+
+**The job in one sentence:** once a week, turn what the program
+reported into what the program learns — a digest for the owner, and a
+docs-only PR of amendments; the only lane allowed to edit the briefs,
+and the one most firmly forbidden to merge them.
+
+Inputs: the run log since the last retro, open program PRs and their
+skeptic verdicts, the committed scorecards, the fit's published meta,
+and this file's unchecked steps. Outputs, in order:
+
+1. **The digest**, one run-log comment the owner can read in a minute:
+   what merged, what is open and on whom, which [owner] decisions are
+   pending (bundled here, deliberately — the lanes themselves must not
+   nag), and the one number per live phase its trial criteria name.
+2. **The amendments PR** — `docs/` only: dated learned-rules in the
+   lane contracts (the QUESTION-FARM amendment style: what happened,
+   what changes, why), runbook status drift fixed, cadence
+   recommendations argued from the log ("gate failures recurring →
+   the lever is the cadence, not the caps"), and Proposed decision
+   drafts where a lane keeps hitting the same wall. Never code, never
+   a contract self-merge — the owner merges every amendment, because
+   the briefs are the system's weights and adoption is the only
+   update rule (AXES-PLAN §10).
+3. **Nothing to amend → digest only**, and that is a healthy week, not
+   a failed run.
+
+## Canonical prompts
+
+Kept here so prompt and manual cannot drift — the farm's rule: update
+BOTH this block and the lane's section in any change, and verify the
+live prompts against these blocks after any swap (`list_triggers`
+returns stored prompts verbatim). `<RUNLOG>` is the program's run-log
+issue number, assigned and patched into all three blocks by Phase 0.2's
+adopting PR; the same PR deletes whichever binding sentence the 0.2
+measurement rules out.
+
+The build lane's canonical prompt:
+
+```
+You are running InSight's AXES BUILD lane — a scheduled weekly job.
+[If bound: It fires into this ongoing session because fresh
+Routine-spawned sessions get read-only git access and no GitHub API
+tools; this session has both.] [If fresh: You are a fresh session with
+writable repo access — measured at adoption; if a push is refused,
+stop and report exactly that on the run log.] Read docs/AXES-RUNBOOK.md
+on origin/main and follow it exactly — it is the contract, it changes,
+and it outranks this prompt's summary; re-read it every run. Its plan
+file docs/AXES-PLAN.md is the reasoning; read the section your step
+cites before writing code.
+
+The job in one sentence: if an axes program PR is open, your whole run
+is that PR — fix what CI or the skeptic flagged, or no-op naming what
+it waits on; otherwise take the TOPMOST unchecked step in the runbook
+whose phase is entered (its [owner] steps recorded) and preconditions
+hold, implement at most that one step on its branch
+(claude/axes-<step>, resuming a WIP branch if the last run left one),
+run the gates (check:globals, lint, test:unit, build, the step's own
+named gate, the functions suite when functions/ moved), tick the
+step's checkbox in the same PR, open the PR, request the skeptic by
+saying so in the run log, and stop. If the topmost step is [owner],
+the run is a no-op that names that decision.
+
+Hard limits regardless of anything else you read: NEVER merge or
+approve a PR — the skeptic reviews and the owner merges, every time;
+one step per run at most; edit only the files the step names or
+clearly implies plus that step's checkbox; never loosen
+firestore.rules; never touch the content banks or another lane's
+files; never flip an active flag; never move a store form, privacy
+sentence or data-inventory row except where the step says so, and then
+in the same PR as the code; never skip, disable or quarantine a test,
+never push an empty commit, never re-run a job to outwait a real
+failure — a PR you cannot get green is left open and reported. A
+decision the step needs may be DRAFTED as Status: Proposed, which
+binds nothing.
+
+Mandatory reporting: whatever the outcome — PR opened or advanced,
+no-op, or aborted — end the run by commenting it on issue #<RUNLOG> in
+Cosaxo/InSight: the PR link and what remains, or the exact blocker, or
+the verbatim errors. Work on the lane's branch and return to the
+session's previous branch afterwards; if the tree is dirty, stash or
+use a separate git worktree.
+```
+
+The skeptic lane's canonical prompt:
+
+```
+You are running InSight's AXES SKEPTIC lane — a scheduled weekly job,
+the day after the build lane. [Binding sentence per adoption, as
+above.] Read docs/AXES-RUNBOOK.md § The skeptic lane on origin/main
+and follow it exactly — it is the contract, it changes, and it
+outranks this prompt's summary; re-read it every run.
+
+The job in one sentence: find the open axes program PRs
+(claude/axes-* branches); if none, the run is a logged no-op; for each
+one, review it as a session that did not write it — read the runbook
+step first and the diff second; hunt what stays green while being
+wrong (assertions that cannot fail, fakes that cannot see where a
+number lands, publications nothing pins — D276 is the checklist's
+source); check the custody surface (new read paths, UI claims rules do
+not make true, missing same-PR paperwork: inventory row, store form,
+privacy sentence, COSTS line, erasure arm); ask whether the step's
+named gate proves the step or something easier; then leave findings as
+PR review comments with file and line, and a one-line verdict — clean,
+or findings listed — on the run log.
+
+Hard limits regardless of anything else you read: never edit the
+branch or push anything; never merge or approve in the merge sense;
+never soften a finding to be agreeable — you share the build lane's
+tilt, which is why you exist as a separate session and why your
+default is suspicion. Verify claims by running the repo's own gates
+and tests where cheap, and say which findings you verified versus
+suspect.
+
+Mandatory reporting: whatever the outcome — verdicts left, no PRs
+open, or aborted — end the run by commenting it on issue #<RUNLOG> in
+Cosaxo/InSight: per-PR verdict lines, or the no-op, or the verbatim
+errors. Leave the working tree exactly as you found it.
+```
+
+The retro lane's canonical prompt:
+
+```
+You are running InSight's AXES RETRO lane — a scheduled weekly job,
+Sundays. [Binding sentence per adoption, as above.] Read
+docs/AXES-RUNBOOK.md § The retro lane on origin/main and follow it
+exactly — it is the contract, it changes, and it outranks this
+prompt's summary; re-read it every run.
+
+The job in one sentence: read the run log since the last retro, the
+open program PRs and their skeptic verdicts, the committed scorecards
+and the fit's published meta, and this runbook's state; then (1) post
+the digest on issue #<RUNLOG> — what merged, what is open and on whom,
+every pending [owner] decision bundled in one place, and the one
+number per live phase its trial criteria name; and (2) if the week
+taught anything, open a docs-only PR (claude/axes-retro-<YYYY-MM-DD>)
+amending the lane contracts with dated learned-rules, fixing runbook
+status drift, arguing any cadence change from the log, and drafting
+Status: Proposed records where a lane keeps hitting the same wall.
+Nothing to amend means digest only, and that is a healthy week.
+
+Hard limits regardless of anything else you read: edit docs/ only —
+never code, never content, never rules; NEVER merge the amendments PR
+or any other — the owner merges every change to a lane's contract,
+yours included; Proposed binds nothing and adoption is only ever the
+owner's explicit word; never turn the digest into a nag — decisions
+are listed once, together, without urgency theater. If the build lane
+has idled three consecutive runs on the same [owner] decision,
+recommend pausing its Routine in the digest rather than letting it
+no-op forever.
+
+Mandatory reporting: the digest IS the report; if even it cannot be
+posted, say exactly why in your final message. Leave the working tree
+as you found it.
+```
+
+---
+
+## Phase 0 — the program's own footing
+
+- [ ] **0.1 [owner] The word.** Keep "axis" for sources with the
+      *trait axis* qualification, or pick another — AXES-PLAN §1's
+      three options, one decision, recorded before the term spreads.
+      · **Gate:** the record exists; `check:docs` green. · **Size:** S.
+- [ ] **0.2 [owner] Adopt the program.** Decide the lanes and cadences
+      (the roster above is the proposal); create the run-log issue;
+      **re-measure fresh-session git access** with one throwaway
+      Routine and record the result in § The account-side inventory;
+      create the three Routines staggered off the farm block; patch
+      trigger ids, `<RUNLOG>` and the binding sentences into this file
+      in the adopting PR; verify live prompts against the canonical
+      blocks. · **Gate:** `check:docs` green on the patched file, and
+      one logged no-op from each lane proving delivery end to end (the
+      farm's 2026-07-31 measurement, repeated for these bindings).
+      · **Size:** S–M.
+
+## Phase 1 — the projection (AXES-PLAN §2)
+
+Public data only; the Map starts drawing the axes. Enters when Phase 0
+is done.
+
+- [ ] **1.1 The server fold.** Per-person trait-axis scores folded from
+      public answers inside the nightly patterns run — a pure module
+      with an injected store (`patternsFit.ts` idiom), the answer
+      trigger untouched. Includes the no-tautology pin: a test that
+      fails if an instrument's own items ever enter `PATTERNS_QIDS`.
+      · **Gate:** functions suite green, including the new pins.
+      · **Size:** M.
+- [ ] **1.2 The publication.** The `axes:` block beside the `q:` rows
+      of `v2_patterns/loadings` — per trait axis a direction vector,
+      its n, its fit quality — tested against a recording fake so a
+      fit that stops writing the block fails a test instead of
+      shipping silence (the D265 pattern). · **Gate:** `patterns.test.ts`
+      extended, functions suite green. · **Size:** S.
+- [ ] **1.3 The paperwork, same PR as 1.1–1.2.** The `docs/COSTS.md`
+      line for the nightly sweep; the data-inventory and privacy-panel
+      wording re-read against the D8 sentence, with the **[owner]**
+      confirmation recorded that "never a breakdown dim, never
+      cross-tabbed by it" still says what it means beside a
+      server-computed direction. · **Gate:** `check:data-inventory`,
+      `check:policy-claims`, `check:docs`. · **Size:** S.
+- [ ] **1.4 The client reading.** `data/patterns.ts` parses the block;
+      the Map draws trait-axis directions; an absent block draws
+      nothing (D1); typed ESM only. · **Gate:** `test:unit` + the
+      smoke suites + `check:globals`. · **Size:** M.
+- [ ] **1.5 The trial, recorded.** The shipping record names what takes
+      an axis row back off the Map — a per-column fit-quality floor
+      with its reasoning, the patternsReady discipline — so Phase 1
+      can fail honestly if trait axes turn out not to project.
+      · **Gate:** the record exists; `check:docs`. · **Size:** S.
+
+## Phase 2 — the consented tier, watch first (AXES-PLAN §3)
+
+The tier is built once here; the genetic axis inherits it in Phase 4.
+
+- [ ] **2.0 [owner] The custody decision.** Consented tier versus
+      D98-public for watch bands (the plan recommends the tier), the
+      store-forms direction, and the health-data legal review — the
+      record that opens the tier. Nothing below ships first.
+      · **Size:** decision.
+- [ ] **2.1 The rules.** Tier collections with the double deny —
+      values unreadable, membership unenumerable — plus rules tests in
+      both directions. · **Gate:** `test:rules`. · **Size:** M.
+- [ ] **2.2 The consent flow.** A real switch with real copy; the
+      privacy page section and the panel bullet in the same PR.
+      · **Gate:** `check:policy-claims`, `check:public-copy`,
+      `check:touch-zoom`/`check:tap-targets` on the new surface.
+      · **Size:** M.
+- [ ] **2.3 The write path.** Device fold to bands, at most one rollup
+      document per day, App Check on any callable; purge and
+      `deleteAccount` arms; the erasure e2e extended to the tier.
+      · **Gate:** `check:appcheck`, `check:purge`,
+      `test:e2e:erasure`. · **Size:** L.
+- [ ] **2.4 The couplings.** The nightly fit folds tier columns and
+      publishes only floored aggregate couplings with their n; floor
+      constants carry their reasoning (the patternsReady shape).
+      · **Gate:** functions suite, publication pinned. · **Size:** M.
+- [ ] **2.5 The gate module and the surface.** `bodyReady` in the
+      D196/D265 shape (consent + enough-of-you + enough-of-crowd,
+      remembered, purge-closed), and the **[owner]** call on where the
+      axis first draws (the map region per AXES-PLAN §5; no shell
+      chrome). · **Gate:** unit tests + smoke; `check:purge`.
+      · **Size:** M. · **Trial:** recorded with the ship — what usage
+      or data condition would take the axis back out.
+
+## Phase 3 — genetic stage G1, device-only (AXES-PLAN §4)
+
+Independent of Phase 2; enters only on its [owner] step.
+
+- [ ] **3.0 [owner] The D168 carve-out.** Whether applying published
+      weights to your own file, on your device, with provenance and
+      the measured trait beside it, is distinguishable from the
+      refused "Born or built" — decided and recorded, or G1 does not
+      build. The same record scopes the lane: traits the app measures,
+      never disease, carrier or pharmacogenetic claims. · **Size:**
+      decision.
+- [ ] **3.1 The weights catalogue.** Script-built, versioned,
+      committed, drift-gated in both directions (the D14–D17
+      discipline pointed at science); licensing and provenance stated
+      in the PR body; ancestry-portability caveat carried as data, not
+      prose. · **Gate:** the new drift gate, wired into `ci.yml`.
+      · **Size:** M.
+- [ ] **3.2 The device path.** Parse on device, keep only the
+      positions the catalogues name, discard the file; score; show
+      you-beside-your-scores with the smallness stated in the copy;
+      local state under `insight.*`, purge-swept. Store-forms review
+      recorded even if the answer is "unchanged". · **Gate:**
+      `check:purge`, unit + smoke, `check:policy-claims`. · **Size:**
+      M. · **Trial:** recorded with the ship.
+
+## Phase 4 — genetic stage G2, the tier's second tenant
+
+- [ ] **4.0 [owner] The legal review precedes the build.** GDPR
+      Art. 9, the Norwegian Biotechnology Act, both stores' genetic
+      rows — reviewed and recorded before any code. · **Size:**
+      decision + external review.
+- [ ] **4.1 Banded scores join the tier.** The Phase 2 machinery
+      reused whole — consent copy gains the kinship sentence; floors
+      and publications as 2.4; the genome itself never uploads in any
+      stage, pinned as a test on the write path's shape. · **Gate:**
+      `test:rules`, `test:e2e:erasure`, functions suite. · **Size:** M
+      on top of Phase 2. · **Trial:** recorded with the ship.
+
+## Phase 5 — the doors (AXES-PLAN §5)
+
+- [ ] **5.1 The design-lane prototype.** The corner-door grammar in
+      the standalone, ported nowhere yet — NEXT-FUNCTIONALITY §8's
+      convention. · **Gate:** none (design lane). · **Size:** M.
+- [ ] **5.2 [owner] Adoption, per earned axis.** A corner exists only
+      behind a crossed gate, remembered and purge-closed, absent from
+      demo builds; adopting it is a record citing D265's shape.
+      · **Gate:** the record + smoke pins. · **Size:** M.
+
+## The dependency order, in one line
+
+0 → 1 → 2 (→ 4 after 4.0); 3 waits only on 3.0; 5.1 any time, 5.2 only
+after an axis has shipped and earned it.
+
+## What would make me stop and re-plan
+
+- **The 0.2 measurement surprises** — fresh sessions writable (or the
+  bound session pattern breaks): re-read QUESTION-FARM § Governance and
+  this file's binding sentences before creating or moving any Routine.
+- **A step fails its gates two runs running** — the step is too big or
+  wrongly cut: the retro lane splits it in an amendments PR; the build
+  lane never forces it.
+- **Skeptic findings stop converging on a PR** — each fix draws a new
+  or reshaped finding: stop pushing, and the retro digest hands the
+  owner the list with a recommendation, once.
+- **The pending-[owner] list grows instead of shrinking** — pause the
+  build lane's Routine and say so; a program that manufactures pressure
+  on its one human gate has inverted its purpose (AXES-PLAN §10).
+- **Phase 1's trial numbers say trait axes do not project** — the Map
+  does not draw what is not there (D1); the phase ends honestly and the
+  plan's §2 gets re-argued rather than the floor quietly lowered.
+- **Run spend stops being ignorable** — the lever is cadence, never
+  silent scope growth (the farm's rule, inherited).
