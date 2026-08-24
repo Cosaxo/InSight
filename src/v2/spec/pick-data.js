@@ -540,6 +540,25 @@ export let PICKS;
       15132411: 2,  // lavender — below the floor
       0: 9,         // Not listed — the "it depends on the day" vote
     },
+    pk25: {
+      // A different canon from pk24 on purpose: favourites poll blue and
+      // purple; front doors poll the colours people put on houses.
+      16711681: 31, // red — the classic front door
+      1: 26,        // black
+      129: 17,      // navy
+      2263843: 14,  // forestgreen
+      16776961: 12, // yellow
+      16777216: 10, // white
+      32897: 9,     // teal
+      8900332: 8,   // skyblue
+      8421377: 7,   // olive
+      4251857: 6,   // turquoise
+      14423101: 5,  // crimson — clears the floor but not the top 10; folds
+      8388737: 5,   // purple — same
+      14524638: 3,  // plum — below the floor
+      9109505: 2,   // darkred — below the floor
+      0: 8,         // Not listed — renters and the undecided
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -830,6 +849,17 @@ export let PICKS;
         Men: { 256: 9, 32769: 7, 1: 6, 16711681: 5, 16753921: 5 },
       },
     },
+    pk25: {
+      ageBand: {
+        // black doors poll young; red is the one every cohort agrees on
+        '18-24': { 1: 8, 129: 6, 16776961: 5, 32897: 5, 8900332: 4 },
+        '25-34': { 16711681: 7, 1: 6, 2263843: 6, 129: 5, 16777216: 4 },
+      },
+      gender: {
+        Women: { 16711681: 8, 16776961: 6, 2263843: 6, 8900332: 5, 4251857: 4 },
+        Men: { 1: 9, 129: 7, 16711681: 6, 2263843: 5, 8421377: 4 },
+      },
+    },
   };
 
   const api = {
@@ -984,5 +1014,6 @@ export let PICKS;
     { id: 'pk22', cat: 'fav', type: 'pick', domain: 'countries', prompt: 'The most beautiful country?', n: 165 },
     { id: 'pk23', cat: 'fav', type: 'pick', domain: 'dogs', prompt: 'The most fun breed to say out loud?', n: 157 },
     { id: 'pk24', cat: 'fav', type: 'pick', domain: 'colors', prompt: 'Your favourite colour?', n: 168 },
+    { id: 'pk25', cat: 'fav', type: 'pick', domain: 'colors', prompt: 'The colour you’d paint your front door?', n: 163 },
   ];
 })();
