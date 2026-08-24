@@ -5228,6 +5228,110 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "until": "2026-08-26"
  },
  {
+  "id": "feed-f88",
+  "surface": "feed",
+  "seq": 124,
+  "type": "vote",
+  "domain": null,
+  "prompt": "One more work from a lost genius: Mozart, or Van Gogh?",
+  "options": [
+   "Mozart",
+   "Van Gogh"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f89",
+  "surface": "feed",
+  "seq": 125,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Karaoke: joy, or ordeal?",
+  "options": [
+   "Joy",
+   "Ordeal"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f90",
+  "surface": "feed",
+  "seq": 126,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A film you love gets a remake — excited, or bracing?",
+  "options": [
+   "Excited",
+   "Bracing for it"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f91",
+  "surface": "feed",
+  "seq": 127,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Daylight saving time: keep it, or scrap it?",
+  "options": [
+   "Keep it",
+   "Scrap it"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "political": true
+ },
+ {
+  "id": "feed-dl11",
+  "surface": "feed",
+  "seq": 128,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many hours a day on a phone is too many?",
+  "options": [
+   "0–1 h",
+   "1–2 h",
+   "2–3 h",
+   "3–4 h",
+   "4–5 h",
+   "5–6 h",
+   "6–7 h",
+   "7–8 h",
+   "8–9 h",
+   "9–10 h",
+   "10–11 h",
+   "11–12 h"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 12,
+  "unit": "h"
+ },
+ {
+  "id": "feed-f92",
+  "surface": "feed",
+  "seq": 129,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Know exactly what people think of you — would you?",
+  "options": [
+   "Yes, all of it",
+   "Spare me"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,
