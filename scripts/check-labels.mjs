@@ -27,9 +27,9 @@
 // learn to skip.
 //
 // WHAT THIS DOES NOT DO, stated here because the name oversells it:
-//   - It does not verify the id reaches the DOM. `<Select id={x}/>` satisfies
-//     it, and Select is a custom component; if Select stopped forwarding `id`
-//     to its native <select> the pair would still match here. Only a render
+//   - It does not verify the id reaches the DOM. `<FieldPicker id={x}/>`
+//     satisfies it, and that is a custom component; if it stopped forwarding
+//     `id` to the control the pair would still match here. Only a render
 //     catches that (see scratchpad note in the 2026-08-03 review).
 //   - It does not resolve across files. An htmlFor in A pointing at an id in
 //     B reads as dangling. That is bad practice rather than a supported case,

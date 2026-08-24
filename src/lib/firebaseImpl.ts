@@ -164,7 +164,11 @@ export function init(config: FirebaseConfig): void {
     // subsequent requests once it resolves; queries issued before
     // resolution still work but are unattested. Skipped against the
     // emulator, which doesn't enforce App Check.
-    void initAppCheck();
+    //
+    // The app instance is passed because on native the token has to be
+    // handed to THIS SDK — the native plugin attests the native SDK, and
+    // the requests are made from here (D275, appcheck.ts).
+    void initAppCheck(app);
   }
 }
 

@@ -3,8 +3,9 @@
 //
 // WHY THIS IS A GATE. `foldAnchors` (functions/src/pure.ts) checks a value
 // against BREAKDOWN_DIM_VOCAB before it may claim one of the 24 bucket slots
-// in a dimension. The values a real user can send come from the <select>s the
-// client renders, and since D151 there are TWO screens that render them — the
+// in a dimension. The values a real user can send come from the menus the
+// client renders (ui/FieldPicker.tsx since D275, native <select>s before it),
+// and since D151 there are TWO screens that render them — the
 // profile's Basics card and the account-creation questions — both fed from
 // one list module, src/v2/spec/profile-vitals.js, which is the client side
 // read below. Nothing but this script holds that module and the server's
@@ -17,8 +18,8 @@
 //   - a value here and not on the client is dead weight that only widens
 //     what a scripted caller may send.
 //
-// That is not hypothetical. `Vocational / trade` shipped as an <select>
-// option and was rejected by breakdownBucket for its entire life, because a
+// That is not hypothetical. `Vocational / trade` shipped as an option and
+// was rejected by breakdownBucket for its entire life, because a
 // slash is in that function's rejected character class. Nothing surfaced it.
 // Rule 3 below is that bug turned into a check.
 //
@@ -217,5 +218,5 @@ if (errors.length) {
 const sizes = PAIRS.map((p) => `${p.dim} ${serverVocab(p.dim).length}`).join(", ");
 console.log(
   `check:anchors OK — ${PAIRS.length} closed vocabularies match the profile's `
-  + `<select>s (${sizes}), all under BREAKDOWN_MAX_BUCKETS=${MAX_BUCKETS}`,
+  + `menus (${sizes}), all under BREAKDOWN_MAX_BUCKETS=${MAX_BUCKETS}`,
 );

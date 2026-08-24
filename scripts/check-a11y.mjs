@@ -116,6 +116,13 @@ import { ESLint } from "eslint";
 //     kept accepting it if `Select` were ever rewritten as a div-based
 //     dropdown. Explicit ids state the association where both the linter and
 //     a reader of the call site can check it.
+//     THAT REWRITE HAPPENED (D275). `Select` is ui/FieldPicker.tsx now and
+//     collapses to a <button>, which is labelable — so those seven rows had
+//     become the City row's defect exactly as this paragraph predicted, and
+//     the fix is the one below rather than the one above: the picker renders
+//     its own <span> caption and names itself through aria-labelledby. Had
+//     `Select` been declared in `controlComponents`, the rule would have gone
+//     on passing them all the way through.
 //   - One <label>City<CityPicker/></label>, which was a REAL defect and the
 //     reason the first fix was worth doing properly. CityPicker renders a
 //     <button> collapsed and an <input role="combobox"> open; both are

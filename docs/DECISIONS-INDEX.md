@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 279 lines instead of
-27,450. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 280 lines instead of
+27,569. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -38,7 +38,7 @@ detect it.
 | **D21** | [The live-mode branches get a mount test; accessibility gets a ratchet](DECISIONS.md#d21--the-live-mode-branches-get-a-mount-test-accessibility-gets-a-ratchet) | D49 (+3) | 1673 |
 | **D22** | [Moderation substrate: confinement is structural, and advisory until trusted](DECISIONS.md#d22--moderation-substrate-confinement-is-structural-and-advisory-until-trusted) | D78 (+2) | 1757 |
 | **D23** | [The mouse-only spec-layer controls become buttons, ahead of the interaction tests D21 wanted](DECISIONS.md#d23--the-mouse-only-spec-layer-controls-become-buttons-ahead-of-the-interaction-tests-d21-wanted) | D24 | 1896 |
-| **D24** | [Every overlay and sheet is a real modal dialog, and this time the interaction test came with it](DECISIONS.md#d24--every-overlay-and-sheet-is-a-real-modal-dialog-and-this-time-the-interaction-test-came-with-it) | D250 (+2) | 1989 |
+| **D24** | [Every overlay and sheet is a real modal dialog, and this time the interaction test came with it](DECISIONS.md#d24--every-overlay-and-sheet-is-a-real-modal-dialog-and-this-time-the-interaction-test-came-with-it) | D275 (+3) | 1989 |
 | **D25** | [The world feed loads after first paint; the rest of the split waits](DECISIONS.md#d25--the-world-feed-loads-after-first-paint-the-rest-of-the-split-waits) | D221 (+8) | 2080 |
 | **D26** | [The spec layer's dead render code is deleted; the one toolkit is kept](DECISIONS.md#d26--the-spec-layers-dead-render-code-is-deleted-the-one-toolkit-is-kept) | D43 | 2138 |
 | **D27** | [The v15 revision syncs in whole, and the honesty layer stays where it was](DECISIONS.md#d27--the-v15-revision-syncs-in-whole-and-the-honesty-layer-stays-where-it-was) | D38 | 2230 |
@@ -207,7 +207,7 @@ detect it.
 | **D187** | [The place scorecard rates the place](DECISIONS.md#d187--the-place-scorecard-rates-the-place) | D234 (+2) | 18803 |
 | **D188** | [The Mirror's tab row sits where a tab bar sits, and stops arguing with the stop about colour](DECISIONS.md#d188--the-mirrors-tab-row-sits-where-a-tab-bar-sits-and-stops-arguing-with-the-stop-about-colour) | D191 (+2) | 18963 |
 | **D189** | [The design gate was never looking, and two group hues never met the palette](DECISIONS.md#d189--the-design-gate-was-never-looking-and-two-group-hues-never-met-the-palette) | D191 | 19086 |
-| **D190** | [Your name and your handle belong to the account, the topic list opens onto the topics, and Circle and Groups get their row](DECISIONS.md#d190--your-name-and-your-handle-belong-to-the-account-the-topic-list-opens-onto-the-topics-and-circle-and-groups-get-their-row) | D211 (+1) | 19282 |
+| **D190** | [Your name and your handle belong to the account, the topic list opens onto the topics, and Circle and Groups get their row](DECISIONS.md#d190--your-name-and-your-handle-belong-to-the-account-the-topic-list-opens-onto-the-topics-and-circle-and-groups-get-their-row) | D275 (+2) | 19282 |
 | **D191** | [Build 20's pre-flight: nothing to bump, and check:bundle's second load-bearing variable](DECISIONS.md#d191--build-20s-pre-flight-nothing-to-bump-and-checkbundles-second-load-bearing-variable) | D273 (+3) | 19463 |
 | **D192** | [The docs get a map, and the map gets a gate](DECISIONS.md#d192--the-docs-get-a-map-and-the-map-gets-a-gate) | D199 (+2) | 19574 |
 | **D193** | [Compare draws the comparison it was always described as drawing](DECISIONS.md#d193--compare-draws-the-comparison-it-was-always-described-as-drawing) | D202 (+2) | 19698 |
@@ -293,3 +293,4 @@ detect it.
 | **D272** | [The person channel: engagement rung 2, scoped to the bone](DECISIONS.md#d272--the-person-channel-engagement-rung-2-scoped-to-the-bone) | D274 (+1) | 27186 |
 | **D273** | [A bump has a shelf life of exactly one upload, and 4.4 under-declares by two rows](DECISIONS.md#d273--a-bump-has-a-shelf-life-of-exactly-one-upload-and-44-under-declares-by-two-rows) | D274 | 27257 |
 | **D274** | [Build 25 is delivered, and the bump was the reading of step 17](DECISIONS.md#d274--build-25-is-delivered-and-the-bump-was-the-reading-of-step-17) | — | 27379 |
+| **D275** | [The account-setup screen: the app's own menus, a form that fits the screen, and the door out of a failed handle claim](DECISIONS.md#d275--the-account-setup-screen-the-apps-own-menus-a-form-that-fits-the-screen-and-the-door-out-of-a-failed-handle-claim) | — | 27451 |

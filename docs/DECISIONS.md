@@ -27447,3 +27447,122 @@ did not need it — TestFlight internal testing has no review gate — but
 that no longer exists. LAUNCH-RUNBOOK 4.4 is the step, its count is
 gated by `check:figures` as of D273, and its purposes are not, so the
 printout is the artefact.
+
+## D275 · The account-setup screen: the app's own menus, a form that fits the screen, and the door out of a failed handle claim
+
+**2026-08-24.** **Status:** binding. Three faults on one screen, reported
+from a device in one sentence — "the sign in should be cleaned up in
+general and i seam to be stuck here… and should have menus that fit the
+app" — with three screenshots. All three are fixed here, and the fourth
+thing found on the way is the reason the third one happened.
+
+### 1 · Stuck: a callable that cannot be attested, printed raw
+
+The screenshots show `Unauthenticated` in red under the handle field. That
+word is not this app's — `claimHandleV2` says "must be signed in" — it is
+`firebase-functions`', from one of three branches in `onCallHandler`: an
+invalid auth token, an invalid App Check token, or a **missing** App Check
+token with enforcement on. Enforcement is on in production by default
+(`functions/src/ops.ts`, `ENFORCE_APP_CHECK`).
+
+It was the missing one, and the cause is structural rather than
+environmental. `src/lib/appcheck.ts` attests through
+`@capacitor-firebase/app-check`, which activates the **native** Firebase
+SDK. Every request this app makes — Firestore, and every callable — is
+made by the Firebase **JS** SDK inside the WebView, and nothing had ever
+called that SDK's `initializeAppCheck` on native. So `httpsCallable` sent
+no `X-Firebase-AppCheck` header at all, and every enforced callable was a
+401 on every iOS and Android build. The first callable a new account
+reaches is the handle claim, on the first screen it ever sees.
+
+The fix is the bridge the plugin's own firebase-js-sdk guide prescribes: a
+`CustomProvider` whose `getToken` asks the native side, registered with
+the JS SDK, native only — on web the plugin's web implementation already
+calls `initializeAppCheck`, and Firebase allows that once per app.
+`src/lib/appcheck.test.ts` pins both halves and the expiry fallback. It
+degrades to exactly the old behaviour if attestation is unconfigured:
+`getToken` rejects, no header, unattested request.
+
+**What this does not settle.** Whether the iOS and Android apps are
+registered as App Check providers in the console is console work
+(SHIP-CHECKLIST, "App Check enforcement"), and no client change can
+substitute for it. Which is why the client half below is not optional.
+
+### 2 · Stuck, the second half: a screen with no door
+
+The screen treated every claim failure like "taken": stay up, print it,
+wait for a better handle. There is no better handle when the request
+itself is refused, so Save failed identically forever — with the anchors
+and the name already written behind it, which made it a **finished** screen
+that would not close. `Skip for now` was the only way out and reads as
+abandoning the work.
+
+Now the two failures are separated. `already-exists` keeps its sentence
+and the field to correct. Anything else says *Couldn't claim @x just
+now. Try again, or go on and pick one later in your profile* — the app's
+own words, never the transport's — and the two buttons become **Try
+again** and **Continue without a handle**. Going on is honest: a handle is
+optional, and D190 removed the RENAME from the account panel, not the
+claim. `finish` also gained a try/finally, because every early return used
+to clear `busy` by hand and a throw from anywhere else left both buttons
+disabled — the same trap by another route.
+
+### 3 · Menus that fit the app
+
+Seven fields — gender, education, work, relationship, height and the three
+parts of a birthday — were native `<select>`s. On iOS that is the platform's
+own dark menu over an app that is neither, which is what the third
+screenshot shows. `src/v2/ui/FieldPicker.tsx` is the collapsed button
+CityPicker already draws, opening the `Sheet` primitive itself: the same
+ground, radius, grab handle, animations, reduced-motion handling, dialog
+semantics (D24), Android back layer and `sheet-drag.js` pull-to-dismiss as
+every other sheet, because it is the same component and not a copy of it.
+
+Both call sites use it — the account-setup screen and the Basics card in
+the profile overlay (`spec/profile-general.jsx`), which asks the same seven
+questions and would otherwise have kept the seam. Three things it changed
+that are worth naming:
+
+- **The caption belongs to the component.** A `<button>` is a labelable
+  element, so `<label htmlFor>Gender<button/>` hands the BUTTON the name
+  and the chosen value never reaches a screen reader — the defect the
+  2026-08-03 a11y pass found wrapped around CityPicker, which all seven of
+  these were one conversion away from acquiring. The picker renders a
+  `<span>` caption and points `aria-labelledby` at it.
+- **It is portaled to `<body>`, and that was measured.** In place fails
+  even at `position: fixed`: `.tab-swap` in the profile overlay carries a
+  transform, which becomes the containing block for fixed descendants, and
+  the menu drew itself against a 2215px scroll container 480px above the
+  top of the screen. `.app` fails too, because the setup screen is a root
+  of its own on `<body>` above it. `<body>` is the host both share.
+- **"No answer" is a row.** The `<select>`'s empty option was the only way
+  to take an answer back out, and every field here is optional.
+
+Costs, measured on the shipping bundle: **+3 KB eager, +5 KB total**
+(849→852, 2425→2430 against 880 / 2440). `check:globals` rule 4 is flat —
+profile-general imports the picker rather than looking it up in global
+scope, the direction `EmptyField` already goes.
+
+### 4 · The form was 44px wider than the phone
+
+Found while looking at the result in a browser, and it is why "cleaned up
+in general" was the first thing the report said. There is no
+`* { box-sizing: border-box }` in this app — `.app` sets it on itself and
+every panel declares it per control — and this screen is the one that
+renders OUTSIDE `.app`, in a root of its own on `<body>`. Its container
+was `width: 100%` plus 22px of side padding under `content-box`, so every
+field ran off the right edge and every sentence was cut mid-word. The two
+device screenshots were not cropped; that is what the screen looked like.
+
+The buttons also moved into a bar the form scrolls under. Ten fields tall,
+the count that says how far you have got — `Save 3 of 7` — was the one
+thing you had to scroll past everything to see, and so was the way out.
+
+### What is pinned
+
+`src/v2/ui/FieldPicker.test.tsx` (the sheet, the name/value split, every
+way out, the keyboard), the three new cases in
+`LiveProfileSetup.test.tsx` for the failed claim and the one for `busy`,
+and `src/lib/appcheck.test.ts` for the bridge. The layout is not pinned by
+a test and cannot be — jsdom has no layout — which is the standing reason
+this repo looks at a screen in a browser before believing it.
