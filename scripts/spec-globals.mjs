@@ -49,19 +49,31 @@ const RUNTIME_ALLOWLIST = new Set([
   // the checker has agreed to stop checking.
 ]);
 
-const files = [];
-for (const dir of [specDir, uiDir]) {
-  for (const f of readdirSync(dir)) {
-    if (/\.(jsx?|tsx?)$/.test(f)) files.push(join(dir, f));
-  }
-}
 // Tests are excluded: they import what they exercise rather than reading it
 // off the global scope, so scanning them would add references with no
 // matching definition.
-for (const f of readdirSync(dataDir)) {
-  if (/\.(jsx?|tsx?)$/.test(f) && !/\.test\.[jt]sx?$/.test(f)) {
-    files.push(join(dataDir, f));
+//
+// THE RULE APPLIES TO ALL THREE DIRECTORIES, and used to be applied to one.
+// The data/ loop below carried the exclusion and this loop did not, so the
+// 39 `ui/*.test.tsx` files were scanned against the very comment that says
+// they must not be — 243 files walked where the rule means 201. spec/ holds
+// no test file, so ui/ was the whole of it.
+//
+// Measured before fixing, because a ratchet that MOVES on a fix is a
+// different change from one that does not: rule 4's coupling count is 244
+// either way. So this was latent rather than live — a test file that
+// referenced a spec global would have inflated the count, or worse declared
+// a name and masked a genuinely dangling reference in production code.
+const notATest = (f) => /\.(jsx?|tsx?)$/.test(f) && !/\.test\.[jt]sx?$/.test(f);
+
+const files = [];
+for (const dir of [specDir, uiDir]) {
+  for (const f of readdirSync(dir)) {
+    if (notATest(f)) files.push(join(dir, f));
   }
+}
+for (const f of readdirSync(dataDir)) {
+  if (notATest(f)) files.push(join(dataDir, f));
 }
 files.push(join(root, "src/v2/main.jsx"));
 files.push(join(root, "src/v2/spec-index.js"));
@@ -86,7 +98,7 @@ const DEFINE_RES = [
   /(?:globalThis|window)\.([A-Za-z_$][\w$]*)\s*=[^=]/g,
   /Object\.assign\(\s*(?:globalThis|window)\s*,\s*\{([^}]*)\}/g,
   // The CAST form, which the typed layer has to use and which this scanner
-  // could not see until D276:
+  // could not see until D279:
   //
   //   (window as unknown as Record<string, unknown>).TEST_FEED_QS = …
   //

@@ -46,8 +46,8 @@ Every constant below is sourced, not assumed:
 
 | Operation | Cost | Where it comes from |
 | --- | --- | --- |
-| One world answer | 1 client write + 2 server writes (`v2_agg_events`, `v2_aggs_private`) | `onV2AnswerCreated`, functions/src/v2.ts |
-| …plus the public mirror | +1 write **per answer**, always | no cadence since D98 |
+| One world answer | 1 client write + 1 server write (`v2_agg_events`) | `onV2AnswerCreated`, functions/src/v2.ts |
+| …plus the published aggregate | +1 write **per answer**, always | no cadence since D98; it IS the fold's working document since the private mirror collapsed |
 | …plus the ledger's death | 1 delete, 90 days later | `LEDGER_RETENTION_DAYS` |
 | One duel answer | 1 client write + 1 `pendingDays` arrayUnion | v2.ts group branch |
 | One trigger invocation | 512 MiB, 1 vCPU, concurrency 20, ~200 ms | `HOT_TRIGGER`, functions/src/ops.ts |
@@ -95,11 +95,37 @@ roughly double on the three operation lines.
 
 | Scenario | DAU | reads/day | writes/day | Firestore $/mo | Functions $/mo | **Total $/mo** |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Launch / TestFlight | 50 | 10.2 K | 1.2 K | 0.00 | 0.00 | **0.00** |
-| Friends-of-friends | 500 | 179 K | 12.1 K | 1.16 | 0.00 | **1.16** |
-| Real traction | 5,000 | 2.2 M | 121 K | 24 | 0.00 | **24** |
-| Scale | 50,000 | 22.4 M | 1.2 M | 260 | 2.20 | **262** |
-| Hit | 500,000 | 224 M | 12.1 M | 2,622 | 43 | **2,665** |
+| Launch / TestFlight | 50 | 10.2 K | 1.0 K | 0.00 | 0.00 | **0.00** |
+| Friends-of-friends | 500 | 179 K | 10.1 K | 1.16 | 0.00 | **1.16** |
+| Real traction | 5,000 | 2.2 M | 101 K | 23 | 0.00 | **23** |
+| Scale | 50,000 | 22.4 M | 1.0 M | 255 | 2.20 | **257** |
+| Hit | 500,000 | 224 M | 10.1 M | 2,568 | 43 | **2,611** |
+
+> **Re-measured 2026-08-24: the private mirror collapsed.** The trigger
+> wrote two aggregate documents per world answer — `v2_aggs_private/{qid}`
+> and the published `v2_question_aggs/{qid}` — and since D98 removed the
+> floor, the private one held byte-for-byte what the public one did on the
+> vote, edit and rank paths. It is gone on those three; the published
+> document is the fold's working document now, which it can be because
+> `allow write: if false` leaves the trigger as its only writer. The
+> catalog path keeps its own, where the accumulator is the whole ~1k-entity
+> map behind a bounded top-N board.
+>
+> The write term in `scripts/cost-arith.mjs` goes `1 + 2 + pub` → `1 + 1 +
+> pub` per world answer: **writes/day −16.5% at every size** (121 K → 101 K
+> at 5 k DAU), **$262 → $257 at 50 k and $2,665 → $2,611 at 500 k**. Two
+> percent of the bill, and worth saying why it is only two: reads dominate
+> this model at every size, so a third of the trigger's writes is a small
+> slice of a small line. What it buys beyond the money is a shorter
+> transaction on the contended per-qid document — one less document under
+> D7's ceiling, though NOT a higher ceiling, since both docs were keyed by
+> the same qid and the transaction was already bounded by one of them.
+>
+> The model errs one write LOW on catalogue picks, which keep a second
+> document: `B.worldAnswers` does not resolve them separately. That is the
+> right direction to be wrong in on a slice this small, and it is stated
+> rather than corrected because inventing a split would be a softer number
+> than the one it replaced.
 
 > **Measured 2026-08-19, BEFORE the fold shipped (VISION-V28 §11.4).**
 > The Patterns fit (v28 §2, trial D166 §1) joined the model:
@@ -938,7 +964,9 @@ when that decision is made.
 
 **Where the free tiers end**, since "still free" is the cheapest possible
 guardrail and worth knowing precisely: reads leave the 50 k/day free tier
-at **~177 DAU**, writes leave the 20 k/day tier at **~1,408 DAU**. (Read off
+at **~177 DAU**, writes leave the 20 k/day tier at **~1,687 DAU**
+(was ~1,408 before the private mirror collapsed — the crossing moves by
+exactly the write rate's ratio, 24.2 → 20.2 per user-day). (Read off
 the model's *immature* branch, which is how `SCENARIOS` classifies every
 size in that range; the mature branch would say ~149 and would be quoting
 a community that does not exist yet.) Below
@@ -960,11 +988,18 @@ threshold rather than the first.
 > moved.
 
 1. **~14,400 DAU — D7's write-contention ceiling.** All of a day's daily
-   answers land on one `v2_aggs_private/{qid}` document inside a 4-hour
+   answers land on one `v2_question_aggs/{qid}` document inside a 4-hour
    window; Firestore sustains ~1 write/sec/document. `0.35 writes/sec` at
    5 k DAU, `1.00` at 14.4 k, `3.47` at 50 k. Past this, transactions
    retry and aggregation degrades. Already recorded, already costed, fix
    already named (shard the counter). **This binds first.**
+
+   The document named here was `v2_aggs_private/{qid}` until that copy
+   collapsed into the published one, and the DAU figure did **not** move
+   with it: the two were keyed by the same qid, written in the same
+   transaction, so the transaction was already bounded by one of them and
+   is now bounded by the survivor. The collapse removes a write from the
+   bill; sharding is still the only thing that removes this wall.
 2. **~14,145 DAU — the read fan-out overtakes every flat source
    combined.** Finding 2. Not a failure, just the point where the bill
    stops being about anything else. This row has now moved three times

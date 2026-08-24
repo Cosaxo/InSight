@@ -15,7 +15,7 @@ import { WORLD_FEED_COMMENTS } from './world-feed-comments.js';
 import { TEST_FEED_QS } from './test-feed-data.js';
 // …and which pool this BUILD gets. The import above is the demo one; a
 // live build's bank items arrive through data/testFeed.ts, which is where
-// the story of why that is not a `window` read lives (D276).
+// the story of why that is not a `window` read lives (D279).
 import { testFeedPool } from '../data/testFeed.ts';
 import { WORLD_CHANNELS } from './world-feed-data.js';
 import PLACES from '../data/places';
@@ -2131,13 +2131,21 @@ class WorldFeed extends React.Component {
     );
   }
 
-  answered(q) {
+  // `mine` is an optional pre-fetched LIVE.myVotes(), for callers asking
+  // this question about a whole bank at once. `myVotes()` hands back a
+  // defensive COPY of the vote map on purpose (data/live.ts's perRev block
+  // says why it is excluded from the memo), so taking it once per question
+  // inside a loop over the pool is O(pool × votes) object churn to read one
+  // key — and on a live build with a fresh device every dial, field, pick
+  // and rank question takes that branch, because the server-side answer has
+  // no local raw value.
+  answered(q, mine) {
     const v = this.state.votes[q.id];
     // a live continuum answer may exist only server-side (fresh device, no
     // local raw value) — the bucket in myVotes is still an answer, and the
     // card must show its reveal rather than offer the question again
     if ((q.type === 'dial' || q.type === 'field' || q.type === 'pick' || q.type === 'rank') && v == null && q.live && LIVE.myVotes) {
-      return LIVE.myVotes()[q.id] != null;
+      return (mine || LIVE.myVotes())[q.id] != null;
     }
     return q.type === 'rank' ? !!(v && v.order) : v != null;
   }
@@ -2464,7 +2472,7 @@ class WorldFeed extends React.Component {
     // Measured, not a constant, because the bar's height moves with the
     // safe-area inset. Content sheets keep full cover — see Sheet.
     //
-    // …unless something is standing over the bar (D278). The topic list can
+    // …unless something is standing over the bar (D281). The topic list can
     // now open ON the profile rather than by throwing the reader at the
     // feed, and `.overlay` covers the app at z-index 20 — so the bar D211
     // is keeping clear is not on screen to keep clear, and the lift would
@@ -2527,6 +2535,8 @@ class WorldFeed extends React.Component {
     const catsOn = this.props.cats || {};
     const onToggle = this.props.onToggle;
     const stock = {};
+    // Once for the whole walk — see answered()'s note on the copy.
+    const myVotes = LIVE.myVotes ? LIVE.myVotes() : null;
     this.feedPool().forEach((q) => {
       if (!q || !q.cat) return;
       // Stock counts MEMBERSHIP — home plus `also` doors — because this
@@ -2535,7 +2545,7 @@ class WorldFeed extends React.Component {
       // is not a partition: per-topic stock can sum past the pool size, and
       // a reader adding the column is re-counting straddlers, not finding
       // a bug.
-      const done = this.answered(q);
+      const done = this.answered(q, myVotes);
       wfCarried(q).forEach((t) => {
         const s = stock[t] || (stock[t] = { n: 0, done: 0 });
         s.n++;
@@ -2618,7 +2628,7 @@ class WorldFeed extends React.Component {
                 return <button key={v} className="press" onClick={() => { LF.setFreq(v); this.forceUpdate(); }} aria-pressed={on} style={{ flex: 1, border: 'none', borderRadius: 999, padding: '8px 0', cursor: 'pointer', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontWeight: on ? 800 : 600, fontSize: 12.5, background: on ? 'var(--ink)' : 'transparent', color: on ? 'var(--surface)' : 'var(--ink-3)', transition: 'background .2s ease, color .2s ease' }}>{v}</button>;
               })}
             </div>
-            {/* Your fields, with the way back out (D279). Every field is
+            {/* Your fields, with the way back out (D282). Every field is
                 followed on a fresh install now — the pool used to be three
                 of twelve, which showed a reader under a quarter of the
                 bank — and a default of everything is only honest if
@@ -3857,7 +3867,7 @@ class WorldFeed extends React.Component {
     // fences the next retirement too without naming it.
     // testFeedPool(), not the imported demo array: a live build's items
     // come from the bank with published counts, and reading the import
-    // directly is what served fabricated ones for a build (D276).
+    // directly is what served fabricated ones for a build (D279).
     const testSplit = partitionAnswered(testFeedPool(TEST_FEED_QS || []).filter((q) => PASSIVE.testFor(q)), sunk);
     // Deferred items leave the stream until their wait is up (D121).
     //

@@ -185,6 +185,55 @@ export function divergence(
 }
 
 /**
+ * One slice's divergence, without folding the other twenty-three.
+ *
+ * Exactly `divergence(by, dim, overall, optionCount, minN).find((d) => d.bucket === bucket)`,
+ * and cohort.test.ts pins it against that expression rather than against
+ * a re-derivation — the point of the helper is that the two can never
+ * drift, since the Mirror's Explore lens and the breakdown sheet both
+ * read it and must not disagree about which option a group is unusual on.
+ *
+ * WHY IT EXISTS. Both callers wanted one bucket and asked for all of
+ * them: `divergence` builds `mixFor` over every bucket of the dim (a
+ * dense cell array and a reduce each), takes `pctFor` of each, sorts the
+ * lot by gap — and then `.find` throws all but one away. Explore does
+ * that once PER QUESTION, over the whole core archive, on every render:
+ * every dim chip, every bucket chip, every notify. Buckets are bounded
+ * (BREAKDOWN_MAX_BUCKETS) but city and country routinely fill that bound,
+ * so the discarded work is ~24× the kept work, measured at ~4 ms of the
+ * lens's ~6 ms fold in node — which is not 4 ms on a phone.
+ *
+ * Null where `divergence(...).find(...)` is undefined: a bucket the
+ * dimension does not carry, or one whose cell is all zeros. That is the
+ * same condition `sliceSplit` returns null on (counts are non-negative,
+ * so "some cell above zero" and "sum above zero" are one test), which is
+ * why Explore can drop its separate `sliceSplit` call and read `pct` off
+ * this instead.
+ */
+export function divergenceFor(
+  by: ByMap | undefined,
+  dim: string,
+  bucket: string,
+  overall: readonly number[],
+  optionCount: number,
+  minN = 0,
+): Divergence | null {
+  const counts = cellFor(by, dim, bucket, optionCount);
+  if (!counts) return null;
+  const n = counts.reduce((a, b) => a + b, 0);
+  if (n <= 0 || n < minN) return null;
+  const base = pctFor(overall);
+  const pct = pctFor(counts);
+  let gap = 0;
+  let optionIdx = 0;
+  for (let i = 0; i < pct.length; i++) {
+    const d = Math.abs(pct[i] - (base[i] || 0));
+    if (d > gap) { gap = d; optionIdx = i; }
+  }
+  return { bucket, n, pct, gap, optionIdx };
+}
+
+/**
  * How split a question is, 0 (unanimous) to 1 (perfectly even).
  *
  * NORMALISED BY OPTION COUNT, which is the whole reason this is a function
@@ -391,6 +440,67 @@ export interface Agreement {
   same: number;
   /** same/shared as a percentage, 0 when nothing is shared. */
   pct: number;
+  /**
+   * SORT KEY ONLY, never printed — see `likenessRate` (D277 §2).
+   *
+   * `pct` stays the number a person is shown and the number D99 chose for
+   * being explainable in one sentence. This is the one that decides who
+   * goes first, because `pct` alone cannot: it says a stranger who
+   * matched 1 of 1 is a better match than one who matched 45 of 50.
+   */
+  rate: number;
+}
+
+/**
+ * The likeness SORT key: a Wilson score lower bound on same/shared.
+ *
+ * THE BUG THIS EXISTS FOR was written down before it was fixed, in
+ * circle.ts's own comment, which described it exactly and then claimed a
+ * secondary sort key prevented it: "a single shared question that happened
+ * to match scores 100% — and without the second key that person would head
+ * the list forever, above someone who matched on forty of fifty." The
+ * second key does not prevent it. `b.pct - a.pct || b.shared - a.shared`
+ * puts pct FIRST, so `shared` only ever breaks a tie between two people
+ * with the SAME percentage — 1/1 still outranks 45/50, exactly as the
+ * comment feared, at every one of the five sites that sorted this way.
+ *
+ * A lower confidence bound is the standard answer and it is the one that
+ * needs no new data: it asks "given this sample, how good is this match at
+ * worst?", so a thin sample is penalised in proportion to how thin it is
+ * rather than by a hand-picked minimum. At z = 1.2816 (a 90% one-sided
+ * bound), measured:
+ *
+ *     1/1   pct 100 → 0.378        8/12  pct  67 → 0.482
+ *     2/2   pct 100 → 0.549       40/50  pct  80 → 0.719
+ *     3/3   pct 100 → 0.646       45/50  pct  90 → 0.832
+ *    12/12  pct 100 → 0.880      95/100  pct  95 → 0.914
+ *
+ * — so 45/50 now outranks 2/2, 8/12 outranks 1/1, and a perfect twelve
+ * still beats a 90% of fifty, which is the ordering a reader would defend.
+ *
+ * WHY NOT A MINIMUM-SHARED GATE. Because `minShared` already exists at
+ * every call site and is not the same instrument: a gate decides who is
+ * eligible to be ranked at all, and this decides the order of the ones who
+ * are. Raising the gate to fix the order would silently delete people from
+ * a list whose whole point is that it is finite and small.
+ *
+ * NOT PRINTED, deliberately. D99 chose `pct` because the number on a
+ * screen that names someone has to survive being explained to them, and
+ * "one hundred minus the average gap" survives that where a Wilson bound
+ * does not. This changes which of two people goes first; it changes
+ * nothing a reader is shown.
+ */
+export function likenessRate(same: number, shared: number): number {
+  if (!shared || shared < 0) return 0;
+  // 90% one-sided. Chosen over the conventional 1.96 (95%) because this
+  // orders a ranked list rather than making a claim: at 1.96 the penalty
+  // on small samples is heavy enough to sort a 12-question match below a
+  // 50-question one that agrees materially less often.
+  const z = 1.2816;
+  const p = Math.max(0, Math.min(1, same / shared));
+  const z2 = z * z;
+  return (p + z2 / (2 * shared) - z * Math.sqrt((p * (1 - p)) / shared + z2 / (4 * shared * shared)))
+    / (1 + z2 / shared);
 }
 
 /**
@@ -406,6 +516,25 @@ export interface Agreement {
  * person it is about, which is the property that matters most on a screen
  * that names them.
  */
+/**
+ * An Agreement from the two counts alone.
+ *
+ * `agreement()` folds two answer maps; this is for the callers that
+ * already HAVE the counts and never had the maps — groupPortrait's own
+ * accumulator, and every fixture that states a likeness rather than
+ * deriving one. It exists so `rate` has exactly one definition: a literal
+ * built by hand is a literal that will disagree with the sort the day the
+ * key changes.
+ */
+export function agreementOf(same: number, shared: number): Agreement {
+  return {
+    shared,
+    same,
+    pct: shared ? Math.round((same / shared) * 100) : 0,
+    rate: likenessRate(same, shared),
+  };
+}
+
 export function agreement(
   mine: Readonly<Record<string, number>>,
   theirs: Readonly<Record<string, number>>,
@@ -417,7 +546,12 @@ export function agreement(
     shared++;
     if (mine[qid] === theirs[qid]) same++;
   }
-  return { shared, same, pct: shared ? Math.round((same / shared) * 100) : 0 };
+  return {
+    shared,
+    same,
+    pct: shared ? Math.round((same / shared) * 100) : 0,
+    rate: likenessRate(same, shared),
+  };
 }
 
 /** Convenience: the `by` map off an aggregate, or undefined. */

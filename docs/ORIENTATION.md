@@ -108,7 +108,7 @@ directions.
 | [`STORE-FORMS.md`](STORE-FORMS.md) | Apple's privacy and age-rating questionnaires, answered field by field | tree |
 | [`SCALE-PLAN.md`](SCALE-PLAN.md) | What an unbounded feed costs, what trips first, and the core/tail split it forces. §1's classification is built; the rest is not | mixed |
 | [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) | The same work as an ordered build list — open steps only | plan |
-| [`BANK-DELIVERY.md`](BANK-DELIVERY.md) | How many questions a device can be handed: the bundle, the localStorage cache, the whole-bank fetch — three ceilings, measured, in the order they bite. §2 built at D280 | mixed |
+| [`BANK-DELIVERY.md`](BANK-DELIVERY.md) | How many questions a device can be handed: the bundle, the localStorage cache, the whole-bank fetch — three ceilings, measured, in the order they bite. §2 built at D283 | mixed |
 | [`FEATURE-COMPLETE.md`](FEATURE-COMPLETE.md) | Everything open between here and feature-complete — algorithms, question production, scale work, flips — one line each, pointing at the file that owns it | plan |
 | [`COST-REDUCTION.md`](COST-REDUCTION.md) | Getting the bill down. The big one was built at D129; the rest is analysis | mixed |
 | [`DEVICE-BIND.md`](DEVICE-BIND.md) | D29's activation gate: what ships, what you add, how to flip it on. Rules requirement is shipped **soft** | mixed |
@@ -162,8 +162,8 @@ the static gates, and where each one runs.
 | `check:fn-runtime` | deploy | Function memory and timeout, that `setGlobalOptions` lives in `functions/src/ops.ts` where the hoisted re-export cannot miss it, that every trigger watches the database `firebase.json` deploys to (D165), and that the client calls the region the functions are served from — naming it once, never as a literal at a call site (D200, D201) |
 | `check:deploy-targets` | deploy | Every exported function appears in the deploy `--only` list. One missing name builds, tests green, and never deploys |
 | `check:content` | deploy | The compiled content matches `content/`, byte for byte, plus the invariants the seed path assumes |
-| `check:learn-sample` | deploy | `content/learn-sample.json` — the fixed slice of the learn bank the JS bundle carries (D280) — is what its source generates |
-| `check:seed-fields` | deploy | Every field `gen-v2content` emits is transported by the seed, compared by `SEEDED_FIELDS`, and mirrored in the seed test — or declared untransported with a reason (D281) |
+| `check:learn-sample` | deploy | `content/learn-sample.json` — the fixed slice of the learn bank the JS bundle carries (D283) — is what its source generates |
+| `check:seed-fields` | deploy | Every field `gen-v2content` emits is transported by the seed, compared by `SEEDED_FIELDS`, and mirrored in the seed test — or declared untransported with a reason (D284) |
 | `check:anchors` | deploy | The profile's `<select>` vocabularies and the trigger's `BREAKDOWN_DIM_VOCAB` hold the same strings, or a level stops counting silently |
 | `check:catalogs` | deploy | The committed catalogues and the trigger's compiled-in key sets agree exactly, absence included |
 | `check:pokedex` | deploy | The Pokédex catalogue's contiguous keys — stored answers are dex numbers into it, so a gap is an answer resolving to the wrong species |

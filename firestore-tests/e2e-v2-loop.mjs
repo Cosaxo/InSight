@@ -235,6 +235,27 @@ if (above.counts["0"] !== 2 || above.counts["1"] !== 3)
   fail("counts wrong at total 5: " + JSON.stringify(above));
 ok("five answers: exact public counts {0:2, 1:3} — no double counting");
 
+// 7a-bis · and the second copy is gone. The trigger used to write those
+// same five numbers twice — v2_aggs_private/{qid} byte-for-byte alongside
+// the published doc — which is a third of its writes on every answer, for
+// a document with no reader. The counts above are the proof the fold is
+// right; this is the proof it costs one write to be right.
+//
+// Read through the ADMIN handle, because the collection is deny-all to
+// clients: a client read would fail whether the document existed or not,
+// which is the assertion that passes for the wrong reason.
+{
+  const privSnap = await adminDb.doc(`v2_aggs_private/${q0.id}`).get();
+  if (privSnap.exists) {
+    fail(
+      "the vote path wrote v2_aggs_private/" + q0.id + " again — the private "
+      + "mirror was collapsed into the published document; a second write of "
+      + "a public fact is what this removed: " + JSON.stringify(privSnap.data()),
+    );
+  }
+}
+ok("no private mirror: the published aggregate is the only document the fold writes");
+
 // 7b · the breakdown, whole (D98). At total 5 the age bands hold 3 and 2
 // and the cities 3 and 2, and every one of those cells publishes exactly.
 // Country is a single bucket of 5 — once withheld as "a population
@@ -516,6 +537,36 @@ try {
   }
 }
 ok("only a member decides — the asker cannot approve themselves");
+
+// …AND THE SAME GATE ON DECLINE, which had no test on either side while its
+// twin above did. declineJoinV2 takes an arbitrary gid and an arbitrary uid
+// from request.data, and this one membership check is the only thing
+// stopping any signed-in account emptying any circle's join queue.
+//
+// The failure is invisible from both ends by design — D240's decline "tells
+// them NOTHING, the row simply stops being there" — so the asker sees a
+// request that is never approved and the circle sees no request at all.
+// firestore.rules cannot see it either: the write is on the admin SDK.
+//
+// A REFUSAL, not a decline, and deliberately: an actual decline here would
+// arrayRemove the pending row, and the approveJoinV2 below would then throw
+// failed-precondition ("they have not asked"), taking the whole duel /
+// reveal / aggregate section after it with it.
+try {
+  await httpsCallable(pFns, "declineJoinV2")({ gid, uid: partner.user.uid });
+  fail("a non-member emptied a circle's join queue");
+} catch (e) {
+  if (e?.code !== "functions/permission-denied") {
+    fail("wrong refusal for a non-member decline: " + (e?.code || e));
+  }
+}
+{
+  const g = await adminDb.doc(`v2_groups/${gid}`).get();
+  if (!(g.get("pending") || []).includes(partner.user.uid)) {
+    fail("the refused decline removed the pending row anyway");
+  }
+}
+ok("a non-member cannot decline either — and the refusal wrote nothing");
 
 const joined = await httpsCallable(fns, "approveJoinV2")({ gid, uid: partner.user.uid });
 if (!joined.data?.ok) fail("approveJoinV2 refused: " + JSON.stringify(joined.data));
@@ -1390,6 +1441,62 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
     fail("Let in left the stale pendingNames entry");
   }
   ok("Let in clears a stale row instead of doing nothing to it");
+}
+
+// ── the logic attempt's answer key stays on the server (D57) ──────────
+//
+// THE ONLY EXECUTABLE CHECK THAT IT DOES. check:logic-sync guarantees
+// src/v2/data/logic-gen.ts and functions/src/logic-gen.ts are byte-identical,
+// which is what makes server scoring honest — and also means the SHIPPED
+// CLIENT already contains `generateForm`. So `generateForm(seed).items[i].a`
+// is the complete answer key for all 25 items, and the seed is the whole of
+// it. firestore.rules denies the stored copy; nothing but this guards the
+// wire.
+//
+// Adding `seed` to logicStartV2's return literal — the obvious thing a
+// debugging change or a "let the client pre-render" optimisation does —
+// passes tsc, eslint, check:globals, check:appcheck, check:logic-sync, the
+// clientItems key-set test in logic.test.ts (which tests the helper, not the
+// response) and every rules test. Every verified percentile in
+// v2_logic_norms would then be fed by scores nobody solved.
+{
+  const started = await httpsCallable(fns, "logicStartV2")({});
+  const keys = Object.keys(started.data).sort();
+  if (JSON.stringify(keys) !== JSON.stringify(["capMs", "deadlineMs", "items"])) {
+    fail("logicStartV2 returned unexpected keys: " + JSON.stringify(keys));
+  }
+  // Belt as well as braces: assert on the SERIALIZED response, so a key
+  // nested inside `items` is caught too. `"a"` is the correct-tile index
+  // that clientItems() strips; `seed`/`gv` are what regenerates the form.
+  const wire = JSON.stringify(started.data);
+  for (const leak of ['"seed"', '"gv"', '"a":', '"rules"']) {
+    if (wire.includes(leak)) fail(`logicStartV2 leaked ${leak} — the form is regenerable from it`);
+  }
+  if (!Array.isArray(started.data.items) || started.data.items.length !== 25) {
+    fail("logicStartV2 did not return 25 items — this check has nothing to guard");
+  }
+  ok("logicStartV2 hands over the form and never the answer key (D57)");
+
+  // …and the key IS disclosed once the attempt is scored, which is what
+  // makes the assertion above about TIMING rather than about the field
+  // never existing.
+  const submitted = await httpsCallable(fns, "logicSubmitV2")({ picks: Array(25).fill(0) });
+  if (typeof submitted.data?.seed !== "number") {
+    fail("logicSubmitV2 withheld the seed after scoring: " + JSON.stringify(submitted.data));
+  }
+  ok("…and discloses it after scoring, so the reveal can show the working");
+
+  // One attempt per window. Without this the client can resubmit until the
+  // score it wants, and the norms histogram counts every try.
+  try {
+    await httpsCallable(fns, "logicSubmitV2")({ picks: Array(25).fill(0) });
+    fail("a second submit against a scored attempt was accepted");
+  } catch (e) {
+    if (e?.code !== "functions/failed-precondition") {
+      fail("wrong refusal for a second submit: " + (e?.code || e));
+    }
+  }
+  ok("a scored attempt refuses a second submit");
 }
 
 console.log("\nALL E2E CHECKS PASSED");

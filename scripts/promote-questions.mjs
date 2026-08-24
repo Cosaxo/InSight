@@ -129,7 +129,11 @@ if (ids.every(isPickId)) {
   const PICK_SEED = join(root, "content", "pick-questions.json");
   const PICK_QS = vm.runInNewContext(extractFrom(
     readFileSync(join(root, "src", "v2", "spec", "pick-data.js"), "utf8"),
-    "window.PICK_QS = [",
+    // `PICK_QS = [`, not `window.PICK_QS = [`: the array is a named export
+    // now (the window mirror is assigned from it further down), and this
+    // marker matches either shape — which is the point, since a marker
+    // that names the bridge breaks the day the module crosses it.
+    "PICK_QS = [",
     "pick-data.js",
   ));
   // Only domains whose catalogue file is committed under public/ may go

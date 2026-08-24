@@ -64,6 +64,7 @@ const LIVE = vi.hoisted(() => ({
   // field renders its honest empty state here, which is what these cases
   // should scroll past.
   loadSimilarity: async () => {},
+  loadCityKindred: async () => {},
   similarityLoading: () => false,
   testFeedItems: () => [] as Array<Record<string, unknown>>,
   myTestResults: () => ({} as Record<string, unknown>),
@@ -786,14 +787,25 @@ describe("LiveCohortBody · the lens row is the stop's tabs", () => {
     LIVE.loadKindred = kindred;
     LIVE.loadSimilarity = similarity;
     render(<LiveCohortBody scope="city" />);
-    // Long enough for a lazy chunk to have resolved and its effects to
-    // have run, had one been mounted.
-    await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
-    expect(kindred, "Kindred was fetched for a People tab nobody opened").not.toHaveBeenCalled();
+    // WAIT FOR THE FOLD, NOT FOR N MICROTASKS. This was a flush of twenty
+    // resolved promises, "long enough for a lazy chunk to have resolved" —
+    // and it was long enough only because some EARLIER case in this file had
+    // already resolved `SimilaritySection`'s chunk, so it was warm in the
+    // module cache and mounted inside the flush. Run this case before those
+    // and the section has not mounted yet: the field's fold shows 0 calls
+    // and `kindred` shows 0 for the same reason, which is the vacuous half.
+    // Reproduced with `--sequence.shuffle --sequence.seed=4242`.
+    //
     // The accepted cost, unchanged from D135: the field's fold runs on
     // arrival at a stop. Same call count as when it was the landing tab,
-    // because a stop always opened on it.
-    expect(similarity, "the constellation is the head of the stop and its fold did not run").toHaveBeenCalledTimes(1);
+    // because a stop always opened on it. Waiting on that is also what makes
+    // the Kindred assertion below mean something — it now runs against a
+    // frame where the section is definitely mounted, so "not called" is a
+    // statement about the gate rather than about a pending import.
+    await vi.waitFor(() => {
+      expect(similarity, "the constellation is the head of the stop and its fold did not run").toHaveBeenCalledTimes(1);
+    });
+    expect(kindred, "Kindred was fetched for a People tab nobody opened").not.toHaveBeenCalled();
 
     fireEvent.click(tab("People"));
     await vi.waitFor(() => {

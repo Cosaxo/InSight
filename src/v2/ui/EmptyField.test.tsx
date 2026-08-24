@@ -230,7 +230,7 @@ describe("the one action a field cannot take for itself", () => {
     expect(order).toEqual(["prime", "nav"]);
   });
 
-  // D278 — the other half of D190, and the reason the report came back.
+  // D281 — the other half of D190, and the reason the report came back.
   // D190 fixed where the jump LANDED; the jump itself is what a reader
   // notices, because they asked for a list and were moved to another
   // screen to get it. A `prime` that answers the ask in place says so, and

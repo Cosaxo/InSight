@@ -48,7 +48,7 @@ import React from "react";
 import LIVE from "../data/live";
 import { cityIsConfirmed } from "../data/cityConfirm";
 import {
-  COHORT_DIMS, DIM_LABEL, divergence, meanScore, mixFor, pctFor, sliceSplit,
+  COHORT_DIMS, DIM_LABEL, divergenceFor, meanScore, mixFor, pctFor,
   type Score,
 } from "../data/cohort";
 // D125: these two lenses printed the raw bucket KEY, so a country row read
@@ -446,16 +446,24 @@ function PeopleLens({ qs, scope, shortName }: {
   const [, bump] = React.useReducer((n: number) => n + 1, 0);
   React.useEffect(() => LIVE.subscribe(bump), []);
 
-  // The ranked people, typed. `kindredPeople` carries the frozen anchors
-  // and the parsed scores from the SAME cached voter rows the ranking is
-  // computed over, so the card costs no read the list has not already
-  // paid for.
-  const people = LIVE.kindredPeople()
+  // The ranked people. `kindredPeople` carries the frozen anchors and the
+  // parsed scores from the SAME cached voter rows the ranking is computed
+  // over, so the card costs no read the list has not already paid for.
+  const ranked = LIVE.kindredPeople()
     .filter((p) => p.like.shared >= 2)
-    .sort((a, b) => b.like.pct - a.like.pct
+    // rate, not pct (D277 §2): the percentage alone puts a 1-of-1 stranger
+    // above a 45-of-50 one. cohort.likenessRate has the measurements.
+    .sort((a, b) => b.like.rate - a.like.rate
       || b.like.shared - a.like.shared
-      || a.uid.localeCompare(b.uid))
-    .map((p) => ({ ...p, type: typeOfPerson(p) }));
+      || a.uid.localeCompare(b.uid));
+  // Typed AFTER the cut, not before. `typeOfPerson` runs the archetype
+  // matcher — ~13 types scored over the person's axes, with its own
+  // allocations — and the list it was mapped over is the whole cached
+  // sample: KINDRED_QUESTIONS × VOTER_FETCH_CAP is up to ~2,400 distinct
+  // people, against the twelve cards below. Nothing between the map and
+  // the slice read `type`, and `.map` cannot change a length, so the two
+  // empty branches keep reading the uncut list and say the same thing.
+  const shown = ranked.slice(0, 12).map((p) => ({ ...p, type: typeOfPerson(p) }));
   const loading = LIVE.kindredLoading();
 
   return (
@@ -472,18 +480,25 @@ function PeopleLens({ qs, scope, shortName }: {
         <div style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 500, color: "var(--ink-3)", marginTop: 2, marginBottom: 10, lineHeight: 1.5 }}>
           who answers most like you
         </div>
-        {loading && !people.length ? (
+        {loading && !ranked.length ? (
           <LlEmpty>Matching…</LlEmpty>
-        ) : !people.length ? (
+        ) : !ranked.length ? (
           <LlEmpty>Fills in as you answer more.</LlEmpty>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {people.slice(0, 12).map((p) => <KindredCard key={p.uid} p={p} />)}
+            {shown.map((p) => <KindredCard key={p.uid} p={p} />)}
             {/* The metric, in one sentence, on the screen that uses it —
                 a likeness number nobody can explain is a number nobody
-                should trust. */}
+                should trust.
+
+                "last N" was the wrong word twice over (D277 §2): the
+                twelve were never the most recent — Object.keys order froze
+                them at the first cold boot — and they are now chosen by
+                how divisive each question was, which is not an ordering in
+                time at all. "across N" is what the number is actually
+                over, and it is the same length. */}
             <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 500, color: "var(--ink-3)", marginTop: 2, lineHeight: 1.5 }}>
-              same picks &divide; shared &middot; last {LIVE.kindredDepth()}
+              same picks &divide; shared &middot; across {LIVE.kindredDepth()}
             </span>
           </div>
         )}
@@ -572,17 +587,24 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
   const pickedName = picked ? bucketLabel(dim, picked) : "";
 
   // The rows this slice disagrees with everyone about, most first.
+  //
+  // `all`, not `counts` (D170): Explore's slices are cuts of everyone and
+  // its sentence ends "same as everyone", so the globe is the right
+  // baseline on every stop. Compare and Scores read `counts`, which is the
+  // stop's own cohort.
+  //
+  // ONE bucket, not all of them. This asked `divergence` for every bucket
+  // of the dim and `.find`-ed the picked one out — per question, over the
+  // whole archive, on every render — and `sliceSplit` re-read the same
+  // cell a second time to get the split it had already computed.
+  // `divergenceFor` is that expression with the discarded work removed;
+  // it goes null on exactly the condition `sliceSplit` did, and its `pct`
+  // is the split.
   const rows = picked
     ? qs.map((q) => {
-      const split = sliceSplit(q.by, dim, picked, q.options.length);
-      if (!split) return null;
-      // `all`, not `counts` (D170): Explore's slices are cuts of everyone
-      // and its sentence ends "same as everyone", so the globe is the
-      // right baseline on every stop. Compare and Scores read `counts`,
-      // which is the stop's own cohort.
-      const d = divergence(q.by, dim, q.all, q.options.length)
-        .find((x) => x.bucket === picked);
-      return { q, split, overall: pctFor(q.all), gap: d ? d.gap : 0, on: d ? d.optionIdx : 0 };
+      const d = divergenceFor(q.by, dim, picked, q.all, q.options.length);
+      if (!d) return null;
+      return { q, split: d.pct, overall: pctFor(q.all), gap: d.gap, on: d.optionIdx };
     }).filter(Boolean).sort((a, b) => b!.gap - a!.gap)
     : [];
 

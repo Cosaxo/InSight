@@ -1,36 +1,26 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import pkg from './package.json'
+import { shipsUnattested, UNATTESTED_MESSAGE } from './scripts/appcheck-guard.ts'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
 
   // App Check is the only control standing between the public surface and
-  // unlimited free anonymous accounts (D3). src/lib/appcheck.ts silently
-  // skips init on web when no reCAPTCHA site key is set — deliberate, so
-  // contributors need not provision their own registration for dev. The
-  // failure mode is that a PRODUCTION web build inherits that skip and
-  // ships unattested, and nothing says so until enforcement is flipped on
-  // in the console and every web client fails at once.
-  //
-  // A native build is fine without the key: iOS and Android use
-  // DeviceCheck / Play Integrity and never consult it. So this only
-  // guards web, and CAPACITOR_BUILD=1 opts a native bundle out.
-  const isNativeBuild = env.CAPACITOR_BUILD === '1'
-  if (
-    mode === 'production' &&
-    !isNativeBuild &&
-    env.VITE_FIREBASE_API_KEY &&           // mock-mode builds need nothing
-    !env.VITE_APPCHECK_RECAPTCHA_SITE_KEY
-  ) {
-    throw new Error(
-      'Production web build has Firebase configured but no '
-      + 'VITE_APPCHECK_RECAPTCHA_SITE_KEY. The client would ship without App '
-      + 'Check attestation and start failing the moment enforcement is '
-      + 'enabled. Set the key, or set CAPACITOR_BUILD=1 for a native bundle '
-      + '(DeviceCheck / Play Integrity need no site key).',
-    )
+  // unlimited free anonymous accounts (D3). The condition lives in
+  // scripts/appcheck-guard.ts rather than inline, because inline it could
+  // only ever run during a build and NO BUILD IN THIS REPO REACHED IT — the
+  // one CI job that makes a web bundle sets no VITE_FIREBASE_API_KEY, so the
+  // condition short-circuited before the throw. That file's header has the
+  // full account; appcheck-guard.test.ts runs both directions for nothing.
+  if (shipsUnattested({
+    mode,
+    isNativeBuild: env.CAPACITOR_BUILD === '1',
+    apiKey: env.VITE_FIREBASE_API_KEY,
+    siteKey: env.VITE_APPCHECK_RECAPTCHA_SITE_KEY,
+  })) {
+    throw new Error(UNATTESTED_MESSAGE)
   }
 
   return {
@@ -105,13 +95,23 @@ export default defineConfig(({ mode }) => {
       // data layer; raise it to a gate only with a number that came from
       // looking at the report first.
       //
-      // `test:coverage` runs `--dir src/v2/data`, NOT the whole of `--dir
-      // src` that `test:unit` covers, and that is a timeout fact rather than
-      // a preference: v8 instrumentation roughly triples the mount tests, and
-      // two smoke-live cases already sit at 8-9 s against a 15 s limit, so
-      // the full run fails on time rather than on truth. Scoping to the data
-      // tests also makes the number the honest one — "what the data layer's
-      // own tests reach", not what a mount test incidentally walks through.
+      // `test:coverage` runs the WHOLE of `--dir src`, and only the
+      // `include` below scopes what is reported. It ran `--dir src/v2/data`
+      // until 2026-08-24, on the ground that v8 instrumentation triples the
+      // mount tests and the full run would fail on time rather than on
+      // truth. That was true, and it had exactly one cause: `learn-reserve`'s
+      // D95 case spent ~10 s of its 15 s budget in a `growFeed` loop that
+      // could not converge (see src/v2/test/mount-app.jsx). With that fixed
+      // the instrumented run completes — measured, 129 files and 1921 tests
+      // green under `--coverage`.
+      //
+      // The old scope was ALSO reporting the wrong numbers, which is why
+      // widening it matters more than the tidiness. A data module exercised
+      // by a `ui/` or `test/` suite scored only what its own tests reached:
+      // 11 of 45 modules read 5+ points low, `mutes.ts` read 0% against a
+      // real 81.5%, and `patternsReady.ts` — the D265 gate — read 64%
+      // against 96%. A report that names the wrong branch sends the next
+      // person to write a test for code that already has one.
       coverage: {
         provider: 'v8',
         include: ['src/v2/data/**/*.ts'],

@@ -9,7 +9,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, screen } from "@testing-library/react";
-import { getApp, growFeed, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
+import { getApp, growUntil, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
 
 vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
 registerSmokeHooks();
@@ -75,13 +75,20 @@ describe("the daily tab", () => {
   // jsdom resolves no scroller (no CSS, so no ancestor reports an
   // overflow-y), which is the case world-feed treats as "distance unknown,
   // keep mounting" — so the window here grows on its own timer rather than
-  // on scroll, and growFeed is just waiting for it to settle.
+  // on scroll.
+  //
+  // ONE TICK IS THE WHOLE PROOF, and waiting for more was 9.4s of pure cost:
+  // the claim is "the feed mounts a slice and then extends it", and the
+  // first top-up establishes it. Waiting for the window to SETTLE would
+  // additionally require the demo bank to be shorter than the bound, which
+  // it is not — see mount-app.jsx.
   it("mounts the feed as a window that grows", async () => {
     const expectNoBoundary = mountApp();
     const first = document.body.innerHTML.length;
-    await growFeed();
-    const settled = document.body.innerHTML.length;
-    expect(settled, "the feed did not grow — the window is not windowing").toBeGreaterThan(first);
+    await growUntil(
+      () => document.body.innerHTML.length > first,
+      "a single top-up past its first page",
+    );
     expectNoBoundary("feed window");
   });
 

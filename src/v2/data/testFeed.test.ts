@@ -18,7 +18,7 @@ describe("testFeedPool", () => {
     expect(testFeedPool(DEMO)).toBe(LIVE);
   });
 
-  // The arm that shipped D276's defect in reverse: a live build whose bank
+  // The arm that shipped D279's defect in reverse: a live build whose bank
   // carries no test items must serve NOTHING, not fall through to the demo
   // pool. `livePool ?? demo` rather than `livePool || demo` is the whole
   // difference, and an empty array is exactly the state a fresh backend is

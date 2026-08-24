@@ -11,10 +11,18 @@
 // where it is tested; this demo shows the same shape without re-implementing
 // the disclosure math on synthetic numbers.
 // Hoisted `export let`, assigned inside the IIFE below — the shape DAILYQ
-// and FRIENDS were converted with (D39, "convert on touch"). `PICK_QS`
-// stays on window: world-feed-data.js concatenates it at MODULE SCOPE, so
-// that one is still crossing the bridge and its publication is not residue.
+// and FRIENDS were converted with (D39, "convert on touch").
+//
+// `PICK_QS` converted with the same move. It stayed on window because
+// world-feed-data.js concatenated it at MODULE SCOPE — a real load-order
+// dependency, and the reason this 48 KB module had to be eager: the pool
+// was assembled before first paint, so every card set it concatenated had
+// to be there already. The concat is a function call from `loadWorldFeed`
+// now, so this file rides the feed chunk and the binding travels as an
+// argument rather than as a global. The window mirror is kept for the
+// demo-mode readers that still look it up by name.
 export let PICKS;
+export let PICK_QS;
 
 (function () {
   const LS = 'insight.picks.v1';
@@ -943,7 +951,11 @@ export let PICKS;
   // with a channel of their own (world-feed-data.js), replacing this repo's
   // earlier 'games' channel — same guarantee (a pick card is never
   // invisible-by-default), one home instead of a per-subject scatter.
-  window.PICK_QS = [
+  // A named export ALONGSIDE the global (D39's "convert on touch"). The
+  // window mirror stays because nothing has converted its reader yet; the
+  // export is what lets `loadWorldFeed` hand this array to the pool
+  // without spec-index having to name a global of its own.
+  PICK_QS = [
     { id: 'pk01', cat: 'fav', type: 'pick', domain: 'pokemon', prompt: 'Favourite Pokémon?', n: 242 },
     // 2026-07-30 daily run: a different canon, not a rephrase — fear
     // ranks ghosts; favouritism ranks starters and mascots.
@@ -1017,4 +1029,5 @@ export let PICKS;
     { id: 'pk24', cat: 'fav', type: 'pick', domain: 'colors', prompt: 'Your favourite colour?', n: 168 },
     { id: 'pk25', cat: 'fav', type: 'pick', domain: 'colors', prompt: 'The colour you’d paint your front door?', n: 163 },
   ];
+  window.PICK_QS = PICK_QS;
 })();

@@ -1,5 +1,5 @@
 // Regenerates content/learn-sample.json — the FIXED slice of the learn bank
-// that the JavaScript bundle carries (D280).
+// that the JavaScript bundle carries (D283).
 //
 // WHY THIS EXISTS. `spec/learn-data.js` imported the whole of
 // `content/learn-questions.json`, so every learn card was compiled into the
@@ -106,7 +106,7 @@ if (invokedDirectly) {
         + "content/learn-questions.json generates.\n\n"
         + "  Run `npm run build:learn-sample` and commit the result.\n\n"
         + "  The sample is the slice of the bank the JS bundle carries, and it\n"
-        + "  is DERIVED (D280). Editing it by hand makes the demo build serve\n"
+        + "  is DERIVED (D283). Editing it by hand makes the demo build serve\n"
         + "  cards the bank does not have — which no other gate can see,\n"
         + "  because the demo build is the one with no backend to disagree\n"
         + "  with it.",

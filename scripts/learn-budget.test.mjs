@@ -156,8 +156,8 @@ describe("learnRunway", () => {
     // when gene and origins went 8 → 13 and the thinnest three summed 29).
     //
     // Twelve fields at 8, and the default denominator is now all twelve
-    // (D279) rather than the three learn-progress.js used to seed. Same
-    // method, different input — and the input is the whole of what D279
+    // (D282) rather than the three learn-progress.js used to seed. Same
+    // method, different input — and the input is the whole of what D282
     // changed, so this case is where that shows.
     const r = learnRunway(level(12, 8));
     expect(r.fresh).toBe(96);
@@ -167,7 +167,7 @@ describe("learnRunway", () => {
 
   it("still answers for a reader who has narrowed", () => {
     // The old default, kept reachable rather than deleted: unfollowing is
-    // a real control (the topic sheet's Learn rows, D279), so "what has a
+    // a real control (the topic sheet's Learn rows, D282), so "what has a
     // reader on three fields got left" stays a question worth asking — it
     // is just no longer the one a fresh install is in.
     const r = learnRunway(level(12, 8), { followed: 3 });

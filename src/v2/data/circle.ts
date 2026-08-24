@@ -83,16 +83,27 @@ export interface Member {
 /**
  * Rank a circle: most alike first, then the biggest overlap, then by name.
  *
- * The overlap tiebreak matters more than it looks. Agreement is a
- * percentage, so a single shared question that happened to match scores
- * 100% — and without the second key that person would head the list
- * forever, above someone who matched on forty of fifty. Sorting on
- * `pct` alone is the ranking bug this app is most likely to ship,
- * because it looks completely right until someone answers one question.
+ * THE COMMENT THAT USED TO BE HERE described this exact bug and then
+ * claimed the second sort key prevented it: "a single shared question that
+ * happened to match scores 100% — and without the second key that person
+ * would head the list forever, above someone who matched on forty of
+ * fifty. Sorting on `pct` alone is the ranking bug this app is most likely
+ * to ship, because it looks completely right until someone answers one
+ * question."
+ *
+ * It was right about the bug and wrong about the fix, and it shipped that
+ * way (D277 §2). `b.pct - a.pct || b.shared - a.shared` sorts on pct
+ * FIRST, so `shared` only ever separates two people who already have the
+ * same percentage — the 1-of-1 still headed the list, above the 40-of-50,
+ * exactly as feared. Five sites sorted this way.
+ *
+ * `rate` is the key that makes the sentence true: a Wilson lower bound on
+ * same/shared, so a thin sample is discounted in proportion to how thin it
+ * is. `pct` is still the number the member row prints.
  */
 export function rankMembers(members: readonly Member[]): Member[] {
   return members.slice().sort((a, b) =>
-    b.like.pct - a.like.pct
+    b.like.rate - a.like.rate
     || b.like.shared - a.like.shared
     || (a.name || "￿").localeCompare(b.name || "￿")
     || a.uid.localeCompare(b.uid));

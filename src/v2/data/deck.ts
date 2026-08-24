@@ -83,14 +83,14 @@ export interface QuestionDoc {
   // itself in a band rather than drawing a ring, so it needs no start.
   from?: string;
   until?: string;
-  // What the card's `i` opens (D277): the facts a reader needs before the
+  // What the card's `i` opens (D280): the facts a reader needs before the
   // question is answerable, never the arguments. Optional on every
   // surface and absent from most — a question that needs no context
   // carries none, and the button says "About this question" instead.
   bg?: string;
-  // The learn card's own fields (D280): the index of the correct option,
+  // The learn card's own fields (D283): the index of the correct option,
   // the trap, the authored difficulty, the map label and the optional why
-  // line. Learn-only, and absent from any document seeded before D280 —
+  // line. Learn-only, and absent from any document seeded before D283 —
   // which is why the client drops a card without `c` rather than guessing
   // one (live.ts's publishLearnBank).
   //

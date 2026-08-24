@@ -96,7 +96,7 @@ describe("LEARN_FEED.cards serves fresh or due, never a frozen replay (D95)", ()
   });
 });
 
-// ── the pool a fresh install starts with (D279) ──────────────────────
+// ── the pool a fresh install starts with (D282) ──────────────────────
 //
 // `pool()` serves the FOLLOWED fields and nothing else, so the default
 // follow list is the ceiling on what a reader can ever meet. It seeded
@@ -109,7 +109,7 @@ describe("LEARN_FEED.cards serves fresh or due, never a frozen replay (D95)", ()
 // Asserted as a RELATION rather than against a number: the point is that
 // the default reaches the whole bank, and a case pinned to "146" would
 // fail every time the lane merges a batch.
-describe("what a fresh install can reach (D279)", () => {
+describe("what a fresh install can reach (D282)", () => {
   it("follows every field the bank ships, not a seeded three", async () => {
     localStorage.clear();
     const { LEARN } = await import("../spec/learn-progress.js");
@@ -132,7 +132,7 @@ describe("what a fresh install can reach (D279)", () => {
 
   // The half that makes the default honest. Following everything is only
   // defensible if narrowing is available, and `LEARN.unfollow` had no
-  // caller anywhere in the app before D279 — the follow list was one-way.
+  // caller anywhere in the app before D282 — the follow list was one-way.
   it("still lets a reader narrow, down to one field but never to none", async () => {
     localStorage.clear();
     const { LEARN } = await import("../spec/learn-progress.js");

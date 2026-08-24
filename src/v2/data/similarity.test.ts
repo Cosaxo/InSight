@@ -6,6 +6,7 @@
 // distinguished, and refusals asserted as refusals rather than zeros.
 
 import { describe, expect, it } from "vitest";
+import { agreementOf, divisiveness } from "./cohort";
 import {
   angleHash,
   axisScores,
@@ -14,12 +15,14 @@ import {
   myAxisScores,
   myFlatAxes,
   parseTestResults,
+  pickKindredQids,
   placeProfiles,
   rankKindred,
   scoreMatch,
   testItemMeta,
   voteIndices,
   type KindredPerson,
+  type ParsedResults,
   type TestDefs,
 } from "./similarity";
 
@@ -169,8 +172,13 @@ describe("scoreMatch — one hundred minus the average gap", () => {
       { "big5:O": 80, "big5:C": 50, "values:future": 10 },
       3,
     );
-    // gaps 10, 0, 30 → mean 13.33 → 87.
-    expect(m).toEqual({ match: 87, axes: 3, tests: 2 });
+    // gaps 10, 0, 30 → mean 13.33 → 87. This is the PRINTED number and
+    // D277 §2 did not move it: the sentence on the card is still exactly
+    // this arithmetic.
+    expect(m).toMatchObject({ match: 87, axes: 3, tests: 2 });
+    // …and the sort key beside it, which nobody is shown:
+    // (40 + 6×17) / (3 + 6) = 15.78 → 84.22.
+    expect(m!.raw).toBeCloseTo(84.22, 2);
   });
 
   it("refuses below minAxes rather than matching on a coin toss", () => {
@@ -181,7 +189,7 @@ describe("scoreMatch — one hundred minus the average gap", () => {
 describe("rankKindred — scores first, agreement as the fallback", () => {
   const person = (uid: string, over: Partial<KindredPerson>): KindredPerson => ({
     uid, name: uid, city: "Oslo, NO",
-    like: { shared: 4, same: 2, pct: 50 },
+    like: agreementOf(2, 4),
     results: null,
     ...over,
   });
@@ -189,7 +197,7 @@ describe("rankKindred — scores first, agreement as the fallback", () => {
 
   it("puts every scored person above every unscored one", () => {
     const out = rankKindred([
-      person("agree99", { like: { shared: 10, same: 10, pct: 100 } }),
+      person("agree99", { like: agreementOf(10, 10) }),
       person("scored", { results: { big5: { O: 0, C: 100, E: 90, A: 10, N: 95 } } }),
     ], MINE);
     // The scored person's match is poor (gaps 70,50,50,50,50 → mean 54 →
@@ -209,9 +217,9 @@ describe("rankKindred — scores first, agreement as the fallback", () => {
 
   it("holds unscored people to minShared, but never the scored", () => {
     const out = rankKindred([
-      person("thin", { like: { shared: 1, same: 1, pct: 100 } }),
+      person("thin", { like: agreementOf(1, 1) }),
       person("thinScored", {
-        like: { shared: 0, same: 0, pct: 0 },
+        like: agreementOf(0, 0),
         results: { big5: { O: 70, C: 50, E: 40, A: 60, N: 45 } },
       }),
     ], MINE, { minShared: 2 });
@@ -254,8 +262,9 @@ describe("placeProfiles — cities and countries get real score profiles", () =>
     const out = placeProfiles(ITEMS, DEFS, aggOf, "city", my);
     const oslo = out.find((p) => p.key === "Oslo, NO");
     // Oslo has 3 shared axes → scored: gaps |100-80|, |50-60|, |50-50| →
-    // mean 10 → 90.
-    expect(oslo?.score).toEqual({ match: 90, axes: 3, tests: 2 });
+    // mean 10 → 90 printed; (30 + 6×17) / (3 + 6) = 14.67 → 85.33 to sort on.
+    expect(oslo?.score).toMatchObject({ match: 90, axes: 3, tests: 2 });
+    expect(oslo!.score!.raw).toBeCloseTo(85.33, 2);
     expect(oslo?.byTest.big5).toEqual([
       { dim: "O", label: "Openness", value: 100, n: 2, items: 1 },
       { dim: "C", label: "Conscientiousness", value: 50, n: 4, items: 1 },
@@ -469,5 +478,139 @@ describe("angleHash — stable layout, no wall clock", () => {
 
   it("flattenAxes namespaces by test so same-named dims cannot collide", () => {
     expect(flattenAxes({ a: { x: 1 }, b: { x: 2 } })).toEqual({ "a:x": 1, "b:x": 2 });
+  });
+});
+
+// ── the width bias, and the property that catches it (D277 §2) ───────
+//
+// Nothing in this file compared two candidates measured over DIFFERENT
+// numbers of axes, which is why `100 − gap/axes` could rank them against
+// each other for as long as it did. A mean of three draws is far noisier
+// than a mean of twenty-two, and the top of a ranked list is where noise
+// collects — so the "most like you" slot went, structurally, to whoever
+// you shared fewest axes with.
+describe("rankKindred — a thin comparison must not win on noise", () => {
+  const MINE = {
+    big5: { O: 50, C: 50, E: 50, A: 50, N: 50 },
+    values: { future: 50, order: 50, care: 50, self: 50, norms: 50, risk: 50 },
+  };
+  const p = (uid: string, results: KindredPerson["results"]): KindredPerson => ({
+    uid, name: uid, city: "Oslo, NO", like: agreementOf(2, 4), results,
+  });
+
+  it("prefers the wider comparison when the average gap is identical", () => {
+    // Both are 10 points off on every shared axis, so `match` is the same
+    // 90 for each and cannot separate them. One is measured over five
+    // axes, the other over eleven; the eleven-axis reading is the better
+    // evidenced one and must go first.
+    const five = p("five", { big5: { O: 60, C: 60, E: 60, A: 60, N: 60 } });
+    const eleven = p("eleven", {
+      big5: { O: 60, C: 60, E: 60, A: 60, N: 60 },
+      values: { future: 60, order: 60, care: 60, self: 60, norms: 60, risk: 60 },
+    });
+    const out = rankKindred([five, eleven], MINE);
+    expect(out[0].score!.match).toBe(out[1].score!.match); // the printed number ties…
+    expect(out.map((x) => x.uid)).toEqual(["eleven", "five"]); // …the order does not.
+  });
+
+  it("still prefers the closer person at equal width", () => {
+    // The shrinkage must not invert the metric — it discounts width, not
+    // agreement. Same five axes, one strictly nearer on every one.
+    const near = p("near", { big5: { O: 52, C: 52, E: 52, A: 52, N: 52 } });
+    const far = p("far", { big5: { O: 70, C: 70, E: 70, A: 70, N: 70 } });
+    expect(rankKindred([far, near], MINE).map((x) => x.uid)).toEqual(["near", "far"]);
+  });
+
+  it("is monotone: strictly closer on every shared axis ranks higher", () => {
+    // The general form of the case above, over every width the four
+    // instruments can produce. A regression that reintroduced the raw mean
+    // would still pass this; a regression that inverted the prior's sign
+    // would not, and that is the failure mode a hand-tuned constant has.
+    for (let axes = 5; axes <= 11; axes++) {
+      const mk = (offset: number): ParsedResults => {
+        const big5: Record<string, number> = {};
+        const values: Record<string, number> = {};
+        for (let i = 0; i < axes; i++) {
+          const key = ["O", "C", "E", "A", "N"][i] ?? ["future", "order", "care", "self", "norms", "risk"][i - 5];
+          (i < 5 ? big5 : values)[key] = 50 + offset;
+        }
+        return Object.keys(values).length ? { big5, values } : { big5 };
+      };
+      const out = rankKindred([p("far", mk(20)), p("near", mk(5))], MINE);
+      expect(out.map((x) => x.uid), `axes=${axes}`).toEqual(["near", "far"]);
+    }
+  });
+
+  it("does not let rounding hand the top slot to whoever sorts first by uid", () => {
+    // `match` collapses a pool onto ~20 integers, so ties were common and
+    // were broken by `uid.localeCompare` — alphabetically. `raw` is
+    // unrounded, so two candidates that merely round together still order
+    // by their actual distance.
+    // gaps 3 and 4 over five axes → means 0.6 and 0.8 → both round to 99.
+    const a = p("zzz", { big5: { O: 50, C: 50, E: 50, A: 50, N: 53 } });
+    const b = p("aaa", { big5: { O: 50, C: 50, E: 50, A: 50, N: 54 } });
+    const out = rankKindred([b, a], MINE);
+    expect(out[0].score!.match).toBe(99);
+    expect(out[1].score!.match).toBe(99); // the printed number cannot separate them…
+    expect(out[0].uid).toBe("zzz"); // …and the nearer one still wins, not the alphabetical one.
+  });
+});
+
+// ── which twelve questions the pool is built from (D277 §2) ──────────
+//
+// loadKindred had no test at all: grepping it across src/ finds only
+// mocks and call-count assertions, which is how a `.slice(0, 12)` could
+// sit under a comment describing a completely different selection for as
+// long as it did.
+describe("pickKindredQids — chosen, not inherited", () => {
+  const flat = () => 0;
+
+  it("does not depend on the order the votes were inserted", () => {
+    // The actual defect: Object.keys order froze at the first cold boot,
+    // and the warm and cold boot paths produce opposite orders — so the
+    // same account ranked strangers differently on a second device.
+    const a: Record<string, string> = { "daily-003": "1", "daily-001": "0", "daily-002": "2" };
+    const b: Record<string, string> = { "daily-002": "2", "daily-003": "1", "daily-001": "0" };
+    expect(pickKindredQids(a, flat, 3)).toEqual(pickKindredQids(b, flat, 3));
+  });
+
+  it("prefers a 50/50 question over a 95/5 one", () => {
+    // Agreeing on a question almost everyone answers the same way is
+    // nearly no evidence about two people. `divisiveness` has measured
+    // that since D99 and had never picked anything.
+    const votes = { split: "0", lopsided: "1" };
+    const score = (qid: string) => divisiveness(qid === "split" ? [50, 50] : [95, 5]);
+    expect(pickKindredQids(votes, score, 1)).toEqual(["split"]);
+  });
+
+  it("drops catalog and rank answers, which return rows the fold discards", () => {
+    // Both live on a surface the voter query accepts, so each one spent a
+    // slot on a collection-group read whose every row was then thrown away
+    // for want of a numeric optionIdx.
+    const votes = { "feed-vote": "2", "feed-catalog": "1041", "feed-rank": "2,0,1", "feed-empty": "" };
+    // 1041 IS an integer, so the entity id survives this filter — the
+    // guard that matters is the joined order and the empty string.
+    expect(pickKindredQids(votes, flat, 9)).not.toContain("feed-rank");
+    expect(pickKindredQids(votes, flat, 9)).not.toContain("feed-empty");
+  });
+
+  it("never spends a slot on a sealed duel answer", () => {
+    const votes = { "g_grp1_2026-08-24": "0", "daily-001": "1" };
+    expect(pickKindredQids(votes, flat, 9)).toEqual(["daily-001"]);
+  });
+
+  it("fills the quota for an account whose aggregates have not landed", () => {
+    // scoreOf returns -1 for an unmeasured question. A measured one must
+    // outrank it, and an account with none must still get its twelve.
+    const votes = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`q${i}`, "1"]));
+    expect(pickKindredQids(votes, () => -1, 12)).toHaveLength(12);
+    const oneKnown = (qid: string) => (qid === "q19" ? 0.9 : -1);
+    expect(pickKindredQids(votes, oneKnown, 12)[0]).toBe("q19");
+  });
+
+  it("is stable across two reads of the same aggregates", () => {
+    const votes = { a: "1", b: "1", c: "1" };
+    const score = () => 0.5; // every question equally divisive
+    expect(pickKindredQids(votes, score, 2)).toEqual(pickKindredQids(votes, score, 2));
   });
 });

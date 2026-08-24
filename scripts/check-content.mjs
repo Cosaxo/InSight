@@ -131,7 +131,7 @@ for (const q of entries) {
   if (typeof q.from === "string" && typeof q.until === "string" && q.until < q.from) {
     errors.push(`${q.id}: the window closes (${q.until}) before it opens (${q.from})`);
   }
-  // Background (D277) — the card's `i`. Shape only; whether the sentences
+  // Background (D280) — the card's `i`. Shape only; whether the sentences
   // are neutral, and whether the question needed them at all, is
   // check:quality's and the reviewing run's, and is deliberately not
   // restated here. An empty or whitespace `bg` is the failure worth
@@ -490,7 +490,7 @@ const NOT_SEEDED = {
     + "and gated by check:catalogs against the committed catalogue",
   "learn-sample.json":
     "generated OUTPUT, not an input — the fixed slice of learn-questions.json "
-    + "the JS bundle carries (D280: the whole bank used to be compiled in, and "
+    + "the JS bundle carries (D283: the whole bank used to be compiled in, and "
     + "check:bundle had ~39 cards of headroom left). Written by "
     + "scripts/gen-learn-sample.mjs, imported by src/v2/spec/learn-data.js so "
     + "the demo build has cards, and held equal to its source by "
@@ -499,7 +499,7 @@ const NOT_SEEDED = {
 
 // ---- content COMPILED INTO THE CLIENT, and how much of it there may be.
 //
-// THE GATE THIS FINDING WAS MISSING (D280). `spec/learn-data.js` imported
+// THE GATE THIS FINDING WAS MISSING (D283). `spec/learn-data.js` imported
 // the whole learn bank, so every card shipped inside the JavaScript — and
 // `check:bundle` had about thirty-nine cards of headroom left, against a
 // lane whose own target was another hundred and forty. Nothing was
@@ -521,7 +521,7 @@ const BUNDLED_CONTENT = {
   "learn-sample.json": {
     maxKiB: 32,
     why:
-      "the fixed slice of the learn bank the demo build needs (D280) — "
+      "the fixed slice of the learn bank the demo build needs (D283) — "
       + "generated at PER_FIELD cards a field, so it grows with the number "
       + "of FIELDS and never with the bank. Crossing this means the taxonomy "
       + "roughly doubled: re-derive PER_FIELD against the demo's needs "
@@ -531,7 +531,7 @@ const BUNDLED_CONTENT = {
     maxKiB: 24,
     why:
       "the duel pools, read by spec/duels-data.js — the last bank still "
-      + "compiled in whole (D280 moved learn and left this one: a weekly "
+      + "compiled in whole (D283 moved learn and left this one: a weekly "
       + "lane at 14.6 KiB has years of slack). Crossing this is the signal "
       + "to give it learn's treatment, a generated sample plus a live read, "
       + "rather than to raise the number",
@@ -568,7 +568,7 @@ const BUNDLED_CONTENT = {
         + "listed in BUNDLED_CONTENT. A bank compiled into the app ships to every "
         + "user and counts against check:bundle, and nothing else connects the two "
         + "— which is exactly how the learn bank got within 39 cards of failing the "
-        + "build (D280). Either read it from the seeded bank instead, or add it "
+        + "build (D283). Either read it from the seeded bank instead, or add it "
         + "here with a cap and the reason.",
       );
       continue;

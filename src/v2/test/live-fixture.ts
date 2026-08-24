@@ -42,6 +42,7 @@ import realLive from "../data/live";
 import { publishTestFeed, resetTestFeed } from "../data/testFeed";
 import { publishLearnBank, resetLearnBank } from "../data/learnBank";
 import { LIVE_MEMBERS, LIVE_NEAR_MEMBERS, LIVE_SOCIAL_MEMBERS } from "./live-surface";
+import { agreementOf } from "../data/cohort";
 
 type Dict = Record<string, unknown>;
 
@@ -105,13 +106,13 @@ export interface LiveFixtureOptions {
    */
   rankCard?: boolean;
   /**
-   * Publish one live TEST item into the feed's test stream (D276), shaped
+   * Publish one live TEST item into the feed's test stream (D279), shaped
    * as buildFeedGlobals emits it: a bank id, the instrument key the
    * progress row folds on, and counts from the aggregate.
    *
    * Opt-in for pickCard's reason and one more. The pool this replaces is
    * the DEMO one — a hundred-odd cards whose counts are a hash of the
-   * question id — and until D276 it reached a live feed whatever this
+   * question id — and until D279 it reached a live feed whatever this
    * fixture did, because the store published onto `window` and the feed
    * had been converted to import the demo array. Off, the live feed
    * carries no test cards at all, which is what every case in this suite
@@ -119,18 +120,18 @@ export interface LiveFixtureOptions {
    */
   testCard?: boolean;
   /**
-   * Publish one live LEARN card (D280), in the engine's own vocabulary —
+   * Publish one live LEARN card (D283), in the engine's own vocabulary —
    * the shape `buildLearnBank` translates a bank document into.
    *
    * Opt-in, and the DEFAULT is the case that matters: with this off the
    * fixture publishes an EMPTY live bank, which is what a live build with
-   * no seeded learn documents actually has. Before D280 the bundle carried
+   * no seeded learn documents actually has. Before D283 the bundle carried
    * the whole card bank, so a live build served 146 demo cards whatever the
-   * backend held — the same class of thing D276 fixed for test cards.
+   * backend held — the same class of thing D279 fixed for test cards.
    */
   learnCard?: boolean;
   /**
-   * Give the LAST world card a background (D277) — the paragraph the
+   * Give the LAST world card a background (D280) — the paragraph the
    * card's `i` opens. Opt-in like the rest: most of the bank carries
    * none, and a fixture that always did would have the "About this
    * question" arm of that button untested everywhere.
@@ -191,13 +192,13 @@ export const PICK_PROMPT = "Fixture pick card: your favourite fixture?";
 // The rank card's prompt (D233), same rule.
 export const RANK_PROMPT = "Fixture rank card: order the fixtures";
 
-// The live TEST item's prompt and options (D276), same rule again — and
+// The live TEST item's prompt and options (D279), same rule again — and
 // here the uniqueness is load-bearing rather than convenient: the whole
 // point of the case is telling a bank item apart from a demo one, and the
 // demo pool's prompts are the real instruments' wording.
 export const TEST_ITEM_PROMPT = "Fixture test item: the bank's own, not the demo pool's.";
 
-// The live LEARN card (D280), unique for the same reason and with the same
+// The live LEARN card (D283), unique for the same reason and with the same
 // weight: the demo sample's prompts are the real cards' wording, so the
 // prompt is what tells a bank card apart from a compiled-in one.
 export const LEARN_CARD_PROMPT = "Fixture learn card: which bank is this from?";
@@ -206,7 +207,7 @@ export const TEST_ITEM_OPTIONS = [
   "Strongly agree", "Agree", "Neutral", "Disagree", "Strongly disagree",
 ];
 
-// The background paragraph (D277), unique for FEED_PROMPT's reason — and
+// The background paragraph (D280), unique for FEED_PROMPT's reason — and
 // long enough to be one: the gate's own floor is 90 characters, so a
 // three-word fixture string would pin a shape the bank cannot contain.
 export const BG_TEXT =
@@ -433,7 +434,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     circle: () => [
       {
         uid: "u_other", name: "Ada", mutual: true,
-        like: { shared: 2, same: 1, pct: 50 },
+        like: agreementOf(1, 2),
         answers: { "daily-000": 1, "daily-001": 0 },
       },
     ],
@@ -485,7 +486,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // ranked row rather than only the empty state.
     loadKindred: async () => {},
     kindred: () => [
-      { uid: "u_other", name: "Ada", like: { shared: 6, same: 5, pct: 83 } },
+      { uid: "u_other", name: "Ada", like: agreementOf(5, 6) },
     ],
     kindredLoading: () => false,
     kindredDepth: () => 6,
@@ -511,7 +512,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     kindredPeople: () => [
       {
         uid: "u_other", name: "Ada", city: opts.myCity ?? "Oslo, NO",
-        like: { shared: 6, same: 5, pct: 83 },
+        like: agreementOf(5, 6),
         results: { big5: { O: 80, C: 50, E: 45, A: 60, N: 50 } },
       },
     ],
@@ -659,6 +660,8 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     saveDisplayName: async () => {},
     saveAnchors: () => {},
     saveTestResult: () => {},
+    syncPassiveResults: () => {},
+    loadCityKindred: async () => {},
     // Learn (D32): the fixture answers nothing and has no aggregates, so
     // every learn reveal renders the ESTIMATE path with its label — which
     // is exactly the honest cold-start state the live tests should see.
@@ -692,7 +695,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     LIVE: w.LIVE,
     WORLD_FEED_QS: w.WORLD_FEED_QS,
     WORLD_FEED_COMMENTS: w.WORLD_FEED_COMMENTS,
-    // TEST_FEED_QS is NOT here any more: since D276 the test pool travels
+    // TEST_FEED_QS is NOT here any more: since D279 the test pool travels
     // through data/testFeed.ts rather than the window, and `restore()`
     // hands it back with resetTestFeed(). A saved window key would have
     // restored a value nothing reads.
@@ -774,7 +777,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       ...(opts.windowed && i === Math.max(1, opts.feedCards ?? 1) - 1
         ? { from: dayKey(0), until: dayKey(3) }
         : {}),
-      // D277: the background rides ON the card too — same rule again, the
+      // D280: the background rides ON the card too — same rule again, the
       // feed reads the field buildFeedGlobals emits.
       ...(opts.background && i === Math.max(1, opts.feedCards ?? 1) - 1
         ? { bg: BG_TEXT }
@@ -815,7 +818,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     });
   }
   // The live test pool, through the publisher the store itself uses
-  // (D276). This used to be `w.TEST_FEED_QS = []`, which asserted nothing
+  // (D279). This used to be `w.TEST_FEED_QS = []`, which asserted nothing
   // once D249 pointed the feed at the demo import instead — the fixture
   // said "no demo test cards here" and the mounted app served a hundred of
   // them, with hash-invented counts, through every case in this suite.

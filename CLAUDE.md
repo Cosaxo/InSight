@@ -167,7 +167,7 @@ real slipped through:
   Mirror tab the day it was added; the publications rule (rule 5) swept 17
   dead `globalThis.X = X` lines the day it was added (D137) — the residue
   of conversions that exported the name and never went back for the line.
-  **Rule 6 (D276) is the one to read before converting anything**: rule 5
+  **Rule 6 (D279) is the one to read before converting anything**: rule 5
   is deliberately over-generous — it asks whether the name appears
   *anywhere* outside its publisher — so a name written to `window` by
   `data/live.ts` and read by `import { X }` in the spec layer satisfies it

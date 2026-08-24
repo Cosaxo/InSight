@@ -38,13 +38,13 @@ vi.setConfig({ testTimeout: 15000 });
 import { BG_TEXT, FEED_OPTIONS, LEARN_CARD_PROMPT, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, TEST_ITEM_OPTIONS, TEST_ITEM_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
 import NAV from "../data/nav";
 import { PATTERNS_EARNED_KEY, PATTERNS_MIN_BASIS, PATTERNS_MIN_MINE, PATTERNS_MIN_POOL } from "../data/patternsReady";
-import { awaitText, growFeed, openHeaderOverlay, swipeDaily } from "./mount-app";
+import { awaitText, growFeed, openHeaderOverlay, settleBeat, swipeDaily } from "./mount-app";
 import { list as anchorList } from "../spec/map-anchors.js";
 import { IS_TESTS, IS_TEST_RESULTS } from "../spec/test-definitions.js";
-// The demo test pool, imported so the D276 case can bind on the actual
+// The demo test pool, imported so the D279 case can bind on the actual
 // cards that must not appear rather than on a copy of their wording.
 import { TEST_FEED_QS } from "../spec/test-feed-data.js";
-// The bundled demo SAMPLE (D280) — imported so the live cases can assert
+// The bundled demo SAMPLE (D283) — imported so the live cases can assert
 // on the actual cards that must not appear, rather than on a copy.
 import { LEARN_CARDS } from "../spec/learn-data.js";
 import { PASSIVE } from "../spec/passive-progress.js";
@@ -110,8 +110,12 @@ describe("the fixture tracks the real store", () => {
     // `undefined` while still passing. data/vote.test.ts pins the same list
     // against the REAL object; this pins it against the stand-in.
     live = installLive();
-    const { live: liveDiff, social } = fixtureSurfaceMismatch(live);
-    expect({ liveDiff, social }).toEqual({ liveDiff: [], social: [] });
+    // ALL THREE diffs, not two. `near` was computed and dropped on the
+    // floor here until 2026-08-24, which left exactly the failure the
+    // paragraph above describes live for every `LIVE.near` member: the
+    // fixture could gain or lose one and the cases below would keep
+    // passing against `undefined`.
+    expect(fixtureSurfaceMismatch(live)).toEqual({ live: [], social: [], near: [] });
   });
 });
 
@@ -290,7 +294,7 @@ describe("spec layer mounts in live mode", () => {
     expect(screen.queryByText(/22k people/i)).toBeNull();
   });
 
-  // D278 — the report that came back twice: "when you click add interest
+  // D281 — the report that came back twice: "when you click add interest
   // on the general info you are navigated to the feed."
   //
   // D190 fixed where that jump LANDED (the list opens, instead of dropping
@@ -303,7 +307,7 @@ describe("spec layer mounts in live mode", () => {
   // The assertion that matters is the SECOND one. The sheet opening proves
   // the ask was answered; the profile still being there proves it was
   // answered where the reader was, which is the whole report.
-  it("opens the topic list over the profile, without leaving it (D278)", async () => {
+  it("opens the topic list over the profile, without leaving it (D281)", async () => {
     // An empty follow list, which is what a real live build boots with and
     // what puts the field's door on screen at all. These suites are a DEMO
     // build as far as `import.meta.env` is concerned (scenes.js reads the
@@ -550,11 +554,12 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     screen.queryByRole("button", { name: /who voted/i })
     ?? screen.queryByRole("button", { name: /leans|flips|disagree/i });
 
-  const voteFeedCardAndSettle = async () => {
+  const voteFeedCardAndSettle = () => {
     fireEvent.click(screen.getByRole("button", { name: FEED_OPTIONS[0] }));
     // The reveal animation clears `beat` from its own onDone; until it does,
-    // the engage row is not mounted for either branch.
-    await act(async () => { await new Promise((r) => setTimeout(r, 1200)); });
+    // the engage row is not mounted for either branch. Skipped rather than
+    // outwaited — see settleBeat in mount-app.jsx.
+    settleBeat();
   };
 
   // Crossroads on a LIVE feed (D136): the story comes from the bank and
@@ -672,7 +677,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
 
   it("gives a live card who-voted and the named takes toggle — never the demo sheet", async () => {
     mountLive();
-    await voteFeedCardAndSettle();
+    voteFeedCardAndSettle();
     expect(
       openWhoVoted(),
       "the live engage row did not render at all — this test is now vacuous",
@@ -692,7 +697,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(screen.getByText(/No takes yet/i)).toBeTruthy();
   });
 
-  // D277 — the `i` on every feed card, and the slot behind it that was
+  // D280 — the `i` on every feed card, and the slot behind it that was
   // empty in every live build.
   //
   // The button has always been there and has always opened a sheet; what
@@ -747,7 +752,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expectNoBoundary("live feed, no background");
   });
 
-  // D280 — the learn bank left the JavaScript, and this is what proves the
+  // D283 — the learn bank left the JavaScript, and this is what proves the
   // live path picked it up.
   //
   // `spec/learn-data.js` used to import the whole of
@@ -757,7 +762,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // the two arms below are the whole change: a live build serves the bank
   // it was given, and a live build given none serves none.
   //
-  // Binding on the SAMPLE itself rather than a copied prompt, the D276
+  // Binding on the SAMPLE itself rather than a copied prompt, the D279
   // rule: the sample is generated from the bank, so a prompt transcribed
   // into this file would be a second copy to keep in step.
   const sampleLearnPrompts = () => LEARN_CARDS.map((c) => c.q);
@@ -778,7 +783,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   });
 
   it("serves no learn card at all when the bank has none", async () => {
-    // A project seeded before D280 carries learn documents with no answer
+    // A project seeded before D283 carries learn documents with no answer
     // key, so the store drops every one and publishes an empty bank. Empty
     // has to mean empty: falling back to the sample would put sixty demo
     // cards on a real device, each with a "% got this right" line drawn
@@ -794,7 +799,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expectNoBoundary("live feed, no learn bank");
   });
 
-  // D276 — the defect this whole suite was supposed to make impossible,
+  // D279 — the defect this whole suite was supposed to make impossible,
   // and did not.
   //
   // The feed weaves each core test's own items in as marked cards. The
@@ -1070,7 +1075,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // were written against.
     localStorage.clear();
     mountLive();
-    await voteFeedCardAndSettle();
+    voteFeedCardAndSettle();
     const whoVoted = openWhoVoted();
     expect(whoVoted, "the live engage row did not render — this test is vacuous").not.toBeNull();
     fireEvent.click(whoVoted);
@@ -1100,11 +1105,11 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // The control for the case above. Without it, that assertion passes for
   // any reason the engage row fails to render — a broken fixture included —
   // and stops being a statement about the gate at all.
-  const voteFirstDemoCard = async () => {
+  const voteFirstDemoCard = () => {
     const opt = screen.queryAllByRole("button", { name: /^(Yes|No|Agree|Disagree)$/i })[0];
     expect(opt, "no demo feed card to vote on").toBeDefined();
     fireEvent.click(opt);
-    await act(async () => { await new Promise((r) => setTimeout(r, 1200)); });
+    settleBeat();
   };
 
   it("offers no fabricated cut sheet on the live daily", async () => {
@@ -1190,7 +1195,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
 
   it("still renders the takes button on a demo card", async () => {
     render(<App />);
-    await voteFirstDemoCard();
+    voteFirstDemoCard();
     expect(
       screen.queryByRole("button", { name: /\d+ takes$/i }),
       "demo mode lost the takes button — the live gate is now unconditional",
@@ -1204,7 +1209,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // renderEngage's demoInProd check. The whole row goes, who-voted included.
   it("suppresses the entire engage row in the demoInProd fallback", async () => {
     mountLive({ demoInProd: true });
-    await voteFirstDemoCard();
+    voteFirstDemoCard();
     expect(
       screen.queryByRole("button", { name: /\btakes$/i }),
       "demoInProd showed seeded takes to a real user",
@@ -1446,8 +1451,13 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     const card = screen.getByText(q0).parentElement;
     try {
       fireEvent.click(within(card).getByRole("button", { name: "Strongly agree" }));
-      // A live lens card plays the consequence beat like any live card, so
-      // wait it out before asserting on the answered state.
+      // A live lens card plays the consequence beat like any live card.
+      //
+      // OUTWAITED HERE AND SKIPPED EVERYWHERE ELSE, on purpose: this is the
+      // one case that drives the rAF loop all the way to its own T5 and
+      // lands `onDone` without a tap, so the animation's exit path keeps a
+      // mount behind it. The other five click Skip (mount-app.jsx), which is
+      // both faster and not a race.
       await act(async () => { await new Promise((r) => setTimeout(r, 1200)); });
       // 1. The vote left the device: LIVE.vote heard the lens card, under
       //    its own id, as option "0".
@@ -1538,7 +1548,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     removeInsightKeys();
     const expectNoBoundary = mountLive();
     fireEvent.click(screen.getByRole("button", { name: FEED_OPTIONS[0] }));
-    await act(async () => { await new Promise((r) => setTimeout(r, 1200)); });
+    settleBeat();
     expect(
       screen.queryByRole("button", { name: FEED_OPTIONS[1] }),
       "the fixture card did not reach its answered state",

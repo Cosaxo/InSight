@@ -103,7 +103,7 @@ function storedForm(q: typeof victim, overrides: Record<string, unknown> = {}) {
     ...(typeof q.tier === "string" ? { tier: q.tier } : {}),
     ...(typeof q.resolvesAt === "string" ? { resolvesAt: q.resolvesAt } : {}),
     ...(q.rubric ? { rubric: q.rubric } : {}),
-    // The card's background (D277) and the learn card's metadata (D280),
+    // The card's background (D280) and the learn card's metadata (D283),
     // mirrored for the same reason as everything above: this function IS
     // what the seed writes, so a field the payload carries and this does
     // not reports every doc holding it as a phantom rewrite.

@@ -81,7 +81,7 @@ export const TAG_WORDS_MAX = 4; // corpus max 4 — "a two-or-three-word label",
 // makes broad tagging pointless (credit is conserved, a door never adds any);
 // this cap is what makes it impossible to try at scale anyway.
 export const ALSO_MAX = 2;
-// Background text (D277) — what the card's `i` opens. The bounds are the
+// Background text (D280) — what the card's `i` opens. The bounds are the
 // demo pool's own, measured: `WORLD_BG` in world-subtopics.js holds 24
 // entries running 152–236 characters over one to three sentences, written
 // by a person against the brief this field inherits ("facts and
@@ -457,7 +457,11 @@ export function loadCorpus() {
   const pulse = JSON.parse(readFileSync(join(root, "content", "pulse-questions.json"), "utf8")).questions;
   const pick = extractLiteral(
     readFileSync(join(root, "src", "v2", "spec", "pick-data.js"), "utf8"),
-    "window.PICK_QS = [",
+    // `PICK_QS = [`, not `window.PICK_QS = [`: the array is a named export
+    // now (the window mirror is assigned from it further down), and this
+    // marker matches either shape — which is the point, since a marker
+    // that names the bridge breaks the day the module crosses it.
+    "PICK_QS = [",
     "pick-data.js",
   );
   // The LIVE pick seed (D14 go-live): the archive entries above that were
@@ -673,7 +677,7 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     err("prompt", `prompt is ${q.prompt.length} chars (max ${PROMPT_MAX}) — short, concrete, blind-answerable`);
   }
 
-  // ── background, the card's `i` (D277) ────────────────────────────
+  // ── background, the card's `i` (D280) ────────────────────────────
   //
   // check:content owns the SHAPE (a non-blank, untrimmed-free string).
   // What lives here is editorial: is it long enough to be worth opening,
@@ -1200,7 +1204,7 @@ export function checkBatch(batch) {
     if (short * 2 < now.length) {
       errs.push(`${short} of ${now.length} ${NOW_TOPIC} questions run ${WINDOW_SHORT_DAYS} days or less — most of a batch should sit at the short end, or the lane is a monthly wearing a daily's name`);
     }
-    // …and the same shape pointed at the answer space (D277). The lane's
+    // …and the same shape pointed at the answer space (D280). The lane's
     // first batch was six questions and twelve options, and nothing had
     // ever said not to: `check:content` allows 2–10, the fold allows
     // twenty, and the bank already ships three- and four-option votes.

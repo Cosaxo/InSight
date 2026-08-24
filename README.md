@@ -149,7 +149,7 @@ src/lib/           firebase init + anonymous-first auth + emulator wiring
 functions/src/     v2.ts (seed + aggregates) · v2social.ts (groups, duos,
                    reveals, push) · index.ts (account deletion)
 firestore.rules    the access model (public answers, exact aggs,
-                   member-only groups, sealed duels) — 136 emulator tests
+                   member-only groups, sealed duels) — 138 emulator tests
 firestore.rules.v1-archive  the retired v1 client rules (D4) — reference,
                    NOT deployed
 monitoring/        Cloud Monitoring policies, put live by
@@ -180,7 +180,7 @@ Local:
 - `npm run test:unit` — client store, pure deck logic, and the spec-layer
   mount tests (vitest + jsdom, no emulator).
 - `npm run test --prefix functions` — the aggregate fold, reveal and streak math.
-- `npm run test:rules` — 136 security-rules tests (Firestore + Storage)
+- `npm run test:rules` — 138 security-rules tests (Firestore + Storage)
   against the emulator. `npm run check:figures` holds this number and the
   one in the repo map above equal to the suites, because both said 40 for
   long enough to be quoted twice.
@@ -189,11 +189,14 @@ Local:
 - `npm run test:e2e:erasure` — deleteAccount, with leftovers observed via
   the admin SDK (rules bypassed, so "gone" means gone).
 - `npm run test:coverage` (and `--prefix functions`) — **report only, never a
-  gate.** Scoped to the typed layers where an untested branch is where a
-  wrong number reaches a screen: `src/v2/data` on the client, `pure.ts` +
-  `deviceBind.ts` on the backend. `spec/` is excluded on purpose — its only
-  tests are mount smoke tests, so a coverage number there would be both
-  meaningless and an invitation to raise it without asserting anything.
+  gate.** Runs the whole suite and REPORTS on the typed layers where an
+  untested branch is where a wrong number reaches a screen: `src/v2/data` on
+  the client, `pure.ts` + `deviceBind.ts` on the backend. `spec/` is excluded
+  on purpose — its only tests are mount smoke tests, so a coverage number
+  there would be both meaningless and an invitation to raise it without
+  asserting anything. It ran only the data tests until 2026-08-24, which
+  scored a module by what its OWN tests reached and so read 11 of 45 modules
+  5+ points low — `mutes.ts` at 0% against a real 81.5%.
   What it says today: `pure.ts` 98% statements / 96% branches and `deck.ts`
   / `groupPortrait.ts` at 100% — the honesty arithmetic is genuinely
   covered — against `deviceBind.ts`'s Apple/Google verification at 27%,

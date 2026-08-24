@@ -77,11 +77,11 @@ describe("the add-a-topic sheet", () => {
   });
 });
 
-// ── the Learn rows (D279) ────────────────────────────────────────────
+// ── the Learn rows (D282) ────────────────────────────────────────────
 //
 // Every field is followed on a fresh install now, which showed a reader
 // four times the bank — and made this sheet's Learn section the only place
-// the list can be narrowed again. `LEARN.unfollow` existed before D279 and
+// the list can be narrowed again. `LEARN.unfollow` existed before D282 and
 // nothing in the app called it, so the follow list was one-way and a
 // default of everything would have been a trap rather than a fix.
 describe("the topic sheet's Learn rows", () => {
@@ -151,7 +151,7 @@ describe("the topic list opens on request", () => {
     expectNoBoundary("add sheet, lifted clear of the tab bar");
   });
 
-  // D278 — the return value the profile's door reads, and the reason the
+  // D281 — the return value the profile's door reads, and the reason the
   // door stopped being a jump. `requestTopicSheet` answers whether the ask
   // was TAKEN, not whether anything was listening: a mounted feed consumes
   // it synchronously, so the one-shot is already spent when the call

@@ -184,7 +184,7 @@ for (const name of [...defined].sort()) {
   );
 }
 
-// ── 6. a publication whose consumers all import (D276) ──────────
+// ── 6. a publication whose consumers all import (D279) ──────────
 //
 // THE ONE RULE 5 CANNOT ASK, and the gap that shipped a D1 violation.
 //
@@ -266,7 +266,7 @@ for (const name of [...defined].sort()) {
       + "\n    consumer reaches it by ESM import instead — so the publication"
       + "\n    lands on a name nothing reads and the importers see whatever"
       + "\n    their own module last assigned. An imported binding cannot be"
-      + "\n    reassigned from outside its module (D276). Either give the"
+      + "\n    reassigned from outside its module (D279). Either give the"
       + "\n    publisher's value a named home the importers call, or delete"
       + "\n    the assignment if the export is already the whole wiring.",
     );
@@ -339,12 +339,11 @@ const COUPLING_BASELINE = {
   "src/v2/spec/profile-general.jsx": 13,
   "src/v2/spec/profile-overlay.jsx": 6,
   "src/v2/spec/relmap.jsx": 1,
-  "src/v2/spec/search-overlay.jsx": 5,
+  "src/v2/spec/search-overlay.jsx": 4,
   "src/v2/spec/segment-explorer.jsx": 1,
   "src/v2/spec/suggestions.jsx": 1,
   "src/v2/spec/test-definitions.js": 4,
   "src/v2/spec/vote-cuts.js": 1,
-  "src/v2/spec/world-feed-data.js": 4,
   "src/v2/spec/world-feed.jsx": 32,
 };
 

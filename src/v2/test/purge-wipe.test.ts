@@ -66,6 +66,10 @@ import { LEARN_CARDS } from "../spec/learn-data.js";
 // …and the suggestion store with the v24 board sync (D138's client half).
 // @ts-expect-error TS7016 — untyped spec module
 import { SUGGESTIONS } from "../spec/suggestions.js";
+// …and the subtopic store, by name since its window mirror went with the
+// module's move off the eager list.
+// @ts-expect-error TS7016 — untyped spec module
+import { SUBTOPICS } from "../spec/world-subtopics.js";
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- the spec layer's
    window surface is untyped by design; these tests drive it as consumers do */
@@ -185,12 +189,12 @@ describe("module stores drop their memory on the purge (D51)", () => {
   });
 
   it("SUBTOPICS: leaf follows return to the day-one default", () => {
-    W.SUBTOPICS.unfollow("sub_tennis");
-    expect(W.SUBTOPICS.has("sub_tennis")).toBe(false);
+    SUBTOPICS.unfollow("sub_tennis");
+    expect(SUBTOPICS.has("sub_tennis")).toBe(false);
     purge();
-    expect(W.SUBTOPICS.has("sub_tennis")).toBe(true); // default restored
+    expect(SUBTOPICS.has("sub_tennis")).toBe(true); // default restored
     expect(stored("insight.subtopics.v1")).toBeNull();
-    W.SUBTOPICS.follow("sub_football");
+    SUBTOPICS.follow("sub_football");
     expect(stored("insight.subtopics.v1")).toContain("sub_tennis"); // the unfollow did not survive
   });
 

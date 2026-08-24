@@ -10,9 +10,9 @@
 //                      resolvesAt, rubric, mode, branch, sub — twelve
 //                      fields promised by SCHEMA-V2.md, read by the
 //                      client, written by nothing, for two releases.
-//   D277 (2026-08-24)  bg — the background the feed's `i` opens. The
+//   D280 (2026-08-24)  bg — the background the feed's `i` opens. The
 //                      card would have kept showing the empty sheet.
-//   D280 (2026-08-24)  c, t, p, k, w — the learn card itself. This one
+//   D283 (2026-08-24)  c, t, p, k, w — the learn card itself. This one
 //                      was worse than dark: the client DROPS a learn card
 //                      with no `c` rather than guessing an answer key, so
 //                      Learn would have gone permanently empty on every
@@ -183,7 +183,7 @@ if (problems.length) {
   console.error("check:seed-fields FAILED — the seed's copies of the field list disagree:\n");
   for (const p of problems) console.error(`  ✗ ${p}`);
   console.error(
-    "\n  This has happened three times (D234, D277, D280) and the third would\n"
+    "\n  This has happened three times (D234, D280, D283) and the third would\n"
     + "  have emptied Learn on every live device. Add the field to each place\n"
     + "  named above; the emit-when-set idiom beside its neighbours is the\n"
     + "  whole change.",
