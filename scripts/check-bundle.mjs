@@ -682,7 +682,7 @@ const MAX_CHUNK_KB = 735;
 // entry above.
 //
 // 2404 → 2440 (2026-08-23): the Patterns tab remounts, on the data rather
-// than on a flag (D255). D217 unmounted it for the v1 release and the
+// than on a flag (D265). D217 unmounted it for the v1 release and the
 // entry above is the raise that admitted it in the first place, so this
 // is the same 42 KB coming back. MEASURED against a clean HEAD build (git
 // worktree, same command), 2374 → 2416 across 103 → 105 chunks, and the
@@ -792,7 +792,7 @@ const MAX_EAGER_KB = 880;
 // is deliberately small — these are not numbers that should drift upward
 // unnoticed, which is the whole reason they now have a gate.
 //
-// ── AND THEN ONE NUMBER WAS DOING TWO JOBS (D255) ────────────────────
+// ── AND THEN ONE NUMBER WAS DOING TWO JOBS (D265) ────────────────────
 //
 // `cssKb` sums every .css in dist/assets, and the sentence above — "CSS is
 // render-blocking, so its bytes are on the critical path" — stopped being

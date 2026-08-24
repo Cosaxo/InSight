@@ -184,7 +184,7 @@ describe("idempotence and catch-up", () => {
   });
 });
 
-// ── the mount signal (D255) ───────────────────────────────────────────
+// ── the mount signal (D265) ───────────────────────────────────────────
 //
 // The publication half, which the injected store above deliberately
 // cannot see: `firestorePatternsStore` is what decides WHERE the numbers

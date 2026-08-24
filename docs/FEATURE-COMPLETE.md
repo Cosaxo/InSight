@@ -18,7 +18,7 @@ with a gate and no deadline.
 
 The Patterns engine is the largest single item, and D167 makes it a
 gate: the tab does not ship, in trial or otherwise, until the fold
-exists. Since D255 the tab holds itself to a stronger version of the same
+exists. Since D265 the tab holds itself to a stronger version of the same
 rule at runtime — it is not in the bar until the fold has published
 enough to draw.
 
@@ -217,7 +217,7 @@ refused the third.
    pair card fetches ONE exact 2×2 per selection (the plan's own
    singular phrasing; widening is one line if the trial earns it). §2,
    §11. **Unmounted for the v1 release (D217)** and **back on a data
-   gate (D255)** — `data/patternsReady.ts` decides whether the tab is in
+   gate (D265)** — `data/patternsReady.ts` decides whether the tab is in
    the bar at all, from what the fit has published and what the viewer
    has answered. The trial is resumed, not verdicted.
 5. ~~**The Map's parked branches**~~ — **done 2026-08-19 (D207,

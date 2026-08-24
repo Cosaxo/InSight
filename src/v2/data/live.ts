@@ -271,7 +271,7 @@ const state = {
   },
   // `patterns*` are written by the nightly fit rather than the seed
   // (functions/src/patterns.ts) — the crowd half of the Patterns tab's
-  // mount gate (D255), riding the meta read hydrate already pays.
+  // mount gate (D265), riding the meta read hydrate already pays.
   meta: { latestBuild: 0, minBuild: 0, updateUrl: "", patternsPool: 0, patternsBasis: 0 },
   stats: { bankSource: "none", aggsFetched: 0, answersFetched: 0, callOutcomesFetched: 0 },
   groups: [] as Array<Record<string, unknown> & { id: string }>,
@@ -965,7 +965,19 @@ async function hydrate(): Promise<void> {
   // advancing (a bug), and BOTH are reported rather than truncated
   // quietly.
   const BANK_MAX_PAGES = 100;
-  const BANK_SURFACES = ["daily", "feed", "test", "group", "duo", "learn"];
+  // EVERY surface splitBanks can return, and that is the invariant rather
+  // than a list to extend by habit — this constant decides what the bank
+  // IS, and a lane missing here is a lane whose questions do not exist as
+  // far as the live app is concerned. `pulse` and `call` were absent from
+  // the day this fetch was written: splitBanks routed both, the seed
+  // shipped both (5 + 3 documents), the rules admitted both, and neither
+  // ever reached a device — LIVE.pulseQs() and LIVE.callQs() returned []
+  // for every live user while the demo build drew them from its own
+  // fixtures, which is why nothing looked broken anywhere it was looked
+  // at. Pinned in bank-cache.test.ts, on the query as well as the output.
+  //
+  // Firestore's `in` takes up to 30 values, so the ceiling is not near.
+  const BANK_SURFACES = ["daily", "feed", "test", "group", "duo", "learn", "pulse", "call"];
   let all: BankEntry[] | null = null;
   // v2: the entry gained an `updatedAt` cursor. A v1 payload simply misses
   // and pays one full refetch, which is the correct upgrade cost.
@@ -3498,7 +3510,7 @@ const LIVE = {
       .map((q) => buildSPure(q, null, voteCtx(q.id), now));
   },
   /**
-   * What the Patterns tab's mount gate reads (D255) — the crowd's number
+   * What the Patterns tab's mount gate reads (D265) — the crowd's number
    * as the nightly fit published it, and the viewer's own answers among
    * the questions that fit folds.
    *
@@ -4391,6 +4403,16 @@ function resetForNewUid(uid: string): void {
   state.testAggsLoaded = false;
   state.circle = null;
   state.circleLoading = false;
+  // The follow cache is the same graph one view over, and it is dropped
+  // for the same reason `setFollowing` drops it before a refetch: a stale
+  // list is answered "yes, a friend" about strangers. It needs saying
+  // separately because `loadFollows` early-returns on a non-null cache
+  // (`if (state.follows) return`), so unlike most of the state above this
+  // one would not be corrected by the next load — it would stand for the
+  // whole session, putting the previous account's friends on the Friends
+  // cut of every who-voted sheet.
+  state.follows = null;
+  state.followsLoading = false;
   // A verdict is about the PREVIOUS account's reads, and the log is
   // keyed by slice rather than by uid, so leaving it would credit the
   // new account with someone else's record.

@@ -246,7 +246,7 @@ describe("module stores drop their memory on the purge (D51)", () => {
   });
 
   it("PATTERNS: the earned gate is forgotten, and not re-earned by the read", () => {
-    // The Patterns tab's mount gate (D255) remembers that this account
+    // The Patterns tab's mount gate (D265) remembers that this account
     // crossed the floor, so that retiring a question the viewer answered
     // cannot take the tab back off them. That memory is account state:
     // the next uid has to earn it. The second half is the resurrection

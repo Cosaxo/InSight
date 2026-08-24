@@ -1338,6 +1338,58 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
     fail("accepting the invitation did not add the member");
   }
   ok("accepting an invitation is still what adds the member");
+
+  // ── the two arrivals crossing ────────────────────────────────────────
+  //
+  // Both ways into a circle can be in flight for the same person at once,
+  // and the callables are not symmetric about it. requestJoinV2 knew:
+  // its admit() clears `pending` "whichever way they arrived", which
+  // covers invited-first-then-taps-the-link. The other order had nothing.
+  //
+  // inviteToGroupV2 skips a target who is already a MEMBER and says
+  // nothing about one who is already waiting — correctly, since inviting
+  // someone who asked is exactly how a member says yes from the picker
+  // instead of from the queue. So the ask survives the invitation, and if
+  // accept does not clear it the circle shows "wants to join" about
+  // somebody sitting in its own member list.
+  //
+  // It is not self-healing either: approveJoinV2 returns early on an
+  // existing member, so "Let in" cannot clear the row it is drawn on.
+  const xg = await httpsCallable(fns, "createGroupV2")({ name: "Both Doors" });
+  const xgid = xg.data.gid;
+  await httpsCallable(lateFns, "requestJoinV2")({ code: xg.data.inviteCode });
+  const asking = await adminDb.doc(`v2_groups/${xgid}`).get();
+  if (!(asking.get("pending") || []).includes(latecomer.user.uid)) {
+    fail("requestJoinV2 did not queue the asker");
+  }
+  await httpsCallable(fns, "inviteToGroupV2")({ gid: xgid, to: latecomer.user.uid });
+  await httpsCallable(lateFns, "acceptGroupInviteV2")({ gid: xgid });
+  const crossed = await adminDb.doc(`v2_groups/${xgid}`).get();
+  if (!(crossed.get("memberUids") || []).includes(latecomer.user.uid)) {
+    fail("accepting after asking did not add the member");
+  }
+  if ((crossed.get("pending") || []).includes(latecomer.user.uid)) {
+    fail("a member is still listed as wanting to join");
+  }
+  if ((crossed.get("pendingNames") || {})[latecomer.user.uid] !== undefined) {
+    fail("the asker's name is still in pendingNames after they joined");
+  }
+  ok("accepting an invitation clears the ask the same person already made");
+
+  // …and the same row, if one is already stuck, comes out on Let in
+  // rather than sitting there being re-notified. Written by hand because
+  // no callable can produce it any more.
+  await adminDb.doc(`v2_groups/${xgid}`).update({
+    pending: [latecomer.user.uid],
+    [`pendingNames.${latecomer.user.uid}`]: "Late",
+  });
+  await httpsCallable(fns, "approveJoinV2")({ gid: xgid, uid: latecomer.user.uid });
+  const healed = await adminDb.doc(`v2_groups/${xgid}`).get();
+  if ((healed.get("pending") || []).length) fail("Let in did not clear a stale queue row");
+  if ((healed.get("pendingNames") || {})[latecomer.user.uid] !== undefined) {
+    fail("Let in left the stale pendingNames entry");
+  }
+  ok("Let in clears a stale row instead of doing nothing to it");
 }
 
 console.log("\nALL E2E CHECKS PASSED");

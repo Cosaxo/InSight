@@ -394,12 +394,16 @@ v2_groups/{gid}/reveals/{day}      materialized by the reveal pipeline
   (pickUid — pick days only, D224: WHO the vote's optionIdx meant, in the
   roster order the answering client used; the index alone is remapped by
   any join/leave. Absent in reveals older than D224)
-  (members is the membership snapshot the read rule gates on — not the
-  parent group's current roster, which is what keeps the guarantee
-  retroactive: D5's amendment. It is the members who were in the group ON
-  `day`, not at reveal time; the two differ by up to one scan interval, and
-  the difference was a joiner reading the previous day — D55 §9)
-read: the reveal's own members · write: nobody (D5)
+  (members is the membership snapshot the read rule USED to gate on — not
+  the parent group's current roster, which is what kept the guarantee
+  retroactive: D5's amendment. D98 retired the gate, not the field: it is
+  still the members who were in the group ON `day` rather than at reveal
+  time — the two differ by up to one scan interval, and the difference was
+  a joiner reading the previous day, D55 §9 — and it is still what
+  `deleteAccount` scrubs and what the reveal's names are drawn against)
+read: any signed-in user (D98 — the votes inside are world answers'
+younger siblings, and this is their only public copy, since the sealed
+answers themselves stay owner-only) · write: nobody (D5)
 
 Sealed duel answers live in the same answers subcollection as everything
 else, under composite ids (g_{gid}_{day}) with extra fields
@@ -508,7 +512,7 @@ v2_meta/app                        operator/seed-written metadata
   updateUrl      store link the prompts open (web falls back to reload)
   patternsPool   questions the nightly fit has fitted on `patternsBasis`
                  answers or more — the crowd half of the Patterns tab's
-                 mount gate (D255). Written by fitPatternsV2, merged, and
+                 mount gate (D265). Written by fitPatternsV2, merged, and
                  the only field here the SWEEP owns (contentRev is the
                  seed's); it lives on this doc rather than on
                  v2_patterns/loadings so a client can read it without
@@ -557,7 +561,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 128 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 130 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

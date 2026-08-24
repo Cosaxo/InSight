@@ -161,7 +161,7 @@ export async function awaitText(re, max = 50) {
 /**
  * Drag the daily's card sideways past the commit threshold and release —
  * the gesture that walks the mode axis one stop, and off one of its ends
- * when the axis has no next stop that way (D255's near end is the
+ * when the axis has no next stop that way (D265's near end is the
  * Patterns tab; the far end is the Mirror).
  *
  * `dir` is the finger's direction: 1 drags right (one stop BACK, off the

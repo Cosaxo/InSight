@@ -45,7 +45,7 @@ export interface NavHandlers {
   /**
    * Any nav key from anywhere, including a cross-tab jump. Swipe uses it.
    *
-   * Answers whether it navigated (D255). A key can now be REFUSED by the
+   * Answers whether it navigated (D265). A key can now be REFUSED by the
    * shell rather than only by being unknown — the Patterns tab is absent
    * from the bar until the data can carry it — and a swipe that reached
    * for it has to spring back rather than sit where the finger left it.

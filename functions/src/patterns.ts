@@ -233,7 +233,7 @@ export function firestorePatternsStore(db: Firestore): PatternsStore {
         at: FieldValue.serverTimestamp(),
         q,
       });
-      // ── the mount signal (D255) ──────────────────────────────────
+      // ── the mount signal (D265) ──────────────────────────────────
       //
       // The Patterns tab is absent from the bar until the fit can carry
       // it, and the client decides that from ONE number: how many

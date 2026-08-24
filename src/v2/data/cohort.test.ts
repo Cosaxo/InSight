@@ -337,6 +337,28 @@ describe("standingIn — where you sit in the split", () => {
     expect(standingIn([12, 8], 1, "binary")).toEqual({ kind: "with", pct: 40 });
   });
 
+  it("agrees with the bar it is printed under, to the point", () => {
+    // The sentence sits directly beneath the row's own bar, and the bar is
+    // drawn from pctFor. Dividing locally is the mistake headlineFor's
+    // scale branch already carries a paragraph about ("the exact mistake
+    // the categorical branch's 62-not-63 case exists to prevent") — it was
+    // still here, one function over, under the same bar.
+    //
+    // [1,7]: pctFor floors to [12,87] and hands the odd point to the lower
+    // index on a tie, so the bar reads 87. Math.round(7/8*100) is 88.
+    expect(pctFor([1, 7])).toEqual([13, 87]);
+    expect(standingIn([1, 7], 1, "binary")).toEqual({ kind: "with", pct: 87 });
+
+    // Ordinal, same rule: a prefix of pctFor's shares rather than a share
+    // of the prefix. [3,4,5] with you on the last: the bar draws 25/33/42
+    // and "further along than" must say 58, not Math.round(7/12*100) = 58
+    // — equal here — so take a case where they differ: [1,1,4] at index 2
+    // draws [17,17,66] and the room below you is 34, not Math.round(2/6*
+    // 100) = 33.
+    expect(pctFor([1, 1, 4])).toEqual([17, 17, 66]);
+    expect(standingIn([1, 1, 4], 2, "rating")).toEqual({ kind: "below", pct: 34 });
+  });
+
   it("is null when you have not answered, or the room is empty", () => {
     expect(standingIn([12, 8], -1, "binary")).toBeNull();
     expect(standingIn([0, 0], 1, "binary")).toBeNull();

@@ -12,7 +12,7 @@ true.
 InSight ships v1 as a two-tab app (daily · mirror) **until the data can
 carry a third**: **patterns** is built, and it puts itself in the bar
 when the nightly fit has published enough to draw and you have answered
-enough to be drawn in it (D255 — see the patterns note below). Nobody
+enough to be drawn in it (D265 — see the patterns note below). Nobody
 flips a flag. The **daily** tab is where you
 answer: one blind question a day, a feed under it, and sealed
 group/1v1 duels revealed the next day. The feed is finite *today* and the
@@ -33,7 +33,7 @@ before changing anything on that tab. React 19 + TypeScript + Vite,
 Capacitor shells for iOS/Android, Firebase (anonymous-first auth,
 Firestore, Cloud Functions).
 
-**The patterns tab is MOUNTED ON THE DATA (D255, 2026-08-23).** Built and
+**The patterns tab is MOUNTED ON THE DATA (D265, 2026-08-23).** Built and
 shipped to main 2026-08-19 under D166 §1's trial, unmounted for the v1
 release at D217, and back — on a condition rather than on a flag. The
 gate is `src/v2/data/patternsReady.ts` and it is D196's shape one feature
@@ -51,7 +51,7 @@ is worse than one that arrives late. The purge is the only thing that
 closes the gate, and it has to — otherwise the next account inherits a
 tab it has not earned. It is not a
 privacy floor: nothing is withheld from anybody, only the TAB, until what
-it draws can be believed. The trial is still a trial; D255 resumes it
+it draws can be believed. The trial is still a trial; D265 resumes it
 rather than verdicting it. Three
 lenses over the loading vectors a nightly server fit publishes
 (`functions/src/patterns.ts` → `v2_patterns/loadings`): the **Map** places
@@ -71,7 +71,7 @@ where all of this lives — the `React.lazy` import site and the `TABS`
 entry in `app-shell.jsx`, plus the daily ruler's near-end exit, its one
 licensed external dependence (`daily-split.jsx`, which asks the shell
 rather than learning the condition: `NAV.goNav` answers whether it
-navigated, and a refusal springs the card back). D217 and D255 record the
+navigated, and a refusal springs the card back). D217 and D265 record the
 two directions between them; a silent change to either would be the
 failure D166 forbade. The plan was [`docs/VISION-V28.md`](docs/VISION-V28.md); the
 corpus is core only (D161), and which questions the fit folds is
@@ -237,7 +237,8 @@ Plus the non-test gates: `check:globals`, `check:labels`, `check:quality`
 pre-D98 privacy vocabulary, in copy a user reads — D116),
 `check:data-inventory` (every collection the rules reach is named in
 `docs/data-inventory.md`, which the store privacy label derives from —
-D130), `check:versions`,
+D130, plus D257's reader column held to the two read rules a script may
+read literally), `check:versions`,
 `check:bundle`, `check:deploy-targets`, `check:fn-runtime`,
 `check:appcheck`, and the
 catalogue drift gates `check:cities`, `check:pokedex`, `check:catalogs` —
@@ -288,7 +289,8 @@ an emergency rules fix.
   lists' name resolution). Near is presence-only since D111; the city
   cohort is the City stop's. Since D119 the row is the stop's TAB BAR
   rather than a strip under the answer rows, and **D136 reshaped it to
-  Answers · People · Compare · Explore · Scores**: the field left the row
+  Answers · People · Scores · Compare**, Explore at World alone (D152) and
+  Compare last of all (D184): the field left the row
   to draw ABOVE it always (D119 made it a tab, D135 made it the landing
   tab, D136 finished the move — the field is the sentence the Mirror
   exists to say, and a tab is something you can be looking away from),

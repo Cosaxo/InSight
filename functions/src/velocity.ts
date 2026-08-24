@@ -80,19 +80,36 @@ export function utcDayKey(ms: number): string {
 // (they feed member reveals, not aggregates — D29), so they are not in
 // the ceiling. Derived from the committed bank at cold start, the
 // POLITICAL_QIDS pattern: no Firestore read.
+// The criterion is "reaches the ledger", not a list to extend by habit:
+// onV2AnswerCreated diverts group/duo and folds everything else, so every
+// other surface writes a v2_agg_events row. `call` was missing — an
+// ordinary world answer in every respect, which is what isCallAnswer's
+// own comment in firestore.rules says ("isWorldAnswer plus ONE clause").
 export function isAggregateSurface(surface: string): boolean {
   return surface === "daily" || surface === "feed" || surface === "test" || surface === "learn"
-    || surface === "pulse";
+    || surface === "pulse" || surface === "call";
 }
 export const AGG_BANK_SIZE = V2_QUESTIONS.filter((q) => isAggregateSurface(q.surface)).length;
 
 // The pulse (D139) breaks "one entry per question, ever": a pulse answer
-// is one per question per DAY, so an honest uid can carry up to one
-// entry per pulse template per day the ledger's 90-day TTL retains.
-// The volume ceiling grows by exactly that allowance and no more.
+// is one per question per DAY, so an honest uid can carry up to one entry
+// per pulse template per day the window spans.
+//
+// PER DAY OF THE SCAN'S WINDOW, not of the ledger's retention. This
+// allowance was derived from the 90-day `expireAt` TTL, and the quantity
+// it is compared against is `fold.perUid.get(uid).length` — entries
+// inside the scan window, which `WINDOW_CAP_MS` caps at 72 hours. At the
+// current bank that made the ceiling 1026 against an honest maximum of
+// about 596: the detector's stated target is a dedup failure or forged
+// writes, which shows as roughly 2x a uid's real count, and 2x an
+// ordinary heavy day sat comfortably underneath. The signal was not
+// wrong, it was asleep.
+//
+// +1 because a 72-hour window can touch four calendar days.
 export const PULSE_BANK_SIZE = V2_QUESTIONS.filter((q) => q.surface === "pulse").length;
-const LEDGER_TTL_DAYS = 90; // v2_agg_events expireAt (functions/src/v2.ts, D28)
-export const VOLUME_CEILING = AGG_BANK_SIZE + PULSE_BANK_SIZE * LEDGER_TTL_DAYS;
+export const WINDOW_CAP_MS = 72 * 3600_000;
+export const WINDOW_MAX_DAYS = Math.ceil(WINDOW_CAP_MS / 86_400_000) + 1;
+export const VOLUME_CEILING = AGG_BANK_SIZE + PULSE_BANK_SIZE * WINDOW_MAX_DAYS;
 
 // Scripted cadence. A human answering the backlog reads each question,
 // and reading time varies question to question — the coefficient of
@@ -292,8 +309,9 @@ const STATE_PATH = "v2_velocity/state";
 // A missed run widens the next window instead of losing the day, capped
 // so a long outage cannot turn the catch-up scan into a 90-day read.
 // Days beyond the cap are simply never analysed — logged as the gap is,
-// not silently absorbed.
-const WINDOW_CAP_MS = 72 * 3600_000;
+// not silently absorbed. Declared with VOLUME_CEILING above, which is
+// derived from it: the ceiling has to describe the window it is compared
+// against, and it did not while the two lived 200 lines apart.
 const PAGE = 5000;
 // Warn lines carry uids (the runbook needs them) but cap the inline
 // list — a 500-account cluster is a finding, not a log payload.
@@ -364,7 +382,7 @@ export const ledgerVelocityScan = onSchedule(
       if (times.length > VOLUME_CEILING) {
         volumeFlags++;
         logger.warn(
-          `[velocity] impossible volume: uid=${uid} n=${times.length} exceeds the ceiling (${AGG_BANK_SIZE}-question bank + ${PULSE_BANK_SIZE} pulse × ${LEDGER_TTL_DAYS}d) — dedup failure or forged writes`,
+          `[velocity] impossible volume: uid=${uid} n=${times.length} exceeds the ceiling (${AGG_BANK_SIZE}-question bank + ${PULSE_BANK_SIZE} pulse × ${WINDOW_MAX_DAYS}d of window) — dedup failure or forged writes`,
           { metric: "velocity_flag", kind: "volume", uid, n: times.length },
         );
       }

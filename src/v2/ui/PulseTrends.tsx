@@ -105,7 +105,7 @@ export default function PulseTrends({ compact, pid, mapLink }: { compact?: boole
         const on = sid === scopeId;
         const label = PULSE.scope(id, sid).label;
         return (
-          <button key={sid} className="press" onClick={() => setScopeId(sid)} aria-pressed={on}
+          <button key={sid} className="press tap44" onClick={() => setScopeId(sid)} aria-pressed={on}
             style={{ flex: 1, minWidth: 0, height: 34, borderRadius: 999, cursor: "pointer", WebkitAppearance: "none", fontFamily: "var(--sans)", fontWeight: 700, fontSize: 13, letterSpacing: "-0.01em", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", border: "1px solid " + (on ? "var(--ink)" : "var(--rule)"), background: on ? "var(--ink)" : "var(--surface-2)", color: on ? "var(--surface)" : "var(--ink-2)" }}>
             {label}
           </button>

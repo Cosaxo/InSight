@@ -367,4 +367,36 @@ describe("question-bank cache", () => {
     expect(isDelta(0)).toBe(false);
     expect(readCache().questions.map((x: { id: string }) => x.id)).toEqual(["q_1", "q_2"]);
   });
+
+  // ── every surface splitBanks can return has to reach it ──────────────
+  //
+  // BANK_SURFACES is the one place that decides what the bank IS, and it
+  // is spelled twice — as the `in` constraint on the full fetch and as the
+  // client-side filter the delta path shares. splitBanks returns six
+  // lanes; the constant listed four of them plus the two duel surfaces,
+  // and `pulse` and `call` were simply absent, so LIVE.pulseQs() and
+  // LIVE.callQs() were empty for every live device while the demo build
+  // drew both from its own fixtures.
+  //
+  // Asserted on the QUERY as well as the output, for the same reason the
+  // delta cases are: a surface dropped by the server-side `in` and a
+  // surface dropped by the client-side filter look identical from the
+  // bank, and only one of them costs a read.
+  it("fetches every surface splitBanks can return, pulse and call included", async () => {
+    h.bankDocs = [
+      q("q_1", 1000),
+      q("pulse-pace", 1000, {
+        surface: "pulse", type: "pulse",
+        options: ["1", "2", "3", "4", "5"],
+      }),
+      q("call-c01", 1000, { surface: "call", type: "call" }),
+    ];
+    const LIVE = await bootLive();
+    const asked = (h.bankQueries[0].cons.find((c) => c.field === "surface")?.value || []) as string[];
+    for (const s of ["daily", "feed", "test", "group", "duo", "learn", "pulse", "call"]) {
+      expect(asked, `the bank query does not ask for ${s}`).toContain(s);
+    }
+    expect(LIVE.pulseQs().map((x) => x.id)).toEqual(["pulse-pace"]);
+    expect(LIVE.callQs().map((x) => x.id)).toEqual(["call-c01"]);
+  });
 });

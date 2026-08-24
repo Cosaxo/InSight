@@ -1,4 +1,4 @@
-// When the Patterns tab may be OFFERED (D255), and the numbers behind the
+// When the Patterns tab may be OFFERED (D265), and the numbers behind the
 // word "hidden".
 //
 // D217 took the tab out of the v1 release by unmounting it, and left the

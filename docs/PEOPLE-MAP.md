@@ -6,7 +6,7 @@
 `src/v2/ui/PatternsPeople.tsx`, and §0's one owner decision was taken by
 D214 with the owner's own standalone as the design
 (`design/standalone-2026-08-20/`). The tab it lives in was unmounted for
-the v1 release (D217) and returns on a data gate (D255), so this lens is
+the v1 release (D217) and returns on a data gate (D265), so this lens is
 reachable exactly when the fit can carry the tab — nothing in it changed
 for either. §6's plane switch and §7's
 whole-world map stay deferred with their arithmetic — those sections are

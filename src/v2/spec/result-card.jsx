@@ -6,7 +6,8 @@
 import React from 'react';
 import LIVE from '../data/live';
 import { ExplainBtn, ExplainSheet, EX_GLYPH } from './explain-sheet.jsx';
-import { RP_TESTS, RoseMini, TestRose } from './result-rose.jsx';
+import { RP_TESTS, TestRose } from './result-rose.jsx';
+import { TypeMark, TypeIndexSheet } from './type-marks.jsx';
 import { IS_DATA } from './sample-data.js';
 import { Av } from './primitives.jsx';
 import { IS_TESTS, IS_TEST_RESULTS } from './test-definitions.js';
@@ -87,7 +88,7 @@ function RarityField({ pct, label, color, title }) {
 // ── signature emblem — the type rendered as its own shape, tone-on-tone in the
 // test hue. Defining dims read darker; same-type friends orbit the rim.
 function SigEmblem({ testKey, sig, color, people, typeName }) {
-  const mark = typeName && window.TypeMark ? window.TypeMark : null;
+  const mark = typeName ? TypeMark : null;
   const cfg = RP_TESTS[testKey];
   const ids = cfg ? Object.keys(cfg.hues).filter(id => sig && sig[id] != null) : [];
   if (!cfg || !ids.length) return null;
@@ -308,7 +309,6 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
     return ppl.filter(p => map[p.id] === arch.list[you].name);
   })();
   const typeLine = arch ? arch.list[you].line : null;
-  const sigDims = (a) => R.dims.map(d => ({ id: d.id, label: d.id, value: a.sig[d.id] != null ? a.sig[d.id] : 50 }));
   // Passive coverage: how much of this test the feed has mapped so far.
   //
   // In live mode the fold's own numbers, not PASSIVE's. PASSIVE counts a
@@ -327,7 +327,7 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
   // the legend and the comparison marks inside it.
   const norm = testNorm(testKey);
   const hasAvg = Object.keys(norm.avg).length > 0;
-  const hero = TestRose ? <TestRose testKey={testKey} dims={R.dims} animate={true} /> : null;
+  const hero = <TestRose testKey={testKey} dims={R.dims} animate={true} />;
   const otherAxes = null;
   return (
     <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 14 }}>
@@ -372,19 +372,19 @@ export function ResultProfileCard({ testKey, archetype, tagline }) {
       </div>
       <div style={{ padding: '10px 16px 16px' }}>
         {hero}
-        {hero ? <div style={{ textAlign: 'center', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' }}>{cfg.bipolar ? 'petal length = how far from the middle you sit' : 'petal length = how strongly the trait shows'}</div> : null}
+        <div style={{ textAlign: 'center', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' }}>{cfg.bipolar ? 'petal length = how far from the middle you sit' : 'petal length = how strongly the trait shows'}</div>
         {arch ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, marginTop: 10, flexWrap: 'wrap' }}>
             {near.map(({ a, why, border }) => (
               <span key={a.name} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px 4px 5px', borderRadius: 999, background: border ? `color-mix(in oklch, ${cfg.banner} 8%, var(--surface))` : 'var(--surface)', border: `0.5px solid ${border ? `color-mix(in oklch, ${cfg.banner} 45%, var(--rule))` : 'var(--rule)'}`, fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>
-                {window.TypeMark ? <window.TypeMark testKey={testKey} name={a.name} size={20} /> : (RoseMini ? <RoseMini testKey={testKey} dims={sigDims(a)} size={18} /> : null)}{a.name}
+                <TypeMark testKey={testKey} name={a.name} size={20} />{a.name}
                 {why ? <span style={{ fontWeight: 500, color: 'var(--ink-3)' }}>if {why}</span> : null}
               </span>
             ))}
-            {window.TypeIndexSheet ? <button className="press" onClick={() => setTypesOpen(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 11px', borderRadius: 999, background: 'none', border: '0.5px solid var(--rule)', cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>All {arch.list.length} types <span aria-hidden="true">{'\u203A'}</span></button> : null}
+            <button className="press" onClick={() => setTypesOpen(true)} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 11px', borderRadius: 999, background: 'none', border: '0.5px solid var(--rule)', cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', WebkitAppearance: 'none' }}>All {arch.list.length} types <span aria-hidden="true">{'\u203A'}</span></button>
           </div>
         ) : null}
-        {typesOpen && window.TypeIndexSheet ? <window.TypeIndexSheet testKey={testKey} onClose={() => setTypesOpen(false)} /> : null}
+        {typesOpen ? <TypeIndexSheet testKey={testKey} onClose={() => setTypesOpen(false)} /> : null}
         {otherAxes ? (
           <div style={{ marginTop: 6, paddingTop: 14, borderTop: '0.5px solid var(--rule)' }}>
             <TensionSpine dims={otherAxes} poles={cfg.poles} hues={cfg.hues} avg={norm.avg} />

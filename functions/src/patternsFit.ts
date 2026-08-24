@@ -170,7 +170,7 @@ export function loadingCosine(a: readonly number[], b: readonly number[]): numbe
  * already refuses it on that basis (the Oracle's `nextAsk(minBasis)`, the
  * Map's own `n` on each node). What this number decides is narrower — how
  * many questions the fit will CLAIM to have fitted when the client asks
- * whether there is enough here to open a tab on (D255).
+ * whether there is enough here to open a tab on (D265).
  *
  * 8, the same figure the Oracle refuses to guess below, because it is the
  * same question one level up: a vector fitted on fewer answers than this
@@ -180,7 +180,7 @@ export const PATTERNS_MIN_BASIS = 8;
 
 /**
  * How many published questions carry that basis — the crowd half of the
- * Patterns tab's mount gate (D255), published onto `v2_meta/app` beside
+ * Patterns tab's mount gate (D265), published onto `v2_meta/app` beside
  * the floor it was counted at.
  *
  * The floor travels with the count on purpose. The client holds its own

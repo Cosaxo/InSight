@@ -1,4 +1,4 @@
-// The Patterns tab's mount gate (D255) — the numbers behind "hidden until
+// The Patterns tab's mount gate (D265) — the numbers behind "hidden until
 // there is enough data".
 //
 // The verdict is pure, so these are the cases that decide whether a tab

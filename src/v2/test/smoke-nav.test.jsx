@@ -91,7 +91,7 @@ describe("the tab bar says which tab you are on", () => {
     // promise arrow-key navigation the bar does not implement.
     //
     // Written against three tabs, and the bar is two or three depending on
-    // the data now (D255 — this suite mounts a demo build, so two): the
+    // the data now (D265 — this suite mounts a demo build, so two): the
     // assertion is "exactly one, and it follows", which is the property
     // that has to hold at any TABS length.
     const expectNoBoundary = mountApp();
@@ -114,7 +114,7 @@ describe("the tab bar says which tab you are on", () => {
   });
 });
 
-// ── the patterns tab below its gate (D255) ────────────────────────────
+// ── the patterns tab below its gate (D265) ────────────────────────────
 //
 // The tab is absent from the bar until the nightly fit has published
 // enough to draw and the viewer has answered enough to be drawn in it
@@ -127,7 +127,7 @@ describe("the tab bar says which tab you are on", () => {
 // and the nav key is refused QUIETLY — a stale caller (a remembered
 // gesture, an old build's deep link) must land nowhere, not on a
 // boundary, and not on a tab with no button in the bar.
-describe("the patterns tab below its gate (D255)", () => {
+describe("the patterns tab below its gate (D265)", () => {
   it("the tab bar carries two tabs and no patterns button", () => {
     const expectNoBoundary = mountApp();
     expect(screen.queryByRole("button", { name: /^patterns$/i })).toBeNull();

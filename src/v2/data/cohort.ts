@@ -309,15 +309,28 @@ export function standingIn(
 ): Standing | null {
   const n = counts.reduce((a, b) => a + b, 0);
   if (!n || mine < 0 || mine >= counts.length) return null;
-  const share = (c: number) => Math.round((c / n) * 100);
+  // Read off pctFor rather than divided here, which is the same correction
+  // headlineFor's scale branch carries above: this sentence is printed
+  // directly UNDER the row's bar, and the bar is pctFor. Dividing locally
+  // reproduces the exact drift that branch describes — `[1,7]` draws a bar
+  // of 87 and `Math.round(7/8*100)` says 88, one screen line apart.
+  //
+  // pctFor's shares sum to exactly 100, so a share, a prefix or a suffix
+  // of them is the right number by construction, largest-remainder
+  // rounding included.
+  const pct = pctFor(counts);
   if (type === "rating" || type === "scale") {
+    // WHICH SIDE is still decided on the raw counts. The shares can tie
+    // where the counts do not (and the reverse), and "the bigger of the
+    // two" is a claim about the room rather than about the bar.
     const below = counts.slice(0, mine).reduce((a, b) => a + b, 0);
     const above = counts.slice(mine + 1).reduce((a, b) => a + b, 0);
+    const sum = (xs: number[]) => xs.reduce((a, b) => a + b, 0);
     return below >= above
-      ? { kind: "below", pct: share(below) }
-      : { kind: "above", pct: share(above) };
+      ? { kind: "below", pct: sum(pct.slice(0, mine)) }
+      : { kind: "above", pct: sum(pct.slice(mine + 1)) };
   }
-  return { kind: "with", pct: share(counts[mine]) };
+  return { kind: "with", pct: pct[mine] };
 }
 
 export interface Typicality {
