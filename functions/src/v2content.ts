@@ -11904,6 +11904,176 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "learn-gene9",
+  "surface": "learn",
+  "seq": 136,
+  "type": "choice",
+  "domain": null,
+  "prompt": "How different is your DNA from a stranger's?",
+  "options": [
+   "About 5%",
+   "About 0.1%",
+   "About 1%",
+   "About 10%"
+  ],
+  "topic": "gene",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-gene10",
+  "surface": "learn",
+  "seq": 137,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The first mammal cloned from an adult cell was a…",
+  "options": [
+   "Mouse",
+   "Sheep",
+   "Cat",
+   "Monkey"
+  ],
+  "topic": "gene",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-gene11",
+  "surface": "learn",
+  "seq": 138,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Roughly how many protein-coding genes do you have?",
+  "options": [
+   "20,000",
+   "100,000",
+   "1 million",
+   "3 billion"
+  ],
+  "topic": "gene",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-gene12",
+  "surface": "learn",
+  "seq": 139,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Mitochondrial DNA is inherited from…",
+  "options": [
+   "Your mother",
+   "Your father",
+   "Both parents",
+   "A random parent"
+  ],
+  "topic": "gene",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-gene13",
+  "surface": "learn",
+  "seq": 140,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A baby's chromosomal sex is settled by…",
+  "options": [
+   "The mother's egg",
+   "Either cell equally",
+   "The father's sperm",
+   "Nothing until after conception"
+  ],
+  "topic": "gene",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-org9",
+  "surface": "learn",
+  "seq": 141,
+  "type": "choice",
+  "domain": null,
+  "prompt": "“Ketchup” most likely began as a…",
+  "options": [
+   "Tomato jam",
+   "Fish sauce",
+   "Berry paste",
+   "Meat glaze"
+  ],
+  "topic": "origins",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-org10",
+  "surface": "learn",
+  "seq": 142,
+  "type": "choice",
+  "domain": null,
+  "prompt": "“Trivia” comes from the Latin for…",
+  "options": [
+   "Idle talk",
+   "Small things",
+   "Three roads",
+   "Riddles"
+  ],
+  "topic": "origins",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-org11",
+  "surface": "learn",
+  "seq": 143,
+  "type": "choice",
+  "domain": null,
+  "prompt": "A “clue” was originally a…",
+  "options": [
+   "Whisper",
+   "Footprint",
+   "Key",
+   "Ball of thread"
+  ],
+  "topic": "origins",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-org12",
+  "surface": "learn",
+  "seq": 144,
+  "type": "choice",
+  "domain": null,
+  "prompt": "“Disaster” literally means a bad…",
+  "options": [
+   "Storm",
+   "Star",
+   "Day",
+   "Omen"
+  ],
+  "topic": "origins",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "learn-org13",
+  "surface": "learn",
+  "seq": 145,
+  "type": "choice",
+  "domain": null,
+  "prompt": "“Denim” is named after a city in…",
+  "options": [
+   "Italy",
+   "France",
+   "America",
+   "India"
+  ],
+  "topic": "origins",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "pulse-pace",
   "surface": "pulse",
   "seq": 0,
