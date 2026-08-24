@@ -260,24 +260,38 @@ figure-in-prose shape that goes stale (D39), so the override is committed
 as `scripts/cost-scale.mjs` and the numbers above are its output at
 2026-08-15. No figure in prose outranks the script beside it.
 
-**What trips first is pagination, and it is close.** `live.ts` fetches
-the bank in one unpaginated query bounded by `BANK_LIMIT`;
-`scripts/question-quality.mjs` warns at `BANK_WARN` and then fails, with
-the rule recorded at the call site: **approach it with pagination, never
-another raise.** The reason there is a ceiling at all is specific and
-worth restating, because it reads like an arbitrary limit and is not — a
-query that hits its limit returns a short page and **no error**, so an
-over-sized bank serves users a truncated corpus with nothing failing
-anywhere.
+**What tripped first was pagination, and it is done** (D161, runbook step
+1.1, 2026-08-15). `live.ts` used to fetch the bank in one unpaginated
+query bounded by `BANK_LIMIT = 1500`, and the reason that was a ceiling
+rather than an arbitrary limit is worth keeping: a query that hits its
+limit returns a short page and **no error**, so an over-sized bank served
+a truncated corpus with nothing failing anywhere. `BANK_PAGE = 1000` is a
+page size now, `BANK_MAX_PAGES` bounds the loop, and tripping it reports
+rather than truncating. `bank-cache.test.ts` asserts completeness.
 
-The work is smaller than it looks: the *delta* path already pages against
-an `updatedAt` cursor and already refuses to serve a truncated result
-("a delta that fills the page is not a delta"). Only the cold-start full
-fetch needs paging.
+**What trips next is the localStorage bank cache, and it is silent in the
+same way.** `question-quality.mjs`'s `BANK_WARN`/`BANK_FAIL` were
+re-pointed at that budget when pagination landed, and they are stated in
+MB for it: **6,000 docs ≈ 1.6 MB, 10,000 ≈ 2.7 MB**, against a ~5 MB
+origin quota shared with ~29 other `insight.*` keys. The failure mode is
+the one this whole section is about — `live.ts` caches the whole bank in
+`insight.bankCache.v2` and **swallows a quota failure**, so crossing the
+budget breaks nothing visibly: it stops caching, and every boot pays a
+full bank fetch forever, with no symptom anywhere.
 
-**Order: paginate before accelerating.** At an order-of-magnitude
-increase the current headroom is weeks, not the year the constant was
-sized for.
+That is also the line at which §2's own cost table stops being true. The
+identical rows above hold *because* the bank is a one-time install cost
+absorbed by that cache; lose it and bank size starts billing per boot per
+user, which is precisely the regression the table says to watch for.
+
+**The remedy is named at the call site: move the cache to IndexedDB
+before promoting past the budget.** It is a smaller piece of work than
+§1's core/tail split and unrelated to it — this one is about what a
+device can hold, that one about what a cohort reading may honestly fold.
+
+**Order: watch the cache budget before accelerating.** At today's 671
+docs the headroom is ~5,300 more questions; at a hundred a day that is
+about two months, and at the lanes' current combined pace it is years.
 
 **Point volume at the surface that can retire.** Feed questions carry
 `active: false` (D52's shape, honoured by `deck.ts`; six duplicates
