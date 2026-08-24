@@ -19,7 +19,7 @@
 // The rules layer is for client traffic; functions can do anything.
 
 import { initializeApp } from "firebase-admin/app";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldPath, FieldValue } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { getStorage } from "firebase-admin/storage";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
@@ -438,6 +438,25 @@ export const deleteAccount = onCall(
           let batch = db.batch();
           let ops = 0;
           for (const r of page.docs) {
+            // Whole documents are already in hand (this is a `.get()` page,
+            // not a stream of refs), so ask each one whether it mentions
+            // this user before spending a write on it. A group's reveals
+            // run from the day it was created: every day before the user
+            // joined, and every day they did not play, carried none of the
+            // three fields below and bought a write that deleted nothing —
+            // out of the ~7,300 documents the comment above prices for a
+            // year-old account in 20 groups. The check costs no read.
+            //
+            // It also stops arrayRemove from CREATING `members: []` on a
+            // reveal that never had the field, which the unconditional
+            // update did on every such document.
+            //
+            // Nothing is left behind by skipping: a field the snapshot does
+            // not carry is a field this update could not have deleted.
+            const hasVote = r.get(new FieldPath("votes", uid)) !== undefined;
+            const hasName = r.get(new FieldPath("names", uid)) !== undefined;
+            const inMembers = Array.isArray(r.get("members")) && (r.get("members") as string[]).includes(uid);
+            if (!hasVote && !hasName && !inMembers) continue;
             batch.update(r.ref, {
               [`votes.${uid}`]: FieldValue.delete(),
               [`names.${uid}`]: FieldValue.delete(),

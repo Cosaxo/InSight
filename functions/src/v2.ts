@@ -641,14 +641,17 @@ export const onV2AnswerCreated = onDocumentCreated(
       const pubRef = db.collection("v2_question_aggs").doc(qid);
       const qRef = db.collection("v2_questions").doc(qid);
       await runAggTransaction(db, qid, async (tx) => {
-        const seen = await tx.get(eventRef);
-        if (seen.exists) return;
+        // Batched for the same reason as the vote path below: three
+        // sequential round trips inside the transaction is three times the
+        // lock window on the contended per-qid document.
+        //
         // The question's domain decides which key space validates this
         // entity — the trigger's only question-doc read, catalog answers
         // only. A missing or unknown domain never aggregates: with three
         // key spaces (a contiguous range and two sparse QID sets, D15)
         // there is no honest global fallback bound.
-        const qDoc = await tx.get(qRef);
+        const [seen, qDoc, priv] = await tx.getAll(eventRef, qRef, privRef);
+        if (seen.exists) return;
         const spec = CATALOG_DOMAINS[qDoc.get("domain") as string];
         if (!spec) {
           logger.warn(`[v2] catalog answer ${event.params.uid}/${qid} on a question with no known domain`);
@@ -659,7 +662,6 @@ export const onV2AnswerCreated = onDocumentCreated(
           logger.warn(`[v2] answer ${event.params.uid}/${qid} has no usable entity key`);
           return; // an unknown key never aggregates; the owner's doc stays, harmless
         }
-        const priv = await tx.get(privRef);
         const ent: CanonCounts =
           (priv.exists && (priv.get("ent") as CanonCounts)) || {};
         ent[key] = (ent[key] || 0) + 1;
@@ -719,20 +721,22 @@ export const onV2AnswerCreated = onDocumentCreated(
       const pubRef = db.collection("v2_question_aggs").doc(qid);
       const qRef = db.collection("v2_questions").doc(qid);
       await runAggTransaction(db, qid, async (tx) => {
-        const seen = await tx.get(eventRef);
-        if (seen.exists) return;
+        // Batched for the same reason as the vote path below: three
+        // sequential round trips inside the transaction is three times the
+        // lock window on the contended per-qid document.
+        //
         // The item count decides the only valid order length — the
         // trigger's one question-doc read, the catalog branch's pattern.
         // Rules already bound the size; the elements (a permutation of
         // 0..n-1, no duplicates) can only be checked here.
-        const qDoc = await tx.get(qRef);
+        const [seen, qDoc, priv] = await tx.getAll(eventRef, qRef, privRef);
+        if (seen.exists) return;
         const n = ((qDoc.get("options") as unknown[] | undefined) || []).length;
         const order = validRankOrder(snap.get("order"), n);
         if (order === null) {
           logger.warn(`[v2] answer ${event.params.uid}/${qid} has no usable order`);
           return; // an invalid permutation never aggregates; the doc stays, harmless
         }
-        const priv = await tx.get(privRef);
         const stored = priv.exists ? (priv.get("pos") as number[] | undefined) : undefined;
         // Re-derive from zero when the stored array is absent or the wrong
         // length (a bank doc whose options were never allowed to change —
@@ -759,11 +763,23 @@ export const onV2AnswerCreated = onDocumentCreated(
     const privRef = db.collection("v2_aggs_private").doc(qid);
     const pubRef = db.collection("v2_question_aggs").doc(qid);
     await runAggTransaction(db, qid, async (tx) => {
+      // ONE batched read, not two sequential ones. Each `tx.get` is its own
+      // round trip, and these sit INSIDE the transaction — so a second one
+      // lengthens the lock window on `v2_aggs_private/{qid}`, the single
+      // qid-keyed document D7's ~1-write/sec ceiling is about and the
+      // reason `runAggTransaction` counts attempts at all. This is the
+      // hottest function in the system (one invocation per answer); the
+      // neighbours already batch this way (v2social.ts's reveal and duel
+      // aggregate both use `tx.getAll`).
+      //
+      // The cost is one extra billed read on a redelivered event, which now
+      // fetches privRef before returning. That is the rare path, against one
+      // fewer serialized round trip on every ordinary answer.
+      //
       // Idempotency: Eventarc is at-least-once and retry is on — the
       // ledger makes redelivery a no-op instead of a double count.
-      const seen = await tx.get(eventRef);
+      const [seen, priv] = await tx.getAll(eventRef, privRef);
       if (seen.exists) return;
-      const priv = await tx.get(privRef);
       const counts: Record<string, number> =
         (priv.exists && (priv.get("counts") as Record<string, number>)) || {};
       counts[String(optionIdx)] = (counts[String(optionIdx)] || 0) + 1;
@@ -851,9 +867,9 @@ export const onV2AnswerUpdated = onDocumentUpdated(
     const privRef = db.collection("v2_aggs_private").doc(qid);
     const pubRef = db.collection("v2_question_aggs").doc(qid);
     await runAggTransaction(db, qid, async (tx) => {
-      const seen = await tx.get(eventRef);
+      // Batched, same as the create path above.
+      const [seen, priv] = await tx.getAll(eventRef, privRef);
       if (seen.exists) return;
-      const priv = await tx.get(privRef);
       const counts: Record<string, number> =
         (priv.exists && (priv.get("counts") as Record<string, number>)) || {};
       if (!retargetCounts(counts, fromIdx, toIdx)) {
