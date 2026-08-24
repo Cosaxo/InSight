@@ -1408,6 +1408,30 @@ That is a tester-count problem, not a workflow problem.
       Mirror keep working, because they read Firestore directly and never
       go through a callable.
 
+- [ ] **5.10 Dry-run the replay tool once, on a question with real
+      answers.** D275 shipped `rebuildAggregateV2` and its unit tests, but
+      the callable has never run against production data — there was none
+      when it was written. Its first execution should not be during an
+      incident, which is the only other time anyone reaches for it.
+
+      ```bash
+      npm run rebuild:agg -- --qid <a daily with answers>
+      ```
+
+      Dry by default; nothing is written without `--apply`. **The expected
+      output is `drift: none`** — the published aggregate already matches
+      the answers. Anything else is a real finding, not a tool bug, and it
+      is worth understanding before the numbers are ever quoted: it means
+      the trigger and the answers disagree, which the incremental fold has
+      no other way of telling anyone.
+
+      Needs the same credentials as the seed (`FIREBASE_SERVICE_ACCOUNT`,
+      `SEED_ADMIN_UIDS`, `VITE_FIREBASE_API_KEY`) — see
+      `scripts/operator-call.mjs`. The composite index the scan orders by
+      ships in `firestore.indexes.json`, so it needs a `--only firestore`
+      deploy to exist; a missing index fails the call with a console link
+      rather than a wrong answer.
+
 ## Phase 6 — Submit
 
 - [ ] **6.1 Pre-flight, before every archive and every upload:**

@@ -200,6 +200,18 @@ v2_question_aggs/{qid}             the PUBLIC mirror, EXACT (D98)
                                    answer branches carry it through their
                                    whole-doc rewrites (v2.ts), and the
                                    e2e's 7f step is what proves the carry
+  ── rebuildable (D275) ──         `counts`, `total` and `by` are a
+                                   PROJECTION of the answers and can be
+                                   rebuilt from them at any age by
+                                   `npm run rebuild:agg`, which is what
+                                   makes D28's correction runbook work
+                                   past the ledger's 90 days. `edits`
+                                   cannot be — an edited answer records
+                                   where it landed, never where it came
+                                   from — so a rebuild carries the stored
+                                   matrix forward. The catalog and rank
+                                   shapes below are refused by the tool
+                                   rather than folded wrongly
   { total,                         catalog questions: the canon — the top
     top {entity:n}, rest,          CANON_TOP_N entities, everything else
     by { dim: { bucket:            summed into `rest`. `canonTopN` is a

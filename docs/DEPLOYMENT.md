@@ -461,12 +461,20 @@ redelivered events are no-ops rather than double counts.
 Fake-account prevention is deliberately partial — App Check prices
 accounts, and since D98 nothing hides a small distortion — D28
 records why no mechanism can make it complete. What the system guarantees
-instead is that the published numbers stay **correctable**: answers are
-immutable (D5), exact counts live server-side in `v2_aggs_private`, and
-every counted answer leaves a `v2_agg_events` entry `{ qid, uid, at }`
-for `LEDGER_RETENTION_DAYS` (90). This runbook is the procedure that
-cashes that guarantee in. Write nothing here during an incident that this
-section didn't already say while the system was calm.
+instead is that the published numbers stay **correctable**, and since D275
+the thing that guarantee rests on is the **answers**, not the ledger:
+`v2_users/{uid}/answers/{qid}` is append-only (D5/D86), carries the
+anchors snapshot the fold slices by (D8), and is collection-group indexed
+on `qid`. Every aggregate is a projection of it and can be rebuilt.
+
+`v2_agg_events` still matters for *finding* a ring — it is what the
+velocity scan reads — but it is no longer what repairs one. It carries no
+anchors and expires at `LEDGER_RETENTION_DAYS` (90), so the procedure that
+read it could only ever repair `counts` and `total`, only for 90 days, and
+could not repair a `by` breakdown at all.
+
+Write nothing here during an incident that this section didn't already say
+while the system was calm.
 
 **What this runbook does NOT do is find the ring.** Identification is
 investigative — Auth creation-time clusters, App Check token metadata in
@@ -478,45 +486,76 @@ INPUT, not a verdict — honest crowds trip the same signals on their best
 days. What is guaranteed is mechanical once you HAVE a uid list:
 attribution, subtraction, republication, in that order.
 
-1. **Correct before you delete.** The ring's answer docs
-   (`v2_users/{uid}/answers/{qid}`) hold the option each fake picked and
-   the anchors it claimed; the ledger holds which (uid, qid) pairs were
-   actually counted. Deleting the accounts first destroys both. Ban ≠
-   erase: disable the Auth users if you need the ring stopped while you
-   work.
-2. **Attribute.** For each uid: `v2_agg_events where uid == X` → the
-   (qid, at) pairs that reached the counts. Use the ledger, not the
-   answer docs alone — an answer whose trigger never completed was never
-   counted, and subtracting it would corrupt the tally in the other
-   direction.
-3. **Subtract, in a transaction per qid.** In `v2_aggs_private/{qid}`:
-   decrement `counts[optionIdx]` (or `ent[entity]`) and `total` per
-   attributed answer, and the `by`/`entBy` cells for the anchors on that
-   answer doc — the snapshot-at-vote-time rule (D8) is what makes this
-   subtraction exact rather than approximate. If the uid's ledger
-   entries show more than one `optionIdx` for a qid, the extras are D86
-   edits: each consecutive pair (ordered by `at`) is one cell of the
-   `edits` matrix (D226) — decrement `edits[from][to]` per pair, so the
-   ring's second thoughts leave with its votes.
-4. **Republish through the same floors.** Rewrite
-   `v2_question_aggs/{qid}` from the corrected private doc exactly as the
-   trigger would: `{ counts, total, by }` plus `edits` when the
-   corrected private doc still holds one (D226 — emit-when-set, like the
-   trigger), exact and whole — since D98
-   there is no floor, no `tooSmall` and no suppression to reproduce.
-   A hand-written public doc that
-   skips the floors is a worse incident than the one being corrected.
-5. **Then delete the accounts** (admin SDK), which removes their answer
-   docs and — via the uid sweep — their ledger entries.
+1. **Correct before you delete.** The ring's answer docs hold the option
+   each fake picked and the anchors it claimed — the input the repair
+   reads. Deleting the accounts first destroys it. Ban ≠ erase: disable
+   the Auth users if you need the ring stopped while you work.
+2. **Dry-run the rebuild, per affected qid.** This is the whole repair
+   for a vote question:
 
-Bounds, so nobody discovers them mid-incident: entries older than 90 days
-have expired, so a ring dormant longer than the window is subtractable
-only for its last 90 days of activity. An account erased via
-`deleteAccount` took its attribution with it — right-to-erasure wins over
-forensics by design (D28 records the trade). No correction script ships
-in this repo: the first real incident should shape one against its actual
-form, not inherit an untested one; what must not be improvised is the
-order of operations above.
+   ```bash
+   npm run rebuild:agg -- --qid <qid> --exclude uidA,uidB,uidC
+   ```
+
+   It rebuilds `{ counts, total, by }` from every remaining answer and
+   prints the drift against what is published. Nothing is written.
+   **Read the drift before applying it**: it should be roughly the ring's
+   contribution, and a number far larger means either the uid list is
+   wrong or something else has been wrong for a while.
+3. **Apply**, once the drift reads the way the investigation predicts:
+
+   ```bash
+   npm run rebuild:agg -- --qid <qid> --exclude uidA,uidB,uidC --apply
+   ```
+
+   Both aggregate documents are rewritten together, exact and whole —
+   since D98 there is no floor, no `tooSmall` and no suppression to
+   reproduce.
+4. **Then delete the accounts** (admin SDK), which removes their answer
+   docs and — via the uid sweep — their ledger entries. After that a
+   plain `--qid` rebuild with no `--exclude` produces the same numbers,
+   because the answers are gone; the exclusion exists so the repair can
+   happen *before* the deletion, while the evidence is still readable.
+
+**Two things the rebuild does better than subtraction, worth knowing
+before you trust it.** The old procedure subtracted attributed answers
+from the stored total, which preserves any drift already there — an
+answer whose trigger never completed stayed uncounted forever. A rebuild
+makes the aggregate agree with the answers, so that drift is repaired in
+the same pass, and the report's `drift` field is where it shows up. And
+because it reads answers rather than the ledger, **the 90-day bound is
+gone**: a ring dormant for a year is still fully subtractable.
+
+**What the tool does NOT rebuild**, so the hand procedure below is still
+the path for those: **catalog** answers (`entity`, D14 — the canon
+`ent`/`entBy` fold) and **rank** answers (`order`, D233 — position sums).
+Both are refused by name rather than folded into a shape they do not
+have. For those, subtract by hand in a transaction per qid: decrement
+`ent[entity]` and `total` per attributed answer plus the `entBy` cells
+for that answer's anchors, then rewrite `v2_question_aggs/{qid}` from the
+corrected private doc exactly as the trigger would.
+
+**`edits` is never rebuilt, on any path** (D226/D275). An edited answer
+records where it landed, never where it came from, so the matrix is not
+derivable from the answers; the rebuild carries the stored one forward
+unchanged and says so in its output. To strip a ring's second thoughts
+from it, decrement `edits[from][to]` by hand — each consecutive pair of
+`optionIdx` values in that uid's ledger entries, ordered by `at`, is one
+cell — and that half still expires with the ledger at 90 days.
+
+**One bound that has not moved:** an account erased via `deleteAccount`
+took its attribution with it — right-to-erasure wins over forensics by
+design (D28 records the trade). Its answers are gone too, so a rebuild
+simply reports the world without it, which is the correct end state and
+not a recoverable one.
+
+**A saturated breakdown is the one case where a rebuild is not exact.**
+If the report names any `cappedDims`, that dimension was at
+`BREAKDOWN_MAX_BUCKETS` and the fold there is order-dependent (D275) —
+the rebuilt breakdown is *a* correct fold of the remaining answers rather
+than necessarily the one that was published. `counts` and `total` are
+exact regardless. Say so in the incident note rather than presenting the
+whole document as reconstructed.
 
 ### Reading the velocity scan (D54)
 
