@@ -124,6 +124,7 @@ import { passiveResult, passiveTest } from "./passiveProfile";
 import { IS_TESTS } from "../spec/test-definitions.js";
 import {
   CORE_TEST_KINDS,
+  pickKindredQids,
   voteIndices,
   type KindredPerson,
   type ParsedResults,
@@ -134,7 +135,7 @@ import {
 } from "./avatar";
 // Pure folds over the published breakdown, and the likeness metric behind
 // Kindred. No Firebase in there — this module supplies the documents.
-import { agreement, type Agreement } from "./cohort";
+import { agreement, divisiveness, type Agreement } from "./cohort";
 // The follow graph (D101), TYPE-ONLY at module scope and imported for
 // real inside the two methods that use it.
 //
@@ -408,6 +409,30 @@ let adsInflight: Promise<void> | null = null;
  * are mine.
  */
 const AD_POOL_CAP = 200;
+
+/**
+ * How divisive a question the viewer answered turned out to be, 0..1, or
+ * -1 when this device holds no published counts for it (D275 §2).
+ *
+ * The selection key for loadKindred's twelve. -1 rather than 0 for the
+ * unknown case so a question with real counts always outranks one with
+ * none, while a brand-new account — which has answered questions whose
+ * aggregates have not landed yet — still gets a full twelve rather than an
+ * empty pool. `divisiveness` normalises by option count (cohort.ts), so a
+ * 2-option daily and a 5-option scale item are comparable.
+ */
+function divisivenessOf(qid: string): number {
+  const counts = state.aggs[qid]?.counts;
+  if (!counts) return -1;
+  const dense: number[] = [];
+  for (let i = 0; i < 20; i++) {
+    const c = counts[String(i)];
+    if (typeof c !== "number") break;
+    dense.push(c);
+  }
+  if (dense.length < 2) return -1;
+  return divisiveness(dense);
+}
 
 // How many of the viewer's own answers the Kindred ranking reads across.
 // Twelve shared questions is a legible likeness claim and the cost is
@@ -2857,18 +2882,51 @@ const LIVE = {
   // question whose sheet has been opened costs nothing here, and the
   // names are resolved once into the shared cache for both surfaces.
   //
-  // Bounded at KINDRED_QUESTIONS of the viewer's OWN most recent answers.
-  // Likeness over 12 shared questions is already a legible claim, and the
-  // cost is linear in that number — an unbounded version would fan out
-  // over every question the account has ever answered, on a screen the
-  // user may open casually.
+  // Bounded at KINDRED_QUESTIONS of the viewer's own answers, CHOSEN
+  // rather than inherited (D275 §2). The bound itself is the affordable
+  // part and is not what changed: likeness over 12 shared questions is a
+  // legible claim, and an unbounded version would fan out over every
+  // question the account has ever answered, on a screen opened casually.
+  //
+  // WHICH TWELVE was the bug. This read
+  //
+  //     Object.keys(state.votes).filter(…).slice(0, KINDRED_QUESTIONS)
+  //
+  // under a comment claiming "the viewer's OWN most recent answers", and
+  // D112 recorded the pool as recency-biased on the same belief. Neither
+  // was true: Object.keys is insertion order, hydrate assigns the
+  // persisted cache FIRST (the answers-cache block above), the warm delta
+  // query carries an inequality with no orderBy, and new votes append at
+  // the tail — and re-assigning a key that already exists does not move
+  // it. So the twelve froze at whatever the first cold boot happened to
+  // put first and never moved again, and the two boot paths disagree, so
+  // the same account ranked strangers differently on a second device.
+  //
+  // Recency is not the replacement either, and cannot be: the vote map
+  // carries no timestamps. peopleMap.ts:124-130 already reached this
+  // conclusion for the sibling surface — "Recency would match Kindred's
+  // choice but the client vote map carries no timestamps" — while this
+  // file's comment claimed the recency it could not have.
+  //
+  // DIVISIVENESS is the honest choice and a better one than recency ever
+  // was. Agreeing on a question 95% of people answer the same way is
+  // nearly no evidence; agreeing on a 50/50 split is a lot. cohort.ts has
+  // measured that as `divisiveness` since D99 and nothing has ever used
+  // it to pick anything. Every input is already resident — hydrate tops up
+  // aggregates for answered questions (AGG_ID_CAP 120) — so this costs one
+  // sort and no read.
+  //
+  // Non-integer votes are dropped in the same pass. A catalog answer
+  // stores an entity id and a rank answer a joined order (see the fold in
+  // hydrate), both on `surface: "feed"`, which IS in WORLD_ANSWER_SURFACES
+  // — so those qids issued a collection-group query, got documents back,
+  // and voters.ts discarded every row for want of a numeric optionIdx.
+  // Up to a quarter of the twelve slots bought an empty list.
   async loadKindred(): Promise<void> {
     if (state.kindredLoading) return;
     state.kindredLoading = true;
     try {
-      const qids = Object.keys(state.votes)
-        .filter((id) => !id.startsWith("g_"))
-        .slice(0, KINDRED_QUESTIONS);
+      const qids = pickKindredQids(state.votes, divisivenessOf, KINDRED_QUESTIONS);
       // Sequential rather than parallel on purpose: each call is a
       // collection-group query, most of them are cache hits after the
       // first surface has run, and firing twelve at once at boot-adjacent
@@ -2876,7 +2934,11 @@ const LIVE = {
       for (const qid of qids) {
         if (!state.voters[qid]) await this.loadVoters(qid);
       }
-      state.kindredAt = qids.length;
+      // Counted from what actually LANDED, not from what was asked for:
+      // loadVoters swallows its own failure (reportError, then the list
+      // stays unset), so the old line reported twelve to the caption after
+      // twelve failed queries.
+      state.kindredAt = qids.filter((id) => state.voters[id]).length;
     } catch (err) {
       reportError(err, { where: "loadKindred" });
     } finally {

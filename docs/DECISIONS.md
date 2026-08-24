@@ -27637,3 +27637,72 @@ distance rather than alphabetically.
 `KINDRED_QUESTIONS` (12) × `VOTER_FETCH_CAP` (200). Every fix here makes
 the ranking of the sample correct; none of them makes the sample the
 population.
+
+### 3 · Which twelve questions, and two captions that had stopped being true
+
+`loadKindred` read
+
+```
+Object.keys(state.votes).filter((id) => !id.startsWith("g_")).slice(0, 12)
+```
+
+under a comment claiming **"the viewer's OWN most recent answers"**, and
+D112 recorded the pool as recency-biased on the same belief. Neither was
+true. `Object.keys` is insertion order; hydrate assigns the persisted
+answers cache *before* the query; the warm delta query carries an
+inequality with **no `orderBy`**; new votes append at the tail; and
+re-assigning a key that already exists does not move it. So the twelve
+froze at whatever the first cold boot happened to put first and never
+moved again — and because the warm and cold paths order oppositely, **the
+same account ranked strangers differently on a second device.**
+
+Recency is not the replacement, because it cannot be: the client vote map
+carries no timestamps. `peopleMap.ts` had already written that down for
+the sibling surface — *"Recency would match Kindred's choice but the
+client vote map carries no timestamps; basis is the honest second
+choice"* — while this file claimed the recency it could not have.
+
+**Divisiveness is the better key anyway.** Agreeing on a question 95% of
+people answer the same way is nearly no evidence about two people;
+agreeing on a 50/50 split is a great deal. `cohort.divisiveness` has
+measured exactly that since D99, normalised by option count, and had never
+been used to pick anything. Every input is already resident — hydrate tops
+up aggregates for answered questions, `AGG_ID_CAP` 120 — so the new
+selection costs one sort and **no read**. A question with no published
+counts scores −1 rather than 0, so a measured question always outranks an
+unmeasured one while a brand-new account still fills its whole quota.
+
+**A quarter of the slots were buying nothing.** Catalog answers store an
+entity id and rank answers a joined order (`live.ts`'s hydrate fold), both
+on `surface: "feed"`, which IS in `WORLD_ANSWER_SURFACES` — so those qids
+issued a collection-group query, received documents, and had every row
+discarded by `voters.ts` for want of a numeric `optionIdx`. They are
+filtered out in the same pass.
+
+`state.kindredAt` also counted what was *asked for* rather than what
+landed; `loadVoters` swallows its own failure, so the caption reported
+twelve after twelve failed queries. It now counts the lists that exist.
+
+The selection moved to `similarity.pickKindredQids` — pure, so it has the
+first tests it has ever had. Grepping `loadKindred` across `src/` finds
+only mocks and call-count assertions, which is how a `.slice(0, 12)` sat
+under a comment describing a different selection for as long as it did.
+The cases pin the property that actually failed: **the result must not
+depend on insertion order.**
+
+**Two captions.** `LiveMirrorLenses`'s metric line said `last {N}` — the
+wrong word twice, since the twelve were never the most recent and are now
+chosen by divisiveness, which is not an ordering in time at all. It says
+`across {N}`, the same length. And the City ring truncates at
+`CITY_FIELD_CAP` (12) and said nothing, while `PlacesField` directly below
+it names its own overflow ("N more placed further out than this field
+draws"); the ring now names its own the same way. D112's third honesty
+rule is that thin is named — this is the cap's half of it.
+
+**Still not fixed, and now the only thing left in this record's scope:**
+the pool is `KINDRED_QUESTIONS` (12) × `VOTER_FETCH_CAP` (200) with no
+paging. §2 and §3 make the ranking of that sample correct and its captions
+true. Neither makes the sample the population, and no copy anywhere yet
+says the field ranks a sample at all. Widening it is D101's rule — page
+from the cursor the ordering already provides, never a quiet cap raise —
+and the server-side alternative is unwritten.

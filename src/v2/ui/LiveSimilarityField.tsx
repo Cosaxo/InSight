@@ -462,6 +462,15 @@ function CityField({ myParsed }: {
         {cityName} · closer = more like you
         {scoredN < shown.length ? " · dashed = answers only" : ""}
       </SfCaption>
+      {/* Said rather than dropped, the same rule PlacesField already
+          follows below: a cap that silently eats rows reads as "that is
+          all of them". These are real people the ranking placed further
+          out, not people it could not read. */}
+      {people.length > shown.length && (
+        <SfEmpty>
+          {people.length - shown.length} more from {cityName} ranked below these.
+        </SfEmpty>
+      )}
       {!myParsed && (
         <SfEmpty>Finish a test to rank by scores.</SfEmpty>
       )}

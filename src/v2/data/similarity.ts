@@ -416,6 +416,53 @@ export function scoreMatch(
   };
 }
 
+// ── which questions the ranking runs over ────────────────────────────
+
+/**
+ * Choose the questions Kindred compares people across — most divisive
+ * first (D275 §2).
+ *
+ * THE BUG THIS REPLACES was a `.slice(0, cap)` over `Object.keys(votes)`,
+ * under a comment claiming "the viewer's OWN most recent answers" — a
+ * claim D112 repeated when it recorded the pool as recency-biased. Object
+ * key order is insertion order, the store assigns its persisted cache
+ * before the delta query, the delta query carries no `orderBy`, and
+ * re-assigning an existing key does not move it. So the set froze at
+ * whatever the first cold boot put first and never moved again, and the
+ * two boot paths disagree — the same account ranked strangers differently
+ * on a second device.
+ *
+ * RECENCY IS NOT THE REPLACEMENT, because it cannot be: the vote map
+ * carries no timestamps. peopleMap.ts had already reached that conclusion
+ * for the sibling surface while this one claimed the recency it could not
+ * have.
+ *
+ * DIVISIVENESS is the better key anyway. Agreeing on a question 95% of
+ * people answer the same way is nearly no evidence about two people;
+ * agreeing on a 50/50 split is a great deal. `divisiveness` has measured
+ * exactly that since D99 and had never been used to pick anything.
+ *
+ * `scoreOf` returns -1 for a question this device holds no counts for, so
+ * a measured question always outranks an unmeasured one while a brand-new
+ * account still fills its whole quota. Ties break by qid, so the set does
+ * not reshuffle between two renders reading the same aggregates.
+ *
+ * Non-integer votes are dropped: a catalog answer stores an entity id and
+ * a rank answer a joined order, both on a surface the voter query accepts
+ * — so those qids issued a collection-group read, got documents back, and
+ * had every row discarded for want of a numeric optionIdx.
+ */
+export function pickKindredQids(
+  votes: Readonly<Record<string, string | number>>,
+  scoreOf: (qid: string) => number,
+  cap: number,
+): string[] {
+  return Object.keys(votes)
+    .filter((id) => !id.startsWith("g_") && Number.isInteger(Number(votes[id])) && votes[id] !== "")
+    .sort((a, b) => (scoreOf(b) - scoreOf(a)) || a.localeCompare(b))
+    .slice(0, Math.max(0, cap));
+}
+
 // ── people, ranked ───────────────────────────────────────────────────
 
 /** One candidate as live.ts assembles them from the cached voter lists. */

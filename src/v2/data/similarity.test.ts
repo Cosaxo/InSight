@@ -6,7 +6,7 @@
 // distinguished, and refusals asserted as refusals rather than zeros.
 
 import { describe, expect, it } from "vitest";
-import { agreementOf } from "./cohort";
+import { agreementOf, divisiveness } from "./cohort";
 import {
   angleHash,
   axisScores,
@@ -15,6 +15,7 @@ import {
   myAxisScores,
   myFlatAxes,
   parseTestResults,
+  pickKindredQids,
   placeProfiles,
   rankKindred,
   scoreMatch,
@@ -552,5 +553,64 @@ describe("rankKindred — a thin comparison must not win on noise", () => {
     expect(out[0].score!.match).toBe(99);
     expect(out[1].score!.match).toBe(99); // the printed number cannot separate them…
     expect(out[0].uid).toBe("zzz"); // …and the nearer one still wins, not the alphabetical one.
+  });
+});
+
+// ── which twelve questions the pool is built from (D275 §2) ──────────
+//
+// loadKindred had no test at all: grepping it across src/ finds only
+// mocks and call-count assertions, which is how a `.slice(0, 12)` could
+// sit under a comment describing a completely different selection for as
+// long as it did.
+describe("pickKindredQids — chosen, not inherited", () => {
+  const flat = () => 0;
+
+  it("does not depend on the order the votes were inserted", () => {
+    // The actual defect: Object.keys order froze at the first cold boot,
+    // and the warm and cold boot paths produce opposite orders — so the
+    // same account ranked strangers differently on a second device.
+    const a: Record<string, string> = { "daily-003": "1", "daily-001": "0", "daily-002": "2" };
+    const b: Record<string, string> = { "daily-002": "2", "daily-003": "1", "daily-001": "0" };
+    expect(pickKindredQids(a, flat, 3)).toEqual(pickKindredQids(b, flat, 3));
+  });
+
+  it("prefers a 50/50 question over a 95/5 one", () => {
+    // Agreeing on a question almost everyone answers the same way is
+    // nearly no evidence about two people. `divisiveness` has measured
+    // that since D99 and had never picked anything.
+    const votes = { split: "0", lopsided: "1" };
+    const score = (qid: string) => divisiveness(qid === "split" ? [50, 50] : [95, 5]);
+    expect(pickKindredQids(votes, score, 1)).toEqual(["split"]);
+  });
+
+  it("drops catalog and rank answers, which return rows the fold discards", () => {
+    // Both live on a surface the voter query accepts, so each one spent a
+    // slot on a collection-group read whose every row was then thrown away
+    // for want of a numeric optionIdx.
+    const votes = { "feed-vote": "2", "feed-catalog": "1041", "feed-rank": "2,0,1", "feed-empty": "" };
+    // 1041 IS an integer, so the entity id survives this filter — the
+    // guard that matters is the joined order and the empty string.
+    expect(pickKindredQids(votes, flat, 9)).not.toContain("feed-rank");
+    expect(pickKindredQids(votes, flat, 9)).not.toContain("feed-empty");
+  });
+
+  it("never spends a slot on a sealed duel answer", () => {
+    const votes = { "g_grp1_2026-08-24": "0", "daily-001": "1" };
+    expect(pickKindredQids(votes, flat, 9)).toEqual(["daily-001"]);
+  });
+
+  it("fills the quota for an account whose aggregates have not landed", () => {
+    // scoreOf returns -1 for an unmeasured question. A measured one must
+    // outrank it, and an account with none must still get its twelve.
+    const votes = Object.fromEntries(Array.from({ length: 20 }, (_, i) => [`q${i}`, "1"]));
+    expect(pickKindredQids(votes, () => -1, 12)).toHaveLength(12);
+    const oneKnown = (qid: string) => (qid === "q19" ? 0.9 : -1);
+    expect(pickKindredQids(votes, oneKnown, 12)[0]).toBe("q19");
+  });
+
+  it("is stable across two reads of the same aggregates", () => {
+    const votes = { a: "1", b: "1", c: "1" };
+    const score = () => 0.5; // every question equally divisive
+    expect(pickKindredQids(votes, score, 2)).toEqual(pickKindredQids(votes, score, 2));
   });
 });
