@@ -182,6 +182,7 @@ the static gates, and where each one runs.
 | `check:monitoring` | ci | The alert chain from the log line a function emits to the policy that reads it. Every link fails the same silent way |
 | `check:data-inventory` | ci | Every collection the rules reach is named in `docs/data-inventory.md` (D130), and — where a read rule is literally `request.auth != null` or `false` — that the row's reader column agrees with it (D257) |
 | `check:policy-claims` | ci | A live promise that **vanishes** from `web/privacy.html` — since D183 a claim deleted there is a claim deleted from the product |
+| `check:pricing` | ci | The committed rate card (`content/pricing.json`, PAID-PLAN §6, D274 §3) stays inside its own clamps: exact cohorts, idx within floor/ceiling, 14 real booked ticks, and no estimate without a completed campaign behind it |
 | `check:public-copy` | ci | The retired pre-D98 privacy vocabulary **reappearing** in copy a user reads |
 | `check:store-forms` | ci | The privacy nutrition label, which exists twice on purpose, agreeing with itself |
 | `check:quality` | ci | Question form and provenance (D97), the place-scope tripwire, and the id/bank headroom |
