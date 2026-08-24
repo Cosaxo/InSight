@@ -678,7 +678,7 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "patterns", "state"), { v: [1], n: 1 }));
   });
 
-  it("the engagement day docs read like an aggregate and write like one — nobody (R1/D251)", async () => {
+  it("the engagement day docs read like an aggregate and write like one — nobody (R1/D266)", async () => {
     await seed(async (db) => {
       await setDoc(doc(db, "v2_engagement_daily", "2026-08-22"), {
         day: "2026-08-22", actives: 3, firstTime: 1, votes: 5, events: 5,
@@ -694,7 +694,7 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(deleteDoc(doc(asUser(OWNER), "v2_engagement_daily", "2026-08-22")));
   });
 
-  it("a person's engagement bookkeeping is readable and writable by NOBODY — the owner included (D251)", async () => {
+  it("a person's engagement bookkeeping is readable and writable by NOBODY — the owner included (D266)", async () => {
     await seed(async (db) => {
       await setDoc(doc(db, "v2_users", OWNER, "engagement", "_state"), {
         firstDay: "2026-08-01", lastDay: "2026-08-22", activeDays: 9, streak: 2,
@@ -708,7 +708,7 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
   });
 
   // A valid rung-2 rollup: yesterday's date-shaped id, the pinned field
-  // list, bounded ints, folded false at birth (R3/D255).
+  // list, bounded ints, folded false at birth (R3/D270).
   const rollupDay = () => new Date(Date.now() - 86400000).toISOString().slice(0, 10);
   const rollup = (over: Record<string, unknown> = {}) => ({
     day: rollupDay(),
@@ -719,7 +719,7 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     ...over,
   });
 
-  it("a person's day rollup is owner-create-only, date-keyed, field-pinned (R3/D255)", async () => {
+  it("a person's day rollup is owner-create-only, date-keyed, field-pinned (R3/D270)", async () => {
     await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", rollupDay()), rollup()));
     // not someone else's subtree, not a bare-map id, not a mismatched day
     await assertFails(setDoc(doc(asUser(STRANGER), "v2_users", OWNER, "engagement", rollupDay()), rollup()));
@@ -743,7 +743,7 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
   });
 
   // A valid rung-1 shard: yesterday's day, the pinned vocabulary, nothing
-  // identifying (R2/D253).
+  // identifying (R2/D268).
   const shard = (over: Record<string, unknown> = {}) => ({
     day: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
     build: 24, platform: "web", sampled: true, rate: 1,
@@ -751,7 +751,7 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     ...over,
   });
 
-  it("an attention shard is create-only, day-bounded and vocabulary-pinned (R2/D253)", async () => {
+  it("an attention shard is create-only, day-bounded and vocabulary-pinned (R2/D268)", async () => {
     await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_attention", "shard-1"), shard()));
     await assertFails(setDoc(doc(asSignedOut(), "v2_attention", "shard-2"), shard()));
     // a uid on the question channel is the two-channel rule's exact breach
@@ -761,7 +761,7 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-6"), shard({ sampled: false })));
   });
 
-  it("shards are readable and editable by NOBODY, and the qids map stays shut until D254", async () => {
+  it("shards are readable and editable by NOBODY, and the qids map stays shut until D269", async () => {
     await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_attention", "mine"), shard()));
     // not even the writer: a readable pile is the funnel's raw material
     await assertFails(getDoc(doc(asUser(OWNER), "v2_attention", "mine")));
@@ -770,7 +770,7 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(deleteDoc(doc(asUser(OWNER), "v2_attention", "mine")));
     // empty is tolerated (an older client may send the field bare)…
     await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_attention", "q0"), shard({ qids: {} })));
-    // …and since D254's adoption the map is OPEN within its cap: a
+    // …and since D269's adoption the map is OPEN within its cap: a
     // question's counts, on a doc that carries no uid by construction.
     await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_attention", "q1"), shard({ qids: { "feed-001": { s: 1, a: 1 } } })));
     // over the cap — the client's overflow cell exists so this never

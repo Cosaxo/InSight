@@ -80,7 +80,7 @@ import {
   linkGoogle,
   subscribeToAuth,
 } from "../../lib/firebase";
-// R2/D253: the anonymous feature tally. Imported, never a global (rule 4
+// R2/D268: the anonymous feature tally. Imported, never a global (rule 4
 // only moves down); armed in initLive below and a no-op everywhere else.
 import * as engagement from "./engagement";
 
@@ -4051,9 +4051,9 @@ const LIVE = {
         cacheVote(qid, optionIdx);
         // Counted on the ACK, not the tap: a refused create rolls the
         // optimistic state back below, and the tally should agree with
-        // the server about what was answered (R2/D253).
+        // the server about what was answered (R2/D268).
         engagement.noteAnswer(q?.surface ?? "daily");
-        // …and the per-question map (R4/D254), for the feed-rendered
+        // …and the per-question map (R4/D269), for the feed-rendered
         // surfaces only: the seen denominator comes from feed cards, so
         // the answered numerator matches its population. The daily is
         // not a feed card, duels never ride this path, and a pulse
@@ -4740,7 +4740,7 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
   if (!flag || !firebaseEnabled) return;
   const boot = refreshLive();
 
-  // R2/D253: arm the anonymous feature tally. The writer is the ordinary
+  // R2/D268: arm the anonymous feature tally. The writer is the ordinary
   // SDK path — offline queue included, so a shard written on a dead train
   // arrives when the phone wakes — and the shard carries no uid: the
   // session matters only for the signed-in create the rules demand.
@@ -4751,7 +4751,7 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
       const db = await getDb();
       await setDoc(doc(db, "v2_attention", crypto.randomUUID()), shard);
     },
-    // R3/D255: the person rollup rides the same queue but under the
+    // R3/D270: the person rollup rides the same queue but under the
     // session's own uid — throwing on a missing session is the contract
     // (engagement retains the tally and retries next boot), not an error.
     writeRollup: async (rollup) => {

@@ -139,10 +139,10 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Engagement day docs (R1/D251) — the nightly digest's anonymous
+    // Engagement day docs (R1/D266) — the nightly digest's anonymous
     // population counts (actives, first answerers, cohort returns,
     // answers by surface), one doc per UTC day plus the fold's own
-    // `meta` cursor. World-readable per D251's adopted default — nothing
+    // `meta` cursor. World-readable per D266's adopted default — nothing
     // per-person is in any of them, and the public read is what lets the
     // scorecard's credential-free fetch and the pulse console read the
     // trail. Written by NOBODY but the digest on the admin SDK: a
@@ -153,7 +153,7 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Attention shards (R2/D253) — rung 1's anonymous device tallies:
+    // Attention shards (R2/D268) — rung 1's anonymous device tallies:
     // one create-only doc per device per FINISHED UTC day, under a random
     // per-write id, holding bucketed feature counts and nothing else. The
     // nightly fold sums shards into v2_engagement_daily and DELETES them.
@@ -210,7 +210,7 @@ service cloud.firestore {
           "ansCall", "ansDuel", "edits",
           "revealSeen", "notifOpen",
         ])
-        // The R4 arm, OPEN since D254's adoption: per-question tallies —
+        // The R4 arm, OPEN since D269's adoption: per-question tallies —
         // bucketed seen/answered/passed/deferred per qid, still fully
         // anonymous (this doc carries no uid, by the whitelist above),
         // so the server learns a QUESTION's pass rate and never a
@@ -331,12 +331,12 @@ service cloud.firestore {
 
       // Engagement, two shapes under one path, split by the ID DISCIPLINE:
       //
-      //   `_state` (R1/D251) — the digest's bookkeeping (first/last
-      //   active day, streak, and since D255 the trailing fg window).
+      //   `_state` (R1/D266) — the digest's bookkeeping (first/last
+      //   active day, streak, and since D270 the trailing fg window).
       //   Server-written only; it fails the date regex below, so no
       //   client arm can ever reach it.
       //
-      //   `{yyyy-mm-dd}` (R3/D255) — the person channel's day rollup:
+      //   `{yyyy-mm-dd}` (R3/D270) — the person channel's day rollup:
       //   sessions, foreground bucket, quiet sessions, dayparts, depth.
       //   Create-only, owner-only, for a FINISHED day, `folded: false`
       //   at birth (the fold flips it on the admin SDK — which is also

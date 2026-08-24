@@ -812,7 +812,7 @@ function LdReveal({ g, reveal, day }: { g: LiveGroup; reveal: LiveReveal; day?: 
 function LdRevealBars({ reveal, opts, names, uid, tint }: {
   reveal: LiveReveal; opts: string[]; names: Record<string, string>; uid: string; tint: string;
 }) {
-  // R2/D253: a reveal on screen is the duel loop's payoff being
+  // R2/D268: a reveal on screen is the duel loop's payoff being
   // collected — the one signal rung 0 could never see (the reveal doc is
   // server-written; VIEWING it wrote nothing until now). Mount-scoped:
   // once per bars instance, a no-op unless the live session armed the

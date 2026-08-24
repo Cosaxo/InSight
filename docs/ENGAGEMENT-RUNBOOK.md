@@ -33,15 +33,15 @@ rather than remembered:
 ## Phase 0 — the records that gate everything
 
 - [x] **0.1 [owner] Adopt R1 and R5** — **R1 DONE 2026-08-23**: adopted
-      by the owner in those words, recorded as **D251**. R5 is drafted as
-      **D252, Status: Proposed** rather than binding — the adoption named
+      by the owner in those words, recorded as **D266**. R5 is drafted as
+      **D267, Status: Proposed** rather than binding — the adoption named
       R1 alone, and the D28 lesson is that this file does not mark a
       record binding ahead of the owner's word. Until adopted, its
       refusals bind through the documents that already record them. ·
       **Gate:** `check:docs` (green, index regenerated). · **Size:** S.
 
 - [x] **0.2 [owner] Resolve the one open toggle — DONE 2026-08-23,
-      public**, as the plan recommended and D251 records: the adoption
+      public**, as the plan recommended and D266 records: the adoption
       named R1 without the toggle, so the recommendation stood as the
       default. Nothing per-person is in the day docs, and the public
       read is what keeps the scorecard fetch and the pulse console
@@ -66,7 +66,7 @@ Ships independently of any app build — nothing here touches `src/`.
       `velocity.ts`: velocity's window is a cursor capped at 72 h, the
       digest's is the calendar day, and coupling two windowing semantics
       to save ~3 reads per user per night is the wrong trade. The
-      arithmetic is in the file header and D251; the surface of each
+      arithmetic is in the file header and D266; the surface of each
       qid derives from the compiled bank (pulse composites by stripping
       the day suffix, unknowns as `other`, never a guess).
       · **Gate:** `npm test --prefix functions` — 14 cases green,
@@ -77,7 +77,7 @@ Ships independently of any app build — nothing here touches `src/`.
       activeDays, **streak** (it joined the pair because streak deaths
       needed it and it costs nothing extra) — server-written, deny-all,
       erased by the existing recursive delete. The trade is stated in
-      D251: uid-keyed *bookkeeping* for anonymous *outputs*, one write
+      D266: uid-keyed *bookkeeping* for anonymous *outputs*, one write
       per active user per day against four full ledger scans. `_state`
       fails the date-shaped id regex phase 3 will use for client
       creates, so server-only falls out of the id discipline. ·
@@ -131,7 +131,7 @@ Ships independently of any app build — nothing here touches `src/`.
       reads *unknown*, never 0%); `pulse-render.mjs` draws the panel
       with the §3.4 honesty rules printed beside the numbers;
       `pulse.mjs` trails `dau` and `retD7`. The population panel's
-      blocked row moved to the live column with D251 cited, and its two
+      blocked row moved to the live column with D266 cited, and its two
       stale refusal citations were corrected while the file was open. ·
       **Gate:** `test:scripts` — 265 green, honest-absence case
       included. · **Size:** M.
@@ -155,12 +155,12 @@ Gated on R2 (+R4 if the `qids` map ships — they can land together or
 R4 can wait; the shard shape carries an empty map either way).
 
 - [x] **2.1 [owner] Adopt R2, and R4 with or after it — R2 DONE
-      2026-08-23 as D253**: the owner's words were "start building phase
+      2026-08-23 as D268**: the owner's words were "start building phase
       2", and this step is the gate that defines building phase 2 AS
       adopting R2, so the record states that provenance plainly rather
-      than inferring silently. **R4 was not named and is D254,
+      than inferring silently. **R4 was not named and is D269,
       Proposed** — the shard schema carries its field, the rules refuse
-      it non-empty, and 2.8 below stays open on it. D252 (R5) went
+      it non-empty, and 2.8 below stays open on it. D267 (R5) went
       binding the same day, on "i adopt R5". · **Gate:** `check:docs`
       (index regenerated, 254 records). · **Size:** S.
 
@@ -200,7 +200,7 @@ R4 can wait; the shard shape carries an empty map either way).
       - `world-feed.jsx` — the EXISTING entrance IntersectionObserver
         doubles as "seen" (first scroll into view — a deliberate,
         recorded deviation from ATTENTION §3's ≥50 %/≥1 s: one observer,
-        one definition for every card; D253 carries it). Pass/defer
+        one definition for every card; D268 carries it). Pass/defer
         count at `setPass`/`setDefer`, outside the updaters.
       - `MirrorLensTabs` — lens taps at the row itself, one point for
         both callers. Reveal-viewed at `LdRevealBars`'s mount in
@@ -220,7 +220,7 @@ R4 can wait; the shard shape carries an empty map either way).
       rules cannot iterate a map, and the fold (the only reader) clamps
       in one line, with the arm's comment saying so. No read for
       anyone, no update, no client delete. The `qids` clause admits
-      only an EMPTY map until D254. Two rules tests, uid-refusal and
+      only an EMPTY map until D269. Two rules tests, uid-refusal and
       qids-refusal included → 132. · **Gate:** `test:rules`. ·
       **Size:** S.
 
@@ -251,7 +251,7 @@ R4 can wait; the shard shape carries an empty map either way).
       cases). · **Size:** M.
 
 - [x] **2.8 R4 lands in the scorecard. DONE 2026-08-24, on the owner's
-      "adopt R4" (D254 flips binding).** Exactly the staged shape the
+      "adopt R4" (D269 flips binding).** Exactly the staged shape the
       open note promised: the rules clause widened to `size() <= 120`
       (the cap INCLUDES the client's `_other` overflow cell, so a capped
       shard is legal by construction); the client populates the map from
@@ -293,16 +293,16 @@ R4 can wait; the shard shape carries an empty map either way).
       ships with the standing europe-west1 deploy, the shard writer
       ships inside the next store build, and until both are out the
       pulse panel's attention table simply is not there, which is the
-      correct reading. (Per-question ratios belong to 2.8/D254, not
+      correct reading. (Per-question ratios belong to 2.8/D269, not
       here.)
 
 ## Phase 3 — rung 2: the person channel
 
 Gated on R3. Everything here extends phase 2's module and fold.
 
-- [x] **3.1 [owner] Adopt R3 — DONE 2026-08-24 as D255**: the owner's
+- [x] **3.1 [owner] Adopt R3 — DONE 2026-08-24 as D270**: the owner's
       words were "build phase 3", and this step is the gate that
-      defines building phase 3 AS adopting R3 (the D253 provenance
+      defines building phase 3 AS adopting R3 (the D268 provenance
       shape, stated in the record). · **Gate:** `check:docs` (255
       records). · **Size:** S.
 

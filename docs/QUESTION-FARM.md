@@ -209,7 +209,7 @@ budget flows to lane 3 and behavior is the original thin-first rule.
    refill before they hit the bottom. This is the aggregate reading of
    "users are close to completing the topic"; per-user completion
    tracking is not the mechanism and may never be — PER-USER skip/pass
-   stays local-only, and D254 narrowed rather than reversed that line:
+   stays local-only, and D269 narrowed rather than reversed that line:
    what reaches the server since then is a question's AGGREGATE
    seen/pass counts, from anonymous unlinkable shards, never anyone's
    list (the scorecard's attention columns carry them, D33 warning
@@ -260,7 +260,7 @@ in both its topics' columns and the columns are not a partition; and
 keeps the per-question row they paid for, and the demand signal the
 lanes read is not for sale. What it deliberately cannot see: anything
 per-user, anything below the floor — and per-PERSON skip/pass, which
-stays local-only. Per-QUESTION skip/pass it can see since D254: the
+stays local-only. Per-QUESTION skip/pass it can see since D269: the
 scorecard's `attnSeen`/`attnConv`/`attnPass` columns, estimates from
 anonymous bucketed shards, with the D33 warning stored on the card —
 a skip is not dislike, novelty inflates, and no attention figure

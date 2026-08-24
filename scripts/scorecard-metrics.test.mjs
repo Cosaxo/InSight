@@ -163,7 +163,7 @@ describe("production rollup (D97)", () => {
   });
 });
 
-describe("attentionFromTrail (R4/D254)", () => {
+describe("attentionFromTrail (R4/D269)", () => {
   const day = (q, qOther = 0) => ({ day: "2026-08-22", attn: { devices: 5, q, qOther } });
 
   it("sums estimates per kind and rates against the seen denominator", () => {

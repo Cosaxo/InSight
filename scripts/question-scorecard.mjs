@@ -88,7 +88,7 @@ import {
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(root, "content", "scorecard.json");
-// The engagement digest's committed trail (R1/D251) — written on --fetch
+// The engagement digest's committed trail (R1/D266) — written on --fetch
 // beside the scorecard, read by the pulse console (pulse-collect.mjs).
 const ENGAGEMENT_OUT = join(root, "monitoring", "engagement.json");
 
@@ -179,7 +179,7 @@ async function fetchAggs() {
   return { aggs, idToken, project };
 }
 
-// The engagement digest's trail (R1/D251) rides the SAME fetch —
+// The engagement digest's trail (R1/D266) rides the SAME fetch —
 // deliberately one fetch path, not two: MONITORING.md already rejected a
 // second fetch against the same project as a drift pair, and this reader
 // reuses the anonymous token the aggregate read just minted. The trail is
@@ -583,7 +583,7 @@ function summarize(card) {
     const rated = (card.perQuestion || []).filter((q) => q.attnPass != null);
     const top = [...rated].sort((a, b) => b.attnPass - a.attnPass).slice(0, 3);
     console.log(
-      `  attention (D254): ${rated.length} question(s) with a rated pass rate over ` +
+      `  attention (D269): ${rated.length} question(s) with a rated pass rate over ` +
         `${card.attention.daysWithQ} day(s)` +
         (top.length ? ` · most passed: ${top.map((q) => `${q.qid} ${Math.round(q.attnPass * 100)}%`).join(", ")}` : ""),
     );
@@ -656,7 +656,7 @@ if (FETCH || INPUT) {
     const trail = { fetchedOn: new Date().toISOString().slice(0, 10), days };
     writeFileSync(ENGAGEMENT_OUT, JSON.stringify(trail, null, 2) + "\n");
     console.log(`scorecard: wrote ${ENGAGEMENT_OUT} (${days.length} day(s))`);
-    // R4/D254: the attention columns — the denominator the scorecard
+    // R4/D269: the attention columns — the denominator the scorecard
     // never had. Merged BEFORE the card writes, so the committed artifact
     // the farm reads carries seen→answer and pass rates beside evenness,
     // with the D33 warning stored on the card rather than trusted to
@@ -674,7 +674,7 @@ if (FETCH || INPUT) {
       card.attention = {
         daysWithQ: att.daysWithQ,
         truncatedDevices: att.truncatedDevices,
-        basis: "bucket-midpoint estimates from sampled anonymous shards (D254)",
+        basis: "bucket-midpoint estimates from sampled anonymous shards (D269)",
         warning: ATTENTION_WARNING,
       };
     }

@@ -198,7 +198,7 @@ describe("day arithmetic", () => {
   });
 });
 
-// ── the attention fold (R2/D253) ────────────────────────────────────────
+// ── the attention fold (R2/D268) ────────────────────────────────────────
 import {
   BUCKET_MIDPOINTS, SHARD_FOLD_CAP, foldShards, runAttentionFold,
   type AttentionShardDoc, type AttentionStore, type AttnDelta,
@@ -318,7 +318,7 @@ describe("runAttentionFold", () => {
   });
 });
 
-// ── the qids map in the shard fold (R4/D254) ────────────────────────────
+// ── the qids map in the shard fold (R4/D269) ────────────────────────────
 describe("foldShards · qids", () => {
   it("folds per-question kinds and keeps the overflow cell apart", () => {
     const out = foldShards([
@@ -348,7 +348,7 @@ describe("foldShards · qids", () => {
   });
 });
 
-// ── the rollup fold (R3/D255) ───────────────────────────────────────────
+// ── the rollup fold (R3/D270) ───────────────────────────────────────────
 import {
   ROLLUP_FOLD_CAP, advanceFgWindow, foldRollups, runRollupFold,
   type PeopleDelta, type RollupRow, type RollupStore,

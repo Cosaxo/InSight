@@ -1,8 +1,8 @@
 # Engagement — measuring what holds people and what loses them
 
-**Status: mixed — the adoptable ladder is BUILT (rung 0 = D251, rung 1 =
-D253, its per-question map = D254, rung 2 = D255, all 2026-08-23/24,
-under D252's binding ceiling); what remains plan is what the plan
+**Status: mixed — the adoptable ladder is BUILT (rung 0 = D266, rung 1 =
+D268, its per-question map = D269, rung 2 = D270, all 2026-08-23/24,
+under D267's binding ceiling); what remains plan is what the plan
 refuses: §4.3's event-stream rung and everything §4.4 keeps out.**
 Requested 2026-08-23: *track as much as possible about how a user uses
 the app — what engages them, what bores them, and whatever else is
@@ -496,7 +496,7 @@ Drafted here, adopted only by the owner writing them into
   counts; the 90-day TTL and erasure sweep stand. Reverses nothing
   user-facing; MONITORING.md's "unbuilt, not forbidden" row graduates.
   *Open toggle carried by R2 as well: public daily doc vs server-only.*
-  **Taken as D251 (2026-08-23) and built the same day** — the toggle
+  **Taken as D266 (2026-08-23) and built the same day** — the toggle
   resolved to public, and the record carries the two build-time
   decisions (public read; a separate nightly scan) with their reasoning.
 - **R2 · Anonymous feature tallies.** Adopts ATTENTION tier 3
@@ -504,7 +504,7 @@ Drafted here, adopted only by the owner writing them into
   fold-and-delete. Rewrites the data-inventory sentence to "no *linked*
   product analytics; anonymous, sampled feature tallies since R2", moves
   Product Interaction to collected/not-linked, lands the §7 row.
-  **Taken as D253 (2026-08-23) and built the same day** — the record
+  **Taken as D268 (2026-08-23) and built the same day** — the record
   carries the as-built sub-decisions (the entrance-observer "seen"
   definition, the flat shard collection, rate 1 at launch) and the
   honest limits.
@@ -512,7 +512,7 @@ Drafted here, adopted only by the owner writing them into
   funnels/session-analytics/engagement-scoring row, scoped by the
   two-channel rule (no qids), no-reader rules, create-only, 90-day TTL,
   recursive-delete erasure. Anchor and test-result slicing stay refused
-  inside it. Product Interaction moves to linked. **Taken as D255
+  inside it. Product Interaction moves to linked. **Taken as D270
   (2026-08-24, "build phase 3" — the phase's own gate) and built the
   same day**: sessions, quiet, dayparts, depth, and the fade window the
   fold reads from `_state.fg7`.
@@ -521,7 +521,7 @@ Drafted here, adopted only by the owner writing them into
   seen/pass/defer reach the server **only** inside anonymous shards;
   hesitation stays refused outright. The scorecard gains
   attention metrics with D33's goodhart warning printed beside them, and
-  measure-and-retire (D162) gains its denominator. **Adopted as D254
+  measure-and-retire (D162) gains its denominator. **Adopted as D269
   (2026-08-24, "adopt R4") and built the same day** — the record carries
   the as-built cap-includes-overflow design and the feed-population
   scoping of the answered kind.
@@ -529,7 +529,7 @@ Drafted here, adopted only by the owner writing them into
   record — event streams, third-party SDKs, per-target reads,
   hesitation, anchor/Art. 9 slicing, cadence, and the
   daily/Mirror-never-adapt invariant — so the next "track more" ask
-  starts from a written line. **Adopted as D252 (2026-08-23, "i adopt
+  starts from a written line. **Adopted as D267 (2026-08-23, "i adopt
   R5")** — drafted Proposed the day before and adopted on the owner's
   explicit word, which is the D28 lesson working as the drafting
   intended.

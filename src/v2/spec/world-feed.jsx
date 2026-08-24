@@ -5,7 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import NAV from '../data/nav';
-// R2/D253: the anonymous feature tally — a no-op until initLive arms it.
+// R2/D268: the anonymous feature tally — a no-op until initLive arms it.
 import * as engagement from '../data/engagement';
 import { SUBTOPICS, WORLD_BG } from './world-subtopics.js';
 import { LENSES, LENS_FEED_QS } from './lens-defs.js';
@@ -408,7 +408,7 @@ class WorldFeed extends React.Component {
     window.addEventListener('insight:local-purge', this._onPurge);
     // entrance: each card rises as it first scrolls into view (transform-only)
     //
-    // …and that first intersection is also the tally's "seen" (R2/D253):
+    // …and that first intersection is also the tally's "seen" (R2/D268):
     // one count per card per mount, because the observer unobserves after
     // firing. Deliberately the entrance event rather than ATTENTION.md
     // §3's ≥50%-for-≥1s refinement — one observer instead of two, and
@@ -419,7 +419,7 @@ class WorldFeed extends React.Component {
       es.forEach((e) => {
         if (e.isIntersecting) {
           engagement.note('feedSeen');
-          // The per-question half (R4/D254): the ref that observed this
+          // The per-question half (R4/D269): the ref that observed this
           // element stamped its qid on it, so the same first-intersection
           // is the question's seen denominator. Anonymous-shard only —
           // noteQid never touches the person channel.
@@ -455,7 +455,7 @@ class WorldFeed extends React.Component {
     } else if (near && s && this._listLen > 0 && this.state.shown >= this._listLen) {
       // Every card is mounted and the bottom is on screen: the feed's end,
       // SCALE-PLAN §2's "what trips first" as a lived event. A day-level
-      // bit on the person channel (R3/D255) — idempotent, so firing per
+      // bit on the person channel (R3/D270) — idempotent, so firing per
       // update costs nothing.
       engagement.markDepthEnd();
     }
@@ -538,8 +538,8 @@ class WorldFeed extends React.Component {
   // for something the user asked to ignore.
   setPass(id, on) {
     // Counted OUTSIDE the updater (StrictMode double-invokes updaters in
-    // dev), and count only the pass itself, never the un-pass (R2/D253).
-    // The qid half (R4/D254) rides the anonymous shard only.
+    // dev), and count only the pass itself, never the un-pass (R2/D268).
+    // The qid half (R4/D269) rides the anonymous shard only.
     if (on) { engagement.note('feedPass'); engagement.noteQid(id, 'p'); }
     this.setState((s) => {
       const passed = { ...s.passed };

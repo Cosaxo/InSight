@@ -63,9 +63,9 @@ Every constant below is sourced, not assumed:
 | One pulse open | **Today only: one `documentId() in` query over as many per-day agg ids as there are pulses** (≤5), once per UTC day per session — a same-day answer forces one refresh so the reveal's bins include you. The 21-day window is `ensureTrend`, one 21-id query, paid on the tap that opens a reading | `DAYS`, src/v2/data/pulse.ts (D139, roster D203). **Five pulses cost FEWER reads per open than one did**, and that is the point of the split: D139 fetched the whole 21-day window on every open although the card only ever draws today, so a naive ×5 would have been 105 ids — over the 30-clause `documentId() in` cap, hence 4+ queries per open for data the first screen never reads. The template read is gone too: `splitBanks` now keeps a pulse lane, so the roster's prompts come from the bank `hydrate()` already cached (it also means `active: false` finally reaches the client — before D203 a killed pulse still drew a tappable card whose every write the rules refused). Your own series still costs zero — derived from the hydrated vote mirror |
 | One Roles tab open | Up to 14 day-key `getDoc`s per room, once per room per session — the SAME cache the duel panel fills, so a room you have already opened costs nothing here | `REVEAL_HIST_DAYS`, src/v2/data/live.ts (D156, D204). This is the first surface that wants EVERY room's history rather than the one you are looking at, so on a cold session it pays for the rooms you have not opened yet: ~14 reads each, loaded sequentially rather than in parallel so a profile tab does not spike the read rate. The fold itself is free — `data/roles.ts` is pure arithmetic over documents already in hand, with no new field and no new collection |
 | The Patterns fit, nightly | The day's ledger entries re-read as the vote log (the velocity scan's shape, second reader), one private state read+write per active answerer, one model doc read+write per project | functions/src/patterns.ts (v28 §2, trial D166 §1). Measured BEFORE the fold shipped — the dated note under the scenario table has the movement |
-| The engagement digest, nightly | The day's ledger entries re-read a THIRD time as the activity log, one bookkeeping state read+write per active answerer, one public day doc per project | functions/src/engagement.ts (R1/D251). A separate scan rather than a rider on velocity's, deliberately — its header carries the windowing argument. Measured before the deploy — dated note below |
-| One attention shard | 1 write the day after (the device's flush), then 1 read + 1 delete the night the fold sweeps it — per SAMPLED device per day, at the client's own `SHARD_SAMPLE_RATE` | src/v2/data/engagement.ts + the fold in functions/src/engagement.ts (R2/D253). The rate is read from source by the model (`ATTN_SAMPLE_RATE`), because it is the designed lever if this term ever matters |
-| One person rollup | 1 write the day after (unsampled — the person channel), then the fold's 1 read + 1 folded-mark write + 1 fg-window read + write on `_state`; the TTL deletes it 90 days on | src/v2/data/engagement.ts + runRollupFold (R3/D255). Not deleted by the fold — the TTL is the deletion, and the flag is what makes the sweep exactly-once |
+| The engagement digest, nightly | The day's ledger entries re-read a THIRD time as the activity log, one bookkeeping state read+write per active answerer, one public day doc per project | functions/src/engagement.ts (R1/D266). A separate scan rather than a rider on velocity's, deliberately — its header carries the windowing argument. Measured before the deploy — dated note below |
+| One attention shard | 1 write the day after (the device's flush), then 1 read + 1 delete the night the fold sweeps it — per SAMPLED device per day, at the client's own `SHARD_SAMPLE_RATE` | src/v2/data/engagement.ts + the fold in functions/src/engagement.ts (R2/D268). The rate is read from source by the model (`ATTN_SAMPLE_RATE`), because it is the designed lever if this term ever matters |
+| One person rollup | 1 write the day after (unsampled — the person channel), then the fold's 1 read + 1 folded-mark write + 1 fg-window read + write on `_state`; the TTL deletes it 90 days on | src/v2/data/engagement.ts + runRollupFold (R3/D270). Not deleted by the fold — the TTL is the deletion, and the flag is what makes the sweep exactly-once |
 | One Circle open | 1 + one query per member: ≤50 members × ≤300 answers, +1 followers query | `FOLLOW_CAP` / `CIRCLE_ANSWER_CAP`, src/v2/data/circle.ts (D101). Also once per session since 2026-08-13, with `setFollowing` the one caller that may force a refetch — it changes the membership the fold is over |
 | One takes panel | ≤100 world takes per question, ≤500 per group, once per scope per session | `TAKE_FETCH_CAP` / `TAKE_GROUP_FETCH_CAP`, src/v2/data/live.ts — both caps and the cache are new on 2026-08-13; the world query had no `limit()` and returned roughly everyone who spoke that day |
 
@@ -117,7 +117,7 @@ roughly double on the three operation lines.
 > flag, dropping the term by the ineligible share.
 
 > **Measured 2026-08-23, before the deploy.** The engagement digest
-> (R1/D251, `docs/ENGAGEMENT-PLAN.md` rung 0) joined the model:
+> (R1/D266, `docs/ENGAGEMENT-PLAN.md` rung 0) joined the model:
 > `ENGAGEMENT_READS_PER_LEDGER_ENTRY` and `ENGAGEMENT_USER_STATE_OPS` in
 > `scripts/cost-arith.mjs`. A THIRD nightly reader of the same ledger
 > entries plus one bookkeeping state read+write per active answerer —
@@ -130,7 +130,7 @@ roughly double on the three operation lines.
 > functions/src/engagement.ts's header, where a revisit would start.
 
 > **Measured 2026-08-23, same day, before the deploy.** Rung 1's
-> attention shards (R2/D253) joined the model: `ATTN_SAMPLE_RATE` in
+> attention shards (R2/D268) joined the model: `ATTN_SAMPLE_RATE` in
 > `scripts/cost-arith.mjs`, read from the client's own
 > `SHARD_SAMPLE_RATE` so the model tracks the lever rather than a memory
 > of it. One anonymous shard write per sampled device-day, one fold read
@@ -142,7 +142,7 @@ roughly double on the three operation lines.
 > estimates rescale with no server change.
 
 > **Measured 2026-08-24, before the deploy.** Rung 2's person rollups
-> (R3/D255) joined the model — `ENGAGEMENT_ROLLUP_CLIENT_WRITES` and the
+> (R3/D270) joined the model — `ENGAGEMENT_ROLLUP_CLIENT_WRITES` and the
 > two fold constants in `scripts/cost-arith.mjs`: one uid-keyed rollup
 > write per active device-day, the fold's two reads and two writes (the
 > rollup's mark and the `_state` fg window), and a TTL delete 90 days on.

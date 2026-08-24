@@ -157,7 +157,7 @@ export async function registerPush(
       // NAV.goTab owns the not-yet-mounted case, so the `if (w.goTab)`
       // this replaced has no caller-side remnant.
       const land = () => {
-        // R2/D253: the sent→opened half of the notification funnel —
+        // R2/D268: the sent→opened half of the notification funnel —
         // delivery counts were always server-side, the tap never was.
         note("notifOpen");
         NAV.goTab("track");

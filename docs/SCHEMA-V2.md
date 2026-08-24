@@ -151,7 +151,7 @@ v2_aggs_private/{qid}              the trigger's working state (no readers)
                                    per document is unchanged. Bounded:
                                    low-cardinality anchors only (no city,
                                    no profession) and ≤24 buckets/dim.
-v2_agg_events/{eventId}            trigger ledger (opaque), four jobs (D28, D251)
+v2_agg_events/{eventId}            trigger ledger (opaque), four jobs (D28, D266)
   { qid, uid, optionIdx?, at,      dedup: at-least-once delivery can't
     expireAt }                     double-count. Attribution: uid is what
                                    lets an operator subtract a discovered
@@ -165,7 +165,7 @@ v2_agg_events/{eventId}            trigger ledger (opaque), four jobs (D28, D251
                                    the answer doc does not publish (D98).
                                    Activity log: the nightly engagement
                                    digest counts people by it — the
-                                   fourth job, the purpose D251 widened
+                                   fourth job, the purpose D266 widened
                                    D28's list to grant (engagement.ts).
                                    TTL'd at 90 days
                                    (LEDGER_RETENTION_DAYS); a uid's
@@ -286,7 +286,7 @@ v2_users/{uid}/patterns/state      the fit's per-person carry (v28 §2)
 read: NOBODY · write: NOBODY — the push/ shape; fitPatternsV2 (admin SDK)
 writes it, deleteAccount's recursive delete erases it with the account.
 
-v2_engagement_daily/{day}          the engagement digest's trail (R1/D251)
+v2_engagement_daily/{day}          the engagement digest's trail (R1/D266)
   day, actives, firstTime,         one doc per UTC day: distinct answering
   votes, events,                   accounts, first-timers, deduped
   bySurface {surface: n},          (uid,qid) pairs vs raw ledger events,
@@ -295,11 +295,11 @@ v2_engagement_daily/{day}          the engagement digest's trail (R1/D251)
   streaksBroken, foldedAt          firstTime, null when that day was
                                    never folded (absent ≠ zero). Plus the
                                    fold's own `meta` cursor doc {lastDay}
-  attn {devices,                   D253: the shard fold's sums — per
+  attn {devices,                   D268: the shard fold's sums — per
     s {key: {reach, est}},         feature, devices that used it (reach)
     q {qid: {s|a|p|d:              and a bucket-midpoint estimate (est),
          {reach, est}}},           both scaled by the sampling rate.
-    qOther}                        D254 adds the per-question map (seen /
+    qOther}                        D269 adds the per-question map (seen /
                                    answered / passed / deferred) with the
                                    clients' overflow cells counted apart
                                    as qOther — truncation, never a
@@ -309,7 +309,7 @@ v2_engagement_daily/{day}          the engagement digest's trail (R1/D251)
                                    catch-up) has no `actives`, and
                                    readers treat that as not-digested,
                                    never as zero
-  people {rollups, sessions,       D255: the rollup fold's counts of
+  people {rollups, sessions,       D270: the rollup fold's counts of
     quiet, answers, depthEnd,      PEOPLE — how many rollups folded, the
     fading,                        sessions and quiet sessions they held,
     dayparts {d0..d3},             how many hit the feed's end, how many
@@ -323,7 +323,7 @@ read: signed-in · write: NOBODY — written once per night by
 digestEngagementV2 (admin SDK). Counts only; no uid, name or anchor
 anywhere in it, so deleteAccount has nothing to reach here.
 
-v2_attention/{randomId}            rung 1's anonymous device shards (D253)
+v2_attention/{randomId}            rung 1's anonymous device shards (D268)
   day, build, platform,            one CREATE-ONLY doc per sampled device
   sampled, rate,                   per FINISHED UTC day: bucketed feature
   s {key: 0..4},                   counts (the vocabulary lives in
@@ -331,7 +331,7 @@ v2_attention/{randomId}            rung 1's anonymous device shards (D253)
     {s|a|p|d: 0..4}}               rules' field whitelist — the pair is
                                    held equal by hand and by the rules
                                    suite), plus build/platform/rate. The
-                                   `qids` map (D254) is capped at 120
+                                   `qids` map (D269) is capped at 120
                                    keys INCLUDING the client's `_other`
                                    overflow cell, so the cap is honest
 read: NOBODY · update/delete: NOBODY — the fold deletes on the admin SDK
@@ -340,7 +340,7 @@ no uid anywhere: two days from one phone are not joinable, which is the
 channel's whole contract (ENGAGEMENT-PLAN §4.1) — and it is what makes
 the qids map counts about QUESTIONS rather than anyone's reading list.
 
-v2_users/{uid}/engagement/{day}    rung 2's person rollup (D255)
+v2_users/{uid}/engagement/{day}    rung 2's person rollup (D270)
   day (== doc id), sessions,       one CREATE-ONLY doc per account per
   fgMin 0..4, quiet,               FINISHED UTC day: sessions, the
   dayparts [4 ints],               foreground-time BRACKET (never
@@ -360,10 +360,10 @@ update/delete: NOBODY client-side; expireAt powers the 90-day TTL
 (asserted in e2e-delete-account.mjs). THE hasOnly IS THE TWO-CHANNEL
 PIN: no qids, no question id, no reading history on any uid-keyed path.
 
-v2_users/{uid}/engagement/_state   the digest's bookkeeping pair (D251)
+v2_users/{uid}/engagement/_state   the digest's bookkeeping pair (D266)
   firstDay, lastDay,               when this account first and last
   activeDays, streak,              answered, distinct active days, the
-  fg7 [≤7 ints]                    consecutive-day streak — and, D255,
+  fg7 [≤7 ints]                    consecutive-day streak — and, D270,
                                    the trailing window of foreground
                                    brackets the rollup fold advances;
                                    "fading" (a window sinking two
