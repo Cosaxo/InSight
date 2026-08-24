@@ -27335,3 +27335,58 @@ opens the instrument's sheet), 1946 unit tests green, lint clean, the
 coupling ratchet unmoved at its baseline, `check:purge` green with the
 key's reader deleted whole, and the shipping bundle inside both
 ceilings (852 KB eager / 880 max) — measured, not assumed.
+
+## D274 · The board retires, the crowds get honest labels, and the paid mechanism builds ahead of demand
+
+**Decided:** 2026-08-24 · **Status:** binding — the owner's words were
+"all of these should be implemented", over the exact list
+`docs/VISION-2026-08-24.md` §0 held open. Three calls, one record (the
+D166 shape); the build plan they unlock is that file's §9 runbook.
+
+**§1 · The community board retires. "Ask a question" is the paid path
+alone.** The upvote board, the seeded community suggestions and the
+Top/New/Picked lenses go; what stands is the 2026-08-24 door — rate
+card, scope ruler, audience dims (D228), window, preview, contract
+sheet — plus your own submissions with their real statuses and
+declines. **D138's machinery survives untouched**: `suggestQuestionV2`,
+the 3/day budget, the review callables, the human-PR promotion path and
+the `v2_suggestions` rules are exactly the submission half the door
+needs, and they were never the community half. This closes the app's
+last "Preview · sample data" surface by deletion — the backlog item
+VISION-V28 §13 named — and no backend for upvotes was ever built, so
+nothing unwinds. The board's design survives in git and in
+`design/standalone-v24/`; reviving it would be a new decision.
+
+**§2 · The place scorecards hold two crowds, named for what the data
+can know: "live there" and "from elsewhere" — never "visitors".** The
+app cannot know who visited; it can know a rater's own place from the
+anchors every answer already carries. Measured, not assumed: the
+cohort body already fetches both cells — the scope's own counts and the
+world totals — so residents vs everyone-else is client arithmetic over
+reads the Scores lens already makes, and **the backend half of this
+item is nothing**. The prototype's "I live here / I'm visiting" switch
+becomes a viewing lens (which crowd is fore); it claims nothing about
+the viewer, because the viewer's crowd is their anchor's fact and at
+your own City stop your marks land with the locals whatever a toggle
+says. Collecting a self-declared role is refused as the wrong trade: a
+new field on the answer shape for a distinction the copy can carry.
+
+**§3 · The paid mechanism builds now, ahead of demand evidence — and
+D167 still binds every pixel of it.** PAID-PLAN §9.5's "last, and only
+on demand evidence" was this plan's sequencing recommendation, and the
+owner has overruled the WAIT, not the honesty: the rate card ships as
+the committed `content/pricing.json` §6 always specified, recomputed by
+script from the REAL purchase ledger; the 14-day ticks draw real
+windows (initially all open, which is true); the demand index sits at
+its floor until bookings move it; and the per-day answer ESTIMATES the
+prototype prints appear only once a cohort has a completed campaign to
+measure from — an empty ledger prints prices and open days, never a
+mocked forecast. The prototype's `SG_DEMAND` and `MARKET` constants
+remain what their own comments call them: illustrations.
+
+**What this record deliberately does not decide:** place-score
+subscriptions (PAID-PLAN §5 — the room renders that section only when
+subscription docs exist), report hosting (the shelf states milestones;
+delivery stays the contract channel until a hosting decision exists),
+and any per-voter edit mark (PAID-PLAN §11's one open question,
+untouched).
