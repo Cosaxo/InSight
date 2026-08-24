@@ -27447,3 +27447,183 @@ did not need it — TestFlight internal testing has no review gate — but
 that no longer exists. LAUNCH-RUNBOOK 4.4 is the step, its count is
 gated by `check:figures` as of D273, and its purposes are not, so the
 printout is the artefact.
+
+## D275 · The answers are the log; every aggregate is a projection, and now there is a tool that proves it
+
+**2026-08-24.** **Status:** binding. Records a target architecture and
+builds its keystone; the rest is an escalation ladder with triggers, not a
+build order. Opened by the question "should this have been Supabase rather
+than Firebase", which turned out to be the wrong question.
+
+### The finding the question produced
+
+`v2_users/{uid}/answers/{qid}` is append-only, one document per person per
+question (so it never contends), carries the `anchors` snapshot the fold
+slices by (D8), is world-readable since D98, and has a collection-group
+index on `qid`. That is a complete, replayable event log.
+
+Everything else in the system is already a **projection** of it: the
+public aggregate, the private aggregate, the nightly Patterns fit
+(D166/D265), the engagement digest (D268), the velocity scan (D54). The
+architecture has been lambda-shaped since the trigger was written; nothing
+had named it.
+
+Naming it settles the database question. The choice is not "Firestore or
+Postgres" but "what store for each projection" — answerable one layer at a
+time, each reversibly, because a projection can be rebuilt rather than
+migrated.
+
+| Layer | Store | Trigger to change it |
+| --- | --- | --- |
+| 1 · the log | Firestore `answers` | **never** — this is the thing that must not move |
+| 2 · hot counts | one document; sharded + rolled up when it bites | `agg_contention` fires |
+| 3 · breakdown cube | in the hot document; per-dimension documents later | comes free with layer 2 |
+| 4 · analytics | none; a BigQuery mirror when wanted | the first question the app cannot answer |
+| 5 · everything | — | the Mirror needs cuts nobody can name in advance |
+
+### `v2_aggs_private` was NOT the source of truth, and the repair path knew it
+
+`docs/DEPLOYMENT.md`'s "Correcting aggregates" (D28) rebuilds from
+`v2_agg_events`. That ledger is `{ qid, uid, optionIdx?, at, expireAt }`
+— **no anchors** — and TTLs at `LEDGER_RETENTION_DAYS` (90). So the
+guarantee D28 records, that the published record stays *correctable*, held
+for `counts` and `total` only, and expired after a quarter. A `by`
+breakdown could not be repaired at all, by anything, ever.
+
+Nobody had noticed because nothing had tried. Replayability was an
+assumption three separate records leaned on.
+
+### What was built
+
+`functions/src/replay.ts` — a pure fold plus `rebuildAggregateV2`, an
+operator callable (`assertOperator` + `SEED_ADMIN_UIDS`, App Check exempt
+with the reason `check:appcheck` now holds), reached by
+`npm run rebuild:agg -- --qid <id> [--exclude uid,uid] [--apply]`.
+
+**Dry by default.** `--apply` is asked for, because this rewrites the
+document every surface reads and the runbook that reaches for it is one
+somebody follows during an incident.
+
+**It reuses `breakdownFor` rather than folding anchors its own way** —
+that helper's own header says why it is a named function, and a replay
+with its own copy would have been the fourth.
+
+**Optimistic concurrency instead of a transaction.** A rebuild reads every
+answer to a question, which is far outside what a Firestore transaction
+may hold. So the scan runs outside one and the write checks that the
+stored `total` has not moved since the scan began; a live answer landing
+mid-scan aborts the rebuild rather than being erased by it.
+
+### The property that makes it work, and the limit that came with it
+
+The vote fold is **commutative while no dimension is saturated**, so a
+batch rebuild equals the trigger's incremental accumulation. That is now a
+test (`replay.test.ts`), not an assumption.
+
+It stops being commutative at `BREAKDOWN_MAX_BUCKETS`.
+`evictForNewBucket` drops the smallest bucket under `BUCKET_EVICT_BELOW`
+to make room, and which bucket is smallest depends on arrival order. So on
+a saturated dimension a replay is *a* correct fold of the answers, not
+necessarily the *same* fold that was published. Measured rather than
+reasoned about: the test folds 30 cities forward and reversed and asserts
+the surviving key sets differ.
+
+Two consequences, both deliberate. The scan orders by `answeredAt`
+ascending — the closest thing to arrival order the data records, which is
+why `firestore.indexes.json` gained a second `answers` collection-group
+index (the existing one leads `qid, surface` and cannot serve
+`where qid == X order by answeredAt`). And the outcome **reports**
+`cappedDims`, so a saturated rebuild cannot be presented as exact. That is
+D72's rule — refuse rather than fabricate — applied to a repair tool.
+
+### What replay cannot rebuild, stated rather than papered over
+
+- **`edits`** (D226) is not derivable. An edited answer records where it
+  landed, never where it came from — D86 freezes anchors and `answeredAt`
+  and moves `optionIdx` in place. Replay therefore **carries the stored
+  matrix forward unchanged**, exactly as the trigger's create arm does.
+  Recomputing it as empty would silently delete a published number that is
+  still true.
+- **Catalog (D14) and rank (D233) answers** fold through different shapes
+  and are refused by name. A rebuild that quietly wrote vote-shaped counts
+  over a canon board is worse than no rebuild.
+- **The scan's real ceiling is the 480-second global timeout**, not
+  `SCAN_MAX_PAGES` — roughly one to two million answers. Exceeding the
+  page bound throws rather than returning a short answer, because a
+  confident wrong aggregate is the failure D161 rewrote the bank fetch to
+  avoid. The fix if it ever fires is paging across invocations, not a
+  larger constant.
+
+### The reversal condition this sets up, recorded before it is needed
+
+`pure.ts` rejects per-dimension breakdown documents: *"this transaction
+already writes privRef, so folding the slices in costs no extra document
+and D7's ~1-write/sec-per-document ceiling is unchanged."*
+
+**That reasoning holds only while the fold runs on the answer path.** Once
+layer 2 exists there is one writer — the rollup — not one per answer, and
+the objection is void. Seven documents, each with its own 1 MiB, let
+`city` hold hundreds of buckets instead of 24, and
+`evictForNewBucket`/`BUCKET_EVICT_BELOW` and the cap-exhaustion attack
+surface all become deletable. Sharding and the 24-bucket cap turn out to
+be the same fix.
+
+Written down here because the rejection is correct today and will read as
+still-correct after the premise under it has changed — which is the drift
+this file exists to catch.
+
+### The ladder, with its arithmetic
+
+`npm run costs` puts D7's wall at **14,400 DAU** (0.35 writes/sec at
+5,000; 3.47 at 50,000). Today's trail says `answersCounted` 0.
+
+| Trigger | Change | Ceiling | Marginal cost |
+| --- | --- | --- | --- |
+| — | nothing | 14,400 DAU | — |
+| `agg_contention` fires | collapse `v2_aggs_private` into `v2_question_aggs` | ~28,000 | **negative** — one fewer write per answer |
+| still firing | shard the daily only, 10 shards + 60 s rollup | ~144,000 | ~$0.17/mo at list price |
+| still firing | 20 shards | ~288,000 | ~$0.34/mo |
+| City stop looks thin | per-dimension cap, then per-dimension documents | resolution, not scale | — |
+
+Only the **daily** contends: `computeDeckIds` takes no uid, so it is the
+one globally shared question; the feed's questions already spread across
+their own documents. And the rollup is cheap *here specifically* because
+D129 already moved clients from streaming to a 60-second poll — the
+staleness a rollup would normally cost has been spent already.
+
+### What was refused
+
+- **Migrating to Supabase/Postgres.** It is the better fit for the read
+  model and would delete the cube machinery outright — but it is 4–8 weeks
+  at this repo's demonstrated pace, App Check has no equivalent, and D34's
+  offline delta paging becomes hand-rolled. Every wall it removes binds at
+  a scale four orders of magnitude away. Recorded, not built. Layer 1 plus
+  this tool means that if it is ever right, it is a replay rather than a
+  migration — and the cost of doing it is at its minimum now and rises
+  monotonically with every answer collected.
+- **Firebase Realtime Database as the counter layer.** It genuinely fixes
+  both problems — atomic `increment()` at ~1,000 writes/sec, and no 1 MiB
+  limit, so the bucket cap would disappear too. It fails on two other
+  axes. It bills by **bandwidth**, so clients listening to an aggregate
+  recreate D129's quadratic fan-out in a different currency; it can only
+  be a write sink with a job copying totals into Firestore, which means
+  keeping Firestore anyway. And `increment()` is **not idempotent** while
+  Eventarc is at-least-once — today `tx.set(eventRef, …)` sits inside the
+  same transaction as the counter and makes redelivery a free no-op. A
+  second store, a second rules language, a second test suite, and a
+  weakened guarantee, to buy headroom that sharding also buys.
+- **Extracting `seed-content.mjs` and `fn-log.mjs` onto the new
+  `scripts/operator-call.mjs`.** Both work, one has its own test, and
+  rewriting a working deploy-path script to save duplication is the trade
+  this repo declines everywhere else. The module is the canonical home for
+  the next caller; those two adopt it when they are next opened anyway.
+
+### The one sentence the rest of it rests on
+
+**`v2_users/{uid}/answers/{qid}` is the source of truth. Every aggregate
+is a disposable projection, rebuildable by replay. Nothing may be trimmed
+from an answer document — the `anchors` snapshot especially — because that
+is what replay reads.**
+
+Without that written down, a later pass "optimizes" the answer document
+and layers 2 through 5 die silently, with every gate still green.

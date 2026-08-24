@@ -87,6 +87,15 @@ const EXEMPT = {
       + "caller and same reason as fetchSuggestionsV2; gated on "
       + "SEED_ADMIN_UIDS",
   },
+  rebuildAggregateV2: {
+    gate: "assertOperator",
+    reason:
+      "operator callable, D275's replay tool — rebuilds a question's "
+      + "aggregate from the answers, reached from a console or "
+      + "scripts/rebuild-aggregate.mjs during a D28 correction; no attested "
+      + "app can run a repair, and a control that fails when it is most "
+      + "needed is not a control; gated on SEED_ADMIN_UIDS",
+  },
 
   // Moderation instruments (assertModerator, MOD_UIDS). The moderation
   // Routine runs in a dedicated low-privilege environment with no repo

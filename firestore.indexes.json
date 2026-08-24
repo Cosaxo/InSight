@@ -1,134 +1,6 @@
 {
   "fieldOverrides": [
     {
-      "collectionGroup": "engagement",
-      "fieldPath": "folded",
-      "indexes": [
-        {
-          "queryScope": "COLLECTION_GROUP",
-          "order": "ASCENDING"
-        }
-      ]
-    }
-  ],
-  "indexes": [
-    {
-      "collectionGroup": "v2_suggestions",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "status",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "at",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "v2_takes",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "gid",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "hidden",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "v2_takes",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "gid",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "qid",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "hidden",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "createdAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "v2_presence",
-      "queryScope": "COLLECTION",
-      "fields": [
-        {
-          "fieldPath": "cell",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "until",
-          "order": "ASCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "answers",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {
-          "fieldPath": "qid",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "surface",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "answeredAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "invites",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {
-          "fieldPath": "to",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "at",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "invites",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {
-          "fieldPath": "from",
-          "order": "ASCENDING"
-        },
-        {
-          "fieldPath": "at",
-          "order": "DESCENDING"
-        }
-      ]
-    }
-  ],
-  "fieldOverrides": [
-    {
       "collectionGroup": "insight_inbound_impressions",
       "fieldPath": "senderUid",
       "indexes": [
@@ -247,6 +119,136 @@
       "collectionGroup": "answers",
       "fieldPath": "anchors.heightBand",
       "indexes": []
+    }
+  ],
+  "indexes": [
+    {
+      "collectionGroup": "v2_suggestions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "status",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "at",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "v2_takes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "gid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "hidden",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "v2_takes",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "gid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "qid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "hidden",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "v2_presence",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "cell",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "until",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "answers",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "qid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "surface",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "answeredAt",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "answers",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "qid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "answeredAt",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "invites",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "to",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "at",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "invites",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "from",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "at",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ]
 }

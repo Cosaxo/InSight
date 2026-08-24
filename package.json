@@ -89,7 +89,8 @@
     "test:scripts": "vitest run --dir scripts",
     "test:coverage": "vitest run --dir src/v2/data --coverage",
     "check:store-forms": "node scripts/check-store-forms.mjs",
-    "seed": "node scripts/seed-content.mjs"
+    "seed": "node scripts/seed-content.mjs",
+    "rebuild:agg": "node scripts/rebuild-aggregate.mjs"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "^8.2.0",
