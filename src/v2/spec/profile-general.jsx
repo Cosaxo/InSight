@@ -21,6 +21,12 @@ import PLACES from '../data/places';
 import { SCENES } from './scenes.js';
 // The rings-and-you drawing every empty surface shows now (D172).
 import EmptyField from '../ui/EmptyField.tsx';
+// A real import rather than the render-time global lookup CityPicker still
+// arrives through: this is a NEW reference, and check:globals rule 4 only
+// moves down. EmptyField above is the precedent — a hand-written panel
+// imported into a ported module, which is the direction the bridge is
+// shrinking in (src/v2/README.md).
+import FieldPicker from '../ui/FieldPicker.tsx';
 // "Open the topic list" — the ask this card's one button makes (D190).
 import { requestTopicSheet } from '../data/topicSheet.ts';
 // "What moves together" (v28 §13) — the cross-test threads, drawn from
@@ -167,32 +173,23 @@ import {
   };
 
 
-  // `id` is threaded down to the native <select> so the caller's <label> can
-  // point at it with htmlFor. Nesting the control inside the label is valid
-  // implicit association on its own, but only to something that can see
-  // through this component — jsx-a11y cannot, and neither can a reader of the
-  // call site. The explicit pair states the association where both can check
-  // it, and survives the control moving out of the label.
-  function Select({ id, value, onChange, options, placeholder = 'Choose…' }) {
-    const [foc, setFoc] = useState(false);
+  // The Basics editor's own menu (D275). It WAS a native <select> with a
+  // drawn chevron over it, which on iOS opens the platform's menu over an
+  // app that looks nothing like it — the same seam the account-setup
+  // screen was reported for, on the same seven fields, because these are
+  // the same seven fields. `ui/FieldPicker.tsx` is one control for both.
+  //
+  // The style prop is the control's, and the caption's is passed
+  // separately: the picker owns its caption, because a <label> wrapped
+  // round the <button> this collapses to takes the accessible name off the
+  // chosen value — the defect the City row three hundred lines down
+  // carries a paragraph about.
+  function Vital({ id, title, value, onChange, options, placeholder = 'Choose…' }) {
     return (
-      <span style={{ position: 'relative', display: 'block', minWidth: 0 }}>
-        <select id={id} value={value} onChange={onChange} onFocus={() => setFoc(true)} onBlur={() => setFoc(false)}
-          style={{
-            ...inputBase, fontSize: 15, padding: '8px 30px 8px 11px', cursor: 'pointer',
-            fontWeight: 400, textTransform: 'none', letterSpacing: 'normal',
-            color: value ? 'var(--ink)' : 'var(--ink-3)',
-            borderColor: foc ? 'var(--accent)' : 'var(--rule)',
-            boxShadow: foc ? '0 0 0 3px color-mix(in oklch, var(--accent) 14%, transparent)' : 'none',
-          }}>
-          <option value="" disabled>{placeholder}</option>
-          {options.map(o => <option key={o} value={o}>{o}</option>)}
-        </select>
-        <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--ink-3)" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
-          style={{ position: 'absolute', right: 11, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
-          <path d="m6 9 6 6 6-6" />
-        </svg>
-      </span>
+      <FieldPicker id={id} title={title} value={value} onChange={onChange}
+        options={options} placeholder={placeholder}
+        captionStyle={fieldCap}
+        style={{ ...inputBase, fontSize: 15, padding: '8px 11px', fontWeight: 400 }} />
     );
   }
 
@@ -281,16 +278,16 @@ import {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '0.9fr 1.4fr 1.1fr 0.7fr', gap: 8 }}>
-              <label style={fieldLabel} htmlFor={`${uid}-bornD`}>Day<Select id={`${uid}-bornD`} value={DAYS.includes(v.bornD) ? v.bornD : ''} onChange={e => setPart('bornD', e.target.value)} options={DAYS} placeholder="—" /></label>
-              <label style={fieldLabel} htmlFor={`${uid}-bornM`}>Month<Select id={`${uid}-bornM`} value={MONTHS.includes(v.bornM) ? v.bornM : ''} onChange={e => setPart('bornM', e.target.value)} options={MONTHS} placeholder="—" /></label>
-              <label style={fieldLabel} htmlFor={`${uid}-born`}>Year<Select id={`${uid}-born`} value={YEARS.includes(v.born) ? v.born : ''} onChange={e => setPart('born', e.target.value)} options={YEARS} placeholder="—" /></label>
+              <Vital id={`${uid}-bornD`} title="Day" value={DAYS.includes(v.bornD) ? v.bornD : ''} onChange={x => setPart('bornD', x)} options={DAYS} placeholder="—" />
+              <Vital id={`${uid}-bornM`} title="Month" value={MONTHS.includes(v.bornM) ? v.bornM : ''} onChange={x => setPart('bornM', x)} options={MONTHS} placeholder="—" />
+              <Vital id={`${uid}-born`} title="Year" value={YEARS.includes(v.born) ? v.born : ''} onChange={x => setPart('born', x)} options={YEARS} placeholder="—" />
               <span style={fieldLabel}>Age<span style={{ ...inputBase, fontSize: 15, padding: '8px 11px', border: '1px solid transparent', background: 'transparent', color: 'var(--ink-2)', fontWeight: 500, textTransform: 'none', letterSpacing: 'normal' }}>{age || '—'}</span></span>
             </div>
-            <label style={fieldLabel} htmlFor={`${uid}-job`}>Job<Select id={`${uid}-job`} value={JOB_OPTS.includes(v.job) ? v.job : ''} onChange={e => upd('job', e.target.value)} options={JOB_OPTS} placeholder="Field…" /></label>
-            <label style={fieldLabel} htmlFor={`${uid}-education`}>Education<Select id={`${uid}-education`} value={EDU_OPTS.includes(v.education) ? v.education : ''} onChange={e => upd('education', e.target.value)} options={EDU_OPTS} placeholder="Level…" /></label>
-            <label style={fieldLabel} htmlFor={`${uid}-gender`}>Gender<Select id={`${uid}-gender`} value={GENDER_OPTS.includes(v.gender) ? v.gender : ''} onChange={e => upd('gender', e.target.value)} options={GENDER_OPTS} placeholder="—" /></label>
-            <label style={fieldLabel} htmlFor={`${uid}-heightBand`}>Height<Select id={`${uid}-heightBand`} value={HEIGHT_OPTS.includes(v.heightBand) ? v.heightBand : ''} onChange={e => upd('heightBand', e.target.value)} options={HEIGHT_OPTS} placeholder="—" /></label>
-            <label style={fieldLabel} htmlFor={`${uid}-relationship`}>Relationship<Select id={`${uid}-relationship`} value={REL_OPTS.includes(v.relationship) ? v.relationship : ''} onChange={e => upd('relationship', e.target.value)} options={REL_OPTS} placeholder="—" /></label>
+            <Vital id={`${uid}-job`} title="Job" value={JOB_OPTS.includes(v.job) ? v.job : ''} onChange={x => upd('job', x)} options={JOB_OPTS} placeholder="Field…" />
+            <Vital id={`${uid}-education`} title="Education" value={EDU_OPTS.includes(v.education) ? v.education : ''} onChange={x => upd('education', x)} options={EDU_OPTS} placeholder="Level…" />
+            <Vital id={`${uid}-gender`} title="Gender" value={GENDER_OPTS.includes(v.gender) ? v.gender : ''} onChange={x => upd('gender', x)} options={GENDER_OPTS} placeholder="—" />
+            <Vital id={`${uid}-heightBand`} title="Height" value={HEIGHT_OPTS.includes(v.heightBand) ? v.heightBand : ''} onChange={x => upd('heightBand', x)} options={HEIGHT_OPTS} placeholder="—" />
+            <Vital id={`${uid}-relationship`} title="Relationship" value={REL_OPTS.includes(v.relationship) ? v.relationship : ''} onChange={x => upd('relationship', x)} options={REL_OPTS} placeholder="—" />
             {/* One picker, not two free-text boxes (D9). Country is derived
                 from the chosen city rather than typed: as free text it was
                 minting a bucket per spelling ("Norway"/"norway"/"NO"), each
@@ -325,10 +322,15 @@ import {
       </Card>
     );
   }
-  const fieldLabel = {
-    display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0,
+  // The caption's own typography, and the row that stacks a caption over a
+  // control. Two constants rather than one because FieldPicker does its own
+  // stacking and takes only the first half.
+  const fieldCap = {
     fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, letterSpacing: '0.04em',
     textTransform: 'uppercase', color: 'var(--ink-3)',
+  };
+  const fieldLabel = {
+    ...fieldCap, display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0,
   };
 
   // ── the visual profile: mind-map thumbnail → Mirror · You ──
