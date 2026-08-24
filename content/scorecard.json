@@ -1,11 +1,11 @@
 {
-  "generatedAt": "2026-08-23T07:04:48.045Z",
-  "daysSinceEpoch": 22,
+  "generatedAt": "2026-08-24T07:07:01.551Z",
+  "daysSinceEpoch": 23,
   "coverage": {
-    "questions": 230,
+    "questions": 244,
     "scored": 0,
     "belowFloor": 12,
-    "unserved": 104
+    "unserved": 105
   },
   "topics": {
     "Sport": {
@@ -89,7 +89,7 @@
       "avgEvenness": null
     },
     "Goals": {
-      "questions": 8,
+      "questions": 9,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -113,7 +113,7 @@
       "avgEvenness": null
     },
     "Interests": {
-      "questions": 7,
+      "questions": 8,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -145,7 +145,7 @@
       "avgEvenness": null
     },
     "food": {
-      "questions": 14,
+      "questions": 15,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -153,7 +153,7 @@
       "avgEvenness": null
     },
     "movies": {
-      "questions": 10,
+      "questions": 11,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -169,7 +169,7 @@
       "avgEvenness": null
     },
     "music": {
-      "questions": 9,
+      "questions": 10,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -177,7 +177,7 @@
       "avgEvenness": null
     },
     "event": {
-      "questions": 11,
+      "questions": 12,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -185,7 +185,7 @@
       "avgEvenness": null
     },
     "people": {
-      "questions": 8,
+      "questions": 9,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -193,7 +193,15 @@
       "avgEvenness": null
     },
     "bigq": {
-      "questions": 12,
+      "questions": 13,
+      "scored": 0,
+      "answers": 0,
+      "strong": 0,
+      "landslides": 0,
+      "avgEvenness": null
+    },
+    "now": {
+      "questions": 6,
       "scored": 0,
       "answers": 0,
       "strong": 0,
@@ -204,7 +212,7 @@
   "types": {
     "daily": {
       "binary": {
-        "questions": 42,
+        "questions": 43,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -220,7 +228,7 @@
         "avgEvenness": null
       },
       "scale": {
-        "questions": 18,
+        "questions": 19,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -254,7 +262,7 @@
         "avgEvenness": null
       },
       "vote": {
-        "questions": 84,
+        "questions": 95,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -262,7 +270,7 @@
         "avgEvenness": null
       },
       "dial": {
-        "questions": 9,
+        "questions": 10,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -297,7 +305,7 @@
     "bySource": {
       "editorial": {
         "questions": 176,
-        "served": 96,
+        "served": 97,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -305,8 +313,8 @@
         "avgEvenness": null
       },
       "farm": {
-        "questions": 54,
-        "served": 30,
+        "questions": 68,
+        "served": 42,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -317,7 +325,7 @@
     "byVintage": {
       "editorial:prototype": {
         "questions": 118,
-        "served": 87,
+        "served": 88,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -372,6 +380,15 @@
       "farm:2026-08-22": {
         "questions": 8,
         "served": 6,
+        "scored": 0,
+        "answers": 0,
+        "strong": 0,
+        "landslides": 0,
+        "avgEvenness": null
+      },
+      "farm:2026-08-23": {
+        "questions": 14,
+        "served": 12,
         "scored": 0,
         "answers": 0,
         "strong": 0,
@@ -3678,11 +3695,11 @@
       ],
       "type": "dilemma",
       "prompt": "A lie that spares someone real pain. Tell it?",
-      "served": false,
+      "served": true,
       "total": 0,
       "evenness": null,
       "optionShares": null,
-      "signal": "unserved"
+      "signal": "no-answers"
     },
     {
       "qid": "daily-023",
@@ -5223,6 +5240,36 @@
       ],
       "type": "choice",
       "prompt": "Your life so far reads most like…",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-126",
+      "surface": "daily",
+      "topic": "Interests",
+      "topics": [
+        "Interests"
+      ],
+      "type": "scale",
+      "prompt": "The best hobbies have nothing to show for them.",
+      "served": false,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "unserved"
+    },
+    {
+      "qid": "daily-127",
+      "surface": "daily",
+      "topic": "Goals",
+      "topics": [
+        "Goals"
+      ],
+      "type": "binary",
+      "prompt": "Respected at work, or free to walk away from it?",
       "served": false,
       "total": 0,
       "evenness": null,
@@ -6798,6 +6845,186 @@
       ],
       "type": "vote",
       "prompt": "Paper books or an e-reader?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f83",
+      "surface": "feed",
+      "topic": "music",
+      "topics": [
+        "music"
+      ],
+      "type": "vote",
+      "prompt": "The saddest instrument?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f84",
+      "surface": "feed",
+      "topic": "people",
+      "topics": [
+        "people"
+      ],
+      "type": "vote",
+      "prompt": "One painting for your wall: Frida Kahlo, or Picasso?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f85",
+      "surface": "feed",
+      "topic": "movies",
+      "topics": [
+        "movies"
+      ],
+      "type": "vote",
+      "prompt": "End credits: sit through them, or straight out?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f86",
+      "surface": "feed",
+      "topic": "event",
+      "topics": [
+        "event"
+      ],
+      "type": "vote",
+      "prompt": "New Year's Eve: the big night, or asleep by eleven?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-dl10",
+      "surface": "feed",
+      "topic": "bigq",
+      "topics": [
+        "bigq"
+      ],
+      "type": "dial",
+      "prompt": "How many close friends does a person need?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-f87",
+      "surface": "feed",
+      "topic": "food",
+      "topics": [
+        "food"
+      ],
+      "type": "vote",
+      "prompt": "Soup: a meal, or a starter?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-n01",
+      "surface": "feed",
+      "topic": "now",
+      "topics": [
+        "now"
+      ],
+      "type": "vote",
+      "prompt": "Trump has labelled the Strait of Hormuz new US territory. Your read?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-n02",
+      "surface": "feed",
+      "topic": "now",
+      "topics": [
+        "now"
+      ],
+      "type": "vote",
+      "prompt": "Crude is near $94. Has the pump changed how you get around?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-n03",
+      "surface": "feed",
+      "topic": "now",
+      "topics": [
+        "now"
+      ],
+      "type": "vote",
+      "prompt": "Evergrande's founder got life for fraud and bribery. That sentence is…",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-n04",
+      "surface": "feed",
+      "topic": "now",
+      "topics": [
+        "now"
+      ],
+      "type": "vote",
+      "prompt": "Harry and Meghan move back to Britain, but keep no royal duties. Workable?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-n05",
+      "surface": "feed",
+      "topic": "now",
+      "topics": [
+        "now"
+      ],
+      "type": "vote",
+      "prompt": "A model published proofs for ten open problems in maths. Is that doing maths?",
+      "served": true,
+      "total": 0,
+      "evenness": null,
+      "optionShares": null,
+      "signal": "no-answers"
+    },
+    {
+      "qid": "feed-n06",
+      "surface": "feed",
+      "topic": "now",
+      "topics": [
+        "now"
+      ],
+      "type": "vote",
+      "prompt": "Italy's fourth heatwave this summer, red alerts in 25 cities. Just summer now?",
       "served": true,
       "total": 0,
       "evenness": null,
