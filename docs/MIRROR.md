@@ -259,9 +259,12 @@ average score per instrument axis, your own tick on every bar, and the
 answer count behind each number.
 
 **Since D119 the stop is a tab row, not a scroll** (§3): `Answers ·
-People · Compare · Scores`, plus **Explore at the World stop only**
-(D152 — see the lens list below for why it is the globe's), one open at a
-time, the prototype's nav v2. It used to be the constellation on top, the answer rows under it,
+People · Scores · Compare`, plus **Explore before Compare at the World
+stop only** (D152 — see the lens list below for why it is the globe's),
+one open at a time, the prototype's nav v2. Compare is last since D184,
+which is the prototype's own order and its reason: the first three
+describe the POPULATION and Compare is the only one that puts you against
+it, which is where a row running from "them" to "you and them" ends. It used to be the constellation on top, the answer rows under it,
 and a collapsed lens strip at the bottom — so Answers was the page and
 everything else was a drawer.
 
@@ -302,7 +305,7 @@ Since D100 they draw the **archive** rather than the week:
 which is the deck plus everything the user has answered. That is what
 makes the Answers lens's filter and sort worth having, and it is the only
 reason Scores can find a question that rates a place at all — the bank
-holds twenty-four in a hundred and fourteen, spread over three radii, so
+holds twenty-four in a hundred and thirty, spread over three radii, so
 a given week's deck serves at most one.
 
 ## 3 · The lens row — the designed shape, and what live mode ships

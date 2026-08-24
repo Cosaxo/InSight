@@ -280,7 +280,7 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
     if (isOpen) {
       return (
         <div key={qq.id} data-openq="1" style={{ position: 'relative', border: '1px solid color-mix(in oklch, var(--accent) 32%, var(--rule))', borderRadius: 18, padding: '4px 12px 8px', margin: '6px 0 10px', background: 'var(--surface-2)', boxShadow: 'var(--shadow-card)' }}>
-          <button className="press" aria-label="Close question" onClick={() => setOpenQ(null)} style={{ position: 'absolute', top: 12, right: 12, zIndex: 2, width: 26, height: 26, borderRadius: '50%', border: '0.5px solid var(--rule)', background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, WebkitAppearance: 'none' }}>✕</button>
+          <button className="press tap44" aria-label="Close question" onClick={() => setOpenQ(null)} style={{ position: 'absolute', top: 12, right: 12, zIndex: 2, width: 26, height: 26, borderRadius: '50%', border: '0.5px solid var(--rule)', background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, WebkitAppearance: 'none' }}>✕</button>
           <window.WorldFeed focus={[qq]} cats={{}} onToggle={() => {}} beats={false}
             opts={{ pass: false, clock: false, ripple: false, why: false }}
             onVote={() => setVotes(srchVotes())} />
@@ -300,7 +300,7 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
           <input ref={ref} value={q} onChange={e => { setQ(e.target.value); setOpenQ(null); }} placeholder="Questions, topics, people…"
             autoComplete="off" autoCorrect="off" autoCapitalize="none" spellCheck={false} inputMode="search" enterKeyHint="search"
             onKeyDown={e => { if (e.key === 'Escape') onClose(); }} />
-          {q && <button onClick={() => { setQ(''); setOpenQ(null); }} style={{ border: 'none', background: 'var(--rule)', color: 'var(--ink-2)', width: 18, height: 18, borderRadius: 999, fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>✕</button>}
+          {q && <button className="tap44" onClick={() => { setQ(''); setOpenQ(null); }} style={{ border: 'none', background: 'var(--rule)', color: 'var(--ink-2)', width: 18, height: 18, borderRadius: 999, fontSize: 11, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>✕</button>}
         </div>
         <button className="search-cancel" onClick={onClose}>Cancel</button>
       </div>

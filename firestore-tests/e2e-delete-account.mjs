@@ -305,6 +305,19 @@ await adb.doc(`v2_presence/${uid}`).set({
 await adb.doc("v2_presence_room/5999_1074").set({
   people: [{ uid, type: "Host" }, { uid: OTHER }], qs: {}, at: new Date(),
 });
+// …and a NEIGHBOUR's cache, which is where the sweep used to stop short.
+// The cache is keyed by the caller's cell while its roster spans that
+// cell's 3x3 block, and the block is symmetric — so this account is in
+// the roster of all nine cells around it, not only its own. Deleting one
+// left it named in eight, readable by anyone standing one cell over.
+await adb.doc("v2_presence_room/6000_1075").set({
+  people: [{ uid, type: "Host" }, { uid: OTHER }], qs: {}, at: new Date(),
+});
+// The control, two cells away: outside the block, so its roster cannot
+// name this account and the sweep must not reach it.
+await adb.doc("v2_presence_room/6002_1074").set({
+  people: [{ uid: OTHER }], qs: {}, at: new Date(),
+});
 await adb.doc(`v2_mod_queue/${MY_TAKE}`).set({
   takeId: MY_TAKE, gid: SHARED, text: "words that must not outlive the account",
   flags: 3, escalations: 0,
@@ -319,6 +332,18 @@ await adb.doc(`v2_takes/${THEIR_TAKE}`).set({
 await adb.doc(`v2_flags/${THEIR_TAKE}_${uid}`).set({ takeId: THEIR_TAKE, gid: SHARED, uid });
 await adb.doc(`v2_mod_queue/${THEIR_TAKE}`).set({
   takeId: THEIR_TAKE, gid: SHARED, text: "someone else's words", flags: 3, escalations: 1,
+});
+// The second control, and it is a different SHAPE rather than a second
+// instance of the first. Avatars are moderated through this same queue
+// (D178) under an `av_<uid>` target id, and `v2_takes/av_<uid>` can never
+// exist — so a sweep that asks v2_takes about every entry reads every
+// queued face as an orphan and takes it, whoever is deleting. Accounts
+// are free (D3), so that is a flagged photo kept out of moderation
+// indefinitely by a throwaway, once a day, for as long as it is reported.
+const THEIR_FACE = `av_${OTHER}`;
+await adb.doc(`v2_avatars/${OTHER}`).set({ token: "tok0e2e0001", at: new Date(), hidden: false });
+await adb.doc(`v2_mod_queue/${THEIR_FACE}`).set({
+  takeId: THEIR_FACE, kind: "avatar", gid: null, text: null, flags: 3, escalations: 0,
 });
 
 // One client-authored write, so the test also covers the real path.
@@ -359,6 +384,7 @@ for (const [path, label] of [
   [`v2_avatars/${uid}`, "their profile photo's document"],
   [`v2_presence/${uid}`, "their presence cell"],
   ["v2_presence_room/5999_1074", "the cached roster naming them"],
+  ["v2_presence_room/6000_1075", "a NEIGHBOUR cell's cached roster naming them"],
   [`v2_mod_queue/${MY_TAKE}`, "the queue's copy of their take"],
   [`v2_takes/${THEIR_TAKE}`, "someone else's take"],
   [`v2_mod_queue/${THEIR_TAKE}`, "the queue's copy of someone else's take"],
@@ -452,6 +478,7 @@ for (const [path, label] of [
   [`v2_avatars/${uid}`, "their profile photo's document"],
   [`v2_presence/${uid}`, "their presence cell"],
   ["v2_presence_room/5999_1074", "the cached roster naming them"],
+  ["v2_presence_room/6000_1075", "a NEIGHBOUR cell's cached roster naming them"],
   // The gap this leg exists for: the take was erased, and its words went on
   // living in the moderation queue's copy of them.
   [`v2_mod_queue/${MY_TAKE}`, "the queue's copy of their take"],
@@ -492,12 +519,27 @@ if (theirQueued.get("text") !== "someone else's words") fail("someone else's que
 if (theirQueued.get("escalations") !== 1) fail("someone else's escalation count was lost");
 if (!(await exists(`v2_takes/${THEIR_TAKE}`))) fail("someone else's take was deleted");
 ok("someone else's take, its queue entry and its escalation count survive untouched");
+// …and the same for a queued FACE, which is the entry the sweep could not
+// find in v2_takes because it was never going to be there.
+const theirFace = await adb.doc(`v2_mod_queue/${THEIR_FACE}`).get();
+if (!theirFace.exists) fail("the sweep took a queued avatar report — av_ ids are not take ids");
+if (theirFace.get("flags") !== 3) fail("a queued avatar report's flag count was altered");
+if (!(await exists(`v2_avatars/${OTHER}`))) fail("someone else's profile photo was deleted");
+ok("a queued avatar report on someone else survives an unrelated erasure");
 if (!(await exists(`v2_suggestions/${OTHER}_e2e`)))
   fail("someone else's suggestion was deleted — the sweep matched more than the uid");
 ok("someone else's question suggestion survives");
 if (!(await exists(`v2_users/${OTHER}/engagement/2026-08-22`)))
   fail("someone else's engagement rollup was deleted — the wipe took the collection, not the account");
 ok("someone else's engagement rollup survives (D270)");
+
+// The presence sweep's own edge: nine cells, and only nine. A cache two
+// cells away cannot name this account — it is outside the 3x3 block the
+// roster folds over — so reaching it would be the sweep taking a roster
+// it has no claim on.
+if (!(await exists("v2_presence_room/6002_1074")))
+  fail("the presence sweep reached beyond the 3x3 block around the cell");
+ok("a room cache outside the neighbourhood is left alone");
 
 // The ledger sweep is a uid query, and this is why it has to be: another
 // account's attribution record must outlive this deletion, or one erasure

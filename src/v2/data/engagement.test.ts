@@ -314,7 +314,8 @@ describe("buckets", () => {
 
 describe("the key list", () => {
   it("is the shard vocabulary the rules arm whitelists — additions land in both or neither", () => {
-    expect(S_KEYS).toHaveLength(30);
+    // 31 since tabPatterns joined with the D265 remount.
+    expect(S_KEYS).toHaveLength(31);
     expect(new Set(S_KEYS).size).toBe(S_KEYS.length);
   });
 });

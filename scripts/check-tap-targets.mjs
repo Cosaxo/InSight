@@ -56,6 +56,32 @@ if (files.length < 20) {
 // `width: 20` / `width: 20,` / `width: '20px'` inside a style object.
 const SIZE = /\b(width|height)\s*:\s*'?"?(\d+(?:\.\d+)?)(?:px)?'?"?\s*[,}]/g;
 
+/**
+ * A control's own attributes: for JSX, up to the first `>` at brace depth
+ * zero outside a string; for hyperscript, the balanced props object after
+ * `h('button',`. Quotes are tracked because a `>` inside a string literal
+ * (an aria-label, a `'\u203A'` chevron) is not a tag end either.
+ */
+function headOf(src, start, kind) {
+  let i = start + (kind === "jsx" ? "<button".length : "h('button',".length);
+  let quote = null;
+  let depth = 0;
+  if (kind === "h") {
+    // Skip to the props object. A control written `h('button', null, …)`
+    // has no attributes to read and no size to find.
+    while (i < src.length && src[i] !== "{") { if (src[i] === ")") return src.slice(start, i); i++; }
+  }
+  for (; i < src.length; i++) {
+    const c = src[i];
+    if (quote) { if (c === quote && src[i - 1] !== "\\") quote = null; continue; }
+    if (c === '"' || c === "'" || c === "`") { quote = c; continue; }
+    if (c === "{") depth++;
+    else if (c === "}") { depth--; if (kind === "h" && depth === 0) return src.slice(start, i + 1); }
+    else if (c === ">" && depth === 0 && kind === "jsx") return src.slice(start, i + 1);
+  }
+  return src.slice(start, i);
+}
+
 const findings = [];
 let buttons = 0;
 
@@ -72,12 +98,25 @@ for (const file of files.sort()) {
 
   for (const m of opens) {
     buttons += 1;
-    // The element's own attributes: up to the first `>` for JSX, or the
-    // matching depth-0 `)` for hyperscript. Bounded so a runaway match
-    // cannot swallow the file — 1200 chars covers every control here, and
-    // the inline styles in this tree are long.
-    const chunk = src.slice(m.index, m.index + 1200);
-    const head = chunk.split(/>|\n\s*h\(/)[0];
+    // The element's own attributes, read with a QUOTE- AND DEPTH-AWARE
+    // scan rather than a split.
+    //
+    // It was `chunk.split(/>|\n\s*h\(/)[0]`, and the `>` that ends a
+    // control's attributes is almost never the first `>` after `<button`:
+    // `onClick={() => …}` puts one three attributes earlier. So every head
+    // stopped at the arrow, and a `width: 26` after it was invisible.
+    // Measured against this scan on the tree it was fixed on: the split
+    // found **0** undersized controls, this finds **17** — including the
+    // relmap panel's ✕ at 30px, the search overlay's close at 26px, and
+    // the Mirror's 7px page dots. A gate written because "check:a11y
+    // stayed green while every sheet's Close button was 26px" had the same
+    // shape of hole one layer down.
+    //
+    // check-touch-zoom.mjs already carried the answer for the identical
+    // problem — its `tagsIn` comment says "a naive /<input[^>]*>/ stops
+    // inside the first onChange" — so this is that scan, generalised to
+    // hyperscript's balanced props object.
+    const head = headOf(src, m.index, m[0][0] === "<" ? "jsx" : "h");
 
     let small = null;
     for (const s of head.matchAll(SIZE)) {

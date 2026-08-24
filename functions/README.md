@@ -25,7 +25,9 @@ rewrite is D223.*
 - `src/v2social.ts` — groups, duos, invites, the duel reveal scan and its
   streaks, presence and the Near room fold, push token registration.
 - `src/patterns.ts` — the nightly rank-K fit over the agg-events ledger
-  that publishes `v2_patterns/loadings` (the Patterns tab's only source).
+  that publishes `v2_patterns/loadings` (the Patterns tab's only source)
+  and, beside it, the drawable-pool count on `v2_meta/app` that decides
+  whether the tab is in the bar at all (D265).
   Deliberately off the hot write path.
 - `src/moderation.ts` — the flag tally, the server-picked queue, and the
   moderator's three instruments. `docs/MODERATION.md` is the design.

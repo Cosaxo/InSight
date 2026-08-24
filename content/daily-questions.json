@@ -3143,5 +3143,57 @@
         "The good life"
       ]
     ]
+  },
+  {
+    "id": "128",
+    "type": "choice",
+    "prompt": "First thing you want in the morning?",
+    "tag": "First thing",
+    "options": [
+      "Quiet",
+      "Coffee",
+      "Movement",
+      "Ten more minutes"
+    ],
+    "tone": "light",
+    "cat": [
+      "Body",
+      "Mornings"
+    ],
+    "alts": [
+      [
+        "Home",
+        "Rituals"
+      ],
+      [
+        "Mind",
+        "Rest"
+      ]
+    ]
+  },
+  {
+    "id": "129",
+    "type": "binary",
+    "prompt": "At a concert: front row, or back with space?",
+    "tag": "Where you stand",
+    "options": [
+      "Front row",
+      "Back with space"
+    ],
+    "tone": "light",
+    "cat": [
+      "Music",
+      "Going out"
+    ],
+    "alts": [
+      [
+        "Interests",
+        "Nightlife"
+      ],
+      [
+        "Body",
+        "Comfort"
+      ]
+    ]
   }
 ]

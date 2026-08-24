@@ -15,6 +15,8 @@ import { reportError } from '../../lib/sentry';
 // answers with the navigation, map-tab reads the where. ESM on all three
 // sides, so the coupling ratchet never counts it.
 import { onMapCue } from '../data/mapCue.ts';
+import LIVE from '../data/live';
+import { patternsEarned } from '../data/patternsReady';
 import { closeTopBackLayer } from '../data/backLayers';
 import { registerNav } from '../data/nav';
 // R2/D268: the anonymous feature tally — a no-op until initLive arms it,
@@ -22,11 +24,20 @@ import { registerNav } from '../data/nav';
 import * as engagement from '../data/engagement';
 import { useDialog } from './primitives.jsx';
 
-// The patterns tab is UNMOUNTED for v1 (D217) — this is the import site
-// the D166 §1 trial clause priced the reversal at. ui/PatternsTab.tsx,
-// the patterns data layer and the nightly fit all stand untouched;
-// remounting is this React.lazy import back, the TABS entry below, and
-// the near-end branch in daily-split.jsx, and the trial resumes.
+// The third tab, ON TRIAL (D166 §1) and MOUNTED ON THE DATA (D265) — lazy
+// by requirement, not taste: check:bundle has no eager headroom, and the
+// trial clause wants the reversal to be one import site and one TABS
+// entry. React.lazy is the same pattern daily-split uses for its typed
+// panels; the chunk loads on the first visit to the tab and never before —
+// which, since D265, is the first visit a gate opened for.
+//
+// D217 unmounted this outright for the v1 release and priced the remount
+// at three joints; this is the first of them. It comes back conditional
+// rather than unconditional: `usePatternsTab` below decides whether the
+// tab exists at all, from what the nightly fit has published and what the
+// viewer has answered (data/patternsReady.ts). Below that line the entry
+// is not in TABS, so nothing here ever renders and the chunk never loads.
+const PatternsTabLazy = React.lazy(() => import('../ui/PatternsTab.tsx'));
 
 // The Tweaks panel is DESIGN-TIME tooling and production cannot open it —
 // its only setOpen(true) is behind `if (!import.meta.env.DEV) return`. It
@@ -102,20 +113,40 @@ function NavGlyph({ id, active }) {
       </svg>
     );
   }
-  // 'groups' and 'duo' glyphs left with the bar nav (v28 §10), and the
-  // patterns constellation left with its tab (D217) — only the tab bar
-  // renders glyphs, and it knows 'track' and 'mirror'.
+  if (id === 'patterns') {
+    // A small constellation — places joined by their ties, one inked
+    return (
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke={stroke} strokeWidth={sw} strokeLinecap="round">
+        <path d="M6 17.5 L11.5 8.5 L18.5 13.5"></path>
+        <path d="M6 17.5 L18.5 13.5" strokeDasharray="1.5 2"></path>
+        <circle cx="6" cy="17.5" r="1.6" fill={stroke} stroke="none"></circle>
+        <circle cx="18.5" cy="13.5" r="1.6" fill={stroke} stroke="none"></circle>
+        <circle cx="11.5" cy="8.5" r="2.6" fill={active ? 'var(--ink)' : 'transparent'} fillOpacity="0.14"></circle>
+        <circle cx="11.5" cy="8.5" r="1.6" fill={active ? stroke : 'none'} stroke={stroke}></circle>
+      </svg>
+    );
+  }
+  // 'groups' and 'duo' glyphs left with the bar nav (v28 §10) — only the
+  // tab bar renders glyphs, and it knows 'patterns', 'track' and 'mirror'.
   return null;
 }
 
-// Two tabs for v1: daily · mirror. v28 §1 made it three with the daily in
-// the middle; the patterns entry is unmounted with its import (D217), and
-// this list is where it returns.
+// The bar: daily · mirror, and patterns in front of them once the data
+// can carry it (D265). v28 §1 wanted three with the daily in the middle so
+// a swipe either way lands somewhere; D217 unmounted the third for the v1
+// release; this is that entry back, on a condition instead of on a flag.
+//
+// TWO LISTS RATHER THAN A FILTER, because the bar's own arithmetic reads
+// the list — `TABS.length`, `TABS.some`, `TABS.map` — and a list with a
+// hole in it is the shape that ends up rendering a gap. `tabsFor` is the
+// only place that decides, and every consumer takes what it returns.
 // (Internal ids keep their historical names; only labels are user-facing.)
-const TABS = [
+const TABS_CORE = [
   { id: 'track',  label: 'daily'  },
   { id: 'mirror', label: 'mirror' },
 ];
+const PATTERNS_TAB = { id: 'patterns', label: 'patterns' };
+const tabsFor = (patternsOpen) => (patternsOpen ? [PATTERNS_TAB, ...TABS_CORE] : TABS_CORE);
 
 const MIRROR_POP_IDS = ['you', 'circle', 'groups', 'near', 'world'];
 const WORLD_ZOOM_IDS = ['city', 'country', 'world'];
@@ -126,6 +157,10 @@ const WORLD_ZOOM_IDS = ['city', 'country', 'world'];
 // swipe gestures still
 // address the app by these keys.
 const NAV_ONE = [
+  // Refused while the gate is shut — goNav checks the live tab list, so a
+  // stale caller (a remembered gesture, an old deep link) lands nowhere
+  // rather than on a tab that is not in the bar.
+  { key: 'patterns',    tab: 'patterns'              },
   { key: 'track:world', tab: 'track',  mode: 'world' },
   { key: 'track:group', tab: 'track',  mode: 'group' },
   { key: 'track:duo',   tab: 'track',  mode: 'duo'   },
@@ -219,10 +254,73 @@ export function UpdateRequiredBlocker() {
   );
 }
 
+/**
+ * Whether the Patterns tab exists in this session (D265).
+ *
+ * The tab is absent until the nightly fit has published enough to draw
+ * and the viewer has answered enough to be drawn in it — both numbers
+ * come off `LIVE.patternsSignal()` for free, and `data/patternsReady.ts`
+ * holds the verdict and the reasoning for each threshold.
+ *
+ * ONCE EARNED IT STAYS, FOR THIS ACCOUNT. Crossing the floor is
+ * remembered (`patternsEarned`, data/patternsReady.ts) rather than
+ * recomputed from scratch on every launch, and the reason is not the
+ * flicker — it is that `mine` is NOT the monotone quantity it looks like.
+ * The device counts answers against the bank it is holding, and a
+ * question can LEAVE that bank: `active: false` is the question farm's
+ * own recommendation for a landslide, which is exactly a question most
+ * people have already answered. Recomputed every launch, retiring one
+ * could take the tab back off someone who had it yesterday, while the
+ * fit's own count — which never prunes — was unchanged. The memory is
+ * account state like any `insight.*` key and goes with the purge.
+ *
+ * WHICH IS ALSO THE ONE THING THAT CLOSES THE GATE. `purgeLocalTrace`
+ * fires `insight:local-purge` on deletion and on a uid change, with no
+ * reload behind it (data/live.ts), and `resetForNewUid` empties the vote
+ * mirror in place. Without this arm the next account would inherit a tab
+ * it has not earned — zero answers, an Oracle with no evidence, and "you"
+ * at the origin of the People lens, which is precisely what the gate
+ * exists to refuse.
+ *
+ * On a first launch the initial read runs before boot, and boot is what
+ * fills both numbers: `hydrate()` reads the meta document and the vote
+ * mirror, then calls `notify()`. So a first cold start paints two tabs
+ * and the third arrives with the rest of the live data — the behaviour
+ * the owner asked for, said out loud: it appears when there is enough.
+ * Later launches paint three from the first frame.
+ */
+function usePatternsTab() {
+  const [open, setOpen] = useState(() => patternsEarned(LIVE.patternsSignal()));
+  useEffect(() => {
+    // The purge arm runs in BOTH states — an open gate is exactly the one
+    // that has to hear this.
+    // The key itself is dropped by patternsReady's own arm on this same
+    // event; this one drops the shell's copy of the answer.
+    const shut = () => setOpen(false);
+    window.addEventListener('insight:local-purge', shut);
+    const off = open ? null : LIVE.subscribe(() => {
+      if (patternsEarned(LIVE.patternsSignal())) setOpen(true);
+    });
+    // Once before the subscription can matter: boot can land between the
+    // initial state and this effect, and a notify() nobody was listening
+    // for is one this session would never hear again.
+    if (!open && patternsEarned(LIVE.patternsSignal())) setOpen(true);
+    return () => { window.removeEventListener('insight:local-purge', shut); if (off) off(); };
+  }, [open]);
+  return open;
+}
+
 function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const patternsOpen = usePatternsTab();
+  const TABS = tabsFor(patternsOpen);
   const validTab = (id) => (TABS.some(x => x.id === id) ? id : 'track');
   const [tab, setTab] = useState(validTab(t.tab));
+  // The nav effect below is mount-only and registers closures that outlive
+  // this render; the tab list stopped being a constant at D265, so they
+  // read it through a ref for the same reason `backState` exists.
+  const tabsRef = React.useRef(TABS);
+  tabsRef.current = TABS;
   const [person, setPerson] = useState(null);
   const [city, setCity] = useState(null);
   // ONE overlay key instead of two dozen booleans — closeAll can't drift
@@ -244,6 +342,19 @@ function App() {
   // procedurally generated and server-scored, D57.)
 
   useEffect(() => { if (tab !== 'track') setDocked(false); }, [tab]);
+  // The gate closes in exactly one case — the account changed under us
+  // (usePatternsTab's purge arm) — and a viewer standing on the tab when
+  // it does would otherwise be left on one the bar no longer carries: a
+  // bar with nothing marked current over a body nothing mounts. Land them
+  // on the daily, which is where a purge leaves everything else.
+  // `setTweak` is in the deps rather than suppressed: it is recreated every
+  // render, so this runs after each one — two comparisons, and the body is
+  // a no-op unless the gate just closed under someone standing on the tab.
+  // A suppression here would have cost the react-hooks ratchet a line for
+  // an effect that does not need one.
+  useEffect(() => {
+    if (!patternsOpen && tab === 'patterns') { setTab('track'); setTweak('tab', 'track'); }
+  }, [patternsOpen, tab, setTweak]);
 
   const mirrorPop = MIRROR_POP_IDS.includes(t.mirrorPop) ? t.mirrorPop : 'you';
   const worldZoom = WORLD_ZOOM_IDS.includes(t.worldZoom) ? t.worldZoom : 'world';
@@ -368,18 +479,32 @@ function App() {
     const goTab = (id) => {
       closeAll();
       if (MIRROR_POP_IDS.includes(id)) { setTweak('mirrorPop', id); setTab('mirror'); return; }
-      if (TABS.some(x => x.id === id)) setTab(id);
+      // The ref, not TABS: this closure is registered once (the effect is
+      // mount-only) and the tab list is now runtime state, so reading the
+      // captured list would refuse 'patterns' forever after the gate
+      // opened.
+      if (tabsRef.current.some(x => x.id === id)) setTab(id);
     };
     // one axis for the bottom bar: any nav key, from anywhere (swipe gestures use this)
+    //
+    // Answers whether it NAVIGATED (D265). Every caller but one ignores it;
+    // daily-split's near-end exit does not, because a swipe that reaches
+    // for a tab the gate has not opened must spring back like any other
+    // edge rather than sit where the finger left it. `patterns` is the
+    // only key that can be refused, and it is refused by the live tab list
+    // rather than by a second copy of the condition.
     const goNav = (key) => {
       const it = NAV_ONE.find(x => x.key === key);
-      if (!it) return;
+      if (!it) return false;
+      if (!tabsRef.current.some(x => x.id === it.tab)) return false;
       // a cross-tab jump ends the gesture that caused it: trackpad momentum kept
       // arriving after the switch and stepped the daily one stop further
       markNav();
       closeAll();
-      if (it.tab === 'mirror') { setTweak('mirrorPop', 'you'); setTab('mirror'); return; }
+      if (it.tab === 'mirror') { setTweak('mirrorPop', 'you'); setTab('mirror'); return true; }
+      if (it.tab === 'patterns') { setTab('patterns'); return true; }
       setDailyMode(it.mode); setTab('track');
+      return true;
     };
     // `window.openTest` stood here (D121). Every caller is gone with it —
     // the profile's per-test CTA, the passive meter's sheet rows — and it
@@ -423,7 +548,14 @@ function App() {
   // increment on an armed live session and a no-op everywhere else.
   // (In dev, StrictMode's double-invoked effects can double a count; the
   // production build fires once, and the tally ships from production.)
-  useEffect(() => { engagement.note(tab === 'mirror' ? 'tabMirror' : 'tabDaily'); }, [tab]);
+  useEffect(() => {
+    // Three tabs since the D265 remount, mapped by name and never by
+    // elimination — a future tab counts nothing until the vocabulary
+    // learns it, rather than inflating a neighbour's figure.
+    const k = tab === 'mirror' ? 'tabMirror' : tab === 'patterns' ? 'tabPatterns'
+      : tab === 'track' ? 'tabDaily' : null;
+    if (k) engagement.note(k);
+  }, [tab]);
   useEffect(() => { if (ov) engagement.note('overlays'); }, [ov]);
   useEffect(() => {
     if (tab !== 'mirror') return;
@@ -461,7 +593,7 @@ function App() {
 
   return (
     <IOSDevice width={402} height={874}>
-      <div className={appClasses} data-tab={tab} data-view={tab === 'track' ? 'track:' + dailyMode : 'mirror:' + mirrorPop} data-lens-style="underline" data-docked={tab === 'track' && docked ? '' : undefined} data-mpop={tab === 'mirror' ? mirrorPop : undefined} style={tab === 'mirror' ? { '--accent': mirrorPop === 'you' ? 'var(--c-today)' : mirrorPop === 'circle' ? 'var(--c-people)' : mirrorPop === 'groups' ? 'var(--c-groups)' : mirrorPop === 'world' ? 'var(--c-world)' : 'var(--c-city)' } : undefined}>
+      <div className={appClasses} data-tab={tab} data-view={tab === 'track' ? 'track:' + dailyMode : tab === 'patterns' ? 'patterns' : 'mirror:' + mirrorPop} data-lens-style="underline" data-docked={tab === 'track' && docked ? '' : undefined} data-mpop={tab === 'mirror' ? mirrorPop : undefined} style={tab === 'mirror' ? { '--accent': mirrorPop === 'you' ? 'var(--c-today)' : mirrorPop === 'circle' ? 'var(--c-people)' : mirrorPop === 'groups' ? 'var(--c-groups)' : mirrorPop === 'world' ? 'var(--c-world)' : 'var(--c-city)' } : tab === 'patterns' ? { '--accent': 'var(--c-today)' } : undefined}>
 
         <header className="app-header">
           <button aria-label="Profile" className={"avatar-btn" + (ov === 'profile' ? ' is-on' : '')} onClick={() => { if (ov === 'profile') { setOv(null); } else { openDeferred(() => { closeAll(); setOv('profile'); }); } }}>
@@ -523,6 +655,16 @@ function App() {
               {tab === 'mirror' && <MirrorTab onPerson={setPerson} pop={mirrorPop} onPop={(v) => setTweak('mirrorPop', v)} worldZoom={worldZoom} onZoom={(v) => setTweak('worldZoom', v)}
                 firstRun={!!(window.LIVE && window.LIVE.enabled && window.FEEDREAD && window.FEEDREAD.stats().n < 8)}
                 backKey={'track:duo'} />}
+              {/* Suspense fallback null, PulseCard's rule: nothing rather
+                  than a blank card — the chunk arrives inside the tap's
+                  own beat, and the ErrorBoundary above owns a failed one.
+                  Unreachable while the gate is shut: 'patterns' is not in
+                  TABS then, so no tap and no swipe can set it (D265). */}
+              {tab === 'patterns' && (
+                <React.Suspense fallback={null}>
+                  <PatternsTabLazy />
+                </React.Suspense>
+              )}
             </div>
           </ErrorBoundary>
         </div>
@@ -546,10 +688,11 @@ function App() {
                   if (tab !== id) HAPTIC.tick();
                   markNav();
                   // the daily's scale runs World · Circle · 1v1, with Mirror just
-                  // past its far end — so arriving from it lands on the stop that
-                  // sits next to it, not on whatever you last had open. (Patterns
-                  // sat past the near end until D217 unmounted it for v1.)
+                  // past its far end and Patterns past the near one — so arriving
+                  // from either lands on the stop that sits next to it, not on
+                  // whatever you last had open
                   if (id === 'track' && tab === 'mirror') setDailyMode('duo');
+                  if (id === 'track' && tab === 'patterns') setDailyMode('world');
                   setTab(id); closeAll(); if (id === 'mirror') setTweak('mirrorPop', 'you');
                 }}>
                 <span className="glyph"><NavGlyph id={id} active={tab === id} /></span>

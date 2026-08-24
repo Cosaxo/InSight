@@ -28,6 +28,8 @@ import React from "react";
 import LIVE from "../data/live";
 import { blendRoles, duoRole, duoRoleDays, groupRole, groupRoleDays, MIN_DUO, MIN_GROUP, type RoleResult } from "../data/roles";
 // @ts-expect-error TS7016 — untyped spec module (additive export)
+import { matchArchetype } from "../spec/archetype-data.js";
+// @ts-expect-error TS7016 — untyped spec module (additive export)
 import { RoseMini, TestRose } from "../spec/result-rose.jsx";
 // @ts-expect-error TS7016 — untyped spec module (additive export)
 import { TypeMark } from "../spec/type-marks.jsx";
@@ -38,12 +40,12 @@ interface Setting { key: string; label: string; res: RoleResult }
  * (the prototype's ThinRow), never silently missing from the panel. */
 interface ThinSetting { key: string; label: string; note: string }
 
-/** The matcher, through the one global the archetype module still owns. */
+/** The matcher, imported since the archetype module left the bridge
+ * (D253) — the untyped .js export, given its shape at this one seam. */
 function typeOf(kind: string, dims: { id: string; value: number }[]): { name: string; line: string } | null {
-  const m = (window as unknown as {
-    IS_matchArchetype?: (k: string, d: unknown) => { list: { name: string; line: string }[]; idx: number } | null;
-  }).IS_matchArchetype;
-  if (!m) return null;
+  const m = matchArchetype as (
+    k: string, d: unknown,
+  ) => { list: { name: string; line: string }[]; idx: number } | null;
   const hit = m(kind, dims);
   return hit ? hit.list[hit.idx] : null;
 }
@@ -60,7 +62,24 @@ export default function LiveRolesPanel(): React.ReactElement {
   };
   const uid = (LIVE.uid as string) || "";
 
-  const rooms = React.useMemo(() => (LIVE.enabled ? S.groups() : []), [S]);
+  // Read fresh every render, and the EFFECT keyed on the room ids rather
+  // than on the array.
+  //
+  // This was `React.useMemo(() => (LIVE.enabled ? S.groups() : []), [S])`,
+  // and `S` is `LIVE.social` — a plain property on live.ts's module-level
+  // `const LIVE` object literal, so it is the same reference forever and
+  // the memo ran exactly once per mount. `rooms` froze to whatever the
+  // store held at that instant, even though the panel subscribes and
+  // re-renders on every notify and re-reads `revealHistory` fresh each
+  // time. A circle that finished hydrating a moment after this screen
+  // opened, or one joined while it was open, simply never appeared.
+  //
+  // The memo was there for a real reason and it is why the naive fix is
+  // wrong: `S.groups()` builds a new array on every call, so an effect
+  // keyed on the array itself re-runs the reveal-history loader every
+  // render. The ids are the stable thing to depend on.
+  const rooms = LIVE.enabled ? S.groups() : [];
+  const roomIds = rooms.map((r) => r.id).join(",");
 
   React.useEffect(() => {
     if (!LIVE.enabled || !S.loadRevealHistory) return;
@@ -69,7 +88,9 @@ export default function LiveRolesPanel(): React.ReactElement {
     // profile tab is not a race. Firing every room at once would spike the
     // read rate on a screen the reader is still arriving at.
     void (async () => {
-      for (const r of rooms) {
+      // Re-read rather than closing over `rooms`, so the loop walks the
+      // list this run was scheduled for.
+      for (const r of (LIVE.enabled ? S.groups() : [])) {
         if (!live) return;
         try { await S.loadRevealHistory!(r.id); } catch { /* a room that refuses is simply absent below */ }
         if (live) bump((x) => x + 1);
@@ -77,7 +98,7 @@ export default function LiveRolesPanel(): React.ReactElement {
     })();
     const un = LIVE.subscribe?.(() => bump((x) => x + 1));
     return () => { live = false; if (un) un(); };
-  }, [rooms, S]);
+  }, [roomIds, S]);
 
   const duos: Setting[] = [];
   const duosThin: ThinSetting[] = [];

@@ -1066,7 +1066,7 @@ function LdCard({ g, vh, nextName, newest }: {
       {past.map((_, i) => i + 1).reverse().map((n) => {
         const cur = n === day;
         return (
-          <button key={n} onClick={() => setDay(n)} aria-current={cur ? "true" : undefined}
+          <button key={n} className="tap44 is-tight" onClick={() => setDay(n)} aria-current={cur ? "true" : undefined}
             aria-label={(n === 1 ? "Yesterday" : n + " days ago") + " — revealed"}
             style={{ width: 22, height: 22, padding: 0, border: "none", background: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", WebkitAppearance: "none" }}>
             <span style={{ width: cur ? 18 : 6, height: 6, borderRadius: 999,
@@ -1075,7 +1075,7 @@ function LdCard({ g, vh, nextName, newest }: {
           </button>
         );
       })}
-      <button onClick={() => setDay(0)} aria-current={day === 0 ? "true" : undefined} aria-label="Today"
+      <button className="tap44 is-tight" onClick={() => setDay(0)} aria-current={day === 0 ? "true" : undefined} aria-label="Today"
         style={{ width: 22, height: 22, padding: 0, border: "none", background: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", WebkitAppearance: "none" }}>
         <span style={{ width: day === 0 ? 18 : 6, height: 6, borderRadius: 999,
           background: day === 0 ? tint : (mine ? `color-mix(in oklch, ${tint} 45%, var(--surface-3))` : "color-mix(in oklch, var(--ink-3) 30%, transparent)"),

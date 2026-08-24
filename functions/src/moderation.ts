@@ -110,7 +110,7 @@ export function assertModerator(request: CallableRequest): void {
  * consumer cannot disagree about what an avatar target looks like. Returns
  * null for a take id, which is every id that existed before D178.
  */
-function avatarTarget(targetId: string): string | null {
+export function avatarTarget(targetId: string): string | null {
   return typeof targetId === "string" && targetId.startsWith("av_")
     ? targetId.slice(3) || null : null;
 }

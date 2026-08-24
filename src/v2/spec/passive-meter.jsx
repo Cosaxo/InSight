@@ -8,6 +8,7 @@ import { TypeMark, typeColor, typeSplit } from './type-marks.jsx';
 import { Sheet } from './primitives.jsx';
 import ReactDOM from 'react-dom';
 import { IS_TEST_RESULTS } from './test-definitions.js';
+import { IS_matchArchetype } from './archetype-data.js';
 import { PASSIVE } from './passive-progress.js';
 import NAV from '../data/nav';
 // The fold over your own feed answers (D121) — what an instrument reads as
@@ -136,7 +137,7 @@ function passiveSignature(k) {
 export function passiveStanding(k) {
   const m = PASSIVE.META[k];
   const R = IS_TEST_RESULTS[k];
-  const mt = (R && R.dims && window.IS_matchArchetype) ? window.IS_matchArchetype(k, R.dims) : null;
+  const mt = (R && R.dims) ? IS_matchArchetype(k, R.dims) : null;
   const standing = mt ? mt.list[mt.idx].name : null;
   if (standing) {
     return { standing, col: typeColor(k, standing, null, m.accent), sp: typeSplit(k, standing) };
@@ -207,7 +208,7 @@ function PassiveMeter() {
                         <span aria-hidden="true" style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 19, lineHeight: 1, color: 'var(--ink-3)', flexShrink: 0 }}>{'\u203A'}</span>
                       </div>
                       {/* where you stand right now — provisional while segments are unfilled */}
-                      {standing && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>{TypeMark ? <TypeMark testKey={k} name={standing} size={18}></TypeMark> : null}<span style={{ fontFamily: 'var(--sans)', fontWeight: 650, fontSize: 13, letterSpacing: '-0.01em', color: `color-mix(in oklch, ${col} 78%, var(--ink))` }}>{standing}</span></span>}
+                      {standing && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}><TypeMark testKey={k} name={standing} size={18}></TypeMark><span style={{ fontFamily: 'var(--sans)', fontWeight: 650, fontSize: 13, letterSpacing: '-0.01em', color: `color-mix(in oklch, ${col} 78%, var(--ink))` }}>{standing}</span></span>}
                     </div>
                     {/* one dot per question — filled is answered. the count IS the visual; no numbers */}
                     <span ref={pmFrontier(done)} className="h-scroll" aria-hidden="true" style={{ display: 'flex', alignItems: 'center', gap: PM_DOT_GAP, overflowX: 'auto', overflowY: 'hidden', maxWidth: '100%' }}>

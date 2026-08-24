@@ -121,6 +121,18 @@ const bankKiB = (() => {
   return Math.round((JSON.stringify(arr).length / 1024) * 10) / 10;
 })();
 
+// The Patterns fit's eligible corpus (D265) — two-option daily plus
+// two-option core feed, the rule `PATTERNS_QIDS` compiles from this same
+// bank. Quoted in `src/v2/data/patternsReady.ts` as the scale the tab's
+// pool floor is a fraction of, which is precisely the kind of sentence
+// this file exists for: it is true today, it moves every time the bank
+// grows a core question, and nothing else would notice.
+const patternsEligibleCount = (() => {
+  const arr = bankArray(v2content);
+  return arr.filter((q) => (q.options || []).length === 2
+    && (q.surface === "daily" || (q.surface === "feed" && q.core === true))).length;
+})();
+
 if (!seededQuestions || !dailyQuestions) {
   console.error(
     "check-figures: found no questions in functions/src/v2content.ts.\n"
@@ -202,6 +214,34 @@ const appPkg = JSON.parse(read("package.json"));
 // where ORIENTATION §3 sends every newcomer for the backend. Twelve
 // functions' worth of drift in the one document whose job is to say what is
 // there.
+// Spelled-out numbers, because two of the sentences below are prose and
+// this repo writes small counts as words. Only the values these rules can
+// actually reach need an entry; anything outside the table falls back to
+// digits and the diff says so plainly.
+const NUMBER_WORDS = {
+  1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six",
+  7: "seven", 8: "eight", 9: "nine", 10: "ten", 11: "eleven", 12: "twelve",
+  114: "a hundred and fourteen", 120: "a hundred and twenty",
+  121: "a hundred and twenty-one", 122: "a hundred and twenty-two",
+  123: "a hundred and twenty-three", 124: "a hundred and twenty-four",
+  125: "a hundred and twenty-five", 126: "a hundred and twenty-six",
+  127: "a hundred and twenty-seven", 128: "a hundred and twenty-eight",
+  129: "a hundred and twenty-nine", 130: "a hundred and thirty",
+  131: "a hundred and thirty-one", 132: "a hundred and thirty-two",
+  133: "a hundred and thirty-three", 134: "a hundred and thirty-four",
+  135: "a hundred and thirty-five", 136: "a hundred and thirty-six",
+};
+
+// The exemption list check:appcheck owns, counted from that file rather
+// than restated here — a second copy of the number is what this gate is
+// for.
+const appCheckExemptions = (() => {
+  const src = readFileSync(resolve(root, "scripts", "check-appcheck.mjs"), "utf8");
+  const block = /const EXEMPT = \{([\s\S]*?)\n\};/.exec(src);
+  if (!block) throw new Error("check-figures: could not find EXEMPT in check-appcheck.mjs");
+  return [...block[1].matchAll(/^\s{2}(\w+):\s*\{/gm)].length;
+})();
+
 const shippedFunctions = readdirSync(resolve(root, "functions", "src"), { recursive: true })
   .map((f) => String(f).split(sep).join("/"))
   .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"))
@@ -212,6 +252,13 @@ const shippedFunctions = readdirSync(resolve(root, "functions", "src"), { recurs
   );
 
 const FIGURES = [
+  {
+    file: "src/v2/data/patternsReady.ts",
+    what: "the Patterns fit's eligible corpus",
+    re: /the eligible corpus is (\d+) questions today/,
+    actual: String(patternsEligibleCount),
+    fix: (n) => `"the eligible corpus is ${n} questions today"`,
+  },
   {
     file: "functions/README.md",
     what: "functions that ship",
@@ -225,6 +272,32 @@ const FIGURES = [
     re: /—\s*(\d+) emulator tests/,
     actual: rulesTests,
     fix: (n) => `"— ${n} emulator tests"`,
+  },
+  // The App Check exemption count. README said FIVE while the gate
+  // reported seven, which is the security-relevant version of this whole
+  // file's problem: a reviewer auditing the exempt surface against the
+  // README counts five, finds seven, and cannot tell whether two
+  // exemptions were added without a record or the sentence simply rotted.
+  // Read out of check-appcheck.mjs's own EXEMPT keys rather than
+  // re-derived, so the two cannot disagree about what "exempt" means.
+  {
+    file: "README.md",
+    what: "callables exempt from App Check",
+    re: /The\s+(\w+) that cannot are the operator and moderator instruments/,
+    actual: NUMBER_WORDS[appCheckExemptions] || String(appCheckExemptions),
+    fix: (n) => `"The ${n} that cannot are the operator and moderator instruments"`,
+  },
+  // MIRROR.md reasons from this ratio — "so a given week's deck serves at
+  // most one" — and the denominator is the daily bank, which the promotion
+  // cadence moves every week. It had drifted 114 → 128, making anyone
+  // re-deriving Scores' fill rate about 12% optimistic off the document
+  // whose whole job is to be the read path's source of truth.
+  {
+    file: "docs/MIRROR.md",
+    what: "the daily bank behind the place-rating ratio",
+    re: /holds twenty-four in ([a-z- ]+), spread over three radii/,
+    actual: NUMBER_WORDS[dailyQuestions] || String(dailyQuestions),
+    fix: (n) => `"holds twenty-four in ${n}, spread over three radii"`,
   },
   {
     file: "README.md",

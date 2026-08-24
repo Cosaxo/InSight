@@ -90,7 +90,7 @@ export function daypartOf(ms: number): number {
  * test on both sides. */
 export const S_KEYS = [
   "opens", "slowBoots", "errors",
-  "tabDaily", "tabMirror", "overlays",
+  "tabDaily", "tabMirror", "tabPatterns", "overlays",
   "stopYou", "stopNear", "stopCircle", "stopGroups", "stopCity", "stopCountry", "stopWorld",
   "lensPeople", "lensCompare", "lensExplore", "lensScores",
   "feedSeen", "feedPass", "feedDefer",

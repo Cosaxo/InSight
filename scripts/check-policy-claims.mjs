@@ -70,14 +70,13 @@ export const CLAIMS = [
     /hides the\s+name, not the answers/i],
   ["D146 · answers can be grouped by the Big Five type, retroactively",
     /grouped by it[\s\S]{0,400}?before you had a type at all/i],
-  ["D146 · politics/values/social results are NOT used to group answers",
-    /political, values and social results are never used to group/i],
-  // D202 widened the population MIX to all four instruments and left the
-  // claim above untouched — answers still group by the Big Five alone.
-  // Two rows, because the pair is the whole disclosure: one says the app
-  // counts people by political type, the other says it still does not
-  // group answers by one. Deleting either half would leave a page that
-  // reads as the pre-D202 promise while the app does something wider.
+  // The D146 row beside this one — "politics/values/social results are
+  // NOT used to group answers" — retired at D252: the owner removed the
+  // promise (the D225 posture — an unneeded promise is a standing
+  // liability). The page now DESCRIBES what groups answers today, with
+  // no pledge about tomorrow; the app's current Big-Five-plus-logic
+  // scope is a product choice held by `data/typeSplit.SPLIT_TEST`'s own
+  // test, not by this gate.
   ["D202 · people are counted by type on all four tests, not just the Big Five",
     /count of people by type, on any of the four[\s\S]{0,600}?not only the Big\s+Five/i],
   ["D202 · and that count is people, not a grouping of answers",
@@ -105,7 +104,11 @@ export const CLAIMS = [
   ["D226 · a changed answer is counted publicly as a move between options",
     /moves from one option to another/i],
   ["D227 · the verified logic score also groups answers, in broad bands",
-    /verified logic score, in four broad\s+bands/i],
+    /verified logic score, in\s+four broad\s+bands/i],
+  ["D251 · sold reports are packaged public numbers, never a private read",
+    /report never contains\s+anything a signed-in user could not read/i],
+  ["D253 · sold reports group answers by all four tests' types and axes",
+    /matched type and axis\s+bands/i],
   // D266 is one disclosure in two halves, pinned separately for the D202
   // reason: one row says what the daily summary is (counts, no identity),
   // the other admits the uid-keyed bookkeeping behind it and its erasure.

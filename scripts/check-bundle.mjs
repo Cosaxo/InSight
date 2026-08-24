@@ -680,7 +680,35 @@ const MAX_CHUNK_KB = 735;
 // THE MERGE: **2396 KB / 869 KB eager across 99 chunks** —
 // the Map deferral paying back the eager bytes the roster spent in the
 // entry above.
-const MAX_TOTAL_JS_KB = 2404;
+//
+// 2404 → 2440 (2026-08-23): the Patterns tab remounts, on the data rather
+// than on a flag (D265). D217 unmounted it for the v1 release and the
+// entry above is the raise that admitted it in the first place, so this
+// is the same 42 KB coming back. MEASURED against a clean HEAD build (git
+// worktree, same command), 2374 → 2416 across 103 → 105 chunks, and the
+// two new files are not both new code:
+//
+//   +40.0 KB  PatternsTab-*.js — the tab and its three lenses, lazy
+//   +14.5 KB  world-feed-data-*.js — SPLIT OUT, not added: the tab imports
+//             WORLD_TOPICS from it, so rolldown lifted it into a shared
+//             chunk…
+//   −14.4 KB  …out of `catalogs` (63.1 → 48.7), which is where those
+//             bytes already were
+//   + 2.5 KB  entry (257.7 → 259.3) + live (64.3 → 65.1): the gate module,
+//             its wiring, and the earned-gate memory
+//
+// The eager graph is 839 → 841 for that last line alone: `world-feed-data`
+// joins the modulepreload list, but its bytes were already eager inside
+// `catalogs`, so the move is a relocation the ceiling below cannot see —
+// the shape the 978 → 920 entry names. So MAX_EAGER_KB — the ceiling that
+// is not raiseable — did not have to move for a whole tab: the tab itself
+// is behind React.lazy, and the gate that decides whether it is in the bar
+// is a 1 KB pure module.
+//
+// Headroom left: 24 KB. Still not room for a library — either SDK
+// rejoining first paint lands hundreds of KB over MAX_EAGER_KB and is
+// caught there, which is where that guarantee lives.
+const MAX_TOTAL_JS_KB = 2440;
 // 955 → 966 (2026-08-14): D139's pulse card — the second fixed instrument
 // on the FIRST screen, so its card, its store's demo furniture and the
 // two LIVE members are legitimately eager (~10 KB min). What is not
@@ -763,7 +791,35 @@ const MAX_EAGER_KB = 880;
 // Measured after that removal: 70 KB of CSS, 76 KB of fonts. The headroom
 // is deliberately small — these are not numbers that should drift upward
 // unnoticed, which is the whole reason they now have a gate.
-const MAX_CSS_KB = 78;
+//
+// ── AND THEN ONE NUMBER WAS DOING TWO JOBS (D265) ────────────────────
+//
+// `cssKb` sums every .css in dist/assets, and the sentence above — "CSS is
+// render-blocking, so its bytes are on the critical path" — stopped being
+// true of all of it the first time a lazily-loaded component imported a
+// stylesheet. Vite emits that as its own file, fetched with the chunk and
+// never before; `dist/index.html` links exactly one stylesheet, and only
+// that one blocks a paint. The Patterns tab is the case that made the
+// difference visible: 15 KB of chunk CSS behind a React.lazy import, which
+// the old single ceiling counted the same as 15 KB in the entry sheet.
+//
+// So state it directly, the way MAX_EAGER_KB's own note does — a
+// guarantee that survives only while a number stays small is not one:
+//
+//   MAX_BLOCKING_CSS_KB  the sheets index.html LINKS. The critical-path
+//                        number, and the one that must not drift. It has
+//                        NOT moved for the Patterns work — 69 KB before
+//                        and after, because none of those bytes are in
+//                        the entry sheet.
+//   MAX_CSS_KB           every stylesheet in the package. Install weight,
+//                        which is the footing fonts are already on.
+//
+// 78 → 88 (2026-08-23): the Patterns tab's 15 KB of lazy chunk CSS, on a
+// tree measuring 69 KB of blocking sheet and 84 KB in total. Raising the
+// total is the deliberate half; the number that guards first paint is the
+// new one, and it is tight on purpose.
+const MAX_BLOCKING_CSS_KB = 74;
+const MAX_CSS_KB = 88;
 const MAX_FONT_KB = 96;
 
 let files;
@@ -865,6 +921,33 @@ if (!eagerNames.length) {
   );
   process.exit(1);
 }
+
+// The render-blocking half of the stylesheet budget, asked of the artifact
+// for the same reason the eager graph is: a `<link rel="stylesheet">` in
+// index.html is fetched and parsed before the first paint, and a chunk's
+// own .css beside it in assets/ is not. Same failure shape as the eager
+// regexes above, so the same guard: zero links means the emit changed and
+// this budget is measuring nothing.
+const blockingCssNames = [
+  ...html.matchAll(/<link[^>]+rel="stylesheet"[^>]+href="\/assets\/([^"]+\.css)"/g),
+  ...html.matchAll(/<link[^>]+href="\/assets\/([^"]+\.css)"[^>]*rel="stylesheet"/g),
+].map((m) => m[1]);
+if (!blockingCssNames.length) {
+  console.error(
+    "check-bundle: dist/index.html links no stylesheet — the emit shape\n"
+    + "changed and the render-blocking CSS budget is measuring nothing.",
+  );
+  process.exit(1);
+}
+const blockingCssKb = [...new Set(blockingCssNames)].reduce((n, f) => {
+  try {
+    return n + statSync(join(ASSETS, f)).size / 1024;
+  } catch {
+    console.error(`check-bundle: dist/index.html links ${f}, which is not in dist/assets.`);
+    process.exit(1);
+    return n;
+  }
+}, 0);
 
 const byName = new Map(sized.map((x) => [x.f, x.kb]));
 const eager = [...new Set(eagerNames)].map((f) => {
@@ -974,15 +1057,17 @@ if (eagerKb > MAX_EAGER_KB) {
 // a demo build's asset set is not this app's.
 if (!DEMO) {
   for (const [what, kb, max] of [
-    ["stylesheet", cssKb, MAX_CSS_KB],
+    ["render-blocking stylesheet", blockingCssKb, MAX_BLOCKING_CSS_KB],
+    ["stylesheet total", cssKb, MAX_CSS_KB],
     ["fonts", fontKb, MAX_FONT_KB],
   ]) {
     if (kb > max) {
       console.error(
         `check-bundle: ${what} is ${kb.toFixed(0)} KB, over the ${max} KB ceiling.\n`
-        + "  These bytes ship on every install and, for the stylesheet, block the\n"
-        + "  first paint. Trim them, or raise the ceiling here deliberately with a\n"
-        + "  note saying why.",
+        + "  These bytes ship on every install, and the render-blocking sheet is\n"
+        + "  fetched before anything paints. Trim them, move the bytes behind a\n"
+        + "  lazy import (which moves them off the blocking number, not off the\n"
+        + "  total), or raise the ceiling here deliberately with a note saying why.",
       );
       failed = true;
     }
@@ -1010,8 +1095,9 @@ console.log(
       + `${sentryKb.toFixed(0)} KB over ${sentryChunks.length} chunk(s)), `
       + `${totalKb.toFixed(0)} KB total / ${eagerKb.toFixed(0)} KB eager `
       + `(max ${MAX_TOTAL_JS_KB} / ${MAX_EAGER_KB}); `
-      + `${cssKb.toFixed(0)} KB css / ${fontKb.toFixed(0)} KB fonts `
-      + `(max ${MAX_CSS_KB} / ${MAX_FONT_KB})`
+      + `${blockingCssKb.toFixed(0)} KB blocking css / ${cssKb.toFixed(0)} KB css total `
+      + `/ ${fontKb.toFixed(0)} KB fonts `
+      + `(max ${MAX_BLOCKING_CSS_KB} / ${MAX_CSS_KB} / ${MAX_FONT_KB})`
     : `bundle budget OK on what was gradable — VITE_V2_LIVE=true, Sentry OUT, `
       + `${eagerKb.toFixed(0)} KB eager (max ${MAX_EAGER_KB}); `
       + `total ${totalKb.toFixed(0)} KB ungraded`,

@@ -110,6 +110,15 @@ class DailySplit extends React.Component {
     idx: 0, idxG: 0,
     votes: (window.LIVE && window.LIVE.enabled ? window.LIVE.myVotes() : {}), tab: null, filter: 'all', dim: 'friends', dimAxis: null, ups: {}, mine: {}, draft: '', dreplies: this.loadDailyReplies(), replyTo: null,
     mapToast: null, pressing: false, editHold: null,
+    // Which daily has its D86 re-pick open — id, not boolean, the same
+    // shape and the same reason as `liveTakes` below. The reconcile in
+    // componentDidMount skips it: opening the re-pick DELETES the local
+    // vote, and the store still holds the old option (only editVote
+    // moves it), so without this any notify that lands before the tap —
+    // the 60s aggregate refresh, the presence beat, a take arriving —
+    // copied the old vote back and closed the re-pick with no sign of
+    // why. Held down for half a second, and the app took it away again.
+    repick: null,
     group: {},
     cats: this.loadWorldCats(),
     // which daily's live world-takes panel is open (D83) — id, not boolean,
@@ -164,6 +173,8 @@ class DailySplit extends React.Component {
       this.setState((s) => {
         const votes = { ...s.votes };
         L.deck().forEach((q) => {
+          // …except the one whose re-pick is open. See `repick` above.
+          if (q.id === s.repick) return;
           if (lv[q.id] != null) votes[q.id] = lv[q.id];
           else delete votes[q.id];
         });
@@ -415,8 +426,8 @@ class DailySplit extends React.Component {
 
   jumpTo(i) {
     const m = this.state.mode;
-    if (m === 'world') { this.setState({ idx: i, filter: 'all', draft: '', feedOpen: false, tab: null, earlierOpen: false, condensed: false }); const sc = this.rootEl && this.rootEl.parentElement; if (sc) sc.scrollTop = 0; }
-    else this.setState({ idxG: i });
+    if (m === 'world') { this.setState({ idx: i, repick: null, filter: 'all', draft: '', feedOpen: false, tab: null, earlierOpen: false, condensed: false }); const sc = this.rootEl && this.rootEl.parentElement; if (sc) sc.scrollTop = 0; }
+    else this.setState({ idxG: i, repick: null });
   }
 
   setupGestures(el) {
@@ -439,15 +450,21 @@ class DailySplit extends React.Component {
       // can flip the axis under it without remounting
       const MODES = this.modeAxis;
       const mi = MODES.indexOf(this.state.mode), ni = mi + dir;
-      // the axis continues past its FAR end only — Mirror (act, then
-      // see). Patterns sat past the near one until D217 unmounted it for
-      // v1; while it is out, the near end springs back like any other
-      // edge, and this branch is where the exit returns (the exception
-      // D166 §1 licensed). Still one NAV.goNav read, because the
-      // coupling meter (rule 4) counts occurrences and only moves down.
+      // the axis continues past BOTH ends — Mirror past the far one (act,
+      // then see), Patterns past the near one (v28 §1; the near exit is
+      // the one place outside the tab itself that knows the third tab
+      // exists — the exception D166 §1 names). One NAV.goNav read for
+      // both, because the coupling meter (rule 4) counts occurrences and
+      // only moves down.
+      //
+      // The near end is a REQUEST since D265, not an instruction: the
+      // Patterns tab is absent from the bar until the fit can carry it,
+      // goNav answers whether it navigated, and a refusal springs back
+      // like any other edge. This file deliberately does not learn the
+      // gate's condition — it asks the shell, which is the only place
+      // that knows.
       if (ni >= MODES.length || ni < 0) {
-        const nav = NAV.goNav;
-        if (ni >= MODES.length && nav) { nav('mirror'); return; }
+        if (NAV.goNav(ni < 0 ? 'patterns' : 'mirror')) return;
         spring(); return;
       }
       try { localStorage.setItem('insight.swipeHinted', '1'); } catch { /* best-effort */ } // they've learned it — no more hinting
@@ -589,8 +606,8 @@ class DailySplit extends React.Component {
   }
   // cuts + subvalues come from the shared list (vote-cuts.js) so the daily and
   // the feed break a vote down exactly the same way
-  get statDimDefs() { return VOTECUTS ? VOTECUTS.dims() : [{ id: 'friends', label: 'Friends' }]; }
-  get statSubs() { return VOTECUTS ? VOTECUTS.subs(this.state.dim) : null; }
+  get statDimDefs() { return VOTECUTS.dims(); }
+  get statSubs() { return VOTECUTS.subs(this.state.dim); }
   get overrides() { return { 's1:age': [[64, 36], [55, 45], [44, 56], [34, 66]], 's4:age': [[54, 31, 15], [51, 34, 15], [44, 35, 21], [31, 37, 32]] }; }
 
   renderVals() {
@@ -655,7 +672,7 @@ class DailySplit extends React.Component {
       ? 'You\u2019re first \u2014 the count lands in a moment.'
       // "1 vote", but "1+ votes" — the + is a lower bound, so its plural stands
       : liveTotal + (liveTotal === '1' ? ' vote' : ' votes');
-    const onReset = () => this.setState(s => { const v = { ...s.votes }; delete v[S.id]; return { votes: v, filter: 'all', tab: null, feedOpen: false }; });
+    const onReset = () => this.setState(s => { const v = { ...s.votes }; delete v[S.id]; return { votes: v, repick: S.id, filter: 'all', tab: null, feedOpen: false }; });
     const post = () => { const t = st.draft.trim(); if (!t || !voted) return; const c = { key: 'u' + Date.now(), name: 'You', init: 'Y', opt: myVote, text: t, ups: 0, time: 'now' }; this.setState(s => ({ mine: { ...s.mine, [S.id]: [c, ...(s.mine[S.id] || [])] }, draft: '' })); };
     const mineList = st.mine[S.id] || [];
     let all = [...mineList, ...S.comments.map((c, i) => ({ ...c, key: S.id + ':' + i }))].map(c => ({ ...c, shownUps: c.ups + (st.ups[c.key] ? 1 : 0), optObj: S.options.find(o => o.id === c.opt) }));
@@ -749,14 +766,14 @@ class DailySplit extends React.Component {
     const statsBody = (() => {
         const legend = S.options;
         let friendRows = [], friendSummary = '', rows = [];
-        const youBand = (!isFriends && VOTECUTS) ? VOTECUTS.you(st.dim, st.dimAxis) : null;
+        const youBand = isFriends ? null : VOTECUTS.you(st.dim, st.dimAxis);
         if (isFriends) {
           friendRows = S.friends.map(f => { const o = S.options.find(x => x.id === f.opt); return { name: f.name, init: f.init, color: o.color, textColor: o.textColor, chipLabel: o.label, chipColor: o.color }; });
           const same = S.friends.filter(f => f.opt === myVote).length;
           friendSummary = voted ? same + ' of ' + S.friends.length + ' friends are on your side' : 'How your friends voted';
         } else {
           const cutKey = st.dimAxis ? st.dim + ':' + st.dimAxis : st.dim;
-          const gs = VOTECUTS ? VOTECUTS.groups(st.dim, st.dimAxis) : [];
+          const gs = VOTECUTS.groups(st.dim, st.dimAxis);
           const key = S.id + ':' + cutKey, ov = this.overrides[key];
           rows = gs.map((g, gi) => {
             let ps;
@@ -771,11 +788,11 @@ class DailySplit extends React.Component {
         const GRID = { display: 'grid', gridTemplateColumns: '96px 1fr', gap: 10, alignItems: 'center' };
         return h('div', { style: col(12) },
           h('div', { style: col(8) },
-            h('div', { className: 'h-scroll', ref: (el) => { const sg = 'd|' + st.dim; if (el && this._dSig1 !== sg) { this._dSig1 = sg; VOTECUTS && VOTECUTS.centerChip(el); } }, style: { display: 'flex', gap: 6, overflowX: 'auto' } },
+            h('div', { className: 'h-scroll', ref: (el) => { const sg = 'd|' + st.dim; if (el && this._dSig1 !== sg) { this._dSig1 = sg; VOTECUTS.centerChip(el); } }, style: { display: 'flex', gap: 6, overflowX: 'auto' } },
               this.statDimDefs.filter(dd => !dd.test).map(dd => h('button', { key: dd.id, 'data-on': st.dim === dd.id ? '1' : '0', onClick: () => this.setState({ dim: dd.id, dimAxis: null }), style: { flex: 'none', border: '1px solid ' + (st.dim === dd.id ? INK : 'var(--rule)'), borderRadius: 999, padding: '6px 13px', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', whiteSpace: 'nowrap', background: st.dim === dd.id ? INK : 'var(--surface-2)', color: st.dim === dd.id ? PAPER : 'var(--ink-2)', WebkitAppearance: 'none' } }, dd.label))),
-            h('div', { className: 'h-scroll', ref: (el) => { const sg = 't|' + st.dim; if (el && this._dSig2 !== sg) { this._dSig2 = sg; VOTECUTS && VOTECUTS.centerChip(el); } }, style: { display: 'flex', gap: 6, overflowX: 'auto' } },
+            h('div', { className: 'h-scroll', ref: (el) => { const sg = 't|' + st.dim; if (el && this._dSig2 !== sg) { this._dSig2 = sg; VOTECUTS.centerChip(el); } }, style: { display: 'flex', gap: 6, overflowX: 'auto' } },
               this.statDimDefs.filter(dd => dd.test).map(dd => h('button', { key: dd.id, 'data-on': st.dim === dd.id ? '1' : '0', onClick: () => this.setState({ dim: dd.id, dimAxis: null }), style: { flex: 'none', border: '1px solid ' + (st.dim === dd.id ? INK : 'var(--rule)'), borderRadius: 999, padding: '6px 13px', fontWeight: 700, fontSize: 12.5, cursor: 'pointer', whiteSpace: 'nowrap', background: st.dim === dd.id ? INK : 'var(--surface-2)', color: st.dim === dd.id ? PAPER : 'var(--ink-2)', WebkitAppearance: 'none' } }, dd.label))),
-            this.statSubs && h('div', { className: 'h-scroll', ref: (row) => { const sig = st.dim + '|' + st.dimAxis; if (row && this._axSig !== sig) { this._axSig = sig; VOTECUTS && VOTECUTS.centerChip(row); } }, style: { display: 'flex', alignItems: 'center', gap: 4, overflowX: 'auto', paddingBottom: 2 } },
+            this.statSubs && h('div', { className: 'h-scroll', ref: (row) => { const sig = st.dim + '|' + st.dimAxis; if (row && this._axSig !== sig) { this._axSig = sig; VOTECUTS.centerChip(row); } }, style: { display: 'flex', alignItems: 'center', gap: 4, overflowX: 'auto', paddingBottom: 2 } },
               this.statSubs.map((sb, si) => { const on = (st.dimAxis || null) === sb.id; const rule = !!sb.tier && !(this.statSubs[si - 1] || {}).tier; return h(React.Fragment, { key: sb.id || 'type' },
                 rule ? h('span', { 'aria-hidden': 'true', style: { flex: 'none', alignSelf: 'stretch', width: 1, margin: '3px 5px', background: 'var(--rule)' } }) : null,
                 h('button', { 'data-on': on ? '1' : '0', onClick: () => this.setState({ dimAxis: sb.id }), style: { flex: 'none', border: 'none', borderRadius: 999, padding: '4px 11px', fontWeight: on ? 800 : 600, fontSize: 11.5, cursor: 'pointer', whiteSpace: 'nowrap', background: on ? 'var(--surface-3)' : 'transparent', color: on ? INK : 'var(--ink-3)', WebkitAppearance: 'none' } }, sb.label)); }))),
@@ -855,7 +872,7 @@ class DailySplit extends React.Component {
                 else if (!(L.editVote && L.editVote(S.id, next))) { next = prior; moved = false; this.holdNote(S.id); }
               }
               if (moved) { this.syncToMap(S, next); this.showMapToast(S.id); }
-              this.setState(s => ({ votes: { ...s.votes, [S.id]: next }, filter: 'all', beat: (moved && this.props.beats !== false && window.ConsequenceBeat) ? S.id : null }));
+              this.setState(s => ({ votes: { ...s.votes, [S.id]: next }, repick: null, filter: 'all', beat: (moved && this.props.beats !== false && window.ConsequenceBeat) ? S.id : null }));
             }, style: { '--opt': o.color, minHeight: 56, background: 'color-mix(in oklch, ' + o.color + ' 11%, var(--surface-2))', border: '1px solid color-mix(in oklch, ' + o.color + ' 32%, var(--rule))', borderRadius: 15, padding: '13px 18px', display: 'flex', alignItems: 'center', gap: 13, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none', boxShadow: 'none', transition: 'background .16s ease, border-color .16s ease' } },
               h('span', { 'aria-hidden': true, style: { width: 9, height: 9, borderRadius: '50%', background: o.color, flexShrink: 0 } }),
               h('span', { style: { fontWeight: 800, fontSize: 21, color: 'var(--ink)', letterSpacing: '-0.025em', textWrap: 'pretty' } }, o.label))))
@@ -894,7 +911,18 @@ class DailySplit extends React.Component {
             // one quiet meta line; the map-add confirmation pops in on its right and fades on its own
             h('div', { style: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 18 } },
               h('span', { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' } }, resultNote),
-              st.mapToast === S.id && h('button', { onClick: () => NAV.goTab('map'), style: { display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3s ease forwards' } },
+              st.mapToast === S.id && h('button', {
+                // 'you', not 'map'. goTab accepts a MIRROR_POP_ID or a TABS
+                // id (app-shell.jsx) and 'map' is neither, so this ran
+                // closeAll() and returned — the one control in the app that
+                // points at the Map did nothing, and the tap read as a dead
+                // button rather than an error. Moving the call onto the NAV
+                // registry (D248) did not change that: the accept-list is
+                // the same one. The Map IS the Mirror's You stop ("fully
+                // retracted — you, alone, visualized: the Map lives here",
+                // mirror-tab.jsx), so that is the destination the toast was
+                // always naming.
+                onClick: () => NAV.goTab('you'), style: { display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3s ease forwards' } },
                 'added to ' + this.mapBranch(S), h('span', { 'aria-hidden': true }, '\u2192')))),
       // The live daily is a world-scope question, so it carries the D83
       // world-takes surface: anonymous, one take per person, enforced
@@ -949,7 +977,7 @@ class DailySplit extends React.Component {
           const q = DATA[i];
           const v = st.votes[q.id], cur = i === wIdx;
           return h('button', {
-            key: q.id, className: 'press', onClick: () => this.jumpTo(i), title: q.text,
+            key: q.id, className: 'press tap44 is-tight', onClick: () => this.jumpTo(i), title: q.text,
             'aria-label': (dayNames[i] || 'Earlier') + ' \u2014 ' + (v ? 'answered' : 'not answered'),
             'aria-current': cur ? 'true' : undefined,
             style: { width: 22, height: 22, padding: 0, border: 'none', background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', WebkitAppearance: 'none' }
@@ -997,8 +1025,23 @@ class DailySplit extends React.Component {
     const duoBody = liveDuels ? lazyDuel('live-duo', 'duo') : h(window.DuoBody || 'div', { key: 'duo-daily' });
 
     // ===== chrome =====
-    const pendG = DUELS.groupsPending();
-    const pendD = DUELS.pendingDuos();
+    // DEMO ONLY, and the gate is the same one three lines up. DUELS is the
+    // prototype's store: groupsPending() counts four hardcoded groups and
+    // pendingDuos() eight seeded partners, and the only writers that can
+    // lower either — answerGroup/answerDuo — are called from
+    // group-daily.jsx and duo-daily.jsx, the demo bodies live mode never
+    // mounts. So without this gate every live install wore a permanent
+    // "something waiting" dot on Circle and 1v1, on day one, for a queue
+    // that does not exist and cannot empty. The D51 purge does not clear
+    // it either: duels-data.js's listener resets to normalize({}), which
+    // IS the 4/8 state.
+    //
+    // A live count would be a feature, not a fix — nothing on LIVE.social
+    // computes "duels you have not answered today" — so live mode draws
+    // NOTHING here rather than a number it cannot mean. D1: where a live
+    // surface shows nothing, the data is absent.
+    const pendG = liveDuels ? 0 : DUELS.groupsPending();
+    const pendD = liveDuels ? 0 : DUELS.pendingDuos();
     const badges = {
       group: mode !== 'group' && pendG ? String(pendG) : null,
       duo: mode !== 'duo' && pendD ? String(pendD) : null,

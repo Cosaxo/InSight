@@ -162,6 +162,42 @@ export function loadingCosine(a: readonly number[], b: readonly number[]): numbe
   return d > 0 ? dot / d : 0;
 }
 
+/**
+ * The basis a loading needs before the fit will count it as drawable.
+ *
+ * Publication itself has no floor and should not get one: a vector with
+ * `n: 1` publishes, carries its own basis, and every client-side reader
+ * already refuses it on that basis (the Oracle's `nextAsk(minBasis)`, the
+ * Map's own `n` on each node). What this number decides is narrower — how
+ * many questions the fit will CLAIM to have fitted when the client asks
+ * whether there is enough here to open a tab on (D265).
+ *
+ * 8, the same figure the Oracle refuses to guess below, because it is the
+ * same question one level up: a vector fitted on fewer answers than this
+ * is not yet a reading of anything.
+ */
+export const PATTERNS_MIN_BASIS = 8;
+
+/**
+ * How many published questions carry that basis — the crowd half of the
+ * Patterns tab's mount gate (D265), published onto `v2_meta/app` beside
+ * the floor it was counted at.
+ *
+ * The floor travels with the count on purpose. The client holds its own
+ * opinion of what a believable basis is, and a fit that ever counted on
+ * a looser one is publishing a weaker claim than the gate is about; the
+ * client can see that and stay shut, instead of trusting a bare number
+ * whose meaning changed in another deployable.
+ */
+export function readyPool(
+  model: PatternsModel,
+  basis: number = PATTERNS_MIN_BASIS,
+): number {
+  let n = 0;
+  for (const L of Object.values(model.q)) if (L.n >= basis) n += 1;
+  return n;
+}
+
 /** The publication: loadings rounded to 4 dp (a float32's useful precision
  * here, and it keeps the one public doc small), each with its basis. */
 export function publishableLoadings(

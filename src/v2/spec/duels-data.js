@@ -77,7 +77,7 @@ export let DUELS;
   // storage invisible.
   const IDS = ['f1', 'f2', 'f4', 'f6', 'f3', 'f12', 'f17', 'f14'];
   const allPeople = () => IS_DATA.people || [];
-  const circleIds = () => (FRIENDS ? FRIENDS.list() : IDS);
+  const circleIds = () => FRIENDS.list();
   function members() { return circleIds().map((id) => allPeople().find((p) => p.id === id)).filter(Boolean); }
   const personOf = (pid) => allPeople().find((p) => p.id === pid);
 

@@ -130,7 +130,7 @@ function MirrorPopPicker({ stopId, onPick }) {
     const j = Math.max(0, Math.min(n - 1, i));
     if (j === drag.current.last) return;
     drag.current.last = j;
-    if (HAPTIC) HAPTIC.tick();
+    HAPTIC.tick();
     onPick(stops[j]);
   };
   const scrub = (clientX) => { const i = stopAt(clientX); if (i != null) goTo(i); };
@@ -148,7 +148,7 @@ function MirrorPopPicker({ stopId, onPick }) {
         const carry = Math.min(3, Math.round(Math.abs(v) * 1.6)) * (v > 0 ? 1 : -1);
         if (carry) goTo(d.last + carry);
       }
-      if (HAPTIC) HAPTIC.tap();
+      HAPTIC.tap();
     }
     // `moved` stays set until the click it belongs to is swallowed, so the click
     // that follows a real drag doesn't re-pick whatever stop it lifted over
