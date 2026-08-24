@@ -1720,6 +1720,54 @@ describe("question suggestions (docs/NEXT-FUNCTIONALITY.md §6)", () => {
   });
 });
 
+describe("paid purchase records (docs/PAID-PLAN.md §7, D274 §3)", () => {
+  const PID = `${OWNER}_pd1`;
+  const seedPurchase = () => seed(async (db) => {
+    await setDoc(doc(db, "v2_purchases", PID), {
+      uid: OWNER, kind: "question", qid: "pd01", scope: "city",
+      place: "Oslo", dims: ["city:Oslo"], window: { start: "2026-08-24", until: "2026-09-21" },
+      cadence: "once", budget: { cap: 4000, capEur: 640, ratePerAnswer: 0.16 },
+      state: "running", reports: [{ label: "Final report", ready: false, note: "at close" }],
+      at: serverTimestamp(),
+    });
+  });
+
+  it("the buyer reads their own row; a stranger and the signed-out do not", async () => {
+    await seedPurchase();
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_purchases", PID)));
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_purchases", PID)));
+    await assertFails(getDoc(doc(asSignedOut(), "v2_purchases", PID)));
+  });
+
+  it("the ledger is not listable — only a mine-only query passes (the D65 shape)", async () => {
+    await seedPurchase();
+    await assertSucceeds(getDocs(query(
+      collection(asUser(OWNER), "v2_purchases"),
+      where("uid", "==", OWNER),
+    )));
+    // No filter, or a filter naming someone else: refused wholesale. The
+    // public half of demand is the committed pricing.json, never a read
+    // of other buyers' rows.
+    await assertFails(getDocs(collection(asUser(OWNER), "v2_purchases")));
+    await assertFails(getDocs(query(
+      collection(asUser(STRANGER), "v2_purchases"),
+      where("uid", "==", OWNER),
+    )));
+  });
+
+  it("no client writes at all — the operator's admin script is the only pen", async () => {
+    await seedPurchase();
+    // Not even the buyer: a contract record the buyer could edit would
+    // let a cap, a window or a locked rate drift from what was signed.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_purchases", `${OWNER}_pd2`), {
+      uid: OWNER, kind: "question", qid: "pd02", scope: "world",
+      state: "running", at: serverTimestamp(),
+    }));
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_purchases", PID), { state: "closed" }));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_purchases", PID)));
+  });
+});
+
 describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => {
   const GID = "g_mod";
   const seedCircle = () => seed(async (db) => {

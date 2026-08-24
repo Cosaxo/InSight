@@ -206,6 +206,9 @@ export const deleteAccount = onCall(
       // Question suggestions swept by phase 4d (docs/NEXT-FUNCTIONALITY.md
       // §6) — the author's queued free text, keyed by uid.
       suggestions: 0,
+      // Paid purchase records swept by phase 4e (PAID-PLAN §7, D274 §3) —
+      // the buyer's contract ledger, keyed by uid.
+      purchases: 0,
       // Reveal docs scrubbed of this uid (phase 1c-bis). Reported for the
       // same reason as modQueueOrphans: it is the number that tells an
       // operator whether the collection-group sweep actually reached
@@ -754,6 +757,22 @@ export const deleteAccount = onCall(
     } catch (err) {
       logger.error("[deleteAccount] suggestions wipe failed:", err);
       failed.push("suggestions");
+    }
+
+    // 4e. This account's paid purchase records (PAID-PLAN §7, D274 §3).
+    //     Uid-keyed like everything else the sweep covers; the business
+    //     record of a contract lives with the contract itself, off-app
+    //     (selling is by hand, PAID-PLAN §9.2), and the bought QUESTION
+    //     survives as content the way a promoted suggestion does — the
+    //     purchase ROW still goes, and the next pricing.json rebuild
+    //     folds a ledger that no longer names this account.
+    try {
+      counts.purchases = await deleteQueryDocs(
+        db.collection("v2_purchases").where("uid", "==", uid),
+      );
+    } catch (err) {
+      logger.error("[deleteAccount] purchases wipe failed:", err);
+      failed.push("purchases");
     }
 
     // 5. Any wipe failure above must abort BEFORE the auth delete:
