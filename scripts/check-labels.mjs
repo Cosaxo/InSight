@@ -174,6 +174,32 @@ if (problems.length) {
   process.exit(1);
 }
 
+// A NON-EMPTY FLOOR on both halves, the shape check-deploy-targets.mjs
+// already uses ("found NO exported functions, which cannot be right").
+//
+// Without it this gate prints "OK — 0 id reference(s) across 0 files, all
+// resolve" and exits 0, which is the exact sentence a broken walk produces
+// and a reader skims past. Verified by mutation: stubbing readdirSync to []
+// left it at exit 0.
+//
+// BOTH halves, because they break separately. `fileCount` catches a walk
+// that found nothing; `refCount` catches a walk that is healthy while the
+// htmlFor/aria-* regexes are what stopped matching — and it is the second
+// one that is likely, since those patterns are the fiddly part. The
+// reference count is small (11 today) and only moves when someone edits an
+// association, so a floor of 1 is the honest bound: anything higher would
+// fail a legitimate refactor that nested a label instead, which is the
+// shape this gate exists to encourage.
+if (fileCount < 40 || refCount < 1) {
+  console.error(
+    `check-labels FAILED: walked ${fileCount} files and found ${refCount} id `
+    + "reference(s), which cannot be right.\nFix this scan rather than letting "
+    + "it pass vacuously — a gate that reports OK on nothing is worse than no "
+    + "gate, because it is also an argument against looking.",
+  );
+  process.exit(1);
+}
+
 console.log(
   `check-labels OK — ${refCount} id reference(s) across ${fileCount} files, all resolve.`,
 );
