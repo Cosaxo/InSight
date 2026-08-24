@@ -14,7 +14,7 @@ the rows from going missing or pointing at something that moved — read
 ## 1 · Read in this order
 
 1. **`CLAUDE.md`** — non-optional. Two conventions that will surprise you
-   (the spec layer's global scope; four non-interchangeable test runners)
+   (the spec layer's global scope; five non-interchangeable test runners)
    and a list of things that look like bugs and are not.
 2. **This page** — to find the one document your task belongs to.
 3. **That document**, plus the decision records it leans on
@@ -139,9 +139,11 @@ than of a subject:
 
 ## 5 · The gates
 
-Four test runners, **not interchangeable** — the table is in `CLAUDE.md`
-§2, with what each covers and what it needs. Below is everything else:
-the static gates, and where each one runs.
+There are five test runners, **not interchangeable** — the table is in
+`CLAUDE.md` §2, with what each covers and what it needs. One of them,
+`test:scripts`, is missing from the gate table below on purpose and rides
+the `ci` lint job anyway; §2 has why that hid it for so long. Below is
+everything else: the static gates, and where each one runs.
 
 **Where** is computed from the workflows, not from this prose, and
 `check:docs` fails if a row disagrees with them:

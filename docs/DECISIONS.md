@@ -28085,3 +28085,108 @@ lifted, the fix is to lift it for this one field and record the write cost.
   that a viewer with no city issues no query at all (an empty string would
   match every author who never set one), and that the cache refetches on a
   move.
+
+## D279 · There were always five test runners, and the table said four
+
+**Decided:** 2026-08-24 · **Status:** binding. Amends `CLAUDE.md` §2's
+table and `docs/ORIENTATION.md` §1 and §5. It adds nothing to CI — the
+fifth runner has been on every pull request since it was written. What
+changes is that the count is now a gate's rather than a table's.
+
+### The runner
+
+`npm run test:scripts` (`vitest run --dir scripts`) is the suite over the
+gates and the regulators themselves: the four budget regulators'
+arithmetic, three checkers' own logic (`check-data-inventory`,
+`check-policy-claims`, `check-public-copy`), the question tooling, the
+report and scorecard builders, `pulse`'s billed-read tripwires, and
+`asc-push`'s store-form printer. Its subject is not the app. That is
+exactly why it goes unrun and also why nothing else catches what it
+catches: every failure it has reported was a script that CHECKS
+something, so the app's own suites stay green straight through it.
+
+It is the only suite wired into CI's **lint** job, next to
+`check:globals`, `check:figures` and `check:a11y`. Locally, `npm run
+lint` is eslint alone.
+
+**Nothing could see the omission.** `doc-index.mjs` rule 4 — the rule
+that exists so the map cannot silently omit a thing — matches `check:*`
+script names, and this one is `test:*`. `check:figures` owned test
+COUNTS, never the count OF SUITES. So the table could say four
+indefinitely, and did.
+
+### Three branches paid for it
+
+- **D179** — `test:scripts` "is in CI's lint job and I had never run
+  it". It caught a `get(/databases/` tripwire left at 18 while the
+  ruleset ran 19, and an `asc-push` assertion that had become
+  self-contradicting after D175 reversed the invariant it forbade. That
+  record's own conclusion: `npm run lint` is eslint alone, and running it
+  and calling it "lint passes" is how these get through.
+- **D197** — three script-layer breakages, all found by CI rather than by
+  the author. One bank parser existing in three copies failed three
+  different ways; the copy with a `try/catch` did not fail at all and
+  reported `bankSize * 250` as the wire size, which that record calls the
+  worst of the three and the one nobody would have caught.
+- **D275's branch** — `pulse.test.mjs` holds the answer-create trigger's
+  document reads to `TRIGGER_READS`, and counted them by matching
+  `tx.get(`. That branch batched all four transaction arms to
+  `tx.getAll(...)`, which does not match, so the tripwire counted **zero**
+  and reported an eight-read regression. The document count was unchanged
+  at eight (catalog 3 + rank 3 + vote 2) — established by probe before
+  the test was touched, so the fix was to the counting and not to the
+  code. It now counts DOCUMENTS: singles plus the arguments of every
+  `tx.getAll(...)`, re-checked non-vacuous by adding a fourth argument
+  (`expected 9 to be 8`).
+
+Three occurrences, three branches, one shape: the runner nobody lists is
+the runner nobody runs.
+
+### The gate
+
+`check:figures` now owns the number, across three sentences and one
+table:
+
+- `CLAUDE.md` §2's heading, `ORIENTATION.md` §1's reading order and §5's
+  gate map all quote it, and all three are pinned together — the failure
+  being closed is one of them moving and the others not, and §1 and §5
+  are the two a newcomer reads before ever opening §2.
+- The §2 TABLE's row count is held equal to the same number. A heading
+  corrected to six over a five-row table is the same drift, one edit
+  short of the fix.
+
+**The arithmetic.** Five = the `test:*` scripts in `package.json` that
+are not aliases (`test:rules`, `test:e2e`, `test:unit`, `test:scripts`)
+plus `npm run test --prefix functions`, read out of
+`functions/package.json` rather than assumed — deleting it there fails
+the scan instead of leaving the count one high. `NOT_A_RUNNER` is the
+alias list, four entries, each carrying the row it belongs to:
+`test:e2e:erasure` and `test:e2e:moderation` are halves of the
+`test:e2e` row, `test:e2e:all` is those three drivers on one emulator
+boot (D276), `test:coverage` is `test:unit` instrumented. A new `test:*`
+script that is neither fails this gate until someone decides which it is,
+and that is the whole point: what is being closed is a runner arriving
+with nobody writing it down.
+
+Mutation-checked four ways, each run: the heading back to "four" (the one
+entry fires, the two ORIENTATION entries correctly do not), a
+`test:mutant` script added (all three fire, at six), the functions `test`
+script renamed (the scan throws rather than quietly counting four), and a
+table row deleted (the row check fires alone).
+
+### What this does not decide
+
+It does not settle whether `test:scripts` is *really* a runner or a gate.
+It is tabulated as a runner because that is the operational fact: it is a
+vitest suite over a directory, you run it, and it fails on your changes.
+D276's header still describes its audit as covering "the four test
+runners and the 35 gates" while the same record runs `test:scripts` at
+327/327 and moves a guard into it. The suite was never invisible — its
+CLASSIFICATION was, and a suite filed under gates, in a job called lint,
+is absent from the one table that tells you what to run.
+
+Nor does the gate read whether the table's DESCRIPTIONS are true; that is
+the same limit `doc-index.mjs`'s header states about its own rules. What
+it buys is that the count cannot silently drift and a row cannot silently
+go missing, which is how a table dies.
+
