@@ -1065,7 +1065,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect("also" in (feed.find((q) => q.id === "q_feed_plain") || {})).toBe(false);
   });
 
-  // ── background, the card's `i` (D280) ────────────────────────────
+  // ── background, the card's `i` (D281) ────────────────────────────
   //
   // Emit-when-set in both directions, and the absent half is the half
   // that matters: `WF_BGTEXT` falls back to the demo pool's `WORLD_BG`
@@ -1096,7 +1096,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect("bg" in (feed.find((q) => q.id === "q_feed_nobg") || {})).toBe(false);
   });
 
-  // ── the Learn bank (D283) ────────────────────────────────────────
+  // ── the Learn bank (D284) ────────────────────────────────────────
   //
   // The bundle stopped carrying the card bank, so this publication is the
   // only thing that puts cards in front of a live reader. The translation
@@ -1141,9 +1141,9 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
   it("drops a card with no answer key rather than guessing one", async () => {
     const { learnCards, resetLearnBank } = await import("./learnBank");
     resetLearnBank();
-    // Exactly the shape of a document seeded BEFORE D283 — prompt,
+    // Exactly the shape of a document seeded BEFORE D284 — prompt,
     // options, topic, and no c/t/p/k/w. Defaulting `c` to 0 would mark
-    // option one correct on every pre-D283 card in the bank and teach the
+    // option one correct on every pre-D284 card in the bank and teach the
     // wrong answer, silently, on the one surface whose whole promise is
     // that there is a right one. An empty Learn until the next seed run is
     // the honest failure.
@@ -1159,7 +1159,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     resetLearnBank();
   });
 
-  // ── the feed's TEST stream (D279) ────────────────────────────────
+  // ── the feed's TEST stream (D280) ────────────────────────────────
   //
   // The store-side half of the same defect the smoke suite pins in the
   // DOM. `buildFeedGlobals` used to publish this pool onto `window`, and
@@ -1192,7 +1192,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(pool.map((q) => q.id).sort()).toEqual(["test-big5-4", "test-political-3"]);
     // Round-robined across instruments (D155), not served in bank order.
     expect(pool.map((q) => q.test)).toEqual(["political", "big5"]);
-    // And the field the mapping did not carry until D279: with no agg
+    // And the field the mapping did not carry until D280: with no agg
     // document there is no split, and the card must be told so rather
     // than drawing five zeroes as a measurement.
     expect((pool[0] as { noCountsYet?: boolean }).noCountsYet).toBe(true);

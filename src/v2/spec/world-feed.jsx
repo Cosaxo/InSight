@@ -15,7 +15,7 @@ import { WORLD_FEED_COMMENTS } from './world-feed-comments.js';
 import { TEST_FEED_QS } from './test-feed-data.js';
 // …and which pool this BUILD gets. The import above is the demo one; a
 // live build's bank items arrive through data/testFeed.ts, which is where
-// the story of why that is not a `window` read lives (D279).
+// the story of why that is not a `window` read lives (D280).
 import { testFeedPool } from '../data/testFeed.ts';
 import { WORLD_CHANNELS } from './world-feed-data.js';
 import PLACES from '../data/places';
@@ -2472,7 +2472,7 @@ class WorldFeed extends React.Component {
     // Measured, not a constant, because the bar's height moves with the
     // safe-area inset. Content sheets keep full cover — see Sheet.
     //
-    // …unless something is standing over the bar (D281). The topic list can
+    // …unless something is standing over the bar (D282). The topic list can
     // now open ON the profile rather than by throwing the reader at the
     // feed, and `.overlay` covers the app at z-index 20 — so the bar D211
     // is keeping clear is not on screen to keep clear, and the lift would
@@ -2628,7 +2628,7 @@ class WorldFeed extends React.Component {
                 return <button key={v} className="press" onClick={() => { LF.setFreq(v); this.forceUpdate(); }} aria-pressed={on} style={{ flex: 1, border: 'none', borderRadius: 999, padding: '8px 0', cursor: 'pointer', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontWeight: on ? 800 : 600, fontSize: 12.5, background: on ? 'var(--ink)' : 'transparent', color: on ? 'var(--surface)' : 'var(--ink-3)', transition: 'background .2s ease, color .2s ease' }}>{v}</button>;
               })}
             </div>
-            {/* Your fields, with the way back out (D282). Every field is
+            {/* Your fields, with the way back out (D283). Every field is
                 followed on a fresh install now — the pool used to be three
                 of twelve, which showed a reader under a quarter of the
                 bank — and a default of everything is only honest if
@@ -3867,7 +3867,7 @@ class WorldFeed extends React.Component {
     // fences the next retirement too without naming it.
     // testFeedPool(), not the imported demo array: a live build's items
     // come from the bank with published counts, and reading the import
-    // directly is what served fabricated ones for a build (D279).
+    // directly is what served fabricated ones for a build (D280).
     const testSplit = partitionAnswered(testFeedPool(TEST_FEED_QS || []).filter((q) => PASSIVE.testFor(q)), sunk);
     // Deferred items leave the stream until their wait is up (D121).
     //

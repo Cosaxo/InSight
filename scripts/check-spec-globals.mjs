@@ -184,7 +184,7 @@ for (const name of [...defined].sort()) {
   );
 }
 
-// ── 6. a publication whose consumers all import (D279) ──────────
+// ── 6. a publication whose consumers all import (D280) ──────────
 //
 // THE ONE RULE 5 CANNOT ASK, and the gap that shipped a D1 violation.
 //
@@ -266,7 +266,7 @@ for (const name of [...defined].sort()) {
       + "\n    consumer reaches it by ESM import instead — so the publication"
       + "\n    lands on a name nothing reads and the importers see whatever"
       + "\n    their own module last assigned. An imported binding cannot be"
-      + "\n    reassigned from outside its module (D279). Either give the"
+      + "\n    reassigned from outside its module (D280). Either give the"
       + "\n    publisher's value a named home the importers call, or delete"
       + "\n    the assignment if the export is already the whole wiring.",
     );

@@ -1,7 +1,7 @@
 # Bank delivery — three ceilings, in the order they bite
 
-**Status: mixed — §2 is BUILT (D283, 2026-08-24); §3 and §4 are plan.** Written 2026-08-24 on the
-owner's direction after D282: the question banks should grow by an order
+**Status: mixed — §2 is BUILT (D284, 2026-08-24); §3 and §4 are plan.** Written 2026-08-24 on the
+owner's direction after D283: the question banks should grow by an order
 of magnitude, and *"it's a good thing they don't run out"* is the product
 argument that outranks any figure on this page. Nothing here refuses
 that. What follows is what stands between the tree and it, measured
@@ -57,17 +57,17 @@ time it shipped, for a reason nothing on this page predicted.
 That does not change what was built or why. The defect was never the 39
 cards — it was that **the bundle tracked the bank at all**, so any
 headroom was a number the lane would eventually eat, and no gate would
-have said which lane ate it. D283 severed the tracking; `BUNDLED_CONTENT`
+have said which lane ate it. D284 severed the tracking; `BUNDLED_CONTENT`
 is what now notices. What the correction changes is the urgency of §3 and
 §4, and the answer there is: still years, and now with more room.
 
-## 2 · Ceiling 1 — the learn bank is compiled into the app · **BUILT (D283)**
+## 2 · Ceiling 1 — the learn bank is compiled into the app · **BUILT (D284)**
 
 > Shipped the day this was written, because it was the one with a
 > deadline. Option A below is what was built, with C as its second half.
 > The chunk went 34.5 → 16.2 kB, the total 2427 → 2409, and the headroom
 > 13 → 31 kB — and stopped being spent by content at all. What follows is
-> the reasoning as it stood; D283 records the as-built, including one bug
+> the reasoning as it stood; D284 records the as-built, including one bug
 > the tests caught (the publication first sat inside `buildFeedGlobals`,
 > which returns early on an empty feed bank) and one mutation that passed
 > for the wrong reason.
@@ -132,7 +132,7 @@ saying plainly if the product ever wants learn to be gradeable.
 
 *Size: the seed arm, one store fold, the demo sample, and the migration
 of `learn-progress.js` off a module-scope constant onto an injectable
-bank — the shape `data/testFeed.ts` already has (D279).*
+bank — the shape `data/testFeed.ts` already has (D280).*
 
 **B · Grade on the server, D57's shape.** The logic test already does
 this: the server mints, withholds the answer, marks submitted picks. It
@@ -250,7 +250,7 @@ convert later, and a published count is usually as good.
 
 ## 5 · Order of work
 
-1. ~~**Ceiling 1, now.**~~ **Done — D283**, gate included. Option A plus
+1. ~~**Ceiling 1, now.**~~ **Done — D284**, gate included. Option A plus
    the demo trim; `check:learn-sample` holds the generated sample to its
    source, and `check:content`'s `BUNDLED_CONTENT` is the join that did
    not exist — a /content file may be imported by `src/` only if it is
@@ -279,7 +279,7 @@ constrained by a bundle budget nobody had connected to it.
 Two things follow for whoever raises the pace afterwards:
 
 - **The learn bank's depth is runway, and runway is the point.** Cards
-  are consumed `fresh` exactly once each, so at D282's every-field
+  are consumed `fresh` exactly once each, so at D283's every-field
   default the bank is about seven weeks of reading at the default serve
   rate and three at `lots`. Running dry is the failure to avoid, and it
   is a stronger argument for depth than any ceiling on this page is

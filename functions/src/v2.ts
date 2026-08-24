@@ -450,8 +450,8 @@ export async function runSeedV2(
       ...(typeof q.tier === "string" ? { tier: q.tier } : {}),
       ...(typeof q.resolvesAt === "string" ? { resolvesAt: q.resolvesAt } : {}),
       ...(q.rubric ? { rubric: q.rubric } : {}),
-      // The card's background (D280) and the learn card's own metadata
-      // (D283) — the third and fourth times this whitelist has been the
+      // The card's background (D281) and the learn card's own metadata
+      // (D284) — the third and fourth times this whitelist has been the
       // thing a new field died in. Both would have shipped dark: the
       // background is what the feed's `i` opens, and without `c` the
       // client DROPS every learn card rather than guessing an answer key,

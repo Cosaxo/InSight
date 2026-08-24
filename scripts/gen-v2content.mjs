@@ -319,7 +319,7 @@ export function buildEntries(content = loadContent()) {
       // provenance.json is a repo file that never reaches a device.
       ...(typeof q.from === "string" ? { from: q.from } : {}),
       ...(typeof q.until === "string" ? { until: q.until } : {}),
-      // Background — what the card's `i` opens (D280). Facts and
+      // Background — what the card's `i` opens (D281). Facts and
       // definitions where a question cannot be answered honestly without
       // them, never the arguments: those are the reveal's job, and a
       // sentence that leans is the app taking a side on its own poll.
@@ -527,14 +527,14 @@ export function buildEntries(content = loadContent()) {
     });
   }
 
-  // Learn cards (D32, amended at D283): the doc now carries the WHOLE card
+  // Learn cards (D32, amended at D284): the doc now carries the WHOLE card
   // — prompt, options, the field as topic, and the correctness metadata
   // `c`/`t`/`p`/`k`/`w`.
   //
   // It used to carry only the first three, and the reasoning was sound
   // for its own sentence: "nothing server-side reads correctness, and
   // '% got it right' is counts[c]/total computed on the client, WHICH
-  // SHIPS c IN THE BUNDLE ANYWAY." That last clause is the part D283
+  // SHIPS c IN THE BUNDLE ANYWAY." That last clause is the part D284
   // removed. `spec/learn-data.js` imported the entire card bank into the
   // JavaScript, so every card was compiled into the app — and
   // `check:bundle` had about thirteen kilobytes left, which is thirty-nine

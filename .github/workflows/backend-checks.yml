@@ -82,18 +82,18 @@ jobs:
       # without a regen, ships a bank nobody reviewed. Regenerates in
       # memory and compares bytes. Node stdlib only, no root node_modules.
       - run: npm run check:content
-      # The slice of the learn bank the JS bundle carries (D283). On the
+      # The slice of the learn bank the JS bundle carries (D284). On the
       # backend path beside check:content and for its reason: both hold a
       # DERIVED copy of /content equal to its source, and both failures are
       # silent — a drifted sample makes the demo build serve cards the bank
       # does not have, which the demo build is by definition unable to
       # notice. Node stdlib only, no root node_modules.
       - run: npm run check:learn-sample
-      # The seed's field whitelist against what the generator emits (D284).
+      # The seed's field whitelist against what the generator emits (D285).
       # Deploy-path, and the most deploy-path of them all: a field the seed
       # does not name never reaches Firestore, and every other gate stays
       # green because tests seed their own fixtures. That has cost three
-      # dark features already (D234, D280, D283) and the third would have
+      # dark features already (D234, D281, D284) and the third would have
       # emptied Learn on every live device. Node stdlib only, no root
       # node_modules.
       - run: npm run check:seed-fields

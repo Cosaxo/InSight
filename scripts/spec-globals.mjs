@@ -98,7 +98,7 @@ const DEFINE_RES = [
   /(?:globalThis|window)\.([A-Za-z_$][\w$]*)\s*=[^=]/g,
   /Object\.assign\(\s*(?:globalThis|window)\s*,\s*\{([^}]*)\}/g,
   // The CAST form, which the typed layer has to use and which this scanner
-  // could not see until D279:
+  // could not see until D280:
   //
   //   (window as unknown as Record<string, unknown>).TEST_FEED_QS = …
   //

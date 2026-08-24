@@ -22,7 +22,7 @@ describe("learnCards", () => {
     expect(learnCards(DEMO)).toBe(LIVE);
   });
 
-  // The arm that decides what a project seeded before D283 does. Those
+  // The arm that decides what a project seeded before D284 does. Those
   // documents carry no `c`, so `publishLearnBank` drops every one of them
   // and publishes an empty array — and empty must mean EMPTY. `|| demo`
   // would put sixty demo cards on a real device instead, each with no

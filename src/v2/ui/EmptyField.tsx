@@ -58,7 +58,7 @@ export default function EmptyField({ caption, children, action }: {
    * jump causes. Before, never after — the screen it lands on is already
    * looking by the time this returns.
    *
-   * **And if `prime` returns `true`, there is no jump** (D281). The ask may
+   * **And if `prime` returns `true`, there is no jump** (D282). The ask may
    * turn out to be answerable where the reader is standing — a topic sheet
    * portals to the app frame above this panel, so a feed already mounted
    * behind it can simply open the list — and a door that moves you when it

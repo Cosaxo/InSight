@@ -532,7 +532,7 @@ redundant (ESM-exported *and* imported by name) survive it on purpose.
 failed on its publication — a dead line introduced by a merge neither
 side could see, caught before it landed.
 
-**Rule 6** (D279) is the case that generosity has to let through, and it
+**Rule 6** (D280) is the case that generosity has to let through, and it
 cost a live D1 violation before anything asked about it. Rule 5 is
 satisfied by the name appearing *anywhere*, so a name published to
 `window` by one file and reached by `import { X }` from another passes —

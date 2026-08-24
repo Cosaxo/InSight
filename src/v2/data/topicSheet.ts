@@ -35,7 +35,7 @@ const listeners = new Set<() => void>();
  * open over the daily tab (where the feed is mounted and stays mounted
  * through the jump) or over the Mirror (where it mounts fresh).
  *
- * **Returns whether it was answered on the spot** (D281). A mounted feed
+ * **Returns whether it was answered on the spot** (D282). A mounted feed
  * consumes the request synchronously inside the loop below, so `pending`
  * is already false by the time this returns if one did — which makes the
  * answer a fact about what happened rather than a guess about who is

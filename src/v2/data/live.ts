@@ -165,7 +165,7 @@ import { roundRobinBy } from "./feed-interleave";
 // cast, because a cast is what let D249 sever this seam in silence.
 import { publishTestFeed } from "./testFeed";
 // The Learn engine's cards. Published by name for testFeed's reason, and
-// because the bundle stopped carrying the bank at D283.
+// because the bundle stopped carrying the bank at D284.
 import { publishLearnBank, type LearnCard } from "./learnBank";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
 // this module passes its store state in.
@@ -1313,7 +1313,7 @@ async function hydrate(): Promise<void> {
   state.feedBank = banks.feed;
   state.duelBank = banks.duel;
   state.learnBank = banks.learn;
-  // The Learn bank (D283). Published HERE, beside the split, and not in
+  // The Learn bank (D284). Published HERE, beside the split, and not in
   // buildFeedGlobals: that function opens `if (!state.feedBank.length)
   // return`, so a bank with learn cards and no feed questions would have
   // served none of them — Learn does not depend on the feed existing and
@@ -1329,7 +1329,7 @@ async function hydrate(): Promise<void> {
   // out of the bank `hydrate()` fetched. What it replaces is the whole of
   // `content/learn-questions.json` being compiled into the app.
   //
-  // A doc seeded before D283 carries no `c`, and a card with no correct
+  // A doc seeded before D284 carries no `c`, and a card with no correct
   // answer is unanswerable rather than merely thin — so those are dropped
   // rather than defaulted. On a bank seeded before the change that empties
   // Learn until the next seed run, which is the honest failure: the
@@ -1739,7 +1739,7 @@ function buildFeedGlobals(): void {
         // band, and the same fact in two shapes on one card reads as two
         // facts.
         ...(!q.sponsor && q.from && q.until ? { from: q.from, until: q.until } : {}),
-        // The background the card's `i` opens (D280). Emit-when-set: the
+        // The background the card's `i` opens (D281). Emit-when-set: the
         // feed reads `q.bg` first and falls back to the demo pool's map,
         // so a card without one keeps exactly the sheet it had.
         ...(q.bg ? { bg: q.bg } : {}),
@@ -1785,7 +1785,7 @@ function buildFeedGlobals(): void {
   // real account filled one bar while three sat at zero. The demo pool
   // never had this: spec/test-feed-data.js interleaves as it builds.
   //
-  // PUBLISHED BY NAME, not onto `window` (D279). This write was a cast the
+  // PUBLISHED BY NAME, not onto `window` (D280). This write was a cast the
   // shared-global scanner cannot see, so when D249 converted the feed's
   // reader to a static import of the DEMO pool the two ends stopped
   // meeting and every gate stayed green — see data/testFeed.ts for what

@@ -81,7 +81,7 @@ export const TAG_WORDS_MAX = 4; // corpus max 4 — "a two-or-three-word label",
 // makes broad tagging pointless (credit is conserved, a door never adds any);
 // this cap is what makes it impossible to try at scale anyway.
 export const ALSO_MAX = 2;
-// Background text (D280) — what the card's `i` opens. The bounds are the
+// Background text (D281) — what the card's `i` opens. The bounds are the
 // demo pool's own, measured: `WORLD_BG` in world-subtopics.js holds 24
 // entries running 152–236 characters over one to three sentences, written
 // by a person against the brief this field inherits ("facts and
@@ -677,7 +677,7 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
     err("prompt", `prompt is ${q.prompt.length} chars (max ${PROMPT_MAX}) — short, concrete, blind-answerable`);
   }
 
-  // ── background, the card's `i` (D280) ────────────────────────────
+  // ── background, the card's `i` (D281) ────────────────────────────
   //
   // check:content owns the SHAPE (a non-blank, untrimmed-free string).
   // What lives here is editorial: is it long enough to be worth opening,
@@ -1204,7 +1204,7 @@ export function checkBatch(batch) {
     if (short * 2 < now.length) {
       errs.push(`${short} of ${now.length} ${NOW_TOPIC} questions run ${WINDOW_SHORT_DAYS} days or less — most of a batch should sit at the short end, or the lane is a monthly wearing a daily's name`);
     }
-    // …and the same shape pointed at the answer space (D280). The lane's
+    // …and the same shape pointed at the answer space (D281). The lane's
     // first batch was six questions and twelve options, and nothing had
     // ever said not to: `check:content` allows 2–10, the fold allows
     // twenty, and the bank already ships three- and four-option votes.

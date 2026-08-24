@@ -26,7 +26,7 @@
 //      `lots`. That is the honest state of the shipped bank, and it is the
 //      argument for FIELD_TARGET below.
 //
-//      **THE DENOMINATOR MOVED AT D282 AND THE CONSTANT DID NOT.** A fresh
+//      **THE DENOMINATOR MOVED AT D283 AND THE CONSTANT DID NOT.** A fresh
 //      install follows every field now, not three, so the runway is the
 //      whole bank rather than the three thinnest slices of it — which at
 //      today's 146 cards is about seven weeks at the default rate instead
@@ -178,7 +178,7 @@ export function learnBudget({ fields, open = 0 }) {
 // bank holds now. `feedCardsPerDay` is the one estimate here and it is named
 // as one wherever it is printed.
 //
-// `followed` DEFAULTS TO EVERY FIELD since D282, and that is a change of
+// `followed` DEFAULTS TO EVERY FIELD since D283, and that is a change of
 // input rather than of method. It was 3 because learn-progress.js seeded
 // three follows, so three thin fields were what a fresh install could
 // actually reach; the default now follows every field the bank ships, so

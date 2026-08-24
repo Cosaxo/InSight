@@ -514,7 +514,7 @@ import {
       // device as exactly that. `requestTopicSheet` is the ask; the feed
       // owns the list and answers it, mounted or not.
       //
-      // AND IT NO LONGER MOVES YOU WHEN IT DOES NOT HAVE TO (D281). D190
+      // AND IT NO LONGER MOVES YOU WHEN IT DOES NOT HAVE TO (D282). D190
       // fixed where the jump LANDED and left the jump itself, which is
       // what came back a second time: the reader asked for a list and was
       // put on another screen to get it. `requestTopicSheet` now answers

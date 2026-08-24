@@ -500,7 +500,7 @@ describe("the current-events window", () => {
     ];
     expect(checkBatch(slow).some((e) => e.includes("short end"))).toBe(true);
 
-    // The clean batch has to clear the answer-space rule too (D280), so
+    // The clean batch has to clear the answer-space rule too (D281), so
     // it carries the sides its stories have rather than three binaries.
     const good = [
       nowQ({ from: "2026-08-23", until: "2026-08-27", options: ["Driving less", "Not yet", "I don't drive"] }),
@@ -516,7 +516,7 @@ describe("the current-events window", () => {
   it("does not hold the farm's spread rules against a now batch", () => {
     const batch = Array.from({ length: 4 }, (_, i) => nowQ({
       until: ["2026-08-26", "2026-08-27", "2026-08-28", "2026-08-29"][i],
-      // Half carry a third side, which is D280's rule and not the farm's
+      // Half carry a third side, which is D281's rule and not the farm's
       // — the exemption this case is about is the TOPIC and FORM spread.
       ...(i % 2 ? { options: ["Driving less", "Not yet", "I don't drive"] } : {}),
     }));
@@ -534,7 +534,7 @@ describe("the current-events window", () => {
 // The false-positive half matters as much as the hit half. A gate that
 // blocks "markets crashed 8%" is one whose waivers stop being read, and
 // the whole two-tier design exists to keep that from happening.
-// D280 — the answer space, as a batch rule for the same reason the window
+// D281 — the answer space, as a batch rule for the same reason the window
 // spread is one: a single binary is often right, and a whole batch of them
 // is a writer's habit rather than a fact about the week.
 describe("the current-events batch's answer space", () => {
@@ -845,7 +845,7 @@ describe("the gate's own liveness", () => {
   });
 });
 
-// ── background, the card's `i` (D280) ────────────────────────────────
+// ── background, the card's `i` (D281) ────────────────────────────────
 //
 // The bounds are the demo pool's own, measured — so the cases here are
 // mostly about the FLOOR, which is the one that reads as arbitrary and is

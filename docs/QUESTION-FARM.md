@@ -755,7 +755,7 @@ grantable budget of 10. Rules for a learn run:
   call, and the runway sentence the target is derived from. Zero means
   the run is a logged no-op and review is the work.
 
-  **The runway premise moved at D282 and the target did not.** A fresh
+  **The runway premise moved at D283 and the target did not.** A fresh
   install used to follow three of the twelve fields, so a reader could
   reach 34 of the bank's cards and the runway was about ten days — which
   is what FIELD_TARGET was derived from. Every field is followed by
@@ -1009,7 +1009,7 @@ Rules, each load-bearing:
   before writing one under an explicit instruction that lifts this rule.
 
   Two rules for the editorial run that writes it, both from the owner's
-  2026-08-24 read of the shipped six (D280):
+  2026-08-24 read of the shipped six (D281):
 
   **Give the story the options it actually has.** All six of the first
   batch were binary, and nothing made them so — the feed's own bank
@@ -1026,7 +1026,7 @@ Rules, each load-bearing:
   re-key rule), so the fix for a card that needed a third option is a
   successor card, never an edit.
 
-  **A `now` card almost always needs a `bg`** (D280 — the field, and the
+  **A `now` card almost always needs a `bg`** (D281 — the field, and the
   `i` that has always opened it). News assumes its own week: a reader
   who has never heard of Evergrande cannot judge whether a life sentence
   is proportionate, and the app asked them to anyway. The background is

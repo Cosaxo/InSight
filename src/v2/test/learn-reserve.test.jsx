@@ -185,12 +185,12 @@ describe("the learn reveal counts the reader in (D157)", () => {
   // feed serves first and one nothing has answered, which is what makes
   // "this is your first try" true rather than hopeful.
   //
-  // `learnCard: true` on every installLive below, since D283. The engine's
+  // `learnCard: true` on every installLive below, since D284. The engine's
   // pool is the LIVE bank in a live build now — the bundle carries a demo
   // sample and nothing more — so the fixture's default publishes an empty
   // one, which is what a project with no seeded learn documents actually
   // has. These cases are about the reveal's arithmetic and need a card to
-  // do it on; before D283 they got one from the bundle whatever the
+  // do it on; before D284 they got one from the bundle whatever the
   // backend held, which is the thing that stopped being true.
   const firstCard = () => { L.reset(); return L.plan(1)[0]; };
   // Held across the tap rather than re-queried after it: answering folds

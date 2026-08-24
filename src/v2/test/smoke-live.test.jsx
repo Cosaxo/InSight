@@ -41,10 +41,10 @@ import { PATTERNS_EARNED_KEY, PATTERNS_MIN_BASIS, PATTERNS_MIN_MINE, PATTERNS_MI
 import { awaitText, growFeed, openHeaderOverlay, settleBeat, swipeDaily } from "./mount-app";
 import { list as anchorList } from "../spec/map-anchors.js";
 import { IS_TESTS, IS_TEST_RESULTS } from "../spec/test-definitions.js";
-// The demo test pool, imported so the D279 case can bind on the actual
+// The demo test pool, imported so the D280 case can bind on the actual
 // cards that must not appear rather than on a copy of their wording.
 import { TEST_FEED_QS } from "../spec/test-feed-data.js";
-// The bundled demo SAMPLE (D283) — imported so the live cases can assert
+// The bundled demo SAMPLE (D284) — imported so the live cases can assert
 // on the actual cards that must not appear, rather than on a copy.
 import { LEARN_CARDS } from "../spec/learn-data.js";
 import { PASSIVE } from "../spec/passive-progress.js";
@@ -294,7 +294,7 @@ describe("spec layer mounts in live mode", () => {
     expect(screen.queryByText(/22k people/i)).toBeNull();
   });
 
-  // D281 — the report that came back twice: "when you click add interest
+  // D282 — the report that came back twice: "when you click add interest
   // on the general info you are navigated to the feed."
   //
   // D190 fixed where that jump LANDED (the list opens, instead of dropping
@@ -307,7 +307,7 @@ describe("spec layer mounts in live mode", () => {
   // The assertion that matters is the SECOND one. The sheet opening proves
   // the ask was answered; the profile still being there proves it was
   // answered where the reader was, which is the whole report.
-  it("opens the topic list over the profile, without leaving it (D281)", async () => {
+  it("opens the topic list over the profile, without leaving it (D282)", async () => {
     // An empty follow list, which is what a real live build boots with and
     // what puts the field's door on screen at all. These suites are a DEMO
     // build as far as `import.meta.env` is concerned (scenes.js reads the
@@ -697,7 +697,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(screen.getByText(/No takes yet/i)).toBeTruthy();
   });
 
-  // D280 — the `i` on every feed card, and the slot behind it that was
+  // D281 — the `i` on every feed card, and the slot behind it that was
   // empty in every live build.
   //
   // The button has always been there and has always opened a sheet; what
@@ -752,7 +752,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expectNoBoundary("live feed, no background");
   });
 
-  // D283 — the learn bank left the JavaScript, and this is what proves the
+  // D284 — the learn bank left the JavaScript, and this is what proves the
   // live path picked it up.
   //
   // `spec/learn-data.js` used to import the whole of
@@ -762,7 +762,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // the two arms below are the whole change: a live build serves the bank
   // it was given, and a live build given none serves none.
   //
-  // Binding on the SAMPLE itself rather than a copied prompt, the D279
+  // Binding on the SAMPLE itself rather than a copied prompt, the D280
   // rule: the sample is generated from the bank, so a prompt transcribed
   // into this file would be a second copy to keep in step.
   const sampleLearnPrompts = () => LEARN_CARDS.map((c) => c.q);
@@ -783,7 +783,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   });
 
   it("serves no learn card at all when the bank has none", async () => {
-    // A project seeded before D283 carries learn documents with no answer
+    // A project seeded before D284 carries learn documents with no answer
     // key, so the store drops every one and publishes an empty bank. Empty
     // has to mean empty: falling back to the sample would put sixty demo
     // cards on a real device, each with a "% got this right" line drawn
@@ -799,7 +799,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expectNoBoundary("live feed, no learn bank");
   });
 
-  // D279 — the defect this whole suite was supposed to make impossible,
+  // D280 — the defect this whole suite was supposed to make impossible,
   // and did not.
   //
   // The feed weaves each core test's own items in as marked cards. The

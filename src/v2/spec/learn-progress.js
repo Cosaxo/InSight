@@ -6,7 +6,7 @@
 // global left here, read at call time.
 import React from 'react';
 import { LEARN_CARDS, LEARN_FIELDS, LEARN_SPLIT, LEARN_SUBJECTS } from './learn-data.js';
-// Which build's cards these are (D283). `LEARN_CARDS` above is the demo
+// Which build's cards these are (D284). `LEARN_CARDS` above is the demo
 // SAMPLE now — five a field, compiled in so the demo build has something
 // to serve — and a live build's bank arrives here after boot.
 import { learnCards, subscribeLearnBank } from '../data/learnBank.ts';
@@ -35,7 +35,7 @@ export const LEARN = (function () {
   // the failure D109's learn-data.js header describes. An imported binding
   // cannot be unset, and learn-data.js depends on nothing that could put it in
   // TDZ, so the fallbacks are gone rather than rewritten.
-  // `let`, and the reason is the one thing about D283 that touches this
+  // `let`, and the reason is the one thing about D284 that touches this
   // file: the bank is no longer known at module scope. A demo build's
   // sample is (it is compiled in), but a live build's cards arrive when
   // `hydrate()` publishes them, which is after every line here has run. So
@@ -66,7 +66,7 @@ export const LEARN = (function () {
   const listeners = new Set();
   const fire = () => listeners.forEach((f) => { try { f(); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } });
 
-  // The live bank, when it lands (D283). `hydrate()` publishes it well
+  // The live bank, when it lands (D284). `hydrate()` publishes it well
   // after this module evaluated, so the pool is re-read and the two card
   // indexes rebuilt — then `fire()`, because every mounted consumer is
   // holding a render made against the sample and none of them polls.
@@ -107,7 +107,7 @@ export const LEARN = (function () {
     s.lvl = { cell: 54, solar: 66, capitals: 58 };
     return s;
   }
-  // EVERY FIELD, not three (D282 — the owner's decision, 2026-08-24).
+  // EVERY FIELD, not three (D283 — the owner's decision, 2026-08-24).
   //
   // This used to seed `['cell', 'solar', 'capitals']`, and D115 derived
   // FIELD_TARGET from exactly that: at 8 cards a field, three followed

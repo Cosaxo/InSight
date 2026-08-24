@@ -1,5 +1,5 @@
 // The Learn mode's card bank, and which build's version of it the engine
-// gets (D283). `testFeed.ts`'s shape, one surface over, for a related
+// gets (D284). `testFeed.ts`'s shape, one surface over, for a related
 // reason and a different cause.
 //
 // WHY IT EXISTS. `spec/learn-data.js` imported the whole of
@@ -20,7 +20,7 @@
 // module scope, long before a live boot has fetched anything. So the store
 // PUBLISHES here and the engine SUBSCRIBES — the same direction, and the
 // same "a cast onto `window` is a seam no scanner can read" lesson, that
-// D279 paid for.
+// D280 paid for.
 //
 // The subscription is the part `testFeed.ts` does not need: the feed asks
 // for its pool every time it rebuilds, while the learn engine indexes once

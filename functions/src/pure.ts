@@ -1496,8 +1496,8 @@ export const SEEDED_FIELDS = [
   // by nothing — and the merge is where the two threads first saw each
   // other.
   "from",
-  // The card's background (D280) and the learn card's own metadata
-  // (D283). Both were live in the generator and in neither the payload
+  // The card's background (D281) and the learn card's own metadata
+  // (D284). Both were live in the generator and in neither the payload
   // nor this list — D234's exact failure, twice more, and the second one
   // would have emptied Learn on every live device: the client drops a
   // card with no `c` rather than guessing an answer key, and no card
