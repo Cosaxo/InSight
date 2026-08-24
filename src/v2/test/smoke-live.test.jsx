@@ -287,6 +287,68 @@ describe("spec layer mounts in live mode", () => {
     expect(screen.queryByText(/22k people/i)).toBeNull();
   });
 
+  // D278 — the report that came back twice: "when you click add interest
+  // on the general info you are navigated to the feed."
+  //
+  // D190 fixed where that jump LANDED (the list opens, instead of dropping
+  // you in the feed to go looking for it) and left the jump, which is the
+  // half a reader actually feels. The list can open where they are
+  // standing: the feed's sheet portals to the app frame at z-index 40 and
+  // `.overlay` sits at 20, so a feed mounted behind the profile answers
+  // and the sheet draws on top of it.
+  //
+  // The assertion that matters is the SECOND one. The sheet opening proves
+  // the ask was answered; the profile still being there proves it was
+  // answered where the reader was, which is the whole report.
+  it("opens the topic list over the profile, without leaving it (D278)", async () => {
+    // An empty follow list, which is what a real live build boots with and
+    // what puts the field's door on screen at all. These suites are a DEMO
+    // build as far as `import.meta.env` is concerned (scenes.js reads the
+    // flag at module scope), so SCENES seeds the prototype's joined
+    // groups and the card renders chips instead — the purge is how the
+    // store is told to re-read, and it is the same event a uid change
+    // fires.
+    localStorage.clear();
+    localStorage.setItem("insight.scenes.v1", "[]");
+    window.dispatchEvent(new Event("insight:local-purge"));
+    try {
+      await runIt();
+    } finally {
+      // Hand the follow list back. SCENES caches its set in module scope
+      // and `cleanup()` does not reach it, so an empty one outlives this
+      // case — and fifteen later cases in this file assert on
+      // scene-attached feed cards that then are not there. Measured, not
+      // guessed: that is exactly what the first draft of this case did.
+      localStorage.removeItem("insight.scenes.v1");
+      window.dispatchEvent(new Event("insight:local-purge"));
+    }
+  });
+
+  async function runIt() {
+    const expectNoBoundary = mountLive();
+    await openHeaderOverlay("profile");
+    expect(screen.getByText(/Scenes you follow/i), "the scenes card is not on screen — this case is vacuous").toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Pick topics/i }));
+    // Bound on the sheet's own title and its last row rather than on
+    // "Your topics": that header needs a channel the FIXTURE's cards
+    // stock, and they carry `culture`, which is not one of the demo
+    // build's six. What is being pinned here is where the list opened,
+    // not what the fixture happens to put in it.
+    expect(screen.getByText("Add a topic"), "the topic list never opened").toBeTruthy();
+    expect(screen.getByRole("button", { name: /Suggest a question/i })).toBeTruthy();
+    expect(
+      screen.queryByText(/Scenes you follow/i),
+      "the door still threw the reader out of the profile to show them a list",
+    ).toBeTruthy();
+    // D211's lift is measured off the tab bar, which `.overlay` covers —
+    // so over the profile the sheet takes full cover instead of leaving a
+    // strip of the panel showing where the navigation should be.
+    const scrim = document.querySelector(".wf-scrim");
+    expect(scrim, "no sheet scrim at all").not.toBeNull();
+    expect(scrim.style.bottom || "", "the sheet lifted for a tab bar nobody can see").toBe("");
+    expectNoBoundary("topic list over the live profile");
+  }
+
   it("opens the search overlay without tripping the boundary", async () => {
     const expectNoBoundary = mountLive();
     await openHeaderOverlay("search");

@@ -34,14 +34,30 @@ const listeners = new Set<() => void>();
  * picked up on mount by one that is not — both happen: the profile can be
  * open over the daily tab (where the feed is mounted and stays mounted
  * through the jump) or over the Mirror (where it mounts fresh).
+ *
+ * **Returns whether it was answered on the spot** (D278). A mounted feed
+ * consumes the request synchronously inside the loop below, so `pending`
+ * is already false by the time this returns if one did — which makes the
+ * answer a fact about what happened rather than a guess about who is
+ * listening. It is the shape the daily ruler's near-end exit already uses
+ * (`NAV.goNav` answers whether it navigated, and a refusal springs the
+ * card back): the caller asks, and the answer decides what it does next.
+ *
+ * What the caller does with it: the feed's sheet portals to the app frame
+ * at z-index 40 and the profile overlay sits at 20, so a request answered
+ * in place opens the list ON TOP of the profile — and the jump D190 added
+ * is then not needed at all. Reported twice from a device as being thrown
+ * out of the profile to get at a list, which is what D190 fixed the far
+ * end of and this fixes the near end of.
  */
-export function requestTopicSheet(): void {
+export function requestTopicSheet(): boolean {
   pending = true;
   listeners.forEach((f) => {
     // One listener throwing must not swallow the request for the others —
     // the same rule every other store in this tree follows.
     try { f(); } catch { /* a dead listener is not the caller's problem */ }
   });
+  return !pending;
 }
 
 /** True once per request, for the screen that answers it. */

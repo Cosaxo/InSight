@@ -27710,3 +27710,99 @@ why "does the question stop being shown" was a fair question to ask of a
 mechanism that works. `bank-cache.test.ts` now pins both boundaries as
 inclusive, both directions of `from`, and that the expired doc stays in
 the cache — the archive is the product, and this is a serving rule.
+
+## D278 · The topics door stops moving you, when it does not have to
+
+**2026-08-24.** **Status:** binding. The same device report as D276 and
+D277, and the second time this one has been made: *"still an issue — when
+you click add interest on the general info you are navigated to the
+feed."*
+
+### What D190 fixed, and which half it left
+
+The profile's scenes card, with nothing followed, offers **Pick topics
+→**. D190 found it jumping to the daily feed and stopping there — "a door
+that puts you in the room and does not point at the thing you asked for
+is a door that has to be followed by a search" — and fixed the ARRIVAL:
+`requestTopicSheet()` is an ask, the feed owns the list and answers it,
+mounted or not.
+
+That was right and it was half the report. The other half is the jump
+itself, and it is the half a reader feels: you asked for a list and were
+moved to another screen to get one. D190 could not see it as separable,
+because the list lives inside the feed and the feed is on another tab.
+
+### It was already separable, in the CSS
+
+The feed's sheet portals to the app frame (`document.querySelector('.app')`)
+and `.wf-scrim` is **z-index 40**. `.overlay` — the profile — is **20**.
+So a feed mounted behind the profile can answer the ask and the list
+draws *on top of the panel that asked*, closing back onto it. Nothing
+needed extracting, no second list, no shared component: D173's "one place
+a topic is tuned" is untouched, because it is still that one place doing
+the drawing.
+
+### The shape: the ask reports whether it was taken
+
+`requestTopicSheet()` returns a boolean. Not "is anything listening" — a
+mounted feed consumes the one-shot synchronously inside the notify loop,
+so `pending` is already false when the call returns, which makes the
+answer **a fact about what happened** rather than a guess about who was
+there. `EmptyField` skips the nav on an explicit `true`, and only on
+that: a `prime` returning nothing keeps the jump, so the other two call
+sites are byte-for-byte unchanged.
+
+This is the daily ruler's near-end exit one control over — `NAV.goNav`
+answers whether it navigated and a refusal springs the card back
+(CLAUDE.md names it as the layer's one licensed external dependence). A
+caller that asks and reads the answer is the shape this tree already has
+for "the other screen may or may not be able to help".
+
+**The jump survives as the case it was always the answer to**: the
+profile opened over the Mirror, where no feed is mounted, `prime` returns
+false, and D190's navigation runs exactly as before — carrying the
+pending request with it, which is the mechanism that made D190 work.
+
+### One thing the move breaks, and it is D211's
+
+D211 lifted the topic sheet clear of the tab bar, because "Pick topics →"
+sends people here and a destination that hides the app's own way out
+reads as a trap — reported from a device as the bottom navigation going
+missing. Over the profile that argument inverts: `.overlay` covers the
+bar at z-index 20, so the lift would leave a strip of the *profile*
+showing where the navigation should be. The sheet takes full cover when
+an overlay is present, which is what every content sheet does anyway.
+
+### What is pinned
+
+Three layers, because the fix spans three and each one fails silently on
+its own. `EmptyField.test.tsx`: an explicit `true` cancels the nav, and a
+`prime` returning nothing does not. `smoke-topics.test.jsx`: the ask
+reports `true` when a mounted feed takes it and `false` when nothing is
+there — **and the false arm asserts the request is still pending**, since
+a one-shot spent by a failed ask would break D190's arm rather than this
+one. `smoke-live.test.jsx`: the whole flow in the mounted app, where the
+assertion that matters is the second one — the sheet being open proves
+the ask was answered, the profile still being on screen proves it was
+answered *where the reader was standing*, which is the entire report.
+
+The live case has to empty the follow list to reach the door at all
+(these suites are a demo build as far as `import.meta.env` is concerned,
+so `SCENES` seeds the prototype's joined groups) — and then hand it back
+in a `finally`, because `SCENES` caches its set in module scope where
+`cleanup()` cannot reach it. Measured rather than reasoned: without the
+restore, fifteen later cases in that file fail on scene-attached cards
+that are suddenly not there.
+
+### What was checked and deliberately not changed
+
+`WF_BRANCH` has no `now` key, so the sheet's "On your map" row reads
+**Interests** for a Happening-now card, via the `|| 'Interests'`
+fallback. That looks like a missing entry and is not: the Map's real
+branch list (`map-branches.js`) is `health · craft · interests · home ·
+story · goals · values` plus the daily lane's emergent cats. "Mind",
+"Morals" and "Taste" — the vocabulary `WF_BRANCH` is written in — are
+**not branches on that map at all**. `Interests` is the one label in that
+row that names something a reader would actually find, so filling the gap
+with `now: 'Mind'` would replace a true fallback with a false claim, in
+the sheet D277 just made worth opening.

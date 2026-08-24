@@ -116,6 +116,34 @@ describe("the topic list opens on request", () => {
     expectNoBoundary("add sheet, lifted clear of the tab bar");
   });
 
+  // D278 — the return value the profile's door reads, and the reason the
+  // door stopped being a jump. `requestTopicSheet` answers whether the ask
+  // was TAKEN, not whether anything was listening: a mounted feed consumes
+  // it synchronously, so the one-shot is already spent when the call
+  // returns. Both arms matter — a false negative sends the reader to the
+  // feed for a list that was already open, and a false positive leaves
+  // them on the profile with nothing having happened.
+  it("says it was answered when a mounted feed takes the request", () => {
+    const expectNoBoundary = mountApp();
+    let answered;
+    act(() => { answered = requestTopicSheet(); });
+    expect(answered, "a mounted feed took the request and said it had not").toBe(true);
+    expect(screen.getByText("Your topics")).not.toBeNull();
+    expectNoBoundary("add sheet, request answered");
+  });
+
+  it("says it was not, when nothing is mounted to take it", () => {
+    // The arm the profile's jump still exists for: opened over the Mirror,
+    // there is no feed behind the panel and the request has to travel with
+    // the navigation, exactly as D190 built it.
+    cleanup();
+    expect(requestTopicSheet(), "a request nobody heard reported itself as answered").toBe(false);
+    // …and it is still pending, so the next feed to mount opens the sheet.
+    const expectNoBoundary = mountApp();
+    expect(screen.getByText("Your topics"), "the unanswered request was swallowed").not.toBeNull();
+    expectNoBoundary("add sheet, request carried to the next mount");
+  });
+
   it("consumes the request, so the sheet does not reopen by itself", () => {
     // A flag that stays set is a sheet that comes back the next time
     // anything mounts — which is the failure this one-shot shape exists to

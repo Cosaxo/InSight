@@ -513,6 +513,18 @@ import {
       // one search short of what the label promises \u2014 reported from a
       // device as exactly that. `requestTopicSheet` is the ask; the feed
       // owns the list and answers it, mounted or not.
+      //
+      // AND IT NO LONGER MOVES YOU WHEN IT DOES NOT HAVE TO (D278). D190
+      // fixed where the jump LANDED and left the jump itself, which is
+      // what came back a second time: the reader asked for a list and was
+      // put on another screen to get it. `requestTopicSheet` now answers
+      // whether a mounted feed took the request, and one behind this
+      // panel can \u2014 the sheet portals to the app frame at z-index 40
+      // and this overlay sits at 20, so the list opens on top of the
+      // profile and closes back onto it. The jump survives as the case it
+      // was always the answer to: the profile opened over the Mirror,
+      // where there is no feed mounted to answer, and `prime` returning
+      // false lets EmptyField navigate exactly as before.
       return (
         <EmptyField action={{ label: 'Pick topics \u2192', nav: 'track:world', prime: requestTopicSheet }}>
           Every topic runs in your feed until you narrow it.

@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 281 lines instead of
-27,713. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 282 lines instead of
+27,809. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -190,7 +190,7 @@ detect it.
 | **D170** | [Three Mirror tabs named a population and read a different one](DECISIONS.md#d170--three-mirror-tabs-named-a-population-and-read-a-different-one) | D193 (+8) | 16776 |
 | **D171** | [The daily had no breakdown at all, and its own sheet was a hash](DECISIONS.md#d171--the-daily-had-no-breakdown-at-all-and-its-own-sheet-was-a-hash) | — | 16888 |
 | **D172** | [The Mirror's stops stop explaining themselves](DECISIONS.md#d172--the-mirrors-stops-stop-explaining-themselves) | D188 (+3) | 16959 |
-| **D173** | [The interest levers go; the algorithm owns "how much"](DECISIONS.md#d173--the-interest-levers-go-the-algorithm-owns-how-much) | D190 (+1) | 17096 |
+| **D173** | [The interest levers go; the algorithm owns "how much"](DECISIONS.md#d173--the-interest-levers-go-the-algorithm-owns-how-much) | D278 (+2) | 17096 |
 | **D174** | [Near's visibility gets three states, and a position that expires on its own](DECISIONS.md#d174--nears-visibility-gets-three-states-and-a-position-that-expires-on-its-own) | D202 (+4) | 17153 |
 | **D175** | [Near asks for a precise fix, so its radius can be honest](DECISIONS.md#d175--near-asks-for-a-precise-fix-so-its-radius-can-be-honest) | D202 (+6) | 17245 |
 | **D176** | [Near becomes a room, and the phone says what it is](DECISIONS.md#d176--near-becomes-a-room-and-the-phone-says-what-it-is) | D177 | 17335 |
@@ -207,7 +207,7 @@ detect it.
 | **D187** | [The place scorecard rates the place](DECISIONS.md#d187--the-place-scorecard-rates-the-place) | D234 (+2) | 18803 |
 | **D188** | [The Mirror's tab row sits where a tab bar sits, and stops arguing with the stop about colour](DECISIONS.md#d188--the-mirrors-tab-row-sits-where-a-tab-bar-sits-and-stops-arguing-with-the-stop-about-colour) | D191 (+2) | 18963 |
 | **D189** | [The design gate was never looking, and two group hues never met the palette](DECISIONS.md#d189--the-design-gate-was-never-looking-and-two-group-hues-never-met-the-palette) | D191 | 19086 |
-| **D190** | [Your name and your handle belong to the account, the topic list opens onto the topics, and Circle and Groups get their row](DECISIONS.md#d190--your-name-and-your-handle-belong-to-the-account-the-topic-list-opens-onto-the-topics-and-circle-and-groups-get-their-row) | D276 (+2) | 19282 |
+| **D190** | [Your name and your handle belong to the account, the topic list opens onto the topics, and Circle and Groups get their row](DECISIONS.md#d190--your-name-and-your-handle-belong-to-the-account-the-topic-list-opens-onto-the-topics-and-circle-and-groups-get-their-row) | D278 (+3) | 19282 |
 | **D191** | [Build 20's pre-flight: nothing to bump, and check:bundle's second load-bearing variable](DECISIONS.md#d191--build-20s-pre-flight-nothing-to-bump-and-checkbundles-second-load-bearing-variable) | D273 (+3) | 19463 |
 | **D192** | [The docs get a map, and the map gets a gate](DECISIONS.md#d192--the-docs-get-a-map-and-the-map-gets-a-gate) | D199 (+2) | 19574 |
 | **D193** | [Compare draws the comparison it was always described as drawing](DECISIONS.md#d193--compare-draws-the-comparison-it-was-always-described-as-drawing) | D202 (+2) | 19698 |
@@ -228,7 +228,7 @@ detect it.
 | **D208** | [The pen is not an error state, and a gate said it was](DECISIONS.md#d208--the-pen-is-not-an-error-state-and-a-gate-said-it-was) | D212 (+1) | 21558 |
 | **D209** | [Three readers walk the archive, and only one of them is a population](DECISIONS.md#d209--three-readers-walk-the-archive-and-only-one-of-them-is-a-population) | — | 21671 |
 | **D210** | [Rule 5 could not fire, and 123 dead publications were behind it](DECISIONS.md#d210--rule-5-could-not-fire-and-123-dead-publications-were-behind-it) | D223 (+1) | 21747 |
-| **D211** | [The topic door keeps the tab bar, a walk is final, and the account panel stops offering what sign-in settled](DECISIONS.md#d211--the-topic-door-keeps-the-tab-bar-a-walk-is-final-and-the-account-panel-stops-offering-what-sign-in-settled) | D269 | 21866 |
+| **D211** | [The topic door keeps the tab bar, a walk is final, and the account panel stops offering what sign-in settled](DECISIONS.md#d211--the-topic-door-keeps-the-tab-bar-a-walk-is-final-and-the-account-panel-stops-offering-what-sign-in-settled) | D278 (+1) | 21866 |
 | **D212** | [Questions ship without waiting for a person](DECISIONS.md#d212--questions-ship-without-waiting-for-a-person) | — | 21995 |
 | **D213** | [Every servable type generates, and the feed goes daily](DECISIONS.md#d213--every-servable-type-generates-and-the-feed-goes-daily) | — | 22069 |
 | **D214** | [The People lens joins the Patterns trial](DECISIONS.md#d214--the-people-lens-joins-the-patterns-trial) | D265 (+2) | 22121 |
@@ -293,5 +293,6 @@ detect it.
 | **D272** | [The person channel: engagement rung 2, scoped to the bone](DECISIONS.md#d272--the-person-channel-engagement-rung-2-scoped-to-the-bone) | D274 (+1) | 27186 |
 | **D273** | [A bump has a shelf life of exactly one upload, and 4.4 under-declares by two rows](DECISIONS.md#d273--a-bump-has-a-shelf-life-of-exactly-one-upload-and-44-under-declares-by-two-rows) | D274 | 27257 |
 | **D274** | [Build 25 is delivered, and the bump was the reading of step 17](DECISIONS.md#d274--build-25-is-delivered-and-the-bump-was-the-reading-of-step-17) | — | 27379 |
-| **D276** | [The feed's test cards came back demo, and the seam was a cast](DECISIONS.md#d276--the-feeds-test-cards-came-back-demo-and-the-seam-was-a-cast) | D277 | 27451 |
-| **D277** | [The `i` had a background slot, and it was empty in every live build](DECISIONS.md#d277--the-i-had-a-background-slot-and-it-was-empty-in-every-live-build) | — | 27599 |
+| **D276** | [The feed's test cards came back demo, and the seam was a cast](DECISIONS.md#d276--the-feeds-test-cards-came-back-demo-and-the-seam-was-a-cast) | D278 (+1) | 27451 |
+| **D277** | [The `i` had a background slot, and it was empty in every live build](DECISIONS.md#d277--the-i-had-a-background-slot-and-it-was-empty-in-every-live-build) | D278 | 27599 |
+| **D278** | [The topics door stops moving you, when it does not have to](DECISIONS.md#d278--the-topics-door-stops-moving-you-when-it-does-not-have-to) | — | 27714 |

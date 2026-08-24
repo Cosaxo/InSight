@@ -2463,7 +2463,16 @@ class WorldFeed extends React.Component {
     // it); leaving the tab unmounts the feed and the sheet with it.
     // Measured, not a constant, because the bar's height moves with the
     // safe-area inset. Content sheets keep full cover — see Sheet.
-    const barEl = panel === 'add' ? host.querySelector('.tabbar') : null;
+    //
+    // …unless something is standing over the bar (D278). The topic list can
+    // now open ON the profile rather than by throwing the reader at the
+    // feed, and `.overlay` covers the app at z-index 20 — so the bar D211
+    // is keeping clear is not on screen to keep clear, and the lift would
+    // leave a strip of the profile showing under the sheet instead of the
+    // navigation it is there to protect. Full cover in that case, which is
+    // what every content sheet does anyway.
+    const overlaid = !!host.querySelector('.overlay');
+    const barEl = panel === 'add' && !overlaid ? host.querySelector('.tabbar') : null;
     const lift = barEl ? barEl.offsetHeight : 0;
     return ReactDOM.createPortal(
       <Sheet onClose={close} closing={s.closing} lift={lift}
