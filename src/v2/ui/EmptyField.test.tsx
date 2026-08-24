@@ -220,7 +220,7 @@ describe("the one action a field cannot take for itself", () => {
     // lands you in the feed and stops, which is the device report D190
     // was opened by.
     const order: string[] = [];
-    installNav({ goNav: () => { order.push("nav"); } });
+    installNav({ goNav: () => { order.push("nav"); return true; } });
     render(
       <EmptyField action={{ label: "Pick topics →", nav: "track:world", prime: () => order.push("prime") }}>
         Every topic runs in your feed until you narrow it.

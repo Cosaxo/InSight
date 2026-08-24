@@ -122,6 +122,19 @@ export interface LiveFixtureOptions {
    * topic that may carry one is check:quality's rule, held in the bank.
    */
   windowed?: boolean;
+  /**
+   * The Patterns tab's mount gate as the fit would have published it
+   * (D265) — `{ pool, basis, mine }`, straight through to
+   * `patternsSignal()`. Absent by default, which is the state every other
+   * live case was written against: no fit has run, so the bar is two tabs
+   * and the third one is not there to be found.
+   *
+   * Opt-in rather than always-on for `sponsored`'s reason: an app whose
+   * gate is open is one particular app, and every case that is not about
+   * the gate should be asserting against the one the fit has not reached
+   * yet.
+   */
+  patterns?: { pool?: number; basis?: number; mine?: number };
 }
 
 const OPTION_COLORS = ["var(--c-around)", "var(--c-today)", "var(--c-likeness)"];
@@ -449,6 +462,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     lensAgg: () => ((opts.lensBank ?? true)
       ? { counts: tooSmall ? [0, 0, 0, 0, 0] : [9, 6, 4, 3, 3], tooSmall }
       : null),
+    // The mount gate's two numbers (D265). Absent unless a case asks:
+    // `{}` is "no fit has published", which reads as a closed gate through
+    // patternsReady's own defaults rather than through a second branch.
+    patternsSignal: () => ({ ...(opts.patterns ?? {}) }),
     myVotes: () => ({ ...votes }),
     confirmedVotes: () => ({ ...votes }),
     // The daily pulse (D139): the fixture mirrors the real pair — the

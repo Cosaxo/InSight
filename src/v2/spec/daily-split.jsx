@@ -450,15 +450,21 @@ class DailySplit extends React.Component {
       // can flip the axis under it without remounting
       const MODES = this.modeAxis;
       const mi = MODES.indexOf(this.state.mode), ni = mi + dir;
-      // the axis continues past its FAR end only — Mirror (act, then
-      // see). Patterns sat past the near one until D217 unmounted it for
-      // v1; while it is out, the near end springs back like any other
-      // edge, and this branch is where the exit returns (the exception
-      // D166 §1 licensed). Still one NAV.goNav read, because the
-      // coupling meter (rule 4) counts occurrences and only moves down.
+      // the axis continues past BOTH ends — Mirror past the far one (act,
+      // then see), Patterns past the near one (v28 §1; the near exit is
+      // the one place outside the tab itself that knows the third tab
+      // exists — the exception D166 §1 names). One NAV.goNav read for
+      // both, because the coupling meter (rule 4) counts occurrences and
+      // only moves down.
+      //
+      // The near end is a REQUEST since D265, not an instruction: the
+      // Patterns tab is absent from the bar until the fit can carry it,
+      // goNav answers whether it navigated, and a refusal springs back
+      // like any other edge. This file deliberately does not learn the
+      // gate's condition — it asks the shell, which is the only place
+      // that knows.
       if (ni >= MODES.length || ni < 0) {
-        const nav = NAV.goNav;
-        if (ni >= MODES.length && nav) { nav('mirror'); return; }
+        if (NAV.goNav(ni < 0 ? 'patterns' : 'mirror')) return;
         spring(); return;
       }
       try { localStorage.setItem('insight.swipeHinted', '1'); } catch { /* best-effort */ } // they've learned it — no more hinting

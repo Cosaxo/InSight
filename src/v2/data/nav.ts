@@ -42,8 +42,15 @@
 export interface NavHandlers {
   /** Switch tabs by id — the tab bar's own axis. */
   goTab: (id: string) => void;
-  /** Any nav key from anywhere, including a cross-tab jump. Swipe uses it. */
-  goNav: (key: string) => void;
+  /**
+   * Any nav key from anywhere, including a cross-tab jump. Swipe uses it.
+   *
+   * Answers whether it navigated (D265). A key can now be REFUSED by the
+   * shell rather than only by being unknown — the Patterns tab is absent
+   * from the bar until the data can carry it — and a swipe that reached
+   * for it has to spring back rather than sit where the finger left it.
+   */
+  goNav: (key: string) => boolean;
   /** Open one of the deferred overlays by key. */
   openOverlay: (key: string) => void;
   /** Open the profile overlay on a named sub-tab. */
@@ -98,7 +105,10 @@ export function canNav(key: NavKey): boolean {
  */
 const NAV = {
   goTab(id: string): void { handlers.goTab?.(id); },
-  goNav(key: string): void { handlers.goNav?.(key); },
+  /** False when the shell is not mounted OR refused the key — either way
+   * nothing moved, which is what a caller with an animation to finish
+   * needs to know. */
+  goNav(key: string): boolean { return handlers.goNav?.(key) ?? false; },
   openOverlay(key: string): void { handlers.openOverlay?.(key); },
   openProfileTab(subId?: string): void { handlers.openProfileTab?.(subId); },
   openCity(name: string): void { handlers.openCity?.(name); },

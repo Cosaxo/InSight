@@ -26492,3 +26492,250 @@ implicitly. The reconcile skips that one question; a landed vote and
   `LdAddByHandle` keeps its field mounted and draws `Looking…`
   unconditionally, which is where it becomes a permanent status message
   under an empty box.
+
+## D265 · Patterns comes back on the data, not on a flag
+
+**Decided:** 2026-08-24 · **Status:** binding · **Owner's call**: *"let
+make it so patterns are hidden to start off with but will apper when the
+app has enough dat"*. Written as D251 on its branch and renumbered
+TWICE on the way in — main took D251–D254 for the report builder and then
+D255–D264 for the project review while this was open. The same collision
+D161–D165 and D214–D216 record; the branch that keeps meeting it is the
+patterns one, which is what a long-running thread against a busy trunk
+looks like.
+
+D217 took the Patterns tab out of the v1 release by unmounting it, and
+required its return to be a recorded decision of its own — "a silent
+re-addition would be the same failure as the silent removal D166 forbade,
+in the direction that flatters the roadmap instead of the tree." This is
+that record. The three joints it priced go back in, and one thing is
+different: the tab is not mounted, it is **mountable**. Whether it is in
+the bar is decided by what the nightly fit has published and what the
+viewer has answered, every session, with nobody flipping anything.
+
+D217 had already paid for this. It left the fit running against a tab
+nothing mounted, on the argument that "the remount ships against live
+loadings on day one instead of an empty screen". The signal the gate
+reads is that decision's own dividend.
+
+### "Hidden until enough data" is a number, not a flag — again
+
+The owner has asked for this shape once before, and D196 §"Hidden until
+enough data" is the answer that stood: `READ_MIN_POOL = 12` in
+`data/gamesReady.ts`, with the reasoning kept rather than the boolean.
+This is its sibling, `data/patternsReady.ts`, and the argument transposes
+exactly.
+
+The lenses already refuse what they cannot draw, one item at a time: the
+Oracle will not guess against a vector fitted on fewer than 8 answers,
+People will not place a stranger on fewer than `PEOPLE_MIN_SHARED` shared
+ones (4, or a third of the fetched crowd where that is more), `say()` and
+`tell()` state a basis of 12 or say nothing. What none of them can refuse
+is the **corpus**. A map of four questions is four dots and a claim about
+a population; an Oracle with nothing worth asking opens on its own
+apology. The gate is those refusals one level up.
+
+Three numbers, each derived rather than chosen:
+
+| | | why that number |
+| --- | --- | --- |
+| `PATTERNS_MIN_BASIS` | 8 | The Oracle's own `nextAsk(minBasis)`. Below it a fitted vector is not a reading of anything — `patternsFit.test.ts` pins that a question's FIRST answer moves its loading by nothing at all, so an `n: 1` row is the qid's hash seed wearing a decimal point. |
+| `PATTERNS_MIN_POOL` | 24 | Three questions per latent dimension (`PATTERNS_K = 8`). Below roughly that, the plane the Map draws is a picture of the fit's own axes rather than of anything the questions did, and the archipelago pass then draws communities in it with a straight face. The eligible corpus is 111 the day this landed, so this is about a fifth of everything the fit can ever fold. |
+| `PATTERNS_MIN_MINE` | 8 | `PATTERNS_K` again, and this is the whole reasoning: `estimateTheta` is a ridge solve (λ = 0.5) in K dimensions, so with fewer observations than dimensions θ cannot leave the span of the few loadings it has and the ridge holds the rest at zero. People draws that as you sitting near the middle, under a note that says *"You sit wherever your answers put you, not at the centre"*. |
+
+**Both halves, and the AND is the point.** The crowd term is what the
+owner asked for — the tab appears when the APP has the data. The viewer
+term is the same sentence from the viewer's seat, and it is the cheaper
+of the two to satisfy: eight answers is a sitting, not a season. Either
+one alone puts a lens on screen that has to apologise for one of its two
+axes.
+
+**It is not a privacy floor**, and it has the shape of one, so — the same
+paragraph D196 owes and for the same reason: nothing is withheld from
+anybody. Every number these lenses read publishes exactly and at any size
+(D98). What is withheld is the TAB, until what it draws can be believed.
+
+**Below the gate there is nothing**: no third button, no teaser, no
+"coming soon", no tab that opens onto "No patterns yet". The tab's own
+empty states stay exactly as they were and are still reachable — they are
+what a viewer sees when the gate opened and a lens is still thin, which
+is a different sentence from a tab announcing a feature it cannot serve.
+
+### The signal costs no read, because it rides one the app already pays
+
+The obvious implementation is to fetch `v2_patterns/loadings` at boot and
+count. That doc is ~11 KB of vectors and the tab fetches it anyway on
+open — but every device would pay it on every cold start to decide
+whether to render a **button**, including the ones that never open the
+tab, which is exactly the read `hydrate()`'s bank cache exists to avoid.
+
+So the fit publishes the count instead, onto `v2_meta/app` — the document
+`hydrate()` already reads for `contentRev` and the build gates. Two
+fields, merged (the seed and the operator own the rest of that doc):
+
+- `patternsPool` — questions whose loading rests on `PATTERNS_MIN_BASIS`
+  answers or more (`patternsFit.readyPool`).
+- `patternsBasis` — the floor that count was taken at.
+
+**The floor travels with the count on purpose.** Two copies of a number
+in two deployables drift, and the one that drifts silently is the one
+nobody reads back. Publishing the basis makes the client's half a
+handshake instead of an assumption: a fit that ever counted on a looser
+floor is publishing a weaker claim than this gate is about, and the gate
+stays shut rather than opening on it. `patternsReady.test.ts` pins that
+in both directions.
+
+Publication itself still has **no** floor and must not get one: every
+vector publishes with its own `n`, and every reader refuses per question
+on it. What the floor decides is narrower — how many questions the fit
+will CLAIM to have fitted when a client asks whether there is enough here
+to open a tab on.
+
+The viewer's half is free for the same kind of reason: `LIVE.patternsSignal()`
+walks the two banks the device is already holding against the vote mirror
+it already has. It deliberately does not require a published aggregate the
+way `aggregated()` does — a question you answered is evidence about you
+whether or not its crowd counts have landed on this device yet.
+
+### What changed
+
+- `functions/src/patternsFit.ts` — `PATTERNS_MIN_BASIS` and `readyPool()`,
+  pure, tested.
+- `functions/src/patterns.ts` — `putModel` publishes the two meta fields
+  after the loadings doc. `patterns.test.ts` grew the publication half,
+  against a recording fake: the injected store the rest of that file uses
+  cannot see WHERE the numbers land, and a fit that stopped writing the
+  signal would leave the tab hidden on a database full of loadings — a
+  failure with no error anywhere.
+- `src/v2/data/patternsReady.ts` (new) — the thresholds, the fit's
+  eligibility rule client-side (through `isCore`, per D161), the verdict,
+  and the earned-gate memory with its purge arm. The verdict is pure and
+  the module is ~1 KB in the eager graph, which is what lets the shell ask
+  the question without dragging `data/patterns.ts` out of the lazy chunk.
+- `src/v2/data/live.ts` — the two meta fields into `state.meta`, and
+  `patternsSignal()` onto the surface (pinned in `live-surface.ts`, with
+  the fixture's `patterns` option beside it).
+- `src/v2/spec/app-shell.jsx` — every joint D217's own "what changed"
+  list names, restored: the lazy import, the glyph, the `TABS` entry, the
+  `NAV_ONE` row, the `goNav` branch, the `data-view`/accent arms, the
+  mount, and the tab bar's arrival branch. D166 §1 priced *three* of
+  these (import site, TABS entry, the daily-split exit) and that pricing
+  held — the rest are one-line arms inside them. New beside them:
+  `usePatternsTab`, a `tabsRef` the mount-only nav effect reads so a
+  closure registered before the gate opened does not refuse the tab
+  forever, and the effect that lands a viewer back on the daily if the
+  gate ever closes under them.
+- `src/v2/data/nav.ts` + `src/v2/spec/daily-split.jsx` — the near-end
+  ruler exit returns, as a REQUEST rather than an instruction: `goNav`
+  now answers whether it navigated, and a refused key springs the card
+  back like any other edge. daily-split deliberately does not learn the
+  gate's condition; it asks the shell, which is the only place that knows.
+
+### Once earned it stays — because `mine` is not the monotone quantity it looks like
+
+The first draft of this latched within a session on the argument that
+"answers never un-happen". They do not; what happens is that the QUESTION
+leaves. `patternsSignal()` counts the viewer's votes against the bank the
+device is holding, and `hydrate()` rebuilds that bank from `active`
+questions — so retiring one takes a vote out of the count. That is not a
+hypothetical path: `docs/QUESTION-FARM.md`'s scorecard proposes
+`active: false` for a landslide, which is exactly a question most people
+have already answered, and five of the questions the fit folds are retired
+today. The client's rule is NARROWER than the fit's in two more ways the
+fit has no equivalent of — `PATTERNS_QIDS` never prunes, and `readyPool`
+walks a model that keeps a retired question's loading forever.
+
+Recomputed from scratch on every launch, that arithmetic could take the
+tab off somebody who had it yesterday while the server's own count had
+not moved at all. So the crossing is written down once —
+`patternsEarned`, one `insight.*` boolean — and the gate asks *has this
+account ever met the floor*, not *does it meet it right now*. A stale
+`true` is safe by construction: it is a fact about the account's past,
+and the lenses' own floors still govern the present.
+
+**The purge is what closes it**, and it is the one thing that does.
+`purgeLocalTrace` fires `insight:local-purge` on deletion and on a uid
+change with no reload behind it, and `resetForNewUid` empties the vote
+mirror in place — so without this arm the next account would inherit a
+tab it has not earned: zero answers, an Oracle with no evidence, and
+"you" at the origin of the People lens, which is exactly what the AND in
+`patternsReady` exists to refuse. Two arms, because there are two copies
+of the answer: the key in `data/patternsReady.ts`, the shell's React
+state in `usePatternsTab`. A third effect lands a viewer back on the
+daily if the gate closes while they are standing on the tab — `tab` is
+state, and would otherwise keep pointing at a tab `TABS` no longer
+carries.
+
+`purge-wipe.test.ts` drives the seed → purge → remutate cycle over the
+key (including the half that matters: the purged device must not re-earn
+the gate from the fresh account's empty signal), and `smoke-live` pins
+both the mid-session opening and the account change taking it back.
+
+### Consequences worth stating
+
+**A demo build never offers the tab.** `patternsSignal()` is empty when
+`LIVE.enabled` is false, so the gate is shut in the prototype, in
+style-diff and in any demo capture. That is stricter than D166 §1's
+live-data-only narrowing and in the same direction: before this, the demo
+could open a tab onto "Patterns draws only from real answers, so the demo
+has nothing to show here". Now it is simply not there.
+
+**The tab will appear in live screenshot runs the night the fit crosses
+the floor.** The Screenshots pipeline builds with `VITE_V2_LIVE=true`
+(D217's own run notes), so once the live database carries 24 questions at
+basis 8 and the capture account has answered eight, the bar in those
+captures is three tabs. Nothing in `listing.json` or the store copy
+counts tabs, so no gate fires — but the listing's implicit two-tab story
+is D217's argument, and this is the moment it stops being true. Recorded
+here rather than discovered in a review queue.
+
+**A first cold start paints two tabs.** Both numbers arrive with boot —
+`hydrate()` reads the meta doc and the vote mirror, then notifies — so on
+the launch that crosses the floor the third tab arrives a beat later,
+with the rest of the live data. That is the behaviour the owner asked
+for, said out loud. Later launches paint three from the first frame,
+which is the memory above doing its other job.
+
+### The bundle, which said no first
+
+The remount fails `check:bundle` as it stands, on two ceilings, and both
+moved deliberately with the measurement beside them:
+
+- **Total JS 2404 → 2440**, the 42 KB the #231 entry admitted and D217
+  removed, plus the gate. Measured against a clean build of the base this
+  merges onto, in a worktree: 2374 → 2416 across 103 → 105 chunks, and
+  only one of the two new files is new
+  code — `PatternsTab-*.js` at 40.0 KB, and `world-feed-data-*.js` at
+  14.5 KB, which the tab's `WORLD_TOPICS` import lifted out of the
+  `catalogs` chunk (63.1 → 48.7 there). The remaining ~2.5 KB is the entry
+  and `live.ts` carrying the gate. The eager graph moved **839 → 841**,
+  which is the whole cost of the gate: the tab is behind `React.lazy`,
+  the verdict is a 1 KB pure module, and `world-feed-data` joining the
+  modulepreload list is a relocation of bytes `catalogs` was already
+  carrying. `MAX_EAGER_KB`, the ceiling that is not raiseable, did not
+  have to move.
+- **CSS 78 → 88, and a new ceiling underneath it.** `cssKb` sums every
+  `.css` in `dist/assets`, and D223's justification for it — *"CSS is
+  render-blocking, so its bytes are on the critical path"* — stopped
+  being true of all of it the first time a lazily-loaded component
+  imported a stylesheet. `MAX_BLOCKING_CSS_KB = 74` now measures the
+  sheets `index.html` actually links, asked of the artifact the way the
+  eager graph is. That number did **not** move for this work: 69 KB
+  before and after, because none of the Patterns tab's 15 KB is in the
+  entry sheet. The total is install weight, which is the footing fonts
+  were already on.
+
+The same move `MAX_EAGER_KB` made at D144, one budget over: a guarantee
+that survives only while a number stays small is not one, so state it
+directly.
+
+### What this record does NOT do
+
+It does not verdict D166 §1's trial. D217 paused it; this resumes it. The
+question the trial exists to answer is a usage question, and nobody has
+the usage yet — TestFlight is still a handful of testers. What has changed
+is that the tab can now be seen by someone whose data can carry it, which
+is the precondition the trial was always waiting on.
+
+It also does not touch what the tab IS. D214–D216 stand untouched: the
+People lens, the 2026-08-20 shapes, the population chips.

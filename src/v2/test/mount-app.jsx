@@ -158,6 +158,48 @@ export async function awaitText(re, max = 50) {
   }
 }
 
+/**
+ * Drag the daily's card sideways past the commit threshold and release —
+ * the gesture that walks the mode axis one stop, and off one of its ends
+ * when the axis has no next stop that way (D265's near end is the
+ * Patterns tab; the far end is the Mirror).
+ *
+ * `dir` is the finger's direction: 1 drags right (one stop BACK, off the
+ * near end from World), -1 drags left.
+ *
+ * Dispatched on daily-split's own root so it bubbles to the scroller its
+ * listeners are on, and deliberately not on a child: `touchstart` drops
+ * any gesture that starts inside OWNS_X.
+ *
+ * THE CLOCK IS MOVED FORWARD, and that is not a shortcut. A cross-tab
+ * jump marks the nav (swipe-back's `markNav`) and every axis gesture
+ * refuses for COAST_MS = 700 ms afterwards, so a swipe case that runs
+ * within that window of ANY earlier case's tab click is silently
+ * swallowed — it passes alone and fails in the file. Offsetting Date.now
+ * says what the case means: a gesture made a while after the last jump.
+ *
+ * Returns the sliding body element, whose transform is how a spring-back
+ * is visible.
+ */
+export function swipeDaily(dir = 1) {
+  const root = document.querySelector('[data-screen-label="Split daily v2"]');
+  if (!root) throw new Error("swipeDaily: the daily screen is not mounted");
+  const at = (x) => [{ clientX: x, clientY: 400 }];
+  const from = 120, to = from + dir * 120;   // 120px, past the 66px threshold
+  const realNow = Date.now;
+  const spy = vi.spyOn(Date, "now").mockImplementation(() => realNow() + 5000);
+  try {
+    act(() => {
+      fireEvent.touchStart(root, { touches: at(from) });
+      fireEvent.touchMove(root, { touches: at(to) });
+      fireEvent.touchEnd(root, { changedTouches: at(to) });
+    });
+  } finally {
+    spy.mockRestore();
+  }
+  return root.querySelector('[style*="will-change"], [style*="willChange"]') || root.firstElementChild;
+}
+
 // Same wait, keyed on a selector instead of copy — for lazy bodies whose
 // arrival is an element rather than a sentence (the Map's canvas).
 export async function awaitNode(selector, max = 50) {

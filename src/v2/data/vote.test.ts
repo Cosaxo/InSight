@@ -336,6 +336,75 @@ afterEach(() => {
 
 // ── tests ───────────────────────────────────────────────────────────
 
+// ── the Patterns tab's mount gate (D265) ────────────────────────────
+//
+// `patternsSignal()` is the device half of the decision that puts a whole
+// tab in the bar, and every OTHER test of it runs against the mount
+// fixture, which replaces the member wholesale. So this is the only place
+// its body executes: the meta keys it reads, the two banks it walks, and
+// the eligibility rule it applies. A typo in a meta key here (`patternPool`
+// for `patternsPool`) ships green everywhere else and hides the tab on
+// every device with no error anywhere.
+describe("patternsSignal (D265): the mount gate's two numbers", () => {
+  const bank = (id: string, over: Record<string, unknown>) => ({
+    id,
+    data: {
+      surface: "feed", seq: 1, type: "vote", prompt: id,
+      options: ["A", "B"], topic: null, test: null, active: true, ...over,
+    },
+  });
+  const answered = (id: string, surface: string) => ({
+    id,
+    data: { qid: id, surface, optionIdx: 0, answeredAt: { toMillis: () => 5 } },
+  });
+
+  it("reads the fit's published count off v2_meta/app", async () => {
+    h.getDocImpl = (path) => (path === "v2_meta/app"
+      ? { patternsPool: 30, patternsBasis: 8 }
+      : null);
+    const LIVE = await bootLive();
+    expect(LIVE.patternsSignal()).toMatchObject({ pool: 30, basis: 8 });
+  });
+
+  it("reads an absent field as nothing, not as a pass", async () => {
+    h.getDocImpl = (path) => (path === "v2_meta/app" ? { contentRev: null } : null);
+    const LIVE = await bootLive();
+    expect(LIVE.patternsSignal()).toMatchObject({ pool: 0, basis: 0 });
+  });
+
+  it("counts the viewer's answers by the fit's own eligibility rule", async () => {
+    // The bank: one two-option daily (core by construction), one core feed,
+    // one TAIL feed, one three-option daily. The fit folds the first two
+    // and nothing else (D161 + the ±1 encoding), so `mine` must be 2 even
+    // though four answers exist.
+    h.bankDocs.push(
+      bank("feed-core", { core: true }),
+      bank("feed-tail", {}),
+      bank("daily-three", { surface: "daily", options: ["A", "B", "C"] }),
+    );
+    h.answerDocs.push(
+      answered("q_1", "daily"),            // the default two-option daily
+      answered("feed-core", "feed"),
+      answered("feed-tail", "feed"),
+      answered("daily-three", "daily"),
+    );
+    h.getDocImpl = (path) => (path === "v2_meta/app"
+      ? { patternsPool: 30, patternsBasis: 8 }
+      : null);
+    const LIVE = await bootLive();
+    expect(Object.keys(LIVE.myVotes())).toHaveLength(4);
+    expect(LIVE.patternsSignal().mine).toBe(2);
+  });
+
+  it("answers nothing at all when the build is not live", async () => {
+    // The demo's honest state, and the reason a demo build never offers
+    // the tab: no fit behind it, so no gate to open.
+    vi.stubEnv("VITE_V2_LIVE", "false");
+    const mod = await import("./live");
+    expect(mod.default.patternsSignal()).toEqual({});
+  });
+});
+
 describe("vote() optimistic path (inflight vs unaggregated)", () => {
   it("shows a pending vote in myVotes but NOT in confirmedVotes", async () => {
     const LIVE = await bootLive();
