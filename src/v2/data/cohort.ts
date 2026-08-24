@@ -185,6 +185,55 @@ export function divergence(
 }
 
 /**
+ * One slice's divergence, without folding the other twenty-three.
+ *
+ * Exactly `divergence(by, dim, overall, optionCount, minN).find((d) => d.bucket === bucket)`,
+ * and cohort.test.ts pins it against that expression rather than against
+ * a re-derivation — the point of the helper is that the two can never
+ * drift, since the Mirror's Explore lens and the breakdown sheet both
+ * read it and must not disagree about which option a group is unusual on.
+ *
+ * WHY IT EXISTS. Both callers wanted one bucket and asked for all of
+ * them: `divergence` builds `mixFor` over every bucket of the dim (a
+ * dense cell array and a reduce each), takes `pctFor` of each, sorts the
+ * lot by gap — and then `.find` throws all but one away. Explore does
+ * that once PER QUESTION, over the whole core archive, on every render:
+ * every dim chip, every bucket chip, every notify. Buckets are bounded
+ * (BREAKDOWN_MAX_BUCKETS) but city and country routinely fill that bound,
+ * so the discarded work is ~24× the kept work, measured at ~4 ms of the
+ * lens's ~6 ms fold in node — which is not 4 ms on a phone.
+ *
+ * Null where `divergence(...).find(...)` is undefined: a bucket the
+ * dimension does not carry, or one whose cell is all zeros. That is the
+ * same condition `sliceSplit` returns null on (counts are non-negative,
+ * so "some cell above zero" and "sum above zero" are one test), which is
+ * why Explore can drop its separate `sliceSplit` call and read `pct` off
+ * this instead.
+ */
+export function divergenceFor(
+  by: ByMap | undefined,
+  dim: string,
+  bucket: string,
+  overall: readonly number[],
+  optionCount: number,
+  minN = 0,
+): Divergence | null {
+  const counts = cellFor(by, dim, bucket, optionCount);
+  if (!counts) return null;
+  const n = counts.reduce((a, b) => a + b, 0);
+  if (n <= 0 || n < minN) return null;
+  const base = pctFor(overall);
+  const pct = pctFor(counts);
+  let gap = 0;
+  let optionIdx = 0;
+  for (let i = 0; i < pct.length; i++) {
+    const d = Math.abs(pct[i] - (base[i] || 0));
+    if (d > gap) { gap = d; optionIdx = i; }
+  }
+  return { bucket, n, pct, gap, optionIdx };
+}
+
+/**
  * How split a question is, 0 (unanimous) to 1 (perfectly even).
  *
  * NORMALISED BY OPTION COUNT, which is the whole reason this is a function

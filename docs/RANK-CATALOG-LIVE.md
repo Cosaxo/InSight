@@ -177,7 +177,10 @@ D12's four numbered costs, updated for D98 and made concrete:
    doc, drop anything that is not a permutation of
    `[0 .. options.size())`, fold per-item position sums into
    `v2_aggs_private` (`pos: number[]`, `total`) and publish
-   `{ total, pos }` whole to `v2_question_aggs`. No `by` in v1 — the
+   `{ total, pos }` whole to `v2_question_aggs`. *(As built and then
+   simplified: the two documents held the same two fields, so the rank
+   fold now reads and writes `v2_question_aggs` alone — see the private
+   mirror's collapse in `functions/src/v2.ts`'s header.)* No `by` in v1 — the
    Mirror's cohort lenses read option shares, which an order does not
    have; if a rank-shaped lens ever ships, the breakdown arrives with
    it. `onV2AnswerUpdated` untouched (no rank edits, above). Pure

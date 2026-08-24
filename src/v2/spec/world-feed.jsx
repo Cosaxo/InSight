@@ -2127,13 +2127,21 @@ class WorldFeed extends React.Component {
     );
   }
 
-  answered(q) {
+  // `mine` is an optional pre-fetched LIVE.myVotes(), for callers asking
+  // this question about a whole bank at once. `myVotes()` hands back a
+  // defensive COPY of the vote map on purpose (data/live.ts's perRev block
+  // says why it is excluded from the memo), so taking it once per question
+  // inside a loop over the pool is O(pool × votes) object churn to read one
+  // key — and on a live build with a fresh device every dial, field, pick
+  // and rank question takes that branch, because the server-side answer has
+  // no local raw value.
+  answered(q, mine) {
     const v = this.state.votes[q.id];
     // a live continuum answer may exist only server-side (fresh device, no
     // local raw value) — the bucket in myVotes is still an answer, and the
     // card must show its reveal rather than offer the question again
     if ((q.type === 'dial' || q.type === 'field' || q.type === 'pick' || q.type === 'rank') && v == null && q.live && LIVE.myVotes) {
-      return LIVE.myVotes()[q.id] != null;
+      return (mine || LIVE.myVotes())[q.id] != null;
     }
     return q.type === 'rank' ? !!(v && v.order) : v != null;
   }
@@ -2514,6 +2522,8 @@ class WorldFeed extends React.Component {
     const catsOn = this.props.cats || {};
     const onToggle = this.props.onToggle;
     const stock = {};
+    // Once for the whole walk — see answered()'s note on the copy.
+    const myVotes = LIVE.myVotes ? LIVE.myVotes() : null;
     this.feedPool().forEach((q) => {
       if (!q || !q.cat) return;
       // Stock counts MEMBERSHIP — home plus `also` doors — because this
@@ -2522,7 +2532,7 @@ class WorldFeed extends React.Component {
       // is not a partition: per-topic stock can sum past the pool size, and
       // a reader adding the column is re-counting straddlers, not finding
       // a bug.
-      const done = this.answered(q);
+      const done = this.answered(q, myVotes);
       wfCarried(q).forEach((t) => {
         const s = stock[t] || (stock[t] = { n: 0, done: 0 });
         s.n++;

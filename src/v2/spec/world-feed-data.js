@@ -4,6 +4,12 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+// The imported binding, not `window.LIVE` — the seam world-feed.jsx already
+// uses, and the reason joinDemoStock below can ask whether this session is
+// on live data without adding a shared-global reference the rule-4 ratchet
+// would count. data/live is eager either way (main.jsx imports initLive),
+// and it imports nothing from spec/, so this closes no cycle.
+import LIVE from '../data/live.ts';
 
 // world-feed-data.js — the World question feed. Your SCENES (scenes.js) are the
 // subscription: each scene has its own questions plus the broad topic it pulls
@@ -73,6 +79,14 @@ export const WORLD_CHANNELS = WFD_LIVE_BUILD
 // imagery in never shifts layout. Without one, the generated tile art stands in.
 // One treatment is applied in CSS (.wf-tileimg), not per photo.
 // rank: items + crowd, where crowd[i] = the crowd's rank (1-based) of items[i].
+// EAGER, and this assignment is the second reason why (the first is
+// daily-split.jsx reading window.WORLD_TOPICS at module scope — see
+// spec-index.js). It replaces the pool unconditionally, which is safe only
+// because this module runs BEFORE `initLive`: in live mode
+// `buildFeedGlobals` then overwrites it. Deferring this file would put an
+// unguarded clobber after the live boot, which is exactly what
+// `joinDemoStock` and `installSubtopicStock` exist to avoid — so if it ever
+// moves, this line moves behind `demoPoolOpen()` with them.
 window.WORLD_FEED_QS = [
   // sport
   { id: 'f01', cat: 'sport', type: 'duel', prompt: 'The better night in front of the TV?', options: [ { label: 'Champions League final', count: 6300 }, { label: 'Super Bowl', count: 4900 } ] },
@@ -191,7 +205,59 @@ window.WORLD_FEED_QS = [
   { id: 's17', scene: 'ferment', cat: 'food', type: 'vote', prompt: 'Kombucha or kefir?', options: [ { label: 'Kombucha', count: 900 }, { label: 'Kefir', count: 600 } ] },
 ];
 
-// the scorecard 'rate' questions (place-stats.js) join the pool
-if (window.PLACE_RATE_QS) window.WORLD_FEED_QS = window.WORLD_FEED_QS.concat(window.PLACE_RATE_QS);
-// …and the catalogue 'pick' questions (pick-data.js)
-if (window.PICK_QS) window.WORLD_FEED_QS = window.WORLD_FEED_QS.concat(window.PICK_QS);
+/**
+ * The demo stock that is not in the literal above, joined ON DEMAND rather
+ * than at module scope: the catalogue 'pick' questions (pick-data.js and
+ * world-catalogs.js) and the scorecard 'rate' questions (place-stats.js).
+ *
+ * WHY IT MOVED. This used to read `window.PICK_QS` right here, which made
+ * pick-data.js a module-scope dependency of the pool and therefore eager —
+ * 48 KB of catalogue demo stock in the first-paint graph of a build whose
+ * feed is deferred and whose pool `live.ts` replaces wholesale. Called from
+ * `loadWorldFeed()` instead, after pick-data lands in the feed's own chunk.
+ *
+ * THE GUARD IS LOAD-BEARING, and the ordering is why. `main.jsx` runs
+ * `initLive().finally(() => … loadWorldFeed())`, so this now runs AFTER the
+ * live boot rather than before it: where the old module-scope concat could
+ * only ever be overwritten by `buildFeedGlobals`, this one could append
+ * demo catalogue cards ON TOP of the published live pool. `LIVE.enabled` is
+ * the test, read through the imported binding rather than off `window` (the
+ * seam world-feed.jsx already uses) so the coupling meter does not count it.
+ *
+ * It reads a settled value on the ordinary path — `initLive` resolves
+ * before `loadWorldFeed` is called — and the one path where it does not is
+ * covered from the other side: a boot that lost the 2500 ms race leaves
+ * `enabled` false here, the demo pool joins, and `buildFeedGlobals()`
+ * replaces it wholesale the moment the late boot lands. That is exactly
+ * what happened before this change, on every boot.
+ *
+ * Idempotent: `loadWorldFeed` is memoised, but a second call must not
+ * double the pool.
+ *
+ * Variadic because three demo modules were eager for the same reason and
+ * all three now hand their array over: pick-data.js's `PICK_QS` (25 cards,
+ * the 48 KB module), world-catalogs.js's `WF_CATALOG_QS` (2), and
+ * place-stats.js's `PLACE_RATE_QS` (13). The last of those was concatenated
+ * right here at module scope until its own pair left the eager list.
+ */
+/**
+ * Whether the demo pool may still be written.
+ *
+ * The predicate has ONE definition on purpose. Two demo modules now hand
+ * their stock over instead of writing the pool at module scope — this
+ * file's `joinDemoStock` and world-subtopics.js's `installSubtopicStock` —
+ * and both run past the live boot, so both need exactly this test. A second
+ * copy of it is a second chance to get the live/demo boundary wrong.
+ */
+export function demoPoolOpen() {
+  return !LIVE.enabled;
+}
+
+let stockJoined = false;
+export function joinDemoStock(...sets) {
+  if (stockJoined || !demoPoolOpen()) return;
+  const add = sets.filter((s) => Array.isArray(s) && s.length).flat();
+  if (!add.length) return;
+  stockJoined = true;
+  window.WORLD_FEED_QS = (window.WORLD_FEED_QS || []).concat(add);
+}

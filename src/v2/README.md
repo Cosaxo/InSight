@@ -535,7 +535,7 @@ side could see, caught before it landed.
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
-prints the current total on every run. The count today is **244 across 34
+prints the current total on every run. The count today is **239 across 33
 files**, down from 799 when the ratchet landed.
 
 The mechanism needs no bookkeeping, which is what makes it usable. The
@@ -665,8 +665,21 @@ like the others (6 sites in `world-feed.jsx`, all of them the same
 and deliberately: `world-feed-data.js` creates the pool, this file and
 `world-subtopics.js` append to it, and `data/live.ts` replaces it wholesale
 in live mode. Four writers and a live/demo boundary is a design change —
-an owning module with an add/replace API — not a mechanical conversion. The
-append site carries that reasoning inline.
+an owning module with an add/replace API — not a mechanical conversion.
+
+*Still true, and one writer fewer since.* This file's append moved out of
+module scope when the demo catalogue pool was deferred: it exports
+`WF_CATALOG_QS` and `loadWorldFeed()` hands it to `joinDemoStock()`
+(world-feed-data.js) past a `LIVE.enabled` guard. That is the mechanical
+half — a writer handing its array to the one function that appends —
+not the design change above, which nobody has done. `world-subtopics.js`
+moved the same way a step later — it appends IN PLACE (`pool.push`) and
+retags a question, so its `installSubtopicStock()` is that treatment applied
+to a mutation rather than a concat. Four writers hand their stock over now —
+`place-stats.js`'s rate cards were the last, and their departure took
+`place-stats.jsx` (the demo Mirror's Scores lens) off the eager graph with
+them. `world-feed-data.js` still assigns the pool at module scope, and
+stays eager partly for that reason.
 
 **And it exposed a real defect in the ratchet.** `definedBy` was a
 first-assignment-wins map, so a multi-writer global got one arbitrary owner

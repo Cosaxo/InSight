@@ -545,10 +545,18 @@ ok("a room cache outside the neighbourhood is left alone");
 // account's attribution record must outlive this deletion, or one erasure
 // destroys the correction record (D28) for everyone.
 if (!(await exists(`v2_agg_events/evt_theirs`))) fail("someone else's agg-ledger entry was swept");
-// And the tally the answer fed stays, per 1b's standing decision: counts
-// are k-floored and — once the ledger entry is gone — anonymous again.
-// Erasure removes the attribution, not the aggregate.
-if (!(await exists(`v2_aggs_private/daily-000`))) fail("erasure destroyed the aggregate tally itself");
+// And the tally the answer fed stays, per 1b's standing decision: erasure
+// removes the ATTRIBUTION, not the aggregate. Once the ledger entry is
+// gone the count names nobody — which is the whole of what erasure owes
+// here, and is why the doc below is expected to survive rather than to be
+// decremented.
+//
+// v2_question_aggs, not v2_aggs_private: a daily answer's tally IS the
+// published document now. The private mirror this line used to name was
+// byte-identical to it and is no longer written on this path (see the
+// header of functions/src/v2.ts) — so asserting on it would have been
+// asserting that a document nothing writes is still absent.
+if (!(await exists(`v2_question_aggs/daily-000`))) fail("erasure destroyed the aggregate tally itself");
 ok("someone else's ledger entry and the anonymous tally both survive");
 
 // The follow sweep stopped at the rows that named this uid.

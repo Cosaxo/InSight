@@ -321,14 +321,24 @@ describe("cost-arith reads its constants from source, not from memory", () => {
   it("the answer trigger's transaction still issues the reads the model charges", () => {
     const body = read("functions/src/v2.ts")
       .match(/export const onV2AnswerCreated[\s\S]*?\n\);/)[0];
+    // DOCUMENTS, not call sites. This counted `tx.get(` occurrences until
+    // the three branches batched their reads into one `tx.getAll(a, b, c)`
+    // each — at which point it counted ZERO and said the trigger had
+    // stopped reading, because `tx.getAll(` does not match `tx.get\(`.
+    // The shape changed; the read count did not. What the model charges is
+    // documents, so that is what this has to count.
+    const singles = (body.match(/tx\.get\(/g) || []).length;
+    const batched = [...body.matchAll(/tx\.getAll\(([^)]*)\)/g)]
+      .reduce((n, m) => n + m[1].split(",").length, 0);
     expect(
-      (body.match(/tx\.get\(/g) || []).length,
+      singles + batched,
       "onV2AnswerCreated changed how many documents it reads. TRIGGER_READS "
       + "in scripts/cost-arith.mjs charges the VOTE path (2: ledger event + "
-      + "private agg); the catalog (D232) and rank (D233) branches each read "
-      + "one more — the question doc — which the model deliberately absorbs "
-      + "into the vote rate (see the constant's comment). Recount before "
-      + "changing the constant.",
+      + "the published aggregate, which is the fold's working document since "
+      + "D275 collapsed the private mirror into it); the catalog (D232) and "
+      + "rank (D233) branches each read one more — the question doc — which "
+      + "the model deliberately absorbs into the vote rate (see the "
+      + "constant's comment). Recount before changing the constant.",
     ).toBe(8);
   });
 

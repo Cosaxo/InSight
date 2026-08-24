@@ -1,16 +1,4 @@
 {
-  "fieldOverrides": [
-    {
-      "collectionGroup": "engagement",
-      "fieldPath": "folded",
-      "indexes": [
-        {
-          "queryScope": "COLLECTION_GROUP",
-          "order": "ASCENDING"
-        }
-      ]
-    }
-  ],
   "indexes": [
     {
       "collectionGroup": "v2_suggestions",
@@ -128,6 +116,16 @@
     }
   ],
   "fieldOverrides": [
+    {
+      "collectionGroup": "engagement",
+      "fieldPath": "folded",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "order": "ASCENDING"
+        }
+      ]
+    },
     {
       "collectionGroup": "insight_inbound_impressions",
       "fieldPath": "senderUid",

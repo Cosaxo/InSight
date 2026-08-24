@@ -432,7 +432,11 @@ export function loadCorpus() {
   const pulse = JSON.parse(readFileSync(join(root, "content", "pulse-questions.json"), "utf8")).questions;
   const pick = extractLiteral(
     readFileSync(join(root, "src", "v2", "spec", "pick-data.js"), "utf8"),
-    "window.PICK_QS = [",
+    // `PICK_QS = [`, not `window.PICK_QS = [`: the array is a named export
+    // now (the window mirror is assigned from it further down), and this
+    // marker matches either shape — which is the point, since a marker
+    // that names the bridge breaks the day the module crosses it.
+    "PICK_QS = [",
     "pick-data.js",
   );
   // The LIVE pick seed (D14 go-live): the archive entries above that were
