@@ -9,6 +9,7 @@
 
 import { describe, expect, it } from "vitest";
 import { MIN_AXIS_ITEMS, passiveProfile, passiveResult, passiveTest } from "./passiveProfile";
+import { parseTestResults } from "./similarity";
 import type { TestBankItem, TestDefs } from "./similarity";
 
 // One instrument, two axes, three items each. Prompts are the join key —
@@ -125,5 +126,62 @@ describe("passiveProfile — every instrument at once", () => {
     const defs: TestDefs = { ...DEFS, other: { title: "Other", dims: [], questions: [] } };
     const out = passiveProfile(defs, BANK, { q0: 4, q3: 1 });
     expect(Object.keys(out)).toEqual(["mini"]);
+  });
+});
+
+// ── the round trip that makes the score tier able to fire (D275) ─────
+//
+// WHY THIS SUITE GAINED A SECTION. The fold above was always correct and
+// was never written down anywhere another person could read it. D121
+// deleted the sit-down flow — the only thing that had ever written
+// `testResults` — so from that commit until D275 the four core keys were
+// absent on every live profile, `parseTestResults` returned null for every
+// candidate, `rankKindred`'s score tier could not fire, and the City ring
+// that D112 specified as "ranked primarily by test scores" ranked entirely
+// on answer agreement. Nothing failed. Every gate stayed green, because
+// the two halves — what the fold emits, and what a stranger's client reads
+// back — had no test that put them in the same sentence.
+//
+// These cases are that sentence. They are deliberately about the SHAPE
+// CONTRACT rather than the arithmetic: the arithmetic has its suite above
+// and in similarity.test.ts, and it was never what broke.
+describe("passiveResult → parseTestResults — what one device writes, another reads", () => {
+  it("parses back to the axis values it was built from", () => {
+    const r = passiveResult(fold({ q0: 4, q1: 4, q3: 0, q4: 0 }), "Mini")!;
+    // The store writes it under the instrument key; a reader on another
+    // device parses the whole `testResults` map back through the same
+    // defensive read every stranger profile goes through.
+    const parsed = parseTestResults({ mini: r }, ["mini"]);
+    expect(parsed).not.toBeNull();
+    expect(parsed!.mini).toEqual({
+      a: r.dims.find((d) => d.id === "a")!.value,
+      b: r.dims.find((d) => d.id === "b")!.value,
+    });
+  });
+
+  it("survives the JSON round trip a Firestore write actually makes", () => {
+    // saveTestResult setDocs the object and hydrate reads it back off the
+    // wire, so the contract is over the SERIALISED form, not the in-memory
+    // one. A field that does not survive JSON would fail here and nowhere
+    // else.
+    const r = passiveResult(fold({ q0: 3, q1: 3, q3: 1, q4: 1 }), "Mini")!;
+    const overTheWire = JSON.parse(JSON.stringify({ mini: r }));
+    expect(parseTestResults(overTheWire, ["mini"])).toEqual(parseTestResults({ mini: r }, ["mini"]));
+  });
+
+  it("carries the `passive` marker that keeps a sit-down result from being overwritten", () => {
+    // live.ts's syncPassiveResults only ever moves a key that is absent or
+    // that this fold wrote. `passive: true` is the whole basis for that
+    // second half, so it is a contract and not a decoration.
+    const r = passiveResult(fold({ q0: 4, q1: 4, q3: 0, q4: 0 }), "Mini")!;
+    expect(r.passive).toBe(true);
+  });
+
+  it("an unready fold publishes nothing at all, rather than a thin result", () => {
+    // The threshold is the point. One answer per axis parses to a perfectly
+    // well-formed pair of extremes, which is exactly the confident claim
+    // D121 refused — so the refusal has to happen before the write, not
+    // after the read.
+    expect(passiveResult(fold({ q0: 4, q3: 0 }), "Mini")).toBeNull();
   });
 });

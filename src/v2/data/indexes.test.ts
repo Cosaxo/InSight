@@ -84,6 +84,64 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
     expect(o!.indexes.some((i) => i.queryScope === "COLLECTION_GROUP" && i.order === "ASCENDING")).toBe(true);
   });
 
+  it("engagement.ts rollupPage: engagement.folded keeps its collection-group index", () => {
+    // This one was in the file and NOT in the deployment. firestore.indexes.json
+    // carried two top-level "fieldOverrides" keys; JSON.parse keeps the last,
+    // so the first block — whose only entry was this override — was discarded
+    // on every read, including by firebase deploy. rollupPage's
+    // collectionGroup("engagement").where("folded","==",false) has therefore
+    // been querying an index that does not exist.
+    //
+    // A duplicate key is invisible to every other gate: the file is valid
+    // JSON, the emulator does not enforce index configuration (see this
+    // file's header), and the override reads correctly to anyone opening it.
+    // The cheapest durable guard is to assert the entry SURVIVES A PARSE,
+    // which is precisely what a re-duplicated key would break.
+    const o = override("engagement", "folded");
+    expect(o, "engagement.folded override is missing from the PARSED config — check for a duplicate top-level key").toBeDefined();
+    expect(o!.indexes.some((i) => i.queryScope === "COLLECTION_GROUP" && i.order === "ASCENDING")).toBe(true);
+  });
+
+  it("firestore.indexes.json declares each top-level key exactly once", () => {
+    // The general form of the bug above. JSON.parse silently keeps the LAST
+    // of a duplicated key, so a second "indexes" or "fieldOverrides" block
+    // deletes the first one's entire contents with no error anywhere — not
+    // from the parser, not from the emulator, not from firebase deploy.
+    //
+    // Depth-aware rather than a line regex: "indexes" is also a key INSIDE
+    // every fieldOverride, so matching it anywhere counts 21 and proves
+    // nothing. Only depth 1 is a top-level declaration.
+    const raw = readFileSync(resolve(__dirname, "../../../firestore.indexes.json"), "utf8");
+    const seen: string[] = [];
+    let depth = 0;
+    let inStr = false;
+    let esc = false;
+    let start = 0;
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (inStr) {
+        if (esc) esc = false;
+        else if (c === "\\") esc = true;
+        else if (c === '"') {
+          inStr = false;
+          // A string that closes at depth 1 and is followed by a colon is
+          // a top-level key.
+          if (depth === 1) {
+            const rest = raw.slice(i + 1).match(/^\s*:/);
+            if (rest) seen.push(raw.slice(start + 1, i));
+          }
+        }
+        continue;
+      }
+      if (c === '"') { inStr = true; esc = false; start = i; continue; }
+      if (c === "{" || c === "[") depth++;
+      else if (c === "}" || c === "]") depth--;
+    }
+    const dupes = seen.filter((k, i) => seen.indexOf(k) !== i);
+    expect(dupes, `duplicated top-level key(s) in firestore.indexes.json: ${dupes.join(", ")} — JSON.parse keeps only the last`).toEqual([]);
+    expect(seen.sort()).toEqual(["fieldOverrides", "indexes"]);
+  });
+
   it("live.ts's own-answer delta cursors: answeredAt and editedAt stay unexempted", () => {
     // hydrate() pages the viewer's own answers with `answeredAt >` and
     // `editedAt >` range filters. Both ride the AUTOMATIC single-field

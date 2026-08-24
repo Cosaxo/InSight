@@ -66,6 +66,12 @@ export const LIVE_MEMBERS = [
   // ingredients, exposed so the typed layer never needs a bridge read.
   "loadSimilarity", "similarityLoading", "kindredPeople",
   "testFeedItems", "myTestResults",
+  // D275 — the passive fold, persisted. Listed here rather than beside
+  // saveTestResult because it is what makes the D112 score tier able to
+  // fire at all: without a writer for the four core keys, every
+  // candidate's parsed scores are null and the ranking silently falls
+  // back to answer agreement.
+  "syncPassiveResults",
   // The follow graph and the Circle stop (D101). `circle` returns null
   // while unfetched or failed and an array once known — same rule as
   // `voters`, because "could not ask" and "you follow nobody" are

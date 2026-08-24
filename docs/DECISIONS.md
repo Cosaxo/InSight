@@ -27447,3 +27447,106 @@ did not need it — TestFlight internal testing has no review gate — but
 that no longer exists. LAUNCH-RUNBOOK 4.4 is the step, its count is
 gated by `check:figures` as of D273, and its purposes are not, so the
 printout is the artefact.
+
+---
+
+## D275 · The similarity surfaces were ranking on a tier that could not fire
+
+**2026-08-24.** **Status:** binding. Follow-on to D98/D99/D112, and the
+half of D121 nobody costed at the time.
+
+### 0 · An index that was in the file and not in the deployment
+
+`firestore.indexes.json` carried **two top-level `"fieldOverrides"`
+keys**. JSON keeps the last, so the first block — whose only entry was
+the collection-group single-field index on `engagement.folded` — was
+discarded on every read, `firebase deploy` included. `engagement.ts`'s
+`rollupPage` has therefore been issuing
+
+```
+db.collectionGroup("engagement").where("folded", "==", false)
+```
+
+against an index that does not exist, while its own comment says the
+override "is a fieldOverride in firestore.indexes.json — deployed with
+the rules, per the existing --only path."
+
+It is the quietest shape a config error takes: the file is valid JSON,
+the override reads correctly to anyone opening it, and **the emulator
+does not enforce index configuration** — the reason `indexes.test.ts`
+exists at all (D101's `fetchAnswersOf`, the same class of failure). The
+fix merges the blocks; nothing else moves, verified structurally rather
+than by eye. Two cases now pin it: the override must survive a *parse*,
+and every top-level key must appear exactly once — depth-aware, because
+`"indexes"` is also a key inside every override and matching it anywhere
+counts 21 and proves nothing. Both were confirmed to FAIL against the
+pre-fix file before being kept.
+
+### 1 · D121 deleted the only writer `testResults` ever had
+
+D112 shipped the constellation on the owner's direction, quoted in its
+own record: *"the city country and persons in the city should be based on
+who is the closest to you primarily based on test scores."* It recorded
+as **known limit 2** that a person's own passive feed answers never reach
+their STORED result, and sidestepped it by folding the viewer's answers
+directly wherever the viewer's own vector was needed.
+
+D121 then removed the sit-down flow, and its §1 states plainly what that
+flow was: *"The only writer of a `testResults` entry was the sit-down
+flow."* Nothing replaced it. From that commit until this one, in any live
+build:
+
+- no client path writes the four core keys — `persistTestResult`
+  (test-definitions.js) has zero production callers, `daily-split.jsx`
+  imports the name and never calls it, and the one server writer
+  (`logic.ts`) writes `logic`, which `CORE_TEST_KINDS` deliberately
+  excludes;
+- so `parseTestResults` returns **null for every candidate**,
+  `state.scores[uid]` is null, `rankKindred`'s `score` is null for
+  everyone, and its two-tier sort collapses;
+- so the City ring — specified as *ranked primarily by test scores* —
+  ranked entirely on `agreement()`: exact-option-match over at most
+  twelve shared questions.
+
+The tree already said the writer was gone, twice (`passive-meter.jsx`,
+`passiveProfile.ts`). Neither noticed that the person-to-person half of
+D112 had gone with it. **Every gate was green the whole time**, and that
+is the finding worth keeping: the two halves — what the fold emits, and
+what a stranger's client reads back — had no test that put them in the
+same sentence.
+
+**What changes is a write, not an arithmetic.** `passiveResult` already
+emits the shape the sit-down flow wrote (`dims: [{ id, label, value }]`,
+which is exactly what `parseTestResults` reads), and already refuses an
+instrument with any axis under `MIN_AXIS_ITEMS`. `LIVE.syncPassiveResults`
+persists what it produces and nothing else. A stored result always wins —
+a pre-D121 sit-down result is a finished instrument and this fold is an
+estimate of the same thing from fewer answers — so only an absent key, or
+one this fold wrote before (`passive: true` marks it), is ever moved.
+
+It runs at two moments: **on hydrate**, because an account that already
+cleared the threshold must not have to answer one MORE card to get a
+result, and **on the ack of a test answer**, not the tap — a refused
+create must not publish a result built on an answer the server rejected,
+the same rule the two engagement counters beside it follow. An unchanged
+result buys no write.
+
+**Bounds.** Zero new reads. Writes are one `setDoc` merge per instrument
+per *change*, bounded by the bank's 110 test items over an account's life,
+to the user's own profile document — not a contended aggregate, so D7's
+wall never hears about it. `firestore.rules` already permitted this write:
+owner-bound, `testResults.keys().size() <= 8`, `logic` immutable. Four
+core keys plus `logic` is five.
+
+**Imports are static, and that is measured rather than assumed.** The
+worry was the entry graph, which `check:bundle` records as having no
+headroom — but both modules are already in it: `test-definitions.js`
+arrives through `daily-split.jsx`, which `spec-index.js` imports eagerly
+above the `loadWorldFeed` deferrals, and `passiveProfile.ts` pulls only
+`similarity.ts`, which `voters.ts` already imports statically.
+
+**What this does NOT fix**, recorded so it is not mistaken for closed: the
+candidate pool is still `KINDRED_QUESTIONS` (12) × `VOTER_FETCH_CAP`
+(200), so the ranking is still an argmax over a bounded sample and not
+over the population. §2 and §3 take the ranking's arithmetic and its copy;
+the recall bound is D101's paging question and is untouched here.

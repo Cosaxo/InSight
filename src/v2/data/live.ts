@@ -117,7 +117,18 @@ import { fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from
 // catch. Every call site is already async and already awaits getDb(), so
 // the dynamic import costs no round trip that was not happening anyway.
 import type { Invite } from "./invites";
-import { type KindredPerson, type ParsedResults } from "./similarity";
+import { passiveResult, passiveTest } from "./passiveProfile";
+// @ts-expect-error TS7016 — untyped spec module (the testNorms.ts /
+// LiveSimilarityField.tsx pattern). The cast below is pinned rather than
+// hopeful: content-parity.test.jsx holds IS_TESTS to exactly this shape.
+import { IS_TESTS } from "../spec/test-definitions.js";
+import {
+  CORE_TEST_KINDS,
+  voteIndices,
+  type KindredPerson,
+  type ParsedResults,
+  type TestDefs,
+} from "./similarity";
 import {
   AVATAR_MAX_BYTES, avatarPath, shrinkToSquare, tokenFromUrl,
 } from "./avatar";
@@ -1353,6 +1364,13 @@ async function hydrate(): Promise<void> {
     // Live mode shows only REAL results: purge the demo's baked test
     // results and rebuild from server + this device's saves.
     publishTestResults();
+    // …and then publish anything the viewer's own answers have already
+    // earned (D275). Fire-and-forget: an account that has answered enough
+    // test cards should not have to answer one MORE to get a stored
+    // result, which is what hanging this on the vote path alone would
+    // mean for every user who already cleared the threshold. state.feedBank
+    // is loaded well before this point, so the fold has its items.
+    LIVE.syncPassiveResults();
   }
 
   // Other people's names and scores, from this account's previous sessions
@@ -3354,6 +3372,75 @@ const LIVE = {
       }
     })();
   },
+  // ── the passive fold, persisted (D275) ────────────────────────────
+  //
+  // D112 recorded as known limit 2 that a person's own passive feed
+  // answers never reach their STORED result, and sidestepped it by
+  // folding the viewer's answers directly wherever the viewer's own vector
+  // was needed. D121 then deleted the sit-down flow — the only writer
+  // `testResults` ever had — and the limit quietly became a hole: with
+  // nothing writing the four core keys, `state.scores[uid]` parses to
+  // null for EVERY candidate, `rankKindred`'s score tier can never fire,
+  // and the City ring that D112 specified as "ranked primarily by test
+  // scores" ranks entirely on answer agreement instead. Two comments in
+  // the tree already say the writer is gone (passive-meter.jsx,
+  // passiveProfile.ts); neither noticed that the person-to-person half of
+  // D112 went with it.
+  //
+  // NOTHING NEW IS COMPUTED HERE. `passiveResult` already emits the shape
+  // the sit-down flow wrote — `dims: [{ id, label, value }]`, which is
+  // exactly what `parseTestResults` reads back off a stranger profile —
+  // and already refuses an instrument with any axis under MIN_AXIS_ITEMS.
+  // So what publishes is precisely what D121 decided had earned the right
+  // to be called a result; this only stops throwing it away.
+  //
+  // A STORED RESULT ALWAYS WINS. A pre-D121 sit-down result is a finished
+  // instrument and this fold is an estimate of the same thing from fewer
+  // answers, so only an absent key — or one this fold wrote before, which
+  // `passive: true` marks — is ever moved. result-card.jsx's `ownResult`
+  // makes the same call for the same reason.
+  //
+  // STATIC IMPORTS, and that is measured rather than assumed. The worry
+  // was the entry graph — check:bundle records MAX_EAGER_KB as having no
+  // headroom — but both modules are already in it: `test-definitions.js`
+  // arrives through `daily-split.jsx`, which spec-index.js imports eagerly
+  // (line 113, above the loadWorldFeed deferrals), and `passiveProfile.ts`
+  // pulls only `similarity.ts`, which `voters.ts` already imports
+  // statically for parseTestResults. So the honest cost here is this
+  // module's own body and nothing else.
+  syncPassiveResults(): void {
+    if (!this.enabled || !state.uid) return;
+    try {
+      const defs = IS_TESTS as TestDefs;
+      const items = this.testFeedItems();
+      const votes = voteIndices(state.votes);
+      let wrote = false;
+      for (const kind of CORE_TEST_KINDS) {
+        const def = defs[kind];
+        if (!def) continue;
+        const stored = state.profile.testResults[kind] as { passive?: boolean } | undefined;
+        if (stored && !stored.passive) continue;
+        const next = passiveResult(
+          passiveTest(kind, def, items, defs, votes),
+          def.title || kind,
+        );
+        if (!next) continue;
+        // The fold re-runs on every test answer and most answers do not
+        // move a rounded axis value, so an unchanged result must not buy a
+        // profile write. Comparing the serialised doc is the cheap version
+        // of "did anything a reader could see change".
+        if (stored && JSON.stringify(stored) === JSON.stringify(next)) continue;
+        this.saveTestResult(kind, next);
+        wrote = true;
+      }
+      // Only when something moved: publishTestResults dispatches to every
+      // consumer holding the results object, and an event that changes
+      // nothing is a re-render nobody asked for.
+      if (wrote) publishTestResults();
+    } catch (err) {
+      reportError(err, { where: "syncPassiveResults" });
+    }
+  },
   async linkGoogle(): Promise<void> {
     return linkGoogle();
   },
@@ -4116,6 +4203,11 @@ const LIVE = {
             engagement.noteQid(qid, "a");
           }
         }
+        // A test answer can move an axis, and an axis can cross
+        // MIN_AXIS_ITEMS (D275). On the ACK rather than the tap, like the
+        // two counters above: a refused create must not publish a result
+        // built on an answer the server rejected.
+        if (q?.surface === "test") LIVE.syncPassiveResults();
         notify(); // confirmedVotes() changed — let persistent records (the Map) pick it up
         scheduleAggRefresh(db, qid);
       } catch (err) {
