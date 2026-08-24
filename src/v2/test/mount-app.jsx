@@ -236,10 +236,40 @@ export async function openHeaderOverlay(name) {
 // waits for.
 //
 // So: any case whose SUBJECT is a card rather than the window has to let the
-// window finish first. This awaits growth until the feed stops adding cards,
-// which is the honest thing to wait for — a fixed sleep would be a race, and
-// a fixed number of pages would need editing every time a fixture's card
-// count changed.
+// window grow first.
+//
+// WAIT FOR THE CARD, NOT FOR THE END OF THE FEED — and that is a correction,
+// not a preference. `growFeed` below waits for growth to STOP, which on the
+// demo feed cannot happen: the window opens at WF_PAGE = 8 and adds
+// WF_STEP = 4 per tick against a list that is currently 194 long, so
+// converging needs 47 ticks and the bound is 40. Measured across a full
+// `test:unit`: of twenty growFeed calls, eighteen return in ≤4 iterations
+// (the live fixture's feed is short enough to finish) and two — the only two
+// that mount the DEMO feed — ran all forty and cost 11.6s and 10.4s. They
+// were the two slowest tests in the suite, and the second one is the single
+// case that made `test:coverage` impossible to run over `--dir src` at all.
+//
+// The bound also failed OPEN: falling out of the loop returned normally, so
+// a feed that really had grown forever was indistinguishable from one that
+// settled. This throws instead, which is what the paragraph below always
+// claimed.
+//
+// So the shape is: name the thing the case is actually about. Nearly every
+// caller wants one card on screen, not the whole bank in the DOM.
+export async function growUntil(pred, what = "the awaited condition", max = 60) {
+  for (let i = 0; i < max; i++) {
+    if (pred()) return;
+    // Real timers: the top-up is a setTimeout and these suites do not
+    // install fake ones. 80 > the 60ms debounce, with room for the render.
+    await act(async () => { await new Promise((r) => setTimeout(r, 80)); });
+  }
+  throw new Error(`growUntil: the feed never reached ${what} in ${max} passes`);
+}
+
+// The settle-for-settle's-sake variant, kept for the callers whose subject
+// IS the window rather than a card in it. Sound only where the list is
+// shorter than max * WF_STEP — which is the live fixture, never the demo
+// bank. Reach for growUntil first.
 //
 // Bounded, because a bug that made the window grow forever should fail a
 // test rather than hang a suite.
@@ -253,8 +283,11 @@ export async function growFeed(max = 40) {
     const n = document.body.innerHTML.length;
     if (n === last) return;
     last = n;
-    // Real timers: the debounce is a setTimeout and these suites do not
-    // install fake ones. 80 > the 60ms debounce, with room for the render.
     await act(async () => { await new Promise((r) => setTimeout(r, 80)); });
   }
+  throw new Error(
+    `growFeed: the feed was still growing after ${max} passes. Either the `
+    + "window is genuinely runaway, or this caller is on the demo bank and "
+    + "wants growUntil(pred) — see the comment above.",
+  );
 }

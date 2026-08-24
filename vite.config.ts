@@ -105,13 +105,23 @@ export default defineConfig(({ mode }) => {
       // data layer; raise it to a gate only with a number that came from
       // looking at the report first.
       //
-      // `test:coverage` runs `--dir src/v2/data`, NOT the whole of `--dir
-      // src` that `test:unit` covers, and that is a timeout fact rather than
-      // a preference: v8 instrumentation roughly triples the mount tests, and
-      // two smoke-live cases already sit at 8-9 s against a 15 s limit, so
-      // the full run fails on time rather than on truth. Scoping to the data
-      // tests also makes the number the honest one — "what the data layer's
-      // own tests reach", not what a mount test incidentally walks through.
+      // `test:coverage` runs the WHOLE of `--dir src`, and only the
+      // `include` below scopes what is reported. It ran `--dir src/v2/data`
+      // until 2026-08-24, on the ground that v8 instrumentation triples the
+      // mount tests and the full run would fail on time rather than on
+      // truth. That was true, and it had exactly one cause: `learn-reserve`'s
+      // D95 case spent ~10 s of its 15 s budget in a `growFeed` loop that
+      // could not converge (see src/v2/test/mount-app.jsx). With that fixed
+      // the instrumented run completes — measured, 129 files and 1921 tests
+      // green under `--coverage`.
+      //
+      // The old scope was ALSO reporting the wrong numbers, which is why
+      // widening it matters more than the tidiness. A data module exercised
+      // by a `ui/` or `test/` suite scored only what its own tests reached:
+      // 11 of 45 modules read 5+ points low, `mutes.ts` read 0% against a
+      // real 81.5%, and `patternsReady.ts` — the D265 gate — read 64%
+      // against 96%. A report that names the wrong branch sends the next
+      // person to write a test for code that already has one.
       coverage: {
         provider: 'v8',
         include: ['src/v2/data/**/*.ts'],
