@@ -723,7 +723,7 @@ describe("the rendered page", () => {
   });
 });
 
-describe("the engagement panel (R1/D266)", () => {
+describe("the engagement panel (R1/D268)", () => {
   // The digest has not deployed, so the TREE holds no committed trail —
   // and the collector must say so rather than inventing zeros. The day the
   // first monitoring/engagement.json is committed, this case flips to
@@ -784,7 +784,7 @@ describe("the engagement panel (R1/D266)", () => {
   });
 });
 
-describe("the attention section (R2/D268)", () => {
+describe("the attention section (R2/D270)", () => {
   it("carries the newest attn block and keeps attn-only strays out of the digest counts", () => {
     const withAttn = [
       // late shards for a day the digest never folded: attention only, no
@@ -821,7 +821,7 @@ describe("the attention section (R2/D268)", () => {
   });
 });
 
-describe("the person channel in the console (R3/D270)", () => {
+describe("the person channel in the console (R3/D272)", () => {
   it("passes the newest people fold through with a null-safe quiet share", () => {
     const e = engagementFromDays([
       { day: "2026-08-22", actives: 6, firstTime: 2, votes: 12, events: 12,

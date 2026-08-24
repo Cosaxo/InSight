@@ -319,7 +319,7 @@ export const VELOCITY_READS_PER_LEDGER_ENTRY = 1;
 // composite index), which drops the term by the ineligible share.
 export const PATTERNS_READS_PER_LEDGER_ENTRY = 1;
 export const PATTERNS_USER_STATE_OPS = 1;
-// The engagement digest (R1/D266): a THIRD nightly reader of the same
+// The engagement digest (R1/D268): a THIRD nightly reader of the same
 // ledger entries. ENGAGEMENT-RUNBOOK 1.1's named decision, taken as a
 // separate scan because velocity's cursor window and the digest's
 // calendar days are different windowing semantics, and the coupling
@@ -329,7 +329,7 @@ export const PATTERNS_USER_STATE_OPS = 1;
 // day doc per PROJECT per night, under any rounding here.
 export const ENGAGEMENT_READS_PER_LEDGER_ENTRY = 1;
 export const ENGAGEMENT_USER_STATE_OPS = 1;
-// Rung 1's attention shards (R2/D268): one anonymous device shard per
+// Rung 1's attention shards (R2/D270): one anonymous device shard per
 // SAMPLED device per day — the client's own sampling constant, read from
 // source (the D47 rule) because it is the designed lever if the fold's
 // budget ever matters, and a model quoting yesterday's rate is the D34
@@ -338,7 +338,7 @@ export const ENGAGEMENT_USER_STATE_OPS = 1;
 // day, under any rounding here.
 export const ATTN_SAMPLE_RATE = readNum(
   "src/v2/data/engagement.ts", /SHARD_SAMPLE_RATE = ([\d.]+)/, "SHARD_SAMPLE_RATE");
-// Rung 2's person rollups (R3/D270): one uid-keyed day rollup per active
+// Rung 2's person rollups (R3/D272): one uid-keyed day rollup per active
 // device per day (client-written, NOT sampled — it is the person channel),
 // then the nightly fold's sweep: one page read and one folded-mark write
 // per rollup, one fg-window read and write on the _state doc per rollup —
@@ -719,7 +719,7 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     // device per day (its fold-side day-doc merge rides per batch).
     const writes = dau * (B.worldAnswers * (1 + 2 + pub) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + ATTN_SAMPLE_RATE + ENGAGEMENT_ROLLUP_CLIENT_WRITES + ENGAGEMENT_ROLLUP_FOLD_WRITES + 0.2);
     // ledger TTL 90 days later, + the shard fold deleting what it folded,
-    // + the rollup TTL 90 days later (R3/D270)
+    // + the rollup TTL 90 days later (R3/D272)
     const deletes = dau * (B.worldAnswers + ATTN_SAMPLE_RATE + 1);
     const inv = dau * (B.worldAnswers + B.duelAnswers);
     // Concurrency 20 only pays off under queue pressure; at low volume each

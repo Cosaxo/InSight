@@ -74,7 +74,7 @@ companies' apps or sites.
 | Location | **Precise Location** | Yes | App Functionality | Requested since D175; nothing precise is retained — see §"The three that bite" |
 | Sensitive Info | **Sensitive Info** | Yes | App Functionality | Politics test result (GDPR Art. 9); gender if entered |
 | Diagnostics | **Crash Data** | Yes | App Functionality | Sentry. **On** (D76; the in-app switch left at D211), carries the uid only |
-| Usage Data | **Product Interaction** | **Yes** | Analytics | **Collected at D268, LINKED at D270.** Two shapes: the anonymous device tally (`v2_attention` — bucketed feature and, since D269, per-question counts under a fresh random id, unlinkable even to the same phone across days), and the per-account day rollup (`v2_users/{uid}/engagement` — sessions, a foreground bracket, quiet sessions, dayparts; no question id by rules-enforced construction, readable by nobody including the owner, 90-day TTL, erased with the account). The rollup is uid-keyed, so the row is Linked. See the note below the table |
+| Usage Data | **Product Interaction** | **Yes** | Analytics | **Collected at D270, LINKED at D272.** Two shapes: the anonymous device tally (`v2_attention` — bucketed feature and, since D271, per-question counts under a fresh random id, unlinkable even to the same phone across days), and the per-account day rollup (`v2_users/{uid}/engagement` — sessions, a foreground bracket, quiet sessions, dayparts; no question id by rules-enforced construction, readable by nobody including the owner, 90-day TTL, erased with the account). The rollup is uid-keyed, so the row is Linked. See the note below the table |
 
 **The handle (D122) lands in *User ID*, and the answer does not move.**
 Worth a line anyway, because the row's stated basis was "the Firebase uid"
@@ -113,9 +113,9 @@ Gameplay Content · Customer Support · Browsing History · Search History ·
 **Advertising Data** · Other Usage Data · Performance Data · Other
 Diagnostic Data · Other Data Types
 
-**Product Interaction left this list at D268** and is now a ticked row in
+**Product Interaction left this list at D270** and is now a ticked row in
 the table above — not linked, the label's first and only unlinked row.
-It is called out here because the D266 bullet below spent a release
+It is called out here because the D268 bullet below spent a release
 explaining why it was still a No, and the reasoning that mattered there —
 the row asks what is *collected from the app* — is exactly what changed:
 rung 1 collects.
@@ -180,11 +180,11 @@ Four of those are worth knowing *why*, because each looks tickable:
   recently". The server stores **no device identifier**; the platforms
   hold the state. There is nothing here for `deleteAccount` to erase
   because nothing is held.
-- **Product Interaction — Yes and LINKED since D270, and the row's
-  history is three deliberate moves in three days.** D266 re-answered it
+- **Product Interaction — Yes and LINKED since D272, and the row's
+  history is three deliberate moves in three days.** D268 re-answered it
   **No** (a server-side fold of answers already stored is not data
-  *collected from the app*); D268 collected, **not linked** (the
-  anonymous device tally); D270 — the owner adopting ENGAGEMENT-PLAN.md
+  *collected from the app*); D270 collected, **not linked** (the
+  anonymous device tally); D272 — the owner adopting ENGAGEMENT-PLAN.md
   rung 2 — adds the uid-keyed day rollup, and a uid-keyed row is Linked
   on Apple's definition however few can read it. *What the linked shape
   is:* one small doc per account per finished day — session count, a
@@ -198,12 +198,12 @@ Four of those are worth knowing *why*, because each looks tickable:
   .people`); each doc **self-expires at 90 days** (TTL) and the whole
   subtree erases with the account, asserted in the erasure e2e. The
   anonymous tally beside it is unchanged — still no uid, still
-  unlinkable across days, and since D269 its per-question counts are
+  unlinkable across days, and since D271 its per-question counts are
   facts about questions, not people. *Still not collected:* any
   advertising or analytics identifier, any event stream, anything a
   third party receives — no analytics SDK is in the binary, so the
   tracking answer above is untouched. The ceiling on all of it is
-  D267, binding.
+  D269, binding.
 - **Emails or Text Messages — still No, for the shape reason.** A take is
   a **post** — to a circle (D78 part 1) or, since D83, anonymously to the
   world — never a message to a person, and Apple files posts under *User

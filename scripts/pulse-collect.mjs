@@ -469,7 +469,7 @@ export function collectPopulation(pipeline) {
           + "Not yet extracted — the scorecard scores questions, it does not date them",
       },
       {
-        metric: "DAU, D1/D7/D30 cohort returns, streak deaths — nightly since D266",
+        metric: "DAU, D1/D7/D30 cohort returns, streak deaths — nightly since D268",
         value: null,
         source: "monitoring/engagement.json ← v2_engagement_daily ← digestEngagementV2",
         caveat: "counts ANSWERING accounts — floors, not measurements: a person who opens and "
@@ -481,7 +481,7 @@ export function collectPopulation(pipeline) {
     // be built without reversing anything, and each has a real cost.
     blocked: [
       // The DAU/retention row that stood here graduated to the live column
-      // on 2026-08-23: D266 is the recorded decision its catch demanded,
+      // on 2026-08-23: D268 is the recorded decision its catch demanded,
       // and digestEngagementV2 is the counting job. The catch was real and
       // was honoured in the order it asked for — record first, then build.
       {
@@ -503,12 +503,12 @@ export function collectPopulation(pipeline) {
     refused: [
       {
         metric: "per-user RAW behaviour — event streams, reading history, per-target views",
-        record: "D267, the binding ceiling. The old row here ('per-user funnels, session "
-          + "analytics, engagement scoring') was reversed rung by rung — D266, D268, D269, "
-          + "D270 — each with its record, its rules arms and its store-form move",
+        record: "D269, the binding ceiling. The old row here ('per-user funnels, session "
+          + "analytics, engagement scoring') was reversed rung by rung — D268, D270, D271, "
+          + "D272 — each with its record, its rules arms and its store-form move",
         why: "what ships is bounded by construction: the rollup carries no question id "
           + "(rules-refused), is readable by nobody including its owner, and expires at 90 "
-          + "days; the shards are unlinkable even to a device. What D267 keeps out is the "
+          + "days; the shards are unlinkable even to a device. What D269 keeps out is the "
           + "dossier shapes — logs, sequences, who-viewed-whom, hesitation — and any anchor "
           + "or Art. 9 slice",
       },
@@ -529,10 +529,10 @@ export function collectPopulation(pipeline) {
       },
       {
         metric: "per-PERSON skip/pass lists, and hesitation timing anywhere",
-        record: "docs/QUESTION-FARM.md's line, narrowed at D269 the way D163 narrowed this "
+        record: "docs/QUESTION-FARM.md's line, narrowed at D271 the way D163 narrowed this "
           + "table's last row: per-QUESTION aggregate skip rates now ship (the scorecard's "
           + "attention columns); a person's list and per-option deliberation timing stay "
-          + "refused under D267",
+          + "refused under D269",
         why: "a question's pass rate is a fact about content; a person's passes are a "
           + "behavioural profile with a friendlier name, and the shards' unlinkability is "
           + "what keeps the first from ever becoming the second",
@@ -547,7 +547,7 @@ export function collectPopulation(pipeline) {
   };
 }
 
-// ── 4b · engagement (R1/D266) ───────────────────────────────────
+// ── 4b · engagement (R1/D268) ───────────────────────────────────
 // The digest trail: anonymous per-day population counts, folded nightly
 // by digestEngagementV2 into v2_engagement_daily and committed here by
 // `npm run scorecard -- --fetch` (one fetch path — the scorecard's own).
@@ -567,7 +567,7 @@ export function engagementFromDays(days) {
   // `actives`, and reading it as a zero-actives day would be the
   // absent≠zero failure wearing a new face.
   const rows = all.filter((d) => typeof d.actives === "number");
-  // The newest attention section, wherever it landed (R2/D268): reach is
+  // The newest attention section, wherever it landed (R2/D270): reach is
   // devices that used the feature at all — bucketing cannot distort it —
   // and est is the midpoint estimate, both already scaled by the
   // sampling rate at fold time.
@@ -579,12 +579,12 @@ export function engagementFromDays(days) {
         features: Object.entries(attnRow.attn.s || {})
           .map(([key, v]) => ({ key, reach: v?.reach ?? 0, est: v?.est ?? 0 }))
           .sort((a, b) => b.reach - a.reach),
-        // R4/D269: how many questions carried counts, not the counts
+        // R4/D271: how many questions carried counts, not the counts
         // themselves — the per-question table is the scorecard's job.
         qidCount: Object.keys(attnRow.attn.q || {}).length,
       }
     : null;
-  // The person channel's fold (R3/D270), newest day that has one.
+  // The person channel's fold (R3/D272), newest day that has one.
   const peopleRow = [...all].reverse().find((d) => d.people && typeof d.people === "object");
   const people = peopleRow
     ? (() => {
@@ -650,7 +650,7 @@ export function collectEngagement() {
       present: false,
       note: "no committed monitoring/engagement.json — `npm run scorecard -- --fetch` writes it "
         + "from the public v2_engagement_daily trail once digestEngagementV2 has folded a day "
-        + "(R1/D266). Before the first deploy this is expected: the digest has never run.",
+        + "(R1/D268). Before the first deploy this is expected: the digest has never run.",
     };
   }
   const raw = readJson("monitoring/engagement.json");

@@ -130,7 +130,7 @@ await adb.doc(`insight_users/${OTHER}/relations/r1`).set({ linkedUid: uid });
 await adb.doc(`v2_users/${uid}/foresight/daily-000__ageBand__25-34`).set({
   qid: "daily-000", dim: "ageBand", bucket: "25-34", guess: 0, answerIdx: 0, n: 20, at: new Date(),
 });
-// The engagement subtree (D266/D270): the digest's bookkeeping pair and a
+// The engagement subtree (D268/D272): the digest's bookkeeping pair and a
 // person rollup, both under the account's own subtree — phase 1b's
 // recursive delete is what takes them, and seeding both makes "covered by
 // the subtree wipe" a tested claim rather than an assumed one (the
@@ -472,8 +472,8 @@ for (const [path, label] of [
   [`v2_flags/${THEIR_TAKE}_${uid}`, "their flag on someone else's take"],
   [`v2_users/${uid}/following/${OTHER}`, "the account's own follow"],
   [`v2_users/${uid}/foresight/daily-000__ageBand__25-34`, "a foresight verdict"],
-  [`v2_users/${uid}/engagement/_state`, "the digest's bookkeeping pair (D266)"],
-  [`v2_users/${uid}/engagement/2026-08-22`, "a person-channel day rollup (D270)"],
+  [`v2_users/${uid}/engagement/_state`, "the digest's bookkeeping pair (D268)"],
+  [`v2_users/${uid}/engagement/2026-08-22`, "a person-channel day rollup (D272)"],
   [`v2_users/${OTHER}/following/${uid}`, "someone else's follow OF this account"],
   [`v2_avatars/${uid}`, "their profile photo's document"],
   [`v2_presence/${uid}`, "their presence cell"],
@@ -531,7 +531,7 @@ if (!(await exists(`v2_suggestions/${OTHER}_e2e`)))
 ok("someone else's question suggestion survives");
 if (!(await exists(`v2_users/${OTHER}/engagement/2026-08-22`)))
   fail("someone else's engagement rollup was deleted — the wipe took the collection, not the account");
-ok("someone else's engagement rollup survives (D270)");
+ok("someone else's engagement rollup survives (D272)");
 
 // The presence sweep's own edge: nine cells, and only nine. A cache two
 // cells away cannot name this account — it is outside the 3x3 block the

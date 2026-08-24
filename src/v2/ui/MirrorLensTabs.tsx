@@ -34,7 +34,7 @@ import React from "react";
 // Shape and labels next door, so this file exports only its component —
 // see lensTabs.ts for why that split is load-bearing and not cosmetic.
 import type { LensTab } from "./lensTabs";
-// R2/D268: the tap that opens a lens is exactly the cost gate D136 built
+// R2/D270: the tap that opens a lens is exactly the cost gate D136 built
 // — a body exists only while its tab is open — so it is also the honest
 // count of "does anyone open People". A no-op until initLive arms it.
 import { note, type SKey } from "../data/engagement";

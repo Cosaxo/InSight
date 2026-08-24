@@ -729,7 +729,7 @@ function panelPopulation(p) {
       real DAU and retention — needed <b>no new collection</b>, only a recorded decision:
       counting people with <code>v2_agg_events</code> was a new purpose for data justified
       as fake-account attribution (D28), and this console listed it as blocked on exactly
-      that record until <b>D266 took it</b> (2026-08-23). The digest that came with the
+      that record until <b>D268 took it</b> (2026-08-23). The digest that came with the
       record is the engagement panel below — the row moved columns the way this console
       exists to make visible rather than to quietly do.</p>
   </section>`;
@@ -739,7 +739,7 @@ function panelPopulation(p) {
 
 function panelEngagement(p) {
   const e = p.engagement;
-  const head = `<h2>Engagement — the digest trail (R1/D266)</h2>
+  const head = `<h2>Engagement — the digest trail (R1/D268)</h2>
     <p class="decision"><b>The decision:</b> is anyone coming back — and which surfaces hold
       them? Counts of <b>answering</b> accounts, folded nightly from the ledger by
       <code>digestEngagementV2</code>: floors, not measurements (a person who opens and answers
@@ -784,11 +784,11 @@ function panelEngagement(p) {
       <tbody>${e.attn.features.slice(0, 14).map((f) =>
         `<tr><td>${esc(f.key)}</td><td>${int(Math.round(f.reach))}</td><td>${int(Math.round(f.est))}</td></tr>`).join("")}</tbody>
     </table></div>
-    <p class="note">The feature rows are rung 1's anonymous device shards (R2/D268), folded
+    <p class="note">The feature rows are rung 1's anonymous device shards (R2/D270), folded
       and deleted nightly: <b>reach</b> counts devices that used the feature at all —
       bucketing cannot distort it — and <b>est.</b> sums bucket midpoints, scaled by the
       sampling rate: an estimate, and labelled one.${e.attn.qidCount
-        ? ` Per-question attention (${int(e.attn.qidCount)} qid(s), D269) lives in the
+        ? ` Per-question attention (${int(e.attn.qidCount)} qid(s), D271) lives in the
       scorecard, where its D33 warning travels with it.` : ""}</p>` : ""}
     ${e.people ? tiles([
       { k: `rollups · ${e.people.day}`, v: int(e.people.rollups) },
@@ -797,7 +797,7 @@ function panelEngagement(p) {
       { k: "fading people", v: int(e.people.fading) },
       { k: "hit the feed's end", v: int(e.people.reachedEnd) },
     ]) + `
-    <p class="note">The person channel (R3/D270): uid-keyed day rollups readable by nobody,
+    <p class="note">The person channel (R3/D272): uid-keyed day rollups readable by nobody,
       folded here into counts — <b>fading</b> is a trailing foreground window sinking two
       buckets, the win-back trigger rung 2 exists for. Per-person rows never leave the
       fold; what prints is how many.</p>` : ""}

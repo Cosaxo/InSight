@@ -76,7 +76,7 @@ function trailRow(p) {
     functionCount: p.instrumentation.functionCount,
     scorecardAgeDays: p.pipeline.scorecard.ageDays ?? null,
     answersCounted: p.pipeline.scorecard.totalAnswers ?? null,
-    // The digest trail's two headline figures (R1/D266). Null until the
+    // The digest trail's two headline figures (R1/D268). Null until the
     // first committed monitoring/engagement.json — and null is what the
     // renderer draws as a gap, so the trail stays honest about the days
     // before the digest existed.

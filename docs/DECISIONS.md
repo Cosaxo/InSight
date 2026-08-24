@@ -26740,7 +26740,7 @@ is the precondition the trial was always waiting on.
 It also does not touch what the tab IS. D214–D216 stand untouched: the
 People lens, the 2026-08-20 shapes, the population chips.
 
-## D266 · The ledger learns to count people: engagement rung 0
+## D268 · The ledger learns to count people: engagement rung 0
 
 **Decided:** 2026-08-23 · **Status:** binding — adopted by the owner in
 those words ("i adopt R1"), recorded and built in the same change.
@@ -26828,7 +26828,7 @@ policy), `check:deploy-targets`, `check:fn-runtime`, two new
 inventory rows, and the `SCHEMA-V2.md` entries. 265 script tests carry
 the console half, absent-trail case included.
 
-## D267 · The ceiling: what stays refused at every engagement rung
+## D269 · The ceiling: what stays refused at every engagement rung
 
 **Decided:** 2026-08-23 · **Status:** **binding** — adopted by the owner
 in those words ("i adopt R5"), the same day it was drafted. The
@@ -26836,7 +26836,7 @@ drafting-day status is kept below verbatim, because the sequence —
 drafted Proposed, adopted only on the owner's explicit word — is the D28
 lesson working rather than the D28 mistake repeating.
 
-*(As drafted:)* Proposed — drafted with D266 per
+*(As drafted:)* Proposed — drafted with D268 per
 ENGAGEMENT-RUNBOOK 0.1, awaiting the owner's explicit word (the D28
 lesson: this file once marked a record binding ahead of the owner's
 decision and reclassified it the same day; the owner's adoption named R1
@@ -26867,13 +26867,13 @@ written line rather than drift —
   invariant — one blind question, the same for everyone, is
   load-bearing).
 
-## D268 · The anonymous channel: engagement rung 1 collects, unlinkably
+## D270 · The anonymous channel: engagement rung 1 collects, unlinkably
 
 **Decided:** 2026-08-23 · **Status:** binding — the owner's words were
 "start building phase 2", and phase 2's own gate (ENGAGEMENT-RUNBOOK
 2.1) defines building it as adopting `docs/ENGAGEMENT-PLAN.md` §8 R2, so
 the instruction *is* the adoption and this record says so rather than
-inferring silently. R4 was NOT named and is NOT adopted — it is D269
+inferring silently. R4 was NOT named and is NOT adopted — it is D271
 below, Proposed, and the rules refuse its field until that changes.
 Recorded and built in the same change.
 
@@ -26881,7 +26881,7 @@ Recorded and built in the same change.
 **anonymous, bucketed feature tally per sampled device per finished UTC
 day** — the attention shard (`v2_attention/{randomId}`), rung 1 of the
 engagement plan, ATTENTION.md tier 3 generalized. This reverses the
-"collected" half of the data-inventory sentence D266 had preserved, and
+"collected" half of the data-inventory sentence D268 had preserved, and
 the store forms move with it in this same change: **Product Interaction
 → collected, NOT linked**, the label's first unlinked row.
 
@@ -26959,15 +26959,15 @@ scaling, per-chunk atomicity, the cap), the console's attn cases, both
 store-form files moved together under `check:store-forms`, two new
 `check:policy-claims` rows, and `check:purge` counting the new listener.
 
-## D269 · Per-question attention, aggregate-only — the R4 gate
+## D271 · Per-question attention, aggregate-only — the R4 gate
 
 **Decided:** 2026-08-24 · **Status:** **binding** — adopted by the owner
 in those words ("adopt R4"), the day after drafting; built the same day.
-The drafting-day status is kept below verbatim (the D267 sequence,
+The drafting-day status is kept below verbatim (the D269 sequence,
 holding).
 
-*(As drafted:)* Proposed — drafted with D268 because the shard schema
-carries its field, awaiting the owner's explicit word (the D267
+*(As drafted:)* Proposed — drafted with D270 because the shard schema
+carries its field, awaiting the owner's explicit word (the D269
 sequence). Until adopted, `firestore.rules` refuses a non-empty `qids`
 map outright, so per-question collection is structurally off — not
 merely something the client politely omits.
@@ -27000,15 +27000,15 @@ was rewritten in this same change to the true, narrower claim — counts
 about a question, never a list of what you looked at — and
 `check:policy-claims` pins the new form.
 
-## D270 · The person channel: engagement rung 2, scoped to the bone
+## D272 · The person channel: engagement rung 2, scoped to the bone
 
 **Decided:** 2026-08-24 · **Status:** binding — the owner's words were
 "build phase 3", and phase 3's own gate (ENGAGEMENT-RUNBOOK 3.1)
 defines building it as adopting `docs/ENGAGEMENT-PLAN.md` §8 R3, the
-D268 provenance shape. Recorded and built in the same change. This is
+D270 provenance shape. Recorded and built in the same change. This is
 the reversal MONITORING.md's first refused row was guarding — per-user
 session analytics — taken with the row rewritten into the record of
-its ceiling (D267) rather than silently blanked.
+its ceiling (D269) rather than silently blanked.
 
 **Decision.** Each account writes one **day rollup** —
 `v2_users/{uid}/engagement/{yyyy-mm-dd}`, create-only, for a FINISHED

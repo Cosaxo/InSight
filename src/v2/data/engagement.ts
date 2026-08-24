@@ -1,13 +1,13 @@
 // engagement.ts — the device half of the engagement ladder: rung 1's
-// anonymous feature tally (R2/D268), its per-question map (R4/D269), and
-// rung 2's per-person day rollup (R3/D270). docs/ENGAGEMENT-PLAN.md is
+// anonymous feature tally (R2/D270), its per-question map (R4/D271), and
+// rung 2's per-person day rollup (R3/D272). docs/ENGAGEMENT-PLAN.md is
 // the argument; this file is the whole client surface of all three.
 //
 // WHAT IT IS. Counters in memory, mirrored to `insight.engagement.v1`,
 // and — once a day is OVER — at most two writes per device:
 //
 //   · the SHARD (v2_attention/{randomId}): bucketed feature counts and,
-//     since D269, capped per-question seen/answer/pass/defer buckets —
+//     since D271, capped per-question seen/answer/pass/defer buckets —
 //     anonymous, sampled, under a fresh random id, no uid anywhere. The
 //     nightly fold sums shards into the public day doc and DELETES them.
 //   · the ROLLUP (v2_users/{uid}/engagement/{day}): the person channel —
@@ -119,7 +119,7 @@ export interface AttentionShard {
   sampled: true;
   rate: number;
   s: Record<string, number>; // bucket indexes 0..4
-  qids?: Record<string, Partial<Record<QidKind, number>>>; // buckets, D269
+  qids?: Record<string, Partial<Record<QidKind, number>>>; // buckets, D271
 }
 
 export interface EngagementRollup {
@@ -198,7 +198,7 @@ function emptyR(): RollupCounters {
     answers: 0, feedSeen: 0, depthEnd: 0, stops: 0, lenses: 0,
   };
 }
-// Older stored blobs (pre-D269/D270) lack q/r — normalized on read
+// Older stored blobs (pre-D271/D272) lack q/r — normalized on read
 // rather than versioned away: the counters they do hold are still true.
 function normalize(t: Partial<DayTally> & { sampled?: boolean }): DayTally {
   return {
@@ -316,7 +316,7 @@ export async function flushPast(): Promise<void> {
         ...(Object.keys(qids).length ? { qids } : {}),
       };
       armed.write(shard).catch(() => {
-        // One lost anonymous tally — priced as acceptable; see D268.
+        // One lost anonymous tally — priced as acceptable; see D270.
       });
     }
     tally.sampled = false; // never re-shard this day
@@ -372,7 +372,7 @@ export function note(key: SKey): void {
   save();
 }
 
-/** The per-question map (R4/D269) — the anonymous shard's, NEVER the
+/** The per-question map (R4/D271) — the anonymous shard's, NEVER the
  * rollup's (the two-channel rule). Capped with an overflow cell so the
  * shard can never outgrow the rules' size cap. */
 export function noteQid(qid: string, kind: QidKind): void {
@@ -417,7 +417,7 @@ export function markDepthEnd(): void {
   save();
 }
 
-// ── sessions (R3/D270) ────────────────────────────────────────────
+// ── sessions (R3/D272) ────────────────────────────────────────────
 //
 // A session is a foreground episode; a gap over SESSION_GAP_MS starts a
 // new one. Quiet (no answer) is decided when the session CLOSES — at the

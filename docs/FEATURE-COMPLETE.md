@@ -262,7 +262,7 @@ types tier 2, the D8 amendment · longitudinal re-testing · a same-day
 pulse edit window · anonymous attention rollups and the wider
 engagement ladder ([`ATTENTION.md`](ATTENTION.md) tier 3, generalized by
 [`ENGAGEMENT-PLAN.md`](ENGAGEMENT-PLAN.md) — its rung 0, the server-side
-digest, was decided **and built** at D266; the collecting rungs 1–2 stay
+digest, was decided **and built** at D268; the collecting rungs 1–2 stay
 proposed) · auction-priced slots · the
 community board and bylines. None of the rest binds anything yet.
 

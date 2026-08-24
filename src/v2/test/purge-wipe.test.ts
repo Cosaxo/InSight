@@ -280,7 +280,7 @@ describe("module stores drop their memory on the purge (D51)", () => {
   });
 });
 
-// ── the engagement tally (R2/D268) ──────────────────────────────────────
+// ── the engagement tally (R2/D270) ──────────────────────────────────────
 // The newest insight.* store, driven through the same resurrection
 // scenario. Module-scope like the others; its unit suite
 // (data/engagement.test.ts) covers the tally arithmetic, this covers the

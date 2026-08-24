@@ -109,33 +109,33 @@ export const CLAIMS = [
     /report never contains\s+anything a signed-in user could not read/i],
   ["D253 · sold reports group answers by all four tests' types and axes",
     /matched type and axis\s+bands/i],
-  // D266 is one disclosure in two halves, pinned separately for the D202
+  // D268 is one disclosure in two halves, pinned separately for the D202
   // reason: one row says what the daily summary is (counts, no identity),
   // the other admits the uid-keyed bookkeeping behind it and its erasure.
   // Deleting either half leaves a page that reads as more, or less,
   // private than the digest actually is.
-  ["D266 · the daily usage summary is counts, computed without identity",
+  ["D268 · the daily usage summary is counts, computed without identity",
     /counts,\s+computed without your identity/i],
-  ["D266 · the digest's per-account date pair is unreadable and erased with the account",
+  ["D268 · the digest's per-account date pair is unreadable and erased with the account",
     /first and most recent day you answered[\s\S]{0,200}?deleted with your\s+account/i],
-  // D268 is one disclosure in two halves, the D266 pair's shape: one row
+  // D270 is one disclosure in two halves, the D268 pair's shape: one row
   // pins what the tally cannot do (be linked to a person, or a phone
   // across days), the other pins the lifecycle promise (fold, then
   // delete). Either half vanishing leaves the page describing a
   // different collection than the one shipping.
-  ["D268 · the usage tally is unlinkable — to you, and to the same phone across days",
+  ["D270 · the usage tally is unlinkable — to you, and to the same phone across days",
     /cannot be linked back to\s+you[\s\S]{0,80}?across two\s+days/i],
-  ["D268 · the raw tallies are deleted after the nightly fold",
+  ["D270 · the raw tallies are deleted after the nightly fold",
     /deleted after\s+(that|the) nightly\s+fold/i],
-  // D269 and D270 are the ladder's last two disclosures, each pinned on
+  // D271 and D272 are the ladder's last two disclosures, each pinned on
   // its load-bearing distinction: the per-question counts are about the
   // QUESTION (the two-channel rule as a promise), and the account-linked
   // note is unreadable, question-free and self-expiring.
-  ["D269 · per-question tallies are counts about a question, never a reading list",
+  ["D271 · per-question tallies are counts about a question, never a reading list",
     /counts about a question, never a list of what you\s+looked at/i],
-  ["D270 · the per-account usage note carries no question and no user can read it",
+  ["D272 · the per-account usage note carries no question and no user can read it",
     /never\s+contains a question[\s\S]{0,120}?no user can read\s+it, you included/i],
-  ["D270 · each note deletes itself 90 days on, and the account's erasure takes it all",
+  ["D272 · each note deletes itself 90 days on, and the account's erasure takes it all",
     /deletes itself 90 days after its day/i],
 ];
 

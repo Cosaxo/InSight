@@ -585,7 +585,7 @@ anything a user does.
   `gcloud firestore fields ttls update expireAt --collection-group=v2_agg_events --enable-ttl --project=prvfire33`
   — the trigger stamps `expireAt` (+90 days, `LEDGER_RETENTION_DAYS`).
 
-- **TTL for the engagement rollups** (one-time, same shape — D270):
+- **TTL for the engagement rollups** (one-time, same shape — D272):
   `gcloud firestore fields ttls update expireAt --collection-group=engagement --enable-ttl --project=prvfire33`
   — the client stamps `expireAt` (+90 days, `ROLLUP_TTL_DAYS`). This is
   the deletion for the person channel's uid-keyed trail: the fold marks

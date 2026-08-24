@@ -19,7 +19,7 @@ import LIVE from '../data/live';
 import { patternsEarned } from '../data/patternsReady';
 import { closeTopBackLayer } from '../data/backLayers';
 import { registerNav } from '../data/nav';
-// R2/D268: the anonymous feature tally — a no-op until initLive arms it,
+// R2/D270: the anonymous feature tally — a no-op until initLive arms it,
 // so every demo mount and jsdom suite stays silent without a test flag.
 import * as engagement from '../data/engagement';
 import { useDialog } from './primitives.jsx';
@@ -190,7 +190,7 @@ class ErrorBoundary extends React.Component {
     // most user-visible failure the app has. Report it explicitly; the send
     // site itself honours the telemetry opt-out (D76).
     reportError(err, { where: 'ErrorBoundary', componentStack: info && info.componentStack });
-    // …and the tally counts it (R2/D268): Sentry holds the crash EVENT,
+    // …and the tally counts it (R2/D270): Sentry holds the crash EVENT,
     // the shard holds the anonymous denominator a crash RATE needs.
     engagement.note('errors');
   }
@@ -541,7 +541,7 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // R2/D268: the shell's three tally seams — which tab, which Mirror
+  // R2/D270: the shell's three tally seams — which tab, which Mirror
   // stop, which overlay. These are the ONLY three axes of shell state the
   // shard's vocabulary reads, and one effect per axis means each fires on
   // its own change alone. Counts, not routes: note() is a memory

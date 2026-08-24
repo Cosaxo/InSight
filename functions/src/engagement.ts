@@ -1,4 +1,4 @@
-// engagement.ts — R1/D266: the ledger learns to count people.
+// engagement.ts — R1/D268: the ledger learns to count people.
 //
 //   digestEngagementV2   a nightly scheduled pass over `v2_agg_events`
 //                        that folds each finished UTC day into one small
@@ -10,7 +10,7 @@
 //
 // PURPOSE, stated because velocity.ts states the opposite: this IS the
 // DAU/retention counting D47 deferred and MONITORING.md refused pending
-// its own record. D266 is that record — it widens D28's purpose list for
+// its own record. D268 is that record — it widens D28's purpose list for
 // the ledger (dedup, attribution, and now population counting), and the
 // scope it grants is exactly what this file does: anonymous counts out,
 // uid-keyed bookkeeping under the account that owns it, nothing else.
@@ -304,7 +304,7 @@ export async function runEngagementDigest(
 }
 
 /** The Firestore store. The day docs and the lastDay cursor live in ONE
- * public collection (v2_engagement_daily — world-readable per D266's
+ * public collection (v2_engagement_daily — world-readable per D268's
  * adopted default, written only here, nothing per-person in any of it);
  * each account's bookkeeping pair lives under its own subtree
  * (v2_users/{uid}/engagement/_state — readable by NOBODY, the patterns/
@@ -390,7 +390,7 @@ export function firestoreEngagementStore(db: Firestore): EngagementStore {
   };
 }
 
-// ── rung 1: the attention fold (R2/D268) ────────────────────────
+// ── rung 1: the attention fold (R2/D270) ────────────────────────
 //
 // Devices write one anonymous shard per finished day (v2_attention,
 // src/v2/data/engagement.ts); this fold sums them into the day docs'
@@ -432,7 +432,7 @@ export interface AttnCounter {
 export interface AttnDelta {
   devices: number;
   s: Record<string, AttnCounter>;
-  /** D269: per-question counters — qid → kind (s|a|p|d) → counter. The
+  /** D271: per-question counters — qid → kind (s|a|p|d) → counter. The
    * client's `_other` overflow cell folds into qOther instead, so the
    * truncation is reported rather than blended into a fake question. */
   q: Record<string, Record<string, AttnCounter>>;
@@ -477,7 +477,7 @@ export function foldShards(shards: AttentionShardDoc[]): Map<string, AttnDelta> 
       c.reach = round2(c.reach + weight);
       c.est = round2(c.est + BUCKET_MIDPOINTS[bucket] * weight);
     }
-    // D269: the per-question map. The client's `_other` overflow cell is
+    // D271: the per-question map. The client's `_other` overflow cell is
     // truncation, not a question — counted apart so a capped device
     // reads as "…and more", never as a phantom qid.
     const q = shard.qids && typeof shard.qids === "object"
@@ -572,7 +572,7 @@ export function firestoreAttentionStore(db: Firestore): AttentionStore {
   };
 }
 
-// ── rung 2: the rollup fold (R3/D270) ───────────────────────────
+// ── rung 2: the rollup fold (R3/D272) ───────────────────────────
 //
 // Devices write one uid-keyed day rollup per finished day (v2_users/
 // {uid}/engagement/{day}); this fold sums them into the day docs'
@@ -802,7 +802,7 @@ export const digestEngagementV2 = onSchedule(
         { metric: "engagement_shard_cap", shards: attn.shards },
       );
     }
-    // …and rung 2's rollups (R3/D270), unfolded-flag driven so late
+    // …and rung 2's rollups (R3/D272), unfolded-flag driven so late
     // arrivals sweep like late shards do.
     const roll = await runRollupFold(firestoreRollupStore(db));
     if (roll.capped) {

@@ -240,7 +240,7 @@ describe("the surfaces that own their drag are excluded from the axis swipes", (
   });
 });
 
-// ── the engagement tally stays silent in an unarmed mount (D268) ────────
+// ── the engagement tally stays silent in an unarmed mount (D270) ────────
 // The inertness half of data/engagement.test.ts's first case, asserted
 // where a REAL render exists: these suites never run initLive, so a full
 // mount — the shell's tab/stop/overlay effects included — must tally

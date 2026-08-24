@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 //
 // The device half of the engagement ladder: rung 1's anonymous tally
-// (R2/D268), the per-question map (R4/D269), rung 2's person rollup
-// (R3/D270). What is pinned and why:
+// (R2/D270), the per-question map (R4/D271), rung 2's person rollup
+// (R3/D272). What is pinned and why:
 //
 //   1. INERT UNARMED — a demo build, a ui unit test or a jsdom mount
 //      tallies nothing and writes nothing, with no test-mode flag.
@@ -129,7 +129,7 @@ describe("tallying", () => {
   });
 });
 
-describe("the qids map (R4/D269)", () => {
+describe("the qids map (R4/D271)", () => {
   it("counts per question, per kind, sampled only", () => {
     harness();
     noteQid("feed-001", "s");
@@ -230,7 +230,7 @@ describe("the flush", () => {
   });
 });
 
-describe("sessions (R3/D270)", () => {
+describe("sessions (R3/D272)", () => {
   it("a short hide continues the session; a gap starts a new one and settles quiet", () => {
     const h = harness();
     const t = () => _engagementForTest().days[utcDay(h.now)];

@@ -141,7 +141,7 @@ export function rollupProduction(rows, prov) {
   return { bySource: finish(bySource), byVintage: finish(byVintage) };
 }
 
-// ── per-question attention (R4/D269) ────────────────────────────────────
+// ── per-question attention (R4/D271) ────────────────────────────────────
 //
 // The denominator the scorecard never had: what the feed SHOWED, not only
 // what got answered. Folded from the engagement trail's day docs
@@ -161,7 +161,7 @@ export const ATTENTION_MIN_SEEN = 5;
 export const ATTENTION_WARNING =
   "attention is an estimate from bucketed, sampled shards; a skip is not dislike "
   + "(seen-denominators only), novelty inflates new questions, and no attention "
-  + "figure outranks the content rules (D33/D269)";
+  + "figure outranks the content rules (D33/D271)";
 
 /**
  * Fold the trail's per-question attention into per-qid metrics.
