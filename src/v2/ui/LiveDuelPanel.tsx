@@ -39,6 +39,7 @@ import React from "react";
 // hydration finishes, which is the one moment `LIVE.displayName` is empty
 // on an account that has one.
 import LIVE, { localName } from "../data/live";
+import { note } from "../data/engagement";
 import { consumeJoinCode, inviteLinkFor } from "../data/links";
 // Handles and invitations (D122) — how a circle gains a member now. The
 // code survives inside the share link for people who have no account
@@ -811,6 +812,12 @@ function LdReveal({ g, reveal, day }: { g: LiveGroup; reveal: LiveReveal; day?: 
 function LdRevealBars({ reveal, opts, names, uid, tint }: {
   reveal: LiveReveal; opts: string[]; names: Record<string, string>; uid: string; tint: string;
 }) {
+  // R2/D270: a reveal on screen is the duel loop's payoff being
+  // collected — the one signal rung 0 could never see (the reveal doc is
+  // server-written; VIEWING it wrote nothing until now). Mount-scoped:
+  // once per bars instance, a no-op unless the live session armed the
+  // tally.
+  React.useEffect(() => { note("revealSeen"); }, []);
   const rows = revealTally(reveal, opts.length);
   const total = rows.reduce((a, r) => a + r.uids.length, 0) || 1;
   const mine = (reveal.votes || {})[uid];

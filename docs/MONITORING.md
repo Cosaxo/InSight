@@ -155,6 +155,15 @@ because it is genuinely available and genuinely not free:
 > with it is a *new purpose for existing data*, which is a decision record,
 > not a script. That is exactly the sort of thing this console exists to
 > make visible rather than to quietly do.
+>
+> **And that is how it went (2026-08-23):** the record came first —
+> **D268** widened D28's purposes on the owner's adoption of
+> `ENGAGEMENT-PLAN.md` R1 — and `digestEngagementV2` is the counting
+> job, folding each day into the public `v2_engagement_daily` trail.
+> The row has moved to the derivable column, and the console gained the
+> engagement panel that draws it. What did NOT move: the refusals below,
+> which are about *collecting* usage data, not deriving counts from
+> answers already stored.
 
 The other two are dull and worth doing: a Cloud Billing export would turn
 the entire cost panel from prediction into measurement, and install →
@@ -166,7 +175,7 @@ consoles, which are not in this repo and never will be.
 
 | Refused | Record |
 | --- | --- |
-| Per-user funnels, session analytics, engagement scoring | data-inventory.md — "No product analytics of any kind ship today" |
+| Per-user funnels, session analytics, engagement scoring | **Reversed rung by rung, knowingly, and this row is now the record of the ceiling rather than the refusal**: D268 (server-side derivation), D270 (anonymous device tallies), D271 (per-question counts, aggregate-only), D272 (the uid-keyed day rollup — session analytics per person, scoped: no question id by rules-enforced construction, readable by nobody including the owner, 90-day TTL, erased with the account). What still binds is **D269**: no event streams, no third-party analytics, no per-target reads, no hesitation timing, no anchor or Art. 9 slicing, and the daily and the Mirror never adapt |
 | Retention or engagement sliced by anchor | D8 — the anchors exist; nothing suppresses them since D98 |
 | Anything sliced by political result | D8; GDPR Art. 9 |
 | Skip / pass / hesitation rates | QUESTION-FARM.md, "Deliberately out of scope" |

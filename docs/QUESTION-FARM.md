@@ -208,8 +208,12 @@ budget flows to lane 3 and behavior is the original thin-first rule.
    count, that topic's audience has effectively consumed the pool —
    refill before they hit the bottom. This is the aggregate reading of
    "users are close to completing the topic"; per-user completion
-   tracking is not the mechanism and may never be (skip/pass telemetry
-   stays local-only, D-series).
+   tracking is not the mechanism and may never be — PER-USER skip/pass
+   stays local-only, and D271 narrowed rather than reversed that line:
+   what reaches the server since then is a question's AGGREGATE
+   seen/pass counts, from anonymous unlinkable shards, never anyone's
+   list (the scorecard's attention columns carry them, D33 warning
+   attached).
 2. **Demand — everything replenishment leaves.** Topics ranked by
    popularity × depth from the scorecard: popularity = total published
    answers across the topic's questions; depth = least-answered ÷
@@ -254,9 +258,13 @@ answers; `questions`/`scored` count **membership**, so a straddler sits
 in both its topics' columns and the columns are not a partition; and
 **sponsored rows are excluded from the rollup entirely** — the buyer
 keeps the per-question row they paid for, and the demand signal the
-lanes read is not for sale. What it deliberately cannot see: skip/pass rates (never
-collected — local-only, D-series), anything per-user, anything below
-the floor. Daily topics are capitalized `CAT_META` tops; feed topics
+lanes read is not for sale. What it deliberately cannot see: anything
+per-user, anything below the floor — and per-PERSON skip/pass, which
+stays local-only. Per-QUESTION skip/pass it can see since D271: the
+scorecard's `attnSeen`/`attnConv`/`attnPass` columns, estimates from
+anonymous bucketed shards, with the D33 warning stored on the card —
+a skip is not dislike, novelty inflates, and no attention figure
+outranks the content rules. Daily topics are capitalized `CAT_META` tops; feed topics
 are lowercase `WORLD_TOPICS` ids — score them per-surface, never mixed
 (daily totals are per-serve-day under the deck epoch; feed totals are
 cumulative).

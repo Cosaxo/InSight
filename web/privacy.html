@@ -374,6 +374,57 @@
     exists to show.
   </p>
 
+  <p>
+    The same stored answers also give us our own daily headcount. Each
+    night a server job folds the day&rsquo;s answering into one small
+    public summary — how many people answered, how many were answering
+    for the first time, how many came back, and how the answers split
+    across the app&rsquo;s question types. The summary is counts,
+    computed without your identity in it: it never contains a user id, a
+    display name or a profile detail, and no per-person usage profile is
+    built from it. To count returning people, the job also keeps one
+    private pair of dates per account — the first and most recent day you answered —
+    which no user, you included, can read, and which is deleted with your
+    account.
+  </p>
+
+  <p>
+    Beyond answers, the app sends one small usage tally a day — and it is
+    built not to know who it came from. Once a day is over, your device
+    may send a single summary of which parts of the app it used that day
+    &mdash; the feed, the mirror, a lens, a reveal &mdash; as coarse
+    brackets (&ldquo;1&ndash;2 times&rdquo;, &ldquo;3&ndash;5
+    times&rdquo;), under a fresh random label each day. The tally carries
+    no account, no name and no device id, so it cannot be linked back to
+    you &mdash; or even to your own phone across two days. The tally can
+    include which questions were shown, answered or skipped that day
+    &mdash; in the same coarse brackets, on the same unlinkable label, so
+    what it produces is counts about a question, never a list of what you
+    looked at: nobody can learn that <em>you</em> skipped anything. Each
+    night the raw tallies are added
+    into the same public daily summary and deleted after that nightly
+    fold. Some days your device sends nothing at all: tallies are
+    sampled. There is still no analytics SDK in the app, no advertising
+    identifier, and no usage data shared with anyone (see &ldquo;What we
+    do not collect&rdquo;).
+  </p>
+
+  <p>
+    Separately, your device keeps one small usage note per day under your
+    own account &mdash; how many times you opened the app, roughly how
+    long it was on screen (as a bracket, never minutes), how many
+    sessions passed without answering, and which parts of the day you
+    tend to use it. It exists so the app can notice, in aggregate, when
+    people are drifting away. Three things hold it in check: it never
+    contains a question &mdash; not one id of anything you looked at, and
+    the rules of the database refuse the field outright; no user can read
+    it, you included &mdash; it is measurement, not a profile screen, and
+    what is published from it is only counts of people; and each note
+    deletes itself 90 days after its day, so the account-linked trail is
+    a rolling window, erased entirely &mdash; and immediately &mdash;
+    when you delete your account.
+  </p>
+
   <h2>Who can see what</h2>
 
   <ul>

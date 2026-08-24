@@ -81,10 +81,16 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { splitQualityOf, rollupProduction, creditShares } from "./scorecard-metrics.mjs";
+import {
+  splitQualityOf, rollupProduction, creditShares,
+  attentionFromTrail, ATTENTION_WARNING,
+} from "./scorecard-metrics.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(root, "content", "scorecard.json");
+// The engagement digest's committed trail (R1/D268) — written on --fetch
+// beside the scorecard, read by the pulse console (pulse-collect.mjs).
+const ENGAGEMENT_OUT = join(root, "monitoring", "engagement.json");
 
 const args = process.argv.slice(2);
 const FETCH = args.includes("--fetch");
@@ -170,7 +176,37 @@ async function fetchAggs() {
     }
     pageToken = body.nextPageToken || "";
   } while (pageToken);
-  return aggs;
+  return { aggs, idToken, project };
+}
+
+// The engagement digest's trail (R1/D268) rides the SAME fetch —
+// deliberately one fetch path, not two: MONITORING.md already rejected a
+// second fetch against the same project as a drift pair, and this reader
+// reuses the anonymous token the aggregate read just minted. The trail is
+// world-readable by design (v2_engagement_daily; anonymous counts, no
+// uid anywhere), which is what lets this stay credential-free. The `meta`
+// cursor doc is the fold's own bookkeeping and is dropped here.
+async function fetchEngagementDays(idToken, project) {
+  const days = [];
+  let pageToken = "";
+  do {
+    const url =
+      `https://firestore.googleapis.com/v1/projects/${project}/databases/${DB_ID}/documents/v2_engagement_daily` +
+      `?pageSize=300${pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ""}`;
+    const res = await fetch(url, { headers: { authorization: `Bearer ${idToken}` } });
+    if (!res.ok) {
+      console.error(`scorecard: engagement read failed (${res.status}): ${await res.text()}`);
+      process.exit(1);
+    }
+    const body = await res.json();
+    for (const d of body.documents || []) {
+      if (d.name.split("/").pop() === "meta") continue;
+      days.push(decode({ mapValue: { fields: d.fields || {} } }));
+    }
+    pageToken = body.nextPageToken || "";
+  } while (pageToken);
+  days.sort((a, b) => (String(a.day) < String(b.day) ? -1 : 1));
+  return days;
 }
 
 // ── scoring ──
@@ -543,6 +579,16 @@ function summarize(card) {
     `scorecard: ${c.scored}/${c.questions} scored (${c.belowFloor} below floor, ` +
       `${c.unserved} unserved) · generated ${card.generatedAt}`,
   );
+  if (card.attention) {
+    const rated = (card.perQuestion || []).filter((q) => q.attnPass != null);
+    const top = [...rated].sort((a, b) => b.attnPass - a.attnPass).slice(0, 3);
+    console.log(
+      `  attention (D271): ${rated.length} question(s) with a rated pass rate over ` +
+        `${card.attention.daysWithQ} day(s)` +
+        (top.length ? ` · most passed: ${top.map((q) => `${q.qid} ${Math.round(q.attnPass * 100)}%`).join(", ")}` : ""),
+    );
+    console.log(`  ⚠ ${card.attention.warning}`);
+  }
   const staleDays = (Date.now() - Date.parse(card.generatedAt)) / 864e5;
   if (staleDays > 14) {
     console.log(`  ⚠ ${Math.floor(staleDays)} days old — treat demand signals as advisory (D33)`);
@@ -593,8 +639,46 @@ function summarize(card) {
 }
 
 if (FETCH || INPUT) {
-  const aggs = INPUT ? JSON.parse(readFileSync(resolve(INPUT), "utf8")) : await fetchAggs();
+  let aggs;
+  let live = null;
+  if (INPUT) {
+    aggs = JSON.parse(readFileSync(resolve(INPUT), "utf8"));
+  } else {
+    live = await fetchAggs();
+    aggs = live.aggs;
+  }
   const card = score(aggs);
+  if (live) {
+    const days = await fetchEngagementDays(live.idToken, live.project);
+    // Day granularity on the stamp, the pulse artifact's reasoning: this
+    // file is committed, and a millisecond would make every refetch look
+    // like a change to something.
+    const trail = { fetchedOn: new Date().toISOString().slice(0, 10), days };
+    writeFileSync(ENGAGEMENT_OUT, JSON.stringify(trail, null, 2) + "\n");
+    console.log(`scorecard: wrote ${ENGAGEMENT_OUT} (${days.length} day(s))`);
+    // R4/D271: the attention columns — the denominator the scorecard
+    // never had. Merged BEFORE the card writes, so the committed artifact
+    // the farm reads carries seen→answer and pass rates beside evenness,
+    // with the D33 warning stored on the card rather than trusted to
+    // whoever renders it.
+    const att = attentionFromTrail(days);
+    if (Object.keys(att.qids).length) {
+      for (const row of card.perQuestion || []) {
+        const a = att.qids[row.qid];
+        if (a) {
+          row.attnSeen = a.seen;
+          row.attnConv = a.conv;
+          row.attnPass = a.passRate;
+        }
+      }
+      card.attention = {
+        daysWithQ: att.daysWithQ,
+        truncatedDevices: att.truncatedDevices,
+        basis: "bucket-midpoint estimates from sampled anonymous shards (D271)",
+        warning: ATTENTION_WARNING,
+      };
+    }
+  }
   writeFileSync(OUT, JSON.stringify(card, null, 2) + "\n");
   console.log(`scorecard: wrote ${OUT}`);
   summarize(card);

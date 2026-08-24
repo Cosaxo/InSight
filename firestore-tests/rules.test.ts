@@ -678,6 +678,108 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "patterns", "state"), { v: [1], n: 1 }));
   });
 
+  it("the engagement day docs read like an aggregate and write like one — nobody (R1/D268)", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_engagement_daily", "2026-08-22"), {
+        day: "2026-08-22", actives: 3, firstTime: 1, votes: 5, events: 5,
+      });
+      await setDoc(doc(db, "v2_engagement_daily", "meta"), { lastDay: "2026-08-22" });
+    });
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_engagement_daily", "2026-08-22")));
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_engagement_daily", "meta")));
+    await assertFails(getDoc(doc(asSignedOut(), "v2_engagement_daily", "2026-08-22")));
+    // A client-writable count would make the whole trail forgeable.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_engagement_daily", "2026-08-23"), { actives: 9 }));
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_engagement_daily", "2026-08-22"), { actives: 9 }));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_engagement_daily", "2026-08-22")));
+  });
+
+  it("a person's engagement bookkeeping is readable and writable by NOBODY — the owner included (D268)", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER, "engagement", "_state"), {
+        firstDay: "2026-08-01", lastDay: "2026-08-22", activeDays: 9, streak: 2,
+      });
+    });
+    // The push/ shape again: no read grant at all, so the pair cannot be
+    // opened by accident — not by a stranger, not by its own subject.
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "engagement", "_state")));
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "_state")));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "_state"), { streak: 99 }));
+  });
+
+  // A valid rung-2 rollup: yesterday's date-shaped id, the pinned field
+  // list, bounded ints, folded false at birth (R3/D272).
+  const rollupDay = () => new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const rollup = (over: Record<string, unknown> = {}) => ({
+    day: rollupDay(),
+    sessions: 2, fgMin: 2, quiet: 1, dayparts: [0, 1, 1, 0], answers: 3,
+    feedB: 2, depthEnd: 0, stops: 4, lenses: 1, folded: false,
+    build: 24, platform: "web",
+    expireAt: new Date(Date.now() + 90 * 86400000),
+    ...over,
+  });
+
+  it("a person's day rollup is owner-create-only, date-keyed, field-pinned (R3/D272)", async () => {
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", rollupDay()), rollup()));
+    // not someone else's subtree, not a bare-map id, not a mismatched day
+    await assertFails(setDoc(doc(asUser(STRANGER), "v2_users", OWNER, "engagement", rollupDay()), rollup()));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "_state"), rollup()));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "2026-01-01"), rollup({ day: "2026-01-01" })));
+    // folded is the fold's flag, never the client's
+    await assertFails(setDoc(doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()), rollup({ folded: true })));
+    await assertFails(setDoc(doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()), rollup({ sessions: 5000 })));
+  });
+
+  it("the rollup's hasOnly IS the two-channel pin: a question id is refused, and nobody reads", async () => {
+    const day = rollupDay();
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", day), rollup()));
+    // the smuggle: reading history on the person channel
+    await assertFails(setDoc(doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", day), rollup({ qids: { "feed-001": 1 } })));
+    // readable by NOBODY — the owner included (the push-tokens posture)
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", day)));
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "engagement", day)));
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", day), { folded: true }));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", day)));
+  });
+
+  // A valid rung-1 shard: yesterday's day, the pinned vocabulary, nothing
+  // identifying (R2/D270).
+  const shard = (over: Record<string, unknown> = {}) => ({
+    day: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
+    build: 24, platform: "web", sampled: true, rate: 1,
+    s: { opens: 1, feedSeen: 2 },
+    ...over,
+  });
+
+  it("an attention shard is create-only, day-bounded and vocabulary-pinned (R2/D270)", async () => {
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_attention", "shard-1"), shard()));
+    await assertFails(setDoc(doc(asSignedOut(), "v2_attention", "shard-2"), shard()));
+    // a uid on the question channel is the two-channel rule's exact breach
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-3"), shard({ uid: OWNER })));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-4"), shard({ day: "2026-01-01" })));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-5"), shard({ s: { opens: 1, notAKey: 1 } })));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-6"), shard({ sampled: false })));
+  });
+
+  it("shards are readable and editable by NOBODY, and the qids map stays shut until D271", async () => {
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_attention", "mine"), shard()));
+    // not even the writer: a readable pile is the funnel's raw material
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_attention", "mine")));
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_attention", "mine")));
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_attention", "mine"), { s: { opens: 4 } }));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_attention", "mine")));
+    // empty is tolerated (an older client may send the field bare)…
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_attention", "q0"), shard({ qids: {} })));
+    // …and since D271's adoption the map is OPEN within its cap: a
+    // question's counts, on a doc that carries no uid by construction.
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_attention", "q1"), shard({ qids: { "feed-001": { s: 1, a: 1 } } })));
+    // over the cap — the client's overflow cell exists so this never
+    // happens honestly, and a dishonest client is refused wholesale
+    const over: Record<string, { s: number }> = {};
+    for (let i = 0; i <= 120; i++) over[`feed-${i}`] = { s: 1 };
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "q2"), shard({ qids: over })));
+  });
+
   it("the option bound, the kill switch and the surface claim all read off the question", async () => {
     await seedCall();
     await assertFails(setDoc(mine(), callAnswer({ optionIdx: 2 })));
