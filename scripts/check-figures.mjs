@@ -204,6 +204,25 @@ const qualityConst = constFrom("scripts/question-quality.mjs");
 // not, and comparing text is what the fix line has to write anyway.
 const appPkg = JSON.parse(read("package.json"));
 
+// How many rows the App Privacy filing declares, off the filing itself.
+//
+// LAUNCH-RUNBOOK 4.4 is the step that TYPES this form into App Store
+// Connect, and its count went stale twice after D180 had already caught it
+// once: ca8f4eb added D203's Health row and left the prose at nine, D272
+// added Product Interaction and left it there still. Both drifts point the
+// same way — the instruction under-declares, which app-privacy.json itself
+// calls "the direction that gets an app pulled" — in the one step whose
+// output is a legal statement.
+//
+// check:store-forms already holds app-privacy.json, STORE-FORMS.md and the
+// age-rating half to each other; what nothing held was the RUNBOOK PROSE
+// that a human reads while clicking. This is 5.6's remedy at 4.4.
+//
+// The count only. The per-row purposes cannot be gated into one sentence —
+// ten rows are App Functionality and one is Analytics — which is why 4.4
+// says to read the printout rather than the paragraph.
+const appPrivacyRows = JSON.parse(read("design/store/app-privacy.json")).collected.length;
+
 // How many functions actually ship, counted the way check-deploy-targets
 // counts them — the same directory walk and the same regex, not a hand-kept
 // file list. Hand-listing the sources is how this number would go stale a
@@ -421,6 +440,13 @@ const FIGURES = [
     re: /`V2_QUESTIONS`, (\d+) docs/,
     actual: seededQuestions,
     fix: (n) => `"\`V2_QUESTIONS\`, ${n} docs"`,
+  },
+  {
+    file: "docs/LAUNCH-RUNBOOK.md",
+    what: "the App Privacy row count (4.4, the nutrition label)",
+    re: /you copy it across: \*\*(\d+) data types\*\*/,
+    actual: String(appPrivacyRows),
+    fix: (n) => `"you copy it across: **${n} data types**"`,
   },
   {
     file: "docs/LAUNCH-RUNBOOK.md",

@@ -27253,3 +27253,125 @@ panel's people tiles (quiet share null-safe, fading counted), three new
 `check:policy-claims` rows, the store forms moved together —
 **Product Interaction → Linked** — and the same-PR paperwork across
 inventory, SCHEMA-V2, MONITORING and the farm doc.
+
+## D273 · A bump has a shelf life of exactly one upload, and 4.4 under-declares by two rows
+
+**2026-08-24.** **Status:** binding. Found by build 25's pre-flight,
+which opened on a spent build number for the fifth time.
+
+### What the run list said
+
+`appBuild` was 24 in the tree and 24 at run 40's `head_sha`, where step
+17 — `Upload to App Store Connect` — is `success`. Build 24 was
+delivered on 2026-08-22 at 13:05:33Z: `UPLOAD SUCCEEDED with no
+errors`, delivery UUID `007fd1db-b647-4d7a-8133-6d3cc31b6094`,
+5,994,956 bytes, 1m 27s of transfer. A dispatch from this tree would
+have archived, exported, passed both entitlement gates, transferred a
+~6 MB `.ipa` and then been refused for the build number, after the
+transfer: ~150 minutes of macOS quota at 10x, for an integer.
+
+Run 39 (`32573914036`, 12:46:43Z) was the dry run — step 17 `skipped`,
+7m 21s — and run 40 (`32574502233`, 12:59:43Z) the upload, thirteen
+minutes later. Seventh pair of this shape. Both archived `1ade973`, one
+commit, so D159's trap did not fire: the first release since run 21
+where the dry run and the upload name the same tree.
+
+### The arithmetic
+
+Six bumps have held (runs 20, 21, 22, 28, 33, 36); seven have been
+skipped (18, 19, 24, 26, 31, 38, 40).
+
+### Why this one refutes D198's reading
+
+`1ade973` is **D229's own commit** — the release prep that bumped 23 →
+24 precisely because build 23's upload was owed it — and run 39 was
+dispatched **68 seconds after it landed**. D198 diagnosed the skip as
+the gap between "the upload finished" and "someone came back to the
+tree", and D191 before it had the correspondence four for four. There
+is no gap here. The tree had been edited a minute earlier, by the
+session that then held the run list and dispatched twice from it.
+
+So the invariant is not about sessions or attention, and stating it
+that way has now failed twice. State it about the number: **a bump has
+a shelf life of exactly one upload.** A session that bumps to N and
+then uploads N has discharged one debt and incurred an identical one in
+the same sitting — and the two are indistinguishable on screen, because
+`package.json` reads 24 both before the dispatch and after it. Step 18
+printed the workflow's own `Bump appBuild in package.json before the
+next run` reminder into a session that had already done a bump that
+day, which is the reminder landing on a box already ticked.
+
+D198's formulation survives one step down: a pre-flight verdict has a
+shelf life of exactly one dispatch, and a bump has a shelf life of
+exactly one upload. The first is why *run as-is* is a report about a
+comparison; the second is why *bumped* is a report about a debt that
+was owed, never about the one being incurred.
+
+### Still not gated, for the reason it has never been gated
+
+The sound invariant keys on the run list — is `appBuild` greater than
+the highest build App Store Connect has seen — and nothing in this tree
+can read that. D184's gate proposal keyed on the record and would have
+stayed silent here for the same reason it would have there: **no record
+was written.** Nothing in `docs/` named run 39, run 40, or build 24's
+delivery until this pre-flight read the run list, two days and 27
+commits later, none of which had any reason to think about a build
+number. Third instance of the D184 shape. This stays a procedure, and
+the procedure is unchanged: read the run list before dispatching.
+
+### What else the pre-flight found: 4.4 under-declares, twice over
+
+The pre-flight also asks what build 25 carries that build 24 did not,
+and the answer reaches a form. `design/store/app-privacy.json` gained a
+row since `1ade973` — **Usage Data → Product Interaction, linked,
+Analytics** — the engagement ladder's filing (D270 collected it, D272
+linked it). Under D73 that form has no API endpoint at all, so it is
+typed into App Store Connect by hand, from the printout LAUNCH-RUNBOOK
+4.4 tells you to make.
+
+**4.4's own count was nine and the filing has eleven.** Measured across
+commits rather than inferred: at `ca8f4eb` (2026-08-20) the filing went
+to ten — D203's Health row, the pulse's sleep and energy questions —
+and 4.4 was not revisited, *two days after D180 diagnosed precisely
+that failure in precisely that step*. D272 took it to eleven and 4.4
+was not revisited again.
+
+The second drift is worse than the first in kind, not just in size.
+4.4 said "**9 data types**, each **App Functionality / linked Yes /
+tracking No**", and Product Interaction is the first row in the filing
+whose purpose is **Analytics**. So the sentence stopped being a
+shorthand that under-counts and became one that mis-states — and both
+errors point the way `app-privacy.json` itself calls "the direction
+that gets an app pulled".
+
+**Why nothing caught it.** `check:store-forms` holds `app-privacy.json`,
+`STORE-FORMS.md` and the age-rating half to each other, and it was
+green through both drifts, correctly: every artefact it compares did
+move together. What moved alone was the *runbook prose a human reads
+while clicking*, which no gate had ever looked at. That is the D39
+shape — a figure kept current by intention — and the remedy is 5.6's:
+`check:figures` now owns 4.4's row count, read off the `collected`
+array. Verified by breaking it: restoring the stale nine fails the gate
+with the drift named and exit 1.
+
+**The count is gated; the purposes are not.** Ten rows are App
+Functionality and one is Analytics, which is not a figure one sentence
+can hold, so 4.4 keeps saying what it already said — the printout is
+the artefact and the paragraph is not.
+
+**This does not block a dispatch, and it does block a submission.**
+Uploading spends a build number; TestFlight internal testing has no
+review gate. Submission (6.2) needs the label, and the window between
+them is where the live label describes a build that no longer exists.
+Build 25 is build 18's situation again.
+
+### The edits this record made
+
+`package.json` `appBuild` 24 → 25, with `check:versions --fix` writing
+it into `android/app/build.gradle` and `ios/App/App.xcodeproj`;
+`LAUNCH-RUNBOOK.md` 5.6's figure followed, because `check:figures` owns
+that number and went red until it did. `IOS-RELEASE.md` gains the
+build 24 record, with the delivery UUID and byte count read out of the
+logs rather than recalled. `LAUNCH-RUNBOOK.md` 4.4 goes to eleven rows
+with the Analytics purpose named, and `check-figures.mjs` gains the
+rule that keeps it there.

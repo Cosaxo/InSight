@@ -1169,17 +1169,38 @@ That is a tester-count problem, not a workflow problem.
       no App Privacy resource in the App Store Connect API at all, verified
       three ways (D73). So **Actions → App Store metadata** with *privacy*
       selected prints the form, row by row, in the order App Store Connect
-      asks, and you copy it across: **9 data types**, each **App
-      Functionality / linked Yes / tracking No**, tracking overall **No**.
-      ~15 minutes, and nothing recalled from memory — least of all from
-      this paragraph, which is why the printout is the artefact and the
-      prose is not.
+      asks, and you copy it across: **11 data types**, each **linked Yes
+      / tracking No**, ten of them **App Functionality** and Product
+      Interaction **Analytics**, tracking overall **No**. ~15 minutes, and
+      nothing recalled from memory — least of all from this paragraph,
+      which is why the printout is the artefact and the prose is not.
 
       **The two new rows ship in build 18, so the label and the binary move
       together or the label is wrong.** Uploading does not need it —
       TestFlight internal testing has no review gate — but **submission
       (6.2) does**, and the gap between them is the window where the live
       label describes a build that no longer exists.
+
+      **IT WENT STALE TWICE MORE, THE SAME WAY, AND THE SECOND TIME MADE
+      A SENTENCE FALSE RATHER THAN SHORT** (D273, build 25's pre-flight).
+      `ca8f4eb` took `app-privacy.json` to ten rows — D203's Health row,
+      the pulse's sleep and energy questions — and did not come back here,
+      two days after D180 diagnosed exactly that. D272 then took it to
+      eleven, and Product Interaction is the first row in the filing whose
+      purpose is **Analytics** rather than App Functionality, so the
+      blanket "each App Functionality" above stopped being a shorthand and
+      started being wrong. Under-declaring by two rows, twice, in the one
+      step whose output is a legal statement.
+
+      **`check:figures` owns the row count now**, read off
+      `app-privacy.json`'s `collected` array, so this sentence is current
+      or CI is red. That is 5.6's remedy applied to 4.4 — the same fix,
+      after the same failure, for the reason D39 gives. It holds the
+      *count*; nothing can hold the purposes, so read the printout.
+
+      **The engagement ladder's row ships in build 25** (D268–D272), so
+      this is build 18's situation again: the label and the binary move
+      together or the label is wrong.
 
       **Read `STORE-FORMS.md` before typing.** What you are entering is a
       legal statement about what the app collects. The printout transcribes
@@ -1302,7 +1323,7 @@ That is a tester-count problem, not a workflow problem.
       it for two policies is the worse trade. Both cover failures that look like nothing from the
       outside: the app keeps serving while the Mirror stops moving, or
       keeps moving while falling further behind. `DEPLOYMENT.md § Alerting`.
-- [x] **5.6 Version lockstep — holds at 2.0.0 build 24.**
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 25.**
       *This line was stale three times, each one a bump behind 2.4 — build
       11 on 2026-08-13, build 12 later the same day, then 13 against a tree
       at 22.* It is the D39 shape — a figure kept current by intention —
