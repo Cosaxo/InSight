@@ -433,6 +433,45 @@ export interface RebuildReport {
  *  instead of an arm it silently switches to. */
 export type ReplayArm = "vote" | "rank" | "catalog";
 
+/**
+ * Why this tool cannot address a question, or null when it can.
+ *
+ * The scan keys on the BANK ID — `collectionGroup("answers").where("qid",
+ * "==", qid)` — and two surfaces break that assumption in opposite ways.
+ *
+ * PULSE aggregates are keyed `{qid}_{day}`, and a pulse answer carries that
+ * composite as its own `qid`. So the bank id matches no answer at all: a
+ * rebuild scanned zero rows, computed zero drift, and reported success,
+ * which rebuild-aggregate.mjs prints as "drift: none — the published
+ * aggregate already matches the answers". A repair tool handing back a
+ * clean bill for an aggregate it cannot see is worse during an incident
+ * than one that refuses. Passing the composite instead fails the bank
+ * lookup, so the day's aggregate has no address here either way — and
+ * saying so is the honest answer until it has one.
+ *
+ * GROUP and DUO answers are sealed duel votes, and onV2AnswerCreated
+ * returns before the world fold precisely because of that. Rebuilding one
+ * would not repair an aggregate; it would MINT a public one the trigger
+ * deliberately never writes, out of votes that are supposed to stay sealed
+ * until their reveal. The header's claim to mirror the vote arm exactly was
+ * false on this guard alone.
+ *
+ * A predicate rather than an inline throw so it can be tested: runRebuild
+ * itself needs Firestore, and this decision does not.
+ */
+export function rebuildRefusal(surface: unknown): string | null {
+  const s = typeof surface === "string" ? surface : "";
+  if (s === "pulse") {
+    return "pulse aggregates are keyed {qid}_{day}; this tool addresses bank ids, "
+      + "so it can neither see the day's answers nor name the day's aggregate";
+  }
+  if (s === "group" || s === "duo") {
+    return `answers on the "${s}" surface are sealed duel votes; the trigger writes `
+      + "no world aggregate for them, so a rebuild would mint one rather than repair it";
+  }
+  return null;
+}
+
 export function armFor(questionType: unknown): ReplayArm {
   if (questionType === "catalog") return "catalog";
   if (questionType === "rank") return "rank";
@@ -456,6 +495,12 @@ export async function runRebuild(
   const qSnap = await db.collection("v2_questions").doc(qid).get();
   if (!qSnap.exists) {
     throw new HttpsError("not-found", `${qid} is not in the question bank`);
+  }
+  // Refused before any scan: a surface this tool cannot address must say so
+  // rather than scan nothing and report health. See rebuildRefusal.
+  const refusal = rebuildRefusal(qSnap.get("surface"));
+  if (refusal) {
+    throw new HttpsError("failed-precondition", `${qid}: ${refusal}`);
   }
   const arm = armFor(qSnap.get("type"));
   const accRef = arm === "catalog" ? privRef : pubRef;
