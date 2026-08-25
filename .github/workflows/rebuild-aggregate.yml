@@ -1,0 +1,161 @@
+# Rebuild one question's aggregate from the answers that made it (D275).
+#
+# WHY THIS EXISTS. `rebuildAggregateV2` shipped with unit tests, an e2e that
+# drives it against emulated functions, and no way for anyone to run it. The
+# runbook said "node scripts/rebuild-aggregate.mjs", which needs a checkout,
+# Node, and three production credentials on somebody's laptop — for a tool
+# whose two callers are (a) a one-time verification that it works at all and
+# (b) an INCIDENT, which is the worst possible moment to be setting up a dev
+# machine.
+#
+# That is the same gap seed-content.yml was written to close, and its header
+# is worth re-reading: a step documented as something nobody can perform is
+# a step that does not get performed. This is that file's shape, pointed at
+# the repair tool.
+#
+# WHAT IT GRANTS, which is nothing new. `rebuildAggregateV2` is gated on
+# assertOperator — signed in, uid in SEED_ADMIN_UIDS — and is App Check
+# exempt with the reason `check:appcheck` holds. The service-account key
+# here already deploys the rules that protect `v2_question_aggs`, so it
+# could write that collection directly. Going through the callable keeps one
+# code path, which is the same argument seeding makes.
+#
+# NEVER AUTOMATIC, and that is the difference from seed-content.yml. That
+# one chains to the deploy because seeding is idempotent and being behind is
+# the failure. This writes the document every surface in the app reads, from
+# a scan of every answer to a question. `workflow_dispatch` only, `apply`
+# off unless asked, and the `production` environment's protection rules
+# (D87) in front of it.
+
+name: Rebuild aggregate
+
+on:
+  workflow_dispatch:
+    inputs:
+      qid:
+        description: "Question id, e.g. daily-2026-08-24"
+        type: string
+        required: true
+      apply:
+        description: "WRITE the rebuilt aggregate. Off = report the drift and change nothing."
+        type: boolean
+        default: false
+      exclude:
+        description: "Comma-separated uids to rebuild WITHOUT (D28 ring subtraction)"
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+# Two rebuilds of the same question would race each other's scan. The
+# callable's own `updateTime` guard would catch it and abort one of them,
+# which is correct but reads as a mysterious failure; refusing to start the
+# second is clearer. Not `cancel-in-progress`: killing a run mid-scan is
+# harmless (the write happens once, at the end) but killing one mid-WRITE is
+# not worth finding out about.
+concurrency:
+  group: rebuild-aggregate
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Where SEED_ADMIN_UIDS lives and FIREBASE_SERVICE_ACCOUNT is scoped —
+    # and, for `apply`, where the approval sits.
+    environment: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+
+      - name: Rebuild
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          SEED_ADMIN_UIDS: ${{ vars.SEED_ADMIN_UIDS }}
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          FIREBASE_PROJECT_ID: prvfire33
+          QID: ${{ inputs.qid }}
+          EXCLUDE: ${{ inputs.exclude }}
+        run: |
+          # pipefail, for the reason seed-content.yml records: `cmd | tee`
+          # reports TEE's status, so without it a FAILED rebuild is a green
+          # job. A workflow whose purpose is to make a step verifiable must
+          # not be able to lie about whether the step happened.
+          set -o pipefail
+          # The FREE-TEXT inputs travel through the environment rather than
+          # `${{ }}`, because `${{ }}` expands before the shell parses the
+          # line — so operator-supplied text would be substituted straight
+          # into the command. `apply` is interpolated and that is safe for a
+          # different reason, worth stating rather than leaving as an
+          # apparent inconsistency: it is `type: boolean`, so the only
+          # values that can reach here are `true` and `false`.
+          #
+          # The `[ … ] && ARGS=…` shape is safe under the default `bash -e`:
+          # a failing command inside an AND-list does not trip `-e` (bash
+          # exempts everything but the command after the final `&&`).
+          # Verified, and the same shape seed-content.yml has been running.
+          ARGS="--qid $QID"
+          [ -n "$EXCLUDE" ] && ARGS="$ARGS --exclude $EXCLUDE"
+          [ "${{ inputs.apply }}" = "true" ] && ARGS="$ARGS --apply"
+          # 2>&1 because die() writes to stderr — without it a failure shows
+          # an empty block in the summary and the reader has to open the log.
+          node scripts/rebuild-aggregate.mjs $ARGS 2>&1 | tee "$RUNNER_TEMP/rebuild.log"
+
+      # A callable that throws a non-HttpsError reaches the caller as a bare
+      # INTERNAL, with the real error only in Cloud Logging. Same fallback
+      # seed-content.yml carries, for the same reason.
+      - name: Why it failed — the function's own log
+        if: failure()
+        continue-on-error: true
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT_ID: prvfire33
+        run: |
+          node scripts/fn-log.mjs --fn rebuildAggregateV2 --minutes 90 --limit 40 --all-severities \
+            2>&1 | tee "$RUNNER_TEMP/fnlog.txt"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Rebuild aggregate — \`${{ inputs.qid }}\`"
+            echo ""
+            if [ "${{ inputs.apply }}" = "true" ]; then
+              echo "**APPLIED.** Both the counts and the breakdown were rewritten from the answers."
+            else
+              echo "**Dry run.** Nothing was written."
+            fi
+            echo ""
+            echo '```'
+            cat "$RUNNER_TEMP/rebuild.log" 2>/dev/null || echo "(failed before the rebuild ran — see the step log)"
+            echo '```'
+            if [ -s "$RUNNER_TEMP/fnlog.txt" ]; then
+              echo ""
+              echo "#### rebuildAggregateV2's own log"
+              echo ""
+              echo '```'
+              cat "$RUNNER_TEMP/fnlog.txt"
+              echo '```'
+            fi
+            echo ""
+            echo "#### Reading it"
+            echo ""
+            echo "\`drift: none\` is the expected result on a healthy question — the"
+            echo "published aggregate already matches the answers. **Anything else is a"
+            echo "real finding, not a tool bug:** it means the trigger and the answers"
+            echo "disagree, which the incremental fold has no other way of telling anyone."
+            echo ""
+            echo "A \`cappedDims\` line means that dimension is at the bucket cap, where"
+            echo "the fold is order-dependent (D275) — counts and total stay exact, but the"
+            echo "rebuilt breakdown is *a* correct fold rather than necessarily the published"
+            echo "one. Say so in the incident note rather than calling the whole document"
+            echo "reconstructed."
+            echo ""
+            echo "An \`aborted\` result means the aggregate was written while the scan was"
+            echo "running. Nothing was changed; re-run it."
+          } >> "$GITHUB_STEP_SUMMARY"

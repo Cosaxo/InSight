@@ -491,9 +491,12 @@ attribution, subtraction, republication, in that order.
    reads. Deleting the accounts first destroys it. Ban ≠ erase: disable
    the Auth users if you need the ring stopped while you work.
 2. **Dry-run the rebuild, per affected qid.** This is the whole repair
-   for a vote question:
+   for a vote question, and during an incident it is a button rather than
+   a machine to set up — **Actions → Rebuild aggregate**, with the qid and
+   the uid list, `apply` off:
 
    ```bash
+   # …or locally, if you already have the credentials:
    npm run rebuild:agg -- --qid <qid> --exclude uidA,uidB,uidC
    ```
 
@@ -503,8 +506,11 @@ attribution, subtraction, republication, in that order.
    contribution, and a number far larger means either the uid list is
    wrong or something else has been wrong for a while.
 3. **Apply**, once the drift reads the way the investigation predicts:
+   the same run with `apply` ticked, which the `production` environment's
+   protection rules (D87) put an approval in front of.
 
    ```bash
+   # …or locally:
    npm run rebuild:agg -- --qid <qid> --exclude uidA,uidB,uidC --apply
    ```
 
