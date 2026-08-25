@@ -1887,7 +1887,28 @@ async function roomFor(cells: string[], own: string, qids: string[]): Promise<Ro
       // republish an hour-old split as current, for as long as nobody
       // re-asked that question. A new window is a new room, so the counts
       // go with the roster.
-      await ref.set({ people, qs, at: FieldValue.serverTimestamp() }, { merge: hit });
+      //
+      // AND `at` IS ONLY WRITTEN ON A MISS, because it dates the ROSTER.
+      // Restamping it on a hit slid the four-minute window forward every
+      // time a call folded a question the cell had not seen — which is the
+      // ordinary case, since two people at different points in the day's
+      // deck send different qid slices. A cell with steady traffic
+      // therefore never re-sampled: newcomers stayed missing and people who
+      // had left stayed listed, for as long as the novel questions kept
+      // arriving. `people` is left alone for the same reason — on a hit it
+      // IS the cached roster, so rewriting it says nothing and re-dating it
+      // says something false.
+      //
+      // Bounding the window bounds the document too. `qs` grows a key per
+      // question asked, and `roomQids` shape-checks its input without
+      // holding it to any known set — so an unbounded window was also an
+      // unbounded map. A window that actually expires rewrites the doc
+      // wholesale on the next miss, which resets `qs` to what that call
+      // asked for.
+      await ref.set(
+        hit ? { qs } : { people, qs, at: FieldValue.serverTimestamp() },
+        { merge: hit },
+      );
     }
   } catch (err) {
     // The room is an extra on top of the count, like the mix: its failure
