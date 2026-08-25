@@ -2621,6 +2621,13 @@ function presenceBeat(cell?: string): Promise<void> {
   // beating once more before a timer notices. Tear the loop down and
   // delete the doc — "stop being visible" must not wait for the server's
   // own expiry to catch up.
+  // deleteAccount sets `torndown` as its first statement, and the server
+  // deletes v2_presence/{uid} as part of the sweep. Without this guard a
+  // beat already scheduled — the interval, or a visibilitychange — can
+  // land after that delete and WRITE THE CELL BACK, for an account that no
+  // longer exists. Every other queued writer in this file already checks
+  // it; presence was the one that did not.
+  if (torndown) return Promise.resolve();
   if (nearMode() === "off" && nearState.timer) { void LIVE.near.disable(); return Promise.resolve(); }
   if (!nearOptedIn() || !LIVE.enabled) return Promise.resolve();
   if (typeof document !== "undefined" && document.hidden) return Promise.resolve();
@@ -4904,6 +4911,13 @@ let sessionRecoveryTried = false;
 // new one, or the two interleave and one account's answers render as the
 // other's.
 function resetForNewUid(uid: string): void {
+  // The OUTGOING uid, captured before `state.uid` is reassigned below,
+  // because the presence document that has to go is keyed by it.
+  const prevUid = state.uid;
+  // …and whether that account was actually standing in a cell. The timer
+  // IS the loop, so its presence is the signal; without this every account
+  // switch would issue a delete for a document most accounts never wrote.
+  const wasSharingPresence = !!nearState.timer;
   // A detach armed under the OLD uid must not fire against the new one's
   // listeners: it would drop them with nothing to re-attach until the next
   // wake, which reads on screen as a deck that stopped updating.
@@ -5018,6 +5032,27 @@ function resetForNewUid(uid: string): void {
   // The presence loop is the old account's opt-in (D84); the flag store's
   // purge listener clears the choice, this clears the machinery.
   stopPresence();
+  // …and this deletes the DOCUMENT, which stopPresence does not.
+  //
+  // NEAR.disable() deletes on purpose, under "stop sharing must not wait
+  // for a freshness window to expire", and an account switch is that same
+  // situation: the opt-in belonged to the outgoing account and
+  // purgeLocalTrace has just revoked it. Left standing, the cell keeps
+  // that account in its ~200 m grid square for up to PRESENCE_LINGER_MS —
+  // counted by nearbyCountV2 and listed with its archetype by
+  // nearbyRoomV2, to strangers in that neighbourhood, for somebody no
+  // longer signed in on this device. D98 published what people answered,
+  // not where their phone is standing.
+  //
+  // Fire-and-forget with a report, like the other best-effort teardowns
+  // above: resetForNewUid is synchronous and the incoming account's boot
+  // must not wait on it.
+  if (wasSharingPresence && prevUid && prevUid !== uid) {
+    void (async () => {
+      const db = await getDb();
+      await deleteDoc(doc(db, "v2_presence", prevUid));
+    })().catch((err) => reportError(err, { where: "presenceResetForNewUid" }));
+  }
   setSentryUser(uid);
   notify();
   void refreshLive().catch((err) => reportError(err, { where: "refreshLive.uidChange" }));

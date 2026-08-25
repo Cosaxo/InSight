@@ -25,6 +25,9 @@ const h = vi.hoisted(() => ({
   countCalls: 0,
   presenceWrites: [] as Array<{ path: string; data: Record<string, unknown> }>,
   presenceDeletes: [] as string[],
+  // The auth callback live.ts registers for the session, captured so a case
+  // can drive an account SWITCH — the one presence path that had no test.
+  authCb: null as null | ((u: { uid: string } | null) => void),
 }));
 
 vi.mock("../../lib/firebase", () => ({
@@ -35,7 +38,11 @@ vi.mock("../../lib/firebase", () => ({
   getFunctionsApi: () => import("firebase/functions"),
   linkGoogle: () => Promise.resolve(),
   googleSignOut: () => Promise.resolve(),
-  subscribeToAuth: (cb: (u: { uid: string } | null) => void) => { cb({ uid: "uid_test" }); return () => {}; },
+  subscribeToAuth: (cb: (u: { uid: string } | null) => void) => {
+    h.authCb = cb;
+    cb({ uid: "uid_test" });
+    return () => {};
+  },
 }));
 
 vi.mock("../../lib/sentry", () => ({ reportError: vi.fn(), setSentryUser: vi.fn() }));
@@ -142,6 +149,7 @@ beforeEach(() => {
   h.countCalls = 0;
   h.presenceWrites = [];
   h.presenceDeletes = [];
+  h.authCb = null;
   try { localStorage.clear(); } catch { /* jsdom always has one */ }
   vi.stubEnv("VITE_V2_LIVE", "true");
 });
@@ -266,6 +274,34 @@ describe("disable() — stop sharing means stop, now", () => {
     expect(near.count()).toBeNull();
     expect(near.lastError()).toBeNull();
     expect(h.presenceDeletes).toEqual(["v2_presence/uid_test"]);
+  });
+
+  // An account SWITCH is the same situation as "stop sharing", and it used
+  // to make the opposite choice: resetForNewUid stopped the loop and left
+  // the document standing. purgeLocalTrace revokes the opt-in on the
+  // device while the cell keeps the OUTGOING account in its ~200 m square
+  // for up to PRESENCE_LINGER_MS — counted by nearbyCountV2 and listed
+  // with its archetype by nearbyRoomV2, to strangers, for somebody no
+  // longer signed in here.
+  it("deletes the outgoing account's cell when the uid changes", async () => {
+    const near = await bootNear();
+    await near.enable();
+    expect(h.presenceWrites.length).toBeGreaterThan(0);
+
+    h.authCb!({ uid: "uid_other" });
+    await vi.waitFor(() => {
+      expect(h.presenceDeletes).toEqual(["v2_presence/uid_test"]);
+    });
+  });
+
+  it("does not delete for an account that was never sharing", async () => {
+    // The timer IS the loop, so no timer means no document was ever
+    // written — and a delete per account switch for every account that
+    // never opted in is a write nobody asked for.
+    await bootNear();
+    h.authCb!({ uid: "uid_other" });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(h.presenceDeletes).toEqual([]);
   });
 });
 
