@@ -365,8 +365,13 @@ for (const name of [...defined].sort()) {
 // entries ahead. There the answer is a side-effect import: drop the binding,
 // keep the edge.
 {
+  // The comma after the default binding is OPTIONAL, and leaving it required
+  // was a hole in this rule's first version: `import PLACES from '…'` — a
+  // bare default with no clause after it — matched the pattern with both
+  // groups empty, so the rule read the line, found no names, and passed.
+  // Found by an adversarial re-check of the rule itself, on a live instance.
   const IMPORT_RE =
-    /^import\s+(?:([A-Za-z_$][\w$]*)\s*,\s*)?(?:\{([^}]*)\})?\s*from\s*['"][^'"]+['"];?$/gm;
+    /^import\s+(?:([A-Za-z_$][\w$]*)\s*,?\s*)?(?:\{([^}]*)\})?\s*from\s*['"][^'"]+['"];?$/gm;
   for (const file of readdirSync(specDir).sort()) {
     if (!/\.(js|jsx)$/.test(file)) continue;
     const src = stripComments(readFileSync(join(specDir, file), "utf8"));

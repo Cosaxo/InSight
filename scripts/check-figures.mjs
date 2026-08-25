@@ -359,7 +359,23 @@ const convertedSpecModules = (() => {
 const smokeFiles = readdirSync(join(root, "src/v2/test"))
   .filter((f) => /^smoke-.*\.test\.jsx$/.test(f)).length;
 
+// The city catalogue's size, read off the generated file's own header — the
+// same line check-cities.mjs parses. It is quoted exactly once in live
+// documentation and was quoted in seven code comments besides, none of them
+// gated; the comments now say "~11k" so a regeneration cannot make them
+// wrong by one, and this holds the one sentence that states the number.
+const cityPlaces = Number(
+  /# (\d+) places in \d+ countries/.exec(read("public/cities.txt"))?.[1] ?? 0,
+);
+
 const FIGURES = [
+  {
+    file: "docs/CATALOG-QUESTIONS.md",
+    what: "places in the city catalogue",
+    re: /`public\/cities\.txt` \(([\d,]+) places/,
+    actual: cityPlaces.toLocaleString("en-US"),
+    fix: (n) => `"\`public/cities.txt\` (${n} places"`,
+  },
   {
     file: "CLAUDE.md",
     what: "mount smoke files over one harness (§2)",

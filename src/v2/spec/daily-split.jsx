@@ -48,15 +48,16 @@ const LiveBreakdownPanel = React.lazy(() => import('../ui/LiveBreakdownPanel.tsx
 // reason (D156) — see the mode switch near the bottom of render().
 const LiveDuelPanel = React.lazy(() => import('../ui/LiveDuelPanel.tsx'));
 import ReactDOM from 'react-dom';
-// SIDE-EFFECT IMPORTS, and the form is the point. This file bound
-// IS_TESTS, IS_TEST_RESULTS, persistTestResult and PASSIVE and referenced
-// none of them — but the imports are still load-bearing: spec-index.js
-// reaches daily-split.jsx before it reaches either of these two modules, so
-// deleting the lines would move both evaluations nine entries later in an
-// order CLAUDE.md calls semantic. Dropping the bindings and keeping the
-// edges says exactly that, and says it where the next reader looks.
-import './test-definitions.js';
-import './passive-progress.js';
+// This file bound IS_TESTS, IS_TEST_RESULTS, persistTestResult and PASSIVE
+// and referenced none of them — residue of the `else { window.IS_TEST_RESULTS
+// = … }` branch that converting test-definitions.js made unreachable
+// (src/v2/README.md). Both statements are gone rather than kept as
+// side-effect imports: TRACED, not assumed, because the first instinct was
+// to keep the edges for load order and that instinct was wrong. Neither
+// module waits on this file — spec-index.js reaches archetype-data.js at
+// line 9, which imports test-definitions.js, and type-marks.jsx and
+// result-card.jsx at 69 and 71, which import passive-progress.js, all long
+// before daily-split.jsx at 140.
 import NAV from '../data/nav';
 
 // daily-split.jsx — SPLIT: the daily tab. Three modes — World (vote blind,

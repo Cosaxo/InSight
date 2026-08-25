@@ -248,7 +248,7 @@ const PROFESSIONS = [
   "Business & finance", "Trades & crafts", "Student", "Service & hospitality",
 ];
 
-// A handful of real catalogue cities rather than a random draw over 10,929.
+// A handful of real catalogue cities rather than a random draw over ~11k.
 // City IS a breakdown dim, so ten users in ten cities give ten cohorts of
 // one — true, and useless to look at. Clustering them is what makes the
 // geographic Mirror stops show a cut with more than one person in it.

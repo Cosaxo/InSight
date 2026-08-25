@@ -309,7 +309,7 @@ const RAD = Math.PI / 180;
  * a city name comes out, and the coordinate is discarded — it is never sent
  * to a server, never written to Firestore, never persisted. What leaves the
  * phone is "Oslo, NO", exactly the string the manual picker produces. The
- * app therefore learns which of 10,929 cities someone is nearest and
+ * app therefore learns which of ~11k cities someone is nearest and
  * nothing more precise, by construction rather than by promise.
  *
  * Ranks on the haversine central angle rather than a projected plane: a
@@ -329,7 +329,7 @@ export function nearestPlace(
   let best: Place | null = null;
   // Compare on cos(central angle): monotonically DEcreasing in distance, so
   // the largest cosine is the nearest place. Avoids an acos and a sqrt per
-  // candidate across 10,929 of them.
+  // candidate across all of them.
   let bestCos = -Infinity;
   for (const p of places) {
     const φ2 = p.lat * RAD;

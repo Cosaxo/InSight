@@ -29900,6 +29900,26 @@ render — kept, because that file's whole contract is being diffable against
 the prototype it was ported from, and its header now says so instead of only
 saying "verbatim".
 
+### Two things this pass got wrong, and how
+
+Recorded because the house rule is *verify rather than assume, and say which
+it was* — and because both were caught by an adversarial re-check of the
+findings rather than by any gate:
+
+- **The daily-split edges.** Four unused bindings there were first replaced
+  with side-effect imports, on the reasoning that daily-split.jsx loads
+  before `test-definitions.js` and `passive-progress.js` in spec-index's
+  order and deleting the lines would move both evaluations later. Tracing
+  the graph instead of reasoning about the list: `archetype-data.js` (line
+  9) imports test-definitions.js, and `type-marks.jsx` and `result-card.jsx`
+  (69, 71) import passive-progress.js — all long before daily-split at 140.
+  The edges preserved nothing. Deleted outright.
+- **Rule 8's own hole.** Its first version required a comma after a default
+  binding, so `import PLACES from '…'` matched the pattern with no names
+  captured and passed. `profile-general.jsx` was carrying exactly that — an
+  import whose last reader went with the D39 conversion the comment above it
+  records. A new rule is not evidence that it fires; the probe is.
+
 ### What held
 
 Thirty-nine gates pass. The three that do not are the three that did not

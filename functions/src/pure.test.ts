@@ -505,7 +505,7 @@ describe("per-anchor breakdowns", () => {
     // `city` and not `education`: the four <select> dimensions now check
     // membership, and their vocabularies are SHORTER than the cap, so they
     // can no longer reach it at all — which is the point of closing them.
-    // 10,929 places against 24 slots is where the cap still bites.
+    // ~11k places against 24 slots is where the cap still bites.
     const by: Record<string, Record<string, Record<string, number>>> = {};
     for (let i = 0; i < BREAKDOWN_MAX_BUCKETS + 10; i++) {
       foldAnchors(by, { city: `City${i}, NO` }, 0);

@@ -543,7 +543,7 @@ export function publishableDuelAgg(state: DuelAggState): Record<string, unknown>
 //
 //    `city` was excluded for that same reason until D9 replaced the profile's
 //    free-text city and country boxes with a picker over a fixed catalogue of
-//    10,929 places. Its values are now drawn from a closed vocabulary
+//    ~11k places. Its values are now drawn from a closed vocabulary
 //    ("Oslo, NO"), every one of them verified at build time to fit
 //    BREAKDOWN_MAX_LABEL and to survive breakdownBucket — see
 //    scripts/check-cities.mjs. The bucket cap still applies and matters more
@@ -634,7 +634,7 @@ export const BREAKDOWN_MAX_LABEL = 40;
 // sub-floor bucket, not the dimension". That was wrong in the same way the
 // city note was right: 24 of them cost the dimension.
 //
-// CITY AND COUNTRY CANNOT BE CLOSED THAT WAY — 10,929 places and ~249
+// CITY AND COUNTRY CANNOT BE CLOSED THAT WAY — ~11k places and ~249
 // countries against 24 slots — so membership would still leave them
 // exhaustible with real values. Their shapes stay, and the cap itself
 // changed instead: see the eviction rule in foldAnchors.
@@ -728,7 +728,7 @@ export function breakdownBucket(value: unknown, dim?: BreakdownDim): string | nu
 // and that is what made the dimension attackable: a bucket below the floor
 // is suppressed from every publish, so it occupies a slot while showing
 // nobody anything. 24 of those arriving early blanked `city` permanently,
-// and no vocabulary can prevent it there because the catalogue is 10,929
+// and no vocabulary can prevent it there because the catalogue is ~11k
 // places against 24 slots — the attacker only needs real city names.
 //
 // So a sub-floor bucket is evictable and a publishable one is not. The
