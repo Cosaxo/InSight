@@ -153,9 +153,26 @@ export function expectOpened(re, where) {
 // full-suite load — so wait for the copy itself, bounded the way growFeed
 // is: a body that never arrives should fail an assertion, not hang a suite.
 export async function awaitText(re, max = 50) {
-  for (let i = 0; i < max && !re.test(document.body.textContent); i++) {
+  const has = () => re.test(document.body.textContent);
+  if (has()) return;
+  // FLUSH BEFORE SLEEPING. The chunks these wait on are prewarmed in the
+  // beforeAll above, so the common case is an import that resolves in a
+  // MICROTASK and needs React given a turn, not 40 ms of wall clock.
+  //
+  // Counted rather than timed, because the saving is smaller than the
+  // run-to-run noise on any one file and a wall-clock claim would be
+  // unfalsifiable: across `--dir src/v2/test`, 23 of the 26 calls to these
+  // two helpers are satisfied by this flush alone and used to pay a full
+  // tick first. Three still need real ticks, which is what the loop is for.
+  await act(async () => {});
+  for (let i = 0; i < max && !has(); i++) {
     await act(async () => { await new Promise((r) => setTimeout(r, 40)); });
   }
+  // Deliberately does NOT throw on exhaustion, unlike growUntil. Every call
+  // site follows this with its own assertion on the same content, and those
+  // messages are better than anything this could raise ("the live pick card
+  // is missing — the mapper dropped the optionless doc"). A throw here would
+  // replace a good message with a generic one.
 }
 
 /**
@@ -203,10 +220,13 @@ export function swipeDaily(dir = 1) {
 // Same wait, keyed on a selector instead of copy — for lazy bodies whose
 // arrival is an element rather than a sentence (the Map's canvas).
 export async function awaitNode(selector, max = 50) {
-  for (let i = 0; i < max && !document.querySelector(selector); i++) {
+  const find = () => document.querySelector(selector);
+  if (find()) return find();
+  await act(async () => {});   // same reason as awaitText above
+  for (let i = 0; i < max && !find(); i++) {
     await act(async () => { await new Promise((r) => setTimeout(r, 40)); });
   }
-  return document.querySelector(selector);
+  return find();
 }
 
 /**
@@ -226,6 +246,32 @@ export async function openHeaderOverlay(name) {
   return awaitNode('[role="dialog"]');
 }
 
+// ── the consequence beat ───────────────────────────────────────────────
+//
+// Answering a feed card plays the beat (spec/consequence-beat.jsx) and the
+// engage row does not mount for either branch until it clears `state.beat`
+// from its own onDone. So any case that asserts on the answered state has to
+// get past it first.
+//
+// CLICK IT, DO NOT OUTWAIT IT. The beat is a real <button> with
+// `onClick={finish}` and `aria-label="Skip"`, and `finish` calls `onDone`
+// synchronously — so the answered state is on screen in the same tick. The
+// cases here used `setTimeout(1200)` against a 1000 ms rAF animation
+// (T5 = 1000 in that file), which is 7.2 s across six playthroughs and a
+// 200 ms margin on a shared runner. This file already argues against exactly
+// that shape one section down, about a fixed 50 ms sleep that "stopped being
+// safe at D119 … and under a loaded runner it lost".
+//
+// ASSERTED, NOT `if (skip)`. A conditional click degrades silently to a
+// no-op the day the beat stops mounting synchronously, which converts a wait
+// into a race — the same failure wearing the opposite hat. queryAll[0]
+// rather than queryBy because a case that answers two cards has two.
+export function settleBeat() {
+  const skip = screen.queryAllByRole("button", { name: "Skip" })[0];
+  expect(skip, "no consequence beat mounted — this settle would be a no-op").toBeDefined();
+  act(() => { fireEvent.click(skip); });
+}
+
 // ── the feed's mounted window ──────────────────────────────────────────
 //
 // The feed mounts a window that grows as its tail comes into range (D136),
@@ -236,10 +282,40 @@ export async function openHeaderOverlay(name) {
 // waits for.
 //
 // So: any case whose SUBJECT is a card rather than the window has to let the
-// window finish first. This awaits growth until the feed stops adding cards,
-// which is the honest thing to wait for — a fixed sleep would be a race, and
-// a fixed number of pages would need editing every time a fixture's card
-// count changed.
+// window grow first.
+//
+// WAIT FOR THE CARD, NOT FOR THE END OF THE FEED — and that is a correction,
+// not a preference. `growFeed` below waits for growth to STOP, which on the
+// demo feed cannot happen: the window opens at WF_PAGE = 8 and adds
+// WF_STEP = 4 per tick against a list that is currently 194 long, so
+// converging needs 47 ticks and the bound is 40. Measured across a full
+// `test:unit`: of twenty growFeed calls, eighteen return in ≤4 iterations
+// (the live fixture's feed is short enough to finish) and two — the only two
+// that mount the DEMO feed — ran all forty and cost 11.6s and 10.4s. They
+// were the two slowest tests in the suite, and the second one is the single
+// case that made `test:coverage` impossible to run over `--dir src` at all.
+//
+// The bound also failed OPEN: falling out of the loop returned normally, so
+// a feed that really had grown forever was indistinguishable from one that
+// settled. This throws instead, which is what the paragraph below always
+// claimed.
+//
+// So the shape is: name the thing the case is actually about. Nearly every
+// caller wants one card on screen, not the whole bank in the DOM.
+export async function growUntil(pred, what = "the awaited condition", max = 60) {
+  for (let i = 0; i < max; i++) {
+    if (pred()) return;
+    // Real timers: the top-up is a setTimeout and these suites do not
+    // install fake ones. 80 > the 60ms debounce, with room for the render.
+    await act(async () => { await new Promise((r) => setTimeout(r, 80)); });
+  }
+  throw new Error(`growUntil: the feed never reached ${what} in ${max} passes`);
+}
+
+// The settle-for-settle's-sake variant, kept for the callers whose subject
+// IS the window rather than a card in it. Sound only where the list is
+// shorter than max * WF_STEP — which is the live fixture, never the demo
+// bank. Reach for growUntil first.
 //
 // Bounded, because a bug that made the window grow forever should fail a
 // test rather than hang a suite.
@@ -253,8 +329,11 @@ export async function growFeed(max = 40) {
     const n = document.body.innerHTML.length;
     if (n === last) return;
     last = n;
-    // Real timers: the debounce is a setTimeout and these suites do not
-    // install fake ones. 80 > the 60ms debounce, with room for the render.
     await act(async () => { await new Promise((r) => setTimeout(r, 80)); });
   }
+  throw new Error(
+    `growFeed: the feed was still growing after ${max} passes. Either the `
+    + "window is genuinely runaway, or this caller is on the demo bank and "
+    + "wants growUntil(pred) — see the comment above.",
+  );
 }

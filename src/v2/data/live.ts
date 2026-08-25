@@ -117,13 +117,25 @@ import { fetchVoters, groupByOption, resolveNames, sortVoters, type Voter } from
 // catch. Every call site is already async and already awaits getDb(), so
 // the dynamic import costs no round trip that was not happening anyway.
 import type { Invite } from "./invites";
-import { type KindredPerson, type ParsedResults } from "./similarity";
+import { passiveResult, passiveTest } from "./passiveProfile";
+// @ts-expect-error TS7016 — untyped spec module (the testNorms.ts /
+// LiveSimilarityField.tsx pattern). The cast below is pinned rather than
+// hopeful: content-parity.test.jsx holds IS_TESTS to exactly this shape.
+import { IS_TESTS } from "../spec/test-definitions.js";
+import {
+  CORE_TEST_KINDS,
+  pickKindredQids,
+  voteIndices,
+  type KindredPerson,
+  type ParsedResults,
+  type TestDefs,
+} from "./similarity";
 import {
   AVATAR_MAX_BYTES, avatarPath, shrinkToSquare, tokenFromUrl,
 } from "./avatar";
 // Pure folds over the published breakdown, and the likeness metric behind
 // Kindred. No Firebase in there — this module supplies the documents.
-import { agreement, type Agreement } from "./cohort";
+import { agreement, divisiveness, type Agreement } from "./cohort";
 // The follow graph (D101), TYPE-ONLY at module scope and imported for
 // real inside the two methods that use it.
 //
@@ -149,6 +161,12 @@ import type { Verdict as ForesightVerdict } from "./foresight";
 // The passive tests' round-robin (D155). Lives with the feed's other
 // interleave arithmetic so both are testable without Firebase.
 import { roundRobinBy } from "./feed-interleave";
+// The feed's test-card pool. A named publisher rather than a `window`
+// cast, because a cast is what let D249 sever this seam in silence.
+import { publishTestFeed } from "./testFeed";
+// The Learn engine's cards. Published by name for testFeed's reason, and
+// because the bundle stopped carrying the bank at D284.
+import { publishLearnBank, type LearnCard } from "./learnBank";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
 // this module passes its store state in.
 import {
@@ -345,6 +363,14 @@ const state = {
   // against its own inputs.
   kindredLoading: false,
   kindredAt: 0,
+  // D278: the city-scoped half of the pool, kept SEPARATE from
+  // state.voters rather than merged into it. The who-voted sheet draws
+  // state.voters and means "who answered this" — a city-filtered list
+  // under that heading would be a different claim wearing the same words.
+  // kindredPeople() unions the two; nothing else reads this.
+  cityVoters: {} as Record<string, Voter[]>,
+  cityVotersAt: "",
+  cityKindredLoading: false,
   // Similarity (D112): the constellation fields' one-per-session agg
   // top-up (the bank's core test items) and its in-flight flag.
   similarityLoading: false,
@@ -397,6 +423,56 @@ let adsInflight: Promise<void> | null = null;
  * are mine.
  */
 const AD_POOL_CAP = 200;
+
+/**
+ * How divisive a question the viewer answered turned out to be, 0..1, or
+ * -1 when this device holds no published counts for it (D277 §2).
+ *
+ * The selection key for loadKindred's twelve. -1 rather than 0 for the
+ * unknown case so a question with real counts always outranks one with
+ * none, while a brand-new account — which has answered questions whose
+ * aggregates have not landed yet — still gets a full twelve rather than an
+ * empty pool. `divisiveness` normalises by option count (cohort.ts), so a
+ * 2-option daily and a 5-option scale item are comparable.
+ */
+function divisivenessOf(qid: string): number {
+  const counts = state.aggs[qid]?.counts;
+  if (!counts) return -1;
+  const dense: number[] = [];
+  for (let i = 0; i < 20; i++) {
+    const c = counts[String(i)];
+    if (typeof c !== "number") break;
+    dense.push(c);
+  }
+  if (dense.length < 2) return -1;
+  return divisiveness(dense);
+}
+
+/**
+ * Whether this qid's stored answer is an option index — the only shape the
+ * voter fold can read.
+ *
+ * `state.votes` cannot answer this: every value goes in stringified, so a
+ * catalog pick ("1041", a dex number or the numeric part of a QID) looks
+ * exactly like an option index. Only the bank knows, which is why
+ * pickKindredQids takes this as a predicate rather than guessing from the
+ * value.
+ *
+ * A qid this device cannot resolve is KEPT. The banks are what the device
+ * has cached, and a question answered before a bank refresh may be missing
+ * from all of them; dropping it would shrink the pool on ignorance, which
+ * is a worse failure than the one being fixed.
+ */
+function storesOptionIdx(qid: string): boolean {
+  for (const bank of [
+    state.questions, state.feedBank, state.duelBank,
+    state.learnBank, state.callBank, state.pulseBank,
+  ]) {
+    const q = bank.find((x) => x.id === qid);
+    if (q) return q.type !== "catalog" && q.type !== "rank";
+  }
+  return true;
+}
 
 // How many of the viewer's own answers the Kindred ranking reads across.
 // Twelve shared questions is a legible likeness claim and the cost is
@@ -677,30 +753,72 @@ function saveAggCache(): void {
 // a vote (or a D86 edit) shows the folded-in count. Shared by both write
 // paths — it was inline in vote() until the edit path needed the identical
 // block.
-function scheduleAggRefresh(db: Awaited<ReturnType<typeof getDb>>, qid: string): void {
-  setTimeout(() => {
-    void (async () => {
-      try {
-        const snap = await getDoc(doc(db, "v2_question_aggs", qid));
-        if (snap.exists()) {
-          state.aggs[qid] = snap.data() as AggDoc;
-          saveAggCache();
-          // Clear the display flag only for an ACKED write — a
-          // still-inflight one cannot be in the agg we just read, and
-          // clearing would subtract a vote that isn't there. (Defensive:
-          // today this timer is only scheduled after the ack, so inflight
-          // is already clear.)
-          if (qid in state.unaggregated && !(qid in state.inflight)) {
-            delete state.unaggregated[qid];
-          }
-          buildFeedGlobals();
-          notify();
-        }
-      } catch {
-        /* refresh is best-effort */
+const AGG_REFRESH_MS = 2500;
+// The qids answered since the last drain, and the one timer that drains
+// them. COALESCED, because the caller is a vote and votes arrive in
+// bursts: a feed sitting is ten to thirty answers, and this used to arm a
+// separate timer per answer, each firing its own single-document round
+// trip, its own complete `buildFeedGlobals()` (which filters and maps the
+// whole feed bank twice, per card) and its own `notify()` — which re-runs
+// every subscriber's fold. Thirty answers bought thirty of each.
+//
+// One trailing timer instead, drained through the `in` query `refreshAggs`
+// already uses, so a burst costs one round trip per thirty questions and
+// exactly one rebuild and one notify.
+//
+// Leading-schedule/trailing-drain, the shape `saveAggCache` uses and for
+// the same reason: a restarting debounce would starve under a steady
+// stream of answers and refresh nothing until the user stopped. The set is
+// read at drain time, so nothing answered inside the window is lost.
+const pendingAggRefresh = new Set<string>();
+let aggRefreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+async function drainAggRefresh(db: Awaited<ReturnType<typeof getDb>>): Promise<void> {
+  const qids = [...pendingAggRefresh];
+  pendingAggRefresh.clear();
+  if (torndown || !qids.length) return;
+  let got = false;
+  // Firestore's `in` takes 30 keys, so a sitting longer than that pays a
+  // second query rather than being truncated. Concurrent, not sequential:
+  // they are independent reads of the same collection.
+  const chunks: string[][] = [];
+  for (let i = 0; i < qids.length; i += 30) chunks.push(qids.slice(i, i + 30));
+  const snaps = await Promise.all(chunks.map((c) => getDocs(query(
+    collection(db, "v2_question_aggs"),
+    where(documentId(), "in", c),
+  ))));
+  for (const snap of snaps) {
+    for (const d of snap.docs) {
+      state.aggs[d.id] = d.data() as AggDoc;
+      got = true;
+      // Clear the display flag only for an ACKED write — a
+      // still-inflight one cannot be in the agg we just read, and
+      // clearing would subtract a vote that isn't there. (Defensive:
+      // today this drain is only armed after the ack, so inflight
+      // is already clear.)
+      if (d.id in state.unaggregated && !(d.id in state.inflight)) {
+        delete state.unaggregated[d.id];
       }
-    })();
-  }, 2500);
+    }
+    state.stats.aggsFetched += snap.size;
+  }
+  // Once for the whole burst, and only if something came back — the old
+  // per-qid path was equally careful not to rebuild on an absent document.
+  if (!got) return;
+  saveAggCache();
+  buildFeedGlobals();
+  notify();
+}
+
+function scheduleAggRefresh(db: Awaited<ReturnType<typeof getDb>>, qid: string): void {
+  pendingAggRefresh.add(qid);
+  if (torndown || aggRefreshTimer) return;
+  aggRefreshTimer = setTimeout(() => {
+    aggRefreshTimer = null;
+    void drainAggRefresh(db).catch(() => {
+      /* refresh is best-effort — the next answer, or the poll, tries again */
+    });
+  }, AGG_REFRESH_MS);
 }
 
 // Drops a queued write. Hygiene rather than a leak fix, and it is worth
@@ -766,6 +884,45 @@ function perRev<T>(compute: () => T): () => T {
     return val;
   };
 }
+
+/**
+ * A qid → question index over one of the banks, rebuilt only when that
+ * bank is REASSIGNED.
+ *
+ * Keyed on array identity rather than on `rev`, because the banks are the
+ * one piece of store state that does not move with a notify: they are
+ * written once in hydrate() and never mutated in place (no push, splice
+ * or sort touches them anywhere in this file). So identity is exact where
+ * `rev` would be merely safe — a perRev index would rebuild the whole Map
+ * on every agg publish, which for the bank that grows without bound is
+ * the cost this is removing.
+ *
+ * WHAT IT REPLACES. Seven `bank.find((x) => x.id === qid)` scans, the
+ * worst of them `lensAgg` — whose caller (spec/lens-defs.js's
+ * LENS_FEED_QS) is deliberately unmemoised in live mode and walks fifty
+ * lens rows per render of the world feed, which itself re-renders on
+ * every notify(). Fifty full scans of `feedBank` per render is survivable
+ * at today's bank and is exactly the shape docs/SCALE-PLAN.md says not to
+ * leave lying around, since D161 makes `feedBank` the collection with no
+ * upper bound.
+ */
+function indexById<T extends { id: string }>(): (bank: readonly T[]) => Map<string, T> {
+  let at: readonly T[] | null = null;
+  let map = new Map<string, T>();
+  return (bank) => {
+    if (at !== bank) {
+      map = new Map(bank.map((q) => [q.id, q]));
+      at = bank;
+    }
+    return map;
+  };
+}
+const feedIndex = indexById<QuestionDoc & { id: string }>();
+const dailyIndex = indexById<QuestionDoc & { id: string }>();
+/** The feed bank as a lookup. See `indexById`. */
+const feedById = (qid: string) => feedIndex(state.feedBank).get(qid);
+/** The daily bank as a lookup. See `indexById`. */
+const dailyById = (qid: string) => dailyIndex(state.questions).get(qid);
 
 const notify = () => {
   rev++;
@@ -919,6 +1076,31 @@ function computeDeck(): void {
 
 async function hydrate(): Promise<void> {
   const db = await getDb();
+
+  // The viewer's own profile, STARTED HERE and awaited where it is read,
+  // some six round trips down.
+  //
+  // It depends on `db` and `state.uid` and on nothing else in this
+  // function — not the meta document, not `contentRev`, not the bank — so
+  // every trip between here and its `await` was the boot race waiting on
+  // work that had no reason to be behind them. `initLive` gives that race
+  // 2500 ms, and losing it puts a real user on the demo deck under a
+  // "still connecting" label; on a 200 ms mobile RTT this is most of a
+  // fifth of the budget, spent for nothing. No extra read either way.
+  //
+  // Rejections are captured to null rather than left floating: an
+  // in-flight promise nobody is awaiting yet would raise
+  // `unhandledrejection` on the way to its own catch. Null lands in the
+  // same branch a failed read already took — a missing display name is a
+  // cosmetic loss, not a reason to spend the session on demo data — and
+  // the reporting stays at the read site.
+  const uidEarly = state.uid;
+  const profileP = uidEarly
+    ? getDoc(doc(db, "v2_users", uidEarly)).catch((err) => {
+      reportError(err, { where: "hydrate.profile" });
+      return null;
+    })
+    : null;
 
   // ── one meta read runs the whole cache story ──
   // contentRev invalidates the local question-bank cache; latest/min
@@ -1157,6 +1339,46 @@ async function hydrate(): Promise<void> {
   state.feedBank = banks.feed;
   state.duelBank = banks.duel;
   state.learnBank = banks.learn;
+  // The Learn bank (D284). Published HERE, beside the split, and not in
+  // buildFeedGlobals: that function opens `if (!state.feedBank.length)
+  // return`, so a bank with learn cards and no feed questions would have
+  // served none of them — Learn does not depend on the feed existing and
+  // must not start doing so. Caught by vote.test.ts's first learn case,
+  // which is exactly the bank that shape describes.
+  //
+  // Translated from the bank's vocabulary into the
+  // engine's — `learn-cell1`/`prompt`/`options`/`topic` become
+  // `cell1`/`q`/`a`/`f` — because the two spellings are real and the
+  // translation belongs at one end rather than at nine call sites.
+  //
+  // Costs no read: `state.learnBank` is the slice `splitBanks` already cut
+  // out of the bank `hydrate()` fetched. What it replaces is the whole of
+  // `content/learn-questions.json` being compiled into the app.
+  //
+  // A doc seeded before D284 carries no `c`, and a card with no correct
+  // answer is unanswerable rather than merely thin — so those are dropped
+  // rather than defaulted. On a bank seeded before the change that empties
+  // Learn until the next seed run, which is the honest failure: the
+  // alternative is `c ?? 0`, which would mark option one correct on every
+  // card in the bank and teach the wrong answer, silently, on a surface
+  // whose entire promise is that there is a right one.
+  publishLearnBank(
+    state.learnBank.flatMap((q): LearnCard[] => {
+      if (typeof q.c !== "number" || typeof q.t !== "number") return [];
+      return [{
+        id: q.id.startsWith("learn-") ? q.id.slice(6) : q.id,
+        f: q.topic || "",
+        q: q.prompt,
+        a: q.options,
+        c: q.c,
+        t: q.t,
+        p: typeof q.p === "number" ? q.p : 50,
+        k: q.k || "",
+        ...(q.w ? { w: q.w } : {}),
+      }];
+    }),
+  );
+
   state.callBank = banks.call;
   state.pulseBank = banks.pulse;
   // A completely unseeded project is a real failure: throw so boot leaves
@@ -1185,24 +1407,6 @@ async function hydrate(): Promise<void> {
     } catch {
       /* refetch below */
     }
-    const aq = maxTs > 0
-      ? query(
-          collection(db, "v2_users", uidA, "answers"),
-          where("answeredAt", ">", Timestamp.fromMillis(maxTs)),
-          limit(400),
-        )
-      : query(
-          collection(db, "v2_users", uidA, "answers"),
-          orderBy("answeredAt", "desc"),
-          limit(1000),
-        );
-    // Deliberately UNGUARDED, unlike the reads below. Answers are not
-    // decoration: proceeding with a partial vote set makes the app offer
-    // questions the user already answered, and the create-only rule then
-    // refuses every one of those re-votes. Better to fail boot and render
-    // the honest mock deck than to look live and reject the user's taps.
-    const asnap = await getDocs(aq);
-    state.stats.answersFetched = asnap.size;
     const fold = (d: { id: string; get: (f: string) => unknown }) => {
       const optionIdx = d.get("optionIdx");
       if (typeof optionIdx === "number") state.votes[d.id] = String(optionIdx);
@@ -1227,7 +1431,73 @@ async function hydrate(): Promise<void> {
       const et = d.get("editedAt") as { toMillis?: () => number } | undefined;
       if (et && typeof et.toMillis === "function") maxEditTs = Math.max(maxEditTs, et.toMillis());
     };
-    asnap.docs.forEach(fold);
+    // Deliberately UNGUARDED, unlike the reads below. Answers are not
+    // decoration: proceeding with a partial vote set makes the app offer
+    // questions the user already answered, and the create-only rule then
+    // refuses every one of those re-votes. Better to fail boot and render
+    // the honest mock deck than to look live and reject the user's taps.
+    //
+    // …which is exactly what the COLD path used to do anyway. It was one
+    // `orderBy("answeredAt","desc") limit(1000)` — the silent truncation
+    // D161 designed out of the bank fetch above, with a worse ending.
+    // `fold` raises maxTs to the newest answeredAt it sees, and the warm
+    // query below asks for `answeredAt >` that; on a DESCENDING page the
+    // watermark therefore jumps straight to the newest answer, so
+    // everything past the 1000th was sealed out of that device
+    // permanently, not merely deferred to the next boot.
+    //
+    // Reachable well before any scale story: duel (`g_{gid}_{day}`) and
+    // pulse (`{qid}_{day}`) answers mint a document per day forever, so
+    // an engaged account passes 1000 inside a year — and those day-docs,
+    // being the newest, are exactly the ones that crowd the static world
+    // answers out of the page.
+    //
+    // Ordered by document id for D161's reason: a cursor has to sit on the
+    // ordering key, and `__name__` is the one field every document is
+    // guaranteed to have. Termination is on a SHORT PAGE, never on a count
+    // this code believes in advance — a count-based check is the bug.
+    //
+    // The warm path keeps its single bounded read. It truncates too, but
+    // it self-heals across boots: its sort is the inequality's, ascending,
+    // so the watermark advances to the OLDEST unread answer rather than
+    // past everything.
+    let fetched = 0;
+    if (maxTs > 0) {
+      const asnap = await getDocs(query(
+        collection(db, "v2_users", uidA, "answers"),
+        where("answeredAt", ">", Timestamp.fromMillis(maxTs)),
+        limit(400),
+      ));
+      asnap.docs.forEach(fold);
+      fetched = asnap.size;
+    } else {
+      const ANS_PAGE = 1000;
+      // A loop bound, not a content limit, and loud if it trips — the same
+      // shape and the same argument as BANK_MAX_PAGES above.
+      const ANS_MAX_PAGES = 100;
+      let after: unknown = null;
+      let pages = 0;
+      for (;;) {
+        const page = await getDocs(query(
+          collection(db, "v2_users", uidA, "answers"),
+          orderBy(documentId()),
+          ...(after ? [startAfter(after)] : []),
+          limit(ANS_PAGE),
+        ));
+        page.docs.forEach(fold);
+        fetched += page.size;
+        pages += 1;
+        if (page.size < ANS_PAGE) break;
+        if (pages >= ANS_MAX_PAGES) {
+          reportError(new Error(
+            `answer paging hit ANS_MAX_PAGES (${ANS_MAX_PAGES} x ${ANS_PAGE}) — truncated at ${fetched} answers`,
+          ), { where: "hydrate.answerPaging" });
+          break;
+        }
+        after = page.docs[page.docs.length - 1];
+      }
+    }
+    state.stats.answersFetched = fetched;
     // D86 made one field mutable, so the incremental pull gained a second
     // cursor: an edit moves optionIdx WITHOUT moving answeredAt (the
     // cohort stamp is frozen), so a cache warmed before the edit would
@@ -1329,8 +1599,13 @@ async function hydrate(): Promise<void> {
   const uid0 = state.uid;
   if (uid0) {
     try {
-      const prof = await getDoc(doc(db, "v2_users", uid0));
-      if (prof.exists()) {
+      // Started at the top of hydrate — see the note there. Re-read here
+      // only if the uid changed under us between then and now, which the
+      // auth flip can do.
+      const prof = uid0 === uidEarly && profileP
+        ? await profileP
+        : await getDoc(doc(db, "v2_users", uid0));
+      if (prof && prof.exists()) {
         state.profile.displayName = (prof.get("displayName") as string) || "";
         state.profile.handle = (prof.get("handle") as string) || "";
         state.profile.testResults =
@@ -1353,6 +1628,13 @@ async function hydrate(): Promise<void> {
     // Live mode shows only REAL results: purge the demo's baked test
     // results and rebuild from server + this device's saves.
     publishTestResults();
+    // …and then publish anything the viewer's own answers have already
+    // earned (D277). Fire-and-forget: an account that has answered enough
+    // test cards should not have to answer one MORE to get a stored
+    // result, which is what hanging this on the vote path alone would
+    // mean for every user who already cleared the threshold. state.feedBank
+    // is loaded well before this point, so the fold has its items.
+    LIVE.syncPassiveResults();
   }
 
   // Other people's names and scores, from this account's previous sessions
@@ -1531,6 +1813,10 @@ function buildFeedGlobals(): void {
         // band, and the same fact in two shapes on one card reads as two
         // facts.
         ...(!q.sponsor && q.from && q.until ? { from: q.from, until: q.until } : {}),
+        // The background the card's `i` opens (D281). Emit-when-set: the
+        // feed reads `q.bg` first and falls back to the demo pool's map,
+        // so a card without one keeps exactly the sheet it had.
+        ...(q.bg ? { bg: q.bg } : {}),
         // Doors (docs/TAGS-PLAN.md §2): the topics this card also belongs
         // to. The feed's filter, stock and search read cat ∪ also; nothing
         // that PLACES the card does. Emit-when-set, same rule as sponsor.
@@ -1551,6 +1837,13 @@ function buildFeedGlobals(): void {
         prompt: q.prompt,
         options: q.options.map((label, i) => ({ label, count: counts[i] })),
         live: true,
+        // Carried for the same reason every other mapping above carries it,
+        // and it was the one mapping that did not: below the floor there is
+        // no split to draw, and `renderVote` reads exactly this flag to
+        // decide between the tiles (whose height IS the share) and the bars
+        // that degrade honestly. Without it a test item nobody has answered
+        // drew a five-way stack of zeroes as though that were a measurement.
+        noCountsYet: !hasPublishedCounts(state.aggs[q.id]),
       };
     });
   // The feed pool, in bank order (D173 retired D128's stated weights).
@@ -1565,9 +1858,21 @@ function buildFeedGlobals(): void {
   // 25 Big Five, then 30 Politics, then 30 Values, then 25 Social — and a
   // real account filled one bar while three sat at zero. The demo pool
   // never had this: spec/test-feed-data.js interleaves as it builds.
-  (window as unknown as Record<string, unknown>).TEST_FEED_QS =
-    roundRobinBy(tests, (q) => String(q.test || ""));
-  (window as unknown as Record<string, unknown>).WORLD_FEED_COMMENTS = {};
+  //
+  // PUBLISHED BY NAME, not onto `window` (D280). This write was a cast the
+  // shared-global scanner cannot see, so when D249 converted the feed's
+  // reader to a static import of the DEMO pool the two ends stopped
+  // meeting and every gate stayed green — see data/testFeed.ts for what
+  // that shipped.
+  publishTestFeed(roundRobinBy(tests, (q) => String(q.test || "")));
+  // WORLD_FEED_COMMENTS was blanked here as D11's second layer — no take
+  // data behind the render gate, in case the gate ever opened. D249 took
+  // its last reader off the bridge too, so this write has had no effect
+  // since; a no-op that reads as a safeguard is worse than no safeguard,
+  // because it is the safeguard people stop checking. The layer that
+  // actually holds is `renderEngage`'s `if (q.live)` early return, and it
+  // holds for test cards now that they arrive carrying the flag —
+  // asserted in the DOM by smoke-live rather than argued for here.
   LIVE.feedReady = true;
 }
 
@@ -2316,6 +2621,13 @@ function presenceBeat(cell?: string): Promise<void> {
   // beating once more before a timer notices. Tear the loop down and
   // delete the doc — "stop being visible" must not wait for the server's
   // own expiry to catch up.
+  // deleteAccount sets `torndown` as its first statement, and the server
+  // deletes v2_presence/{uid} as part of the sweep. Without this guard a
+  // beat already scheduled — the interval, or a visibilitychange — can
+  // land after that delete and WRITE THE CELL BACK, for an account that no
+  // longer exists. Every other queued writer in this file already checks
+  // it; presence was the one that did not.
+  if (torndown) return Promise.resolve();
   if (nearMode() === "off" && nearState.timer) { void LIVE.near.disable(); return Promise.resolve(); }
   if (!nearOptedIn() || !LIVE.enabled) return Promise.resolve();
   if (typeof document !== "undefined" && document.hidden) return Promise.resolve();
@@ -2541,6 +2853,36 @@ function takeFromDoc(id: string, d: Record<string, unknown>): TakeDoc {
 
 declare const __APP_BUILD__: number;
 
+/**
+ * The viewer's own answers among the questions the nightly fit folds —
+ * the second half of D265's gate.
+ *
+ * perRev, and the reason is which users pay for it. `usePatternsTab`
+ * (spec/app-shell.jsx) subscribes to the store ONLY while the gate is
+ * shut and drops the subscription the moment it opens, so this walk runs
+ * on every notify() for exactly the people who have not earned the tab
+ * yet — new accounts, the ones for whom the app should feel fastest —
+ * and never again afterwards. Two whole banks per notify (the daily bank
+ * plus `feedBank`, which docs/SCALE-PLAN.md makes the collection that
+ * grows without bound) to recompute a number that cannot have moved
+ * without a notify().
+ *
+ * Same argument as `testFeedItems` and `kindredPeople` above: notify() is
+ * the only way a store change reaches a renderer, so a value computed at
+ * rev N is correct until the next one by construction. Returns a number,
+ * so the shared-array condition in the perRev block does not apply.
+ */
+const patternsMine = perRev((): number => {
+  let mine = 0;
+  for (const q of state.questions) {
+    if (state.votes[q.id] !== undefined && patternsEligible(q)) mine += 1;
+  }
+  for (const q of state.feedBank) {
+    if (state.votes[q.id] !== undefined && patternsEligible(q)) mine += 1;
+  }
+  return mine;
+});
+
 const LIVE = {
   social: SOCIAL,
   near: NEAR,
@@ -2650,7 +2992,13 @@ const LIVE = {
     state.votersLoading[qid] = true;
     try {
       const db = await getDb();
-      state.voters[qid] = await fetchVoters(db, qid, state.uid, state.names, state.scores, state.logicPcts);
+      // SORTED HERE, once, rather than on every read. Both keys the
+      // comparator uses — `isMe` and the resolved `name` — are fixed when
+      // the rows are built and never revised afterwards, so the order the
+      // list will ever have is knowable now.
+      state.voters[qid] = sortVoters(
+        await fetchVoters(db, qid, state.uid, state.names, state.scores, state.logicPcts),
+      );
       saveProfileCache();
     } catch (err) {
       // Leave the key ABSENT rather than caching an empty list. The two
@@ -2839,18 +3187,51 @@ const LIVE = {
   // question whose sheet has been opened costs nothing here, and the
   // names are resolved once into the shared cache for both surfaces.
   //
-  // Bounded at KINDRED_QUESTIONS of the viewer's OWN most recent answers.
-  // Likeness over 12 shared questions is already a legible claim, and the
-  // cost is linear in that number — an unbounded version would fan out
-  // over every question the account has ever answered, on a screen the
-  // user may open casually.
+  // Bounded at KINDRED_QUESTIONS of the viewer's own answers, CHOSEN
+  // rather than inherited (D277 §2). The bound itself is the affordable
+  // part and is not what changed: likeness over 12 shared questions is a
+  // legible claim, and an unbounded version would fan out over every
+  // question the account has ever answered, on a screen opened casually.
+  //
+  // WHICH TWELVE was the bug. This read
+  //
+  //     Object.keys(state.votes).filter(…).slice(0, KINDRED_QUESTIONS)
+  //
+  // under a comment claiming "the viewer's OWN most recent answers", and
+  // D112 recorded the pool as recency-biased on the same belief. Neither
+  // was true: Object.keys is insertion order, hydrate assigns the
+  // persisted cache FIRST (the answers-cache block above), the warm delta
+  // query carries an inequality with no orderBy, and new votes append at
+  // the tail — and re-assigning a key that already exists does not move
+  // it. So the twelve froze at whatever the first cold boot happened to
+  // put first and never moved again, and the two boot paths disagree, so
+  // the same account ranked strangers differently on a second device.
+  //
+  // Recency is not the replacement either, and cannot be: the vote map
+  // carries no timestamps. peopleMap.ts:124-130 already reached this
+  // conclusion for the sibling surface — "Recency would match Kindred's
+  // choice but the client vote map carries no timestamps" — while this
+  // file's comment claimed the recency it could not have.
+  //
+  // DIVISIVENESS is the honest choice and a better one than recency ever
+  // was. Agreeing on a question 95% of people answer the same way is
+  // nearly no evidence; agreeing on a 50/50 split is a lot. cohort.ts has
+  // measured that as `divisiveness` since D99 and nothing has ever used
+  // it to pick anything. Every input is already resident — hydrate tops up
+  // aggregates for answered questions (AGG_ID_CAP 120) — so this costs one
+  // sort and no read.
+  //
+  // Non-integer votes are dropped in the same pass. A catalog answer
+  // stores an entity id and a rank answer a joined order (see the fold in
+  // hydrate), both on `surface: "feed"`, which IS in WORLD_ANSWER_SURFACES
+  // — so those qids issued a collection-group query, got documents back,
+  // and voters.ts discarded every row for want of a numeric optionIdx.
+  // Up to a quarter of the twelve slots bought an empty list.
   async loadKindred(): Promise<void> {
     if (state.kindredLoading) return;
     state.kindredLoading = true;
     try {
-      const qids = Object.keys(state.votes)
-        .filter((id) => !id.startsWith("g_"))
-        .slice(0, KINDRED_QUESTIONS);
+      const qids = pickKindredQids(state.votes, divisivenessOf, KINDRED_QUESTIONS, storesOptionIdx);
       // Sequential rather than parallel on purpose: each call is a
       // collection-group query, most of them are cache hits after the
       // first surface has run, and firing twelve at once at boot-adjacent
@@ -2858,7 +3239,11 @@ const LIVE = {
       for (const qid of qids) {
         if (!state.voters[qid]) await this.loadVoters(qid);
       }
-      state.kindredAt = qids.length;
+      // Counted from what actually LANDED, not from what was asked for:
+      // loadVoters swallows its own failure (reportError, then the list
+      // stays unset), so the old line reported twelve to the caption after
+      // twelve failed queries.
+      state.kindredAt = qids.filter((id) => state.voters[id]).length;
     } catch (err) {
       reportError(err, { where: "loadKindred" });
     } finally {
@@ -2893,14 +3278,87 @@ const LIVE = {
     return Object.keys(theirs)
       .map((uid) => ({ uid, name: state.names[uid] || "", like: agreement(mine, theirs[uid]) }))
       .filter((p) => p.like.shared >= minShared)
-      // Most alike first; more shared questions breaks a tie, because a
-      // 100% over two questions is a weaker claim than 80% over ten.
-      .sort((a, b) => b.like.pct - a.like.pct
+      // Most alike first, on the confidence-bounded rate rather than the
+      // raw percentage (D277 §2). The old comment here had the reasoning
+      // right — "a 100% over two questions is a weaker claim than 80% over
+      // ten" — and the wrong key: with pct FIRST, `shared` only ever broke
+      // a tie between two people who already had the same percentage, so
+      // the 100%-of-two still headed the list. `rate` is what makes the
+      // sentence true. `pct` is still what gets printed.
+      .sort((a, b) => b.like.rate - a.like.rate
         || b.like.shared - a.like.shared
         || a.uid.localeCompare(b.uid));
   },
   kindredLoading(): boolean {
-    return state.kindredLoading;
+    return state.kindredLoading || state.cityKindredLoading;
+  },
+  // ── the city half of the pool (D278) ──────────────────────────────
+  //
+  // THE BUG THIS CLOSES is recall, and it is the one D112 recorded as
+  // known limit 1 and priced only for cost. `loadKindred` asks each
+  // question for the newest VOTER_FETCH_CAP answers from ANYWHERE, and
+  // the City constellation then filters them to your city on the device.
+  // With a city holding 2% of active users, ~4 of every 200 rows survive
+  // that filter — and because the cap binds BEFORE the filter, the number
+  // of reachable city-mates saturates around 50 however large the city
+  // gets. Modelled: at 100k users the ring is choosing its twelve from
+  // 2.6% of your city, and the chance the single closest person is even a
+  // candidate is 23%.
+  //
+  // The city is already ON the answer (`anchors.city`, frozen at vote
+  // time, D8 — the same field the aggregate folds and `kindredPeople`
+  // reads back), so the fix is to ask for it rather than to ask for more:
+  // same twelve questions, same 200-row cap, same rows read, ~50× the
+  // usable rows. Modelled at the same 100k: reachable city-mates 51 →
+  // 1,387, top-1 recall 23% → 90%.
+  //
+  // AN ADDITIONAL PASS, not a replacement, and that is the cost. The
+  // People lens ranks strangers from anywhere (it takes a `scope` and
+  // does not filter on it), so narrowing the shared pool would silently
+  // turn "everyone" into "everyone in your city". So this is a second
+  // read: +12 collection-group queries of ≤200 rows, once per session,
+  // and only for a viewer who has a city and opened the stop that draws
+  // it. Name and score resolution is mostly free on top — the same faces
+  // recur across a city's twelve lists and the profile cache is
+  // disk-backed (D129).
+  //
+  // Not paging, deliberately (the D101 rule is satisfied, not bypassed):
+  // the cap is unchanged and no cursor is walked. What changes is WHICH
+  // 200, which is a different lever from HOW MANY — and it is the lever
+  // that pays, because paging is linear in reads while this is free.
+  async loadCityKindred(): Promise<void> {
+    const city = this.myCity;
+    if (!this.enabled || !city || state.cityKindredLoading) return;
+    // The anchor can change (a move, a corrected city). Keyed rather than
+    // guarded by a boolean so the pool refetches for the new city instead
+    // of serving the old one forever.
+    if (state.cityVotersAt === city) return;
+    state.cityKindredLoading = true;
+    notify();
+    try {
+      const db = await getDb();
+      const qids = pickKindredQids(state.votes, divisivenessOf, KINDRED_QUESTIONS, storesOptionIdx);
+      const next: Record<string, Voter[]> = {};
+      // Sequential, for the reason loadKindred is: twelve collection-group
+      // queries fired at once is the shape that gets a client rate-limited.
+      for (const qid of qids) {
+        try {
+          next[qid] = await fetchVoters(db, qid, state.uid, state.names, state.scores, state.logicPcts, city);
+        } catch (err) {
+          // One question failing must not cost the other eleven. Absent
+          // rather than empty, the loadVoters rule.
+          reportError(err, { where: "loadCityKindred", qid });
+        }
+      }
+      state.cityVoters = next;
+      state.cityVotersAt = city;
+      saveProfileCache();
+    } catch (err) {
+      reportError(err, { where: "loadCityKindred" });
+    } finally {
+      state.cityKindredLoading = false;
+      notify();
+    }
   },
 
   // ── the follow graph and the Circle stop (D101) ──
@@ -3236,7 +3694,12 @@ const LIVE = {
     }
     const theirs: Record<string, Record<string, number>> = {};
     const anchors: Record<string, Record<string, string>> = {};
-    for (const [qid, rows] of Object.entries(state.voters)) {
+    // Both halves of the pool (D278). The city pass and the unscoped pass
+    // overlap heavily — a city-mate near the top of a question's newest
+    // 200 is in both — and the inner loop is idempotent per (uid, qid), so
+    // the union needs no dedupe of its own.
+    const pools = [...Object.entries(state.voters), ...Object.entries(state.cityVoters)];
+    for (const [qid, rows] of pools) {
       for (const r of rows) {
         if (r.uid === state.uid) continue;
         (theirs[r.uid] || (theirs[r.uid] = {}))[qid] = r.optionIdx;
@@ -3265,8 +3728,25 @@ const LIVE = {
 
   // null while unfetched or failed; an array (possibly empty) once known.
   voters(qid: string): Voter[] | null {
-    const rows = state.voters[qid];
-    return rows ? sortVoters(rows) : null;
+    // The STORED array, already ordered (loadVoters sorts once). This used
+    // to copy and re-sort on every read, and the comparator reaches
+    // `localeCompare` for the common pair, so the cost is not nominal:
+    // `PatternsPeople` asks for all PEOPLE_QUESTIONS lists inside a memo
+    // that re-runs on every notify, and `foldPeople` is order-independent,
+    // so every one of those sorts was thrown away.
+    //
+    // A shared array, so the perRev block's condition applies: safe only
+    // while no consumer mutates what it gets back. The three live callers
+    // — LiveTakesPanel's `sideOf` fold, LiveBreakdownPanel, and
+    // PatternsPeople (which takes it as `readonly`) — all read only, and
+    // `votersByOption` below re-sorts fresh arrays out of `groupByOption`.
+    // A future caller that sorts in place would reorder everybody else's,
+    // so sort a copy.
+    //
+    // The stable identity is a second win rather than an accident:
+    // LiveTakesPanel memoises `sideOf` on this value, and a fresh array per
+    // render meant that memo could never hit.
+    return state.voters[qid] || null;
   },
   // The same list, split into one column per option. optionCount comes
   // from the question rather than the data, so an option nobody picked
@@ -3302,8 +3782,8 @@ const LIVE = {
   },
 
   lensAgg(qid: string): { counts: number[]; noCountsYet: boolean } | null {
-    const q = state.feedBank.find((x) => x.id === qid && x.surface === "test");
-    if (!q) return null;
+    const q = feedById(qid);
+    if (!q || q.surface !== "test") return null;
     return { counts: feedCounts(q), noCountsYet: !hasPublishedCounts(state.aggs[qid]) };
   },
   // The anchors the profile has collected, as a plain map. Empty until the
@@ -3353,6 +3833,75 @@ const LIVE = {
         reportError(err, { where: "saveTestResult" });
       }
     })();
+  },
+  // ── the passive fold, persisted (D277) ────────────────────────────
+  //
+  // D112 recorded as known limit 2 that a person's own passive feed
+  // answers never reach their STORED result, and sidestepped it by
+  // folding the viewer's answers directly wherever the viewer's own vector
+  // was needed. D121 then deleted the sit-down flow — the only writer
+  // `testResults` ever had — and the limit quietly became a hole: with
+  // nothing writing the four core keys, `state.scores[uid]` parses to
+  // null for EVERY candidate, `rankKindred`'s score tier can never fire,
+  // and the City ring that D112 specified as "ranked primarily by test
+  // scores" ranks entirely on answer agreement instead. Two comments in
+  // the tree already say the writer is gone (passive-meter.jsx,
+  // passiveProfile.ts); neither noticed that the person-to-person half of
+  // D112 went with it.
+  //
+  // NOTHING NEW IS COMPUTED HERE. `passiveResult` already emits the shape
+  // the sit-down flow wrote — `dims: [{ id, label, value }]`, which is
+  // exactly what `parseTestResults` reads back off a stranger profile —
+  // and already refuses an instrument with any axis under MIN_AXIS_ITEMS.
+  // So what publishes is precisely what D121 decided had earned the right
+  // to be called a result; this only stops throwing it away.
+  //
+  // A STORED RESULT ALWAYS WINS. A pre-D121 sit-down result is a finished
+  // instrument and this fold is an estimate of the same thing from fewer
+  // answers, so only an absent key — or one this fold wrote before, which
+  // `passive: true` marks — is ever moved. result-card.jsx's `ownResult`
+  // makes the same call for the same reason.
+  //
+  // STATIC IMPORTS, and that is measured rather than assumed. The worry
+  // was the entry graph — check:bundle records MAX_EAGER_KB as having no
+  // headroom — but both modules are already in it: `test-definitions.js`
+  // arrives through `daily-split.jsx`, which spec-index.js imports eagerly
+  // (line 113, above the loadWorldFeed deferrals), and `passiveProfile.ts`
+  // pulls only `similarity.ts`, which `voters.ts` already imports
+  // statically for parseTestResults. So the honest cost here is this
+  // module's own body and nothing else.
+  syncPassiveResults(): void {
+    if (!this.enabled || !state.uid) return;
+    try {
+      const defs = IS_TESTS as TestDefs;
+      const items = this.testFeedItems();
+      const votes = voteIndices(state.votes);
+      let wrote = false;
+      for (const kind of CORE_TEST_KINDS) {
+        const def = defs[kind];
+        if (!def) continue;
+        const stored = state.profile.testResults[kind] as { passive?: boolean } | undefined;
+        if (stored && !stored.passive) continue;
+        const next = passiveResult(
+          passiveTest(kind, def, items, defs, votes),
+          def.title || kind,
+        );
+        if (!next) continue;
+        // The fold re-runs on every test answer and most answers do not
+        // move a rounded axis value, so an unchanged result must not buy a
+        // profile write. Comparing the serialised doc is the cheap version
+        // of "did anything a reader could see change".
+        if (stored && JSON.stringify(stored) === JSON.stringify(next)) continue;
+        this.saveTestResult(kind, next);
+        wrote = true;
+      }
+      // Only when something moved: publishTestResults dispatches to every
+      // consumer holding the results object, and an event that changes
+      // nothing is a re-render nobody asked for.
+      if (wrote) publishTestResults();
+    } catch (err) {
+      reportError(err, { where: "syncPassiveResults" });
+    }
   },
   async linkGoogle(): Promise<void> {
     return linkGoogle();
@@ -3485,15 +4034,28 @@ const LIVE = {
    * No new read. Every aggregate here was already fetched and cached for
    * the card that displayed it; this is the same map, walked rather than
    * indexed.
+   *
+   * perRev (D169), because the walk is not free and every caller is on a
+   * render path: it builds a whole `LiveQuestion` per surviving question,
+   * each with its own mapped `options` array. `LiveCohortBody` folds it
+   * twice per render of a Mirror stop, `LiveCircleBody` and `LiveReadGame`
+   * once each, and `PATTERNS.pool()` (data/patterns.ts) two to four times
+   * per render of the Patterns tab — while `patternsSignal()`'s note below
+   * cites exactly this cost as the reason IT walks the banks directly.
+   *
+   * `now` is captured per fold, and freezing it across a revision changes
+   * nothing: `back` is null here, so `buildS` never reaches `dayLabel` and
+   * the date is unused. The shared-array condition applies as ever — the
+   * four callers `.filter()`, `.map()`, spread or iterate, none mutate.
    */
-  aggregated(): LiveQuestion[] {
+  aggregated: perRev((): LiveQuestion[] => {
     const now = new Date();
     return state.questions
       .filter((q) => q.active !== false && hasPublishedCounts(state.aggs[q.id]))
       // No `back`, so no day label: these come from any day and a pager
       // label on them would be a guess (deck.ts's buildS takes null).
       .map((q) => buildSPure(q, null, voteCtx(q.id), now));
-  },
+  }),
   /**
    * The core feed questions with a published aggregate, as the same view
    * models — the Patterns pool's other half (the nightly fit folds
@@ -3505,13 +4067,13 @@ const LIVE = {
    * Same walk as aggregated(): every aggregate here is already cached for
    * the feed card that displayed it, so this is no new read.
    */
-  coreFeedAggregated(): LiveQuestion[] {
+  coreFeedAggregated: perRev((): LiveQuestion[] => {
     const now = new Date();
     return state.feedBank
       .filter((q) => q.surface === "feed" && isCore(q) && q.active !== false
         && (q.options || []).length === 2 && hasPublishedCounts(state.aggs[q.id]))
       .map((q) => buildSPure(q, null, voteCtx(q.id), now));
-  },
+  }),
   /**
    * What the Patterns tab's mount gate reads (D265) — the crowd's number
    * as the nightly fit published it, and the viewer's own answers among
@@ -3537,14 +4099,7 @@ const LIVE = {
    */
   patternsSignal(): PatternsSignal {
     if (!this.enabled) return {};
-    let mine = 0;
-    for (const q of state.questions) {
-      if (state.votes[q.id] !== undefined && patternsEligible(q)) mine += 1;
-    }
-    for (const q of state.feedBank) {
-      if (state.votes[q.id] !== undefined && patternsEligible(q)) mine += 1;
-    }
-    return { pool: state.meta.patternsPool, basis: state.meta.patternsBasis, mine };
+    return { pool: state.meta.patternsPool, basis: state.meta.patternsBasis, mine: patternsMine() };
   },
   // ── Learn (D32) ──
   // The first attempt on a learn card is a plain world answer; the
@@ -3778,7 +4333,7 @@ const LIVE = {
     }
     return state.deckIds
       .map((qid, back) => {
-        const q = state.questions.find((x) => x.id === qid);
+        const q = dailyById(qid);
         // `active` is checked HERE, not when the bank is split — see the
         // tombstone note in hydrate(). A retired question drops out of the
         // pager without moving the days around it.
@@ -4075,8 +4630,8 @@ const LIVE = {
         const uid = state.uid;
         if (!uid) throw new Error("no session");
         const q =
-          state.questions.find((x) => x.id === qid) ||
-          state.feedBank.find((x) => x.id === qid) ||
+          dailyById(qid) ||
+          feedById(qid) ||
           // A call is voted through this same path (its answer doc has the
           // world shape), so it has to be findable here or the write would
           // claim `surface: "daily"` and rules would refuse it.
@@ -4116,6 +4671,11 @@ const LIVE = {
             engagement.noteQid(qid, "a");
           }
         }
+        // A test answer can move an axis, and an axis can cross
+        // MIN_AXIS_ITEMS (D277). On the ACK rather than the tap, like the
+        // two counters above: a refused create must not publish a result
+        // built on an answer the server rejected.
+        if (q?.surface === "test") LIVE.syncPassiveResults();
         notify(); // confirmedVotes() changed — let persistent records (the Map) pick it up
         scheduleAggRefresh(db, qid);
       } catch (err) {
@@ -4162,7 +4722,7 @@ const LIVE = {
         const db = await getDb();
         const uid = state.uid;
         if (!uid) throw new Error("no session");
-        const q = state.feedBank.find((x) => x.id === qid);
+        const q = feedById(qid);
         await setDoc(doc(db, "v2_users", uid, "answers", qid), {
           qid,
           surface: q?.surface ?? "feed",
@@ -4209,7 +4769,7 @@ const LIVE = {
    */
   voteRank(qid: string, order: number[]): void {
     if (state.votes[qid]) return; // one answer per question, mirroring rules
-    const q = state.feedBank.find((x) => x.id === qid);
+    const q = feedById(qid);
     if (q?.type !== "rank") return;
     const n = q.options.length;
     if (!Array.isArray(order) || order.length !== n || n < 2) return;
@@ -4277,7 +4837,7 @@ const LIVE = {
     // entity or order answer never does, so the write below is doomed for
     // both. Neither card offers an edit affordance — this mirror spares
     // the round-trip if a future surface calls in anyway.
-    const editType = state.feedBank.find((x) => x.id === qid)?.type;
+    const editType = feedById(qid)?.type;
     if (editType === "catalog" || editType === "rank") return false;
     const optionIdx = Number(optionId);
     if (!Number.isInteger(optionIdx) || optionIdx < 0) return false;
@@ -4323,7 +4883,7 @@ const LIVE = {
             // was D218's rarest door in. The raw drag the mirror held is
             // gone (only the feed ever knew it) — the standing bucket's
             // midpoint is the closest the doc can testify to.
-            const q = state.feedBank.find((x) => x.id === qid);
+            const q = feedById(qid);
             const mv = q ? mirrorVoteValue(q, prev) : null;
             wf[qid] = mv != null ? mv : Number(prev);
             localStorage.setItem(WF_LS, JSON.stringify(wf));
@@ -4416,6 +4976,9 @@ function resetForNewUid(uid: string): void {
   }
   state.kindredLoading = false;
   state.kindredAt = 0;
+  state.cityVoters = {};
+  state.cityVotersAt = "";
+  state.cityKindredLoading = false;
   state.similarityLoading = false;
   // state.aggs was dropped above, so the test-item top-up has to run
   // again for the new account.
@@ -4462,6 +5025,34 @@ function resetForNewUid(uid: string): void {
   // The presence loop is the old account's opt-in (D84); the flag store's
   // purge listener clears the choice, this clears the machinery.
   stopPresence();
+  // The DOCUMENT is deliberately not deleted here, and that is a limit
+  // rather than an oversight — worth writing down, because the obvious
+  // fix is the one that does not work.
+  //
+  // The cell really does outlive the switch: it keeps the outgoing account
+  // in its ~200 m grid square for up to PRESENCE_LINGER_MS, counted by
+  // nearbyCountV2 and listed with its archetype by nearbyRoomV2. So
+  // `deleteDoc(v2_presence/{prevUid})` from here reads like the same move
+  // NEAR.disable() makes under "stop sharing must not wait for a freshness
+  // window to expire".
+  //
+  // It cannot be. This function runs from the subscribeToAuth callback,
+  // which fires AFTER the SDK has switched currentUser to the incoming
+  // account — so the write is signed by the new uid, and
+  // /v2_presence/{uid} is `allow delete: if request.auth.uid == uid`. The
+  // rules refuse it. Measured on the emulator: the outgoing account
+  // deleting its own cell succeeds, the incoming account deleting the
+  // outgoing one's is denied. Issuing it anyway buys nothing and costs a
+  // permission-denied report on every switch.
+  //
+  // Nor is there a moment to do it earlier: every path that changes the
+  // uid in-process (a lost anonymous session, a Google link that resolves
+  // to an existing account) has already lost the outgoing credentials by
+  // the time anything here observes the change. A real fix is server-side.
+  // What bounds the exposure meanwhile is `until`, capped at
+  // PRESENCE_LINGER_MIN in the rules and honoured by nearbyCountV2 — and
+  // account DELETION, the case that matters most, is swept by
+  // deleteAccount rather than left to this path at all.
   setSentryUser(uid);
   notify();
   void refreshLive().catch((err) => reportError(err, { where: "refreshLive.uidChange" }));
@@ -4784,6 +5375,22 @@ export function _aggPollForTest(): { running: boolean; tick: () => Promise<void>
   return {
     running: aggPollTimer !== null,
     tick: () => refreshAggs(state.deckIds.slice(0, 1)),
+  };
+}
+
+// Exported for the test, for the same reason `_aggPollForTest` is: the
+// whole claim of the post-vote coalescing is that a burst arms ONE timer
+// and drains ONE set, and an armed timer looks identical to an unarmed one
+// until something asks. `drain()` runs exactly what the timer body runs.
+export function _aggRefreshForTest(): {
+  armed: boolean;
+  pending: string[];
+  drain: (db: Parameters<typeof drainAggRefresh>[0]) => Promise<void>;
+} {
+  return {
+    armed: aggRefreshTimer !== null,
+    pending: [...pendingAggRefresh],
+    drain: (db) => drainAggRefresh(db),
   };
 }
 

@@ -1,6 +1,6 @@
 // Does every answer-creating write still carry the fields replay reads?
 //
-// WHY THIS EXISTS. D275 records that `v2_users/{uid}/answers/{qid}` is the
+// WHY THIS EXISTS. D290 records that `v2_users/{uid}/answers/{qid}` is the
 // source of truth and every aggregate is a disposable projection rebuilt
 // from it. That is only true while the answer document keeps carrying what
 // the fold slices by — above all the `anchors` snapshot (D8), which exists
@@ -8,7 +8,7 @@
 // its anchors can never have them reconstructed: the cohort it was cast in
 // is simply gone.
 //
-// D275's closing sentence says exactly that and nothing enforced it, which
+// D290's closing sentence says exactly that and nothing enforced it, which
 // is the shape of failure this repo keeps recording (D35's label gate,
 // D39's figures gate): a promise living in prose while every gate stays
 // green. Trim `anchors` from a payload to save a write and nothing here
@@ -162,7 +162,7 @@ if (!/\.get\(\s*["']anchors["']\s*\)/.test(consumer)) {
 }
 
 if (problems.length) {
-  console.error("\ncheck-answer-shape: the answer document is the source of truth (D275),");
+  console.error("\ncheck-answer-shape: the answer document is the source of truth (D290),");
   console.error("and something stopped carrying what a rebuild reads:\n");
   for (const p of problems) console.error("  " + p);
   console.error(

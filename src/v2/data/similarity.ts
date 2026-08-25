@@ -310,9 +310,62 @@ export function parseLogicPct(raw: unknown): number | null {
  */
 export const MIN_PLACE_AXES = 3;
 
+/**
+ * Pseudo-axes of prior, and the gap they carry — the shrinkage that stops
+ * the thinnest comparison winning every list (D277 §2).
+ *
+ * THE BIAS. `match` divided the summed gap by the candidate's OWN
+ * intersection size, then the sort ranked candidates against each other on
+ * the result. A mean of three draws is far noisier than a mean of
+ * twenty-two, and the TOP of a ranked list is exactly where noise
+ * accumulates — so the person shown as most like you was, structurally,
+ * the person you shared fewest axes with. Simulated over 200 candidates
+ * with ZERO true similarity and axes drawn N(50, 15), the top score by
+ * intersection width 3 / 5 / 8 / 12 / 16 / 22 came out:
+ *
+ *     97.6  95.3  93.2  91.6  90.5  89.6      (no prior — an 8.0 spread)
+ *     87.9  88.7  88.8  88.8  88.4  88.2      (AXIS_PRIOR 6 — 0.9)
+ *
+ * λ = 6 is the flattest of the values tried (3 → 1.9, 10 → 1.3); it is
+ * also one instrument's worth of axes, which is the unit `minAxes` already
+ * counts in. TYPICAL_AXIS_GAP is E|X − Y| for two independent N(50, 15)
+ * draws — 15·√2·√(2/π) = 16.93 closed form, 17.16 simulated with the 0..100
+ * clamp the parser applies. The app's own assumed population: IS_TEST_AVG
+ * is the per-axis mean and archetype-data measures around it at ±15.
+ *
+ * The result is an empirical-Bayes posterior mean: a wide comparison is
+ * barely moved, a thin one is pulled most of the way to the population's
+ * ordinary gap. It cannot invert the metric — at equal width, a smaller
+ * gap still scores higher — it only stops width itself being worth points.
+ */
+export const AXIS_PRIOR = 6;
+export const TYPICAL_AXIS_GAP = 17;
+
 export interface ScoreMatch {
-  /** 100 − mean |gap| across shared axes, 0..100. */
+  /**
+   * 100 − mean |gap| across shared axes, 0..100. The PRINTED number, and
+   * unchanged by D277: it is exactly the sentence D112 chose it for, and
+   * it is what the constellation's radius encodes.
+   */
   match: number;
+  /**
+   * SORT KEY ONLY, never printed and never drawn — the same comparison
+   * with AXIS_PRIOR pseudo-axes of prior folded in, and unrounded.
+   *
+   * The `cohort.likenessRate` split, one metric over: `match` is the
+   * explainable number, this is the one that decides who goes first. Two
+   * things were wrong with ranking on `match` — the width bias above, and
+   * rounding, which collapses a pool onto ~20 integers and sent a large
+   * tied block to `uid.localeCompare` to be crowned alphabetically.
+   *
+   * NOT the drawn number, deliberately. Shrinking the radius would pull a
+   * perfect match from the ring's inner bound (44 px) to 52 and the exact
+   * opposite from 138 to 95 — the field would lose most of its spread, and
+   * the spread is the reading. What the shrinkage is FOR is deciding which
+   * twelve people the field draws at all (CITY_FIELD_CAP), which is where
+   * the bias actually bit.
+   */
+  raw: number;
   /** Shared axes the mean ran over. */
   axes: number;
   /** Instruments that contributed (person-to-person only). */
@@ -333,6 +386,10 @@ export function flattenAxes(byTest: ParsedResults): Record<string, number> {
  * average gap between your scores and theirs, across every axis you both
  * have. Same property `agreement` (cohort.ts) was chosen for — a number
  * on a screen that names someone must survive being explained to them.
+ *
+ * That sentence is `match`, and D277 §2 left it alone. What it added is
+ * `raw` beside it: the same comparison with a prior, used for the ORDER
+ * and for nothing a reader sees. See AXIS_PRIOR for the bias that needed.
  */
 export function scoreMatch(
   mine: Readonly<Record<string, number>>,
@@ -351,7 +408,73 @@ export function scoreMatch(
     if (colon > 0) tests.add(k.slice(0, colon));
   }
   if (axes < Math.max(1, minAxes)) return null;
-  return { match: Math.round(100 - gap / axes), axes, tests: tests.size };
+  return {
+    match: Math.round(100 - gap / axes),
+    raw: 100 - (gap + AXIS_PRIOR * TYPICAL_AXIS_GAP) / (axes + AXIS_PRIOR),
+    axes,
+    tests: tests.size,
+  };
+}
+
+// ── which questions the ranking runs over ────────────────────────────
+
+/**
+ * Choose the questions Kindred compares people across — most divisive
+ * first (D277 §2).
+ *
+ * THE BUG THIS REPLACES was a `.slice(0, cap)` over `Object.keys(votes)`,
+ * under a comment claiming "the viewer's OWN most recent answers" — a
+ * claim D112 repeated when it recorded the pool as recency-biased. Object
+ * key order is insertion order, the store assigns its persisted cache
+ * before the delta query, the delta query carries no `orderBy`, and
+ * re-assigning an existing key does not move it. So the set froze at
+ * whatever the first cold boot put first and never moved again, and the
+ * two boot paths disagree — the same account ranked strangers differently
+ * on a second device.
+ *
+ * RECENCY IS NOT THE REPLACEMENT, because it cannot be: the vote map
+ * carries no timestamps. peopleMap.ts had already reached that conclusion
+ * for the sibling surface while this one claimed the recency it could not
+ * have.
+ *
+ * DIVISIVENESS is the better key anyway. Agreeing on a question 95% of
+ * people answer the same way is nearly no evidence about two people;
+ * agreeing on a 50/50 split is a great deal. `divisiveness` has measured
+ * exactly that since D99 and had never been used to pick anything.
+ *
+ * `scoreOf` returns -1 for a question this device holds no counts for, so
+ * a measured question always outranks an unmeasured one while a brand-new
+ * account still fills its whole quota. Ties break by qid, so the set does
+ * not reshuffle between two renders reading the same aggregates.
+ *
+ * Non-integer votes are dropped: a rank answer stores a joined order, on a
+ * surface the voter query accepts — so those qids issued a collection-group
+ * read, got documents back, and had every row discarded for want of a
+ * numeric optionIdx.
+ *
+ * That filter cannot see a CATALOG answer, and this used to stop there with
+ * the gap written down rather than closed. Every value in the vote map is
+ * stringified (`String(optionIdx)`, `String(entity)`, `order.join(",")`),
+ * and a catalog pick is a National Dex number or the numeric part of a
+ * Wikidata QID — so "1041" is an integer and survives, indistinguishable
+ * from an option index. Nothing in the map can tell them apart; only the
+ * BANK knows the question's type, so the caller answers with `storesOptionIdx`.
+ *
+ * It defaults to accepting everything, which keeps this a pure function the
+ * unit tests can drive without a bank — and means a caller that cannot
+ * resolve a qid keeps it rather than shrinking the pool on ignorance.
+ */
+export function pickKindredQids(
+  votes: Readonly<Record<string, string | number>>,
+  scoreOf: (qid: string) => number,
+  cap: number,
+  storesOptionIdx: (qid: string) => boolean = () => true,
+): string[] {
+  return Object.keys(votes)
+    .filter((id) => !id.startsWith("g_") && Number.isInteger(Number(votes[id])) && votes[id] !== ""
+      && storesOptionIdx(id))
+    .sort((a, b) => (scoreOf(b) - scoreOf(a)) || a.localeCompare(b))
+    .slice(0, Math.max(0, cap));
 }
 
 // ── people, ranked ───────────────────────────────────────────────────
@@ -416,12 +539,15 @@ export function rankKindred(
     .sort((a, b) => {
       if (!!a.score !== !!b.score) return a.score ? -1 : 1;
       if (a.score && b.score) {
-        return b.score.match - a.score.match
+        return b.score.raw - a.score.raw
           || b.score.axes - a.score.axes
-          || b.like.pct - a.like.pct
+          || b.like.rate - a.like.rate
           || a.uid.localeCompare(b.uid);
       }
-      return b.like.pct - a.like.pct
+      // rate, not pct (D277 §2) — see cohort.likenessRate. A 1-of-1
+      // stranger headed this list ahead of a 45-of-50 one, at every site
+      // that sorted on the percentage.
+      return b.like.rate - a.like.rate
         || b.like.shared - a.like.shared
         || a.uid.localeCompare(b.uid);
     });
@@ -563,7 +689,7 @@ export function placeProfiles(
   }
   return out.sort((a, b) => {
     if (!!a.score !== !!b.score) return a.score ? -1 : 1;
-    if (a.score && b.score) return b.score.match - a.score.match || b.n - a.n;
+    if (a.score && b.score) return b.score.raw - a.score.raw || b.n - a.n;
     return b.n - a.n || a.key.localeCompare(b.key);
   });
 }

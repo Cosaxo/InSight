@@ -462,6 +462,15 @@ function CityField({ myParsed }: {
         {cityName} · closer = more like you
         {scoredN < shown.length ? " · dashed = answers only" : ""}
       </SfCaption>
+      {/* Said rather than dropped, the same rule PlacesField already
+          follows below: a cap that silently eats rows reads as "that is
+          all of them". These are real people the ranking placed further
+          out, not people it could not read. */}
+      {people.length > shown.length && (
+        <SfEmpty>
+          {people.length - shown.length} more from {cityName} ranked below these.
+        </SfEmpty>
+      )}
       {!myParsed && (
         <SfEmpty>Finish a test to rank by scores.</SfEmpty>
       )}
@@ -815,6 +824,15 @@ function SimilaritySection({ scope }: {
   // the stop — no tab to open first, nothing to opt into. The loader is
   // bounded and session-cached; see live.ts loadSimilarity.
   React.useEffect(() => { void LIVE.loadSimilarity(); }, []);
+  // The city half of the pool, for the one stop that filters by city
+  // (D278). Scoped to this effect rather than folded into loadSimilarity
+  // because Country and World never filter on it — they read place
+  // aggregates, not voter rows — so paying a second fan-out there would
+  // buy nothing. Session-cached and keyed on the anchor; a viewer with no
+  // city returns immediately.
+  React.useEffect(() => {
+    if (scope === "city") void LIVE.loadCityKindred();
+  }, [scope]);
   if (!LIVE.enabled) return null;
 
   const myParsed = parseTestResults(LIVE.myTestResults(), CORE_TEST_KINDS);

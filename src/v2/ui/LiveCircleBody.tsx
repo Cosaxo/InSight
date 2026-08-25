@@ -145,6 +145,20 @@ function LiveCircleBody() {
   const myVotes = LIVE.myVotes();
   const mutuals = members.filter((m) => m.mutual).length;
 
+  // The "so what" line under the field (2026-08-24): the picture's two
+  // extremes, said once. Names only — the ranking is the pct the People
+  // tab lists per member with its shared-answer basis, so the sentence
+  // prints no number and makes no claim the rows beneath don't carry.
+  // Quiet unless it can actually say something: two placeable members,
+  // both with names (a "Someone mirrors you closest" line reads as a
+  // bug, and inventing names is the D214 refusal).
+  const placed = members
+    .filter((m) => m.like.shared > 0 && m.name)
+    .sort((a, b) => b.like.pct - a.like.pct);
+  const soWhat = placed.length >= 2 && placed[0].uid !== placed[placed.length - 1].uid
+    ? { top: placed[0], low: placed[placed.length - 1] }
+    : null;
+
   /**
    * The circle's side of Compare (D193): the members' own answers to the
    * bank's test items, folded into per-option counts.
@@ -223,15 +237,24 @@ function LiveCircleBody() {
           rather than by the lazy engine (D172) — same picture, and no
           chunk fetched for a stop that has nothing to fold. */}
       {members.length ? (
-        <React.Suspense fallback={null}>
-          <PeopleField
-            people={members.filter((m) => m.like.shared > 0).map((m) => ({
-              id: m.uid, label: m.name || "", match: m.like.pct,
-            }))}
-            caption="closer to you = more alike"
-            emptyLine={<>They take their places as you answer the same things.</>}
-          />
-        </React.Suspense>
+        <>
+          <React.Suspense fallback={null}>
+            <PeopleField
+              people={members.filter((m) => m.like.shared > 0).map((m) => ({
+                id: m.uid, label: m.name || "", match: m.like.pct,
+              }))}
+              caption="closer to you = more alike"
+              emptyLine={<>They take their places as you answer the same things.</>}
+            />
+          </React.Suspense>
+          {soWhat && (
+            <div style={{ padding: "7px 26px 0", textAlign: "center" }}>
+              <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5, textWrap: "balance" }}>
+                <b style={{ fontWeight: 800, color: "var(--ink)" }}>{soWhat.top.name}</b> mirrors you closest; <b style={{ fontWeight: 800, color: "var(--ink)" }}>{soWhat.low.name}</b> least — by the answers you share.
+              </span>
+            </div>
+          )}
+        </>
       ) : (
         // No caption: the header one line up already reads "Your circle",
         // and a chip repeating it is the duplication D172 removed.

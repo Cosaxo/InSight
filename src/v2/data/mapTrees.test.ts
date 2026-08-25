@@ -40,6 +40,14 @@ beforeEach(() => {
   localStorage.clear();
   window.dispatchEvent(new Event("insight:local-purge")); // the pulse store's own reset
   live.enabled = true;
+  // pulseQs belongs in this list for the same reason as the five below, and
+  // was the one missing from it. `afterEach`'s clearAllMocks resets CALLS,
+  // never return values, so the bank a later case installs with
+  // mockReturnValue outlives it — and the empty-bank case then reads a
+  // hydrated bank and fails claiming "votes alone leaf nothing" is false.
+  // Only reachable out of declaration order; reproduced with
+  // `--sequence.shuffle --sequence.seed=4242`.
+  live.pulseQs.mockReturnValue([]);
   live.pulseVotes.mockReturnValue({});
   live.myVotes.mockReturnValue({});
   live.foresightLog.mockReturnValue(null);

@@ -280,7 +280,7 @@ export function foldRankAnswerInto(
 // An answer carries `entity` — one pick from a shipped catalogue — and the
 // fold keeps every entity in `ent` while publishing only `canonTopN`'s
 // board. That projection is why the catalog arm still has a private
-// document (D275): the board cannot be folded from.
+// document (D290): the board cannot be folded from.
 //
 // A rebuild reconstructs the accumulator rather than the board, then
 // projects, which is the same order the trigger does it in.
@@ -447,7 +447,7 @@ export async function runRebuild(
 ): Promise<RebuildReport> {
   const db = firestore();
   const pubRef = db.collection("v2_question_aggs").doc(qid);
-  // Catalog alone still keeps a private accumulator (D275), because its
+  // Catalog alone still keeps a private accumulator (D290), because its
   // published board is canonTopN's lossy projection. For that arm the
   // private document is what a fold reads, so it is also what the
   // concurrency guard has to watch.

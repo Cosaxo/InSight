@@ -251,6 +251,27 @@ if (above.counts["0"] !== 2 || above.counts["1"] !== 3)
   fail("counts wrong at total 5: " + JSON.stringify(above));
 ok("five answers: exact public counts {0:2, 1:3} — no double counting");
 
+// 7a-bis · and the second copy is gone. The trigger used to write those
+// same five numbers twice — v2_aggs_private/{qid} byte-for-byte alongside
+// the published doc — which is a third of its writes on every answer, for
+// a document with no reader. The counts above are the proof the fold is
+// right; this is the proof it costs one write to be right.
+//
+// Read through the ADMIN handle, because the collection is deny-all to
+// clients: a client read would fail whether the document existed or not,
+// which is the assertion that passes for the wrong reason.
+{
+  const privSnap = await adminDb.doc(`v2_aggs_private/${q0.id}`).get();
+  if (privSnap.exists) {
+    fail(
+      "the vote path wrote v2_aggs_private/" + q0.id + " again — the private "
+      + "mirror was collapsed into the published document; a second write of "
+      + "a public fact is what this removed: " + JSON.stringify(privSnap.data()),
+    );
+  }
+}
+ok("no private mirror: the published aggregate is the only document the fold writes");
+
 // 7b · the breakdown, whole (D98). At total 5 the age bands hold 3 and 2
 // and the cities 3 and 2, and every one of those cells publishes exactly.
 // Country is a single bucket of 5 — once withheld as "a population
@@ -480,7 +501,7 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
   ok("report builder: 12-row roll, 9/3 split, the 1→0 move, four all-untested type cuts with their axis bands, every read inside REPORT_READ_SET");
 }
 
-// 7h · D275: the replay tool, against the aggregate 7e/7f just built.
+// 7h · D290: the replay tool, against the aggregate 7e/7f just built.
 // `replay.test.ts` pins the FOLD; nothing until here has executed the half
 // that touches Firestore — the collection-group scan, the uid recovered
 // from `doc.ref.parent.parent`, the paging cursor, the optimistic
@@ -508,13 +529,13 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
     fail("drift on an untouched aggregate: " + JSON.stringify(dry.drift));
   if (dry.carriedEdits !== true) fail("the stored edit matrix was not carried");
   if (dry.cappedDims.length) fail("two cities should not saturate a 24-bucket dim: " + dry.cappedDims);
-  ok("D275: replay of 12 answers reproduces the trigger's aggregate exactly, drift none");
+  ok("D290: replay of 12 answers reproduces the trigger's aggregate exactly, drift none");
 
   // The dry run must not have touched the document it just described.
   const untouched = await getDoc(doc(db, "v2_question_aggs", q0.id));
   if (untouched.get("total") !== 12 || JSON.stringify(untouched.get("edits")) !== JSON.stringify({ "1": { "0": 1 } }))
     fail("the DRY run wrote: " + JSON.stringify(untouched.data()));
-  ok("D275: dry run wrote nothing");
+  ok("D290: dry run wrote nothing");
 
   // D28's ring subtraction, on the one uid whose answer this suite knows:
   // the primary voter, whose 1→0 edit is the matrix above — so excluding
@@ -523,7 +544,7 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
   if (less.excluded !== 1 || less.total !== 11 || less.counts["0"] !== 8 || less.counts["1"] !== 3)
     fail("exclusion did not subtract exactly one answer: " + JSON.stringify(less));
   if (less.drift.total !== -1) fail("drift should report the subtraction: " + JSON.stringify(less.drift));
-  ok("D28/D275: excluding one uid subtracts exactly its answer, drift -1");
+  ok("D28/D290: excluding one uid subtracts exactly its answer, drift -1");
 
   // …and the exclusion leaves the breakdown as well as the headline: the
   // primary voter is the Oslo/25-34 cell's fourth member.
@@ -536,7 +557,7 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
     fail("the rebuild's whole-doc rewrite dropped the edit matrix: " + JSON.stringify(after.get("edits")));
   if (JSON.stringify(after.get("by").ageBand) !== JSON.stringify(untouched.get("by").ageBand))
     fail("the rebuild changed the breakdown: " + JSON.stringify(after.get("by").ageBand));
-  ok("D275: --apply round-trips the aggregate unchanged, matrix and breakdown intact");
+  ok("D290: --apply round-trips the aggregate unchanged, matrix and breakdown intact");
 }
 
 // 8 · the duel loop: create → join by code → sealed answers → reveal → streak
@@ -592,6 +613,36 @@ try {
 }
 ok("only a member decides — the asker cannot approve themselves");
 
+// …AND THE SAME GATE ON DECLINE, which had no test on either side while its
+// twin above did. declineJoinV2 takes an arbitrary gid and an arbitrary uid
+// from request.data, and this one membership check is the only thing
+// stopping any signed-in account emptying any circle's join queue.
+//
+// The failure is invisible from both ends by design — D240's decline "tells
+// them NOTHING, the row simply stops being there" — so the asker sees a
+// request that is never approved and the circle sees no request at all.
+// firestore.rules cannot see it either: the write is on the admin SDK.
+//
+// A REFUSAL, not a decline, and deliberately: an actual decline here would
+// arrayRemove the pending row, and the approveJoinV2 below would then throw
+// failed-precondition ("they have not asked"), taking the whole duel /
+// reveal / aggregate section after it with it.
+try {
+  await httpsCallable(pFns, "declineJoinV2")({ gid, uid: partner.user.uid });
+  fail("a non-member emptied a circle's join queue");
+} catch (e) {
+  if (e?.code !== "functions/permission-denied") {
+    fail("wrong refusal for a non-member decline: " + (e?.code || e));
+  }
+}
+{
+  const g = await adminDb.doc(`v2_groups/${gid}`).get();
+  if (!(g.get("pending") || []).includes(partner.user.uid)) {
+    fail("the refused decline removed the pending row anyway");
+  }
+}
+ok("a non-member cannot decline either — and the refusal wrote nothing");
+
 const joined = await httpsCallable(fns, "approveJoinV2")({ gid, uid: partner.user.uid });
 if (!joined.data?.ok) fail("approveJoinV2 refused: " + JSON.stringify(joined.data));
 {
@@ -603,8 +654,13 @@ if (!joined.data?.ok) fail("approveJoinV2 refused: " + JSON.stringify(joined.dat
 ok("a member let them in; the queue entry and its name are gone");
 
 const aid = `g_${gid}_${YESTER}`;
+// A DUO-surface question, because this group is mode "duo" (line 490) and
+// isDuelAnswer compares the question's surface to the answer's. duelQFor
+// (data/deck.ts) draws with `q.surface === mode`, so "group-gu0" under a
+// duo group was a shape no client could produce — it only ever passed
+// because the rule did not look.
 const duel = (idx, guess) => ({
-  qid: "group-gu0", surface: "duo", optionIdx: idx, guessIdx: guess,
+  qid: "duo-001", surface: "duo", optionIdx: idx, guessIdx: guess,
   gid, day: YESTER, answeredAt: serverTimestamp(), anchors: {},
 });
 await setDoc(doc(db, "v2_users", uid, "answers", aid), duel(1, 2));
@@ -691,7 +747,10 @@ const outDb = getFirestore(outApp, E2E_DB_ID); connectFirestoreEmulator(outDb, "
 const outsider = await signInAnonymously(outAuth);
 await expectDenied("non-member cannot answer an open duel day", () =>
   setDoc(doc(outDb, "v2_users", outsider.user.uid, "answers", `g_${gid}_${OTHERDAY}`), {
-    qid: "group-gu0", surface: "duo", optionIdx: 0, guessIdx: 0,
+    // duo-001 for the same reason as the duel helper above: this is the
+    // duo group, and the refusal under test is non-membership, so the rest
+    // of the shape has to be one a real client would write.
+    qid: "duo-001", surface: "duo", optionIdx: 0, guessIdx: 0,
     gid, day: OTHERDAY, answeredAt: serverTimestamp(), anchors: {},
   }));
 
@@ -1015,7 +1074,7 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   ok("rank: non-permutation dropped at the trigger; valid orders sum exactly");
 }
 
-// 9e · D275: the OTHER TWO fold arms, rebuilt. This step used to assert
+// 9e · D290: the OTHER TWO fold arms, rebuilt. This step used to assert
 // that the tool refused them — which was honest while it did, and made
 // "every aggregate is a projection you can rebuild" true of exactly one
 // arm out of three. Both are built now, and this is what proves it against
@@ -1051,15 +1110,15 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   const r = await noop("rank", RQ_ID, ["total", "pos"]);
   if (r.dry.arm !== "rank") fail(`rank question routed to the ${r.dry.arm} arm`);
   if (r.dry.cappedDims.length) fail("rank has no breakdown and must report no capped dims");
-  ok("D275: rank aggregate rebuilds to itself — total and position sums unchanged");
+  ok("D290: rank aggregate rebuilds to itself — total and position sums unchanged");
 
   // Catalog: the board AND the private accumulator behind it. The board is
   // canonTopN's lossy projection, so a rebuild that wrote only the public
   // document would leave the next answer folding from something it cannot
-  // fold from — which is why the private doc survived D275's collapse.
+  // fold from — which is why the private doc survived D290's collapse.
   const c = await noop("catalog", PK_ID, ["total", "top", "rest", "by"]);
   if (c.dry.arm !== "catalog") fail(`catalog question routed to the ${c.dry.arm} arm`);
-  ok("D275: catalog board rebuilds to itself — top, rest and the segment board unchanged");
+  ok("D290: catalog board rebuilds to itself — top, rest and the segment board unchanged");
 }
 
 // 10 · Near presence (D84 / D174 / D176 / D177): the write path through
@@ -1519,6 +1578,62 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
     fail("Let in left the stale pendingNames entry");
   }
   ok("Let in clears a stale row instead of doing nothing to it");
+}
+
+// ── the logic attempt's answer key stays on the server (D57) ──────────
+//
+// THE ONLY EXECUTABLE CHECK THAT IT DOES. check:logic-sync guarantees
+// src/v2/data/logic-gen.ts and functions/src/logic-gen.ts are byte-identical,
+// which is what makes server scoring honest — and also means the SHIPPED
+// CLIENT already contains `generateForm`. So `generateForm(seed).items[i].a`
+// is the complete answer key for all 25 items, and the seed is the whole of
+// it. firestore.rules denies the stored copy; nothing but this guards the
+// wire.
+//
+// Adding `seed` to logicStartV2's return literal — the obvious thing a
+// debugging change or a "let the client pre-render" optimisation does —
+// passes tsc, eslint, check:globals, check:appcheck, check:logic-sync, the
+// clientItems key-set test in logic.test.ts (which tests the helper, not the
+// response) and every rules test. Every verified percentile in
+// v2_logic_norms would then be fed by scores nobody solved.
+{
+  const started = await httpsCallable(fns, "logicStartV2")({});
+  const keys = Object.keys(started.data).sort();
+  if (JSON.stringify(keys) !== JSON.stringify(["capMs", "deadlineMs", "items"])) {
+    fail("logicStartV2 returned unexpected keys: " + JSON.stringify(keys));
+  }
+  // Belt as well as braces: assert on the SERIALIZED response, so a key
+  // nested inside `items` is caught too. `"a"` is the correct-tile index
+  // that clientItems() strips; `seed`/`gv` are what regenerates the form.
+  const wire = JSON.stringify(started.data);
+  for (const leak of ['"seed"', '"gv"', '"a":', '"rules"']) {
+    if (wire.includes(leak)) fail(`logicStartV2 leaked ${leak} — the form is regenerable from it`);
+  }
+  if (!Array.isArray(started.data.items) || started.data.items.length !== 25) {
+    fail("logicStartV2 did not return 25 items — this check has nothing to guard");
+  }
+  ok("logicStartV2 hands over the form and never the answer key (D57)");
+
+  // …and the key IS disclosed once the attempt is scored, which is what
+  // makes the assertion above about TIMING rather than about the field
+  // never existing.
+  const submitted = await httpsCallable(fns, "logicSubmitV2")({ picks: Array(25).fill(0) });
+  if (typeof submitted.data?.seed !== "number") {
+    fail("logicSubmitV2 withheld the seed after scoring: " + JSON.stringify(submitted.data));
+  }
+  ok("…and discloses it after scoring, so the reveal can show the working");
+
+  // One attempt per window. Without this the client can resubmit until the
+  // score it wants, and the norms histogram counts every try.
+  try {
+    await httpsCallable(fns, "logicSubmitV2")({ picks: Array(25).fill(0) });
+    fail("a second submit against a scored attempt was accepted");
+  } catch (e) {
+    if (e?.code !== "functions/failed-precondition") {
+      fail("wrong refusal for a second submit: " + (e?.code || e));
+    }
+  }
+  ok("a scored attempt refuses a second submit");
 }
 
 console.log("\nALL E2E CHECKS PASSED");

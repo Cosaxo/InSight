@@ -51,11 +51,10 @@ const softInk = (h: number) => `oklch(0.54 0.118 ${h})`;
 const mineIdx = (p: PoolItem | undefined): 0 | 1 | null =>
   !p || p.mine == null ? null : p.mine === 1 ? 0 : 1;
 
-export default function PatternsMap({ items, version, topic, onUse }: {
+export default function PatternsMap({ items, version, topic }: {
   items: PoolItem[];
   version: number;
   topic: string;
-  onUse: () => void;
 }): React.ReactElement {
   const [sel, setSel] = React.useState<number | null>(null);
   const [burst, setBurst] = React.useState<{ i: number; t: number } | null>(null);
@@ -84,14 +83,20 @@ export default function PatternsMap({ items, version, topic, onUse }: {
   // the neutral field wears the page's own dusk indigo, not hard ink
   const fSolid = "color-mix(in oklab, var(--accent) 68%, var(--ink-2))";
   const fEdge = "color-mix(in oklab, var(--accent) 34%, var(--ink-3))";
-  // the People lens grammar, carried over: loosely-tied places are fainter
-  const restFill = (i: number) => { const h = catHue(i); return h == null ? fSolid : `oklch(0.56 0.09 ${h})`; };
-  const restOp = (i: number) => 0.55 + Math.min(1, geo.hub[i] / hubMax / 0.72) * 0.45;
-
   const nb = sel == null ? null : nearOf(geo.U, sel, 3);
   const near = nb ? new Set(nb.map((x) => x.j)) : null;
   const rest = geo.edges.filter((l) => inTopic(l.i) && inTopic(l.j));
   const shown = sel == null || !nb ? rest : nb.map((x) => ({ i: sel, j: x.j, r: x.r }));
+  // the resting figure (2026-08-24): the ten strongest ties drawn at full
+  // voice, so the map shows a constellation before any tap. `rest` comes
+  // strength-sorted from edgesOf — the same order the idle card's
+  // "strongest tie" already leans on. Its member dots stay fully inked.
+  const figN = 10;
+  const figDots = sel == null ? new Set(rest.slice(0, figN).flatMap((l) => [l.i, l.j])) : new Set<number>();
+
+  // the People lens grammar, carried over: loosely-tied places are fainter
+  const restFill = (i: number) => { const h = catHue(i); return h == null ? fSolid : `oklch(0.56 0.09 ${h})`; };
+  const restOp = (i: number) => (figDots.has(i) ? 1 : 0.55 + Math.min(1, geo.hub[i] / hubMax / 0.72) * 0.45);
 
   // the unanswered question most tied to everything else — the best next tap
   let nxt: number | null = null;
@@ -101,6 +106,7 @@ export default function PatternsMap({ items, version, topic, onUse }: {
   }
   const colored = (i: number) =>
     sel != null ? i === sel || (near?.has(i) ?? false) : i === nxt || (topic !== "all" && inTopic(i));
+  const beacon = nxt != null ? (geo.pts.find((x) => x.i === nxt) ?? null) : null;
 
   // The selected question's own links, said out loud — each an exact 2×2
   // fetched on demand and cached for the session (rows shared per qid).
@@ -131,7 +137,7 @@ export default function PatternsMap({ items, version, topic, onUse }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the pair's ids name the fetch; items follow `version`
   }, [top ? `${top.i}:${top.j}` : null, version]);
 
-  const pick = (i: number) => { setSel((s) => (s === i ? null : i)); onUse(); };
+  const pick = (i: number) => { setSel((s) => (s === i ? null : i)); };
   const q = sel != null ? items[sel] : null;
   const nAns = items.filter((x) => x.mine != null).length;
   const chain = top && topSay && topSay.s ? topSay.s : null;
@@ -154,6 +160,7 @@ export default function PatternsMap({ items, version, topic, onUse }: {
             {shown.map((l, k) => {
               const a = geo.pts[l.i], b = geo.pts[l.j];
               const lit = sel != null;
+              const fig = !lit && k < figN; // the constellation tier — clearly drawn at rest
               const strong = lit || k < 24; // full web faint, the strongest two dozen speak
               const bt = lit && burst && burst.i === sel ? String(burst.t) : "";
               const draw = lit && l.r >= 0; // opposite links keep their dashes — the dash IS the meaning
@@ -162,11 +169,11 @@ export default function PatternsMap({ items, version, topic, onUse }: {
                   pathLength={draw ? 1 : undefined}
                   className={draw ? "qm-drawin" : undefined}
                   style={draw ? { animationDelay: `${k * 0.07}s` } : undefined}
-                  stroke={lit ? hue(sel as number) : fEdge}
-                  strokeWidth={lit ? 1 + Math.abs(l.r) * 2.8 : strong ? 0.9 + Math.abs(l.r) * 2 : 0.7}
+                  stroke={lit ? hue(sel as number) : fig ? "color-mix(in oklab, var(--accent) 55%, var(--ink-2))" : fEdge}
+                  strokeWidth={lit ? 1 + Math.abs(l.r) * 2.8 : fig ? 1.2 + Math.abs(l.r) * 2.4 : strong ? 0.9 + Math.abs(l.r) * 2 : 0.7}
                   strokeDasharray={l.r < 0 ? "2.5 3" : undefined}
                   strokeLinecap="round"
-                  opacity={lit ? 0.58 : strong ? 0.3 + Math.abs(l.r) * 0.22 : 0.13}></line>
+                  opacity={lit ? 0.58 : fig ? 0.38 + Math.abs(l.r) * 0.3 : strong ? 0.22 + Math.abs(l.r) * 0.16 : 0.12}></line>
               );
             })}
           </g>
@@ -180,13 +187,6 @@ export default function PatternsMap({ items, version, topic, onUse }: {
               return (
                 <g key={p.id} onClick={(e) => { e.stopPropagation(); pick(i); }} style={{ cursor: "pointer" }}>
                   <circle cx={p.x} cy={p.y} r={Math.max(11, r + 6)} fill="transparent"></circle>
-                  {i === nxt && <circle cx={p.x} cy={p.y} r={r + 3.5} fill="none" stroke="var(--accent)" strokeWidth="1.4"></circle>}
-                  {i === nxt && <circle className="qm-pulse" cx={p.x} cy={p.y} r={r + 3} fill="none" stroke="var(--accent)" strokeWidth="1.5"></circle>}
-                  {i === nxt && (
-                    <text className="qm-nextlab" x={Math.max(30, Math.min(W - 30, p.x))} y={p.y > H - 26 ? p.y - r - 9 : p.y + r + 15}
-                      textAnchor="middle" fill="var(--ink)"
-                      style={{ paintOrder: "stroke", stroke: "var(--surface-2)", strokeWidth: 3.5 }}>answer next</text>
-                  )}
                   {i === sel && <circle cx={p.x} cy={p.y} r={r + 5} fill="none" stroke={hue(i)} strokeWidth="1.4" opacity="0.55"></circle>}
                   {burst && burst.i === i && <circle key={`b${burst.t}`} className="qm-bloom" cx={p.x} cy={p.y} r={r + 6} fill="none" stroke={hue(i)} strokeWidth="2"></circle>}
                   <circle cx={p.x} cy={p.y} r={r + 2} fill="var(--surface-2)" opacity={dim ? 0.25 : on ? 1 : restOp(i)}></circle>
@@ -200,6 +200,18 @@ export default function PatternsMap({ items, version, topic, onUse }: {
               );
             })}
           </g>
+          {/* the next-up beacon rides its own top layer (2026-08-24) — drawn
+              after every dot so neither the ring nor the label is ever
+              buried by a neighbour */}
+          {beacon && (
+            <g pointerEvents="none">
+              <circle cx={beacon.x} cy={beacon.y} r={rOf(beacon.i) + 3.5} fill="none" stroke="var(--accent)" strokeWidth="1.4"></circle>
+              <circle className="qm-pulse" cx={beacon.x} cy={beacon.y} r={rOf(beacon.i) + 3} fill="none" stroke="var(--accent)" strokeWidth="1.5"></circle>
+              <text className="qm-nextlab" x={Math.max(42, Math.min(W - 42, beacon.x))} y={beacon.y > H - 26 ? beacon.y - rOf(beacon.i) - 9 : beacon.y + rOf(beacon.i) + 15}
+                textAnchor="middle" fill="var(--ink)"
+                style={{ paintOrder: "stroke", stroke: "var(--surface-2)", strokeWidth: 3.5 }}>answer next</text>
+            </g>
+          )}
         </svg>
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, padding: "6px 6px 9px", fontSize: 11, fontWeight: 600, color: "var(--ink-3)" }}>
           <i className="qm-line"></i><span>together</span>
@@ -227,7 +239,7 @@ export default function PatternsMap({ items, version, topic, onUse }: {
             <div className="qm-opts">
               {q.q.options.map((op) => (
                 <button key={op.id} className="qm-opt"
-                  onClick={() => { LIVE.vote(q.q.id, op.id); setBurst({ i: sel, t: Date.now() }); onUse(); }}>
+                  onClick={() => { LIVE.vote(q.q.id, op.id); setBurst({ i: sel, t: Date.now() }); }}>
                   {op.label}
                 </button>
               ))}

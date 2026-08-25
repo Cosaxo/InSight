@@ -92,7 +92,9 @@
 .qm-svg line.qm-drawin{stroke-dasharray:1;animation:qmDraw .6s cubic-bezier(.22,.8,.3,1) both}
 @keyframes qmDraw{from{stroke-dashoffset:1;opacity:0}to{stroke-dashoffset:0}}
 @keyframes qmPulse{0%{transform:scale(1);opacity:.6}70%,100%{transform:scale(1.9);opacity:0}}
-.qm-nextlab{font-size:10px;font-weight:800;letter-spacing:.02em;pointer-events:none}
+/* 10.5px since 2026-08-24 — the tab's own "no type below 10.5px" rule
+   applied to its one violation */
+.qm-nextlab{font-size:10.5px;font-weight:800;letter-spacing:.02em;pointer-events:none}
 .qm-base{position:relative;display:block;height:15px;margin-top:2px}
 .qm-say:last-child{padding-bottom:3px}
 .qm-base > span{position:absolute;transform:translateX(-50%);font-size:10.5px;font-weight:650;color:var(--ink-3);white-space:nowrap}
@@ -117,11 +119,22 @@
 .app.compact .or-prompt{font-size:23px}
 /* the instrument: two tiles taking the screen's slack, the guess on the seam */
 .or-inst{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:var(--or-gap);flex:1;min-height:168px}
-.or-inst.is-live{cursor:pointer}
+/* while the guess is sealed, a dusk aura pools around the disc — presence
+   without direction; it lifts the moment you vote (2026-08-24). In the
+   prototype `is-live` also made the revealed instrument tap-to-advance;
+   the port refused that clickable <div> (the a11y ratchet, D215), so
+   here the class only names the revealed state — no cursor rule. */
+.or-inst::after{content:"";position:absolute;left:50%;top:50%;width:200px;height:200px;margin:-100px 0 0 -100px;border-radius:50%;background:radial-gradient(closest-side,color-mix(in oklab,var(--accent),transparent 85%),transparent 74%);pointer-events:none;z-index:2}
+.or-inst.is-live::after{content:none}
 .or-tile{--or-fill:color-mix(in oklch,var(--ink-3),var(--surface-2) 91%);--or-edge:color-mix(in oklch,var(--ink-3),var(--surface-2) 58%);position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:center;padding:0;border:1px solid color-mix(in oklch,color-mix(in oklch,var(--rule),transparent 20%),var(--accent) 10%);border-radius:16px;background:var(--surface-2);box-shadow:var(--shadow-card);font:inherit;color:var(--ink);text-align:center}
 button.or-tile{cursor:pointer;-webkit-appearance:none;transition:transform .2s var(--ease-spring),border-color .16s ease,box-shadow .22s ease}
 @media (hover:hover){button.or-tile:hover{border-color:color-mix(in oklab,var(--rule),var(--accent) 60%);transform:translateY(-2px);box-shadow:var(--shadow-lift)}}
 button.or-tile:active{transform:scale(.985)}
+/* sealed, the tiles read as vessels, not empty boxes: a breath of shade pools
+   at the foot where the fill will rise, and a dashed seat marks where the disc
+   could land — identical both sides, so nothing leaks the call (2026-08-24) */
+button.or-tile::after{content:"";position:absolute;left:0;right:0;bottom:0;height:26%;background:linear-gradient(to top,color-mix(in oklch,var(--ink-3),transparent 90%),transparent);pointer-events:none}
+button.or-tile::before{content:"";position:absolute;left:50%;top:50%;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;border:1.5px dashed color-mix(in oklch,var(--ink-3),transparent 58%)}
 .or-lab{position:relative;z-index:2;padding:18px 13px 0;font-size:17px;font-weight:700;line-height:1.24;letter-spacing:-.01em;text-wrap:balance}
 .app.compact .or-lab{font-size:15.5px}
 /* your pick — the accent edge (inset ring, so nothing reflows on reveal).

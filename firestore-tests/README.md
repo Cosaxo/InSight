@@ -19,8 +19,8 @@ They assert the access decisions the product's privacy claims rest on:
 - **member-only groups and reveals**, both client-unwritable — membership
   changes go through callables.
 - **k-floored aggregates**: the public mirror is read-only, and the exact
-  counts (`v2_aggs_private` — catalog only since D275) and the event ledger
-  are unreadable by anyone.
+  counts (`v2_aggs_private`, the catalog fold's accumulator) and the event
+  ledger are unreadable by anyone.
 - the duel `day` must be near now — no pre-sealing future days.
 - `optionIdx` bounds, including that a group "pick" answer can name any of
   up to 32 members.

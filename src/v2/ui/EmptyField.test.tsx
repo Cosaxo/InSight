@@ -222,11 +222,44 @@ describe("the one action a field cannot take for itself", () => {
     const order: string[] = [];
     installNav({ goNav: () => { order.push("nav"); return true; } });
     render(
-      <EmptyField action={{ label: "Pick topics →", nav: "track:world", prime: () => order.push("prime") }}>
+      <EmptyField action={{ label: "Pick topics →", nav: "track:world", prime: () => { order.push("prime"); } }}>
         Every topic runs in your feed until you narrow it.
       </EmptyField>,
     );
     fireEvent.click(screen.getByRole("button", { name: /Pick topics/ }));
     expect(order).toEqual(["prime", "nav"]);
+  });
+
+  // D282 — the other half of D190, and the reason the report came back.
+  // D190 fixed where the jump LANDED; the jump itself is what a reader
+  // notices, because they asked for a list and were moved to another
+  // screen to get it. A `prime` that answers the ask in place says so, and
+  // then there is nothing left to jump to.
+  it("does not jump when prime says it was answered in place", () => {
+    const goNav = vi.fn(() => true);
+    installNav({ goNav });
+    render(
+      <EmptyField action={{ label: "Pick topics →", nav: "track:world", prime: () => true }}>
+        Every topic runs in your feed until you narrow it.
+      </EmptyField>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Pick topics/ }));
+    expect(goNav, "the door moved the reader after the ask was already answered").not.toHaveBeenCalled();
+  });
+
+  // Only an explicit `true`. A prime that returns nothing is the shape the
+  // other call sites use and every one of them still needs its jump — so
+  // the falsy case must stay the default rather than becoming a new thing
+  // to remember.
+  it("still jumps when prime returns nothing", () => {
+    const goNav = vi.fn(() => true);
+    installNav({ goNav });
+    render(
+      <EmptyField action={{ label: "Pick topics →", nav: "track:world", prime: () => {} }}>
+        Every topic runs in your feed until you narrow it.
+      </EmptyField>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Pick topics/ }));
+    expect(goNav).toHaveBeenCalledWith("track:world");
   });
 });

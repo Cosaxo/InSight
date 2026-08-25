@@ -24,6 +24,7 @@ import {
   STREAK_BROKEN_MIN,
   dayGap,
   dayOffset,
+  firestoreEngagementStore,
   runEngagementDigest,
   surfaceOfQid,
   utcDay,
@@ -165,6 +166,55 @@ describe("runEngagementDigest", () => {
     const { store, state } = memoryStore({ [Y]: [e("", "q1"), e("u1", "q1")] });
     await runEngagementDigest(store, NOW, FEED);
     expect(state.days.get(Y)).toMatchObject({ actives: 1, votes: 1, events: 2 });
+  });
+
+  // A day doc EXISTING is not a day having been digested. Both other
+  // folds create docs — attn-only or people-only — for days this digest
+  // has not reached, and those carry no `firstTime`. cohortOf returned it
+  // straight, so `undefined` reached returned.dN.of; Firestore refuses
+  // undefined as a value, so putDay threw and took the whole nightly run
+  // with it — before putLastDay, and before runAttentionFold and
+  // runRollupFold, which digestEngagementV2 awaits after it. lastDay
+  // never advances, so it repeats identically every night until the
+  // poisoned day slides out of the catch-up window.
+  it("reads a cohort day that was folded but never digested as null, not undefined", async () => {
+    const { store, state } = memoryStore({ [Y]: [e("u1", "q1")] });
+    // What runAttentionFold's merge leaves behind for a day the digest has
+    // not folded: the key it writes, and none of the digest's own.
+    //
+    // The d30 cohort day, deliberately — it lies outside the catch-up
+    // window, so it is read through getDay rather than found in the
+    // this-run cache. A d1 day is re-folded by this very run and answers
+    // from `writtenNow` with a real firstTime, which is why it cannot
+    // show the bug.
+    const cohortDay = new Date(Date.parse(`${Y}T00:00:00Z`) - 30 * 86400000)
+      .toISOString().slice(0, 10);
+    state.days.set(cohortDay, {
+      day: cohortDay,
+      attn: { devices: 3 },
+    } as unknown as EngagementDay);
+
+    // The memory twin gains Firestore's one relevant refusal, because that
+    // is the mechanism: without it the undefined lands silently and the
+    // case cannot see the bug it exists for.
+    const inner = store.putDay.bind(store);
+    store.putDay = async (docToWrite) => {
+      const undef = (o: unknown, path: string): string[] => {
+        if (o === undefined) return [path];
+        if (o && typeof o === "object" && !Array.isArray(o)) {
+          return Object.entries(o).flatMap(([k, v]) => undef(v, path ? `${path}.${k}` : k));
+        }
+        return [];
+      };
+      const bad = undef(docToWrite, "");
+      if (bad.length) throw new Error(`Cannot use "undefined" as a Firestore value (found in field "${bad[0]}")`);
+      return inner(docToWrite);
+    };
+
+    await runEngagementDigest(store, NOW, FEED);
+
+    expect(state.lastDay, "the digest aborted before putLastDay").toBe(Y);
+    expect(state.days.get(Y)!.returned.d30.of).toBeNull();
   });
 });
 
@@ -316,6 +366,51 @@ describe("runAttentionFold", () => {
   it("the cap constant is sane against the batch arithmetic", () => {
     expect(SHARD_FOLD_CAP).toBeGreaterThan(0);
   });
+
+  // The cap bounds the NIGHT's work; it must not also be the read size.
+  // This read `shardPage(cap)` in one go, so a full night materialised
+  // 20,000 shard objects at once — ~1.4 GB measured with rules-legal
+  // maximal shards, on a 256 MiB function. And because the fold is the
+  // only thing that deletes shards, an OOM here means the backlog never
+  // drains: the same failure, identically, every night.
+  it("reads in bounded pages rather than materialising the whole cap", async () => {
+    const many = Array.from({ length: 2500 }, (_, i) => sh(`s${i}`, "2026-08-22", { opens: 1 }));
+    const { store, state } = attnStore(many);
+    const asked: number[] = [];
+    const inner = store.shardPage.bind(store);
+    store.shardPage = async (cap) => { asked.push(cap); return inner(cap); };
+
+    const res = await runAttentionFold(store);
+
+    expect(res).toMatchObject({ shards: 2500, days: 1, capped: false });
+    expect(state.shards, "every shard should have been folded and deleted").toHaveLength(0);
+    expect(state.days.get("2026-08-22")!.devices).toBe(2500);
+    // The property: no single read asks for the whole cap.
+    expect(Math.max(...asked)).toBeLessThan(SHARD_FOLD_CAP);
+    expect(asked.length, "2500 shards should take several pages").toBeGreaterThan(1);
+    // …and the write batches still land on their own boundaries, not on
+    // wherever a read page happened to end.
+    expect(new Set(state.applied.slice(0, -1).map((a) => a.ids.length))).toEqual(new Set([300]));
+  });
+
+  // A shard with an unfoldable day is never deleted, so it is returned by
+  // every page. Paging the read has to terminate anyway.
+  it("terminates on a full page of unfoldable shards instead of re-reading them forever", async () => {
+    const many = Array.from({ length: 1200 }, (_, i) => sh(`w${i}`, "yesterday-ish", { opens: 1 }));
+    const { store, state } = attnStore(many);
+    let reads = 0;
+    const inner = store.shardPage.bind(store);
+    store.shardPage = async (cap) => { reads++; return inner(cap); };
+
+    const res = await runAttentionFold(store);
+
+    expect(reads, "a page that folds nothing must end the loop").toBeLessThan(3);
+    expect(state.applied).toHaveLength(0);
+    expect(state.shards).toHaveLength(1200);
+    // Counted by id, so the shards seen twice across pages are not
+    // counted twice.
+    expect(res.shards).toBeLessThanOrEqual(1200);
+  });
 });
 
 // ── the qids map in the shard fold (R4/D271) ────────────────────────────
@@ -456,5 +551,178 @@ describe("runRollupFold", () => {
     expect(d.rollups).toBe(1);
     expect(d.sessions).toBe(300); // clamped to the rules' own bound
     expect(d.dayparts).toEqual([0, 0, 0, 0]);
+  });
+});
+
+describe("the _state document is shared, so the digest must MERGE it", () => {
+  // TWO writers, one document. `runEngagementDigest` owns four named
+  // fields on v2_users/{uid}/engagement/_state (firstDay, lastDay,
+  // activeDays, streak); `runRollupFold` owns a fifth, `fg7` — the
+  // trailing seven-day foreground window that R3/D272's fade signal is
+  // computed from, and it writes that one with { merge: true }.
+  //
+  // Both run in the SAME nightly invocation of digestEngagementV2, digest
+  // first. A replacing write from the digest therefore deletes fg7 every
+  // night, minutes before the fold reads it back: advanceFgWindow gets
+  // `undefined`, restarts the window at length 1, and its own rule needs
+  // six readings before it will report fading. So the fade signal could
+  // never fire — not rarely, never — while the per-uid read and write that
+  // compute it were billed every night regardless.
+  //
+  // Asserted on the ADAPTER, because that is where the bug was and the
+  // pure passes above cannot see it: the injected memoryStore models a
+  // whole-object replace, which is exactly what the real store was doing.
+  it("putStates merges rather than replacing, so fg7 survives the night", async () => {
+    const calls: Array<{ path: string; data: unknown; opts: unknown }> = [];
+    const batch = {
+      set(ref: { path: string }, data: unknown, opts?: unknown) {
+        calls.push({ path: ref.path, data, opts });
+      },
+      async commit() {},
+    };
+    const doc = (path: string) => ({
+      path,
+      collection: (c: string) => ({ doc: (d: string) => doc(`${path}/${c}/${d}`) }),
+    });
+    const db = {
+      batch: () => batch,
+      collection: (c: string) => ({ doc: (d: string) => doc(`${c}/${d}`) }),
+    } as unknown as Parameters<typeof firestoreEngagementStore>[0];
+
+    const store = firestoreEngagementStore(db);
+    await store.putStates(new Map<string, DigestState>([
+      ["u1", { firstDay: "2026-08-01", lastDay: "2026-08-23", activeDays: 5, streak: 2 }],
+    ]));
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].path).toBe("v2_users/u1/engagement/_state");
+    expect(
+      calls[0].opts,
+      "the digest replaced _state instead of merging it, which deletes the fg7 window runRollupFold writes to the same document minutes later",
+    ).toEqual({ merge: true });
+  });
+
+  // THREE writers, one document — the same shape one level up.
+  // v2_engagement_daily/{day} carries the digest's own fields plus two
+  // sections it does not own: `attn` (runAttentionFold) and `people`
+  // (runRollupFold), both written with { merge: true }.
+  //
+  // Reachable, and not only by a crash replay: the rules admit an
+  // attention shard dated up to two days AHEAD of request.time (clock
+  // skew), and the fold takes whatever shards exist for any day. So
+  // tonight's fold can create an attn-only doc for tomorrow — and
+  // tomorrow's digest, reaching that day for the first time, replaced it.
+  // The shards are deleted as they are folded, by the channel's own
+  // promise, so what a replacing write drops cannot be recomputed.
+  it("putDay merges, so an attn or people section folded earlier survives", async () => {
+    const calls: Array<{ path: string; data: unknown; opts: unknown }> = [];
+    const db = {
+      collection: (c: string) => ({
+        doc: (d: string) => ({
+          async set(data: unknown, opts?: unknown) { calls.push({ path: `${c}/${d}`, data, opts }); },
+        }),
+      }),
+    } as unknown as Parameters<typeof firestoreEngagementStore>[0];
+
+    const store = firestoreEngagementStore(db);
+    await store.putDay({
+      day: "2026-08-25", actives: 3, firstTime: 1, votes: 4, events: 5,
+      bySurface: { daily: 3 },
+      returned: {
+        d1: { of: 2, came: 1 }, d7: { of: 0, came: 0 }, d30: { of: 0, came: 0 },
+      },
+      streaksBroken: 0,
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].path).toBe("v2_engagement_daily/2026-08-25");
+    expect(
+      calls[0].opts,
+      "the digest replaced the day doc, which deletes the attn and people sections the other two folds merge into the same document",
+    ).toEqual({ merge: true });
+  });
+});
+
+describe("a paged query's projection has to carry the field it orders by", () => {
+  // A cursor is BUILT FROM THE SNAPSHOT: `startAfter(doc)` reads, off that
+  // document, every field the query orders by. `select()` decides which
+  // fields the document actually carries, so a projection that omits the
+  // orderBy field yields a snapshot the cursor cannot be built from and the
+  // Admin SDK throws rather than paging.
+  //
+  // ledgerDay ordered by "at" and projected only uid + qid, so page two of
+  // any day threw — and since putLastDay never runs on a throw, the digest
+  // would come back to the same day every night forever, taking
+  // runAttentionFold and runRollupFold down with it (both are awaited after
+  // it in digestEngagementV2). The two sibling paged readers, patterns.ts
+  // and velocity.ts, both include "at"; this one was the deviation.
+  //
+  // Asserted on the ADAPTER for the same reason as the merge case above:
+  // the injected memoryStore the pure passes use never pages at all.
+  it("ledgerDay pages a second time instead of throwing on the cursor", async () => {
+    const PAGE = 5000;
+    let projection: string[] = [];
+    const orderBys: string[] = [];
+    let pages = 0;
+
+    // A document carries ONLY the projected fields — the whole point of
+    // select(), and what makes the missing cursor field undefined.
+    const docAt = (i: number) => ({
+      get: (f: string) =>
+        projection.includes(f)
+          ? f === "at"
+            ? new Date(Date.UTC(2026, 7, 25, 0, 0, i % 60))
+            : `${f}-${i}`
+          : undefined,
+    });
+
+    const query = {
+      // firestoreEngagementStore takes a metaRef off its first collection
+      // before returning; ledgerDay never touches it.
+      doc: () => ({}),
+      where: () => query,
+      orderBy: (f: string) => {
+        orderBys.push(f);
+        return query;
+      },
+      select: (...f: string[]) => {
+        projection = f;
+        return query;
+      },
+      limit: () => query,
+      startAfter: (d: { get: (f: string) => unknown }) => {
+        for (const f of orderBys) {
+          if (d.get(f) === undefined) {
+            // The Admin SDK's own wording, so a failure here reads like
+            // the one that would happen in production.
+            throw new Error(
+              `Field "${f}" is missing in the provided DocumentSnapshot. Please provide a document that contains values for all specified orderBy() and where() constraints.`,
+            );
+          }
+        }
+        return query;
+      },
+      async get() {
+        pages++;
+        // A full page first, so the loop is forced to ask for a second one;
+        // a short page second, so it terminates.
+        const size = pages === 1 ? PAGE : 3;
+        return { size, docs: Array.from({ length: size }, (_, i) => docAt(i)) };
+      },
+    };
+    const db = {
+      collection: () => query,
+      doc: () => ({}),
+    } as unknown as Parameters<typeof firestoreEngagementStore>[0];
+
+    const store = firestoreEngagementStore(db);
+    const rows = await store.ledgerDay("2026-08-25");
+
+    expect(pages, "the second page was never requested").toBe(2);
+    expect(rows).toHaveLength(PAGE + 3);
+    expect(
+      projection,
+      'ledgerDay orders by "at" but did not project it, so startAfter cannot build a cursor and every day past one page throws',
+    ).toContain("at");
   });
 });

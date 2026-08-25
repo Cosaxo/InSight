@@ -17,8 +17,8 @@
 // own test doesn't declare.
 //
 // Regeneration stays a deliberate step: `npm run build:content`.
-import { readFileSync, readdirSync, existsSync } from "node:fs";
-import { resolve, dirname, join } from "node:path";
+import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
+import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildAds, buildEntries, generate, loadContent, CATALOG_FILES, CONTENT_SOURCES, LENS_SCALE, LIKERT, PICK_SEQ_BASE, dialOptions, fieldOptions, DIAL_BUCKETS } from "./gen-v2content.mjs";
 
@@ -130,6 +130,20 @@ for (const q of entries) {
   // property the client's `fresh()` filter rests on.
   if (typeof q.from === "string" && typeof q.until === "string" && q.until < q.from) {
     errors.push(`${q.id}: the window closes (${q.until}) before it opens (${q.from})`);
+  }
+  // Background (D281) — the card's `i`. Shape only; whether the sentences
+  // are neutral, and whether the question needed them at all, is
+  // check:quality's and the reviewing run's, and is deliberately not
+  // restated here. An empty or whitespace `bg` is the failure worth
+  // catching in this file: the client's `WF_BGTEXT` falls back on a falsy
+  // value, so it would silently draw the pale button and no one would
+  // learn the field had been authored blank.
+  if (q.bg !== undefined) {
+    if (typeof q.bg !== "string" || !q.bg.trim()) {
+      errors.push(`${q.id}: \`bg\` is the background the card's i opens — a blank one is the same as none, but looks authored`);
+    } else if (q.bg !== q.bg.trim()) {
+      errors.push(`${q.id}: \`bg\` carries leading or trailing whitespace — the sheet renders it verbatim`);
+    }
   }
   // docs/SCALE-PLAN.md §1, the sponsored rule below pointed one field over.
   // A core question is what the Mirror folds its cohort readings over, and
@@ -474,7 +488,124 @@ const NOT_SEEDED = {
     "build input, not content — the hand-reviewed exceptions to the artists "
     + "catalogue's mechanical rule (D267), read by scripts/build-catalog.mjs "
     + "and gated by check:catalogs against the committed catalogue",
+  "pricing.json":
+    "the published rate card, not question content (PAID-PLAN §6, D288 §3) "
+    + "— imported by src/v2/data/pricing.ts (the door prints it verbatim), "
+    + "refolded from the purchase ledger by scripts/build-pricing.mjs, and "
+    + "held to shape by check:pricing; never an input to the bank",
+  "learn-sample.json":
+    "generated OUTPUT, not an input — the fixed slice of learn-questions.json "
+    + "the JS bundle carries (D284: the whole bank used to be compiled in, and "
+    + "check:bundle had ~39 cards of headroom left). Written by "
+    + "scripts/gen-learn-sample.mjs, imported by src/v2/spec/learn-data.js so "
+    + "the demo build has cards, and held equal to its source by "
+    + "check:learn-sample. It is emphatically not a second bank to edit",
 };
+
+// ---- content COMPILED INTO THE CLIENT, and how much of it there may be.
+//
+// THE GATE THIS FINDING WAS MISSING (D284). `spec/learn-data.js` imported
+// the whole learn bank, so every card shipped inside the JavaScript — and
+// `check:bundle` had about thirty-nine cards of headroom left, against a
+// lane whose own target was another hundred and forty. Nothing was
+// watching, and nothing could have been: question count lives in /content
+// and bundle weight lives in dist/, and no gate joined them. It surfaced
+// because somebody asked, which is not a mechanism.
+//
+// So: a /content file may be imported by `src/` only if it is named here
+// WITH a byte cap. The cap is not a budget to spend — it is the size at
+// which somebody has to think again, and the error says which thought.
+// A file imported and not listed fails; a file listed and not imported
+// fails too (the check-purge-listeners shape), so the list cannot outlive
+// its subjects.
+//
+// What is NOT here is the whole point: daily, feed, test, pick, pulse,
+// call and lens content reach the client only through Firestore, and must
+// keep doing so. Adding a line here is the decision, not the paperwork.
+const BUNDLED_CONTENT = {
+  "learn-sample.json": {
+    maxKiB: 32,
+    why:
+      "the fixed slice of the learn bank the demo build needs (D284) — "
+      + "generated at PER_FIELD cards a field, so it grows with the number "
+      + "of FIELDS and never with the bank. Crossing this means the taxonomy "
+      + "roughly doubled: re-derive PER_FIELD against the demo's needs "
+      + "rather than raising the cap",
+  },
+  "pricing.json": {
+    maxKiB: 8,
+    why:
+      "the published rate card (PAID-PLAN §6, D288 §3), imported by "
+      + "src/v2/data/pricing.ts because the committed file IS what the door "
+      + "prints — a price a buyer cannot diff is a price that can be quietly "
+      + "discriminated. Bounded structurally: constants, FX, and 3 cohorts "
+      + "of idx + 14 ticks + a date; estimates add one small object per "
+      + "cohort. Crossing this means the card grew a per-day series or a "
+      + "fourth cohort — reshape it, don't raise the cap",
+  },
+  "duel-questions.json": {
+    maxKiB: 24,
+    why:
+      "the duel pools, read by spec/duels-data.js — the last bank still "
+      + "compiled in whole (D284 moved learn and left this one: a weekly "
+      + "lane at 14.6 KiB has years of slack). Crossing this is the signal "
+      + "to give it learn's treatment, a generated sample plus a live read, "
+      + "rather than to raise the number",
+  },
+};
+
+{
+  const srcDir = join(root, "src");
+  // Tests are excluded, and they are the majority of the readers: a suite
+  // comparing the shipped bank against its source has to import the source
+  // (content-parity, lens-content, world-channels all do), and none of it
+  // reaches a device. `src/v2/test/` whole, plus any `*.test.*` anywhere —
+  // the same two exclusions spec-globals.mjs makes, for the same reason.
+  const isTest = (at) =>
+    at.includes(`${sep}test${sep}`) || /\.test\.[jt]sx?$/.test(at);
+  const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const at = join(dir, e.name);
+    if (e.isDirectory()) return walk(at);
+    return /\.(js|jsx|ts|tsx)$/.test(e.name) && !isTest(at) ? [at] : [];
+  });
+  const imported = new Map();
+  for (const file of walk(srcDir)) {
+    const src = readFileSync(file, "utf8");
+    for (const m of src.matchAll(/from\s+['"][^'"]*\/content\/([\w.-]+\.json)['"]/g)) {
+      if (!imported.has(m[1])) imported.set(m[1], []);
+      imported.get(m[1]).push(file.slice(root.length + 1));
+    }
+  }
+  for (const [f, sites] of imported) {
+    const rule = BUNDLED_CONTENT[f];
+    if (!rule) {
+      errors.push(
+        `content/${f} is imported into the client (${sites.join(", ")}) but is not `
+        + "listed in BUNDLED_CONTENT. A bank compiled into the app ships to every "
+        + "user and counts against check:bundle, and nothing else connects the two "
+        + "— which is exactly how the learn bank got within 39 cards of failing the "
+        + "build (D284). Either read it from the seeded bank instead, or add it "
+        + "here with a cap and the reason.",
+      );
+      continue;
+    }
+    const kib = statSync(join(root, "content", f)).size / 1024;
+    if (kib > rule.maxKiB) {
+      errors.push(
+        `content/${f} is ${kib.toFixed(1)} KiB, over its ${rule.maxKiB} KiB bundle cap `
+        + `— it is compiled into the app (${sites.join(", ")}).\n    ${rule.why}`,
+      );
+    }
+  }
+  for (const [f, rule] of Object.entries(BUNDLED_CONTENT)) {
+    if (!imported.has(f)) {
+      errors.push(
+        `BUNDLED_CONTENT lists content/${f} ("${rule.why}") but nothing under src/ `
+        + "imports it any more — drop the entry with the import.",
+      );
+    }
+  }
+}
 
 const contentFiles = readdirSync(join(root, "content"))
   .filter((f) => f.endsWith(".json"));

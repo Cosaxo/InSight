@@ -105,14 +105,17 @@ export async function googleSignOut(): Promise<void> {
 }
 
 // Returns a synchronous unsubscribe; defers the real subscription
-// until the SDK has loaded.
+// until the SDK has loaded. On a build with no Firebase configured the
+// subscription is simply never made — a no-op, not an unhandled
+// rejection: the demo's stores may wire this lazily from render paths,
+// and "no auth to watch" is a normal state there, not an error.
 export function subscribeToAuth(cb: (user: User | null) => void): () => void {
   let cancelled = false;
   let unsub: (() => void) | null = null;
   impl().then((m) => {
     if (cancelled) return;
     unsub = m.subscribeToAuth(cb);
-  });
+  }).catch(() => { /* not configured — nothing to watch */ });
   return () => {
     cancelled = true;
     unsub?.();

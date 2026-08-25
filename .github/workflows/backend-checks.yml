@@ -82,6 +82,21 @@ jobs:
       # without a regen, ships a bank nobody reviewed. Regenerates in
       # memory and compares bytes. Node stdlib only, no root node_modules.
       - run: npm run check:content
+      # The slice of the learn bank the JS bundle carries (D284). On the
+      # backend path beside check:content and for its reason: both hold a
+      # DERIVED copy of /content equal to its source, and both failures are
+      # silent — a drifted sample makes the demo build serve cards the bank
+      # does not have, which the demo build is by definition unable to
+      # notice. Node stdlib only, no root node_modules.
+      - run: npm run check:learn-sample
+      # The seed's field whitelist against what the generator emits (D285).
+      # Deploy-path, and the most deploy-path of them all: a field the seed
+      # does not name never reaches Firestore, and every other gate stays
+      # green because tests seed their own fixtures. That has cost three
+      # dark features already (D234, D281, D284) and the third would have
+      # emptied Learn on every live device. Node stdlib only, no root
+      # node_modules.
+      - run: npm run check:seed-fields
       # The CALL rubric's two copies, and a dry run of every rubric in the
       # bank the same seed callable ships (D194). Deploy-path for both
       # halves: a drifted copy makes the deployed resolver and the shipped
@@ -159,6 +174,16 @@ jobs:
       - run: npm ci
       - run: npm ci --prefix functions
       # The functions emulator loads functions/lib — build first.
+      #
+      # This tree is compiled TWICE in this job — here, and again by the
+      # `pretest:e2e:all` hook npm fires before the drivers below. (It was
+      # four times until the three e2e steps became one.) That looks like an
+      # obvious saving and is not one: measured on a 4-core box, a cold `tsc`
+      # over this tree is 0.92s and a warm incremental one 0.50s, so
+      # `"incremental": true` buys well under a second — and lands a
+      # tsconfig.tsbuildinfo OUTSIDE lib/, where functions/.gitignore does
+      # not cover it. Recorded so nobody re-derives it. The hook stays
+      # regardless: it is what makes each driver safe to run by hand.
       - run: npm run build --prefix functions
       # firebase-tools 15 requires Java 21+ for the Firestore emulator.
       - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
@@ -172,13 +197,30 @@ jobs:
           path: ~/.cache/firebase/emulators
           key: firebase-emulators-e2e-${{ hashFiles('node_modules/firebase-tools/lib/emulator/downloadableEmulatorInfo.json') }}
           restore-keys: firebase-emulators-e2e-
-      - run: npm run test:e2e
-      # Right-to-erasure: observes leftovers with the admin SDK (rules
-      # bypassed), because reading as another user cannot tell "deleted"
-      # from "permission-denied".
-      - run: npm run test:e2e:erasure
-      # The moderation loop's transport layer — the callables, the
-      # moderator gate, the out-of-queue refusal, the advisory-mode
-      # guarantee — is executable only here, against the real functions
-      # emulator (docs/MODERATION.md, D22).
-      - run: npm run test:e2e:moderation
+      # ONE EMULATOR BOOT FOR ALL THREE DRIVERS, and the order is load-bearing.
+      #
+      # These were three `emulators:exec` steps, so the Firestore JVM and the
+      # functions emulator — which loads functions/lib and registers every
+      # trigger before reporting ready — were started and torn down three
+      # times. Measured on a 4-core box: a boot is 22s and the three steps
+      # were 143s wall, of which 66s was booting. Two of the three asked for
+      # a byte-identical emulator set, so one of those boots bought nothing
+      # at all. Chained: 95s for the same 133 checks (95 + 18 + 20, matching
+      # the separate runs exactly). That is ~48s off every PR AND off every
+      # production deploy, since this workflow is called by both.
+      #
+      # THE ORDER, and why it is not alphabetical:
+      #   1. e2e-v2-loop must be FIRST. It asserts exact global aggregate
+      #      totals against a fresh database (`pub.total !== 1`, then 5, 10,
+      #      11, 12), so anything that wrote first would break it.
+      #   2. e2e-delete-account observes only uid-scoped queries and named
+      #      docs, so it tolerates the loop's leftovers.
+      #   3. e2e-moderation reads the queue with `.find(i => i.takeId === id)`
+      #      rather than by length or emptiness, so it tolerates both.
+      #
+      # WHAT WOULD BREAK THIS SILENTLY: a length, count or emptiness
+      # assertion added to driver 2 or 3. They share one demo-insight
+      # database now, and nothing enforces the tolerance above. If you need
+      # one, split that driver back onto its own `npm run test:e2e:*` script
+      # — all three still exist and are the right thing to run by hand.
+      - run: npm run test:e2e:all

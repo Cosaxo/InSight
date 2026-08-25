@@ -4,6 +4,13 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+// The subtopic store, by NAME rather than through window (D39's convert on
+// touch). It is also what makes this overlay's chunk independent of the
+// feed's: world-subtopics.js moved out of the eager list into loadWorldFeed,
+// and the discover sheet below reads `ST.offers()` — so the module has to
+// arrive with THIS group, not with that one. loadOverlays calls
+// installSubtopicStock() for the same reason.
+import { SUBTOPICS } from './world-subtopics.js';
 import { WPAL } from './world-palette.js';
 import { FRIENDS } from './follows.js';
 import { DAILYQ } from './daily-questions.js';
@@ -147,7 +154,7 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
   const query = q.trim().toLowerCase();
   const D = IS_DATA;
   const TOPIC = useSrchMemo(() => Object.fromEntries((window.WORLD_TOPICS || []).map((t) => [t.id, t])), []);
-  const ST = window.SUBTOPICS;
+  const ST = SUBTOPICS;
 
   // the label a question wears — the leaf if it has one, else its topic
   const labelOf = (qq) => {
@@ -336,10 +343,13 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
 
         {samplePeople === false && <LivePeopleSearch query={q} onActive={setLivePeople} />}
         {!!people.length && <div className="search-group">{query ? 'People' : 'Friends'}</div>}
+        {/* the sub-line stopped stating distance (2026-08-24) — the same
+            direction Near took: knowing how close a stranger is, is itself
+            a leak, and role · since · match already carry the hit */}
         {people.map(p => (
           <SrchHit key={p.id}
             glyph={p.anon ? <AnonAv hue={p.hue} size={32} /> : <Av init={p.init} hue={p.hue} size={32} />}
-            title={anonName(p)} sub={[p.role || p.rel, p.dist || (p.since ? 'since ' + p.since : null), p.match != null ? Math.round(p.match) + '% match' : null].filter(Boolean).join(' · ')} q={query}
+            title={anonName(p)} sub={[p.role || p.rel, p.since ? 'since ' + p.since : null, p.match != null ? Math.round(p.match) + '% match' : null].filter(Boolean).join(' · ')} q={query}
             onClick={() => go(() => onPerson(p))} />
         ))}
       </div>

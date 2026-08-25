@@ -16,10 +16,13 @@
 // This file is the SHELL the standalone's patterns-tab.jsx draws: the
 // ruler, one sub-row under it (topic chips on the map, population chips
 // on people since D216, run progress on the oracle — same height
-// whichever lens is open, so switching never jumps), the one-time lens
-// explainer, and the live gates. Ported from
-// design/standalone-2026-08-20/patterns-tab.jsx. Chrome rule carried
-// with it: no type below 10.5px anywhere, in SVG or out.
+// whichever lens is open, so switching never jumps), and the live gates.
+// Ported from design/standalone-2026-08-20/patterns-tab.jsx; the
+// 2026-08-24 build retired the shell's one-time lens explainer — each
+// lens teaches its own marks (the footer legend on the map card, the
+// one-time hints on the oracle) — and renamed the wider two lenses so
+// the ruler names what each is a map OF. Chrome rule carried with it:
+// no type below 10.5px anywhere, in SVG or out.
 //
 // The trial ships LIVE DATA ONLY (the narrowing D166 §1 licenses): a
 // build with no published loadings — the demo included — says so instead
@@ -54,34 +57,11 @@ interface Topic { id: string; label: string; color: string }
 const topicOf = (cat: string | null | undefined): Topic | undefined =>
   (WORLD_TOPICS as Topic[]).find((t) => t.id === cat);
 
-// The lens explainer retires the first time the lens is used (the
-// prototype's rule — scaffolding, not chrome). The flags are account state
-// like any insight.* key: purgeLocalTrace sweeps the key, and this drops
-// the in-memory copy WITHOUT writing it back (check:purge).
-const SEEN = "insight.patterns.used.v1";
-let seenCache: Record<string, 1> | null = null;
-const readSeen = (): Record<string, 1> => {
-  if (!seenCache) {
-    try { seenCache = (JSON.parse(localStorage.getItem(SEEN) || "{}") || {}) as Record<string, 1>; }
-    catch { seenCache = {}; }
-  }
-  return seenCache;
-};
-window.addEventListener("insight:local-purge", () => { seenCache = null; });
-
-function useUsed(lens: string): [boolean, () => void] {
-  const [used, setUsed] = React.useState<boolean>(() => !!readSeen()[lens]);
-  React.useEffect(() => { setUsed(!!readSeen()[lens]); }, [lens]);
-  const mark = React.useCallback(() => {
-    setUsed(true);
-    const o = readSeen();
-    if (!o[lens]) {
-      o[lens] = 1;
-      try { localStorage.setItem(SEEN, JSON.stringify(o)); } catch { /* best-effort — in-memory is right */ }
-    }
-  }, [lens]);
-  return [used, mark];
-}
+// The one-time lens explainer that used to live here (and its
+// `insight.patterns.used.v1` key) retired with the 2026-08-24 build:
+// each lens teaches its own grammar in place, so a paragraph that
+// pre-explained the picture was scaffolding twice over. The purge sweeps
+// any stale key by prefix; nothing reads or writes it any more.
 
 /** Re-render on store changes (votes landing, the loadings arriving). */
 function usePatterns(): number {
@@ -93,19 +73,14 @@ function usePatterns(): number {
   return v;
 }
 
-const NOTES: Record<string, string> = {
-  map: "Every question placed by how much its answer predicts the others — close together means tightly tied. A solid line joins answers that travel together, a dotted one where a pick predicts the opposite. Tap any place.",
-  oracle: "It reads your past answers — feed votes included — and seals a guess before you tap. The taller fill is the side it called; a mark up on the ledger is a time you broke it.",
-  people: "Real people who share your questions, placed by their answers — close together means alike. You sit wherever your answers put you, not at the centre. Fainter = fewer shared answers. Tap anyone.",
-};
-
 // People sits on the far right — read left to right the ruler widens:
-// one question about you, the whole pool, the whole crowd (the
-// 2026-08-20 standalone's own order).
+// the oracle is one question about you, the question map is the whole
+// pool, the people map is the whole crowd (the 2026-08-24 labels: the
+// two wider stops name what each is a map OF).
 const LENSES = [
   { id: "oracle", label: "Oracle" },
-  { id: "map", label: "Map" },
-  { id: "people", label: "People" },
+  { id: "map", label: "Question map" },
+  { id: "people", label: "People map" },
 ] as const;
 type Lens = (typeof LENSES)[number]["id"];
 
@@ -138,7 +113,6 @@ export default function PatternsTab(): React.ReactElement {
   const [lens, setLens] = React.useState<Lens>("map");
   const [topic, setTopic] = React.useState("all");
   const [ppop, setPpop] = React.useState<PeoplePop>("world");
-  const [used, markUsed] = useUsed(lens);
 
   if (!PATTERNS.ready()) {
     // Live, and the loadings doc has not answered yet (or the read failed
@@ -226,11 +200,10 @@ export default function PatternsTab(): React.ReactElement {
         )}
       </div>
       <div key={lens} className="fade-in pt-stack">
-        {!used && <div className="pt-note">{NOTES[lens]}</div>}
-        {lens === "map" && <PatternsMap items={items} version={version} topic={topic} onUse={markUsed} />}
-        {lens === "oracle" && <PatternsOracle items={items} version={version} onUse={markUsed} />}
+        {lens === "map" && <PatternsMap items={items} version={version} topic={topic} />}
+        {lens === "oracle" && <PatternsOracle items={items} version={version} />}
         {lens === "people" && (
-          <PatternsPeople items={items} version={version} pop={pop} onUse={markUsed} onOracle={() => setLens("oracle")} />
+          <PatternsPeople items={items} version={version} pop={pop} onOracle={() => setLens("oracle")} />
         )}
       </div>
     </div>

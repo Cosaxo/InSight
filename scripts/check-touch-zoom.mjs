@@ -60,6 +60,18 @@ const walk = (dir, out = []) => {
   return out;
 };
 
+// The same walk for stylesheets. Separate from the one above rather than a
+// parameterised extension of it, because the two halves report differently
+// and the JSX half's file floor must keep counting JSX files only.
+const walkCss = (dir, out = []) => {
+  for (const name of readdirSync(dir)) {
+    const p = join(dir, name);
+    if (statSync(p).isDirectory()) walkCss(p, out);
+    else if (p.endsWith(".css")) out.push(p);
+  }
+  return out;
+};
+
 const failures = [];
 
 // ── 1 · JSX/TSX: every <input> and <textarea> tag ───────────────────────────
@@ -120,11 +132,33 @@ const badFontSize = (text) => {
   return value.includes(TOKEN) ? null : value;
 };
 
-for (const file of walk(SRC)) {
+// A NON-EMPTY FLOOR, the shape check-deploy-targets.mjs already uses
+// ("found NO exported functions, which cannot be right"). Without it this
+// gate reports "every text field defers to --field-size ✓" and exits 0 on a
+// walk that found nothing — so a moved directory, a renamed extension or a
+// regex that stopped matching turns it green rather than red. Verified by
+// mutation: stubbing readdirSync to [] left this gate at exit 0.
+//
+// The number is a floor, not a count: it only has to be far enough below
+// the real one (89 files, of which a couple of dozen carry a field) that a
+// legitimate deletion cannot trip it, while a broken walk always does.
+const FILES = walk(SRC);
+if (FILES.length < 40) {
+  console.error(
+    `check:touch-zoom FAILED: the walk found ${FILES.length} source files, `
+    + "which cannot be right.\nFix this scan rather than letting it pass "
+    + "vacuously — a gate that reports OK on nothing is worse than no gate.",
+  );
+  process.exit(1);
+}
+
+let fieldFiles = 0;
+for (const file of FILES) {
   const rel = relative(ROOT, file);
   if (SKIP_FILES.has(rel)) continue;
   const src = readFileSync(file, "utf8");
   if (!/<(input|textarea)[\s/>]/.test(src)) continue;
+  fieldFiles++;
   const consts = styleConsts(src);
 
   for (const tag of ["input", "textarea"]) {
@@ -156,18 +190,41 @@ for (const file of walk(SRC)) {
   }
 }
 
-// ── 2 · styles.css: rules whose selector targets a field ────────────────────
-const css = readFileSync(CSS, "utf8");
-for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
-  const [, selector, body] = m;
-  if (!/\b(input|textarea)\b/.test(selector)) continue;
-  if (/\[type=["']?(range|checkbox|radio|color)/.test(selector)) continue;
-  const fs = /(?:^|[;\s])font-size\s*:\s*([^;]+)/.exec(body);
-  if (fs && !fs[1].includes(TOKEN)) {
-    failures.push(
-      `src/v2/styles.css:${css.slice(0, m.index).split("\n").length}  `
-      + `\`${selector.trim().replace(/\s+/g, " ")}\` sets font-size: ${fs[1].trim()}`,
-    );
+// ── 2 · the stylesheets: rules whose selector targets a field ───────────────
+//
+// DISCOVERED, not named. This half read `src/v2/styles.css` and nothing
+// else, which left `src/v2/ui/patterns.css` — the app's other real
+// stylesheet, imported by PatternsTab.tsx — entirely unscanned. D105's bug
+// WAS a stylesheet rule (`.search-field input` at 15px), so the one failure
+// mode this gate is named after was unguarded in half the CSS that ships,
+// on the tab D265 has just put back in the bar.
+//
+// The floor below is the same shape as the JSX walk's: a discovery that
+// finds nothing, or loses the sheet that owns the token, has to fail rather
+// than report every field clean.
+const SHEETS = walkCss(SRC);
+if (!SHEETS.includes(CSS)) {
+  console.error(
+    `check:touch-zoom FAILED: the stylesheet walk found ${SHEETS.length} sheet(s) `
+    + "and src/v2/styles.css was not among them.\nThat file owns --field-size, so "
+    + "a walk that misses it is broken, not clean.",
+  );
+  process.exit(1);
+}
+for (const sheet of SHEETS) {
+  const css = readFileSync(sheet, "utf8");
+  const rel = relative(ROOT, sheet);
+  for (const m of css.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    const [, selector, body] = m;
+    if (!/\b(input|textarea)\b/.test(selector)) continue;
+    if (/\[type=["']?(range|checkbox|radio|color)/.test(selector)) continue;
+    const fs = /(?:^|[;\s])font-size\s*:\s*([^;]+)/.exec(body);
+    if (fs && !fs[1].includes(TOKEN)) {
+      failures.push(
+        `${rel}:${css.slice(0, m.index).split("\n").length}  `
+        + `\`${selector.trim().replace(/\s+/g, " ")}\` sets font-size: ${fs[1].trim()}`,
+      );
+    }
   }
 }
 
@@ -185,4 +242,20 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log("check:touch-zoom — every text field defers to --field-size ✓");
+// …and the second half of the same floor: the walk can be healthy while the
+// `<input|textarea>` filter is what stopped matching, which is the same
+// vacuous pass one layer in. The count is reported rather than swallowed so
+// the number is visible when it moves.
+if (!fieldFiles) {
+  console.error(
+    "check:touch-zoom FAILED: not one file in the walk contains an <input> "
+    + "or <textarea>.\nThe tag filter is broken — fix it rather than letting "
+    + "this pass vacuously.",
+  );
+  process.exit(1);
+}
+
+console.log(
+  `check:touch-zoom — every text field defers to --field-size ✓ `
+  + `(${fieldFiles} files with a field, of ${FILES.length} walked)`,
+);

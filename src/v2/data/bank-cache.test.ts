@@ -399,4 +399,54 @@ describe("question-bank cache", () => {
     expect(LIVE.pulseQs().map((x) => x.id)).toEqual(["pulse-pace"]);
     expect(LIVE.callQs().map((x) => x.id)).toEqual(["call-c01"]);
   });
+
+  // ── the current-events serving window (D231) ─────────────────────
+  //
+  // `fresh()` is the whole promise of the `now` lane — "the lane's
+  // promise is that it stops being asked", as check:quality puts it —
+  // and until this case nothing executed it. Every other part of the
+  // lane was pinned (the window bounds in question-quality.test.mjs, the
+  // ring's arithmetic in askWindow.test.ts, the day-key shape in
+  // check-content), and the one line that actually retires a card was
+  // covered by none of them. Owner-reported on 2026-08-24 as a question
+  // he could not tell would ever stop being shown, which is the honest
+  // reading of a mechanism with no test: from the outside, "it works"
+  // and "nobody checked" look the same.
+  //
+  // Asserted on the BANK rather than on a rendered card: the filter runs
+  // in hydrate, before anything builds a card, so this is the layer
+  // where the answer is either right or wrong for every surface at once.
+  const dayKey = (n: number) =>
+    new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+
+  it("stops serving a now question the day after its window closes", async () => {
+    const nowQ = (id: string, from: string, until: string) =>
+      q(id, 1000, { surface: "feed", topic: "now", from, until });
+    h.bankDocs = [
+      q("q_1", 1000),
+      nowQ("n_open", dayKey(-2), dayKey(2)),
+      // Both boundaries are INCLUSIVE, and both are the off-by-one worth
+      // pinning: a window closing today still serves today, and one that
+      // closed yesterday is gone.
+      nowQ("n_closes_today", dayKey(-4), dayKey(0)),
+      nowQ("n_closed", dayKey(-5), dayKey(-1)),
+      // The other end: written ahead of time, not yet servable. This is
+      // the half `from` exists for — an editor writing next week's card
+      // this week rather than having to be awake on the day.
+      nowQ("n_future", dayKey(1), dayKey(5)),
+    ];
+    const LIVE = await bootLive();
+    const feed = (window as unknown as { WORLD_FEED_QS?: Array<{ id: string }> })
+      .WORLD_FEED_QS || [];
+    const ids = feed.map((x) => x.id);
+    expect(ids, "an open window stopped serving").toContain("n_open");
+    expect(ids, "a window closing today must still serve today").toContain("n_closes_today");
+    expect(ids, "a closed question is still being offered — the lane's whole promise").not.toContain("n_closed");
+    expect(ids, "a question whose window has not opened is being offered early").not.toContain("n_future");
+    // The archive is the product: the filter is a SERVING rule, so the
+    // expired doc is still in the cache and its answers and aggregate are
+    // untouched. `active: false` remains the hard kill.
+    expect(readCache().questions.map((x: { id: string }) => x.id)).toContain("n_closed");
+    expect(LIVE.ready).toBe(true);
+  });
 });

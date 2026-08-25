@@ -44,7 +44,7 @@ jobs:
       # about whether a rules fix is safe to deploy, and this repo's rule is
       # that nothing which cannot answer that question gets to block one.
       - run: npm run check:figures
-      # D275's invariant: the answer document is the source of truth and
+      # D290's invariant: the answer document is the source of truth and
       # every aggregate is a projection rebuilt from it, which holds only
       # while the answer keeps carrying its `anchors` snapshot. Trim that to
       # save a write and nothing else fails — the fold happily folds an
@@ -141,6 +141,11 @@ jobs:
       # out of D106's own rewrite calling world takes nameless. Same
       # placement rule as check:store-forms above: client/docs-only, and
       # deliberately off backend-checks.yml.
+      # The committed rate card (content/pricing.json, PAID-PLAN §6, D288
+      # §3) stays inside its own clamps — edited by script AND by hand, so
+      # both authors get the same referee. Client content: the door prints
+      # this file, so the gate sits here and stays OFF backend-checks.yml.
+      - run: npm run check:pricing
       - run: npm run check:public-copy
       # The other half of the same discipline, and the newer half (D183).
       # check:public-copy catches a retired promise that REAPPEARS; this
@@ -267,6 +272,25 @@ jobs:
       # reCAPTCHA-key guard and defines nothing — verified by building with
       # each in isolation, where VITE_V2_LIVE alone reproduced the entire
       # delta. Setting it here would waive a guard this job wants enforced.
+      #
+      # …AND VITE_FIREBASE_API_KEY IS NOT SET EITHER, which means that guard
+      # cannot fire in this job however the line above reads: its condition
+      # short-circuits on the missing key before it reaches the throw. That
+      # was true unnoticed for the guard's whole life.
+      #
+      # It is NOT fixed by setting a dummy key here, and that is the point
+      # worth writing down. VITE_APPCHECK_RECAPTCHA_SITE_KEY is read through
+      # import.meta.env and replaced with a literal at build time, so setting
+      # the pair would change which branch of src/lib/appcheck.ts survives —
+      # and this job's whole argument is that it weighs the bundle a release
+      # weighs. Buying guard coverage with a bundle nobody ships is the exact
+      # trade the DSN comment above exists to undo.
+      #
+      # So the condition moved instead: scripts/appcheck-guard.ts holds it,
+      # `npm run test:scripts` runs both directions on every PR, and the
+      # build-time throw stays as the belt on a real release build (verified
+      # by hand — a production web build with a Firebase key and no site key
+      # refuses; with the site key it builds).
       - run: npm run build
         env:
           VITE_SENTRY_DSN: https://ci@example.invalid/0

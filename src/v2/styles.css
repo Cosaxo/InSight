@@ -208,7 +208,7 @@
   --rule: oklch(0.905 0.006 74);
   --ink: oklch(0.216 0.011 70);
   --ink-2: oklch(0.41 0.011 68);
-  --ink-3: oklch(0.51 0.010 68);
+  --ink-3: oklch(0.472 0.010 68); /* was 0.51 — lifted for AA contrast on the 10-11px captions it carries (2026-08-24) */
   --accent: var(--c-around);
   /* One accent family: every tab hue shares the same oklch lightness+chroma,
      so switching tabs reads as one app changing mood, not four apps. */

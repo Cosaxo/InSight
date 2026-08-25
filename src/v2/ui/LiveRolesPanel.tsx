@@ -33,6 +33,8 @@ import { matchArchetype } from "../spec/archetype-data.js";
 import { RoseMini, TestRose } from "../spec/result-rose.jsx";
 // @ts-expect-error TS7016 — untyped spec module (additive export)
 import { TypeMark } from "../spec/type-marks.jsx";
+// @ts-expect-error TS7016 — untyped spec module (additive export)
+import { ExplainBtn, ExplainSheet } from "../spec/explain-sheet.jsx";
 
 interface Room { id: string; mode?: string; name?: string; memberUids?: string[]; memberNames?: Record<string, string> }
 interface Setting { key: string; label: string; res: RoleResult }
@@ -52,9 +54,30 @@ function typeOf(kind: string, dims: { id: string; value: number }[]): { name: st
 
 const firstName = (n: string): string => String(n || "").split(" ")[0];
 
+// The sheet's dim list when a section has no reading yet — id + label only,
+// mirroring the instrument in data/roles.ts (a live section hands the sheet
+// its real blended dims instead, so these are never the preferred source).
+const FALLBACK_DIMS: Record<"duo" | "group", { id: string; label: string }[]> = {
+  duo: [
+    { id: "read", label: "Insight" },
+    { id: "seen", label: "Legibility" },
+    { id: "like", label: "Likeness" },
+    { id: "steady", label: "Steadiness" },
+  ],
+  group: [
+    { id: "own", label: "Independence" },
+    { id: "pull", label: "Centrality" },
+    { id: "settle", label: "Steadiness" },
+  ],
+};
+
 export default function LiveRolesPanel(): React.ReactElement {
   const [, bump] = React.useState(0);
   const [open, setOpen] = React.useState<string | null>(null);
+  // the roles' ⓘ (2026-08-24): the same sheet every test opens, keyed by
+  // the instrument family — the sheet also answers per-setting keys
+  // ('duo:<room>') as their family, for any caller that carries one
+  const [explain, setExplain] = React.useState<"duo" | "group" | null>(null);
   const S = LIVE.social as unknown as {
     groups: (mode?: string) => Room[];
     revealHistory: (gid: string) => Record<string, unknown>[];
@@ -150,7 +173,10 @@ export default function LiveRolesPanel(): React.ReactElement {
     const showRows = settings.length > 1 || thin.length > 0;
     return (
       <div style={{ marginBottom: 22 }}>
-        <div className="kicker" style={{ marginBottom: 9 }}>{title}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 9 }}>
+          <div className="kicker">{title}</div>
+          <ExplainBtn onClick={() => setExplain(kind)} label={`What the ${kind === "duo" ? "1v1" : "group"} role measures`} />
+        </div>
         {!avg && !thin.length ? (
           // The honest refusal, not an empty rose — for a section with no
           // settings at all. A setting that merely has too few days is a
@@ -241,6 +267,18 @@ export default function LiveRolesPanel(): React.ReactElement {
         "No 1v1 has {n} days you both guessed yet — the role appears once one has.")}
       {section("group", "In groups", groups, groupsThin, MIN_GROUP,
         "No group has {n} revealed days you played yet — the role appears once one has.")}
+      {explain && (() => {
+        const src = explain === "duo" ? duos : groups;
+        const avg = blendRoles(src.map((s) => s.res));
+        return (
+          <ExplainSheet
+            title={explain === "duo" ? "Your role in a 1v1" : "Your role in a group"}
+            kicker="role" dimKey={explain}
+            dims={avg ? avg.dims : FALLBACK_DIMS[explain]}
+            keyRows={null}
+            onClose={() => setExplain(null)} />
+        );
+      })()}
     </div>
   );
 }

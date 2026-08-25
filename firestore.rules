@@ -734,6 +734,31 @@ service cloud.firestore {
             // fit its options ("pick" questions have empty bank options —
             // their options are the group's members)
             && exists(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
+            // Same kill switch and surface agreement as isWorldAnswer, and
+            // for the same reason — this was the ONE answer shape that
+            // checked only that the question existed. Duel votes are not an
+            // inert member-only surface: revealQid derives the day's
+            // question from the members' own answer docs and foldDuelSignal
+            // publishes it into the world-readable duel-{qid} aggregate, so
+            // a question pulled for being broken or harmful kept taking
+            // votes, kept being published in reveals, and kept feeding a
+            // public aggregate.
+            && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
+                 .data.get("active", true) == true
+            // EQUALITY, like isWorldAnswer's: duelQFor (data/deck.ts) draws
+            // the day's question with `q.surface === mode`, so the bank a
+            // group can legitimately answer from is exactly the one whose
+            // surface matches the answer's own "group"/"duo". Without it a
+            // group could seal a vote against a daily, feed or catalog
+            // question — and for a catalog question `options` is empty, so
+            // duelIndexSpace() falls through to the member count and the
+            // vote is folded as if it were a "pick".
+            //
+            // The get() is the same document duelIndexSpace() already
+            // reads, and rules dedupe identical gets within a request, so
+            // neither clause costs an extra read.
+            && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
+                 .data.get("surface", "daily") == request.resource.data.surface
             && request.resource.data.optionIdx < duelIndexSpace()
             && (request.resource.data.get("guessIdx", 0) is int)
             && request.resource.data.get("guessIdx", 0) >= 0
@@ -980,8 +1005,17 @@ service cloud.firestore {
 
     // Server-side aggregate internals — the trigger's working state and
     // its idempotency ledger. Closed to clients because nothing needs it,
-    // not because it hides anything: since D98 the public mirror above
-    // carries the same exact counts, so this collection is bookkeeping.
+    // not because it hides anything.
+    //
+    // What is left in v2_aggs_private is the CATALOG accumulator (and the
+    // duel fold's own). It used to also hold a byte-identical copy of every
+    // vote, edit and rank aggregate — dead weight once D98 removed the
+    // floor those copies existed to sit above — and that copy is gone: the
+    // published document above is the accumulator on those paths now, which
+    // it can be because `allow write: if false` leaves the trigger as its
+    // only writer. A catalogue keeps its own because the accumulator there
+    // is the whole ~1k-entity map, of which the public board publishes a
+    // bounded top-N — more than publishes, never other than it.
     match /v2_aggs_private/{qid} {
       allow read, write: if false;
     }
@@ -1280,7 +1314,25 @@ service cloud.firestore {
           : (request.resource.data.gid is string
             && request.auth.uid in
               get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids
-            && (!("qid" in request.resource.data) || request.resource.data.qid is string)));
+            && (!("qid" in request.resource.data) || request.resource.data.qid is string)
+            // The id is bounded HERE too, and not for the same reason as
+            // the world branch above. A circle take is many-per-person, so
+            // there is no one-take bound to enforce — but both branches
+            // write into the SAME collection, so an unconstrained circle id
+            // could be somebody else's world id. Update is denied and
+            // delete is author-only, so one such write permanently squats
+            // the single take that person is allowed on that question, with
+            // no recovery path for them and nothing to rate-limit it: any
+            // free account can make a group and be a member of it.
+            //
+            // The bound is the SHAPE, not the length: a world id always
+            // contains the "_" separator, so an id with none can never be
+            // one. That is the whole invariant, and it survives an auto-id
+            // format change — `doc(collection(db, "v2_takes"))`, the only
+            // thing that has ever written a circle take (postTake,
+            // data/live.ts), mints 20 alphanumerics, and pinning that
+            // literally would tie the rules to an SDK detail instead.
+            && takeId.matches("^[^_]*$")));
       // No edit path: an edited take invalidates the flags cast on what it
       // used to say. Delete-and-repost restarts the flag count honestly.
       allow update: if false;
@@ -1450,6 +1502,25 @@ service cloud.firestore {
     // A list query must filter uid == request.auth.uid or Firestore
     // refuses it wholesale — the D65 value-test shape.
     match /v2_suggestions/{sid} {
+      allow read: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+
+    // ── Paid purchase records (docs/PAID-PLAN.md §7, D288 §3) ────────
+    //
+    // One row per contract — scope, dims, window, the rate LOCKED at
+    // booking, budget cap, state, report milestones. Written by the
+    // OPERATOR at contract time (scripts/record-purchase.mjs, admin
+    // SDK): selling is by hand today (PAID-PLAN §9.2), so there is no
+    // client write path and no callable — a write arm nothing uses
+    // would be surface without a subject. The buyer reads their own
+    // rows (the room, PaidMineCard); the demand the door shows is NOT
+    // read from here — scripts/build-pricing.mjs folds these into the
+    // committed content/pricing.json, which is the public half.
+    // Same list shape as v2_suggestions: a query must filter
+    // uid == request.auth.uid or Firestore refuses it wholesale (D65).
+    match /v2_purchases/{pid} {
       allow read: if request.auth != null
         && resource.data.uid == request.auth.uid;
       allow write: if false;

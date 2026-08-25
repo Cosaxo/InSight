@@ -4,10 +4,8 @@
 //                       Gated: emulator, or an operator uid listed in the
 //                       SEED_ADMIN_UIDS env var — with anonymous-first auth
 //                       (D3), "any signed-in user" would mean "anyone".
-//   onV2AnswerCreated   folds each answer into v2_question_aggs/{qid},
-//                       EXACT, on every answer. One document since D275;
-//                       catalog answers alone still carry a private
-//                       accumulator, because their board publishes lossy.
+//   onV2AnswerCreated   folds each answer into v2_question_aggs/{qid}, the
+//                       published document itself, on every answer.
 //                       Idempotent via an event ledger, so at-least-once
 //                       delivery and retry-on-failure cannot
 //                       double-count. The same ledger carries uid
@@ -81,12 +79,32 @@ const REGION = FUNCTIONS_REGION;
 // per-anchor breakdown, with no suppressed cells and no `tooSmall`.
 //
 // The contention half of the old cadence argument was real and does NOT
-// disappear with it: both docs in the trigger's transaction are keyed by
-// qid, and Firestore sustains ~1 write/sec/document (D7). Publishing per
-// answer restores that pressure. It is accepted knowingly at launch
-// volume and the mitigation, when it is needed, is to collapse the two
-// documents into one rather than to reintroduce a floor — the private
-// doc has no readers at all now (see the header).
+// disappear with it: the trigger's transaction is keyed by qid, and
+// Firestore sustains ~1 write/sec/document (D7). Publishing per answer
+// restores that pressure. It is accepted knowingly at launch volume, and
+// the remedy when it bites is sharding, never a floor.
+//
+// THE PRIVATE MIRROR IS GONE on the three paths where it was a copy.
+// D98 left `v2_aggs_private/{qid}` holding, for a vote, an edit and a
+// rank, byte-for-byte what this trigger published in the same
+// transaction: `{counts, total, by, edits?}` twice, `{pos, total}` twice.
+// The floor it was built to hold back had been deleted; what remained was
+// a second write of a public fact, a third of this function's writes, on
+// every answer. The collapse was named as the mitigation in the paragraph
+// above from the day D98 shipped, and it is taken here.
+//
+// The published document is safe as the accumulator because nothing else
+// can touch it: firestore.rules gives v2_question_aggs `allow write: if
+// false`, so the trigger through the Admin SDK is its only writer —
+// exactly the guarantee the private doc had.
+//
+// v2_aggs_private SURVIVES, for the CATALOG path alone, and there it is
+// not a copy: it accumulates the whole `ent` map (a catalogue is ~1k
+// entities) and the whole `entBy`, while the public doc carries a bounded
+// top-N projection of both. Publishing the accumulator would grow the
+// document every client re-reads on every answer, which is the opposite
+// of what this change is for. The duel fold (v2social.ts) keeps its own
+// for the same shape of reason, at one fold per revealed group-day.
 
 // ── every question slices (D98 reverses D44) ────────────────────
 //
@@ -146,10 +164,10 @@ export function breakdownFor(
 //   window covering it prevents double counts.
 //
 //   Attribution needs longer. The ledger is what lets an operator subtract a
-//   discovered ring of fake accounts and republish (docs/DEPLOYMENT.md,
-//   "Correcting aggregates" — since D275 that is a rebuild from the
-//   answers rather than a subtraction, so the ledger's role there is
-//   finding the ring rather than repairing it); prevention cannot be made
+//   discovered ring of fake accounts from the published aggregate — one
+//   document since the private mirror collapsed, so on the vote, edit and
+//   rank paths the correction IS the republication
+//   (docs/DEPLOYMENT.md, "Correcting aggregates"); prevention cannot be made
 //   complete (D28), so the fallback is that the record stays correctable.
 //   That only works while the ring's entries still exist, and an attack is
 //   noticed on a human timescale — weeks after the fact, not days. 90 days
@@ -197,19 +215,20 @@ function ledgerEntry(uid: string, qid: string, optionIdx?: number) {
 // interleaving; three is the ceiling arriving, which is why that is where
 // this logs. A line per contended answer, not per answer.
 //
-// WHY THIS STILL MEASURES SOMETHING, AND WHAT MOVED. The old publish
-// cadence cut writes to pubRef by ~80%, and it was tempting to read that
-// as headroom. It never was: `v2_aggs_private` was written on EVERY answer
-// inside the same transaction, and a transaction is bounded by its most
-// contended document — so removing the cadence (D98) did not move the
-// ceiling, it only removed the illusion of margin.
+// WHY THIS STILL MEASURES SOMETHING AFTER D98. The old publish cadence cut
+// writes to pubRef by ~80%, and it was tempting to read that as headroom.
+// It never was: the private mirror was written on EVERY answer inside the
+// same transaction, and a transaction is bounded by its most contended
+// document. Removing the cadence therefore did not move the ceiling — it
+// only removed the illusion of margin.
 //
-// D275 spent the other half of that observation. The vote, rank and edit
-// arms now write ONE aggregate document, so the transaction holds one hot
-// lock instead of two and the ceiling roughly doubles. It is still a
-// ceiling, and this is still what will say when it arrives; the remaining
-// fix is SHARDING. The catalog arm still writes two, deliberately — its
-// private document is an accumulator rather than a copy.
+// COLLAPSING THE TWO DOCUMENTS DOES NOT MOVE IT EITHER, and that is worth
+// stating because the sentence here used to name it as the thing that
+// would. It removes a WRITE — a third of the trigger's, on every ordinary
+// answer — but the two documents were keyed by the same qid, so the
+// transaction was already bounded by one of them and now is bounded by
+// the survivor. Same ceiling, one fewer document under it. What moves
+// the ceiling is sharding.
 const CONTENTION_ATTEMPTS = 3;
 
 // Exported for its test only — nothing outside this module calls it. The
@@ -431,6 +450,24 @@ export async function runSeedV2(
       ...(typeof q.tier === "string" ? { tier: q.tier } : {}),
       ...(typeof q.resolvesAt === "string" ? { resolvesAt: q.resolvesAt } : {}),
       ...(q.rubric ? { rubric: q.rubric } : {}),
+      // The card's background (D281) and the learn card's own metadata
+      // (D284) — the third and fourth times this whitelist has been the
+      // thing a new field died in. Both would have shipped dark: the
+      // background is what the feed's `i` opens, and without `c` the
+      // client DROPS every learn card rather than guessing an answer key,
+      // so Learn would have gone permanently empty on every live device
+      // while every gate stayed green on self-seeded fixtures.
+      //
+      // `check:seed-fields` exists now and is the reason this comment can
+      // be short: the generator's own field names are compared against
+      // this payload and against SEEDED_FIELDS, so the next one fails at
+      // the gate instead of in production.
+      ...(typeof q.bg === "string" ? { bg: q.bg } : {}),
+      ...(typeof q.c === "number" ? { c: q.c } : {}),
+      ...(typeof q.t === "number" ? { t: q.t } : {}),
+      ...(typeof q.p === "number" ? { p: q.p } : {}),
+      ...(typeof q.k === "string" ? { k: q.k } : {}),
+      ...(typeof q.w === "string" ? { w: q.w } : {}),
     };
     // Unchanged docs are not rewritten. Two things depend on this, and the
     // second is the expensive one: `updatedAt` only means something as an
@@ -649,14 +686,17 @@ export const onV2AnswerCreated = onDocumentCreated(
       const pubRef = db.collection("v2_question_aggs").doc(qid);
       const qRef = db.collection("v2_questions").doc(qid);
       await runAggTransaction(db, qid, async (tx) => {
-        const seen = await tx.get(eventRef);
-        if (seen.exists) return;
+        // Batched for the same reason as the vote path below: three
+        // sequential round trips inside the transaction is three times the
+        // lock window on the contended per-qid document.
+        //
         // The question's domain decides which key space validates this
         // entity — the trigger's only question-doc read, catalog answers
         // only. A missing or unknown domain never aggregates: with three
         // key spaces (a contiguous range and two sparse QID sets, D15)
         // there is no honest global fallback bound.
-        const qDoc = await tx.get(qRef);
+        const [seen, qDoc, priv] = await tx.getAll(eventRef, qRef, privRef);
+        if (seen.exists) return;
         const spec = CATALOG_DOMAINS[qDoc.get("domain") as string];
         if (!spec) {
           logger.warn(`[v2] catalog answer ${event.params.uid}/${qid} on a question with no known domain`);
@@ -667,7 +707,6 @@ export const onV2AnswerCreated = onDocumentCreated(
           logger.warn(`[v2] answer ${event.params.uid}/${qid} has no usable entity key`);
           return; // an unknown key never aggregates; the owner's doc stays, harmless
         }
-        const priv = await tx.get(privRef);
         const ent: CanonCounts =
           (priv.exists && (priv.get("ent") as CanonCounts)) || {};
         ent[key] = (ent[key] || 0) + 1;
@@ -693,13 +732,6 @@ export const onV2AnswerCreated = onDocumentCreated(
         // entries); `entBy` by the bucket cap × its own per-cell entity
         // cap (foldCanonAnchors) — tens of KB against Firestore's 1 MiB
         // limit either way.
-        // KEPT, where the vote and rank arms dropped theirs (D275). This
-        // is not a mirror of the published document and cannot be derived
-        // from it: `ent` holds every entity the catalogue admits (~1k),
-        // while what publishes below is canonTopN's board — the top N plus
-        // a single `rest` scalar. Fold the next answer from that and every
-        // entity outside the board is lost. The published `by` is cut the
-        // same way. An accumulator, not a copy.
         tx.set(privRef, { ent, entBy, total }, { merge: false });
         // Published whole, every answer. The `by` map is cut to the
         // board's own entities purely to bound the document — a segment
@@ -733,20 +765,26 @@ export const onV2AnswerCreated = onDocumentCreated(
       const pubRef = db.collection("v2_question_aggs").doc(qid);
       const qRef = db.collection("v2_questions").doc(qid);
       await runAggTransaction(db, qid, async (tx) => {
-        const seen = await tx.get(eventRef);
-        if (seen.exists) return;
+        // One aggregate document, the published one — same as the vote path
+        // below, and for the same reason: `{ pos, total }` and
+        // `{ total, pos }` were the same two fields written twice.
+        //
+        // Batched for the same reason too: three sequential round trips
+        // inside the transaction is three times the lock window on the
+        // contended per-qid document.
+        //
         // The item count decides the only valid order length — the
         // trigger's one question-doc read, the catalog branch's pattern.
         // Rules already bound the size; the elements (a permutation of
         // 0..n-1, no duplicates) can only be checked here.
-        const qDoc = await tx.get(qRef);
+        const [seen, qDoc, agg] = await tx.getAll(eventRef, qRef, pubRef);
+        if (seen.exists) return;
         const n = ((qDoc.get("options") as unknown[] | undefined) || []).length;
         const order = validRankOrder(snap.get("order"), n);
         if (order === null) {
           logger.warn(`[v2] answer ${event.params.uid}/${qid} has no usable order`);
           return; // an invalid permutation never aggregates; the doc stays, harmless
         }
-        const agg = await tx.get(pubRef);
         const stored = agg.exists ? (agg.get("pos") as number[] | undefined) : undefined;
         // Re-derive from zero when the stored array is absent or the wrong
         // length (a bank doc whose options were never allowed to change —
@@ -758,7 +796,6 @@ export const onV2AnswerCreated = onDocumentCreated(
         tx.set(eventRef, ledgerEntry(event.params.uid, qid));
         // Published whole, every answer (D98): the sums and the total ARE
         // the reveal — the client derives the crowd order by mean position.
-        // One document, not two, since D275 — see the vote arm.
         tx.set(pubRef, { total, pos }, { merge: false });
       });
       return;
@@ -770,45 +807,43 @@ export const onV2AnswerCreated = onDocumentCreated(
     }
     const db = firestore();
     const eventRef = db.collection("v2_agg_events").doc(event.id);
-    // ONE aggregate document since D275. `v2_aggs_private` used to carry a
-    // byte-identical copy of everything below — it existed to hold the
-    // EXACT total while the public mirror lagged behind a publish cadence,
-    // and D98 deleted the cadence without deleting the second document. So
-    // the fold was writing the same numbers twice, into two documents both
-    // keyed by qid, inside one transaction bounded by its most contended
-    // one. Removing it takes a third of the writes off the app's hottest
-    // path and roughly doubles D7's ceiling, at zero cost to anything: the
-    // private doc had no readers (`allow read, write: if false`) and, since
-    // D98, no secrets.
-    //
-    // The CATALOG arm still writes it, and that is not an oversight — see
-    // the note there. Its private document is a real accumulator, not a
-    // mirror: the published board is a lossy top-N projection nothing can
-    // fold the next answer from.
     const pubRef = db.collection("v2_question_aggs").doc(qid);
     await runAggTransaction(db, qid, async (tx) => {
+      // ONE aggregate document, and it is the published one. See "the
+      // private mirror is gone" in the header: since D98 the private doc
+      // held byte-identical bytes to this one on this path, so the write
+      // to it was a second copy of a public fact.
+      //
+      // The public doc is safe as the ACCUMULATOR because no client can
+      // write it — firestore.rules gives v2_question_aggs `allow write: if
+      // false`, so the only writer is this trigger through the Admin SDK,
+      // exactly as it was for the private doc.
+      //
+      // ONE batched read, not two sequential ones. Each `tx.get` is its own
+      // round trip, and these sit INSIDE the transaction — so a second one
+      // lengthens the lock window on `v2_question_aggs/{qid}`, the single
+      // qid-keyed document D7's ~1-write/sec ceiling is about and the
+      // reason `runAggTransaction` counts attempts at all. This is the
+      // hottest function in the system (one invocation per answer); the
+      // neighbours already batch this way (v2social.ts's reveal and duel
+      // aggregate both use `tx.getAll`).
+      //
+      // The cost is one extra billed read on a redelivered event, which now
+      // fetches the aggregate before returning. That is the rare path,
+      // against one fewer serialized round trip on every ordinary answer.
+      //
       // Idempotency: Eventarc is at-least-once and retry is on — the
       // ledger makes redelivery a no-op instead of a double count.
-      const seen = await tx.get(eventRef);
+      const [seen, agg] = await tx.getAll(eventRef, pubRef);
       if (seen.exists) return;
-      const agg = await tx.get(pubRef);
       const counts: Record<string, number> =
         (agg.exists && (agg.get("counts") as Record<string, number>)) || {};
       counts[String(optionIdx)] = (counts[String(optionIdx)] || 0) + 1;
       const total = ((agg.exists && (agg.get("total") as number)) || 0) + 1;
       // Per-anchor breakdown, in the SAME document as the plain counts.
       // Deliberately not new per-dimension docs: this transaction already
-      // writes the published aggregate, so folding the slices in costs no
-      // extra document and D7's ~1-write/sec-per-document ceiling is
-      // unchanged.
-      //
-      // THAT REASONING HOLDS ONLY WHILE THE FOLD RUNS HERE, on the answer
-      // path, one writer per answer. Give the aggregate a rollup instead
-      // (D275 layer 2) and there is exactly one writer, at which point
-      // per-dimension documents cost nothing and buy `city` hundreds of
-      // buckets instead of BREAKDOWN_MAX_BUCKETS. Recorded at the site so
-      // the rejection is not re-read as still-correct after its premise
-      // has changed.
+      // writes the aggregate, so folding the slices in costs no extra
+      // document and D7's ~1-write/sec-per-document ceiling is unchanged.
       //
       // Answers written before any anchors are collected simply carry
       // `anchors: {}` and fold to nothing, so this is inert until there is
@@ -845,9 +880,9 @@ export const onV2AnswerCreated = onDocumentCreated(
       //
       // The write-rate cost is real and recorded above: this is one write
       // per answer to a single document keyed by qid, against Firestore's
-      // ~1/sec/document (D7). Collapsing the two documents was the cheaper
-      // of the two fixes D98 named and is now spent (D275); what remains
-      // when this bites is SHARDING — never a floor.
+      // ~1/sec/document (D7). Collapsing the two documents WAS the named
+      // remedy and is now taken; what is left when this bites is sharding,
+      // not a floor.
       tx.set(pubRef, { counts, total, by, ...(edits ? { edits } : {}) }, { merge: false });
     });
   },
@@ -885,12 +920,11 @@ export const onV2AnswerUpdated = onDocumentUpdated(
     const qid = event.params.qid;
     const db = firestore();
     const eventRef = db.collection("v2_agg_events").doc(event.id);
-    // One document since D275, same as the create arm above.
     const pubRef = db.collection("v2_question_aggs").doc(qid);
     await runAggTransaction(db, qid, async (tx) => {
-      const seen = await tx.get(eventRef);
+      // One document, batched — same as the create path above.
+      const [seen, agg] = await tx.getAll(eventRef, pubRef);
       if (seen.exists) return;
-      const agg = await tx.get(pubRef);
       const counts: Record<string, number> =
         (agg.exists && (agg.get("counts") as Record<string, number>)) || {};
       if (!retargetCounts(counts, fromIdx, toIdx)) {

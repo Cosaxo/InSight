@@ -1,4 +1,4 @@
-# Rebuild one question's aggregate from the answers that made it (D275).
+# Rebuild one question's aggregate from the answers that made it (D290).
 #
 # WHY THIS EXISTS. `rebuildAggregateV2` shipped with unit tests, an e2e that
 # drives it against emulated functions, and no way for anyone to run it. The
@@ -160,7 +160,7 @@ jobs:
             echo "disagree, which the incremental fold has no other way of telling anyone."
             echo ""
             echo "A \`cappedDims\` line means that dimension is at the bucket cap, where"
-            echo "the fold is order-dependent (D275) — counts and total stay exact, but the"
+            echo "the fold is order-dependent (D290) — counts and total stay exact, but the"
             echo "rebuilt breakdown is *a* correct fold rather than necessarily the published"
             echo "one. Say so in the incident note rather than calling the whole document"
             echo "reconstructed."

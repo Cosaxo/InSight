@@ -1349,10 +1349,10 @@ describe("the duel question-level signal (D40 part 3)", () => {
     });
   });
 
-  // ── the property D275's duel collapse rests on ───────────────────
+  // ── the property D290's duel collapse rests on ───────────────────
   //
   // `foldDuelSignal` used to accumulate onto a private copy and publish a
-  // projection of it. Since D275 it folds onto the PUBLISHED document, so
+  // projection of it. Since D290 it folds onto the PUBLISHED document, so
   // the projection has to be a sufficient accumulator: folding a delta
   // onto `publishableDuelAgg(state)` must equal folding it onto `state`.
   //
@@ -1371,7 +1371,7 @@ describe("the duel question-level signal (D40 part 3)", () => {
   // trimming projection, so a catalog board genuinely cannot be folded
   // from. The line between the two arms is not "lossy vs whole" — it is
   // "drops defaults vs drops data".
-  it("survives the publish projection: folding through it is identity (D275)", () => {
+  it("survives the publish projection: folding through it is identity (D290)", () => {
     const cases: Array<[string, ReturnType<typeof duelAggDelta>, ReturnType<typeof duelAggDelta>]> = [
       // The omitting case: a pick question publishes plays/total alone.
       ["pick question, nothing to publish but plays/total",

@@ -20,7 +20,7 @@ import React from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { LEARN as L } from "../spec/learn-progress.js";
 import LIVE from "../data/live";
-import { growFeed } from "./mount-app";
+import { growFeed, growUntil } from "./mount-app";
 import { installLive } from "./live-fixture";
 
 vi.setConfig({ testTimeout: 15000 });
@@ -62,8 +62,12 @@ describe("a due learn card is re-served answerable (D95)", () => {
 
     mountFeed();
     // The learn card is interleaved past the feed's first mounted page
-    // (D136); this case is about the card, not the window, so let it finish.
-    await growFeed();
+    // (D136), so grow until IT arrives rather than until the window settles
+    // — this is the demo bank, where settling never happens (mount-app.jsx).
+    await growUntil(
+      () => !!screen.queryByRole("button", { name: card.a[card.c] }),
+      `the re-served card ${card.id}`,
+    );
     const option = screen.getByRole("button", { name: card.a[card.c] });
     expect(option.disabled, "the re-served card rendered frozen").toBe(false);
     // No replay chrome before the answer — the reveal waits for the tap.
@@ -77,11 +81,26 @@ describe("a due learn card is re-served answerable (D95)", () => {
     // gone with it — so the NEXT serve arrives fresh too.
     const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}");
     expect(Object.keys(wf).filter((k) => k.indexOf("lrn-") === 0)).toEqual([]);
-    // 30s, not the 15s default: growFeed() above renders the WHOLE feed, so
-    // this test's runtime grows with every content batch — at ~670 bank
-    // questions it sits exactly on the default and fails only under full-suite
-    // load, which is the worst kind of red (2026-08-24, twice in one day).
-  }, 30_000);
+    // BACK TO THE FILE'S 15s, and the 30s that was here is worth recording
+    // because it and the `growUntil` above are the same bug from two ends,
+    // found the same day by two people who did not know about each other.
+    //
+    // The 30s came first: "growFeed() above renders the WHOLE feed, so this
+    // test's runtime grows with every content batch — at ~670 bank questions
+    // it sits exactly on the default and fails only under full-suite load,
+    // which is the worst kind of red (2026-08-24, twice in one day)." Every
+    // word of that was true, and raising the budget was the right call
+    // without the measurement that came later.
+    //
+    // The measurement (D276) is that `growFeed` could not converge here AT
+    // ALL: the window opens at 8 and adds 4 per tick against a list of 194,
+    // so it needs 47 ticks and the bound is 40. It was not slow because the
+    // bank grew — it ran its bound out every time and gave up silently, and
+    // the bank growing is what pushed that ~10s past the budget. `growUntil`
+    // waits for the card instead, which is what this case was ever about, so
+    // the runtime no longer tracks the bank at all and the default is
+    // comfortable again.
+  });
 
   it("does not serve an answered card inside its gap at all", () => {
     const card = L.plan(1)[0];
@@ -165,6 +184,14 @@ describe("the learn reveal counts the reader in (D157)", () => {
   // each case here starts it over: `plan(1)[0]` is then both the card the
   // feed serves first and one nothing has answered, which is what makes
   // "this is your first try" true rather than hopeful.
+  //
+  // `learnCard: true` on every installLive below, since D284. The engine's
+  // pool is the LIVE bank in a live build now — the bundle carries a demo
+  // sample and nothing more — so the fixture's default publishes an empty
+  // one, which is what a project with no seeded learn documents actually
+  // has. These cases are about the reveal's arithmetic and need a card to
+  // do it on; before D284 they got one from the bundle whatever the
+  // backend held, which is the thing that stopped being true.
   const firstCard = () => { L.reset(); return L.plan(1)[0]; };
   // Held across the tap rather than re-queried after it: answering folds
   // the count and the tick into the button's own text, so its accessible
@@ -173,7 +200,7 @@ describe("the learn reveal counts the reader in (D157)", () => {
   const rowFor = (card) => screen.getByRole("button", { name: card.a[card.c] });
 
   it("adds your own first try when the trigger has not folded it yet", async () => {
-    live = installLive();
+    live = installLive({ learnCard: true });
     const card = firstCard();
     // One stranger, on the wrong option, and the aggregate has not seen
     // ours: the state `learnAnswer`'s re-read leaves behind almost every
@@ -194,7 +221,7 @@ describe("the learn reveal counts the reader in (D157)", () => {
   });
 
   it("says why a repeat is not in the count it shows", async () => {
-    live = installLive();
+    live = installLive({ learnCard: true });
     // Miss a card, let its gap pass, and answer it right on the re-serve —
     // the exact sitting the screenshot came from. Only FIRST tries fold,
     // so the correct option genuinely stands at zero here, and the line
@@ -225,7 +252,7 @@ describe("the learn reveal counts the reader in (D157)", () => {
   });
 
   it("names a crowd of one as your own", async () => {
-    live = installLive();
+    live = installLive({ learnCard: true });
     const card = firstCard();
     // Nobody else, and your own answer pending: "From 1 answer —
     // everyone's first try at this card" is true and reads as broken data.

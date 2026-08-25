@@ -61,13 +61,27 @@ function ProfileOverlay({ onClose, me }) {
   const validSub = (id) => SUBTABS.some(s => s.id === id) ? id : 'general';
   const [sub, setSubRaw] = React.useState(validSub(window.__profileSub));
   const setSub = (id) => { window.__profileSub = id; setSubRaw(id); };
-  // keep the active chip fully visible in the scrollable subnav
+  // Keep the active chip fully visible: seven chips are wider than the frame
+  // (since D204's Roles), so the last two are off-rail until it scrolls. A
+  // single smooth scrollTo on mount lost the race — the tab re-mount resets
+  // scrollLeft after the effect runs — so place it after layout and again on
+  // a beat, instantly, and clamp to the rail (2026-08-24).
+  const navRef = React.useRef(null);
   React.useEffect(() => {
-    const btn = document.querySelector('.profile-subnav .subnav-btn.is-on');
-    if (btn && btn.parentElement) {
-      const sc = btn.parentElement;
-      sc.scrollTo({ left: btn.offsetLeft - (sc.clientWidth - btn.offsetWidth) / 2, behavior: 'smooth' });
-    }
+    const sc = navRef.current;
+    if (!sc) return;
+    const put = () => {
+      const btn = sc.querySelector('.subnav-btn.is-on');
+      if (!btn) return;
+      const max = sc.scrollWidth - sc.clientWidth;
+      if (max <= 0) return;
+      const want = Math.max(0, Math.min(max, btn.offsetLeft - (sc.clientWidth - btn.offsetWidth) / 2));
+      if (Math.abs(sc.scrollLeft - want) > 2) sc.scrollLeft = want;
+    };
+    const raf = requestAnimationFrame(put);
+    const t1 = setTimeout(put, 140);
+    const t2 = setTimeout(put, 380);
+    return () => { cancelAnimationFrame(raf); clearTimeout(t1); clearTimeout(t2); };
   }, [sub]);
 
   const top = [...dims].sort((a, b) => b.v - a.v)[0];
@@ -218,7 +232,7 @@ function ProfileOverlay({ onClose, me }) {
 
         {/* sticky sub-tab nav — frosted so content scrolls beneath it */}
         <div className="profile-subnav">
-          <div className="subnav subnav--scroll" style={{ maxWidth: '100%' }}>
+          <div ref={navRef} className="subnav subnav--scroll" style={{ maxWidth: '100%' }}>
             {SUBTABS.map(s => (
               <button key={s.id} onClick={() => setSub(s.id)} className={"subnav-btn" + (s.id === sub ? ' is-on' : '')}>{s.label}</button>
             ))}

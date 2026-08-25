@@ -15,6 +15,8 @@
 // keeps the spec layer's render-time lookup working unchanged.
 import React from "react";
 import LIVE, { localName } from "../data/live";
+import NAV from "../data/nav";
+import { loadMine as loadPurchases, mine as myPurchases, subscribePurchases } from "../data/purchases";
 import Avatar from "./Avatar";
 // The handle is a FACT here, never a control (D211). The claim control
 // this panel carried for accounts that predate D190's first-run screen
@@ -59,6 +61,15 @@ function LivePrivacyPanel() {
   const [confirmDel, setConfirmDel] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
   const [photoMsg, setPhotoMsg] = React.useState<string | null>(null);
+  // whether this account holds any purchase — decides the room's door row
+  // below (one session-cached mine-only query; empty for almost everyone)
+  React.useEffect(() => {
+    if (!LIVE.enabled) return;
+    const un = subscribePurchases(() => tick((t) => t + 1));
+    void loadPurchases().catch(() => { /* no row, which is the true state we can show */ });
+    return un;
+  }, []);
+  const bought = LIVE.enabled && (myPurchases() || []).length > 0;
   if (!LIVE.enabled) return null;
 
   // The three outcomes worth a sentence, and "removed" is the one that
@@ -232,6 +243,18 @@ function LivePrivacyPanel() {
             style={{ color: "var(--accent)", textDecoration: "none" }}>Terms</a>
         </div>
       </div>
+
+      {/* The buyer's room's door — the account sheet is its natural home
+          (PAID-PLAN §7, D288). Rendered only for an account that HAS
+          purchases: the buying path's own door is the composer, and a
+          standing row about contracts almost nobody holds is furniture.
+          One session-cached mine-only query decides it. */}
+      {bought && (
+        <LpRow title="Asked by you"
+          sub="Your paid questions and their reports — live public numbers, nothing private.">
+          {btn("Open →", () => NAV.openAskedByYou())}
+        </LpRow>
+      )}
 
       <LpRow title="Delete everything"
         sub={confirmDel ? "This wipes your profile, answers, and auth account. There is no undo." : "Your account, answers, and group memberships."}>

@@ -31,7 +31,7 @@ rewrite is D223.*
   Deliberately off the hot write path.
 - `src/moderation.ts` — the flag tally, the server-picked queue, and the
   moderator's three instruments. `docs/MODERATION.md` is the design.
-- `src/replay.ts` — the other direction through the fold (D275): rebuild a
+- `src/replay.ts` — the other direction through the fold (D290): rebuild a
   question's aggregate from the answers that made it, rather than from the
   running total. `rebuildAggregateV2` is the operator callable
   (`npm run rebuild:agg`); `replay.test.ts` pins the batch replay against

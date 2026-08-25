@@ -523,8 +523,11 @@ export function authCost(mau) {
 }
 
 // D7's ceiling, as a number rather than a warning: all of a day's daily
-// answers land on one `v2_aggs_private/{qid}` document inside the morning
+// answers land on one `v2_question_aggs/{qid}` document inside the morning
 // window, and Firestore sustains roughly one write per second per document.
+// (It was `v2_aggs_private/{qid}` until that copy collapsed into the
+// published document. The ceiling did not move: the two were keyed by the
+// same qid, so the transaction was already bounded by one of them.)
 export const writesPerSec = (dau) => dau / (B.peakWindowMin * 60);
 
 // The DAU at which that crosses 1.0 — the wall COSTS.md says binds first.
@@ -714,19 +717,15 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     // returns (as a performance measure — PUBLISH_EVERY's note), it now
     // discounts every phase, which is what a floorless world means.
     const pub = 1 / PUBLISH_EVERY;
-    // Per world answer: the client's own answer document, the idempotency
-    // ledger entry, and the published aggregate. That middle term was 2
-    // until D275, when the vote, rank and edit arms stopped writing a
-    // byte-identical private copy of the aggregate beside the public one.
-    //
-    // Softest edge, named rather than hidden: CATALOG answers still write
-    // a third document (their private doc is an accumulator, not a copy —
-    // functions/src/v2.ts), so this now under-counts them by one write.
-    // Catalog is a small share of the bank and the direction of the error
-    // is toward optimism, which is the wrong direction — but it is a
-    // fraction of one write per answer against a bill whose largest term
-    // is reads, and a per-type split would be more machinery than the
-    // number deserves.
+    // Per world answer: 1 client write (the answer doc), 1 server write
+    // (the `v2_agg_events` ledger entry), and `pub` (the published
+    // aggregate). It was `1 + 2 + pub` — the extra server write being the
+    // private mirror the trigger kept alongside the published document.
+    // That copy is gone on the vote, edit and rank paths, which is every
+    // answer this term models; the catalog path still writes its own
+    // accumulator, and `B.worldAnswers` does not resolve catalogue picks
+    // separately, so this errs one write LOW on a small slice of answers
+    // rather than one write high on all of them.
     //
     // + the Patterns fit's and the engagement digest's one state write
     // each per active user per night, + one attention shard per sampled

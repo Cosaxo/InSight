@@ -90,7 +90,7 @@ const EXEMPT = {
   rebuildAggregateV2: {
     gate: "assertOperator",
     reason:
-      "operator callable, D275's replay tool — rebuilds a question's "
+      "operator callable, D290's replay tool — rebuilds a question's "
       + "aggregate from the answers, reached from a console or "
       + "scripts/rebuild-aggregate.mjs during a D28 correction; no attested "
       + "app can run a repair, and a control that fails when it is most "

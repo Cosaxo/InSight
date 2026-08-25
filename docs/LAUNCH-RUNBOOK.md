@@ -1428,7 +1428,7 @@ That is a tester-count problem, not a workflow problem.
       go through a callable.
 
 - [ ] **5.10 Dry-run the replay tool once, on a question with real
-      answers.** D275 shipped `rebuildAggregateV2` and its unit tests, but
+      answers.** D290 shipped `rebuildAggregateV2` and its unit tests, but
       the callable has never run against production data — there was none
       when it was written. Its first execution should not be during an
       incident, which is the only other time anyone reaches for it.
@@ -1498,7 +1498,7 @@ That is a tester-count problem, not a workflow problem.
       that writes into your own project. Reading it later needs a service
       account with `roles/bigquery.dataViewer` **on that dataset only** —
       a NEW secret, never a widening of `FIREBASE_SERVICE_ACCOUNT`, for the
-      same reason D276 records about the deploy role. Read-only, one
+      same reason D291 records about the deploy role. Read-only, one
       dataset, and the `production` environment's approval in front of any
       workflow that uses it.
 
@@ -1508,7 +1508,7 @@ That is a tester-count problem, not a workflow problem.
       parsed as YAML and would not run. Enable the export, let a day of
       data land, and the pulse extension follows.
 
-- [ ] **5.13 Stand up the read-only observer (D277).** Five commands and
+- [ ] **5.13 Stand up the read-only observer (D292).** Five commands and
       one GitHub setting. It gives the project a collector that can answer
       "are the alerts armed", "what did we actually spend", and "is
       Authentication on Identity Platform" without anyone opening a
@@ -1542,7 +1542,7 @@ That is a tester-count problem, not a workflow problem.
       gcloud iam service-accounts create insight-observer \
         --project prvfire33 --display-name "InSight read-only observer"
 
-      # 3 · read-only roles (Firestore is deliberately absent — D277)
+      # 3 · read-only roles (Firestore is deliberately absent — D292)
       for R in roles/monitoring.viewer roles/logging.viewer \
                roles/cloudfunctions.viewer roles/bigquery.dataViewer \
                roles/bigquery.jobUser; do
@@ -1581,7 +1581,7 @@ That is a tester-count problem, not a workflow problem.
       step.
 
       Tell me when step 6 has printed, and the collector follows. It is
-      deliberately unwritten until then (D277): four Google APIs nobody
+      deliberately unwritten until then (D292): four Google APIs nobody
       here can reach is not a thing to code against an assumed schema.
 
 - [ ] **5.11 Install the BigQuery mirror WITH the first real users — not
@@ -1596,7 +1596,7 @@ That is a tester-count problem, not a workflow problem.
       deleted in the interim never arrive at all — right-to-erasure wins
       over analytics, correctly, but it means the gap does not heal.
       `answers` is append-only, so a late import recovers most of it; this
-      is a mild cost, not the sharp one D275's collapse carried. It is
+      is a mild cost, not the sharp one D290's collapse carried. It is
       still a cost, and it is paid in the weeks whose data is most worth
       having: the first ones.
 
@@ -1607,7 +1607,7 @@ That is a tester-count problem, not a workflow problem.
       **What it buys:** SQL over the archive without touching the app. It is
       what answers "which questions bore people" and the rest of
       `ENGAGEMENT-PLAN.md`'s rungs 1–2 without building either, and it is
-      the honest first move if the Postgres question ever reopens (D275
+      the honest first move if the Postgres question ever reopens (D290
       layer 4). If you find yourself writing the same query weekly and
       wishing the app served it live, that is the migration signal — and by
       then there is data worth migrating.

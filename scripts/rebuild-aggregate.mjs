@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// rebuild-aggregate.mjs — D275's replay tool, from a terminal.
+// rebuild-aggregate.mjs — D290's replay tool, from a terminal.
 //
 // Rebuilds one question's aggregate from the answers that made it. This is
 // the operator half of "the answers are the source of truth and every

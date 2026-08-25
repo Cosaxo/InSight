@@ -118,13 +118,48 @@ const typeOfDims = (dims: Dim[] | undefined | null, kind: string = TYPE_TEST): s
  * *designed* to say that, so it looked like it was working.
  * Measured with a probe before this fix, not reasoned about.
  */
+/**
+ * Memoised on the RESULTS OBJECT'S IDENTITY, per instrument.
+ *
+ * This is a pure function of `(results, kind)` and it is not cheap:
+ * `matchArchetype` scores thirteen archetypes over the person's axes with
+ * its own allocations each, and `typeOfParsed` builds a fresh `Dim[]` out
+ * of `Object.entries` before it can even call in.
+ *
+ * It is asked the same question about the same person over and over. The
+ * People lens types the cached sample; `typeMixFor` types the scoped half
+ * of it; `typeSharesOn` types all of it; `typeSplitFor` types every cached
+ * voter, up to VOTER_FETCH_CAP, on every render of the breakdown sheet.
+ * All of them read `state.scores[uid]`, which `voters.resolveNames` parses
+ * once and then holds — so the input is a stable object and the answer
+ * cannot have changed while it is.
+ *
+ * A WeakMap rather than a keyed cache, and identity rather than a rev
+ * token: a re-parse produces a NEW object, so a stale entry is
+ * unreachable by construction rather than by invalidation, and an entry
+ * for a person who has left the cached lists is collectable. The null
+ * result is cached too — a person with no result for this instrument is
+ * the common case on a young bank, and it is the case that would
+ * otherwise re-derive nothing, repeatedly.
+ */
+const typeMemo = new WeakMap<ParsedResults, Map<string, string | null>>();
+
 export const typeOfParsed = (
   results: ParsedResults | null | undefined,
   kind: string = TYPE_TEST,
 ): string | null => {
   const axes = results?.[kind];
   if (!axes) return null;
-  return typeOfDims(Object.entries(axes).map(([id, value]) => ({ id, value })), kind);
+  let byKind = typeMemo.get(results);
+  if (!byKind) {
+    byKind = new Map<string, string | null>();
+    typeMemo.set(results, byKind);
+  }
+  const hit = byKind.get(kind);
+  if (hit !== undefined) return hit;
+  const val = typeOfDims(Object.entries(axes).map(([id, value]) => ({ id, value })), kind);
+  byKind.set(kind, val);
+  return val;
 };
 
 export const typeOfPerson = (p: KindredPerson): string | null => typeOfParsed(p.results);

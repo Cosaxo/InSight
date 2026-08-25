@@ -25,6 +25,9 @@ const h = vi.hoisted(() => ({
   countCalls: 0,
   presenceWrites: [] as Array<{ path: string; data: Record<string, unknown> }>,
   presenceDeletes: [] as string[],
+  // The auth callback live.ts registers for the session, captured so a case
+  // can drive an account SWITCH — the one presence path that had no test.
+  authCb: null as null | ((u: { uid: string } | null) => void),
 }));
 
 vi.mock("../../lib/firebase", () => ({
@@ -35,7 +38,11 @@ vi.mock("../../lib/firebase", () => ({
   getFunctionsApi: () => import("firebase/functions"),
   linkGoogle: () => Promise.resolve(),
   googleSignOut: () => Promise.resolve(),
-  subscribeToAuth: (cb: (u: { uid: string } | null) => void) => { cb({ uid: "uid_test" }); return () => {}; },
+  subscribeToAuth: (cb: (u: { uid: string } | null) => void) => {
+    h.authCb = cb;
+    cb({ uid: "uid_test" });
+    return () => {};
+  },
 }));
 
 vi.mock("../../lib/sentry", () => ({ reportError: vi.fn(), setSentryUser: vi.fn() }));
@@ -142,6 +149,7 @@ beforeEach(() => {
   h.countCalls = 0;
   h.presenceWrites = [];
   h.presenceDeletes = [];
+  h.authCb = null;
   try { localStorage.clear(); } catch { /* jsdom always has one */ }
   vi.stubEnv("VITE_V2_LIVE", "true");
 });
@@ -266,6 +274,36 @@ describe("disable() — stop sharing means stop, now", () => {
     expect(near.count()).toBeNull();
     expect(near.lastError()).toBeNull();
     expect(h.presenceDeletes).toEqual(["v2_presence/uid_test"]);
+  });
+
+  // An account SWITCH looks like the same situation as "stop sharing", and
+  // this suite briefly asserted the same remedy — resetForNewUid deleting
+  // v2_presence/{outgoing}. It does not work, and the test passed anyway
+  // because this harness mocks Firestore: it records the call, never the
+  // rules' answer.
+  //
+  // resetForNewUid runs from the subscribeToAuth callback, which fires
+  // AFTER the SDK has switched currentUser to the incoming account, so the
+  // delete is signed by the new uid — and /v2_presence/{uid} is
+  // `allow delete: if request.auth.uid == uid`. Measured on the emulator:
+  // the outgoing account deleting its own cell succeeds, the incoming one
+  // deleting the outgoing account's is denied.
+  //
+  // So no write is issued, and this pins that. What bounds the exposure is
+  // `until` (capped at PRESENCE_LINGER_MIN in the rules, honoured by
+  // nearbyCountV2); account deletion — the case that matters — is swept
+  // server-side by deleteAccount, not by this path.
+  it("issues no presence delete on an account switch — the rules would refuse it", async () => {
+    const near = await bootNear();
+    await near.enable();
+    expect(h.presenceWrites.length).toBeGreaterThan(0);
+
+    h.authCb!({ uid: "uid_other" });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(
+      h.presenceDeletes,
+      "a delete signed by the INCOMING uid is denied by /v2_presence/{uid}",
+    ).toEqual([]);
   });
 });
 
