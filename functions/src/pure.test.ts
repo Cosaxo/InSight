@@ -1524,6 +1524,33 @@ describe("seedOptionConflict — the edit the seed must refuse", () => {
     expect(seedOptionConflict("daily-003", { ...desired, options: "Messi,Ronaldo" }, desired)).toBeNull();
   });
 
+  it("refuses a re-domained catalogue question, where options can never say so", () => {
+    // A catalog question ships `options: []` on BOTH sides by construction,
+    // so the options check is silent for exactly the surface whose stored
+    // answers are catalogue keys rather than indices. `domain` is seeded,
+    // so the swap went through and every stored `entity` re-keyed against a
+    // different catalogue — and the key spaces overlap, so "35" that meant
+    // Clefairy comes back as Bromine rather than as an error.
+    const pick = { type: "catalog", options: [], domain: "pokemon", prompt: "Favourite?" };
+    const c = seedOptionConflict("pick-pk04", pick, { ...pick, domain: "dogs" });
+    expect(c, "a catalogue swap passed the freeze").not.toBeNull();
+    expect(c?.field).toBe("domain");
+    expect(c?.stored).toEqual(["pokemon"]);
+    expect(c?.desired).toEqual(["dogs"]);
+  });
+
+  it("leaves a question that never had a domain alone", () => {
+    // Absent, null and "" are one value. Every non-catalogue question in
+    // the bank carries `domain: null`, so treating a missing domain as a
+    // change would wedge the seed for all of them.
+    const plain = { type: "binary", options: ["Messi", "Ronaldo"], domain: null };
+    expect(seedOptionConflict("daily-003", plain, { ...plain })).toBeNull();
+    const noField = { type: "binary", options: ["Messi", "Ronaldo"] };
+    expect(seedOptionConflict("daily-003", noField, { ...noField, domain: null })).toBeNull();
+    // …but ACQUIRING one is a change, and the seed says so.
+    expect(seedOptionConflict("daily-003", noField, { ...noField, domain: "dogs" })).not.toBeNull();
+  });
+
   it("describes conflicts in a form an operator can act on", () => {
     const line = describeSeedOptionConflicts([
       { qid: "daily-003", stored: ["Messi", "Ronaldo"], desired: ["Ronaldo", "Messi"] },
@@ -1531,6 +1558,11 @@ describe("seedOptionConflict — the edit the seed must refuse", () => {
     ]);
     expect(line).toContain("daily-003: [Messi | Ronaldo] -> [Ronaldo | Messi]");
     expect(line).toContain("f12: [Yes] -> [Yes | No]");
+    // …and a domain conflict names the freeze it tripped, while the options
+    // line an operator has read a hundred times is unchanged above.
+    expect(describeSeedOptionConflicts([
+      { qid: "pick-pk04", field: "domain", stored: ["pokemon"], desired: ["dogs"] },
+    ])).toContain("pick-pk04 (domain): [pokemon] -> [dogs]");
   });
 });
 

@@ -1583,6 +1583,12 @@ export function seedDocMatches(
 // questions), never to a shipped question's option list.
 export interface SeedOptionConflict {
   qid: string;
+  /**
+   * Which frozen field changed. Absent means `options`, which is what every
+   * conflict was until catalogue questions turned out to have none — see
+   * the `domain` arm below.
+   */
+  field?: "options" | "domain";
   stored: string[];
   desired: string[];
 }
@@ -1606,8 +1612,31 @@ export function seedOptionConflict(
   const b = desired.options;
   if (!Array.isArray(a) || !Array.isArray(b)) return null;
   const same = a.length === b.length && a.every((v, i) => v === b[i]);
-  if (same) return null;
-  return { qid, stored: a.map(String), desired: b.map(String) };
+  if (!same) return { qid, field: "options", stored: a.map(String), desired: b.map(String) };
+
+  // …AND THE CATALOGUE DOMAIN, because for the one surface whose answers
+  // are catalogue keys the options check above can never fire.
+  //
+  // A catalog question ships `options: []` on both sides by construction,
+  // so `same` is true and the freeze returned null — for exactly the
+  // questions whose stored answers are keys rather than indices. `domain`
+  // IS seeded (it is in SEEDED_FIELDS), so a re-domained pick card passed
+  // the freeze and every stored `entity` silently re-keyed against a
+  // different catalogue. The small key spaces overlap — pokemon 1–1025,
+  // elements 1–118, dogs 1–554 — so "35" that meant Clefairy comes back as
+  // Bromine, in the trigger's validation and in the client's name
+  // resolution alike. That is precisely the failure D52's mechanism exists
+  // to prevent, one field over.
+  //
+  // Absent, null and "" are one value here: a question that never carried
+  // a domain and still does not has nothing to protect, and refusing that
+  // would wedge the seed for every non-catalogue question in the bank.
+  const dStored = typeof stored.domain === "string" ? stored.domain : "";
+  const dDesired = typeof desired.domain === "string" ? desired.domain : "";
+  if (dStored !== dDesired) {
+    return { qid, field: "domain", stored: [dStored || "(none)"], desired: [dDesired || "(none)"] };
+  }
+  return null;
 }
 
 /** One line per conflict, for the log and the operator's error. */
@@ -1615,7 +1644,13 @@ export function describeSeedOptionConflicts(
   conflicts: readonly SeedOptionConflict[],
 ): string {
   return conflicts
-    .map((c) => `${c.qid}: [${c.stored.join(" | ")}] -> [${c.desired.join(" | ")}]`)
+    // The field is named only when it is NOT options, so the line an
+    // operator has read a hundred times is unchanged and the new one says
+    // which freeze it tripped.
+    .map((c) => {
+      const where = c.field && c.field !== "options" ? ` (${c.field})` : "";
+      return `${c.qid}${where}: [${c.stored.join(" | ")}] -> [${c.desired.join(" | ")}]`;
+    })
     .join("; ");
 }
 
