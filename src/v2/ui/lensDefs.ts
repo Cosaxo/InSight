@@ -62,7 +62,7 @@ export interface LensQuestion {
   counts: number[];
   /**
    * The published GLOBE, whatever stop this is — Explore's baseline,
-   * and since D274 §2 the Scores card's second crowd (`all − counts` =
+   * and since D288 §2 the Scores card's second crowd (`all − counts` =
    * everyone who is NOT the stop's own cohort, drawn as the "from
    * elsewhere" ring).
    *

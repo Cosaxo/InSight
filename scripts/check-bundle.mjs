@@ -29,7 +29,11 @@ const INDEX_HTML = join(root, "dist", "index.html");
 // The gap is not academic and not small: with the flag set the same tree
 // builds 67 chunks instead of 63, +12 KB of total JS, and **+9 KB in the
 // eager graph** — the number whose entire job is to keep a 293 KB
-// Firestore SDK and a 445 KB Sentry SDK out of first paint. Measured at
+// Firestore SDK and the Sentry SDK out of first paint. (Sentry was 445 KB
+// everywhere this file quotes it; it is ~100 KB since its dynamic import
+// stopped binding module namespaces, which is what let rolldown shake out
+// Replay, Feedback and browserTracing. The historical figures below are
+// left as measured — they are what those builds weighed.) Measured at
 // build 14: 2232/972 live against 2220/963 demo, against ceilings of
 // 2230/966. The live bundle was over BOTH and CI said OK, four times.
 //
@@ -50,8 +54,9 @@ const DEMO = process.argv.includes("--demo");
 // ── THE SECOND LOAD-BEARING VARIABLE, which this file documented and did
 //    not guard (found by build 20's pre-flight) ───────────────────────
 //
-// The header above says it twice: without a DSN the 445 KB Sentry group is
-// provably dead, rolldown drops it, and the TOTAL comes out ~450 KB light.
+// The header above says it twice: without a DSN the Sentry group is
+// provably dead, rolldown drops it, and the TOTAL comes out light by its
+// whole size (~450 KB when this was written, ~100 KB now).
 // That was written as advice to whoever runs the command, and VITE_V2_LIVE
 // got a hard guard while this one got a paragraph. So the exact failure
 // this script exists to refuse — grading a bundle nobody installs and
@@ -106,8 +111,8 @@ if (!DEMO && process.env.VITE_V2_LIVE !== "true") {
     + "    VITE_V2_LIVE=true VITE_SENTRY_DSN=https://ci@example.invalid/0 npm run build\n"
     + "    VITE_V2_LIVE=true npm run check:bundle\n\n"
     + "  The DSN is load-bearing too and for a different reason: without it\n"
-    + "  the 445 KB Sentry chunk is provably dead and rolldown drops it, so\n"
-    + "  the TOTAL comes out ~450 KB light. Any non-empty string restores it.\n\n"
+    + "  the Sentry chunk is provably dead and rolldown drops it, so the\n"
+    + "  TOTAL comes out ~100 KB light. Any non-empty string restores it.\n\n"
     + "  To measure a demo build on purpose, pass --demo. That reports the\n"
     + "  numbers and applies no ceiling, because they are not this app's.",
   );
@@ -705,27 +710,23 @@ const MAX_CHUNK_KB = 735;
 // is behind React.lazy, and the gate that decides whether it is in the bar
 // is a 1 KB pure module.
 //
-// 2440 → 2480 (2026-08-25): the 2026-08-24 redesign's build-out (D273/
-// D274) — the paid mechanism grew its client half. MEASURED: 2416 → 2456
-// across 105 → 111 chunks, and every new chunk is deferred:
+// 2440 stands through the 2026-08-25 redesign build-out (D287/D288),
+// and the sentence above about raises got a live test: on its own branch
+// the paid mechanism's ~42 KB (the door rebuilt as the paid path, the
+// buyer's room behind React.lazy, CurSwitch shared between those two
+// chunks, the purchases store — every one deferred) tipped 2456 and this
+// number briefly read 2480 with the measured entry. The merge with the
+// D275–D286 audit took it back: that work shrank the app to 2093 KB
+// total / 753 KB eager, so the redesign rides inside headroom the same
+// week opened and the raise came out before it ever reached main. The
+// eager additions (profile-general's PaidMineCard, the privacy panel's
+// asked-by-you row, the two-crowd scorecards, the header's compose
+// button) sit against MAX_EAGER_KB's own unchanged 880.
 //
-//   +26+4+1 KB  suggestions-*.js — the door rebuilt as the paid path
-//               (D274 §1): rate board, scope ruler, contract sheet, and
-//               the pricing/sponsored imports rolldown grouped with it
-//   + 8.0 KB    AskedByYouOverlay-*.js — the buyer's room, React.lazy
-//   + 2.0 KB    CurSwitch-*.js — shared by the two chunks above, which
-//               is the whole reason it is its own module
-//   + 1.0 KB    purchases-*.js — the mine-only ledger store
-//
-// The eager graph moved 841 → 860 for the parts that ARE first-paint
-// surfaces — profile-general's PaidMineCard, the privacy panel's
-// asked-by-you row, the place scorecards' two-crowd split, the header's
-// compose button — against MAX_EAGER_KB's own unchanged 880.
-//
-// Headroom left: 24 KB. Still not room for a library — either SDK
-// rejoining first paint lands hundreds of KB over MAX_EAGER_KB and is
-// caught there, which is where that guarantee lives.
-const MAX_TOTAL_JS_KB = 2480;
+// Still not room for a library — either SDK rejoining first paint lands
+// hundreds of KB over MAX_EAGER_KB and is caught there, which is where
+// that guarantee lives.
+const MAX_TOTAL_JS_KB = 2440;
 // 955 → 966 (2026-08-14): D139's pulse card — the second fixed instrument
 // on the FIRST screen, so its card, its store's demo furniture and the
 // two LIVE members are legitimately eager (~10 KB min). What is not
@@ -745,9 +746,11 @@ const MAX_TOTAL_JS_KB = 2480;
 // "the eager ceiling has been wrong for four builds" is exactly the shape
 // of report that ends with an SDK in first paint. Neither big lazy chunk
 // is preloaded in the live build: `dist/index.html` names 23 modules and
-// the largest is 40 KB — no 293 KB `index.esm-*` (Firestore), no 445 KB
-// `prod-*` (Sentry). Both were verified absent from the modulepreload list
-// at the same commit these numbers come from.
+// the largest is 40 KB — no 293 KB `index.esm-*` (Firestore), no `prod-*`
+// (Sentry, 445 KB at this commit and ~100 KB since). Both were verified
+// absent from the modulepreload list at the same commit these numbers come
+// from, and Sentry's shrinking does not change the argument: what matters
+// is that neither is preloaded, not what either weighs.
 //
 // 978 is still a ceiling and still not raiseable on request. The doctrine
 // from the 955 entry holds at the new figure: either SDK rejoining first
@@ -1004,7 +1007,8 @@ for (const s of over) {
 // ── the SDK rule ────────────────────────────────────────────────────
 //
 // MAX_EAGER_KB's stated purpose is keeping the Firestore (293 KB) and
-// Sentry (445 KB) SDKs out of first paint, but it only does that as a side
+// Sentry (445 KB then, ~100 KB now) SDKs out of first paint, but it only
+// does that as a side
 // effect of arithmetic: it is one number covering 23 chunks, so it holds
 // exactly as long as nobody raises it. It has been raised four times in
 // four days, twice by me, and D144 raised it while REPORTING that first
@@ -1043,8 +1047,8 @@ for (const s of eager.slice(1)) {
 if (!SENTRY_IN) {
   console.log(
     `\n  total NOT GRADED — no Sentry chunk in ${ASSETS.replace(root + "/", "")}, so the build saw no\n`
-    + `  VITE_SENTRY_DSN and the 445 KB group is dead code rolldown dropped.\n`
-    + `  ${totalKb.toFixed(0)} KB is ~450 KB light and is not this app's size;\n`
+    + `  VITE_SENTRY_DSN and the group is dead code rolldown dropped.\n`
+    + `  ${totalKb.toFixed(0)} KB is ~100 KB light and is not this app's size;\n`
     + `  MAX_TOTAL_JS_KB (${MAX_TOTAL_JS_KB} KB) was not applied. The per-chunk and eager\n`
     + `  ceilings above still hold — Sentry is in neither.\n\n`
     + `  To grade the total, set any non-empty DSN and REBUILD — the check\n`

@@ -129,8 +129,12 @@ Game timing, not privacy. Cross-user reads go through the collection-group
 grant `match /{path=**}/answers/{aid}` and must carry a matching
 `where("surface","in",[…])` or Firestore refuses the query wholesale (D65)
 
-v2_aggs_private/{qid}              the trigger's working state (no readers)
-  counts, total                    exact — same numbers as the public doc
+v2_aggs_private/{qid}              the CATALOG fold's accumulator (no readers).
+                                   Vote, edit and rank answers write no
+                                   document here at all any more: the
+                                   published doc is their accumulator, and
+                                   this one held a byte-identical copy of it
+                                   until that collapsed
   ent { entity: n }                catalog questions: per-entity counts
                                    in place of counts — bounded by the
                                    catalogue's ~1k keys, so D7's
@@ -547,13 +551,15 @@ MOD_UIDS-gated callables (the D22 confinement)
 ## Functions
 
 - `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
-  into `v2_questions` (665 docs, stable ids `daily-000`, `feed-<id>`,
+  into `v2_questions` (671 docs, stable ids `daily-000`, `feed-<id>`,
   `pick-<id>`, `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
   operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
 - `onV2AnswerCreated` (Firestore trigger, retry on) — transactionally
-  folds each answer into `v2_aggs_private` and mirrors the exact
-  public doc; idempotent via the `v2_agg_events` ledger (at-least-once
+  folds each answer into `v2_question_aggs`, the published doc itself
+  (a catalogue pick also accumulates into `v2_aggs_private`, where the
+  full entity map lives behind the board's top-N);
+  idempotent via the `v2_agg_events` ledger (at-least-once
   delivery can't double-count), which also records uid attribution so a
   discovered fake-account ring can be subtracted after the fact (D28).
 - `deleteAccount` also recursively deletes `v2_users/{uid}`.
@@ -618,7 +624,7 @@ read: signed-in · write: nobody
 ## Read economics (client)
 
 A live boot costs ~20 reads, not ~380: one `v2_meta/app` read decides
-everything. The question bank (665 docs) caches in localStorage keyed by
+everything. The question bank (671 docs) caches in localStorage keyed by
 `contentRev`, and refreshes **incrementally** — one query for docs newer
 than the cache's `updatedAt` cursor, so a promotion cycle costs the
 handful of questions it added rather than the whole bank (D34;
@@ -653,7 +659,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 139 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 143 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

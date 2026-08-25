@@ -39,6 +39,8 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const PURE = "functions/src/pure.ts";
 const PROFILE = "src/v2/spec/profile-vitals.js";
+const RULES = "firestore.rules";
+const LIVE = "src/v2/data/live.ts";
 
 const pure = readFileSync(resolve(root, PURE), "utf8");
 const profile = readFileSync(resolve(root, PROFILE), "utf8");
@@ -208,6 +210,77 @@ if (!declaredDims.length) {
   errors.push(`${PURE}: BREAKDOWN_DIM_VOCAB parsed as EMPTY, which cannot be right.`);
 }
 
+// ── rule 5 · the per-field LENGTH caps, rules vs client ─────────
+//
+// A different pair from everything above — the vocabularies are about which
+// VALUES fold into a bucket; this is about how long a value may be.
+//
+// firestore.rules is the enforcement; ANCHOR_FIELDS in live.ts is the copy
+// the client truncates to, and its own comment said the two were kept "so
+// the client and the ruleset can be diffed against each other by eye". By
+// eye is what every other cross-deployable number here stopped being.
+//
+// THE FAILURE IS SILENT AND TOTAL. saveAnchors truncates to the CLIENT's
+// number, so tightening a rule below its client value means the client emits
+// a string the ruleset refuses — and because the anchors map is validated as
+// one object, the WHOLE profile write fails. The profile simply stops
+// saving, with nothing on screen to say so. The rules suite covers three of
+// the nine caps and holds them against the ruleset rather than against
+// ANCHOR_FIELDS, so it cannot see a divergence at all.
+//
+// `age: 3` is the sharpest of the nine: widen it to 4 in live.ts and nothing
+// else in the tree notices.
+const rules = readFileSync(resolve(root, RULES), "utf8");
+const live = readFileSync(resolve(root, LIVE), "utf8");
+
+const ruleCaps = new Map();
+for (const m of rules.matchAll(
+  /isOptionalShortString\(\s*anchors\.get\(\s*"(\w+)"\s*,\s*null\s*\)\s*,\s*(\d+)\s*\)/g,
+)) ruleCaps.set(m[1], Number(m[2]));
+
+const liveBlock = live.match(/const ANCHOR_FIELDS[^=]*=\s*\{([\s\S]*?)\}/);
+const liveCaps = new Map();
+if (liveBlock) {
+  for (const m of liveBlock[1].matchAll(/(\w+)\s*:\s*(\d+)/g)) liveCaps.set(m[1], Number(m[2]));
+}
+
+// Both scans refuse to pass on nothing — an empty match is how a gate like
+// this stops meaning anything without ever failing.
+if (!ruleCaps.size) {
+  errors.push(
+    `${RULES}: found no isOptionalShortString(anchors.get("x", null), N) calls.\n`
+    + "    The ruleset's anchor validation was rewritten — fix this scan.",
+  );
+} else if (!liveCaps.size) {
+  errors.push(
+    `${LIVE}: ANCHOR_FIELDS did not parse as a { name: number } object.\n`
+    + "    Fix this scan rather than letting the pair go unchecked.",
+  );
+} else {
+  const names = [...new Set([...ruleCaps.keys(), ...liveCaps.keys()])].sort();
+  for (const n of names) {
+    const r = ruleCaps.get(n);
+    const c = liveCaps.get(n);
+    if (r === undefined) {
+      errors.push(`anchor "${n}" is capped at ${c} in ${LIVE} and is not validated in ${RULES}.`);
+    } else if (c === undefined) {
+      errors.push(
+        `anchor "${n}" is capped at ${r} in ${RULES} and is missing from ANCHOR_FIELDS in ${LIVE}.\n`
+        + "    The client would not truncate it, so an over-long value fails the whole write.",
+      );
+    } else if (r !== c) {
+      errors.push(
+        `anchor "${n}" is capped at ${r} in ${RULES} and ${c} in ${LIVE}.\n`
+        + (c > r
+          ? "    The client truncates to a length the ruleset refuses, so the ENTIRE\n"
+            + "    anchors write fails and the profile silently stops saving."
+          : "    The client truncates shorter than it needs to, so a legitimate value\n"
+            + "    is clipped before it is ever sent."),
+      );
+    }
+  }
+}
+
 if (errors.length) {
   console.error("\ncheck-anchors FAILED:\n");
   for (const e of errors) console.error(`  ${e}\n`);
@@ -217,5 +290,6 @@ if (errors.length) {
 const sizes = PAIRS.map((p) => `${p.dim} ${serverVocab(p.dim).length}`).join(", ");
 console.log(
   `check:anchors OK — ${PAIRS.length} closed vocabularies match the profile's `
-  + `<select>s (${sizes}), all under BREAKDOWN_MAX_BUCKETS=${MAX_BUCKETS}`,
+  + `<select>s (${sizes}), all under BREAKDOWN_MAX_BUCKETS=${MAX_BUCKETS}; `
+  + `${ruleCaps.size} length caps agree between ${RULES} and ${LIVE}`,
 );

@@ -644,36 +644,22 @@ async function revealGroupDay(
   if ((await revealRef.get()).exists) return false;
 
   const answerId = `g_${gid}_${dayKey}`;
-  // TWO reads, because only one of them wants whole documents.
-  //
-  // The profiles are read for exactly one field — displayName — but were
-  // fetched entire. (Push tokens used to be the second field and now live
-  // on their own server-only subdocument, fetched separately below.)
-  // A profile is client-writable and firestore.rules bounds only some of it:
-  // displayName and the anchors are capped, `testResults` only by KEY COUNT
-  // (8), and `anon`/`createdAt`/`updatedAt` not at all. So a member can
-  // legitimately hold a document approaching Firestore's 1 MiB, and
-  // LANES = 5 × GROUP_CAP = 32 puts up to 160 of them in flight on the
-  // 512 MiB instance. Worse, this runs BEFORE the shouldReveal gate below,
-  // and pendingDays is only pruned inside transactions that never run on an
-  // OOM — so the next scan hits the same page and dies the same way, wedging
-  // reveals for every group ordered after the fat ones by __name__.
-  //
-  // A fieldMask bounds the exposure regardless of what any rule permits,
-  // which is the reason to fix it here rather than by capping testResults:
-  // `anon` is equally unbounded and the next field added would be too.
   const answerSnaps = await db.getAll(
     ...members.map((uid) => db.doc(`v2_users/${uid}/answers/${answerId}`)),
-  );
-  const profileSnaps = await db.getAll(
-    ...members.map((uid) => db.doc(`v2_users/${uid}`)),
-    { fieldMask: ["displayName"] },
   );
   // Push tokens are NOT fetched here any more (D236). They were, next to
   // the reads the reveal actually needs — which billed one document per
   // member on every scanned day, including the majority that reveal
   // nothing. sendPushToUids reads them itself, after the reveal has
   // committed and only when there is something to announce.
+  //
+  // The PROFILES are not fetched here either, for the same reason and the
+  // same distance too late: they sat beside this read, above the
+  // shouldReveal gate, and their only use is the `names` map the reveal
+  // writes — so every scanned day that did not reveal (the ordinary duo
+  // shape: one partner has played, the other has not yet) bought one
+  // document per member and dropped them. They now read directly above
+  // that use, past the gate.
 
   const votes: Record<string, RevealVote> = {};
   const qids: unknown[] = [];
@@ -735,6 +721,21 @@ async function revealGroupDay(
     return false;
   }
 
+  // ONE FIELD, and the fieldMask is load-bearing rather than tidy. A
+  // profile is client-writable and firestore.rules bounds only some of it:
+  // displayName and the anchors are capped, `testResults` only by KEY
+  // COUNT (8), and `anon`/`createdAt`/`updatedAt` not at all. So a member
+  // can legitimately hold a document approaching Firestore's 1 MiB, and
+  // LANES = 5 × GROUP_CAP = 32 puts up to 160 of them in flight on the
+  // 512 MiB instance. The mask bounds the exposure regardless of what any
+  // rule permits, which is why it is fixed here rather than by capping
+  // testResults: `anon` is equally unbounded and the next field added
+  // would be too. Reading past the gate narrows the same window further —
+  // only days that actually reveal put profiles in flight at all.
+  const profileSnaps = await db.getAll(
+    ...members.map((uid) => db.doc(`v2_users/${uid}`)),
+    { fieldMask: ["displayName"] },
+  );
   const names: Record<string, string> = {};
   profileSnaps.forEach((s, i) => {
     names[members[i]] = (s.exists && s.get("displayName")) || "";

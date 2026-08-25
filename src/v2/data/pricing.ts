@@ -1,5 +1,5 @@
 // pricing.ts — the committed rate card, typed, plus the one currency
-// preference every printed price reads (PAID-PLAN §6, D274 §3; the
+// preference every printed price reads (PAID-PLAN §6, D288 §3; the
 // runbook's phase 3).
 //
 // The card is content/pricing.json — recomputed by scripts/build-pricing

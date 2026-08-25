@@ -35,6 +35,7 @@ import {
 import { CORE_TEST_KINDS, parseTestResults, type KindredPerson } from "./similarity";
 // @ts-expect-error TS7016 — untyped spec module
 import { IS_TESTS } from "../spec/test-definitions.js";
+import { agreementOf } from "./cohort";
 
 // The store is the singleton every consumer imports, so these cases drive
 // it the way NearLiveBody.test.tsx does: swap the members, restore them
@@ -102,7 +103,7 @@ const person = (dims: Record<string, number>, uid: string): KindredPerson => ({
   uid,
   name: uid,
   city: "",
-  like: { pct: 0, shared: 0, same: 0 },
+  like: agreementOf(0, 0),
   results: parseTestResults(
     { big5: { title: "Big Five", taken: "x", dims: Object.entries(dims).map(([id, value]) => ({ id, label: id, value })) } },
     CORE_TEST_KINDS,

@@ -14,7 +14,7 @@ the rows from going missing or pointing at something that moved — read
 ## 1 · Read in this order
 
 1. **`CLAUDE.md`** — non-optional. Two conventions that will surprise you
-   (the spec layer's global scope; four non-interchangeable test runners)
+   (the spec layer's global scope; five non-interchangeable test runners)
    and a list of things that look like bugs and are not.
 2. **This page** — to find the one document your task belongs to.
 3. **That document**, plus the decision records it leans on
@@ -108,11 +108,12 @@ directions.
 | [`STORE-FORMS.md`](STORE-FORMS.md) | Apple's privacy and age-rating questionnaires, answered field by field | tree |
 | [`SCALE-PLAN.md`](SCALE-PLAN.md) | What an unbounded feed costs, what trips first, and the core/tail split it forces. §1's classification is built; the rest is not | mixed |
 | [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) | The same work as an ordered build list — open steps only | plan |
+| [`BANK-DELIVERY.md`](BANK-DELIVERY.md) | How many questions a device can be handed: the bundle, the localStorage cache, the whole-bank fetch — three ceilings, measured, in the order they bite. §2 built at D284 | mixed |
 | [`FEATURE-COMPLETE.md`](FEATURE-COMPLETE.md) | Everything open between here and feature-complete — algorithms, question production, scale work, flips — one line each, pointing at the file that owns it | plan |
 | [`COST-REDUCTION.md`](COST-REDUCTION.md) | Getting the bill down. The big one was built at D129; the rest is analysis | mixed |
 | [`DEVICE-BIND.md`](DEVICE-BIND.md) | D29's activation gate: what ships, what you add, how to flip it on. Rules requirement is shipped **soft** | mixed |
 | [`VISION-V28.md`](VISION-V28.md) | The v28 design. Its third tab was adopted on trial (D166 §1), built, unmounted for the v1 release (D217) and is back on a data gate (D265) — the row's own §0 table carries each item's verdict | plan |
-| [`VISION-2026-08-24.md`](VISION-2026-08-24.md) | The 2026-08-24 design measured against the tree. The visual passes are built (D273); the remainder is decided (D274 — the board retires, honest crowd labels, the paid mechanism builds ahead of demand) and sequenced in its own §9 runbook: purchase records → the buyer's room → the committed rate card → the door, with the scorecard crowds and the groups "so what" fold alongside. Source extracted to `design/standalone-2026-08-24/` | mixed |
+| [`VISION-2026-08-24.md`](VISION-2026-08-24.md) | The 2026-08-24 design measured against the tree. The visual passes are built (D287); the remainder is decided (D288 — the board retires, honest crowd labels, the paid mechanism builds ahead of demand) and sequenced in its own §9 runbook: purchase records → the buyer's room → the committed rate card → the door, with the scorecard crowds and the groups "so what" fold alongside. Source extracted to `design/standalone-2026-08-24/` | mixed |
 | [`PEOPLE-MAP.md`](PEOPLE-MAP.md) | The patterns Map transposed: people placed by their answers. The People lens shipped at D214; the plane switch and whole-world variant stay deferred with their arithmetic | mixed |
 | [`NEXT-FUNCTIONALITY.md`](NEXT-FUNCTIONALITY.md) | Six ideas measured against the architecture. Plan notes, not decisions | plan |
 | [`ATTENTION.md`](ATTENTION.md) | "Does anyone like this, and what is this person into." No code exists | plan |
@@ -140,9 +141,11 @@ than of a subject:
 
 ## 5 · The gates
 
-Four test runners, **not interchangeable** — the table is in `CLAUDE.md`
-§2, with what each covers and what it needs. Below is everything else:
-the static gates, and where each one runs.
+There are five test runners, **not interchangeable** — the table is in
+`CLAUDE.md` §2, with what each covers and what it needs. One of them,
+`test:scripts`, is missing from the gate table below on purpose and rides
+the `ci` lint job anyway; §2 has why that hid it for so long. Below is
+everything else: the static gates, and where each one runs.
 
 **Where** is computed from the workflows, not from this prose, and
 `check:docs` fails if a row disagrees with them:
@@ -162,6 +165,8 @@ the static gates, and where each one runs.
 | `check:fn-runtime` | deploy | Function memory and timeout, that `setGlobalOptions` lives in `functions/src/ops.ts` where the hoisted re-export cannot miss it, that every trigger watches the database `firebase.json` deploys to (D165), and that the client calls the region the functions are served from — naming it once, never as a literal at a call site (D200, D201) |
 | `check:deploy-targets` | deploy | Every exported function appears in the deploy `--only` list. One missing name builds, tests green, and never deploys |
 | `check:content` | deploy | The compiled content matches `content/`, byte for byte, plus the invariants the seed path assumes |
+| `check:learn-sample` | deploy | `content/learn-sample.json` — the fixed slice of the learn bank the JS bundle carries (D284) — is what its source generates |
+| `check:seed-fields` | deploy | Every field `gen-v2content` emits is transported by the seed, compared by `SEEDED_FIELDS`, and mirrored in the seed test — or declared untransported with a reason (D285) |
 | `check:anchors` | deploy | The profile's `<select>` vocabularies and the trigger's `BREAKDOWN_DIM_VOCAB` hold the same strings, or a level stops counting silently |
 | `check:catalogs` | deploy | The committed catalogues and the trigger's compiled-in key sets agree exactly, absence included |
 | `check:pokedex` | deploy | The Pokédex catalogue's contiguous keys — stored answers are dex numbers into it, so a gap is an answer resolving to the wrong species |
@@ -182,7 +187,7 @@ the static gates, and where each one runs.
 | `check:monitoring` | ci | The alert chain from the log line a function emits to the policy that reads it. Every link fails the same silent way |
 | `check:data-inventory` | ci | Every collection the rules reach is named in `docs/data-inventory.md` (D130), and — where a read rule is literally `request.auth != null` or `false` — that the row's reader column agrees with it (D257) |
 | `check:policy-claims` | ci | A live promise that **vanishes** from `web/privacy.html` — since D183 a claim deleted there is a claim deleted from the product |
-| `check:pricing` | ci | The committed rate card (`content/pricing.json`, PAID-PLAN §6, D274 §3) stays inside its own clamps: exact cohorts, idx within floor/ceiling, 14 real booked ticks, and no estimate without a completed campaign behind it |
+| `check:pricing` | ci | The committed rate card (`content/pricing.json`, PAID-PLAN §6, D288 §3) stays inside its own clamps: exact cohorts, idx within floor/ceiling, 14 real booked ticks, and no estimate without a completed campaign behind it |
 | `check:public-copy` | ci | The retired pre-D98 privacy vocabulary **reappearing** in copy a user reads |
 | `check:store-forms` | ci | The privacy nutrition label, which exists twice on purpose, agreeing with itself |
 | `check:quality` | ci | Question form and provenance (D97), the place-scope tripwire, and the id/bank headroom |

@@ -462,7 +462,7 @@ import {
 
   // ── Logic gets its own card — a timed skill test, not a personality profile ──
   // "You asked" — the buyer's shelf (PAID-PLAN §9.3, graduated with the
-  // room per the 2026-08-22 record; D274, runbook phase 2). Compact rows
+  // room per the 2026-08-22 record; D288, runbook phase 2). Compact rows
   // from the same session-cached store the room reads; each opens the
   // room, where the meter and the shelf live. Live only — the ledger is
   // real or absent, never sampled — and absent entirely for the account
@@ -563,6 +563,18 @@ import {
       // one search short of what the label promises \u2014 reported from a
       // device as exactly that. `requestTopicSheet` is the ask; the feed
       // owns the list and answers it, mounted or not.
+      //
+      // AND IT NO LONGER MOVES YOU WHEN IT DOES NOT HAVE TO (D282). D190
+      // fixed where the jump LANDED and left the jump itself, which is
+      // what came back a second time: the reader asked for a list and was
+      // put on another screen to get it. `requestTopicSheet` now answers
+      // whether a mounted feed took the request, and one behind this
+      // panel can \u2014 the sheet portals to the app frame at z-index 40
+      // and this overlay sits at 20, so the list opens on top of the
+      // profile and closes back onto it. The jump survives as the case it
+      // was always the answer to: the profile opened over the Mirror,
+      // where there is no feed mounted to answer, and `prime` returning
+      // false lets EmptyField navigate exactly as before.
       return (
         <EmptyField action={{ label: 'Pick topics \u2192', nav: 'track:world', prime: requestTopicSheet }}>
           Every topic runs in your feed until you narrow it.
@@ -631,7 +643,7 @@ import {
         </React.Suspense>
         <LensesRowCard onGo={onGo} />
         <LogicCard />
-        {/* the buyer's shelf (PAID-PLAN §9.3, D274 — the 2026-08-24
+        {/* the buyer's shelf (PAID-PLAN §9.3, D288 — the 2026-08-24
             design's seat for it, after the instruments). Live only, and
             only when a purchase exists: an empty "You asked" chapter on
             the account that never bought anything is furniture. */}

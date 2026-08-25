@@ -1,7 +1,7 @@
 // Ported from design/spec-modules/suggestions.js (the historical prototype),
 // re-synced from design/standalone-v24/suggestions.js (the §8 board design),
 // CONVERTED off the global bridge in the same change — and CUT DOWN
-// 2026-08-24 with design/standalone-2026-08-24/suggestions.jsx (D274 §1):
+// 2026-08-24 with design/standalone-2026-08-24/suggestions.jsx (D288 §1):
 // the community board retired, so the seeded board, the upvote budget and
 // the vote persistence went with it. What remains is the store for the ONE
 // door that exists now — your own asks, each of them a paid ask.
@@ -17,7 +17,7 @@
 //   · LIVE — your submissions are REAL (data/suggestions.ts → the D138
 //     backend: suggestQuestionV2, review verdicts, the reviewer's note).
 //     The review conversation is where the contract is arranged — the
-//     door says so instead of pretending a checkout exists (D274 §3).
+//     door says so instead of pretending a checkout exists (D288 §3).
 import LIVE from '../data/live';
 import { IS_DATA } from './sample-data.js';
 
@@ -30,7 +30,7 @@ let sgBucketLabel = null; // ../ui/cohortLabels.bucketLabel, same ride
 
 // ── the hints an ask can carry. Hints, not settings: the review decides,
 // and the composer says so. `like` is unreachable from the scope ruler now
-// but stays for LABEL RESOLUTION — rows submitted before D274 carry it.
+// but stays for LABEL RESOLUTION — rows submitted before D288 carry it.
 const CADENCE = [['once', 'once'], ['weekly', 'once a week'], ['daily', 'every day']];
 const AUDIENCE = () => {
   if (LIVE.enabled) {
@@ -82,7 +82,7 @@ const MINE_DEMO = [
   { id: 'sgd3', prompt: 'Should Oslo ban cars inside Ring 1?', type: 'binary', options: ['Ban them', 'Keep access'], by: 'You', hue: 150, status: 'declined', ago: '6d', cadence: 'weekly', audience: 'city', decline: 'place', demo: true },
 ];
 
-// The key predates D274 and the shape shrank with the board (`up` — the
+// The key predates D288 and the shape shrank with the board (`up` — the
 // upvote map — died with it): old payloads still parse, the dead half is
 // simply never read again and the next persist writes the new shape.
 const LS = 'insight.suggestions.v1';
@@ -116,7 +116,7 @@ function liveMine() {
   }));
 }
 
-/** Your asks, newest first — the only list the door draws (D274 §1). */
+/** Your asks, newest first — the only list the door draws (D288 §1). */
 function mine() {
   const own = LIVE.enabled ? liveMine() : (saved.mine.length ? saved.mine : MINE_DEMO).map((s) => ({ ...s, mine: true }));
   return own
@@ -172,7 +172,7 @@ export const SUGGESTIONS = {
    *   { ok: false, code, message }   — the server's refusal, written to be
    *                                    shown (the budget, a form bound)
    *
-   * No paid flag on the wire: since D274 §1 EVERY submission through this
+   * No paid flag on the wire: since D288 §1 EVERY submission through this
    * door is a paid ask, so the callable needs no second bit to say so —
    * the review conversation that follows is where the contract starts.
    */

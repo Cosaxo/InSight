@@ -49,19 +49,31 @@ const RUNTIME_ALLOWLIST = new Set([
   // the checker has agreed to stop checking.
 ]);
 
-const files = [];
-for (const dir of [specDir, uiDir]) {
-  for (const f of readdirSync(dir)) {
-    if (/\.(jsx?|tsx?)$/.test(f)) files.push(join(dir, f));
-  }
-}
 // Tests are excluded: they import what they exercise rather than reading it
 // off the global scope, so scanning them would add references with no
 // matching definition.
-for (const f of readdirSync(dataDir)) {
-  if (/\.(jsx?|tsx?)$/.test(f) && !/\.test\.[jt]sx?$/.test(f)) {
-    files.push(join(dataDir, f));
+//
+// THE RULE APPLIES TO ALL THREE DIRECTORIES, and used to be applied to one.
+// The data/ loop below carried the exclusion and this loop did not, so the
+// 39 `ui/*.test.tsx` files were scanned against the very comment that says
+// they must not be — 243 files walked where the rule means 201. spec/ holds
+// no test file, so ui/ was the whole of it.
+//
+// Measured before fixing, because a ratchet that MOVES on a fix is a
+// different change from one that does not: rule 4's coupling count is 244
+// either way. So this was latent rather than live — a test file that
+// referenced a spec global would have inflated the count, or worse declared
+// a name and masked a genuinely dangling reference in production code.
+const notATest = (f) => /\.(jsx?|tsx?)$/.test(f) && !/\.test\.[jt]sx?$/.test(f);
+
+const files = [];
+for (const dir of [specDir, uiDir]) {
+  for (const f of readdirSync(dir)) {
+    if (notATest(f)) files.push(join(dir, f));
   }
+}
+for (const f of readdirSync(dataDir)) {
+  if (notATest(f)) files.push(join(dataDir, f));
 }
 files.push(join(root, "src/v2/main.jsx"));
 files.push(join(root, "src/v2/spec-index.js"));
@@ -85,6 +97,25 @@ const definedBy = new Map();
 const DEFINE_RES = [
   /(?:globalThis|window)\.([A-Za-z_$][\w$]*)\s*=[^=]/g,
   /Object\.assign\(\s*(?:globalThis|window)\s*,\s*\{([^}]*)\}/g,
+  // The CAST form, which the typed layer has to use and which this scanner
+  // could not see until D280:
+  //
+  //   (window as unknown as Record<string, unknown>).TEST_FEED_QS = …
+  //
+  // `data/` is scanned, so the file was read — the pattern above simply
+  // does not match a `window` with a type assertion between it and the dot.
+  // The cost of that blind spot was a shipped D1 violation. D249 converted
+  // `world-feed.jsx`'s reader of `window.TEST_FEED_QS` to an ESM import of
+  // the DEMO array and recorded the name as having no reader left, which
+  // was true of the spec layer and false of the tree: `live.ts` was still
+  // publishing the live pool here, into a name that now had no consumer.
+  // Rule 5 — publications nothing reads — is exactly the rule for that, and
+  // it could not fire because the publication was invisible.
+  //
+  // Seeing it costs nothing anywhere else: a cast write to a name something
+  // still reads is an ordinary multi-writer publication, which `definedBy`
+  // has modelled as a Set since 2026-08-03.
+  /\(\s*(?:globalThis|window)\s+as\s+[^)]*\)\.([A-Za-z_$][\w$]*)\s*=[^=]/g,
 ];
 const REF_RE = /(?:globalThis|window)\.([A-Za-z_$][\w$]*)/g;
 // The publication idiom READS THE NAME IT PUBLISHES, and that made rule 5

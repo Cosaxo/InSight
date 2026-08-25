@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // pricing.ts is the typed face of the COMMITTED rate card (PAID-PLAN §6,
-// D274 §3) — these cases pin the module's own promises, not the file's
+// D288 §3) — these cases pin the module's own promises, not the file's
 // numbers (check:pricing referees those): the posted line is base × idx
 // and nothing else, non-EUR prints as ≈ because the fx table is a dated
 // convenience, an unknown currency falls back to the contract's own EUR,

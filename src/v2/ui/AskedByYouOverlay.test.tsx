@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The buyer's room (PAID-PLAN §7, D274, runbook phase 2). What these
+// The buyer's room (PAID-PLAN §7, D288, runbook phase 2). What these
 // cases hold: the card's meter is arithmetic over the doc and the public
 // counts (never a number of its own), the empty room says so instead of
 // drawing, a subscription row is a stated contract and never the design's

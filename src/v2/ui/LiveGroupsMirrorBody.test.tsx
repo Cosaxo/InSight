@@ -345,9 +345,12 @@ describe("LiveGroupsMirrorBody · Compare averages the members' own results", ()
     const panel = screen.getByRole("tabpanel").textContent || "";
     expect(panel).toMatch(/88/);
     expect(panel).toMatch(/The Crew/);
-    // The basis, over the members who actually have one — three uids in
-    // the group and two profiles between them.
-    expect(panel).toMatch(/2 of 3 have taken one/);
+    // The basis, over the members who actually have one — and "them" is
+    // the group WITHOUT the viewer, so the denominator is two, not three.
+    // This read "2 of 3" while the viewer was inside their own comparison
+    // population: u_me has no result here, so the third slot was the
+    // viewer being counted as somebody they might align with.
+    expect(panel).toMatch(/2 of 2 have taken one/);
   });
 
   it("says nobody here has finished a test rather than drawing one member", async () => {
@@ -356,19 +359,37 @@ describe("LiveGroupsMirrorBody · Compare averages the members' own results", ()
     expect(await screen.findByText(/Nobody here has finished a test yet/i)).toBeTruthy();
   });
 
+  // The sharp case for the population. When the VIEWER is the only member
+  // with a result, "them" is empty — and the lens has an empty state for
+  // exactly that. Passing the whole membership put the viewer on both
+  // sides instead, so the card compared them with themselves and printed a
+  // perfect score: "You ↔ The Crew · 100% aligned · 1 of 3 have taken one".
+  it("does not compare you with yourself when you are the only one who has taken a test", async () => {
+    LIVE.scoresFor = (uid: string) => (uid === "u_me"
+      ? { big5: { O: 40, C: 40, E: 40, A: 40, N: 40 } }
+      : null);
+    render(<LiveGroupsMirrorBody />);
+    openTab("Compare");
+    expect(await screen.findByText(/Nobody here has finished a test yet/i)).toBeTruthy();
+    const panel = screen.getByRole("tabpanel").textContent || "";
+    expect(panel, "the viewer was counted as somebody they align with").not.toMatch(/100/);
+    expect(panel).not.toMatch(/across 5 axes/);
+  });
+
   it("resolves the members' profiles in one batched call", async () => {
     render(<LiveGroupsMirrorBody />);
     openTab("Compare");
     // The scores ride the same document as the names (live.ts loadNames),
     // so a group's Compare costs one read per member and not one per
-    // member per instrument.
+    // member per instrument — and not one for the VIEWER, whose profile
+    // this side of the comparison does not contain.
     await vi.waitFor(() => {
-      expect(LIVE.loadNames).toHaveBeenCalledWith(["u_me", "u_ada", "u_bo"]);
+      expect(LIVE.loadNames).toHaveBeenCalledWith(["u_ada", "u_bo"]);
     });
   });
 });
 
-// ── the cross-group line (D273's groups half, D274 runbook phase 6) ──
+// ── the cross-group line (D287's groups half, D288 runbook phase 6) ──
 //
 // "Runs most like you" is a superlative, so it renders only when it is a
 // real comparison: two or more groups whose history clears the roles floor

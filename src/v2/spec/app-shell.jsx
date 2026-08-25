@@ -19,7 +19,7 @@ import LIVE from '../data/live';
 import { patternsEarned } from '../data/patternsReady';
 import { closeTopBackLayer } from '../data/backLayers';
 import { registerNav } from '../data/nav';
-// The buyer's room (PAID-PLAN §7, D274) — its own lazy chunk, not part of
+// The buyer's room (PAID-PLAN §7, D288) — its own lazy chunk, not part of
 // the spec overlay group: typed, and nothing on first paint pays for it.
 const AskedByYouLazy = React.lazy(() => import('../ui/AskedByYouOverlay'));
 // R2/D270: the anonymous feature tally — a no-op until initLive arms it,
@@ -627,7 +627,7 @@ function App() {
             {/* the passive lens ring rides in the header, not in the feed's
                 chip row — it reports across tabs, not just the feed */}
             {window.PassiveMeter && <window.PassiveMeter></window.PassiveMeter>}
-            {/* compose — the ask-a-question door (the paid path, D274 §1),
+            {/* compose — the ask-a-question door (the paid path, D288 §1),
                 one tap from anywhere; same openDeferred synchronisation as
                 the cross-links that reached it before it had a button */}
             <button className="icon-btn" aria-label="Ask a question" onClick={() => openDeferred(() => { closeAll(); setOv('suggest'); })}>

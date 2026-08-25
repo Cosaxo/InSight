@@ -462,7 +462,9 @@ Fake-account prevention is deliberately partial — App Check prices
 accounts, and since D98 nothing hides a small distortion — D28
 records why no mechanism can make it complete. What the system guarantees
 instead is that the published numbers stay **correctable**: answers are
-immutable (D5), exact counts live server-side in `v2_aggs_private`, and
+immutable (D5), the exact counts are server-written and client-unwritable
+(`v2_question_aggs` is `allow write: if false`, so the trigger is its only
+writer and a correction cannot be raced), and
 every counted answer leaves a `v2_agg_events` entry `{ qid, uid, at }`
 for `LEDGER_RETENTION_DAYS` (90). This runbook is the procedure that
 cashes that guarantee in. Write nothing here during an incident that this
@@ -489,23 +491,42 @@ attribution, subtraction, republication, in that order.
    answer docs alone — an answer whose trigger never completed was never
    counted, and subtracting it would corrupt the tally in the other
    direction.
-3. **Subtract, in a transaction per qid.** In `v2_aggs_private/{qid}`:
-   decrement `counts[optionIdx]` (or `ent[entity]`) and `total` per
-   attributed answer, and the `by`/`entBy` cells for the anchors on that
-   answer doc — the snapshot-at-vote-time rule (D8) is what makes this
-   subtraction exact rather than approximate. If the uid's ledger
+3. **Subtract, in a transaction per qid — in the published document.**
+   Which document depends on the question's shape, and there are only two
+   cases:
+
+   **Vote, edit and rank questions — one document.** Correct
+   `v2_question_aggs/{qid}` directly: decrement `counts[optionIdx]` and
+   `total` per attributed answer, and the `by` cells for the anchors on
+   that answer doc — the snapshot-at-vote-time rule (D8) is what makes
+   this subtraction exact rather than approximate. If the uid's ledger
    entries show more than one `optionIdx` for a qid, the extras are D86
    edits: each consecutive pair (ordered by `at`) is one cell of the
    `edits` matrix (D226) — decrement `edits[from][to]` per pair, so the
-   ring's second thoughts leave with its votes.
-4. **Republish through the same floors.** Rewrite
-   `v2_question_aggs/{qid}` from the corrected private doc exactly as the
-   trigger would: `{ counts, total, by }` plus `edits` when the
-   corrected private doc still holds one (D226 — emit-when-set, like the
-   trigger), exact and whole — since D98
-   there is no floor, no `tooSmall` and no suppression to reproduce.
-   A hand-written public doc that
-   skips the floors is a worse incident than the one being corrected.
+   ring's second thoughts leave with its votes. For a rank question the
+   fields are `pos[]` and `total`: subtract the ring's positions per item.
+
+   There is no republication step for these, and that is the point: this
+   IS the published document, so the correction and the publication are
+   one write and cannot disagree. Step 4 below used to exist because they
+   were two documents.
+
+   **Catalogue questions (`type: "catalog"`) — two documents, in order.**
+   The accumulator is still `v2_aggs_private/{qid}`: decrement
+   `ent[entity]`, `total`, and the `entBy` cells for the answer's anchors.
+   Then recompute the board from the corrected accumulator exactly as the
+   trigger does — `canonTopN(ent, CANON_TOP_N)` for `top`/`rest`, and
+   `canonBreakdownFor(entBy, canon.top)` for `by` — and write that to
+   `v2_question_aggs/{qid}` in the same transaction. Do not hand-edit the
+   board: `top` and `rest` are a projection with an invariant (`rest` is
+   everything outside the top N), and editing one without the other leaves
+   a board whose numbers do not sum to its own total.
+4. **Publish nothing by hand that the trigger would compute.** Since D98
+   there is no floor, no `tooSmall` and no suppression to reproduce, so
+   for a vote, edit or rank question step 3 has already published. For a
+   catalogue, the only correct public doc is the one `canonTopN` produces
+   from the corrected accumulator. A hand-written public doc that
+   invents a projection is a worse incident than the one being corrected.
 5. **Then delete the accounts** (admin SDK), which removes their answer
    docs and — via the uid sweep — their ledger entries.
 

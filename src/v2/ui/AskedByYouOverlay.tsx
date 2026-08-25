@@ -1,5 +1,5 @@
 // AskedByYouOverlay — "Asked by you": the buyer's room (PAID-PLAN §7,
-// artboard B of the 2026-08-24 standalone; D274, runbook phase 2).
+// artboard B of the 2026-08-24 standalone; D288, runbook phase 2).
 //
 // Every purchase this account made, with live public state, the budget
 // meter (answers ARE the billing unit, D164), the window hairline, and

@@ -57,11 +57,19 @@ export default function EmptyField({ caption, children, action }: {
    * feed to open its topic sheet, and the feed reads that on the mount the
    * jump causes. Before, never after — the screen it lands on is already
    * looking by the time this returns.
+   *
+   * **And if `prime` returns `true`, there is no jump** (D282). The ask may
+   * turn out to be answerable where the reader is standing — a topic sheet
+   * portals to the app frame above this panel, so a feed already mounted
+   * behind it can simply open the list — and a door that moves you when it
+   * did not have to is the thing being reported. Only an explicit `true`
+   * cancels: a `prime` that returns nothing keeps the jump it has always
+   * had, so the two other call sites are unchanged.
    */
-  action?: { label: string; nav: string; prime?: () => void };
+  action?: { label: string; nav: string; prime?: () => boolean | void };
 }) {
   const go = () => {
-    if (action!.prime) action!.prime();
+    if (action!.prime && action!.prime() === true) return;
     // The registry since D248, replacing a `window as unknown as {…}` cast.
     // The goTab FALLBACK is behaviour, not a guard: it takes the tab id
     // alone, because a shell without `goNav` cannot honour a nav KEY.

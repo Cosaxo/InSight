@@ -2,7 +2,7 @@
 // check-pricing.mjs — the committed rate card stays inside its own rules.
 //
 // content/pricing.json is the PUBLIC half of the paid mechanism (PAID-PLAN
-// §6, D274 §3): the door prints it, buyers read it, and it is recomputed by
+// §6, D288 §3): the door prints it, buyers read it, and it is recomputed by
 // scripts/build-pricing.mjs from the purchase ledger. A malformed or
 // out-of-bounds card would either break the door client-side or print a
 // price the mechanism's own clamps forbid — and because the file is edited
@@ -19,7 +19,7 @@
 //   - every booked row is exactly 14 days of 0/1 — the door draws exactly
 //     that many ticks
 //   - nextOpen is null (= tomorrow) or an ISO day
-//   - estimates carry their basis or do not exist (D274 §3: no forecast
+//   - estimates carry their basis or do not exist (D288 §3: no forecast
 //     without a completed campaign behind it — campaigns ≥ 1, days ≥ 1)
 //
 // Run: node scripts/check-pricing.mjs   (wired into ci.yml's client job —
@@ -83,7 +83,7 @@ const est = p.estimates || {};
 for (const [scope, e] of Object.entries(est)) {
   if (!SCOPES.includes(scope)) { fail(`estimates.${scope} is not a cohort`); continue; }
   if (!(Number.isInteger(e.perDay) && e.perDay >= 0)) fail(`estimates.${scope}.perDay must be a non-negative integer`);
-  if (!(Number.isInteger(e.campaigns) && e.campaigns >= 1)) fail(`estimates.${scope} without campaigns ≥ 1 — a forecast needs a completed campaign behind it (D274 §3)`);
+  if (!(Number.isInteger(e.campaigns) && e.campaigns >= 1)) fail(`estimates.${scope} without campaigns ≥ 1 — a forecast needs a completed campaign behind it (D288 §3)`);
   if (!(Number.isInteger(e.days) && e.days >= 1)) fail(`estimates.${scope}.days must be ≥ 1 — the basis ships with the figure`);
 }
 

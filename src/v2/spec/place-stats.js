@@ -12,13 +12,20 @@ import React from 'react';
 // people who live there (`loc`/`locN`) and everyone else (`vis`/`visN`) —
 // named "live there" / "from elsewhere" here rather than the prototype's
 // "locals/visitors", because that is what the LIVE card can honestly know
-// (D274 §2) and the demo must not preview a claim the product refuses.
+// (D288 §2) and the demo must not preview a claim the product refuses.
 // The world has no elsewhere.
 // Hoisted `export let`, assigned inside the IIFE — the shape DAILYQ,
 // FRIENDS and PICKS were converted with (D39, "convert on touch").
-// `PLACE_RATE_QS` stays on window: world-feed-data.js concatenates it at
-// MODULE SCOPE, so that one is still crossing the bridge.
+//
+// The whole pair is past first paint now: this module and place-stats.jsx
+// load in `loadWorldFeed()`, which is also where the scorecard's own cards
+// come from. Nothing on the first frame reads either.
+// `PLACE_RATE_QS` converted with the same move. It stayed on window because
+// world-feed-data.js concatenated it at MODULE SCOPE — a real load-order
+// dependency, and the last thing holding this pair in the first-paint
+// graph. `joinDemoStock()` takes the binding from `loadWorldFeed()` now.
 export let PLACESTATS;
+export let PLACE_RATE_QS;
 
 (function () {
   const LS = 'insight.placeRatings.v1';
@@ -97,7 +104,7 @@ export let PLACESTATS;
     ['pr12', 'world', 'future', 'Where the world is heading \u2014 rate it.'],
     ['pr13', 'world', 'nature', 'The state of nature worldwide?'],
   ];
-  window.PLACE_RATE_QS = P.map(([id, scope, catId, prompt]) => {
+  PLACE_RATE_QS = P.map(([id, scope, catId, prompt]) => {
     const c = api.cat(scope, catId) || { n: 0 };
     return { id, cat: 'places', type: 'rate', scope, catId, prompt, n: c.n };
   });

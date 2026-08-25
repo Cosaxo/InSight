@@ -44,6 +44,18 @@ describe("check-policy-claims", () => {
       expect(missingClaims(broken)).toContain(label);
     });
 
+  // Commenting a disclosure out deletes it from the page as surely as
+  // cutting it: the reader sees nothing either way. This ran over the raw
+  // bytes and read a commented claim as present, which is the one failure
+  // this gate exists to prevent — a live promise vanishing from the only
+  // place D183 leaves it.
+  it.each(CLAIMS.filter(([, t]) => typeof t !== "function").map(([label, t]) => [label, t]))(
+    "notices when %s is commented out rather than cut", (label, test) => {
+      const commented = page.replace(test, (m) => `<!-- ${m} -->`);
+      expect(commented, `commenting "${label}" changed nothing`).not.toBe(page);
+      expect(missingClaims(commented)).toContain(label);
+    });
+
   it("passes a page that only reWORDS a claim around its load-bearing token", () => {
     // The patterns are meant to be loose about prose and strict about the
     // number, the duration and the name — so an editor may improve a

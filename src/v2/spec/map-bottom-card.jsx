@@ -38,9 +38,23 @@ function MTFilterChips({ anchors, activeA, onPick }) {
 function mtAnchorSelf(anchor) {
   if (!anchor) return '';
   if (anchor.id === 'age') {
-    const a = parseInt(String(anchor.value).replace(/\D/g, ''), 10);
-    if (a) { const lo = Math.floor(a / 10) * 10; return lo + '–' + (lo + 9); }
-    return anchor.value;
+    // TWO SHAPES reach this, and only one of them is a number.
+    // map-anchors.js builds the demo row as `age {n}` ("age 34") and the
+    // LIVE row as `age {ageBand}` ("age 25-34"). Stripping every non-digit
+    // and parsing the rest as one number collapsed the band to 2534, so
+    // the card printed "you: 2530–2539" — a decade nobody is in, on the
+    // default anchor, which is the first thing a tapped answer says.
+    //
+    // A band is already the answer to "what is your age group", so it is
+    // returned as written: the profile's own vocabulary is what every
+    // other reader of ageBand uses, and check:anchors holds it to the
+    // trigger's.
+    const raw = String(anchor.value).replace(/^age\s+/i, '').trim();
+    if (/^\d+$/.test(raw)) {
+      const a = parseInt(raw, 10);
+      if (a) { const lo = Math.floor(a / 10) * 10; return lo + '–' + (lo + 9); }
+    }
+    return raw || anchor.value;
   }
   if (anchor.id === 'job' || anchor.id === 'edu') return anchor.value;
   return String(anchor.value || '').split('·')[0].trim(); // tests: strongest trait
@@ -286,7 +300,20 @@ function MTAnchorCard({ anchor, items, onPick, anchors, onAnchor }) {
         ? (T && T.taken ? <div className="mmt-astat-sub">taken {T.taken}</div> : null)
         : <div className="mmt-kicker"><span className="mmt-dot"></span>{anchor.label}{T && T.taken ? ' · taken ' + T.taken : ''}</div>}
       <MTAnchorStat anchor={anchor} openDim={dimId} onDim={setDimId} key={anchor.id}></MTAnchorStat>
-      {noCohort ? <MTNoCohort who={who}></MTNoCohort> : (
+      {/* NO ANSWERS AT ALL is its own case, and it used to fall through to
+          the arithmetic below. `noCohort` is `rows.some(...)`, which is
+          false on an empty list, so a map with nothing on it drew "0% of
+          your answers match {who}", a zero-width bar, and — since `diffs`
+          was also empty — "You answered like most of them on every
+          question." Two claims that contradict each other, about somebody
+          who has answered nothing. D1: where a live surface shows nothing,
+          the data is ABSENT.
+
+          Nothing is drawn rather than MTNoCohort, whose first sentence is
+          "Your answer is on the map" — true for an unmeasured cohort, and
+          false here. What an empty map should SAY instead is a copy
+          decision; the anchor chips and your own value above still draw. */}
+      {!rows.length ? null : noCohort ? <MTNoCohort who={who}></MTNoCohort> : (
       <React.Fragment>
       <div className="mmt-matchhead">
         <span className="mmt-matchpct">{pct}%</span>

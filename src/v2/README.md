@@ -250,9 +250,16 @@ them: on a 4-core runner (which is what `ubuntu-latest` gives) the wall clock
 went 87 → 71 s rather than to the ~35 s the single-file floor suggested,
 because with the floor gone it is the aggregate that binds, not any one file;
 and per-TEST durations are unchanged (slowest 9.0 s either way), so this does
-**not** relax the reason `test:coverage` is scoped to `src/v2/data` — that
+**not** relax the reason `test:coverage` was scoped to `src/v2/data` — that
 constraint is the 15 s per-test timeout under v8 instrumentation, which a file
 split cannot move.
+
+*(What did move it: one test, not the split. `learn-reserve`'s D95 case spent
+~10 s of its 15 s budget inside a `growFeed` loop that could not converge —
+see **the feed's mounted window** in `test/mount-app.jsx`. With that fixed the
+instrumented run completes, and `test:coverage` runs the whole of `--dir src`
+as of 2026-08-24. The per-test constraint was real; it just had a single
+owner.)*
 
 They exist because **this layer's characteristic bug is invisible to every
 other gate.** A global that is defined but undefined *at render time* —
@@ -525,10 +532,38 @@ redundant (ESM-exported *and* imported by name) survive it on purpose.
 failed on its publication — a dead line introduced by a merge neither
 side could see, caught before it landed.
 
+**Rule 6** (D280) is the case that generosity has to let through, and it
+cost a live D1 violation before anything asked about it. Rule 5 is
+satisfied by the name appearing *anywhere*, so a name published to
+`window` by one file and reached by `import { X }` from another passes —
+mentioned all over the tree, reaching nobody, because an imported binding
+cannot be reassigned from outside its own module. That is what D249 left
+when it converted `world-feed.jsx`'s read of `window.TEST_FEED_QS` into a
+static import of the DEMO pool while `data/live.ts` went on publishing
+the LIVE one: a release build drew hash-invented vote counts on real
+test cards for a build, with every gate green.
+
+So rule 6 asks the narrow version — published to global scope, **exported
+by a different file**, imported from that file somewhere, and read
+through `window.` by nobody outside the publisher. The third clause is
+what makes it usable rather than noisy: without it the rule also reports
+the redundant-publication class the paragraph above says survives on
+purpose (nine of them today, up from five), where the export and the
+publication are one binding and the line is only residue. Against the
+commit the defect was photographed on, rule 6 reports exactly two names,
+and both were severed by D249 on the same afternoon.
+
+The other half of the same fix is in `spec-globals.mjs`: `DEFINE_RES`
+matched `window.X = …` and not
+`(window as unknown as Record<string, unknown>).X = …`, which is the form
+the typed layer has to use. `data/` was scanned all along — the
+publication was simply unreadable, in both directions, which is why no
+rule could have fired.
+
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
-prints the current total on every run. The count today is **243 across 33
+prints the current total on every run. The count today is **238 across 32
 files**, down from 799 when the ratchet landed.
 
 The mechanism needs no bookkeeping, which is what makes it usable. The
@@ -658,8 +693,21 @@ like the others (6 sites in `world-feed.jsx`, all of them the same
 and deliberately: `world-feed-data.js` creates the pool, this file and
 `world-subtopics.js` append to it, and `data/live.ts` replaces it wholesale
 in live mode. Four writers and a live/demo boundary is a design change —
-an owning module with an add/replace API — not a mechanical conversion. The
-append site carries that reasoning inline.
+an owning module with an add/replace API — not a mechanical conversion.
+
+*Still true, and one writer fewer since.* This file's append moved out of
+module scope when the demo catalogue pool was deferred: it exports
+`WF_CATALOG_QS` and `loadWorldFeed()` hands it to `joinDemoStock()`
+(world-feed-data.js) past a `LIVE.enabled` guard. That is the mechanical
+half — a writer handing its array to the one function that appends —
+not the design change above, which nobody has done. `world-subtopics.js`
+moved the same way a step later — it appends IN PLACE (`pool.push`) and
+retags a question, so its `installSubtopicStock()` is that treatment applied
+to a mutation rather than a concat. Four writers hand their stock over now —
+`place-stats.js`'s rate cards were the last, and their departure took
+`place-stats.jsx` (the demo Mirror's Scores lens) off the eager graph with
+them. `world-feed-data.js` still assigns the pool at module scope, and
+stays eager partly for that reason.
 
 **And it exposed a real defect in the ratchet.** `definedBy` was a
 first-assignment-wins map, so a multi-writer global got one arbitrary owner

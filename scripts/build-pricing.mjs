@@ -1,5 +1,5 @@
 // build-pricing.mjs — refold the purchase ledger into content/pricing.json
-// (PAID-PLAN §6, D274 §3; the runbook's phase 3).
+// (PAID-PLAN §6, D288 §3; the runbook's phase 3).
 //
 //   node scripts/build-pricing.mjs --project prvfire33
 //   node scripts/build-pricing.mjs --emulator
@@ -31,7 +31,7 @@
 //   nextOpen   The first uncovered day, ISO — or null when tomorrow is
 //              open, so the door can say "tomorrow" without a stale date.
 //   estimates  Per-answer-per-day expectations, WITHHELD until a cohort
-//              has a completed campaign to measure from (D274 §3): only
+//              has a completed campaign to measure from (D288 §3): only
 //              CLOSED question purchases contribute, each as its
 //              sponsored question's total answers over its window, and
 //              the entry carries its basis (campaigns, days). An empty
@@ -123,7 +123,7 @@ for (const scope of SCOPES) {
     nextOpen: nextOpen === "tomorrow" ? null : nextOpen,
   };
 
-  // estimates only from completed campaigns (D274 §3) — the sponsored
+  // estimates only from completed campaigns (D288 §3) — the sponsored
   // question's own total over its window, basis carried
   const closed = mine.filter((p) => p.state === "closed" && p.qid);
   let answers = 0, days = 0, campaigns = 0;

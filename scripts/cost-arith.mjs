@@ -523,8 +523,11 @@ export function authCost(mau) {
 }
 
 // D7's ceiling, as a number rather than a warning: all of a day's daily
-// answers land on one `v2_aggs_private/{qid}` document inside the morning
+// answers land on one `v2_question_aggs/{qid}` document inside the morning
 // window, and Firestore sustains roughly one write per second per document.
+// (It was `v2_aggs_private/{qid}` until that copy collapsed into the
+// published document. The ceiling did not move: the two were keyed by the
+// same qid, so the transaction was already bounded by one of them.)
 export const writesPerSec = (dau) => dau / (B.peakWindowMin * 60);
 
 // The DAU at which that crosses 1.0 — the wall COSTS.md says binds first.
@@ -714,10 +717,20 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     // returns (as a performance measure — PUBLISH_EVERY's note), it now
     // discounts every phase, which is what a floorless world means.
     const pub = 1 / PUBLISH_EVERY;
+    // Per world answer: 1 client write (the answer doc), 1 server write
+    // (the `v2_agg_events` ledger entry), and `pub` (the published
+    // aggregate). It was `1 + 2 + pub` — the extra server write being the
+    // private mirror the trigger kept alongside the published document.
+    // That copy is gone on the vote, edit and rank paths, which is every
+    // answer this term models; the catalog path still writes its own
+    // accumulator, and `B.worldAnswers` does not resolve catalogue picks
+    // separately, so this errs one write LOW on a small slice of answers
+    // rather than one write high on all of them.
+    //
     // + the Patterns fit's and the engagement digest's one state write
     // each per active user per night, + one attention shard per sampled
     // device per day (its fold-side day-doc merge rides per batch).
-    const writes = dau * (B.worldAnswers * (1 + 2 + pub) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + ATTN_SAMPLE_RATE + ENGAGEMENT_ROLLUP_CLIENT_WRITES + ENGAGEMENT_ROLLUP_FOLD_WRITES + 0.2);
+    const writes = dau * (B.worldAnswers * (1 + 1 + pub) + B.duelAnswers * 2 + PATTERNS_USER_STATE_OPS + ENGAGEMENT_USER_STATE_OPS + ATTN_SAMPLE_RATE + ENGAGEMENT_ROLLUP_CLIENT_WRITES + ENGAGEMENT_ROLLUP_FOLD_WRITES + 0.2);
     // ledger TTL 90 days later, + the shard fold deleting what it folded,
     // + the rollup TTL 90 days later (R3/D272)
     const deletes = dau * (B.worldAnswers + ATTN_SAMPLE_RATE + 1);

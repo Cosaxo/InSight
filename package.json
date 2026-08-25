@@ -24,6 +24,8 @@
     "test:e2e:erasure": "firebase emulators:exec --only auth,firestore,functions,storage --project demo-insight \"node firestore-tests/e2e-delete-account.mjs\"",
     "pretest:e2e:moderation": "npm run build --prefix functions",
     "test:e2e:moderation": "firebase emulators:exec --only auth,firestore,functions,storage --project demo-insight \"node firestore-tests/e2e-moderation.mjs\"",
+    "pretest:e2e:all": "npm run build --prefix functions",
+    "test:e2e:all": "firebase emulators:exec --only auth,firestore,functions,storage --project demo-insight \"node firestore-tests/e2e-v2-loop.mjs && node firestore-tests/e2e-delete-account.mjs && node firestore-tests/e2e-moderation.mjs\"",
     "check:globals": "node scripts/check-spec-globals.mjs",
     "check:figures": "node scripts/check-figures.mjs",
     "check:a11y": "node scripts/check-a11y.mjs",
@@ -44,6 +46,9 @@
     "build:catalog": "node scripts/build-catalog.mjs",
     "build:doc-index": "node scripts/doc-index.mjs --write",
     "check:content": "node scripts/check-content.mjs",
+    "check:learn-sample": "node scripts/gen-learn-sample.mjs",
+    "check:seed-fields": "node scripts/check-seed-fields.mjs",
+    "build:learn-sample": "node scripts/gen-learn-sample.mjs --write",
     "check:neighbors": "node scripts/question-neighbors.mjs",
     "check:quality": "node scripts/question-quality.mjs",
     "build:content": "node scripts/gen-v2content.mjs --write",
@@ -86,9 +91,9 @@
     "check:monitoring": "node scripts/check-monitoring.mjs",
     "build:feature-graphic": "node scripts/gen-feature-graphic.mjs",
     "testuser": "node --experimental-strip-types --no-warnings=ExperimentalWarning scripts/test-users.mjs",
-    "test:unit": "vitest run --dir src",
-    "test:scripts": "vitest run --dir scripts",
-    "test:coverage": "vitest run --dir src/v2/data --coverage",
+    "test:unit": "LC_ALL=en_US.UTF-8 vitest run --dir src",
+    "test:scripts": "LC_ALL=en_US.UTF-8 vitest run --dir scripts",
+    "test:coverage": "LC_ALL=en_US.UTF-8 vitest run --dir src --coverage",
     "check:store-forms": "node scripts/check-store-forms.mjs",
     "seed": "node scripts/seed-content.mjs"
   },
@@ -138,5 +143,5 @@
   "overrides": {
     "tar": "^7.5.22"
   },
-  "appBuild": 24
+  "appBuild": 26
 }

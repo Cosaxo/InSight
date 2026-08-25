@@ -82,13 +82,13 @@ describe("the overlays with no button — opened through the nav registry", () =
   it("opens the ask-a-question door", async () => {
     const expectNoBoundary = mountApp();
     await openVia("openSuggestions");
-    // "ask a question" since D274 §1 retired the community board — the
+    // "ask a question" since D288 §1 retired the community board — the
     // door is the paid path alone, and the title says what the room is.
     expectOpened(/ask a\s*question/i, "suggest overlay");
     expectNoBoundary("suggest overlay");
   });
 
-  // The door's honesty arithmetic (D274 §3, D167): everything it prints
+  // The door's honesty arithmetic (D288 §3, D167): everything it prints
   // comes from the COMMITTED content/pricing.json, and the committed card
   // is the empty-ledger fold — every idx at floor, every day open, no
   // completed campaign. So the board must say "tomorrow" three times and

@@ -1,16 +1,4 @@
 {
-  "fieldOverrides": [
-    {
-      "collectionGroup": "engagement",
-      "fieldPath": "folded",
-      "indexes": [
-        {
-          "queryScope": "COLLECTION_GROUP",
-          "order": "ASCENDING"
-        }
-      ]
-    }
-  ],
   "indexes": [
     {
       "collectionGroup": "v2_suggestions",
@@ -125,9 +113,41 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "answers",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        {
+          "fieldPath": "qid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "surface",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "anchors.city",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "answeredAt",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": [
+    {
+      "collectionGroup": "engagement",
+      "fieldPath": "folded",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "order": "ASCENDING"
+        }
+      ]
+    },
     {
       "collectionGroup": "insight_inbound_impressions",
       "fieldPath": "senderUid",

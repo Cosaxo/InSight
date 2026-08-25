@@ -73,12 +73,28 @@ import './spec/result-rose.jsx';
 import './spec/result-card.jsx';
 import './spec/group-daily.jsx';
 import './spec/read-run.jsx';
-import './spec/duo-daily.jsx';
-// place-stats.js and pick-data.js must precede world-feed-data.js: the feed
-// pool concatenates window.PLACE_RATE_QS and window.PICK_QS at module scope,
-// so both card sets must already exist.
-import './spec/place-stats.js';
-import './spec/pick-data.js';
+// duo-daily.jsx moved to loadOverlays(): in a SHIPPING build daily-split
+// picks LiveDuelPanel (React.lazy since D156) whenever LIVE.enabled, so the
+// `window.DuoBody` arm is dead code the installed app cannot execute — the
+// same argument D200 used to take relmap.jsx off this list. group-daily.jsx
+// stays, because GDAv is read from the Mirror (group-mirror, group-role-map).
+// place-stats.js and place-stats.jsx are gone from this list too, and they
+// were the last pair. The .js was eager because the pool concatenated
+// window.PLACE_RATE_QS at module scope; the .jsx was eager because the .js
+// was, and it would have dragged it back in on its own. Both are in
+// loadWorldFeed() now — the .jsx there rather than in loadOverlays because
+// its reader (mirror-field-pops.jsx's Scores lens) is NOT reached through
+// an opener, which is that group's whole contract, and main.jsx re-renders
+// the root after the feed group precisely for globals read this way. The
+// scorecard is "fed by rate questions in the World feed" anyway, which is
+// the group it belongs to.
+//
+// pick-data.js is NO LONGER HERE, and it was the expensive half: 48 KB of
+// catalogue demo stock, eager only because the pool concatenated
+// window.PICK_QS at module scope too. That concat is `joinDemoStock()` now
+// (world-feed-data.js), called from loadWorldFeed() with the module's own
+// named export — so pick-data rides the feed's chunk, where its only other
+// reader (world-feed.jsx's `PICKS`) already lives.
 // world-palette.js — the hue gate every World surface runs its colours
 // through. A named-export module; its position here is the standalone's, and
 // it reads no other module at load time.
@@ -89,21 +105,34 @@ import './spec/world-palette.js';
 // five-entry fallback — the failure mode being a wrong chip row rather than
 // an error anyone would see.
 import './spec/world-feed-data.js';
-// world-catalogs appends its questions to window.WORLD_FEED_QS at module
-// scope, so it has to follow world-feed-data (which creates the pool) — and
-// it stays eager for the same reason the pool does. In live mode live.ts
-// replaces the pool wholesale, so the demo catalogue cards never leak there.
-import './spec/world-catalogs.js';
-import './spec/world-subtopics.js';
-// The report store and the Learn stack are eager: SUBTOPICS/LEARN/LEARN_FEED
-// are subscribed to from eager screens (search, map) as well as the deferred
-// feed, and together they are a fraction of the feed chunk's weight.
+// world-catalogs.js is NOT here either, for pick-data's reason exactly:
+// its module-scope append to window.WORLD_FEED_QS was the only thing
+// holding a demo catalogue in the first-paint graph, since its one importer
+// (world-feed.jsx) is deferred. It exports `WF_CATALOG_QS` now and
+// loadWorldFeed() joins it.
+//
+// world-subtopics.js is NOT here any more either. It was the awkward one:
+// it appended to the pool IN PLACE (`pool.push`) and retagged an existing
+// question, where the other two concatenated — so the treatment had to be
+// applied to a mutation. `installSubtopicStock()` is that, past the same
+// `demoPoolOpen()` guard, and both loadWorldFeed() and loadOverlays() call
+// it: the feed draws these cards and search-overlay's discover sheet asks
+// `SUBTOPICS.offers()`, which reads the pool to decide which leaves are
+// stocked. Its window mirror is gone with it — search-overlay imports the
+// binding by name now.
+// The report store stays eager. The Learn stack does NOT, any more, and
+// the sentence that used to keep it here is the whole reason: it read
+// "SUBTOPICS/LEARN/LEARN_FEED are subscribed to from eager screens
+// (search, map) as well as the deferred feed" — D27's arithmetic verbatim,
+// and both named screens have since left the eager graph. search-overlay
+// moved into loadOverlays at D223; the Map's seven moved into loadMapTab at
+// v28 §5. Nothing on the first frame reaches any of the five now, and the
+// recorded reason expired without anything noticing.
+//
+// They load at the head of loadWorldFeed() instead, and learn-bits.jsx
+// loads in loadMapTab() as well — see both. Measured: eager graph 849 → 813
+// KB.
 import './spec/world-feed-report.js';
-import './spec/learn-data.js';
-import './spec/learn-progress.js';
-import './spec/learn-social.js';
-import './spec/learn-feed.js';
-import './spec/learn-bits.jsx';
 // feed-read.js is the feed's MEMORY, not the feed: the Mirror reads its
 // stats (mirror-field-pops.jsx, app-shell.jsx) on screens the feed never
 // opens on. 1.6 KB, and eager.
@@ -136,7 +165,6 @@ import './spec/lens-cards.jsx';
 // person-mindmap.jsx, person-overlay.jsx, city-overlay.jsx and
 // suggestions.jsx load after first paint too, from the same group.
 import './spec/demographics.jsx';
-import './spec/place-stats.jsx';
 import './spec/mirror-answers.jsx';
 import './spec/mirror-field.jsx';
 import './spec/mirror-field-pops.jsx';
@@ -157,7 +185,12 @@ import './spec/mirror-tab.jsx';
 // logic-test.jsx loads after first paint; it imports data/logic-gen
 // directly (D53), so the generator rides the same deferred chunk without
 // a listing of its own.
-import './spec/profile-general.jsx';
+// profile-general.jsx is NOT here any more — it loads in loadOverlays(),
+// immediately before the overlay that is its only reader. Nothing imports
+// it by name and nothing outside profile-overlay.jsx reads
+// window.GeneralPanel, so it could never be reached before that group had
+// resolved — yet it and its whole static tail sat in the modulepreload set
+// on every cold start. Measured: 20 KB of first paint.
 // These were born in this repo (never in design/) and live as typed TSX
 // under ui/; they self-register on globalThis so the render-time lookups
 // in profile-overlay / profile-general still work.
@@ -206,10 +239,11 @@ import './spec/app-shell.jsx';
 // happened to finish in.
 //
 // The v15 modules that landed AROUND these four in the standalone's order
-// (world-catalogs, world-subtopics, world-feed-report, the learn stack) are
-// all eager imports above: each publishes a self-contained store nothing in
-// this group needs at module scope, so the deferred set stays exactly the
-// four it was.
+// no longer split the same way, and the sentence here used to say they did
+// ("all eager imports above"). world-feed-report.js still is; the learn
+// stack, pick-data.js, world-catalogs.js and world-subtopics.js are in this
+// group now, at its head, each for its own reason recorded where its eager
+// import used to sit.
 //
 // Memoised, so the second caller waits on the first load rather than
 // starting another — main.jsx calls it once, the mount tests call it in
@@ -227,6 +261,38 @@ import './spec/app-shell.jsx';
 // reasoning and the tests; the sharing every comment here relies on is
 // unchanged.
 export const loadWorldFeed = retryable(async () => {
+  // The catalogue pick cards and their demo store (48 KB), then the join
+  // that used to happen at world-feed-data.js's module scope and made this
+  // module eager. Ordered, not parallel: the pool has to take the array
+  // this import produces.
+  //
+  // `joinDemoStock` refuses when LIVE.enabled — read its note, the guard is
+  // the whole reason this deferral is safe. main.jsx runs
+  // `initLive().finally(() => … loadWorldFeed())`, so unlike the module
+  // scope it replaces, this runs after the live pool has been published.
+  const picks = await import('./spec/pick-data.js');
+  const cats = await import('./spec/world-catalogs.js');
+  const places = await import('./spec/place-stats.js');
+  const pool = await import('./spec/world-feed-data.js');
+  pool.joinDemoStock(picks.PICK_QS, cats.WF_CATALOG_QS, places.PLACE_RATE_QS);
+  // The scorecard CARD itself, which publishes window.PlaceStatsCard for
+  // mirror-field-pops' Scores lens. After its store, which it imports.
+  await import('./spec/place-stats.jsx');
+  // …and the subtopic leaves' stock, which pushes rather than concatenates.
+  // After the two concats, the order the eager list held.
+  (await import('./spec/world-subtopics.js')).installSubtopicStock();
+  // The Learn stack, in the order the eager list held it — learn-data
+  // before learn-progress before learn-feed, because each reads the one
+  // above at module scope. learn-data/learn-progress/learn-feed are also
+  // reached through the ESM graph (world-feed.jsx and map-tab.jsx import
+  // them by name), but learn-social.js and learn-bits.jsx publish onto
+  // window and nothing imports them, so those two are here on their own
+  // account and rule 2 needs the literals.
+  await import('./spec/learn-data.js');
+  await import('./spec/learn-progress.js');
+  await import('./spec/learn-social.js');
+  await import('./spec/learn-feed.js');
+  await import('./spec/learn-bits.jsx');
   // world-feed-comments.js and world-feed-counters.js are NOT awaited here
   // and do not need to be — world-feed.jsx imports both by name (D246,
   // D249), so the module graph orders them and they stay in the feed
@@ -255,7 +321,7 @@ export const loadWorldFeed = retryable(async () => {
 // window.open* cross-links app-shell installs in an effect. Nothing on the
 // first frame can reach any of them, which is what makes them the next
 // group after the feed (D25's argument, applied to the next candidate).
-// (`suggest` gained a header + since D274 §1 made it the paid door — it
+// (`suggest` gained a header + since D288 §1 made it the paid door — it
 // stays here on exactly the argument that moved search and profile in at
 // D223: the button goes through openDeferred, so the criterion is the
 // synchronisation, not the surface.)
@@ -334,6 +400,19 @@ export const loadWorldFeed = retryable(async () => {
 // now, so the overlay chunk does not depend on this loader having run —
 // the ESM graph is the guarantee there too.
 export const loadMapTab = retryable(async () => {
+  // learn-bits.jsx, and NOT because map-tab needs it: map-learn-card.jsx
+  // reads the bare `window.LMStreak` at render (its one guard renders null
+  // instead), and that module moved out of the eager list into
+  // loadWorldFeed above. Two groups importing it is free — a dynamic import
+  // is memoised, so whichever loader gets there first pays — and it keeps
+  // this group's contract what it has always been: reachable without any
+  // other group having run. The alternative is a Map that silently drops
+  // its streak pips whenever it wins the race against the feed.
+  //
+  // learn-data/learn-progress ride the ESM graph here already (map-tab.jsx
+  // and map-learn-card.jsx import them by name), which is why they are not
+  // repeated.
+  await import('./spec/learn-bits.jsx');
   await import('./spec/map-tab.jsx');
 });
 
@@ -341,9 +420,25 @@ export const loadOverlays = retryable(async () => {
   // First, because this list is spec-index's own order with the eager
   // modules removed and relmap.jsx sat above every other member of it.
   await import('./spec/relmap.jsx');
+  // The subtopic stock, installed for THIS group too — search-overlay.jsx
+  // below reads SUBTOPICS.offers(), which is "only the stocked leaves" and
+  // reads the pool to decide. Idempotent and guarded, so whichever loader
+  // arrives first does the work; the point is that neither group has to
+  // wait on the other. Same shape as learn-bits.jsx in loadMapTab.
+  (await import('./spec/world-subtopics.js')).installSubtopicStock();
+  // Demo-only in practice (see the note where this used to sit eager). A
+  // demo build can reach the duo tab before this group resolves; the render
+  // site's existing `window.DuoBody || 'div'` guard draws an empty div for
+  // that frame rather than throwing, which is the same frame loadWorldFeed's
+  // own guard accepts.
+  await import('./spec/duo-daily.jsx');
   // …then the two the header opens, in the order they held in the eager
   // list above (D223). ~12 KB of the entry chunk that only a tap reaches.
   await import('./spec/search-overlay.jsx');
+  // Before its reader, which is the whole contract: profile-overlay looks
+  // up window.GeneralPanel at render time, and these sequential awaits are
+  // what order the two.
+  await import('./spec/profile-general.jsx');
   await import('./spec/profile-overlay.jsx');
   await import('./spec/person-mindmap.jsx');
   await import('./spec/person-overlay.jsx');

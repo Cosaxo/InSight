@@ -39,7 +39,7 @@
 // admitted grading path, the earliest UTC day it may be graded, and the
 // expression the resolver RUNS. The outcome is not here — it lives in
 // v2_call_outcomes, so a reseed and the resolver never fight.
-export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }
+export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }
 export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "daily-000",
@@ -5140,6 +5140,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "from": "2026-08-23",
   "until": "2026-08-28",
+  "bg": "The Strait of Hormuz is the 33-kilometre channel between Iran and Oman that every tanker leaving the Gulf has to pass through. Roughly a fifth of the world's oil moves across it. The water is Iran's and Oman's; ships cross under the transit-passage right in the Law of the Sea.",
   "political": true
  },
  {
@@ -5157,7 +5158,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "from": "2026-08-23",
-  "until": "2026-08-31"
+  "until": "2026-08-31",
+  "bg": "Crude is the raw barrel, not the pump price. In much of Europe more than half of what you pay at the forecourt is tax and duty, with refining and retail margin on top, so a move in the crude price arrives diluted and several weeks late."
  },
  {
   "id": "feed-n03",
@@ -5174,7 +5176,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "from": "2026-08-23",
-  "until": "2026-08-27"
+  "until": "2026-08-27",
+  "bg": "Evergrande was China's largest property developer by sales, financed by pre-selling flats that were not yet built. It defaulted on its offshore debt in 2021 owing more than $300bn, and a Hong Kong court ordered it liquidated in January 2024, leaving unfinished towers across the country."
  },
  {
   "id": "feed-n04",
@@ -5191,7 +5194,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "from": "2026-08-23",
-  "until": "2026-09-03"
+  "until": "2026-09-03",
+  "bg": "The Duke and Duchess of Sussex stepped back from working royal duties in January 2020 and moved to California. They kept their titles and gave up what came with the roles: the public engagements, the Sovereign Grant funding, and publicly funded security in the UK."
  },
  {
   "id": "feed-n05",
@@ -5208,7 +5212,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "from": "2026-08-23",
-  "until": "2026-08-29"
+  "until": "2026-08-29",
+  "bg": "An open problem is one nobody has solved. A proof counts only once others can check it — by refereeing, or by writing it in a proof assistant like Lean that verifies each step mechanically. Computers have settled proofs before: the four-colour theorem went that way in 1976."
  },
  {
   "id": "feed-n06",
@@ -5225,7 +5230,112 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "axis": null,
   "test": null,
   "from": "2026-08-23",
-  "until": "2026-08-26"
+  "until": "2026-08-26",
+  "bg": "Italy's health ministry grades heat city by city on a three-level scale, and red is the top one: the heat is rated a risk to everyone, not only to the old and the ill. Attribution studies find warming has made heatwaves of a given severity both more frequent and more intense."
+ },
+ {
+  "id": "feed-f88",
+  "surface": "feed",
+  "seq": 124,
+  "type": "vote",
+  "domain": null,
+  "prompt": "One more work from a lost genius: Mozart, or Van Gogh?",
+  "options": [
+   "Mozart",
+   "Van Gogh"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f89",
+  "surface": "feed",
+  "seq": 125,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Karaoke: joy, or ordeal?",
+  "options": [
+   "Joy",
+   "Ordeal"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f90",
+  "surface": "feed",
+  "seq": 126,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A film you love gets a remake — excited, or bracing?",
+  "options": [
+   "Excited",
+   "Bracing for it"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f91",
+  "surface": "feed",
+  "seq": 127,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Daylight saving time: keep it, or scrap it?",
+  "options": [
+   "Keep it",
+   "Scrap it"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "political": true
+ },
+ {
+  "id": "feed-dl11",
+  "surface": "feed",
+  "seq": 128,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many hours a day on a phone is too many?",
+  "options": [
+   "0–1 h",
+   "1–2 h",
+   "2–3 h",
+   "3–4 h",
+   "4–5 h",
+   "5–6 h",
+   "6–7 h",
+   "7–8 h",
+   "8–9 h",
+   "9–10 h",
+   "10–11 h",
+   "11–12 h"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 12,
+  "unit": "h"
+ },
+ {
+  "id": "feed-f92",
+  "surface": "feed",
+  "seq": 129,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Know exactly what people think of you — would you?",
+  "options": [
+   "Yes, all of it",
+   "Spare me"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
  },
  {
   "id": "pick-pk04",
@@ -9606,7 +9716,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "cell",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 2,
+  "p": 71,
+  "k": "Ribosomes build proteins"
  },
  {
   "id": "learn-cell2",
@@ -9623,7 +9737,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "cell",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 84,
+  "k": "Mitochondria make energy"
  },
  {
   "id": "learn-cell3",
@@ -9640,7 +9758,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "cell",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 3,
+  "p": 52,
+  "k": "Cell walls are cellulose"
  },
  {
   "id": "learn-cell4",
@@ -9657,7 +9779,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "cell",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 88,
+  "k": "DNA lives in the nucleus"
  },
  {
   "id": "learn-cell5",
@@ -9674,7 +9800,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "cell",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 3,
+  "p": 44,
+  "k": "Lysosomes break down waste"
  },
  {
   "id": "learn-cell6",
@@ -9691,7 +9821,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "cell",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 3,
+  "p": 61,
+  "k": "Bacteria have no nucleus"
  },
  {
   "id": "learn-cell7",
@@ -9708,7 +9842,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "cell",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 77,
+  "k": "Chloroplasts do photosynthesis"
  },
  {
   "id": "learn-cell8",
@@ -9725,7 +9863,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "cell",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 58,
+  "k": "Mitosis copies a cell",
+  "w": "Meiosis is the other one — it halves the chromosomes to make egg and sperm cells."
  },
  {
   "id": "learn-gene1",
@@ -9742,7 +9885,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "gene",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 69,
+  "k": "DNA: A, C, G, T"
  },
  {
   "id": "learn-gene2",
@@ -9759,7 +9906,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "gene",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 63,
+  "k": "46 chromosomes",
+  "w": "23 pairs — one of each pair from each parent. 23 is the count in an egg or sperm cell."
  },
  {
   "id": "learn-gene3",
@@ -9776,7 +9928,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "gene",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 72,
+  "k": "Recessive needs both parents"
  },
  {
   "id": "learn-gene4",
@@ -9793,7 +9949,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "gene",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 2,
+  "p": 41,
+  "k": "RNA swaps T for uracil"
  },
  {
   "id": "learn-gene5",
@@ -9810,7 +9970,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "gene",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 66,
+  "k": "Double helix, 1953",
+  "w": "Built on Rosalind Franklin’s X-ray images, used without her knowledge."
  },
  {
   "id": "learn-gene6",
@@ -9827,7 +9992,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "gene",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 57,
+  "k": "Mendel bred peas"
  },
  {
   "id": "learn-gene7",
@@ -9844,7 +10013,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "gene",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 81,
+  "k": "Identical twins: all DNA"
  },
  {
   "id": "learn-gene8",
@@ -9861,7 +10034,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "gene",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 2,
+  "p": 86,
+  "k": "DNA change = mutation"
  },
  {
   "id": "learn-body1",
@@ -9878,7 +10055,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "body",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 74,
+  "k": "Arteries carry blood out"
  },
  {
   "id": "learn-body2",
@@ -9895,7 +10076,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "body",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 79,
+  "k": "Four heart chambers"
  },
  {
   "id": "learn-body3",
@@ -9912,7 +10097,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "body",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 64,
+  "k": "Skin is the largest organ"
  },
  {
   "id": "learn-body4",
@@ -9929,7 +10118,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "body",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 55,
+  "k": "The pancreas makes insulin"
  },
  {
   "id": "learn-body5",
@@ -9946,7 +10139,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "body",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 48,
+  "k": "Small intestine absorbs"
  },
  {
   "id": "learn-body6",
@@ -9963,7 +10160,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "body",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 52,
+  "k": "206 adult bones",
+  "w": "Babies start with about 300; many fuse together as they grow."
  },
  {
   "id": "learn-body7",
@@ -9980,7 +10182,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "body",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 43,
+  "k": "Cerebellum: balance"
  },
  {
   "id": "learn-body8",
@@ -9997,7 +10203,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "body",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 2,
+  "p": 76,
+  "k": "Haemoglobin carries oxygen"
  },
  {
   "id": "learn-evo1",
@@ -10014,7 +10224,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "evo",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 2,
+  "p": 59,
+  "k": "Selection needs inherited variation"
  },
  {
   "id": "learn-evo2",
@@ -10031,7 +10245,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "evo",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 72,
+  "k": "Darwin: the Galápagos"
  },
  {
   "id": "learn-evo3",
@@ -10048,7 +10266,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "evo",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 67,
+  "k": "Chimps: a shared ancestor",
+  "w": "We did not descend from chimps — both lines split from one older species."
  },
  {
   "id": "learn-evo4",
@@ -10065,7 +10288,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "evo",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 51,
+  "k": "Whales came from land"
  },
  {
   "id": "learn-evo5",
@@ -10082,7 +10309,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "evo",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 37,
+  "k": "Homologous: shared origin"
  },
  {
   "id": "learn-evo6",
@@ -10099,7 +10330,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "evo",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 69,
+  "k": "Earth: 4.5 billion years"
  },
  {
   "id": "learn-evo7",
@@ -10116,7 +10351,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "evo",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 62,
+  "k": "Birds are dinosaurs"
  },
  {
   "id": "learn-evo8",
@@ -10133,7 +10372,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "evo",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 3,
+  "p": 73,
+  "k": "Resistance is evolution"
  },
  {
   "id": "learn-sol1",
@@ -10150,7 +10393,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "solar",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 83,
+  "k": "Mercury is closest"
  },
  {
   "id": "learn-sol2",
@@ -10167,7 +10414,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "solar",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 47,
+  "k": "Venus is hottest",
+  "w": "Mercury sits closer, but Venus’s thick CO₂ blanket traps far more heat."
  },
  {
   "id": "learn-sol3",
@@ -10184,7 +10436,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "solar",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 44,
+  "k": "Mars has two moons"
  },
  {
   "id": "learn-sol4",
@@ -10201,7 +10457,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "solar",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 33,
+  "k": "Neptune: fastest winds"
  },
  {
   "id": "learn-sol5",
@@ -10218,7 +10478,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "solar",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 88,
+  "k": "Jupiter is largest"
  },
  {
   "id": "learn-sol6",
@@ -10235,7 +10499,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "solar",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 86,
+  "k": "Pluto demoted, 2006"
  },
  {
   "id": "learn-sol7",
@@ -10252,7 +10520,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "solar",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 2,
+  "p": 29,
+  "k": "Venus: year < day",
+  "w": "Venus turns so slowly that one rotation takes longer than one trip round the Sun."
  },
  {
   "id": "learn-sol8",
@@ -10269,7 +10542,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "solar",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 64,
+  "k": "Belt: Mars–Jupiter"
  },
  {
   "id": "learn-str1",
@@ -10286,7 +10563,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "stars",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 87,
+  "k": "We live in the Milky Way"
  },
  {
   "id": "learn-str2",
@@ -10303,7 +10584,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "stars",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 58,
+  "k": "The Sun: a yellow dwarf"
  },
  {
   "id": "learn-str3",
@@ -10320,7 +10605,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "stars",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 71,
+  "k": "Light year = distance"
  },
  {
   "id": "learn-str4",
@@ -10337,7 +10626,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "stars",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 61,
+  "k": "Collapse → black hole"
  },
  {
   "id": "learn-str5",
@@ -10354,7 +10647,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "stars",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 2,
+  "p": 39,
+  "k": "Nearest: Proxima Centauri"
  },
  {
   "id": "learn-str6",
@@ -10371,7 +10668,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "stars",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 46,
+  "k": "Galaxies are mostly stars"
  },
  {
   "id": "learn-str7",
@@ -10388,7 +10689,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "stars",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 66,
+  "k": "Universe: 13.8 billion years"
  },
  {
   "id": "learn-str8",
@@ -10405,7 +10710,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "stars",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 41,
+  "k": "Blue stars are hottest",
+  "w": "Backwards from taps and maps: on stars, blue is hot and red is cool."
  },
  {
   "id": "learn-anc1",
@@ -10422,7 +10732,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "ancient",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 48,
+  "k": "Great Pyramid: Khufu"
  },
  {
   "id": "learn-anc2",
@@ -10439,7 +10753,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "ancient",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 2,
+  "p": 74,
+  "k": "Rosetta Stone cracked it"
  },
  {
   "id": "learn-anc3",
@@ -10456,7 +10774,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "ancient",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 52,
+  "k": "First laws: Mesopotamia"
  },
  {
   "id": "learn-anc4",
@@ -10473,7 +10795,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "ancient",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 63,
+  "k": "Machu Picchu: Inca"
  },
  {
   "id": "learn-anc5",
@@ -10490,7 +10816,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "ancient",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 78,
+  "k": "Athens: first democracy"
  },
  {
   "id": "learn-anc6",
@@ -10507,7 +10837,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "ancient",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 56,
+  "k": "Aristotle taught Alexander"
  },
  {
   "id": "learn-anc7",
@@ -10524,7 +10858,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "ancient",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 44,
+  "k": "Colosseum: ~50,000"
  },
  {
   "id": "learn-anc8",
@@ -10541,7 +10879,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "ancient",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 41,
+  "k": "Augustus: first emperor",
+  "w": "Caesar was never emperor — his heir Augustus took that step."
  },
  {
   "id": "learn-c201",
@@ -10558,7 +10901,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "c20",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 71,
+  "k": "Wall fell in 1989"
  },
  {
   "id": "learn-c202",
@@ -10575,7 +10922,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "c20",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 64,
+  "k": "Gagarin went first"
  },
  {
   "id": "learn-c203",
@@ -10592,7 +10943,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "c20",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 89,
+  "k": "WWII ended 1945"
  },
  {
   "id": "learn-c204",
@@ -10609,7 +10964,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "c20",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 81,
+  "k": "Moon landing: 1969"
  },
  {
   "id": "learn-c205",
@@ -10626,7 +10985,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "c20",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 59,
+  "k": "Fleming found penicillin"
  },
  {
   "id": "learn-c206",
@@ -10643,7 +11006,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "c20",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 57,
+  "k": "UN founded 1945",
+  "w": "1919 was the League of Nations — the attempt that came before."
  },
  {
   "id": "learn-c207",
@@ -10660,7 +11028,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "c20",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 76,
+  "k": "Sputnik was Soviet"
  },
  {
   "id": "learn-c208",
@@ -10677,7 +11049,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "c20",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 2,
+  "p": 53,
+  "k": "Apartheid ended, early 90s"
  },
  {
   "id": "learn-ear1",
@@ -10694,7 +11070,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "earth",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 56,
+  "k": "Nile: longest river",
+  "w": "Contested — by length the Nile leads, but the Amazon carries far more water."
  },
  {
   "id": "learn-ear2",
@@ -10711,7 +11092,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "earth",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 51,
+  "k": "Everest: Nepal–China"
  },
  {
   "id": "learn-ear3",
@@ -10728,7 +11113,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "earth",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 3,
+  "p": 73,
+  "k": "Deepest: the Mariana"
  },
  {
   "id": "learn-ear4",
@@ -10745,7 +11134,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "earth",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 77,
+  "k": "Paris: the Seine"
  },
  {
   "id": "learn-ear5",
@@ -10762,7 +11155,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "earth",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 38,
+  "k": "Baikal holds the most"
  },
  {
   "id": "learn-ear6",
@@ -10779,7 +11176,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "earth",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 57,
+  "k": "Antarctica: no rivers"
  },
  {
   "id": "learn-ear7",
@@ -10796,7 +11197,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "earth",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 79,
+  "k": "Andes: western coast"
  },
  {
   "id": "learn-ear8",
@@ -10813,7 +11218,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "earth",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 2,
+  "p": 35,
+  "k": "Sahara ≈ the USA"
  },
  {
   "id": "learn-cap1",
@@ -10830,7 +11239,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "capitals",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 61,
+  "k": "Australia: Canberra"
  },
  {
   "id": "learn-cap2",
@@ -10847,7 +11260,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "capitals",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 54,
+  "k": "Turkey: Ankara"
  },
  {
   "id": "learn-cap3",
@@ -10864,7 +11281,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "capitals",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 58,
+  "k": "Canada: Ottawa"
  },
  {
   "id": "learn-cap4",
@@ -10881,7 +11302,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "capitals",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 63,
+  "k": "Brazil: Brasília"
  },
  {
   "id": "learn-cap5",
@@ -10898,7 +11323,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "capitals",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 42,
+  "k": "Switzerland: Bern"
  },
  {
   "id": "learn-cap6",
@@ -10915,7 +11344,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "capitals",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 49,
+  "k": "New Zealand: Wellington"
  },
  {
   "id": "learn-cap7",
@@ -10932,7 +11365,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "capitals",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 39,
+  "k": "Morocco: Rabat"
  },
  {
   "id": "learn-cap8",
@@ -10949,7 +11386,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "capitals",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 31,
+  "k": "Myanmar: Naypyidaw",
+  "w": "Built from scratch and made capital in 2006; Yangon is still much larger."
  },
  {
   "id": "learn-org1",
@@ -10966,7 +11408,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "origins",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 47,
+  "k": "Salary from salt"
  },
  {
   "id": "learn-org2",
@@ -10983,7 +11429,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "origins",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 36,
+  "k": "Quarantine = forty days"
  },
  {
   "id": "learn-org3",
@@ -11000,7 +11450,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "origins",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 58,
+  "k": "Sandwich: an earl"
  },
  {
   "id": "learn-org4",
@@ -11017,7 +11471,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "origins",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 29,
+  "k": "Muscle = little mouse",
+  "w": "A flexing bicep looked, to Roman eyes, like a mouse moving under the skin."
  },
  {
   "id": "learn-org5",
@@ -11034,7 +11493,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "origins",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 44,
+  "k": "Alcohol from Arabic"
  },
  {
   "id": "learn-org6",
@@ -11051,7 +11514,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "origins",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 38,
+  "k": "Robot: a Czech play"
  },
  {
   "id": "learn-org7",
@@ -11068,7 +11535,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "origins",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 33,
+  "k": "Avocado from Nahuatl"
  },
  {
   "id": "learn-org8",
@@ -11085,7 +11556,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "origins",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 26,
+  "k": "Nightmare: a spirit",
+  "w": "The “mare” is an old word for a demon that sat on a sleeper’s chest — no horse involved."
  },
  {
   "id": "learn-con1",
@@ -11102,7 +11578,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "confused",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 62,
+  "k": "Rotation vs orbit"
  },
  {
   "id": "learn-con2",
@@ -11119,7 +11599,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "confused",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 57,
+  "k": "Affect is the verb"
  },
  {
   "id": "learn-con3",
@@ -11136,7 +11620,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "confused",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 64,
+  "k": "Fewer for countables"
  },
  {
   "id": "learn-con4",
@@ -11153,7 +11641,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "confused",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 71,
+  "k": "Its = belonging to it"
  },
  {
   "id": "learn-con5",
@@ -11170,7 +11662,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "confused",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 52,
+  "k": "Principal vs principle"
  },
  {
   "id": "learn-con6",
@@ -11187,7 +11683,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "confused",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 3,
+  "p": 68,
+  "k": "Literally = exactly"
  },
  {
   "id": "learn-con7",
@@ -11204,7 +11704,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "confused",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 2,
+  "p": 59,
+  "k": "Compliment is praise"
  },
  {
   "id": "learn-con8",
@@ -11221,7 +11725,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "confused",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 46,
+  "k": "Speakers imply, listeners infer"
  },
  {
   "id": "learn-anc9",
@@ -11238,7 +11746,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "ancient",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 34,
+  "k": "Great Wall: mostly Ming",
+  "w": "Qin's walls were rammed earth; the stone wall tourists walk is 1,500 years younger."
  },
  {
   "id": "learn-anc10",
@@ -11255,7 +11768,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "ancient",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 3,
+  "t": 0,
+  "p": 31,
+  "k": "Pyramid long predates Cleopatra",
+  "w": "She lived nearer in time to the Moon landing than to the Great Pyramid."
  },
  {
   "id": "learn-anc11",
@@ -11272,7 +11790,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "ancient",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 38,
+  "k": "Alexandria's library faded slowly",
+  "w": "No single fire ended it — funding cuts, wars and neglect did, across centuries."
  },
  {
   "id": "learn-anc12",
@@ -11289,7 +11812,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "ancient",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 61,
+  "k": "Olympic Games honoured Zeus"
  },
  {
   "id": "learn-anc13",
@@ -11306,7 +11833,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "ancient",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 36,
+  "k": "Most gladiators survived their fights",
+  "w": "A trained gladiator cost a fortune to keep; killing one threw that money away."
  },
  {
   "id": "learn-body9",
@@ -11323,7 +11855,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "body",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 47,
+  "k": "Bodies are ~60% water"
  },
  {
   "id": "learn-body10",
@@ -11340,7 +11876,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "body",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 52,
+  "k": "The whole brain stays active",
+  "w": "The 10% claim has no source in neuroscience — scans light the whole organ up."
  },
  {
   "id": "learn-body11",
@@ -11357,7 +11898,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "body",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 3,
+  "t": 0,
+  "p": 58,
+  "k": "O negative donates to anyone",
+  "w": "AB positive is the opposite — the universal recipient, not the universal donor."
  },
  {
   "id": "learn-body12",
@@ -11374,7 +11920,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "body",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 77,
+  "k": "Kidneys filter the blood"
  },
  {
   "id": "learn-body13",
@@ -11391,7 +11941,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "body",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 33,
+  "k": "Red cells last four months"
  },
  {
   "id": "learn-c209",
@@ -11408,7 +11962,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "c20",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 72,
+  "k": "Titanic sank in 1912"
  },
  {
   "id": "learn-c210",
@@ -11425,7 +11983,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "c20",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 55,
+  "k": "First flight: 1903",
+  "w": "A decade before WWI made aeroplanes ordinary — earlier than most people place it."
  },
  {
   "id": "learn-c211",
@@ -11442,7 +12005,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "c20",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 63,
+  "k": "Chernobyl: 1986",
+  "w": "1991 is the Soviet collapse — the association that pulls the guess late."
  },
  {
   "id": "learn-c212",
@@ -11459,7 +12027,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "c20",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 3,
+  "t": 0,
+  "p": 48,
+  "k": "India independent in 1947",
+  "w": "1950 is Republic Day — the constitution, not independence."
  },
  {
   "id": "learn-c213",
@@ -11476,7 +12049,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "c20",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 67,
+  "k": "Curie, first female Nobel",
+  "w": "Physics, 1903, shared with Pierre and Becquerel. Franklin famously never won — the injustice people remember pulls the guess."
  },
  {
   "id": "learn-cap9",
@@ -11493,7 +12071,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "capitals",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 88,
+  "k": "USA: Washington, D.C."
  },
  {
   "id": "learn-cap10",
@@ -11510,7 +12092,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "capitals",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 52,
+  "k": "Vietnam: Hanoi"
  },
  {
   "id": "learn-cap11",
@@ -11527,7 +12113,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "capitals",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 46,
+  "k": "Netherlands: Amsterdam",
+  "w": "The government sits in The Hague, but the constitution names Amsterdam the capital — the trap catches people who know half the story."
  },
  {
   "id": "learn-cap12",
@@ -11544,7 +12135,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "capitals",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 36,
+  "k": "Nigeria: Abuja",
+  "w": "The capital moved from Lagos to purpose-built Abuja in 1991; Lagos stays the giant."
  },
  {
   "id": "learn-cap13",
@@ -11561,7 +12157,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "capitals",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 27,
+  "k": "Tanzania: Dodoma",
+  "w": "Dodoma has been the official capital since 1996; Dar es Salaam remains the largest city and former capital."
  },
  {
   "id": "learn-cell9",
@@ -11578,7 +12179,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "cell",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 55,
+  "k": "Membranes control what enters",
+  "w": "Plant cells have a wall too, but that is rigid support — the membrane underneath is what actually decides what crosses."
  },
  {
   "id": "learn-cell10",
@@ -11595,7 +12201,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "cell",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 66,
+  "k": "Enzymes speed reactions up",
+  "w": "Enzymes lower the energy a reaction needs and come out unchanged, so a tiny amount works over and over."
  },
  {
   "id": "learn-cell11",
@@ -11612,7 +12223,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "cell",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 72,
+  "k": "Osmosis moves the water",
+  "w": "Osmosis is diffusion's special case: the membrane lets water through but not the salt, so the water is what moves."
  },
  {
   "id": "learn-cell12",
@@ -11629,7 +12245,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "cell",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 48,
+  "k": "Cells come only from cells",
+  "w": "Virchow's line — omnis cellula e cellula. It is the observation that closed the door on spontaneous generation."
  },
  {
   "id": "learn-cell13",
@@ -11646,7 +12267,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "cell",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 3,
+  "t": 0,
+  "p": 80,
+  "k": "The Golgi ships proteins",
+  "w": "Ribosomes build the protein; the Golgi folds, tags and sends it on. Building and shipping are different jobs in the same factory."
  },
  {
   "id": "learn-con9",
@@ -11663,7 +12289,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "confused",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 3,
+  "p": 50,
+  "k": "Climate is the long average",
+  "w": "Climate is weather averaged over about thirty years, which is why one cold week is not evidence about it either way."
  },
  {
   "id": "learn-con10",
@@ -11680,7 +12311,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "confused",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 63,
+  "k": "Weight changes, mass does not",
+  "w": "Mass is how much of you there is; weight is gravity pulling on it. The Moon pulls a sixth as hard."
  },
  {
   "id": "learn-con11",
@@ -11697,7 +12333,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "confused",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 58,
+  "k": "Venom is injected",
+  "w": "Venom is delivered by a bite or sting; poison is absorbed or swallowed. A pufferfish is poisonous, a cobra is venomous."
  },
  {
   "id": "learn-con12",
@@ -11714,7 +12355,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "confused",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 44,
+  "k": "Than compares two things",
+  "w": "Than compares, then sequences. If the sentence would take “next”, it wants then."
  },
  {
   "id": "learn-con13",
@@ -11731,7 +12377,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "confused",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 70,
+  "k": "Antibiotics miss viruses",
+  "w": "Antibiotics attack bacterial machinery viruses do not have — which is why they do nothing for a cold."
  },
  {
   "id": "learn-ear9",
@@ -11748,7 +12399,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "earth",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 55,
+  "k": "K2 stands second"
  },
  {
   "id": "learn-ear10",
@@ -11765,7 +12420,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "earth",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 48,
+  "k": "Amazon: the biggest flow"
  },
  {
   "id": "learn-ear11",
@@ -11782,7 +12441,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "earth",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 64,
+  "k": "Kilimanjaro is a volcano"
  },
  {
   "id": "learn-ear12",
@@ -11799,7 +12462,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "earth",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 42,
+  "k": "The Colorado carved it"
  },
  {
   "id": "learn-ear13",
@@ -11816,7 +12483,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "earth",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 58,
+  "k": "Urals: the continental line",
+  "w": "The 18th-century convention puts the line on the Urals; the Caucasus marks its disputed southern stretch, which is why it pulls votes."
  },
  {
   "id": "learn-evo9",
@@ -11833,7 +12505,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "evo",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 3,
+  "t": 0,
+  "p": 66,
+  "k": "Vestigial: evolution's leftovers"
  },
  {
   "id": "learn-evo10",
@@ -11850,7 +12526,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "evo",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 61,
+  "k": "Peppered moth: selection"
  },
  {
   "id": "learn-evo11",
@@ -11867,7 +12547,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "evo",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 71,
+  "k": "Mostly single cells"
  },
  {
   "id": "learn-evo12",
@@ -11884,7 +12568,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "evo",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 3,
+  "t": 0,
+  "p": 74,
+  "k": "Lucy: Australopithecus"
  },
  {
   "id": "learn-evo13",
@@ -11901,7 +12589,11 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "evo",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 44,
+  "k": "Fitness counts offspring"
  },
  {
   "id": "learn-gene9",
@@ -11918,7 +12610,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "gene",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 1,
+  "t": 2,
+  "p": 52,
+  "k": "Humans differ by 0.1%",
+  "w": "Any two people are about 99.9% identical — the ~1% figure people reach for is the human-chimp comparison."
  },
  {
   "id": "learn-gene10",
@@ -11935,7 +12632,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "gene",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 75,
+  "k": "Dolly: cloned from adult cell",
+  "w": "Dolly (1996), grown from a mammary-gland cell — mice, the lab default, weren't cloned until two years later."
  },
  {
   "id": "learn-gene11",
@@ -11952,7 +12654,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "gene",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 3,
+  "p": 44,
+  "k": "About 20,000 human genes",
+  "w": "Far fewer than the pre-genome guess of 100,000. The famous 3 billion counts base pairs, not genes."
  },
  {
   "id": "learn-gene12",
@@ -11969,7 +12676,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "gene",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 0,
+  "t": 2,
+  "p": 58,
+  "k": "Mitochondrial DNA: maternal",
+  "w": "Sperm mitochondria are destroyed after fertilisation, so the egg's line carries it — the basis of the 'Mitochondrial Eve' idea."
  },
  {
   "id": "learn-gene13",
@@ -11986,7 +12698,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "gene",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 60,
+  "k": "Sperm carries X or Y",
+  "w": "Eggs always carry an X; sperm carry X or Y — history blamed mothers for a coin the father's side flips."
  },
  {
   "id": "learn-org9",
@@ -12003,7 +12720,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "origins",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 40,
+  "k": "Ketchup began as fish sauce",
+  "w": "From a Chinese fermented fish sauce (kê-tsiap); tomatoes joined the recipe centuries later."
  },
  {
   "id": "learn-org10",
@@ -12020,7 +12742,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "origins",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 2,
+  "t": 1,
+  "p": 31,
+  "k": "Trivia: three roads",
+  "w": "A trivium was a crossroads — the place where commonplace, everyday talk circulated."
  },
  {
   "id": "learn-org11",
@@ -12037,7 +12764,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "origins",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 3,
+  "t": 1,
+  "p": 35,
+  "k": "Clue: a ball of thread",
+  "w": "A “clew” of yarn — like the one Theseus unwound to find his way out of the labyrinth."
  },
  {
   "id": "learn-org12",
@@ -12054,7 +12786,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "origins",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 1,
+  "t": 3,
+  "p": 48,
+  "k": "Disaster: an ill star",
+  "w": "Dis- plus astrum: born under an unfavourable star, back when the sky took the blame."
  },
  {
   "id": "learn-org13",
@@ -12071,7 +12808,12 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "origins",
   "axis": null,
-  "test": null
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 55,
+  "k": "Denim: de Nîmes",
+  "w": "Serge de Nîmes. Italy is the half-knowledge trap: that city named the jeans — Genoa — not the cloth."
  },
  {
   "id": "pulse-pace",

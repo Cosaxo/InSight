@@ -6,7 +6,8 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  agreement, byOf, cellFor, divergence, divisiveness, headlineFor, MAP_ANCHOR_DIM, meanScore, mixFor, pctFor, sliceSplit, standingIn, typicality,
+  agreement, agreementOf, byOf, cellFor, divergence, divergenceFor, divisiveness, headlineFor,
+  likenessRate, MAP_ANCHOR_DIM, meanScore, mixFor, pctFor, sliceSplit, standingIn, typicality,
 } from "./cohort";
 
 // Two age bands and two genders over a 2-option question. Overall 12/8.
@@ -109,6 +110,52 @@ describe("divergence", () => {
     const by = { d: { tiny: { "0": 1 }, big: { "0": 6, "1": 4 } } };
     expect(divergence(by, "d", [7, 4], 2).length).toBe(2);
     expect(divergence(by, "d", [7, 4], 2, 5).map((x) => x.bucket)).toEqual(["big"]);
+  });
+});
+
+describe("divergenceFor — one slice, without folding the rest", () => {
+  // The helper exists to remove work, so what has to be pinned is that it
+  // removed NOTHING ELSE. Every case below states the expectation as the
+  // expression it replaced, evaluated live: if either implementation
+  // drifts, these fail rather than the Mirror and the breakdown sheet
+  // quietly disagreeing about which option a group is unusual on.
+  const asFind = (
+    by: Parameters<typeof divergence>[0], dim: string, bucket: string,
+    overall: readonly number[], k: number, minN?: number,
+  ) => divergence(by, dim, overall, k, minN).find((d) => d.bucket === bucket) ?? null;
+
+  it("agrees with divergence().find() on every bucket of every dim", () => {
+    for (const dim of ["ageBand", "gender"]) {
+      for (const bucket of Object.keys(BY[dim as keyof typeof BY] || {})) {
+        expect(divergenceFor(BY, dim, bucket, OVERALL, 2), `${dim}/${bucket}`)
+          .toEqual(asFind(BY, dim, bucket, OVERALL, 2));
+      }
+    }
+  });
+
+  it("is null exactly where find() is undefined — unknown dim, unknown bucket, empty cell", () => {
+    const by = { d: { real: { "0": 3, "1": 1 }, empty: { "0": 0, "1": 0 } } };
+    expect(divergenceFor(by, "nope", "real", [4, 4], 2)).toBeNull();
+    expect(divergenceFor(by, "d", "nope", [4, 4], 2)).toBeNull();
+    expect(divergenceFor(by, "d", "empty", [4, 4], 2)).toBeNull();
+    expect(asFind(by, "d", "empty", [4, 4], 2)).toBeNull();
+  });
+
+  it("goes null below minN, where find() also drops the bucket", () => {
+    const by = { d: { tiny: { "0": 1 }, big: { "0": 6, "1": 4 } } };
+    expect(divergenceFor(by, "d", "tiny", [7, 4], 2, 5)).toBeNull();
+    expect(asFind(by, "d", "tiny", [7, 4], 2, 5)).toBeNull();
+    expect(divergenceFor(by, "d", "big", [7, 4], 2, 5)).toEqual(asFind(by, "d", "big", [7, 4], 2, 5));
+  });
+
+  it("its pct IS sliceSplit — which is why Explore stopped calling both", () => {
+    // The two used to run side by side on the same cell, one for the
+    // split and one for the gap. They have to be the same array, and they
+    // have to go null together.
+    for (const bucket of ["25-34", "35-44", "45-54"]) {
+      const d = divergenceFor(BY, "ageBand", bucket, OVERALL, 2);
+      expect(d ? d.pct : null).toEqual(sliceSplit(BY, "ageBand", bucket, 2));
+    }
   });
 });
 
@@ -221,12 +268,12 @@ describe("agreement — the likeness behind Kindred", () => {
   it("counts only questions both answered", () => {
     const mine = { q1: 0, q2: 1, q3: 0 };
     const theirs = { q1: 0, q2: 0, q4: 1 };
-    expect(agreement(mine, theirs)).toEqual({ shared: 2, same: 1, pct: 50 });
+    expect(agreement(mine, theirs)).toEqual(agreementOf(1, 2));
   });
 
   it("is zero rather than NaN with no overlap", () => {
-    expect(agreement({ q1: 0 }, { q2: 0 })).toEqual({ shared: 0, same: 0, pct: 0 });
-    expect(agreement({}, {})).toEqual({ shared: 0, same: 0, pct: 0 });
+    expect(agreement({ q1: 0 }, { q2: 0 })).toEqual({ shared: 0, same: 0, pct: 0, rate: 0 });
+    expect(agreement({}, {})).toEqual({ shared: 0, same: 0, pct: 0, rate: 0 });
   });
 
   it("is symmetric", () => {
@@ -365,5 +412,72 @@ describe("standingIn — where you sit in the split", () => {
     // An index past the end is a bug upstream, not a reading — say null
     // rather than compute a share of a bucket that does not exist.
     expect(standingIn([12, 8], 5, "binary")).toBeNull();
+  });
+});
+
+// ── the ordering nobody was pinning (D277 §2) ────────────────────────
+//
+// circle.ts carried a comment describing this exact failure and asserting
+// that a secondary sort key prevented it. It did not, and no test said so:
+// every case in this suite passes ONE pair of answer maps and checks the
+// number that comes back, so a comparator over a whole list had nothing
+// holding it. These are the first cases here about ORDER.
+describe("likenessRate — the sort key, not the printed number", () => {
+  const rank = (pairs: Array<[number, number]>) =>
+    pairs
+      .map(([same, shared]) => agreementOf(same, shared))
+      .sort((a, b) => b.rate - a.rate || b.shared - a.shared)
+      .map((a) => `${a.same}/${a.shared}`);
+
+  it("puts 45 of 50 above a perfect 2 of 2 — the case circle.ts described", () => {
+    expect(rank([[2, 2], [45, 50]])).toEqual(["45/50", "2/2"]);
+    // …which the percentage alone gets backwards, both being sorted on the
+    // same data. This is the assertion the old comment believed it had.
+    const byPct = [agreementOf(2, 2), agreementOf(45, 50)]
+      .sort((a, b) => b.pct - a.pct || b.shared - a.shared)
+      .map((a) => `${a.same}/${a.shared}`);
+    expect(byPct).toEqual(["2/2", "45/50"]);
+  });
+
+  it("puts a 67% over twelve above a perfect 1 of 1", () => {
+    expect(rank([[1, 1], [8, 12]])).toEqual(["8/12", "1/1"]);
+  });
+
+  it("still lets a perfect twelve beat a 90% of fifty", () => {
+    // The bound must discount thin samples without inverting the metric:
+    // twelve for twelve is a stronger claim than forty-five of fifty, and
+    // a fix that lost that would have traded one wrong order for another.
+    expect(rank([[45, 50], [12, 12]])).toEqual(["12/12", "45/50"]);
+  });
+
+  it("is monotone in agreement at a fixed overlap", () => {
+    // Nothing above pins the obvious half, so it is pinned here: at the
+    // same denominator, more matches must never rank lower.
+    for (let same = 0; same < 12; same++) {
+      expect(likenessRate(same + 1, 12)).toBeGreaterThan(likenessRate(same, 12));
+    }
+  });
+
+  it("is monotone in overlap at a fixed rate", () => {
+    // The property the whole change is for: the same percentage measured
+    // over more questions is the better-evidenced claim.
+    expect(likenessRate(1, 1)).toBeLessThan(likenessRate(2, 2));
+    expect(likenessRate(2, 2)).toBeLessThan(likenessRate(10, 10));
+    expect(likenessRate(4, 8)).toBeLessThan(likenessRate(40, 80));
+  });
+
+  it("is zero on no overlap, and never NaN or negative", () => {
+    expect(likenessRate(0, 0)).toBe(0);
+    expect(likenessRate(0, 5)).toBeGreaterThanOrEqual(0);
+    expect(Number.isFinite(likenessRate(0, 5))).toBe(true);
+  });
+
+  it("leaves the printed number alone", () => {
+    // D99 chose `pct` for being explainable to the person it names, and
+    // this changes only which of two people goes first. A regression here
+    // would be a reader seeing a different number, which is the one thing
+    // this change is not allowed to do.
+    expect(agreementOf(45, 50).pct).toBe(90);
+    expect(agreementOf(2, 2).pct).toBe(100);
   });
 });

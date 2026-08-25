@@ -61,7 +61,7 @@ export interface NavHandlers {
   openPerson: (who: unknown) => void;
   openSuggestions: () => void;
   openLogicTest: () => void;
-  /** Open the buyer's room — "Asked by you" (PAID-PLAN §7, D274). */
+  /** Open the buyer's room — "Asked by you" (PAID-PLAN §7, D288). */
   openAskedByYou: () => void;
 }
 

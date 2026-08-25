@@ -55,6 +55,30 @@ describe("the mirror tab and the header's overlays", () => {
     // renamed member would first throw.
     fireEvent.click(screen.getByRole("button", { name: /like me/i }));
     expectNoBoundary("mirror world · explore lens");
+
+    // …and Compare, on the same mount rather than a sixth mountApp().
+    //
+    // WHY IT IS HERE AT ALL. spec/compare-breakdown.jsx is 334 lines that
+    // rendered in NO test. In live mode the Compare body is
+    // ui/LiveCompareLens.tsx, which has its own suite; this is the DEMO
+    // path — what the screenshots workflow and every demo build draw — and
+    // it sat behind a lens tab nothing tapped.
+    //
+    // It is also exactly the shape src/v2/README.md says no other gate can
+    // see: mirror-field-pops.jsx reaches it as `window.CompareBreakdown` at
+    // render time, and the component publishes `CBAlignGlyph` on the same
+    // line it publishes itself. A rename passes tsc, eslint and
+    // check:globals and throws when the tab is tapped.
+    //
+    // Copy first, then the boundary, per the no-button-overlay rule: an
+    // `expectNoBoundary` alone would pass against the stop underneath if
+    // the tap stopped opening anything.
+    fireEvent.click(screen.getByRole("tab", { name: /^compare$/i }));
+    expect(
+      screen.getByText(/aligned overall/i),
+      "the Compare lens did not render — its tap opened nothing",
+    ).toBeTruthy();
+    expectNoBoundary("mirror world · compare lens");
   });
 
   it("draws the embedded relationship map on the Circle stop", async () => {

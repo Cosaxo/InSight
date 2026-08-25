@@ -454,13 +454,13 @@ describe("Scores", () => {
   it("distinguishes 'no scored questions' from 'nobody answered them'", () => {
     // Two different emptinesses. Collapsing them into one "no data" is
     // the habit the withheld-cell era left behind (D98). "Nobody" means
-    // nobody ANYWHERE since D274 §2 — a city cell at zero with answers
+    // nobody ANYWHERE since D288 §2 — a city cell at zero with answers
     // from elsewhere is the ring-only case below, not this one.
     mount("scores", [{ ...RATED, counts: [0,0,0,0,0,0,0,0,0,0], all: [0,0,0,0,0,0,0,0,0,0] }]);
     expect(screen.getByText(/nobody here has scored Oslo yet/i)).toBeTruthy();
   });
 
-  // ── D274 §2: the second crowd ──
+  // ── D288 §2: the second crowd ──
   //
   // "Live there" is the stop's own cell, "from elsewhere" is the globe
   // minus it — both from reads the lens already makes. The single-crowd

@@ -4,6 +4,13 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import React from 'react';
+// The subtopic store, by NAME rather than through window (D39's convert on
+// touch). It is also what makes this overlay's chunk independent of the
+// feed's: world-subtopics.js moved out of the eager list into loadWorldFeed,
+// and the discover sheet below reads `ST.offers()` — so the module has to
+// arrive with THIS group, not with that one. loadOverlays calls
+// installSubtopicStock() for the same reason.
+import { SUBTOPICS } from './world-subtopics.js';
 import { WPAL } from './world-palette.js';
 import { FRIENDS } from './follows.js';
 import { DAILYQ } from './daily-questions.js';
@@ -147,7 +154,7 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
   const query = q.trim().toLowerCase();
   const D = IS_DATA;
   const TOPIC = useSrchMemo(() => Object.fromEntries((window.WORLD_TOPICS || []).map((t) => [t.id, t])), []);
-  const ST = window.SUBTOPICS;
+  const ST = SUBTOPICS;
 
   // the label a question wears — the leaf if it has one, else its topic
   const labelOf = (qq) => {

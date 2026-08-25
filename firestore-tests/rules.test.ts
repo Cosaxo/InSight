@@ -125,10 +125,16 @@ describe("the default user (anonymous auth) — reachable surface", () => {
     const db = asAnonAuth();
     await assertSucceeds(getDoc(doc(db, "v2_users", OWNER, "answers", "daily-000")));
     await assertSucceeds(getDoc(doc(db, "v2_users", OWNER)));
-    // …but the trigger's working state stays shut (no secrets in it since
-    // D98 — it is simply nobody's business and has no reader), and the
-    // push tokens moved off the now-public profile precisely so that
-    // opening that read did not publish a credential.
+    // …but the trigger's working state stays shut, and the push tokens
+    // moved off the now-public profile precisely so that opening that read
+    // did not publish a credential.
+    //
+    // No secrets in it, then or now. Since D98 there was no floor for it to
+    // hold anything back below, and since the private mirror collapsed into
+    // the published document it holds only the CATALOG accumulator — the
+    // whole ~1k-entity `ent` map the public board shows a top-N of. Bigger
+    // than what publishes, never other than it. Shut because nobody needs
+    // it, which is the same reason it was shut before.
     await assertFails(getDoc(doc(db, "v2_aggs_private", "daily-000")));
     await assertFails(getDoc(doc(db, "v2_users", OWNER, "push", "tokens")));
   });
@@ -289,15 +295,19 @@ describe("v2 questions + aggregates", () => {
 
   it("aggregate internals (private counts, event ledger) are fully opaque", async () => {
     await seed(async (db) => {
-      await setDoc(doc(db, "v2_aggs_private", "daily-000"), { counts: { "0": 1 }, total: 1 });
+      // A wildcard match, so the id is arbitrary — `fav-000` rather than a
+      // daily qid because the catalog path is the one that still writes
+      // here, and a fixture that names a document nothing produces reads
+      // as a rule protecting nothing.
+      await setDoc(doc(db, "v2_aggs_private", "fav-000"), { ent: { "7": 1 }, total: 1 });
       // The fixture carries what the real trigger writes — including the
       // OWNER's own uid (D28's attribution), because the read denial below
       // is what makes it safe to hold: even the uid it names cannot read
       // which questions it answered, when, out of this ledger.
       await setDoc(doc(db, "v2_agg_events", "evt1"), { qid: "daily-000", uid: OWNER });
     });
-    await assertFails(getDoc(doc(asUser(OWNER), "v2_aggs_private", "daily-000")));
-    await assertFails(setDoc(doc(asUser(OWNER), "v2_aggs_private", "daily-000"), { total: 9 }));
+    await assertFails(getDoc(doc(asUser(OWNER), "v2_aggs_private", "fav-000")));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_aggs_private", "fav-000"), { total: 9 }));
     await assertFails(getDoc(doc(asUser(OWNER), "v2_agg_events", "evt1")));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_agg_events", "evt2"), { qid: "x" }));
   });
@@ -1306,6 +1316,50 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     expect((snap as { size: number }).size).toBe(3);
   });
 
+  // D278 narrows the SAME query by the frozen city anchor, so the City
+  // constellation stops paying for 200 rows from anywhere and keeping the
+  // four that happen to live where the viewer does. That adds a `where`
+  // to a read the rule grants as a value test on `surface` — which is
+  // exactly the shape D65 says can be refused wholesale — so whether an
+  // EXTRA equality still satisfies the grant is a rules question, and it
+  // is pinned here rather than discovered in production.
+  it("allows the city-scoped narrowing of that same query", async () => {
+    await seedQuestion();
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER, "answers", QID), {
+        qid: QID, surface: "daily", optionIdx: 1, anchors: { city: "Oslo, NO" },
+      });
+      await setDoc(doc(db, "v2_users", FRIEND, "answers", QID), {
+        qid: QID, surface: "daily", optionIdx: 0, anchors: { city: "Bergen, NO" },
+      });
+    });
+    const snap = await assertSucceeds(getDocs(query(
+      collectionGroup(asUser(STRANGER), "answers"),
+      where("qid", "==", QID),
+      where("surface", "in", ["daily", "feed", "test", "learn", "pulse", "call"]),
+      where("anchors.city", "==", "Oslo, NO"),
+    )));
+    // Narrowed, not widened: one of the two answers, and it is the one
+    // whose ANSWER froze that city (D8) rather than whoever lives there
+    // today.
+    expect((snap as { size: number }).size).toBe(1);
+  });
+
+  // …and the narrowing must not become a way around the duel seal, which
+  // is the one thing the surface clause exists to hold.
+  it("cannot reach a sealed duel answer by adding the city filter", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER, "answers", "g_g2_2026-08-10"), {
+        qid: "group-gu0", surface: "duo", optionIdx: 1,
+        gid: "g2", day: "2026-08-10", anchors: { city: "Oslo, NO" },
+      });
+    });
+    await assertFails(getDocs(query(
+      collectionGroup(asUser(FRIEND), "answers"),
+      where("anchors.city", "==", "Oslo, NO"),
+    )));
+  });
+
   // The rule's `surface` test is a VALUE test so a list query can be
   // compared against it. That has a consequence worth pinning rather than
   // rediscovering: a collection-group read that does NOT carry the
@@ -1471,8 +1525,13 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
       name: "The Crew", mode: "duo", ownerUid: OWNER,
       memberUids: members, inviteCode: "ABCD2345", streak: 0,
     });
+    // "duo", matching both the group's own mode above and the surface the
+    // answers below claim. duelQFor (data/deck.ts) draws the day's question
+    // with `q.surface === mode`, so a duo group answering a group-surface
+    // question is a shape the client cannot produce — and the create rule
+    // compares the two, so seeding them crossed would test nothing real.
     await setDoc(doc(db, "v2_questions", "group-gu0"), {
-      surface: "group", seq: 0, type: "choice", prompt: "?",
+      surface: "duo", seq: 0, type: "choice", prompt: "?",
       options: ["Food", "Banter", "Showing up", "History"], active: true,
     });
   });
@@ -1563,6 +1622,47 @@ describe("v2 groups + sealed duels (Phase 3)", () => {
     // sealed answers stay owner-only before the reveal
     await assertFails(getDoc(
       doc(asUser(FRIEND), "v2_users", OWNER, "answers", aid)));
+  });
+
+  // The duel shape used to check only that the question EXISTED — the one
+  // answer shape with neither the kill switch nor surface agreement, while
+  // every sibling carries both. Duel votes are not inert: revealQid derives
+  // the day's question from the members' own answer docs and foldDuelSignal
+  // publishes it into the world-readable duel-{qid} aggregate.
+  it("a duel answer honours the kill switch and must name duel material", async () => {
+    await seedGroup();
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "duo-retired"), {
+        surface: "duo", seq: 1, type: "choice", prompt: "?",
+        options: ["a", "b"], active: false,
+      });
+      // A catalog question is the sharp case: its options list is empty, so
+      // duelIndexSpace() falls through to the group's member count and the
+      // vote would be folded as if it were a "pick".
+      await setDoc(doc(db, "v2_questions", "feed-cat0"), {
+        surface: "feed", seq: 2, type: "catalog", prompt: "?",
+        options: [], active: true,
+      });
+      await setDoc(doc(db, "v2_questions", "daily-000"), {
+        surface: "daily", seq: 3, type: "binary", prompt: "?",
+        options: ["a", "b"], active: true,
+      });
+    });
+    // Retired: pulled for being broken or harmful, and still duel material.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid),
+      duelAnswer({ qid: "duo-retired", optionIdx: 0, guessIdx: 0 })));
+    // Live, but not this surface.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid),
+      duelAnswer({ qid: "feed-cat0", optionIdx: 0, guessIdx: 0 })));
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid),
+      duelAnswer({ qid: "daily-000", optionIdx: 0, guessIdx: 0 })));
+    // The ordinary day still lands — the refusals above are the narrowing,
+    // not a seal on the surface.
+    await assertSucceeds(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", aid), duelAnswer()));
   });
 
   it("the duel day must be near now — no pre-sealing the future, no deep backfill", async () => {
@@ -1720,7 +1820,7 @@ describe("question suggestions (docs/NEXT-FUNCTIONALITY.md §6)", () => {
   });
 });
 
-describe("paid purchase records (docs/PAID-PLAN.md §7, D274 §3)", () => {
+describe("paid purchase records (docs/PAID-PLAN.md §7, D288 §3)", () => {
   const PID = `${OWNER}_pd1`;
   const seedPurchase = () => seed(async (db) => {
     await setDoc(doc(db, "v2_purchases", PID), {
@@ -1882,14 +1982,14 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
     await seedCircle();
     // Omitted: the read gate is an equality, so a take without the field
     // could never be read back — better refused at the door.
-    await assertFails(setDoc(doc(asUser(OWNER), "v2_takes", "t_nofield"), {
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_takes", "tnofield"), {
       gid: GID, authorUid: OWNER, text: "no flag", createdAt: serverTimestamp(),
     }));
     // Pre-hidden: would hide the author's own words from the circle while
     // leaving them in the moderation queue.
-    await assertFails(setDoc(doc(asUser(OWNER), "v2_takes", "t_prehidden"),
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_takes", "tprehidden"),
       take({ hidden: true })));
-    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_takes", "t_ok"), take()));
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_takes", "tok"), take()));
   });
 
   it("flags: one per (take, user), any signed-in user, write-only, never on hidden takes", async () => {
@@ -2108,6 +2208,34 @@ describe("world takes (D83 — anonymous, one per person per question)", () => {
       doc(asUser(OWNER), "v2_takes", wid(OWNER)), wtake(OWNER, { hidden: true })));
   });
 
+  // Circle takes and world takes share ONE collection, and the id bound
+  // used to live on the world branch alone. So a circle member could post
+  // a circle take AT SOMEBODY ELSE'S world id: update is denied and delete
+  // is author-only, so that person could never post their one world take
+  // on that question — permanently, from one write, with no recovery path
+  // and nothing to rate-limit it (any free account can make a group and be
+  // a member of it).
+  it("a circle take cannot squat the id a world take must occupy", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_groups", "gsquat"), {
+        name: "Squat", mode: "group", memberUids: [OWNER],
+      });
+    });
+    const squat = (over: Record<string, unknown> = {}) => ({
+      gid: "gsquat", authorUid: OWNER, text: "mine now",
+      createdAt: serverTimestamp(), hidden: false, ...over,
+    });
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_takes", wid(STRANGER)), squat({ qid: QID })));
+    // The victim's own world take still lands — the point of refusing it.
+    await assertSucceeds(setDoc(
+      doc(asUser(STRANGER), "v2_takes", wid(STRANGER)), wtake(STRANGER)));
+    // And an ordinary circle take is untouched: what postTake mints is a
+    // Firestore auto-id, which carries no separator to collide on.
+    await assertSucceeds(setDoc(
+      doc(asUser(OWNER), "v2_takes", "AbCd1234EfGh5678IjKl"), squat()));
+  });
+
   it("a world list is refused without both equalities, and never returns a hidden take", async () => {
     await seed(async (db) => {
       await setDoc(doc(db, "v2_takes", wid(OWNER)), {
@@ -2212,8 +2340,10 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
         surface: "feed", seq: 0, type: "catalog",
         prompt: "?", options: [], active: true,
       });
+      // "duo", to match the group's mode below and the answer's own
+      // surface — see the same correction in the duel block above.
       await setDoc(doc(db, "v2_questions", "group-gu0"), {
-        surface: "group", seq: 0, type: "choice",
+        surface: "duo", seq: 0, type: "choice",
         prompt: "?", options: ["A", "B", "C", "D"], active: true,
       });
       await setDoc(doc(db, "v2_groups", GID), {

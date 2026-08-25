@@ -35,12 +35,18 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 // jsdom, and the v15 revision roughly doubled the spec layer's feed weight —
 // the slowest cases sat at ~4.8s before it and tip over under suite load.
 vi.setConfig({ testTimeout: 15000 });
-import { FEED_OPTIONS, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
+import { BG_TEXT, FEED_OPTIONS, LEARN_CARD_PROMPT, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, TEST_ITEM_OPTIONS, TEST_ITEM_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
 import NAV from "../data/nav";
 import { PATTERNS_EARNED_KEY, PATTERNS_MIN_BASIS, PATTERNS_MIN_MINE, PATTERNS_MIN_POOL } from "../data/patternsReady";
-import { awaitText, growFeed, openHeaderOverlay, swipeDaily } from "./mount-app";
+import { awaitText, growFeed, openHeaderOverlay, settleBeat, swipeDaily } from "./mount-app";
 import { list as anchorList } from "../spec/map-anchors.js";
 import { IS_TESTS, IS_TEST_RESULTS } from "../spec/test-definitions.js";
+// The demo test pool, imported so the D280 case can bind on the actual
+// cards that must not appear rather than on a copy of their wording.
+import { TEST_FEED_QS } from "../spec/test-feed-data.js";
+// The bundled demo SAMPLE (D284) — imported so the live cases can assert
+// on the actual cards that must not appear, rather than on a copy.
+import { LEARN_CARDS } from "../spec/learn-data.js";
 import { PASSIVE } from "../spec/passive-progress.js";
 import { IS_ARCHETYPES } from "../spec/archetype-data.js";
 import { resetNormCache } from "../data/testNorms";
@@ -104,8 +110,12 @@ describe("the fixture tracks the real store", () => {
     // `undefined` while still passing. data/vote.test.ts pins the same list
     // against the REAL object; this pins it against the stand-in.
     live = installLive();
-    const { live: liveDiff, social } = fixtureSurfaceMismatch(live);
-    expect({ liveDiff, social }).toEqual({ liveDiff: [], social: [] });
+    // ALL THREE diffs, not two. `near` was computed and dropped on the
+    // floor here until 2026-08-24, which left exactly the failure the
+    // paragraph above describes live for every `LIVE.near` member: the
+    // fixture could gain or lose one and the cases below would keep
+    // passing against `undefined`.
+    expect(fixtureSurfaceMismatch(live)).toEqual({ live: [], social: [], near: [] });
   });
 });
 
@@ -113,6 +123,32 @@ describe("spec layer mounts in live mode", () => {
   it("renders the daily tab without tripping the boundary", () => {
     const expectNoBoundary = mountLive();
     expectNoBoundary("daily/live");
+  });
+
+  // An empty live deck is the SLOW BOOT, not just an unseeded day:
+  // `daily-split`'s `get data` returns [] for the whole window where
+  // `LIVE.enabled` is true and `LIVE.ready` is not, so this is the first
+  // frame of every live launch. It reached the tree returning a bare
+  // element from `renderVals()` while `render()` destructured
+  // `{ rootRef, screen }` off it — both undefined, so the tab painted an
+  // empty div: no loading card, no ruler, and no root ref, which also
+  // means `setupGestures` never ran.
+  //
+  // The ErrorBoundary cannot see this: destructuring absent keys off a
+  // React element throws nothing, so the crash is silent and the smoke
+  // tests above pass on a blank screen. Assert on the card's own words.
+  it("renders the loading card, not a blank tab, on an empty live deck", () => {
+    const expectNoBoundary = mountLive({}, (l) => {
+      l.LIVE.deck = () => [];
+    });
+    expectNoBoundary("daily/live/empty-deck");
+    expect(screen.getByText(/Fetching today’s question/i)).toBeTruthy();
+    // The blank tab and the loading card both trip no boundary and both
+    // render a div, so the screen root has to be asserted non-empty too —
+    // that is the half `getByText` alone would keep passing without.
+    const root = document.querySelector('[data-screen-label="Split daily v2"]');
+    expect(root, "daily screen root missing").toBeTruthy();
+    expect(root.childElementCount).toBeGreaterThan(0);
   });
 
   it("renders the mirror tab without tripping the boundary", () => {
@@ -283,6 +319,74 @@ describe("spec layer mounts in live mode", () => {
     expect(screen.queryByText(/in your circles/i)).toBeNull();
     expect(screen.queryByText(/22k people/i)).toBeNull();
   });
+
+  // D282 — the report that came back twice: "when you click add interest
+  // on the general info you are navigated to the feed."
+  //
+  // D190 fixed where that jump LANDED (the list opens, instead of dropping
+  // you in the feed to go looking for it) and left the jump, which is the
+  // half a reader actually feels. The list can open where they are
+  // standing: the feed's sheet portals to the app frame at z-index 40 and
+  // `.overlay` sits at 20, so a feed mounted behind the profile answers
+  // and the sheet draws on top of it.
+  //
+  // The assertion that matters is the SECOND one. The sheet opening proves
+  // the ask was answered; the profile still being there proves it was
+  // answered where the reader was, which is the whole report.
+  it("opens the topic list over the profile, without leaving it (D282)", async () => {
+    // An empty follow list, which is what a real live build boots with and
+    // what puts the field's door on screen at all. These suites are a DEMO
+    // build as far as `import.meta.env` is concerned (scenes.js reads the
+    // flag at module scope), so SCENES seeds the prototype's joined
+    // groups and the card renders chips instead — the purge is how the
+    // store is told to re-read, and it is the same event a uid change
+    // fires.
+    localStorage.clear();
+    localStorage.setItem("insight.scenes.v1", "[]");
+    window.dispatchEvent(new Event("insight:local-purge"));
+    try {
+      await runIt();
+    } finally {
+      // Hand the follow list back. SCENES caches its set in module scope
+      // and `cleanup()` does not reach it, so an empty one outlives this
+      // case — and fifteen later cases in this file assert on
+      // scene-attached feed cards that then are not there. Measured, not
+      // guessed: that is exactly what the first draft of this case did.
+      localStorage.removeItem("insight.scenes.v1");
+      window.dispatchEvent(new Event("insight:local-purge"));
+    }
+  });
+
+  async function runIt() {
+    const expectNoBoundary = mountLive();
+    await openHeaderOverlay("profile");
+    expect(screen.getByText(/Scenes you follow/i), "the scenes card is not on screen — this case is vacuous").toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /Pick topics/i }));
+    // Bound on the sheet's own title and its last row rather than on
+    // "Your topics": that header needs a channel the FIXTURE's cards
+    // stock, and they carry `culture`, which is not one of the demo
+    // build's six. What is being pinned here is where the list opened,
+    // not what the fixture happens to put in it.
+    expect(screen.getByText("Add a topic"), "the topic list never opened").toBeTruthy();
+    // "Ask a question" since D288 §1 — and matched on the visible label,
+    // because the header's compose icon answers to the same accessible name.
+    expect(
+      screen.getAllByRole("button", { name: /Ask a question/i })
+        .some((b) => /ask a question/i.test(b.textContent || "")),
+      "the sheet's ask-a-question door is missing",
+    ).toBe(true);
+    expect(
+      screen.queryByText(/Scenes you follow/i),
+      "the door still threw the reader out of the profile to show them a list",
+    ).toBeTruthy();
+    // D211's lift is measured off the tab bar, which `.overlay` covers —
+    // so over the profile the sheet takes full cover instead of leaving a
+    // strip of the panel showing where the navigation should be.
+    const scrim = document.querySelector(".wf-scrim");
+    expect(scrim, "no sheet scrim at all").not.toBeNull();
+    expect(scrim.style.bottom || "", "the sheet lifted for a tab bar nobody can see").toBe("");
+    expectNoBoundary("topic list over the live profile");
+  }
 
   it("opens the search overlay without tripping the boundary", async () => {
     const expectNoBoundary = mountLive();
@@ -482,11 +586,12 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     screen.queryByRole("button", { name: /who voted/i })
     ?? screen.queryByRole("button", { name: /leans|flips|disagree/i });
 
-  const voteFeedCardAndSettle = async () => {
+  const voteFeedCardAndSettle = () => {
     fireEvent.click(screen.getByRole("button", { name: FEED_OPTIONS[0] }));
     // The reveal animation clears `beat` from its own onDone; until it does,
-    // the engage row is not mounted for either branch.
-    await act(async () => { await new Promise((r) => setTimeout(r, 1200)); });
+    // the engage row is not mounted for either branch. Skipped rather than
+    // outwaited — see settleBeat in mount-app.jsx.
+    settleBeat();
   };
 
   // Crossroads on a LIVE feed (D136): the story comes from the bank and
@@ -604,7 +709,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
 
   it("gives a live card who-voted and the named takes toggle — never the demo sheet", async () => {
     mountLive();
-    await voteFeedCardAndSettle();
+    voteFeedCardAndSettle();
     expect(
       openWhoVoted(),
       "the live engage row did not render at all — this test is now vacuous",
@@ -622,6 +727,180 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     fireEvent.click(toggle);
     expect(screen.getByText(/posted under your name/i)).toBeTruthy();
     expect(screen.getByText(/No takes yet/i)).toBeTruthy();
+  });
+
+  // D281 — the `i` on every feed card, and the slot behind it that was
+  // empty in every live build.
+  //
+  // The button has always been there and has always opened a sheet; what
+  // it had to say on a live card was the three rows (Asked in, Answers, On
+  // your map), because the only source of a background paragraph was
+  // `WORLD_BG` — a map keyed by DEMO question ids. So the two arms are
+  // both worth pinning: with a background the button promotes itself and
+  // the sheet leads with the paragraph, and without one the sheet is
+  // exactly what it was, which is what stops this from becoming a field
+  // every card has to carry.
+  const openTheI = () => {
+    const btns = screen.queryAllByRole("button", { name: /What you need to know/i });
+    expect(btns.length, "no card offered the stronger `i` — the background never reached one").toBeGreaterThan(0);
+    fireEvent.click(btns[0]);
+  };
+
+  it("opens a live card's background from the i, under its own heading", async () => {
+    // The feed persists its votes to localStorage and this suite does not
+    // clear it between cases, so an earlier case's vote parks this card
+    // behind the Answered expander and the `i` is off screen — which fails
+    // here as "the background never reached one" and, in the absence
+    // assertions below, would pass vacuously instead.
+    localStorage.clear();
+    const expectNoBoundary = mountLive({ background: true });
+    await growFeed();
+    openTheI();
+    expect(
+      screen.getByText(BG_TEXT),
+      "the sheet opened without the paragraph it exists to carry",
+    ).toBeTruthy();
+    // The heading is the promise the stronger ring makes — "About this
+    // question" is the other arm, and a card with facts behind it must not
+    // wear the label of one without.
+    expect(screen.getAllByText(/What you need to know/i).length).toBeGreaterThan(0);
+    expectNoBoundary("live feed, background sheet");
+  });
+
+  it("leaves a card with no background exactly as it was", async () => {
+    localStorage.clear();
+    const expectNoBoundary = mountLive();
+    await growFeed();
+    expect(
+      screen.queryByRole("button", { name: /What you need to know/i }),
+      "a card with no background wore the promoted `i`",
+    ).toBeNull();
+    const about = screen.queryAllByRole("button", { name: /About this question/i });
+    expect(about.length, "the ordinary `i` went missing").toBeGreaterThan(0);
+    fireEvent.click(about[0]);
+    // The rows the sheet has always carried, and no paragraph above them.
+    expect(screen.getByText(/^On your map$/)).toBeTruthy();
+    expect(screen.queryByText(BG_TEXT)).toBeNull();
+    expectNoBoundary("live feed, no background");
+  });
+
+  // D284 — the learn bank left the JavaScript, and this is what proves the
+  // live path picked it up.
+  //
+  // `spec/learn-data.js` used to import the whole of
+  // content/learn-questions.json, so every card was compiled into the app
+  // and a live build served them whatever the backend held. It carries a
+  // fixed demo sample now and the live engine reads the seeded bank — so
+  // the two arms below are the whole change: a live build serves the bank
+  // it was given, and a live build given none serves none.
+  //
+  // Binding on the SAMPLE itself rather than a copied prompt, the D280
+  // rule: the sample is generated from the bank, so a prompt transcribed
+  // into this file would be a second copy to keep in step.
+  const sampleLearnPrompts = () => LEARN_CARDS.map((c) => c.q);
+
+  it("serves the bank's learn cards on a live feed, never the compiled-in sample", async () => {
+    localStorage.clear();
+    const expectNoBoundary = mountLive({ learnCard: true, feedCards: 24 });
+    await growFeed();
+    await awaitText(/Fixture learn card/);
+    expect(screen.getByText(LEARN_CARD_PROMPT)).toBeTruthy();
+    const body = document.body.textContent || "";
+    const leaked = sampleLearnPrompts().filter((q) => q && body.includes(q));
+    expect(
+      leaked.slice(0, 3),
+      "the live feed drew cards from the bundled demo sample",
+    ).toEqual([]);
+    expectNoBoundary("live feed, bank learn cards");
+  });
+
+  it("serves no learn card at all when the bank has none", async () => {
+    // A project seeded before D284 carries learn documents with no answer
+    // key, so the store drops every one and publishes an empty bank. Empty
+    // has to mean empty: falling back to the sample would put sixty demo
+    // cards on a real device, each with a "% got this right" line drawn
+    // from an aggregate that does not exist.
+    localStorage.clear();
+    const expectNoBoundary = mountLive({ feedCards: 24 });
+    await growFeed();
+    const body = document.body.textContent || "";
+    expect(
+      sampleLearnPrompts().filter((q) => q && body.includes(q)).slice(0, 3),
+      "an empty live learn bank fell through to the bundled sample",
+    ).toEqual([]);
+    expectNoBoundary("live feed, no learn bank");
+  });
+
+  // D280 — the defect this whole suite was supposed to make impossible,
+  // and did not.
+  //
+  // The feed weaves each core test's own items in as marked cards. The
+  // DEMO pool of those (spec/test-feed-data.js) carries option counts
+  // synthesized from a hash of the question id, so a card totals somewhere
+  // near ten thousand votes nobody cast. `buildFeedGlobals` replaced that
+  // pool with the bank's items — until D249 converted the feed's read of
+  // `window.TEST_FEED_QS` to a static import of the demo array and the
+  // store's write became a cast nothing read. A live device then drew
+  // invented splits under "politics test", and reported them.
+  //
+  // BINDING ON THE DEMO POOL ITSELF rather than on a hardcoded prompt: the
+  // pool is derived from IS_TESTS at module load, so a prompt copied into
+  // this file would be a second transcription to keep in step. The
+  // assertion is the honest one either way — none of those cards may be on
+  // a live screen, whichever instrument they came from.
+  const demoTestPrompts = () => TEST_FEED_QS.map((q) => q.prompt);
+
+  // feedCards: 24 rather than the default 1, and that number is the case
+  // rather than a detail. The test stream fires on WORLD indices, so a
+  // one-card feed has no slot to weave into and the assertion passes
+  // against a feed that was never long enough to hold the defect. At 24 the
+  // pre-fix tree leaks six, the first of them the item the owner
+  // photographed ("Adults should be free to harm themselves if they
+  // choose."). Measured in both directions before this was written down.
+  it("serves no demo test card on a live feed, whatever the bank holds", async () => {
+    // Cleared for this case's own sake: this asserts an ABSENCE, and a
+    // leftover vote that parks cards behind the Answered expander would
+    // satisfy it without the fix.
+    localStorage.clear();
+    const expectNoBoundary = mountLive({ feedCards: 24 });
+    await growFeed();
+    const body = document.body.textContent || "";
+    const leaked = demoTestPrompts().filter((p) => p && body.includes(p));
+    expect(
+      leaked.slice(0, 3),
+      "the live feed drew demo test cards — their counts are a hash of the question id (D1)",
+    ).toEqual([]);
+    expectNoBoundary("live feed, no demo test cards");
+  });
+
+  it("weaves the bank's own test item in, with the counts the aggregate published", async () => {
+    localStorage.clear();
+    const expectNoBoundary = mountLive({ testCard: true, feedCards: 24 });
+    await growFeed();
+    await awaitText(/Fixture test item/);
+    const card = screen.getByText(TEST_ITEM_PROMPT).closest("div");
+    expect(card, "the live test item never reached the feed").not.toBeNull();
+    // Its five options, and no others — the demo pool's items share this
+    // Likert set, so the prompt above is what tells them apart.
+    TEST_ITEM_OPTIONS.forEach((label) => {
+      expect(screen.getAllByText(label).length, `${label} missing from the live test card`).toBeGreaterThan(0);
+    });
+    expect(demoTestPrompts().filter((p) => p && (document.body.textContent || "").includes(p))).toEqual([]);
+    expectNoBoundary("live feed, bank test item");
+  });
+
+  // The other half, and the one a launch actually opens on: a bank test
+  // item nobody has answered. `noCountsYet` was the one field the test
+  // mapping did not carry, so the card took the tiles path — a five-way
+  // stack of zeroes, drawn as though the shares had been measured.
+  it("draws no split on a bank test item nobody has answered yet", async () => {
+    localStorage.clear();
+    const expectNoBoundary = mountLive({ testCard: true, tooSmall: true, feedCards: 24 });
+    await growFeed();
+    await awaitText(/Fixture test item/);
+    const card = screen.getByText(TEST_ITEM_PROMPT).closest("article, section, div");
+    expect(within(card).queryByText(/\d+%/), "a zero-count test item published a share").toBeNull();
+    expectNoBoundary("live feed, unanswered bank test item");
   });
 
   // D99's lens row, mounted on the Mirror's geographic stops — and since
@@ -828,7 +1107,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // were written against.
     localStorage.clear();
     mountLive();
-    await voteFeedCardAndSettle();
+    voteFeedCardAndSettle();
     const whoVoted = openWhoVoted();
     expect(whoVoted, "the live engage row did not render — this test is vacuous").not.toBeNull();
     fireEvent.click(whoVoted);
@@ -858,11 +1137,11 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // The control for the case above. Without it, that assertion passes for
   // any reason the engage row fails to render — a broken fixture included —
   // and stops being a statement about the gate at all.
-  const voteFirstDemoCard = async () => {
+  const voteFirstDemoCard = () => {
     const opt = screen.queryAllByRole("button", { name: /^(Yes|No|Agree|Disagree)$/i })[0];
     expect(opt, "no demo feed card to vote on").toBeDefined();
     fireEvent.click(opt);
-    await act(async () => { await new Promise((r) => setTimeout(r, 1200)); });
+    settleBeat();
   };
 
   it("offers no fabricated cut sheet on the live daily", async () => {
@@ -948,7 +1227,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
 
   it("still renders the takes button on a demo card", async () => {
     render(<App />);
-    await voteFirstDemoCard();
+    voteFirstDemoCard();
     expect(
       screen.queryByRole("button", { name: /\d+ takes$/i }),
       "demo mode lost the takes button — the live gate is now unconditional",
@@ -962,7 +1241,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // renderEngage's demoInProd check. The whole row goes, who-voted included.
   it("suppresses the entire engage row in the demoInProd fallback", async () => {
     mountLive({ demoInProd: true });
-    await voteFirstDemoCard();
+    voteFirstDemoCard();
     expect(
       screen.queryByRole("button", { name: /\btakes$/i }),
       "demoInProd showed seeded takes to a real user",
@@ -1010,7 +1289,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(screen.queryByText(/\d+ people/), "a fabricated population came back").toBeNull();
     expect(screen.getByText("Learn")).not.toBeNull();
     expect(screen.getByRole("button", { name: "lots" })).not.toBeNull();
-    // "Ask a question" since D274 §1 — the sheet's proposal path is the
+    // "Ask a question" since D288 §1 — the sheet's proposal path is the
     // paid door, and the button wears the door's own name. The header's
     // compose icon answers to the same accessible name, so the assertion
     // keys on the visible label: the sheet's door is the one with text.
@@ -1212,8 +1491,13 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     const card = screen.getByText(q0).parentElement;
     try {
       fireEvent.click(within(card).getByRole("button", { name: "Strongly agree" }));
-      // A live lens card plays the consequence beat like any live card, so
-      // wait it out before asserting on the answered state.
+      // A live lens card plays the consequence beat like any live card.
+      //
+      // OUTWAITED HERE AND SKIPPED EVERYWHERE ELSE, on purpose: this is the
+      // one case that drives the rAF loop all the way to its own T5 and
+      // lands `onDone` without a tap, so the animation's exit path keeps a
+      // mount behind it. The other five click Skip (mount-app.jsx), which is
+      // both faster and not a race.
       await act(async () => { await new Promise((r) => setTimeout(r, 1200)); });
       // 1. The vote left the device: LIVE.vote heard the lens card, under
       //    its own id, as option "0".
@@ -1304,7 +1588,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     removeInsightKeys();
     const expectNoBoundary = mountLive();
     fireEvent.click(screen.getByRole("button", { name: FEED_OPTIONS[0] }));
-    await act(async () => { await new Promise((r) => setTimeout(r, 1200)); });
+    settleBeat();
     expect(
       screen.queryByRole("button", { name: FEED_OPTIONS[1] }),
       "the fixture card did not reach its answered state",
@@ -1663,6 +1947,54 @@ describe("live mode never inherits the sample persona (D55)", () => {
     expect(container.querySelector(".mmt-dbar"), "the demo bar is gone too")
       .not.toBeNull();
     expect(container.textContent).toMatch(/\d+\s*%/);
+  });
+
+  // The card's `self` — "you: …" — had two shapes reaching it and handled
+  // one. map-anchors.js builds the demo row as `age {n}` ("age 34") and the
+  // LIVE row as `age {ageBand}` ("age 25-34"); mtAnchorSelf stripped every
+  // non-digit and parsed the rest as a single number, so a band came out as
+  // parseInt("2534") → "2530–2539". A decade nobody is in, on the default
+  // anchor of the card, which is the first thing a tapped answer says.
+  //
+  // Rendered in DEMO mode deliberately: live mode refuses the whole verdict
+  // (D72), so the string under test only draws here — which is exactly why
+  // the two cases above could both pass while it was wrong.
+  it("prints the age band the profile holds, not a decade built from its digits", () => {
+    const { container } = render(
+      <window.MTAnswerCard node={ANSWER_NODE} cat={null}
+        anchors={[{ id: "age", label: "Age", hue: 265, value: "age 25-34" }]}
+        activeA="age" onFilter={() => {}} />,
+    );
+    expect(container.textContent, "the band the profile actually holds is missing")
+      .toMatch(/25-34/);
+    expect(container.textContent, "a decade was invented out of the band's digits")
+      .not.toMatch(/2[0-9]{3}\s*–/);
+  });
+
+  // The anchor card's own empty state. `noCohort` is `rows.some(...)`,
+  // which is FALSE on an empty list, so a map with no answers on it fell
+  // through to the arithmetic and drew "0% of your answers match people
+  // your age" — plus, because `diffs` was empty too, "You answered like
+  // most of them on every question." Two claims that contradict each
+  // other, about somebody who has answered nothing.
+  //
+  // Reachable on a fresh live account that set an age in Basics: the
+  // anchor ring is laid out independently of the answer nodes, so the card
+  // opens with `items` empty.
+  it("says nothing about matching when there is nothing on the map", () => {
+    const { container } = render(
+      <window.MTAnchorCard
+        anchor={{ id: "age", label: "Age", hue: 265, value: "age 25-34" }}
+        items={[]} onPick={() => {}}
+        anchors={[{ id: "age", label: "Age", hue: 265, value: "age 25-34" }]}
+        onAnchor={() => {}} />,
+    );
+    expect(container.textContent, "a percentage was drawn for an empty map")
+      .not.toMatch(/\d+\s*%\s*of your answers/);
+    expect(container.querySelector(".mmt-matchbar"), "the match bar was drawn")
+      .toBeNull();
+    expect(container.textContent, "an empty map claimed you agreed on everything")
+      .not.toMatch(/like most of them on every question/);
   });
 
   // ── the results card, the fourth (D72) ──

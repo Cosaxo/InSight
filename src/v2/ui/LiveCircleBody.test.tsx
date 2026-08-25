@@ -18,7 +18,7 @@
 // circle of one on purpose (it exercises the filled shape), and emptying
 // it from outside is fighting the fixture to test a component.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 
 const LIVE = vi.hoisted(() => ({
   enabled: true,
@@ -157,7 +157,17 @@ describe("LiveCircleBody · the row is the stop's, not the data's", () => {
     render(<LiveCircleBody />);
     expect(screen.queryByRole("tabpanel")).toBeNull();
     openTab("People");
-    expect(screen.getByText("Ada")).toBeTruthy();
+    // WITHIN THE PANEL, not the whole document. A bare getByText("Ada")
+    // threw "found multiple elements" the moment this case ran after one
+    // that had already resolved the constellation's lazy chunk — the field
+    // above the row names the same member. Reproduced with
+    // `--sequence.shuffle --sequence.seed=4242`.
+    //
+    // Scoping is also the assertion this case wanted: the claim is that
+    // opening People PUTS THE MEMBER IN THE PANEL, and the document-wide
+    // query would have been satisfied by the field drawing her while the
+    // panel stayed empty.
+    expect(within(screen.getByRole("tabpanel")).getByText("Ada")).toBeTruthy();
     openTab("People");
     expect(screen.queryByRole("tabpanel")).toBeNull();
   });

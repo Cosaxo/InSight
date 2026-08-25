@@ -1,4 +1,4 @@
-// The client half of the buyer's room (PAID-PLAN §7, D274; the runbook's
+// The client half of the buyer's room (PAID-PLAN §7, D288; the runbook's
 // phase 2). One job: read back this account's own purchase records, plus
 // each bought question's PUBLIC aggregate for the card's live split.
 //

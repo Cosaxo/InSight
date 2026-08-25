@@ -245,7 +245,7 @@ function LivePrivacyPanel() {
       </div>
 
       {/* The buyer's room's door — the account sheet is its natural home
-          (PAID-PLAN §7, D274). Rendered only for an account that HAS
+          (PAID-PLAN §7, D288). Rendered only for an account that HAS
           purchases: the buying path's own door is the composer, and a
           standing row about contracts almost nobody holds is furniture.
           One session-cached mine-only query decides it. */}

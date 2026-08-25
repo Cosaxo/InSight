@@ -16,7 +16,7 @@ import { HAPTIC } from './haptics.js';
 // welcome). Sorted best → worst on the whole-crowd mean, so the eight
 // rows read as one shape. The crowds are named "live there" / "from
 // elsewhere" — the prototype said "locals/visitors", and the live card
-// cannot know who visited (D274 §2), so the demo previews the claim the
+// cannot know who visited (D288 §2), so the demo previews the claim the
 // product actually makes. The fore chips are a viewing lens over the
 // same marks, transient like the live lens's own — never a claim about
 // you, and your tick draws the same whichever crowd is fore.
@@ -30,7 +30,7 @@ function PSDot({ x, col, ring, dim }) {
 }
 function PlaceStatsCard({ scope, accent }) {
   const [, tick] = React.useState(0);
-  // which crowd the reading leads with — a lens, not a claim (D274 §2)
+  // which crowd the reading leads with — a lens, not a claim (D288 §2)
   const [fore, setFore] = React.useState('here');
   // Imported since D247, so the load-order guards are gone: an imported
   // binding cannot be unset, and the effect now always returns the

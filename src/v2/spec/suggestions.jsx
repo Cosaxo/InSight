@@ -1,7 +1,7 @@
 // Ported from design/spec-modules/suggestions.jsx (the historical prototype),
 // re-synced 2026-08-14 from design/standalone-v24/suggestions.jsx (the §8
 // board), and REBUILT 2026-08-24 from design/standalone-2026-08-24/
-// suggestions.jsx (D274 §1): the community board retired, so "Ask a
+// suggestions.jsx (D288 §1): the community board retired, so "Ask a
 // question" is the paid path alone — the upvote board, the seeded
 // suggestions and the Top/New/Picked lenses went with it. The store arrives
 // by IMPORT (converted with the v24 sync); SuggestOverlay stays on `window`
@@ -9,7 +9,7 @@
 // failed chunk must degrade to a blank, not a ReferenceError
 // (smoke-overlays.test.jsx mutation-checks exactly that).
 //
-// What the door prints, it reads (D274 §3, D167): every price, tick and
+// What the door prints, it reads (D288 §3, D167): every price, tick and
 // demand word comes from data/pricing.ts over the COMMITTED
 // content/pricing.json — the same dated card a buyer can diff — and a
 // forecast renders ONLY where the card carries a completed campaign to
@@ -226,7 +226,7 @@ const sgInput = {
 
 // ── the composer IS the paid flow: question → shape → place & window →
 // price → contract. Money buys the place and the window, never the review
-// and never the frame (docs/PAID-PLAN.md; D274 §3). The contract step is
+// and never the frame (docs/PAID-PLAN.md; D288 §3). The contract step is
 // honest about its state: the paid path is a human contract today, so the
 // sheet names that instead of pretending a checkout exists.
 function SgForm({ SG, initialAudience, onDone, onCancel }) {
@@ -273,7 +273,7 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
 
   // A forecast renders only where the committed card carries one — a
   // cohort with no completed campaign prints the floor RULE, never an
-  // invented per-day figure (D274 §3, the withheld-estimates half).
+  // invented per-day figure (D288 §3, the withheld-estimates half).
   const est = PRICING.estimates[scopeKey];
   const floorRule = scopeKey === 'world' && !extraDims ? null
     : 'under ' + PRICING.floorWeek + ' answers a week it runs as ' + parentLabel + ', your dims still printed';

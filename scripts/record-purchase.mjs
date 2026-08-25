@@ -1,5 +1,5 @@
 // record-purchase.mjs — write one paid purchase record at contract time
-// (PAID-PLAN §7, D274 §3; the runbook's phase 1).
+// (PAID-PLAN §7, D288 §3; the runbook's phase 1).
 //
 //   node scripts/record-purchase.mjs --project prvfire33 \
 //     --uid <buyerUid> --qid pd01 --scope city --place Oslo \
