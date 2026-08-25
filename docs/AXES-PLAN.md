@@ -26,6 +26,18 @@ Nothing below is built, and nothing in today's schema is bent in
 anticipation — the rule NEXT-FUNCTIONALITY §5 recorded for genetics,
 applied to this whole file.
 
+**The core function this frame serves (the owner, 2026-08-25): the
+axes exist to be connected.** One of the app's core functions is to
+use and connect the different axes to better understand — and get
+deeper data about — each other. A trait read by one axis is shallow
+alone; crossed against the rest it becomes the thing the app is for.
+Every coupling below answers to that sentence, and so does the theory
+layer: [`AXIOM-THEORY.md`](AXIOM-THEORY.md)'s lanes carry it as
+first-class subject matter (charter §1), with genetic and body
+explicitly charged with theorizing how the other axes' traits map onto
+genes and onto the body's parts and systems — at the perfect
+capability, not bounded by what ships next.
+
 Everything here was measured against the tree rather than assumed, with
 paths cited so the next reader can re-check. Three discoveries shape the
 plan more than any opinion could:
