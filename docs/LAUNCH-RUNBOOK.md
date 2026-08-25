@@ -1522,28 +1522,56 @@ That is a tester-count problem, not a workflow problem.
       deploy credential leaves you with no way to ship; discovered here, a
       report is late.
 
-      ```bash
-      # 1 · the pool and the repo-pinned provider (shared with the cutover)
-      gcloud iam workload-identity-pools create github         --project prvfire33 --location global
+      Run these in **Cloud Shell** — the `>_` icon in the Cloud Console, or
+      shell.cloud.google.com. `gcloud` is already installed there and
+      already signed in as you, so there is nothing to set up locally and
+      no credential to handle on a laptop.
 
-      gcloud iam workload-identity-pools providers create-oidc github         --project prvfire33 --location global --workload-identity-pool github         --issuer-uri "https://token.actions.githubusercontent.com"         --attribute-mapping "google.subject=assertion.sub,attribute.repository=assertion.repository"         --attribute-condition "assertion.repository == 'Cosaxo/InSight'"
+      ```bash
+      # 1 · the pool, and a provider pinned to THIS repo
+      gcloud iam workload-identity-pools create github \
+        --project prvfire33 --location global
+
+      gcloud iam workload-identity-pools providers create-oidc github \
+        --project prvfire33 --location global --workload-identity-pool github \
+        --issuer-uri "https://token.actions.githubusercontent.com" \
+        --attribute-mapping "google.subject=assertion.sub,attribute.repository=assertion.repository" \
+        --attribute-condition "assertion.repository == 'Cosaxo/InSight'"
 
       # 2 · the observer itself — no key is ever created
-      gcloud iam service-accounts create insight-observer         --project prvfire33 --display-name "InSight read-only observer"
+      gcloud iam service-accounts create insight-observer \
+        --project prvfire33 --display-name "InSight read-only observer"
 
       # 3 · read-only roles (Firestore is deliberately absent — D277)
-      for R in roles/monitoring.viewer roles/logging.viewer                roles/cloudfunctions.viewer roles/bigquery.dataViewer                roles/bigquery.jobUser; do
-        gcloud projects add-iam-policy-binding prvfire33           --member "serviceAccount:insight-observer@prvfire33.iam.gserviceaccount.com"           --role "$R"
+      for R in roles/monitoring.viewer roles/logging.viewer \
+               roles/cloudfunctions.viewer roles/bigquery.dataViewer \
+               roles/bigquery.jobUser; do
+        gcloud projects add-iam-policy-binding prvfire33 \
+          --member "serviceAccount:insight-observer@prvfire33.iam.gserviceaccount.com" \
+          --role "$R"
       done
 
-      # 4 · let this repo's Actions impersonate it
-      gcloud iam service-accounts add-iam-policy-binding         insight-observer@prvfire33.iam.gserviceaccount.com --project prvfire33         --role roles/iam.workloadIdentityUser         --member "principalSet://iam.googleapis.com/$(gcloud iam workload-identity-pools describe github           --project prvfire33 --location global --format 'value(name)')/attribute.repository/Cosaxo/InSight"
+      # 4 · the project NUMBER (not the id) — the next command needs it
+      NUM=$(gcloud projects describe prvfire33 --format='value(projectNumber)')
+      echo "$NUM"
 
-      # 5 · print the provider path the workflow needs
-      gcloud iam workload-identity-pools providers describe github         --project prvfire33 --location global --workload-identity-pool github         --format 'value(name)'
+      # 5 · let this repo's Actions impersonate the observer.
+      #     Split out rather than nested in a command substitution: this is
+      #     the line most likely to be retyped by hand on a re-run, and a
+      #     mangled principalSet does not fail here — it fails at RUN time
+      #     as a permission denial, which is the worst place to debug it.
+      gcloud iam service-accounts add-iam-policy-binding \
+        insight-observer@prvfire33.iam.gserviceaccount.com --project prvfire33 \
+        --role roles/iam.workloadIdentityUser \
+        --member "principalSet://iam.googleapis.com/projects/$NUM/locations/global/workloadIdentityPools/github/attribute.repository/Cosaxo/InSight"
+
+      # 6 · print the provider path the workflow needs
+      gcloud iam workload-identity-pools providers describe github \
+        --project prvfire33 --location global --workload-identity-pool github \
+        --format 'value(name)'
       ```
 
-      Then add step 5's output as the repository **variable**
+      Then add step 6's output as the repository **variable**
       `WIF_PROVIDER` (a variable, not a secret — it is a resource path, not
       a credential, and having it readable makes the workflow debuggable).
 
@@ -1552,7 +1580,7 @@ That is a tester-count problem, not a workflow problem.
       any command above asks for a write role, stop — that is not this
       step.
 
-      Tell me when step 5 has printed, and the collector follows. It is
+      Tell me when step 6 has printed, and the collector follows. It is
       deliberately unwritten until then (D277): four Google APIs nobody
       here can reach is not a thing to code against an assumed schema.
 
