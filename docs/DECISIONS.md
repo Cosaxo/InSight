@@ -27893,3 +27893,87 @@ The gate cannot catch the general case — a stale premise is not a stale
 number. What it catches is the cheapest and most common instance, which
 is the argument for pointing `check:figures` at every figure a decision
 leans on, not only the ones in prose somebody remembered to register.
+
+## D277 · A read-only observer, on WIF rather than a second key
+
+**2026-08-25.** **Status:** binding as a design; the console half is
+unexecuted. Requested directly: *"I want you to have access to this kind
+of data so you can better make reports and monitor the project."*
+
+### The shape, and what it is not
+
+A **separate, read-only service account** — `insight-observer` — that
+collects cost, alert state and function health, and never writes anything.
+Not a widening of `FIREBASE_SERVICE_ACCOUNT`, for the reason D276 records
+about the deploy role, and not a credential handed into a working session:
+the collector runs in CI, commits what it finds, and the results are read
+from the repository like any other file.
+
+**Authenticated by Workload Identity Federation, with no key at all.**
+This is a change from what was nearly proposed. `DEPLOYMENT.md` already
+records WIF as the plan for the deploy credential and calls the existing
+long-lived JSON "the classic leak-shaped credential". Minting a *second*
+long-lived key for an observer would mean two cutovers later, and would
+add exactly the thing the repo has already decided to remove.
+
+### Doing the observer first is a free rehearsal of the deploy cutover
+
+The WIF pool and the repo-pinned provider are the same ones
+`DEPLOYMENT.md`'s steps 1–2 need. Only the `workloadIdentityUser` binding
+is per-account. So standing the observer up **proves the whole federation
+setup on an account that cannot break anything.**
+
+That inverts the usual instinct to do the important credential first, and
+the reason is in `DEPLOYMENT.md`'s own warning: *"Reversing that order
+means discovering a misconfigured provider with no way to ship."* An
+observer has nothing to ship. If the provider is misconfigured, a report
+is late; if the deploy's is, the app cannot be released.
+
+### Read-only is what makes "whenever" possible
+
+The `production` environment's protection rules (D87) exist to put a human
+in front of **writes**. Gating reads behind the same approval is what
+would make an on-demand query impossible — every question would cost a
+click, which is the state this is meant to leave.
+
+So the observer's workflows carry **no `environment: production`**, and
+that is safe only because the roles cannot write. If a future step needs
+to write, it does not join this workflow; it gets its own, with the gate.
+
+### The roles, and the one deliberately left out
+
+- `roles/monitoring.viewer` — **whether the alert policies are actually
+  applied.** Currently unanswerable except by a human opening a console,
+  which is why "are the alerts armed" has been an open question for this
+  entire session
+- `roles/logging.viewer` — function errors; `scripts/fn-log.mjs` already
+  speaks this API
+- `roles/bigquery.dataViewer` + `roles/bigquery.jobUser` — the billing
+  export (runbook 5.12), scoped to that dataset
+- `roles/cloudfunctions.viewer` — deployed function state and region
+
+**Firestore read access is NOT in the set.** Answers are public (D98), so
+this is not a confidentiality argument — it is that aggregate figures are
+already published by the app itself, so a collector has no need to open
+user documents, and an access grant nothing requires is one that exists
+only to be misused later. Add it if something genuinely needs it, as its
+own decision, with the thing that needs it named.
+
+### What it collects, and where it lands
+
+Into `monitoring/pulse-trail.jsonl`, beside the modelled figures that have
+been sitting there alone since `pulse.mjs` was written: **actual spend
+beside `burnUsd5k`**, so the diff `COSTS.md` was written to invite finally
+happens; whether each of the eight policies is live; per-function error
+counts; and the Authentication tier, which settles runbook 5.2 for good
+instead of being re-checked by hand.
+
+### Not built, and that is the point
+
+The collector is written against the real dataset, not an assumed schema.
+This session already spent a round on a workflow that parsed as valid YAML
+and would not run, and one on a gate whose consumer half matched a rename
+that broke it. A collector built speculatively against four Google APIs
+nobody here can reach would be a larger instance of the same mistake.
+
+Console steps first (runbook 5.13), then one day of data, then the code.

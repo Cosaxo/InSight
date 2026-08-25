@@ -1508,6 +1508,54 @@ That is a tester-count problem, not a workflow problem.
       parsed as YAML and would not run. Enable the export, let a day of
       data land, and the pulse extension follows.
 
+- [ ] **5.13 Stand up the read-only observer (D277).** Five commands and
+      one GitHub setting. It gives the project a collector that can answer
+      "are the alerts armed", "what did we actually spend", and "is
+      Authentication on Identity Platform" without anyone opening a
+      console — and it proves the Workload Identity setup on an account
+      that cannot break a deploy.
+
+      **Do this BEFORE the WIF cutover in `DEPLOYMENT.md`, not after.**
+      Steps 1–2 below are the same pool and provider that cutover needs, so
+      this is a rehearsal of it on something read-only. That file's own
+      warning is the reason: a misconfigured provider discovered on the
+      deploy credential leaves you with no way to ship; discovered here, a
+      report is late.
+
+      ```bash
+      # 1 · the pool and the repo-pinned provider (shared with the cutover)
+      gcloud iam workload-identity-pools create github         --project prvfire33 --location global
+
+      gcloud iam workload-identity-pools providers create-oidc github         --project prvfire33 --location global --workload-identity-pool github         --issuer-uri "https://token.actions.githubusercontent.com"         --attribute-mapping "google.subject=assertion.sub,attribute.repository=assertion.repository"         --attribute-condition "assertion.repository == 'Cosaxo/InSight'"
+
+      # 2 · the observer itself — no key is ever created
+      gcloud iam service-accounts create insight-observer         --project prvfire33 --display-name "InSight read-only observer"
+
+      # 3 · read-only roles (Firestore is deliberately absent — D277)
+      for R in roles/monitoring.viewer roles/logging.viewer                roles/cloudfunctions.viewer roles/bigquery.dataViewer                roles/bigquery.jobUser; do
+        gcloud projects add-iam-policy-binding prvfire33           --member "serviceAccount:insight-observer@prvfire33.iam.gserviceaccount.com"           --role "$R"
+      done
+
+      # 4 · let this repo's Actions impersonate it
+      gcloud iam service-accounts add-iam-policy-binding         insight-observer@prvfire33.iam.gserviceaccount.com --project prvfire33         --role roles/iam.workloadIdentityUser         --member "principalSet://iam.googleapis.com/$(gcloud iam workload-identity-pools describe github           --project prvfire33 --location global --format 'value(name)')/attribute.repository/Cosaxo/InSight"
+
+      # 5 · print the provider path the workflow needs
+      gcloud iam workload-identity-pools providers describe github         --project prvfire33 --location global --workload-identity-pool github         --format 'value(name)'
+      ```
+
+      Then add step 5's output as the repository **variable**
+      `WIF_PROVIDER` (a variable, not a secret — it is a resource path, not
+      a credential, and having it readable makes the workflow debuggable).
+
+      **What you are NOT doing here:** creating a key, touching
+      `FIREBASE_SERVICE_ACCOUNT`, or granting anything that can write. If
+      any command above asks for a write role, stop — that is not this
+      step.
+
+      Tell me when step 5 has printed, and the collector follows. It is
+      deliberately unwritten until then (D277): four Google APIs nobody
+      here can reach is not a thing to code against an assumed schema.
+
 - [ ] **5.11 Install the BigQuery mirror WITH the first real users — not
       before, and not after.** Firebase Extensions → *Stream Firestore to
       BigQuery*, on the `answers` collection group, **dataset in the EU** so
