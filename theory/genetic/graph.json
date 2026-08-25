@@ -27,7 +27,7 @@
       "id": "gen-3",
       "claim": "The scarce asset is the phenotype battery, not the genotypes; the perfect axiom is designed around that asymmetry.",
       "status": "argued",
-      "detail": "Genotypes are commodity files; deep, longitudinal, freely-given phenotypes are what biobanks cannot buy cheaply. InSight's answer corpus is an unusually rich behavioral phenotyping instrument. The perfect genetic axiom therefore optimizes for pairing quality (how many people have BOTH a scored genome and a deep phenotype record) over genotype count, and treats every phenotype-side improvement (questions axiom) as a genetic-axiom improvement. Ranking claim for central: this asymmetry is the genetic axiom's main contribution to the combination.",
+      "detail": "Genotypes are commodity files; deep, longitudinal, freely-given phenotypes are what biobanks cannot buy cheaply. InSight's answer corpus is an unusually rich behavioral phenotyping instrument. The perfect genetic axiom therefore optimizes for pairing quality (how many people have BOTH a scored genome and a deep phenotype record) over genotype count, and treats every phenotype-side improvement (questions axiom) as a genetic-axiom improvement. Ranking claim for central: this asymmetry is the genetic axiom's main contribution to the combination. External support arrived with gen-4's scout (2026-08-25): the education–pace-of-aging association in Framingham (DunedinPACE analysis n=3,101, drawn from a three-generation mobility database of n=14,106) holds under within-family sibling fixed effects and across four alternative clocks (Graf 2024, cited at gen-4) — behavioral phenotype carries aging signal that shared family background alone does not explain, which is this asymmetry stated by someone else's data. A future run may raise this node on that basis after full-text verification; note the stronger 'survives polygenic-index adjustment' reading of Graf did NOT survive this run's adversarial check (unconfirmable from the abstract) — the sibling-fixed-effects reading did, and it is the one recorded here.",
       "sources": [],
       "edges": [{ "to": "cen-1", "type": "supports" }, { "to": "que-1", "type": "depends" }],
       "created": "2026-08-25",
@@ -35,11 +35,28 @@
     },
     {
       "id": "gen-4",
-      "claim": "The aging ambition runs through published aging measures crossed with the phenotype battery, not through discovery genetics.",
-      "status": "conjecture",
-      "detail": "Discovery GWAS needs cohorts orders of magnitude beyond an app; what an app-scale paired cohort CAN do is cross published aging-related scores and clocks with behavioral phenotypes nobody else measures, looking for behavior-aging correlates worth handing to real research. First scout task: survey the current state of aging clocks and aging-related polygenic measures with real citations, then restate this node at 'cited' or demote it honestly.",
-      "sources": [],
-      "edges": [{ "to": "gen-5", "type": "depends" }, { "to": "gen-3", "type": "depends" }],
+      "claim": "The aging ambition runs through behavior-by-aging-measure crosses over the phenotype battery — the genotype contributes a weak prior, and discovery genetics stays out of scope.",
+      "status": "cited",
+      "detail": "Scouted and adversarially checked 2026-08-25 (14 refutation searches; fixes applied before landing — see LOG). Provenance, per figure: sources were verified to exist via multiple independent indexes; the skeptic pass then confirmed against source-side text the 0.47% GrimAge instrument strength (4 SNPs), MIMOSA's 0.20 average imputation correlation, Timmers' ~5-year decile gap, Graf's n=3,101 analysis / n=14,106 database, and TruDiagnostic's n=14,213; the 4.41% upper instrument figure remains abstract-grade pending full text. Three findings ground the restated claim. (1) The genotype file's own aging signal is a weak prior: longevity GWAS are dominated by APOE (Deelen 2019); the parental-lifespan PGS separates extreme deciles by roughly five years of mean lifespan — a population-decile contrast, not an individual prediction (Timmers 2019); genome-wide-significant SNP instruments for epigenetic age acceleration explain 0.47%–4.41% of the respective clock's variance (4 SNPs for GrimAge; Morales Berstein 2022 over the Gibson 2019 / McCartney 2021 GWAS). That is an instrument-strength figure, not a polygenic-score ceiling — a genome-wide PGS would explain more, and its ceiling is not established here — but the ordering still cautions: GrimAge, the strongest mortality predictor among the clocks, is the least genetically instrumentable. The heritability ceiling of longevity is itself contested across a 5x range — below 10% once assortative mating is modeled (Ruby 2018), up to ~50% for intrinsic lifespan once extrinsic mortality is corrected (Shenhar 2026, itself already challenged in preprint: bioRxiv 2026.04.02.716222) — and the distinction that survives every branch of that dispute is that heritability is not predictability from a common-SNP array: even at h2~50%, a consumer file's realized predictive power is bounded by common-variant tagging. So the genotype yields a legitimate low-resolution prior, never a measurement (gen-7). (2) Discovery stays out of scope, on the cited studies' own designs: the longevity/lifespan/healthspan GWAS above ran at n≈300k–1M (Timmers 2019, Zenin 2019); an app-scale paired cohort does not play that game. The product's own pricing agrees (AXES-PLAN §4 on main) — internal context, not external evidence, and marked as such. (3) The valuable cross is established science, not speculation: educational mobility predicts DunedinPACE pace-of-aging and mortality (analysis n=3,101 with methylation data, from a three-generation n=14,106 mobility database), holding under within-family sibling fixed effects and across four alternative clocks (Graf 2024); conscientiousness tracks slower second/third-generation clock aging across cohorts totalling N>6,000 (Stephan 2025); psychosocioeconomic stress and status associate with GrimAge/DunedinPACE acceleration (PMID 38824837). What the perfect axiom therefore contributes to aging research: the deepest behavioral phenotype battery crossed with imported aging measurements (gen-8) and genotype priors (gen-7), generating behavior-aging correlates worth handing to real research — literature-grounded hypothesis work over consented aggregates, never medical advice (charter §9). Edge change this run: the dependency on gen-5 (LLM sequence models) was dropped on ladder grounds — a cited node depending on a conjecture is evidence flowing uphill; the ambition's real dependencies are the boundary (gen-7) and the import door (gen-8).",
+      "sources": [
+        "Deelen J et al. 2019, Nature Communications 10:3669, 'A meta-analysis of genome-wide association studies identifies multiple longevity genes', DOI 10.1038/s41467-019-11558-2",
+        "Timmers PRHJ et al. 2019, eLife 8:e39856, 'Genomics of 1 million parent lifespans implicates novel pathways and common diseases and distinguishes survival chances', DOI 10.7554/eLife.39856, PMID 30642433",
+        "Zenin A et al. 2019, Communications Biology 2:41, 'Identification of 12 genetic loci associated with human healthspan', DOI 10.1038/s42003-019-0290-0, PMID 30729179",
+        "Gibson J et al. 2019, PLOS Genetics 15(11):e1008104, 'A meta-analysis of genome-wide association studies of epigenetic age acceleration', DOI 10.1371/journal.pgen.1008104, PMID 31738745",
+        "McCartney DL et al. 2021, Genome Biology 22:194, 'Genome-wide association studies identify 137 genetic loci for DNA methylation biomarkers of ageing', DOI 10.1186/s13059-021-02398-9, PMID 34187551",
+        "Morales Berstein F et al. 2022, eLife 11:e75374, 'Assessing the causal role of epigenetic clocks in the development of multiple cancers: a Mendelian randomization study', DOI 10.7554/eLife.75374, PMID 35346416, PMC9049976 — source of the 0.47–4.41% instrument-strength figures",
+        "Ruby JG et al. 2018, Genetics 210(3):1109-1124, 'Estimates of the Heritability of Human Longevity Are Substantially Inflated due to Assortative Mating', DOI 10.1534/genetics.118.301613, PMID 30401766",
+        "Shenhar B, Pridham G, et al. (senior author Alon U) 2026, Science 391(6784):504-510, 'Heritability of intrinsic human life span is about 50% when confounding factors are addressed', DOI 10.1126/science.adz1187, PMID 41610249",
+        "bioRxiv 2026.04.02.716222, 'Omitted familial extrinsic risk inflates inferred intrinsic lifespan heritability' — PREPRINT, unreviewed; cited only as evidence the Shenhar figure is actively contested",
+        "Graf GH-J et al. 2024, JAMA Network Open 7(3):e240655, 'Educational Mobility, Pace of Aging, and Lifespan Among Participants in the Framingham Heart Study', DOI 10.1001/jamanetworkopen.2024.0655, PMID 38427354, PMC10907927",
+        "Stephan Y, Sutin AR, Luchetti M, Terracciano A 2025, Psychoneuroendocrinology 181:107582, 'Personality and epigenetic aging: A multi-cohort and multi-clock study', PMID 40902519",
+        "'Associations between epigenetic age acceleration and longitudinal measures of psychosocioeconomic stress and status', Social Science & Medicine, PMID 38824837, PMC11239272"
+      ],
+      "edges": [
+        { "to": "gen-3", "type": "depends" },
+        { "to": "gen-7", "type": "depends" },
+        { "to": "gen-8", "type": "depends" }
+      ],
       "created": "2026-08-25",
       "updated": "2026-08-25"
     },
@@ -60,6 +77,52 @@
       "detail": "A genome is shared with relatives who never consented. The perfect system therefore publishes only aggregate couplings (never an individual's genetic readout to anyone else), states the kinship fact in consent copy, and treats 'who participates' as itself confidential. This is a design axiom under CHARTER §9, not a limitation to engineer around.",
       "sources": [],
       "edges": [],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "gen-7",
+      "claim": "A SNP genotype file carries a prior on aging, never a measurement of it — the boundary is what the assay reads, not statistics.",
+      "status": "cited",
+      "detail": "Added by the 2026-08-25 scout; adversarially checked the same run (the check narrowed this node — see below). Every epigenetic clock — Horvath 2013 and Hannum 2013 (first generation, trained on chronological age), PhenoAge 2018 and GrimAge 2019 (second, trained on mortality/morbidity), DunedinPACE 2022 (third, pace of aging) — consumes CpG methylation values from a dedicated methylation array (Illumina 450K/EPIC class). The newest strong aging measures consume plasma proteomics instead: ~200 of ~2,900 Olink proteins predict chronological age at r~0.94 in UK Biobank with external validation (Argentieri 2024), and organ-specific plasma signatures track per-organ aging and disease (Oh 2023). A consumer genotyping array cannot report CpG methylation state: 5mC reads as C to the assay chemistry (amplification erases the mark, but even native DNA reads identically — amplification is sufficient for the loss, not fundamental to it), and the array's probe content interrogates genotype, not methylation. The boundary is probe content and the absent methylation channel, NOT bisulfite chemistry alone: Infinium signal on non-bisulfite-converted DNA still carries some age signal through non-methylation factors ('pseudomethylation', Porter 2025), so the precise claim is that no methylation clock is computable from a 23andMe-class genotype CALL file — the methylation channel is simply absent from it; whether age-correlated signal could be scraped from raw array intensities is a different question about a different input, which consumers do not hold. Imputing methylation from mQTLs does not cross the boundary either: prediction models average a correlation of ~0.20 per CpG (MIMOSA, preprint-grade), and what they recover is by construction the genetic component alone — a polygenic score wearing a clock's costume, discarding exactly the environmental and stochastic signal that makes clocks informative. The adversarial pass hunted for a counterexample (any published method computing a genuine methylation clock from SNP-array genotype data) and found none. So 'what can the genome say about aging' has an architectural answer: the imported genotype supplies a fixed, weak prior (gen-4's figures); the measurement of how a person is actually aging lives in other assays, which the import principle can reach (gen-8) but the genotype file cannot. This sharpens gen-1: 'import, never assay' is not a limitation on the aging ambition, because the thing an assay would add — a clock reading — is itself importable (gen-8).",
+      "sources": [
+        "Horvath S 2013, Genome Biology 14:R115, 'DNA methylation age of human tissues and cell types', DOI 10.1186/gb-2013-14-10-r115, PMID 24138928",
+        "Hannum G et al. 2013, Molecular Cell 49(2):359-367, 'Genome-wide methylation profiles reveal quantitative views of human aging rates', PMID 23177740",
+        "Levine ME et al. 2018, Aging 10(4):573-591, 'An epigenetic biomarker of aging for lifespan and healthspan' (DNAm PhenoAge), DOI 10.18632/aging.101414",
+        "Lu AT et al. 2019, Aging 11(2):303-327, 'DNA methylation GrimAge strongly predicts lifespan and healthspan', DOI 10.18632/aging.101684",
+        "Belsky DW et al. 2022, eLife 11:e73420, 'DunedinPACE, a DNA methylation biomarker of the pace of aging', DOI 10.7554/eLife.73420, PMID 35029144",
+        "Argentieri MA et al. 2024, Nature Medicine 30(9):2450-2460, 'Proteomic aging clock predicts mortality and risk of common age-related diseases in diverse populations', DOI 10.1038/s41591-024-03164-7, PMID 39117878",
+        "Oh HS-H et al. 2023, Nature 624:164-172, 'Organ aging signatures in the plasma proteome track health and disease', DOI 10.1038/s41586-023-06802-1, PMID 38057571",
+        "Illumina Infinium MethylationEPIC product documentation — methylation arrays genotype bisulfite-converted DNA (emea.illumina.com/products/by-type/microarray-kits/infinium-methylation-epic.html)",
+        "Porter HL et al. 2025, GeroScience, 'Methylation Array Signals are Predictive of Chronological Age Without Bisulfite Conversion', DOI 10.1007/s11357-025-01785-5, PMID 38187520 — why the boundary is probe content, not bisulfite chemistry alone",
+        "Fryett JJ, Morris AP, Cordell HJ 2022, Genetic Epidemiology, 'Investigating the prediction of CpG methylation levels from SNP genotype data to help elucidate relationships between methylation, gene expression and complex traits', DOI 10.1002/gepi.22496, PMID 35930604",
+        "MIMOSA methylation-imputation models, PMC10055581 — PREPRINT-grade (medRxiv deposit in PMC; no peer-reviewed version located); average imputation correlation ~0.20"
+      ],
+      "edges": [
+        { "to": "gen-1", "type": "refines" },
+        { "to": "gen-4", "type": "supports" }
+      ],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "gen-8",
+      "claim": "The import principle generalizes: the perfect axiom imports any molecular self-measurement the person already holds — consumer methylation files first among them.",
+      "status": "cited",
+      "detail": "Added by the 2026-08-25 scout; adversarially checked the same run (the check inverted one claim here — see custody paragraph). gen-1's argument was written about genotype files, but its logic — stay on the analysis side, import what consented people already hold — reaches further, and the aging half of the theory needs it to (gen-7: the aging measurement is not in the genotype file). The enabling premise is peer-reviewed fact: consumer-platform methylation cohorts are publication-grade — a TruDiagnostic consumer cohort of n=14,213 serves as a validation cohort in Nature Aging (Chen & Dwaraka 2026, alongside Generation Scotland n=18,672), and the same platform ran a randomized twin diet trial with epigenetic-clock outcomes in BMC Medicine (Dwaraka 2024). The market detail is vendor-grade and labeled so in sources: TruDiagnostic, Elysium Index and myDNAge sell EPIC-class methylation testing to consumers, and TruDiagnostic states customers can download raw data (>850k CpG loci, IDATs on request) — so raw-file import is reported-possible at vendor grade, to be confirmed at vendor-ToS or peer-review grade before gen-2's device-side story is extended to methylation. Given that, actual clock measurements can enter the perfect system by the same door genotypes do; the axiom still never assays. Two consequences. (a) Methylation is a STATE measurement where genotype is a constant, so the perfect import is a longitudinal series of files, not one file — repeat imports are first-class as a property of what the system ACCEPTS from people who already hold such data; per charter §9 this is never a suggestion that anyone test, re-test, or intervene on a schedule — the axiom describes an import door, not a protocol. (b) Custody and consent carry over at FULL strength, not reduced: a methylation array file is also a genotype file at reduced density — genotypes at thousands of SNPs are recoverable from Infinium EPIC data at >98% concordance, enough to identify hundreds of close-relative pairs in a research cohort (MethylGenotyper 2024), and EPIC arrays carry dedicated identity probes — so gen-6's familial-consent logic and gen-2's custody minimization apply to imported methylation files exactly as to genomes.",
+      "sources": [
+        "Dwaraka VB et al. 2024, BMC Medicine, 'Unveiling the epigenetic impact of vegan vs. omnivorous diets on aging: insights from the Twins Nutrition Study (TwiNS)', DOI 10.1186/s12916-024-03513-w, PMID 39069614 — randomized twin trial run on a consumer methylation platform (TruDiagnostic), clock outcomes",
+        "Chen Q, Dwaraka VB, et al. 2026, Nature Aging 6(3):722-737, 'OMICmAge quantifies biological age by integrating multi-omics with electronic medical records', DOI 10.1038/s43587-026-01073-7, PMC13004675 — TruDiagnostic consumer cohort n=14,213 as validation cohort",
+        "Jiang L et al. 2024, Genomics, Proteomics & Bioinformatics 22(3):qzae044, 'MethylGenotyper' (genotype and kinship recovery from Infinium EPIC methylation data: 4,319 SNPs at 98.26% concordance; 255 close-relative pairs identified among 4,662 samples), PMID 39353864, PMC12016561",
+        "TruDiagnostic vendor documentation (trudiagnostic.com) — VENDOR-grade: EPIC-array consumer testing; raw-data download >850k CpG loci stated, IDATs on request",
+        "Elysium Health Index and myDNAge product pages — VENDOR-grade: consumer EPIC-class methylation tests, saliva/blood"
+      ],
+      "edges": [
+        { "to": "gen-1", "type": "refines" },
+        { "to": "gen-4", "type": "supports" },
+        { "to": "gen-7", "type": "supports" },
+        { "to": "gen-6", "type": "depends" }
+      ],
       "created": "2026-08-25",
       "updated": "2026-08-25"
     }
