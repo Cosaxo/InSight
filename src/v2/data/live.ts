@@ -4911,13 +4911,6 @@ let sessionRecoveryTried = false;
 // new one, or the two interleave and one account's answers render as the
 // other's.
 function resetForNewUid(uid: string): void {
-  // The OUTGOING uid, captured before `state.uid` is reassigned below,
-  // because the presence document that has to go is keyed by it.
-  const prevUid = state.uid;
-  // …and whether that account was actually standing in a cell. The timer
-  // IS the loop, so its presence is the signal; without this every account
-  // switch would issue a delete for a document most accounts never wrote.
-  const wasSharingPresence = !!nearState.timer;
   // A detach armed under the OLD uid must not fire against the new one's
   // listeners: it would drop them with nothing to re-attach until the next
   // wake, which reads on screen as a deck that stopped updating.
@@ -5032,27 +5025,34 @@ function resetForNewUid(uid: string): void {
   // The presence loop is the old account's opt-in (D84); the flag store's
   // purge listener clears the choice, this clears the machinery.
   stopPresence();
-  // …and this deletes the DOCUMENT, which stopPresence does not.
+  // The DOCUMENT is deliberately not deleted here, and that is a limit
+  // rather than an oversight — worth writing down, because the obvious
+  // fix is the one that does not work.
   //
-  // NEAR.disable() deletes on purpose, under "stop sharing must not wait
-  // for a freshness window to expire", and an account switch is that same
-  // situation: the opt-in belonged to the outgoing account and
-  // purgeLocalTrace has just revoked it. Left standing, the cell keeps
-  // that account in its ~200 m grid square for up to PRESENCE_LINGER_MS —
-  // counted by nearbyCountV2 and listed with its archetype by
-  // nearbyRoomV2, to strangers in that neighbourhood, for somebody no
-  // longer signed in on this device. D98 published what people answered,
-  // not where their phone is standing.
+  // The cell really does outlive the switch: it keeps the outgoing account
+  // in its ~200 m grid square for up to PRESENCE_LINGER_MS, counted by
+  // nearbyCountV2 and listed with its archetype by nearbyRoomV2. So
+  // `deleteDoc(v2_presence/{prevUid})` from here reads like the same move
+  // NEAR.disable() makes under "stop sharing must not wait for a freshness
+  // window to expire".
   //
-  // Fire-and-forget with a report, like the other best-effort teardowns
-  // above: resetForNewUid is synchronous and the incoming account's boot
-  // must not wait on it.
-  if (wasSharingPresence && prevUid && prevUid !== uid) {
-    void (async () => {
-      const db = await getDb();
-      await deleteDoc(doc(db, "v2_presence", prevUid));
-    })().catch((err) => reportError(err, { where: "presenceResetForNewUid" }));
-  }
+  // It cannot be. This function runs from the subscribeToAuth callback,
+  // which fires AFTER the SDK has switched currentUser to the incoming
+  // account — so the write is signed by the new uid, and
+  // /v2_presence/{uid} is `allow delete: if request.auth.uid == uid`. The
+  // rules refuse it. Measured on the emulator: the outgoing account
+  // deleting its own cell succeeds, the incoming account deleting the
+  // outgoing one's is denied. Issuing it anyway buys nothing and costs a
+  // permission-denied report on every switch.
+  //
+  // Nor is there a moment to do it earlier: every path that changes the
+  // uid in-process (a lost anonymous session, a Google link that resolves
+  // to an existing account) has already lost the outgoing credentials by
+  // the time anything here observes the change. A real fix is server-side.
+  // What bounds the exposure meanwhile is `until`, capped at
+  // PRESENCE_LINGER_MIN in the rules and honoured by nearbyCountV2 — and
+  // account DELETION, the case that matters most, is swept by
+  // deleteAccount rather than left to this path at all.
   setSentryUser(uid);
   notify();
   void refreshLive().catch((err) => reportError(err, { where: "refreshLive.uidChange" }));

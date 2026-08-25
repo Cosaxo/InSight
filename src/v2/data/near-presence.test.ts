@@ -276,32 +276,34 @@ describe("disable() — stop sharing means stop, now", () => {
     expect(h.presenceDeletes).toEqual(["v2_presence/uid_test"]);
   });
 
-  // An account SWITCH is the same situation as "stop sharing", and it used
-  // to make the opposite choice: resetForNewUid stopped the loop and left
-  // the document standing. purgeLocalTrace revokes the opt-in on the
-  // device while the cell keeps the OUTGOING account in its ~200 m square
-  // for up to PRESENCE_LINGER_MS — counted by nearbyCountV2 and listed
-  // with its archetype by nearbyRoomV2, to strangers, for somebody no
-  // longer signed in here.
-  it("deletes the outgoing account's cell when the uid changes", async () => {
+  // An account SWITCH looks like the same situation as "stop sharing", and
+  // this suite briefly asserted the same remedy — resetForNewUid deleting
+  // v2_presence/{outgoing}. It does not work, and the test passed anyway
+  // because this harness mocks Firestore: it records the call, never the
+  // rules' answer.
+  //
+  // resetForNewUid runs from the subscribeToAuth callback, which fires
+  // AFTER the SDK has switched currentUser to the incoming account, so the
+  // delete is signed by the new uid — and /v2_presence/{uid} is
+  // `allow delete: if request.auth.uid == uid`. Measured on the emulator:
+  // the outgoing account deleting its own cell succeeds, the incoming one
+  // deleting the outgoing account's is denied.
+  //
+  // So no write is issued, and this pins that. What bounds the exposure is
+  // `until` (capped at PRESENCE_LINGER_MIN in the rules, honoured by
+  // nearbyCountV2); account deletion — the case that matters — is swept
+  // server-side by deleteAccount, not by this path.
+  it("issues no presence delete on an account switch — the rules would refuse it", async () => {
     const near = await bootNear();
     await near.enable();
     expect(h.presenceWrites.length).toBeGreaterThan(0);
 
     h.authCb!({ uid: "uid_other" });
-    await vi.waitFor(() => {
-      expect(h.presenceDeletes).toEqual(["v2_presence/uid_test"]);
-    });
-  });
-
-  it("does not delete for an account that was never sharing", async () => {
-    // The timer IS the loop, so no timer means no document was ever
-    // written — and a delete per account switch for every account that
-    // never opted in is a write nobody asked for.
-    await bootNear();
-    h.authCb!({ uid: "uid_other" });
     await new Promise((r) => setTimeout(r, 20));
-    expect(h.presenceDeletes).toEqual([]);
+    expect(
+      h.presenceDeletes,
+      "a delete signed by the INCOMING uid is denied by /v2_presence/{uid}",
+    ).toEqual([]);
   });
 });
 
