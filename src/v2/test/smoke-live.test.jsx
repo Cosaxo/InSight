@@ -1957,6 +1957,32 @@ describe("live mode never inherits the sample persona (D55)", () => {
       .not.toMatch(/2[0-9]{3}\s*–/);
   });
 
+  // The anchor card's own empty state. `noCohort` is `rows.some(...)`,
+  // which is FALSE on an empty list, so a map with no answers on it fell
+  // through to the arithmetic and drew "0% of your answers match people
+  // your age" — plus, because `diffs` was empty too, "You answered like
+  // most of them on every question." Two claims that contradict each
+  // other, about somebody who has answered nothing.
+  //
+  // Reachable on a fresh live account that set an age in Basics: the
+  // anchor ring is laid out independently of the answer nodes, so the card
+  // opens with `items` empty.
+  it("says nothing about matching when there is nothing on the map", () => {
+    const { container } = render(
+      <window.MTAnchorCard
+        anchor={{ id: "age", label: "Age", hue: 265, value: "age 25-34" }}
+        items={[]} onPick={() => {}}
+        anchors={[{ id: "age", label: "Age", hue: 265, value: "age 25-34" }]}
+        onAnchor={() => {}} />,
+    );
+    expect(container.textContent, "a percentage was drawn for an empty map")
+      .not.toMatch(/\d+\s*%\s*of your answers/);
+    expect(container.querySelector(".mmt-matchbar"), "the match bar was drawn")
+      .toBeNull();
+    expect(container.textContent, "an empty map claimed you agreed on everything")
+      .not.toMatch(/like most of them on every question/);
+  });
+
   // ── the results card, the fourth (D72) ──
   //
   // sameType filtered IS_DATA.people — the prototype's invented circle —

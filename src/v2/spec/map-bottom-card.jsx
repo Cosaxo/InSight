@@ -300,7 +300,20 @@ function MTAnchorCard({ anchor, items, onPick, anchors, onAnchor }) {
         ? (T && T.taken ? <div className="mmt-astat-sub">taken {T.taken}</div> : null)
         : <div className="mmt-kicker"><span className="mmt-dot"></span>{anchor.label}{T && T.taken ? ' · taken ' + T.taken : ''}</div>}
       <MTAnchorStat anchor={anchor} openDim={dimId} onDim={setDimId} key={anchor.id}></MTAnchorStat>
-      {noCohort ? <MTNoCohort who={who}></MTNoCohort> : (
+      {/* NO ANSWERS AT ALL is its own case, and it used to fall through to
+          the arithmetic below. `noCohort` is `rows.some(...)`, which is
+          false on an empty list, so a map with nothing on it drew "0% of
+          your answers match {who}", a zero-width bar, and — since `diffs`
+          was also empty — "You answered like most of them on every
+          question." Two claims that contradict each other, about somebody
+          who has answered nothing. D1: where a live surface shows nothing,
+          the data is ABSENT.
+
+          Nothing is drawn rather than MTNoCohort, whose first sentence is
+          "Your answer is on the map" — true for an unmeasured cohort, and
+          false here. What an empty map should SAY instead is a copy
+          decision; the anchor chips and your own value above still draw. */}
+      {!rows.length ? null : noCohort ? <MTNoCohort who={who}></MTNoCohort> : (
       <React.Fragment>
       <div className="mmt-matchhead">
         <span className="mmt-matchpct">{pct}%</span>
