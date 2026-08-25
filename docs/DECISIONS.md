@@ -27589,3 +27589,69 @@ Also recorded: `vite.config.ts`'s premise that "most of `--dir src` is
 pure logic and wants no DOM" has flipped — **81 of 129 files** opt into
 jsdom. The conclusion still holds (a global environment would add ~53 s
 to the 48 that do not), so only the reason is stale.
+
+## D277 · Axes, Axiom Theory, and the program between them
+
+**Decided:** 2026-08-25 · **Status:** binding — adopted by the owner
+across one session in their own words: the reflect-and-plan ask, the
+routines-with-self-learning ask, the Axiom Theory chartering (roster,
+3-hour cadence, model direction, "budget is not an issue"), and
+finally "do 4 and 5 and open the pr". Written on
+`claude/axis-feature-planning-i37b71`; the number may collide with
+records main mints meanwhile and be renumbered at merge — the standing
+collision pattern.
+
+**1 · The vocabulary.** An **axis** is a shipped data source — the
+frame `docs/AXES-PLAN.md` §1 maps onto the tree. An **axiom** is the
+theory of that source's perfect form, living in the theory layer. The
+existing instrument-dimension sense keeps its name and is qualified as
+*trait axis* where ambiguity is possible (the D254 bands are
+untouched), and no code identifier takes the bare word for the new
+concept. This resolves the four-way collision AXES-PLAN §1 priced.
+
+**2 · The plan layer joins the tree.** `docs/AXES-PLAN.md` (the frame,
+the custody classes, the genetic and body axes, the doors) and
+`docs/AXES-RUNBOOK.md` (the ordered build list and its lanes) are in
+`docs/ORIENTATION.md`'s map. Nothing in AXES-PLAN's §0 verdicts is
+adopted by this record — items graduate one at a time, as everything
+here always has.
+
+**3 · Axiom Theory is chartered and live.** The orphan branch
+`axiom-theory` carries no product code by construction and `ci.yml`
+never fires on it; eight lanes (genetic · body · questions · tests ·
+map · pattern · graph optimizer · central) each improve a claims graph
+every three hours under the evidence ladder conjecture → argued →
+cited → measured; `CHARTER.md` on that branch is canonical for the
+lanes and `docs/AXIOM-THEORY.md` is the product-side record, trigger
+ids included. Theories may disregard the project's practical
+limitations and may never disregard law, ethics or honesty (charter
+§9: no medical advice, no invented sources, consent and privacy as
+design axioms). **The bridge is the only crossing**: lane REQUESTS →
+central's verdicts → the weekly digest → a person carries
+worth-building items into this repo's governed process. Nothing in the
+app may ever cite a theory doc directly.
+
+**4 · The practical program is live.** Three fresh-session Routines —
+build (weekly), skeptic (the day after), retro (Sundays) — with issue
+#290 as the run log; ids in AXES-RUNBOOK § The account-side inventory.
+The autonomy tiers bind: content lanes keep D212 self-merge; **build
+lanes never merge** (D276 measured what stays green while being wrong,
+and that is the priced reason engineering keeps the human on the
+merge); **no run ever merges a change to any lane's contract, its own
+least of all**; decisions are never a run's — a run drafts Proposed,
+which binds nothing (the D28 lesson, kept).
+
+**5 · Delivery state at adoption, recorded honestly.** The
+fresh-session binding's proof was in flight rather than in hand: the
+axiom genetic lane's first run (the access probe for this platform,
+superseding the farm's 2026-07-30 finding either way) was mid-run when
+this was written. The skeptic's first fire (2026-08-26) is the
+program side's first scheduled evidence; every prompt carries the
+farm-style no-GitHub-tools fallback; a measured failure rebinds the
+lanes per QUESTION-FARM § Governance rather than idling silently.
+
+**Not adopted here:** every open verdict in AXES-PLAN §0, every
+runbook step below Phase 0, the watch custody call (runbook 2.0), the
+D168 carve-out (runbook 3.0), the G2 legal review (runbook 4.0), the
+corner doors (runbook 5.2), and anything the bridge later proposes —
+each is its own record when its day comes.
