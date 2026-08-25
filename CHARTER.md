@@ -167,16 +167,20 @@ Filled by the chartering session; update on any change. Cadence is the
 dial for everything — a struggling or circling lane gets re-paced, not
 re-scoped, first.
 
+Created 2026-08-25 from the chartering session: fresh session per
+fire, model `claude-fable-5`, completion notifications off (the digest
+is the legibility channel), environment `env_013gTXHYYHNaKBiWe8c4gmtd`.
+
 | Lane | Trigger id | Schedule (UTC) |
 | --- | --- | --- |
-| Genetic | — | `2 */3 * * *` |
-| Body | — | `17 */3 * * *` |
-| Questions | — | `32 */3 * * *` |
-| Tests | — | `47 */3 * * *` |
-| Map | — | `2 1-23/3 * * *` |
-| Pattern | — | `17 1-23/3 * * *` |
-| Graph optimizer | — | `32 1-23/3 * * *` |
-| Central | — | `47 1-23/3 * * *` |
+| Genetic | `trig_01FY24wP7QVx6yKtyPySwuCw` | `2 */3 * * *` |
+| Body | `trig_01M13uuj3VWVRfQEapN24oET` | `17 */3 * * *` |
+| Questions | `trig_01UHsDc9ZzLv9neXq3tq91Z2` | `32 */3 * * *` |
+| Tests | `trig_011B7J7eoCCCH5157wFXJPuu` | `47 */3 * * *` |
+| Map | `trig_01MBKTtp3GCAjTrCacyxiJYh` | `2 1-23/3 * * *` |
+| Pattern | `trig_01XoDDuaeE5een4aviG6D4uU` | `17 1-23/3 * * *` |
+| Graph optimizer | `trig_01DmXvzjjQpy394oXjGvz9qk` | `32 1-23/3 * * *` |
+| Central | `trig_01Nv8PzPcsB1sayi5CDNkGCz` | `47 1-23/3 * * *` |
 
 Two hour-groups so at most four lanes share an hour, fifteen minutes
 apart; every lane fires every 3 hours; central sits last in its group
