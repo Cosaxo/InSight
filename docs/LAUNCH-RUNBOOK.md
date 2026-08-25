@@ -1455,6 +1455,59 @@ That is a tester-count problem, not a workflow problem.
       deploy to exist; a missing index fails the call with a console link
       rather than a wrong answer.
 
+- [ ] **5.12 Turn on Cloud Billing export to BigQuery — so the prediction
+      can be diffed against the invoice.** Cloud Console → Billing →
+      **Billing export** → BigQuery export → enable *Standard usage cost*
+      into a dataset in the **EU** (D165's residency argument applies to
+      this as much as to answers).
+
+      **Why this and not a dashboard.** `docs/COSTS.md` opens by saying
+      every figure in it is a prediction, written down with its inputs
+      "so the first real invoice can be diffed against it rather than
+      merely survived". `pulse.mjs` has carried `burnUsd5k`, `burnUsd50k`
+      and `revenueUsd` since it was written — **all three modelled** — and
+      the trail has never held a single actual number. There is nothing to
+      diff against, so the diff has never happened.
+
+      Two consoles already disagree about the same month: Firebase's
+      *Project cost* read **kr10.74** for August 2026 while Cloud Billing's
+      *Services – this month* read **kr6.04** for Aug 1–24. Overlapping but
+      not identical periods, so that is not necessarily a contradiction —
+      it is exactly why one queryable source beats two dashboards somebody
+      has to screenshot.
+
+      **What it unlocks, in order of value:**
+
+      1. **A fixed-cost term the model does not have.** The model is purely
+         DAU-driven and predicts **$0.00 at 50 DAU**. The invoice is
+         non-zero at *zero* DAU, because twelve scheduled functions run
+         nightly and hourly whether or not anyone shows up. That is D67's
+         shape one layer up — counting per-user activity and calling it the
+         bill. Sizing the floor needs the real per-service split.
+      2. **The Authentication tier, permanently.** 5.2 asks whether auth is
+         Firebase Authentication (free forever) or Identity Platform
+         (MAU-priced, ~$6,015/mo at 1.5M MAU). With SKU-level export that
+         stops being a console hunt and becomes a query — and it stays
+         answered, instead of being re-checked by hand whenever somebody
+         wonders.
+      3. **Actual beside predicted in the daily trail**, so a drift shows
+         up as a row rather than as a surprise on a statement.
+
+      **The access shape, which is the part worth getting right.** The
+      export needs no credential handed to anybody: it is a console toggle
+      that writes into your own project. Reading it later needs a service
+      account with `roles/bigquery.dataViewer` **on that dataset only** —
+      a NEW secret, never a widening of `FIREBASE_SERVICE_ACCOUNT`, for the
+      same reason D276 records about the deploy role. Read-only, one
+      dataset, and the `production` environment's approval in front of any
+      workflow that uses it.
+
+      **Not built yet, deliberately.** The collector that reads this is
+      worth writing against the real dataset rather than against an assumed
+      schema — this session has already spent one round on a workflow that
+      parsed as YAML and would not run. Enable the export, let a day of
+      data land, and the pulse extension follows.
+
 - [ ] **5.11 Install the BigQuery mirror WITH the first real users — not
       before, and not after.** Firebase Extensions → *Stream Firestore to
       BigQuery*, on the `answers` collection group, **dataset in the EU** so
