@@ -354,6 +354,35 @@ export const deleteAccount = onCall(
       failed.push("avatarObject");
     }
 
+    // The FOURTH place a reveal names this account, and the only one that
+    // is not keyed by it.
+    //
+    // A pick day's vote snapshots WHO its index meant (D224), so another
+    // member's entry reads `votes.{them}.pickUid = {uid}`. Deleting
+    // `votes.{uid}`, `names.{uid}` and the `members` entry leaves that
+    // one standing — and reveals are `allow read: if request.auth != null`
+    // (firestore.rules, the /reveals/{day} match), so it is a pseudonymous
+    // identifier of a deleted account in a document any signed-in user can
+    // read. That is exactly the survivor the `members` comment below
+    // refuses, one field over.
+    //
+    // Returns the update fields rather than writing, so both scrub phases
+    // fold it into the batch they already have.
+    const pickUidScrub = (
+      snap: { get: (f: string) => unknown },
+    ): Record<string, unknown> => {
+      const votes = snap.get("votes");
+      if (!votes || typeof votes !== "object") return {};
+      const out: Record<string, unknown> = {};
+      for (const [voter, v] of Object.entries(votes as Record<string, unknown>)) {
+        if (voter === uid) continue; // that whole entry is deleted anyway
+        if (v && typeof v === "object" && (v as { pickUid?: unknown }).pickUid === uid) {
+          out[`votes.${voter}.pickUid`] = FieldValue.delete();
+        }
+      }
+      return out;
+    };
+
     // 1c. Leave every v2 group: membership, name, and reveal entries all
     // reference the user — right-to-erasure means none may linger. A
     // group left empty is deleted outright (reveals included).
@@ -456,8 +485,10 @@ export const deleteAccount = onCall(
             const hasVote = r.get(new FieldPath("votes", uid)) !== undefined;
             const hasName = r.get(new FieldPath("names", uid)) !== undefined;
             const inMembers = Array.isArray(r.get("members")) && (r.get("members") as string[]).includes(uid);
-            if (!hasVote && !hasName && !inMembers) continue;
+            const picks = pickUidScrub(r);
+            if (!hasVote && !hasName && !inMembers && !Object.keys(picks).length) continue;
             batch.update(r.ref, {
+              ...picks,
               [`votes.${uid}`]: FieldValue.delete(),
               [`names.${uid}`]: FieldValue.delete(),
               // The membership snapshot the reveal read rule gates on
@@ -547,6 +578,7 @@ export const deleteAccount = onCall(
         let ops = 0;
         for (const r of page.docs) {
           batch.update(r.ref, {
+            ...pickUidScrub(r),
             [`votes.${uid}`]: FieldValue.delete(),
             [`names.${uid}`]: FieldValue.delete(),
             // The membership snapshot the reveal read rule gates on
