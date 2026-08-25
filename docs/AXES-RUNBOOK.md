@@ -89,6 +89,24 @@ trace. Fire-with-appended-text is retired as a diagnostic instrument —
 the appended text demonstrably did not preempt the stored prompt;
 minimal `create_session` probes are the instrument that measured true.
 
+**The permission surface is committed, not per-session (added
+2026-08-25, owner's direction: lanes must never stall on a prompt).**
+`.claude/settings.json` on `main` pre-approves the lanes' working
+toolset — git/npm/node under Bash, file edits, web research, the
+`add_repo`/`register_repo_root` provisioning pair, and the GitHub reads
+plus the PR/issue writes this program's lanes use — so a fired session
+with nobody watching never sits at a permission prompt. Honest basis:
+no run has yet been *observed* stalling on one (PROBE4 pushed with
+none); this is prevention, adopted because a single stall would waste a
+full lane slot. What the file deliberately does **not** pre-approve is
+its own fence: `merge_pull_request` and auto-merge stay off the list
+(the never-merge tier, D289), as do the GitHub API file-write tools
+(git is the landing path — an API write would skip the local gates) and
+trigger/session mutation (the cadence dial stays the owner's, charter
+§11). Nothing is put in `deny`: the farm's D212 self-merge is a
+different program's contract, and this file reaches every session in
+the repo, so it hardens by omission only.
+
 ## The build lane
 
 **The job in one sentence:** advance this runbook by at most one step
