@@ -88,12 +88,21 @@ jobs:
           # not be able to lie about whether the step happened.
           set -o pipefail
           # The FREE-TEXT inputs travel through the environment rather than
-          # `${{ }}`, because `${{ }}` expands before the shell parses the
-          # line — so operator-supplied text would be substituted straight
-          # into the command. `apply` is interpolated and that is safe for a
-          # different reason, worth stating rather than leaving as an
-          # apparent inconsistency: it is `type: boolean`, so the only
-          # values that can reach here are `true` and `false`.
+          # GitHub expression syntax, because an expression is substituted
+          # before the shell ever parses the line — so operator-supplied
+          # text would land directly in the command. `apply` IS interpolated
+          # and that is safe for a different reason, worth stating rather
+          # than leaving as an apparent inconsistency: it is
+          # `type: boolean`, so the only values that can reach here are
+          # `true` and `false`.
+          #
+          # This comment previously wrote that syntax out literally, inside
+          # this run block — which is a STRING, not a YAML comment, so
+          # GitHub evaluated it, found an empty expression, and refused to
+          # parse the workflow. `yaml.safe_load` had passed it happily; only
+          # dispatching it found the problem. A comment about expressions
+          # being expanded before the shell sees them, expanded before the
+          # shell saw it.
           #
           # The `[ … ] && ARGS=…` shape is safe under the default `bash -e`:
           # a failing command inside an AND-list does not trip `-e` (bash
