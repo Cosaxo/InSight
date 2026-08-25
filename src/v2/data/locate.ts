@@ -16,7 +16,7 @@
 // can show and leaves the manual picker exactly as it was.
 import { Capacitor } from "@capacitor/core";
 import { loadPlaces, nearestPlace, placeKey } from "./places";
-import { presenceCell } from "./geo";
+import { PRESENCE_CELL_DEG, presenceCell } from "./geo";
 
 export type LocateFail =
   | "unsupported"   // no geolocation on this platform/browser at all
@@ -24,6 +24,20 @@ export type LocateFail =
   | "unavailable"   // hardware/OS could not produce a fix
   | "timeout"       // took too long — usually indoors, usually transient
   | "no-match";     // a fix, but the catalogue produced nothing (empty file)
+
+/**
+ * `locateCell`'s reasons: every LocateFail, plus the one that belongs to
+ * the cell path alone.
+ *
+ * Split rather than added to LocateFail, because CityPicker renders a
+ * message per reason from a total Record — and a coarse fix is a perfectly
+ * good answer to "which city". Widening the shared union would have made
+ * the picker carry a sentence it can never show, which is the copy this
+ * repo's own rule (COPY.md) exists to keep out.
+ */
+export type LocateCellFail =
+  | LocateFail
+  | "imprecise";    // a fix too coarse to name a ~200 m cell
 
 export type LocateResult =
   | { ok: true; key: string; km: number }
@@ -60,6 +74,25 @@ const OPTS = { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 };
 // tap it, and shorter than "this is broken".
 const DEADLINE_MS = 30000;
 
+/**
+ * The widest a fix may be and still name a Near cell, in metres.
+ *
+ * DERIVED FROM THE GRID rather than typed, so the two cannot drift: one
+ * cell is PRESENCE_CELL_DEG of latitude, and a degree of latitude is
+ * ~111.32 km everywhere. At 0.002° that is ~223 m — the edge of the square
+ * the id claims the phone is inside, which is exactly the resolution the
+ * reading has to have for the claim to mean anything.
+ *
+ * Latitude, not longitude, because longitude shrinks with the cosine of
+ * latitude: at 60°N a cell is ~111 m wide and ~223 m tall. Using the
+ * larger edge is the permissive choice of the two, and the one that keeps
+ * this a floor on nonsense rather than a second accuracy policy.
+ *
+ * The numbers it separates are not close. A GPS fix is 5-50 m; Android's
+ * APPROXIMATE grant is 1-3 km. Nothing real lands near 223.
+ */
+const CELL_M = PRESENCE_CELL_DEG * 111_320;
+
 function withDeadline<T>(work: Promise<T>, ms: number): Promise<T> {
   // The losing promise is not cancellable — the platform gives us no handle
   // — so it is left to settle into nothing. Its rejection is swallowed here
@@ -90,18 +123,38 @@ function classify(err: unknown): LocateFail {
   return "unavailable";
 }
 
-async function getCoords(): Promise<{ lat: number; lon: number }> {
+async function getCoords(): Promise<{ lat: number; lon: number; acc: number | null }> {
   if (Capacitor.isNativePlatform()) {
     const { Geolocation } = await import("@capacitor/geolocation");
     // requestPermissions first rather than letting getCurrentPosition
     // trigger it: this is invoked from an explicit "Use my location" tap,
     // and a prompt that appears without one is the thing users report as
     // creepy even when the data handling is fine.
-    const perm = await Geolocation.requestPermissions({ permissions: ["coarseLocation"] });
-    const state = perm.coarseLocation || perm.location;
+    //
+    // ASK FOR THE ALIAS THE FIX ACTUALLY NEEDS. This said
+    // `["coarseLocation"]` — the pairing D175 left behind when it flipped
+    // `enableHighAccuracy` to true, and the comment on OPTS above states
+    // the rule this line was breaking. On Android 12+ the plugin picks its
+    // alias from the getCurrentPosition call, not from this one
+    // (GeolocationPlugin.kt getAlias): `true` selects LOCATION_ALIAS,
+    // which is annotated [COARSE, FINE], and Capacitor's Bridge reports a
+    // multi-string alias as granted only if EVERY string is
+    // ("multiple permissions with the same alias must all be true,
+    // otherwise all false"). So a granted coarse-only request left
+    // `location` ungranted and the plugin fired a second system dialog
+    // immediately after ours — two prompts for one tap.
+    const perm = await Geolocation.requestPermissions({ permissions: ["location"] });
+    // Either alias is enough to PROCEED, which matches what the plugin
+    // itself does (handlePermissionResult checks COARSE alone). Android
+    // 12+ offers precise/approximate inside the one dialog, and a user who
+    // picks approximate has answered — refusing them a city because the
+    // fine half is missing would be a worse answer than a coarse one.
+    // What must not happen is a ~200 m Near cell minted from that reading,
+    // and `locateCell` is where that is refused.
+    const state = perm.location || perm.coarseLocation;
     if (state !== "granted") throw new Error("permission denied");
     const pos = await Geolocation.getCurrentPosition(OPTS);
-    return { lat: pos.coords.latitude, lon: pos.coords.longitude };
+    return { lat: pos.coords.latitude, lon: pos.coords.longitude, acc: pos.coords.accuracy };
   }
   // Web. navigator.geolocation is absent in insecure contexts and in some
   // embedded webviews, which is a different failure from a refusal.
@@ -110,7 +163,11 @@ async function getCoords(): Promise<{ lat: number; lon: number }> {
   }
   return new Promise((resolve, reject) => {
     navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+      (pos) => resolve({
+        lat: pos.coords.latitude,
+        lon: pos.coords.longitude,
+        acc: typeof pos.coords.accuracy === "number" ? pos.coords.accuracy : null,
+      }),
       reject,
       OPTS,
     );
@@ -154,7 +211,7 @@ export function locateSupported(): boolean {
 
 export type LocateCellResult =
   | { ok: true; cell: string }
-  | { ok: false; reason: LocateFail };
+  | { ok: false; reason: LocateCellFail };
 
 /**
  * Resolve the presence-grid cell (D84), or a reason why not.
@@ -167,13 +224,36 @@ export type LocateCellResult =
  * vocabulary, so the UI reuses the CityPicker's failure copy.
  */
 export async function locateCell(): Promise<LocateCellResult> {
-  let coords: { lat: number; lon: number };
+  let coords: { lat: number; lon: number; acc: number | null };
   try {
     coords = await withDeadline(getCoords(), DEADLINE_MS);
   } catch (err) {
     const msg = String((err as Error)?.message || "");
     if (msg === "unsupported") return { ok: false, reason: "unsupported" };
     return { ok: false, reason: classify(err) };
+  }
+  // A CELL IS ONLY AS REAL AS THE FIX UNDER IT.
+  //
+  // The comment on OPTS calls this out by name — "a finer grid computed
+  // from a kilometre-wide measurement, which is invented precision" — and
+  // nothing enforced it. Android 12+ lets a user grant APPROXIMATE inside
+  // the same dialog that asks for precise, and the plugin proceeds on that
+  // (handlePermissionResult checks the coarse alias alone). The reading
+  // that comes back is 1-3 km wide; folding it through `presenceCell`
+  // produces a confident ~200 m id for a neighbourhood the phone may not
+  // be standing in, and the room it then joins is a claim about strangers'
+  // whereabouts as much as the viewer's own.
+  //
+  // Refused rather than widened: a coarser Near grid is D9's ~1 km cell,
+  // which D175 replaced deliberately, and re-deriving it per device would
+  // make the same id mean different things on different phones.
+  //
+  // `locateCity` does NOT carry this guard and must not — a catalogue
+  // containment is exactly the question a coarse fix can answer, and the
+  // nearest city to a 2 km-wide reading is very nearly always the right
+  // one. This is the one caller whose output is finer than that.
+  if (coords.acc !== null && coords.acc > CELL_M) {
+    return { ok: false, reason: "imprecise" };
   }
   const cell = presenceCell(coords.lat, coords.lon);
   if (!cell) return { ok: false, reason: "unavailable" };

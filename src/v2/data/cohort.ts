@@ -114,6 +114,17 @@ export function countsSpan(counts: Record<string, number> | undefined): number {
   return max + 1;
 }
 
+/**
+ * The eviction tail's key, mirrored from functions/src/pure.ts.
+ *
+ * Two copies of one string, held equal by cohort.test.ts reading the
+ * server's source — the same arrangement QIDS_CAP has. It cannot be
+ * imported: functions/ is a separate build with its own tsconfig, and
+ * pulling a server module into the client bundle to share four characters
+ * would be the worse trade.
+ */
+export const BUCKET_REST = "~rest";
+
 /** Dense per-option counts for one (dim, bucket), or null if the cell is absent. */
 export function cellFor(
   by: ByMap | undefined,
@@ -159,6 +170,17 @@ export function mixFor(
   const buckets = by?.[dim];
   if (!buckets) return [];
   return Object.keys(buckets)
+    // The eviction tail is not a bucket (D292). When a dimension overflows
+    // BREAKDOWN_MAX_BUCKETS the fold carries the evicted answers into
+    // `~rest` rather than dropping them, so the dimension still sums to
+    // its population — but "everyone else" is not a city anybody lives in
+    // or a band anybody is in, and offering it as a slice would invite a
+    // reader to compare themselves against it. It counts; it is not a row.
+    //
+    // Here rather than at each call site because this is the one place a
+    // dimension's buckets are enumerated: divergence, foresight,
+    // LiveBreakdownPanel and LiveMirrorLenses all list them through this.
+    .filter((bucket) => bucket !== BUCKET_REST)
     .map((bucket) => {
       const counts = cellFor(by, dim, bucket, optionCount) || [];
       return { bucket, counts, n: counts.reduce((a, b) => a + b, 0) };

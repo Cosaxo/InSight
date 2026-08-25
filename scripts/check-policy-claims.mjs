@@ -87,8 +87,29 @@ export const CLAIMS = [
     /coordinates are not sent to us, not stored/i],
   ["D175 · the presence square's SIZE tracks the grid (~200 m, not km)",
     /~200-metre grid square/i],
+  // The two ABSENCE claims below carry a third element: a sample of the
+  // wording they forbid. It is what check-policy-claims.test.mjs puts back
+  // to prove each one fails closed — with one such claim the test could
+  // hardcode the string, and with two it cannot, because injecting one
+  // trips the other's row instead of the one under test.
   ["D175 · the retired kilometre claim is gone",
-    (src) => !/kilometre-sized/i.test(src)],
+    (src) => !/kilometre-sized/i.test(src),
+    "kilometre-sized"],
+  // …and the other half of the same reversal, which this file did not
+  // have a row for and so kept saying the pre-D175 thing for months. D175
+  // flipped `enableHighAccuracy` to true; the page went on describing "a
+  // single APPROXIMATE location reading" and "an approximate location",
+  // which under-declares what the app asks the OS for — the one direction
+  // a privacy page must never be wrong in. The `kilometre-sized` row above
+  // caught the size claim and nothing watched the accuracy claim beside
+  // it.
+  //
+  // Written as an ABSENCE, like its neighbour: the honest wording can be
+  // phrased several ways, but the retired word is one word, and "we ask
+  // for an approximate reading" is false however it is spelled.
+  ["D175 · the reading is described as precise, not approximate",
+    (src) => !/approximate location/i.test(src),
+    "approximate location"],
   ["D84 · no user can read your presence square",
     /No other user can ever read your square/i],
   ["D177 · the people in your square see your name, type and answers",

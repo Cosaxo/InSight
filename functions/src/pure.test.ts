@@ -22,6 +22,7 @@ import {
   breakdownBucket,
   foldAnchors,
   BREAKDOWN_MAX_BUCKETS,
+  BUCKET_REST,
   catalogEntityKey,
   buildModQueueFrom,
   tallyFirstFlagInto,
@@ -514,17 +515,24 @@ describe("per-anchor breakdowns", () => {
     for (let i = 0; i < BREAKDOWN_MAX_BUCKETS + 10; i++) {
       foldAnchors(by, { city: `City${i}, NO` }, 0);
     }
-    expect(Object.keys(by.city)).toHaveLength(BREAKDOWN_MAX_BUCKETS);
+    // SLOTS, not keys: the eviction tail (~rest) occupies no slot and is
+    // never evicted, so a dimension that has overflowed holds one more map
+    // key than it holds buckets. D292.
+    const slots = (d: Record<string, unknown>) =>
+      Object.keys(d).filter((k) => k !== BUCKET_REST);
+    expect(slots(by.city)).toHaveLength(BREAKDOWN_MAX_BUCKETS);
     // A bucket still IN the map keeps incrementing — the cap gates entry,
     // not counting. (City0 is gone by now: 34 arrivals into 24 slots, and
     // among all-equal buckets eviction is oldest-first.)
-    const survivor = Object.keys(by.city)[0];
+    const survivor = slots(by.city)[0];
     foldAnchors(by, { city: survivor }, 0);
     expect(by.city[survivor]["0"]).toBe(2);
     // …and the document cannot grow past the cap however many arrive. This
     // is the D7 growth bound, and eviction must not have loosened it.
     for (let i = 100; i < 140; i++) foldAnchors(by, { city: `City${i}, NO` }, 0);
-    expect(Object.keys(by.city).length).toBeLessThanOrEqual(BREAKDOWN_MAX_BUCKETS);
+    expect(slots(by.city).length).toBeLessThanOrEqual(BREAKDOWN_MAX_BUCKETS);
+    // …and the whole map is still bounded — one key more, not unbounded.
+    expect(Object.keys(by.city).length).toBeLessThanOrEqual(BREAKDOWN_MAX_BUCKETS + 1);
   });
 
   it("a closed vocabulary cannot reach the cap at all", () => {
@@ -572,7 +580,58 @@ describe("per-anchor breakdowns", () => {
     for (let i = 0; i < 200; i++) foldAnchors(by, { city: `More${i}, NO` }, 0);
     expect(by.city["Oslo, NO"], "a published bucket was evicted").toEqual({ "1": FLOOR });
     expect(by.city["Bergen, NO"], "a published bucket was evicted").toEqual({ "0": FLOOR });
-    expect(Object.keys(by.city).length).toBeLessThanOrEqual(BREAKDOWN_MAX_BUCKETS);
+    expect(Object.keys(by.city).filter((k) => k !== BUCKET_REST).length)
+      .toBeLessThanOrEqual(BREAKDOWN_MAX_BUCKETS);
+  });
+
+  // D292. "Nothing published can be taken away" stood above the eviction
+  // threshold and was true only under the k-floor: an evictable bucket sat
+  // below AGG_MIN_N, so nobody had seen it. D98 deleted the floor and left
+  // the sentence, and eviction went on DELETING counts every client had
+  // already rendered — and the answers with them.
+  it("carries an evicted bucket's answers into the tail instead of deleting them", () => {
+    const by: Record<string, Record<string, Record<string, number>>> = {};
+    // Overflow the dimension with one-answer cities, alternating options so
+    // the tail's own split is checkable rather than degenerate.
+    const n = BREAKDOWN_MAX_BUCKETS + 10;
+    for (let i = 0; i < n; i++) foldAnchors(by, { city: `City${i}, NO` }, i % 2);
+
+    const sum = (d: Record<string, Record<string, number>>) =>
+      Object.values(d).reduce(
+        (t, cell) => t + Object.values(cell).reduce((a, b) => a + b, 0), 0,
+      );
+    // THE INVARIANT: the dimension still accounts for every anchored
+    // answer. Before this, ten of them were simply gone — measured at
+    // 17.5% coverage on a flat 2,000-answer city distribution.
+    expect(sum(by.city), "the dimension stopped summing to its population").toBe(n);
+    // …and the ten that lost their name are in the tail, per option.
+    expect(by.city[BUCKET_REST]).toBeDefined();
+    expect(Object.values(by.city[BUCKET_REST]).reduce((a, b) => a + b, 0)).toBe(10);
+  });
+
+  it("never evicts the tail, and never spends a slot on it", () => {
+    const by: Record<string, Record<string, Record<string, number>>> = {};
+    for (let i = 0; i < BREAKDOWN_MAX_BUCKETS + 50; i++) {
+      foldAnchors(by, { city: `City${i}, NO` }, 0);
+    }
+    const restBefore = { ...by.city[BUCKET_REST] };
+    // The tail is large by now, so a rule that could evict it would not,
+    // on size. Drive it below the threshold instead — the only way to ask
+    // the question properly.
+    by.city[BUCKET_REST] = { "0": 1 };
+    for (let i = 500; i < 540; i++) foldAnchors(by, { city: `Late${i}, NO` }, 0);
+    expect(by.city[BUCKET_REST], "the tail was evicted").toBeDefined();
+    expect(Object.keys(by.city).filter((k) => k !== BUCKET_REST))
+      .toHaveLength(BREAKDOWN_MAX_BUCKETS);
+    expect(Object.keys(restBefore).length).toBeGreaterThan(0);
+  });
+
+  it("keeps the tail out of a real anchor's reach", () => {
+    // The key is reservable only because breakdownBucket rejects `~`
+    // outright — that is what stops a client minting or poisoning it.
+    expect(BUCKET_REST.startsWith("~")).toBe(true);
+    expect(breakdownBucket(BUCKET_REST)).toBeNull();
+    expect(breakdownBucket("~rest", "city")).toBeNull();
   });
 
   it("refuses a new bucket outright once every slot is publishable", () => {

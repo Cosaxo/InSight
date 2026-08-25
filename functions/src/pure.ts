@@ -731,7 +731,30 @@ export function breakdownBucket(value: unknown, dim?: BreakdownDim): string | nu
 // What it costs is the long tail, which is where the cap was already
 // documented to degrade. What it buys is that recurrence wins: a value that
 // comes back grows past the churn and, at the floor, stops being evictable at
-// all. Nothing published can be taken away.
+// all.
+//
+// "NOTHING PUBLISHED CAN BE TAKEN AWAY" STOOD HERE AND WAS FALSE (D292).
+// It was true under the k-floor: an evictable bucket sat below AGG_MIN_N,
+// so by construction no reader had ever seen it. D98 deleted the floor —
+// every cell of `by` publishes exactly, from the first answer — and the
+// sentence was left standing. D98's own record re-derived this threshold's
+// PURPOSE ("a document-growth bound with nothing to do with who may see
+// what") and not this clause.
+//
+// So eviction had been retracting counts clients had already rendered, and
+// the counts simply vanished. Measured over Zipf-distributed city streams
+// through the real fold: on 2,000 answers across 200 cities, 181 already-
+// published answers were dropped and the dimension ended up describing
+// 350 of 2,000 — 17.5% — while `total` said 2,000. A reader in a small
+// city watched their cohort go from 4 to absent, and Σ by[dim][*] drifted
+// silently away from the population it claimed to break down.
+//
+// The eviction is COUNT-PRESERVING now: the victim's per-option counts are
+// added to a reserved tail bucket rather than deleted. The document stays
+// bounded, the dimension sums to its population again, and what a reader
+// loses is the NAME of a small bucket rather than the answers in it —
+// which is the honest form of a cap. The individual bucket still goes, and
+// nothing can prevent that: 200 cities do not fit in 24 slots.
 // The eviction threshold — a bucket holding FEWER than this many answers
 // may be dropped to make room for a new one; at or above it, nothing
 // published is ever taken away.
@@ -749,10 +772,33 @@ export function breakdownBucket(value: unknown, dim?: BreakdownDim): string | nu
 // junk. It has nothing to do with who may see what.
 export const BUCKET_EVICT_BELOW = 5;
 
+/**
+ * Where an evicted bucket's answers go, so the dimension keeps summing to
+ * its population.
+ *
+ * RESERVED BY CONSTRUCTION, not by convention: `breakdownBucket` above
+ * rejects any value containing `~`, so no anchor a client can write — not
+ * a city name, not a free-text vocabulary value — can ever land on this
+ * key or collide with it. That is what makes a sentinel safe here where a
+ * plain word like "other" would not be; `education` already has a literal
+ * "Other" in its vocabulary.
+ *
+ * It is a TAIL, not a bucket: `mixFor` (data/cohort.ts) drops it from the
+ * list of buckets, because "everyone else" is not a place anybody is
+ * standing in and not a band anybody is in. It counts, and it is not
+ * offered as a slice.
+ */
+export const BUCKET_REST = "~rest";
+
 function evictForNewBucket(
   byDim: Record<string, Record<string, number>>,
 ): boolean {
-  const keys = Object.keys(byDim);
+  // The tail occupies no slot and is never a victim. That makes the
+  // document's real ceiling BREAKDOWN_MAX_BUCKETS + 1 keys per dimension —
+  // one more map key, deliberately, against a bound that exists for
+  // document growth. The alternative is spending a scarce slot on the
+  // thing that exists to stop the others being lost.
+  const keys = Object.keys(byDim).filter((k) => k !== BUCKET_REST);
   if (keys.length < BREAKDOWN_MAX_BUCKETS) return true;
   let victim: string | null = null;
   let victimTotal: number = BUCKET_EVICT_BELOW;
@@ -764,6 +810,12 @@ function evictForNewBucket(
     }
   }
   if (victim === null) return false;
+  // Carried, not discarded — see the note above the threshold. Per option,
+  // so the tail's own split stays as true as every other bucket's.
+  const rest = byDim[BUCKET_REST] || (byDim[BUCKET_REST] = {});
+  for (const [opt, n] of Object.entries(byDim[victim])) {
+    rest[opt] = (rest[opt] || 0) + n;
+  }
   delete byDim[victim];
   return true;
 }

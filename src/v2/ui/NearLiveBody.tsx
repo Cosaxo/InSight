@@ -260,6 +260,12 @@ function NearPresence() {
     unavailable: "No location fix — try again outside.",
     timeout: "Took too long — indoors it often does.",
     unsupported: "This device can't share a location.",
+    // Its own sentence, because the fallback below would have said "no
+    // location fix" to somebody who got one. Android 12+ offers Precise
+    // and Approximate in the same dialog, and Approximate is a reading
+    // kilometres wide — Near's cell is ~200 m, so it is refused rather
+    // than invented (locate.ts, CELL_M).
+    imprecise: "Near needs precise location, not approximate.",
   };
 
   async function turnOn() {

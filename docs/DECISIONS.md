@@ -29501,3 +29501,108 @@ in `app-shell.jsx`, each caught where each used to pass.
 
 This gate stands on the release path, whose comment justifies it because
 "the privacy panel is COMPILED INTO THIS BINARY". So is every other panel.
+
+## D292 · Asking for the wrong permission, and an eviction that deleted the answers
+
+**2026-08-25.** **Status:** binding. Two more from the audit. The first was
+found by the gap sweep and had never been through verification, so every
+claim in it was re-established here against the plugin source that actually
+compiles.
+
+### F11 · The pre-request asked for coarse; the fix asked for precise
+
+`locate.ts` pre-requests permission before calling `getCurrentPosition`,
+deliberately — the tap is explicit and a prompt without one reads as
+creepy. It asked for `["coarseLocation"]` while `OPTS` carries
+`enableHighAccuracy: true`, and **the comment on OPTS states the rule that
+line was breaking**: D175 flipped the flag and left the pre-request behind.
+
+Verified against `node_modules/@capacitor/geolocation` rather than taken on
+description:
+
+- `getAlias` (GeolocationPlugin.kt:185) returns `LOCATION_ALIAS` when
+  `enableHighAccuracy` is true on SDK ≥ S — the alias is chosen by the FIX,
+  not by the pre-request.
+- `LOCATION_ALIAS` is annotated `[ACCESS_COARSE_LOCATION,
+  ACCESS_FINE_LOCATION]` (kt:26-31).
+- Capacitor's Bridge grants a multi-string alias only if every string is
+  granted — "multiple permissions with the same alias must all be true,
+  otherwise all false" (Bridge.java:1250).
+- `handlePermissionRequest` (kt:119-124) therefore fires a SECOND system
+  dialog immediately after ours, and `handlePermissionResult` (kt:150-156)
+  checks the COARSE alias alone, so declining that second dialog still
+  returns an approximate fix.
+
+Two prompts for one tap, and then a 1–3 km reading folded through a 223 m
+grid — which the same OPTS comment calls "invented precision" by name.
+
+**Both halves fixed.** The pre-request asks for `location`; either alias
+still permits the call to PROCEED, matching what the plugin itself does,
+because a user who picks Approximate inside Android 12+'s one dialog has
+answered and refusing them a city would be a worse answer than a coarse
+one. What must not happen is a presence cell minted from that reading, so
+`locateCell` now refuses a fix wider than the cell it would name —
+`CELL_M`, derived from `PRESENCE_CELL_DEG` so the floor cannot drift from
+the grid. `imprecise` is its own reason and its own sentence in the Near
+card, because the fallback would otherwise have said "no location fix" to
+somebody holding one.
+
+`imprecise` is deliberately NOT in `LocateFail`: `locateCity` carries no
+such guard and must not — "which city" is exactly the question a 2 km
+reading answers — and widening the shared union would have made CityPicker
+render a sentence it can never show. The split is enforced by the type,
+which is why `locate.test.ts` cannot even write the comparison.
+
+**`check:ios-location` gains rule 6.** Rules 1–5 read Info.plist,
+AndroidManifest.xml and the iOS plugin's Swift, and all five were green
+throughout. Rule 3 exists for precisely this subject — "Near's grid cell
+would then be a different size per platform" — and compares two
+DECLARATIONS. Rule 6 compares the two lines that run, and fails in both
+directions: a precise fix asked for with a coarse alias, and a coarse fix
+asked for with the fine one.
+
+And the page: `web/privacy.html` still described "a single **approximate**
+location reading", the pre-D175 wording, which under-declares what the app
+asks the OS for — the one direction a privacy page must never be wrong in.
+The `kilometre-sized` row caught the size claim and nothing watched the
+accuracy claim beside it; there is a row for it now. Adding a second
+absence-shaped claim broke that gate's own test, which had hardcoded one
+retired phrase — each absence claim declares its own now, and the test
+found this itself.
+
+### F13 · "Nothing published can be taken away" outlived the floor that made it true
+
+`evictForNewBucket` drops the smallest bucket in a full dimension, and the
+justification above it rested on the k-floor: an evictable bucket sat below
+`AGG_MIN_N`, so by construction no reader had seen it. D98 deleted the
+floor. D98's own record re-derived this threshold's PURPOSE — "a
+document-growth bound with nothing to do with who may see what" — and left
+the disclosure clause standing.
+
+So eviction had been deleting counts clients had already rendered, and the
+answers with them. Measured through the real fold over Zipf-distributed
+city streams: on 2,000 answers across 200 cities, **181 already-published
+answers dropped** and the dimension ended up describing **350 of 2,000 —
+17.5%** — while `total` said 2,000. Σ by[dim][*] drifted silently away from
+the population it claimed to break down.
+
+**Count-preserving now.** An evicted bucket's per-option counts are carried
+into a reserved tail, `BUCKET_REST` (`~rest`), which occupies no slot and
+is never a victim. The document's ceiling becomes
+`BREAKDOWN_MAX_BUCKETS + 1` keys — one more map key, deliberately, rather
+than spending a scarce slot on the thing that exists to stop the others
+being lost.
+
+The key is reservable **by construction, not by convention**:
+`breakdownBucket` already rejects any value containing `~`, so no anchor a
+client can write can land on it or poison it. A plain word would not have
+been safe — `education` has a literal "Other" in its vocabulary.
+
+What a reader loses is the NAME of a small bucket rather than the answers
+in it, which is the honest form of a cap. The individual bucket still goes
+and nothing can prevent that: 200 cities do not fit in 24 slots. `mixFor`
+drops the tail from the bucket list — it counts, and it is not offered as a
+slice, because "everyone else" is not a city anybody lives in and inviting
+a reader to compare themselves against it would be a new wrong answer.
+`mixFor` is the single chokepoint: divergence, foresight,
+LiveBreakdownPanel and LiveMirrorLenses all enumerate through it.

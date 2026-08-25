@@ -248,6 +248,76 @@ if (!requested.length) {
   }
 }
 
+// ── rule 6: the RUNTIME request matches the fix it asks for ──────────
+//
+// Rules 1-5 read Info.plist, AndroidManifest.xml and the iOS plugin's
+// Swift. All five were green while the app asked Android for the wrong
+// thing, because none of them reads the one file that does the asking.
+//
+// D175 flipped `enableHighAccuracy` to true and left the pre-request at
+// `["coarseLocation"]`. On Android 12+ the plugin picks its permission
+// alias from the getCurrentPosition call, not from the pre-request
+// (GeolocationPlugin.kt getAlias): `true` selects LOCATION_ALIAS, which is
+// annotated [COARSE, FINE], and Capacitor's Bridge grants a multi-string
+// alias only if EVERY string is granted. So the app's own coarse-only
+// request could not satisfy it and the plugin fired a SECOND system dialog
+// immediately after the first — and if the user declined that one,
+// `handlePermissionResult` checks the coarse alias alone and proceeded
+// with an approximate reading anyway.
+//
+// This is rule 3's own subject one layer down: that rule exists because
+// "Near's grid cell would then be a different size per platform, and every
+// distance the UI states would be true on one of them". It compared two
+// DECLARATIONS. This compares the two lines that actually run.
+{
+  const LOCATE = "src/v2/data/locate.ts";
+  let src = "";
+  try {
+    src = readFileSync(join(root, LOCATE), "utf8");
+  } catch {
+    problems.push(`${LOCATE} is missing — this rule cannot compare a request it cannot read.`);
+  }
+  if (src) {
+    const high = /enableHighAccuracy:\s*(true|false)/.exec(src);
+    const asked = /requestPermissions\(\s*\{\s*permissions:\s*\[([^\]]*)\]/.exec(src);
+    if (!high) {
+      problems.push(`${LOCATE}: no enableHighAccuracy — the shape this rule compares has changed.`);
+    } else if (!asked) {
+      problems.push(`${LOCATE}: no requestPermissions({ permissions: [...] }) — same.`);
+    } else {
+      const precise = high[1] === "true";
+      const aliases = asked[1].split(",").map((a) => a.trim().replace(/^["']|["']$/g, "")).filter(Boolean);
+      const wantsCoarseOnly = aliases.length === 1 && aliases[0] === "coarseLocation";
+      const wantsLocation = aliases.includes("location");
+      if (precise && !wantsLocation) {
+        problems.push(
+          `${LOCATE}: asks the OS for [${aliases.join(", ")}] but requests a PRECISE fix\n` +
+            "    (enableHighAccuracy: true). On Android 12+ the plugin resolves the\n" +
+            "    alias from the fix, not from this call, so a coarse-only request\n" +
+            "    cannot satisfy it and the user gets a second system dialog — then an\n" +
+            "    approximate reading if they decline it. Ask for \"location\".",
+        );
+      }
+      if (!precise && wantsLocation) {
+        problems.push(
+          `${LOCATE}: asks for the [COARSE, FINE] alias but requests a COARSE fix.\n` +
+            "    That prompts for a precision the app then declines to use, which is\n" +
+            "    the same mismatch in the direction that over-asks.",
+        );
+      }
+      if (!precise && wantsCoarseOnly) {
+        // Coherent, but it is D9's ~1 km grid, and Near's cell is ~200 m.
+        problems.push(
+          `${LOCATE}: coarse fix requested. That is self-consistent, but D175 made\n` +
+            "    the fix precise because a ~200 m presence cell computed from a\n" +
+            "    kilometre-wide reading is invented precision. Revisit D175 before\n" +
+            "    relaxing this.",
+        );
+      }
+    }
+  }
+}
+
 if (problems.length) {
   console.error("check:ios-location failed:\n");
   for (const p of problems) console.error(`  - ${p}\n`);

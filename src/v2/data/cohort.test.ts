@@ -4,9 +4,10 @@
 // which is why these cases assert the ORDERING and the edges rather than
 // only the happy path.
 
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
-  agreement, agreementOf, byOf, cellFor, countsSpan, denseCounts, divergence, divergenceFor, divisiveness, headlineFor,
+  agreement, agreementOf, BUCKET_REST, byOf, cellFor, countsSpan, denseCounts, divergence, divergenceFor, divisiveness, headlineFor,
   likenessRate, MAP_ANCHOR_DIM, meanScore, mixFor, pctFor, sliceSplit, standingIn, typicality,
 } from "./cohort";
 
@@ -109,6 +110,50 @@ describe("denseCounts / countsSpan — reading a sparse map", () => {
     // The map is JSON off the wire; a non-numeric or negative key must not
     // become a vector length.
     expect(countsSpan({ "0": 1, total: 99, "-1": 5, "1.5": 2 })).toBe(1);
+  });
+});
+
+// D292. The server's eviction now carries an overflowing dimension's
+// evicted answers into a reserved `~rest` key instead of deleting them, so
+// the dimension sums to its population again. It counts, and it is not a
+// slice: "everyone else" is not a city anybody lives in.
+describe("the eviction tail is counted, not offered", () => {
+  const WITH_REST = {
+    city: {
+      "Oslo, NO": { "0": 9, "1": 5 },
+      "Bergen, NO": { "0": 3, "1": 7 },
+      "~rest": { "0": 40, "1": 60 },
+    },
+  };
+
+  it("keeps the tail out of the bucket list", () => {
+    const mix = mixFor(WITH_REST, "city", 2);
+    expect(mix.map((m) => m.bucket)).toEqual(["Oslo, NO", "Bergen, NO"]);
+    // …and it is by far the biggest, so it is not absent by accident of
+    // the size sort.
+    expect(mix.every((m) => m.n < 100)).toBe(true);
+  });
+
+  it("keeps it out of divergence, which lists buckets through mixFor", () => {
+    // A reader cannot be told they diverge from "everyone else" — the one
+    // slice that is not a group anybody belongs to.
+    const d = divergence(WITH_REST, "city", [52, 72], 2);
+    expect(d.map((x) => x.bucket)).not.toContain("~rest");
+  });
+
+  it("still reads it by name, because the fold that wrote it must be checkable", () => {
+    expect(cellFor(WITH_REST, "city", "~rest", 2)).toEqual([40, 60]);
+  });
+
+  it("is the same string the server writes", () => {
+    // Two copies of one key, in two builds that cannot import each other.
+    // Held equal by reading the server's source, the QIDS_CAP arrangement.
+    const src = readFileSync(
+      new URL("../../../functions/src/pure.ts", import.meta.url), "utf8",
+    );
+    const m = /export const BUCKET_REST = "([^"]+)"/.exec(src);
+    expect(m, "BUCKET_REST not found in functions/src/pure.ts").not.toBeNull();
+    expect(BUCKET_REST).toBe(m![1]);
   });
 });
 

@@ -31,13 +31,23 @@ describe("check-policy-claims", () => {
   // The real property. Each claim is deleted from a COPY of the page in
   // turn, and the checker has to notice exactly that one — which also
   // proves no two patterns are secretly the same pattern.
-  it.each(CLAIMS.map(([label, test]) => [label, test]))(
-    "notices when %s is cut out", (label, test) => {
+  it.each(CLAIMS.map(([label, test, retired]) => [label, test, retired]))(
+    "notices when %s is cut out", (label, test, retired) => {
       // Two shapes of claim: a regex whose match is the sentence (cut the
       // match), and a predicate asserting an ABSENCE (put the retired
       // wording back). Both have to fail closed.
+      //
+      // The retired wording comes from the claim itself rather than from a
+      // literal here. It was `"kilometre-sized"` hardcoded, which worked
+      // while exactly one claim was absence-shaped and broke the moment a
+      // second arrived: injecting one claim's forbidden phrase trips the
+      // OTHER claim's row, so the case failed on the one it was testing.
+      if (typeof test === "function") {
+        expect(retired, `absence claim "${label}" declares no retired wording`)
+          .toBeTypeOf("string");
+      }
       const broken = typeof test === "function"
-        ? page + "\n<p>kilometre-sized</p>\n"
+        ? page + `\n<p>${retired}</p>\n`
         : page.replace(test, "");
       expect(broken, `deleting "${label}" changed nothing — the pattern matches no text`)
         .not.toBe(page);
