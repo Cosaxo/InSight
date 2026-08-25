@@ -27591,6 +27591,26 @@ their own documents. And the rollup is cheap *here specifically* because
 D129 already moved clients from streaming to a 60-second poll — the
 staleness a rollup would normally cost has been spent already.
 
+**The precondition on sharding is the alerts, not the user count.** This
+was recorded as "premature", which is weak and not really an argument.
+The real one: **sharding trades a loud failure for a quiet one.** Today a
+broken fold stops the daily card moving and a human sees it. Under
+sharding, a broken ROLLUP leaves the shards accumulating perfectly and
+freezes the published document — the data stays correct, the display goes
+stale, and nothing says so.
+
+That is the failure mode this repository has been bitten by more than any
+other: D165's trigger binding (deploy green, functions healthy, nothing
+aggregating), D200, D258, and the four `-silent.json` policies that exist
+because a cron which stops running reports nothing. Sharding adds one more
+of those, and its detector sits in the eight policies
+`npm run monitoring:apply` has not yet applied (D276).
+
+So the gate is checkable and available today rather than contingent on
+traffic: **arm the alerts, then shard.** Shipping it before that is
+knowingly making the system harder to operate in exchange for headroom
+nothing is consuming.
+
 ### What was refused
 
 - **Migrating to Supabase/Postgres.** It is the better fit for the read

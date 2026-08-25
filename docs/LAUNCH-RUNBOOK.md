@@ -1451,6 +1451,34 @@ That is a tester-count problem, not a workflow problem.
       deploy to exist; a missing index fails the call with a console link
       rather than a wrong answer.
 
+- [ ] **5.11 Install the BigQuery mirror WITH the first real users — not
+      before, and not after.** Firebase Extensions → *Stream Firestore to
+      BigQuery*, on the `answers` collection group, **dataset in the EU** so
+      it agrees with D165's residency argument. Nothing in the app changes;
+      no rules change; no read path moves.
+
+      **Why the timing is the whole step.** The extension streams from the
+      moment it is installed. Install it late and you are running
+      `fs-bq-import-collection` to catch up, and rows belonging to accounts
+      deleted in the interim never arrive at all — right-to-erasure wins
+      over analytics, correctly, but it means the gap does not heal.
+      `answers` is append-only, so a late import recovers most of it; this
+      is a mild cost, not the sharp one D275's collapse carried. It is
+      still a cost, and it is paid in the weeks whose data is most worth
+      having: the first ones.
+
+      Installing it EARLY is equally pointless — there is nothing to mirror
+      at `answersCounted: 0`, and an extension streaming an empty
+      collection is a monthly line item and a thing to forget about.
+
+      **What it buys:** SQL over the archive without touching the app. It is
+      what answers "which questions bore people" and the rest of
+      `ENGAGEMENT-PLAN.md`'s rungs 1–2 without building either, and it is
+      the honest first move if the Postgres question ever reopens (D275
+      layer 4). If you find yourself writing the same query weekly and
+      wishing the app served it live, that is the migration signal — and by
+      then there is data worth migrating.
+
 ## Phase 6 — Submit
 
 - [ ] **6.1 Pre-flight, before every archive and every upload:**

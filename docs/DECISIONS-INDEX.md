@@ -3,7 +3,7 @@
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
 "which decision governs this" is 282 lines instead of
-27,876. Do not hand-edit; `npm run check:docs` fails when this
+27,896. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -182,7 +182,7 @@ detect it.
 | **D162** | [Review at volume: the AI reads, and the human approves and audits](DECISIONS.md#d162--review-at-volume-the-ai-reads-and-the-human-approves-and-audits) | D271 (+3) | 16059 |
 | **D163** | [The app learns what you are into, and the model never leaves the phone](DECISIONS.md#d163--the-app-learns-what-you-are-into-and-the-model-never-leaves-the-phone) | D271 (+4) | 16112 |
 | **D164** | [The revenue paths, re-derived against an unbounded feed](DECISIONS.md#d164--the-revenue-paths-re-derived-against-an-unbounded-feed) | D227 (+1) | 16168 |
-| **D165** | [The database moves to one EU region, and the old answers are let go](DECISIONS.md#d165--the-database-moves-to-one-eu-region-and-the-old-answers-are-let-go) | D265 (+4) | 16246 |
+| **D165** | [The database moves to one EU region, and the old answers are let go](DECISIONS.md#d165--the-database-moves-to-one-eu-region-and-the-old-answers-are-let-go) | D275 (+5) | 16246 |
 | **D166** | [The third tab is adopted ON TRIAL, the Arena is dropped, the pulse roster is approved](DECISIONS.md#d166--the-third-tab-is-adopted-on-trial-the-arena-is-dropped-the-pulse-roster-is-approved) | D275 (+12) | 16336 |
 | **D167** | [Every v28 surface ships with its backend, or it does not ship](DECISIONS.md#d167--every-v28-surface-ships-with-its-backend-or-it-does-not-ship) | D214 (+5) | 16446 |
 | **D168** | [Born or built is refused: the app does not assert facts it cannot recompute](DECISIONS.md#d168--born-or-built-is-refused-the-app-does-not-assert-facts-it-cannot-recompute) | D180 | 16533 |
@@ -217,7 +217,7 @@ detect it.
 | **D197** | [The feed gets real ads, and they are not sponsored questions](DECISIONS.md#d197--the-feed-gets-real-ads-and-they-are-not-sponsored-questions) | D228 (+2) | 20254 |
 | **D198** | [Build 21's pre-flight: the number run 31 spent, and the bundle gate's artifact claim](DECISIONS.md#d198--build-21s-pre-flight-the-number-run-31-spent-and-the-bundle-gates-artifact-claim) | D274 (+3) | 20403 |
 | **D199** | [Build 21 is in TestFlight, and the number moved with it](DECISIONS.md#d199--build-21-is-in-testflight-and-the-number-moved-with-it) | D202 (+1) | 20599 |
-| **D200** | [Three things were true and stopped being, and nothing was looking](DECISIONS.md#d200--three-things-were-true-and-stopped-being-and-nothing-was-looking) | D223 (+2) | 20681 |
+| **D200** | [Three things were true and stopped being, and nothing was looking](DECISIONS.md#d200--three-things-were-true-and-stopped-being-and-nothing-was-looking) | D275 (+3) | 20681 |
 | **D201** | [The functions follow the database to europe-west1](DECISIONS.md#d201--the-functions-follow-the-database-to-europe-west1) | — | 20830 |
 | **D202** | [The type mix reads every instrument, and D157 §4 is reversed](DECISIONS.md#d202--the-type-mix-reads-every-instrument-and-d157-4-is-reversed) | D252 (+3) | 20955 |
 | **D203** | [Five pulses, each with its own rhythm](DECISIONS.md#d203--five-pulses-each-with-its-own-rhythm) | D273 (+3) | 21057 |
@@ -276,7 +276,7 @@ detect it.
 | **D255** | [Both doors at once: accepting an invitation clears the ask](DECISIONS.md#d255--both-doors-at-once-accepting-an-invitation-clears-the-ask) | D265 (+1) | 25710 |
 | **D256** | [The surface claim is an equality, and was the same test twice](DECISIONS.md#d256--the-surface-claim-is-an-equality-and-was-the-same-test-twice) | — | 25775 |
 | **D257** | [The inventory's reader column, held to the two rules a script may read literally](DECISIONS.md#d257--the-inventorys-reader-column-held-to-the-two-rules-a-script-may-read-literally) | D261 | 25865 |
-| **D258** | [Two shipped surfaces the bank never fetched](DECISIONS.md#d258--two-shipped-surfaces-the-bank-never-fetched) | — | 25948 |
+| **D258** | [Two shipped surfaces the bank never fetched](DECISIONS.md#d258--two-shipped-surfaces-the-bank-never-fetched) | D275 | 25948 |
 | **D259** | [Two numbers that contradicted the picture beside them](DECISIONS.md#d259--two-numbers-that-contradicted-the-picture-beside-them) | — | 26022 |
 | **D260** | [The volume ceiling was budgeting a window the scan does not read](DECISIONS.md#d260--the-volume-ceiling-was-budgeting-a-window-the-scan-does-not-read) | — | 26077 |
 | **D261** | [Three gates that did not hold, and the queue sweep that took someone else's evidence](DECISIONS.md#d261--three-gates-that-did-not-hold-and-the-queue-sweep-that-took-someone-elses-evidence) | D264 | 26166 |
@@ -294,5 +294,5 @@ detect it.
 | **D273** | [A bump has a shelf life of exactly one upload, and 4.4 under-declares by two rows](DECISIONS.md#d273--a-bump-has-a-shelf-life-of-exactly-one-upload-and-44-under-declares-by-two-rows) | D274 | 27257 |
 | **D274** | [Build 25 is delivered, and the bump was the reading of step 17](DECISIONS.md#d274--build-25-is-delivered-and-the-bump-was-the-reading-of-step-17) | — | 27379 |
 | **D275** | [The answers are the log; every aggregate is a projection, and now there is a tool that proves it](DECISIONS.md#d275--the-answers-are-the-log-every-aggregate-is-a-projection-and-now-there-is-a-tool-that-proves-it) | D276 | 27451 |
-|  | ↳ *amendment 2026-08-24* — [The collapse is done for three arms, and refused for the fourth](DECISIONS.md#d275-amendment-2026-08-24--the-collapse-is-done-for-three-arms-and-refused-for-the-fourth) | — | 27631 |
-| **D276** | [The alerting refusal said less than it was read as saying, and its arithmetic was off by 4×](DECISIONS.md#d276--the-alerting-refusal-said-less-than-it-was-read-as-saying-and-its-arithmetic-was-off-by-4) | — | 27803 |
+|  | ↳ *amendment 2026-08-24* — [The collapse is done for three arms, and refused for the fourth](DECISIONS.md#d275-amendment-2026-08-24--the-collapse-is-done-for-three-arms-and-refused-for-the-fourth) | — | 27651 |
+| **D276** | [The alerting refusal said less than it was read as saying, and its arithmetic was off by 4×](DECISIONS.md#d276--the-alerting-refusal-said-less-than-it-was-read-as-saying-and-its-arithmetic-was-off-by-4) | — | 27823 |
