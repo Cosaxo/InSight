@@ -1407,24 +1407,6 @@ async function hydrate(): Promise<void> {
     } catch {
       /* refetch below */
     }
-    const aq = maxTs > 0
-      ? query(
-          collection(db, "v2_users", uidA, "answers"),
-          where("answeredAt", ">", Timestamp.fromMillis(maxTs)),
-          limit(400),
-        )
-      : query(
-          collection(db, "v2_users", uidA, "answers"),
-          orderBy("answeredAt", "desc"),
-          limit(1000),
-        );
-    // Deliberately UNGUARDED, unlike the reads below. Answers are not
-    // decoration: proceeding with a partial vote set makes the app offer
-    // questions the user already answered, and the create-only rule then
-    // refuses every one of those re-votes. Better to fail boot and render
-    // the honest mock deck than to look live and reject the user's taps.
-    const asnap = await getDocs(aq);
-    state.stats.answersFetched = asnap.size;
     const fold = (d: { id: string; get: (f: string) => unknown }) => {
       const optionIdx = d.get("optionIdx");
       if (typeof optionIdx === "number") state.votes[d.id] = String(optionIdx);
@@ -1449,7 +1431,73 @@ async function hydrate(): Promise<void> {
       const et = d.get("editedAt") as { toMillis?: () => number } | undefined;
       if (et && typeof et.toMillis === "function") maxEditTs = Math.max(maxEditTs, et.toMillis());
     };
-    asnap.docs.forEach(fold);
+    // Deliberately UNGUARDED, unlike the reads below. Answers are not
+    // decoration: proceeding with a partial vote set makes the app offer
+    // questions the user already answered, and the create-only rule then
+    // refuses every one of those re-votes. Better to fail boot and render
+    // the honest mock deck than to look live and reject the user's taps.
+    //
+    // …which is exactly what the COLD path used to do anyway. It was one
+    // `orderBy("answeredAt","desc") limit(1000)` — the silent truncation
+    // D161 designed out of the bank fetch above, with a worse ending.
+    // `fold` raises maxTs to the newest answeredAt it sees, and the warm
+    // query below asks for `answeredAt >` that; on a DESCENDING page the
+    // watermark therefore jumps straight to the newest answer, so
+    // everything past the 1000th was sealed out of that device
+    // permanently, not merely deferred to the next boot.
+    //
+    // Reachable well before any scale story: duel (`g_{gid}_{day}`) and
+    // pulse (`{qid}_{day}`) answers mint a document per day forever, so
+    // an engaged account passes 1000 inside a year — and those day-docs,
+    // being the newest, are exactly the ones that crowd the static world
+    // answers out of the page.
+    //
+    // Ordered by document id for D161's reason: a cursor has to sit on the
+    // ordering key, and `__name__` is the one field every document is
+    // guaranteed to have. Termination is on a SHORT PAGE, never on a count
+    // this code believes in advance — a count-based check is the bug.
+    //
+    // The warm path keeps its single bounded read. It truncates too, but
+    // it self-heals across boots: its sort is the inequality's, ascending,
+    // so the watermark advances to the OLDEST unread answer rather than
+    // past everything.
+    let fetched = 0;
+    if (maxTs > 0) {
+      const asnap = await getDocs(query(
+        collection(db, "v2_users", uidA, "answers"),
+        where("answeredAt", ">", Timestamp.fromMillis(maxTs)),
+        limit(400),
+      ));
+      asnap.docs.forEach(fold);
+      fetched = asnap.size;
+    } else {
+      const ANS_PAGE = 1000;
+      // A loop bound, not a content limit, and loud if it trips — the same
+      // shape and the same argument as BANK_MAX_PAGES above.
+      const ANS_MAX_PAGES = 100;
+      let after: unknown = null;
+      let pages = 0;
+      for (;;) {
+        const page = await getDocs(query(
+          collection(db, "v2_users", uidA, "answers"),
+          orderBy(documentId()),
+          ...(after ? [startAfter(after)] : []),
+          limit(ANS_PAGE),
+        ));
+        page.docs.forEach(fold);
+        fetched += page.size;
+        pages += 1;
+        if (page.size < ANS_PAGE) break;
+        if (pages >= ANS_MAX_PAGES) {
+          reportError(new Error(
+            `answer paging hit ANS_MAX_PAGES (${ANS_MAX_PAGES} x ${ANS_PAGE}) — truncated at ${fetched} answers`,
+          ), { where: "hydrate.answerPaging" });
+          break;
+        }
+        after = page.docs[page.docs.length - 1];
+      }
+    }
+    state.stats.answersFetched = fetched;
     // D86 made one field mutable, so the incremental pull gained a second
     // cursor: an edit moves optionIdx WITHOUT moving answeredAt (the
     // cohort stamp is frozen), so a cache warmed before the edit would
