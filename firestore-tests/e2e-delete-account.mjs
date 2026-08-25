@@ -224,7 +224,11 @@ await adb.doc(`v2_groups/${WAITED}`).set({
 });
 await adb.doc(`v2_groups/${SHARED}/reveals/${DAY}`).set({
   day: DAY, qid: "group-gu0",
-  votes: { [uid]: { optionIdx: 1 }, [OTHER]: { optionIdx: 0 } },
+  // The SURVIVOR's vote names the doomed account, which is what a pick
+  // day writes (D224 snapshots who an index meant). It is the one place a
+  // reveal carries this uid without being keyed by it — and reveals are
+  // `allow read: if request.auth != null`, so it is world-readable.
+  votes: { [uid]: { optionIdx: 1 }, [OTHER]: { optionIdx: 0, pickUid: uid } },
   names: { [uid]: "Doomed", [OTHER]: "Survivor" },
   // The membership snapshot the reveal read rule gates on. Seeded here
   // because erasure has to reach it too — it is a uid, and it carries the
@@ -240,7 +244,7 @@ await adb.doc(`v2_groups/${LEFT}`).set({
 });
 await adb.doc(`v2_groups/${LEFT}/reveals/${DAY}`).set({
   day: DAY, qid: "group-gu0",
-  votes: { [uid]: { optionIdx: 1 }, [OTHER]: { optionIdx: 0 } },
+  votes: { [uid]: { optionIdx: 1 }, [OTHER]: { optionIdx: 0, pickUid: uid } },
   names: { [uid]: "Doomed", [OTHER]: "Survivor" },
   members: [uid, OTHER],
 });
@@ -257,6 +261,13 @@ await adb.doc(`v2_takes/${MY_TAKE}`).set({
   gid: SHARED, authorUid: uid, qid: "q1", text: "words that must not outlive the account",
 });
 await adb.doc(`v2_flags/${MY_TAKE}_${uid}`).set({ takeId: MY_TAKE, gid: SHARED, uid });
+// …and the flags that NAME this account rather than being cast by it. The
+// sweep queried the AUTHOR only, so both of these survived erasure: a
+// report on their take, and a report on their face. The queue's floor is
+// MOD_QUEUE_MIN_FLAGS, so one or two of these are never settled by the
+// moderation run either — they are residue forever.
+await adb.doc(`v2_flags/${MY_TAKE}_${OTHER}`).set({ takeId: MY_TAKE, gid: SHARED, uid: OTHER });
+await adb.doc(`v2_flags/av_${uid}_${OTHER}`).set({ takeId: `av_${uid}`, target: uid, uid: OTHER });
 
 // question suggestions (docs/NEXT-FUNCTIONALITY.md §6): free text keyed to
 // the account, plus the budget ledger the callable keeps. OTHER's row is
@@ -381,6 +392,8 @@ for (const [path, label] of [
   [`v2_groups/${LEFT}/reveals/${DAY}`, "that group's reveal"],
   [`v2_takes/${MY_TAKE}`, "their take"],
   [`v2_flags/${MY_TAKE}_${uid}`, "their flag on their own take"],
+  [`v2_flags/${MY_TAKE}_${OTHER}`, "somebody else's flag ON their take"],
+  [`v2_flags/av_${uid}_${OTHER}`, "somebody else's flag on their FACE"],
   [`v2_avatars/${uid}`, "their profile photo's document"],
   [`v2_presence/${uid}`, "their presence cell"],
   ["v2_presence_room/5999_1074", "the cached roster naming them"],
@@ -470,6 +483,11 @@ for (const [path, label] of [
   [`v2_takes/${MY_TAKE}`, "their take"],
   [`v2_flags/${MY_TAKE}_${uid}`, "their flag on their own take"],
   [`v2_flags/${THEIR_TAKE}_${uid}`, "their flag on someone else's take"],
+  // Flags that NAME them, which the author-only sweep could not see: a
+  // report on their take (keyed `{qid}_{uid}`, since a world take's id is
+  // its author's) and a report on their face (`target: {uid}`).
+  [`v2_flags/${MY_TAKE}_${OTHER}`, "somebody else's flag ON their take"],
+  [`v2_flags/av_${uid}_${OTHER}`, "somebody else's flag on their FACE"],
   [`v2_users/${uid}/following/${OTHER}`, "the account's own follow"],
   [`v2_users/${uid}/foresight/daily-000__ageBand__25-34`, "a foresight verdict"],
   [`v2_users/${uid}/engagement/_state`, "the digest's bookkeeping pair (D268)"],
@@ -612,7 +630,13 @@ if (names[uid]) fail("the deleted user's display name survives in a shared revea
 if (revealMembers.includes(uid)) fail("the deleted uid survives in a reveal's members snapshot");
 if (!revealMembers.includes(OTHER)) fail("the surviving member lost their reveal read access");
 if (!votes[OTHER]) fail("the surviving member's vote was scrubbed too");
-ok("shared group survives; the deleted user's vote, name and membership entry were scrubbed");
+// The fourth place a reveal names this account, and the only one not keyed
+// by it: a pick day snapshots WHO an index meant, inside the OTHER
+// member's vote. Reveals are readable by any signed-in user, so leaving it
+// is a pseudonymous identifier of a deleted account in a public document.
+if (votes[OTHER].pickUid) fail("the deleted uid survives as another member's pickUid in a shared reveal");
+if (votes[OTHER].optionIdx !== 0) fail("scrubbing pickUid took the surviving member's vote with it");
+ok("shared group survives; the deleted user's vote, name, membership entry and pickUid were scrubbed");
 
 // ── and the group they had already LEFT is scrubbed too ──
 // The regression this leg exists for. Phase 1c cannot see this group — the
@@ -637,6 +661,8 @@ if (lMembers.includes(uid)) fail("LEFTOVER: the deleted uid survives in the memb
 if (!lVotes[OTHER]) fail("the surviving member's vote was scrubbed from the left group's reveal");
 if (!lNames[OTHER]) fail("the surviving member's name was scrubbed from the left group's reveal");
 if (!lMembers.includes(OTHER)) fail("the surviving member lost read access to the left group's reveal");
+if (lVotes[OTHER].pickUid) fail("LEFTOVER: the deleted uid survives as another member's pickUid in a group they had left");
+if (lVotes[OTHER].optionIdx !== 0) fail("scrubbing pickUid took the surviving member's vote with it");
 ok("the group they had already left is scrubbed too — membership is not what erasure follows");
 
 console.log("\nALL ERASURE CHECKS PASSED");

@@ -448,6 +448,32 @@ function divisivenessOf(qid: string): number {
   return divisiveness(dense);
 }
 
+/**
+ * Whether this qid's stored answer is an option index — the only shape the
+ * voter fold can read.
+ *
+ * `state.votes` cannot answer this: every value goes in stringified, so a
+ * catalog pick ("1041", a dex number or the numeric part of a QID) looks
+ * exactly like an option index. Only the bank knows, which is why
+ * pickKindredQids takes this as a predicate rather than guessing from the
+ * value.
+ *
+ * A qid this device cannot resolve is KEPT. The banks are what the device
+ * has cached, and a question answered before a bank refresh may be missing
+ * from all of them; dropping it would shrink the pool on ignorance, which
+ * is a worse failure than the one being fixed.
+ */
+function storesOptionIdx(qid: string): boolean {
+  for (const bank of [
+    state.questions, state.feedBank, state.duelBank,
+    state.learnBank, state.callBank, state.pulseBank,
+  ]) {
+    const q = bank.find((x) => x.id === qid);
+    if (q) return q.type !== "catalog" && q.type !== "rank";
+  }
+  return true;
+}
+
 // How many of the viewer's own answers the Kindred ranking reads across.
 // Twelve shared questions is a legible likeness claim and the cost is
 // linear in this number — see loadKindred for why it is bounded at all.
@@ -1381,24 +1407,6 @@ async function hydrate(): Promise<void> {
     } catch {
       /* refetch below */
     }
-    const aq = maxTs > 0
-      ? query(
-          collection(db, "v2_users", uidA, "answers"),
-          where("answeredAt", ">", Timestamp.fromMillis(maxTs)),
-          limit(400),
-        )
-      : query(
-          collection(db, "v2_users", uidA, "answers"),
-          orderBy("answeredAt", "desc"),
-          limit(1000),
-        );
-    // Deliberately UNGUARDED, unlike the reads below. Answers are not
-    // decoration: proceeding with a partial vote set makes the app offer
-    // questions the user already answered, and the create-only rule then
-    // refuses every one of those re-votes. Better to fail boot and render
-    // the honest mock deck than to look live and reject the user's taps.
-    const asnap = await getDocs(aq);
-    state.stats.answersFetched = asnap.size;
     const fold = (d: { id: string; get: (f: string) => unknown }) => {
       const optionIdx = d.get("optionIdx");
       if (typeof optionIdx === "number") state.votes[d.id] = String(optionIdx);
@@ -1423,7 +1431,73 @@ async function hydrate(): Promise<void> {
       const et = d.get("editedAt") as { toMillis?: () => number } | undefined;
       if (et && typeof et.toMillis === "function") maxEditTs = Math.max(maxEditTs, et.toMillis());
     };
-    asnap.docs.forEach(fold);
+    // Deliberately UNGUARDED, unlike the reads below. Answers are not
+    // decoration: proceeding with a partial vote set makes the app offer
+    // questions the user already answered, and the create-only rule then
+    // refuses every one of those re-votes. Better to fail boot and render
+    // the honest mock deck than to look live and reject the user's taps.
+    //
+    // …which is exactly what the COLD path used to do anyway. It was one
+    // `orderBy("answeredAt","desc") limit(1000)` — the silent truncation
+    // D161 designed out of the bank fetch above, with a worse ending.
+    // `fold` raises maxTs to the newest answeredAt it sees, and the warm
+    // query below asks for `answeredAt >` that; on a DESCENDING page the
+    // watermark therefore jumps straight to the newest answer, so
+    // everything past the 1000th was sealed out of that device
+    // permanently, not merely deferred to the next boot.
+    //
+    // Reachable well before any scale story: duel (`g_{gid}_{day}`) and
+    // pulse (`{qid}_{day}`) answers mint a document per day forever, so
+    // an engaged account passes 1000 inside a year — and those day-docs,
+    // being the newest, are exactly the ones that crowd the static world
+    // answers out of the page.
+    //
+    // Ordered by document id for D161's reason: a cursor has to sit on the
+    // ordering key, and `__name__` is the one field every document is
+    // guaranteed to have. Termination is on a SHORT PAGE, never on a count
+    // this code believes in advance — a count-based check is the bug.
+    //
+    // The warm path keeps its single bounded read. It truncates too, but
+    // it self-heals across boots: its sort is the inequality's, ascending,
+    // so the watermark advances to the OLDEST unread answer rather than
+    // past everything.
+    let fetched = 0;
+    if (maxTs > 0) {
+      const asnap = await getDocs(query(
+        collection(db, "v2_users", uidA, "answers"),
+        where("answeredAt", ">", Timestamp.fromMillis(maxTs)),
+        limit(400),
+      ));
+      asnap.docs.forEach(fold);
+      fetched = asnap.size;
+    } else {
+      const ANS_PAGE = 1000;
+      // A loop bound, not a content limit, and loud if it trips — the same
+      // shape and the same argument as BANK_MAX_PAGES above.
+      const ANS_MAX_PAGES = 100;
+      let after: unknown = null;
+      let pages = 0;
+      for (;;) {
+        const page = await getDocs(query(
+          collection(db, "v2_users", uidA, "answers"),
+          orderBy(documentId()),
+          ...(after ? [startAfter(after)] : []),
+          limit(ANS_PAGE),
+        ));
+        page.docs.forEach(fold);
+        fetched += page.size;
+        pages += 1;
+        if (page.size < ANS_PAGE) break;
+        if (pages >= ANS_MAX_PAGES) {
+          reportError(new Error(
+            `answer paging hit ANS_MAX_PAGES (${ANS_MAX_PAGES} x ${ANS_PAGE}) — truncated at ${fetched} answers`,
+          ), { where: "hydrate.answerPaging" });
+          break;
+        }
+        after = page.docs[page.docs.length - 1];
+      }
+    }
+    state.stats.answersFetched = fetched;
     // D86 made one field mutable, so the incremental pull gained a second
     // cursor: an edit moves optionIdx WITHOUT moving answeredAt (the
     // cohort stamp is frozen), so a cache warmed before the edit would
@@ -2547,6 +2621,13 @@ function presenceBeat(cell?: string): Promise<void> {
   // beating once more before a timer notices. Tear the loop down and
   // delete the doc — "stop being visible" must not wait for the server's
   // own expiry to catch up.
+  // deleteAccount sets `torndown` as its first statement, and the server
+  // deletes v2_presence/{uid} as part of the sweep. Without this guard a
+  // beat already scheduled — the interval, or a visibilitychange — can
+  // land after that delete and WRITE THE CELL BACK, for an account that no
+  // longer exists. Every other queued writer in this file already checks
+  // it; presence was the one that did not.
+  if (torndown) return Promise.resolve();
   if (nearMode() === "off" && nearState.timer) { void LIVE.near.disable(); return Promise.resolve(); }
   if (!nearOptedIn() || !LIVE.enabled) return Promise.resolve();
   if (typeof document !== "undefined" && document.hidden) return Promise.resolve();
@@ -3150,7 +3231,7 @@ const LIVE = {
     if (state.kindredLoading) return;
     state.kindredLoading = true;
     try {
-      const qids = pickKindredQids(state.votes, divisivenessOf, KINDRED_QUESTIONS);
+      const qids = pickKindredQids(state.votes, divisivenessOf, KINDRED_QUESTIONS, storesOptionIdx);
       // Sequential rather than parallel on purpose: each call is a
       // collection-group query, most of them are cache hits after the
       // first surface has run, and firing twelve at once at boot-adjacent
@@ -3256,7 +3337,7 @@ const LIVE = {
     notify();
     try {
       const db = await getDb();
-      const qids = pickKindredQids(state.votes, divisivenessOf, KINDRED_QUESTIONS);
+      const qids = pickKindredQids(state.votes, divisivenessOf, KINDRED_QUESTIONS, storesOptionIdx);
       const next: Record<string, Voter[]> = {};
       // Sequential, for the reason loadKindred is: twelve collection-group
       // queries fired at once is the shape that gets a client rate-limited.
@@ -4944,6 +5025,34 @@ function resetForNewUid(uid: string): void {
   // The presence loop is the old account's opt-in (D84); the flag store's
   // purge listener clears the choice, this clears the machinery.
   stopPresence();
+  // The DOCUMENT is deliberately not deleted here, and that is a limit
+  // rather than an oversight — worth writing down, because the obvious
+  // fix is the one that does not work.
+  //
+  // The cell really does outlive the switch: it keeps the outgoing account
+  // in its ~200 m grid square for up to PRESENCE_LINGER_MS, counted by
+  // nearbyCountV2 and listed with its archetype by nearbyRoomV2. So
+  // `deleteDoc(v2_presence/{prevUid})` from here reads like the same move
+  // NEAR.disable() makes under "stop sharing must not wait for a freshness
+  // window to expire".
+  //
+  // It cannot be. This function runs from the subscribeToAuth callback,
+  // which fires AFTER the SDK has switched currentUser to the incoming
+  // account — so the write is signed by the new uid, and
+  // /v2_presence/{uid} is `allow delete: if request.auth.uid == uid`. The
+  // rules refuse it. Measured on the emulator: the outgoing account
+  // deleting its own cell succeeds, the incoming account deleting the
+  // outgoing one's is denied. Issuing it anyway buys nothing and costs a
+  // permission-denied report on every switch.
+  //
+  // Nor is there a moment to do it earlier: every path that changes the
+  // uid in-process (a lost anonymous session, a Google link that resolves
+  // to an existing account) has already lost the outgoing credentials by
+  // the time anything here observes the change. A real fix is server-side.
+  // What bounds the exposure meanwhile is `until`, capped at
+  // PRESENCE_LINGER_MIN in the rules and honoured by nearbyCountV2 — and
+  // account DELETION, the case that matters most, is swept by
+  // deleteAccount rather than left to this path at all.
   setSentryUser(uid);
   notify();
   void refreshLive().catch((err) => reportError(err, { where: "refreshLive.uidChange" }));

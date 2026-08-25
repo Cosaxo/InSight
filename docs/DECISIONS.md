@@ -28902,3 +28902,67 @@ deploy-path code, `seed.test.ts` is a fixture, and the script that would
 own the table is not shipped to either. A gate that fails loudly is worth
 more today than a refactor of the seed path on the same afternoon as two
 other changes to it.
+
+## D286 · An account switch cannot delete the outgoing account's presence cell
+
+**2026-08-25.** **Status:** binding, and it records a LIMIT rather than a
+repair. Found reviewing the night audit's own presence commit, which
+attempted the repair and shipped a write the rules refuse.
+
+### The finding, which stands
+
+`resetForNewUid` calls `stopPresence()` — the loop stops, the in-memory
+Near state clears — and `v2_presence/{outgoingUid}` is left standing. It
+keeps that account in its ~200 m grid square for up to
+`PRESENCE_LINGER_MS`, counted by `nearbyCountV2` and listed with its
+archetype by `nearbyRoomV2`, to strangers in that neighbourhood, for
+somebody no longer signed in on this device. That is real, and it is the
+shape D84 and D174 exist to prevent one door over.
+
+### Why the obvious fix does not work
+
+`deleteDoc(v2_presence/{prevUid})` from `resetForNewUid` reads like the
+same move `NEAR.disable()` makes under "stop sharing must not wait for a
+freshness window to expire". It cannot be, and the reason is ordering:
+
+- `resetForNewUid` runs from the `subscribeToAuth` callback.
+- That callback fires **after** the SDK has switched `currentUser` to the
+  incoming account, so the delete is signed by the **new** uid.
+- `/v2_presence/{uid}` is `allow delete: if request.auth != null &&
+  request.auth.uid == uid`.
+
+Measured on the Firestore emulator against the committed rules, two
+cases: the outgoing account deleting **its own** cell succeeds (this is
+`NEAR.disable()`, and it is why that path is correct); the incoming
+account deleting the **outgoing** account's cell is denied.
+
+Nor is there an earlier moment to take. Every path that changes the uid
+in-process — a lost anonymous session recovered by a fresh anonymous
+sign-in, a Google link that resolves to an account that already exists —
+has already lost the outgoing credentials by the time anything in
+`live.ts` observes the change. The app has no other sign-out:
+`googleSignOut()` is called from exactly one place, `deleteAccount`.
+
+### Why a mocked test could not see it
+
+The near-presence harness mocks Firestore, so `h.presenceDeletes` records
+that the call was **made**, never what the rules **answered**. The delete
+case passed green while the write it asserted would have been refused on
+every device — the `test:unit`-is-not-`test:rules` gap, and the same
+class the night's own "Ten things that stayed green while being wrong"
+(D276) was hunting. The suite now pins the opposite: no write is issued.
+
+### What bounds the exposure instead
+
+- `until`, capped at `PRESENCE_LINGER_MIN` (180 minutes) in the rules and
+  honoured by `nearbyCountV2` — so the cell stops counting on its own.
+- Account **deletion**, the case that actually matters, never relies on
+  this path: `deleteAccount` sweeps `v2_presence/{uid}` server-side with
+  the admin SDK, and `presenceBeat` now carries the `torndown` guard that
+  stops a scheduled beat writing the cell back afterwards. That half of
+  the night's commit is kept and is correct.
+
+A real fix is server-side — a callable the outgoing session calls before
+its credentials go, or a sweep keyed on the switch — and is not attempted
+here. The exposure is bounded, three hours at worst, against a change to
+the auth teardown path on the same morning as twenty-three other fixes.

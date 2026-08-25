@@ -402,8 +402,22 @@ function LiveGroupsMirrorBody() {
                   it does have is members whose completed instruments are
                   public (D98) and cached beside their names, so its side
                   is their mean, over the count the card prints. */}
+              {/* WITHOUT YOU. The lens prints "You ↔ {group}", so the
+                  right-hand side is the group MINUS the viewer — passing the
+                  whole membership compared you with a population you are
+                  inside, which drags the gap toward zero and, in a group
+                  where nobody else has finished a test, makes it exactly
+                  zero: "You ↔ The Crew · 100% aligned · 1 of 3 have taken
+                  one", and "You ↔ Just Me · 100% aligned" for a group of
+                  one. It also spent a profile read on the viewer.
+
+                  Every sibling population already excludes the viewer:
+                  Circle folds circleSplit over members only, and the room
+                  the Near lens is handed has the caller removed server-side
+                  (v2social.ts, "The caller is not in their own room"). The
+                  People tab in this same file drops you too. */}
               <GroupCompare
-                pop={{ basis: "people", uids: g.memberUids || [] }}
+                pop={{ basis: "people", uids: (g.memberUids || []).filter((u) => u !== LIVE.uid) }}
                 whom={g.name || "this group"}
                 emptyThem={<>Nobody here has finished a test yet.</>} />
             </React.Suspense>

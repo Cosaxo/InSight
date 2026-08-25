@@ -201,7 +201,22 @@ export async function runEngagementDigest(
   const writtenNow = new Map<string, EngagementDay>();
   const cohortOf = async (day: string): Promise<number | null> => {
     const doc = writtenNow.get(day) ?? (await store.getDay(day));
-    return doc ? doc.firstTime : null;
+    // A doc EXISTING is not the same as a day having been DIGESTED.
+    // runAttentionFold and runRollupFold both create day docs — attn-only
+    // or people-only — for days this digest has not folded, and those
+    // carry no `firstTime`. `doc ? doc.firstTime : null` handed back
+    // `undefined` for one of those, Firestore refuses undefined as a
+    // value, and the whole putDay threw: the digest aborts before
+    // putLastDay AND before the two folds that run after it in
+    // digestEngagementV2, so `lastDay` never advances and the same day
+    // poisons the entire pipeline again every night, until it slides out
+    // of the catch-up window.
+    //
+    // `null` is already the vocabulary for "this day was never folded"
+    // (D270 — every reader treats a doc with no `actives` as not-digested
+    // rather than as a zero day), so that is what a non-digested doc
+    // answers here too.
+    return typeof doc?.firstTime === "number" ? doc.firstTime : null;
   };
 
   let lastDoc: EngagementDay | null = null;
@@ -327,7 +342,12 @@ export function firestoreEngagementStore(db: Firestore): EngagementStore {
         .where("at", ">=", start)
         .where("at", "<", end)
         .orderBy("at")
-        .select("uid", "qid")
+        // "at" is in the projection because the CURSOR is built from it:
+        // startAfter() reads every orderBy field off the snapshot, and
+        // select() decides which fields that snapshot carries. Projecting
+        // only uid + qid made page two throw. patterns.ts and velocity.ts
+        // page the same way and both already include it.
+        .select("uid", "qid", "at")
         .limit(5000);
       for (;;) {
         const snap = await query.get();
@@ -398,7 +418,25 @@ export function firestoreEngagementStore(db: Firestore): EngagementStore {
       return snap.data() as EngagementDay;
     },
     async putDay(day) {
-      await daily.doc(day.day).set({ ...day, foldedAt: FieldValue.serverTimestamp() });
+      // MERGE, because two other folds own sections of this same document:
+      // `attn` (runAttentionFold) and `people` (runRollupFold), both of
+      // which write with { merge: true }. A replacing write here deleted
+      // whichever of them had already landed — and it is reachable without
+      // a crash replay, since the rules admit an attention shard dated up
+      // to two days ahead of request.time, so tonight's fold can create an
+      // attn-only doc for a day this digest has not reached yet. The
+      // shards are deleted as they are folded, so what that dropped could
+      // not be recomputed.
+      //
+      // Safe against stale keys, which is the usual reason to prefer a
+      // replace: the only map the digest writes is `bySurface`, it is
+      // derived from an append-only ledger, and a re-fold of the same day
+      // therefore sees a superset of the keys it saw before. Nothing it
+      // wrote can need removing.
+      await daily.doc(day.day).set(
+        { ...day, foldedAt: FieldValue.serverTimestamp() },
+        { merge: true },
+      );
     },
   };
 }
@@ -423,6 +461,35 @@ export function firestoreEngagementStore(db: Firestore): EngagementStore {
  * heartbeat says when the cap bit (no silent caps). */
 export const SHARD_FOLD_CAP = 20_000;
 const SHARD_CHUNK = 300; // 1 set + ≤300 deletes per batch, under the 500-op limit
+
+/** How many shards are held in memory at once.
+ *
+ * The cap above bounds the NIGHT's work; this bounds the HEAP, and they
+ * are different jobs. The fold used to read `cap` shards in one `.get()`
+ * and only chunk the writes — so a full night materialised 20,000 shard
+ * objects at once. Measured with rules-legal maximal shards (31 `s`
+ * keys, 120 `qids` keys, both at their rules caps), retained after an
+ * explicit gc() with only the page array referenced: 17.2 KB per shard
+ * as plain objects, so 335 MB for a full cap. That is the FLOOR — it
+ * counts the parsed values alone, and the real path holds Admin SDK
+ * snapshots around them. The function is sized LIGHT_UNBOUNDED, 256
+ * MiB, so the floor alone is already over the limit; and since this fold
+ * is the only thing that deletes shards, an OOM means the backlog never
+ * drains — the same failure, identically, every night.
+ *
+ * 900 is 3 × SHARD_CHUNK deliberately. A read page that is not a whole
+ * number of write batches would split batches at page boundaries and
+ * make the crash-safe unit depend on where a page happened to end.
+ * Worst case is ~63 MB of shards resident, which leaves room on 256 MiB;
+ * typical shards are a fraction of that.
+ *
+ * NO CURSOR, and none is needed: the fold DELETES what it folds, so the
+ * next unfiltered page is the next set of shards. The one thing that
+ * does not go away is a shard whose `day` is unfoldable — those are left
+ * for a human, so they come back on every page, which is why the loop
+ * stops when a whole page yields nothing foldable.
+ */
+const SHARD_READ_PAGE = 3 * SHARD_CHUNK;
 
 /** The estimate the buckets allow: their midpoints (0 · 1–2 · 3–5 · 6–10
  * · 11+). `est` sums midpoints per device — an ESTIMATE and labelled so
@@ -520,22 +587,51 @@ export async function runAttentionFold(
   store: AttentionStore,
   cap = SHARD_FOLD_CAP,
 ): Promise<{ shards: number; days: number; capped: boolean }> {
-  const page = await store.shardPage(cap);
-  const byDay = new Map<string, AttentionShardDoc[]>();
-  for (const shard of page) {
-    const list = byDay.get(shard.day) || [];
-    list.push(shard);
-    byDay.set(shard.day, list);
-  }
-  for (const [day, shards] of byDay) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) continue; // unfoldable; left for a human
-    for (let i = 0; i < shards.length; i += SHARD_CHUNK) {
-      const chunk = shards.slice(i, i + SHARD_CHUNK);
-      const delta = foldShards(chunk).get(day);
-      if (delta) await store.applyAttention(day, delta, chunk.map((s) => s.id));
+  let folded = 0;
+  // BY ID, not a count: an unfoldable shard is not deleted, so it comes
+  // back on every page, and adding page lengths would count it once per
+  // pass. The set is what keeps `shards` an honest total of DISTINCT
+  // shards seen — and it is bounded by the page size, because a whole
+  // page of them ends the loop.
+  const skipped = new Set<string>();
+  const days = new Set<string>();
+
+  for (;;) {
+    const seen = folded + skipped.size;
+    const want = Math.min(SHARD_READ_PAGE, cap - seen);
+    if (want <= 0) break;
+    const page = await store.shardPage(want);
+    if (!page.length) break;
+
+    const byDay = new Map<string, AttentionShardDoc[]>();
+    for (const shard of page) {
+      const list = byDay.get(shard.day) || [];
+      list.push(shard);
+      byDay.set(shard.day, list);
     }
+    const before = folded;
+    for (const [day, shards] of byDay) {
+      days.add(day);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) { // unfoldable; left for a human
+        for (const s of shards) skipped.add(s.id);
+        continue;
+      }
+      for (let i = 0; i < shards.length; i += SHARD_CHUNK) {
+        const chunk = shards.slice(i, i + SHARD_CHUNK);
+        const delta = foldShards(chunk).get(day);
+        if (delta) await store.applyAttention(day, delta, chunk.map((s) => s.id));
+        folded += chunk.length;
+      }
+    }
+
+    // A short page means the collection is drained. A full page that
+    // folded nothing means every shard left is unfoldable — asking again
+    // returns the same ones forever.
+    if (page.length < want || folded === before) break;
   }
-  return { shards: page.length, days: byDay.size, capped: page.length >= cap };
+
+  const shards = folded + skipped.size;
+  return { shards, days: days.size, capped: shards >= cap };
 }
 
 export function firestoreAttentionStore(db: Firestore): AttentionStore {

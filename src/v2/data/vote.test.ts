@@ -68,6 +68,12 @@ const h = vi.hoisted(() => ({
   // fold: an entity answer doc has no optionIdx, and hydrate's fold has to
   // read it as answered rather than silently re-offering the picker.
   answerDocs: [] as FakeSnapshotDoc[],
+  // Serve `answerDocs` in slices of this size instead of wholesale, so a
+  // case can drive the COLD fetch's paging loop. 0 (the default) keeps the
+  // old single-snapshot behaviour, which is what every other case wants —
+  // the loop breaks on the first short page and never asks twice.
+  answerPageSize: 0,
+  answerServed: 0,
   aggIdQueries: [] as string[][],
   // Ids that make the `v2_question_aggs` query they appear in REJECT.
   // Targeted rather than getDocsImpl's blanket failure, because the case
@@ -184,7 +190,12 @@ vi.mock("firebase/firestore", () => {
       if (q?.path === "v2_questions") return Promise.resolve(snapOf(h.bankDocs));
       // The my-answers pull (and, on a warm boot, the D86 edit-cursor
       // query on the same path — fold() is idempotent over the repeat).
-      if (q?.path === "v2_users/uid_test/answers") return Promise.resolve(snapOf(h.answerDocs));
+      if (q?.path === "v2_users/uid_test/answers") {
+        if (!h.answerPageSize) return Promise.resolve(snapOf(h.answerDocs));
+        const start = h.answerServed;
+        h.answerServed += h.answerPageSize;
+        return Promise.resolve(snapOf(h.answerDocs.slice(start, start + h.answerPageSize)));
+      }
       // main's version, kept whole: it records the id list and returns only
       // the matching documents, which the learn-split cases below assert on.
       // The D129 poll reads through this same arm — `refreshAggs` queries
@@ -331,6 +342,8 @@ beforeEach(() => {
   h.hangSignIn = false;
   h.aggDocs.length = 0;
   h.answerDocs.length = 0;
+  h.answerPageSize = 0;
+  h.answerServed = 0;
   h.aggIdQueries.length = 0;
   h.aggFailIds.length = 0;
   h.voterDocs = {};
@@ -2174,5 +2187,49 @@ describe("loadCityKindred — asking for the city instead of filtering for it", 
     LIVE.saveAnchors({ city: "Bergen, NO" });
     await LIVE.loadCityKindred();
     expect(h.voterQueries.some((w) => w["anchors.city"] === "Bergen, NO")).toBe(true);
+  });
+});
+
+// ── the cold answer fetch is PAGED, not capped ─────────────────────────
+//
+// The cold path was one `orderBy("answeredAt","desc") limit(1000)`, and
+// the watermark it leaves behind is what made that permanent rather than
+// merely partial: `fold` raises maxTs to the newest answeredAt it sees,
+// and the warm query asks for `answeredAt >` that, so on a descending
+// page the watermark jumps straight past everything unread. Answer 1001
+// and beyond were sealed out of that device for good — the app re-offers
+// them, the create-only rule refuses each tap, and syncPassiveResults
+// re-folds a truncated vote map over the stored test result.
+describe("hydrate pages the viewer's own answers", () => {
+  const answeredAt = (ms: number) => ({ toMillis: () => ms });
+
+  it("drains every page instead of stopping at the first one", async () => {
+    // Two full pages and a short one. The page size the loop asks for is
+    // 1000, so the mock has to hand back exactly that to be asked again —
+    // a short page is the only signal that means the end.
+    const TOTAL = 2300;
+    for (let i = 0; i < TOTAL; i++) {
+      h.answerDocs.push({
+        id: `q_${String(i).padStart(5, "0")}`,
+        data: {
+          qid: `q_${String(i).padStart(5, "0")}`,
+          surface: "daily",
+          optionIdx: i % 2,
+          answeredAt: answeredAt(1000 + i),
+        },
+      });
+    }
+    h.answerPageSize = 1000;
+
+    const LIVE = await bootLive();
+
+    expect(
+      Object.keys(LIVE.myVotes()),
+      "answers past the first page were dropped — and the watermark would seal them out permanently",
+    ).toHaveLength(TOTAL);
+    // The last page's answers specifically, since those are the ones a
+    // descending single read discarded.
+    const last = `q_${String(TOTAL - 1).padStart(5, "0")}`;
+    expect(LIVE.myVotes()[last], `${last} is on the final page`).toBeDefined();
   });
 });

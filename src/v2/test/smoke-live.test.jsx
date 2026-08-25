@@ -125,6 +125,32 @@ describe("spec layer mounts in live mode", () => {
     expectNoBoundary("daily/live");
   });
 
+  // An empty live deck is the SLOW BOOT, not just an unseeded day:
+  // `daily-split`'s `get data` returns [] for the whole window where
+  // `LIVE.enabled` is true and `LIVE.ready` is not, so this is the first
+  // frame of every live launch. It reached the tree returning a bare
+  // element from `renderVals()` while `render()` destructured
+  // `{ rootRef, screen }` off it — both undefined, so the tab painted an
+  // empty div: no loading card, no ruler, and no root ref, which also
+  // means `setupGestures` never ran.
+  //
+  // The ErrorBoundary cannot see this: destructuring absent keys off a
+  // React element throws nothing, so the crash is silent and the smoke
+  // tests above pass on a blank screen. Assert on the card's own words.
+  it("renders the loading card, not a blank tab, on an empty live deck", () => {
+    const expectNoBoundary = mountLive({}, (l) => {
+      l.LIVE.deck = () => [];
+    });
+    expectNoBoundary("daily/live/empty-deck");
+    expect(screen.getByText(/Fetching today’s question/i)).toBeTruthy();
+    // The blank tab and the loading card both trip no boundary and both
+    // render a div, so the screen root has to be asserted non-empty too —
+    // that is the half `getByText` alone would keep passing without.
+    const root = document.querySelector('[data-screen-label="Split daily v2"]');
+    expect(root, "daily screen root missing").toBeTruthy();
+    expect(root.childElementCount).toBeGreaterThan(0);
+  });
+
   it("renders the mirror tab without tripping the boundary", () => {
     const expectNoBoundary = mountLive();
     fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
@@ -1907,6 +1933,54 @@ describe("live mode never inherits the sample persona (D55)", () => {
     expect(container.querySelector(".mmt-dbar"), "the demo bar is gone too")
       .not.toBeNull();
     expect(container.textContent).toMatch(/\d+\s*%/);
+  });
+
+  // The card's `self` — "you: …" — had two shapes reaching it and handled
+  // one. map-anchors.js builds the demo row as `age {n}` ("age 34") and the
+  // LIVE row as `age {ageBand}` ("age 25-34"); mtAnchorSelf stripped every
+  // non-digit and parsed the rest as a single number, so a band came out as
+  // parseInt("2534") → "2530–2539". A decade nobody is in, on the default
+  // anchor of the card, which is the first thing a tapped answer says.
+  //
+  // Rendered in DEMO mode deliberately: live mode refuses the whole verdict
+  // (D72), so the string under test only draws here — which is exactly why
+  // the two cases above could both pass while it was wrong.
+  it("prints the age band the profile holds, not a decade built from its digits", () => {
+    const { container } = render(
+      <window.MTAnswerCard node={ANSWER_NODE} cat={null}
+        anchors={[{ id: "age", label: "Age", hue: 265, value: "age 25-34" }]}
+        activeA="age" onFilter={() => {}} />,
+    );
+    expect(container.textContent, "the band the profile actually holds is missing")
+      .toMatch(/25-34/);
+    expect(container.textContent, "a decade was invented out of the band's digits")
+      .not.toMatch(/2[0-9]{3}\s*–/);
+  });
+
+  // The anchor card's own empty state. `noCohort` is `rows.some(...)`,
+  // which is FALSE on an empty list, so a map with no answers on it fell
+  // through to the arithmetic and drew "0% of your answers match people
+  // your age" — plus, because `diffs` was empty too, "You answered like
+  // most of them on every question." Two claims that contradict each
+  // other, about somebody who has answered nothing.
+  //
+  // Reachable on a fresh live account that set an age in Basics: the
+  // anchor ring is laid out independently of the answer nodes, so the card
+  // opens with `items` empty.
+  it("says nothing about matching when there is nothing on the map", () => {
+    const { container } = render(
+      <window.MTAnchorCard
+        anchor={{ id: "age", label: "Age", hue: 265, value: "age 25-34" }}
+        items={[]} onPick={() => {}}
+        anchors={[{ id: "age", label: "Age", hue: 265, value: "age 25-34" }]}
+        onAnchor={() => {}} />,
+    );
+    expect(container.textContent, "a percentage was drawn for an empty map")
+      .not.toMatch(/\d+\s*%\s*of your answers/);
+    expect(container.querySelector(".mmt-matchbar"), "the match bar was drawn")
+      .toBeNull();
+    expect(container.textContent, "an empty map claimed you agreed on everything")
+      .not.toMatch(/like most of them on every question/);
   });
 
   // ── the results card, the fourth (D72) ──

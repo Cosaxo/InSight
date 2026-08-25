@@ -734,6 +734,31 @@ service cloud.firestore {
             // fit its options ("pick" questions have empty bank options —
             // their options are the group's members)
             && exists(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
+            // Same kill switch and surface agreement as isWorldAnswer, and
+            // for the same reason — this was the ONE answer shape that
+            // checked only that the question existed. Duel votes are not an
+            // inert member-only surface: revealQid derives the day's
+            // question from the members' own answer docs and foldDuelSignal
+            // publishes it into the world-readable duel-{qid} aggregate, so
+            // a question pulled for being broken or harmful kept taking
+            // votes, kept being published in reveals, and kept feeding a
+            // public aggregate.
+            && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
+                 .data.get("active", true) == true
+            // EQUALITY, like isWorldAnswer's: duelQFor (data/deck.ts) draws
+            // the day's question with `q.surface === mode`, so the bank a
+            // group can legitimately answer from is exactly the one whose
+            // surface matches the answer's own "group"/"duo". Without it a
+            // group could seal a vote against a daily, feed or catalog
+            // question — and for a catalog question `options` is empty, so
+            // duelIndexSpace() falls through to the member count and the
+            // vote is folded as if it were a "pick".
+            //
+            // The get() is the same document duelIndexSpace() already
+            // reads, and rules dedupe identical gets within a request, so
+            // neither clause costs an extra read.
+            && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
+                 .data.get("surface", "daily") == request.resource.data.surface
             && request.resource.data.optionIdx < duelIndexSpace()
             && (request.resource.data.get("guessIdx", 0) is int)
             && request.resource.data.get("guessIdx", 0) >= 0
@@ -1289,7 +1314,25 @@ service cloud.firestore {
           : (request.resource.data.gid is string
             && request.auth.uid in
               get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids
-            && (!("qid" in request.resource.data) || request.resource.data.qid is string)));
+            && (!("qid" in request.resource.data) || request.resource.data.qid is string)
+            // The id is bounded HERE too, and not for the same reason as
+            // the world branch above. A circle take is many-per-person, so
+            // there is no one-take bound to enforce — but both branches
+            // write into the SAME collection, so an unconstrained circle id
+            // could be somebody else's world id. Update is denied and
+            // delete is author-only, so one such write permanently squats
+            // the single take that person is allowed on that question, with
+            // no recovery path for them and nothing to rate-limit it: any
+            // free account can make a group and be a member of it.
+            //
+            // The bound is the SHAPE, not the length: a world id always
+            // contains the "_" separator, so an id with none can never be
+            // one. That is the whole invariant, and it survives an auto-id
+            // format change — `doc(collection(db, "v2_takes"))`, the only
+            // thing that has ever written a circle take (postTake,
+            // data/live.ts), mints 20 alphanumerics, and pinning that
+            // literally would tie the rules to an SDK detail instead.
+            && takeId.matches("^[^_]*$")));
       // No edit path: an edited take invalidates the flags cast on what it
       // used to say. Delete-and-repost restarts the flag count honestly.
       allow update: if false;

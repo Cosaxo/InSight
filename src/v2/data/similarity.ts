@@ -447,18 +447,32 @@ export function scoreMatch(
  * account still fills its whole quota. Ties break by qid, so the set does
  * not reshuffle between two renders reading the same aggregates.
  *
- * Non-integer votes are dropped: a catalog answer stores an entity id and
- * a rank answer a joined order, both on a surface the voter query accepts
- * — so those qids issued a collection-group read, got documents back, and
- * had every row discarded for want of a numeric optionIdx.
+ * Non-integer votes are dropped: a rank answer stores a joined order, on a
+ * surface the voter query accepts — so those qids issued a collection-group
+ * read, got documents back, and had every row discarded for want of a
+ * numeric optionIdx.
+ *
+ * That filter cannot see a CATALOG answer, and this used to stop there with
+ * the gap written down rather than closed. Every value in the vote map is
+ * stringified (`String(optionIdx)`, `String(entity)`, `order.join(",")`),
+ * and a catalog pick is a National Dex number or the numeric part of a
+ * Wikidata QID — so "1041" is an integer and survives, indistinguishable
+ * from an option index. Nothing in the map can tell them apart; only the
+ * BANK knows the question's type, so the caller answers with `storesOptionIdx`.
+ *
+ * It defaults to accepting everything, which keeps this a pure function the
+ * unit tests can drive without a bank — and means a caller that cannot
+ * resolve a qid keeps it rather than shrinking the pool on ignorance.
  */
 export function pickKindredQids(
   votes: Readonly<Record<string, string | number>>,
   scoreOf: (qid: string) => number,
   cap: number,
+  storesOptionIdx: (qid: string) => boolean = () => true,
 ): string[] {
   return Object.keys(votes)
-    .filter((id) => !id.startsWith("g_") && Number.isInteger(Number(votes[id])) && votes[id] !== "")
+    .filter((id) => !id.startsWith("g_") && Number.isInteger(Number(votes[id])) && votes[id] !== ""
+      && storesOptionIdx(id))
     .sort((a, b) => (scoreOf(b) - scoreOf(a)) || a.localeCompare(b))
     .slice(0, Math.max(0, cap));
 }

@@ -315,7 +315,14 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       // with four sites on that same one document, so a rank answer's
       // create bills the SAME single question-doc read the world path
       // does. RULE_READS.world stays 1 and covers the rank path with it.
-    ).toEqual({ gets: 30, exists: 3 });
+      //
+      // 30 → 32 gets: isDuelAnswer gained the kill switch and the surface
+      // comparison every sibling answer shape already had. Both sites read
+      // /v2_questions/{qid} — the SAME document that arm's exists() and
+      // duelIndexSpace() already read — so this is the D224 shape exactly:
+      // the site count moves, the billed cost does not, and RULE_READS.duel
+      // stays 3.
+    ).toEqual({ gets: 32, exists: 3 });
   });
 
   it("the answer trigger's transaction still issues the reads the model charges", () => {

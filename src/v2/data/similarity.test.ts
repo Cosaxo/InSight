@@ -588,10 +588,29 @@ describe("pickKindredQids — chosen, not inherited", () => {
     // slot on a collection-group read whose every row was then thrown away
     // for want of a numeric optionIdx.
     const votes = { "feed-vote": "2", "feed-catalog": "1041", "feed-rank": "2,0,1", "feed-empty": "" };
-    // 1041 IS an integer, so the entity id survives this filter — the
-    // guard that matters is the joined order and the empty string.
+    // The VALUE filter reaches the joined order and the empty string. It
+    // cannot reach the catalog pick: 1041 is a dex number, and stringified
+    // it is indistinguishable from an option index.
     expect(pickKindredQids(votes, flat, 9)).not.toContain("feed-rank");
     expect(pickKindredQids(votes, flat, 9)).not.toContain("feed-empty");
+    // …so the bank answers instead. This gap used to be written down here
+    // rather than closed, and it cost real slots: divisivenessOf returns -1
+    // for every question on a young account, so ties break alphabetically
+    // and a catalog qid wins a slot outright — then buys a collection-group
+    // read whose every row voters.ts discards. Twice over, since
+    // loadCityKindred picks from the same map.
+    const bankSays = (qid: string) => qid !== "feed-catalog";
+    expect(pickKindredQids(votes, flat, 9, bankSays)).toEqual(["feed-vote"]);
+  });
+
+  it("keeps a qid the caller cannot resolve, rather than shrinking the pool", () => {
+    // The banks are what the device has cached, so a question answered
+    // before a refresh can be missing from all of them. Dropping it would
+    // be a worse failure than the one the predicate exists to fix.
+    const votes = { "daily-001": "1", "daily-002": "0" };
+    expect(pickKindredQids(votes, flat, 9, () => true)).toEqual(["daily-001", "daily-002"]);
+    // …and the default is exactly that, so the pure callers are unchanged.
+    expect(pickKindredQids(votes, flat, 9)).toEqual(["daily-001", "daily-002"]);
   });
 
   it("never spends a slot on a sealed duel answer", () => {
