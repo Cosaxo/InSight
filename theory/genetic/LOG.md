@@ -5,3 +5,4 @@ changes, adds, prunes) · one line of why. A run that advanced nothing
 says so here plainly.
 
 - 2026-08-25 · seeded by the chartering session · initial graph committed; no statuses above argued.
+- 2026-08-25 · PROBE4 add_repo push-auth probe · no theory content
