@@ -317,6 +317,51 @@ describe("runAttentionFold", () => {
   it("the cap constant is sane against the batch arithmetic", () => {
     expect(SHARD_FOLD_CAP).toBeGreaterThan(0);
   });
+
+  // The cap bounds the NIGHT's work; it must not also be the read size.
+  // This read `shardPage(cap)` in one go, so a full night materialised
+  // 20,000 shard objects at once — ~1.4 GB measured with rules-legal
+  // maximal shards, on a 256 MiB function. And because the fold is the
+  // only thing that deletes shards, an OOM here means the backlog never
+  // drains: the same failure, identically, every night.
+  it("reads in bounded pages rather than materialising the whole cap", async () => {
+    const many = Array.from({ length: 2500 }, (_, i) => sh(`s${i}`, "2026-08-22", { opens: 1 }));
+    const { store, state } = attnStore(many);
+    const asked: number[] = [];
+    const inner = store.shardPage.bind(store);
+    store.shardPage = async (cap) => { asked.push(cap); return inner(cap); };
+
+    const res = await runAttentionFold(store);
+
+    expect(res).toMatchObject({ shards: 2500, days: 1, capped: false });
+    expect(state.shards, "every shard should have been folded and deleted").toHaveLength(0);
+    expect(state.days.get("2026-08-22")!.devices).toBe(2500);
+    // The property: no single read asks for the whole cap.
+    expect(Math.max(...asked)).toBeLessThan(SHARD_FOLD_CAP);
+    expect(asked.length, "2500 shards should take several pages").toBeGreaterThan(1);
+    // …and the write batches still land on their own boundaries, not on
+    // wherever a read page happened to end.
+    expect(new Set(state.applied.slice(0, -1).map((a) => a.ids.length))).toEqual(new Set([300]));
+  });
+
+  // A shard with an unfoldable day is never deleted, so it is returned by
+  // every page. Paging the read has to terminate anyway.
+  it("terminates on a full page of unfoldable shards instead of re-reading them forever", async () => {
+    const many = Array.from({ length: 1200 }, (_, i) => sh(`w${i}`, "yesterday-ish", { opens: 1 }));
+    const { store, state } = attnStore(many);
+    let reads = 0;
+    const inner = store.shardPage.bind(store);
+    store.shardPage = async (cap) => { reads++; return inner(cap); };
+
+    const res = await runAttentionFold(store);
+
+    expect(reads, "a page that folds nothing must end the loop").toBeLessThan(3);
+    expect(state.applied).toHaveLength(0);
+    expect(state.shards).toHaveLength(1200);
+    // Counted by id, so the shards seen twice across pages are not
+    // counted twice.
+    expect(res.shards).toBeLessThanOrEqual(1200);
+  });
 });
 
 // ── the qids map in the shard fold (R4/D271) ────────────────────────────
