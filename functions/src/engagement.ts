@@ -843,8 +843,30 @@ export function firestoreRollupStore(db: Firestore): RollupStore {
       // The collection-group single-field index on `folded` is a
       // fieldOverride in firestore.indexes.json — deployed with the
       // rules, per the existing --only path.
+      // ORDERED BY DAY, and the order is the whole fairness argument.
+      //
+      // With no orderBy, Firestore falls back to `__name__` — which for
+      // this collection group is `v2_users/{uid}/engagement/{day}`, so the
+      // page was uid-major. Below the cap that is invisible; above it, the
+      // SAME low-sorting uids are taken every night and the high-sorting
+      // ones never reach the front of the queue. Their rollups die
+      // unfolded at the 90-day TTL, `people` becomes a biased
+      // sub-population rather than a count, and `fg7` never advances for
+      // them so D272's fade signal cannot fire for those accounts at all.
+      //
+      // The cap's stated contract — "leftovers fold the next night" — is
+      // only true if the queue is FIFO, so it is ordered by the day the
+      // rollup is for. Note that an explicit `__name__` order would be the
+      // same starvation with the fallback written down; the fix is a
+      // different key, not a stated one.
+      //
+      // Needs a COMPOSITE collection-group index (folded ASC, day ASC) —
+      // the single-field `folded` override no longer covers the query.
+      // The emulator does not enforce index configuration, so nothing in
+      // the e2e suites can catch its absence; indexes.test.ts pins it.
       const snap = await db.collectionGroup("engagement")
         .where("folded", "==", false)
+        .orderBy("day")
         .limit(cap)
         .get();
       return snap.docs.map((d) => ({
