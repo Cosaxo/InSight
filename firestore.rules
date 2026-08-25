@@ -1336,9 +1336,30 @@ service cloud.firestore {
       // No edit path: an edited take invalidates the flags cast on what it
       // used to say. Delete-and-repost restarts the flag count honestly.
       allow update: if false;
-      // Your speech stays yours to withdraw.
+      // Your speech stays yours to withdraw — until a moderator has acted
+      // on it.
+      //
+      // `hidden == false` is the clause the avatar arm below already
+      // carries, for the reason recorded there: on a hidden document the
+      // update AND the delete are both the way back. It was never applied
+      // to the substrate that shape was borrowed from, and on a WORLD take
+      // the gap is a straight bypass — the id is deterministic
+      // (`{qid}_{uid}`, pinned above), so an author could delete a removed
+      // take and re-create it at the SAME id with the same words and
+      // `hidden: false`. clearFlagsFor has already wiped the flags by
+      // then, so it does not re-enter the queue until somebody reports it
+      // afresh. World scope is ENFORCING, not advisory.
+      //
+      // It also keeps the record. `hiddenMeta` lives on this document, so
+      // deleting it destroys the audit trail MODERATION.md says a
+      // maintainer can reverse a removal from.
+      //
+      // What it does NOT block: erasure. deleteAccount runs on the admin
+      // SDK, which rules do not bind — a departing account still takes its
+      // hidden takes with it.
       allow delete: if request.auth != null
-        && resource.data.authorUid == request.auth.uid;
+        && resource.data.authorUid == request.auth.uid
+        && resource.data.hidden == false;
     }
 
     // ── The profile photo's document (D178) ────────────────────────

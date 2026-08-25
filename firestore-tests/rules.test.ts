@@ -2188,6 +2188,33 @@ describe("world takes (D83 — anonymous, one per person per question)", () => {
     await assertSucceeds(setDoc(ref, wtake(OWNER, { text: "said better" })));
   });
 
+  // …and the one withdrawal that is not a withdrawal.
+  //
+  // A world take's id is deterministic, so delete-and-repost lands on the
+  // SAME address. On a take a moderator has REMOVED that is not a rewrite,
+  // it is an undo: clearFlagsFor wipes the flags with the verdict, so the
+  // reposted take does not re-enter the queue until somebody reports it
+  // afresh — and world scope is enforcing, not advisory. The avatar arm
+  // has refused both verbs on a hidden document since D178 for exactly
+  // this reason; the substrate that shape was borrowed from had not.
+  it("a removed world take cannot be deleted and reposted at the same id", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_takes", wid(OWNER)), {
+        gid: "world", authorUid: OWNER, qid: QID, text: "over the line",
+        createdAt: new Date(), hidden: true,
+        hiddenMeta: { by: "mod", policyLine: "H1" },
+      });
+    });
+    const ref = doc(asUser(OWNER), "v2_takes", wid(OWNER));
+    // The edit was already refused — updates are denied outright.
+    await assertFails(setDoc(ref, wtake(OWNER, { text: "over the line" })));
+    // The delete is the half that was open, and it is the whole bypass.
+    await assertFails(deleteDoc(ref));
+    // The author can still read their own removed take (the read gate's
+    // author arm), so this hides nothing from them that was not hidden.
+    await assertSucceeds(getDoc(ref));
+  });
+
   it("shape holds at world scale: qid required and bounded, author is the signer", async () => {
     // No qid: a world take with no question would be unreachable by any
     // surface — and unqueryable by the per-question index.
