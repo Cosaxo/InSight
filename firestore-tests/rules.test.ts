@@ -66,17 +66,30 @@ beforeEach(async () => {
   await env.clearFirestore();
 });
 
+// The harness hands back a COMPAT Firestore (`firebase.firestore.Firestore`)
+// while every call in this suite is modular — `doc`, `getDoc`,
+// `collectionGroup`. That is correct at runtime, because
+// rules-unit-testing builds the compat instance over the modular SDK and
+// the two are the same object graph, and it does not typecheck: the
+// modular type declares `type` and `toJSON`, which the compat surface does
+// not. One named cast at the boundary rather than an `any` per helper.
+//
+// It went unsaid for as long as this file was outside every tsconfig
+// project: vitest transpiles without checking types, so the suite ran
+// green with four real errors in it. tsconfig.node.json includes it now.
+const modular = (db: unknown): Firestore => db as Firestore;
+
 // Seed data with rules bypassed (admin context).
 async function seed(fn: (db: Firestore) => Promise<void>): Promise<void> {
   await env.withSecurityRulesDisabled(async (ctx) => {
-    await fn(ctx.firestore());
+    await fn(modular(ctx.firestore()));
   });
 }
 
 const asUser = (uid: string): Firestore =>
-  env.authenticatedContext(uid).firestore();
+  modular(env.authenticatedContext(uid).firestore());
 // No token at all. Note this is NOT the app's default user — see below.
-const asSignedOut = (): Firestore => env.unauthenticatedContext().firestore();
+const asSignedOut = (): Firestore => modular(env.unauthenticatedContext().firestore());
 
 // The app's ACTUAL default user. Decision D3 makes the app anonymous-first:
 // it signs in silently on first launch, so in production "signed in" almost
@@ -90,9 +103,9 @@ const asSignedOut = (): Firestore => env.unauthenticatedContext().firestore();
 // that says "anonymous" tests the thing it names, and a future rule that
 // does gate on provider gets a ready-made lens.
 const asAnonAuth = (uid = "anon1"): Firestore =>
-  env.authenticatedContext(uid, {
+  modular(env.authenticatedContext(uid, {
     firebase: { sign_in_provider: "anonymous" },
-  }).firestore();
+  }).firestore());
 
 // Day keys are UTC, and duel answers must fall inside a window around
 // request.time — so every date in this suite is relative to the run, never a

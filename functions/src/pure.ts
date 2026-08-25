@@ -103,6 +103,28 @@ export function utcDayKey(offsetDays = 0, nowMs: number = Date.now()): string {
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * A UTC day key `offsetDays` from `nowMs`, as `YYYY-MM-DD`.
+ *
+ * The nightly folds' signature — the clock first, the offset second — and
+ * deliberately not `utcDayKey` above, which takes them the other way round
+ * and defaults the clock. Both are correct and both are called; what was
+ * wrong is that this one existed TWICE, byte-identical, in engagement.ts and
+ * patterns.ts, two nightly functions whose day keys have to agree with each
+ * other and with the documents the other one wrote.
+ *
+ * It floors to midnight before adding, where `utcDayKey` adds milliseconds
+ * and slices the ISO string. In UTC the two agree — there is no offset to
+ * shift under them — so this is a style difference, not a second answer.
+ */
+const pad = (n: number) => String(n).padStart(2, "0");
+export function utcDay(nowMs: number, offsetDays: number): string {
+  const d = new Date(nowMs);
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() + offsetDays);
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+}
+
 export function prevDayKey(dayKey: string): string {
   const d = new Date(dayKey + "T00:00:00Z");
   return new Date(d.getTime() - 86400000).toISOString().slice(0, 10);

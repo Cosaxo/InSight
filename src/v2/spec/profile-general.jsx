@@ -35,8 +35,8 @@ const TraitWebCardLazy = React.lazy(() => import('../ui/TraitWebCard.tsx'));
 // account-creation questions) must ask with the same words, and
 // check:anchors reads that file for the client half of its comparison.
 import {
-  AGE_BANDS, DAYS, EDU_OPTS, GENDER_OPTS, HEIGHT_OPTS, JOB_OPTS, MONTHS,
-  REL_OPTS, YEARS, ageBandOf, anchorsFrom, calcAge,
+  DAYS, EDU_OPTS, GENDER_OPTS, HEIGHT_OPTS, JOB_OPTS, MONTHS,
+  REL_OPTS, YEARS, anchorsFrom, calcAge,
 } from './profile-vitals.js';
 
 // ─────────────────────────────────────────────────────────────

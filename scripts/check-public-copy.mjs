@@ -62,6 +62,13 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const HTML_FILES = [
   "web/privacy.html",
   "web/home.html",
+  // The invite-link fallback, and on desktop the landing page. Hosted at
+  // /join/** (firebase.json's own rewrite and its own CSP header), and its
+  // lead sentence is a who-can-see-what claim — "answers sealed until
+  // tomorrow, then revealed with names, only to the people in it" — which is
+  // exactly the class this gate reads for. It was the one page in web/ this
+  // list did not name.
+  "web/join.html",
   "web/terms.html",
 ];
 const TSX_FILES = [

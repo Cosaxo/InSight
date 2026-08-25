@@ -48,8 +48,15 @@ const LiveBreakdownPanel = React.lazy(() => import('../ui/LiveBreakdownPanel.tsx
 // reason (D156) — see the mode switch near the bottom of render().
 const LiveDuelPanel = React.lazy(() => import('../ui/LiveDuelPanel.tsx'));
 import ReactDOM from 'react-dom';
-import { IS_TESTS, IS_TEST_RESULTS, persistTestResult } from './test-definitions.js';
-import { PASSIVE } from './passive-progress.js';
+// SIDE-EFFECT IMPORTS, and the form is the point. This file bound
+// IS_TESTS, IS_TEST_RESULTS, persistTestResult and PASSIVE and referenced
+// none of them — but the imports are still load-bearing: spec-index.js
+// reaches daily-split.jsx before it reaches either of these two modules, so
+// deleting the lines would move both evaluations nine entries later in an
+// order CLAUDE.md calls semantic. Dropping the bindings and keeping the
+// edges says exactly that, and says it where the next reader looks.
+import './test-definitions.js';
+import './passive-progress.js';
 import NAV from '../data/nav';
 
 // daily-split.jsx — SPLIT: the daily tab. Three modes — World (vote blind,

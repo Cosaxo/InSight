@@ -8,7 +8,6 @@
 // the window bag looked like it had two dead entries, and a rename here would
 // have been caught by nothing. Real imports make the edge visible to both.
 // `NAV.openPerson` below is still a global read — that owner has not moved.
-import React from 'react';
 import { RMCore } from './relmap-core.js';
 import NAV from '../data/nav';
 

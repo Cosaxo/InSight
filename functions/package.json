@@ -10,7 +10,6 @@
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
-    "lint": "echo 'no lint configured for functions yet'",
     "serve": "npm run build && firebase emulators:start --only functions",
     "shell": "npm run build && firebase functions:shell",
     "start": "npm run shell",

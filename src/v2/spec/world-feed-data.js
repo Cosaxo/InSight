@@ -3,7 +3,6 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import React from 'react';
 // The imported binding, not `window.LIVE` — the seam world-feed.jsx already
 // uses, and the reason joinDemoStock below can ask whether this session is
 // on live data without adding a shared-global reference the rule-4 ratchet

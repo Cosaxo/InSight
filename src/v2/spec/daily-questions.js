@@ -3,7 +3,6 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import React from 'react';
 
 // daily-questions.js — "Daily Question" feature data + persistent answer store.
 // A new question each day (type varies). Each question carries a plausible,

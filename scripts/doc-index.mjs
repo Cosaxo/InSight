@@ -317,13 +317,27 @@ function findReadmes(dir, acc = []) {
 if (orientation) {
   // Rule 2 — every doc. The index and the map itself are excluded: one is
   // generated from the other's neighbour and neither is a subject of the map.
+  //
+  // IT COVERS THE ROOT TOO, and read only docs/ for a long time — which is
+  // how SECURITY.md, a live policy that `web/privacy.html` names to a user
+  // by filename, went unmapped by both this page and README.md with no gate
+  // able to see it. A document does not stop being a document by living
+  // where GitHub expects to find it. README.md and CLAUDE.md are excluded
+  // for the same reason ORIENTATION.md is: they are the map's neighbours,
+  // named by §1 and by the README table, not subjects of the doc table.
   const docs = readdirSync(join(root, "docs"))
     .filter((f) => f.endsWith(".md"))
     .filter((f) => f !== "ORIENTATION.md" && f !== "DECISIONS-INDEX.md")
     .sort();
-  checked.docs = docs.length;
+  const rootDocs = readdirSync(root)
+    .filter((f) => f.endsWith(".md") && f !== "README.md" && f !== "CLAUDE.md")
+    .sort();
+  checked.docs = docs.length + rootDocs.length;
   for (const doc of docs) {
     if (!orientation.includes(doc)) fail(`${ORIENTATION} does not name docs/${doc}`);
+  }
+  for (const doc of rootDocs) {
+    if (!orientation.includes(doc)) fail(`${ORIENTATION} does not name ${doc}`);
   }
 
   // Rule 7 — the Status column, against each document's own declaration.

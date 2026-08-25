@@ -71,12 +71,12 @@ both enforced rather than promised:
 | `firestore-tests/` | Rules tests and the three e2e suites against emulated functions | `firestore-tests/README.md` |
 | `content/` | The canonical question banks and archetypes — the seed source | `content/README.md`, `docs/QUESTION-FARM.md` |
 | `public/` | What Vite serves from the bundle root: the catalogue files answers are keyed into (`public/cities.txt`, `public/pokedex.txt`, `public/elements.txt` and the rest) and the webfonts. Fetched through `BASE_URL` rather than an absolute path — the Capacitor shells serve from a local file root, where a leading slash resolves off the device | `docs/CATALOG-QUESTIONS.md` |
-| `scripts/` | Every gate and every catalogue builder. Each opens with why it exists, and several with what they caught | the script's own header |
+| `scripts/` | Four kinds of file, and the difference matters before you run one: the **gates** (`check-*`, every one of them in §5), the **builders** that regenerate committed artifacts (`build-*`, `gen-*`), the **instruments** that only read and print (cost, pulse, the budget models), and the **operator tools that act on live services** — seeding, aggregate rebuilds, App Store Connect, monitoring policies, test users. Each opens with why it exists, and several with what they caught | the script's own header |
 | `monitoring/` | Cloud Monitoring policies, applied by hand rather than by the pipeline, plus the pulse console's rate card | `docs/MONITORING.md` |
 | `web/` | The Firebase Hosting root (`firebase.json` → `hosting.public`) — the marketing home, the `/join/**` link target, terms, and `web/.well-known/` for the two app-link association files. **Not the app**: the app is what Vite builds out of `index.html` | `docs/DEPLOYMENT.md` |
 | `web/privacy.html` | The one place the long privacy disclosure lives (D183). `check:policy-claims` holds it to the app | `docs/COPY.md` §3 |
 | `android/` · `ios/` | The Capacitor shells, committed so the apps build from a clean clone. `npx cap sync` copies the Vite build in; everything the toolchains generate on top is gitignored | `docs/IOS-RELEASE.md` |
-| `design/` | The frozen design spec — read-only reference. `design/README.md` maps it; the standalone revisions are the prototype's own history | `design/README.md` |
+| `design/` | Two different things under one name. The **standalone revisions** are the frozen prototype and its history — read-only reference, and what "do not edit design/" is about. `design/icon/` and `design/store/` are the opposite: live SOURCES that builders rasterise and gates read, and that `asc:push` sends to App Store Connect | `design/README.md` |
 | `.github/workflows/` | `backend-checks.yml` is called by **both** `ci.yml` and `firebase-deploy.yml`, so what guards a PR guards production | `docs/DEPLOYMENT.md` |
 | `.github/scripts/` | `report_audit_issue.py` — the weekly dependency audit's issue writer. A file rather than an inline `run:` block, and hand-written rather than a third-party action: the workflow whose subject is supply-chain hygiene adds no SHA of its own to pin | `.github/workflows/security-audit.yml` |
 
@@ -134,6 +134,7 @@ directions.
 | [`PAID-PLAN.md`](PAID-PLAN.md) | Paid questions with downloadable reports, place-score subscriptions, and cohort pricing by size and demand — the owner's 2026-08-21 ask measured against the standing constraints. §3's edit-flow matrix (D226), §4's logic cut (D227) and §2's report builder (D251) are built; the rest waits on demand evidence | mixed |
 | [`COST-COMPARISON.md`](COST-COMPARISON.md) | InSight's bill against other apps'. Superseded in its conclusion by D129, kept for its method | past |
 | [`LAUNCH-PLAN.md`](LAUNCH-PLAN.md) | What was built for launch and why. The human chain moved to `LAUNCH-RUNBOOK.md` | past |
+| [`../SECURITY.md`](../SECURITY.md) | The security policy, at the repo root rather than in `docs/` because that is where GitHub looks for it — and `web/privacy.html` names it to a user by filename, so it is a live promise, not a courtesy | tree |
 
 And the READMEs, which are documentation of their own directory rather
 than of a subject:

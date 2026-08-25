@@ -20,6 +20,10 @@
 //   5. the mirror of rule 1: a publication nothing reads. That is what a
 //      half-finished conversion leaves behind, and 17 of them had piled
 //      up by D137 because no rule was asking and rule 4 counts reads.
+//   8. an import binding a spec module never uses. `no-unused-vars` is
+//      off for this layer and rightly so, but its reason is about
+//      DECLARATIONS: an import cannot be a publication. 33 dead React
+//      imports and six named bindings were behind that off.
 //   7. a spec module whose components nothing can REACH — neither
 //      exported nor published, so no import and no JSX tag can resolve
 //      them. Rule 5 asks whether a publication has a reader; this asks
@@ -334,6 +338,60 @@ for (const name of [...defined].sort()) {
       + "\n    A side-effect module is exempt by defining no component, not by an"
       + "\n    allowlist entry.",
     );
+  }
+}
+
+// ── 8. an import binding nothing in the file uses ───────────────
+//
+// THE HALF `no-unused-vars` CANNOT DO. eslint.config.js turns that rule OFF
+// for the spec layer, and the reason it gives is correct: a module here
+// "exports" by defining a global the linter never sees consumed, so every
+// top-level declaration reads as unused. But that argument is about
+// DECLARATIONS. An import binding cannot be a publication — it is a name
+// this file asked another module for — so "declared and never mentioned"
+// is unambiguous for imports and only for imports.
+//
+// The blind spot was real: 33 files carried `import React from 'react'`
+// with no `React.` anywhere (the automatic JSX runtime has needed no such
+// import since the port), and six named bindings across two files were
+// imported and never referenced. Nothing could see any of it — tsc does not
+// read .jsx here, eslint was told not to, and rules 1-3 above look for
+// references, not for their absence.
+//
+// THE FIX IS NOT ALWAYS DELETION, which is why this reports the binding and
+// not the line. spec-index.js's order is semantic, and a file's own import
+// can pull a module in EARLIER than spec-index reaches it — daily-split.jsx
+// does exactly that for test-definitions.js and passive-progress.js, nine
+// entries ahead. There the answer is a side-effect import: drop the binding,
+// keep the edge.
+{
+  const IMPORT_RE =
+    /^import\s+(?:([A-Za-z_$][\w$]*)\s*,\s*)?(?:\{([^}]*)\})?\s*from\s*['"][^'"]+['"];?$/gm;
+  for (const file of readdirSync(specDir).sort()) {
+    if (!/\.(js|jsx)$/.test(file)) continue;
+    const src = stripComments(readFileSync(join(specDir, file), "utf8"));
+    IMPORT_RE.lastIndex = 0;
+    for (const m of src.matchAll(IMPORT_RE)) {
+      const names = [];
+      if (m[1]) names.push(m[1]);
+      if (m[2]) {
+        for (const part of m[2].split(",")) {
+          const name = part.trim().replace(/^type\s+/, "").split(/\s+as\s+/).pop().trim();
+          if (name) names.push(name);
+        }
+      }
+      const body = src.replace(m[0], "");
+      for (const name of names) {
+        if (new RegExp(`\\b${name.replace(/\$/g, "\\$")}\\b`).test(body)) continue;
+        failed = true;
+        console.error(
+          `✗ src/v2/spec/${file} imports ${name} and never uses it.`
+          + "\n    Delete the binding. If the IMPORT is what pulls that module in"
+          + "\n    ahead of spec-index.js's own line for it, keep the edge as a"
+          + "\n    side-effect import (`import './x.js';`) — the order is semantic.",
+        );
+      }
+    }
   }
 }
 

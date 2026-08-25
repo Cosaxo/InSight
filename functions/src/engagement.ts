@@ -119,13 +119,11 @@ export interface EngagementStore {
   putDay(day: EngagementDay): Promise<void>;
 }
 
-const pad = (n: number) => String(n).padStart(2, "0");
-export function utcDay(nowMs: number, offsetDays: number): string {
-  const d = new Date(nowMs);
-  d.setUTCHours(0, 0, 0, 0);
-  d.setUTCDate(d.getUTCDate() + offsetDays);
-  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
-}
+// The fold arithmetic lives in pure.ts (ORIENTATION §3). Re-exported
+// because this module's own test imports it from here, and because the
+// two nightly folds must not be able to disagree about what a day is.
+import { utcDay } from "./pure";
+export { utcDay };
 
 /** dayKey + delta, in UTC — "2026-08-01" + (-1) → "2026-07-31". */
 export function dayOffset(dayKey: string, delta: number): string {

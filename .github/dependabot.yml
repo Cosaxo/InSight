@@ -23,7 +23,6 @@ updates:
       - dependency-name: firebase-tools
         update-types: [version-update:semver-major]
       # Exact-pinned on purpose — see package.json. Let a human choose.
-      - dependency-name: "@sentry/react"
       - dependency-name: "@firebase/rules-unit-testing"
     # Deliberately NOT grouped: a single "all dev dependencies" PR is the
     # one nobody reviews, and it is exactly where a toolchain regression

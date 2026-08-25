@@ -41,7 +41,6 @@ export default defineConfig([
       'scripts/**/*.mjs',
       'firestore-tests/**/*.mjs',
       '*.config.js',
-      'eslint.a11y.config.js',
     ],
     extends: [js.configs.recommended],
     languageOptions: {

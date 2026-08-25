@@ -14,6 +14,10 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { stripComments } from "./strip-comments.mjs";
+// Re-exported: check-spec-globals.mjs has imported it from here since
+// before it had its own module, and the pair are read together.
+export { stripComments };
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const specDir = join(root, "src/v2/spec");
@@ -180,11 +184,6 @@ const CREATE_EL_RE = /(?:^|[^\w$.])h\(\s*([A-Z][\w$]*)/g;
 // Comments must not count as definitions or references: a commented-out
 // `window.Foo = …` would otherwise satisfy a real dangling reference, and a
 // `<Foo/>` inside a doc comment would raise a phantom one.
-export function stripComments(src) {
-  return src
-    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
-    .replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + " ".repeat(m.length - p1.length));
-}
 
 for (const file of files) {
   const src = stripComments(readFileSync(file, "utf8"));

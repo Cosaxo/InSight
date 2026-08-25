@@ -3,7 +3,6 @@
 // OFF THE GLOBAL BRIDGE (D108): `SCENES` is a named export, not a
 // `window.SCENES`, so its four consumers hold it as a module binding that
 // load order cannot leave unset. Nothing here publishes to global scope.
-import React from 'react';
 import { IS_DATA } from './sample-data.js';
 import { WPAL } from './world-palette.js';
 // The offers() gate below — the imported binding, not window.LIVE, for the

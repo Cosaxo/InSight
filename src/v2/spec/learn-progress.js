@@ -4,7 +4,6 @@
 // it folds arrives as imports rather than as globals this file hoped had
 // already been assigned. `window.LIVE` (see below) is the one cross-module
 // global left here, read at call time.
-import React from 'react';
 import { LEARN_CARDS, LEARN_FIELDS, LEARN_SPLIT, LEARN_SUBJECTS } from './learn-data.js';
 // Which build's cards these are (D284). `LEARN_CARDS` above is the demo
 // SAMPLE now — five a field, compiled in so the demo build has something

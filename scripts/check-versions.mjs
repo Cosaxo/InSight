@@ -69,21 +69,51 @@ const targetBlocks = [...pbx.matchAll(/PRODUCT_BUNDLE_IDENTIFIER = com\.cosaxo\.
 if (targetBlocks.length !== 2) {
   problems.push(`${PBX}: expected 2 App-target configurations, found ${targetBlocks.length}`);
 } else {
-  for (const m of pbx.matchAll(/CURRENT_PROJECT_VERSION = (\d+);/g)) {
+  // COUNTED BEFORE COMPARED, and that is the whole of this block's history.
+  // Both scans used to push a problem only from INSIDE the loop, so zero
+  // matches meant zero problems and the run printed "versions OK — … across
+  // package.json, Android and iOS" having read neither iOS key. Reproduced,
+  // not reasoned: quote both values the way Xcode legitimately writes build
+  // settings (`CURRENT_PROJECT_VERSION = "26";`) and the old scan passed
+  // green while checking nothing. The Android half has had this floor since
+  // it was written (`if (!gCode || !gName)`); this half never did.
+  //
+  // Same failure D275 recorded one gate over: a tripwire counting `tx.get(`
+  // after the code moved to `tx.getAll(` counted zero and called it a pass.
+  // The quotes are accepted now as well as demanded-to-exist, because an
+  // Xcode round-trip that adds them is a formatting change, not a version
+  // change, and a release gate that fails on it would be worked around.
+  const cpv = [...pbx.matchAll(/CURRENT_PROJECT_VERSION = "?(\d+)"?;/g)];
+  const mkt = [...pbx.matchAll(/MARKETING_VERSION = "?([0-9.]+)"?;/g)];
+  if (cpv.length !== 2) {
+    problems.push(
+      `${PBX}: found ${cpv.length} CURRENT_PROJECT_VERSION setting(s), expected 2 —`
+      + " this scan cannot read the file, so fix the scan rather than trusting it",
+    );
+  }
+  if (mkt.length !== 2) {
+    problems.push(
+      `${PBX}: found ${mkt.length} MARKETING_VERSION setting(s), expected 2 —`
+      + " this scan cannot read the file, so fix the scan rather than trusting it",
+    );
+  }
+  for (const m of cpv) {
     if (Number(m[1]) !== appBuild) {
       problems.push(`${PBX} CURRENT_PROJECT_VERSION ${m[1]} != appBuild ${appBuild}`);
       break;
     }
   }
-  for (const m of pbx.matchAll(/MARKETING_VERSION = ([0-9.]+);/g)) {
+  for (const m of mkt) {
     if (m[1] !== version) {
       problems.push(`${PBX} MARKETING_VERSION ${m[1]} != package.json version ${version}`);
       break;
     }
   }
   if (FIX) {
-    pbx = pbx.replace(/CURRENT_PROJECT_VERSION = \d+;/g, `CURRENT_PROJECT_VERSION = ${appBuild};`);
-    pbx = pbx.replace(/MARKETING_VERSION = [0-9.]+;/g, `MARKETING_VERSION = ${version};`);
+    // Writes the unquoted canonical form either way, so a quoted round-trip
+    // normalises rather than accumulating a second spelling.
+    pbx = pbx.replace(/CURRENT_PROJECT_VERSION = "?\d+"?;/g, `CURRENT_PROJECT_VERSION = ${appBuild};`);
+    pbx = pbx.replace(/MARKETING_VERSION = "?[0-9.]+"?;/g, `MARKETING_VERSION = ${version};`);
     writeFileSync(p(PBX), pbx);
   }
 }

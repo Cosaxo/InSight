@@ -21,5 +21,20 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["vite.config.ts", "scripts/appcheck-guard.ts"]
+  /* Everything TypeScript outside src/. This list was `vite.config.ts` and
+     `scripts/appcheck-guard.ts` alone, which left four files checked by
+     nothing at all: vitest transpiles without typechecking, so
+     firestore-tests/rules.test.ts ran green for as long as it has existed
+     while carrying four real type errors (the compat-vs-modular Firestore
+     the harness returns — see the cast at the top of that file).
+     firestore-tests/README.md's "outside src/ so the app's tsc -b never
+     compiles them" is about the APP project, and stays true: they are
+     here, not in tsconfig.app.json. */
+  "include": [
+    "vite.config.ts",
+    "capacitor.config.ts",
+    "scripts/appcheck-guard.ts",
+    "scripts/appcheck-guard.test.ts",
+    "firestore-tests/**/*.ts"
+  ]
 }

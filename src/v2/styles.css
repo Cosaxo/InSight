@@ -1045,33 +1045,19 @@ button.card:active,
   font-family: var(--sans); font-style: normal; font-weight: 600; font-size: 13px;
 }
 
-/* ── Test overlay ─────────────────────────────────────────── */
-/* Selection cards — gentle lift + accent edge on hover */
-.test-pick-card {
-  transition: transform 0.22s var(--ease-spring), box-shadow 0.2s ease, border-color 0.2s ease;
-}
-.test-pick-card:hover {
-  transform: translateY(-1.5px);
-  box-shadow: var(--shadow-lift);
-}
-.test-pick-card:active { transform: translateY(0) scale(0.99); box-shadow: var(--shadow-card); }
-
-@media (hover: none) { .kb-hint { display: none; } }
+/* The sit-down test overlay's own rules stood here — `.test-pick-card`'s
+   hover lift and `.kb-hint` — until the flow itself went at D121 and the
+   four core instruments started filling from the feed. Nothing in the app
+   has carried either class since; this is a first-paint stylesheet with
+   about 5 KB of headroom under check:bundle's blocking-CSS ceiling, so
+   selectors for a deleted screen are not free. */
 
 /* Overlay headers shouldn't wrap their title (e.g. "Big Five", "Take a test") */
 .overlay .app-header .h-title { white-space: nowrap; }
 
-/* Question card eases in on advance / back — transform-only & vertical so
-   content is never clipped or invisible if the animation is reset
-   (screenshots, throttled tabs), matching the app's tab-swap convention */
-@media (prefers-reduced-motion: no-preference) {
-  .q-slide { animation: qRise 0.26s var(--ease-out) both; }
-  .q-slide-back { animation: qRise 0.26s var(--ease-out) both; }
-}
-@keyframes qRise {
-  from { transform: translateY(9px); }
-  to   { transform: none; }
-}
+/* `.q-slide` / `.q-slide-back` and their `qRise` keyframes went with the
+   same overlay (D121): they eased the question card between steps of a flow
+   that no longer exists. */
 
 /* result-rose reveal — petals grow out from the centre, staggered */
 @media (prefers-reduced-motion: no-preference) {
@@ -1169,7 +1155,7 @@ button.card:active,
 /* 7 · Hover is a mouse state. On a touch screen the lift/tint sticks to the
    last thing tapped, so the pointer-driven transforms stand down there. */
 @media (hover: none) {
-  button.card:hover, .card[role="button"]:hover, .test-pick-card:hover,
+  button.card:hover, .card[role="button"]:hover,
   .icon-btn:hover, .avatar-btn:hover, .press:hover { transform: none; box-shadow: var(--shadow-card); }
   .search-hit:hover { background: none; }
 }
@@ -1220,7 +1206,7 @@ button.card:active,
    swipe nudge, and the rose petals growing. Their finished state is the base
    style, so switching them off simply shows the result. */
 @media (prefers-reduced-motion: reduce) {
-  [style*="wfFillUp"], [style*="wfPctRide"], [style*="sdNudge"], [style*="roseGrow"], [style*="wfSheetUp"], [style*="glyphPop"], [style*="qRise"] { animation: none !important; }
+  [style*="wfFillUp"], [style*="wfPctRide"], [style*="sdNudge"], [style*="roseGrow"], [style*="wfSheetUp"], [style*="glyphPop"] { animation: none !important; }
   .app *, .overlay * { scroll-behavior: auto !important; }
 }
 

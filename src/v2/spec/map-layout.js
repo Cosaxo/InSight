@@ -3,7 +3,6 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import React from 'react';
 
 // InSight — Map tab layout engine + shared helpers. No JSX — plain script.
 // The tab component lives in map-tab.jsx; branch chips in map-chiprow.jsx.

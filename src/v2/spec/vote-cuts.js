@@ -3,7 +3,6 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import React from 'react';
 
 // InSight — VOTECUTS: the one cut list every who-voted breakdown reads from.
 // Demographics first, then the four tests. A test opens into its own subvalues:
