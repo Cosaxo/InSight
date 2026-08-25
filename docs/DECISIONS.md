@@ -29401,3 +29401,103 @@ lines that accompany it appear **ten times in the pre-audit baseline log**
 of a run that passed (they are the deliberate-refusal cases bailing out of
 an evaluation that was going to deny anyway), and a re-run passed all
 three suites. Recorded rather than left as a shrug.
+
+## D291 · One cache with no ceiling, and two gates satisfied by things that are not code
+
+**2026-08-25.** **Status:** binding. `insight.aggsCache.v1` gets a cap;
+`check:monitoring` stops counting a comment as an emit; `check:public-copy`
+stops scanning one panel of thirty-nine.
+
+### F9 · The sibling cache carried the warning and this one carried the bytes
+
+`writeProfileCache` has had `PROFILE_CACHE_CAP` since it was written, with
+the hazard spelled out above it — "this map is the one client cache with
+no natural ceiling — localStorage quota is ~5 MB and a blown quota throws
+on EVERY key, not just this one". Eighty lines down, `writeAggCache`
+serialised the whole of `state.aggs` with no cap, no TTL and no eviction,
+and its entries are 25–50× larger.
+
+Measured against pure.ts's own `BREAKDOWN_DIMS` with a fully-populated
+`by`: **1,658 bytes** for a 2-option question, **3,038** for a 5-option
+one. At COSTS.md's stated 4 answers/day that key reaches **0.57 MB at 90
+days, 2.31 MB at a year, 4.62 MB at two** — on its own, before the bank
+cache, the answers cache and ~28 other keys. Every answered question mints
+a permanent entry, per-day pulse ids mint a fresh one forever, and nothing
+ever removed one.
+
+**Every consequence is silent**, because every `setItem` in `live.ts` is
+wrapped in a swallowing catch. Once the origin is full: the answers cache
+stops advancing its watermark on disk, so every boot re-runs the warm
+delta from a frozen cursor until it saturates its own `limit(400)` and
+answers past it stop arriving; the 6 h agg memo stops persisting, so the
+boot top-up re-asks up to `AGG_ID_CAP` aggregates every time; and a reseed
+makes the bank cache unwritable, so every boot pays the full bank fetch —
+which is precisely BANK-DELIVERY.md §3's cliff, reached by aggregates
+rather than by bank growth.
+
+**Capped at 200 entries, newest-touched first** — ≈330 KB typical, ≈610 KB
+if every question were five-option, and deliberately above `AGG_ID_CAP`
+(120) so a boot's whole top-up set fits and nothing just fetched is
+evicted before the next write. `setAgg` is now the only way in, so nothing
+can be cached without also being dated; four call sites had the assignment
+inline.
+
+**The format changed under the SAME key**, `{ v: 2, e, t }`. A new key
+would have left the old one on disk holding the megabytes the cap exists
+to stop, swept only by a purge — which is not something a fix for a quota
+problem may wait for. The reader accepts both shapes; a v1 device loses
+its ages once and evicts by real recency from the next write onward.
+
+**In memory it is NOT capped, deliberately.** Evicting a live entry can
+blank a count on a card the viewer is looking at, and the growth being
+fixed is the persisted kind — the map accumulating across every session
+forever. One session's reach is bounded by the session.
+
+And the arithmetic in `question-quality.mjs` that budgets the bank at
+"roughly half" the quota now says what it was assuming: the other half
+belongs to ~28 keys, one of which was quietly taking all of it. If the cap
+moves, that budget moves with it — the two numbers divide one quota.
+
+### F10 · A comment, and a list of one
+
+**`check:monitoring` did not strip comments.** Every sibling gate does, and
+each does so because it was bitten by this exact shape —
+`check-appcheck.mjs`'s header records that commenting out `assertOperator`
+left it green, and `check-policy-claims.mjs` got its stripping at b3dc1c9
+for "a disclosure commented out of the privacy page still counted as
+present", one day before this audit. This was the one that never got the
+fix, and it is the gate whose stated purpose is that every link in the
+alert chain "fails the same silent way — the policy exists, the console is
+green, and the alert can never fire."
+
+Commenting out an emit is how such a line goes away in practice: somebody
+silences a noisy log, and the constant name survives inside the comment
+that silenced it. Measured before the fix — replacing
+`metric: "agg_contention",` with a commented-out copy of itself left the
+gate printing "every metric to a field a function emits" and exiting 0,
+while DELETING the same line failed it correctly. Live for a deletion,
+blind to a comment; identical now. While there, `metricNames` is scoped to
+the `METRICS` array instead of scraped off the whole file, so a future
+`name:` elsewhere cannot vouch for a metric.
+
+**`check:public-copy` scanned one panel of thirty-nine**, and none of
+spec/'s ~100 JSX surfaces. Its header argues at length that D106's remedy
+failed because it was a *discipline* — "a discipline cannot catch the
+surface it forgot to list; a file list can, and the list is the point of
+this script" — and the list was a hand-maintained literal, which is a
+discipline that has moved into the gate. It had already forgotten a
+surface, pointedly the one the header blames: LivePrivacyPanel claimed
+takes were nameless "while LiveTakesPanel rendered every author's name",
+and `LiveTakesPanel.tsx` was not on the list.
+
+**Walked now, not listed** — `src/v2/ui/*.tsx` and `src/v2/spec/*.{jsx,js}`,
+comments stripped as they already were, with an `APP_COPY_FLOOR` so a walk
+that finds nothing cannot report OK on nothing (the check-panel-suites
+shape). Surfaces went 31 → 161. Measured before switching: `RETIRED` over
+all 131 walked files hits **zero** times on this tree, so the widening
+costs nothing today and closes the hole permanently. Both holes are
+mutation-tested — the retired sentence in `LiveTakesPanel.tsx`, and again
+in `app-shell.jsx`, each caught where each used to pass.
+
+This gate stands on the release path, whose comment justifies it because
+"the privacy panel is COMPILED INTO THIS BINARY". So is every other panel.

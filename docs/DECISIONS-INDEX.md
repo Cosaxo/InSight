@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 295 lines instead of
-29,404. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 296 lines instead of
+29,504. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -123,7 +123,7 @@ detect it.
 | **D103** | [Four device readings: a retired test, a rail, the topics D96 left dark, and one notch paid for twice](DECISIONS.md#d103--four-device-readings-a-retired-test-a-rail-the-topics-d96-left-dark-and-one-notch-paid-for-twice) | D156 (+3) | 9717 |
 | **D104** | [Test users: a second real account, and what it is allowed to fake](DECISIONS.md#d104--test-users-a-second-real-account-and-what-it-is-allowed-to-fake) | — | 9817 |
 | **D105** | [One text field owns the app's scale: every input defers to --field-size](DECISIONS.md#d105--one-text-field-owns-the-apps-scale-every-input-defers-to---field-size) | D113 | 9922 |
-| **D106** | [The retired privacy model is swept out of the documentation, starting with the two pages users actually read](DECISIONS.md#d106--the-retired-privacy-model-is-swept-out-of-the-documentation-starting-with-the-two-pages-users-actually-read) | D262 (+6) | 10002 |
+| **D106** | [The retired privacy model is swept out of the documentation, starting with the two pages users actually read](DECISIONS.md#d106--the-retired-privacy-model-is-swept-out-of-the-documentation-starting-with-the-two-pages-users-actually-read) | D291 (+7) | 10002 |
 | **D107** | [A purpose string for the authorisation this app never asks for](DECISIONS.md#d107--a-purpose-string-for-the-authorisation-this-app-never-asks-for) | D199 | 10106 |
 | **D108** | [Two providers leave the bridge, and the mount suite stops being one file](DECISIONS.md#d108--two-providers-leave-the-bridge-and-the-mount-suite-stops-being-one-file) | D253 (+6) | 10234 |
 | **D109** | [LEARN leaves the bridge, and takes the load-order bug with it](DECISIONS.md#d109--learn-leaves-the-bridge-and-takes-the-load-order-bug-with-it) | D110 | 10375 |
@@ -309,3 +309,4 @@ detect it.
 | **D288** | [Three the audit found in the folds: a seal walked past, an edit counted twice, and a divisor with no floor](DECISIONS.md#d288--three-the-audit-found-in-the-folds-a-seal-walked-past-an-edit-counted-twice-and-a-divisor-with-no-floor) | — | 29102 |
 | **D289** | [The minimum OS the store publishes, and the bundle it installs](DECISIONS.md#d289--the-minimum-os-the-store-publishes-and-the-bundle-it-installs) | — | 29225 |
 | **D290** | [Two ends of one ordering, and a sparse map read as a dense one](DECISIONS.md#d290--two-ends-of-one-ordering-and-a-sparse-map-read-as-a-dense-one) | — | 29308 |
+| **D291** | [One cache with no ceiling, and two gates satisfied by things that are not code](DECISIONS.md#d291--one-cache-with-no-ceiling-and-two-gates-satisfied-by-things-that-are-not-code) | — | 29405 |

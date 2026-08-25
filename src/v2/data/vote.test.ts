@@ -836,7 +836,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     // Leading-schedule/trailing-write: the write happens a beat after the
     // FIRST snapshot but serialises state at write time, so it carries the
     // fifth one's total rather than the first's.
-    expect(JSON.parse(storage.getItem(AGG_LS) || "{}")).toMatchObject({
+    expect(JSON.parse(storage.getItem(AGG_LS) || "{}").e).toMatchObject({
       q_1: { total: 5 },
     });
     spy.mockRestore();
@@ -898,7 +898,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
 
     // Synchronous — the flush is the point.
     expect(aggWrites(spy)).toBe(1);
-    expect(JSON.parse(storage.getItem(AGG_LS) || "{}")).toMatchObject({
+    expect(JSON.parse(storage.getItem(AGG_LS) || "{}").e).toMatchObject({
       q_1: { total: 7 },
     });
 
@@ -908,6 +908,52 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(aggWrites(spy)).toBe(1);
     (document as unknown as { hidden: boolean }).hidden = false;
     spy.mockRestore();
+  });
+
+  // D291. This key had no cap of any kind while the sibling profile cache
+  // 80 lines up carried one, with the hazard written out — "localStorage
+  // quota is ~5 MB and a blown quota throws on EVERY key, not just this
+  // one". Every answered question minted a permanent entry carrying the
+  // whole `by` breakdown, so at COSTS.md's 4 answers/day the key reached
+  // 2.31 MB in a year. Every consequence of the blown quota is silent:
+  // every setItem in live.ts is wrapped in a swallowing catch.
+  it("caps what it persists, keeping the most recently touched", async () => {
+    await bootLive();
+    const mod = await import("./live");
+    const { AGG_CACHE_CAP, _seedAggsForTest } = mod as unknown as {
+      AGG_CACHE_CAP: number;
+      _seedAggsForTest: (n: number) => void;
+    };
+    // Two caps' worth, oldest first, then force the write.
+    _seedAggsForTest(AGG_CACHE_CAP * 2);
+    (document as unknown as { hidden: boolean }).hidden = true;
+    listeners.document.visibilitychange();
+    (document as unknown as { hidden: boolean }).hidden = false;
+
+    const disk = JSON.parse(storage.getItem(AGG_LS) || "{}");
+    const kept = Object.keys(disk.e);
+    expect(kept.length).toBe(AGG_CACHE_CAP);
+    // Newest survive, oldest are dropped — an LRU, not a truncation of
+    // whatever order the map happened to be in.
+    expect(kept).toContain(`seed_${AGG_CACHE_CAP * 2 - 1}`);
+    expect(kept).not.toContain("seed_0");
+    // and every kept entry carries its age, so a returning entry is not
+    // reborn on boot and evicted by accident of load order
+    expect(Object.keys(disk.t).sort()).toEqual(kept.sort());
+  });
+
+  it("reads back both the capped shape and a v1 map from an older build", async () => {
+    // The shape changed under the SAME key on purpose: a new key would
+    // leave the old one on disk holding the megabytes the cap exists to
+    // stop, and that is only swept by a purge.
+    const mod = await import("./live");
+    const { _readAggCacheForTest } = mod as unknown as {
+      _readAggCacheForTest: (raw: string) => Record<string, unknown>;
+    };
+    const v1 = { q_a: { total: 3, counts: { "0": 3 } } };
+    expect(_readAggCacheForTest(JSON.stringify(v1))).toMatchObject({ q_a: { total: 3 } });
+    const v2 = { v: 2, e: { q_b: { total: 4, counts: { "0": 4 } } }, t: { q_b: 111 } };
+    expect(_readAggCacheForTest(JSON.stringify(v2))).toMatchObject({ q_b: { total: 4 } });
   });
 
   it("a revoked session keeps real data on screen rather than blanking to demo", async () => {

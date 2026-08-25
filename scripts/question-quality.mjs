@@ -413,6 +413,17 @@ export const DAILY_ID_FAIL = 970; // an id-scheme decision is due before 999
 // bytes-per-document from the seed itself rather than assuming, and these
 // counts are that estimate rounded to something a human can hold:
 // 6,000 docs ≈ 1.5 MB, 10,000 ≈ 2.5 MB.
+//
+// "BUDGET IT ROUGHLY HALF" ASSUMES THE OTHER 28 KEYS SHARE THE OTHER HALF,
+// and for a while one of them did not. `insight.aggsCache.v1` had no cap:
+// every answered question minted a permanent entry carrying its whole `by`
+// breakdown, ~1.7 KB each, so at COSTS.md's 4 answers/day it passed
+// 2.3 MB inside a year — the whole of the half this budget hands to
+// everything else, reached by a term that is per-user and per-day and that
+// no gate can see, because it is device state rather than repo state.
+// D291 capped it at AGG_CACHE_CAP entries (~330 KB), which is what makes
+// the sentence above true rather than hopeful. If that cap moves, this
+// budget moves with it — the two numbers are dividing one quota.
 // D162's sampled audit: one AI-reviewed question in this many gets read by
 // a person. A starting figure, not a measured one — move it with what the
 // audit actually finds.

@@ -71,9 +71,25 @@ const onDisk = readdirSync(join(root, "monitoring"))
 const applySrc = read("scripts/apply-monitoring.mjs");
 
 const listedPolicies = [...applySrc.matchAll(/"(monitoring\/[\w.-]+\.json)"/g)].map((m) => m[1]);
-const metricNames = [...applySrc.matchAll(/name:\s*"([\w]+)"/g)].map((m) => m[1]);
+
+// SCOPED TO THE METRICS ARRAY, not scraped off the whole file. `name:` is
+// an ordinary key and apply-monitoring.mjs is free to grow another one —
+// a notification channel, a dashboard, a future POLICIES field — and an
+// unscoped scrape would let any of them vouch for a metric that the array
+// does not actually declare. Clean today (the five matches are exactly the
+// five METRICS entries), which is the moment to narrow it rather than
+// after something else lands.
+const metricsBlock = (() => {
+  const from = applySrc.indexOf("const METRICS = [");
+  const to = applySrc.indexOf("const POLICIES = [", from < 0 ? 0 : from);
+  if (from < 0) return "";
+  return applySrc.slice(from, to < 0 ? applySrc.length : to);
+})();
+if (!metricsBlock) fail("apply-monitoring.mjs: could not find `const METRICS = [` — has it been restructured?");
+
+const metricNames = [...metricsBlock.matchAll(/name:\s*"([\w]+)"/g)].map((m) => m[1]);
 const metricFilters = Object.fromEntries(
-  [...applySrc.matchAll(/name:\s*"([\w]+)",[\s\S]{0,400}?filter:\s*(['"])([\s\S]*?)\2/g)]
+  [...metricsBlock.matchAll(/name:\s*"([\w]+)",[\s\S]{0,400}?filter:\s*(['"])([\s\S]*?)\2/g)]
     .map((m) => [m[1], m[3]]),
 );
 
@@ -124,9 +140,34 @@ for (const f of onDisk) {
 }
 
 // ── rule 4: each metric selects on a field a function emits ──────────
+//
+// COMMENTS ARE BLANKED FIRST, and this file was the last gate here that
+// did not do it. Every sibling strips — check-appcheck.mjs (whose header
+// records that commenting out `assertOperator` left it green),
+// check-purge-listeners.mjs, check-labels.mjs, check-data-inventory.mjs,
+// check-spec-globals rule 2, and check-policy-claims.mjs, whose own
+// stripping landed at b3dc1c9 for "a disclosure commented out of the
+// privacy page still counted as present".
+//
+// It matters most here, of all of them. This gate's stated purpose is
+// that every link in the alert chain "fails the same silent way — the
+// policy exists, the console is green, and the alert can never fire", and
+// commenting out an emit is exactly how such a line goes away in practice:
+// somebody silences a noisy log while debugging, and the constant name
+// survives inside the comment that silenced it. Measured on this tree
+// before the fix — replacing `metric: "agg_contention",` in v2.ts with a
+// commented-out copy of itself left this script printing "every metric to
+// a field a function emits" and exiting 0, while DELETING the same line
+// outright failed it correctly. Live for a deletion, blind to a comment.
+function stripComments(text) {
+  return text
+    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+    .replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + " ".repeat(m.length - p1.length));
+}
+
 const fnSrc = readdirSync(join(root, "functions/src"))
   .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"))
-  .map((f) => read(`functions/src/${f}`))
+  .map((f) => stripComments(read(`functions/src/${f}`)))
   .join("\n");
 
 for (const name of metricNames) {

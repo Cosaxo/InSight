@@ -13,8 +13,13 @@
 // MUST keep passing. web/privacy.html carries two on purpose. A gate that
 // punished them would push the next author into deleting the record
 // instead of dating it, which is the opposite of what this repo wants.
+import { readdirSync } from "node:fs";
+import { resolve, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
 import { scan, scanText, RETIRED } from "./check-public-copy.mjs";
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 describe("the claims that were actually live", () => {
   // Verbatim, from git history at the commit this gate was added.
@@ -103,6 +108,34 @@ describe("the live corpus", () => {
     expect(labels).toMatch(/web\/home\.html/);
     expect(labels).toMatch(/web\/terms\.html/);
     expect(labels).toMatch(/LivePrivacyPanel\.tsx/);
+  });
+
+  // D291. The panels used to be a hand-maintained literal holding exactly
+  // ONE file — a discipline wearing a gate's clothes, and it had already
+  // forgotten the surface this script's own header blames for the second
+  // failure it was built for.
+  it("reads every panel and every spec surface, not a list of one", () => {
+    const labels = scan().surfaces.map((s) => s.label);
+
+    // The one the header names, which was not on the old list.
+    expect(labels).toContain("src/v2/ui/LiveTakesPanel.tsx");
+    // The spec layer is user-visible copy too, and none of it was scanned.
+    expect(labels).toContain("src/v2/spec/app-shell.jsx");
+
+    // Every non-test panel, by count rather than by name — a new panel
+    // must not need a line here either.
+    const panels = readdirSync(join(root, "src/v2/ui"))
+      .filter((f) => f.endsWith(".tsx") && !f.includes(".test."));
+    for (const p of panels) expect(labels).toContain(`src/v2/ui/${p}`);
+    expect(panels.length).toBeGreaterThan(30);
+  });
+
+  it("scans no test file, whose fixtures quote the retired wording on purpose", () => {
+    // check-public-copy.test.mjs itself is full of the retired vocabulary,
+    // and so are the panel suites. Scanning them would fire on the cases
+    // that prove the patterns work.
+    const labels = scan().surfaces.map((s) => s.label);
+    expect(labels.filter((l) => l.includes(".test."))).toEqual([]);
   });
 
   it("skips the $-prefixed operator annotations in listing.json", () => {

@@ -51,8 +51,8 @@
 // on whether a rules deploy is safe, and stale marketing copy must never
 // be able to block an emergency one (CLAUDE.md).
 
-import { readFileSync } from "node:fs";
-import { resolve, dirname, join } from "node:path";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -64,10 +64,62 @@ const HTML_FILES = [
   "web/home.html",
   "web/terms.html",
 ];
-const TSX_FILES = [
-  "src/v2/ui/LivePrivacyPanel.tsx",
+// The app's own panels are WALKED, not listed, and that is this gate
+// finally taking its own advice.
+//
+// The header above argues that D106's remedy failed because it was a
+// discipline — "a discipline cannot catch the surface it forgot to list; a
+// file list can, and the list is the point of this script". A
+// hand-maintained literal IS a discipline; it just moved into the gate.
+// And it had already forgotten a surface, pointedly the one the header
+// names: LivePrivacyPanel claimed takes were nameless "while
+// LiveTakesPanel rendered every author's name", and LiveTakesPanel.tsx was
+// not on the list. One panel of thirty-nine was scanned, plus none of
+// spec/'s ~100 JSX surfaces, all of them user-visible copy compiled into
+// the same binary this gate stands on the release path to protect.
+//
+// Measured before switching: RETIRED over all 131 walked files hits zero
+// times on this tree, so the walk costs nothing today and closes the hole
+// permanently. It also removes the failure mode where adding a panel means
+// remembering to add a line.
+const APP_COPY_DIRS = [
+  { dir: "src/v2/ui", keep: (f) => f.endsWith(".tsx") && !f.includes(".test.") },
+  { dir: "src/v2/spec", keep: (f) => /\.(jsx|js)$/.test(f) && !f.includes(".test.") },
 ];
+
+// A floor, the check-panel-suites / check-deploy-targets shape: a walk that
+// finds nothing reports OK on nothing, which is the silent success every
+// gate here is written against. Thirty-nine panels and ~92 spec modules
+// today; the floor sits far enough below to survive ordinary deletion and
+// far enough above to catch a moved or renamed directory.
+const APP_COPY_FLOOR = 80;
+
 const LISTING = "design/store/listing.json";
+
+function walkCopy() {
+  const out = [];
+  for (const { dir, keep } of APP_COPY_DIRS) {
+    const abs = join(root, dir);
+    let entries;
+    try {
+      entries = readdirSync(abs, { recursive: true });
+    } catch {
+      // A missing directory is a failure, not an empty scan — reported by
+      // the floor below rather than swallowed here.
+      continue;
+    }
+    for (const e of entries) {
+      const rel = String(e).split(sep).join("/");
+      const name = rel.split("/").pop();
+      if (!keep(name)) continue;
+      try {
+        if (!statSync(join(abs, rel)).isFile()) continue;
+      } catch { continue; }
+      out.push(`${dir}/${rel}`);
+    }
+  }
+  return out.sort();
+}
 
 // The retired vocabulary, in the PRESENT tense only.
 //
@@ -152,7 +204,17 @@ export function scanText(text) {
 export function collect() {
   const out = [];
 
-  for (const rel of [...HTML_FILES, ...TSX_FILES]) {
+  const appCopy = walkCopy();
+  if (appCopy.length < APP_COPY_FLOOR) {
+    out.push({
+      label: `${APP_COPY_DIRS.map((d) => d.dir).join(" + ")} (walk)`,
+      text: "",
+      error: `found ${appCopy.length} copy files, expected at least ${APP_COPY_FLOOR} — `
+        + "a walk that finds nothing reports OK on nothing. Has a directory moved?",
+    });
+  }
+
+  for (const rel of [...HTML_FILES, ...appCopy]) {
     let raw;
     try {
       raw = readFileSync(join(root, rel), "utf8");
@@ -160,7 +222,7 @@ export function collect() {
       out.push({ label: rel, text: "", error: e.message });
       continue;
     }
-    if (rel.endsWith(".tsx")) {
+    if (/\.(tsx|jsx|js)$/.test(rel)) {
       // Strip block and line comments: a TSX file's comments explain the
       // history to the next maintainer and quote the old wording on
       // purpose — LivePrivacyPanel's does exactly that, twice. Scanning

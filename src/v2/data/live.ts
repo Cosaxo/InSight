@@ -760,14 +760,111 @@ function saveProfileCache(): void {
 const AGG_CACHE_MS = 1000;
 let aggCacheTimer: ReturnType<typeof setTimeout> | null = null;
 
+/**
+ * How many aggregates persist to disk, newest-touched first.
+ *
+ * THE SIBLING CACHE 80 LINES UP HAS CARRIED THIS SINCE IT WAS WRITTEN, and
+ * spells out the hazard in full — "this map is the one client cache with
+ * no natural ceiling — localStorage quota is ~5 MB and a blown quota
+ * throws on EVERY key, not just this one". The far larger per-entry cache
+ * never got one. Nothing evicted here: every answered question minted a
+ * permanent entry, including per-day pulse ids that mint a fresh one
+ * forever, and each carries the whole `by` breakdown — 7 dims × up to
+ * BREAKDOWN_MAX_BUCKETS buckets × option counts.
+ *
+ * Measured entry sizes against pure.ts's own BREAKDOWN_DIMS with a
+ * fully-populated `by`: 1,658 bytes for a 2-option question, 3,038 for a
+ * 5-option one. At COSTS.md's stated 4 answers/day that key reached
+ * 0.57 MB in 90 days, 2.31 MB in a year and 4.62 MB in two — on its own,
+ * before the bank cache, the answers cache and ~28 other `insight.` keys.
+ * And every consequence is silent, because every `setItem` in this file is
+ * wrapped in a swallowing catch: the answers cache stops advancing its
+ * watermark so every boot re-runs a warm delta from a frozen cursor, the
+ * 6 h agg memo stops persisting so the boot top-up re-asks up to
+ * AGG_ID_CAP aggregates every time, and a reseed makes the bank cache
+ * unwritable so every boot pays the full bank fetch — which is exactly
+ * BANK-DELIVERY.md §3's cliff, reached by aggregates rather than by bank
+ * growth.
+ *
+ * 200 × ~1.7 KB ≈ 330 KB typical, ≈ 610 KB with five-option questions
+ * throughout. Deliberately above AGG_ID_CAP (120) so a boot's whole
+ * top-up set fits and nothing it just fetched is evicted before the next
+ * write.
+ */
+const AGG_CACHE_CAP = 200;
+
+// qid → when this device last touched that aggregate. Module-level rather
+// than in `state` for the same reason `profileSeen` is: it is bookkeeping
+// for the disk format and nothing renders from it. Persisted alongside the
+// entries so a returning entry keeps its age instead of being reborn on
+// every boot, which would make the cap evict by accident of load order.
+const aggSeen = new Map<string, number>();
+
+/** The one way an aggregate enters the map, so nothing can be cached
+ * without also being dated. Four call sites had the assignment inline. */
+function setAgg(qid: string, doc: AggDoc): void {
+  state.aggs[qid] = doc;
+  aggSeen.set(qid, Date.now());
+}
+
 function writeAggCache(): void {
   if (torndown) return;
   try {
-    localStorage.setItem("insight.aggsCache.v1", JSON.stringify(state.aggs));
+    const now = Date.now();
+    const keep = Object.keys(state.aggs)
+      .sort((a, b) => (aggSeen.get(b) ?? 0) - (aggSeen.get(a) ?? 0))
+      .slice(0, AGG_CACHE_CAP);
+    const e: Record<string, AggDoc> = {};
+    const t: Record<string, number> = {};
+    for (const qid of keep) {
+      e[qid] = state.aggs[qid];
+      t[qid] = aggSeen.get(qid) ?? now;
+    }
+    // `v: 2` under the SAME key. A new key would leave the old one on disk
+    // holding the megabytes this cap exists to stop — swept only by a
+    // purge, which is not something a fix for a quota problem may wait for.
+    // The reader below still accepts the flat v1 map.
+    localStorage.setItem("insight.aggsCache.v1", JSON.stringify({ v: 2, e, t }));
   } catch {
     /* best-effort */
   }
 }
+
+/**
+ * Parse whatever this device has on disk into entries + ages.
+ *
+ * Both shapes, because the format changed under the same key: v2 is
+ * `{ v, e, t }`, v1 was the bare `{qid: doc}` map. A v1 device loses its
+ * ages once — every entry dates from the boot that read it — and the cap
+ * then evicts by real recency from the next write onward, rather than by
+ * accident of key order.
+ */
+function parseAggCache(raw: string | null): { entries: Record<string, AggDoc>; ages: Record<string, number> } {
+  const empty = { entries: {}, ages: {} };
+  let cached: unknown;
+  try {
+    cached = JSON.parse(raw || "null");
+  } catch {
+    return empty;
+  }
+  if (!cached || typeof cached !== "object") return empty;
+  const c = cached as { v?: unknown; e?: unknown; t?: unknown };
+  const isV2 = c.v === 2 && c.e && typeof c.e === "object";
+  const entries = (isV2 ? c.e : cached) as Record<string, AggDoc>;
+  const ages = ((isV2 && c.t) || {}) as Record<string, number>;
+  const out: Record<string, AggDoc> = {};
+  for (const [qid, doc] of Object.entries(entries)) {
+    if (doc && typeof doc === "object") out[qid] = doc;
+  }
+  return { entries: out, ages };
+}
+
+// IN MEMORY IT IS NOT CAPPED, and that is deliberate rather than an
+// omission. Evicting a live entry can blank a count on a card the viewer
+// is looking at, and the growth this fixes is the PERSISTED kind — the map
+// accumulating across every session forever. One session's own reach is
+// bounded by the session: the boot load is capped here, the top-up at
+// AGG_ID_CAP, and the rest is whatever the viewer actually opened.
 
 // Coalesced, because the caller is the agg snapshot handler and the thing
 // being written is the WHOLE aggs map. The daily question is globally
@@ -830,7 +927,7 @@ async function drainAggRefresh(db: Awaited<ReturnType<typeof getDb>>): Promise<v
   ))));
   for (const snap of snaps) {
     for (const d of snap.docs) {
-      state.aggs[d.id] = d.data() as AggDoc;
+      setAgg(d.id, d.data() as AggDoc);
       got = true;
       // Clear the display flag only for an ACKED write — a
       // still-inflight one cannot be in the agg we just read, and
@@ -1049,7 +1146,7 @@ async function refreshAggs(qids: readonly string[]): Promise<void> {
       where(documentId(), "in", qids.slice(0, 30)),
     ));
     snap.docs.forEach((d) => {
-      state.aggs[d.id] = d.data() as AggDoc;
+      setAgg(d.id, d.data() as AggDoc);
       // Same rule the snapshot handler applied: a fresh aggregate means the
       // trigger has (very likely) folded the vote in, so stop
       // double-counting it. A premature clear self-heals on the next read.
@@ -1577,8 +1674,12 @@ async function hydrate(): Promise<void> {
   // whole climb to a k-floor, so this re-reads far less than it used to.
   const AGG_LS = "insight.aggsCache.v1";
   try {
-    const cached = JSON.parse(localStorage.getItem(AGG_LS) || "null");
-    if (cached && typeof cached === "object") Object.assign(state.aggs, cached);
+    const { entries, ages } = parseAggCache(localStorage.getItem(AGG_LS));
+    const now = Date.now();
+    for (const [qid, doc] of Object.entries(entries)) {
+      state.aggs[qid] = doc;
+      aggSeen.set(qid, typeof ages[qid] === "number" ? ages[qid] : now);
+    }
   } catch {
     /* best-effort */
   }
@@ -1617,7 +1718,7 @@ async function hydrate(): Promise<void> {
       getDocs(query(collection(db, "v2_question_aggs"), where(documentId(), "in", chunk)))));
     snaps.forEach((snap) => {
       snap.docs.forEach((d) => {
-        state.aggs[d.id] = d.data() as AggDoc;
+        setAgg(d.id, d.data() as AggDoc);
       });
       state.stats.aggsFetched += snap.size;
     });
@@ -3668,7 +3769,7 @@ const LIVE = {
           getDocs(query(collection(db, "v2_question_aggs"), where(documentId(), "in", chunk)))
             .then((snap) => {
               snap.docs.forEach((d) => {
-                state.aggs[d.id] = d.data() as AggDoc;
+                setAgg(d.id, d.data() as AggDoc);
               });
               // Counted, which it was not before — the other three agg
               // reads all increment this and these are the largest batch
@@ -4970,6 +5071,7 @@ function resetForNewUid(uid: string): void {
   state.unaggregated = {};
   state.editedAt = {};
   state.aggs = {};
+  aggSeen.clear();
   state.groups = [];
   state.reveals = {};
   state.revealHist = {};
@@ -5438,6 +5540,24 @@ export function _aggRefreshForTest(): {
 // Exported for the test, which is the only way to prove this: a listener
 // that is still attached looks identical to one that is not until
 // something counts them.
+// Exported for the test, for the same reason `_aggPollForTest` is: the
+// cap and the on-disk format are the whole of D291's fix, and neither is
+// reachable from the public surface. `_seedAggsForTest` dates its entries
+// oldest-first so a case can assert WHICH survive rather than only how
+// many.
+export { AGG_CACHE_CAP };
+export function _seedAggsForTest(n: number): void {
+  const base = Date.now() - n;
+  for (let i = 0; i < n; i++) {
+    const qid = `seed_${i}`;
+    state.aggs[qid] = { counts: { "0": 1 }, total: 1 } as AggDoc;
+    aggSeen.set(qid, base + i);
+  }
+}
+export function _readAggCacheForTest(raw: string): Record<string, AggDoc> {
+  return parseAggCache(raw).entries;
+}
+
 export function _idleDetachForTest(): { pending: boolean; run: () => void } {
   return {
     pending: idleDetachTimer !== null,
