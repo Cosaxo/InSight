@@ -179,6 +179,7 @@ everything else: the static gates, and where each one runs.
 | `check:globals` | ci | The spec layer's shared-global wiring: dangling references, files `spec-index.js` forgot, undefined JSX tags, publications nothing reads, and (**rule 4**) a ratchet on remaining coupling that may only go down |
 | `check:docs` | ci | This page's maps, and that `DECISIONS-INDEX.md` is current |
 | `check:figures` | ci | Counts quoted in prose, held equal to the tree. Exists because a figure kept current by intention does not stay current |
+| `check:answer-shape` | ci | Every answer-creating write still carries `qid`, `answeredAt` and `anchors`, and the rebuild still reads them (D290). An answer without its anchors snapshot can never be re-cohorted — the profile is mutable, so the cohort it was cast in is gone |
 | `check:a11y` | ci | Accessibility, as a per-file ratchet, plus the four figures `src/v2/README.md` quotes about its own debt |
 | `check:labels` | ci | Every `htmlFor` / `aria-*` reference resolves to an id in the same file. jsx-a11y only checks the attribute is present |
 | `check:touch-zoom` | ci | No text field under 16px. One at 15px zooms the whole app on iOS and nothing zooms it back (D105) |

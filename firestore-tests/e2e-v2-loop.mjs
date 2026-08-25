@@ -175,8 +175,24 @@ ok("answer written: " + uid.slice(0, 8) + "/answers/" + q0.id);
 // 5 · the trigger folds the answer into the public mirror. Since D98 the
 // FIRST answer publishes, exactly, with the complete breakdown: no
 // tooSmall flag, no cadence, no suppressed cells.
+//
+// THE LONGEST WINDOW IN THE SUITE, and it is this step rather than a
+// busier one for a reason worth keeping: this is the FIRST trigger
+// delivery of the run, so it alone pays the functions runtime's cold
+// start and Eventarc's first-delivery setup on top of the fold. Every
+// later poll here runs against a warm runtime, which is why 20 × 400 ms
+// is plenty for them and 30 × 500 ms was not always enough for this one —
+// observed failing once on a sandbox runner with the trigger visibly
+// executing (203 ms, no error, no log line) and the aggregate landing
+// just after the poll gave up. That reads as "trigger did not fire",
+// which is the most misleading message this file can print.
+//
+// Raised rather than retried: a first-delivery window that is sometimes
+// too short is a flaky suite, and the cost of a longer ceiling is zero on
+// every run that does not need it — the loop breaks the moment the
+// document appears.
 let pub = null;
-for (let i = 0; i < 30; i++) {
+for (let i = 0; i < 60; i++) {
   const snap = await getDoc(doc(db, "v2_question_aggs", q0.id));
   if (snap.exists()) { pub = snap.data(); break; }
   await new Promise((r) => setTimeout(r, 500));
@@ -483,6 +499,65 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
     if (!html.includes(needle)) fail("report page lost a cut: " + needle);
   }
   ok("report builder: 12-row roll, 9/3 split, the 1→0 move, four all-untested type cuts with their axis bands, every read inside REPORT_READ_SET");
+}
+
+// 7h · D290: the replay tool, against the aggregate 7e/7f just built.
+// `replay.test.ts` pins the FOLD; nothing until here has executed the half
+// that touches Firestore — the collection-group scan, the uid recovered
+// from `doc.ref.parent.parent`, the paging cursor, the optimistic
+// concurrency check, and the D226 carry through a real whole-doc rewrite.
+//
+// The standing state is 12 answers, counts {0:9, 1:3}, edits {1:{0:1}}.
+// A rebuild of that must be a NO-OP — which is the strongest assertion
+// available here, because it says the batch scan and the incremental
+// trigger reached the same aggregate by different routes over the same
+// answers.
+//
+// WHAT THIS DOES NOT PROVE: the emulator creates composite indexes on
+// demand, so the `qid, answeredAt` collection-group index this scan orders
+// by is exercised but not REQUIRED here. Production needs the entry in
+// firestore.indexes.json; a missing one there fails the call with a
+// console link rather than a wrong answer.
+{
+  const dry = (await httpsCallable(fns, "rebuildAggregateV2")({ qid: q0.id })).data;
+  if (dry.applied !== false) fail("the rebuild wrote without --apply");
+  if (dry.scanned !== 12 || dry.folded !== 12 || dry.skipped !== 0)
+    fail("the scan missed answers: " + JSON.stringify(dry));
+  if (dry.total !== 12 || dry.counts["0"] !== 9 || dry.counts["1"] !== 3)
+    fail("replay disagrees with the trigger: " + JSON.stringify(dry.counts));
+  if (dry.drift.total !== 0 || Object.keys(dry.drift.counts).length)
+    fail("drift on an untouched aggregate: " + JSON.stringify(dry.drift));
+  if (dry.carriedEdits !== true) fail("the stored edit matrix was not carried");
+  if (dry.cappedDims.length) fail("two cities should not saturate a 24-bucket dim: " + dry.cappedDims);
+  ok("D290: replay of 12 answers reproduces the trigger's aggregate exactly, drift none");
+
+  // The dry run must not have touched the document it just described.
+  const untouched = await getDoc(doc(db, "v2_question_aggs", q0.id));
+  if (untouched.get("total") !== 12 || JSON.stringify(untouched.get("edits")) !== JSON.stringify({ "1": { "0": 1 } }))
+    fail("the DRY run wrote: " + JSON.stringify(untouched.data()));
+  ok("D290: dry run wrote nothing");
+
+  // D28's ring subtraction, on the one uid whose answer this suite knows:
+  // the primary voter, whose 1→0 edit is the matrix above — so excluding
+  // them takes a vote out of option 0, not option 1.
+  const less = (await httpsCallable(fns, "rebuildAggregateV2")({ qid: q0.id, exclude: [uid] })).data;
+  if (less.excluded !== 1 || less.total !== 11 || less.counts["0"] !== 8 || less.counts["1"] !== 3)
+    fail("exclusion did not subtract exactly one answer: " + JSON.stringify(less));
+  if (less.drift.total !== -1) fail("drift should report the subtraction: " + JSON.stringify(less.drift));
+  ok("D28/D290: excluding one uid subtracts exactly its answer, drift -1");
+
+  // …and the exclusion leaves the breakdown as well as the headline: the
+  // primary voter is the Oslo/25-34 cell's fourth member.
+  const applied = (await httpsCallable(fns, "rebuildAggregateV2")({ qid: q0.id, apply: true })).data;
+  if (applied.applied !== true || applied.total !== 12) fail("apply did not run: " + JSON.stringify(applied));
+  const after = await getDoc(doc(db, "v2_question_aggs", q0.id));
+  if (after.get("total") !== 12 || after.get("counts")["0"] !== 9 || after.get("counts")["1"] !== 3)
+    fail("a no-op rebuild changed the counts: " + JSON.stringify(after.data()));
+  if (JSON.stringify(after.get("edits")) !== JSON.stringify({ "1": { "0": 1 } }))
+    fail("the rebuild's whole-doc rewrite dropped the edit matrix: " + JSON.stringify(after.get("edits")));
+  if (JSON.stringify(after.get("by").ageBand) !== JSON.stringify(untouched.get("by").ageBand))
+    fail("the rebuild changed the breakdown: " + JSON.stringify(after.get("by").ageBand));
+  ok("D290: --apply round-trips the aggregate unchanged, matrix and breakdown intact");
 }
 
 // 8 · the duel loop: create → join by code → sealed answers → reveal → streak
@@ -802,6 +877,13 @@ if (labove.counts["0"] !== 3 || labove.counts["1"] !== 1 || labove.counts["2"] !
   fail("learn counts wrong at total 5: " + JSON.stringify(labove));
 ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 right");
 
+// The catalog and rank question ids, hoisted because THREE steps need
+// them now: 9c and 9d drive their folds, and 9e rebuilds both. Two string
+// literals is a small thing to copy and a copy is how they drift — the
+// same argument pure.ts makes about `breakdownFor`.
+const PK_ID = "pick-pk04"; // "Your most-used emoji?" — content/pick-questions.json
+const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
+
 // 9c · catalog picks (D14 gone live): an entity answer rides the same
 // create-only path, and the trigger folds it through the CANON — the
 // top/rest board plus per-segment orderings (D17) — instead of
@@ -812,7 +894,7 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
 // validated against the committed catalogue — an unknown key never
 // aggregates.
 {
-  const PK = "pick-pk04"; // "Your most-used emoji?" — content/pick-questions.json
+  const PK = PK_ID;
   const pkDoc = await getDoc(doc(db, "v2_questions", PK));
   if (!pkDoc.exists() || pkDoc.get("type") !== "catalog" || pkDoc.get("domain") !== "emoji")
     fail("the pick seed did not land as a catalog doc: " + JSON.stringify(pkDoc.data() || null));
@@ -920,7 +1002,7 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
 // and dies at the trigger's permutation check, exactly like an unknown
 // catalog key.
 {
-  const RQ = "feed-f03"; // "Pure athleticism — rank them", 4 items
+  const RQ = RQ_ID;
   const rqDoc = await getDoc(doc(db, "v2_questions", RQ));
   if (!rqDoc.exists() || rqDoc.get("type") !== "rank" || (rqDoc.get("options") || []).length !== 4)
     fail("the rank seed did not land as a 4-item rank doc: " + JSON.stringify(rqDoc.data() || null));
@@ -990,6 +1072,53 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
   if (rtwo.total !== 2 || JSON.stringify(rtwo.pos) !== JSON.stringify([4, 4, 1, 3]))
     fail("a non-permutation folded, or a valid order did not: " + JSON.stringify(rtwo));
   ok("rank: non-permutation dropped at the trigger; valid orders sum exactly");
+}
+
+// 9e · D290: the OTHER TWO fold arms, rebuilt. This step used to assert
+// that the tool refused them — which was honest while it did, and made
+// "every aggregate is a projection you can rebuild" true of exactly one
+// arm out of three. Both are built now, and this is what proves it against
+// real folds rather than against synthetic ones.
+//
+// Same assertion shape as 7h and for the same reason: a rebuild of a
+// healthy question must be a NO-OP. That needs no hardcoded totals — it
+// compares the document to itself across a scan — so this step cannot rot
+// when 9c or 9d change what they leave behind.
+{
+  const noop = async (label, qid, keys) => {
+    const before = (await getDoc(doc(db, "v2_question_aggs", qid))).data();
+    const dry = (await httpsCallable(fns, "rebuildAggregateV2")({ qid })).data;
+    if (dry.applied !== false) fail(`${label}: the rebuild wrote without apply`);
+    if (dry.drift.total !== 0)
+      fail(`${label}: drift on an untouched aggregate — ${JSON.stringify(dry.drift)}`);
+    if (dry.total !== before.total)
+      fail(`${label}: replay total ${dry.total} against published ${before.total}`);
+
+    const applied = (await httpsCallable(fns, "rebuildAggregateV2")({ qid, apply: true })).data;
+    if (applied.applied !== true) fail(`${label}: apply did not run`);
+    const after = (await getDoc(doc(db, "v2_question_aggs", qid))).data();
+    for (const k of keys) {
+      if (JSON.stringify(after[k]) !== JSON.stringify(before[k]))
+        fail(`${label}: --apply changed \`${k}\` — ${JSON.stringify(before[k])} → ${JSON.stringify(after[k])}`);
+    }
+    return { dry, applied };
+  };
+
+  // Rank: position sums and the total. The arm with no caveat at all —
+  // plain addition, nothing to evict, so a rebuild is not "a correct fold"
+  // but THE fold, and replay.test.ts pins that order-independence.
+  const r = await noop("rank", RQ_ID, ["total", "pos"]);
+  if (r.dry.arm !== "rank") fail(`rank question routed to the ${r.dry.arm} arm`);
+  if (r.dry.cappedDims.length) fail("rank has no breakdown and must report no capped dims");
+  ok("D290: rank aggregate rebuilds to itself — total and position sums unchanged");
+
+  // Catalog: the board AND the private accumulator behind it. The board is
+  // canonTopN's lossy projection, so a rebuild that wrote only the public
+  // document would leave the next answer folding from something it cannot
+  // fold from — which is why the private doc survived D290's collapse.
+  const c = await noop("catalog", PK_ID, ["total", "top", "rest", "by"]);
+  if (c.dry.arm !== "catalog") fail(`catalog question routed to the ${c.dry.arm} arm`);
+  ok("D290: catalog board rebuilds to itself — top, rest and the segment board unchanged");
 }
 
 // 10 · Near presence (D84 / D174 / D176 / D177): the write path through

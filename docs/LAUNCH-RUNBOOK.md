@@ -1311,18 +1311,37 @@ That is a tester-count problem, not a workflow problem.
       `deleteAccount` does not touch Storage, so revoking access while
       objects remain converts a dead feature into an erasure gap. Update
       `firestore-tests/storage.rules.test.ts` in the same commit.
-- [ ] **5.5 Apply the two monitoring alerts** (`monitoring/*.json`):
+- [ ] **5.5 Apply the eight monitoring alerts** (`monitoring/*.json`):
       ```bash
       npm run monitoring:apply -- --email you@example.com           # report
       npm run monitoring:apply -- --email you@example.com --apply   # do it
       ```
       One command for what used to be four console steps with a channel id
-      pasted between them. Idempotent and dry-run by default. Neither
-      policy is applied by the pipeline, and this script must not be put on
+      pasted between them. Idempotent and dry-run by default. No policy is
+      applied by the pipeline, and this script must not be put on
       it — the deploy service account has no monitoring role, and widening
-      it for two policies is the worse trade. Both cover failures that look like nothing from the
+      it for eight policies is the worse trade. They cover failures that look like nothing from the
       outside: the app keeps serving while the Mirror stops moving, or
       keeps moving while falling further behind. `DEPLOYMENT.md § Alerting`.
+
+      **What that refusal does and does not say, because it was misread
+      once.** It rules out the DEPLOY PATH, and its reason is about the
+      DEPLOY service account — the one that pushes rules and functions, and
+      that nobody wants holding a monitoring role it needs twice a year. It
+      does not say the step cannot be automated. A separate
+      `workflow_dispatch` with its own credential is not the deploy path,
+      and `seed-content.yml` is the proof that shape works: an operator
+      callable run against production from CI, behind the `production`
+      environment's protection rules (D87), with no dev machine anywhere.
+      Whether that is worth building for eight policies applied once is an
+      open question with arguments both ways; what is settled is only the
+      narrow thing this paragraph settles.
+
+      The count above is held by `check:figures` now. It said **two** while
+      the tree carried eight, `apply-monitoring.mjs`'s own header said
+      three, and the refusal priced a trade against the wrong number by 4x
+      — three copies of one figure, none of them right, which is the exact
+      failure D39 built that gate for.
 - [x] **5.6 Version lockstep — holds at 2.0.0 build 26.**
       *This line was stale three times, each one a bump behind 2.4 — build
       11 on 2026-08-13, build 12 later the same day, then 13 against a tree
@@ -1407,6 +1426,191 @@ That is a tester-count problem, not a workflow problem.
       circles and duels, device activation, suggestions. The daily and the
       Mirror keep working, because they read Firestore directly and never
       go through a callable.
+
+- [ ] **5.10 Dry-run the replay tool once, on a question with real
+      answers.** D290 shipped `rebuildAggregateV2` and its unit tests, but
+      the callable has never run against production data — there was none
+      when it was written. Its first execution should not be during an
+      incident, which is the only other time anyone reaches for it.
+
+      **Actions → Rebuild aggregate → Run workflow**, with the qid and
+      `apply` left off. No checkout, no Node, no credentials on a laptop —
+      the same shape as *Seed content*, and for the same reason: a step
+      that needs a dev machine set up is a step that does not happen. The
+      local path still works if you have the environment
+      (`npm run rebuild:agg -- --qid <id>`).
+
+      Dry by default; nothing is written without `apply`. **The expected
+      output is `drift: none`** — the published aggregate already matches
+      the answers. Anything else is a real finding, not a tool bug, and it
+      is worth understanding before the numbers are ever quoted: it means
+      the trigger and the answers disagree, which the incremental fold has
+      no other way of telling anyone.
+
+      The workflow reads the seed's own credentials
+      (`FIREBASE_SERVICE_ACCOUNT`, `SEED_ADMIN_UIDS`,
+      `VITE_FIREBASE_API_KEY`) from the `production` environment, so there
+      is nothing new to grant. The composite index the scan orders by
+      ships in `firestore.indexes.json`, so it needs a `--only firestore`
+      deploy to exist; a missing index fails the call with a console link
+      rather than a wrong answer.
+
+- [ ] **5.12 Turn on Cloud Billing export to BigQuery — so the prediction
+      can be diffed against the invoice.** Cloud Console → Billing →
+      **Billing export** → BigQuery export → enable *Standard usage cost*
+      into a dataset in the **EU** (D165's residency argument applies to
+      this as much as to answers).
+
+      **Why this and not a dashboard.** `docs/COSTS.md` opens by saying
+      every figure in it is a prediction, written down with its inputs
+      "so the first real invoice can be diffed against it rather than
+      merely survived". `pulse.mjs` has carried `burnUsd5k`, `burnUsd50k`
+      and `revenueUsd` since it was written — **all three modelled** — and
+      the trail has never held a single actual number. There is nothing to
+      diff against, so the diff has never happened.
+
+      Two consoles already disagree about the same month: Firebase's
+      *Project cost* read **kr10.74** for August 2026 while Cloud Billing's
+      *Services – this month* read **kr6.04** for Aug 1–24. Overlapping but
+      not identical periods, so that is not necessarily a contradiction —
+      it is exactly why one queryable source beats two dashboards somebody
+      has to screenshot.
+
+      **What it unlocks, in order of value:**
+
+      1. **A fixed-cost term the model does not have.** The model is purely
+         DAU-driven and predicts **$0.00 at 50 DAU**. The invoice is
+         non-zero at *zero* DAU, because twelve scheduled functions run
+         nightly and hourly whether or not anyone shows up. That is D67's
+         shape one layer up — counting per-user activity and calling it the
+         bill. Sizing the floor needs the real per-service split.
+      2. **The Authentication tier, permanently.** 5.2 asks whether auth is
+         Firebase Authentication (free forever) or Identity Platform
+         (MAU-priced, ~$6,015/mo at 1.5M MAU). With SKU-level export that
+         stops being a console hunt and becomes a query — and it stays
+         answered, instead of being re-checked by hand whenever somebody
+         wonders.
+      3. **Actual beside predicted in the daily trail**, so a drift shows
+         up as a row rather than as a surprise on a statement.
+
+      **The access shape, which is the part worth getting right.** The
+      export needs no credential handed to anybody: it is a console toggle
+      that writes into your own project. Reading it later needs a service
+      account with `roles/bigquery.dataViewer` **on that dataset only** —
+      a NEW secret, never a widening of `FIREBASE_SERVICE_ACCOUNT`, for the
+      same reason D291 records about the deploy role. Read-only, one
+      dataset, and the `production` environment's approval in front of any
+      workflow that uses it.
+
+      **Not built yet, deliberately.** The collector that reads this is
+      worth writing against the real dataset rather than against an assumed
+      schema — this session has already spent one round on a workflow that
+      parsed as YAML and would not run. Enable the export, let a day of
+      data land, and the pulse extension follows.
+
+- [ ] **5.13 Stand up the read-only observer (D292).** Five commands and
+      one GitHub setting. It gives the project a collector that can answer
+      "are the alerts armed", "what did we actually spend", and "is
+      Authentication on Identity Platform" without anyone opening a
+      console — and it proves the Workload Identity setup on an account
+      that cannot break a deploy.
+
+      **Do this BEFORE the WIF cutover in `DEPLOYMENT.md`, not after.**
+      Steps 1–2 below are the same pool and provider that cutover needs, so
+      this is a rehearsal of it on something read-only. That file's own
+      warning is the reason: a misconfigured provider discovered on the
+      deploy credential leaves you with no way to ship; discovered here, a
+      report is late.
+
+      Run these in **Cloud Shell** — the `>_` icon in the Cloud Console, or
+      shell.cloud.google.com. `gcloud` is already installed there and
+      already signed in as you, so there is nothing to set up locally and
+      no credential to handle on a laptop.
+
+      ```bash
+      # 1 · the pool, and a provider pinned to THIS repo
+      gcloud iam workload-identity-pools create github \
+        --project prvfire33 --location global
+
+      gcloud iam workload-identity-pools providers create-oidc github \
+        --project prvfire33 --location global --workload-identity-pool github \
+        --issuer-uri "https://token.actions.githubusercontent.com" \
+        --attribute-mapping "google.subject=assertion.sub,attribute.repository=assertion.repository" \
+        --attribute-condition "assertion.repository == 'Cosaxo/InSight'"
+
+      # 2 · the observer itself — no key is ever created
+      gcloud iam service-accounts create insight-observer \
+        --project prvfire33 --display-name "InSight read-only observer"
+
+      # 3 · read-only roles (Firestore is deliberately absent — D292)
+      for R in roles/monitoring.viewer roles/logging.viewer \
+               roles/cloudfunctions.viewer roles/bigquery.dataViewer \
+               roles/bigquery.jobUser; do
+        gcloud projects add-iam-policy-binding prvfire33 \
+          --member "serviceAccount:insight-observer@prvfire33.iam.gserviceaccount.com" \
+          --role "$R"
+      done
+
+      # 4 · the project NUMBER (not the id) — the next command needs it
+      NUM=$(gcloud projects describe prvfire33 --format='value(projectNumber)')
+      echo "$NUM"
+
+      # 5 · let this repo's Actions impersonate the observer.
+      #     Split out rather than nested in a command substitution: this is
+      #     the line most likely to be retyped by hand on a re-run, and a
+      #     mangled principalSet does not fail here — it fails at RUN time
+      #     as a permission denial, which is the worst place to debug it.
+      gcloud iam service-accounts add-iam-policy-binding \
+        insight-observer@prvfire33.iam.gserviceaccount.com --project prvfire33 \
+        --role roles/iam.workloadIdentityUser \
+        --member "principalSet://iam.googleapis.com/projects/$NUM/locations/global/workloadIdentityPools/github/attribute.repository/Cosaxo/InSight"
+
+      # 6 · print the provider path the workflow needs
+      gcloud iam workload-identity-pools providers describe github \
+        --project prvfire33 --location global --workload-identity-pool github \
+        --format 'value(name)'
+      ```
+
+      Then add step 6's output as the repository **variable**
+      `WIF_PROVIDER` (a variable, not a secret — it is a resource path, not
+      a credential, and having it readable makes the workflow debuggable).
+
+      **What you are NOT doing here:** creating a key, touching
+      `FIREBASE_SERVICE_ACCOUNT`, or granting anything that can write. If
+      any command above asks for a write role, stop — that is not this
+      step.
+
+      Tell me when step 6 has printed, and the collector follows. It is
+      deliberately unwritten until then (D292): four Google APIs nobody
+      here can reach is not a thing to code against an assumed schema.
+
+- [ ] **5.11 Install the BigQuery mirror WITH the first real users — not
+      before, and not after.** Firebase Extensions → *Stream Firestore to
+      BigQuery*, on the `answers` collection group, **dataset in the EU** so
+      it agrees with D165's residency argument. Nothing in the app changes;
+      no rules change; no read path moves.
+
+      **Why the timing is the whole step.** The extension streams from the
+      moment it is installed. Install it late and you are running
+      `fs-bq-import-collection` to catch up, and rows belonging to accounts
+      deleted in the interim never arrive at all — right-to-erasure wins
+      over analytics, correctly, but it means the gap does not heal.
+      `answers` is append-only, so a late import recovers most of it; this
+      is a mild cost, not the sharp one D290's collapse carried. It is
+      still a cost, and it is paid in the weeks whose data is most worth
+      having: the first ones.
+
+      Installing it EARLY is equally pointless — there is nothing to mirror
+      at `answersCounted: 0`, and an extension streaming an empty
+      collection is a monthly line item and a thing to forget about.
+
+      **What it buys:** SQL over the archive without touching the app. It is
+      what answers "which questions bore people" and the rest of
+      `ENGAGEMENT-PLAN.md`'s rungs 1–2 without building either, and it is
+      the honest first move if the Postgres question ever reopens (D290
+      layer 4). If you find yourself writing the same query weekly and
+      wishing the app served it live, that is the migration signal — and by
+      then there is data worth migrating.
 
 ## Phase 6 — Submit
 

@@ -30,6 +30,7 @@
     "check:figures": "node scripts/check-figures.mjs",
     "check:a11y": "node scripts/check-a11y.mjs",
     "check:anchors": "node scripts/check-anchors.mjs",
+    "check:answer-shape": "node scripts/check-answer-shape.mjs",
     "check:labels": "node scripts/check-labels.mjs",
     "check:touch-zoom": "node scripts/check-touch-zoom.mjs",
     "check:tap-targets": "node scripts/check-tap-targets.mjs",
@@ -95,7 +96,8 @@
     "test:scripts": "LC_ALL=en_US.UTF-8 vitest run --dir scripts",
     "test:coverage": "LC_ALL=en_US.UTF-8 vitest run --dir src --coverage",
     "check:store-forms": "node scripts/check-store-forms.mjs",
-    "seed": "node scripts/seed-content.mjs"
+    "seed": "node scripts/seed-content.mjs",
+    "rebuild:agg": "node scripts/rebuild-aggregate.mjs"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "^8.2.0",

@@ -29170,3 +29170,599 @@ runbook step below Phase 0, the watch custody call (runbook 2.0), the
 D168 carve-out (runbook 3.0), the G2 legal review (runbook 4.0), the
 corner doors (runbook 5.2), and anything the bridge later proposes —
 each is its own record when its day comes.
+
+## D290 · The answers are the log; every aggregate is a projection, and now there is a tool that proves it
+
+**2026-08-24.** **Status:** binding. Records a target architecture and
+builds its keystone; the rest is an escalation ladder with triggers, not a
+build order. Opened by the question "should this have been Supabase rather
+than Firebase", which turned out to be the wrong question.
+
+### The finding the question produced
+
+`v2_users/{uid}/answers/{qid}` is append-only, one document per person per
+question (so it never contends), carries the `anchors` snapshot the fold
+slices by (D8), is world-readable since D98, and has a collection-group
+index on `qid`. That is a complete, replayable event log.
+
+Everything else in the system is already a **projection** of it: the
+public aggregate, the private aggregate, the nightly Patterns fit
+(D166/D265), the engagement digest (D268), the velocity scan (D54). The
+architecture has been lambda-shaped since the trigger was written; nothing
+had named it.
+
+Naming it settles the database question. The choice is not "Firestore or
+Postgres" but "what store for each projection" — answerable one layer at a
+time, each reversibly, because a projection can be rebuilt rather than
+migrated.
+
+| Layer | Store | Trigger to change it |
+| --- | --- | --- |
+| 1 · the log | Firestore `answers` | **never** — this is the thing that must not move |
+| 2 · hot counts | one document; sharded + rolled up when it bites | `agg_contention` fires |
+| 3 · breakdown cube | in the hot document; per-dimension documents later | comes free with layer 2 |
+| 4 · analytics | none; a BigQuery mirror when wanted | the first question the app cannot answer |
+| 5 · everything | — | the Mirror needs cuts nobody can name in advance |
+
+### `v2_aggs_private` was NOT the source of truth, and the repair path knew it
+
+`docs/DEPLOYMENT.md`'s "Correcting aggregates" (D28) rebuilds from
+`v2_agg_events`. That ledger is `{ qid, uid, optionIdx?, at, expireAt }`
+— **no anchors** — and TTLs at `LEDGER_RETENTION_DAYS` (90). So the
+guarantee D28 records, that the published record stays *correctable*, held
+for `counts` and `total` only, and expired after a quarter. A `by`
+breakdown could not be repaired at all, by anything, ever.
+
+Nobody had noticed because nothing had tried. Replayability was an
+assumption three separate records leaned on.
+
+### What was built
+
+`functions/src/replay.ts` — a pure fold plus `rebuildAggregateV2`, an
+operator callable (`assertOperator` + `SEED_ADMIN_UIDS`, App Check exempt
+with the reason `check:appcheck` now holds), reached by
+`npm run rebuild:agg -- --qid <id> [--exclude uid,uid] [--apply]`.
+
+**Dry by default.** `--apply` is asked for, because this rewrites the
+document every surface reads and the runbook that reaches for it is one
+somebody follows during an incident.
+
+**It reuses `breakdownFor` rather than folding anchors its own way** —
+that helper's own header says why it is a named function, and a replay
+with its own copy would have been the fourth.
+
+**Optimistic concurrency instead of a transaction.** A rebuild reads every
+answer to a question, which is far outside what a Firestore transaction
+may hold. So the scan runs outside one and the write checks that the
+stored `total` has not moved since the scan began; a live answer landing
+mid-scan aborts the rebuild rather than being erased by it.
+
+### The property that makes it work, and the limit that came with it
+
+The vote fold is **commutative while no dimension is saturated**, so a
+batch rebuild equals the trigger's incremental accumulation. That is now a
+test (`replay.test.ts`), not an assumption.
+
+It stops being commutative at `BREAKDOWN_MAX_BUCKETS`.
+`evictForNewBucket` drops the smallest bucket under `BUCKET_EVICT_BELOW`
+to make room, and which bucket is smallest depends on arrival order. So on
+a saturated dimension a replay is *a* correct fold of the answers, not
+necessarily the *same* fold that was published. Measured rather than
+reasoned about: the test folds 30 cities forward and reversed and asserts
+the surviving key sets differ.
+
+Two consequences, both deliberate. The scan orders by `answeredAt`
+ascending — the closest thing to arrival order the data records, which is
+why `firestore.indexes.json` gained a second `answers` collection-group
+index (the existing one leads `qid, surface` and cannot serve
+`where qid == X order by answeredAt`). And the outcome **reports**
+`cappedDims`, so a saturated rebuild cannot be presented as exact. That is
+D72's rule — refuse rather than fabricate — applied to a repair tool.
+
+### What replay cannot rebuild, stated rather than papered over
+
+- **`edits`** (D226) is not derivable. An edited answer records where it
+  landed, never where it came from — D86 freezes anchors and `answeredAt`
+  and moves `optionIdx` in place. Replay therefore **carries the stored
+  matrix forward unchanged**, exactly as the trigger's create arm does.
+  Recomputing it as empty would silently delete a published number that is
+  still true.
+- **Catalog (D14) and rank (D233) answers** fold through different shapes
+  and were refused by name in the first cut. **Both are built now** — see
+  the amendment below; the refusal stood for about a day and is recorded
+  because the reasoning for it is still the reason the arms are separate.
+- **The scan's real ceiling is the 480-second global timeout**, not
+  `SCAN_MAX_PAGES` — roughly one to two million answers. Exceeding the
+  page bound throws rather than returning a short answer, because a
+  confident wrong aggregate is the failure D161 rewrote the bank fetch to
+  avoid. The fix if it ever fires is paging across invocations, not a
+  larger constant.
+
+### The reversal condition this sets up, recorded before it is needed
+
+`pure.ts` rejects per-dimension breakdown documents: *"this transaction
+already writes privRef, so folding the slices in costs no extra document
+and D7's ~1-write/sec-per-document ceiling is unchanged."*
+
+**That reasoning holds only while the fold runs on the answer path.** Once
+layer 2 exists there is one writer — the rollup — not one per answer, and
+the objection is void. Seven documents, each with its own 1 MiB, let
+`city` hold hundreds of buckets instead of 24, and
+`evictForNewBucket`/`BUCKET_EVICT_BELOW` and the cap-exhaustion attack
+surface all become deletable. Sharding and the 24-bucket cap turn out to
+be the same fix.
+
+Written down here because the rejection is correct today and will read as
+still-correct after the premise under it has changed — which is the drift
+this file exists to catch.
+
+### The ladder, with its arithmetic
+
+`npm run costs` puts D7's wall at **14,400 DAU** (0.35 writes/sec at
+5,000; 3.47 at 50,000). Today's trail says `answersCounted` 0.
+
+| Trigger | Change | Ceiling | Marginal cost |
+| --- | --- | --- | --- |
+| — | nothing | 14,400 DAU | — |
+| `agg_contention` fires | collapse `v2_aggs_private` into `v2_question_aggs` | ~28,000 | **negative** — one fewer write per answer |
+| still firing | shard the daily only, 10 shards + 60 s rollup | ~144,000 | ~$0.17/mo at list price |
+| still firing | 20 shards | ~288,000 | ~$0.34/mo |
+| City stop looks thin | per-dimension cap, then per-dimension documents | resolution, not scale | — |
+
+Only the **daily** contends: `computeDeckIds` takes no uid, so it is the
+one globally shared question; the feed's questions already spread across
+their own documents. And the rollup is cheap *here specifically* because
+D129 already moved clients from streaming to a 60-second poll — the
+staleness a rollup would normally cost has been spent already.
+
+**The precondition on sharding is the alerts, not the user count.** This
+was recorded as "premature", which is weak and not really an argument.
+The real one: **sharding trades a loud failure for a quiet one.** Today a
+broken fold stops the daily card moving and a human sees it. Under
+sharding, a broken ROLLUP leaves the shards accumulating perfectly and
+freezes the published document — the data stays correct, the display goes
+stale, and nothing says so.
+
+That is the failure mode this repository has been bitten by more than any
+other: D165's trigger binding (deploy green, functions healthy, nothing
+aggregating), D200, D258, and the four `-silent.json` policies that exist
+because a cron which stops running reports nothing. Sharding adds one more
+of those, and its detector sits in the eight policies
+`npm run monitoring:apply` has not yet applied (D291).
+
+So the gate is checkable and available today rather than contingent on
+traffic: **arm the alerts, then shard.** Shipping it before that is
+knowingly making the system harder to operate in exchange for headroom
+nothing is consuming.
+
+### What was refused
+
+- **Migrating to Supabase/Postgres.** It is the better fit for the read
+  model and would delete the cube machinery outright — but it is 4–8 weeks
+  at this repo's demonstrated pace, App Check has no equivalent, and D34's
+  offline delta paging becomes hand-rolled. Every wall it removes binds at
+  a scale four orders of magnitude away. Recorded, not built. Layer 1 plus
+  this tool means that if it is ever right, it is a replay rather than a
+  migration — and the cost of doing it is at its minimum now and rises
+  monotonically with every answer collected.
+- **Firebase Realtime Database as the counter layer.** It genuinely fixes
+  both problems — atomic `increment()` at ~1,000 writes/sec, and no 1 MiB
+  limit, so the bucket cap would disappear too. It fails on two other
+  axes. It bills by **bandwidth**, so clients listening to an aggregate
+  recreate D129's quadratic fan-out in a different currency; it can only
+  be a write sink with a job copying totals into Firestore, which means
+  keeping Firestore anyway. And `increment()` is **not idempotent** while
+  Eventarc is at-least-once — today `tx.set(eventRef, …)` sits inside the
+  same transaction as the counter and makes redelivery a free no-op. A
+  second store, a second rules language, a second test suite, and a
+  weakened guarantee, to buy headroom that sharding also buys.
+- **Extracting `seed-content.mjs` and `fn-log.mjs` onto the new
+  `scripts/operator-call.mjs`.** Both work, one has its own test, and
+  rewriting a working deploy-path script to save duplication is the trade
+  this repo declines everywhere else. The module is the canonical home for
+  the next caller; those two adopt it when they are next opened anyway.
+
+### The one sentence the rest of it rests on
+
+**`v2_users/{uid}/answers/{qid}` is the source of truth. Every aggregate
+is a disposable projection, rebuildable by replay. Nothing may be trimmed
+from an answer document — the `anchors` snapshot especially — because that
+is what replay reads.**
+
+Without that written down, a later pass "optimizes" the answer document
+and layers 2 through 5 die silently, with every gate still green.
+
+## D290 amendment (2026-08-24) · The collapse is done for three arms, and refused for the fourth
+
+The ladder in the record above gated the `v2_aggs_private` collapse on
+`agg_contention` firing. **That gate was wrong and is removed**, on the
+test the record itself uses for the Supabase question and then failed to
+apply one row down: *does the cost rise with data?*
+
+For this change it does. The collection holds zero documents and has no
+readers (`allow read, write: if false`), so today it is a deletion; at
+14,400 DAU it is a migration with a backfill. Gating it on contention
+scheduled it for the moment it would be most expensive. It is also not
+really a ceiling change — the ceiling is a side effect. It is **one fewer
+write per answer, permanently, at every size**, on the app's hottest path.
+
+Sharding stays gated, and now for a stated reason rather than by
+association: **its cost does not rise with data.** A hot question can be
+sharded later and the aggregate rebuilt from the answers, so waiting is
+free — and it adds a scheduled function, an operator callable, another
+App Check exemption and a rewrite of every exact-count assertion in the
+e2e. The bucket-cap raise is deferrable for the same reason and only
+since this record: eviction is destructive, so before the replay tool a
+late raise lost the evicted buckets forever. **Step 0 is what made steps
+2 and 3 safely deferrable.**
+
+### What the four arms actually hold, which is not what D98 assumed
+
+D98 said collapsing was "now trivial, because the private doc has no
+readers and no secrets". Right about readers and secrets, and right about
+triviality for three arms out of four:
+
+| arm | private | published | collapsible |
+| --- | --- | --- | --- |
+| vote | `{counts, total, by, edits}` | identical | **yes — done** |
+| rank | `{pos, total}` | identical | **yes — done** |
+| edit | `{counts, total, by, edits}` | identical | **yes — done** |
+| duel | `{plays, total, counts, guess*}` | same, empties omitted | yes, not done |
+| **catalog** | `{ent, entBy, total}` | `{total, top, rest, by}` | **no** |
+
+The catalog arm's private document is an **accumulator, not a mirror**.
+`ent` holds every entity the catalogue admits (~1k); what publishes is
+`canonTopN`'s board — the top N plus a single `rest` scalar, with `by`
+cut to the board's own entities. Fold the next answer from that and every
+entity outside the board is lost. The obstacle is not privacy, which is
+what "no readers and no secrets" was measuring; it is that the published
+document is lossy **by design**, and D17 is the design.
+
+So the sentence to carry forward is narrower than D98's: *the private
+aggregate was a duplicate wherever the published document is whole, and
+an accumulator wherever it is a projection.*
+
+**Duel followed the same day**, because leaving it out made the
+documentation false: `SCHEMA-V2.md` and `data-inventory.md` had already
+been rewritten to say "catalog only since D290" while `foldDuelSignal`
+still wrote `v2_aggs_private/duel-{qid}`. `v2_aggs_private` now means
+exactly one thing.
+
+There was no write-rate argument for it — duel folds run once per reveal,
+not per answer — and the reason to do it anyway is that a collection
+meaning one thing is worth more than a collection meaning two.
+
+### Drops defaults versus drops data — the line between the two arms
+
+The duel collapse rests on one property: folding a delta onto
+`publishableDuelAgg(state)` must equal folding it onto `state`. That is
+now `pure.test.ts`'s "survives the publish projection".
+
+Writing the test produced a correction to its own first comment. The
+hazard named there was "a future edit omits another field" — and that is
+**provably harmless**: making `plays` emit-when-set leaves the test green,
+because `num(undefined)` is 0 and 0 is the right prior. Measured by
+mutating the function, not reasoned about.
+
+What actually breaks it is a projection that **trims or caps a value**
+rather than dropping a default: publishing only the top `counts` entry
+fails the test immediately. Which is exactly what `canonTopN` does to a
+catalog board — so the line between the arms is not "lossy versus whole",
+it is **drops defaults versus drops data**. Duel's projection is
+recoverable; catalog's is not, and that is why one collapsed and the other
+never will.
+
+### What moved
+
+Trigger writes per world answer go **3 → 2** (ledger + aggregate), and
+the client's own answer document makes the billed total **4 → 3**.
+`npm run costs` at 5,000 DAU: writes/day 121,000 → 101,000, Firestore
+$24 → $23. D7's ceiling roughly doubles, to ~28,000 DAU, because the
+transaction now takes one hot lock instead of two.
+
+`scripts/cost-arith.mjs` carries the one soft edge, named rather than
+hidden: catalog answers still write a third document, so the model now
+under-counts them by one write. The error is toward optimism, which is
+the wrong direction, and it is a fraction of one write against a bill
+whose largest term is reads — a per-type split is more machinery than the
+number deserves.
+
+### The assertion that would have passed for the wrong reason
+
+`e2e-delete-account.mjs` checked that `v2_aggs_private/daily-000` still
+existed after an erasure — the standing rule that erasure removes the
+attribution, not the aggregate. For a vote question that path is no
+longer written, so an existence check against it fails loudly here and
+would have been meaningless had it been an absence check. It now asserts
+on `v2_question_aggs/daily-000`, which is the document that actually has
+to survive.
+
+### The invariant finally has a gate
+
+This record's closing sentence — *nothing may be trimmed from an answer
+document, the `anchors` snapshot especially* — was prose with nothing
+enforcing it, which is the failure D35 and D39 exist to stop. It is
+`npm run check:answer-shape` now: every `setDoc` at the answers path
+carries `qid`, `answeredAt` and `anchors`; the D86 edit arm is exempt by
+name (it writes the one shape the rules admit); and `replay.ts` must still
+read `anchors` **off the document**, so the producer and the consumer
+cannot drift apart.
+
+Both directions were verified by mutation rather than trusted, and the
+consumer half failed its first attempt: the check was `/anchors/`, which a
+rename to `anchorsX` satisfies. A substring match cannot tell a live read
+from a rename that broke it. It demands the accessor now.
+
+### One flake, root-caused rather than re-run
+
+The e2e failed once mid-change at step 5 — "public agg never appeared —
+trigger did not fire" — with the trigger visibly executing (203 ms, no
+error, no log line) on code byte-identical to three green runs. Not a
+flake in the sense of "unexplained": step 5 is the **first trigger
+delivery of the run**, so it alone pays the functions runtime cold start
+and Eventarc's first-delivery setup, and its 30 × 500 ms window was the
+longest in the suite and still occasionally short. Raised to 60 × 500 ms
+with the reason at the site. The loop breaks the moment the document
+appears, so the longer ceiling costs nothing on a run that does not need
+it.
+
+### The bug an adversarial re-read found in the tool itself
+
+`runRebuild`'s concurrency guard compared the stored **total** before and
+after the scan. That is blind to the concurrent write that hurts most: a
+**D86 edit leaves `total` unchanged by construction** — the person was
+counted once and still is, they just hold a different option — so an edit
+landing mid-scan passed the guard twice over.
+
+The scan may have read that answer before the edit landed, in which case
+the apply overwrites the trigger's correct counts with pre-edit ones. And
+`edits` is captured before the scan, so the apply writes back a stale
+matrix and drops the cell that edit just folded — a cell that is
+**unrecoverable**, because the matrix is the one field a rebuild cannot
+recompute, which is the entire reason it is carried forward.
+
+The guard now compares `updateTime`, which Firestore stamps on every
+write, as seconds **and nanoseconds**: `toMillis()` is the obvious
+implementation and it collides at exactly the moment this matters, since
+two folds inside one millisecond is D7's contention case — the situation
+an operator runs a rebuild in. Pinned in `replay.test.ts`.
+
+That test then found a second thing. The unstamped case returned the
+string `"unknown"`, which compares EQUAL to itself, so a document the
+guard could not see would have read as "nothing changed" and waved the
+write through — fail-open on the one path with no visibility at all. It
+returns `undefined` now and the caller refuses, the way D65's `hidden`
+equality fails closed. Unreachable for a server read; unreachable is not a
+reason to be wrong about it.
+
+What is NOT covered: the interleaving itself, which needs two writers
+racing a live scan. The e2e proves the other direction — a quiet document
+does not abort a rebuild — and the stamp's own properties are unit-tested.
+Stated rather than implied.
+
+Green across all four runners: 346 functions tests, 1943 client tests,
+347 script tests, the rules suite, 101 e2e checks and the 19-check
+erasure suite.
+
+## D291 · The alerting refusal said less than it was read as saying, and its arithmetic was off by 4×
+
+**2026-08-24.** **Status:** binding. Narrow, and recorded because the
+misreading was mine and would have been anyone's.
+
+### What happened
+
+Asked why the console cluster was "blocked", I reported
+`npm run monitoring:apply` as **not automatable**, citing the runbook:
+*"this script must not be put on it — the deploy service account has no
+monitoring role, and widening it for two policies is the worse trade."*
+
+That is not what the sentence says. It rules out **the deploy path**, and
+its reason is about **the deploy service account** — the credential that
+pushes rules and functions, which nobody wants holding a monitoring role
+it needs twice a year. It says nothing about a separate workflow with its
+own credential, and `seed-content.yml` already proves that shape works: an
+operator callable run against production from CI, behind the `production`
+environment's protection rules (D87), with no dev machine anywhere.
+
+A scoped refusal read as a general one. The runbook now says which it is.
+
+### And the number under it was wrong three times over
+
+| where | said | actual |
+| --- | --- | --- |
+| `LAUNCH-RUNBOOK.md` 5.5, the step title | "the **two** monitoring alerts" | 8 |
+| `LAUNCH-RUNBOOK.md` 5.5, the refusal's rationale | "widening it for **two** policies" | 8 |
+| `apply-monitoring.mjs`, its own header | "the **three** alert policies" | 8 |
+| `apply-monitoring.mjs`, same header | "**two** log-based metrics" | 5 |
+
+Four quotations of two figures, none of them right. `check:monitoring`
+has been printing the true numbers the whole time — 8 policies, 5
+log-based metrics — and nothing held the prose to what it printed,
+because `check:figures` watches README and doc figures it was told about
+and had never been pointed at a runbook step or a script header.
+
+**A refusal priced against a number 4× off is not one anybody can
+re-derive.** Whether widening a role is the worse trade for *two* alerts
+is a different question than for *eight* covering contention, runaway
+reads, runaway writes and four silent-cron detectors — and the count in
+the step title is what an operator reads before deciding whether the step
+matters at all.
+
+All four are `check:figures` entries now (44 figures across 39 files),
+derived from `apply-monitoring.mjs`'s own POLICIES and METRICS lists,
+which `check:monitoring` already holds equal to what is on disk — so the
+two gates cannot report different totals. Each was verified by mutation,
+and the wrapped one needed `\s+` across a line break before it matched
+anything, which is its own small lesson about registering a figure and
+assuming it fired.
+
+### What is NOT decided here
+
+Whether to build the separate workflow. The arguments cut both ways for
+eight policies applied roughly once, and this record deliberately leaves
+it open rather than resolving it in the direction that happens to be
+convenient. What is settled is only that the existing refusal never
+closed it.
+
+### The pattern this belongs to
+
+The same shape as D290's amendment, and now with four instances inside one
+session: D98's "collapsing is trivial" (true, except for the arm where it
+was not), `pure.ts:513`'s per-dimension rejection (correct, while its
+premise held), the replay tool's total-only concurrency guard (blind to
+the one write that keeps the total still), and this. Every one is a
+conclusion **quoted rather than re-derived against current facts**.
+
+The gate cannot catch the general case — a stale premise is not a stale
+number. What it catches is the cheapest and most common instance, which
+is the argument for pointing `check:figures` at every figure a decision
+leans on, not only the ones in prose somebody remembered to register.
+
+## D292 · A read-only observer, on WIF rather than a second key
+
+**2026-08-25.** **Status:** binding as a design; the console half is
+unexecuted. Requested directly: *"I want you to have access to this kind
+of data so you can better make reports and monitor the project."*
+
+### The shape, and what it is not
+
+A **separate, read-only service account** — `insight-observer` — that
+collects cost, alert state and function health, and never writes anything.
+Not a widening of `FIREBASE_SERVICE_ACCOUNT`, for the reason D291 records
+about the deploy role, and not a credential handed into a working session:
+the collector runs in CI, commits what it finds, and the results are read
+from the repository like any other file.
+
+**Authenticated by Workload Identity Federation, with no key at all.**
+This is a change from what was nearly proposed. `DEPLOYMENT.md` already
+records WIF as the plan for the deploy credential and calls the existing
+long-lived JSON "the classic leak-shaped credential". Minting a *second*
+long-lived key for an observer would mean two cutovers later, and would
+add exactly the thing the repo has already decided to remove.
+
+### Doing the observer first is a free rehearsal of the deploy cutover
+
+The WIF pool and the repo-pinned provider are the same ones
+`DEPLOYMENT.md`'s steps 1–2 need. Only the `workloadIdentityUser` binding
+is per-account. So standing the observer up **proves the whole federation
+setup on an account that cannot break anything.**
+
+That inverts the usual instinct to do the important credential first, and
+the reason is in `DEPLOYMENT.md`'s own warning: *"Reversing that order
+means discovering a misconfigured provider with no way to ship."* An
+observer has nothing to ship. If the provider is misconfigured, a report
+is late; if the deploy's is, the app cannot be released.
+
+### Read-only is what makes "whenever" possible
+
+The `production` environment's protection rules (D87) exist to put a human
+in front of **writes**. Gating reads behind the same approval is what
+would make an on-demand query impossible — every question would cost a
+click, which is the state this is meant to leave.
+
+So the observer's workflows carry **no `environment: production`**, and
+that is safe only because the roles cannot write. If a future step needs
+to write, it does not join this workflow; it gets its own, with the gate.
+
+### The roles, and the one deliberately left out
+
+- `roles/monitoring.viewer` — **whether the alert policies are actually
+  applied.** Currently unanswerable except by a human opening a console,
+  which is why "are the alerts armed" has been an open question for this
+  entire session
+- `roles/logging.viewer` — function errors; `scripts/fn-log.mjs` already
+  speaks this API
+- `roles/bigquery.dataViewer` + `roles/bigquery.jobUser` — the billing
+  export (runbook 5.12), scoped to that dataset
+- `roles/cloudfunctions.viewer` — deployed function state and region
+
+**Firestore read access is NOT in the set.** Answers are public (D98), so
+this is not a confidentiality argument — it is that aggregate figures are
+already published by the app itself, so a collector has no need to open
+user documents, and an access grant nothing requires is one that exists
+only to be misused later. Add it if something genuinely needs it, as its
+own decision, with the thing that needs it named.
+
+### What it collects, and where it lands
+
+Into `monitoring/pulse-trail.jsonl`, beside the modelled figures that have
+been sitting there alone since `pulse.mjs` was written: **actual spend
+beside `burnUsd5k`**, so the diff `COSTS.md` was written to invite finally
+happens; whether each of the eight policies is live; per-function error
+counts; and the Authentication tier, which settles runbook 5.2 for good
+instead of being re-checked by hand.
+
+### Not built, and that is the point
+
+The collector is written against the real dataset, not an assumed schema.
+This session already spent a round on a workflow that parsed as valid YAML
+and would not run, and one on a gate whose consumer half matched a rename
+that broke it. A collector built speculatively against four Google APIs
+nobody here can reach would be a larger instance of the same mistake.
+
+Console steps first (runbook 5.13), then one day of data, then the code.
+
+
+## D290 amendment (2026-08-25) · The other two fold arms, so the thesis stops being one third true
+
+D290 says every aggregate is a disposable projection, rebuildable by
+replay. Shipped, that was true of **one fold arm out of three**. The tool
+did vote and refused catalog and rank by name — honest, and reported as
+such, but it meant a corrupted catalog board had **no repair path at
+all**: D28's hand procedure cannot reach past the ledger's 90 days, and
+the ledger has no anchors to rebuild `entBy` from anyway.
+
+A claim that holds for a third of its subject is a slogan. Both arms are
+built.
+
+### What each arm can actually promise
+
+| arm | exact? | why |
+| --- | --- | --- |
+| **rank** | **completely** | position sums are plain addition — commutative, associative, nothing evicts. Not "a correct fold": THE fold |
+| **vote** | below a saturated dimension | `evictForNewBucket` makes `by` order-dependent at the cap |
+| **catalog** | board yes, segments no | `ent`/`total`/`top`/`rest` are plain counting; `by` carries the bucket cap AND `foldCanonAnchors`' per-cell entity cap |
+
+Rank turning out to be the *strongest* of the three is worth stating,
+because intuition puts an ordered list on the fragile end. It has no
+breakdown, so it has nothing to evict, so it has nothing to be
+order-dependent about.
+
+### Three things this forced
+
+**The arm is chosen by the QUESTION, not by sniffing the first answer.**
+Rules admit one shape per type, so the question document is the authority;
+a stray answer of the wrong shape is then an anomaly the report counts
+rather than an arm the scan silently switches to. `armFor` routes
+`catalog` and `rank` by name and everything else — twelve types — to the
+vote fold.
+
+**The catalog arm writes BOTH documents**, and that falls straight out of
+the collapse: its private document is an accumulator, not a mirror, so a
+rebuild that wrote only the published board would leave the next answer
+folding from something it cannot fold from. It is also what the
+concurrency guard watches on that arm, because it is what a fold reads.
+
+**`CATALOG_DOMAINS` and `CANON_TOP_N` are exported rather than copied.**
+A second key-space table would drift from the one the trigger validates
+against, and an entity key that is valid in one and not the other is a
+silently wrong board.
+
+### Proven the same way as the first arm
+
+`replay.test.ts` folds each arm against a reference transcribed from the
+trigger, and pins rank's order-independence by folding forward and
+reversed. The e2e's 9e — which until today asserted that the tool
+*refused* these two — now rebuilds both against real emulated folds and
+requires a **no-op**: the document compared to itself across a scan, so
+the step needs no hardcoded totals and cannot rot when 9c or 9d change
+what they leave behind.
+
+353 functions tests, 101 e2e checks.
+
+### Still not rebuildable, and now this is the whole list
+
+`edits` (D226), on every arm. An edited answer records where it landed,
+never where it came from, so the matrix is not derivable from the answers
+and is carried forward instead. That is one field, stated at three sites,
+rather than two thirds of the system.

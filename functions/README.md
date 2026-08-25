@@ -31,6 +31,13 @@ rewrite is D223.*
   Deliberately off the hot write path.
 - `src/moderation.ts` — the flag tally, the server-picked queue, and the
   moderator's three instruments. `docs/MODERATION.md` is the design.
+- `src/replay.ts` — the other direction through the fold (D290): rebuild a
+  question's aggregate from the answers that made it, rather than from the
+  running total. `rebuildAggregateV2` is the operator callable
+  (`npm run rebuild:agg`); `replay.test.ts` pins the batch replay against
+  the trigger's incremental accumulation, which is the property that makes
+  every aggregate a disposable projection instead of a thing that must
+  never break.
 - `src/index.ts` — account deletion, and the re-exports the deploy reads.
 - `src/pure.ts` — the fold arithmetic, with no Firebase in it, so every
   number this codebase publishes can be tested without an emulator. Most
@@ -68,7 +75,7 @@ npm --prefix functions run build     # the emulator loads functions/lib
 
 ## Deployed functions
 
-33 functions ship from this codebase (the deploy's `--only` list also
+34 functions ship from this codebase (the deploy's `--only` list also
 names `firestore:rules` and `firestore:indexes`, which are not functions).
 `scripts/check-deploy-targets.mjs` fails CI if an exported function is
 missing from that list — otherwise it would be built, tested, green and

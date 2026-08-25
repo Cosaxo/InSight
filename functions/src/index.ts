@@ -938,3 +938,10 @@ export { digestEngagementV2 } from "./engagement";
 // "Suggest a question" — the community board's write path and the
 // operator review instruments (docs/NEXT-FUNCTIONALITY.md §6).
 export { suggestQuestionV2, fetchSuggestionsV2, reviewSuggestionV2 } from "./suggestions";
+// D290: the replay tool — rebuild a question's aggregate from the answers
+// that made it. The operator half of "answers are the source of truth,
+// aggregates are disposable projections": D28's correction runbook could
+// only ever repair `counts` (the ledger carries no anchors) and only for
+// LEDGER_RETENTION_DAYS. This repairs the breakdown too, at any age, and
+// is the safety net every later projection change rests on.
+export { rebuildAggregateV2 } from "./replay";

@@ -216,7 +216,7 @@ Local:
   exported function appearing in the deploy list.
 - `npm run check:appcheck` — every callable either demands App Check
   attestation or is named with the reason it cannot (decision D36). The
-  seven that cannot are the operator and moderator instruments, gated on
+  eight that cannot are the operator and moderator instruments, gated on
   uid allowlists instead; the gate fails in both directions, so an
   exemption cannot outlive its reason or spread by copy-paste.
 - `npm run check:monitoring` — the alert chain, from the log line a
