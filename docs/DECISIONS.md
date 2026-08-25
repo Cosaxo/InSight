@@ -27799,3 +27799,77 @@ Stated rather than implied.
 Green across all four runners: 346 functions tests, 1943 client tests,
 347 script tests, the rules suite, 101 e2e checks and the 19-check
 erasure suite.
+
+## D276 · The alerting refusal said less than it was read as saying, and its arithmetic was off by 4×
+
+**2026-08-24.** **Status:** binding. Narrow, and recorded because the
+misreading was mine and would have been anyone's.
+
+### What happened
+
+Asked why the console cluster was "blocked", I reported
+`npm run monitoring:apply` as **not automatable**, citing the runbook:
+*"this script must not be put on it — the deploy service account has no
+monitoring role, and widening it for two policies is the worse trade."*
+
+That is not what the sentence says. It rules out **the deploy path**, and
+its reason is about **the deploy service account** — the credential that
+pushes rules and functions, which nobody wants holding a monitoring role
+it needs twice a year. It says nothing about a separate workflow with its
+own credential, and `seed-content.yml` already proves that shape works: an
+operator callable run against production from CI, behind the `production`
+environment's protection rules (D87), with no dev machine anywhere.
+
+A scoped refusal read as a general one. The runbook now says which it is.
+
+### And the number under it was wrong three times over
+
+| where | said | actual |
+| --- | --- | --- |
+| `LAUNCH-RUNBOOK.md` 5.5, the step title | "the **two** monitoring alerts" | 8 |
+| `LAUNCH-RUNBOOK.md` 5.5, the refusal's rationale | "widening it for **two** policies" | 8 |
+| `apply-monitoring.mjs`, its own header | "the **three** alert policies" | 8 |
+| `apply-monitoring.mjs`, same header | "**two** log-based metrics" | 5 |
+
+Four quotations of two figures, none of them right. `check:monitoring`
+has been printing the true numbers the whole time — 8 policies, 5
+log-based metrics — and nothing held the prose to what it printed,
+because `check:figures` watches README and doc figures it was told about
+and had never been pointed at a runbook step or a script header.
+
+**A refusal priced against a number 4× off is not one anybody can
+re-derive.** Whether widening a role is the worse trade for *two* alerts
+is a different question than for *eight* covering contention, runaway
+reads, runaway writes and four silent-cron detectors — and the count in
+the step title is what an operator reads before deciding whether the step
+matters at all.
+
+All four are `check:figures` entries now (44 figures across 39 files),
+derived from `apply-monitoring.mjs`'s own POLICIES and METRICS lists,
+which `check:monitoring` already holds equal to what is on disk — so the
+two gates cannot report different totals. Each was verified by mutation,
+and the wrapped one needed `\s+` across a line break before it matched
+anything, which is its own small lesson about registering a figure and
+assuming it fired.
+
+### What is NOT decided here
+
+Whether to build the separate workflow. The arguments cut both ways for
+eight policies applied roughly once, and this record deliberately leaves
+it open rather than resolving it in the direction that happens to be
+convenient. What is settled is only that the existing refusal never
+closed it.
+
+### The pattern this belongs to
+
+The same shape as D275's amendment, and now with four instances inside one
+session: D98's "collapsing is trivial" (true, except for the arm where it
+was not), `pure.ts:513`'s per-dimension rejection (correct, while its
+premise held), the replay tool's total-only concurrency guard (blind to
+the one write that keeps the total still), and this. Every one is a
+conclusion **quoted rather than re-derived against current facts**.
+
+The gate cannot catch the general case — a stale premise is not a stale
+number. What it catches is the cheapest and most common instance, which
+is the argument for pointing `check:figures` at every figure a decision
+leans on, not only the ones in prose somebody remembered to register.

@@ -261,6 +261,24 @@ const appCheckExemptions = (() => {
   return [...block[1].matchAll(/^\s{2}(\w+):\s*\{/gm)].length;
 })();
 
+// The alerting surface, counted from apply-monitoring.mjs's own lists
+// rather than restated. check:monitoring already holds those lists equal to
+// what is on disk, so deriving from them here means this gate and that one
+// cannot report different totals.
+//
+// Why these are worth watching: the number had drifted in THREE places at
+// once — the runbook step called them "the two monitoring alerts", its
+// refusal rationale priced widening the deploy role "for two policies", and
+// this script's own header said "three". There are eight. A refusal whose
+// arithmetic is off by 4x is not a refusal anybody can re-derive, and the
+// runbook's count is the number an operator reads before deciding whether
+// the step matters.
+const applyMonitoringSrc = read("scripts/apply-monitoring.mjs");
+const monitoringPolicies =
+  [...applyMonitoringSrc.matchAll(/"monitoring\/[\w.-]+\.json"/g)].length;
+const monitoringMetrics =
+  [...applyMonitoringSrc.matchAll(/name:\s*"[\w]+"/g)].length;
+
 const shippedFunctions = readdirSync(resolve(root, "functions", "src"), { recursive: true })
   .map((f) => String(f).split(sep).join("/"))
   .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"))
@@ -271,6 +289,35 @@ const shippedFunctions = readdirSync(resolve(root, "functions", "src"), { recurs
   );
 
 const FIGURES = [
+  {
+    file: "docs/LAUNCH-RUNBOOK.md",
+    what: "monitoring alerts the operator step applies",
+    re: /Apply the (\w+) monitoring alerts/,
+    actual: NUMBER_WORDS[monitoringPolicies] || String(monitoringPolicies),
+    fix: (n) => `"Apply the ${n} monitoring alerts"`,
+  },
+  {
+    file: "docs/LAUNCH-RUNBOOK.md",
+    what: "policies the deploy-role refusal is priced against",
+    // `\s+` across the wrap: the sentence breaks mid-clause in the runbook.
+    re: /widening\s+it for (\w+) policies is the worse trade/,
+    actual: NUMBER_WORDS[monitoringPolicies] || String(monitoringPolicies),
+    fix: (n) => `"widening it for ${n} policies is the worse trade"`,
+  },
+  {
+    file: "scripts/apply-monitoring.mjs",
+    what: "alert policies this script puts in place",
+    re: /put the (\w+) alert policies in place/,
+    actual: NUMBER_WORDS[monitoringPolicies] || String(monitoringPolicies),
+    fix: (n) => `"put the ${n} alert policies in place"`,
+  },
+  {
+    file: "scripts/apply-monitoring.mjs",
+    what: "log-based metrics this script creates",
+    re: /a notification channel, (\w+) log-based metrics/,
+    actual: NUMBER_WORDS[monitoringMetrics] || String(monitoringMetrics),
+    fix: (n) => `"a notification channel, ${n} log-based metrics"`,
+  },
   {
     file: "src/v2/data/patternsReady.ts",
     what: "the Patterns fit's eligible corpus",

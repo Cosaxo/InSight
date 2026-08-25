@@ -1311,18 +1311,37 @@ That is a tester-count problem, not a workflow problem.
       `deleteAccount` does not touch Storage, so revoking access while
       objects remain converts a dead feature into an erasure gap. Update
       `firestore-tests/storage.rules.test.ts` in the same commit.
-- [ ] **5.5 Apply the two monitoring alerts** (`monitoring/*.json`):
+- [ ] **5.5 Apply the eight monitoring alerts** (`monitoring/*.json`):
       ```bash
       npm run monitoring:apply -- --email you@example.com           # report
       npm run monitoring:apply -- --email you@example.com --apply   # do it
       ```
       One command for what used to be four console steps with a channel id
-      pasted between them. Idempotent and dry-run by default. Neither
-      policy is applied by the pipeline, and this script must not be put on
+      pasted between them. Idempotent and dry-run by default. No policy is
+      applied by the pipeline, and this script must not be put on
       it — the deploy service account has no monitoring role, and widening
-      it for two policies is the worse trade. Both cover failures that look like nothing from the
+      it for eight policies is the worse trade. They cover failures that look like nothing from the
       outside: the app keeps serving while the Mirror stops moving, or
       keeps moving while falling further behind. `DEPLOYMENT.md § Alerting`.
+
+      **What that refusal does and does not say, because it was misread
+      once.** It rules out the DEPLOY PATH, and its reason is about the
+      DEPLOY service account — the one that pushes rules and functions, and
+      that nobody wants holding a monitoring role it needs twice a year. It
+      does not say the step cannot be automated. A separate
+      `workflow_dispatch` with its own credential is not the deploy path,
+      and `seed-content.yml` is the proof that shape works: an operator
+      callable run against production from CI, behind the `production`
+      environment's protection rules (D87), with no dev machine anywhere.
+      Whether that is worth building for eight policies applied once is an
+      open question with arguments both ways; what is settled is only the
+      narrow thing this paragraph settles.
+
+      The count above is held by `check:figures` now. It said **two** while
+      the tree carried eight, `apply-monitoring.mjs`'s own header said
+      three, and the refusal priced a trade against the wrong number by 4x
+      — three copies of one figure, none of them right, which is the exact
+      failure D39 built that gate for.
 - [x] **5.6 Version lockstep — holds at 2.0.0 build 26.**
       *This line was stale three times, each one a bump behind 2.4 — build
       11 on 2026-08-13, build 12 later the same day, then 13 against a tree
