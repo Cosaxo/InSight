@@ -643,6 +643,44 @@ describe("the _state document is shared, so the digest must MERGE it", () => {
   });
 });
 
+describe("a _state document is not proof the digest has seen an account", () => {
+  // runRollupFold writes `{ fg7 }` with merge onto the SAME document the
+  // digest owns, for any account that used the app without answering. So
+  // the doc exists while the digest has never folded that uid — and
+  // getStates gated on `snap.exists` alone, handing back `firstDay: ""`.
+  //
+  // An empty firstDay equals no cohort day and never counts as a
+  // first-timer, and `""` is copied forward on every later day, so that
+  // account could never appear in `firstTime` and never match a d1/d7/d30
+  // cohort again. It is exactly the population rung 2 was built to see:
+  // people who browse before they commit.
+  it("ignores a _state that carries only the rollup window", async () => {
+    const snapOf = (data: Record<string, unknown>) => ({
+      exists: true,
+      get: (k: string) => data[k],
+    });
+    const db = {
+      collection: () => ({
+        doc: () => ({ collection: () => ({ doc: () => ({}) }) }),
+      }),
+      getAll: async () => [
+        // the browser: runRollupFold's write, and nothing else
+        snapOf({ fg7: [2, 0, 1] }),
+        // the control — a real digest state, which must still come back
+        snapOf({ firstDay: "2026-08-01", lastDay: "2026-08-20", activeDays: 4, streak: 2 }),
+      ],
+    } as unknown as Parameters<typeof firestoreEngagementStore>[0];
+
+    const out = await firestoreEngagementStore(db).getStates(["browser", "answerer"]);
+
+    expect(
+      out.has("browser"),
+      "an fg7-only document was read as digest state, which pins firstDay to \"\" forever",
+    ).toBe(false);
+    expect(out.get("answerer")).toMatchObject({ firstDay: "2026-08-01", activeDays: 4 });
+  });
+});
+
 describe("a paged query's projection has to carry the field it orders by", () => {
   // A cursor is BUILT FROM THE SNAPSHOT: `startAfter(doc)` reads, off that
   // document, every field the query orders by. `select()` decides which

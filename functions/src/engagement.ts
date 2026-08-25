@@ -374,9 +374,25 @@ export function firestoreEngagementStore(db: Firestore): EngagementStore {
           db.collection("v2_users").doc(uid).collection("engagement").doc("_state"));
         const snaps = await db.getAll(...refs);
         snaps.forEach((snap, j) => {
-          if (snap.exists) {
+          // EXISTING is not the same as having been DIGESTED — the same
+          // distinction cohortOf needs one level up. runRollupFold creates
+          // this very document with nothing but `fg7` for an account that
+          // used the app without answering, so `snap.exists` is true while
+          // the digest has never seen that account.
+          //
+          // Read as a DigestState it came back with `firstDay: ""`, which
+          // equals no cohort day and never counts as a first-timer. So the
+          // day that person first ANSWERED was never recorded, the empty
+          // string was copied forward on every later day, and they could
+          // never match a d1/d7/d30 cohort again — for the rest of the
+          // account's life. Exactly the population rung 2 exists to see:
+          // people who browse before they commit.
+          //
+          // The digest's own field is the test, not the document.
+          const firstDay = snap.get("firstDay");
+          if (typeof firstDay === "string" && firstDay) {
             out.set(chunk[j], {
-              firstDay: (snap.get("firstDay") as string) ?? "",
+              firstDay,
               lastDay: (snap.get("lastDay") as string) ?? "",
               activeDays: (snap.get("activeDays") as number) ?? 0,
               streak: (snap.get("streak") as number) ?? 0,
