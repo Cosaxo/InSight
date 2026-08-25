@@ -6,7 +6,7 @@
 import { describe, it, expect } from "vitest";
 import {
   evennessOf, ordinalSplit, splitQualityOf, rollupProduction, creditShares, HOME_SHARES,
-  attentionFromTrail, ATTENTION_WARNING,
+  attentionFromTrail, ATTENTION_WARNING, isScoredAgg,
 } from "./scorecard-metrics.mjs";
 
 describe("categorical evenness (unchanged bar)", () => {
@@ -140,7 +140,7 @@ describe("production rollup (D97)", () => {
     expect(out.byVintage["editorial:prototype"].questions).toBe(2);
   });
 
-  it("keeps unserved and below-floor rows out of the scored figures but in the counts", () => {
+  it("keeps unserved rows out of the scored figures but in the counts", () => {
     const out = rollupProduction(
       [row("daily-000", { served: false, signal: "unserved", total: 0, evenness: null })],
       prov,
@@ -197,5 +197,41 @@ describe("attentionFromTrail (R4/D271)", () => {
   it("the warning names the discipline, because the dashboard doubles the temptation", () => {
     expect(ATTENTION_WARNING).toMatch(/skip is not dislike/);
     expect(ATTENTION_WARNING).toMatch(/D33/);
+  });
+});
+
+describe("isScoredAgg — the predicate that reads a production aggregate", () => {
+  // THE SHAPES ARE REAL. Read live from prvfire33's v2_question_aggs on
+  // 2026-08-25 (anonymous sign-in, the public read D98 opened): 104
+  // documents, every one of them `{counts|pos, total, by}` with NO
+  // `tooSmall` field. These four literals are transcribed from that read.
+  const voteAgg = { counts: { 0: 3, 1: 2 }, total: 5, by: { ageBand: {} } };
+  const rankAgg = { pos: [3, 1, 2], total: 1 };
+  const single = { counts: { 0: 1 }, total: 1, by: {} };
+
+  it("scores a post-D98 document, which carries no tooSmall at all", () => {
+    // The whole bug in one assertion. The retired predicate was
+    // `agg.tooSmall === false`, and `undefined === false` is false — so
+    // this document, and all 104 like it in production, read as unscored.
+    expect("tooSmall" in voteAgg).toBe(false);
+    expect(isScoredAgg(voteAgg)).toBe(true);
+    expect(isScoredAgg(rankAgg)).toBe(true);
+    expect(isScoredAgg(single)).toBe(true);
+  });
+
+  it("refuses only ABSENCE — a question nobody has answered has no document", () => {
+    // v2_question_aggs is `allow write: if false`; the trigger is its only
+    // writer and it writes on an answer. So absence is the one honest
+    // negative, and there is no floor above it.
+    expect(isScoredAgg(undefined)).toBe(false);
+    expect(isScoredAgg(null)).toBe(false);
+  });
+
+  it("does not resurrect the floor if a legacy document still carries the flag", () => {
+    // Pre-D98 documents may still exist for questions retired before the
+    // sweep. They were published, so they count; the flag is data the
+    // reader no longer interprets rather than a verdict it must obey.
+    expect(isScoredAgg({ counts: { 0: 4 }, total: 4, tooSmall: false })).toBe(true);
+    expect(isScoredAgg({ counts: {}, total: 0, tooSmall: true })).toBe(true);
   });
 });

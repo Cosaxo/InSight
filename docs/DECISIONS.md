@@ -29826,11 +29826,21 @@ drift: none — the published aggregate already matches the answers.
 ```
 
 Both lines are true. Together they are a lie of the kind this repo keeps
-naming — **a check that passes because it never ran.** `answersCounted` is
-0 in the pulse trail, so the project genuinely holds no answers; the scan
-found nothing and agreed with an empty aggregate. Nothing was verified, and
-the workflow's own summary was busy telling the reader that `drift: none`
-means the question is healthy.
+naming — **a check that passes because it never ran.** The scan found
+nothing for `daily-000` and agreed with an empty aggregate; nothing was
+verified, and the workflow's own summary was busy telling the reader that
+`drift: none` means the question is healthy.
+
+> **Corrected 2026-08-25, same day (D294).** This paragraph originally read
+> "`answersCounted` is 0 in the pulse trail, so the project genuinely holds
+> no answers." **That is false, and the reason it is false is a bug D294
+> found:** production held 104 aggregate documents and 108 answers at the
+> moment of this dry run. `answersCounted` reads 0 because the scorecard
+> gates on `agg.tooSmall === false`, a field D98 stopped writing — so every
+> real aggregate reads as unscored. `daily-000` really does have no answers,
+> which is why the run scanned 0; the project-wide claim was quoting a
+> broken instrument. Exactly the error this record is about, committed in
+> the record about it.
 
 Follow it one step further and it stops being a reporting problem. The
 concurrency guard added at D290 compares `updateTime` and catches an
@@ -29884,6 +29894,102 @@ by default) so the correction cannot read as more than it is.
 
 The plumbing: the call reaches the function, the scan runs, the fold runs,
 the comparison runs, against production. The fold over real answers: still
-only against emulated functions (7h, 7i, 9e), because production has no
-answers to fold. Runbook 5.10 stays **open**, with that stated, rather than
-being ticked on a vacuous green.
+only against emulated functions (7h, 7i, 9e) — not because production has
+nothing to fold (D294: it has 104 questions with answers) but because the
+qid this run was pointed at, `daily-000`, is not one of them. Runbook 5.10
+stays **open**, and D294 names three qids that would actually exercise it.
+
+## D294 · The scorecard has been reading production through a retired predicate, and every number downstream inherited the zero
+
+**2026-08-25.** An audit of what is missing from the target architecture
+found something that is not missing at all. **Production holds 104
+questions with answers and 108 answers.** Every instrument in this
+repository has been reporting zero.
+
+### The bug is one expression
+
+`scripts/question-scorecard.mjs` decided whether an aggregate document was
+readable with:
+
+```js
+agg && agg.tooSmall === false
+```
+
+That was correct while a k-anonymity floor existed. The trigger stamped
+`tooSmall`, and a floored question published a document whose counts were
+not usable — so a fail-closed test was the right shape.
+
+**D98 removed the floor and stopped writing the field** (2026-08-11).
+`undefined === false` is `false`, so from that day every aggregate document
+in production read as *below floor*. Not an error, not a warning: a clean,
+confident zero, at eight call sites.
+
+D98 swept the CLIENT's copy of the same predicate in the same commit —
+`src/v2/data/deck.ts:289-292` still carries the note that a client reading
+the flag "would blank every count in the app". The script's copy was
+missed, and nothing failed, because `question-scorecard.mjs` had no test.
+
+### What it cost
+
+`content/scorecard.json` → `coverage.scored` has been `0` in every refresh
+since. Downstream, in order: `pulse-collect.mjs` sums those zeros into
+`totalAnswers`; `pulse.mjs` renames it `answersCounted`; `pulse-collect.mjs`
+derives `population.state` from it; the question farm's evenness, leaders,
+laggards and retirement lanes all gate on `signal === "scored"`, which no
+row could be. `pulse-render.mjs`'s empty state told the reader that
+questions were "served but not yet answered" — of 104 questions that had
+been answered.
+
+And it propagated into the record. `answersCounted: 0` is cited as evidence
+the project holds no answers at DECISIONS.md:9236, :10041, :12976, :26660,
+:27533 and :29302 — and, most sharply, in **D293, written today, in the
+paragraph about checks that pass because they never ran.** That citation is
+corrected in place above. The older records are left as written: they are
+dated statements of what was believed, and several were true when made —
+the project genuinely held no answers before 2026-08-11. What changed is
+that the instrument stopped being able to tell the difference.
+
+### Measured, not inferred
+
+Read live from `prvfire33` on 2026-08-25 by the same public path
+`scorecard --fetch` uses — anonymous sign-in, then the aggregates D98 made
+world-readable. 104 documents in `v2_question_aggs`. Sorted by `total`
+descending: `daily-019` at 5, and every one of the remaining 103 at exactly
+1. `tooSmall` **absent from all 104**.
+
+`v2_question_aggs` is `allow write: if false` and the trigger writes it only
+when folding an answer, so a document's existence *is* the signal — which is
+what the fix says.
+
+### The fix, and where it lives
+
+`isScoredAgg(agg)` in `scripts/scorecard-metrics.mjs` — the pure module that
+already has a test file — used at all eight sites. It is `!!agg`, with the
+reasoning above written at its definition rather than at the call sites, for
+the reason `pure.ts` gives about `breakdownFor`: three copies is how they
+drift, and this bug is what that drift looks like when one copy is left
+behind.
+
+The `below-floor` signal is removed rather than left unreachable, and with
+it the three `belowFloor` coverage counts, `pulse-collect`'s field and
+`pulse-render`'s prose. A permanently-zero number that a renderer explains
+in words is how a retired concept survives its own retirement.
+
+### Proven by putting the old predicate back
+
+Three tests in `scorecard-metrics.test.mjs`, over document literals
+transcribed from the live read. Restoring `agg && agg.tooSmall === false`
+fails all three. The tests also pin the legacy case: a pre-D98 document that
+still carries `tooSmall: true` counts, because it was published — the flag is
+data the reader no longer interprets, not a verdict it must obey.
+
+### What is now newly possible
+
+Runbook 5.10 — dry-running the replay tool against a question with real
+answers — has a target: `daily-019` (5 answers), or `feed-f03` for the rank
+arm. It was never blocked on a population. It was blocked on being able to
+see one.
+
+The next `npm run scorecard -- --fetch` will move `scored` from 0 to
+something real, and the pulse trail's `answersCounted` with it. That refresh
+is the owner's to run; this commit only makes the reader honest.

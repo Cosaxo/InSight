@@ -56,6 +56,35 @@ const clamp01 = (v) => Math.max(0, Math.min(1, v));
 // ratio is the D163 contract for the on-device model's card affinity
 // (docs/TAGS-PLAN.md §4) — one constant, used everywhere, so nobody tunes
 // the two apart by accident.
+/** Does this aggregate document carry a readable result?
+ *
+ *  IT IS JUST "DOES THE DOCUMENT EXIST", and that is the whole point. The
+ *  scorecard asked `agg.tooSmall === false` from the day it was written,
+ *  which was correct while a k-anonymity floor existed: the trigger stamped
+ *  `tooSmall` and a floored question published a document with no usable
+ *  counts.
+ *
+ *  D98 removed the floor and stopped writing the field. `undefined === false`
+ *  is false, so the reader began answering "below floor" for EVERY aggregate
+ *  in production — a fail-closed test against a field that no longer exists
+ *  is indistinguishable from a real refusal. D98 swept the client's copy of
+ *  the same predicate in the commit that changed the trigger; this copy, in a
+ *  script, was missed, and nothing failed because nothing tested it.
+ *
+ *  Measured 2026-08-25: all 104 aggregate documents in prvfire33 carry
+ *  `{counts|pos, total, by}` and no `tooSmall`, so the scorecard had been
+ *  reporting `scored: 0` over 108 real answers, and every number downstream
+ *  of it — the pulse's answersCounted, the population state, the question
+ *  farm's evenness and retirement lanes — inherited the zero.
+ *
+ *  So: a document exists only because the trigger folded an answer into it
+ *  (`v2_question_aggs` is `allow write: if false`), which means its presence
+ *  IS the signal. There is no floor to clear. Kept as a named function rather
+ *  than inlined at eight call sites for the reason pure.ts gives about
+ *  `breakdownFor`: three copies is how they drift — and this bug is what the
+ *  drift looks like when one copy is left behind. */
+export const isScoredAgg = (agg) => !!agg;
+
 export const HOME_SHARES = 2;
 
 export function creditShares(topics) {

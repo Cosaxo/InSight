@@ -677,7 +677,7 @@ describe("the rendered page", () => {
 
     const withAnswers = {
       ...real,
-      coverage: { ...real.coverage, scored: 3, unserved: 80, belowFloor: 2 },
+      coverage: { ...real.coverage, scored: 3, unserved: 80 },
       retireProposals: [{ qid: "daily-000" }, { qid: "daily-001" }],
       perQuestion: real.perQuestion.map((q, i) =>
         i < 3 ? { ...q, served: true, total: 1400 + i, evenness: [0.12, 0.51, 0.93][i] }
@@ -692,7 +692,6 @@ describe("the rendered page", () => {
     // Re-run the collector's own arithmetic over the doctored artifact.
     sc.scoredQuestions = withAnswers.coverage.scored;
     sc.unserved = withAnswers.coverage.unserved;
-    sc.belowFloor = withAnswers.coverage.belowFloor;
     sc.questionsTracked = withAnswers.coverage.questions;
     sc.totalAnswers = withAnswers.perQuestion.reduce((a, q) => a + (q.total || 0), 0);
     sc.evennessBuckets = bucketEvenness(withAnswers.perQuestion);

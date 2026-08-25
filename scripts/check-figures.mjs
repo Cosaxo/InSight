@@ -333,7 +333,51 @@ const shippedFunctions = readdirSync(resolve(root, "functions", "src"), { recurs
     0,
   );
 
+// The feed bank and its core/tail split. Both figures were stale when
+// D294's audit looked: docs/SCALE-PLAN.md said "All 82 ... carry
+// core: true" and content/README.md said "Feed questions (82)", against a
+// file holding 130 questions of which 50 declare `core: false`. The second
+// half is the one that mattered — SCALE-PLAN's whole argument is about what
+// an unbounded feed costs, and a reader told the tail was empty would plan
+// against a state that ended some time ago. Counted here so neither can
+// drift again.
+const feedQs = JSON.parse(read("content/feed-questions.json")).questions;
+const feedCount = feedQs.length;
+const feedCoreCount = feedQs.filter((q) => q.core === true).length;
+const feedTailCount = feedQs.filter((q) => q.core === false).length;
+
 const FIGURES = [
+  {
+    file: "docs/SCALE-PLAN.md",
+    what: "feed questions declaring `core: true`",
+    // `\s+` across the wrap, as elsewhere in this table — the sentence
+    // breaks after "in", and a re-wrap must not silently stop matching.
+    re: /(\d+) of the (?:\d+) in\s+`content\/feed-questions\.json` carry `core: true`/,
+    actual: String(feedCoreCount),
+    fix: (n) => `"${n} of the ${feedCount} ... carry \`core: true\`"`,
+  },
+  {
+    file: "docs/SCALE-PLAN.md",
+    what: "feed questions in the bank",
+    re: /(?:\d+) of the (\d+) in\s+`content\/feed-questions\.json` carry `core: true`/,
+    actual: String(feedCount),
+    fix: (n) => `"... of the ${n} in content/feed-questions.json"`,
+  },
+  {
+    file: "docs/SCALE-PLAN.md",
+    what: "feed questions declaring `core: false` (the tail)",
+    // `\s+` across the wrap: the clause breaks after "declare".
+    re: /(\d+) declare\s+`core: false`/,
+    actual: String(feedTailCount),
+    fix: (n) => `"${n} declare \`core: false\`"`,
+  },
+  {
+    file: "content/README.md",
+    what: "feed questions in the bank",
+    re: /\| Feed questions \((\d+)\)/,
+    actual: String(feedCount),
+    fix: (n) => `"Feed questions (${n})"`,
+  },
   {
     file: "docs/LAUNCH-RUNBOOK.md",
     what: "monitoring alerts the operator step applies",

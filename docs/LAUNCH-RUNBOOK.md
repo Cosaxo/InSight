@@ -1476,13 +1476,20 @@ That is a tester-count problem, not a workflow problem.
          2.5 minutes later and otherwise identical, succeeded. If a rebuild
          fails right after an index change, **wait and re-run before
          debugging anything**.
-      3. It then reported `scanned 0 … nothing to compare`, which is the
-         true state of the project: `answersCounted` is 0 in the pulse
-         trail. **So the plumbing is verified and the fold is not** — the
-         call reaches the function, the scan runs, the fold runs and the
-         comparison runs, over zero answers. The fold itself is covered
-         against emulated functions with real answers (e2e steps 7h, 7i,
-         9e). **Leave this step open until a question has real answers.**
+      3. It then reported `scanned 0 … nothing to compare` — true of
+         `daily-000`, which nobody has answered. **So the plumbing is
+         verified and the fold is not**: the call reaches the function, the
+         scan runs, the fold runs and the comparison runs, over zero
+         answers. The fold itself is covered against emulated functions with
+         real answers (e2e steps 7h, 7i, 9e).
+
+         **Pick a qid that HAS answers.** This entry first said the project
+         held none, quoting `answersCounted: 0` from the pulse trail; D294
+         found that number to be a broken reader, not a measurement — there
+         are 104 questions with answers in production. `daily-019` (total 5)
+         is the one with more than a single vote and is the right target;
+         `feed-f03` exercises the rank arm. **Leave this step open until one
+         of those has been dry-run and the drift read.**
 
 - [ ] **5.12 Turn on Cloud Billing export to BigQuery — so the prediction
       can be diffed against the invoice.** Cloud Console → Billing →

@@ -403,7 +403,6 @@ export function collectScorecard() {
     // is most of the bank and says nothing; after launch a stubbornly high
     // number means the deck is not getting through what has been written.
     unserved: cov.unserved ?? 0,
-    belowFloor: cov.belowFloor ?? 0,
     questionsTracked: cov.questions ?? perQuestion.length,
     // The product's own bar, as a distribution rather than an average: a
     // mean evenness hides the shape, and the shape is the thing ("splits,
