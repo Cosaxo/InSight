@@ -10,9 +10,9 @@ import './spec/archetype-data.js';
 import './spec/compare-pop.js';
 import './spec/daily-questions.js';
 // suggestions.js moved to the loadOverlays group (still listed, still in
-// order — the D25 move): the board's store carries the v24 seed/decline
-// furniture, and check:bundle's eager budget is why a closed board must
-// not cost a byte at boot. Its purge listener attaches when the group
+// order — the D25 move): the door's store carries the decline furniture
+// and the demo room, and check:bundle's eager budget is why a closed door
+// must not cost a byte at boot. Its purge listener attaches when the group
 // loads, which is safe: purgeLocalTrace removes the insight.* keys
 // itself, and a module that never loaded holds no in-memory state for
 // the listener to clear.
@@ -321,6 +321,10 @@ export const loadWorldFeed = retryable(async () => {
 // window.open* cross-links app-shell installs in an effect. Nothing on the
 // first frame can reach any of them, which is what makes them the next
 // group after the feed (D25's argument, applied to the next candidate).
+// (`suggest` gained a header + since D288 §1 made it the paid door — it
+// stays here on exactly the argument that moved search and profile in at
+// D223: the button goes through openDeferred, so the criterion is the
+// synchronisation, not the surface.)
 //
 // SYNCHRONISED BY THE OPENER, NOT BY A RE-RENDER. This is the one
 // structural difference from loadWorldFeed, and it is why the group is

@@ -43,7 +43,6 @@ const SAY: PairSay = {
   pick: "qa-yes", then: "qb-yes", pickIdx: 0, thenIdx: 0, pct: 78, base: 50, both: 40,
 };
 
-const noop = () => {};
 
 beforeEach(() => {
   PATTERNS.say.mockResolvedValue(SAY);
@@ -53,7 +52,7 @@ afterEach(cleanup);
 
 describe("the field at rest", () => {
   it("draws every question and leads with the strongest tie, basis stated", async () => {
-    const { container } = render(<PatternsMap items={ITEMS} version={1} topic="all" onUse={noop} />);
+    const { container } = render(<PatternsMap items={ITEMS} version={1} topic="all" />);
     expect(container.querySelectorAll("svg g g").length).toBe(ITEMS.length);
     expect(await screen.findByText("strongest tie")).toBeTruthy();
     expect(screen.getByText(/of the 40 in both samples/)).toBeTruthy();
@@ -64,7 +63,7 @@ describe("the field at rest", () => {
 
 describe("a selection", () => {
   it("reads the question's own links out loud and says when you broke one", async () => {
-    const { container } = render(<PatternsMap items={ITEMS} version={1} topic="all" onUse={noop} />);
+    const { container } = render(<PatternsMap items={ITEMS} version={1} topic="all" />);
     // tap the first dot (qa) — its links load as exact sentences
     fireEvent.click(container.querySelectorAll("svg g g")[0]!);
     expect(screen.getByText("Q qa")).toBeTruthy();
@@ -79,7 +78,7 @@ describe("a selection", () => {
   });
 
   it("offers the options on an open question and votes through LIVE", () => {
-    const { container } = render(<PatternsMap items={ITEMS} version={1} topic="all" onUse={noop} />);
+    const { container } = render(<PatternsMap items={ITEMS} version={1} topic="all" />);
     fireEvent.click(container.querySelectorAll("svg g g")[2]!); // qc, open
     fireEvent.click(screen.getByText("qc-yes"));
     expect(LIVE.vote).toHaveBeenCalledWith("qc", "qc:0");

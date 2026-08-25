@@ -8,6 +8,12 @@ import React from 'react';
 // place-stats.js — the member scorecards for Oslo / Norway / the world.
 // Baked averages + counts keep the cards full from day one; your own scores
 // come from 'rate' questions in the World feed and overlay live.
+// City and country carry TWO crowds since the 2026-08-24 standalone: the
+// people who live there (`loc`/`locN`) and everyone else (`vis`/`visN`) —
+// named "live there" / "from elsewhere" here rather than the prototype's
+// "locals/visitors", because that is what the LIVE card can honestly know
+// (D288 §2) and the demo must not preview a claim the product refuses.
+// The world has no elsewhere.
 // Hoisted `export let`, assigned inside the IIFE — the shape DAILYQ,
 // FRIENDS and PICKS were converted with (D39, "convert on touch").
 //
@@ -28,25 +34,29 @@ export let PLACE_RATE_QS;
   const subs = new Set();
 
   const SCOPES = {
-    city: { label: 'Oslo', raters: '9.2k', cats: [
-      { id: 'nature', label: 'Nature access', avg: 9.1, n: 7900 },
-      { id: 'transit', label: 'Getting around', avg: 8.6, n: 7300 },
-      { id: 'safety', label: 'Safety', avg: 8.2, n: 6100 },
-      { id: 'food', label: 'Food scene', avg: 7.1, n: 5800 },
-      { id: 'nightlife', label: 'Nightlife', avg: 6.4, n: 5200 },
-      { id: 'friendly', label: 'Friendliness', avg: 5.8, n: 6600 },
-      { id: 'dating', label: 'Dating', avg: 4.9, n: 4400 },
-      { id: 'cost', label: 'Affordability', avg: 3.2, n: 8000 },
+    // avg/n stay the whole-crowd numbers (world-feed's counters read them);
+    // loc/vis carry the split the two-crowd card draws, with each crowd's
+    // own n — the gaps are the design's (a visitor's Oslo is safer and
+    // much more expensive than a resident's).
+    city: { label: 'Oslo', raters: '9.2k', split: true, cats: [
+      { id: 'nature', label: 'Nature access', avg: 9.1, n: 7900, loc: 9.0, vis: 9.5, locN: 4900, visN: 3000 },
+      { id: 'transit', label: 'Getting around', avg: 8.6, n: 7300, loc: 8.7, vis: 8.3, locN: 4600, visN: 2700 },
+      { id: 'safety', label: 'Safety', avg: 8.2, n: 6100, loc: 8.0, vis: 8.9, locN: 3900, visN: 2200 },
+      { id: 'food', label: 'Food scene', avg: 7.1, n: 5800, loc: 7.2, vis: 6.7, locN: 3600, visN: 2200 },
+      { id: 'nightlife', label: 'Nightlife', avg: 6.4, n: 5200, loc: 6.6, vis: 5.3, locN: 3300, visN: 1900 },
+      { id: 'friendly', label: 'Friendliness', avg: 5.8, n: 6600, loc: 6.3, vis: 4.7, locN: 4200, visN: 2400 },
+      { id: 'dating', label: 'Dating', avg: 4.9, n: 4400, loc: 4.8, vis: 5.6, locN: 3100, visN: 1300 },
+      { id: 'cost', label: 'Affordability', avg: 3.2, n: 8000, loc: 3.5, vis: 2.0, locN: 5000, visN: 3000 },
     ] },
-    country: { label: 'Norway', raters: '61k', cats: [
-      { id: 'nature', label: 'Nature', avg: 9.4, n: 41000 },
-      { id: 'safety', label: 'Safety', avg: 8.8, n: 38000 },
-      { id: 'balance', label: 'Work–life balance', avg: 8.5, n: 35000 },
-      { id: 'health', label: 'Healthcare', avg: 7.9, n: 33000 },
-      { id: 'services', label: 'Public services', avg: 7.6, n: 29000 },
-      { id: 'newcomers', label: 'Openness to newcomers', avg: 5.6, n: 27000 },
-      { id: 'weather', label: 'Weather', avg: 4.1, n: 39000 },
-      { id: 'cost', label: 'Affordability', avg: 3.6, n: 40000 },
+    country: { label: 'Norway', raters: '61k', split: true, cats: [
+      { id: 'nature', label: 'Nature', avg: 9.4, n: 41000, loc: 9.3, vis: 9.6, locN: 24000, visN: 17000 },
+      { id: 'safety', label: 'Safety', avg: 8.8, n: 38000, loc: 8.7, vis: 9.1, locN: 22000, visN: 16000 },
+      { id: 'balance', label: 'Work–life balance', avg: 8.5, n: 35000, loc: 8.6, vis: 8.1, locN: 21000, visN: 14000 },
+      { id: 'health', label: 'Healthcare', avg: 7.9, n: 33000, loc: 7.7, vis: 8.4, locN: 20000, visN: 13000 },
+      { id: 'services', label: 'Public services', avg: 7.6, n: 29000, loc: 7.4, vis: 8.2, locN: 17000, visN: 12000 },
+      { id: 'newcomers', label: 'Openness to newcomers', avg: 5.6, n: 27000, loc: 6.2, vis: 4.6, locN: 16000, visN: 11000 },
+      { id: 'weather', label: 'Weather', avg: 4.1, n: 39000, loc: 4.4, vis: 3.4, locN: 23000, visN: 16000 },
+      { id: 'cost', label: 'Affordability', avg: 3.6, n: 40000, loc: 3.9, vis: 2.4, locN: 24000, visN: 16000 },
     ] },
     world: { label: 'the world', raters: '640k', cats: [
       { id: 'food', label: 'What we eat', avg: 7.4, n: 380000 },

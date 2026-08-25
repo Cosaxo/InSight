@@ -379,7 +379,8 @@ style guide. What its voice looks like:
 
 **Dedup is part of writing, not a later pass.** A new question must not
 restate an existing one in different clothes — check the whole `Q` array
-*and* the suggestion board seeds in `src/v2/spec/suggestions.js`. After
+(the seeded suggestion board that used to ride along here retired at
+D288 §1; real asks live in `v2_suggestions`, not in source). After
 writing, re-read each candidate against its nearest existing neighbour and
 drop it if a user would say "I already answered that." Since D63 the
 nearest neighbours are measured, not guessed, and since D123 the
@@ -398,8 +399,7 @@ now: `--candidate` run eight times compares eight questions to the bank
 and never to each other, and every lane's budget is bigger than one
 question (8/run here, 10/run learn). Two twins written in the same run
 used to reach CI — one human review too late. `--candidate "…" --options
-"A|B"` still works for a single lookup while writing; suggestion seeds
-ride along on daily either way.
+"A|B"` still works for a single lookup while writing.
 
 Each packet line carries **two** numbers — `top` against the bank and
 `batch` against the closest sibling — and the sibling number prints
@@ -1372,9 +1372,9 @@ bar each entry below has to meet:
   D136 (it left the Mirror; no home surface). A lane writing predictions
   for a surface nobody can reach is fabricated runway.
 - **Community suggestions** — a submission path, not a generation lane;
-  the public voting board is its own undecided decision (D138's
-  boundary), and its questions arrive with `source: "community"` through
-  the same promote machinery when picked.
+  the public voting board question closed by retirement (D288 §1 — every
+  ask through the door is a paid ask), and a picked ask still arrives
+  with `source: "community"` through the same promote machinery.
 - **Sponsored questions** — a human contract path, never scheduled
   (`source: "sponsor"`, D195); money does not get a robot.
 
@@ -1701,7 +1701,7 @@ generate answers, votes, or activity; never write questions scoped to
 a specific city, country, or region's citizens (manual hard rule 6);
 never merge with a failing or pending check, never re-run a job to
 outwait a real failure, never push an empty commit to kick CI. Dedup
-against the WHOLE archive and src/v2/spec/suggestions.js. If a prior
+against the WHOLE archive. If a prior
 farm PR is still open (a gate refused it), roll up instead of stacking:
 check out its branch, dedup against it, fix what CI refused if the fix
 is small, append one commit, retitle the PR to cover the span, and add

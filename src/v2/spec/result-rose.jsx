@@ -106,8 +106,11 @@ const rpPetal = (h) => `oklch(0.64 0.115 ${h})`;
 const rpDeep  = (h) => `oklch(0.46 0.13 ${h})`;
 
 // ── Petal rose — petal length encodes the score, 0–100 ──
-function RosePetals({ dims, hueOf, subOf, animate }) {
-  const W = 360, H = 330, cx = 180, cy = 168, R = 92, labelR = 106, r0 = 9;
+// `compact` (2026-08-24): the same rose at side-by-side size — the Roles
+// panel already asks for it (LiveRolesPanel passes compact={true}), and
+// until this landed the prop was silently ignored and the rose drew full.
+function RosePetals({ dims, hueOf, subOf, animate, compact }) {
+  const W = 360, H = compact ? 238 : 330, cx = 180, cy = compact ? 121 : 168, R = compact ? 70 : 92, labelR = compact ? 84 : 106, r0 = compact ? 7 : 9;
   const n = dims.length, slice = 360 / n, gapD = n > 6 ? 9 : 12;
   const rad = (d) => (d * Math.PI) / 180;
   const pt = (aDeg, r) => [cx + Math.cos(rad(aDeg)) * r, cy + Math.sin(rad(aDeg)) * r];
@@ -175,7 +178,7 @@ export function RoseMini({ testKey, dims, size = 46 }) {
 // values) encode petal length as CONVICTION (distance from centre) and label
 // each petal with the pole it leans toward — a raw 13-of-100 is a strong
 // stance, not a short petal. Unipolar tests keep score = length. ──
-export function TestRose({ testKey, dims, animate }) {
+export function TestRose({ testKey, dims, animate, compact }) {
   const cfg = RP_TESTS[testKey];
   if (!cfg || !dims || !dims.length) return null;
   const hueOf = (id, i) => (cfg.hues[id] != null ? cfg.hues[id] : (30 + i * 47) % 360);
@@ -185,5 +188,5 @@ export function TestRose({ testKey, dims, animate }) {
   const subOf = cfg.bipolar
     ? (d) => { const w = (cfg.poles[d.id] || ['low', 'high'])[(d.raw != null ? d.raw : d.value) >= 50 ? 1 : 0]; return w.toLowerCase() === d.label.toLowerCase() ? '' : w; }
     : null;
-  return <RosePetals dims={roseDims} hueOf={hueOf} subOf={subOf} animate={animate} />;
+  return <RosePetals dims={roseDims} hueOf={hueOf} subOf={subOf} animate={animate} compact={compact} />;
 }

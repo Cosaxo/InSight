@@ -488,6 +488,11 @@ const NOT_SEEDED = {
     "build input, not content — the hand-reviewed exceptions to the artists "
     + "catalogue's mechanical rule (D267), read by scripts/build-catalog.mjs "
     + "and gated by check:catalogs against the committed catalogue",
+  "pricing.json":
+    "the published rate card, not question content (PAID-PLAN §6, D288 §3) "
+    + "— imported by src/v2/data/pricing.ts (the door prints it verbatim), "
+    + "refolded from the purchase ledger by scripts/build-pricing.mjs, and "
+    + "held to shape by check:pricing; never an input to the bank",
   "learn-sample.json":
     "generated OUTPUT, not an input — the fixed slice of learn-questions.json "
     + "the JS bundle carries (D284: the whole bank used to be compiled in, and "
@@ -526,6 +531,17 @@ const BUNDLED_CONTENT = {
       + "of FIELDS and never with the bank. Crossing this means the taxonomy "
       + "roughly doubled: re-derive PER_FIELD against the demo's needs "
       + "rather than raising the cap",
+  },
+  "pricing.json": {
+    maxKiB: 8,
+    why:
+      "the published rate card (PAID-PLAN §6, D288 §3), imported by "
+      + "src/v2/data/pricing.ts because the committed file IS what the door "
+      + "prints — a price a buyer cannot diff is a price that can be quietly "
+      + "discriminated. Bounded structurally: constants, FX, and 3 cohorts "
+      + "of idx + 14 ticks + a date; estimates add one small object per "
+      + "cohort. Crossing this means the card grew a per-day series or a "
+      + "fourth cohort — reshape it, don't raise the cap",
   },
   "duel-questions.json": {
     maxKiB: 24,

@@ -1507,6 +1507,25 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ── Paid purchase records (docs/PAID-PLAN.md §7, D288 §3) ────────
+    //
+    // One row per contract — scope, dims, window, the rate LOCKED at
+    // booking, budget cap, state, report milestones. Written by the
+    // OPERATOR at contract time (scripts/record-purchase.mjs, admin
+    // SDK): selling is by hand today (PAID-PLAN §9.2), so there is no
+    // client write path and no callable — a write arm nothing uses
+    // would be surface without a subject. The buyer reads their own
+    // rows (the room, PaidMineCard); the demand the door shows is NOT
+    // read from here — scripts/build-pricing.mjs folds these into the
+    // committed content/pricing.json, which is the public half.
+    // Same list shape as v2_suggestions: a query must filter
+    // uid == request.auth.uid or Firestore refuses it wholesale (D65).
+    match /v2_purchases/{pid} {
+      allow read: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+
     // ── Near-by-radius presence (D84) ──────────────────────────────
     //
     // One doc per opted-in user: a ~200 m grid cell and a freshness stamp,

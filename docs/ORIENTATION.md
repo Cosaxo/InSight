@@ -113,6 +113,7 @@ directions.
 | [`COST-REDUCTION.md`](COST-REDUCTION.md) | Getting the bill down. The big one was built at D129; the rest is analysis | mixed |
 | [`DEVICE-BIND.md`](DEVICE-BIND.md) | D29's activation gate: what ships, what you add, how to flip it on. Rules requirement is shipped **soft** | mixed |
 | [`VISION-V28.md`](VISION-V28.md) | The v28 design. Its third tab was adopted on trial (D166 §1), built, unmounted for the v1 release (D217) and is back on a data gate (D265) — the row's own §0 table carries each item's verdict | plan |
+| [`VISION-2026-08-24.md`](VISION-2026-08-24.md) | The 2026-08-24 design measured against the tree. The visual passes are built (D287); the remainder is decided (D288 — the board retires, honest crowd labels, the paid mechanism builds ahead of demand) and sequenced in its own §9 runbook: purchase records → the buyer's room → the committed rate card → the door, with the scorecard crowds and the groups "so what" fold alongside. Source extracted to `design/standalone-2026-08-24/` | mixed |
 | [`PEOPLE-MAP.md`](PEOPLE-MAP.md) | The patterns Map transposed: people placed by their answers. The People lens shipped at D214; the plane switch and whole-world variant stay deferred with their arithmetic | mixed |
 | [`NEXT-FUNCTIONALITY.md`](NEXT-FUNCTIONALITY.md) | Six ideas measured against the architecture. Plan notes, not decisions | plan |
 | [`ATTENTION.md`](ATTENTION.md) | "Does anyone like this, and what is this person into." No code exists | plan |
@@ -186,6 +187,7 @@ everything else: the static gates, and where each one runs.
 | `check:monitoring` | ci | The alert chain from the log line a function emits to the policy that reads it. Every link fails the same silent way |
 | `check:data-inventory` | ci | Every collection the rules reach is named in `docs/data-inventory.md` (D130), and — where a read rule is literally `request.auth != null` or `false` — that the row's reader column agrees with it (D257) |
 | `check:policy-claims` | ci | A live promise that **vanishes** from `web/privacy.html` — since D183 a claim deleted there is a claim deleted from the product |
+| `check:pricing` | ci | The committed rate card (`content/pricing.json`, PAID-PLAN §6, D288 §3) stays inside its own clamps: exact cohorts, idx within floor/ceiling, 14 real booked ticks, and no estimate without a completed campaign behind it |
 | `check:public-copy` | ci | The retired pre-D98 privacy vocabulary **reappearing** in copy a user reads |
 | `check:store-forms` | ci | The privacy nutrition label, which exists twice on purpose, agreeing with itself |
 | `check:quality` | ci | Question form and provenance (D97), the place-scope tripwire, and the id/bank headroom |

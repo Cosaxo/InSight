@@ -70,7 +70,7 @@ afterEach(cleanup);
 describe("the viewer's own gate", () => {
   it("offers the Oracle instead of a position when they are below basis", () => {
     const onOracle = vi.fn();
-    render(<PatternsPeople items={[item("q1"), item("q2", null)]} version={1} onUse={noop} onOracle={onOracle} />);
+    render(<PatternsPeople items={[item("q1"), item("q2", null)]} version={1} onOracle={onOracle} />);
     expect(screen.getByText("Not placed yet")).toBeTruthy();
     fireEvent.click(screen.getByText("Ask the Oracle"));
     expect(onOracle).toHaveBeenCalled();
@@ -80,14 +80,14 @@ describe("the viewer's own gate", () => {
 describe("the thin and loading states", () => {
   it("says the crowd is thin once the lists have answered", () => {
     LIVE.voters = () => [row("only", 0)];
-    render(<PatternsPeople items={ITEMS} version={1} onUse={noop} onOracle={noop} />);
+    render(<PatternsPeople items={ITEMS} version={1} onOracle={noop} />);
     expect(screen.getByText("Crowd too thin")).toBeTruthy();
   });
 
   it("says it is still reading while lists are absent, not that nobody is there", () => {
     LIVE.voters = () => null;
     LIVE.votersLoading = () => true;
-    render(<PatternsPeople items={ITEMS} version={1} onUse={noop} onOracle={noop} />);
+    render(<PatternsPeople items={ITEMS} version={1} onOracle={noop} />);
     expect(screen.getByText("Reading the crowd…")).toBeTruthy();
     expect(screen.queryByText("Crowd too thin")).toBeNull();
   });
@@ -95,7 +95,7 @@ describe("the thin and loading states", () => {
 
 describe("the placed field", () => {
   it("draws the crowd, states the basis, and kicks the bounded loads", async () => {
-    const { container } = render(<PatternsPeople items={ITEMS} version={1} onUse={noop} onOracle={noop} />);
+    const { container } = render(<PatternsPeople items={ITEMS} version={1} onOracle={noop} />);
     expect(screen.getByText(/people placed around you/)).toBeTruthy();
     expect(screen.getByText("10")).toBeTruthy();
     expect(screen.getByText(/latest answers/)).toBeTruthy();
@@ -110,7 +110,7 @@ describe("the placed field", () => {
   it("narrows to the circle without changing anyone's numbers (D216)", () => {
     LIVE.follows = () => ["ada", "gus"];
     const { container } = render(
-      <PatternsPeople items={ITEMS} version={1} pop="circle" onUse={noop} onOracle={noop} />,
+      <PatternsPeople items={ITEMS} version={1} pop="circle" onOracle={noop} />,
     );
     // two friends placed — the circle's own floor draws from the first
     expect(container.querySelectorAll('svg g[role="button"]').length).toBe(2);
@@ -121,7 +121,7 @@ describe("the placed field", () => {
 
   it("says the circle's own honest empty state, not the stranger one", () => {
     LIVE.follows = () => [];
-    render(<PatternsPeople items={ITEMS} version={1} pop="circle" onUse={noop} onOracle={noop} />);
+    render(<PatternsPeople items={ITEMS} version={1} pop="circle" onOracle={noop} />);
     expect(screen.getByText(/Nobody from your circle is placed here yet/)).toBeTruthy();
   });
 
@@ -135,18 +135,16 @@ describe("the placed field", () => {
     ];
     LIVE.voters = () => abroad;
     const { container } = render(
-      <PatternsPeople items={ITEMS} version={1} pop="country" onUse={noop} onOracle={noop} />,
+      <PatternsPeople items={ITEMS} version={1} pop="country" onOracle={noop} />,
     );
     expect(container.querySelectorAll('svg g[role="button"]').length).toBe(CROWD.length);
   });
 
   it("answers a tap with the exact count and the rarest shared answer", () => {
-    const onUse = vi.fn();
-    const { container } = render(<PatternsPeople items={ITEMS} version={1} onUse={onUse} onOracle={noop} />);
+    const { container } = render(<PatternsPeople items={ITEMS} version={1} onOracle={noop} />);
     const dot = container.querySelector('svg g[role="button"]');
     expect(dot).toBeTruthy();
     fireEvent.click(dot as Element);
-    expect(onUse).toHaveBeenCalled();
     expect(screen.getByText(/Agrees with you on/)).toBeTruthy();
     // agreeing faction shows the tie; the opposite one shows the split —
     // either way the sentence is a claim with a basis, never a bare score

@@ -25,7 +25,7 @@ const BLOOM_PAL = [
   'oklch(0.64 0.135 40)',   // terracotta
   'oklch(0.70 0.130 72)',   // amber
   'oklch(0.74 0.125 98)',   // gold
-  'oklch(0.66 0.110 145)',  // moss
+  'oklch(0.60 0.125 358)', // berry — was moss 145 until the 2026-08-24 standalone swapped the wheel's one green out
   'oklch(0.62 0.095 205)',  // teal-blue
   'oklch(0.56 0.115 258)',  // indigo
   'oklch(0.58 0.130 305)',  // plum

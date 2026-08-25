@@ -133,6 +133,11 @@ jobs:
       # out of D106's own rewrite calling world takes nameless. Same
       # placement rule as check:store-forms above: client/docs-only, and
       # deliberately off backend-checks.yml.
+      # The committed rate card (content/pricing.json, PAID-PLAN §6, D288
+      # §3) stays inside its own clamps — edited by script AND by hand, so
+      # both authors get the same referee. Client content: the door prints
+      # this file, so the gate sits here and stays OFF backend-checks.yml.
+      - run: npm run check:pricing
       - run: npm run check:public-copy
       # The other half of the same discipline, and the newer half (D183).
       # check:public-copy catches a retired promise that REAPPEARS; this

@@ -28966,3 +28966,139 @@ A real fix is server-side — a callable the outgoing session calls before
 its credentials go, or a sweep keyed on the switch — and is not attempted
 here. The exposure is bounded, three hours at worst, against a change to
 the auth teardown path on the same morning as twenty-three other fixes.
+## D287 · The 2026-08-24 visual passes ship; the paid door and the two-crowd scorecards wait on their owners
+
+**Decided:** 2026-08-24 · **Status:** binding — the owner's words were
+"implement the new visuals", read against `docs/VISION-2026-08-24.md`'s
+own split: the visual scope ships now; the two items that plan marked
+as owner decisions (§1 the paid door replacing the community board, §3
+the locals/visitors labels) and the backend items (§2 the buyer's room,
+§1.2 the demand board) stay where the plan put them, undecided and
+unbuilt. Nothing here anticipates them.
+
+**What shipped, mapped file by file in
+`design/standalone-2026-08-24/README.md`:**
+
+- **Patterns polish (ui/).** The ruler names what the wider lenses map —
+  Oracle · **Question map** · **People map**; the shell's one-time
+  explainer and its `insight.patterns.used.v1` key are deleted whole
+  (each lens teaches its own marks; the purge sweeps any stale key by
+  prefix); the Question map draws a **resting constellation** — the ten
+  strongest ties at full voice, their dots fully inked, off the same
+  strength-sorted `edgesOf` order the idle card already leaned on — and
+  the next-up beacon rides its own top SVG layer so no neighbour buries
+  it; the Oracle's sealed state reads as a vessel (dusk aura that lifts
+  on the vote, foot shade, a dashed landing seat identical both sides —
+  nothing leaks the call, and the seal pin in patterns.test.ts stands
+  untouched) and the un-picked tile wears the topic's muted hue at
+  reveal; `.qm-nextlab` joins the tab's own 10.5px floor; the People
+  lens legend swatch stops lying about its hue (40 → 250, the dots'
+  own) and the basis line reads "the crowd's latest answers".
+- **The small pass (spec + styles).** The suggestion door's buyer line
+  stops promising "counts and cuts — never names" (false since D98;
+  `SponsorMark` corrected the card first, its test pins the old words
+  out); `--ink-3` 0.51 → 0.472 for AA on the 10–11px captions it
+  carries; the test-viz wheel swaps moss for berry; search hits stop
+  stating distance (Near's own direction — a stranger's proximity is
+  itself a leak); the profile subnav places its active chip after
+  layout, twice, clamped (the smooth scrollTo lost the race with the
+  tab re-mount — real since D204 made it seven chips); and the
+  `compact` rose ships — **its consumer was already live**:
+  `LiveRolesPanel` has passed `compact={true}` since D204 and the prop
+  was silently ignored, so the Roles roses drew full-size. The plan's
+  own "take it with the v28 brief card, not before" was wrong and this
+  record corrects it.
+- **The roles get their ⓘ.** `duo`/`group` join the explain sheet
+  (read/seen/like/steady · own/pull/settle — no `cast` line: the dim is
+  not computed, D204, and copy for it would only be waiting to describe
+  a fabrication), a per-setting key (`duo:<room>`) answers as its
+  family, a `note` row says "yours: …", and each Roles section carries
+  the same ExplainBtn every test wears. Three new unit cases.
+- **The "so what" line.** The demo Mirror field says the picture once,
+  under Circle and Groups (the design's only mount points — its other
+  branches were unreachable and are not carried): who mirrors you
+  closest/least, which topic you are most/least in step on, folded from
+  the drawn nodes and the same per-audience splits the Answers lens
+  reads. **Live**, the one body whose data honestly carries it —
+  `LiveCircleBody`, `m.like.pct` with its shared-answer basis — says
+  the names-only version ("by the answers you share", no number the
+  rows beneath don't already state), quiet below two placeable NAMED
+  members: "Someone mirrors you closest" reads as a bug, and inventing
+  names is the D214 refusal. The groups half waits: no per-scene
+  likeness exists live, and the demo's `g.match` is authored.
+
+**Refused or not portable, with reasons:** the `friendVotes`
+rows/footer/off control (a tweaks-lab comparison tool; the lab is
+dismantled, `rows` is the shipped behaviour); the `map-layout` ring
+bullseye (its only declaring branch rolled it back inside the same
+prototype build); the prototype's `feed-read.js` strong-tier hunk (the
+app's `feedInsight` is a live rewrite that already refused the
+`friends` kind and already outranks flips over leans); the oracle
+sub-row's "N from feed votes" count (the live store records seals and
+grades, not vote provenance — `answered − graded` would miscount the
+Question map's own votes as feed votes); and the embedded fonts
+(packaging for the Hanken Grotesk `styles.css` has always shipped).
+
+**Enforcement:** the four patterns suites re-pinned around the removed
+explainer (row queries now select by `aria-expanded`, which the new ⓘ
+buttons do not carry), two new LiveCircleBody cases (the line with two
+placed members; silence with one), one new LiveRolesPanel case (the ⓘ
+opens the instrument's sheet), 1946 unit tests green, lint clean, the
+coupling ratchet unmoved at its baseline, `check:purge` green with the
+key's reader deleted whole, and the shipping bundle inside both
+ceilings (852 KB eager / 880 max) — measured, not assumed.
+
+## D288 · The board retires, the crowds get honest labels, and the paid mechanism builds ahead of demand
+
+**Decided:** 2026-08-24 · **Status:** binding — the owner's words were
+"all of these should be implemented", over the exact list
+`docs/VISION-2026-08-24.md` §0 held open. Three calls, one record (the
+D166 shape); the build plan they unlock is that file's §9 runbook.
+
+**§1 · The community board retires. "Ask a question" is the paid path
+alone.** The upvote board, the seeded community suggestions and the
+Top/New/Picked lenses go; what stands is the 2026-08-24 door — rate
+card, scope ruler, audience dims (D228), window, preview, contract
+sheet — plus your own submissions with their real statuses and
+declines. **D138's machinery survives untouched**: `suggestQuestionV2`,
+the 3/day budget, the review callables, the human-PR promotion path and
+the `v2_suggestions` rules are exactly the submission half the door
+needs, and they were never the community half. This closes the app's
+last "Preview · sample data" surface by deletion — the backlog item
+VISION-V28 §13 named — and no backend for upvotes was ever built, so
+nothing unwinds. The board's design survives in git and in
+`design/standalone-v24/`; reviving it would be a new decision.
+
+**§2 · The place scorecards hold two crowds, named for what the data
+can know: "live there" and "from elsewhere" — never "visitors".** The
+app cannot know who visited; it can know a rater's own place from the
+anchors every answer already carries. Measured, not assumed: the
+cohort body already fetches both cells — the scope's own counts and the
+world totals — so residents vs everyone-else is client arithmetic over
+reads the Scores lens already makes, and **the backend half of this
+item is nothing**. The prototype's "I live here / I'm visiting" switch
+becomes a viewing lens (which crowd is fore); it claims nothing about
+the viewer, because the viewer's crowd is their anchor's fact and at
+your own City stop your marks land with the locals whatever a toggle
+says. Collecting a self-declared role is refused as the wrong trade: a
+new field on the answer shape for a distinction the copy can carry.
+
+**§3 · The paid mechanism builds now, ahead of demand evidence — and
+D167 still binds every pixel of it.** PAID-PLAN §9.5's "last, and only
+on demand evidence" was this plan's sequencing recommendation, and the
+owner has overruled the WAIT, not the honesty: the rate card ships as
+the committed `content/pricing.json` §6 always specified, recomputed by
+script from the REAL purchase ledger; the 14-day ticks draw real
+windows (initially all open, which is true); the demand index sits at
+its floor until bookings move it; and the per-day answer ESTIMATES the
+prototype prints appear only once a cohort has a completed campaign to
+measure from — an empty ledger prints prices and open days, never a
+mocked forecast. The prototype's `SG_DEMAND` and `MARKET` constants
+remain what their own comments call them: illustrations.
+
+**What this record deliberately does not decide:** place-score
+subscriptions (PAID-PLAN §5 — the room renders that section only when
+subscription docs exist), report hosting (the shelf states milestones;
+delivery stays the contract channel until a hosting decision exists),
+and any per-voter edit mark (PAID-PLAN §11's one open question,
+untouched).

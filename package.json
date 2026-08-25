@@ -81,6 +81,7 @@
     "check:store-copy": "node scripts/check-store-copy.mjs",
     "check:store-listing": "node scripts/check-store-listing.mjs",
     "check:policy-claims": "node scripts/check-policy-claims.mjs",
+    "check:pricing": "node scripts/check-pricing.mjs",
     "check:public-copy": "node scripts/check-public-copy.mjs",
     "check:data-inventory": "node scripts/check-data-inventory.mjs",
     "check:docs": "node scripts/doc-index.mjs",

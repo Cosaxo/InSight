@@ -710,9 +710,22 @@ const MAX_CHUNK_KB = 735;
 // is behind React.lazy, and the gate that decides whether it is in the bar
 // is a 1 KB pure module.
 //
-// Headroom left: 24 KB. Still not room for a library — either SDK
-// rejoining first paint lands hundreds of KB over MAX_EAGER_KB and is
-// caught there, which is where that guarantee lives.
+// 2440 stands through the 2026-08-25 redesign build-out (D287/D288),
+// and the sentence above about raises got a live test: on its own branch
+// the paid mechanism's ~42 KB (the door rebuilt as the paid path, the
+// buyer's room behind React.lazy, CurSwitch shared between those two
+// chunks, the purchases store — every one deferred) tipped 2456 and this
+// number briefly read 2480 with the measured entry. The merge with the
+// D275–D286 audit took it back: that work shrank the app to 2093 KB
+// total / 753 KB eager, so the redesign rides inside headroom the same
+// week opened and the raise came out before it ever reached main. The
+// eager additions (profile-general's PaidMineCard, the privacy panel's
+// asked-by-you row, the two-crowd scorecards, the header's compose
+// button) sit against MAX_EAGER_KB's own unchanged 880.
+//
+// Still not room for a library — either SDK rejoining first paint lands
+// hundreds of KB over MAX_EAGER_KB and is caught there, which is where
+// that guarantee lives.
 const MAX_TOTAL_JS_KB = 2440;
 // 955 → 966 (2026-08-14): D139's pulse card — the second fixed instrument
 // on the FIRST screen, so its card, its store's demo furniture and the

@@ -5,6 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { IS_DATA, fmtPop } from './sample-data.js';
+import { DAILYQ } from './daily-questions.js';
 import { SCENES } from './scenes.js';
 import { Av, TabSection, MatchRing } from './primitives.jsx';
 // The type's own mark, imported by name (D39) rather than read off the
@@ -112,6 +113,61 @@ function KindredLensCard({ people = MFP_KINDRED }) {
           names shown only when both of you opt in
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── the "so what" line — one plain-language read under the field (2026-08-24) ───
+// The design mounts it on Circle and Groups only (its other branches were
+// unreachable at both mount points, so they are not carried here): who
+// mirrors you closest/least, then which topic you are most and least in
+// step with the population on. Folded entirely from what the field
+// already computed — the drawn nodes' match figures, and the same per-
+// audience splits the Answers lens reads.
+function mfpSoWhat(pop, cfg) {
+  const parts = [];
+  const nodes = (cfg.nodes || []).filter((n) => !n.faint && typeof n.match === 'number');
+  const nm = (n) => n.label || (n.data && n.data.name) || '';
+  if (nodes.length >= 2) {
+    const s = nodes.slice().sort((a, b) => b.match - a.match);
+    const top = s[0], low = s[s.length - 1];
+    if (pop === 'circle') parts.push([{ b: nm(top) }, ' mirrors you closest; ', { b: nm(low) }, ' least']);
+    else if (pop === 'groups') parts.push([{ b: nm(top) }, ' is the scene that runs most like you']);
+  }
+  if (DAILYQ && cfg.answersAud) {
+    const byCat = new Map();
+    DAILYQ.questions.forEach((q) => {
+      const mine = DAILYQ.myAnswer(q); if (mine == null) return;
+      const d = q.dist && q.dist[cfg.answersAud]; if (!d || d[mine] == null) return;
+      const lift = d[mine] * q.n / 100; // agreement over chance — comparable across question types
+      const t = DAILYQ.categoryPath(q)[0];
+      const e = byCat.get(t) || { s: 0, n: 0 };
+      e.s += lift; e.n += 1; byCat.set(t, e);
+    });
+    const cats = [...byCat.entries()].filter(([, e]) => e.n >= 2)
+      .map(([t, e]) => ({ t, avg: e.s / e.n })).sort((a, b) => b.avg - a.avg);
+    if (cats.length >= 2) {
+      parts.push(['most in step on ', { b: cats[0].t.toLowerCase() }, ', least on ', { b: cats[cats.length - 1].t.toLowerCase() }]);
+    }
+  }
+  return parts;
+}
+
+function MFSoWhat({ pop, cfg }) {
+  const [, bump] = React.useReducer((x) => x + 1, 0);
+  useEffectMFP(() => (DAILYQ ? DAILYQ.subscribe(bump) : undefined), []);
+  const parts = mfpSoWhat(pop, cfg);
+  if (!parts.length) return null; // too thin to say anything — say nothing
+  return (
+    <div style={{ padding: '7px 26px 0', textAlign: 'center' }}>
+      <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.5, textWrap: 'balance' }}>
+        {parts.map((seg, i) => (
+          <React.Fragment key={i}>
+            {i > 0 && <span style={{ color: 'var(--ink-3)' }}> · </span>}
+            {seg.map((tk, j) => typeof tk === 'string' ? tk : <b key={j} style={{ fontWeight: 800, color: 'var(--ink)' }}>{tk.b}</b>)}
+          </React.Fragment>
+        ))}
+      </span>
     </div>
   );
 }
@@ -351,9 +407,11 @@ function MirrorFieldBody({ pop, worldZoom, zoomCtl, onPerson, firstRun }) {
       </>)}
       {!sparse && !noCanvas && <MFHeader kicker={cfg.header.kicker} fig={cfg.header.fig} unit={cfg.header.unit} right={pop === 'world' ? zoomCtl : null}></MFHeader>}
       {rmHeader && <MFHeader kicker="Your circle" fig={rmHeader.fig} unit={rmHeader.unit} right={null}></MFHeader>}
+      {rmHeader && <MFSoWhat pop="circle" cfg={cfg}></MFSoWhat>}
       {!sparse && !noCanvas && (<>
         <MFCanvas key={pop + ':' + (pop === 'world' ? worldZoom : '')} nodes={cfg.nodes} selId={selId} onSel={onSel} seedDeg={cfg.seed} mist={cfg.mist} mistSeed={cfg.mistSeed || 1} tall={pop === 'near' || pop === 'world'} stretch={pop === 'world' ? 1.15 : 1.08} maxLabels={pop === 'world' ? (worldZoom === 'world' ? 3 : 4) : undefined}></MFCanvas>
         <MFKey items={cfg.key}></MFKey>
+        {pop !== 'near' && pop !== 'world' && <MFSoWhat pop={pop} cfg={cfg}></MFSoWhat>}
         <MFDetail node={sel} onPerson={onPerson} onJoin={onJoin} onLeave={onLeave} joined={sel && sel.kind === 'group' ? mine.has(sel.data.id) : false}></MFDetail>
       </>)}
       {noCanvas && (
