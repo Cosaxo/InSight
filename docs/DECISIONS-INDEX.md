@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 283 lines instead of
-27,980. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 284 lines instead of
+28,045. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -294,6 +294,7 @@ detect it.
 | **D273** | [A bump has a shelf life of exactly one upload, and 4.4 under-declares by two rows](DECISIONS.md#d273--a-bump-has-a-shelf-life-of-exactly-one-upload-and-44-under-declares-by-two-rows) | D274 | 27257 |
 | **D274** | [Build 25 is delivered, and the bump was the reading of step 17](DECISIONS.md#d274--build-25-is-delivered-and-the-bump-was-the-reading-of-step-17) | — | 27379 |
 | **D275** | [The answers are the log; every aggregate is a projection, and now there is a tool that proves it](DECISIONS.md#d275--the-answers-are-the-log-every-aggregate-is-a-projection-and-now-there-is-a-tool-that-proves-it) | D276 | 27451 |
-|  | ↳ *amendment 2026-08-24* — [The collapse is done for three arms, and refused for the fourth](DECISIONS.md#d275-amendment-2026-08-24--the-collapse-is-done-for-three-arms-and-refused-for-the-fourth) | — | 27651 |
-| **D276** | [The alerting refusal said less than it was read as saying, and its arithmetic was off by 4×](DECISIONS.md#d276--the-alerting-refusal-said-less-than-it-was-read-as-saying-and-its-arithmetic-was-off-by-4) | D277 | 27823 |
-| **D277** | [A read-only observer, on WIF rather than a second key](DECISIONS.md#d277--a-read-only-observer-on-wif-rather-than-a-second-key) | — | 27897 |
+|  | ↳ *amendment 2026-08-24* — [The collapse is done for three arms, and refused for the fourth](DECISIONS.md#d275-amendment-2026-08-24--the-collapse-is-done-for-three-arms-and-refused-for-the-fourth) | — | 27652 |
+|  | ↳ *amendment 2026-08-25* — [The other two fold arms, so the thesis stops being one third true](DECISIONS.md#d275-amendment-2026-08-25--the-other-two-fold-arms-so-the-thesis-stops-being-one-third-true) | — | 27983 |
+| **D276** | [The alerting refusal said less than it was read as saying, and its arithmetic was off by 4×](DECISIONS.md#d276--the-alerting-refusal-said-less-than-it-was-read-as-saying-and-its-arithmetic-was-off-by-4) | D277 | 27824 |
+| **D277** | [A read-only observer, on WIF rather than a second key](DECISIONS.md#d277--a-read-only-observer-on-wif-rather-than-a-second-key) | — | 27898 |

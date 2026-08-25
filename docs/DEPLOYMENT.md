@@ -532,14 +532,19 @@ the same pass, and the report's `drift` field is where it shows up. And
 because it reads answers rather than the ledger, **the 90-day bound is
 gone**: a ring dormant for a year is still fully subtractable.
 
-**What the tool does NOT rebuild**, so the hand procedure below is still
-the path for those: **catalog** answers (`entity`, D14 — the canon
-`ent`/`entBy` fold) and **rank** answers (`order`, D233 — position sums).
-Both are refused by name rather than folded into a shape they do not
-have. For those, subtract by hand in a transaction per qid: decrement
-`ent[entity]` and `total` per attributed answer plus the `entBy` cells
-for that answer's anchors, then rewrite `v2_question_aggs/{qid}` from the
-corrected private doc exactly as the trigger would. (Catalog is the one
+**All three fold arms rebuild**, so the same two commands are the repair
+for a catalog board (D14) and a rank question (D233) as for a vote. The
+tool routes by the question's type; you do not choose the arm, and the
+report says which one ran.
+
+Two differences worth knowing when you read the result. A rank rebuild is
+**exact, with no caveat at all** — position sums are plain addition, so
+there is no order-dependence to warn about. A catalog rebuild has an
+exact accumulator and board (`ent`, `total`, `top`, `rest` are plain
+counting) but an order-dependent per-segment `by`, for the same reason
+the vote arm's breakdown is: caps that evict. `counts` is empty on both
+non-vote arms by construction — that is the shape of those aggregates,
+not a rebuild that found nothing. (Catalog is the one
 arm that still HAS a private document — D275 collapsed the others, and
 kept this one because the published board is a lossy top-N projection
 nothing can re-fold from.)

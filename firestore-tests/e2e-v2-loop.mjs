@@ -818,6 +818,13 @@ if (labove.counts["0"] !== 3 || labove.counts["1"] !== 1 || labove.counts["2"] !
   fail("learn counts wrong at total 5: " + JSON.stringify(labove));
 ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 right");
 
+// The catalog and rank question ids, hoisted because THREE steps need
+// them now: 9c and 9d drive their folds, and 9e rebuilds both. Two string
+// literals is a small thing to copy and a copy is how they drift — the
+// same argument pure.ts makes about `breakdownFor`.
+const PK_ID = "pick-pk04"; // "Your most-used emoji?" — content/pick-questions.json
+const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
+
 // 9c · catalog picks (D14 gone live): an entity answer rides the same
 // create-only path, and the trigger folds it through the CANON — the
 // top/rest board plus per-segment orderings (D17) — instead of
@@ -828,7 +835,7 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
 // validated against the committed catalogue — an unknown key never
 // aggregates.
 {
-  const PK = "pick-pk04"; // "Your most-used emoji?" — content/pick-questions.json
+  const PK = PK_ID;
   const pkDoc = await getDoc(doc(db, "v2_questions", PK));
   if (!pkDoc.exists() || pkDoc.get("type") !== "catalog" || pkDoc.get("domain") !== "emoji")
     fail("the pick seed did not land as a catalog doc: " + JSON.stringify(pkDoc.data() || null));
@@ -936,7 +943,7 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
 // and dies at the trigger's permutation check, exactly like an unknown
 // catalog key.
 {
-  const RQ = "feed-f03"; // "Pure athleticism — rank them", 4 items
+  const RQ = RQ_ID;
   const rqDoc = await getDoc(doc(db, "v2_questions", RQ));
   if (!rqDoc.exists() || rqDoc.get("type") !== "rank" || (rqDoc.get("options") || []).length !== 4)
     fail("the rank seed did not land as a 4-item rank doc: " + JSON.stringify(rqDoc.data() || null));
@@ -1008,24 +1015,51 @@ ok("learn crowd stat: 5 first attempts, exact through per-answer publishes, 3/5 
   ok("rank: non-permutation dropped at the trigger; valid orders sum exactly");
 }
 
-// 9e · D275: the two fold arms the replay tool refuses BY NAME. A rebuild
-// that quietly wrote vote-shaped counts over a canon board (9c) or a
-// position-sum doc (9d) would be worse than no rebuild — it would replace
-// a correct aggregate with a confident wrong one, during an incident.
-// Unit tests cannot reach this: the refusal keys off the SHAPE of the
-// answer documents in Firestore, so it needs answers that exist.
+// 9e · D275: the OTHER TWO fold arms, rebuilt. This step used to assert
+// that the tool refused them — which was honest while it did, and made
+// "every aggregate is a projection you can rebuild" true of exactly one
+// arm out of three. Both are built now, and this is what proves it against
+// real folds rather than against synthetic ones.
+//
+// Same assertion shape as 7h and for the same reason: a rebuild of a
+// healthy question must be a NO-OP. That needs no hardcoded totals — it
+// compares the document to itself across a scan — so this step cannot rot
+// when 9c or 9d change what they leave behind.
 {
-  const refuses = async (label, qid) => {
-    try {
-      await httpsCallable(fns, "rebuildAggregateV2")({ qid });
-    } catch (e) {
-      if (String(e?.code || "").includes("failed-precondition")) return ok(label);
-      return fail(`${label} — expected failed-precondition, got ${e?.code || e}`);
+  const noop = async (label, qid, keys) => {
+    const before = (await getDoc(doc(db, "v2_question_aggs", qid))).data();
+    const dry = (await httpsCallable(fns, "rebuildAggregateV2")({ qid })).data;
+    if (dry.applied !== false) fail(`${label}: the rebuild wrote without apply`);
+    if (dry.drift.total !== 0)
+      fail(`${label}: drift on an untouched aggregate — ${JSON.stringify(dry.drift)}`);
+    if (dry.total !== before.total)
+      fail(`${label}: replay total ${dry.total} against published ${before.total}`);
+
+    const applied = (await httpsCallable(fns, "rebuildAggregateV2")({ qid, apply: true })).data;
+    if (applied.applied !== true) fail(`${label}: apply did not run`);
+    const after = (await getDoc(doc(db, "v2_question_aggs", qid))).data();
+    for (const k of keys) {
+      if (JSON.stringify(after[k]) !== JSON.stringify(before[k]))
+        fail(`${label}: --apply changed \`${k}\` — ${JSON.stringify(before[k])} → ${JSON.stringify(after[k])}`);
     }
-    fail(`${label} — the rebuild was ALLOWED`);
+    return { dry, applied };
   };
-  await refuses("D275: catalog question refused by the replay tool (D14)", "pick-pk04");
-  await refuses("D275: rank question refused by the replay tool (D233)", "feed-f03");
+
+  // Rank: position sums and the total. The arm with no caveat at all —
+  // plain addition, nothing to evict, so a rebuild is not "a correct fold"
+  // but THE fold, and replay.test.ts pins that order-independence.
+  const r = await noop("rank", RQ_ID, ["total", "pos"]);
+  if (r.dry.arm !== "rank") fail(`rank question routed to the ${r.dry.arm} arm`);
+  if (r.dry.cappedDims.length) fail("rank has no breakdown and must report no capped dims");
+  ok("D275: rank aggregate rebuilds to itself — total and position sums unchanged");
+
+  // Catalog: the board AND the private accumulator behind it. The board is
+  // canonTopN's lossy projection, so a rebuild that wrote only the public
+  // document would leave the next answer folding from something it cannot
+  // fold from — which is why the private doc survived D275's collapse.
+  const c = await noop("catalog", PK_ID, ["total", "top", "rest", "by"]);
+  if (c.dry.arm !== "catalog") fail(`catalog question routed to the ${c.dry.arm} arm`);
+  ok("D275: catalog board rebuilds to itself — top, rest and the segment board unchanged");
 }
 
 // 10 · Near presence (D84 / D174 / D176 / D177): the write path through

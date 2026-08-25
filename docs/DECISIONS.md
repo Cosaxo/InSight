@@ -27545,8 +27545,9 @@ D72's rule — refuse rather than fabricate — applied to a repair tool.
   Recomputing it as empty would silently delete a published number that is
   still true.
 - **Catalog (D14) and rank (D233) answers** fold through different shapes
-  and are refused by name. A rebuild that quietly wrote vote-shaped counts
-  over a canon board is worse than no rebuild.
+  and were refused by name in the first cut. **Both are built now** — see
+  the amendment below; the refusal stood for about a day and is recorded
+  because the reasoning for it is still the reason the arms are separate.
 - **The scan's real ceiling is the 480-second global timeout**, not
   `SCAN_MAX_PAGES` — roughly one to two million answers. Exceeding the
   page bound throws rather than returning a short answer, because a
@@ -27977,3 +27978,68 @@ that broke it. A collector built speculatively against four Google APIs
 nobody here can reach would be a larger instance of the same mistake.
 
 Console steps first (runbook 5.13), then one day of data, then the code.
+
+
+## D275 amendment (2026-08-25) · The other two fold arms, so the thesis stops being one third true
+
+D275 says every aggregate is a disposable projection, rebuildable by
+replay. Shipped, that was true of **one fold arm out of three**. The tool
+did vote and refused catalog and rank by name — honest, and reported as
+such, but it meant a corrupted catalog board had **no repair path at
+all**: D28's hand procedure cannot reach past the ledger's 90 days, and
+the ledger has no anchors to rebuild `entBy` from anyway.
+
+A claim that holds for a third of its subject is a slogan. Both arms are
+built.
+
+### What each arm can actually promise
+
+| arm | exact? | why |
+| --- | --- | --- |
+| **rank** | **completely** | position sums are plain addition — commutative, associative, nothing evicts. Not "a correct fold": THE fold |
+| **vote** | below a saturated dimension | `evictForNewBucket` makes `by` order-dependent at the cap |
+| **catalog** | board yes, segments no | `ent`/`total`/`top`/`rest` are plain counting; `by` carries the bucket cap AND `foldCanonAnchors`' per-cell entity cap |
+
+Rank turning out to be the *strongest* of the three is worth stating,
+because intuition puts an ordered list on the fragile end. It has no
+breakdown, so it has nothing to evict, so it has nothing to be
+order-dependent about.
+
+### Three things this forced
+
+**The arm is chosen by the QUESTION, not by sniffing the first answer.**
+Rules admit one shape per type, so the question document is the authority;
+a stray answer of the wrong shape is then an anomaly the report counts
+rather than an arm the scan silently switches to. `armFor` routes
+`catalog` and `rank` by name and everything else — twelve types — to the
+vote fold.
+
+**The catalog arm writes BOTH documents**, and that falls straight out of
+the collapse: its private document is an accumulator, not a mirror, so a
+rebuild that wrote only the published board would leave the next answer
+folding from something it cannot fold from. It is also what the
+concurrency guard watches on that arm, because it is what a fold reads.
+
+**`CATALOG_DOMAINS` and `CANON_TOP_N` are exported rather than copied.**
+A second key-space table would drift from the one the trigger validates
+against, and an entity key that is valid in one and not the other is a
+silently wrong board.
+
+### Proven the same way as the first arm
+
+`replay.test.ts` folds each arm against a reference transcribed from the
+trigger, and pins rank's order-independence by folding forward and
+reversed. The e2e's 9e — which until today asserted that the tool
+*refused* these two — now rebuilds both against real emulated folds and
+requires a **no-op**: the document compared to itself across a scan, so
+the step needs no hardcoded totals and cannot rot when 9c or 9d change
+what they leave behind.
+
+353 functions tests, 101 e2e checks.
+
+### Still not rebuildable, and now this is the whole list
+
+`edits` (D226), on every arm. An edited answer records where it landed,
+never where it came from, so the matrix is not derivable from the answers
+and is carried forward instead. That is one field, stated at three sites,
+rather than two thirds of the system.

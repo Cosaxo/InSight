@@ -63,10 +63,25 @@
 // arm does. Recomputing it as empty would silently delete a published
 // number that is still true.
 //
-// Only the VOTE arm is rebuilt. Catalog answers (`entity`, D14) and rank
-// answers (`order`, D233) fold through different shapes, and a rebuild
-// that quietly wrote vote-shaped counts over a canon board would be worse
-// than no rebuild at all — so they are refused by name.
+// ALL THREE FOLD ARMS are rebuilt. That was not true when this file was
+// written — it did the vote arm and refused the other two by name, which
+// made "every aggregate is a projection you can rebuild" true of exactly
+// one arm out of three, and left a corrupted catalog board with no repair
+// path at all. `armFor` routes by the QUESTION's type; each arm reuses the
+// same pure.ts helpers the trigger uses.
+//
+// What each arm can promise, which differs and is worth knowing before
+// trusting a report:
+//
+//   · RANK is exactly replayable, with no caveat. Position sums are plain
+//     addition — commutative, associative, nothing to evict — so a rank
+//     rebuild is not "a correct fold", it is THE fold.
+//   · VOTE is exact below a saturated dimension; see the commutativity
+//     note above.
+//   · CATALOG has an exact accumulator (`ent`, `total`, and therefore
+//     `top` and `rest` — plain counting) and an order-dependent
+//     per-segment `by`, which carries both the bucket cap and
+//     foldCanonAnchors' own per-cell entity cap.
 
 import { onCall, HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
@@ -76,8 +91,19 @@ import { assertOperator, FUNCTIONS_REGION } from "./ops";
 // Its header says why it is a named function at all: "the trigger, the edit
 // path and the catalog path all want the same one, and three copies is how
 // they drift". A replay that folded anchors its own way would be a fourth.
-import { breakdownFor } from "./v2";
-import { BREAKDOWN_DIMS, BREAKDOWN_MAX_BUCKETS, type BreakdownCounts } from "./pure";
+import { breakdownFor, CANON_TOP_N, CATALOG_DOMAINS } from "./v2";
+import {
+  BREAKDOWN_DIMS,
+  BREAKDOWN_MAX_BUCKETS,
+  canonBreakdownFor,
+  canonTopN,
+  catalogEntityKey,
+  foldCanonAnchors,
+  foldRankOrder,
+  validRankOrder,
+  type BreakdownCounts,
+  type CanonCounts,
+} from "./pure";
 
 const REGION = FUNCTIONS_REGION;
 
@@ -186,6 +212,146 @@ export function replayFold(
   return finishFold(state);
 }
 
+// ── the RANK arm (D233) ─────────────────────────────────────────────
+//
+// An answer carries `order` — the item indexes in the answerer's sequence
+// — and the aggregate is per-item POSITION SUMS plus a total, which is
+// enough for a crowd order by mean position. No `by` map, deliberately:
+// the Mirror's cohort folds read option shares, which an order does not
+// have (v2.ts's rank arm has the argument).
+//
+// THIS ONE IS EXACTLY REPLAYABLE, with no caveat at all — the strongest
+// of the three. Position sums are plain addition, so the fold is
+// commutative AND associative with nothing to evict, which means the
+// order-dependence the vote arm carries above a saturated dimension has no
+// analogue here. A rank rebuild is not "a correct fold", it is THE fold.
+
+export interface RankAnswer {
+  uid: string;
+  order: unknown;
+}
+
+export interface RankFoldState {
+  qid: string;
+  itemCount: number;
+  pos: number[];
+  total: number;
+  folded: number;
+  skipped: number;
+  excluded: number;
+}
+
+export function newRankFold(qid: string, itemCount: number): RankFoldState {
+  return {
+    qid,
+    itemCount,
+    pos: new Array<number>(itemCount).fill(0),
+    total: 0,
+    folded: 0,
+    skipped: 0,
+    excluded: 0,
+  };
+}
+
+export function foldRankAnswerInto(
+  state: RankFoldState,
+  answer: RankAnswer,
+  exclude: ReadonlySet<string> = new Set(),
+): "folded" | "skipped" | "excluded" {
+  if (exclude.has(answer.uid)) {
+    state.excluded += 1;
+    return "excluded";
+  }
+  // Same validity gate as the trigger: a non-permutation never aggregated
+  // in the first place, so a rebuild must not admit one either.
+  const order = validRankOrder(answer.order, state.itemCount);
+  if (order === null) {
+    state.skipped += 1;
+    return "skipped";
+  }
+  foldRankOrder(state.pos, order);
+  state.total += 1;
+  state.folded += 1;
+  return "folded";
+}
+
+// ── the CATALOG arm (D14/D17) ───────────────────────────────────────
+//
+// An answer carries `entity` — one pick from a shipped catalogue — and the
+// fold keeps every entity in `ent` while publishing only `canonTopN`'s
+// board. That projection is why the catalog arm still has a private
+// document (D275): the board cannot be folded from.
+//
+// A rebuild reconstructs the accumulator rather than the board, then
+// projects, which is the same order the trigger does it in.
+//
+// Order-dependent for the same reason the vote breakdown is, and one more:
+// `foldCanonAnchors` carries BOTH the bucket cap and its own per-cell
+// entity cap (CANON_BY_MAX_ENTITIES). `ent` itself is exact — plain
+// counting, nothing evicts — so `top`, `rest` and `total` are exact and
+// only the per-segment `by` can differ from what was published.
+
+export interface CanonAnswer {
+  uid: string;
+  entity: unknown;
+  anchors: unknown;
+}
+
+export interface CanonFoldState {
+  qid: string;
+  domain: string;
+  ent: CanonCounts;
+  entBy: BreakdownCounts;
+  total: number;
+  folded: number;
+  skipped: number;
+  excluded: number;
+}
+
+export function newCanonFold(qid: string, domain: string): CanonFoldState {
+  return { qid, domain, ent: {}, entBy: {}, total: 0, folded: 0, skipped: 0, excluded: 0 };
+}
+
+export function foldCanonAnswerInto(
+  state: CanonFoldState,
+  answer: CanonAnswer,
+  exclude: ReadonlySet<string> = new Set(),
+): "folded" | "skipped" | "excluded" {
+  if (exclude.has(answer.uid)) {
+    state.excluded += 1;
+    return "excluded";
+  }
+  // The domain decides which key space validates the entity — the same
+  // single source the trigger reads, imported rather than copied.
+  const spec = CATALOG_DOMAINS[state.domain];
+  if (!spec) {
+    state.skipped += 1;
+    return "skipped";
+  }
+  const key = catalogEntityKey(answer.entity, spec);
+  if (key === null) {
+    state.skipped += 1;
+    return "skipped";
+  }
+  state.ent[key] = (state.ent[key] || 0) + 1;
+  state.total += 1;
+  foldCanonAnchors(state.entBy, answer.anchors, key);
+  state.folded += 1;
+  return "folded";
+}
+
+/** The published board, built from the accumulator exactly as the trigger
+ *  builds it. Kept beside the fold so the two cannot drift. */
+export function canonPublishable(state: CanonFoldState) {
+  const canon = canonTopN(state.ent, CANON_TOP_N);
+  return {
+    total: state.total,
+    top: canon.top,
+    rest: canon.rest,
+    by: canonBreakdownFor(state.entBy, canon.top),
+  };
+}
+
 // ── the operator callable ───────────────────────────────────────────
 //
 // Dry by default. `apply` has to be asked for, because this writes the
@@ -243,6 +409,10 @@ const SCAN_MAX_PAGES = 10_000;
 
 export interface RebuildReport {
   qid: string;
+  /** Which fold was rebuilt. Reported rather than inferred by the reader:
+   *  `counts` is empty on the rank and catalog arms by construction, and a
+   *  report that did not say which arm ran would read as "no votes". */
+  arm: ReplayArm;
   applied: boolean;
   scanned: number;
   folded: number;
@@ -256,53 +426,68 @@ export interface RebuildReport {
   carriedEdits: boolean;
 }
 
+/** Which fold an answer to this question goes through. Decided by the
+ *  QUESTION's type rather than by sniffing the first answer's shape: the
+ *  rules admit only one shape per type, so the question is the authority,
+ *  and a stray answer of the wrong shape is then an anomaly this reports
+ *  instead of an arm it silently switches to. */
+export type ReplayArm = "vote" | "rank" | "catalog";
+
+export function armFor(questionType: unknown): ReplayArm {
+  if (questionType === "catalog") return "catalog";
+  if (questionType === "rank") return "rank";
+  // Every other type in the bank — binary, choice, vote, scale, rating,
+  // dial, dilemma, pulse, field, path — folds through optionIdx.
+  return "vote";
+}
+
 export async function runRebuild(
   qid: string,
   opts: { apply: boolean; exclude: ReadonlySet<string> },
 ): Promise<RebuildReport> {
   const db = firestore();
-  // One document since D275 — the vote arm no longer keeps a private copy,
-  // so there is exactly one thing to compare against and exactly one to
-  // rewrite. (The catalog arm's private accumulator is untouched by this
-  // tool, which refuses catalog questions by name.)
   const pubRef = db.collection("v2_question_aggs").doc(qid);
+  // Catalog alone still keeps a private accumulator (D275), because its
+  // published board is canonTopN's lossy projection. For that arm the
+  // private document is what a fold reads, so it is also what the
+  // concurrency guard has to watch.
+  const privRef = db.collection("v2_aggs_private").doc(qid);
 
-  // Optimistic concurrency, and the reason it is here rather than a
-  // transaction: a rebuild reads every answer to the question, which can be
-  // hundreds of thousands of documents — far outside anything a Firestore
-  // transaction may hold. So the scan runs outside one, and the WRITE
-  // refuses if the aggregate moved at all while it was running.
-  //
-  // AT ALL, not "if the total moved", which is what this compared for one
-  // draft and was wrong twice over. A D86 edit leaves `total` UNCHANGED by
-  // construction — the person was counted once and still is, they just hold
-  // a different option — so a total-only guard is blind to exactly the
-  // concurrent write that hurts most:
-  //
-  //   · the scan may have read that answer before the edit landed, so the
-  //     rebuild would overwrite the trigger's correct counts with pre-edit
-  //     ones; and
-  //   · `edits` is captured HERE, before the scan, so the apply would write
-  //     back a stale matrix and drop the cell that edit just folded. That
-  //     cell is unrecoverable — the matrix is the one field a rebuild
-  //     cannot recompute, which is the whole reason it is carried.
-  //
-  // `updateTime` is the exact test and costs nothing: Firestore stamps it
-  // on every write, so any concurrent fold — create, edit, or another
-  // rebuild — moves it. Compared as seconds+nanoseconds rather than
-  // milliseconds, because two folds inside one millisecond is precisely the
-  // contention case this tool exists alongside (D7).
-  const before = await pubRef.get();
+  const qSnap = await db.collection("v2_questions").doc(qid).get();
+  if (!qSnap.exists) {
+    throw new HttpsError("not-found", `${qid} is not in the question bank`);
+  }
+  const arm = armFor(qSnap.get("type"));
+  const accRef = arm === "catalog" ? privRef : pubRef;
+
+  const before = await accRef.get();
   const beforeTotal = (before.exists && (before.get("total") as number)) || 0;
   const beforeStamp = docStamp(before);
-  // D226's matrix, carried rather than recomputed — see the header. Safe to
-  // capture before the scan ONLY because the guard below refuses any write
-  // that happened since.
-  const edits = before.exists ? (before.get("edits") as unknown) : undefined;
+  // D226's matrix, carried rather than recomputed — see the header. Vote
+  // arm only: rank and catalog answers have no edit path (D86 admits an
+  // optionIdx move and nothing else), so neither aggregate has the field.
+  const edits = arm === "vote" && before.exists ? (before.get("edits") as unknown) : undefined;
 
-  const state = newFold(qid);
+  // Per-arm setup that needs the question document.
+  const itemCount = ((qSnap.get("options") as unknown[] | undefined) || []).length;
+  const domain = String(qSnap.get("domain") || "");
+  if (arm === "rank" && itemCount === 0) {
+    throw new HttpsError("failed-precondition", `${qid} is a rank question with no options`);
+  }
+  if (arm === "catalog" && !CATALOG_DOMAINS[domain]) {
+    throw new HttpsError(
+      "failed-precondition",
+      `${qid} names catalogue domain "${domain}", which has no key space here`,
+    );
+  }
+
+  const vote = newFold(qid);
+  const rank = newRankFold(qid, itemCount);
+  const canon = newCanonFold(qid, domain);
   let scanned = 0;
+  let wrongShape = 0;
   let cursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+
   for (let page = 0; page < SCAN_MAX_PAGES; page += 1) {
     let q = db
       .collectionGroup("answers")
@@ -313,25 +498,20 @@ export async function runRebuild(
     const snap = await q.get();
     if (snap.empty) break;
     for (const doc of snap.docs) {
-      // The two arms this cannot rebuild, refused by name rather than
-      // folded into a shape they do not have.
-      if (doc.get("entity") !== undefined) {
-        throw new HttpsError(
-          "failed-precondition",
-          `${qid} is a catalog question (D14) — the canon fold is not rebuilt here`,
-        );
-      }
-      if (doc.get("order") !== undefined) {
-        throw new HttpsError(
-          "failed-precondition",
-          `${qid} is a rank question (D233) — the position fold is not rebuilt here`,
-        );
-      }
       // The answer doc lives at v2_users/{uid}/answers/{qid}; the uid is
       // the grandparent's id and is what the D28 exclusion matches on.
       const uid = doc.ref.parent.parent?.id || "";
-      foldAnswerInto(state, { uid, optionIdx: doc.get("optionIdx"), anchors: doc.get("anchors") }, opts.exclude);
       scanned += 1;
+      if (arm === "catalog") {
+        if (doc.get("entity") === undefined) { wrongShape += 1; continue; }
+        foldCanonAnswerInto(canon, { uid, entity: doc.get("entity"), anchors: doc.get("anchors") }, opts.exclude);
+      } else if (arm === "rank") {
+        if (doc.get("order") === undefined) { wrongShape += 1; continue; }
+        foldRankAnswerInto(rank, { uid, order: doc.get("order") }, opts.exclude);
+      } else {
+        if (doc.get("entity") !== undefined || doc.get("order") !== undefined) { wrongShape += 1; continue; }
+        foldAnswerInto(vote, { uid, optionIdx: doc.get("optionIdx"), anchors: doc.get("anchors") }, opts.exclude);
+      }
     }
     if (snap.size < SCAN_PAGE) break;
     cursor = snap.docs[snap.docs.length - 1];
@@ -344,16 +524,29 @@ export async function runRebuild(
     }
   }
 
-  const out = finishFold(state);
-  const publishedCounts = (before.exists && (before.get("counts") as Record<string, number>)) || {};
+  // One shape for the report, whichever arm produced it.
+  const out = arm === "vote" ? finishFold(vote) : null;
+  const total = arm === "vote" ? vote.total : arm === "rank" ? rank.total : canon.total;
+  const folded = arm === "vote" ? vote.folded : arm === "rank" ? rank.folded : canon.folded;
+  const skipped = (arm === "vote" ? vote.skipped : arm === "rank" ? rank.skipped : canon.skipped) + wrongShape;
+  const excluded = arm === "vote" ? vote.excluded : arm === "rank" ? rank.excluded : canon.excluded;
+
+  // `counts` is the vote arm's shape. The other two report their own, and
+  // the drift comparison below is on `total` for them — a per-item
+  // position sum and a canon board do not have "counts" to diff, and
+  // inventing a comparison that looks like one would be worse than saying
+  // so. `total` is exact on every arm, which is what a drift check needs.
+  const counts = arm === "vote" ? vote.counts : {};
+  const publishedCounts = (arm === "vote" && before.exists
+    && (before.get("counts") as Record<string, number>)) || {};
   const drift: Record<string, number> = {};
-  for (const k of new Set([...Object.keys(out.counts), ...Object.keys(publishedCounts)])) {
-    const d = (out.counts[k] || 0) - (publishedCounts[k] || 0);
+  for (const k of new Set([...Object.keys(counts), ...Object.keys(publishedCounts)])) {
+    const d = (counts[k] || 0) - (publishedCounts[k] || 0);
     if (d !== 0) drift[k] = d;
   }
 
   if (opts.apply) {
-    const now = await pubRef.get();
+    const now = await accRef.get();
     const nowStamp = docStamp(now);
     if (beforeStamp === undefined || nowStamp === undefined) {
       throw new HttpsError(
@@ -370,36 +563,48 @@ export async function runRebuild(
           + `${nowTotal === beforeTotal ? ", an edit — the total does not move" : ""}) — re-run`,
       );
     }
-    const payload = {
-      counts: out.counts,
-      total: out.total,
-      by: out.by,
-      ...(edits ? { edits } : {}),
-    };
     // Same `merge: false` the trigger uses: a rebuild is a whole-document
     // replacement, so a key the fold no longer produces does not survive it.
-    await pubRef.set(payload, { merge: false });
+    if (arm === "catalog") {
+      // Both documents, because the private one is a real accumulator and
+      // the public one is its projection — writing only one would leave
+      // the next answer folding from a board it cannot fold from.
+      await privRef.set({ ent: canon.ent, entBy: canon.entBy, total: canon.total }, { merge: false });
+      await pubRef.set(canonPublishable(canon), { merge: false });
+    } else if (arm === "rank") {
+      await pubRef.set({ total: rank.total, pos: rank.pos }, { merge: false });
+    } else {
+      await pubRef.set(
+        { counts: vote.counts, total: vote.total, by: vote.by, ...(edits ? { edits } : {}) },
+        { merge: false },
+      );
+    }
     logger.warn(`[replay] rebuilt ${qid}`, {
       metric: "agg_rebuild",
       qid,
-      total: out.total,
-      excluded: out.excluded,
-      driftTotal: out.total - beforeTotal,
+      arm,
+      total,
+      excluded,
+      driftTotal: total - beforeTotal,
     });
   }
 
   return {
     qid,
+    arm,
     applied: opts.apply,
     scanned,
-    folded: out.folded,
-    skipped: out.skipped,
-    excluded: out.excluded,
-    total: out.total,
-    counts: out.counts,
-    cappedDims: out.cappedDims,
+    folded,
+    skipped,
+    excluded,
+    total,
+    counts,
+    // Only the vote arm's `by` saturates in a way a reader must be warned
+    // about; the canon arm's per-segment map has the same caps, so it is
+    // reported too. Rank has no breakdown at all and always reports none.
+    cappedDims: arm === "vote" ? out!.cappedDims : arm === "catalog" ? cappedDims(canon.entBy) : [],
     published: before.exists ? { total: beforeTotal, counts: publishedCounts } : null,
-    drift: { total: out.total - beforeTotal, counts: drift },
+    drift: { total: total - beforeTotal, counts: drift },
     carriedEdits: edits !== undefined,
   };
 }

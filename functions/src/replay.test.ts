@@ -17,9 +17,17 @@
 // is exactly the class of bug worth a gate.
 
 import { describe, it, expect } from "vitest";
-import { breakdownFor } from "./v2";
-import { BREAKDOWN_MAX_BUCKETS, type BreakdownCounts } from "./pure";
-import { replayFold, newFold, foldAnswerInto, finishFold, docStamp, type ReplayAnswer } from "./replay";
+import { breakdownFor, CANON_TOP_N, CATALOG_DOMAINS } from "./v2";
+import {
+  BREAKDOWN_MAX_BUCKETS, foldRankOrder, validRankOrder, catalogEntityKey,
+  foldCanonAnchors, canonTopN, canonBreakdownFor,
+  type BreakdownCounts, type CanonCounts,
+} from "./pure";
+import {
+  replayFold, newFold, foldAnswerInto, finishFold, docStamp, armFor,
+  newRankFold, foldRankAnswerInto, newCanonFold, foldCanonAnswerInto, canonPublishable,
+  type ReplayAnswer,
+} from "./replay";
 
 const QID = "daily-2026-08-24";
 
@@ -191,5 +199,151 @@ describe("the concurrency guard's stamp", () => {
     // match, and runRebuild refuses on it.
     expect(docStamp(snap(true))).toBeUndefined();
     expect(docStamp(snap(true))).not.toBe(docStamp(snap(true, 1, 1)));
+  });
+});
+
+describe("which arm a question folds through", () => {
+  // Decided by the QUESTION's type, not by sniffing the first answer —
+  // rules admit one shape per type, so the question is the authority and a
+  // stray answer of the wrong shape becomes an anomaly to report rather
+  // than an arm to silently switch to.
+  it("routes catalog and rank by name, and everything else to the vote fold", () => {
+    expect(armFor("catalog")).toBe("catalog");
+    expect(armFor("rank")).toBe("rank");
+    // The other twelve types in the bank all carry optionIdx.
+    for (const t of ["binary", "choice", "vote", "scale", "rating", "dial",
+      "dilemma", "pulse", "field", "path", "duel", "call"]) {
+      expect(armFor(t), t).toBe("vote");
+    }
+    // An unknown or missing type folds as a vote rather than throwing: the
+    // vote arm's own index guard then skips anything that is not a vote,
+    // so the failure is a reported skip instead of a refused rebuild.
+    expect(armFor(undefined)).toBe("vote");
+    expect(armFor("something-new")).toBe("vote");
+  });
+});
+
+describe("the RANK arm (D233)", () => {
+  const N = 4;
+  /** The trigger's rank arm, one answer at a time. */
+  function liveRank(orders: readonly unknown[]) {
+    let pos = new Array<number>(N).fill(0);
+    let total = 0;
+    for (const o of orders) {
+      const order = validRankOrder(o, N);
+      if (order === null) continue;
+      pos = [...pos];
+      foldRankOrder(pos, order);
+      total += 1;
+    }
+    return { pos, total };
+  }
+
+  it("agrees with the trigger's incremental accumulation", () => {
+    const orders = [[2, 0, 1, 3], [3, 2, 1, 0], [0, 1, 2, 3]];
+    const live = liveRank(orders);
+    const state = newRankFold("feed-f03", N);
+    for (const [i, o] of orders.entries()) foldRankAnswerInto(state, { uid: `u${i}`, order: o });
+    expect(state.pos).toEqual(live.pos);
+    expect(state.total).toBe(live.total);
+  });
+
+  it("is EXACTLY order-independent — the strongest of the three arms", () => {
+    // Position sums are plain addition: commutative, associative, and with
+    // nothing to evict. So unlike the vote arm above a saturated
+    // dimension, a rank rebuild is not "a correct fold" — it is THE fold,
+    // and this test is what lets the tool say so.
+    const orders = [[2, 0, 1, 3], [3, 2, 1, 0], [0, 1, 2, 3], [1, 3, 0, 2]];
+    const fwd = newRankFold("q", N);
+    for (const [i, o] of orders.entries()) foldRankAnswerInto(fwd, { uid: `u${i}`, order: o });
+    const rev = newRankFold("q", N);
+    for (const [i, o] of [...orders].reverse().entries()) foldRankAnswerInto(rev, { uid: `u${i}`, order: o });
+    expect(rev.pos).toEqual(fwd.pos);
+    expect(rev.total).toBe(fwd.total);
+  });
+
+  it("drops a non-permutation instead of folding it, and subtracts a ring", () => {
+    const state = newRankFold("q", N);
+    foldRankAnswerInto(state, { uid: "u1", order: [0, 1, 2, 3] });
+    foldRankAnswerInto(state, { uid: "u2", order: [0, 0, 1, 2] }); // duplicate index
+    foldRankAnswerInto(state, { uid: "u3", order: [0, 1, 2] });    // wrong length
+    foldRankAnswerInto(state, { uid: "bot", order: [3, 2, 1, 0] }, new Set(["bot"]));
+    expect(state.folded).toBe(1);
+    expect(state.skipped).toBe(2);
+    expect(state.excluded).toBe(1);
+    expect(state.total).toBe(1);
+  });
+});
+
+describe("the CATALOG arm (D14/D17)", () => {
+  const DOMAIN = "pokemon";
+  const anchors = { ageBand: "25-34", gender: "Woman", city: "Oslo, NO", country: "NO" };
+
+  /** The trigger's canon arm, one answer at a time. */
+  function liveCanon(entities: readonly number[]) {
+    const ent: CanonCounts = {};
+    const entBy: BreakdownCounts = {};
+    let total = 0;
+    for (const e of entities) {
+      const key = catalogEntityKey(e, CATALOG_DOMAINS[DOMAIN]);
+      if (key === null) continue;
+      ent[key] = (ent[key] || 0) + 1;
+      total += 1;
+      foldCanonAnchors(entBy, anchors, key);
+    }
+    const canon = canonTopN(ent, CANON_TOP_N);
+    return { ent, entBy, total, top: canon.top, rest: canon.rest, by: canonBreakdownFor(entBy, canon.top) };
+  }
+
+  it("agrees with the trigger, accumulator and published board alike", () => {
+    const entities = [25, 6, 25, 150, 6, 25, 1];
+    const live = liveCanon(entities);
+    const state = newCanonFold("pick-pk04", DOMAIN);
+    for (const [i, e] of entities.entries()) {
+      foldCanonAnswerInto(state, { uid: `u${i}`, entity: e, anchors });
+    }
+    expect(state.ent).toEqual(live.ent);
+    expect(state.total).toBe(live.total);
+    expect(state.entBy).toEqual(live.entBy);
+
+    const board = canonPublishable(state);
+    expect(board.top).toEqual(live.top);
+    expect(board.rest).toBe(live.rest);
+    expect(board.by).toEqual(live.by);
+  });
+
+  it("keeps the accumulator exact even where the board is a projection", () => {
+    // The point of the private document: `ent` holds every entity, the
+    // board holds the top N plus a scalar. A rebuild must reconstruct the
+    // former, or the next answer folds from something it cannot fold from.
+    const state = newCanonFold("q", DOMAIN);
+    for (let i = 0; i < CANON_TOP_N + 5; i += 1) {
+      // Descending popularity, so the tail is genuinely outside the board.
+      for (let n = 0; n < CANON_TOP_N + 5 - i; n += 1) {
+        foldCanonAnswerInto(state, { uid: `u${i}-${n}`, entity: i + 1, anchors });
+      }
+    }
+    const board = canonPublishable(state);
+    expect(Object.keys(state.ent).length).toBe(CANON_TOP_N + 5);
+    expect(Object.keys(board.top).length).toBe(CANON_TOP_N);
+    expect(board.rest).toBeGreaterThan(0);
+    // …and the board still accounts for every answer.
+    const onBoard = Object.values(board.top).reduce((a, b) => a + b, 0);
+    expect(onBoard + board.rest).toBe(state.total);
+  });
+
+  it("refuses an unknown key and an unknown domain, and subtracts a ring", () => {
+    const state = newCanonFold("q", DOMAIN);
+    foldCanonAnswerInto(state, { uid: "u1", entity: 25, anchors });
+    foldCanonAnswerInto(state, { uid: "u2", entity: 999999, anchors });  // past `max`
+    foldCanonAnswerInto(state, { uid: "u3", entity: "pikachu", anchors }); // not an integer
+    foldCanonAnswerInto(state, { uid: "bot", entity: 25, anchors }, new Set(["bot"]));
+    expect(state.folded).toBe(1);
+    expect(state.skipped).toBe(2);
+    expect(state.excluded).toBe(1);
+    expect(state.ent).toEqual({ "25": 1 });
+
+    const unknown = newCanonFold("q", "not-a-domain");
+    expect(foldCanonAnswerInto(unknown, { uid: "u", entity: 25, anchors })).toBe("skipped");
   });
 });

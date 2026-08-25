@@ -210,8 +210,10 @@ v2_question_aggs/{qid}             the PUBLIC mirror, EXACT (D98)
                                    where it landed, never where it came
                                    from — so a rebuild carries the stored
                                    matrix forward. The catalog and rank
-                                   shapes below are refused by the tool
-                                   rather than folded wrongly
+                                   shapes below rebuild too, each through
+                                   its own fold arm — rank exactly, catalog
+                                   with an exact board and an
+                                   order-dependent segment map
   { total,                         catalog questions: the canon — the top
     top {entity:n}, rest,          CANON_TOP_N entities, everything else
     by { dim: { bucket:            summed into `rest`. `canonTopN` is a
