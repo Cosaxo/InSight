@@ -38,9 +38,23 @@ function MTFilterChips({ anchors, activeA, onPick }) {
 function mtAnchorSelf(anchor) {
   if (!anchor) return '';
   if (anchor.id === 'age') {
-    const a = parseInt(String(anchor.value).replace(/\D/g, ''), 10);
-    if (a) { const lo = Math.floor(a / 10) * 10; return lo + '–' + (lo + 9); }
-    return anchor.value;
+    // TWO SHAPES reach this, and only one of them is a number.
+    // map-anchors.js builds the demo row as `age {n}` ("age 34") and the
+    // LIVE row as `age {ageBand}` ("age 25-34"). Stripping every non-digit
+    // and parsing the rest as one number collapsed the band to 2534, so
+    // the card printed "you: 2530–2539" — a decade nobody is in, on the
+    // default anchor, which is the first thing a tapped answer says.
+    //
+    // A band is already the answer to "what is your age group", so it is
+    // returned as written: the profile's own vocabulary is what every
+    // other reader of ageBand uses, and check:anchors holds it to the
+    // trigger's.
+    const raw = String(anchor.value).replace(/^age\s+/i, '').trim();
+    if (/^\d+$/.test(raw)) {
+      const a = parseInt(raw, 10);
+      if (a) { const lo = Math.floor(a / 10) * 10; return lo + '–' + (lo + 9); }
+    }
+    return raw || anchor.value;
   }
   if (anchor.id === 'job' || anchor.id === 'edu') return anchor.value;
   return String(anchor.value || '').split('·')[0].trim(); // tests: strongest trait

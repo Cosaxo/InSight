@@ -1935,6 +1935,28 @@ describe("live mode never inherits the sample persona (D55)", () => {
     expect(container.textContent).toMatch(/\d+\s*%/);
   });
 
+  // The card's `self` — "you: …" — had two shapes reaching it and handled
+  // one. map-anchors.js builds the demo row as `age {n}` ("age 34") and the
+  // LIVE row as `age {ageBand}` ("age 25-34"); mtAnchorSelf stripped every
+  // non-digit and parsed the rest as a single number, so a band came out as
+  // parseInt("2534") → "2530–2539". A decade nobody is in, on the default
+  // anchor of the card, which is the first thing a tapped answer says.
+  //
+  // Rendered in DEMO mode deliberately: live mode refuses the whole verdict
+  // (D72), so the string under test only draws here — which is exactly why
+  // the two cases above could both pass while it was wrong.
+  it("prints the age band the profile holds, not a decade built from its digits", () => {
+    const { container } = render(
+      <window.MTAnswerCard node={ANSWER_NODE} cat={null}
+        anchors={[{ id: "age", label: "Age", hue: 265, value: "age 25-34" }]}
+        activeA="age" onFilter={() => {}} />,
+    );
+    expect(container.textContent, "the band the profile actually holds is missing")
+      .toMatch(/25-34/);
+    expect(container.textContent, "a decade was invented out of the band's digits")
+      .not.toMatch(/2[0-9]{3}\s*–/);
+  });
+
   // ── the results card, the fourth (D72) ──
   //
   // sameType filtered IS_DATA.people — the prototype's invented circle —
