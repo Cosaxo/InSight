@@ -44,3 +44,25 @@ Rules:
   why. History lives in git; the graph stays lean.
 - **`updated` moves only on real change** to that node — status, claim,
   detail, edges. Reformatting is not a change.
+
+## The checker
+
+`graph/check.mjs` is this schema's enforcement — node-only, zero
+dependencies, maintained by the optimizer WITH the schema: a version
+bump, the migration of every graph, the checker change and a dated
+**Migration** note in this file (exactly what a file behind must
+change) land in ONE commit or not at all. Every writer runs it twice
+per run, per CHARTER §3: on its own lane before committing, and again
+after the land-step rebase before pushing. The second run is the race
+rule — the version this file's title declares is the version every
+graph is held to, so a migration that landed mid-run turns up as a
+named failure instead of being silently undone by an old-format push.
+
+What green means: **well-formed, not true**. It verifies format, id
+shape and uniqueness, edge resolution (cross-graph, against the real
+sibling files), the ladder's form (a `cited`/`measured` node names at
+least one source; risen statuses carry detail), the version match, and
+— in lane mode — §7's path sets and LOG.md's append-only rule. It
+cannot verify that a named source is REAL or that `THEORY.md`
+faithfully renders the graph: §4's unrecoverable sin stays a writer's
+to avoid and the skeptic's to hunt.

@@ -67,11 +67,18 @@ One firing = one bounded improvement to the lane's theory:
 5. **Write** — update `graph.json`; regenerate `THEORY.md` from it
    (the graph is the data, THEORY.md is its readable face); append ONE
    row to `LOG.md`; add any new data/tracking/computation wishes to
-   `REQUESTS.md` (§8).
+   `REQUESTS.md` (§8). Then run `node graph/check.mjs <lane>` from the
+   branch root — red never lands: fix what it names, or log plainly
+   what you could not.
 6. **Land** — commit `theory(<lane>): <what moved>`, then
-   `git pull --rebase origin axiom-theory` and push, retrying
-   2s/4s/8s/16s on network failures. Lanes only ever write their own
-   directory (§7), so rebases cannot conflict across lanes.
+   `git pull --rebase origin axiom-theory`, run the checker AGAIN,
+   and push, retrying 2s/4s/8s/16s on network failures. The second
+   check is the race rule: if the rebase moved `graph/SCHEMA.md`
+   beneath you, your graph is now behind the schema — bring YOUR OWN
+   file to the current version per SCHEMA.md's migration note before
+   pushing, and never resolve a rebase conflict by discarding an
+   incoming migration. Lanes only ever write their own directory
+   (§7), so rebases cannot conflict across lanes.
 
 ## 4 · Statuses — the evidence ladder
 
@@ -97,6 +104,17 @@ ids), and publish a small health summary the digest reads. It applies
 the same discipline to its own workspace, which is the "including
 itself" the owner asked for — bounded by the same migrate-all-or-none
 rule.
+
+`graph/check.mjs` is the schema's enforcement and moves with it: a
+version bump, the migration of every graph, the checker change and a
+dated Migration note in SCHEMA.md (the note §3's second check sends a
+mid-flight writer to) land in one commit or not at all. Added
+2026-08-25 on a reviewer's finding: every rule in the product repo is
+held by a script that fails loudly, and these were held by trust alone
+— now format, ids, edges, the ladder's form, the version match, path
+sets and LOG append-only fail before a push instead of weeks later
+under a human's eye. What no script holds — whether a named source is
+real — stays §4's burden on the writer and the skeptic.
 
 ## 6 · Central — synthesizer and questioner
 
@@ -131,6 +149,8 @@ container spawns empty: the clone you provision (per your prompt's
 `add_repo` step — measured 2026-08-25, PROBE4) is both your read-only
 context for the product's docs on `main` and the checkout your branch
 worktree hangs off — theory work happens only in the worktree.
+`graph/check.mjs` mechanizes this section's path sets in lane mode;
+§3 runs it before every land.
 
 ## 8 · The bridge — the only path to reality
 
@@ -197,7 +217,10 @@ so it reads the freshest axiom work.
   is demoted, loudly, by whoever finds it.
 - **Races**: cross-lane conflicts should be impossible (§7); if one
   happens anyway, the losing push rebases and retries — and if it
-  recurs, the schedule table above is the fix.
+  recurs, the schedule table above is the fix. The one race §7 cannot
+  prevent — a schema migration landing while a writer is mid-run on
+  the old format — is closed by §3's second check, never by the
+  writer's push winning.
 - **The owner's dial**: pausing any lane is one toggle in the
   claude.ai Routines UI; re-pacing is one `update_trigger`; the digest
   is the place to learn you want to.
