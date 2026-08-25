@@ -529,10 +529,45 @@ export interface AttentionStore {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+/**
+ * The smallest sampling rate a shard may claim, and therefore the largest
+ * number of devices ONE shard may speak for (1 / this = 1000).
+ *
+ * WHY A FLOOR AND NOT A RANGE CHECK. The comment below used to say the
+ * clamps live here — "buckets to 0..4 integers, rates to (0, 1]" — and
+ * the buckets genuinely were clamped while the rate was only VALIDATED
+ * against its interval. `rate` is a divisor: `weight = 1 / rate`, and
+ * every counter in the fold is incremented by that weight. A rules-legal
+ * `rate: 1e-300` therefore yields a weight of 1e300, committed with
+ * FieldValue.increment into a day document every signed-in user can
+ * read. Increments are not recomputable and the shards are deleted in
+ * the same batch, so nothing short of an operator rewriting the document
+ * by hand takes it back. One anonymous account, one write.
+ *
+ * A floor makes forgery PROPORTIONATE instead: a shard can now claim at
+ * most what a thousand honest shards would, which is a thousand writes'
+ * worth of effort rather than one. That is the same bargain every other
+ * client-written count here makes, and it is the property the range
+ * check never had.
+ *
+ * WHY 0.001. The rate is D270's designed cost lever and ships at 1
+ * (SHARD_SAMPLE_RATE); the floor sits three orders of magnitude below
+ * it, which at any DAU this app could reach still leaves a statistically
+ * ample sample. It is a FLOOR on the lever, not a value the lever is
+ * expected to reach, and engagement.test.ts pins it at or below the
+ * client's constant so that lowering the lever past it fails a test
+ * rather than silently clamping honest data. The rules carry the same
+ * bound (`rate >= 0.001`) so a shard below it is refused at the door
+ * rather than corrected on the way in.
+ */
+export const MIN_SHARD_RATE = 0.001;
+
 /** Pure: fold shards (all of one day, or several) into per-day deltas.
  * The rules pin the key vocabulary but deliberately not the values
  * (rules cannot iterate a map) — so the clamps live HERE, on the only
- * reader: buckets to 0..4 integers, rates to (0, 1]. */
+ * reader: buckets to 0..4 integers, rates CLAMPED to [MIN_SHARD_RATE, 1]
+ * (see that constant for why the second half of this sentence was, for a
+ * while, only half true). */
 const clampBucket = (raw: unknown): number =>
   typeof raw === "number" && Number.isFinite(raw) ? Math.min(4, Math.max(0, Math.trunc(raw))) : 0;
 
@@ -540,8 +575,14 @@ export function foldShards(shards: AttentionShardDoc[]): Map<string, AttnDelta> 
   const out = new Map<string, AttnDelta>();
   for (const shard of shards) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(shard.day)) continue;
-    const rate =
-      typeof shard.rate === "number" && shard.rate > 0 && shard.rate <= 1 ? shard.rate : 1;
+    // A rate outside the interval is not a rate — fall back to 1 (this
+    // shard speaks for itself alone). A rate inside it but below the
+    // floor is clamped rather than rejected: the shard's tallies are
+    // still real, it is only the multiplier that is not credible.
+    const raw = shard.rate;
+    const rate = typeof raw === "number" && raw > 0 && raw <= 1
+      ? Math.max(raw, MIN_SHARD_RATE)
+      : 1;
     const weight = 1 / rate;
     let delta = out.get(shard.day);
     if (!delta) {

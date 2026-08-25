@@ -773,6 +773,26 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-6"), shard({ sampled: false })));
   });
 
+  // `rate` is the one client-written value that MULTIPLIES rather than
+  // adds: the fold computes `weight = 1 / rate` and increments every
+  // published counter by it, with FieldValue.increment, into a day
+  // document any signed-in user can read. Nothing recomputes it — the
+  // shards are deleted in the same batch — so a denormal admitted here is
+  // a permanent number nobody can take back. `> 0` alone admitted one.
+  it("refuses a denormal rate, because rate is a DIVISOR and increments do not come back", async () => {
+    for (const [i, bad] of [1e-300, Number.MIN_VALUE, 1e-9, 0.0009].entries()) {
+      await assertFails(setDoc(
+        doc(asUser(OWNER), "v2_attention", `denormal-${i}`), shard({ rate: bad }),
+      ));
+    }
+    // the bound is inclusive, and an ordinary sampled rate is unaffected
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_attention", "floor"), shard({ rate: 0.001 })));
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_attention", "tenth"), shard({ rate: 0.1 })));
+    // and the interval's other end is unchanged
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "over"), shard({ rate: 1.5 })));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "zero"), shard({ rate: 0 })));
+  });
+
   it("shards are readable and editable by NOBODY, and the qids map stays shut until D271", async () => {
     await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_attention", "mine"), shard()));
     // not even the writer: a readable pile is the funnel's raw material

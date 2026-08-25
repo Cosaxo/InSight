@@ -198,6 +198,16 @@ service cloud.firestore {
         && request.resource.data.rate is number
         && request.resource.data.rate > 0
         && request.resource.data.rate <= 1
+        // …and not a denormal. `rate` is a DIVISOR — the fold computes
+        // `weight = 1 / rate` and increments every published counter by
+        // it — so `> 0` alone admitted `1e-300`, which is one rules-legal
+        // write from one anonymous account turning into 1e300 devices in
+        // a world-readable day document, permanently (increments are not
+        // recomputable, and the shard is deleted in the same batch).
+        // MIN_SHARD_RATE in functions/src/engagement.ts is this number
+        // and clamps to it besides; the two are held equal by tests on
+        // both sides, the QIDS_CAP arrangement one shelf down.
+        && request.resource.data.rate >= 0.001
         && request.resource.data.s is map
         && request.resource.data.s.keys().hasOnly([
           "opens", "slowBoots", "errors",

@@ -84,6 +84,142 @@ describe("what folds", () => {
   });
 });
 
+// A D86 edit leaves TWO ledger rows, and the fit's last-wins dedup is
+// built per day while `L.n`, `L.sum` and theta are cumulative across
+// days. So the dedup covered a same-day edit and nothing else, and
+// `editVote` has no recency bound at all — "answered yesterday, changed
+// my mind today" is the ordinary case. `fromIdx` is what makes the second
+// row legible as a correction rather than as a second person.
+describe("an edit is a correction, not a second answer", () => {
+  const dayBefore = utcDay(NOW, -2);
+
+  it("a CROSS-DAY edit moves the marginal and leaves the basis alone", async () => {
+    const { store, state } = memoryStore({
+      [dayBefore]: [{ uid: "u1", qid: CORE_A, optionIdx: 0 }],
+      [yesterday]: [{ uid: "u1", qid: CORE_A, optionIdx: 1, fromIdx: 0 }],
+    });
+    state.model = { k: 8, q: {}, lastDay: utcDay(NOW, -3) };
+    await runPatternsFit(store, NOW);
+    const L = state.model!.q[CORE_A];
+    // one person, holding option 1: basis 1, marginal −1 (not 2 and 0)
+    expect(L.n).toBe(1);
+    expect(L.sum).toBe(-1);
+    // and the person has answered ONE question, not two
+    expect(state.users.get("u1")?.n).toBe(1);
+  });
+
+  // The finding's own reproduction, at its own numbers.
+  it("30 answer, 29 move: publishes the truth, not a coin flip on double the basis", async () => {
+    const day1 = Array.from({ length: 30 }, (_, i) => (
+      { uid: `u${i}`, qid: CORE_A, optionIdx: 0 }
+    ));
+    const day2 = Array.from({ length: 29 }, (_, i) => (
+      { uid: `u${i}`, qid: CORE_A, optionIdx: 1, fromIdx: 0 }
+    ));
+    const { store, state } = memoryStore({ [dayBefore]: day1, [yesterday]: day2 });
+    state.model = { k: 8, q: {}, lastDay: utcDay(NOW, -3) };
+    await runPatternsFit(store, NOW);
+    const L = state.model!.q[CORE_A];
+    expect(L.n).toBe(30);   // was 59
+    expect(L.sum).toBe(-28); // was +1
+  });
+
+  it("chains across days, telescoping to the latest opinion", async () => {
+    // 0 → 1 → 0: back where they started, still one person, still +1.
+    const { store, state } = memoryStore({
+      [utcDay(NOW, -3)]: [{ uid: "u1", qid: CORE_A, optionIdx: 0 }],
+      [dayBefore]: [{ uid: "u1", qid: CORE_A, optionIdx: 1, fromIdx: 0 }],
+      [yesterday]: [{ uid: "u1", qid: CORE_A, optionIdx: 0, fromIdx: 1 }],
+    });
+    state.model = { k: 8, q: {}, lastDay: utcDay(NOW, -4) };
+    await runPatternsFit(store, NOW);
+    expect(state.model!.q[CORE_A]).toMatchObject({ n: 1, sum: 1 });
+  });
+
+  // The edge the per-day collapse has to get right, and the one a naive
+  // "fromIdx means correction" would break: the create is deduped away,
+  // so nothing has counted this person yet and the day MUST count as one.
+  it("a same-day create+edit is still ONE observation, counted once", async () => {
+    // The question already has a basis from somebody else, which is what
+    // makes this case bite: with the create deduped away, reading the
+    // surviving row as a correction would leave u1 out of `n` entirely and
+    // silently undercount the question by one person. (An empty model
+    // hides that — the `L.n > 0` guard in foldUserDay catches it there —
+    // so the prior day's answer is load-bearing in this test.)
+    const { store, state } = memoryStore({
+      [dayBefore]: [{ uid: "u2", qid: CORE_A, optionIdx: 0 }],
+      [yesterday]: [
+        { uid: "u1", qid: CORE_A, optionIdx: 0 },
+        { uid: "u1", qid: CORE_A, optionIdx: 1, fromIdx: 0 },
+      ],
+    });
+    state.model = { k: 8, q: {}, lastDay: utcDay(NOW, -3) };
+    await runPatternsFit(store, NOW);
+    // two people: u2 on option 0 (+1), u1 on option 1 (−1)
+    expect(state.model!.q[CORE_A]).toMatchObject({ n: 2, sum: 0 });
+    expect(state.users.get("u1")?.n).toBe(1);
+  });
+
+  it("…and reads the same if those two rows arrive the other way round", async () => {
+    // `sawCreate` is a fact about the day rather than about a position in
+    // it. A create's row precedes its edit's in practice — an edit that
+    // beats its create is thrown back for redelivery — but a basis count
+    // that is right in one arrival order and quietly short in the other
+    // is not something to leave resting on "in practice".
+    const { store, state } = memoryStore({
+      [dayBefore]: [{ uid: "u2", qid: CORE_A, optionIdx: 0 }],
+      [yesterday]: [
+        { uid: "u1", qid: CORE_A, optionIdx: 1, fromIdx: 0 },
+        { uid: "u1", qid: CORE_A, optionIdx: 1 },
+      ],
+    });
+    state.model = { k: 8, q: {}, lastDay: utcDay(NOW, -3) };
+    await runPatternsFit(store, NOW);
+    expect(state.model!.q[CORE_A]).toMatchObject({ n: 2, sum: 0 });
+  });
+
+  it("collapses several same-day edits from the FIRST value they left", async () => {
+    // edits only, no create in the day: 0 → 1 → 0 within one day, against
+    // a basis laid down the day before. Net effect on the marginal: none.
+    const { store, state } = memoryStore({
+      [dayBefore]: [{ uid: "u1", qid: CORE_A, optionIdx: 0 }],
+      [yesterday]: [
+        { uid: "u1", qid: CORE_A, optionIdx: 1, fromIdx: 0 },
+        { uid: "u1", qid: CORE_A, optionIdx: 0, fromIdx: 1 },
+      ],
+    });
+    state.model = { k: 8, q: {}, lastDay: utcDay(NOW, -3) };
+    await runPatternsFit(store, NOW);
+    expect(state.model!.q[CORE_A]).toMatchObject({ n: 1, sum: 1 });
+  });
+
+  it("folds a correction whose original was never seen as a first answer", async () => {
+    // The create's day fell outside the catch-up window, so `L` has no
+    // observation to correct. Counting it as one is the honest reading —
+    // and the guard that stops `sum / n` being 0/0.
+    const { store, state } = memoryStore({
+      [yesterday]: [{ uid: "u1", qid: CORE_A, optionIdx: 1, fromIdx: 0 }],
+    });
+    await runPatternsFit(store, NOW);
+    const L = state.model!.q[CORE_A];
+    expect(L).toMatchObject({ n: 1, sum: -1 });
+    expect(Number.isFinite(L.v[0])).toBe(true);
+  });
+
+  it("folds a pre-field row exactly as it always did", async () => {
+    // Rows written before `fromIdx` existed are still inside the 90-day
+    // ledger window. They carry no marker, so they fold as observations —
+    // the old behaviour, which is the right thing to degrade to.
+    const { store, state } = memoryStore({
+      [dayBefore]: [{ uid: "u1", qid: CORE_A, optionIdx: 0 }],
+      [yesterday]: [{ uid: "u1", qid: CORE_A, optionIdx: 1 }],
+    });
+    state.model = { k: 8, q: {}, lastDay: utcDay(NOW, -3) };
+    await runPatternsFit(store, NOW);
+    expect(state.model!.q[CORE_A]).toMatchObject({ n: 2, sum: 0 });
+  });
+});
+
 describe("idempotence and catch-up", () => {
   it("a second run the same morning folds nothing", async () => {
     const { store, state } = memoryStore({

@@ -1,6 +1,7 @@
 // pure.test.ts — unit tests for the pure helpers. No emulator, no
 // firebase: everything under test is deterministic given its inputs.
 
+import { readFileSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 import {
   CODE_ALPHABET,
@@ -50,8 +51,11 @@ import {
   ROOM_MIN_TYPED,
   ROOM_SAMPLE_CAP,
   ROOM_QUESTION_CAP,
+  isWorldAnswerSurface,
   roomQids,
   tallyPicks,
+  tallyRoomAnswers,
+  WORLD_ANSWER_SURFACES,
   roomMix,
   presenceCellOk,
   presenceNeighbors,
@@ -1795,6 +1799,120 @@ describe("roomQids", () => {
     expect(roomQids([{ id: "x" }, 3, null, undefined])).toEqual([]);
     expect(roomQids(["x".repeat(121)])).toEqual([]);
     expect(roomQids("not an array")).toEqual([]);
+  });
+
+  // …and what it deliberately does NOT do, so nobody mistakes the door
+  // for a bank check again. A duel answer's id is an ordinary string,
+  // and this function has no view of the bank to reject it with. The
+  // seal is kept at the fold instead — see isWorldAnswerSurface.
+  it("admits a sealed duel's answer id, which is why the FOLD filters", () => {
+    expect(roomQids(["g_AbCdEf1234567890_2026-08-24"]))
+      .toEqual(["g_AbCdEf1234567890_2026-08-24"]);
+  });
+});
+
+// The seal `nearbyRoomV2` walked past for as long as it existed.
+//
+// The callable runs on the admin SDK, so firestore.rules does not fence
+// what it reads; it folded any qid the client sent into every present
+// person's answers subcollection and tallied `optionIdx`. Duel answers
+// live at `g_{gid}_{dayKey}` — an id every member of that duel knows —
+// and the rules seal them until the next-day reveal precisely so a
+// member cannot read the room before playing. With one holder in the
+// room, a tally IS that person's pick.
+describe("isWorldAnswerSurface", () => {
+  it("admits exactly the six surfaces D98 published", () => {
+    for (const s of WORLD_ANSWER_SURFACES) expect(isWorldAnswerSurface(s)).toBe(true);
+    expect(WORLD_ANSWER_SURFACES).toHaveLength(6);
+  });
+
+  it("refuses the two sealed ones", () => {
+    expect(isWorldAnswerSurface("group")).toBe(false);
+    expect(isWorldAnswerSurface("duo")).toBe(false);
+  });
+
+  it("refuses absence and anything unrecognised — unknown is not public", () => {
+    // An answer document with no surface is not a document to disclose on
+    // the strength of not knowing what it is.
+    for (const s of [undefined, null, "", "DAILY", "daily ", 0, 1, {}, ["daily"]]) {
+      expect(isWorldAnswerSurface(s)).toBe(false);
+    }
+  });
+
+  // The list is a value written in two languages. A comment cannot hold
+  // those together, so this reads the rules and compares.
+  it("is the same six firestore.rules names, in both of its cross-user READ arms", () => {
+    const rules = readFileSync(
+      new URL("../../firestore.rules", import.meta.url), "utf8",
+    );
+    // READ arms only. `request.resource.data.surface` is the write side
+    // and carries different lists on purpose — the D86 edit arm admits
+    // three, because moving your answer is legal on fewer surfaces than
+    // reading it. Matching those too is how the first draft of this test
+    // failed, which is the good kind of failure to have had.
+    const readArms = [...rules.matchAll(/allow read[^;]*;/g)]
+      .flatMap((block) => [
+        ...block[0].matchAll(/(?<!request\.)resource\.data\.surface in \[([^\]]+)\]/g),
+      ])
+      .map((m) => m[1].split(",").map((s) => s.trim().replace(/^"|"$/g, "")));
+
+    // one on the uid-bound answer read, one on the collection-group arm
+    expect(readArms.length).toBeGreaterThanOrEqual(2);
+    for (const arm of readArms) {
+      expect(arm).toEqual([...WORLD_ANSWER_SURFACES]);
+      expect(arm).not.toContain("group");
+      expect(arm).not.toContain("duo");
+    }
+  });
+});
+
+describe("tallyRoomAnswers — the seal, where nearbyRoomV2 folds", () => {
+  it("counts public answers exactly as tallyPicks does", () => {
+    const rows = [
+      { surface: "daily", optionIdx: 0 },
+      { surface: "feed", optionIdx: 1 },
+      { surface: "test", optionIdx: 0 },
+    ];
+    expect(tallyRoomAnswers(rows)).toEqual({ "0": 2, "1": 1 });
+  });
+
+  // THE CASE THIS FUNCTION EXISTS FOR. Ana and Ben are a duo standing in
+  // the same cell. Ana asks the room about `g_{gid}_{day}` — an id she
+  // knows, because it is her own duel — before either has played today.
+  // Before the filter, the room answered with Ben's sealed pick.
+  it("refuses a sealed duel answer, so a one-holder room reveals nothing", () => {
+    const rows = [
+      { surface: "duo", optionIdx: 1 }, // Ben, sealed until tomorrow's reveal
+    ];
+    expect(tallyRoomAnswers(rows)).toEqual({});
+  });
+
+  it("refuses a sealed GROUP answer even among public ones", () => {
+    // The mixed case matters: a partial filter that let one through would
+    // still leak, and a tally of {"0":1} beside a known own-answer is a
+    // subtraction away from a name.
+    const rows = [
+      { surface: "daily", optionIdx: 0 },
+      { surface: "group", optionIdx: 1 },
+      { surface: "duo", optionIdx: 1 },
+      { surface: "learn", optionIdx: 1 },
+    ];
+    expect(tallyRoomAnswers(rows)).toEqual({ "0": 1, "1": 1 });
+  });
+
+  it("refuses a row with no surface at all — absent is not public", () => {
+    expect(tallyRoomAnswers([{ optionIdx: 0 }, { surface: undefined, optionIdx: 1 }]))
+      .toEqual({});
+  });
+
+  it("still drops malformed indices, so the tallyPicks guarantees survive", () => {
+    const rows = [
+      { surface: "daily", optionIdx: -1 },
+      { surface: "daily", optionIdx: 1.5 },
+      { surface: "daily", optionIdx: undefined },
+      { surface: "daily", optionIdx: 2 },
+    ];
+    expect(tallyRoomAnswers(rows)).toEqual({ "2": 1 });
   });
 });
 

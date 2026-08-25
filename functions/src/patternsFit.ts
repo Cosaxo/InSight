@@ -73,6 +73,15 @@ export interface PatternsObservation {
   qid: string;
   /** The encoded answer: +1 for option 0, −1 for option 1. */
   x: number;
+  /**
+   * The encoded answer this one REPLACES, when the row is a D86 edit that
+   * landed after the day its answer was folded (patterns.ts builds it).
+   *
+   * Present means "this person already counts once in this question's
+   * basis": the marginal moves by `x − from` and `n` does not move. Absent
+   * means a first answer, which is the ordinary case.
+   */
+  from?: number;
 }
 
 /** Two-option answers encode symmetrically; anything else is ineligible
@@ -126,11 +135,23 @@ export function foldUserDay(
       L = { v: seedLoading(o.qid, k), n: 0, sum: 0 };
       model.q[o.qid] = L;
     }
-    // marginal first, then centre — the mean INCLUDES this answer, so a
-    // question's very first answer carries no signal beyond existing
-    // (r = 0), which is right: one vote says nothing about co-variation.
-    L.n += 1;
-    L.sum += o.x;
+    // A CORRECTION rather than an observation: this person is already in
+    // `L.n`, so the basis must not move and the marginal moves by the
+    // difference. `L.n === 0` means the answer being corrected was never
+    // folded here — its day fell outside the catch-up window, or the
+    // model was rebuilt since — and then there is nothing to correct, so
+    // it counts as the first observation it effectively is. Without that
+    // guard `m` would be 0/0.
+    const correcting = o.from !== undefined && L.n > 0;
+    if (correcting) {
+      L.sum += o.x - (o.from as number);
+    } else {
+      // marginal first, then centre — the mean INCLUDES this answer, so a
+      // question's very first answer carries no signal beyond existing
+      // (r = 0), which is right: one vote says nothing about co-variation.
+      L.n += 1;
+      L.sum += o.x;
+    }
     const m = L.sum / L.n;
     const r = o.x - m;
     let dot = 0;
@@ -143,7 +164,14 @@ export function foldUserDay(
       user.v[i] = ui + PATTERNS_ETA_USER * (e * li - PATTERNS_LAMBDA * ui);
       L.v[i] = li + eq * (e * ui - PATTERNS_LAMBDA * li);
     }
-    user.n += 1;
+    // The gradient step above runs for a correction too, and deliberately:
+    // v2.ts records that the theta consequence of edits was considered and
+    // accepted — a person who moves genuinely says something, and SGD is
+    // the right shape for hearing it twice. What was never considered is
+    // the basis and the marginal, which is what the branch above fixes.
+    // `user.n` counts questions this person has answered, so a correction
+    // does not move it either.
+    if (!correcting) user.n += 1;
   }
   return { model, user };
 }

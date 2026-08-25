@@ -13,6 +13,7 @@
 //   5. Surface derivation — bank qids directly, pulse composites by
 //      stripping the day suffix, everything unknown as "other", never a
 //      guess.
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("firebase-functions", () => ({
@@ -34,6 +35,10 @@ import {
   type EngagementStore,
 } from "./engagement";
 import { V2_QUESTIONS } from "./v2content";
+
+/** A path in the repo root, from this file. `functions/` is CommonJS, so
+ * `import.meta.url` is the portable handle here rather than __dirname. */
+const repoFile = (rel: string) => new URL(`../../${rel}`, import.meta.url);
 
 const NOW = Date.UTC(2026, 7, 23, 3, 0, 0); // the 02:23 schedule's morning
 const Y = utcDay(NOW, -1);
@@ -250,7 +255,7 @@ describe("day arithmetic", () => {
 
 // ── the attention fold (R2/D270) ────────────────────────────────────────
 import {
-  BUCKET_MIDPOINTS, SHARD_FOLD_CAP, foldShards, runAttentionFold,
+  BUCKET_MIDPOINTS, MIN_SHARD_RATE, SHARD_FOLD_CAP, foldShards, runAttentionFold,
   type AttentionShardDoc, type AttentionStore, type AttnDelta,
 } from "./engagement";
 
@@ -317,6 +322,51 @@ describe("foldShards", () => {
     const d = out.get("2026-08-22")!;
     expect(d.devices).toBe(10);
     expect(d.s.feedSeen).toEqual({ reach: 10, est: 15 }); // 1.5 × 10
+  });
+
+  // `rate` is the one client-written value that MULTIPLIES rather than
+  // adds, and it was range-checked where every other value is clamped.
+  // A denormal inside (0, 1] passed, and `1 / 1e-300` is 1e300 committed
+  // by FieldValue.increment into a world-readable document that nothing
+  // can recompute.
+  it("floors the rate, so one shard cannot speak for more than 1/MIN_SHARD_RATE devices", () => {
+    for (const absurd of [1e-300, Number.MIN_VALUE, 1e-9, MIN_SHARD_RATE / 2]) {
+      const out = foldShards([sh("a", "2026-08-22", { feedSeen: 1 }, absurd)]);
+      const d = out.get("2026-08-22")!;
+      expect(d.devices).toBe(1 / MIN_SHARD_RATE);
+      expect(Number.isFinite(d.s.feedSeen.est)).toBe(true);
+    }
+  });
+
+  it("leaves a rate AT the floor alone — the floor is a bound, not a rewrite", () => {
+    const out = foldShards([sh("a", "2026-08-22", { feedSeen: 1 }, MIN_SHARD_RATE)]);
+    expect(out.get("2026-08-22")!.devices).toBe(1 / MIN_SHARD_RATE);
+    // and an ordinary sampled rate is untouched by the floor
+    const ok = foldShards([sh("b", "2026-08-22", { feedSeen: 1 }, 0.25)]);
+    expect(ok.get("2026-08-22")!.devices).toBe(4);
+  });
+
+  // The floor is only safe while it sits BELOW the rate honest clients
+  // send. Drop SHARD_SAMPLE_RATE past it and every real shard would be
+  // silently scaled up — the failure this test exists to make loud. It is
+  // the QIDS_CAP arrangement: one number, two files, pinned on both sides.
+  it("sits at or below the rate the client actually writes", () => {
+    // Read from SOURCE rather than imported: the client module is outside
+    // this project's rootDir, and scripts/cost-arith.mjs already reads the
+    // same constant the same way (ATTN_SAMPLE_RATE) for the same reason.
+    const src = readFileSync(repoFile("src/v2/data/engagement.ts"), "utf8");
+    const m = /export const SHARD_SAMPLE_RATE = ([0-9.]+)/.exec(src);
+    expect(m, "SHARD_SAMPLE_RATE not found — this test is now blind").not.toBeNull();
+    expect(MIN_SHARD_RATE).toBeLessThanOrEqual(Number(m![1]));
+    expect(MIN_SHARD_RATE).toBeGreaterThan(0);
+  });
+
+  it("is the same number firestore.rules refuses below", () => {
+    // Rules cannot import, so the bound is written as a literal there.
+    // This is what stops the two drifting: a shard the rules admit must
+    // be one the fold does not have to clamp.
+    const rules = readFileSync(repoFile("firestore.rules"), "utf8");
+    expect(rules).toContain(`request.resource.data.rate >= ${MIN_SHARD_RATE}`);
   });
 });
 

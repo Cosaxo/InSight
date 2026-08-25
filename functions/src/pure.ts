@@ -1837,8 +1837,70 @@ export const ROOM_PEOPLE_CAP = 24;
  */
 export const ROOM_QUESTION_CAP = 8;
 
+/**
+ * The surfaces whose answers are PUBLIC (D98) — the six firestore.rules
+ * names in its two cross-user read arms, and the complement of the two
+ * it seals (`group` and `duo`).
+ *
+ * WHY THE SERVER NEEDS ITS OWN COPY. Rules do not run on the admin SDK,
+ * so anything a callable reads it reads unfenced. `nearbyRoomV2` folded
+ * whatever qids the client sent into `v2_users/{uid}/answers/{qid}` and
+ * tallied `optionIdx` without ever looking at `surface` — and a duel
+ * answer's id is `g_{gid}_{dayKey}`, which any member of that duel knows.
+ * So the room could be asked for a SEALED answer, and with one holder in
+ * the room the tally is that person's pick, a day before the reveal
+ * publishes it. That is exactly what firestore.rules:539 refuses and says
+ * it refuses ("they would just let a member read the room before
+ * playing").
+ *
+ * `roomQids` is not the place to fix it: it is a pure door with no view
+ * of the bank, and an allowlist of ids there would refuse legitimate
+ * questions the moment the bank grew. The answer document itself records
+ * what it is, so the fold asks IT — see `tallyPicks`, whose no-floor
+ * argument rests on every folded answer being public and had nothing
+ * enforcing that premise.
+ *
+ * Held equal to the rules by pure.test.ts, which reads firestore.rules
+ * and compares both arms — a value written in two languages, so a
+ * comment could not keep them together.
+ */
+export const WORLD_ANSWER_SURFACES = [
+  "daily", "feed", "test", "learn", "pulse", "call",
+] as const;
+
+/** Is this answer document one D98 published? Absent/unknown is NO — a
+ * surface nobody named is not one anybody published. */
+export function isWorldAnswerSurface(surface: unknown): boolean {
+  return typeof surface === "string"
+    && (WORLD_ANSWER_SURFACES as readonly string[]).includes(surface);
+}
+
 /** A qid → {optionIdx → count} map, the shape v2_question_aggs uses. */
 export type RoomCounts = Record<string, Record<string, number>>;
+
+/** One answer document, slimmed to what the room fold reads. */
+export interface RoomAnswerRow {
+  surface?: unknown;
+  optionIdx?: number;
+}
+
+/**
+ * Tally a room's answers to ONE question, sealed answers excluded.
+ *
+ * This is `tallyPicks` with the D98 filter in front, and it exists as its
+ * own function rather than as two lines in `nearbyRoomV2` so the seal is
+ * a fact a unit test can hold. The callable runs on the admin SDK where
+ * firestore.rules does not reach, and this is the only thing standing
+ * between a client-chosen qid and a duel answer's `optionIdx`.
+ *
+ * An absent document is an absent row (a person who never answered), and
+ * an absent `surface` is not public — see isWorldAnswerSurface.
+ */
+export function tallyRoomAnswers(rows: readonly RoomAnswerRow[]): Record<string, number> {
+  return tallyPicks(
+    rows.filter((r) => isWorldAnswerSurface(r.surface)).map((r) => r.optionIdx),
+  );
+}
 
 /**
  * Tally one question's picks into the aggregate shape.

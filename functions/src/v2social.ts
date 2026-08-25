@@ -59,7 +59,7 @@ import {
   ROOM_PEOPLE_CAP,
   roomMix,
   roomQids,
-  tallyPicks,
+  tallyRoomAnswers,
   type RoomMix,
   type RoomCounts,
   type DuelVoteLike,
@@ -1851,7 +1851,25 @@ async function roomFor(cells: string[], own: string, qids: string[]): Promise<Ro
       const folded = await Promise.all(missing.map(async (q) => {
         const refs = people.map((p) => db.doc(`v2_users/${p.uid}/answers/${q}`));
         const docs = await db.getAll(...refs);
-        return [q, tallyPicks(docs.map((d) => d.get("optionIdx") as number | undefined))] as const;
+        // PUBLIC SURFACES ONLY, and the filter is here rather than at the
+        // door because the answer document is the only thing that knows
+        // what it is. `roomQids` bounds the SHAPE of a qid — no slashes,
+        // no dot segments, a length — which stops a path injection and
+        // stops nothing else: `g_{gid}_{dayKey}` is a perfectly ordinary
+        // string, and it addresses a duel answer the rules seal until the
+        // next-day reveal. This callable runs on the admin SDK, so that
+        // seal does not apply to it; nothing else did either.
+        //
+        // The cost is a field read on a document already in hand. See
+        // WORLD_ANSWER_SURFACES for the full argument, and tallyPicks for
+        // why a small split needs no floor — an argument that holds
+        // because of this line, not despite it. The filter and the tally
+        // are one function so that the seal is something a unit test can
+        // hold rather than two lines inside a callable.
+        return [q, tallyRoomAnswers(docs.map((d) => ({
+          surface: d.get("surface"),
+          optionIdx: d.get("optionIdx") as number | undefined,
+        })))] as const;
       }));
       for (const [q, counts] of folded) qs[q] = counts;
     }

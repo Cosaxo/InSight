@@ -74,6 +74,10 @@ export interface PatternsLedgerEntry {
   uid: string;
   qid: string;
   optionIdx?: number;
+  /** Present only on a D86 edit's row: the option it moved AWAY from
+   * (v2.ts's ledgerEntry). Absent on a create, and on rows written before
+   * the field existed. */
+  fromIdx?: number;
 }
 
 /** The I/O the fit needs, as an interface (calls.ts's store precedent) —
@@ -147,17 +151,65 @@ export async function runPatternsFit(
     // exactly why the second one exists. It is only this reader that wants a
     // person's latest answer instead.
     //
-    // `ledgerDay` returns the day in `at` order, so the last entry for a pair
-    // is the newest.
-    const byUid = new Map<string, Map<string, number>>();
+    // …AND THE DEDUP ABOVE IS PER DAY, WHICH WAS THE WHOLE OF IT.
+    //
+    // `byUid` is rebuilt from `ledgerDay(day)` on every iteration, while
+    // what it protects — `L.n`, `L.sum`, and each person's theta — is
+    // cumulative across days and persisted between runs. So it covered an
+    // edit made on the same UTC day as the answer and nothing else, and an
+    // edit landing the next day arrived as a second observation: the basis
+    // counted one person twice and the marginal averaged the opinion they
+    // had left with the one they had moved to. Thirty people answering 0
+    // and twenty-nine of them moving to 1 published as n = 59, marginal
+    // +0.017 — a near-unanimous question drawn as a coin flip, on double
+    // its real basis, which is also the number D265's gate counts.
+    //
+    // `fromIdx` is what makes the row legible (v2.ts's ledgerEntry). A
+    // day collapses to ONE of two things per (person, question):
+    //
+    //   · a create is anywhere in the day  → a plain observation of the
+    //     day's LAST value. The create was never folded on its own — it is
+    //     deduped away here — so the basis must count it now.
+    //   · edits only                       → a CORRECTION from the day's
+    //     FIRST `fromIdx` to the day's last value. `sum` already carries
+    //     the value that first edit moved away from, so telescoping from
+    //     the earliest is what lands on the right marginal; chaining
+    //     across days telescopes the same way.
+    //
+    // A row with no `fromIdx` is a create as far as this can tell, which
+    // is also how it reads the pre-field rows still inside the 90-day
+    // ledger window — those fold exactly as they did before.
+    // Accumulated as three facts rather than as a running observation, so
+    // the answer does not depend on which row arrived first. In practice
+    // a create's ledger row always precedes its edit's — an edit that
+    // beats its create throws and is redelivered (v2.ts's retry guard) —
+    // but "in practice" is the wrong thing for a basis count to rest on,
+    // and a per-row accumulator that reads correctly in one arrival order
+    // and silently undercounts in the other is not a thing to leave lying
+    // around. `sawCreate` is a fact about the DAY, not about a position
+    // in it.
+    interface DayCell { x: number; sawCreate: boolean; firstFrom?: number }
+    const byUid = new Map<string, Map<string, DayCell>>();
     for (const e of entries) {
-      const seen = byUid.get(e.uid) ?? new Map<string, number>();
-      seen.set(e.qid, encodeAnswer(e.optionIdx as number));
+      const seen = byUid.get(e.uid) ?? new Map<string, DayCell>();
+      const cell = seen.get(e.qid) ?? { x: 0, sawCreate: false };
+      cell.x = encodeAnswer(e.optionIdx as number); // last wins
+      if (e.fromIdx === undefined) cell.sawCreate = true;
+      else if (cell.firstFrom === undefined) cell.firstFrom = encodeAnswer(e.fromIdx);
+      seen.set(e.qid, cell);
       byUid.set(e.uid, seen);
     }
     const states = await store.getUsers([...byUid.keys()].sort());
     for (const [uid, seen] of [...byUid.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
-      const obs: PatternsObservation[] = [...seen.entries()].map(([qid, x]) => ({ qid, x }));
+      const obs: PatternsObservation[] = [...seen.entries()].map(([qid, c]) => (
+        // A create anywhere in the day means the day is this person's
+        // FIRST answer to that question — the create row itself is
+        // deduped away here, so the basis has to count it now. Edits
+        // only means the basis already counts them, from an earlier day.
+        !c.sawCreate && c.firstFrom !== undefined
+          ? { qid, x: c.x, from: c.firstFrom }
+          : { qid, x: c.x }
+      ));
       obs.sort((a, b) => (a.qid < b.qid ? -1 : 1));
       const user = states.get(uid) ?? emptyUser(model.k);
       foldUserDay(model, user, obs);
@@ -192,7 +244,7 @@ export function firestorePatternsStore(db: Firestore): PatternsStore {
         .where("at", ">=", start)
         .where("at", "<", end)
         .orderBy("at")
-        .select("uid", "qid", "optionIdx", "at")
+        .select("uid", "qid", "optionIdx", "fromIdx", "at")
         .limit(5000);
       for (;;) {
         const snap = await query.get();
@@ -201,6 +253,7 @@ export function firestorePatternsStore(db: Firestore): PatternsStore {
             uid: String(d.get("uid") ?? ""),
             qid: String(d.get("qid") ?? ""),
             optionIdx: d.get("optionIdx") as number | undefined,
+            fromIdx: d.get("fromIdx") as number | undefined,
           });
         }
         if (snap.size < 5000) break;

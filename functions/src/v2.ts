@@ -189,11 +189,29 @@ export const LEDGER_RETENTION_DAYS = 90;
 // account (index.ts phase 4c). Absent on catalog entries — the fit's
 // pool is two-option questions only — and an edit's entry carries the
 // NEW side, so a refit leans toward what the person now says.
-function ledgerEntry(uid: string, qid: string, optionIdx?: number) {
+//
+// `fromIdx` joined for the same fit, and it is what makes an edit's entry
+// legible AS an edit. Without it the two rows an edited answer leaves are
+// byte-identical in shape, and the fit's only defence was a last-wins
+// dedup built per day — which covers an edit made on the same UTC day as
+// the answer and nothing else. An edit landing the NEXT day arrived as a
+// second observation of a question the person had answered once, so the
+// published basis counted them twice and the marginal averaged the
+// opinion they had left with the one they had moved to. `editVote`
+// imposes no recency bound (a 60 s per-answer cooldown is all), so that
+// is the ordinary case. patterns.ts reads this field and folds the row as
+// a CORRECTION: the marginal moves by (new − old) and the basis does not
+// move at all.
+//
+// Absent on a create, and absent on rows written before this field
+// existed — the fit treats a row it cannot identify as an edit the way it
+// always did, so the 90-day ledger window heals rather than breaks.
+function ledgerEntry(uid: string, qid: string, optionIdx?: number, fromIdx?: number) {
   return {
     qid,
     uid,
     ...(optionIdx === undefined ? {} : { optionIdx }),
+    ...(fromIdx === undefined ? {} : { fromIdx }),
     at: FieldValue.serverTimestamp(),
     expireAt: new Date(Date.now() + LEDGER_RETENTION_DAYS * 86400000),
   };
@@ -952,7 +970,7 @@ export const onV2AnswerUpdated = onDocumentUpdated(
       const edits: EditFlow =
         (agg.exists && (agg.get("edits") as EditFlow)) || {};
       foldEditFlow(edits, fromIdx, toIdx);
-      tx.set(eventRef, ledgerEntry(event.params.uid, qid, toIdx));
+      tx.set(eventRef, ledgerEntry(event.params.uid, qid, toIdx, fromIdx));
       // An edit always republishes now. It used to be conditional on
       // EDITS_REPUBLISH — a guard that existed because, under a publish
       // cadence, an edit's -old/+new leaves `total` unmoved, so a lone

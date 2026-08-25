@@ -156,8 +156,8 @@ v2_aggs_private/{qid}              the CATALOG fold's accumulator (no readers).
                                    low-cardinality anchors only (no city,
                                    no profession) and ≤24 buckets/dim.
 v2_agg_events/{eventId}            trigger ledger (opaque), four jobs (D28, D268)
-  { qid, uid, optionIdx?, at,      dedup: at-least-once delivery can't
-    expireAt }                     double-count. Attribution: uid is what
+  { qid, uid, optionIdx?,          dedup: at-least-once delivery can't
+    fromIdx?, at, expireAt }       double-count. Attribution: uid is what
                                    lets an operator subtract a discovered
                                    fake-account ring from the exact counts
                                    and republish (DEPLOYMENT.md,
@@ -167,6 +167,14 @@ v2_agg_events/{eventId}            trigger ledger (opaque), four jobs (D28, D268
                                    the nightly Patterns fit reads as its
                                    stream (patterns.ts); it adds nothing
                                    the answer doc does not publish (D98).
+                                   fromIdx rides the EDIT arm alone and is
+                                   what makes that row legible as an edit
+                                   rather than as a second person: the fit
+                                   folds it as a correction, moving the
+                                   marginal by (new - old) and leaving the
+                                   basis alone (D288). Absent on rows
+                                   written before it existed, which fold
+                                   as they always did.
                                    Activity log: the nightly engagement
                                    digest counts people by it — the
                                    fourth job, the purpose D268 widened
@@ -659,7 +667,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 146 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 147 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

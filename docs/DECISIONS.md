@@ -29098,3 +29098,126 @@ agree about.
 figures across `README.md`, `docs/LOCAL-TESTING.md` and
 `docs/SCHEMA-V2.md` still said 140. Fixed to 146. The gate working as
 designed, on the one documentation error this repo keeps re-committing.
+
+## D288 · Three the audit found in the folds: a seal walked past, an edit counted twice, and a divisor with no floor
+
+**2026-08-25.** **Status:** binding. The next three from the same sweep
+that produced D287. All three are server-side folds, none of them was
+visible to any gate, and each was defended by a comment that was true
+about something adjacent.
+
+### F3 · `nearbyRoomV2` read whatever qid it was handed
+
+`roomQids` (pure.ts) refuses non-strings, over-long ids, `/`, `.` and
+`..`. That is a PATH door, and the comment above it says so — it exists
+because these strings are concatenated into
+`v2_users/{uid}/answers/{qid}`. It was doing the job it claims. The job
+nobody was doing is deciding whether the answer at the other end is one
+D98 published.
+
+`g_{gid}_{dayKey}` is an ordinary string. It is also a duel answer, which
+`firestore.rules:549` seals until the next-day reveal, in a clause whose
+own comment says why: members "would just let a member read the room
+before playing". The callable runs on the admin SDK, so rules do not
+fence it, and the fold read `optionIdx` without ever looking at
+`surface`. With one holder in the room the tally IS that person's pick —
+a duo partner standing in the same cell, a day early.
+
+`tallyPicks`'s no-floor decision is what makes it sharp. That argument is
+written down and is correct: a floor "would conceal nothing that a reader
+could not get by tapping a name", *because answers are public*. It is an
+argument about the six public surfaces, resting on a premise that
+`roomQids` was assumed to enforce and never did.
+
+Fixed at the fold, not the door: `WORLD_ANSWER_SURFACES` and
+`tallyRoomAnswers` in pure.ts, filtering on the answer document's own
+`surface` — the document is already in hand, so it costs a field read.
+The door is the wrong place because it is pure and has no view of the
+bank; an id allowlist there would refuse legitimate questions the moment
+the bank grew. The filter and the tally are ONE function so the seal is a
+fact a unit test can hold rather than two lines inside a callable, and
+pure.test.ts reads `firestore.rules` and pins the six names against both
+of its cross-user READ arms — the write arms carry different lists on
+purpose (the D86 edit arm admits three), which is how the first draft of
+that test failed.
+
+### F4 · The patterns fit's dedup was per day; the state it protects is not
+
+`patterns.ts` knows an edit leaves two ledger rows and says so at length,
+with the arithmetic: read as two observations, "30 of them became
+`{n: 60, marginal: 0}`, a p0 of 0.500 against a truth of 0.050". A
+last-wins dedup was installed against exactly that.
+
+The dedup is built inside the per-day loop from `ledgerDay(day)`. `L.n`,
+`L.sum` and each person's theta are cumulative across days and persisted
+between runs. So it covered an edit made on the same UTC day as the
+answer, and nothing else. `editVote` imposes no recency bound — a 60 s
+per-answer cooldown is the whole of it, and the rules add none — so
+"answered yesterday, changed my mind today" is the ordinary case, and it
+folded as a second person. Reproduced at the record's own numbers: 30
+answer option 0, 29 move to option 1, published `n = 59, sum = +1`
+against a truth of `n = 30, sum = −28`. A near-unanimous question drawn
+as a coin flip, on double the basis D265's gate counts.
+
+The two rows were byte-identical in shape, which is why only a dedup
+could tell them apart. They are not any more: `ledgerEntry` carries
+`fromIdx` on the edit arm, and the fit folds such a row as a CORRECTION —
+`L.sum += new − old`, `L.n` untouched, `user.n` untouched. The gradient
+step still runs, deliberately: v2.ts records that the theta consequence
+of edits was considered and accepted, and a person who moves genuinely
+says something. What was never considered is the basis and the marginal.
+
+Two edges, both pinned:
+
+- **A create anywhere in the day makes the whole day an observation.**
+  The create row is deduped away, so nothing has counted that person yet
+  and the basis must count them now. Reading the surviving row as a
+  correction would leave them out of `n` entirely. The day collapses to
+  three facts — last value, `sawCreate`, first `fromIdx` — rather than to
+  a running observation, so the answer does not depend on which row
+  arrived first. A create's row does precede its edit's in practice (an
+  edit that beats its create is thrown back for redelivery), and a basis
+  count right in one arrival order and quietly short in the other is not
+  a thing to leave resting on "in practice". Both orders are tested.
+- **A correction with nothing to correct** (`L.n === 0` — the original's
+  day fell outside the catch-up window) counts as the first observation
+  it effectively is. Without that guard `L.sum / L.n` is 0/0.
+
+Rows written before the field fold exactly as they always did, so the
+90-day ledger window heals rather than breaks.
+
+### F5 · `rate` is a divisor, and it was range-checked where everything else is clamped
+
+The fold's own comment says the clamps live there — "buckets to 0..4
+integers, rates to (0, 1]". The buckets genuinely are clamped. The rate
+was only VALIDATED against its interval, and `1e-300` is inside it.
+
+`weight = 1 / rate`, and every counter is incremented by that weight, with
+`FieldValue.increment`, into `v2_engagement_daily/{day}` — world-readable,
+and read by the pulse console. Increments are not recomputable and the
+shards are deleted in the same batch, so one rules-legal write from one
+anonymous account is a permanent number nobody can take back. The honest
+client always writes `rate: SHARD_SAMPLE_RATE`, which is 1, so any rate
+below 1 is by construction forged.
+
+`MIN_SHARD_RATE = 0.001` on the reader, and `rate >= 0.001` in the rules
+so it is refused at the door besides. The floor makes forgery
+PROPORTIONATE rather than free: a shard can claim at most what a thousand
+honest shards would, which is a thousand writes' worth of effort instead
+of one. It sits three orders of magnitude below the shipped lever, and
+engagement.test.ts reads `SHARD_SAMPLE_RATE` from source and fails if the
+lever is ever dropped past the floor — the QIDS_CAP arrangement, one
+number in two files with both sides pinned. A rate outside the interval
+still falls back to 1; a rate inside but below the floor is clamped
+rather than rejected, because the shard's tallies are real and only the
+multiplier is not.
+
+### On the method
+
+Every fix here was mutation-checked, and one of those checks earned its
+keep. The first same-day create+edit test passed with the guard removed:
+an empty model made `L.n === 0`, so the *other* guard rescued it and the
+case proved nothing. Rewritten against a question that already carries a
+basis, it fails as it should. A test that cannot fail is the thing this
+tree keeps finding, and it is worth saying that the way to find one is to
+break the code on purpose and watch.
