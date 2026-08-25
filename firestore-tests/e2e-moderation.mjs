@@ -86,9 +86,14 @@ ok(`group ${gid} created by ${authorUid.slice(0, 8)}`);
 
 // 2 · the author posts three takes (client writes, rules enforced
 // end-to-end) — one per enforced verdict below: remove, escalate, keep.
-const T_REMOVE = "t_e2e_remove";
-const T_ESCALATE = "t_e2e_escalate";
-const T_KEEP = "t_e2e_keep";
+// No underscores: a circle take's id may not carry the separator a world
+// take id is built from (qid + "_" + uid), because both scopes live in
+// v2_takes and an unbounded circle id could squat somebody's world slot.
+// What postTake actually mints here is a Firestore auto-id, which has
+// none either.
+const T_REMOVE = "te2eremove";
+const T_ESCALATE = "te2eescalate";
+const T_KEEP = "te2ekeep";
 for (const [id, text] of [
   [T_REMOVE, "hot take: over every line at once"],
   [T_ESCALATE, "hot take: genuinely hard to judge"],
