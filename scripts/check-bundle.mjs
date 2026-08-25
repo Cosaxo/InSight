@@ -99,25 +99,15 @@ const DEMO = process.argv.includes("--demo");
 // neighbour in that same workflow step, already asserts against `dist/`
 // for this reason, "because a stale dist/ from a reordered step answers
 // that differently". SENTRY_IN is computed where the chunks are, below.
-if (!DEMO && process.env.VITE_V2_LIVE !== "true") {
-  console.error(
-    "check-bundle: this gate describes the SHIPPING bundle, and dist/ was\n"
-    + "not built as one — VITE_V2_LIVE is "
-    + (process.env.VITE_V2_LIVE === undefined
-      ? "unset"
-      : `"${process.env.VITE_V2_LIVE}"`)
-    + " for this process.\n\n"
-    + "  Build and check the bundle that ships:\n"
-    + "    VITE_V2_LIVE=true VITE_SENTRY_DSN=https://ci@example.invalid/0 npm run build\n"
-    + "    VITE_V2_LIVE=true npm run check:bundle\n\n"
-    + "  The DSN is load-bearing too and for a different reason: without it\n"
-    + "  the Sentry chunk is provably dead and rolldown drops it, so the\n"
-    + "  TOTAL comes out ~100 KB light. Any non-empty string restores it.\n\n"
-    + "  To measure a demo build on purpose, pass --demo. That reports the\n"
-    + "  numbers and applies no ceiling, because they are not this app's.",
-  );
-  process.exit(1);
-}
+//
+// AND SO IS LIVE_IN, for exactly the same reason and one variable over.
+// This guard read `process.env.VITE_V2_LIVE` until 2026-08-26 — the
+// environment of the process running the CHECK, not of the one that ran
+// the BUILD. `VITE_V2_LIVE=true npm run check:bundle` over a dist/ built
+// without the flag printed `SHIPPING bundle (VITE_V2_LIVE=true)` and
+// graded demo numbers against the shipping ceilings, which is the founding
+// bug of this file with the Sentry half fixed and the V2 half left in.
+// The refusal now lives beside the chunks, below.
 
 // Current largest chunk is the entry, 723.4 KB. The spec layer used to load
 // in one piece, and this comment used to say check-spec-globals required that —
@@ -908,6 +898,76 @@ const sentryChunks = sized.filter(({ f }) => {
 const SENTRY_IN = sentryChunks.length > 0;
 const sentryKb = sentryChunks.reduce((n, s) => n + s.kb, 0);
 
+// ── IS THE V2 LIVE PATH IN THIS BUNDLE? Asked of the bundle ──────────
+//
+// `import.meta.env.VITE_V2_LIVE` is a build-time replacement, so in a demo
+// build it folds to `false` and rolldown shakes out everything behind
+// `LIVE.enabled` — which is what makes the question answerable from dist/
+// at all. It also means the flag's own string survives in neither build,
+// so the marker has to be something the live path REACHES.
+//
+// Firestore collection ids, and deliberately: each one has a `match`
+// block in firestore.rules, which `check:data-inventory` then forces to be
+// either a row in docs/data-inventory.md (`v2_attention`) or an exemption
+// carrying its reason (`v2_meta`, `v2_questions` — content and config, not
+// user data). Neither can be renamed quietly, and renaming a live
+// collection is a migration rather than a rename. Measured on this tree, the same command
+// with the flag the only difference, and again with the DSN removed to
+// confirm the two axes are independent:
+//
+//                   chunks LIVE   chunks DEMO
+//   v2_meta              1             0
+//   v2_questions         1             0
+//   v2_attention         1             0
+//
+// The obvious markers are the ones that do NOT work: `v2_users` and
+// `v2_answers` are in 3 chunks of both builds, because circle.ts and
+// cohort.ts reach them from code no flag folds away.
+//
+// ALL of them, not any: the direction that must not happen is a demo
+// bundle graded as the shipping one, and requiring every marker means a
+// demo build would have to retain all three by accident. The other
+// direction — a live build refused because someone renamed a collection —
+// costs a rebuild and names the missing marker in the message, which is
+// the failure this gate is supposed to have.
+const LIVE_MARKERS = ["v2_meta", "v2_questions", "v2_attention"];
+const liveMarkersSeen = LIVE_MARKERS.filter((m) =>
+  sized.some(({ f }) => readFileSync(join(ASSETS, f), "utf8").includes(m)));
+const LIVE_IN = liveMarkersSeen.length === LIVE_MARKERS.length;
+
+if (!DEMO && !LIVE_IN) {
+  console.error(
+    "check-bundle: this gate describes the SHIPPING bundle, and dist/ was\n"
+    + "not built as one — of "
+    + LIVE_MARKERS.map((m) => `\`${m}\``).join(", ")
+    + `, dist/assets carries ${liveMarkersSeen.length ? liveMarkersSeen.join(", ") : "none"}.\n`
+    + "This is read from the BUILD OUTPUT, so setting VITE_V2_LIVE for this\n"
+    + "process will not change the answer — rebuild.\n\n"
+    + "  Build and check the bundle that ships:\n"
+    + "    VITE_V2_LIVE=true VITE_SENTRY_DSN=https://ci@example.invalid/0 npm run build\n"
+    + "    npm run check:bundle\n\n"
+    + "  The DSN is load-bearing too and for a different reason: without it\n"
+    + "  the Sentry chunk is provably dead and rolldown drops it, so the\n"
+    + "  TOTAL comes out ~100 KB light. Any non-empty string restores it.\n\n"
+    + "  To measure a demo build on purpose, pass --demo. That reports the\n"
+    + "  numbers and applies no ceiling, because they are not this app's.",
+  );
+  process.exit(1);
+}
+
+// The same refusal the other way. `--demo` applies no ceiling and says the
+// numbers are not this app's — over a live dist/ that is the identical
+// wrong-artifact claim, just quieter, and it would report the shipping
+// bundle's weight as the demo's.
+if (DEMO && LIVE_IN) {
+  console.error(
+    "check-bundle: --demo says these numbers are a demo build's, and dist/\n"
+    + `carries the live path (${liveMarkersSeen.join(", ")}). Rebuild without\n`
+    + "VITE_V2_LIVE to measure a demo, or drop --demo to grade this one.",
+  );
+  process.exit(1);
+}
+
 // ── the eager graph ─────────────────────────────────────────────────
 //
 // Vite writes the entry as a <script type="module"> and every STATIC
@@ -1107,19 +1167,21 @@ if (failed) {
 // was a question of WHICH bundle got measured, so a log line saying "OK"
 // without saying "of what" is the one that let four builds through.
 // "SHIPPING bundle (VITE_V2_LIVE=true)" was itself an artifact claim that
-// could be false: the flag says the V2 half is in, and says nothing about
-// Sentry. Both halves are named now, so the line cannot assert more than
-// was measured.
+// could be false twice over: the flag said the V2 half is in and said
+// nothing about Sentry, and it was read off this process's environment
+// rather than off dist/, so it could be false about the V2 half too. Both
+// halves are named now and both are read from the build output, so the
+// line cannot assert more than was measured.
 console.log(
   SENTRY_IN
-    ? `bundle budget OK — SHIPPING bundle (VITE_V2_LIVE=true, Sentry in, `
+    ? `bundle budget OK — SHIPPING bundle (V2 live path in dist, Sentry in, `
       + `${sentryKb.toFixed(0)} KB over ${sentryChunks.length} chunk(s)), `
       + `${totalKb.toFixed(0)} KB total / ${eagerKb.toFixed(0)} KB eager `
       + `(max ${MAX_TOTAL_JS_KB} / ${MAX_EAGER_KB}); `
       + `${blockingCssKb.toFixed(0)} KB blocking css / ${cssKb.toFixed(0)} KB css total `
       + `/ ${fontKb.toFixed(0)} KB fonts `
       + `(max ${MAX_BLOCKING_CSS_KB} / ${MAX_CSS_KB} / ${MAX_FONT_KB})`
-    : `bundle budget OK on what was gradable — VITE_V2_LIVE=true, Sentry OUT, `
+    : `bundle budget OK on what was gradable — V2 live path in dist, Sentry OUT, `
       + `${eagerKb.toFixed(0)} KB eager (max ${MAX_EAGER_KB}); `
       + `total ${totalKb.toFixed(0)} KB ungraded`,
 );
