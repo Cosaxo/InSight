@@ -842,8 +842,23 @@ class DailySplit extends React.Component {
       })();
     const sheetHost = typeof document !== 'undefined' ? document.querySelector('.app') : null;
     // context is the one panel that opens before you answer — that is the point of it
+    // THE SAME TOTAL THE CARD PRINTS, and only when there is one.
+    //
+    // This summed `o.count` on its own — without the viewer's own vote,
+    // which `counts` adds a hundred lines above — so the sheet read
+    // exactly one lower than the "N votes" on the card it opens from. And
+    // it pushed the row unconditionally, so the first person to answer
+    // today saw "1 vote" on the card and "Answers 0" one tap away: a false
+    // zero on a live surface, which D1 forbids, contradicting the card
+    // behind it. The feed's twin has always guarded the same row with
+    // `if (n)`; the daily's is the outlier.
+    const ctxRows = [['Asked in', catLabel || 'Today']];
+    if (total >= 1) {
+      ctxRows.push(['Answers', total >= 1000 ? (total / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : String(total)]);
+    }
+    ctxRows.push(['On your map', S.region || 'Interests']);
     const ctxBody = h('div', { style: { padding: '2px 0 14px', display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: 14, rowGap: 9, alignItems: 'baseline' } },
-      [['Asked in', catLabel || 'Today'], ['Answers', (function () { const n = S.options.reduce((a, o) => a + (o.count || 0), 0); return n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : String(n); })()], ['On your map', S.region || 'Interests']]
+      ctxRows
         .map(([k, v]) => h(F, { key: k },
           h('span', { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', whiteSpace: 'nowrap' } }, k),
           h('span', { style: { fontSize: 13.5, fontWeight: 700, color: INK } }, v))));

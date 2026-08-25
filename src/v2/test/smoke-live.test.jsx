@@ -1949,6 +1949,36 @@ describe("live mode never inherits the sample persona (D55)", () => {
     expect(container.textContent).toMatch(/\d+\s*%/);
   });
 
+  // The daily's ⓘ sheet, which opens BEFORE you answer — that is what it is
+  // for. It summed the raw option counts on its own, without the viewer's
+  // own vote that the card a tap behind it includes, and it pushed the
+  // Answers row unconditionally. So the first person to answer today saw
+  // "1 vote" on the card and "Answers 0" in the sheet: a false zero on a
+  // live surface, contradicting the card it opened from. The feed's twin
+  // has always guarded the same row.
+  it("the daily's info sheet omits the answer count rather than printing a zero", () => {
+    const expectNoBoundary = mountLive({}, (l) => {
+      // A live question nobody has answered yet: the deck is real, the
+      // aggregate holds nothing.
+      l.LIVE.deck = () => [{
+        id: "daily-000", cat: "culture", text: "Would you rather know, or be known?",
+        options: [{ id: "a", label: "Know", count: 0 }, { id: "b", label: "Be known", count: 0 }],
+        comments: [], friends: [],
+      }];
+    });
+    // The daily card's own ⓘ is the FIRST — the feed below has one per card.
+    fireEvent.click(screen.getAllByRole("button", { name: /About this question/i })[0]);
+    expectNoBoundary("daily/live/ctx-sheet");
+    // The sheet's own rows are the proof it opened — "On your map" is the
+    // one that always draws, whatever the counts say.
+    expect(screen.getByText("On your map"), "the info sheet did not open").toBeTruthy();
+    expect(screen.getByText("Asked in")).toBeTruthy();
+    expect(
+      document.body.textContent,
+      "a live question with no answers printed a zero count",
+    ).not.toMatch(/Answers\s*0(?!\d)/);
+  });
+
   // The card's `self` — "you: …" — had two shapes reaching it and handled
   // one. map-anchors.js builds the demo row as `age {n}` ("age 34") and the
   // LIVE row as `age {ageBand}` ("age 25-34"); mtAnchorSelf stripped every
