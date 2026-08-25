@@ -21,7 +21,8 @@
 //    own header counts four instances, two of them inside the paragraph
 //    warning against it. So the map is not maintained by intention. A doc
 //    added to `docs/`, a README added anywhere, or a `check:*` script added
-//    to package.json fails this gate until the map names it.
+//    to package.json fails this gate until the map names it, and so does a
+//    directory added anywhere the map is expected to reach (rule 8).
 //
 // WHAT IT CHECKS, and what each rule caught or exists to catch:
 //
@@ -41,6 +42,14 @@
 //   6. Every path ORIENTATION.md names in backticks exists. A map whose
 //      entries point at moved files is worse than no map, because it reads
 //      as current.
+//   7. The Status column against each document's own declaration, in both
+//      directions — a plan read as a description of the tree is the most
+//      expensive mistake this page can cause, and a plan that gets built
+//      updates its own header and nothing else notices.
+//   8. Every directory is named in ORIENTATION.md §3 — the third thing that
+//      page's opening line promises and the only one that was a convention
+//      rather than a rule. It had drifted to four when the rule was added:
+//      `src/dev/`, `public/`, `android/` and `ios/`.
 //
 // WHAT IT DOES NOT CHECK, so the next reader does not assume more:
 // nothing here reads whether a description is TRUE. Rule 2 asks that
@@ -253,7 +262,7 @@ if (write) {
 
 const ORIENTATION = "docs/ORIENTATION.md";
 const orientation = existsSync(join(root, ORIENTATION)) ? read(ORIENTATION) : null;
-const checked = { docs: 0, readmes: 0, gates: 0 };
+const checked = { docs: 0, readmes: 0, gates: 0, dirs: 0 };
 if (!orientation) fail(`${ORIENTATION} is missing — it is the map every other rule here checks`);
 
 /**
@@ -403,6 +412,70 @@ if (orientation) {
     else if (path.endsWith("/") && !statSync(join(root, target)).isDirectory())
       fail(`${ORIENTATION} names \`${path}\` as a directory, but it is a file`);
   }
+
+  // Rule 8 — every directory, which is the third thing this page's opening
+  // line promises ("every document, every gate, every directory") and the
+  // one nothing held. Rules 2, 3 and 4 are the same shape for docs, READMEs
+  // and gates; without this one the directory half was a convention, and it
+  // drifted exactly the way a convention does. When this rule was written it
+  // found four: `src/dev/` (a module the shell dynamic-imports), `public/`
+  // (every catalogue file an answer is keyed into, plus the webfonts),
+  // and `android/` and `ios/` — the entire native half of a product whose
+  // own first paragraph calls itself a Capacitor app. A map that silently
+  // omits a directory is worse than one that says it does not cover it,
+  // because it reads as complete.
+  //
+  // SCOPE, and why it stops where it does: every top-level directory, plus
+  // every directory under `src/` and `.github/` — the two trees where a
+  // nested directory holds code somebody has to find. Everywhere else one
+  // level deeper is inventory rather than a map: it would demand a row for
+  // `public/fonts/` and `web/.well-known/`, and then for
+  // `android/app/src/main/res/…`, which the Capacitor toolchain owns and
+  // regenerates on `cap sync`.
+  //
+  // NAMED means reachable, not formatted: the page may name the directory
+  // itself or any path inside it, so `functions/src/` accounts for
+  // `functions/`, `web/privacy.html` for `web/`, and a row whose path cell
+  // carries two directories (`android/` · `ios/`) satisfies both. What the
+  // rule refuses is a directory the page never mentions in any form.
+  //
+  // The skip set is read from .gitignore rather than hardcoded, so a build
+  // output directory added there is skipped here without a second edit —
+  // the failure mode of a hand-kept list being a red gate on someone else's
+  // `dist-ssr/`. Only plain top-level entries count (no slash inside, no
+  // glob), which is exactly the shape of the directory entries there.
+  const ignored = new Set([
+    ".git",
+    ...read(".gitignore")
+      .split("\n")
+      .map((l) => l.trim())
+      .filter((l) => l && !l.startsWith("#") && !l.startsWith("!"))
+      .filter((l) => !/[*?[\]]/.test(l) && !l.slice(0, -1).includes("/"))
+      .map((l) => l.replace(/\/$/, "")),
+  ]);
+  const subdirs = (dir) =>
+    readdirSync(join(root, dir), { withFileTypes: true })
+      .filter((e) => e.isDirectory() && !ignored.has(e.name))
+      .map((e) => (dir === "." ? e.name : `${dir}/${e.name}`));
+  const dirs = [];
+  const walk = (dir) => {
+    for (const child of subdirs(dir)) {
+      dirs.push(child);
+      walk(child);
+    }
+  };
+  dirs.push(...subdirs("."));
+  walk("src");
+  walk(".github");
+  dirs.sort();
+  checked.dirs = dirs.length;
+  for (const dir of dirs) {
+    if (!orientation.includes(`${dir}/`))
+      fail(
+        `${ORIENTATION} §3 does not name ${dir}/ — the page claims to map every directory, ` +
+          `so add a row for it or a path inside it`,
+      );
+  }
 }
 
 if (errors.length) {
@@ -423,6 +496,7 @@ if (!write) {
   // not have. That is the failure this whole script is about.
   console.log(
     `doc-index OK — ${records.filter((r) => r.kind === "record").length} decisions indexed; ` +
-      `${ORIENTATION} maps ${checked.docs} docs, ${checked.readmes} READMEs and ${checked.gates} gates.`,
+      `${ORIENTATION} maps ${checked.docs} docs, ${checked.readmes} READMEs, ${checked.gates} gates ` +
+      `and ${checked.dirs} directories.`,
   );
 }

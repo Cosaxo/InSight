@@ -118,6 +118,27 @@ const DEFINE_RES = [
   /\(\s*(?:globalThis|window)\s+as\s+[^)]*\)\.([A-Za-z_$][\w$]*)\s*=[^=]/g,
 ];
 const REF_RE = /(?:globalThis|window)\.([A-Za-z_$][\w$]*)/g;
+// The READ side of the cast form, and the exact mirror of the D280 entry in
+// DEFINE_RES above:
+//
+//   (window as { IS_DATA?: { … } }).IS_DATA?.me
+//
+// D280 taught this scanner to see a cast WRITE and stopped there, which left
+// the other half of the same blind spot open — and it was not empty.
+// `data/pulse.ts` read `window.IS_DATA` in this shape long after
+// `sample-data.js` came off the bridge and stopped assigning to `window` at
+// all, so rule 1 had a dangling reference in front of it and could not match
+// the line. The name resolved to undefined on every demo build and the
+// pulse card's city and country scopes silently drew "Your city" and "Your
+// country" instead of the room's own place. Its neighbour two lines up read
+// `window.IS_PULSE_HISTORY`, which nothing in the tree has ever written.
+//
+// Adding it costs the other rules nothing. Rule 5 asks a word-boundary
+// question over all of src/ and never consults `referenced`; rule 6 filters
+// its readers to files that are not the publisher, so a cast write inside
+// the publishing file cannot mask it; and rule 4 counts a reference only
+// when ANOTHER file assigns the name, which a self-write is not.
+const CAST_REF_RE = /\(\s*(?:globalThis|window)\s+as\s+[^)]*\)\.([A-Za-z_$][\w$]*)/g;
 // The publication idiom READS THE NAME IT PUBLISHES, and that made rule 5
 // unable to fire on a whole class. `;globalThis.X = typeof X === 'undefined'
 // ? globalThis.X : X;` contains a `globalThis.X` on its right-hand side, so
@@ -251,6 +272,8 @@ for (const file of files) {
     REF_RE.lastIndex = 0;
     let m;
     while ((m = REF_RE.exec(scanLine))) note(m[1]);
+    CAST_REF_RE.lastIndex = 0;
+    while ((m = CAST_REF_RE.exec(scanLine))) note(m[1]);
     // A capitalised JSX tag resolves through the shared global scope at
     // render time, exactly like window.X — and renaming a component while
     // missing one call site was caught by NOTHING before this rule: the

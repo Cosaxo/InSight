@@ -1,9 +1,18 @@
 // The pulse store (D139, roster at D203) — the design's PULSE contract
 // (design/standalone-v28/pulse-data.js), typed, in two honest modes:
 //
-//   · DEMO — the prototype room: seeded histories (one per honest case:
-//     typical, gap, day-one, perfect), invented crowds, localStorage
-//     answers. The design's furniture, verbatim.
+//   · DEMO — the prototype room: one seeded history, invented crowds,
+//     localStorage answers. The design's furniture, verbatim.
+//
+//     The prototype carried four seeded histories — typical, gap, day-one,
+//     perfect — and a `window.IS_PULSE_HISTORY` knob on the tweak panel to
+//     pick between them (design/standalone-v28/pulse-data.js). The port
+//     took the READ and not the knob, and v28 §5 then dismantled the tweak
+//     laboratory into shipped defaults, so the name was never written on
+//     any build: three of the four arrays were unreachable and the read was
+//     a cast, which is the one shape check:globals could not see (D280).
+//     The honesty rules below are what those cases existed to exercise, and
+//     pulse.test.ts exercises them directly instead of through a seed.
 //   · LIVE — your days from the hydrated vote mirror (zero extra reads),
 //     the crowd from the PER-DAY aggregate docs the untouched trigger
 //     publishes, session-cached, poll-not-stream (D124/D129; the costs
@@ -37,6 +46,16 @@
 //   · no smoothing, no rolling mean, no invented baseline anywhere
 import LIVE from "./live";
 import { getDb, getFirestoreApi } from "../../lib/firebase";
+// The demo room's "me" — an ESM import because sample-data.js came off the
+// global bridge and publishes nothing to `window`. This read was
+// `window.IS_DATA?.me`, a cast, and a cast is exactly what check:globals
+// could not see (D280): the name resolved to undefined on every demo build
+// and the city and country scopes silently drew "Your city" / "Your
+// country" instead of the room's own place.
+// @ts-expect-error TS7016 — untyped spec module (the live.ts / testNorms.ts
+// pattern). Only two optional string fields are read, and they are typed
+// at the use site rather than assumed here.
+import { IS_DATA } from "../spec/sample-data.js";
 
 /** The pulse the card opens on, and the only one that existed before
  * D203. Kept as a named export because it is also the id whose option set
@@ -87,12 +106,9 @@ const DEMO_ROSTER: { id: string; kicker: string; text: string; steps: string[]; 
   { id: "pulse-social", kicker: "social pulse", text: "How connected did you feel?", cad: "off",
     steps: ["Alone", "Distant", "OK", "Close", "Held"] },
 ];
-const HISTORY: Record<string, (number | null)[]> = {
-  typical: [3, 4, 4, null, 3, 2, 3, 4, 4, 4, null, 3, 3, 4, 5, 4, null, 3, 4, 4, null],
-  gap: [4, 3, 3, 4, 4, 3, 4, null, null, null, null, null, null, null, 3, 4, 4, 3, 4, 4, null],
-  day1: Array(21).fill(null),
-  perfect: [4, 4, 3, 4, 5, 4, 4, 3, 4, 4, 5, 5, 4, 4, 3, 4, 4, 5, 5, 4, null],
-};
+/** The demo room's seeded history. `null` is a day nobody answered — absent,
+ * never zero-filled, which is the first honesty rule this file enforces. */
+const HISTORY: (number | null)[] = [3, 4, 4, null, 3, 2, 3, 4, 4, 4, null, 3, 3, 4, 5, 4, null, 3, 4, 4, null];
 const DEMO_SCOPES = [
   { id: "city", short: "city",
     mean: [3.4, 3.5, null, 3.2, 3.3, 3.6, 3.1, 2.9, null, 3.4, 3.5, 3.3, 3.2, 3.6, 3.7, 3.0, 3.3, 3.4, 3.5, 3.6, 3.5],
@@ -378,7 +394,7 @@ function days(pid: string): PulseDay[] {
   const mineLive = LIVE.enabled ? LIVE.pulseVotes(pid) : {};
   const hist = LIVE.enabled
     ? Array(DAYS).fill(null)
-    : HISTORY[(window as { IS_PULSE_HISTORY?: string }).IS_PULSE_HISTORY ?? "typical"] ?? HISTORY.typical;
+    : HISTORY;
   return hist.map((v: number | null, i: number) => {
     const d = dayAt(i);
     const k = utcKey(d);
@@ -443,7 +459,7 @@ function scope(pid: string, id: string): PulseScope {
     return { id, label, short: id, series };
   }
   const s = DEMO_SCOPES.find((x) => x.id === id) ?? DEMO_SCOPES[0];
-  const me = (window as { IS_DATA?: { me?: { location?: string; country?: string } } }).IS_DATA?.me ?? {};
+  const me: { location?: string; country?: string } = IS_DATA.me ?? {};
   const label = s.label || (s.id === "city" ? (me.location || "Your city") : s.id === "country" ? (me.country || "Your country") : "World");
   const cad = cadence(pid);
   const series: ScopeDay[] = s.mean.map((m, i) => {
@@ -541,7 +557,7 @@ export const PULSE = {
     const k = utcKey(dayAt(DAYS - 1));
     const hist = LIVE.enabled
       ? null
-      : HISTORY[(window as { IS_PULSE_HISTORY?: string }).IS_PULSE_HISTORY ?? "typical"] ?? HISTORY.typical;
+      : HISTORY;
     return mineOn(
       k,
       LIVE.enabled ? LIVE.pulseVotes(pid) : {},

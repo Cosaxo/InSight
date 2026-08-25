@@ -20,6 +20,11 @@
 //   5. the mirror of rule 1: a publication nothing reads. That is what a
 //      half-finished conversion leaves behind, and 17 of them had piled
 //      up by D137 because no rule was asking and rule 4 counts reads.
+//   7. a spec module whose components nothing can REACH — neither
+//      exported nor published, so no import and no JSX tag can resolve
+//      them. Rule 5 asks whether a publication has a reader; this asks
+//      whether there is a publication at all. Two files sat inert from
+//      the port until it was added.
 //
 // Rules 1-3 keep the convention SURVIVABLE and rule 5 keeps it HONEST —
 // what is on the bridge is what is still crossing it. Rule 4 is the one
@@ -269,6 +274,65 @@ for (const name of [...defined].sort()) {
       + "\n    reassigned from outside its module (D280). Either give the"
       + "\n    publisher's value a named home the importers call, or delete"
       + "\n    the assignment if the export is already the whole wiring.",
+    );
+  }
+}
+
+// ── 7. a spec module nothing can reach ──────────────────────────
+//
+// THE RULE BEFORE RULE 5. Rule 5 asks whether a published name has a
+// reader. This asks the question underneath it: is the module on the
+// bridge at all? A spec module has exactly two ways out — an `export`,
+// or an assignment to `window`/`globalThis` that a bare JSX tag can
+// resolve at render time. A file that does neither and still defines
+// components is a file no screen can render, and every other gate is
+// green on it: it parses, it lints, tsc never sees it, spec-index.js
+// imports it so rule 2 is satisfied, and it publishes nothing so rules
+// 1, 3, 5 and 6 have no name to hold.
+//
+// It was not hypothetical. `spec/test-viz.jsx` and
+// `spec/profile-test-viz.jsx` came across in the port and were never
+// wired — five components, 325 lines, unreachable from the first
+// commit. The cost was not bytes (rolldown tree-shakes them; measured
+// at 0 KB of the eager graph either way) but belief: VISION-2026-08-24
+// §6 row 3 recorded a colour change to one of them as BUILT, applied at
+// D287 against a screen that does not exist. Both files are gone; the
+// app's saved-result surface is `spec/result-card.jsx` with
+// `spec/result-rose.jsx`'s rose.
+//
+// SCOPE, narrow on purpose. Only files that DEFINE A COMPONENT — a
+// capitalised function or arrow binding — are candidates. The spec layer
+// is full of legitimate side-effect modules that export nothing and
+// publish nothing because their whole job is a listener attached at
+// import time (`sheet-drag.js`, `scroll-memory.js`, `edge-fade.js`,
+// `sheet-escape.js`, `subnav-thumb.js` — five of them today). Those
+// define no components, so they are not candidates, and the rule needs
+// no allowlist to leave them alone.
+//
+// If this fires, the answer is almost never a new exemption. See
+// RUNTIME_ALLOWLIST's own note in spec-globals.mjs: a name parked as
+// known-dead is how dead code starts looking like a feature flag.
+{
+  const COMPONENT_RE =
+    /^(?:function\s+([A-Z][\w$]*)|const\s+([A-Z][\w$]*)\s*=\s*(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>)/gm;
+  for (const file of readdirSync(specDir).sort()) {
+    if (!/\.(js|jsx)$/.test(file)) continue;
+    const src = stripComments(readFileSync(join(specDir, file), "utf8"));
+    if (/^\s*export\s/m.test(src)) continue;
+    if (/(?:globalThis|window)\.[A-Za-z_$][\w$]*\s*=[^=]/.test(src)) continue;
+    if (/Object\.assign\(\s*(?:globalThis|window)\s*,/.test(src)) continue;
+    if (/\(\s*(?:globalThis|window)\s+as\s+[^)]*\)\.[A-Za-z_$][\w$]*\s*=[^=]/.test(src)) continue;
+    COMPONENT_RE.lastIndex = 0;
+    const components = [...src.matchAll(COMPONENT_RE)].map((m) => m[1] || m[2]);
+    if (!components.length) continue;
+    failed = true;
+    console.error(
+      `✗ src/v2/spec/${file} defines ${components.join(", ")} and neither exports`
+      + "\n    nor publishes anything, so nothing can render them: an import has no"
+      + "\n    binding to take and a JSX tag has no global to resolve. Either wire it"
+      + "\n    (export it, or publish it the way its neighbours do) or delete it."
+      + "\n    A side-effect module is exempt by defining no component, not by an"
+      + "\n    allowlist entry.",
     );
   }
 }

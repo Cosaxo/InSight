@@ -65,15 +65,20 @@ both enforced rather than promised:
 | `src/v2/styles.css` | The design system, verbatim from the spec | — |
 | `src/v2/main.jsx` | Styles + spec-index, then renders `globalThis.App` | `src/v2/README.md` |
 | `src/lib/` | Firebase init, anonymous-first auth, emulator wiring, Sentry | `docs/LOCAL-TESTING.md` |
+| `src/dev/` | `TweaksPanel.jsx`, the host-era design-time panel. Behind `import.meta.env.DEV` and a dynamic import, so a production build has no reference to this directory at all and rolldown drops it whole (D223) | `src/v2/README.md` |
 | `functions/src/` | `v2.ts` (seed + aggregates) · `v2social.ts` (groups, duos, reveals, push) · `moderation.ts` · `index.ts` (account deletion) · `ops.ts` (**where `setGlobalOptions` lives**) · `pure.ts` (the fold arithmetic) | `functions/README.md`, `docs/SCHEMA-V2.md` |
 | `firestore.rules` | The access model. `firestore.rules.v1-archive` is the retired v1 client's rules — reference, NOT deployed | `docs/data-inventory.md` |
 | `firestore-tests/` | Rules tests and the three e2e suites against emulated functions | `firestore-tests/README.md` |
 | `content/` | The canonical question banks and archetypes — the seed source | `content/README.md`, `docs/QUESTION-FARM.md` |
+| `public/` | What Vite serves from the bundle root: the catalogue files answers are keyed into (`public/cities.txt`, `public/pokedex.txt`, `public/elements.txt` and the rest) and the webfonts. Fetched through `BASE_URL` rather than an absolute path — the Capacitor shells serve from a local file root, where a leading slash resolves off the device | `docs/CATALOG-QUESTIONS.md` |
 | `scripts/` | Every gate and every catalogue builder. Each opens with why it exists, and several with what they caught | the script's own header |
 | `monitoring/` | Cloud Monitoring policies, applied by hand rather than by the pipeline, plus the pulse console's rate card | `docs/MONITORING.md` |
+| `web/` | The Firebase Hosting root (`firebase.json` → `hosting.public`) — the marketing home, the `/join/**` link target, terms, and `web/.well-known/` for the two app-link association files. **Not the app**: the app is what Vite builds out of `index.html` | `docs/DEPLOYMENT.md` |
 | `web/privacy.html` | The one place the long privacy disclosure lives (D183). `check:policy-claims` holds it to the app | `docs/COPY.md` §3 |
+| `android/` · `ios/` | The Capacitor shells, committed so the apps build from a clean clone. `npx cap sync` copies the Vite build in; everything the toolchains generate on top is gitignored | `docs/IOS-RELEASE.md` |
 | `design/` | The frozen design spec — read-only reference. `design/README.md` maps it; the standalone revisions are the prototype's own history | `design/README.md` |
 | `.github/workflows/` | `backend-checks.yml` is called by **both** `ci.yml` and `firebase-deploy.yml`, so what guards a PR guards production | `docs/DEPLOYMENT.md` |
+| `.github/scripts/` | `report_audit_issue.py` — the weekly dependency audit's issue writer. A file rather than an inline `run:` block, and hand-written rather than a third-party action: the workflow whose subject is supply-chain hygiene adds no SHA of its own to pin | `.github/workflows/security-audit.yml` |
 
 ## 4 · The documents
 
@@ -120,7 +125,7 @@ directions.
 | [`AXES-RUNBOOK.md`](AXES-RUNBOOK.md) | The axes work as an ordered build list run by scheduled routines — the lanes, their canonical prompts, the learning loop, and the gate each step must pass. The lanes are live (D289); every build step is still open | mixed |
 | [`AXIOM-THEORY.md`](AXIOM-THEORY.md) | The theory layer above the axes: eight recurring lanes on an orphan branch writing each source's perfect form and their combination, and the bridge that is their only path into the product. Live since 2026-08-25 | tree |
 | [`ATTENTION.md`](ATTENTION.md) | "Does anyone like this, and what is this person into." No code exists | plan |
-| [`ENGAGEMENT-PLAN.md`](ENGAGEMENT-PLAN.md) | The 2026-08-23 ask — measure what engages and what bores — against the standing analytics refusals: the two-channel design and the record each rung reverses. Rung 0 (the digest) is built at D268; rungs 1–2 are not | mixed |
+| [`ENGAGEMENT-PLAN.md`](ENGAGEMENT-PLAN.md) | The 2026-08-23 ask — measure what engages and what bores — against the standing analytics refusals: the two-channel design and the record each rung reverses. The adoptable ladder is built — rung 0 at D268, rung 1 at D270, its per-question map at D271, rung 2 at D272; what stays plan is what the plan refuses, §4.3's event-stream rung and everything §4.4 keeps out | mixed |
 | [`ENGAGEMENT-RUNBOOK.md`](ENGAGEMENT-RUNBOOK.md) | The same work as an ordered build list — phases per rung, sizes, and the gate that proves each step | plan |
 | [`TAGS-PLAN.md`](TAGS-PLAN.md) | Questions carry several topics through one `also` field, and the demand lanes read them without becoming buyable or gameable. Built at D206; §4's tier-2 reading waits on D163 | mixed |
 | [`FORESIGHT-CALLS.md`](FORESIGHT-CALLS.md) | The half of Foresight that asserts a fact. Tier A built and retired in service (D194→D196); tier B is the live question | mixed |

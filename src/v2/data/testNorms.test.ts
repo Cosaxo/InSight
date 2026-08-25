@@ -29,7 +29,6 @@ import {
   hasNorm,
   resetNormCache,
   sampleAxes,
-  testAvg,
   testNorm,
 } from "./testNorms";
 import { CORE_TEST_KINDS, parseTestResults, type KindredPerson } from "./similarity";
@@ -126,15 +125,15 @@ describe("a live build measures or refuses", () => {
   it("refuses every axis when the bank has no aggregates at all", () => {
     live(bank("O", 5), {});
     expect(testNorm("big5").src).toBe("measured");
-    expect(testAvg("big5")).toEqual({});
+    expect(testNorm("big5").avg).toEqual({});
     expect(hasNorm("big5")).toBe(false);
   });
 
   it("never falls back to the authored constants when it refuses", () => {
-    // The whole point of the seam. A caller reading `testAvg` on a young
+    // The whole point of the seam. A caller reading the averages on a young
     // install gets nothing to draw — not 60, which is what shipped.
     live(bank("O", 5), {});
-    expect(testAvg("big5").O).toBeUndefined();
+    expect(testNorm("big5").avg.O).toBeUndefined();
   });
 
   it("scores an axis with enough answers behind enough items", () => {
@@ -153,7 +152,7 @@ describe("a live build measures or refuses", () => {
   it("refuses an axis under the answer floor", () => {
     const items = bank("O", 3);
     live(items, aggs("O", 3, 2, 1));
-    expect(testAvg("big5").O).toBeUndefined();
+    expect(testNorm("big5").avg.O).toBeUndefined();
   });
 
   it("refuses an axis carried by a single item", () => {
@@ -161,7 +160,7 @@ describe("a live build measures or refuses", () => {
     // question's mean, not the axis's.
     const items = bank("O", 1);
     live(items, aggs("O", 1, 2, NORM_MIN_ANSWERS * 10));
-    expect(testAvg("big5").O).toBeUndefined();
+    expect(testNorm("big5").avg.O).toBeUndefined();
   });
 
   it("re-reads when the aggregate coverage changes", () => {
@@ -172,7 +171,7 @@ describe("a live build measures or refuses", () => {
     expect(hasNorm("big5")).toBe(false);
     const filled = aggs("O", 3, 4, NORM_MIN_ANSWERS);
     L.aggFor = (qid: string) => (filled[qid] as never) ?? null;
-    expect(testAvg("big5").O).toBe(100);
+    expect(testNorm("big5").avg.O).toBe(100);
   });
 });
 
