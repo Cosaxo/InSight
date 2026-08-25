@@ -996,6 +996,54 @@ service cloud.firestore {
         && resource.data.surface in ["daily", "feed", "test", "learn", "pulse", "call"];
     }
 
+    // ─── the other two collection-group reads ──────────────────────
+    //
+    // Same mechanism as the block above, and for a long time they did
+    // not have it. The client issues exactly three collection-group
+    // queries; only `answers` had a rule. So `fetchInvites`
+    // (data/socialFetch.ts) and `fetchFollowersOf` (data/circle.ts) were
+    // refused with "No matching allow statements" on every call — an
+    // invitations inbox that is permanently empty and a follow that
+    // never reads as mutual. Both failed into Sentry rather than into
+    // anything a user could report, and the rules suite stayed green
+    // because it exercises both collections at their FIXED paths, which
+    // are granted. A collection-group query is a different rule and
+    // needs its own test; there are two below.
+    //
+    // VALUE tests on `to`, for the D65 reason the answers block states:
+    // a list query must carry a matching `where` or Firestore refuses
+    // the whole query rather than filtering it. `to` exists on both
+    // documents precisely because a collection-group query cannot filter
+    // on a document id — inviteToGroupV2 says exactly that where it
+    // denormalises the field, and the follow create rule pins
+    // `to == targetUid` so the field and the id cannot disagree. The
+    // field was added for these queries; only the grant was missing.
+    //
+    // BOTH ARE NARROWER THAN THEIR FIXED-PATH GRANTS, and the follow one
+    // is deliberately so. A named follow reads openly at its own path;
+    // repeating that clause here would also grant "list the whole follow
+    // graph", which is a different exposure from "read the edge you
+    // already hold a name for" and one nothing asks for —
+    // fetchFollowersOf only ever asks `to == me`. So this is the
+    // caller's own inbound edges and no enumeration. It also keeps the
+    // fixed-path comment's offer honest: reversing that grant to
+    // owner-only is still the one-line change it says it is, because
+    // this block is already tighter than the line it would replace.
+    //
+    // Scope check, as above: `invites` and `following` each name exactly
+    // one collection in this database, and the retired v1 subtrees are
+    // insight_users/*/relations, insight_daily and
+    // insight_inbound_impressions. A future collection by either name
+    // silently joins these grants.
+    match /{path=**}/invites/{invitedUid} {
+      allow read: if request.auth != null
+        && resource.data.to == request.auth.uid;
+    }
+    match /{path=**}/following/{targetUid} {
+      allow read: if request.auth != null
+        && resource.data.to == request.auth.uid;
+    }
+
     // App/content metadata — contentRev (bank cache invalidation),
     // latestBuild/minBuild (update prompts). Operator/seed-written.
     match /v2_meta/{docId} {

@@ -285,15 +285,23 @@ jobs:
       # The bundle ships inside a native package, so the cost is parse and
       # eval rather than network — but nothing was watching it move.
       #
-      # The variable is repeated rather than hoisted to job level on purpose:
-      # check:bundle now REFUSES to grade a build that was not made as the
-      # shipping one, and it reads the flag from its own environment. Passing
-      # it here is the assertion that these two steps agree about which
-      # bundle they are talking about — the exact thing that was untrue
-      # between this job and ios-release.yml.
+      # No env on this step, and its absence is the point.
+      #
+      # It used to carry VITE_V2_LIVE, explained here as "the assertion that
+      # these two steps agree about which bundle they are talking about".
+      # That was a convention between two steps, not an assertion — the
+      # script had no way to notice when they disagreed, because it read the
+      # flag from its own environment and the bundle from dist/. A build
+      # step that FAILS leaves the previous dist/ behind, and the check then
+      # graded a stale demo artifact and announced it as the shipping
+      # bundle. Reproduced; 13 KB light on the eager graph it exists to
+      # hold.
+      #
+      # check:bundle asks dist/ now (scripts/live-markers.mjs), so there is
+      # nothing left for the two steps to agree ABOUT. Setting the variable
+      # here would change no outcome and would restore the impression that
+      # it does.
       - run: npm run check:bundle
-        env:
-          VITE_V2_LIVE: "true"
 
   unit-tests:
     runs-on: ubuntu-latest

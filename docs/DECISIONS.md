@@ -28966,3 +28966,135 @@ A real fix is server-side — a callable the outgoing session calls before
 its credentials go, or a sweep keyed on the switch — and is not attempted
 here. The exposure is bounded, three hours at worst, against a change to
 the auth teardown path on the same morning as twenty-three other fixes.
+
+## D287 · Two grants that were never written, and an artifact claim that was still an environment variable
+
+**2026-08-25.** **Status:** binding. Two fixes from an audit of the whole
+tree, unrelated to each other except in how they survived: both sat under
+a green suite, and in both cases every piece around them had been built
+correctly.
+
+### F1 · The collection-group grant the rest of the feature already assumed
+
+`firestore.rules` held exactly one recursive-wildcard match,
+`match /{path=**}/answers/{aid}`, and its comment states the rule
+correctly — without such a block a collection-group read "works for your
+own answers and refuses every cross-user surface". The client issues
+**three** collection-group queries. Two had no rule.
+
+Measured against the committed rules on the Firestore emulator, with the
+query shapes copied from the call sites:
+
+```
+ALLOWED  collectionGroup("answers")
+DENIED   collectionGroup("invites")    -> No matching allow statements
+DENIED   collectionGroup("following")  -> No matching allow statements
+```
+
+So `fetchInvites` (`data/socialFetch.ts`) was refused on every call — the
+circle and group **invitations inbox was permanently empty** — and
+`fetchFollowersOf` (`data/circle.ts`) was refused too, so no follow ever
+read as mutual. Both failures went to Sentry, not to anything a user
+could report.
+
+**Everything else had been done.** `to` is denormalised onto both
+documents *specifically* so a collection-group query can filter on it —
+`inviteToGroupV2` says so in the comment above the write, naming
+`fetchFollowersOf` as the precedent — and `firestore.indexes.json`
+already carried the `invites (to, at)` composite at `COLLECTION_GROUP`
+scope. The field was added for these queries and the index was built for
+them. Only the grant was missing.
+
+**Why 140 tests did not see it.** The suite exercises both collections at
+their FIXED paths, which were granted the whole time. A collection-group
+read is a different rule, and no test issued one. The six cases added
+here are written the way the CLIENT writes them — same filters, same
+order, same limit — because a fixed-path test provably cannot stand in
+for one: reverted against the new tests, exactly the two positive cases
+go red.
+
+Both new grants are **value tests on `to`**, and both are **narrower than
+their fixed-path grants**. The follow one deliberately so: a named follow
+reads openly at its own path, but repeating that clause under a recursive
+wildcard would also grant "list the entire follow graph", which is a
+different exposure from "read the edge you hold a name for" and one
+nothing asks for. Four refusal cases pin that — an unfiltered sweep of
+either collection, the same query aimed at someone else's uid, a
+signed-out caller, and writes.
+
+### F2 · D198's fix stopped one variable short of the class it named
+
+D198 moved `SENTRY_IN` out of `process.env` and into `dist/`, and wrote
+down the general rule while doing it: "refusing to grade the wrong
+artifact is the property that cannot rot — and an artifact claim read off
+the environment is exactly the kind that rots."
+
+The clause on the next screen was `process.env.VITE_V2_LIVE !== "true"`:
+the FOUNDING variable, the one the verdict line is named after, still
+read from the environment of the process running the check. Reproduced —
+`dist/` built with no flag, then `VITE_V2_LIVE=true npm run check:bundle`:
+
+```
+bundle budget OK — SHIPPING bundle (VITE_V2_LIVE=true, Sentry in,
+103 KB over 3 chunk(s)), 2048 KB total / 735 KB eager
+```
+
+against a real shipping build of the same tree at **2063 KB total / 748
+KB eager / 120 chunks**. Both ceilings applied to numbers 15 and 13 KB
+light, under a line asserting which bundle it had measured. `ci.yml`
+described the duplicated variable as "the assertion that these two steps
+agree about which bundle they are talking about"; it was a convention,
+and the script had no way to notice when it did not hold. A `vite build`
+that FAILS leaves the previous `dist/` in place, which is how this was
+found — by an accidental failed build, not by looking for it.
+
+`check:web-firebase` had the same hole in the same variable, and it
+matters more there because it stands on the release path. Its own header
+argues that asserting the variables are SET is not enough — "the question
+is whether the build that exists on disk was produced with them" — and it
+held the four Firebase values to that and took VITE_V2_LIVE on trust. A
+`dist/` with a full Firebase config and no flag passed it, which is
+precisely the artifact its closing message describes: "a WORKING demo
+app, signed and uploadable".
+
+**Fixed by asking `dist/`**, the same way D198 did. `VITE_V2_LIVE` leaves
+no value in the output — it is compared against the literal `"true"`
+inside `live.ts`, so what survives is the code it kept — so the markers
+are the live read path's own vocabulary. Measured across four builds,
+because `ci.yml` builds with the flag and **no Firebase config** and a
+marker riding on `firebaseEnabled` would have failed every PR and passed
+every release:
+
+| marker | demo, no fb | LIVE, no fb (`ci.yml`) | demo +fb | LIVE +fb (release) |
+| --- | ---: | ---: | ---: | ---: |
+| `v2_questions` | 0 | 1 | 0 | 1 |
+| `v2_meta` | 0 | 1 | 0 | 1 |
+| `insight.bankCache.v2` | 0 | 1 | 0 | 1 |
+| ~~`patternsBasis`~~ | 1 | 1 | 1 | 1 |
+
+The last row is kept as the warning: the patterns vocabulary survives
+dead-code elimination, so a live-SOUNDING string can sit in every build.
+Chunk names split the builds too — `deviceBind` and `engagement` are
+emitted only in a live one — and are refused for D198's reason, that a
+rolldown output name is not a promise.
+
+**ALL markers are required, not any**, and the direction is the whole
+point: a missing marker refuses to grade and names itself, while one
+leaked marker under `.some()` would grade a demo bundle and announce it
+as the shipping one. The list lives in `scripts/live-markers.mjs` rather
+than in two copies, because a copy kept in step by a comment is what
+`check:logic-sync` and `check:calls` exist to prevent; its test pins the
+answer's shape and specifically that partial presence still reads as
+missing — flipped to `.some()`, that case goes red.
+
+The verdict line now says `live path in, 3/3 markers` instead of quoting
+an environment variable in a sentence about an artifact, and the env is
+off the `ci.yml` check step: there is nothing left for the two steps to
+agree about.
+
+### What this cost the documentation
+
+`check:figures` caught the six new rules tests immediately — four prose
+figures across `README.md`, `docs/LOCAL-TESTING.md` and
+`docs/SCHEMA-V2.md` still said 140. Fixed to 146. The gate working as
+designed, on the one documentation error this repo keeps re-committing.

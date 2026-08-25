@@ -33,6 +33,8 @@ import {
   getDocs,
   query,
   where,
+  orderBy,
+  limit as fsLimit,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -2699,6 +2701,107 @@ describe("circle invitations (D122)", () => {
     // …and cannot let themselves in.
     await assertFails(updateDoc(doc(asUser(FRIEND), "v2_groups", GID), {
       memberUids: [OWNER, FRIEND],
+    }));
+  });
+});
+
+// The three collection-group queries the client actually issues.
+//
+// WHY THIS BLOCK EXISTS. A collection-group read is matched by a rule
+// with a recursive wildcard, never by the fixed-path grant — and for a
+// long time only `answers` had one. `fetchInvites` and `fetchFollowersOf`
+// were refused with "No matching allow statements" on every call, so the
+// invitations inbox was permanently empty and no follow ever read as
+// mutual. Every OTHER piece was in place: `to` is denormalised onto both
+// documents precisely so a collection-group query can filter on it
+// (a query cannot filter on a document id), and firestore.indexes.json
+// already carried the `invites (to, at)` composite at COLLECTION_GROUP
+// scope. Only the grant was missing.
+//
+// Nothing caught it. The suite above exercises both collections at their
+// FIXED paths, which were granted the whole time, so it stayed green; the
+// failure reached Sentry rather than a user-visible error. So these cases
+// are written as the CLIENT writes them — same filters, same order, same
+// limit — because a fixed-path test provably cannot stand in for one.
+describe("collection-group reads: the queries the client issues", () => {
+  const GID = "g_cg";
+  const seedGraph = () => seed(async (db) => {
+    // FRIEND is invited to a circle; STRANGER is invited to another.
+    await setDoc(doc(db, "v2_groups", GID, "invites", FRIEND), {
+      to: FRIEND, from: OWNER, fromName: "Olaf", groupName: "The Crew",
+      mode: "group", at: new Date(),
+    });
+    await setDoc(doc(db, "v2_groups", "g_other", "invites", STRANGER), {
+      to: STRANGER, from: OWNER, fromName: "Olaf", groupName: "Other",
+      mode: "group", at: new Date(),
+    });
+    // OWNER follows FRIEND; STRANGER follows OWNER.
+    await setDoc(doc(db, "v2_users", OWNER, "following", FRIEND), { to: FRIEND, at: new Date() });
+    await setDoc(doc(db, "v2_users", STRANGER, "following", OWNER), { to: OWNER, at: new Date() });
+  });
+
+  // data/socialFetch.ts fetchInvites — verbatim.
+  const invitesQuery = (db: Firestore, me: string) => query(
+    collectionGroup(db, "invites"),
+    where("to", "==", me),
+    orderBy("at", "desc"),
+    fsLimit(20),
+  );
+  // data/circle.ts fetchFollowersOf — verbatim.
+  const followersQuery = (db: Firestore, me: string) => query(
+    collectionGroup(db, "following"),
+    where("to", "==", me),
+    fsLimit(40),
+  );
+
+  it("the invitee reads their own invitations, and gets only their own", async () => {
+    await seedGraph();
+    const snap = await assertSucceeds(getDocs(invitesQuery(asUser(FRIEND), FRIEND)));
+    expect(snap.docs.map((d) => d.id)).toEqual([FRIEND]);
+  });
+
+  it("reads the follows pointing AT them, and gets only those", async () => {
+    await seedGraph();
+    const snap = await assertSucceeds(getDocs(followersQuery(asUser(OWNER), OWNER)));
+    // v2_users/{STRANGER}/following/{OWNER} — the parent names the follower.
+    expect(snap.docs.map((d) => d.ref.parent.parent?.id)).toEqual([STRANGER]);
+  });
+
+  it("refuses the same query aimed at someone else's inbound edges", async () => {
+    await seedGraph();
+    // The value test is on `to`, so asking for a uid that is not yours is
+    // refused at the query rather than filtered out of the result.
+    await assertFails(getDocs(invitesQuery(asUser(STRANGER), FRIEND)));
+    await assertFails(getDocs(followersQuery(asUser(STRANGER), OWNER)));
+  });
+
+  it("refuses an UNFILTERED sweep of either collection", async () => {
+    await seedGraph();
+    // This is what the value test buys, and the reason it is written as a
+    // value test rather than as a per-document condition: without a
+    // matching `where`, Firestore refuses the whole query (D65). Were
+    // this to start passing, "read the edge you hold a name for" would
+    // have quietly become "enumerate the entire follow graph".
+    await assertFails(getDocs(collectionGroup(asUser(OWNER), "invites")));
+    await assertFails(getDocs(collectionGroup(asUser(OWNER), "following")));
+  });
+
+  it("refuses a signed-OUT caller on both", async () => {
+    await seedGraph();
+    const anon = env.unauthenticatedContext().firestore() as unknown as Firestore;
+    await assertFails(getDocs(invitesQuery(anon, FRIEND)));
+    await assertFails(getDocs(followersQuery(anon, OWNER)));
+  });
+
+  it("grants read only — a wildcard write into anyone's subtree stays shut", async () => {
+    await seedGraph();
+    // The answers wildcard makes this argument explicitly; it holds for
+    // both of these too. Writes stay on the uid- and server-bound paths.
+    await assertFails(setDoc(doc(asUser(STRANGER), "v2_groups", GID, "invites", STRANGER), {
+      to: STRANGER, from: OWNER, groupName: "The Crew", at: new Date(),
+    }));
+    await assertFails(setDoc(doc(asUser(STRANGER), "v2_users", OWNER, "following", STRANGER), {
+      to: STRANGER, at: serverTimestamp(),
     }));
   });
 });

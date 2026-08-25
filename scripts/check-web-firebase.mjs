@@ -27,6 +27,7 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { missingLiveMarkers } from "./live-markers.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ASSETS = join(root, "dist", "assets");
@@ -57,13 +58,17 @@ if (missing.length) {
 // VITE_V2_LIVE is a separate gate in src/v2/main.jsx: initLive() returns
 // early unless it is the literal string "true", so a perfect Firebase config
 // with this unset still ships the demo deck. Same failure, different switch.
-if ((process.env.VITE_V2_LIVE || "").trim() !== "true") {
-  errors.push(
-    `VITE_V2_LIVE is "${process.env.VITE_V2_LIVE ?? ""}", not "true".\n`
-    + "  initLive() gates on it before it looks at the Firebase config, so the\n"
-    + "  app renders the demo deck no matter how well configured the rest is.",
-  );
-}
+//
+// IT IS CHECKED AGAINST dist/, DOWN BELOW, and it used to be checked here
+// against process.env — which made this file half a liar. The whole
+// argument in the header is that asserting the variables are SET is not
+// enough, because "the question is whether the build that exists on disk
+// was produced with them"; the four Firebase values were held to that and
+// this one, the switch that decides whether ANY of them get used, was
+// taken on trust. So a dist/ built with a full Firebase config and no
+// VITE_V2_LIVE passed this gate while shipping the demo deck — the exact
+// artifact the closing message describes, "a WORKING demo app, signed and
+// uploadable". Reproduced on this tree before the fix.
 
 // An emulator build points every SDK at localhost. On a user's phone that is
 // not a degraded app, it is an app that cannot reach anything.
@@ -114,6 +119,29 @@ if (notInlined.length) {
     + notInlined.join("\n    ")
     + "\n\n  Build AFTER exporting them — a stale dist/ from an earlier step is the\n"
     + "  usual cause, and it is exactly what this check is for.",
+  );
+}
+
+// The live switch, asked of the artifact — see the note beside REQUIRED.
+//
+// There is no VALUE to look for here the way there is for the four
+// Firebase variables: VITE_V2_LIVE is compared against the literal "true"
+// inside src/v2/data/live.ts, so what survives a build is not the flag but
+// the code it kept. With the flag unset those comparisons fold to false
+// and rolldown drops the live read path, taking its vocabulary with it.
+// The markers themselves, and the four-build measurement that chose them,
+// live in scripts/live-markers.mjs — one file rather than a copy here,
+// because check-bundle.mjs has to ask the identical question and a copy
+// kept in step by a comment is what check:logic-sync exists to prevent.
+const liveMissing = missingLiveMarkers((m) => js.includes(m));
+if (liveMissing.length) {
+  errors.push(
+    "the live read path is NOT in this bundle — VITE_V2_LIVE was not \"true\"\n"
+    + "  for the build that produced dist/.\n    "
+    + `missing markers: ${liveMissing.join(", ")}\n\n`
+    + "  initLive() gates on it before it looks at the Firebase config, so the\n"
+    + "  app renders the demo deck no matter how well configured the rest is.\n"
+    + "  Setting it for THIS process changes nothing; rebuild with it set.",
   );
 }
 

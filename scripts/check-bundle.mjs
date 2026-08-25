@@ -12,6 +12,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { LIVE_MARKERS, missingLiveMarkers } from "./live-markers.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ASSETS = join(root, "dist", "assets");
@@ -98,26 +99,33 @@ const DEMO = process.argv.includes("--demo");
 // environment is exactly the kind that rots. check:web-firebase, its
 // neighbour in that same workflow step, already asserts against `dist/`
 // for this reason, "because a stale dist/ from a reordered step answers
-// that differently". SENTRY_IN is computed where the chunks are, below.
-if (!DEMO && process.env.VITE_V2_LIVE !== "true") {
-  console.error(
-    "check-bundle: this gate describes the SHIPPING bundle, and dist/ was\n"
-    + "not built as one — VITE_V2_LIVE is "
-    + (process.env.VITE_V2_LIVE === undefined
-      ? "unset"
-      : `"${process.env.VITE_V2_LIVE}"`)
-    + " for this process.\n\n"
-    + "  Build and check the bundle that ships:\n"
-    + "    VITE_V2_LIVE=true VITE_SENTRY_DSN=https://ci@example.invalid/0 npm run build\n"
-    + "    VITE_V2_LIVE=true npm run check:bundle\n\n"
-    + "  The DSN is load-bearing too and for a different reason: without it\n"
-    + "  the Sentry chunk is provably dead and rolldown drops it, so the\n"
-    + "  TOTAL comes out ~100 KB light. Any non-empty string restores it.\n\n"
-    + "  To measure a demo build on purpose, pass --demo. That reports the\n"
-    + "  numbers and applies no ceiling, because they are not this app's.",
-  );
-  process.exit(1);
-}
+// that differently".
+//
+// ── AND THEN IT ROTTED ONE VARIABLE OVER, WHICH IS THIS PARAGRAPH ────
+//
+// D198 fixed the fact it had caught and not the class it had named. The
+// clause immediately below this comment used to be
+// `process.env.VITE_V2_LIVE !== "true"` — the FOUNDING variable, the one
+// the verdict line is named after, still read from the environment of the
+// process running the check. So the failure this file exists to refuse
+// stayed reachable, and by an easier route than the DSN's: a `vite build`
+// that FAILS leaves the previous dist/ in place, so the next command
+// grades a stale artifact and names it the shipping bundle. Reproduced on
+// this tree — dist/ built with no flag, then `VITE_V2_LIVE=true npm run
+// check:bundle`:
+//
+//   bundle budget OK — SHIPPING bundle (VITE_V2_LIVE=true, Sentry in,
+//   103 KB over 3 chunk(s)), 2048 KB total / 735 KB eager
+//
+// against a real shipping build of the same tree at 2063 KB / 748 KB /
+// 120 chunks. Both ceilings applied to numbers 13 and 15 KB light, under
+// a line asserting which bundle it had measured.
+//
+// Both halves of the verdict are asked of dist/ now. LIVE_IN is computed
+// where the chunks are, beside SENTRY_IN, and the environment is not
+// consulted at all — which also means `ci.yml` no longer needs to repeat
+// the variable onto the check step to make the two agree. They agree
+// because there is only one thing being asked.
 
 // Current largest chunk is the entry, 723.4 KB. The spec layer used to load
 // in one piece, and this comment used to say check-spec-globals required that —
@@ -866,6 +874,44 @@ const kbOf = (dir, re) => {
 const cssKb = kbOf(ASSETS, /\.css$/);
 const fontKb = kbOf(join(root, "dist"), /\.(woff2?|ttf|otf)$/);
 
+// Every chunk's source, read once. Both questions below are "does any
+// chunk contain this string", and there are two of them over ~120 files.
+const chunkSrc = sized.map(({ f }) => readFileSync(join(ASSETS, f), "utf8"));
+const anyChunkHas = (s) => chunkSrc.some((src) => src.includes(s));
+
+// ── IS THIS THE SHIPPING BUNDLE? Asked of the bundle ─────────────────
+//
+// The markers, why they are markers rather than chunk names, and the
+// four-build measurement that chose them, are all in
+// scripts/live-markers.mjs — shared with check-web-firebase.mjs, which
+// has to answer the same question on the release path.
+const liveMissing = missingLiveMarkers(anyChunkHas);
+const LIVE_IN = liveMissing.length === 0;
+
+if (!DEMO && !LIVE_IN) {
+  console.error(
+    "check-bundle: this gate describes the SHIPPING bundle, and the dist/\n"
+    + "on disk was not built as one.\n\n"
+    + `  Missing from every chunk: ${liveMissing.join(", ")}\n`
+    + `  (found ${LIVE_MARKERS.length - liveMissing.length} of ${LIVE_MARKERS.length} live markers)\n\n`
+    + "  These strings belong to the live read path, which rolldown drops\n"
+    + "  when VITE_V2_LIVE is not \"true\" AT BUILD TIME. Setting it for this\n"
+    + "  process changes nothing — the question is asked of dist/.\n\n"
+    + "  Build and check the bundle that ships:\n"
+    + "    VITE_V2_LIVE=true VITE_SENTRY_DSN=https://ci@example.invalid/0 npm run build\n"
+    + "    npm run check:bundle\n\n"
+    + "  The DSN is load-bearing too and for a different reason: without it\n"
+    + "  the Sentry chunk is provably dead and rolldown drops it, so the\n"
+    + "  TOTAL comes out ~100 KB light. Any non-empty string restores it.\n\n"
+    + "  If a marker was RENAMED rather than dropped, the fix is in\n"
+    + "  scripts/live-markers.mjs, which records how they were chosen —\n"
+    + "  not --demo, which would grade this bundle by not grading it.\n\n"
+    + "  To measure a demo build on purpose, pass --demo. That reports the\n"
+    + "  numbers and applies no ceiling, because they are not this app's.",
+  );
+  process.exit(1);
+}
+
 // ── IS SENTRY IN THIS BUNDLE? Asked of the bundle ────────────────────
 //
 // Markers, not a filename: the group is `prod-*.js` today, which is a
@@ -888,10 +934,9 @@ const fontKb = kbOf(join(root, "dist"), /\.(woff2?|ttf|otf)$/);
 // direction that grades a 1895 KB bundle against the full ceiling and
 // calls it the shipping one.
 const SENTRY_MARKERS = ["__SENTRY__", "_sentryDebugIds", "sentryWrapped", "captureException"];
-const sentryChunks = sized.filter(({ f }) => {
-  const src = readFileSync(join(ASSETS, f), "utf8");
-  return SENTRY_MARKERS.some((m) => src.includes(m));
-});
+const sentryChunks = sized.filter(
+  (_, i) => SENTRY_MARKERS.some((m) => chunkSrc[i].includes(m)),
+);
 const SENTRY_IN = sentryChunks.length > 0;
 const sentryKb = sentryChunks.reduce((n, s) => n + s.kb, 0);
 
@@ -1097,16 +1142,25 @@ if (failed) {
 // could be false: the flag says the V2 half is in, and says nothing about
 // Sentry. Both halves are named now, so the line cannot assert more than
 // was measured.
+//
+// And both are now named by what was FOUND rather than by what was set.
+// The old line quoted `VITE_V2_LIVE=true` — an environment variable, in a
+// sentence about an artifact — which is the confusion that let a stale
+// demo dist/ be graded and announced as the shipping bundle. It says
+// "live path in" and counts the markers instead, because that is the
+// thing this run actually looked at.
 console.log(
   SENTRY_IN
-    ? `bundle budget OK — SHIPPING bundle (VITE_V2_LIVE=true, Sentry in, `
+    ? `bundle budget OK — SHIPPING bundle (live path in, `
+      + `${LIVE_MARKERS.length - liveMissing.length}/${LIVE_MARKERS.length} markers; Sentry in, `
       + `${sentryKb.toFixed(0)} KB over ${sentryChunks.length} chunk(s)), `
       + `${totalKb.toFixed(0)} KB total / ${eagerKb.toFixed(0)} KB eager `
       + `(max ${MAX_TOTAL_JS_KB} / ${MAX_EAGER_KB}); `
       + `${blockingCssKb.toFixed(0)} KB blocking css / ${cssKb.toFixed(0)} KB css total `
       + `/ ${fontKb.toFixed(0)} KB fonts `
       + `(max ${MAX_BLOCKING_CSS_KB} / ${MAX_CSS_KB} / ${MAX_FONT_KB})`
-    : `bundle budget OK on what was gradable — VITE_V2_LIVE=true, Sentry OUT, `
+    : `bundle budget OK on what was gradable — live path in, `
+      + `${LIVE_MARKERS.length - liveMissing.length}/${LIVE_MARKERS.length} markers; Sentry OUT, `
       + `${eagerKb.toFixed(0)} KB eager (max ${MAX_EAGER_KB}); `
       + `total ${totalKb.toFixed(0)} KB ungraded`,
 );
