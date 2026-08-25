@@ -453,9 +453,60 @@ describe("Scores", () => {
 
   it("distinguishes 'no scored questions' from 'nobody answered them'", () => {
     // Two different emptinesses. Collapsing them into one "no data" is
-    // the habit the withheld-cell era left behind (D98).
-    mount("scores", [{ ...RATED, counts: [0,0,0,0,0,0,0,0,0,0] }]);
+    // the habit the withheld-cell era left behind (D98). "Nobody" means
+    // nobody ANYWHERE since D288 §2 — a city cell at zero with answers
+    // from elsewhere is the ring-only case below, not this one.
+    mount("scores", [{ ...RATED, counts: [0,0,0,0,0,0,0,0,0,0], all: [0,0,0,0,0,0,0,0,0,0] }]);
     expect(screen.getByText(/nobody here has scored Oslo yet/i)).toBeTruthy();
+  });
+
+  // ── D288 §2: the second crowd ──
+  //
+  // "Live there" is the stop's own cell, "from elsewhere" is the globe
+  // minus it — both from reads the lens already makes. The single-crowd
+  // card above is not a separate mode: it is what this card looks like
+  // the moment nobody outside has scored anything.
+
+  it("draws the elsewhere crowd the moment it exists, with both bases stated", () => {
+    // city: two 3s and two 9s (mean 6) · elsewhere: two more 9s on top
+    mount("scores", [{ ...RATED, all: [0, 0, 2, 0, 0, 0, 0, 0, 4, 0] }]);
+    expect(screen.getByText(/4 live there/)).toBeTruthy();
+    expect(screen.getByText(/2 from elsewhere/)).toBeTruthy();
+    // the header stops claiming the raters are the subject
+    expect(screen.getByText(/How Oslo is rated/)).toBeTruthy();
+    expect(screen.queryByText(/rates itself/)).toBeNull();
+  });
+
+  it("keeps the single-crowd card when all answers are the stop's own", () => {
+    mount("scores", [RATED]); // all === counts — nobody from elsewhere
+    expect(screen.queryByText(/live there/)).toBeNull();
+    expect(screen.getByText(/How Oslo rates itself/)).toBeTruthy();
+    expect(screen.getByText(/4 answers/)).toBeTruthy();
+  });
+
+  it("draws a ring-only row where only elsewhere has scored, absent dot and all", () => {
+    mount("scores", [{ ...RATED, counts: [0,0,0,0,0,0,0,0,0,0], mine: -1 }]);
+    expect(screen.getByText(/none live there/)).toBeTruthy();
+    expect(screen.getByText(/4 from elsewhere/)).toBeTruthy();
+    // the row's number describes the crowd that exists
+    expect(screen.getByText("6")).toBeTruthy();
+  });
+
+  it("swaps the described crowd on the fore toggle, and the toggle claims nothing", () => {
+    // city mean 6 (two 3s, two 9s) · elsewhere mean 9 (two 9s)
+    mount("scores", [{ ...RATED, all: [0, 0, 2, 0, 0, 0, 0, 0, 4, 0], mine: -1 }]);
+    expect(screen.getByText("6")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /from elsewhere/ }));
+    expect(screen.getByText("9")).toBeTruthy();
+    expect(screen.queryByText("6")).toBeNull();
+  });
+
+  it("never splits the world — there, everyone IS the crowd", () => {
+    const world: LensQuestion = { ...RATED, id: "w1", rates: "world", tag: "Kindness",
+      all: [0, 0, 4, 0, 0, 0, 0, 0, 4, 0] };
+    mount("scores", [world], "the world", "world");
+    expect(screen.queryByText(/live there/)).toBeNull();
+    expect(screen.getByText(/4 answers/)).toBeTruthy();
   });
 
   it("ranks by share of the scale, so a 5-point and a 10-point compare fairly", () => {

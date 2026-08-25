@@ -265,28 +265,66 @@ export function foldPeople(
 
   // nudge overlaps apart — position stays the data, only crowding is eased
   const all: { x: number; y: number; r: number }[] = [...placed, me];
+  // ON A GRID, not all-pairs. `placed` is bounded but not small: a uid
+  // qualifies at `minShared` of the PEOPLE_QUESTIONS lists and each list is
+  // capped at VOTER_FETCH_CAP, which puts the ceiling in the hundreds — and
+  // this ran n(n-1)/2 `Math.hypot` calls fifty times over, on the device,
+  // every time the field is folded. At n = 300 that is ~2.2M distance tests
+  // to move a few dots apart.
+  //
+  // Two circles can only need pushing if their centres are within
+  // `P1.r + P2.r + 5`, and the radii here are bounded — `4.5 + t * 3` for a
+  // person, 5.75 for you — so CELL below is at or above the largest gap
+  // that can matter. A pair further apart than one cell cannot collide,
+  // which makes the 3×3 neighbourhood exhaustive rather than approximate:
+  // the same pairs are tested, the ones that could never touch are not.
+  //
+  // Same shape as `relax()` in data/patternsMap.ts, which declutters the
+  // question map — including re-bucketing once per pass rather than after
+  // every push, so a dot that a push carries into a new cell is picked up
+  // by the next pass. Fifty passes; the physics does not notice.
+  const CELL = 20; // ≥ 2 × max radius (7.5) + the 5 px gap
+  const cellKey = (cx: number, cy: number) => cx * 100003 + cy;
   for (let it = 0; it < 50; it++) {
     let moved = false;
+    const grid = new Map<number, number[]>();
     for (let i = 0; i < all.length; i++) {
-      for (let j = i + 1; j < all.length; j++) {
-        const P1 = all[i];
-        const P2 = all[j];
-        let dx = P1.x - P2.x;
-        let dy = P1.y - P2.y;
-        let d = Math.hypot(dx, dy);
-        const need = P1.r + P2.r + 5;
-        if (d < need) {
-          moved = true;
-          if (d < 0.01) {
-            dx = 1;
-            dy = 0;
-            d = 1;
+      const k = cellKey(Math.floor(all[i].x / CELL), Math.floor(all[i].y / CELL));
+      const bucket = grid.get(k);
+      if (bucket) bucket.push(i); else grid.set(k, [i]);
+    }
+    for (let i = 0; i < all.length; i++) {
+      const P1 = all[i];
+      const cx = Math.floor(P1.x / CELL);
+      const cy = Math.floor(P1.y / CELL);
+      for (let ox = -1; ox <= 1; ox++) {
+        for (let oy = -1; oy <= 1; oy++) {
+          const bucket = grid.get(cellKey(cx + ox, cy + oy));
+          if (!bucket) continue;
+          for (const j of bucket) {
+            // Each pair once, and in the same direction as the old
+            // `j = i + 1` walk — the push is symmetric, so visiting a pair
+            // twice would double it.
+            if (j <= i) continue;
+            const P2 = all[j];
+            let dx = P1.x - P2.x;
+            let dy = P1.y - P2.y;
+            let d = Math.hypot(dx, dy);
+            const need = P1.r + P2.r + 5;
+            if (d < need) {
+              moved = true;
+              if (d < 0.01) {
+                dx = 1;
+                dy = 0;
+                d = 1;
+              }
+              const push = (need - d) / 2;
+              P1.x += (dx / d) * push;
+              P1.y += (dy / d) * push;
+              P2.x -= (dx / d) * push;
+              P2.y -= (dy / d) * push;
+            }
           }
-          const push = (need - d) / 2;
-          P1.x += (dx / d) * push;
-          P1.y += (dy / d) * push;
-          P2.x -= (dx / d) * push;
-          P2.y -= (dy / d) * push;
         }
       }
     }

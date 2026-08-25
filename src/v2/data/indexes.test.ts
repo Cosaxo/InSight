@@ -31,9 +31,9 @@ interface FieldIndex { queryScope: string; order?: string; arrayConfig?: string 
 interface Composite { collectionGroup: string; queryScope: string; fields: Array<{ fieldPath: string; order: string }> }
 interface Override { collectionGroup: string; fieldPath: string; indexes: FieldIndex[] }
 
-const cfg = JSON.parse(
-  readFileSync(resolve(__dirname, "../../../firestore.indexes.json"), "utf8"),
-) as { indexes: Composite[]; fieldOverrides: Override[] };
+const raw = readFileSync(resolve(__dirname, "../../../firestore.indexes.json"), "utf8");
+
+const cfg = JSON.parse(raw) as { indexes: Composite[]; fieldOverrides: Override[] };
 
 const override = (group: string, field: string): Override | undefined =>
   cfg.fieldOverrides.find((o) => o.collectionGroup === group && o.fieldPath === field);
@@ -84,6 +84,100 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
     expect(o!.indexes.some((i) => i.queryScope === "COLLECTION_GROUP" && i.order === "ASCENDING")).toBe(true);
   });
 
+  it("voters.ts fetchVoters(city): the city-scoped narrowing has its composite", () => {
+    // D278 adds a fourth clause to the voter query — equality on the
+    // frozen `anchors.city` — so it needs its own composite. Without it
+    // the query is FAILED_PRECONDITION in production and nowhere else:
+    // this file's header records why (the emulator does not enforce index
+    // configuration, so rules tests and e2e both pass regardless).
+    //
+    // Note the single-field EXEMPTION on anchors.city stays (D64 removed
+    // fourteen indexes nobody queried, and this does not put them back).
+    // A composite is declared explicitly and is not affected by a
+    // single-field exemption — which is the documented behaviour, not
+    // something these tests can prove, so the deploy is where it is
+    // confirmed.
+    const hit = cfg.indexes.find((ix) =>
+      ix.collectionGroup === "answers"
+      && ix.queryScope === "COLLECTION_GROUP"
+      && JSON.stringify(ix.fields) === JSON.stringify([
+        { fieldPath: "qid", order: "ASCENDING" },
+        { fieldPath: "surface", order: "ASCENDING" },
+        { fieldPath: "anchors.city", order: "ASCENDING" },
+        { fieldPath: "answeredAt", order: "DESCENDING" },
+      ]),
+    );
+    expect(hit, "the answers (qid, surface, anchors.city, answeredAt DESC) composite is missing or reshaped").toBeDefined();
+    // The unscoped query still has to work — this is an ADDITIONAL shape,
+    // because the People lens ranks strangers from anywhere.
+    expect(cfg.indexes.some((ix) =>
+      ix.collectionGroup === "answers"
+      && JSON.stringify(ix.fields) === JSON.stringify([
+        { fieldPath: "qid", order: "ASCENDING" },
+        { fieldPath: "surface", order: "ASCENDING" },
+        { fieldPath: "answeredAt", order: "DESCENDING" },
+      ]),
+    )).toBe(true);
+  });
+
+  it("engagement.ts rollupPage: engagement.folded keeps its collection-group index", () => {
+    // This one was in the file and NOT in the deployment. firestore.indexes.json
+    // carried two top-level "fieldOverrides" keys; JSON.parse keeps the last,
+    // so the first block — whose only entry was this override — was discarded
+    // on every read, including by firebase deploy. rollupPage's
+    // collectionGroup("engagement").where("folded","==",false) has therefore
+    // been querying an index that does not exist.
+    //
+    // A duplicate key is invisible to every other gate: the file is valid
+    // JSON, the emulator does not enforce index configuration (see this
+    // file's header), and the override reads correctly to anyone opening it.
+    // The cheapest durable guard is to assert the entry SURVIVES A PARSE,
+    // which is precisely what a re-duplicated key would break.
+    const o = override("engagement", "folded");
+    expect(o, "engagement.folded override is missing from the PARSED config — check for a duplicate top-level key").toBeDefined();
+    expect(o!.indexes.some((i) => i.queryScope === "COLLECTION_GROUP" && i.order === "ASCENDING")).toBe(true);
+  });
+
+  it("firestore.indexes.json declares each top-level key exactly once", () => {
+    // The general form of the bug above. JSON.parse silently keeps the LAST
+    // of a duplicated key, so a second "indexes" or "fieldOverrides" block
+    // deletes the first one's entire contents with no error anywhere — not
+    // from the parser, not from the emulator, not from firebase deploy.
+    //
+    // Depth-aware rather than a line regex: "indexes" is also a key INSIDE
+    // every fieldOverride, so matching it anywhere counts 21 and proves
+    // nothing. Only depth 1 is a top-level declaration.
+    const raw = readFileSync(resolve(__dirname, "../../../firestore.indexes.json"), "utf8");
+    const seen: string[] = [];
+    let depth = 0;
+    let inStr = false;
+    let esc = false;
+    let start = 0;
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (inStr) {
+        if (esc) esc = false;
+        else if (c === "\\") esc = true;
+        else if (c === '"') {
+          inStr = false;
+          // A string that closes at depth 1 and is followed by a colon is
+          // a top-level key.
+          if (depth === 1) {
+            const rest = raw.slice(i + 1).match(/^\s*:/);
+            if (rest) seen.push(raw.slice(start + 1, i));
+          }
+        }
+        continue;
+      }
+      if (c === '"') { inStr = true; esc = false; start = i; continue; }
+      if (c === "{" || c === "[") depth++;
+      else if (c === "}" || c === "]") depth--;
+    }
+    const dupes = seen.filter((k, i) => seen.indexOf(k) !== i);
+    expect(dupes, `duplicated top-level key(s) in firestore.indexes.json: ${dupes.join(", ")} — JSON.parse keeps only the last`).toEqual([]);
+    expect(seen.sort()).toEqual(["fieldOverrides", "indexes"]);
+  });
+
   it("live.ts's own-answer delta cursors: answeredAt and editedAt stay unexempted", () => {
     // hydrate() pages the viewer's own answers with `answeredAt >` and
     // `editedAt >` range filters. Both ride the AUTOMATIC single-field
@@ -92,5 +186,66 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
     // boot's vote hydration, in production only, for every returning user.
     expect(override("answers", "answeredAt")).toBeUndefined();
     expect(override("answers", "editedAt")).toBeUndefined();
+  });
+
+  it("engagement.ts rollupPage: engagement.folded keeps its collection-group index", () => {
+    // The nightly digest's only query: collectionGroup("engagement")
+    // where folded == false, limit. A collection-group query needs its
+    // single-field index declared explicitly — automatic indexing is
+    // collection-scope — so this override is the whole difference between
+    // digestEngagementV2 folding yesterday and throwing FAILED_PRECONDITION
+    // at every run, in production only.
+    const o = override("engagement", "folded");
+    expect(o, "the engagement.folded override is missing — digestEngagementV2's collectionGroup query fails FAILED_PRECONDITION in production").toBeDefined();
+    expect(
+      o!.indexes.some((i) => i.queryScope === "COLLECTION_GROUP" && i.order === "ASCENDING"),
+      "engagement.folded has no COLLECTION_GROUP ascending index",
+    ).toBe(true);
+  });
+
+  it("the file declares each top-level key exactly once", () => {
+    // NOT a style rule. `JSON.parse` — and firebase-tools with it — keeps
+    // the LAST occurrence of a repeated key and discards the rest without
+    // a word, so a second `"fieldOverrides"` array does not merge with the
+    // first: it replaces it. That is how the engagement override above
+    // shipped dead. It was added as a new block at the top of a file that
+    // already carried one at the bottom, and every reader here agreed with
+    // the deploy that it did not exist.
+    //
+    // Checked on the TEXT rather than on `cfg`, because by the time a
+    // parsed object exists the evidence is already gone — which is the
+    // property that let this through eslint, tsc and every case above.
+    const seen = new Set<string>();
+    const dupes: string[] = [];
+    let depth = 0;
+    let inStr = false;
+    let esc = false;
+    let start = -1;
+    for (let i = 0; i < raw.length; i++) {
+      const c = raw[i];
+      if (inStr) {
+        if (esc) esc = false;
+        else if (c === "\\") esc = true;
+        else if (c === '"') {
+          inStr = false;
+          if (depth === 1 && start >= 0) {
+            // A string at depth 1 is a key only if the next non-space char
+            // is a colon; anything else is an array element or a value.
+            let j = i + 1;
+            while (j < raw.length && /\s/.test(raw[j])) j++;
+            if (raw[j] === ":") {
+              const name = raw.slice(start + 1, i);
+              if (seen.has(name)) dupes.push(name);
+              seen.add(name);
+            }
+          }
+        }
+        continue;
+      }
+      if (c === '"') { inStr = true; esc = false; start = i; continue; }
+      if (c === "{" || c === "[") depth++;
+      else if (c === "}" || c === "]") depth--;
+    }
+    expect(dupes, `firestore.indexes.json declares ${dupes.join(", ")} twice — JSON.parse keeps the last and silently drops the rest, so one of the blocks never deploys`).toEqual([]);
   });
 });

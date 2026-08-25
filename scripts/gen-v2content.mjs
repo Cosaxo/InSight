@@ -319,6 +319,23 @@ export function buildEntries(content = loadContent()) {
       // provenance.json is a repo file that never reaches a device.
       ...(typeof q.from === "string" ? { from: q.from } : {}),
       ...(typeof q.until === "string" ? { until: q.until } : {}),
+      // Background — what the card's `i` opens (D281). Facts and
+      // definitions where a question cannot be answered honestly without
+      // them, never the arguments: those are the reveal's job, and a
+      // sentence that leans is the app taking a side on its own poll.
+      //
+      // The reader has existed since the port (`WF_BGTEXT`,
+      // world-feed.jsx), backed by `WORLD_BG` — a demo-pool map keyed by
+      // demo ids. So a live build's `i` opened onto the rows and nothing
+      // else, on every card in the bank. The `now` lane is what made that
+      // cost visible: a reader who does not know what Evergrande is
+      // cannot answer whether a life sentence is proportionate, and the
+      // one control that would have told them was the one drawn palest.
+      //
+      // Emit-when-set, like every other optional above, and any surface
+      // may carry one — the field is about whether the question needs
+      // context, which is not a property of the lane.
+      ...(typeof q.bg === "string" && q.bg ? { bg: q.bg } : {}),
       // Sponsored questions (D195, docs/MONETIZATION.md path 2). A paid
       // question is an ORDINARY question with three extra facts: who
       // bought it (`buyer`), and at most one coarse audience tag the
@@ -510,12 +527,32 @@ export function buildEntries(content = loadContent()) {
     });
   }
 
-  // Learn cards (D32): the server doc carries ONLY what rules and the
-  // aggregate fold need — prompt, options, the field as topic. The
-  // correctness metadata (c, t, p, k, w) stays client-side in
-  // content/learn-questions.json / window.LEARN_CARDS: nothing server-side
-  // reads correctness, and "% got it right" is counts[c]/total computed on
-  // the client, which ships c in the bundle anyway.
+  // Learn cards (D32, amended at D284): the doc now carries the WHOLE card
+  // — prompt, options, the field as topic, and the correctness metadata
+  // `c`/`t`/`p`/`k`/`w`.
+  //
+  // It used to carry only the first three, and the reasoning was sound
+  // for its own sentence: "nothing server-side reads correctness, and
+  // '% got it right' is counts[c]/total computed on the client, WHICH
+  // SHIPS c IN THE BUNDLE ANYWAY." That last clause is the part D284
+  // removed. `spec/learn-data.js` imported the entire card bank into the
+  // JavaScript, so every card was compiled into the app — and
+  // `check:bundle` had about thirteen kilobytes left, which is thirty-nine
+  // more cards. The lane's own target of 24 a field would have failed the
+  // build. The bundle now carries a FIXED demo sample and the live path
+  // reads the bank, so the metadata has to travel with the document.
+  //
+  // WHAT THIS PUBLISHES, stated rather than assumed: the learn answer key
+  // is now readable in a world-readable collection. It was already
+  // readable — out of the JavaScript, by anyone, since D32 — so this
+  // changes the channel and not the exposure, and Learn has never claimed
+  // otherwise on screen. If the product ever wants a gradeable learn
+  // score, D57's logic shape is the door (the server mints, withholds and
+  // marks) and this line is where that decision lands.
+  //
+  // `w` is emit-when-set, like every other optional in this file: most
+  // cards carry no why line and writing `w: null` across the bank would
+  // rewrite every learn document to say nothing.
   learn.cards.forEach((q, i) => {
     entries.push({
       id: `learn-${requireId(q, `learn-questions.json[${i}]`)}`,
@@ -528,6 +565,11 @@ export function buildEntries(content = loadContent()) {
       topic: q.f,
       axis: null,
       test: null,
+      c: q.c,
+      t: q.t,
+      p: q.p,
+      k: q.k,
+      ...(typeof q.w === "string" && q.w ? { w: q.w } : {}),
     });
   });
 
@@ -630,7 +672,7 @@ const HEADER =
   "// admitted grading path, the earliest UTC day it may be graded, and the\n" +
   "// expression the resolver RUNS. The outcome is not here — it lives in\n" +
   "// v2_call_outcomes, so a reseed and the resolver never fight.\n" +
-  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
+  "export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }\n" +
   "export const V2_QUESTIONS: V2SeedQuestion[] = ";
 
 // Feed ads (D197, docs/MONETIZATION.md path 3). A SEPARATE array from the

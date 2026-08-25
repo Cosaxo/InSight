@@ -18,6 +18,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import LIVE from "./live";
 import { CORE_TEST_KINDS, parseTestResults, type KindredPerson } from "./similarity";
 import { TYPE_SYSTEMS, TYPE_TEST, typeLine, typeNames, typeOfParsed, typeOfPerson, typeSharesOn } from "./typeMix";
+import { agreementOf } from "./cohort";
 
 /** A profile's `testResults` as the owner's client writes it. */
 const rawBig5 = (dims: Record<string, number>) => ({
@@ -35,7 +36,7 @@ const person = (dims: Record<string, number>): KindredPerson => ({
   uid: "u1",
   name: "A",
   city: "",
-  like: { pct: 0, shared: 0, same: 0 },
+  like: agreementOf(0, 0),
   results: parsed(dims),
 });
 

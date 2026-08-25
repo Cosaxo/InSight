@@ -173,16 +173,18 @@ describe("with two settings", () => {
     expect(screen.getByText("across 2 · 7 revealed days")).toBeTruthy();
   });
 
+  // Setting rows are the buttons that expand (aria-expanded); the two ⓘ
+  // buttons the sections carry since the 2026-08-24 pass are not rows.
   it("lists every setting one row deep, named by the person", () => {
     render(<LiveRolesPanel />);
-    const rows = screen.getAllByRole("button");
+    const rows = screen.getAllByRole("button", { expanded: false });
     expect(rows.length).toBe(2);
     expect(rows[0].textContent).toContain("Ada");
   });
 
   it("opens a row onto its receipts — the counts the scores are made of", () => {
     render(<LiveRolesPanel />);
-    const row = screen.getAllByRole("button")[0];
+    const row = screen.getAllByRole("button", { expanded: false })[0];
     expect(screen.queryByText(/right on \d+ of your \d+ guesses/)).toBeNull();
     fireEvent.click(row);
     // The plain count, not the score. A number a reader can check against
@@ -193,11 +195,18 @@ describe("with two settings", () => {
 
   it("closes the open row when it is tapped again", () => {
     render(<LiveRolesPanel />);
-    const row = screen.getAllByRole("button")[0];
+    const row = screen.getAllByRole("button", { expanded: false })[0];
     fireEvent.click(row);
     expect(screen.getByText("right on 3 of your 3 guesses")).toBeTruthy();
-    fireEvent.click(row);
+    fireEvent.click(screen.getAllByRole("button", { expanded: true })[0]);
     expect(screen.queryByText("right on 3 of your 3 guesses")).toBeNull();
+  });
+
+  it("opens the section ⓘ onto the instrument's own sheet", () => {
+    render(<LiveRolesPanel />);
+    fireEvent.click(screen.getByRole("button", { name: "What the 1v1 role measures" }));
+    // the sheet's about line — the same one every test's ⓘ opens
+    expect(screen.getByText(/How a single 1v1 goes/)).toBeTruthy();
   });
 });
 

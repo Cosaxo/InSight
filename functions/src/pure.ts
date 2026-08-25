@@ -511,7 +511,7 @@ export function publishableDuelAgg(state: DuelAggState): Record<string, unknown>
 // Two hard constraints shape everything below.
 //
 // 1. DOCUMENT GROWTH. The counts live inside the existing
-//    v2_aggs_private/{qid} document rather than new per-dimension docs, so
+//    v2_question_aggs/{qid} document rather than new per-dimension docs, so
 //    D7's ~1-write-per-second-per-document ceiling does not move. That only
 //    holds if the document cannot grow without bound — so breakdowns are
 //    restricted to low-cardinality anchors, and each dimension is capped at
@@ -1496,6 +1496,14 @@ export const SEEDED_FIELDS = [
   // by nothing — and the merge is where the two threads first saw each
   // other.
   "from",
+  // The card's background (D281) and the learn card's own metadata
+  // (D284). Both were live in the generator and in neither the payload
+  // nor this list — D234's exact failure, twice more, and the second one
+  // would have emptied Learn on every live device: the client drops a
+  // card with no `c` rather than guessing an answer key, and no card
+  // would ever have got one. Held here now by `check:seed-fields`, which
+  // compares this list against what gen-v2content actually emits.
+  "bg", "c", "t", "p", "k", "w",
 ] as const;
 
 /**

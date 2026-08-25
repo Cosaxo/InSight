@@ -64,6 +64,7 @@ const LIVE = vi.hoisted(() => ({
   // field renders its honest empty state here, which is what these cases
   // should scroll past.
   loadSimilarity: async () => {},
+  loadCityKindred: async () => {},
   similarityLoading: () => false,
   testFeedItems: () => [] as Array<Record<string, unknown>>,
   myTestResults: () => ({} as Record<string, unknown>),

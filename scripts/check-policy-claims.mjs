@@ -81,6 +81,8 @@ export const CLAIMS = [
     /count of people by type, on any of the four[\s\S]{0,600}?not only the Big\s+Five/i],
   ["D202 · and that count is people, not a grouping of answers",
     /count of <em>people<\/em>, not a grouping of anyone/i],
+  ["D288 · a bought question's contract record is buyer-only, and the buyer gets no private cut",
+    /record of the contract[\s\S]{0,200}?only you can read it[\s\S]{0,200}?no private cut/i],
   ["D5 · duel picks stay sealed until the next day's reveal",
     /sealed[\s\S]{0,200}?until the day after/i],
   ["D9 · coordinates are never transmitted or stored",
@@ -141,8 +143,24 @@ export const CLAIMS = [
 
 /** Labels of every claim the given page source fails to state. */
 export function missingClaims(src) {
+  // COMMENTS ARE NOT THE PAGE. These patterns ran over the raw bytes, so a
+  // disclosure wrapped in `<!-- … -->` still counted as present — while a
+  // reader is owed it and does not get it. Since D183 this page is the one
+  // place these promises live, so that is a promise deleted from the
+  // product with the gate that exists to notice staying green.
+  //
+  // The sibling gates here all strip first (check-appcheck,
+  // check-purge-listeners, check-data-inventory, check-spec-globals rule
+  // 2), each after being bitten by the same shape: a thing present in the
+  // source and absent in the artifact.
+  //
+  // Correct for BOTH claim shapes. A regex claim must match rendered text.
+  // A predicate claim asserts an ABSENCE — and retired wording that only
+  // survives inside a comment is not on the page either, so ignoring it is
+  // the same reading, not a loosening.
+  const visible = src.replace(/<!--[\s\S]*?-->/g, "");
   return CLAIMS
-    .filter(([, test]) => (typeof test === "function" ? !test(src) : !test.test(src)))
+    .filter(([, test]) => (typeof test === "function" ? !test(visible) : !test.test(visible)))
     .map(([label]) => label);
 }
 

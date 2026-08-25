@@ -184,6 +184,14 @@ describe("the learn reveal counts the reader in (D157)", () => {
   // each case here starts it over: `plan(1)[0]` is then both the card the
   // feed serves first and one nothing has answered, which is what makes
   // "this is your first try" true rather than hopeful.
+  //
+  // `learnCard: true` on every installLive below, since D284. The engine's
+  // pool is the LIVE bank in a live build now — the bundle carries a demo
+  // sample and nothing more — so the fixture's default publishes an empty
+  // one, which is what a project with no seeded learn documents actually
+  // has. These cases are about the reveal's arithmetic and need a card to
+  // do it on; before D284 they got one from the bundle whatever the
+  // backend held, which is the thing that stopped being true.
   const firstCard = () => { L.reset(); return L.plan(1)[0]; };
   // Held across the tap rather than re-queried after it: answering folds
   // the count and the tick into the button's own text, so its accessible
@@ -192,7 +200,7 @@ describe("the learn reveal counts the reader in (D157)", () => {
   const rowFor = (card) => screen.getByRole("button", { name: card.a[card.c] });
 
   it("adds your own first try when the trigger has not folded it yet", async () => {
-    live = installLive();
+    live = installLive({ learnCard: true });
     const card = firstCard();
     // One stranger, on the wrong option, and the aggregate has not seen
     // ours: the state `learnAnswer`'s re-read leaves behind almost every
@@ -213,7 +221,7 @@ describe("the learn reveal counts the reader in (D157)", () => {
   });
 
   it("says why a repeat is not in the count it shows", async () => {
-    live = installLive();
+    live = installLive({ learnCard: true });
     // Miss a card, let its gap pass, and answer it right on the re-serve —
     // the exact sitting the screenshot came from. Only FIRST tries fold,
     // so the correct option genuinely stands at zero here, and the line
@@ -244,7 +252,7 @@ describe("the learn reveal counts the reader in (D157)", () => {
   });
 
   it("names a crowd of one as your own", async () => {
-    live = installLive();
+    live = installLive({ learnCard: true });
     const card = firstCard();
     // Nobody else, and your own answer pending: "From 1 answer —
     // everyone's first try at this card" is true and reads as broken data.

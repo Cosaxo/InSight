@@ -46,13 +46,13 @@ Every constant below is sourced, not assumed:
 
 | Operation | Cost | Where it comes from |
 | --- | --- | --- |
-| One world answer | 1 client write + 2 server writes (`v2_agg_events`, `v2_aggs_private`) | `onV2AnswerCreated`, functions/src/v2.ts |
-| …plus the public mirror | +1 write **per answer**, always | no cadence since D98 |
+| One world answer | 1 client write + 1 server write (`v2_agg_events`) | `onV2AnswerCreated`, functions/src/v2.ts |
+| …plus the published aggregate | +1 write **per answer**, always | no cadence since D98; it IS the fold's working document since the private mirror collapsed |
 | …plus the ledger's death | 1 delete, 90 days later | `LEDGER_RETENTION_DAYS` |
 | One duel answer | 1 client write + 1 `pendingDays` arrayUnion | v2.ts group branch |
 | One trigger invocation | 512 MiB, 1 vCPU, concurrency 20, ~200 ms | `HOT_TRIGGER`, functions/src/ops.ts |
 | One warm boot | ~15 reads (meta, profile, answers query, 7 deck aggregates, groups, 2 group docs, 2 reveals) | `hydrate()`, src/v2/data/live.ts. The deck reads are one batched fetch since D129, not seven listener attachments |
-| One cold boot | **+671 reads** — the whole question bank | `V2_QUESTIONS`, 671 docs / 164.6 KiB of JSON |
+| One cold boot | **+671 reads** — the whole question bank | `V2_QUESTIONS`, 671 docs / 177.6 KiB of JSON |
 | Agg top-up | ≤120 reads, ≤1 per qid per 6 h | `AGG_ID_CAP`, `AGG_RECHECK_MS` |
 | One world answer, again | +1 **rule** read (the question doc) + 2 **server** reads (ledger event, private agg) | `isWorldAnswer` in firestore.rules; the `runAggTransaction` in v2.ts |
 | One duel answer, again | +3 rule reads (group, reveal, question); the trigger's duel branch reads nothing | `isDuelAnswer`; "one blind write, no read" |
@@ -62,6 +62,7 @@ Every constant below is sourced, not assumed:
 | One Kindred first view | ≤12 sheets' worth, shared with the sheet cache | `KINDRED_QUESTIONS`, src/v2/data/live.ts (D99) |
 | One pulse open | **Today only: one `documentId() in` query over as many per-day agg ids as there are pulses** (≤5), once per UTC day per session — a same-day answer forces one refresh so the reveal's bins include you. The 21-day window is `ensureTrend`, one 21-id query, paid on the tap that opens a reading | `DAYS`, src/v2/data/pulse.ts (D139, roster D203). **Five pulses cost FEWER reads per open than one did**, and that is the point of the split: D139 fetched the whole 21-day window on every open although the card only ever draws today, so a naive ×5 would have been 105 ids — over the 30-clause `documentId() in` cap, hence 4+ queries per open for data the first screen never reads. The template read is gone too: `splitBanks` now keeps a pulse lane, so the roster's prompts come from the bank `hydrate()` already cached (it also means `active: false` finally reaches the client — before D203 a killed pulse still drew a tappable card whose every write the rules refused). Your own series still costs zero — derived from the hydrated vote mirror |
 | One Roles tab open | Up to 14 day-key `getDoc`s per room, once per room per session — the SAME cache the duel panel fills, so a room you have already opened costs nothing here | `REVEAL_HIST_DAYS`, src/v2/data/live.ts (D156, D204). This is the first surface that wants EVERY room's history rather than the one you are looking at, so on a cold session it pays for the rooms you have not opened yet: ~14 reads each, loaded sequentially rather than in parallel so a profile tab does not spike the read rate. The fold itself is free — `data/roles.ts` is pure arithmetic over documents already in hand, with no new field and no new collection |
+| One buyer's-room open | One `uid ==` list query over `v2_purchases`, sized by the buyer's own contract count — for almost every account that is zero rows, and for a buyer it is a handful | firestore.rules `v2_purchases` (D288 §3, PAID-PLAN §7). Session-cached like every owner list; the public split on each purchase card reads the sponsored question's own agg, which the feed already fetched. The pricing fold costs the SERVER nothing at runtime: `scripts/build-pricing.mjs` is operator-run at contract time, and the door reads the committed `content/pricing.json` |
 | The Patterns fit, nightly | The day's ledger entries re-read as the vote log (the velocity scan's shape, second reader), one private state read+write per active answerer, one model doc read+write per project, one merged write to `v2_meta/app` (the tab's mount gate, D265) | functions/src/patterns.ts (v28 §2, trial D166 §1). Measured BEFORE the fold shipped — the dated note under the scenario table has the movement |
 | The engagement digest, nightly | The day's ledger entries re-read a THIRD time as the activity log, one bookkeeping state read+write per active answerer, one public day doc per project | functions/src/engagement.ts (R1/D268). A separate scan rather than a rider on velocity's, deliberately — its header carries the windowing argument. Measured before the deploy — dated note below |
 | One attention shard | 1 write the day after (the device's flush), then 1 read + 1 delete the night the fold sweeps it — per SAMPLED device per day, at the client's own `SHARD_SAMPLE_RATE` | src/v2/data/engagement.ts + the fold in functions/src/engagement.ts (R2/D270). The rate is read from source by the model (`ATTN_SAMPLE_RATE`), because it is the designed lever if this term ever matters |
@@ -95,11 +96,37 @@ roughly double on the three operation lines.
 
 | Scenario | DAU | reads/day | writes/day | Firestore $/mo | Functions $/mo | **Total $/mo** |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| Launch / TestFlight | 50 | 10.2 K | 1.2 K | 0.00 | 0.00 | **0.00** |
-| Friends-of-friends | 500 | 179 K | 12.1 K | 1.16 | 0.00 | **1.16** |
-| Real traction | 5,000 | 2.2 M | 121 K | 24 | 0.00 | **24** |
-| Scale | 50,000 | 22.4 M | 1.2 M | 260 | 2.20 | **262** |
-| Hit | 500,000 | 224 M | 12.1 M | 2,622 | 43 | **2,665** |
+| Launch / TestFlight | 50 | 10.2 K | 1.0 K | 0.00 | 0.00 | **0.00** |
+| Friends-of-friends | 500 | 179 K | 10.1 K | 1.16 | 0.00 | **1.16** |
+| Real traction | 5,000 | 2.2 M | 101 K | 23 | 0.00 | **23** |
+| Scale | 50,000 | 22.4 M | 1.0 M | 255 | 2.20 | **257** |
+| Hit | 500,000 | 224 M | 10.1 M | 2,568 | 43 | **2,611** |
+
+> **Re-measured 2026-08-24: the private mirror collapsed.** The trigger
+> wrote two aggregate documents per world answer — `v2_aggs_private/{qid}`
+> and the published `v2_question_aggs/{qid}` — and since D98 removed the
+> floor, the private one held byte-for-byte what the public one did on the
+> vote, edit and rank paths. It is gone on those three; the published
+> document is the fold's working document now, which it can be because
+> `allow write: if false` leaves the trigger as its only writer. The
+> catalog path keeps its own, where the accumulator is the whole ~1k-entity
+> map behind a bounded top-N board.
+>
+> The write term in `scripts/cost-arith.mjs` goes `1 + 2 + pub` → `1 + 1 +
+> pub` per world answer: **writes/day −16.5% at every size** (121 K → 101 K
+> at 5 k DAU), **$262 → $257 at 50 k and $2,665 → $2,611 at 500 k**. Two
+> percent of the bill, and worth saying why it is only two: reads dominate
+> this model at every size, so a third of the trigger's writes is a small
+> slice of a small line. What it buys beyond the money is a shorter
+> transaction on the contended per-qid document — one less document under
+> D7's ceiling, though NOT a higher ceiling, since both docs were keyed by
+> the same qid and the transaction was already bounded by one of them.
+>
+> The model errs one write LOW on catalogue picks, which keep a second
+> document: `B.worldAnswers` does not resolve them separately. That is the
+> right direction to be wrong in on a slice this small, and it is stated
+> rather than corrected because inventing a split would be a softer number
+> than the one it replaced.
 
 > **Measured 2026-08-19, BEFORE the fold shipped (VISION-V28 §11.4).**
 > The Patterns fit (v28 §2, trial D166 §1) joined the model:
@@ -938,7 +965,9 @@ when that decision is made.
 
 **Where the free tiers end**, since "still free" is the cheapest possible
 guardrail and worth knowing precisely: reads leave the 50 k/day free tier
-at **~177 DAU**, writes leave the 20 k/day tier at **~1,408 DAU**. (Read off
+at **~177 DAU**, writes leave the 20 k/day tier at **~1,687 DAU**
+(was ~1,408 before the private mirror collapsed — the crossing moves by
+exactly the write rate's ratio, 24.2 → 20.2 per user-day). (Read off
 the model's *immature* branch, which is how `SCENARIOS` classifies every
 size in that range; the mature branch would say ~149 and would be quoting
 a community that does not exist yet.) Below
@@ -960,11 +989,18 @@ threshold rather than the first.
 > moved.
 
 1. **~14,400 DAU — D7's write-contention ceiling.** All of a day's daily
-   answers land on one `v2_aggs_private/{qid}` document inside a 4-hour
+   answers land on one `v2_question_aggs/{qid}` document inside a 4-hour
    window; Firestore sustains ~1 write/sec/document. `0.35 writes/sec` at
    5 k DAU, `1.00` at 14.4 k, `3.47` at 50 k. Past this, transactions
    retry and aggregation degrades. Already recorded, already costed, fix
    already named (shard the counter). **This binds first.**
+
+   The document named here was `v2_aggs_private/{qid}` until that copy
+   collapsed into the published one, and the DAU figure did **not** move
+   with it: the two were keyed by the same qid, written in the same
+   transaction, so the transaction was already bounded by one of them and
+   is now bounded by the survivor. The collapse removes a write from the
+   bill; sharding is still the only thing that removes this wall.
 2. **~14,145 DAU — the read fan-out overtakes every flat source
    combined.** Finding 2. Not a failure, just the point where the bill
    stops being about anything else. This row has now moved three times

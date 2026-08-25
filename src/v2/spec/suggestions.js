@@ -1,48 +1,36 @@
-// Ported from design/spec-modules/suggestions.js (the historical prototype), then
-// re-synced from design/standalone-v24/suggestions.js (the commissioned §8 board
-// design) and CONVERTED off the global bridge in the same change: named export,
-// no window.SUGGESTIONS. spec-index.js still lists this module (rule 2), and the
-// purge listener below is the side effect that listing preserves.
+// Ported from design/spec-modules/suggestions.js (the historical prototype),
+// re-synced from design/standalone-v24/suggestions.js (the §8 board design),
+// CONVERTED off the global bridge in the same change — and CUT DOWN
+// 2026-08-24 with design/standalone-2026-08-24/suggestions.jsx (D288 §1):
+// the community board retired, so the seeded board, the upvote budget and
+// the vote persistence went with it. What remains is the store for the ONE
+// door that exists now — your own asks, each of them a paid ask.
 //
-// suggestions.js — "Suggest a question": a community suggestion board.
-// People propose questions; the most-upvoted, once they clear review, get
-// promoted into the Daily for everyone. NOT an infinite feed — a bounded board
-// you visit on purpose.
+// suggestions.js — "Ask a question": the paid door's store.
+// Every question through it is bought for a place and a window, reviewed,
+// and always marked PAID on the card. There is no free community path to
+// fall back to, so there is nothing here to upvote and nothing seeded.
 //
 // Two modes, honestly separated (D1):
-//   · DEMO — the prototype room: seeded community suggestions, baked statuses,
-//     your submissions in localStorage. Untouched from the design.
-//   · LIVE — your own submissions are REAL (data/suggestions.ts → the D138
-//     backend: suggestQuestionV2, review verdicts, the reviewer's note). The
-//     community board has no live pool yet — a public voting board is its own
-//     decision — so the seeds render under a Preview tag instead of pretending.
+//   · DEMO — the prototype room: your submissions in localStorage, three
+//     baked examples (one per state) until you have made your own.
+//   · LIVE — your submissions are REAL (data/suggestions.ts → the D138
+//     backend: suggestQuestionV2, review verdicts, the reviewer's note).
+//     The review conversation is where the contract is arranged — the
+//     door says so instead of pretending a checkout exists (D288 §3).
 import LIVE from '../data/live';
 import { IS_DATA } from './sample-data.js';
 
 // The data layer and the label resolver arrive by DYNAMIC import, kicked
-// from ensureLive() when the board opens — this store is in the eager
-// first-paint graph (spec-index.js) and check:bundle's budget is why:
-// nothing about a closed board should cost a byte at boot (D110/D124).
-let sgData = null; // ../data/suggestions, once the board has opened
+// from ensureLive() when the door opens — this store is in the deferred
+// overlays group, but the queries and the modules behind them still cost
+// nothing until a real open (D124/D129 posture).
+let sgData = null; // ../data/suggestions, once the door has opened
 let sgBucketLabel = null; // ../ui/cohortLabels.bucketLabel, same ride
 
-// seeded community suggestions (newest activity varies; a few already picked)
-const SEED = [
-  { id: 'sg01', prompt: 'Beach holiday or city break?', type: 'binary', options: ['Beach', 'City break'], by: 'Henrik V.', hue: 200, votes: 1846, status: 'picked', ago: '3d' },
-  { id: 'sg02', prompt: 'Is it ever okay to read a partner’s messages?', type: 'dilemma', options: ['Never', 'Only if worried', 'Yes'], by: 'Aud K.', hue: 305, votes: 1622, status: 'picked', ago: '5d' },
-  { id: 'sg03', prompt: 'Dogs or cats?', type: 'binary', options: ['Dogs', 'Cats'], by: 'Petra S.', hue: 35, votes: 1490, status: 'picked', ago: '2d' },
-  { id: 'sg04', prompt: 'Would you take a pill that removed the need for sleep?', type: 'binary', options: ['Yes', 'No'], by: 'Sondre L.', hue: 255, votes: 1204, status: 'review', ago: '1d' },
-  { id: 'sg05', prompt: 'How much does a place’s weather shape who you are?', type: 'rating', by: 'Iben M.', hue: 150, votes: 1098, status: 'review', ago: '4d' },
-  { id: 'sg06', prompt: 'The book or the film?', type: 'binary', options: ['The book', 'The film'], by: 'Tobias R.', hue: 78, votes: 980, status: 'review', ago: '6d' },
-  { id: 'sg07', prompt: 'Money can buy happiness.', type: 'scale', by: 'Nina D.', hue: 165, votes: 902, status: 'review', ago: '2d' },
-  { id: 'sg08', prompt: 'You can keep one memory forever — which kind?', type: 'choice', options: ['A person', 'A place', 'A feeling', 'A day'], by: 'Sofie A.', hue: 320, votes: 814, status: 'review', ago: '1d' },
-  { id: 'sg09', prompt: 'Tea or coffee — be honest.', type: 'binary', options: ['Tea', 'Coffee'], by: 'Lars V.', hue: 30, votes: 760, status: 'review', ago: '3d' },
-  { id: 'sg10', prompt: 'Is talent or hard work more important?', type: 'binary', options: ['Talent', 'Hard work'], by: 'Kari T.', hue: 240, votes: 642, status: 'review', ago: '7d' },
-  { id: 'sg11', prompt: 'Would you want to live to 150 if you stayed healthy?', type: 'binary', options: ['Yes', 'No'], by: 'Jonas E.', hue: 12, votes: 528, status: 'review', ago: '5d' },
-];
-
-// ── the three hints a suggestion can carry. Hints, not settings: the review
-// decides, and the composer says so.
+// ── the hints an ask can carry. Hints, not settings: the review decides,
+// and the composer says so. `like` is unreachable from the scope ruler now
+// but stays for LABEL RESOLUTION — rows submitted before D288 carry it.
 const CADENCE = [['once', 'once'], ['weekly', 'once a week'], ['daily', 'every day']];
 const AUDIENCE = () => {
   if (LIVE.enabled) {
@@ -85,22 +73,23 @@ const DECLINE = {
   },
 };
 
-// Your own DEMO board is never an empty room: three submissions, one in each
-// live state, until you have made your own. Demo only — a live board renders
-// your real rows or an honest empty state, never these.
+// Your own DEMO room is never empty: three asks, one in each live state,
+// until you have made your own. Demo only — a live door renders your real
+// rows or an honest empty state, never these.
 const MINE_DEMO = [
-  { id: 'sgd1', prompt: 'Is it rude to take a call on speaker in public?', type: 'binary', options: ['Rude', 'Fine'], by: 'You', hue: 305, votes: 268, status: 'review', ago: '1d', cadence: 'once', audience: 'world', demo: true },
-  { id: 'sgd2', prompt: 'Would you rather never be late or never wait?', type: 'binary', options: ['Never late', 'Never wait'], by: 'You', hue: 35, votes: 1441, status: 'picked', ago: '9d', ran: 'ran as the daily on 9 Aug', cadence: 'once', audience: 'world', demo: true },
-  { id: 'sgd3', prompt: 'Should Oslo ban cars inside Ring 1?', type: 'binary', options: ['Ban them', 'Keep access'], by: 'You', hue: 150, votes: 96, status: 'declined', ago: '6d', cadence: 'weekly', audience: 'city', decline: 'place', demo: true },
+  { id: 'sgd1', prompt: 'Is it rude to take a call on speaker in public?', type: 'binary', options: ['Rude', 'Fine'], by: 'You', hue: 305, status: 'review', ago: '1d', cadence: 'once', audience: 'world', demo: true },
+  { id: 'sgd2', prompt: 'Would you rather never be late or never wait?', type: 'binary', options: ['Never late', 'Never wait'], by: 'You', hue: 35, status: 'picked', ago: '9d', ran: 'ran as the daily on 9 Aug', cadence: 'once', audience: 'world', demo: true },
+  { id: 'sgd3', prompt: 'Should Oslo ban cars inside Ring 1?', type: 'binary', options: ['Ban them', 'Keep access'], by: 'You', hue: 150, status: 'declined', ago: '6d', cadence: 'weekly', audience: 'city', decline: 'place', demo: true },
 ];
 
+// The key predates D288 and the shape shrank with the board (`up` — the
+// upvote map — died with it): old payloads still parse, the dead half is
+// simply never read again and the next persist writes the new shape.
 const LS = 'insight.suggestions.v1';
-let saved = { mine: [], up: {} };
-try { const j = JSON.parse(localStorage.getItem(LS) || 'null'); if (j) saved = { mine: j.mine || [], up: j.up || {} }; } catch (e) { /* absent or corrupt payload — fall back to the default initialised above. */ }
+let saved = { mine: [] };
+try { const j = JSON.parse(localStorage.getItem(LS) || 'null'); if (j) saved = { mine: j.mine || [] }; } catch (e) { /* absent or corrupt payload — fall back to the default initialised above. */ }
 const listeners = new Set();
 function persist() { try { localStorage.setItem(LS, JSON.stringify(saved)); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Persistence here is best-effort and the in-memory state stays correct. */ } listeners.forEach((f) => f()); }
-
-const TYPE_LABEL = { binary: 'this or that', choice: 'multiple choice', scale: 'agree / disagree', rating: 'rate 1–10', dilemma: 'dilemma' };
 
 // A stable, meaningless hue for a live row — a coat of paint keyed to the id,
 // carrying no data (the demo rows' hues are authored the same way).
@@ -113,9 +102,9 @@ const agoOf = (atMs) => {
   return Math.round(mins / 1440) + 'd';
 };
 
-// The real rows, in the card shape the board renders. `live: true` is what
-// SgMine keys its honesty changes on: no backing count (nothing counts
-// backing yet), the reviewer's note as the decline text.
+// The real rows, in the card shape the door renders. `live: true` is what
+// SgMine keys its honesty changes on: the reviewer's note as the decline
+// text, never the demo DECLINE table.
 function liveMine() {
   const rows = (sgData && sgData.myRows()) || [];
   return rows.map((r) => ({
@@ -127,20 +116,27 @@ function liveMine() {
   }));
 }
 
-function all() {
-  // user's own submissions are first-class; live vote = base + (you upvoted ? 1 : 0)
+/** Your asks, newest first — the only list the door draws (D288 §1). */
+function mine() {
   const own = LIVE.enabled ? liveMine() : (saved.mine.length ? saved.mine : MINE_DEMO).map((s) => ({ ...s, mine: true }));
-  const list = own.concat(SEED.map((s) => ({ ...s, demo: true })))
-    .map((s) => ({ ...s, voted: !!saved.up[s.id], liveVotes: (s.votes || 0) + (saved.up[s.id] ? 1 : 0), days: s.ago === 'just now' ? -1 : (parseInt(s.ago, 10) || 99) }));
-  list.sort((a, b) => b.liveVotes - a.liveVotes);
-  return list;
+  return own
+    .map((s) => ({ ...s, days: s.ago === 'just now' ? -1 : (parseInt(s.ago, 10) || 99) }))
+    .sort((a, b) => a.days - b.days);
 }
 
 export const SUGGESTIONS = {
-  all,
+  mine,
   CADENCE, AUDIENCE, DECLINE,
   cadenceLabel: (id) => ((CADENCE.find((c) => c[0] === id) || [])[1] || 'once'),
   audienceLabel: (id) => ((AUDIENCE().find((c) => c[0] === id) || [])[1] || 'everyone'),
+  /** The name the ask would wear (the door's "wear your name" chip preview).
+   * Live: the real display name, or the neutral pronoun while it is unset —
+   * never a demo persona. */
+  meName: () => (LIVE.enabled ? (LIVE.displayName || 'You') : ((IS_DATA.me || {}).name || 'You')),
+  /** The age band the age dim would print, or null when the account has no
+   * age anchor to name one — the chip simply does not render then, because
+   * offering a dim the door cannot state would be an invented figure. */
+  ageBand: () => (LIVE.enabled ? ((LIVE.anchors() || {}).age || null) : '25–34'),
   // A live decline shows the review's own words; the DECLINE table is the
   // demo room's. No note yet means exactly that, and the copy says so.
   declineOf: (s) => {
@@ -151,13 +147,10 @@ export const SUGGESTIONS = {
     }
     return s && s.decline ? DECLINE[s.decline] : null;
   },
-  typeLabel: (t) => TYPE_LABEL[t] || t,
-  counts() { const a = all(); return { total: a.length, picked: a.filter((s) => s.status === 'picked').length, mine: a.filter((s) => s.mine).length }; },
-  hasVoted: (id) => !!saved.up[id],
-  toggleVote(id) { if (saved.up[id]) delete saved.up[id]; else saved.up[id] = true; persist(); },
-  /** Kick the one-shot load of your real rows. Called when the board opens
-   * (never at import time — the store is in the eager graph, the query and
-   * the modules behind it are not). No-op in demo mode. */
+  counts() { return { mine: mine().length }; },
+  /** Kick the one-shot load of your real rows. Called when the door opens
+   * (never at import time — the queries and the modules behind them stay
+   * unpaid until a real open). No-op in demo mode. */
   ensureLive() {
     if (!LIVE.enabled) return;
     Promise.all([import('../data/suggestions'), import('../ui/cohortLabels')])
@@ -165,7 +158,7 @@ export const SUGGESTIONS = {
         if (!sgData) {
           sgData = d;
           sgBucketLabel = l.bucketLabel;
-          // The data layer's own notifications reach the board's listeners.
+          // The data layer's own notifications reach the door's listeners.
           d.subscribeMine(() => listeners.forEach((g) => g()));
         }
         return d.loadMine();
@@ -177,8 +170,11 @@ export const SUGGESTIONS = {
    * Submit. Returns a promise either way:
    *   { ok: true, id }               — queued (live: really queued, D138)
    *   { ok: false, code, message }   — the server's refusal, written to be
-   *                                    shown (the budget, the paid-path
-   *                                    decline, a form bound)
+   *                                    shown (the budget, a form bound)
+   *
+   * No paid flag on the wire: since D288 §1 EVERY submission through this
+   * door is a paid ask, so the callable needs no second bit to say so —
+   * the review conversation that follows is where the contract starts.
    */
   submit({ prompt, type, options, topic, hue, cadence, audience }) {
     const opts = (options || []).filter(Boolean);
@@ -200,13 +196,12 @@ export const SUGGESTIONS = {
     const s = {
       id, prompt: String(prompt || '').trim(), type: type || 'binary',
       options: opts, topic: (topic || '').trim() || null,
-      by: 'You', hue: hue != null ? hue : 282, votes: 1, status: 'review', ago: 'just now',
+      by: 'You', hue: hue != null ? hue : 282, status: 'review', ago: 'just now',
       cadence: cadence || 'once', audience: audience || 'world',
     };
-    // keeping the seeded three would read as your submissions; the first real
-    // one takes the board over
+    // keeping the baked three would read as your asks; the first real one
+    // takes the room over
     saved.mine.unshift(s);
-    saved.up[id] = true; // you back your own
     persist();
     return Promise.resolve({ ok: true, id });
   },
@@ -214,12 +209,12 @@ export const SUGGESTIONS = {
 };
 
 // The purge (data/live.ts, D51): drop the in-memory copy too, or the next
-// toggleVote()'s persist writes the previous account's submissions back
-// under the new uid — authored questions rendered as "You". The live cache
-// goes with it (a wiped device must not render the previous account's
-// queue). Notify without re-creating the purged key.
+// submit()'s persist writes the previous account's asks back under the new
+// uid — authored questions rendered as "You". The live cache goes with it
+// (a wiped device must not render the previous account's queue). Notify
+// without re-creating the purged key.
 window.addEventListener('insight:local-purge', () => {
-  saved = { mine: [], up: {} };
+  saved = { mine: [] };
   // If the lazy data layer never loaded, there is no live cache to clear.
   if (sgData) sgData.clearSuggestionCache();
   listeners.forEach((f) => f());

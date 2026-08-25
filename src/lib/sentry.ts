@@ -41,7 +41,25 @@
 // init, because removing a switch must not flip anyone's recorded
 // choice.
 
-type SentryCapacitor = typeof import("@sentry/capacitor");
+// The THREE functions this file calls, not the whole namespace. Binding
+// the namespace is what made rolldown ship all of @sentry/browser and all
+// of @sentry/capacitor: a namespace object has to exist at runtime, so
+// every export is live and nothing can be shaken out. Replay, Feedback,
+// Spotlight and browserTracing were all in the shipping bundle, none of
+// them ever called. Measured across two full VITE_V2_LIVE builds: the
+// Sentry group 453 → 100 KB over the same 3 chunks, its largest chunk
+// 445,598 → 84,090 bytes, total JS 2426 → 2071 KB (−14.6%).
+//
+// It is package size and post-paint parse, not first paint — Sentry
+// appears in no modulepreload link, as check-bundle.mjs's own header
+// says. `tracesSampleRate` below stays inert either way: @sentry/browser's
+// init never registers browserTracingIntegration, which is exactly why the
+// tracing graph is droppable.
+type SentryCapacitorFull = typeof import("@sentry/capacitor");
+type SentryCapacitor = Pick<
+  SentryCapacitorFull,
+  "init" | "setUser" | "captureException"
+>;
 
 const TELEMETRY_KEY = "insight.telemetry.v1";
 
@@ -80,11 +98,12 @@ export function sentryInit(): void {
   loading = true;
   void (async () => {
     try {
-      const [cap, react] = await Promise.all([
-        import("@sentry/capacitor"),
-        import("@sentry/browser"),
-      ]);
-      cap.init(
+      // Named imports, not namespaces — see the type above. Sequential
+      // rather than Promise.all for the same reason: an array of two
+      // namespace objects is the shape that defeats the analysis.
+      const { init: capInit, setUser, captureException } = await import("@sentry/capacitor");
+      const { init: browserInit } = await import("@sentry/browser");
+      capInit(
         {
           dsn,
           // Tag this build with its env + release so the dashboard can
@@ -103,14 +122,14 @@ export function sentryInit(): void {
         // The second argument is the JS init invoked from within the
         // Capacitor SDK; for web builds the Capacitor side no-ops and
         // only this React init runs.
-        react.init,
+        browserInit,
       );
-      sdk = cap;
+      sdk = { init: capInit, setUser, captureException };
       if (pendingUid !== undefined) {
-        cap.setUser(pendingUid ? { id: pendingUid } : null);
+        setUser(pendingUid ? { id: pendingUid } : null);
       }
       for (const [err, ctx] of queued.splice(0)) {
-        cap.captureException(err, { extra: ctx });
+        captureException(err, { extra: ctx });
       }
     } catch (err) {
       console.warn("[sentry] SDK load failed:", err);

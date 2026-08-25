@@ -33,6 +33,10 @@ import MirrorLensTabs from "./MirrorLensTabs";
 import { useLensRowScroll } from "./lensRowScroll";
 import type { LensTab } from "./lensTabs";
 import { groupPortrait, MIN_SHARED, type GroupPortrait, type PortraitReveal } from "../data/groupPortrait";
+// The floor the cross-group line stands on — the same one the Roles
+// instrument uses for a group reading, so "runs most like you" never
+// speaks from thinner history than a role would.
+import { MIN_GROUP } from "../data/roles";
 
 // The stop's constellation (D152) — shared with Circle and the cohort
 // stops, so a group's cast is arranged by the same rule as every other
@@ -297,6 +301,22 @@ function LiveGroupsMirrorBody() {
   React.useEffect(() => {
     if (g) void S.loadRevealHistory(g.id);
   }, [g && g.id]); // eslint-disable-line react-hooks/exhaustive-deps -- S is a module-level singleton
+  // The "so what" line's data (D287's groups half, runbook phase 6): a
+  // cross-group claim needs every group's history, not the open one's.
+  // Sequential like the Roles panel — which reads the SAME per-room cache,
+  // so a viewer who has seen either screen pays these reads once.
+  const groupIds = groups.map((x) => x.id).join(",");
+  React.useEffect(() => {
+    if (!LIVE.enabled || groups.length < 2) return;
+    let on = true;
+    void (async () => {
+      for (const x of (LIVE.enabled ? (S.groups("group") as LiveGroup[]) : [])) {
+        if (!on) return;
+        try { await S.loadRevealHistory(x.id); } catch { /* a room that refuses is simply absent from the line */ }
+      }
+    })();
+    return () => { on = false; };
+  }, [groupIds]); // eslint-disable-line react-hooks/exhaustive-deps -- the ids are the stable identity; S is a singleton
   // Closed, like every other stop (D155/D190).
   const [tab, setTab] = React.useState("");
   const rowRef = React.useRef<HTMLDivElement | null>(null);
@@ -306,6 +326,23 @@ function LiveGroupsMirrorBody() {
 
   const reveals = g ? (S.revealHistory(g.id) as unknown as PortraitReveal[]) : [];
   const P = g ? groupPortrait(reveals, LIVE.uid) : null;
+
+  // "The Crew runs most like you" — the D287 line's groups half, said only
+  // when it is a real comparison: two or more groups over the roles floor.
+  // A superlative over one group is a caption, and over thin history it is
+  // a guess; below either bar the picture stands alone. Basis in the
+  // sentence (D146): the portrait's own with-the-majority count.
+  const soWhat = (() => {
+    if (groups.length < 2) return null;
+    const scored = groups
+      .map((x) => ({ x, p: groupPortrait(S.revealHistory(x.id) as unknown as PortraitReveal[], LIVE.uid) }))
+      .filter((r) => r.p.daysPlayed >= MIN_GROUP);
+    if (scored.length < 2) return null;
+    scored.sort((a, b) => b.p.alignPct - a.p.alignPct
+      || b.p.daysPlayed - a.p.daysPlayed
+      || (a.x.name || "").localeCompare(b.x.name || ""));
+    return scored[0];
+  })();
 
   return (
     <div className="mf-stage" data-screen-label="Mirror — groups (live)" style={{
@@ -342,6 +379,11 @@ function LiveGroupsMirrorBody() {
                     color: on ? "var(--ink)" : "var(--ink-2)", whiteSpace: "nowrap" }}>{x.name}</button>
                 );
               })}
+            </div>
+          )}
+          {soWhat && (
+            <div style={{ padding: "9px 2px 0", fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5, textWrap: "balance" }}>
+              <b style={{ fontWeight: 800, color: "var(--ink)" }}>{soWhat.x.name}</b> runs most like you — with it on {soWhat.p.meWithMaj} of the {soWhat.p.daysPlayed} days you played.
             </div>
           )}
           {/* The stop's own state, above the row rather than inside a tab:
@@ -402,8 +444,22 @@ function LiveGroupsMirrorBody() {
                   it does have is members whose completed instruments are
                   public (D98) and cached beside their names, so its side
                   is their mean, over the count the card prints. */}
+              {/* WITHOUT YOU. The lens prints "You ↔ {group}", so the
+                  right-hand side is the group MINUS the viewer — passing the
+                  whole membership compared you with a population you are
+                  inside, which drags the gap toward zero and, in a group
+                  where nobody else has finished a test, makes it exactly
+                  zero: "You ↔ The Crew · 100% aligned · 1 of 3 have taken
+                  one", and "You ↔ Just Me · 100% aligned" for a group of
+                  one. It also spent a profile read on the viewer.
+
+                  Every sibling population already excludes the viewer:
+                  Circle folds circleSplit over members only, and the room
+                  the Near lens is handed has the caller removed server-side
+                  (v2social.ts, "The caller is not in their own room"). The
+                  People tab in this same file drops you too. */}
               <GroupCompare
-                pop={{ basis: "people", uids: g.memberUids || [] }}
+                pop={{ basis: "people", uids: (g.memberUids || []).filter((u) => u !== LIVE.uid) }}
                 whom={g.name || "this group"}
                 emptyThem={<>Nobody here has finished a test yet.</>} />
             </React.Suspense>

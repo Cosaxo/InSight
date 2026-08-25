@@ -184,6 +184,95 @@ for (const name of [...defined].sort()) {
   );
 }
 
+// ── 6. a publication whose consumers all import (D280) ──────────
+//
+// THE ONE RULE 5 CANNOT ASK, and the gap that shipped a D1 violation.
+//
+// Rule 5 is deliberately over-generous: it asks whether the name appears
+// ANYWHERE outside its publisher, because the convention's third shape is a
+// bare cross-module call this scanner cannot see, and reporting live wiring
+// as dead is the expensive mistake. That generosity has a blind spot with a
+// name: a publisher writing `window.X` while every consumer has converted to
+// `import { X }`. The name is mentioned all over the tree, so rule 5 is
+// satisfied — and the publication reaches nobody, because an ESM binding
+// cannot be reassigned from outside its own module.
+//
+// That is not a hypothetical. D249 converted `world-feed.jsx`'s read of
+// `window.TEST_FEED_QS` into a static import of the DEMO array while
+// `live.ts` went on publishing the LIVE pool to the window. Rule 5 saw the
+// name in four files and said nothing; the app served hash-invented vote
+// counts on a live device for a build. Every other gate was green too,
+// because both halves type-check perfectly and neither throws.
+//
+// The question this rule asks is narrow enough to be safe, and the fourth
+// clause is what makes it so: is the name published to global scope,
+// EXPORTED BY A DIFFERENT FILE, imported from that file somewhere, and read
+// through `window.`/`globalThis.` by nobody outside the publisher?
+//
+// All four together mean two different values are wired to two different
+// sets of consumers under one name, which is the whole of the defect. Drop
+// the third clause and the rule also reports the harmless case — a module
+// that exports a name AND publishes its own copy of it, where the two are
+// the same binding and the publication is only residue. Nine of those are
+// in the tree today; they are D137's class and rule 5's business, not this
+// one's, and folding them in here would bury the finding that matters
+// under eight that do not.
+//
+// Any one window reader anywhere makes this silent, and so does a name
+// nothing imports — that one is rule 5's.
+//
+// The fix, when it fires, is not to put the bridge read back: it is to give
+// the live half somewhere to land, which is what data/testFeed.ts is.
+{
+  const IMPORT_RE = /import\s*(?:type\s*)?\{([^}]*)\}\s*from/g;
+  const EXPORT_RE = /export\s+(?:const|let|var|function\*?|class)\s+([A-Za-z_$][\w$]*)/g;
+  const importedNames = new Set();
+  const exportedBy = new Map();
+  const walk = (dir) => readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const at = join(dir, e.name);
+    if (e.isDirectory()) return walk(at);
+    return /\.(js|jsx|ts|tsx)$/.test(e.name) ? [at] : [];
+  });
+  for (const f of walk(join(root, "src"))) {
+    const src = stripComments(readFileSync(f, "utf8"));
+    for (const m of src.matchAll(IMPORT_RE)) {
+      for (const spec of m[1].split(",")) {
+        // `X`, `X as Y`, `type X` — the imported name is the first word.
+        const first = spec.trim().replace(/^type\s+/, "").split(/\s+as\s+/)[0].trim();
+        if (first) importedNames.add(first);
+      }
+    }
+    for (const m of src.matchAll(EXPORT_RE)) {
+      const rel = f.slice(root.length + 1);
+      if (!exportedBy.has(m[1])) exportedBy.set(m[1], new Set());
+      exportedBy.get(m[1]).add(rel);
+    }
+  }
+  for (const name of [...defined].sort()) {
+    if (!importedNames.has(name) || PUBLISHED_FOR_OUTSIDE[name]) continue;
+    const owners = definedBy.get(name) || new Set();
+    // The clause that separates the defect from the residue: somebody OTHER
+    // than the publisher exports this name, so the import and the
+    // publication cannot be the same binding.
+    const exporters = [...(exportedBy.get(name) || [])].filter((f) => !owners.has(f));
+    if (!exporters.length) continue;
+    const readers = (referenced.get(name) || [])
+      .filter((site) => !owners.has(String(site).split(":")[0]));
+    if (readers.length) continue;
+    failed = true;
+    console.error(
+      `✗ window.${name} is published by ${[...owners].join(", ")} and exported`
+      + ` by ${exporters.join(", ")}, and every`
+      + "\n    consumer reaches it by ESM import instead — so the publication"
+      + "\n    lands on a name nothing reads and the importers see whatever"
+      + "\n    their own module last assigned. An imported binding cannot be"
+      + "\n    reassigned from outside its module (D280). Either give the"
+      + "\n    publisher's value a named home the importers call, or delete"
+      + "\n    the assignment if the export is already the whole wiring.",
+    );
+  }
+}
+
 // ── 4. the migration ratchet ────────────────────────────────────
 //
 // WHAT THIS COUNTS. Every site where a file reads a name that ANOTHER
@@ -250,12 +339,12 @@ const COUPLING_BASELINE = {
   "src/v2/spec/profile-general.jsx": 13,
   "src/v2/spec/profile-overlay.jsx": 6,
   "src/v2/spec/relmap.jsx": 1,
-  "src/v2/spec/search-overlay.jsx": 5,
+  "src/v2/spec/search-overlay.jsx": 4,
   "src/v2/spec/segment-explorer.jsx": 1,
-  "src/v2/spec/suggestions.jsx": 1,
+  // suggestions.jsx left the map 2026-08-24: the D288 rebuild imported
+  // WORLD_TOPICS (its one remaining shared-global read) while it was open.
   "src/v2/spec/test-definitions.js": 4,
   "src/v2/spec/vote-cuts.js": 1,
-  "src/v2/spec/world-feed-data.js": 4,
   "src/v2/spec/world-feed.jsx": 32,
 };
 

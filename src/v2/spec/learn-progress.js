@@ -6,6 +6,10 @@
 // global left here, read at call time.
 import React from 'react';
 import { LEARN_CARDS, LEARN_FIELDS, LEARN_SPLIT, LEARN_SUBJECTS } from './learn-data.js';
+// Which build's cards these are (D284). `LEARN_CARDS` above is the demo
+// SAMPLE now — five a field, compiled in so the demo build has something
+// to serve — and a live build's bank arrives here after boot.
+import { learnCards, subscribeLearnBank } from '../data/learnBank.ts';
 
 // learn-progress.js — the engine behind Learn. Three ideas, no more:
 //
@@ -31,7 +35,13 @@ export const LEARN = (function () {
   // the failure D109's learn-data.js header describes. An imported binding
   // cannot be unset, and learn-data.js depends on nothing that could put it in
   // TDZ, so the fallbacks are gone rather than rewritten.
-  const CARDS = LEARN_CARDS;
+  // `let`, and the reason is the one thing about D284 that touches this
+  // file: the bank is no longer known at module scope. A demo build's
+  // sample is (it is compiled in), but a live build's cards arrive when
+  // `hydrate()` publishes them, which is after every line here has run. So
+  // the cards are re-read and re-indexed on that signal rather than
+  // captured once — see `adopt()` below.
+  let CARDS = learnCards(LEARN_CARDS);
   const FIELDS = LEARN_FIELDS;
   const SUBJECTS = LEARN_SUBJECTS;
   const GAP = 4;        // cards that must pass before a repeat counts
@@ -40,13 +50,36 @@ export const LEARN = (function () {
   const L0 = 62;        // everyone starts where ~62% of the crowd is right
   const LMIN = 24, LMAX = 92;
 
-  const BYID = {}, BYF = {}, FBY = {}, SBY = {};
-  CARDS.forEach((c) => { BYID[c.id] = c; (BYF[c.f] = BYF[c.f] || []).push(c); });
+  // FIELDS and SUBJECTS are the taxonomy and still ship whole, so their two
+  // indexes are built once. The card indexes are rebuilt whenever the pool
+  // changes — `let` for the same reason CARDS is.
+  let BYID = {}, BYF = {};
+  const FBY = {}, SBY = {};
+  const indexCards = () => {
+    BYID = {}; BYF = {};
+    CARDS.forEach((c) => { BYID[c.id] = c; (BYF[c.f] = BYF[c.f] || []).push(c); });
+  };
+  indexCards();
   FIELDS.forEach((f) => { FBY[f.id] = f; });
   SUBJECTS.forEach((s) => { SBY[s.id] = s; });
 
   const listeners = new Set();
   const fire = () => listeners.forEach((f) => { try { f(); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } });
+
+  // The live bank, when it lands (D284). `hydrate()` publishes it well
+  // after this module evaluated, so the pool is re-read and the two card
+  // indexes rebuilt — then `fire()`, because every mounted consumer is
+  // holding a render made against the sample and none of them polls.
+  //
+  // A demo build never calls the publisher, so this never fires there and
+  // the sample stays. No unsubscribe: the engine is a singleton for the
+  // life of the tab, and a store that outlives every subscriber has
+  // nothing to tear down.
+  subscribeLearnBank(() => {
+    CARDS = learnCards(LEARN_CARDS);
+    indexCards();
+    fire();
+  });
 
   let S;
   try { S = JSON.parse(localStorage.getItem(LS) || 'null'); } catch (e) { S = null; }
@@ -74,8 +107,32 @@ export const LEARN = (function () {
     s.lvl = { cell: 54, solar: 66, capitals: 58 };
     return s;
   }
+  // EVERY FIELD, not three (D283 — the owner's decision, 2026-08-24).
+  //
+  // This used to seed `['cell', 'solar', 'capitals']`, and D115 derived
+  // FIELD_TARGET from exactly that: at 8 cards a field, three followed
+  // fields is 24 fresh cards and about eight days of runway. The three
+  // were "stocked from day one", which was the right reading of a bank
+  // that had 8 per field and nothing behind it.
+  //
+  // What it cost, once the bank had grown: `pool()` serves the followed
+  // fields and nothing else, so a fresh install could only ever meet 34
+  // of the 146 cards in it. Reported from a device as there being far too
+  // few learn questions — and the app was showing under a quarter of what
+  // it had. Following everything is not more cards a sitting, it is the
+  // same cards drawn from four times the bank: the RATE is LEARN_FEED's
+  // frequency dial (one card in seven by default), and it is untouched.
+  //
+  // That reverses learn-feed.js's "how many fields you follow is already
+  // an intensity control", deliberately and only for the DEFAULT. The
+  // control is still there — it just starts at everything, the way the
+  // feed's topics do (D96: "a live build runs EVERY subject its bank
+  // stocks, always on"), and narrowing is a thing you choose rather than
+  // a thing you have to discover. The topic sheet gained the row that
+  // makes that possible in the same change; before it, the follow list
+  // was one-way and this default would have been a trap.
   function freshF() {
-    const f = ['cell', 'solar', 'capitals'].filter((id) => FBY[id]);   // stocked from day one
+    const f = FIELDS.map((x) => x.id).filter((id) => FBY[id]);
     return f.length ? f : ['cell'];
   }
   if (!S) S = freshS();

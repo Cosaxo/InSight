@@ -66,6 +66,10 @@ import { LEARN_CARDS } from "../spec/learn-data.js";
 // …and the suggestion store with the v24 board sync (D138's client half).
 // @ts-expect-error TS7016 — untyped spec module
 import { SUGGESTIONS } from "../spec/suggestions.js";
+// …and the subtopic store, by name since its window mirror went with the
+// module's move off the eager list.
+// @ts-expect-error TS7016 — untyped spec module
+import { SUBTOPICS } from "../spec/world-subtopics.js";
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- the spec layer's
    window surface is untyped by design; these tests drive it as consumers do */
@@ -185,18 +189,18 @@ describe("module stores drop their memory on the purge (D51)", () => {
   });
 
   it("SUBTOPICS: leaf follows return to the day-one default", () => {
-    W.SUBTOPICS.unfollow("sub_tennis");
-    expect(W.SUBTOPICS.has("sub_tennis")).toBe(false);
+    SUBTOPICS.unfollow("sub_tennis");
+    expect(SUBTOPICS.has("sub_tennis")).toBe(false);
     purge();
-    expect(W.SUBTOPICS.has("sub_tennis")).toBe(true); // default restored
+    expect(SUBTOPICS.has("sub_tennis")).toBe(true); // default restored
     expect(stored("insight.subtopics.v1")).toBeNull();
-    W.SUBTOPICS.follow("sub_football");
+    SUBTOPICS.follow("sub_football");
     expect(stored("insight.subtopics.v1")).toContain("sub_tennis"); // the unfollow did not survive
   });
 
   it("SUGGESTIONS: authored questions stop rendering as the new account's 'You'", async () => {
     await SUGGESTIONS.submit({ prompt: "purge-sentinel-question", type: "binary", options: ["a", "b"] });
-    // Your first real submission takes the board over from the demo trio
+    // Your first real ask takes the room over from the demo trio
     // (the v24 rule: the demo rows exist only until you have made your own).
     expect(SUGGESTIONS.counts().mine).toBe(1);
     purge();
@@ -205,9 +209,11 @@ describe("module stores drop their memory on the purge (D51)", () => {
     // be gone is the sentinel, asserted below on the persisted payload.
     expect(SUGGESTIONS.counts().mine).toBe(3);
     expect(stored("insight.suggestions.v1")).toBeNull();
-    SUGGESTIONS.toggleVote("sg01");
+    // The next write after the purge (an upvote until D288 retired the
+    // board; an ask now) must persist the NEW account's state alone.
+    await SUGGESTIONS.submit({ prompt: "post-purge-question", type: "binary", options: ["a", "b"] });
     const after = stored("insight.suggestions.v1")!;
-    expect(after).toContain("sg01");
+    expect(after).toContain("post-purge-question");
     expect(after).not.toContain("purge-sentinel-question");
   });
 

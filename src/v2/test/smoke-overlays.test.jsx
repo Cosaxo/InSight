@@ -79,11 +79,42 @@ describe("the overlays with no button — opened through the nav registry", () =
     }
   });
 
-  it("opens the question suggestion overlay", async () => {
+  it("opens the ask-a-question door", async () => {
     const expectNoBoundary = mountApp();
     await openVia("openSuggestions");
-    expectOpened(/suggest a\s*question/i, "suggest overlay");
+    // "ask a question" since D288 §1 retired the community board — the
+    // door is the paid path alone, and the title says what the room is.
+    expectOpened(/ask a\s*question/i, "suggest overlay");
     expectNoBoundary("suggest overlay");
+  });
+
+  // The door's honesty arithmetic (D288 §3, D167): everything it prints
+  // comes from the COMMITTED content/pricing.json, and the committed card
+  // is the empty-ledger fold — every idx at floor, every day open, no
+  // completed campaign. So the board must say "tomorrow" three times and
+  // never the design's mocked demand, and the composer must state the
+  // no-forecast line and a contract sheet without the estimate clause.
+  // This is the only test that executes the composer path at all.
+  it("the composer prints the committed card and withholds every forecast", async () => {
+    const expectNoBoundary = mountApp();
+    await openVia("openSuggestions");
+    expect(screen.getAllByText(/next open tomorrow/i)).toHaveLength(3);
+    expect(document.body.textContent).not.toMatch(/contested|12 Sep/);
+    // into the composer — the accessible name needs the "+", because the
+    // header's compose icon answers to the bare phrase too
+    fireEvent.click(screen.getByRole("button", { name: /^\+ Ask a question$/i }));
+    fireEvent.change(screen.getByPlaceholderText(/Sunrise or sunset/i), { target: { value: "Ferry or bridge?" } });
+    fireEvent.change(screen.getByPlaceholderText("Option 1"), { target: { value: "Ferry" } });
+    fireEvent.change(screen.getByPlaceholderText("Option 2"), { target: { value: "Bridge" } });
+    expect(screen.getByText(/No completed campaign here yet — no forecast/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /^Price it for/ }));
+    // the contract sheet: rate at the floor index, the honest channel, and
+    // no make-good clause — that promise needs an estimate to exist
+    expect(screen.getByText(/per answer · ×0\.9 · locked/)).toBeTruthy();
+    expect(screen.getByText(/Arranged directly for now — no self-serve yet\./)).toBeTruthy();
+    expect(screen.getByText("Locked rate · the claim never shrinks.")).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/under 80% of the estimate/);
+    expectNoBoundary("the composer and its contract sheet");
   });
 
   it("opens a person's profile", async () => {

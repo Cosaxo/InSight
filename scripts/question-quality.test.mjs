@@ -8,7 +8,7 @@ import {
   loadCorpus, checkQuestion, checkBatch, checkProvenance, checkHeadroom,
   checkPathGenre, placeCivicHit, PROMPT_MAX, OPTION_SHAPES, FEED_TYPES,
   DIAL_BUCKETS, PATH_AXES, PATH_AXIS_LEGACY,
-  windowDays, NOW_TOPIC, WINDOW_MAX_DAYS, tragedyHit,
+  windowDays, NOW_TOPIC, WINDOW_MAX_DAYS, tragedyHit, BG_MIN, BG_MAX,
   learnView, OPTION_MAX, PATH_CHOICE_MAX, LEARN_WHY_WORDS_MAX,
 } from "./question-quality.mjs";
 
@@ -500,9 +500,11 @@ describe("the current-events window", () => {
     ];
     expect(checkBatch(slow).some((e) => e.includes("short end"))).toBe(true);
 
+    // The clean batch has to clear the answer-space rule too (D281), so
+    // it carries the sides its stories have rather than three binaries.
     const good = [
-      nowQ({ from: "2026-08-23", until: "2026-08-27" }),
-      nowQ({ from: "2026-08-23", until: "2026-08-29" }),
+      nowQ({ from: "2026-08-23", until: "2026-08-27", options: ["Driving less", "Not yet", "I don't drive"] }),
+      nowQ({ from: "2026-08-23", until: "2026-08-29", options: ["About right", "Too far", "Not far enough"] }),
       nowQ({ from: "2026-08-23", until: "2026-09-05" }),
     ];
     expect(checkBatch(good)).toEqual([]);
@@ -514,6 +516,9 @@ describe("the current-events window", () => {
   it("does not hold the farm's spread rules against a now batch", () => {
     const batch = Array.from({ length: 4 }, (_, i) => nowQ({
       until: ["2026-08-26", "2026-08-27", "2026-08-28", "2026-08-29"][i],
+      // Half carry a third side, which is D281's rule and not the farm's
+      // — the exemption this case is about is the TOPIC and FORM spread.
+      ...(i % 2 ? { options: ["Driving less", "Not yet", "I don't drive"] } : {}),
     }));
     expect(checkBatch(batch)).toEqual([]);
   });
@@ -529,6 +534,41 @@ describe("the current-events window", () => {
 // The false-positive half matters as much as the hit half. A gate that
 // blocks "markets crashed 8%" is one whose waivers stop being read, and
 // the whole two-tier design exists to keep that from happening.
+// D281 — the answer space, as a batch rule for the same reason the window
+// spread is one: a single binary is often right, and a whole batch of them
+// is a writer's habit rather than a fact about the week.
+describe("the current-events batch's answer space", () => {
+  const nowB = (n, opts) => Array.from({ length: n }, (_, i) => ({
+    surface: "feed", type: "vote", cat: NOW_TOPIC, core: false,
+    prompt: `A current story number ${i + 1}. Your read?`,
+    options: opts[i],
+    from: "2026-08-23", until: `2026-08-2${5 + i}`,
+  }));
+  const optErrs = (batch) => checkBatch(batch).filter((e) => e.includes("two options"));
+
+  it("refuses a batch that is mostly binary", () => {
+    expect(optErrs(nowB(3, [["A", "B"], ["A", "B"], ["A", "B"]])).length).toBe(1);
+    expect(optErrs(nowB(3, [["A", "B"], ["A", "B"], ["A", "B", "C"]])).length).toBe(1);
+  });
+
+  it("lets a batch through once most stories carry the sides they have", () => {
+    expect(optErrs(nowB(3, [["A", "B"], ["A", "B", "C"], ["A", "B", "C", "D"]]))).toEqual([]);
+  });
+
+  it("says nothing about a batch too small to show a habit", () => {
+    expect(optErrs(nowB(2, [["A", "B"], ["A", "B"]]))).toEqual([]);
+  });
+
+  // The rule is the lane's, not the feed's: an ordinary feed batch of
+  // binaries is the shipped bank's own shape (90 of its 100 votes) and
+  // has never been the complaint.
+  it("leaves the ordinary feed lane alone", () => {
+    const feedB = nowB(3, [["A", "B"], ["A", "B"], ["A", "B"]])
+      .map((q, i) => ({ ...q, cat: ["sport", "food", "tech"][i], from: undefined, until: undefined }));
+    expect(optErrs(feedB)).toEqual([]);
+  });
+});
+
 describe("the tragedy tripwire", () => {
   const nowQ = (over = {}) => ({
     surface: "feed", type: "vote", cat: NOW_TOPIC, core: false,
@@ -802,5 +842,73 @@ describe("the gate's own liveness", () => {
       + "hands checkQuestion a card breaking the rule and demands the refusal "
       + "— see `every rule refuses something` above.",
     ).toEqual([]);
+  });
+});
+
+// ── background, the card's `i` (D281) ────────────────────────────────
+//
+// The bounds are the demo pool's own, measured — so the cases here are
+// mostly about the FLOOR, which is the one that reads as arbitrary and is
+// not. A background exists to make a question answerable; one that stops
+// short of that promotes the button, opens a sheet, and leaves the reader
+// exactly where they were, which is worse than the pale button because it
+// has spent the reader's tap.
+describe("the background field", () => {
+  const bgQ = (bg) => ({
+    surface: "feed", type: "vote", cat: "event", core: false,
+    prompt: "A verdict landed in a fraud case. Proportionate?",
+    options: ["About right", "Too far"],
+    ...(bg === undefined ? {} : { bg }),
+  });
+  const bgErrs = (q) => checkQuestion(q, "feed", corpus).errs.filter((e) => e.rule === "bg");
+  const GOOD =
+    "The company was the country's largest property developer, financed by pre-selling flats "
+    + "that were not yet built, and a court ordered it liquidated after it defaulted.";
+
+  it("passes a well-formed background, and a card with none", () => {
+    expect(bgErrs(bgQ(GOOD))).toEqual([]);
+    expect(bgErrs(bgQ(undefined))).toEqual([]);
+  });
+
+  it("refuses one too short to answer the question with", () => {
+    expect(bgErrs(bgQ("It was a big company that went bust.")).length).toBe(1);
+    expect(bgErrs(bgQ("x".repeat(BG_MIN - 1))).length).toBe(1);
+    expect(bgErrs(bgQ("x".repeat(BG_MIN)))).toEqual([]);
+  });
+
+  it("refuses one long enough to be the arguments", () => {
+    expect(bgErrs(bgQ("x".repeat(BG_MAX + 1))).length).toBe(1);
+    expect(bgErrs(bgQ("x".repeat(BG_MAX)))).toEqual([]);
+  });
+
+  it("refuses a background that asks a question back", () => {
+    expect(bgErrs(bgQ(GOOD.replace(/\.$/, "?"))).some((e) => e.msg.includes("asks a question"))).toBe(true);
+  });
+
+  it("refuses a background that argues, and lets reporting through", () => {
+    for (const bg of [
+      GOOD + " The sentence should be reduced on appeal.",
+      GOOD + " Most economists agree the penalty was excessive.",
+      GOOD + " Obviously the court went too far here.",
+    ]) expect(bgErrs(bgQ(bg)).some((e) => e.msg.includes("argues")), bg).toBe(true);
+
+    // The register the list must NOT catch: ordinary reporting of what
+    // other people did and said, which is most of what a background is.
+    for (const bg of [
+      GOOD + " Creditors have appealed the ruling.",
+      GOOD + " Its bondholders recovered a fraction of what they were owed.",
+      GOOD + " The founder denied the charges throughout.",
+    ]) expect(bgErrs(bgQ(bg)), bg).toEqual([]);
+  });
+
+  // The shipped bank is the corpus this was measured against, so it has to
+  // pass its own gate — the same shape every other bound in this file is
+  // pinned with.
+  it("holds across every background in the bank", () => {
+    const withBg = corpus.feed.questions.filter((q) => typeof q.bg === "string");
+    expect(withBg.length, "no bank entry carries a background — this case is vacuous").toBeGreaterThan(0);
+    for (const q of withBg) {
+      expect(bgErrs(q), q.id).toEqual([]);
+    }
   });
 });

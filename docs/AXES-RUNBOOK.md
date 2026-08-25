@@ -11,7 +11,7 @@
 > same reason.
 
 **Status: the program is LIVE — Phase 0 done 2026-08-25, adopted in
-the owner's words (D277); every build step below is open.** The three
+the owner's words (D289); every build step below is open.** The three
 lanes exist and fire on the inventory's schedule; this file is the
 contract they defer to every run, so its behavior changes by PR here.
 
@@ -57,7 +57,7 @@ by PR to this file — the prompts defer to it every firing.
 
 ### The account-side inventory (repo-side record)
 
-Created 2026-08-25 (D277): fresh session per fire, model
+Created 2026-08-25 (D289): fresh session per fire, model
 `claude-fable-5`, completion notifications off. Update this table
 whenever a lane is added, rebound, re-paced, or retired — the farm's
 convention.
@@ -233,14 +233,14 @@ Mandatory reporting: the digest IS the report. If you have no GitHub API tools, 
 
 ## Phase 0 — the program's own footing
 
-- [x] **0.1 [owner] The word — DONE 2026-08-25 (D277).** Resolved by
+- [x] **0.1 [owner] The word — DONE 2026-08-25 (D289).** Resolved by
       the owner's own vocabulary rather than picked from the menu:
       **axis** is a shipped source, **axiom** is its ideal in the
       theory layer (`docs/AXIOM-THEORY.md`), *trait axis* where the
       instrument-dimension sense is meant, and no code registry takes
       the bare word. · **Gate:** the record exists; `check:docs`
       green.
-- [x] **0.2 [owner] Adopt the program — DONE 2026-08-25 (D277,
+- [x] **0.2 [owner] Adopt the program — DONE 2026-08-25 (D289,
       "do 4 and 5 and open the pr").** Run log #290 created; the three
       Routines exist (ids in § The account-side inventory); prompts
       match the canonical blocks verbatim. One honesty note in place

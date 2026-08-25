@@ -345,9 +345,12 @@ describe("LiveGroupsMirrorBody · Compare averages the members' own results", ()
     const panel = screen.getByRole("tabpanel").textContent || "";
     expect(panel).toMatch(/88/);
     expect(panel).toMatch(/The Crew/);
-    // The basis, over the members who actually have one — three uids in
-    // the group and two profiles between them.
-    expect(panel).toMatch(/2 of 3 have taken one/);
+    // The basis, over the members who actually have one — and "them" is
+    // the group WITHOUT the viewer, so the denominator is two, not three.
+    // This read "2 of 3" while the viewer was inside their own comparison
+    // population: u_me has no result here, so the third slot was the
+    // viewer being counted as somebody they might align with.
+    expect(panel).toMatch(/2 of 2 have taken one/);
   });
 
   it("says nobody here has finished a test rather than drawing one member", async () => {
@@ -356,14 +359,74 @@ describe("LiveGroupsMirrorBody · Compare averages the members' own results", ()
     expect(await screen.findByText(/Nobody here has finished a test yet/i)).toBeTruthy();
   });
 
+  // The sharp case for the population. When the VIEWER is the only member
+  // with a result, "them" is empty — and the lens has an empty state for
+  // exactly that. Passing the whole membership put the viewer on both
+  // sides instead, so the card compared them with themselves and printed a
+  // perfect score: "You ↔ The Crew · 100% aligned · 1 of 3 have taken one".
+  it("does not compare you with yourself when you are the only one who has taken a test", async () => {
+    LIVE.scoresFor = (uid: string) => (uid === "u_me"
+      ? { big5: { O: 40, C: 40, E: 40, A: 40, N: 40 } }
+      : null);
+    render(<LiveGroupsMirrorBody />);
+    openTab("Compare");
+    expect(await screen.findByText(/Nobody here has finished a test yet/i)).toBeTruthy();
+    const panel = screen.getByRole("tabpanel").textContent || "";
+    expect(panel, "the viewer was counted as somebody they align with").not.toMatch(/100/);
+    expect(panel).not.toMatch(/across 5 axes/);
+  });
+
   it("resolves the members' profiles in one batched call", async () => {
     render(<LiveGroupsMirrorBody />);
     openTab("Compare");
     // The scores ride the same document as the names (live.ts loadNames),
     // so a group's Compare costs one read per member and not one per
-    // member per instrument.
+    // member per instrument — and not one for the VIEWER, whose profile
+    // this side of the comparison does not contain.
     await vi.waitFor(() => {
-      expect(LIVE.loadNames).toHaveBeenCalledWith(["u_me", "u_ada", "u_bo"]);
+      expect(LIVE.loadNames).toHaveBeenCalledWith(["u_ada", "u_bo"]);
     });
+  });
+});
+
+// ── the cross-group line (D287's groups half, D288 runbook phase 6) ──
+//
+// "Runs most like you" is a superlative, so it renders only when it is a
+// real comparison: two or more groups whose history clears the roles floor
+// (MIN_GROUP days the viewer played). Below either bar the picture stands
+// alone — one group is a caption, thin history is a guess.
+describe("LiveGroupsMirrorBody · which scene runs most like you", () => {
+  const GROUP2 = {
+    id: "g2",
+    name: "Book Club",
+    mode: "group",
+    memberUids: ["u_me", "u_ada", "u_bo"],
+    memberNames: { u_me: "Me", u_ada: "Ada", u_bo: "Bo" },
+  };
+  // The Crew: with the majority on all three days · Book Club: on one of three
+  const CREW_DAYS = [day("2026-08-01", 0, 0, 1), day("2026-08-02", 1, 1, 0), day("2026-08-03", 0, 0, 0)];
+  const CLUB_DAYS = [day("2026-08-01", 1, 0, 0), day("2026-08-02", 0, 1, 1), day("2026-08-03", 0, 0, 0)];
+
+  it("names the most-aligned group, with the count the claim is made of", () => {
+    LIVE.social.groups = () => [GROUP, GROUP2];
+    LIVE.social.revealHistory = ((gid: string) => (gid === "g1" ? CREW_DAYS : CLUB_DAYS)) as never;
+    render(<LiveGroupsMirrorBody />);
+    const line = screen.getByText(/runs most like you/);
+    expect(line.textContent).toContain("The Crew");
+    expect(line.textContent).toContain("3 of the 3 days you played");
+  });
+
+  it("says nothing with one group — a superlative of one is a caption", () => {
+    LIVE.social.groups = () => [GROUP];
+    LIVE.social.revealHistory = (() => CREW_DAYS) as never;
+    render(<LiveGroupsMirrorBody />);
+    expect(screen.queryByText(/runs most like you/)).toBeNull();
+  });
+
+  it("says nothing while the second group is under the floor", () => {
+    LIVE.social.groups = () => [GROUP, GROUP2];
+    LIVE.social.revealHistory = ((gid: string) => (gid === "g1" ? CREW_DAYS : CLUB_DAYS.slice(0, 1))) as never;
+    render(<LiveGroupsMirrorBody />);
+    expect(screen.queryByText(/runs most like you/)).toBeNull();
   });
 });

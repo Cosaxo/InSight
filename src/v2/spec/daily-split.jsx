@@ -19,6 +19,12 @@ import { Sheet } from './primitives.jsx';
 // wholesale, because an imported binding cannot be unset but the DATA it
 // carries can still be missing.
 import LIVE from '../data/live';
+// The one rounding rule (data/pct.ts). This file was the third split
+// surface and the one that kept the rule pct.ts was written to delete —
+// see the commit that converted it. Static, not lazy: pct.ts is a pure
+// leaf with no imports of its own, and the split is the first thing this
+// tab draws.
+import { sharePcts } from '../data/pct';
 // The live world-takes surface (D83) — the typed panel, reached by ESM
 // rather than a global lookup, so the D39 coupling meter stays flat.
 //
@@ -632,7 +638,13 @@ class DailySplit extends React.Component {
       const placeholder = h('div', { className: 'card', style: { padding: '26px 18px', textAlign: 'center', margin: '4px 1px' } },
         h('div', { style: { fontWeight: 800, fontSize: 17, marginBottom: 6 } }, 'Fetching today\u2019s question\u2026'),
         h('div', { style: { fontSize: 13, fontWeight: 500, color: 'var(--ink-2)' } }, 'One moment \u2014 or check your connection.'));
-      return placeholder;
+      // The SAME shape as the return at the end of this method, because
+      // render() destructures `{ rootRef, screen }` off whatever comes back.
+      // A bare element gave it undefined for both, so the loading card this
+      // branch exists to draw never reached the screen and the tab painted
+      // an empty div instead \u2014 silently, since destructuring absent keys
+      // throws nothing for the ErrorBoundary to catch.
+      return { rootRef: (el) => this.setupGestures(el), screen: placeholder };
     }
     const wIdx = Math.min(st.idx, DATA.length - 1), S = DATA[wIdx];
     const myVote = st.votes[S.id], voted = !!myVote;
@@ -640,8 +652,14 @@ class DailySplit extends React.Component {
     const canChange = this.props.allowChangeVote ?? true, sortMode = this.props.commentSort ?? 'top';
     const counts = S.options.map(o => o.count + (myVote === o.id ? 1 : 0));
     const total = counts.reduce((a, b) => a + b, 0);
-    const rp = counts.map(c => Math.round(c / total * 100));
-    rp[rp.indexOf(Math.max(...rp))] += 100 - rp.reduce((a, b) => a + b, 0);
+    // Largest remainder, not round-then-dump-the-residue. The old rule
+    // handed the WHOLE residue to one bucket, which on a many-option daily
+    // drew a smaller count taller and gave it the headline numeral: over
+    // 200k sampled 6-12 option vectors it inverted 2.36% of them and
+    // misplaced the maximum on 1.70%. Both feed straight into the tiles
+    // below (`flex: Math.max(rp[i], 9)`) and into which option gets the
+    // big numeral (`rp[i] === maxP`).
+    const rp = sharePcts(counts);
     const maxP = Math.max(...rp), myIdx = S.options.findIndex(o => o.id === myVote);
     // Below the k-floor the aggregate publishes nothing — say so instead
     // of dressing a single vote up as a population.
@@ -778,12 +796,15 @@ class DailySplit extends React.Component {
           rows = gs.map((g, gi) => {
             let ps;
             if (ov && ov[gi]) ps = [...ov[gi]];
-            else { const w = S.options.map((o, oi) => (counts[oi] / total) * (0.55 + this.hash(key + gi + ':' + oi))); const sum = w.reduce((a, b) => a + b, 0); ps = w.map(x => Math.round(x / sum * 100)); ps[ps.indexOf(Math.max(...ps))] += 100 - ps.reduce((a, b) => a + b, 0); }
+            // Weights rather than counts here (this is the demo cut synthesis),
+            // so pct.ts's integer-exactness note does not apply — but Hamilton
+            // is monotonic in its input either way, and leaving one copy of the
+            // retired rule in this file is how it grows back.
+            else { const w = S.options.map((o, oi) => (counts[oi] / total) * (0.55 + this.hash(key + gi + ':' + oi))); ps = sharePcts(w); }
             return { label: g.label, dot: g.color, you: g.label === youBand, p0: ps[0], segments: S.options.map((o, oi) => ({ color: o.color, width: ps[oi] + '%' })) };
           }).sort((a, b) => b.p0 - a.p0);
         }
-        const op = counts.map(c => Math.round(c / total * 100));
-        op[op.indexOf(Math.max(...op))] += 100 - op.reduce((a, b) => a + b, 0);
+        const op = sharePcts(counts);
         const many = rows.length > 6;
         const GRID = { display: 'grid', gridTemplateColumns: '96px 1fr', gap: 10, alignItems: 'center' };
         return h('div', { style: col(12) },
@@ -1056,8 +1077,8 @@ class DailySplit extends React.Component {
       screen: h(F, null, this.dailyRuler(mode, accents, badges),
         // the sliding surface — swipes translate this, not the whole page
         h('div', { ref: (n) => { this.bodyEl = n; }, style: { display: 'flex', flexDirection: 'column', gap: 13, flex: 1, willChange: 'transform' } }, body),
-        // quiet footer — suggest a question for the daily (community board)
-        h('button', { onClick: () => NAV.openSuggestions(), style: { alignSelf: 'center', marginTop: 4, padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)' } }, 'Have a question in mind? ', h('span', { style: { color: 'var(--accent)' } }, 'Suggest one \u2192'))),
+        // quiet footer — the ask-a-question door (the paid path, D288 §1)
+        h('button', { onClick: () => NAV.openSuggestions(), style: { alignSelf: 'center', marginTop: 4, padding: '8px 14px', border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)' } }, 'Have a question in mind? ', h('span', { style: { color: 'var(--accent)' } }, 'Ask it \u2192'))),
     };
   }
 

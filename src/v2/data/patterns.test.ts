@@ -48,10 +48,19 @@ vi.mock("../../lib/firebase", () => ({
 }));
 
 const voters = vi.hoisted(() => ({
-  fetchVoters: vi.fn<(db: unknown, qid: string) => Promise<{ uid: string; optionIdx: number }[]>>(
+  fetchVoterPicks: vi.fn<(db: unknown, qid: string) => Promise<{ uid: string; optionIdx: number }[]>>(
     async () => []),
+  // Named here only so the case below can assert it is never reached. The
+  // pair card counts agreements and names nobody, so the name-resolving
+  // read is pure waste on this path — up to VOTER_FETCH_CAP profile
+  // documents per question, billed, thrown away.
+  fetchVoters: vi.fn(async () => []),
 }));
-vi.mock("./voters", () => ({ fetchVoters: voters.fetchVoters, VOTER_FETCH_CAP: 200 }));
+vi.mock("./voters", () => ({
+  fetchVoterPicks: voters.fetchVoterPicks,
+  fetchVoters: voters.fetchVoters,
+  VOTER_FETCH_CAP: 200,
+}));
 
 import { PATTERNS, ensureLive } from "./patterns";
 
@@ -244,7 +253,7 @@ describe("the meter", () => {
 
 describe("the pair card", () => {
   const overlap = (n: number, split: (i: number) => [number, number]) => {
-    voters.fetchVoters.mockImplementation(async (_db: unknown, qid: string) =>
+    voters.fetchVoterPicks.mockImplementation(async (_db: unknown, qid: string) =>
       Array.from({ length: n }, (_, i) => ({
         uid: `u${i}`,
         optionIdx: qid === "qa" ? split(i)[0] : split(i)[1],
@@ -274,10 +283,24 @@ describe("the pair card", () => {
     await ensureLive();
     overlap(20, (i) => (i < 10 ? [0, 0] : [1, 1]));
     await PATTERNS.say("qa", "qb");
-    expect(voters.fetchVoters).toHaveBeenCalledTimes(2); // one per question
+    expect(voters.fetchVoterPicks).toHaveBeenCalledTimes(2); // one per question
     await PATTERNS.say("qa", "qb");
     await PATTERNS.say("qb", "qa"); // same pair, either order
-    expect(voters.fetchVoters).toHaveBeenCalledTimes(2);
+    expect(voters.fetchVoterPicks).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads picks only — never the profile documents behind the names", async () => {
+    // The card says "people who picked X also picked Y". It draws no
+    // names, so `fetchVoters`' second half — resolveNames, up to
+    // VOTER_FETCH_CAP profile reads chunked 30 at a time — bought a map
+    // nothing on this path read. A regression here is invisible on
+    // screen and shows up only on the bill.
+    publishFixture();
+    await ensureLive();
+    overlap(20, (i) => (i < 10 ? [0, 0] : [1, 1]));
+    await PATTERNS.say("qa", "qb");
+    expect(voters.fetchVoterPicks).toHaveBeenCalled();
+    expect(voters.fetchVoters).not.toHaveBeenCalled();
   });
 });
 

@@ -19,7 +19,7 @@
 // The rules layer is for client traffic; functions can do anything.
 
 import { initializeApp } from "firebase-admin/app";
-import { FieldValue } from "firebase-admin/firestore";
+import { FieldPath, FieldValue } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { getStorage } from "firebase-admin/storage";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
@@ -206,6 +206,9 @@ export const deleteAccount = onCall(
       // Question suggestions swept by phase 4d (docs/NEXT-FUNCTIONALITY.md
       // §6) — the author's queued free text, keyed by uid.
       suggestions: 0,
+      // Paid purchase records swept by phase 4e (PAID-PLAN §7, D288 §3) —
+      // the buyer's contract ledger, keyed by uid.
+      purchases: 0,
       // Reveal docs scrubbed of this uid (phase 1c-bis). Reported for the
       // same reason as modQueueOrphans: it is the number that tells an
       // operator whether the collection-group sweep actually reached
@@ -269,8 +272,43 @@ export const deleteAccount = onCall(
     // delete, which turns "too talkative" into an account that can never
     // finish deleting itself.
     try {
-      await deleteQueryDocs(db.collection("v2_takes").where("authorUid", "==", uid));
+      // The take ids are COLLECTED as they are deleted, because a flag is
+      // keyed by the take it names and once the take is gone nothing can
+      // find its flags again. Same paging as deleteQueryDocs, which cannot
+      // hand back what it removed.
+      const takeIds: string[] = [];
+      for (;;) {
+        const snap = await db.collection("v2_takes")
+          .where("authorUid", "==", uid).limit(400).get();
+        if (snap.empty) break;
+        const batch = db.batch();
+        snap.docs.forEach((d) => { takeIds.push(d.id); batch.delete(d.ref); });
+        await batch.commit();
+        if (snap.docs.length < 400) break;
+      }
+      // Flags this account WROTE.
       await deleteQueryDocs(db.collection("v2_flags").where("uid", "==", uid));
+      // …and flags that NAME it, which the query above cannot see.
+      //
+      // A flag carries the uid of whoever cast it, and separately the thing
+      // it reports. Sweeping only the author left every report AGAINST this
+      // account standing: an avatar flag carries `target: {uid}` outright,
+      // and a flag on a world take carries `takeId: "{qid}_{uid}"`, because
+      // a world take's id IS qid_uid. Nothing else reaches them —
+      // clearFlagsFor only runs for targets the moderation queue actually
+      // considers, and the queue's floor is MOD_QUEUE_MIN_FLAGS, so one or
+      // two reports on a departed account's face or take were residue
+      // forever. In the one collection whose stated posture is that erasure
+      // takes "their takes and flags".
+      await deleteQueryDocs(db.collection("v2_flags").where("target", "==", uid));
+      // Chunked at ten because `in` is a bounded operator, and over the ids
+      // just collected rather than a prefix match, which Firestore has no
+      // way to express on a suffix.
+      for (let i = 0; i < takeIds.length; i += 10) {
+        await deleteQueryDocs(
+          db.collection("v2_flags").where("takeId", "in", takeIds.slice(i, i + 10)),
+        );
+      }
       // The face, both halves (D178). The document is one delete; the
       // BYTES are the first thing this function has ever had to remove
       // from Storage, and the reason storage.rules could keep its retired
@@ -353,6 +391,35 @@ export const deleteAccount = onCall(
       logger.error("[deleteAccount] avatar object delete failed:", err);
       failed.push("avatarObject");
     }
+
+    // The FOURTH place a reveal names this account, and the only one that
+    // is not keyed by it.
+    //
+    // A pick day's vote snapshots WHO its index meant (D224), so another
+    // member's entry reads `votes.{them}.pickUid = {uid}`. Deleting
+    // `votes.{uid}`, `names.{uid}` and the `members` entry leaves that
+    // one standing — and reveals are `allow read: if request.auth != null`
+    // (firestore.rules, the /reveals/{day} match), so it is a pseudonymous
+    // identifier of a deleted account in a document any signed-in user can
+    // read. That is exactly the survivor the `members` comment below
+    // refuses, one field over.
+    //
+    // Returns the update fields rather than writing, so both scrub phases
+    // fold it into the batch they already have.
+    const pickUidScrub = (
+      snap: { get: (f: string) => unknown },
+    ): Record<string, unknown> => {
+      const votes = snap.get("votes");
+      if (!votes || typeof votes !== "object") return {};
+      const out: Record<string, unknown> = {};
+      for (const [voter, v] of Object.entries(votes as Record<string, unknown>)) {
+        if (voter === uid) continue; // that whole entry is deleted anyway
+        if (v && typeof v === "object" && (v as { pickUid?: unknown }).pickUid === uid) {
+          out[`votes.${voter}.pickUid`] = FieldValue.delete();
+        }
+      }
+      return out;
+    };
 
     // 1c. Leave every v2 group: membership, name, and reveal entries all
     // reference the user — right-to-erasure means none may linger. A
@@ -438,7 +505,28 @@ export const deleteAccount = onCall(
           let batch = db.batch();
           let ops = 0;
           for (const r of page.docs) {
+            // Whole documents are already in hand (this is a `.get()` page,
+            // not a stream of refs), so ask each one whether it mentions
+            // this user before spending a write on it. A group's reveals
+            // run from the day it was created: every day before the user
+            // joined, and every day they did not play, carried none of the
+            // three fields below and bought a write that deleted nothing —
+            // out of the ~7,300 documents the comment above prices for a
+            // year-old account in 20 groups. The check costs no read.
+            //
+            // It also stops arrayRemove from CREATING `members: []` on a
+            // reveal that never had the field, which the unconditional
+            // update did on every such document.
+            //
+            // Nothing is left behind by skipping: a field the snapshot does
+            // not carry is a field this update could not have deleted.
+            const hasVote = r.get(new FieldPath("votes", uid)) !== undefined;
+            const hasName = r.get(new FieldPath("names", uid)) !== undefined;
+            const inMembers = Array.isArray(r.get("members")) && (r.get("members") as string[]).includes(uid);
+            const picks = pickUidScrub(r);
+            if (!hasVote && !hasName && !inMembers && !Object.keys(picks).length) continue;
             batch.update(r.ref, {
+              ...picks,
               [`votes.${uid}`]: FieldValue.delete(),
               [`names.${uid}`]: FieldValue.delete(),
               // The membership snapshot the reveal read rule gates on
@@ -528,6 +616,7 @@ export const deleteAccount = onCall(
         let ops = 0;
         for (const r of page.docs) {
           batch.update(r.ref, {
+            ...pickUidScrub(r),
             [`votes.${uid}`]: FieldValue.delete(),
             [`names.${uid}`]: FieldValue.delete(),
             // The membership snapshot the reveal read rule gates on
@@ -754,6 +843,22 @@ export const deleteAccount = onCall(
     } catch (err) {
       logger.error("[deleteAccount] suggestions wipe failed:", err);
       failed.push("suggestions");
+    }
+
+    // 4e. This account's paid purchase records (PAID-PLAN §7, D288 §3).
+    //     Uid-keyed like everything else the sweep covers; the business
+    //     record of a contract lives with the contract itself, off-app
+    //     (selling is by hand, PAID-PLAN §9.2), and the bought QUESTION
+    //     survives as content the way a promoted suggestion does — the
+    //     purchase ROW still goes, and the next pricing.json rebuild
+    //     folds a ledger that no longer names this account.
+    try {
+      counts.purchases = await deleteQueryDocs(
+        db.collection("v2_purchases").where("uid", "==", uid),
+      );
+    } catch (err) {
+      logger.error("[deleteAccount] purchases wipe failed:", err);
+      failed.push("purchases");
     }
 
     // 5. Any wipe failure above must abort BEFORE the auth delete:

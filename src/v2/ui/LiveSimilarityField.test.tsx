@@ -42,6 +42,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { KindredPerson, ParsedResults } from "../data/similarity";
+import { agreementOf } from "../data/cohort";
 
 interface RoomRead { people: Array<{ uid: string; type?: string }>; qs: Record<string, Record<string, number>> }
 
@@ -49,6 +50,10 @@ const LIVE = vi.hoisted(() => ({
   enabled: true,
   subscribe: () => () => {},
   loadSimilarity: vi.fn(() => Promise.resolve()),
+  // D278: the City stop asks for its own city-scoped pass beside the
+  // unscoped one. Stubbed rather than exercised here — this file is about
+  // what the field DRAWS; the pool it draws from is pinned in vote.test.ts.
+  loadCityKindred: vi.fn(() => Promise.resolve()),
   loadNames: vi.fn(() => Promise.resolve()),
   similarityLoading: (): boolean => false,
   kindredLoading: (): boolean => false,
@@ -107,7 +112,7 @@ const person = (
     uid,
     name: opts.name ?? uid.toUpperCase(),
     city: opts.city ?? "Oslo, NO",
-    like: { shared, same, pct: shared ? Math.round((same / shared) * 100) : 0 },
+    like: agreementOf(same, shared),
     results: opts.results ?? null,
   };
 };

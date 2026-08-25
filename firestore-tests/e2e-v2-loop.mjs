@@ -235,6 +235,27 @@ if (above.counts["0"] !== 2 || above.counts["1"] !== 3)
   fail("counts wrong at total 5: " + JSON.stringify(above));
 ok("five answers: exact public counts {0:2, 1:3} — no double counting");
 
+// 7a-bis · and the second copy is gone. The trigger used to write those
+// same five numbers twice — v2_aggs_private/{qid} byte-for-byte alongside
+// the published doc — which is a third of its writes on every answer, for
+// a document with no reader. The counts above are the proof the fold is
+// right; this is the proof it costs one write to be right.
+//
+// Read through the ADMIN handle, because the collection is deny-all to
+// clients: a client read would fail whether the document existed or not,
+// which is the assertion that passes for the wrong reason.
+{
+  const privSnap = await adminDb.doc(`v2_aggs_private/${q0.id}`).get();
+  if (privSnap.exists) {
+    fail(
+      "the vote path wrote v2_aggs_private/" + q0.id + " again — the private "
+      + "mirror was collapsed into the published document; a second write of "
+      + "a public fact is what this removed: " + JSON.stringify(privSnap.data()),
+    );
+  }
+}
+ok("no private mirror: the published aggregate is the only document the fold writes");
+
 // 7b · the breakdown, whole (D98). At total 5 the age bands hold 3 and 2
 // and the cities 3 and 2, and every one of those cells publishes exactly.
 // Country is a single bucket of 5 — once withheld as "a population
@@ -558,8 +579,13 @@ if (!joined.data?.ok) fail("approveJoinV2 refused: " + JSON.stringify(joined.dat
 ok("a member let them in; the queue entry and its name are gone");
 
 const aid = `g_${gid}_${YESTER}`;
+// A DUO-surface question, because this group is mode "duo" (line 490) and
+// isDuelAnswer compares the question's surface to the answer's. duelQFor
+// (data/deck.ts) draws with `q.surface === mode`, so "group-gu0" under a
+// duo group was a shape no client could produce — it only ever passed
+// because the rule did not look.
 const duel = (idx, guess) => ({
-  qid: "group-gu0", surface: "duo", optionIdx: idx, guessIdx: guess,
+  qid: "duo-001", surface: "duo", optionIdx: idx, guessIdx: guess,
   gid, day: YESTER, answeredAt: serverTimestamp(), anchors: {},
 });
 await setDoc(doc(db, "v2_users", uid, "answers", aid), duel(1, 2));
@@ -646,7 +672,10 @@ const outDb = getFirestore(outApp, E2E_DB_ID); connectFirestoreEmulator(outDb, "
 const outsider = await signInAnonymously(outAuth);
 await expectDenied("non-member cannot answer an open duel day", () =>
   setDoc(doc(outDb, "v2_users", outsider.user.uid, "answers", `g_${gid}_${OTHERDAY}`), {
-    qid: "group-gu0", surface: "duo", optionIdx: 0, guessIdx: 0,
+    // duo-001 for the same reason as the duel helper above: this is the
+    // duo group, and the refusal under test is non-membership, so the rest
+    // of the shape has to be one a real client would write.
+    qid: "duo-001", surface: "duo", optionIdx: 0, guessIdx: 0,
     gid, day: OTHERDAY, answeredAt: serverTimestamp(), anchors: {},
   }));
 

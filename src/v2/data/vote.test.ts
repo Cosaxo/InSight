@@ -44,6 +44,15 @@ const h = vi.hoisted(() => ({
   updateDocImpl: null as null | (() => Promise<void>),
   updateDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
   bankDocs: [] as FakeSnapshotDoc[],
+  // D278: the collection-group voter reads. Keyed by the city the query
+  // asked for ("" = the unscoped pass), because the whole point of the
+  // change is that the two return DIFFERENT people — a fixture that
+  // ignored the filter could not tell a working narrowing from a no-op.
+  voterDocs: {} as Record<string, FakeSnapshotDoc[]>,
+  // Every collection-group query issued, with the field/value pairs it
+  // carried. What proves the `where` reached Firestore rather than being
+  // applied on the device afterwards.
+  voterQueries: [] as Array<Record<string, unknown>>,
   // Documents `v2_question_aggs` queries resolve to, and the id lists they
   // were asked for (D125). The learn prefetch's whole failure mode is
   // asking for a document id nobody writes — getDocs returns nothing, the
@@ -59,6 +68,12 @@ const h = vi.hoisted(() => ({
   // fold: an entity answer doc has no optionIdx, and hydrate's fold has to
   // read it as answered rather than silently re-offering the picker.
   answerDocs: [] as FakeSnapshotDoc[],
+  // Serve `answerDocs` in slices of this size instead of wholesale, so a
+  // case can drive the COLD fetch's paging loop. 0 (the default) keeps the
+  // old single-snapshot behaviour, which is what every other case wants —
+  // the loop breaks on the first short page and never asks twice.
+  answerPageSize: 0,
+  answerServed: 0,
   aggIdQueries: [] as string[][],
   // Ids that make the `v2_question_aggs` query they appear in REJECT.
   // Targeted rather than getDocsImpl's blanket failure, because the case
@@ -81,7 +96,19 @@ const h = vi.hoisted(() => ({
   hangSignIn: false,
 }));
 
-vi.mock("../../lib/firebase", () => ({
+vi.mock("../../lib/firebase", () => {
+  // MEMOISED, the way the real lib/firebase memoises its single `impl()`
+  // promise — and that is not tidiness. live.ts re-binds its whole
+  // Firestore namespace off this on EVERY `getDb()` (D110), so a factory
+  // that returns a fresh `import()` each time can hand the second call a
+  // different module object than the first: the store then holds the real
+  // `doc`/`collection` while this file's doubles record nothing, and the
+  // write fails with an invalid-argument the test reads as a refusal.
+  // Invisible while every case voted once; a case that votes three times
+  // sees the first succeed and the rest fail.
+  const fsApi = import("firebase/firestore");
+  const fnsApi = import("firebase/functions");
+  return {
   firebaseEnabled: true,
   anonSignIn: () => (h.hangSignIn
     ? new Promise<string>(() => { /* never settles, which is the case */ })
@@ -92,15 +119,16 @@ vi.mock("../../lib/firebase", () => ({
   // module (vi.mock hoists, so its position below is immaterial), so importing
   // it here hands the store exactly the doubles this file asserts on — and
   // every case in it now also exercises the bind step.
-  getFirestoreApi: () => import("firebase/firestore"),
-  getFunctionsApi: () => import("firebase/functions"),
+  getFirestoreApi: () => fsApi,
+  getFunctionsApi: () => fnsApi,
   linkGoogle: () => Promise.resolve(),
   googleSignOut: () => Promise.resolve(),
   subscribeToAuth: (cb: (u: { uid: string } | null) => void) => {
     h.authCb = cb;
     return () => { h.authCb = null; };
   },
-}));
+  };
+});
 
 vi.mock("../../lib/sentry", () => ({
   reportError: h.reportError,
@@ -124,15 +152,24 @@ vi.mock("firebase/firestore", () => {
       id: d.id,
       data: () => d.data,
       get: (k: string) => d.data[k],
+      // voters.ts recovers the author's uid from the document PATH — that
+      // is what turns a collection-group row into a named person — so a
+      // fixture without one parses to nobody. `__path` lets a case state
+      // the author; everything else keeps the old shape.
+      ref: { path: (d.data.__path as string) || `v2_users/uid_x/answers/${d.id}` },
     })),
   });
   return {
     collection: (_db: unknown, ...path: string[]) => ref("collection", path),
+    collectionGroup: (_db: unknown, name: string) => ref("collectionGroup", [name]),
     doc: (_db: unknown, ...path: string[]) => ref("doc", path),
     query: (src: { path?: string }, ...parts: unknown[]) => ({
       __kind: "query", path: src?.path, parts,
     }),
-    where: (_field: unknown, _op: unknown, value: unknown) => ({ __kind: "where", value }),
+    // `field` rides along since D278: the agg arm below keys on `value`
+    // being an array and is unaffected, while the collection-group arm
+    // needs to know WHICH equality it was handed.
+    where: (field: unknown, _op: unknown, value: unknown) => ({ __kind: "where", field, value }),
     orderBy: () => ({ __kind: "orderBy" }),
     // Required since D161 paged the bank fetch: live.ts destructures the
     // whole Firestore surface, so a missing member throws at boot.
@@ -153,13 +190,29 @@ vi.mock("firebase/firestore", () => {
       if (q?.path === "v2_questions") return Promise.resolve(snapOf(h.bankDocs));
       // The my-answers pull (and, on a warm boot, the D86 edit-cursor
       // query on the same path — fold() is idempotent over the repeat).
-      if (q?.path === "v2_users/uid_test/answers") return Promise.resolve(snapOf(h.answerDocs));
+      if (q?.path === "v2_users/uid_test/answers") {
+        if (!h.answerPageSize) return Promise.resolve(snapOf(h.answerDocs));
+        const start = h.answerServed;
+        h.answerServed += h.answerPageSize;
+        return Promise.resolve(snapOf(h.answerDocs.slice(start, start + h.answerPageSize)));
+      }
       // main's version, kept whole: it records the id list and returns only
       // the matching documents, which the learn-split cases below assert on.
       // The D129 poll reads through this same arm — `refreshAggs` queries
       // `documentId() in deckIds` — so its fixtures are filtered by deck
       // membership rather than returned wholesale. That is the more faithful
       // mock of the two and the poll needs no special case.
+      // The voter fan-out (D102) and its city-scoped sibling (D278).
+      if (q?.path === "answers") {
+        const wheres: Record<string, unknown> = {};
+        for (const part of q.parts || []) {
+          const w = part as { __kind: string; field?: unknown; value?: unknown };
+          if (w && w.__kind === "where" && typeof w.field === "string") wheres[w.field] = w.value;
+        }
+        h.voterQueries.push(wheres);
+        const city = typeof wheres["anchors.city"] === "string" ? wheres["anchors.city"] as string : "";
+        return Promise.resolve(snapOf(h.voterDocs[city] || []));
+      }
       if (q?.path === "v2_question_aggs") {
         const ids = (q.parts || [])
           .filter((p) => p && p.__kind === "where" && Array.isArray(p.value))
@@ -289,8 +342,12 @@ beforeEach(() => {
   h.hangSignIn = false;
   h.aggDocs.length = 0;
   h.answerDocs.length = 0;
+  h.answerPageSize = 0;
+  h.answerServed = 0;
   h.aggIdQueries.length = 0;
   h.aggFailIds.length = 0;
+  h.voterDocs = {};
+  h.voterQueries.length = 0;
   h.bankDocs = [
     {
       id: "q_1",
@@ -451,6 +508,67 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(listener.mock.calls.length).toBeGreaterThan(notifiesBeforeAck);
     const cached = JSON.parse(storage.getItem(ANS_LS) || "{}");
     expect(cached.votes).toMatchObject({ q_1: "0" });
+  });
+
+  it("coalesces a sitting's post-vote refreshes into ONE drain, not one per answer", async () => {
+    // A feed sitting is ten to thirty answers, and each acked write asks
+    // for its question's freshly folded aggregate. This used to arm a
+    // separate 2500 ms timer per answer: one single-document round trip
+    // each, one complete buildFeedGlobals() each — which filters and maps
+    // the whole feed bank twice, per card — and one notify() each, which
+    // re-runs every subscriber's fold. Thirty answers bought thirty of
+    // each.
+    //
+    // Asserted on the ARMED TIMER and the pending set rather than on the
+    // query the drain eventually issues, for the reason `_aggPollForTest`
+    // exists: one timer holding three qids IS the claim, and a 2500 ms
+    // real-timer wait would put the assertion in whatever module state the
+    // clock has moved on to.
+    h.bankDocs = [h.bankDocs[0], {
+      id: "q_2",
+      data: {
+        surface: "daily", seq: 2, type: "vote", prompt: "Prompt q_2",
+        options: ["A", "B"], topic: null, test: null, active: true,
+      },
+    }, {
+      id: "q_3",
+      data: {
+        surface: "daily", seq: 3, type: "vote", prompt: "Prompt q_3",
+        options: ["A", "B"], topic: null, test: null, active: true,
+      },
+    }];
+    const LIVE = await bootLive();
+    const mod = await import("./live");
+
+    LIVE.vote("q_1", "0");
+    LIVE.vote("q_2", "1");
+    LIVE.vote("q_3", "0");
+    // Each write is its own promise chain (getDb → setDoc → ack), so wait
+    // for all three acks rather than for one macrotask.
+    // Each write is its own promise chain (getDb → setDoc → ack), so wait
+    // for all three acks rather than for one macrotask.
+    await vi.waitFor(() => {
+      expect(mod._aggRefreshForTest().pending).toHaveLength(3);
+    });
+
+    const r = mod._aggRefreshForTest();
+    expect(r.armed, "three answers must share one refresh timer").toBe(true);
+    expect([...r.pending].sort()).toEqual(["q_1", "q_2", "q_3"]);
+
+    // And the drain itself asks for the whole set in one query rather than
+    // one per qid — run directly, the `tick()` precedent.
+    h.aggDocs = [
+      { id: "q_1", data: { total: 3, counts: { "0": 3 } } },
+      { id: "q_2", data: { total: 4, counts: { "1": 4 } } },
+      { id: "q_3", data: { total: 5, counts: { "0": 5 } } },
+    ];
+    h.aggIdQueries.length = 0;
+    await r.drain({ __db: true } as never);
+    expect(h.aggIdQueries).toHaveLength(1);
+    expect([...h.aggIdQueries[0]].sort()).toEqual(["q_1", "q_2", "q_3"]);
+    expect(LIVE.aggFor("q_2")).toMatchObject({ total: 4 });
+    // Drained means drained — a second pass has nothing left to ask for.
+    expect(mod._aggRefreshForTest().pending).toEqual([]);
   });
 
   it("does NOT confirm an unacked vote when an agg poll lands mid-flight", async () => {
@@ -958,6 +1076,141 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     }).WORLD_FEED_QS || [];
     expect(feed.find((q) => q.id === "q_feed_doors")?.also).toEqual(["tech"]);
     expect("also" in (feed.find((q) => q.id === "q_feed_plain") || {})).toBe(false);
+  });
+
+  // ── background, the card's `i` (D281) ────────────────────────────
+  //
+  // Emit-when-set in both directions, and the absent half is the half
+  // that matters: `WF_BGTEXT` falls back to the demo pool's `WORLD_BG`
+  // map, so a `bg: undefined` written onto every card would be indexed
+  // as present-and-falsy by nothing and cost nothing — but a `bg: null`
+  // would, and the whole family of optional fields on this mapping is
+  // emit-when-set for that reason. Asserted with `in`, not truthiness.
+  it("carries a question's background onto the live feed card, and only when it has one", async () => {
+    h.bankDocs.push(
+      {
+        id: "q_feed_bg",
+        data: { surface: "feed", seq: 5, type: "vote", prompt: "A question needing context",
+          options: ["A", "B"], topic: "event", test: null, active: true,
+          bg: "The durable facts a reader needs before this is answerable." },
+      },
+      {
+        id: "q_feed_nobg",
+        data: { surface: "feed", seq: 6, type: "vote", prompt: "A question needing none",
+          options: ["A", "B"], topic: "culture", test: null, active: true },
+      },
+    );
+    await bootLive();
+    const feed = (window as unknown as {
+      WORLD_FEED_QS?: Array<{ id: string; bg?: string }>;
+    }).WORLD_FEED_QS || [];
+    expect(feed.find((q) => q.id === "q_feed_bg")?.bg)
+      .toBe("The durable facts a reader needs before this is answerable.");
+    expect("bg" in (feed.find((q) => q.id === "q_feed_nobg") || {})).toBe(false);
+  });
+
+  // ── the Learn bank (D284) ────────────────────────────────────────
+  //
+  // The bundle stopped carrying the card bank, so this publication is the
+  // only thing that puts cards in front of a live reader. The translation
+  // is real work rather than a pass-through — the bank speaks
+  // `learn-cell1`/`prompt`/`options`/`topic` and the engine speaks
+  // `cell1`/`q`/`a`/`f` — so it is asserted field by field.
+  it("publishes the bank's learn cards in the engine's own vocabulary", async () => {
+    const { learnCards, resetLearnBank } = await import("./learnBank");
+    resetLearnBank();
+    h.bankDocs.push({
+      id: "learn-cell1",
+      data: {
+        surface: "learn", seq: 0, type: "choice", topic: "cell", test: null, active: true,
+        prompt: "What do ribosomes build?",
+        options: ["Proteins", "Lipids", "DNA", "Sugars"],
+        c: 0, t: 2, p: 61, k: "Ribosomes build proteins",
+        w: "DNA is copied in the nucleus, not built here.",
+      },
+    });
+    await bootLive();
+    // A sentinel sample, so "fell through to the caller's array" and
+    // "published nothing" cannot pass as each other.
+    const cards = learnCards([{ id: "sample1", f: "cell", q: "s", a: ["a"], c: 0, t: 0, p: 50, k: "s" }]);
+    expect(cards).toHaveLength(1);
+    expect(cards[0]).toEqual({
+      // The `learn-` prefix is the BANK's id, never the card's: every
+      // device holds mastery state keyed on the bare id (`insight.learn.v3`),
+      // so publishing the prefixed one would read as a fresh account.
+      id: "cell1",
+      f: "cell",
+      q: "What do ribosomes build?",
+      a: ["Proteins", "Lipids", "DNA", "Sugars"],
+      c: 0,
+      t: 2,
+      p: 61,
+      k: "Ribosomes build proteins",
+      w: "DNA is copied in the nucleus, not built here.",
+    });
+    resetLearnBank();
+  });
+
+  it("drops a card with no answer key rather than guessing one", async () => {
+    const { learnCards, resetLearnBank } = await import("./learnBank");
+    resetLearnBank();
+    // Exactly the shape of a document seeded BEFORE D284 — prompt,
+    // options, topic, and no c/t/p/k/w. Defaulting `c` to 0 would mark
+    // option one correct on every pre-D284 card in the bank and teach the
+    // wrong answer, silently, on the one surface whose whole promise is
+    // that there is a right one. An empty Learn until the next seed run is
+    // the honest failure.
+    h.bankDocs.push({
+      id: "learn-old1",
+      data: {
+        surface: "learn", seq: 0, type: "choice", topic: "cell", test: null, active: true,
+        prompt: "A card from before the change", options: ["A", "B", "C", "D"],
+      },
+    });
+    await bootLive();
+    expect(learnCards([{ id: "sample1", f: "cell", q: "s", a: ["a"], c: 0, t: 0, p: 50, k: "s" }])).toEqual([]);
+    resetLearnBank();
+  });
+
+  // ── the feed's TEST stream (D280) ────────────────────────────────
+  //
+  // The store-side half of the same defect the smoke suite pins in the
+  // DOM. `buildFeedGlobals` used to publish this pool onto `window`, and
+  // when the feed's reader converted to a static import of the demo array
+  // the write became one nothing read — no gate could see it, because the
+  // write was a `window as unknown as Record<string, unknown>` cast on one
+  // side and an ESM binding on the other. So the assertion here is on the
+  // NAMED publisher rather than on a window key: if the seam is severed
+  // again, this fails.
+  it("publishes the bank's test items through testFeed, not onto window", async () => {
+    const { resetTestFeed, testFeedPool } = await import("./testFeed");
+    resetTestFeed();
+    h.bankDocs.push(
+      {
+        id: "test-political-3",
+        data: { surface: "test", seq: 8, type: "vote", prompt: "A political item",
+          options: ["Agree", "Neutral", "Disagree"], topic: null, test: "political", active: true },
+      },
+      {
+        id: "test-big5-4",
+        data: { surface: "test", seq: 9, type: "vote", prompt: "A big five item",
+          options: ["Agree", "Neutral", "Disagree"], topic: null, test: "big5", active: true },
+      },
+    );
+    await bootLive();
+    // A sentinel demo pool, so "fell through to the caller's array" and
+    // "published nothing" cannot pass as each other.
+    const DEMO = [{ id: "tq-political-0", test: "political" }];
+    const pool = testFeedPool(DEMO);
+    expect(pool.map((q) => q.id).sort()).toEqual(["test-big5-4", "test-political-3"]);
+    // Round-robined across instruments (D155), not served in bank order.
+    expect(pool.map((q) => q.test)).toEqual(["political", "big5"]);
+    // And the field the mapping did not carry until D280: with no agg
+    // document there is no split, and the card must be told so rather
+    // than drawing five zeroes as a measurement.
+    expect((pool[0] as { noCountsYet?: boolean }).noCountsYet).toBe(true);
+    expect((pool[0] as { live?: boolean }).live).toBe(true);
+    resetTestFeed();
   });
 
   // ── catalogue picks (D14 gone live) ──────────────────────────────
@@ -1847,5 +2100,136 @@ describe("rating questions and the confirmed city", () => {
     LIVE.vote("q_1", "1");
     await flush();
     expect(anchorsOf("q_1").city).toBe("Oslo, NO");
+  });
+});
+
+// ── the city half of the Kindred pool (D278) ─────────────────────────
+//
+// WHAT THIS IS FOR. The unscoped voter query returns the newest 200
+// answers from ANYWHERE and the City constellation then filters them to
+// one city on the device. Because the cap binds before the filter, the
+// number of reachable city-mates saturates around 50 however large the
+// city grows — and the ring only draws 12, so it fills either way. The
+// failure has no symptom, which is exactly why it needs a test rather
+// than a screenshot.
+//
+// The fixture keys voter rows by the city the query asked for, so a
+// narrowing that silently did nothing would return the same people and
+// fail here.
+describe("loadCityKindred — asking for the city instead of filtering for it", () => {
+  const OSLO = "Oslo, NO";
+  const answerDoc = (uid: string, qid: string, optionIdx: number, city: string) => ({
+    id: qid,
+    data: {
+      __path: `v2_users/${uid}/answers/${qid}`,
+      qid, surface: "daily", optionIdx, anchors: { city },
+    },
+  });
+
+  const bootInOslo = async () => {
+    h.getDocImpl = (path: string) => (path === "v2_users/uid_test" ? { anchors: { city: OSLO } } : null);
+    h.answerDocs.push({ id: "q_1", data: { qid: "q_1", surface: "daily", optionIdx: 1 } });
+    return bootLive();
+  };
+
+  it("sends the frozen city anchor to Firestore, not to a device-side filter", async () => {
+    h.voterDocs[OSLO] = [answerDoc("u_oslo", "q_1", 1, OSLO)];
+    const LIVE = await bootInOslo();
+    h.voterQueries.length = 0;
+    await LIVE.loadCityKindred();
+    // The whole point of the change: the equality is IN the query. A
+    // client-side filter would show up here as no `anchors.city` clause
+    // and would read identically on screen.
+    const scoped = h.voterQueries.filter((w) => w["anchors.city"] === OSLO);
+    expect(scoped.length).toBeGreaterThan(0);
+    // …and the surface clause survives beside it, which is not optional:
+    // firestore.rules grants this read as a value test on `surface`, so a
+    // query that dropped it would be refused wholesale (D65).
+    expect(scoped[0].surface).toEqual(["daily", "feed", "test", "learn", "pulse", "call"]);
+  });
+
+  it("adds the city people to the pool without displacing the unscoped ones", async () => {
+    // The People lens ranks strangers from anywhere and reads the same
+    // fold, so the city pass has to be a UNION. If it replaced, that lens
+    // would silently become "everyone in your city".
+    h.voterDocs[""] = [answerDoc("u_far", "q_1", 1, "Lima, PE")];
+    h.voterDocs[OSLO] = [answerDoc("u_near", "q_1", 1, OSLO)];
+    const LIVE = await bootInOslo();
+    await LIVE.loadKindred();
+    expect(LIVE.kindredPeople().map((p) => p.uid)).toEqual(["u_far"]);
+    await LIVE.loadCityKindred();
+    expect(LIVE.kindredPeople().map((p) => p.uid).sort()).toEqual(["u_far", "u_near"]);
+  });
+
+  it("does nothing at all for a viewer with no city", async () => {
+    h.voterDocs[OSLO] = [answerDoc("u_oslo", "q_1", 1, OSLO)];
+    h.answerDocs.push({ id: "q_1", data: { qid: "q_1", surface: "daily", optionIdx: 1 } });
+    const LIVE = await bootLive();
+    h.voterQueries.length = 0;
+    await LIVE.loadCityKindred();
+    // No anchor means no city to ask for — and asking with an empty string
+    // would match every answer whose author never set one.
+    expect(h.voterQueries).toEqual([]);
+  });
+
+  it("is session-cached, and refetches when the anchor moves", async () => {
+    h.voterDocs[OSLO] = [answerDoc("u_oslo", "q_1", 1, OSLO)];
+    const LIVE = await bootInOslo();
+    await LIVE.loadCityKindred();
+    const first = h.voterQueries.length;
+    await LIVE.loadCityKindred();
+    expect(h.voterQueries.length).toBe(first); // cached, not refetched
+
+    // A move must not serve the old city forever — the guard is keyed on
+    // the anchor rather than being a boolean. saveAnchors is the real
+    // setter and updates state.profile.anchors synchronously.
+    h.voterDocs["Bergen, NO"] = [answerDoc("u_bergen", "q_1", 1, "Bergen, NO")];
+    LIVE.saveAnchors({ city: "Bergen, NO" });
+    await LIVE.loadCityKindred();
+    expect(h.voterQueries.some((w) => w["anchors.city"] === "Bergen, NO")).toBe(true);
+  });
+});
+
+// ── the cold answer fetch is PAGED, not capped ─────────────────────────
+//
+// The cold path was one `orderBy("answeredAt","desc") limit(1000)`, and
+// the watermark it leaves behind is what made that permanent rather than
+// merely partial: `fold` raises maxTs to the newest answeredAt it sees,
+// and the warm query asks for `answeredAt >` that, so on a descending
+// page the watermark jumps straight past everything unread. Answer 1001
+// and beyond were sealed out of that device for good — the app re-offers
+// them, the create-only rule refuses each tap, and syncPassiveResults
+// re-folds a truncated vote map over the stored test result.
+describe("hydrate pages the viewer's own answers", () => {
+  const answeredAt = (ms: number) => ({ toMillis: () => ms });
+
+  it("drains every page instead of stopping at the first one", async () => {
+    // Two full pages and a short one. The page size the loop asks for is
+    // 1000, so the mock has to hand back exactly that to be asked again —
+    // a short page is the only signal that means the end.
+    const TOTAL = 2300;
+    for (let i = 0; i < TOTAL; i++) {
+      h.answerDocs.push({
+        id: `q_${String(i).padStart(5, "0")}`,
+        data: {
+          qid: `q_${String(i).padStart(5, "0")}`,
+          surface: "daily",
+          optionIdx: i % 2,
+          answeredAt: answeredAt(1000 + i),
+        },
+      });
+    }
+    h.answerPageSize = 1000;
+
+    const LIVE = await bootLive();
+
+    expect(
+      Object.keys(LIVE.myVotes()),
+      "answers past the first page were dropped — and the watermark would seal them out permanently",
+    ).toHaveLength(TOTAL);
+    // The last page's answers specifically, since those are the ones a
+    // descending single read discarded.
+    const last = `q_${String(TOTAL - 1).padStart(5, "0")}`;
+    expect(LIVE.myVotes()[last], `${last} is on the final page`).toBeDefined();
   });
 });

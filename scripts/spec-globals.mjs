@@ -97,6 +97,25 @@ const definedBy = new Map();
 const DEFINE_RES = [
   /(?:globalThis|window)\.([A-Za-z_$][\w$]*)\s*=[^=]/g,
   /Object\.assign\(\s*(?:globalThis|window)\s*,\s*\{([^}]*)\}/g,
+  // The CAST form, which the typed layer has to use and which this scanner
+  // could not see until D280:
+  //
+  //   (window as unknown as Record<string, unknown>).TEST_FEED_QS = …
+  //
+  // `data/` is scanned, so the file was read — the pattern above simply
+  // does not match a `window` with a type assertion between it and the dot.
+  // The cost of that blind spot was a shipped D1 violation. D249 converted
+  // `world-feed.jsx`'s reader of `window.TEST_FEED_QS` to an ESM import of
+  // the DEMO array and recorded the name as having no reader left, which
+  // was true of the spec layer and false of the tree: `live.ts` was still
+  // publishing the live pool here, into a name that now had no consumer.
+  // Rule 5 — publications nothing reads — is exactly the rule for that, and
+  // it could not fire because the publication was invisible.
+  //
+  // Seeing it costs nothing anywhere else: a cast write to a name something
+  // still reads is an ordinary multi-writer publication, which `definedBy`
+  // has modelled as a Set since 2026-08-03.
+  /\(\s*(?:globalThis|window)\s+as\s+[^)]*\)\.([A-Za-z_$][\w$]*)\s*=[^=]/g,
 ];
 const REF_RE = /(?:globalThis|window)\.([A-Za-z_$][\w$]*)/g;
 // The publication idiom READS THE NAME IT PUBLISHES, and that made rule 5
