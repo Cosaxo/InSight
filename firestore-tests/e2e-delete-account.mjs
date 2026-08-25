@@ -261,6 +261,13 @@ await adb.doc(`v2_takes/${MY_TAKE}`).set({
   gid: SHARED, authorUid: uid, qid: "q1", text: "words that must not outlive the account",
 });
 await adb.doc(`v2_flags/${MY_TAKE}_${uid}`).set({ takeId: MY_TAKE, gid: SHARED, uid });
+// …and the flags that NAME this account rather than being cast by it. The
+// sweep queried the AUTHOR only, so both of these survived erasure: a
+// report on their take, and a report on their face. The queue's floor is
+// MOD_QUEUE_MIN_FLAGS, so one or two of these are never settled by the
+// moderation run either — they are residue forever.
+await adb.doc(`v2_flags/${MY_TAKE}_${OTHER}`).set({ takeId: MY_TAKE, gid: SHARED, uid: OTHER });
+await adb.doc(`v2_flags/av_${uid}_${OTHER}`).set({ takeId: `av_${uid}`, target: uid, uid: OTHER });
 
 // question suggestions (docs/NEXT-FUNCTIONALITY.md §6): free text keyed to
 // the account, plus the budget ledger the callable keeps. OTHER's row is
@@ -385,6 +392,8 @@ for (const [path, label] of [
   [`v2_groups/${LEFT}/reveals/${DAY}`, "that group's reveal"],
   [`v2_takes/${MY_TAKE}`, "their take"],
   [`v2_flags/${MY_TAKE}_${uid}`, "their flag on their own take"],
+  [`v2_flags/${MY_TAKE}_${OTHER}`, "somebody else's flag ON their take"],
+  [`v2_flags/av_${uid}_${OTHER}`, "somebody else's flag on their FACE"],
   [`v2_avatars/${uid}`, "their profile photo's document"],
   [`v2_presence/${uid}`, "their presence cell"],
   ["v2_presence_room/5999_1074", "the cached roster naming them"],
@@ -474,6 +483,11 @@ for (const [path, label] of [
   [`v2_takes/${MY_TAKE}`, "their take"],
   [`v2_flags/${MY_TAKE}_${uid}`, "their flag on their own take"],
   [`v2_flags/${THEIR_TAKE}_${uid}`, "their flag on someone else's take"],
+  // Flags that NAME them, which the author-only sweep could not see: a
+  // report on their take (keyed `{qid}_{uid}`, since a world take's id is
+  // its author's) and a report on their face (`target: {uid}`).
+  [`v2_flags/${MY_TAKE}_${OTHER}`, "somebody else's flag ON their take"],
+  [`v2_flags/av_${uid}_${OTHER}`, "somebody else's flag on their FACE"],
   [`v2_users/${uid}/following/${OTHER}`, "the account's own follow"],
   [`v2_users/${uid}/foresight/daily-000__ageBand__25-34`, "a foresight verdict"],
   [`v2_users/${uid}/engagement/_state`, "the digest's bookkeeping pair (D268)"],

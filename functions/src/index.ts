@@ -269,8 +269,43 @@ export const deleteAccount = onCall(
     // delete, which turns "too talkative" into an account that can never
     // finish deleting itself.
     try {
-      await deleteQueryDocs(db.collection("v2_takes").where("authorUid", "==", uid));
+      // The take ids are COLLECTED as they are deleted, because a flag is
+      // keyed by the take it names and once the take is gone nothing can
+      // find its flags again. Same paging as deleteQueryDocs, which cannot
+      // hand back what it removed.
+      const takeIds: string[] = [];
+      for (;;) {
+        const snap = await db.collection("v2_takes")
+          .where("authorUid", "==", uid).limit(400).get();
+        if (snap.empty) break;
+        const batch = db.batch();
+        snap.docs.forEach((d) => { takeIds.push(d.id); batch.delete(d.ref); });
+        await batch.commit();
+        if (snap.docs.length < 400) break;
+      }
+      // Flags this account WROTE.
       await deleteQueryDocs(db.collection("v2_flags").where("uid", "==", uid));
+      // …and flags that NAME it, which the query above cannot see.
+      //
+      // A flag carries the uid of whoever cast it, and separately the thing
+      // it reports. Sweeping only the author left every report AGAINST this
+      // account standing: an avatar flag carries `target: {uid}` outright,
+      // and a flag on a world take carries `takeId: "{qid}_{uid}"`, because
+      // a world take's id IS qid_uid. Nothing else reaches them —
+      // clearFlagsFor only runs for targets the moderation queue actually
+      // considers, and the queue's floor is MOD_QUEUE_MIN_FLAGS, so one or
+      // two reports on a departed account's face or take were residue
+      // forever. In the one collection whose stated posture is that erasure
+      // takes "their takes and flags".
+      await deleteQueryDocs(db.collection("v2_flags").where("target", "==", uid));
+      // Chunked at ten because `in` is a bounded operator, and over the ids
+      // just collected rather than a prefix match, which Firestore has no
+      // way to express on a suffix.
+      for (let i = 0; i < takeIds.length; i += 10) {
+        await deleteQueryDocs(
+          db.collection("v2_flags").where("takeId", "in", takeIds.slice(i, i + 10)),
+        );
+      }
       // The face, both halves (D178). The document is one delete; the
       // BYTES are the first thing this function has ever had to remove
       // from Storage, and the reason storage.rules could keep its retired
