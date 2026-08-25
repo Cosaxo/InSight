@@ -27,6 +27,15 @@ schema, engineering constraints, what InSight can build this year. They
 do **not** disregard §9's boundary — law, ethics, and honesty are part
 of what "perfect" means, not limitations on it.
 
+**The axes exist to be connected (the owner, 2026-08-25).** One of the
+app's core functions is to use and connect the different axes so each
+deepens the others — a trait measured by one axis becomes richer data
+when crossed against the rest. Every axiom theory treats cross-axis
+connection as first-class subject matter, not an appendix: what its
+axis could say about the others' measurements, and what theirs could
+say about its own, at the theoretically perfect capability — never
+bounded by what the app builds next.
+
 ## 2 · The lanes
 
 Eight recurring lanes, each firing every 3 hours as a fresh session,
@@ -38,8 +47,8 @@ explicitly not the constraint; quality is).
 
 | Lane | Workspace | Scope |
 | --- | --- | --- |
-| Genetic | `theory/genetic/` | The perfect genetic axiom: what a genome can honestly say about a person's traits, how it should enter, be held, be scored, be combined — and the biology-ambition half: what this data could contribute to areas like aging research |
-| Body | `theory/body/` | The perfect body axiom: sensors, self-report, derived clinical values — one coherent measurement theory of the body over time |
+| Genetic | `theory/genetic/` | The perfect genetic axiom: what a genome can honestly say about a person's traits, how it should enter, be held, be scored, be combined; the cross-connection half (§1): how traits the other axioms measure map onto specific genes and genetic architecture — and the biology-ambition half: what this data could contribute to areas like aging research |
+| Body | `theory/body/` | The perfect body axiom: sensors, self-report, derived clinical values — one coherent measurement theory of the body over time; and the cross-connection half (§1): how traits the other axioms measure map onto parts and systems of the body |
 | Questions | `theory/questions/` | The perfect question axiom: the ideal bank, selection, and measurement theory of asking people things |
 | Tests | `theory/tests/` | The perfect test axiom: logic, the four instruments and the nine lenses as one measurement system |
 | Map | `theory/map/` | Display theory: how all of this should be drawn, mapped and navigated — perfectly and most efficiently. Reads the other theories; does not write them |
