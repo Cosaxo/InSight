@@ -167,6 +167,55 @@ describe("runEngagementDigest", () => {
     await runEngagementDigest(store, NOW, FEED);
     expect(state.days.get(Y)).toMatchObject({ actives: 1, votes: 1, events: 2 });
   });
+
+  // A day doc EXISTING is not a day having been digested. Both other
+  // folds create docs — attn-only or people-only — for days this digest
+  // has not reached, and those carry no `firstTime`. cohortOf returned it
+  // straight, so `undefined` reached returned.dN.of; Firestore refuses
+  // undefined as a value, so putDay threw and took the whole nightly run
+  // with it — before putLastDay, and before runAttentionFold and
+  // runRollupFold, which digestEngagementV2 awaits after it. lastDay
+  // never advances, so it repeats identically every night until the
+  // poisoned day slides out of the catch-up window.
+  it("reads a cohort day that was folded but never digested as null, not undefined", async () => {
+    const { store, state } = memoryStore({ [Y]: [e("u1", "q1")] });
+    // What runAttentionFold's merge leaves behind for a day the digest has
+    // not folded: the key it writes, and none of the digest's own.
+    //
+    // The d30 cohort day, deliberately — it lies outside the catch-up
+    // window, so it is read through getDay rather than found in the
+    // this-run cache. A d1 day is re-folded by this very run and answers
+    // from `writtenNow` with a real firstTime, which is why it cannot
+    // show the bug.
+    const cohortDay = new Date(Date.parse(`${Y}T00:00:00Z`) - 30 * 86400000)
+      .toISOString().slice(0, 10);
+    state.days.set(cohortDay, {
+      day: cohortDay,
+      attn: { devices: 3 },
+    } as unknown as EngagementDay);
+
+    // The memory twin gains Firestore's one relevant refusal, because that
+    // is the mechanism: without it the undefined lands silently and the
+    // case cannot see the bug it exists for.
+    const inner = store.putDay.bind(store);
+    store.putDay = async (docToWrite) => {
+      const undef = (o: unknown, path: string): string[] => {
+        if (o === undefined) return [path];
+        if (o && typeof o === "object" && !Array.isArray(o)) {
+          return Object.entries(o).flatMap(([k, v]) => undef(v, path ? `${path}.${k}` : k));
+        }
+        return [];
+      };
+      const bad = undef(docToWrite, "");
+      if (bad.length) throw new Error(`Cannot use "undefined" as a Firestore value (found in field "${bad[0]}")`);
+      return inner(docToWrite);
+    };
+
+    await runEngagementDigest(store, NOW, FEED);
+
+    expect(state.lastDay, "the digest aborted before putLastDay").toBe(Y);
+    expect(state.days.get(Y)!.returned.d30.of).toBeNull();
+  });
 });
 
 describe("surfaceOfQid", () => {

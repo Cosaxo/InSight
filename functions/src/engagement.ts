@@ -201,7 +201,22 @@ export async function runEngagementDigest(
   const writtenNow = new Map<string, EngagementDay>();
   const cohortOf = async (day: string): Promise<number | null> => {
     const doc = writtenNow.get(day) ?? (await store.getDay(day));
-    return doc ? doc.firstTime : null;
+    // A doc EXISTING is not the same as a day having been DIGESTED.
+    // runAttentionFold and runRollupFold both create day docs — attn-only
+    // or people-only — for days this digest has not folded, and those
+    // carry no `firstTime`. `doc ? doc.firstTime : null` handed back
+    // `undefined` for one of those, Firestore refuses undefined as a
+    // value, and the whole putDay threw: the digest aborts before
+    // putLastDay AND before the two folds that run after it in
+    // digestEngagementV2, so `lastDay` never advances and the same day
+    // poisons the entire pipeline again every night, until it slides out
+    // of the catch-up window.
+    //
+    // `null` is already the vocabulary for "this day was never folded"
+    // (D270 — every reader treats a doc with no `actives` as not-digested
+    // rather than as a zero day), so that is what a non-digested doc
+    // answers here too.
+    return typeof doc?.firstTime === "number" ? doc.firstTime : null;
   };
 
   let lastDoc: EngagementDay | null = null;
