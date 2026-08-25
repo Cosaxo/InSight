@@ -579,8 +579,13 @@ if (!joined.data?.ok) fail("approveJoinV2 refused: " + JSON.stringify(joined.dat
 ok("a member let them in; the queue entry and its name are gone");
 
 const aid = `g_${gid}_${YESTER}`;
+// A DUO-surface question, because this group is mode "duo" (line 490) and
+// isDuelAnswer compares the question's surface to the answer's. duelQFor
+// (data/deck.ts) draws with `q.surface === mode`, so "group-gu0" under a
+// duo group was a shape no client could produce — it only ever passed
+// because the rule did not look.
 const duel = (idx, guess) => ({
-  qid: "group-gu0", surface: "duo", optionIdx: idx, guessIdx: guess,
+  qid: "duo-001", surface: "duo", optionIdx: idx, guessIdx: guess,
   gid, day: YESTER, answeredAt: serverTimestamp(), anchors: {},
 });
 await setDoc(doc(db, "v2_users", uid, "answers", aid), duel(1, 2));
@@ -667,7 +672,10 @@ const outDb = getFirestore(outApp, E2E_DB_ID); connectFirestoreEmulator(outDb, "
 const outsider = await signInAnonymously(outAuth);
 await expectDenied("non-member cannot answer an open duel day", () =>
   setDoc(doc(outDb, "v2_users", outsider.user.uid, "answers", `g_${gid}_${OTHERDAY}`), {
-    qid: "group-gu0", surface: "duo", optionIdx: 0, guessIdx: 0,
+    // duo-001 for the same reason as the duel helper above: this is the
+    // duo group, and the refusal under test is non-membership, so the rest
+    // of the shape has to be one a real client would write.
+    qid: "duo-001", surface: "duo", optionIdx: 0, guessIdx: 0,
     gid, day: OTHERDAY, answeredAt: serverTimestamp(), anchors: {},
   }));
 
