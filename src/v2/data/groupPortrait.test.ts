@@ -161,6 +161,76 @@ describe("twin / contrarian need a spread, not just a sample", () => {
   });
 });
 
+// D290. The bottom of an agreement-ordered list is the least CONFIDENT
+// member, not the least agreeing one — so once D277 §2 sorted on the Wilson
+// lower bound, `eligible[last]` stopped meaning what "breaks ranks" says.
+//
+// WHY THE SUITE ABOVE COULD NOT SEE IT: every case in it gives all members
+// the SAME `shared`, and at equal shared the rate order and the pct order
+// coincide exactly. The bug lives entirely in unequal overlap, which is
+// also the ordinary shape of a real group — people join on different days.
+describe("uneven overlap: the label has to mean what it says", () => {
+  // ann plays all ten days and matches on nine; bo joins late, two days,
+  // matches on both. Rendered, the old code drew "breaks ranks" beside
+  // bo's full accent bar and a literal "2/2".
+  const annAndBo = () => {
+    const out = [];
+    for (let d = 1; d <= 10; d++) {
+      const votes: Record<string, number> = { me: 0, ann: d === 10 ? 1 : 0 };
+      if (d > 8) votes.bo = 0;              // bo: 2 shared days, both matched
+      out.push(rev(d, votes));
+    }
+    return out;
+  };
+
+  it("never calls the highest-agreeing member the one who breaks ranks", () => {
+    const p = groupPortrait(annAndBo(), "me");
+    expect(p.people.map((x) => `${x.uid} ${x.agree}/${x.shared}`)).toEqual(["ann 9/10", "bo 2/2"]);
+    // The regression, stated as the thing a reader would object to.
+    expect(
+      p.contrarian && p.contrarian.pct === Math.max(...p.people.map((x) => x.pct)),
+      "labelled the group's highest agreement 'breaks ranks'",
+    ).toBeFalsy();
+  });
+
+  it("names neither, because the only member who disagrees at all agrees most", () => {
+    // Not a corner case — it is what this group honestly contains. ann is
+    // both the closest and the only source of any disagreement, so there
+    // is no contrast to draw and the truthful answer is no labels.
+    const p = groupPortrait(annAndBo(), "me");
+    expect(p.twin).toBeNull();
+    expect(p.contrarian).toBeNull();
+  });
+
+  it("picks the real dissenter when uneven overlap contains one", () => {
+    // ann 9/10 (thick, agrees), cy 2/2 DISagreeing, bo 2/2 agreeing.
+    const out = [];
+    for (let d = 1; d <= 10; d++) {
+      const votes: Record<string, number> = { me: 0, ann: d === 10 ? 1 : 0 };
+      if (d > 8) { votes.bo = 0; votes.cy = 1; }
+      out.push(rev(d, votes));
+    }
+    const p = groupPortrait(out, "me");
+    expect(p.contrarian!.uid).toBe("cy");     // 0/2, the only one who disagrees on every shared day
+    expect(p.twin!.uid).not.toBe("cy");
+    // and the twin is a thick 90%, not the thin perfect one — the D277
+    // confidence bound doing its job at the end it was written for
+    expect(p.twin!.uid).toBe("ann");
+  });
+
+  it("does not let a one-sided thin overlap outrank a thick disagreement", () => {
+    // The mirror of D277 §2's own argument, at the other end: cy 1/8 is a
+    // far better evidenced dissenter than a hypothetical 0/2, and the
+    // bounded disagreement rate has to prefer it.
+    const out = [];
+    for (let d = 1; d <= 8; d++) out.push(rev(d, { me: 0, cy: d === 1 ? 0 : 1, ann: 0 }));
+    out.push(rev(9, { me: 0, dd: 1, ann: 0 }));
+    out.push(rev(10, { me: 0, dd: 1, ann: 0 }));
+    const p = groupPortrait(out, "me");
+    expect(p.contrarian!.uid).toBe("cy");     // 1/8 = 12%, over dd's 0/2
+  });
+});
+
 describe("the pick-day snapshot (D224)", () => {
   // A pick vote may carry WHO its index meant, snapshotted by the
   // answering client. The row surfaces it only when the counted majority

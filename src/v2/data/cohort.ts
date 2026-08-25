@@ -71,6 +71,49 @@ export const MAP_ANCHOR_DIM: Record<string, CohortDim> = {
   edu: "education",
 };
 
+/**
+ * A sparse published count map, read as a dense vector of `optionCount`
+ * slots. A missing key is a real zero — nobody picked that option.
+ *
+ * PUBLISHED COUNTS ARE SPARSE and this is the only correct way to read
+ * them. The trigger starts `counts` at `{}` and writes a key only for an
+ * option that received a vote (functions/src/v2.ts); an edit that drives
+ * an option back to zero DELETES the key (functions/src/pure.ts). So the
+ * length can only come from the QUESTION, never from the map — a walk
+ * that stops at the first missing key stops at the first unpopular
+ * option. `cellFor` had this right from the start and `divisivenessOf`
+ * (data/live.ts) did not, which is why the rule now lives in one place
+ * instead of two (D290).
+ */
+export function denseCounts(
+  counts: Record<string, number> | undefined,
+  optionCount: number,
+): number[] {
+  return Array.from(
+    { length: Math.max(0, optionCount) },
+    (_, i) => counts?.[String(i)] || 0,
+  );
+}
+
+/**
+ * The highest option index a count map mentions, plus one — a FLOOR on the
+ * option count, for a caller that cannot resolve the question.
+ *
+ * Deliberately a floor and not a guess at the truth: an unanswered TOP
+ * option is invisible here, so a 5-option item whose last two are empty
+ * reads as 3. That understates how divisive the question is and never
+ * truncates it, which is the right direction to be wrong in when the
+ * alternative is dropping the question entirely.
+ */
+export function countsSpan(counts: Record<string, number> | undefined): number {
+  let max = -1;
+  for (const k of Object.keys(counts || {})) {
+    const i = Number(k);
+    if (Number.isInteger(i) && i >= 0 && i > max) max = i;
+  }
+  return max + 1;
+}
+
 /** Dense per-option counts for one (dim, bucket), or null if the cell is absent. */
 export function cellFor(
   by: ByMap | undefined,
@@ -80,7 +123,7 @@ export function cellFor(
 ): number[] | null {
   const cell = by?.[dim]?.[bucket];
   if (!cell) return null;
-  return Array.from({ length: Math.max(0, optionCount) }, (_, i) => cell[String(i)] || 0);
+  return denseCounts(cell, optionCount);
 }
 
 /**

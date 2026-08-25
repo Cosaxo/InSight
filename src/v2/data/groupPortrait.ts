@@ -216,17 +216,36 @@ export function groupPortrait(reveals: PortraitReveal[], myUid: string | null): 
       if (v.optionIdx === mine.optionIdx) a.agree++;
     }
   }
+  // Sorted on the confidence-bounded rate, not the printed percentage
+  // (D277 §2). This list feeds the "twin" label below, which names a real
+  // person to their face — so a member who overlapped on one question must
+  // not be able to take it off someone who overlapped on twenty.
+  // MIN_SHARED gates who is eligible; this decides the order of the ones
+  // who are.
+  const byAgreement = (x: PortraitPerson, y: PortraitPerson) =>
+    likenessRate(y.agree, y.shared) - likenessRate(x.agree, x.shared)
+    || y.shared - x.shared
+    || (x.uid < y.uid ? -1 : 1);
+
+  // The MIRROR of it, and the reason it has to exist (D290).
+  //
+  // A lower confidence bound penalises thin overlap. That is the right
+  // behaviour at the top of the list and the wrong key entirely at the
+  // bottom: the last element of an agreement-ordered list is the least
+  // CONFIDENT member, not the least agreeing one. So a member with a small
+  // but perfect overlap sank to the bottom and was labelled "breaks ranks"
+  // beside their own 100% — measured, ann 9/10 against bo 2/2, where the
+  // renderer drew "breaks ranks" next to a full accent bar and a literal
+  // "2/2". Bounding the DISagreement rate asks the question the label
+  // actually makes, and penalises thin overlap in the same direction.
+  const byDisagreement = (x: PortraitPerson, y: PortraitPerson) =>
+    likenessRate(y.shared - y.agree, y.shared) - likenessRate(x.shared - x.agree, x.shared)
+    || y.shared - x.shared
+    || (x.uid < y.uid ? -1 : 1);
+
   const people: PortraitPerson[] = Object.entries(acc)
     .map(([uid, a]) => ({ uid, shared: a.shared, agree: a.agree, pct: a.shared ? Math.round((a.agree / a.shared) * 100) : 0 }))
-    // Sorted on the confidence-bounded rate, not the printed percentage
-    // (D277 §2). This list feeds the "twin" and "breaks ranks" labels
-    // below, which name a real person to their face — so a member who
-    // overlapped on one question must not be able to take either label off
-    // someone who overlapped on twenty. MIN_SHARED gates who is eligible;
-    // this decides the order of the ones who are.
-    .sort((x, y) => likenessRate(y.agree, y.shared) - likenessRate(x.agree, x.shared)
-      || y.shared - x.shared
-      || (x.uid < y.uid ? -1 : 1));
+    .sort(byAgreement);
 
   const eligible = people.filter((p) => p.shared >= MIN_SHARED);
   // Both labels need a SPREAD, not just a sample.
@@ -247,7 +266,40 @@ export function groupPortrait(reveals: PortraitReveal[], myUid: string | null): 
   // A single eligible member is still a twin — "most like you" of one person
   // claims no contrast. What is meaningless is TWO OR MORE at the same
   // number, where first and last are the uid tiebreak talking.
-  const flatTie = eligible.length > 1 && eligible[0].pct === eligible[eligible.length - 1].pct;
+  // Each end is now CHOSEN rather than taken from the ends of one
+  // ordering, so the spread test has to compare the two people actually
+  // chosen. The old `eligible[0].pct === eligible[last].pct` could not see
+  // the inversion above at all: after D277 those two are no longer the max
+  // and min pct, so on the ann/bo case it compared 90% with 100%, found a
+  // difference, and licensed both labels.
+  const twin = eligible.length ? [...eligible].sort(byAgreement)[0] : null;
+  const contrarian = eligible.length ? [...eligible].sort(byDisagreement)[0] : null;
+
+  // Both labels need a SPREAD, not just a sample.
+  //
+  // The comparators' final clause is a uid tiebreak that never returns 0,
+  // so a fully tied list is ordered by uid alone — and taking two ends of
+  // it crowned one person "most like you" and called another "breaks
+  // ranks" on identical numbers. Reproduced: three members each 3/3 with
+  // me yields twin=ann, contrarian=cy, and LiveGroupsMirrorBody renders
+  // "breaks ranks" beside a literal 3/3 and a full accent bar. The inverse
+  // fires too — with everyone at 0%, someone is crowned the twin.
+  //
+  // Reachable on day two of a live group (3 members, 2 shared days is the
+  // minimum clearing MIN_SHARED), and stable across sessions, so the same
+  // person is named the dissenter every time they open it. MIN_SHARED
+  // bounds the sample size; nothing bounded the spread.
+  //
+  // Two people who resolve to the SAME member is the other way there is no
+  // spread, and it is not a corner case — it is what the ann/bo group
+  // gives, correctly: the only member who disagrees at all is also the one
+  // who agrees most, so nobody in that group breaks ranks and the honest
+  // answer is neither label.
+  const spread = !!twin && !!contrarian && twin.uid !== contrarian.uid && twin.pct > contrarian.pct;
+
+  // A single eligible member is still a twin — "most like you" of one
+  // person claims no contrast. What is meaningless is TWO OR MORE without
+  // a spread, where the ordering is the uid tiebreak talking.
   return {
     days: rows.length,
     daysPlayed,
@@ -255,7 +307,7 @@ export function groupPortrait(reveals: PortraitReveal[], myUid: string | null): 
     alignPct: daysPlayed ? Math.round((meWithMaj / daysPlayed) * 100) : 0,
     rows,
     people,
-    twin: flatTie ? null : (eligible[0] || null),
-    contrarian: !flatTie && eligible.length > 1 ? eligible[eligible.length - 1] : null,
+    twin: eligible.length === 1 ? twin : (spread ? twin : null),
+    contrarian: spread ? contrarian : null,
   };
 }

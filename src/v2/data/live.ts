@@ -135,7 +135,7 @@ import {
 } from "./avatar";
 // Pure folds over the published breakdown, and the likeness metric behind
 // Kindred. No Firebase in there — this module supplies the documents.
-import { agreement, divisiveness, type Agreement } from "./cohort";
+import { agreement, countsSpan, denseCounts, divisiveness, type Agreement } from "./cohort";
 // The follow graph (D101), TYPE-ONLY at module scope and imported for
 // real inside the two methods that use it.
 //
@@ -438,14 +438,55 @@ const AD_POOL_CAP = 200;
 function divisivenessOf(qid: string): number {
   const counts = state.aggs[qid]?.counts;
   if (!counts) return -1;
-  const dense: number[] = [];
-  for (let i = 0; i < 20; i++) {
-    const c = counts[String(i)];
-    if (typeof c !== "number") break;
-    dense.push(c);
+  // PUBLISHED COUNTS ARE SPARSE, and the first draft of this walked them
+  // as though they were dense — `for i in 0..19, break on the first
+  // missing key`. The trigger starts `counts` at `{}` and writes a key
+  // only for an option that received a vote (functions/src/v2.ts), and an
+  // edit that drives an option back to zero DELETES its key
+  // (functions/src/pure.ts). So an option nobody picked is a hole, and a
+  // hole ended the vector.
+  //
+  // It failed hardest exactly where this key matters most. A 5-option item
+  // nobody answered with option 0 — counts {"1":50,"2":50,"3":50,"4":50},
+  // a near-maximal split and the single best evidence about two people —
+  // densified to [] and returned -1, which sorts it BELOW every measured
+  // question and out of the twelve. A hole further along truncated
+  // instead, and since `divisiveness` normalises by the vector's length,
+  // both the leading share and the 1/k baseline came out for the wrong k.
+  // Measured: a 5-option scale missing option 2 scored 0.800 against a
+  // truth of 0.875.
+  //
+  // `cellFor` (cohort.ts) had this right from the start — it takes the
+  // question's own option count and reads `cell[String(i)] || 0`. The only
+  // thing missing here was the option count, and the bank lookup that
+  // answers it is the one `storesOptionIdx` already does one function
+  // down.
+  const n = optionCountOf(qid, counts);
+  if (n < 2) return -1;
+  return divisiveness(denseCounts(counts, n));
+}
+
+/**
+ * How many options this question has, for densifying its sparse counts.
+ *
+ * The banks are the authority and are consulted first. A qid this device
+ * cannot resolve falls back to the highest key actually present, which is
+ * a floor rather than the truth: an unanswered TOP option is invisible, so
+ * a 5-option item whose last two are empty reads as 3. That understates
+ * how divisive it is and never truncates it, which is the right direction
+ * to be wrong in — the failure being fixed threw the question out of the
+ * pool entirely, and `storesOptionIdx` keeps an unresolvable qid for the
+ * same reason.
+ */
+function optionCountOf(qid: string, counts: Record<string, number>): number {
+  for (const bank of [
+    state.questions, state.feedBank, state.duelBank,
+    state.learnBank, state.callBank, state.pulseBank,
+  ]) {
+    const q = bank.find((x) => x.id === qid);
+    if (q) return (q.options || []).length;
   }
-  if (dense.length < 2) return -1;
-  return divisiveness(dense);
+  return countsSpan(counts);
 }
 
 /**

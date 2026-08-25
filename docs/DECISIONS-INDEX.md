@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 294 lines instead of
-29,307. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 295 lines instead of
+29,404. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -295,7 +295,7 @@ detect it.
 | **D274** | [Build 25 is delivered, and the bump was the reading of step 17](DECISIONS.md#d274--build-25-is-delivered-and-the-bump-was-the-reading-of-step-17) | — | 27379 |
 | **D275** | [The private aggregate mirror collapses into the published one](DECISIONS.md#d275--the-private-aggregate-mirror-collapses-into-the-published-one) | D279 (+1) | 27450 |
 | **D276** | [The suite audited itself: what stayed green while being wrong](DECISIONS.md#d276--the-suite-audited-itself-what-stayed-green-while-being-wrong) | D286 (+7) | 27570 |
-| **D277** | [The similarity surfaces were ranking on a tier that could not fire](DECISIONS.md#d277--the-similarity-surfaces-were-ranking-on-a-tier-that-could-not-fire) | D285 (+2) | 27715 |
+| **D277** | [The similarity surfaces were ranking on a tier that could not fire](DECISIONS.md#d277--the-similarity-surfaces-were-ranking-on-a-tier-that-could-not-fire) | D290 (+3) | 27715 |
 | **D278** | [The City constellation asks for its city, instead of filtering for it](DECISIONS.md#d278--the-city-constellation-asks-for-its-city-instead-of-filtering-for-it) | — | 27980 |
 | **D279** | [There were always five test runners, and the table said four](DECISIONS.md#d279--there-were-always-five-test-runners-and-the-table-said-four) | D284 | 28089 |
 | **D280** | [The feed's test cards came back demo, and the seam was a cast](DECISIONS.md#d280--the-feeds-test-cards-came-back-demo-and-the-seam-was-a-cast) | D285 (+1) | 28192 |
@@ -308,3 +308,4 @@ detect it.
 | **D287** | [Two grants that were never written, and an artifact claim that was still an environment variable](DECISIONS.md#d287--two-grants-that-were-never-written-and-an-artifact-claim-that-was-still-an-environment-variable) | D289 (+1) | 28970 |
 | **D288** | [Three the audit found in the folds: a seal walked past, an edit counted twice, and a divisor with no floor](DECISIONS.md#d288--three-the-audit-found-in-the-folds-a-seal-walked-past-an-edit-counted-twice-and-a-divisor-with-no-floor) | — | 29102 |
 | **D289** | [The minimum OS the store publishes, and the bundle it installs](DECISIONS.md#d289--the-minimum-os-the-store-publishes-and-the-bundle-it-installs) | — | 29225 |
+| **D290** | [Two ends of one ordering, and a sparse map read as a dense one](DECISIONS.md#d290--two-ends-of-one-ordering-and-a-sparse-map-read-as-a-dense-one) | — | 29308 |

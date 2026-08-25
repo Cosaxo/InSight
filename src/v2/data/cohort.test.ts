@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  agreement, agreementOf, byOf, cellFor, divergence, divergenceFor, divisiveness, headlineFor,
+  agreement, agreementOf, byOf, cellFor, countsSpan, denseCounts, divergence, divergenceFor, divisiveness, headlineFor,
   likenessRate, MAP_ANCHOR_DIM, meanScore, mixFor, pctFor, sliceSplit, standingIn, typicality,
 } from "./cohort";
 
@@ -50,6 +50,65 @@ describe("cellFor", () => {
     expect(cellFor(BY, "ageBand", "45-54", 2)).toBeNull();
     expect(cellFor(BY, "profession", "Carpenter", 2)).toBeNull();
     expect(cellFor(undefined, "ageBand", "25-34", 2)).toBeNull();
+  });
+});
+
+// D290. The rule `cellFor` had right and `divisivenessOf` (data/live.ts)
+// had wrong, extracted so there is one of it. Published counts are SPARSE
+// — the trigger writes a key only for an option that got a vote, and an
+// edit back to zero deletes the key — so the LENGTH can only come from the
+// question. A walk that stops at the first missing key stops at the first
+// unpopular option, and `divisiveness` normalises by the vector's length,
+// so a truncated read is scored against the wrong k as well as the wrong
+// numbers.
+describe("denseCounts / countsSpan — reading a sparse map", () => {
+  it("fills a hole with a real zero instead of ending the vector", () => {
+    // The measured case: a 5-option scale nobody answered with option 2.
+    expect(denseCounts({ "0": 40, "1": 60, "3": 10, "4": 5 }, 5)).toEqual([40, 60, 0, 10, 5]);
+  });
+
+  it("survives a hole at index 0, which used to yield an empty vector", () => {
+    // counts {"1":50,…} densified to [] and the caller returned its
+    // "no data" sentinel — for a near-maximally split question, the single
+    // best evidence about two people.
+    expect(denseCounts({ "1": 50, "2": 50, "3": 50, "4": 50 }, 5)).toEqual([0, 50, 50, 50, 50]);
+    expect(divisiveness(denseCounts({ "1": 50, "2": 50, "3": 50, "4": 50 }, 5)))
+      .toBeCloseTo(0.9375, 4);
+  });
+
+  it("scores a holed vector the same as the equivalent dense one", () => {
+    // The truncation bug scored a 5-option scale missing option 2 at
+    // 0.800 against a truth of 0.875. Both readings of the same crowd
+    // must agree.
+    const sparse = { "0": 40, "1": 60, "3": 0, "4": 0 };
+    expect(divisiveness(denseCounts(sparse, 5)))
+      .toBe(divisiveness([40, 60, 0, 0, 0]));
+  });
+
+  it("reads an absent map as all zeros, never as a throw", () => {
+    expect(denseCounts(undefined, 3)).toEqual([0, 0, 0]);
+    expect(denseCounts({}, 2)).toEqual([0, 0]);
+  });
+
+  it("never returns more or fewer slots than asked for", () => {
+    // Keys past the option count are ignored rather than extending it —
+    // the question decides the length, not the data.
+    expect(denseCounts({ "0": 1, "1": 2, "7": 99 }, 2)).toEqual([1, 2]);
+    expect(denseCounts({ "0": 1 }, 0)).toEqual([]);
+    expect(denseCounts({ "0": 1 }, -3)).toEqual([]);
+  });
+
+  it("countsSpan is a FLOOR from the data, for a question that cannot be resolved", () => {
+    expect(countsSpan({ "0": 1, "1": 2, "4": 3 })).toBe(5);
+    expect(countsSpan({ "1": 50 })).toBe(2);   // a hole at 0 still spans two
+    expect(countsSpan({})).toBe(0);
+    expect(countsSpan(undefined)).toBe(0);
+  });
+
+  it("countsSpan ignores keys that are not option indices", () => {
+    // The map is JSON off the wire; a non-numeric or negative key must not
+    // become a vector length.
+    expect(countsSpan({ "0": 1, total: 99, "-1": 5, "1.5": 2 })).toBe(1);
   });
 });
 

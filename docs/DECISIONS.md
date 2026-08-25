@@ -29304,3 +29304,100 @@ installed the app legitimately. The list holds what this bundle uses
 `toReversed`, `Array.fromAsync`, `Promise.withResolvers`); it is not a
 browserslist and the passing line says as much rather than implying a
 guarantee it does not make.
+
+## D290 · Two ends of one ordering, and a sparse map read as a dense one
+
+**2026-08-25.** **Status:** binding. Two folds that put a wrong number in
+front of a reader, both from the audit, and both invisible to their own
+suites for the same reason: every existing case held constant the one
+variable the bug lives in.
+
+### F7 · The bottom of an agreement ordering is not the disagreement
+
+D277 §2 moved the people sort from the printed `pct` to the Wilson lower
+bound `likenessRate(agree, shared)`. That is the right key for the TOP of
+the list and it was left carrying the BOTTOM too — `twin = eligible[0]`,
+`contrarian = eligible[last]`. A lower confidence bound penalises thin
+overlap, so the last element is the least **confident** member, not the
+least agreeing one.
+
+Measured, on the ordinary shape of a group where people joined on
+different days: `ann` plays all ten days and matches on nine (90%); `bo`
+joins late, two shared days, matches on both (100%). The portrait returned
+twin = ann and contrarian = bo, and `LiveGroupsMirrorBody` drew "breaks
+ranks" beside bo's full accent bar and a literal "2/2". Two labels, each
+contradicting the number on its own row.
+
+The `flatTie` guard could not see it and had itself gone stale at D277: it
+compared `eligible[0].pct` with `eligible[last].pct`, which after that
+change are no longer the max and min pct. On ann/bo it compared 90 with
+100, found a difference, and licensed both labels.
+
+**Each end is picked with its own key now** — twin by
+`likenessRate(agree, shared)`, contrarian by
+`likenessRate(shared - agree, shared)`, the mirror bound on the
+DISagreement rate, which penalises thin overlap in the same direction. The
+spread test compares the two people actually chosen rather than two array
+ends, and **two ends resolving to the same member is a real outcome, not a
+corner case**: on ann/bo the only member who disagrees at all is also the
+one who agrees most, so there is no contrast to draw and the honest answer
+is neither label. That is what it now returns.
+
+**Why the suite stayed green through D277.** Every case in it gives all
+members the SAME `shared`, and at equal shared the rate order and the pct
+order coincide exactly. The bug lives entirely in unequal overlap — which
+is what a real group looks like the moment somebody joins on day two.
+
+### F8 · Published counts are sparse; the densifier assumed otherwise
+
+`divisivenessOf` (data/live.ts, D277 §3's selection key for Kindred's
+twelve questions) rebuilt a dense vector by walking `0..19` and breaking
+at the first missing key. The trigger starts `counts` at `{}` and writes a
+key only for an option that received a vote; an edit that drives an option
+back to zero DELETES the key. So an option nobody picked is a hole, and a
+hole ended the vector.
+
+It failed hardest exactly where the key matters most. A 5-option item
+nobody answered with option 0 — `{"1":50,"2":50,"3":50,"4":50}`, a
+near-maximal split and the single best evidence about two people —
+densified to `[]` and returned **-1**, the sentinel meaning "this device
+holds no published counts", which sorts it below every measured question
+and out of the twelve. A hole further along truncated instead, and since
+`divisiveness` normalises by the vector's length, both the leading share
+and the 1/k baseline came out for the wrong k: a 5-option scale missing
+option 2 scored 0.800 against a truth of 0.875. Symmetrically a unanimous
+2-option question — the WORST possible evidence — also returned -1, so the
+key conflated "best question available" with "no data".
+
+`cellFor` (cohort.ts) had this right from the start: take the question's
+own option count and read `cell[String(i)] || 0`. The only thing missing
+in live.ts was the option count, and the bank lookup that answers it is
+the one `storesOptionIdx` already does one function down.
+
+**The rule now exists once.** `denseCounts(counts, optionCount)` and
+`countsSpan(counts)` live in cohort.ts beside `cellFor`, which uses the
+first; live.ts resolves the option count from the banks and falls back to
+`countsSpan`. That fallback is deliberately a FLOOR and not a guess at the
+truth — an unanswered TOP option is invisible to it, so a 5-option item
+whose last two are empty reads as 3. That understates how divisive the
+question is and never truncates it, which is the right direction to be
+wrong in when the alternative is dropping the question from the pool
+entirely. `storesOptionIdx` keeps an unresolvable qid for the same reason.
+
+### On the method, again
+
+Both fixes were mutation-tested, and F7's needed two mutants rather than
+one: the fix has two independent halves, and the new spread guard ALONE
+repairs the ann/bo case, so mutating only the contrarian key left the
+headline test green. Reverting each half separately shows the key is held
+by one test and the guard by another; reverting both — the shipped code —
+reds three. A single mutant would have reported the fix as
+over-determined and it is not.
+
+The e2e suite failed once during this work, at `learn public agg never
+appeared after 20000ms`. It is not this change: the diff is client-only
+and e2e does not import the client, the `maximum of 1000 expressions`
+lines that accompany it appear **ten times in the pre-audit baseline log**
+of a run that passed (they are the deliberate-refusal cases bailing out of
+an evaluation that was going to deny anyway), and a re-run passed all
+three suites. Recorded rather than left as a shrug.
