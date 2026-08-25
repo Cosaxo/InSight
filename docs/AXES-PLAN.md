@@ -584,3 +584,9 @@ cadence rather than its caps, and a build lane whose no-ops all say
 stop-and-re-plan list carries that one, because an autonomous program
 that manufactures pressure on its one human gate has inverted its own
 purpose.
+
+*Since 2026-08-25 a theory layer runs above this program:
+[`AXIOM-THEORY.md`](AXIOM-THEORY.md) — eight lanes on an orphan branch
+writing each axis's perfect form and their combination, whose requests
+arrive through a reviewed bridge as candidates for exactly the decision
+and build lanes this section describes.*
