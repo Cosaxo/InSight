@@ -29606,3 +29606,165 @@ slice, because "everyone else" is not a city anybody lives in and inviting
 a reader to compare themselves against it would be a new wrong answer.
 `mixFor` is the single chokepoint: divergence, foresight,
 LiveBreakdownPanel and LiveMirrorLenses all enumerate through it.
+
+## D293 · A tap into a chunk that had not landed, and a read for an account that had left
+
+**2026-08-25.** **Status:** binding. Two more from the audit, both about
+work that outlives the state it was started for. One is a render against a
+lazy chunk that has not arrived; the other is a network read whose account
+has changed underneath it. Neither is a race in the ordinary sense — both
+are the ORDINARY case on a slow connection.
+
+### F20 · The search overlay tapped a component the feed chunk had not delivered
+
+`search-overlay.jsx`'s expanded question row renders `<window.WorldFeed …>`
+bare. Every other cross-group render site in this layer carries a guard —
+`daily-split.jsx`'s `feedEnabled`, app-shell's `window.PersonOverlay &&`,
+mirror-field-pops' two — and this one did not.
+
+**The two chunk groups race, and this is the smaller one.** `main.jsx`
+starts `loadWorldFeed()` and `loadOverlays()` in the same tick and awaits
+neither before the header goes live. The overlays group is the lighter of
+the two, so the search button becoming live BEFORE `window.WorldFeed`
+exists is the expected ordering, not the exotic one. The rows the overlay
+lists come from `window.WORLD_FEED_QS`, which `world-feed-data.js` publishes
+EAGERLY — so they are on screen and tappable in exactly that window.
+
+What a tap did there was `React.createElement(undefined)`, which throws
+"Element type is invalid". app-shell's `ErrorBoundary` catches it, and that
+is the part worth stating plainly: the cost is not a row that fails to
+expand, it is the WHOLE search overlay replaced by the snag card. And it is
+permanent rather than transient whenever the feed chunk's fetch simply
+fails — the case `spec-index.js`'s own contract sentence ("a failed chunk
+costs the feed, not the app") promises stays survivable.
+
+**The tap is remembered, not refused.** `openQ` is set either way, so the
+re-render `main.jsx` does when `loadWorldFeed()` resolves — its own comment
+says "the re-render is not decoration" — finds the row already asked for
+and opens it. Awaiting the loader from the overlay instead would need
+`loadWorldFeed` on `window`, and a new shared global is what
+`check:globals` rule 4 refuses.
+
+`window.WorldFeed` is bound to a local ONCE and both the guard and the tag
+read the local, so the fix costs no point of coupling: rule 4 counts
+references, and the file stays at 4 with the baseline unmoved.
+
+**The test could not live in the smoke suites**, and that is the finding
+behind the finding. `test/mount-app.jsx` awaits BOTH lazy groups in its
+`beforeAll`, deliberately — so by the time any of the five suites clicks
+anything, the state this bug lives in has already passed. The new
+`test/search-prefeed.test.jsx` is the `dialog.test.jsx` shape: it imports
+`spec-index` and awaits neither group, so the pre-feed window is where its
+cases actually run. Three of them — a control that fails if the feed ever
+becomes eager (otherwise the other two would start passing vacuously rather
+than continuing to test anything), the tap that must not take the overlay
+down, and the remembered tap opening itself once the chunk lands. Under the
+mutant they report the real error by name: *Element type is invalid … Check
+the render method of `SearchOverlay`*.
+
+### F24 · Every loader writes into state the account switch has just emptied
+
+`resetForNewUid` states its own contract — "Everything derived from the old
+uid has to go — in-memory AND on disk — before anything is fetched for the
+new one, or the two interleave and one account's answers render as the
+other's" — and empties eighteen maps to keep it. What it cannot reach is a
+read ALREADY IN FLIGHT.
+
+Every loader in `live.ts` has one shape: a guard, an `await`, then a write
+into `state`. A switch landing inside that await empties the map and the
+loader fills it back in, with rows fetched under the previous account, a
+millisecond after the function whose entire job is preventing exactly that
+has run.
+
+**`state.uid` is not a usable test**, which is why the fix is a counter. By
+the time a loader resumes, `state.uid` is already the NEW uid — so a loader
+comparing against it agrees with itself and writes anyway. `uidGen` is
+bumped as `resetForNewUid`'s first statement, before a single map is
+emptied; `sameAccount(gen)` is the whole API. The shape at each site is
+`const gen = uidGen;` before the first await, `if (!sameAccount(gen))
+return;` before the first write after it, inside the `try` so the `finally`
+still runs — and the `finally` guards too.
+
+**The finally matters on its own.** Clearing a loading flag looks harmless
+because the flag is false either way. It is not: it clears the flag the
+INCOMING account's own read has since set, so the next caller sees "nothing
+in flight" and starts a duplicate query against a load already running.
+
+Guarded: `loadVoters`, `loadTakes`, `loadInvites`, `loadCircle`,
+`loadFollows`, `loadForesight`, `loadCityKindred`, `loadKindred`,
+`loadNames`, `loadRevealHistory`, and the flag in `loadSimilarity`. The
+worst two write caches nothing later corrects — `loadCircle` and
+`loadFollows` both write `state.follows`, and `loadFollows` early-returns on
+a non-null cache, so the outgoing account's friends would have marked
+strangers as the incoming account's for the whole session.
+
+Two are guarded even though they are already harmless, and the reason is
+written at both: `loadNames` and `loadRevealHistory` mutate maps they
+aliased BEFORE the await, and the reset REPLACES those maps rather than
+emptying them in place — so the writes land on detached objects and reach
+nobody. That is an accident of how the reset clears, not a property
+anything declares. `loadNames` needed a real guard beside it in any case:
+`saveProfileCache` re-arms a coalesced disk write that `purgeLocalTrace`
+had just swept.
+
+`loadSimilarity` is guarded on the flag ALONE, and the asymmetry is
+deliberate: what it writes is `state.aggs`, the public per-question
+aggregates, the same crowd whoever is signed in.
+
+**And the boot path, which is the same disease and the worst instance.**
+`hydrate` folds every answer document into `state.votes` several awaits past
+the point of no return; a switch inside those awaits had it write the
+outgoing account's answers into the map the reset had just emptied. That is
+literally the sentence the auth watcher's own comment gives as the reason it
+exists at all. One guard in `fold` covers all four call sites (warm, cold
+pages, the D86 edit cursor) because every write goes through it; the cold
+paging loop breaks so the remaining pages are not read and charged for; and
+the answers-cache write is guarded because `uidA` is the OUTGOING uid, so it
+would re-create an `insight.*` key the purge had just removed under an owner
+that no longer matches. `hydrateSocial` is guarded before it ATTACHES: its
+query is `memberUids array-contains uid`, and a stale attach both puts the
+outgoing account's circles back on screen and overwrites the handle the new
+account's own listener installs.
+
+**`refreshLive` handed back the stale run, and that was already written
+down.** `publishTestResults`' header names it — "refreshInFlight can hand
+back the OLD run's promise so hydrate never re-executes" — and until now the
+only answer to it was that one function re-publishing the test results by
+hand. The switch drops the handle, so the incoming account gets a run of its
+own; the stale run keeps running and every write it has left is behind a
+`sameAccount` check. Its `finally` clears only ITS OWN handle, since by then
+the slot may hold the new run — and it stays chained rather than branched
+off as `void run.finally(…)`, because that shape mints a second promise
+nobody awaits and a rejected boot then raises an unhandled rejection beside
+the one the caller is already catching. `vote.test.ts` provokes exactly that
+boot on purpose, twice.
+
+**One harness bug found on the way, and fixed where it bit.**
+`takes.test.ts`'s `lib/firebase` double returned a fresh
+`import("firebase/firestore")` per call. vote.test.ts's mock memoises it and
+says why: `live.ts` re-binds its whole Firestore namespace on EVERY
+`getDb()` (D110), so the second call can be handed a different module object
+and the store then holds the REAL `collection` while the file's doubles
+record nothing. Invisible while every case booted once and read once; the
+first case to drive two loads across an account switch got *Expected first
+argument to collection() to be a CollectionReference* — the real SDK
+complaining about `{ __db: true }`. Four sibling files carry the same shape
+and are left alone: no case in them drives that sequence, and changing four
+suites with nothing failing is not a fix.
+
+Three tests, each mutation-checked. `takes.test.ts` gets the cache
+discard and the loading flag — the flag on `loadFollows` rather than
+`loadTakes` because it is the one loader with a public `followsLoading()`,
+so the subject is asserted directly instead of inferred from a probe call.
+`vote.test.ts` gets the mid-hydrate case, which pins three separate guards
+at once: the fold, the disk write, and the dropped refresh handle.
+
+Both files hold their reads with an OBSERVABLE park — each held read pushes
+its own resolver, so a case waits for the read to actually be on the wire
+rather than guessing at microtask order. The first draft used a single
+"gate promise" swapped between calls and the first call picked up the second
+call's gate; the mid-hydrate case additionally orders the incoming account's
+boot to COMPLETE before releasing the outgoing account's read, because a
+stale write that lands before the new account's own is overwritten and
+harmless — a test that cannot tell those two orderings apart pins nothing,
+and this one did not until it was rewritten.

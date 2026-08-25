@@ -607,6 +607,39 @@ const REVEAL_HIST_DAYS = 14;
 // Clearing the timer alone would not close the snapshot writers.
 let torndown = false;
 
+// ── the account generation ───────────────────────────────────────────
+//
+// Bumped by every uid change, and the ONLY thing that bumps it is
+// `resetForNewUid`.
+//
+// WHY IT EXISTS. That function's own header states the contract —
+// "Everything derived from the old uid has to go … before anything is
+// fetched for the new one, or the two interleave and one account's answers
+// render as the other's" — and it empties eighteen maps to keep it. What
+// it cannot reach is a read ALREADY IN FLIGHT. Every loader in this file
+// has the same shape: a guard, an `await`, then a write into `state`. A
+// switch that lands inside that await empties the map and the loader then
+// fills it back in, with rows fetched under the previous account, a
+// millisecond after the code that exists to prevent exactly that has run.
+//
+// `state.uid` is not the test, and that is the trap. It is the NEW uid by
+// then, so a loader comparing against it agrees with itself. A counter is
+// the smallest thing that can tell "the account I started under" from "the
+// account signed in now" — the two are the same number only if nothing
+// switched.
+//
+// THE SHAPE AT EACH CALL SITE: `const gen = uidGen;` before the first
+// await, `if (!sameAccount(gen)) return;` before the first write after it.
+// The `return` is inside the `try`, so the `finally` still runs — and the
+// finally guards too, because clearing a loading flag the new account's own
+// fetch has since set is how a duplicate read gets started.
+let uidGen = 0;
+
+/** Whether the account a piece of in-flight work started under is still signed in. */
+function sameAccount(gen: number): boolean {
+  return gen === uidGen;
+}
+
 // `stored` is the answer's value in the cache's own string form: an
 // optionIdx or entity as digits, a rank order as the joined "2,0,1,3"
 // (D233) — exactly what hydrate's fold would re-derive from the doc.
@@ -1214,6 +1247,13 @@ function computeDeck(): void {
 
 async function hydrate(): Promise<void> {
   const db = await getDb();
+  // The account this boot is for. `refreshLive` can be running for the
+  // OUTGOING account when the auth watcher switches accounts underneath
+  // it — a recovered anonymous session, a Google link that resolves to an
+  // existing account — and everything below writes into the very maps
+  // `resetForNewUid` has just emptied. See `uidGen`'s note; the three
+  // guards it feeds are marked individually.
+  const gen = uidGen;
 
   // The viewer's own profile, STARTED HERE and awaited where it is read,
   // some six round trips down.
@@ -1546,6 +1586,14 @@ async function hydrate(): Promise<void> {
       /* refetch below */
     }
     const fold = (d: { id: string; get: (f: string) => unknown }) => {
+      // THE ANSWER SET, which is the worst thing in this file to get
+      // wrong: every page below arrives after an await, and folding the
+      // outgoing account's answers into the map the switch just emptied is
+      // literally "one person's answers displayed to another" — the
+      // sentence the auth watcher's own comment gives as the reason it
+      // exists. One check here covers all four call sites (warm, cold
+      // pages, edits) because every write goes through this function.
+      if (!sameAccount(gen)) return;
       const optionIdx = d.get("optionIdx");
       if (typeof optionIdx === "number") state.votes[d.id] = String(optionIdx);
       // Catalog answers carry `entity` and rank answers carry `order` —
@@ -1625,6 +1673,9 @@ async function hydrate(): Promise<void> {
         page.docs.forEach(fold);
         fetched += page.size;
         pages += 1;
+        // fold() has stopped writing by now, so the remaining pages are
+        // reads charged to the incoming account for rows nobody will keep.
+        if (!sameAccount(gen)) break;
         if (page.size < ANS_PAGE) break;
         if (pages >= ANS_MAX_PAGES) {
           reportError(new Error(
@@ -1656,10 +1707,16 @@ async function hydrate(): Promise<void> {
       state.stats.answersFetched += esnap.size;
       esnap.docs.forEach(fold);
     }
-    try {
-      localStorage.setItem(ANS_LS, JSON.stringify({ uid: uidA, votes: state.votes, maxTs, maxEditTs }));
-    } catch {
-      /* best-effort */
+    // ...and the disk copy. `uidA` is the OUTGOING uid, so this would
+    // re-create an `insight.*` key `purgeLocalTrace` had just swept —
+    // stamped with an owner that no longer matches the session, holding
+    // whatever `state.votes` contains by then.
+    if (sameAccount(gen)) {
+      try {
+        localStorage.setItem(ANS_LS, JSON.stringify({ uid: uidA, votes: state.votes, maxTs, maxEditTs }));
+      } catch {
+        /* best-effort */
+      }
     }
   }
 
@@ -2070,9 +2127,18 @@ function subscribeReveals(db: import("firebase/firestore").Firestore): void {
 }
 
 async function hydrateSocial(): Promise<void> {
+  const gen = uidGen;
   const db = await getDb();
   const uid = state.uid;
   if (!uid) return;
+  // The query below is `memberUids array-contains uid`, and on a switch
+  // `resetForNewUid` has already called the previous `groupsUnsub` and
+  // emptied `state.groups`. Attaching from a run that belongs to the
+  // outgoing account would put its circles back on screen under the
+  // incoming one AND overwrite the handle the new account's own
+  // hydrateSocial installs, so the next teardown unsubscribes the wrong
+  // listener.
+  if (!sameAccount(gen)) return;
   // (the group/duo bank is part of the cached bank loaded in hydrate)
   // my groups, live — and yesterday's reveal per group. Re-callable:
   // tear down any previous listener first so calling hydrateSocial
@@ -2144,6 +2210,7 @@ const SOCIAL = {
       if (!(key in have)) wanted.push(key);
     }
     if (!wanted.length) return;
+    const gen = uidGen;
     state.revealHistLoading[gid] = true;
     try {
       const db = await getDb();
@@ -2151,6 +2218,16 @@ const SOCIAL = {
         wanted.map(async (key) => {
           try {
             const snap = await getDoc(doc(db, "v2_groups", gid, "reveals", key));
+            // `have` is an alias taken before the await, and
+            // `resetForNewUid` REPLACES `state.revealHist` rather than
+            // emptying it in place — so after a switch these writes land on
+            // a detached object and reach nobody. Guarded anyway, for the
+            // loadNames reason: that is a property of how the reset happens
+            // to clear, not one anything declares, and a reset rewritten to
+            // clear in place would turn a wasted fetch into the incoming
+            // account holding a circle's reveal history it may never have
+            // been a member for.
+            if (!sameAccount(gen)) return;
             have[key] = snap.exists() ? (snap.data() as Record<string, unknown>) : null;
           } catch (err) {
             // permission-denied = a day revealed before this user joined;
@@ -2167,8 +2244,10 @@ const SOCIAL = {
         }),
       );
     } finally {
-      state.revealHistLoading[gid] = false;
-      notify();
+      if (sameAccount(gen)) {
+        state.revealHistLoading[gid] = false;
+        notify();
+      }
     }
   },
   // Every readable reveal for this group, newest first — the cached
@@ -2317,16 +2396,27 @@ const SOCIAL = {
   // a stranger controls.
   async loadInvites(): Promise<void> {
     if (!LIVE.enabled || !state.uid || state.invitesLoading) return;
+    const gen = uidGen;
+    const me = state.uid;
     state.invitesLoading = true;
     notify();
     try {
       const [db, mod] = await Promise.all([getDb(), import("./socialFetch")]);
-      state.invites = await mod.fetchInvites(db, state.uid);
+      // `me`, not `state.uid` re-read here: the uid is sampled before the
+      // first await now, so a switch during the dynamic import cannot make
+      // this fetch silently change subject halfway. The generation check
+      // below then discards it either way — but a read issued for the wrong
+      // account is worth not issuing at all.
+      const list = await mod.fetchInvites(db, me);
+      if (!sameAccount(gen)) return;
+      state.invites = list;
     } catch (err) {
       reportError(err, { where: "loadInvites" });
     } finally {
-      state.invitesLoading = false;
-      notify();
+      if (sameAccount(gen)) {
+        state.invitesLoading = false;
+        notify();
+      }
     }
   },
   async leaveGroup(gid: string) {
@@ -2430,6 +2520,7 @@ const SOCIAL = {
     // list reads exactly like a circle that never wrote a take), so a
     // transient failure retries and a real empty result is kept.
     if (key == null || state.takesLoading[key] || state.takes[key]) return;
+    const gen = uidGen;
     state.takesLoading[key] = true;
     try {
       const db = await getDb();
@@ -2451,6 +2542,10 @@ const SOCIAL = {
             limit(TAKE_GROUP_FETCH_CAP),
           ),
       );
+      // Circle takes are member-gated, which is why `resetForNewUid`
+      // empties this map: the list was authorised by the OUTGOING account's
+      // membership, and the incoming one may not be in that circle at all.
+      if (!sameAccount(gen)) return;
       state.takes[key] = snap.docs.map((d) => takeFromDoc(d.id, d.data() as Record<string, unknown>));
     } catch (err) {
       // Leave the key absent rather than caching an empty list: a
@@ -2458,8 +2553,10 @@ const SOCIAL = {
       // exactly like a circle that never wrote any.
       reportError(err, { where: "loadTakes", gid });
     } finally {
-      state.takesLoading[key] = false;
-      notify();
+      if (sameAccount(gen)) {
+        state.takesLoading[key] = false;
+        notify();
+      }
     }
   },
   takes(gid: string, qid?: string): TakeDoc[] {
@@ -3131,6 +3228,7 @@ const LIVE = {
     // array now means "nobody answered" and is kept, which is what
     // distinguishing those two states was for.
     if (!qid || state.votersLoading[qid] || state.voters[qid]) return;
+    const gen = uidGen;
     state.votersLoading[qid] = true;
     try {
       const db = await getDb();
@@ -3138,9 +3236,17 @@ const LIVE = {
       // comparator uses — `isMe` and the resolved `name` — are fixed when
       // the rows are built and never revised afterwards, so the order the
       // list will ever have is knowable now.
-      state.voters[qid] = sortVoters(
+      const rows = sortVoters(
         await fetchVoters(db, qid, state.uid, state.names, state.scores, state.logicPcts),
       );
+      // The costliest instance of the account-generation problem, because
+      // it leaks in two directions at once. `isMe` was computed against the
+      // OLD uid, so a survivor marks a stranger's answer as the new
+      // account's own — and `saveProfileCache` would then persist the old
+      // account's names and scores under `owner: state.uid`, i.e. stamped
+      // with the NEW uid, past the purge that had just swept them.
+      if (!sameAccount(gen)) return;
+      state.voters[qid] = rows;
       saveProfileCache();
     } catch (err) {
       // Leave the key ABSENT rather than caching an empty list. The two
@@ -3150,8 +3256,10 @@ const LIVE = {
       // the old floor's silent gaps were.
       reportError(err, { where: "loadVoters", qid });
     } finally {
-      state.votersLoading[qid] = false;
-      notify();
+      if (sameAccount(gen)) {
+        state.votersLoading[qid] = false;
+        notify();
+      }
     }
   },
   // uid → display name, from the shared session cache. Synchronous and
@@ -3307,14 +3415,27 @@ const LIVE = {
       && (!(u in state.names) || !(u in state.scores) || !(u in state.faces)
         || !(u in state.logicPcts)));
     if (!want.length) return;
+    const gen = uidGen;
     try {
       const db = await getDb();
       await resolveNames(db, want, state.names, state.scores, state.faces, state.logicPcts);
+      // Names are public (D98), so a survivor here is not a disclosure —
+      // what this guards is the DISK write. `saveProfileCache` arms a
+      // coalesced timer, and `resetForNewUid` cancels the pending one and
+      // then purges every `insight.*` key; re-arming it afterwards puts the
+      // key back under the new owner, which is the same shape as the agg
+      // cache's `cancelAggCache`. The in-memory maps need no guard for a
+      // subtler reason worth writing down rather than relying on: the reset
+      // REPLACES them (`state.names = {}`), so the references handed to
+      // `resolveNames` above are already detached and its writes reach
+      // nothing. That is an accident of how the reset clears, not a
+      // property anyone declared — hence the explicit return.
+      if (!sameAccount(gen)) return;
       saveProfileCache();
     } catch (err) {
       reportError(err, { where: "loadNames" });
     } finally {
-      notify();
+      if (sameAccount(gen)) notify();
     }
   },
   // ── Kindred: the people most like you (D99) ───────────────────
@@ -3371,6 +3492,7 @@ const LIVE = {
   // Up to a quarter of the twelve slots bought an empty list.
   async loadKindred(): Promise<void> {
     if (state.kindredLoading) return;
+    const gen = uidGen;
     state.kindredLoading = true;
     try {
       const qids = pickKindredQids(state.votes, divisivenessOf, KINDRED_QUESTIONS, storesOptionIdx);
@@ -3379,6 +3501,12 @@ const LIVE = {
       // first surface has run, and firing twelve at once at boot-adjacent
       // moments is the shape that gets a client rate-limited.
       for (const qid of qids) {
+        // Checked inside the loop as well as after it: `qids` came from the
+        // OUTGOING account's votes, so once the switch has happened the
+        // remaining eleven queries are reads nobody wants, charged to the
+        // incoming account's quota. loadVoters would discard each result
+        // anyway; this stops paying for them.
+        if (!sameAccount(gen)) return;
         if (!state.voters[qid]) await this.loadVoters(qid);
       }
       // Counted from what actually LANDED, not from what was asked for:
@@ -3389,8 +3517,10 @@ const LIVE = {
     } catch (err) {
       reportError(err, { where: "loadKindred" });
     } finally {
-      state.kindredLoading = false;
-      notify();
+      if (sameAccount(gen)) {
+        state.kindredLoading = false;
+        notify();
+      }
     }
   },
   // Everyone who overlaps with you, most alike first. Derived on read
@@ -3475,6 +3605,7 @@ const LIVE = {
     // guarded by a boolean so the pool refetches for the new city instead
     // of serving the old one forever.
     if (state.cityVotersAt === city) return;
+    const gen = uidGen;
     state.cityKindredLoading = true;
     notify();
     try {
@@ -3492,14 +3623,20 @@ const LIVE = {
           reportError(err, { where: "loadCityKindred", qid });
         }
       }
+      // loadVoters' pair of leaks, one surface over: `isMe` computed
+      // against the outgoing uid, and a `saveProfileCache` that would stamp
+      // the outgoing account's names with the incoming one's `owner`.
+      if (!sameAccount(gen)) return;
       state.cityVoters = next;
       state.cityVotersAt = city;
       saveProfileCache();
     } catch (err) {
       reportError(err, { where: "loadCityKindred" });
     } finally {
-      state.cityKindredLoading = false;
-      notify();
+      if (sameAccount(gen)) {
+        state.cityKindredLoading = false;
+        notify();
+      }
     }
   },
 
@@ -3523,6 +3660,7 @@ const LIVE = {
     // state.circle keeps the "who may invalidate this" list to one site.
     if (!this.enabled || !me || state.circleLoading) return;
     if (!force && state.circle) return;
+    const gen = uidGen;
     state.circleLoading = true;
     notify();
     try {
@@ -3542,20 +3680,29 @@ const LIVE = {
         await this.loadNames(missing);
         for (const m of members) m.name = state.names[m.uid] || "";
       }
+      // The previous account's friends, and the one survivor that would
+      // stand for the WHOLE session rather than be corrected by the next
+      // load: `loadFollows` early-returns on a non-null `state.follows`
+      // (see `resetForNewUid`'s note on it), and this line writes that
+      // cache as well as the fold.
+      if (!sameAccount(gen)) return;
       state.circle = members;
       // The fold already knows the membership, so the cheap view rides
       // along for free — a Friends chip opened after the Circle stop pays
       // no read at all.
       state.follows = members.map((m) => m.uid);
     } catch (err) {
+      if (!sameAccount(gen)) return;
       reportError(err, { where: "loadCircle" });
       // null, not [] — "could not ask" and "you follow nobody" are
       // different sentences and the stop renders them differently. The
       // same rule voters() follows.
       state.circle = null;
     } finally {
-      state.circleLoading = false;
-      notify();
+      if (sameAccount(gen)) {
+        state.circleLoading = false;
+        notify();
+      }
     }
   },
   /** The circle, or null while unfetched or failed. */
@@ -3582,17 +3729,25 @@ const LIVE = {
     const me = state.uid;
     if (!this.enabled || !me || state.followsLoading) return;
     if (state.follows) return;
+    const gen = uidGen;
     state.followsLoading = true;
     try {
       const [db, circleMod] = await Promise.all([getDb(), import("./circle")]);
-      state.follows = circleMod.capFollows(await circleMod.fetchFollowing(db, me));
+      const list = circleMod.capFollows(await circleMod.fetchFollowing(db, me));
+      // The same one-way survivor loadCircle writes above: this cache is
+      // never re-read once set, so the outgoing account's friends would mark
+      // strangers as the incoming account's for the rest of the session.
+      if (!sameAccount(gen)) return;
+      state.follows = list;
     } catch (err) {
       // Left null, like circle's catch: "could not ask" must not render as
       // "you follow nobody".
       reportError(err, { where: "loadFollows" });
     } finally {
-      state.followsLoading = false;
-      notify();
+      if (sameAccount(gen)) {
+        state.followsLoading = false;
+        notify();
+      }
     }
   },
   /** The uids you follow, or null while unfetched or failed. */
@@ -3610,6 +3765,7 @@ const LIVE = {
   async loadForesight(): Promise<void> {
     const me = state.uid;
     if (!this.enabled || !me || state.foresightLoading || state.foresight) return;
+    const gen = uidGen;
     state.foresightLoading = true;
     notify();
     try {
@@ -3635,15 +3791,22 @@ const LIVE = {
           at: (v.at as { toMillis?: () => number } | null)?.toMillis?.() || 0,
         };
       });
+      // The log is keyed by SLICE rather than by uid, so a survivor credits
+      // the incoming account with the outgoing one's record — `resetForNewUid`
+      // empties it for exactly that reason.
+      if (!sameAccount(gen)) return;
       state.foresight = out;
     } catch (err) {
+      if (!sameAccount(gen)) return;
       reportError(err, { where: "loadForesight" });
       // null keeps "could not ask" distinct from "nothing played" — the
       // same rule voters() and circle() follow.
       state.foresight = null;
     } finally {
-      state.foresightLoading = false;
-      notify();
+      if (sameAccount(gen)) {
+        state.foresightLoading = false;
+        notify();
+      }
     }
   },
   foresightLog(): Record<string, ForesightVerdict> | null {
@@ -3737,6 +3900,7 @@ const LIVE = {
   // the wire (see resolveNames).
   async loadSimilarity(): Promise<void> {
     if (!this.enabled || state.similarityLoading) return;
+    const gen = uidGen;
     state.similarityLoading = true;
     notify();
     try {
@@ -3786,8 +3950,18 @@ const LIVE = {
     } catch (err) {
       reportError(err, { where: "loadSimilarity" });
     } finally {
-      state.similarityLoading = false;
-      notify();
+      // Only the FLAG is guarded here, and the asymmetry with its siblings
+      // is deliberate. What the block above writes is `state.aggs` — the
+      // public per-question aggregates (D98), the same crowd whoever is
+      // signed in — so a batch that lands after a switch is correct for the
+      // incoming account too, and `testAggsLoaded` alongside it is then a
+      // true statement about a map that really was topped up. The flag is
+      // different: clearing it while the new account's own call is in
+      // flight is what lets a second caller start a duplicate read.
+      if (sameAccount(gen)) {
+        state.similarityLoading = false;
+        notify();
+      }
     }
   },
   similarityLoading(): boolean {
@@ -5053,6 +5227,11 @@ let sessionRecoveryTried = false;
 // new one, or the two interleave and one account's answers render as the
 // other's.
 function resetForNewUid(uid: string): void {
+  // FIRST, before a single map is emptied: everything already awaiting a
+  // network round trip belongs to the outgoing account from this line on.
+  // Bumping after the clears would leave a window in which a loader could
+  // resolve, pass its guard and refill a map this function had just emptied.
+  uidGen += 1;
   // A detach armed under the OLD uid must not fire against the new one's
   // listeners: it would drop them with nothing to re-attach until the next
   // wake, which reads on screen as a deck that stopped updating.
@@ -5197,6 +5376,15 @@ function resetForNewUid(uid: string): void {
   // account DELETION, the case that matters most, is swept by
   // deleteAccount rather than left to this path at all.
   setSentryUser(uid);
+  // DROP THE IN-FLIGHT HANDLE, or the call below hands back the OUTGOING
+  // account's run and this account never hydrates at all. That is not a
+  // hypothetical: publishTestResults' own header already names it — "the
+  // unguarded getDocs in hydrate can reject outright, and refreshInFlight
+  // can hand back the OLD run's promise so hydrate never re-executes" —
+  // and until now the only answer to it was that one function re-publishing
+  // the test results by hand. The stale run keeps running and is harmless:
+  // every write it has left is behind a `sameAccount` check.
+  refreshInFlight = null;
   notify();
   void refreshLive().catch((err) => reportError(err, { where: "refreshLive.uidChange" }));
 }
@@ -5347,7 +5535,8 @@ let deviceBindAttemptedFor: string | null = null;
 export function refreshLive(): Promise<void> {
   if (torndown) return Promise.resolve();
   if (refreshInFlight) return refreshInFlight;
-  refreshInFlight = (async () => {
+  const gen = uidGen;
+  const run: Promise<void> = (async () => {
     // WHICH STEP, not merely that one is outstanding. The first field
     // report said "still connecting after 3s" and that was the whole
     // signal: nothing had thrown, so boot was HANGING rather than failing,
@@ -5359,15 +5548,27 @@ export function refreshLive(): Promise<void> {
     // exotic one. Each stage is published before it is awaited.
     state.bootStage = "signing in";
     notify();
-    state.uid = await anonSignIn();
+    const signedIn = await anonSignIn();
+    // GUARDED BEFORE THE ASSIGNMENT, not after. A switch during sign-in
+    // leaves `resetForNewUid` having set the incoming uid, and writing the
+    // outgoing one back over it here would point every read below — and
+    // every listener path after boot — at the wrong account.
+    if (!sameAccount(gen)) return;
+    state.uid = signedIn;
     // uid-only (never email/name) — matches sentry.ts's PII stance.
     setSentryUser(state.uid);
     state.bootStage = "loading questions";
     notify();
     await hydrate();
+    if (!sameAccount(gen)) return;
     state.bootStage = "loading groups";
     notify();
     await hydrateSocial();
+    // `ready` and `enabled` below are this run's verdict on a boot it no
+    // longer owns: the incoming account's own run is what gets to say the
+    // store is attached, and letting a stale run say it first flips the UI
+    // live over a half-emptied store.
+    if (!sameAccount(gen)) return;
     state.bootStage = "";
     state.ready = true;
     // fire-and-forget: reveal notifications on real devices (no-op on web).
@@ -5429,8 +5630,20 @@ export function refreshLive(): Promise<void> {
     // the opt-in is a standing choice, the loop is per-session machinery.
     if (nearOptedIn()) startPresence();
     notify();
-  })().finally(() => { refreshInFlight = null; });
-  return refreshInFlight;
+  })()
+    // ONLY THIS RUN'S HANDLE. `resetForNewUid` drops the handle so the
+    // incoming account gets a run of its own, so by the time a stale run
+    // settles the slot may already hold the new one — and a bare
+    // `refreshInFlight = null` would then advertise "no refresh in flight"
+    // while one is, letting a third start alongside it.
+    //
+    // Chained rather than branched off with `void run.finally(…)`: that
+    // shape mints a SECOND promise nobody awaits, so a rejected boot —
+    // which vote.test.ts provokes on purpose — raises an unhandled
+    // rejection beside the one the caller is already catching.
+    .finally(() => { if (refreshInFlight === run) refreshInFlight = null; });
+  refreshInFlight = run;
+  return run;
 }
 
 // Wake handlers. A healthy wake must stay cheap — the common case is a

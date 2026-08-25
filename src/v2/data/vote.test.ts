@@ -94,6 +94,20 @@ const h = vi.hoisted(() => ({
   // this shape — "still connecting" with no error — and nothing exercised
   // it, so the label that describes it was unpinned.
   hangSignIn: false,
+  // What `anonSignIn` resolves to. A constant until D-F24's mid-hydrate
+  // case: `resetForNewUid` kicks a fresh `refreshLive`, whose first step is
+  // a sign-in — so with a hardcoded uid the "new account" signs straight
+  // back in as the old one and the case tests nothing.
+  signInUid: "uid_test",
+  // A hold on the my-answers pull, so a case can put an account switch
+  // INSIDE hydrate rather than before or after it. Parking is observable —
+  // each held read pushes its own resolver — because hydrate reaches the
+  // wire several awaits in and a case must not guess when.
+  gateAnswers: false,
+  answersParked: [] as Array<() => void>,
+  // Every getDocs path of the session, so a case can ask whether the
+  // INCOMING account hydrated at all.
+  readPaths: [] as string[],
 }));
 
 vi.mock("../../lib/firebase", () => {
@@ -112,7 +126,7 @@ vi.mock("../../lib/firebase", () => {
   firebaseEnabled: true,
   anonSignIn: () => (h.hangSignIn
     ? new Promise<string>(() => { /* never settles, which is the case */ })
-    : Promise.resolve("uid_test")),
+    : Promise.resolve(h.signInUid)),
   getDb: () => Promise.resolve({ __db: true }),
   // The API surfaces live.ts binds off the same promise as getDb (D110).
   // `vi.mock("firebase/firestore")` in this file already replaced the real
@@ -187,10 +201,15 @@ vi.mock("firebase/firestore", () => {
     getDocs: (q: { path?: string; parts?: Array<{ __kind: string; value?: unknown }> }) => {
       // Lets a test simulate a network failure mid-hydrate.
       if (h.getDocsImpl) return Promise.reject(h.getDocsImpl());
+      if (q?.path) h.readPaths.push(q.path);
       if (q?.path === "v2_questions") return Promise.resolve(snapOf(h.bankDocs));
       // The my-answers pull (and, on a warm boot, the D86 edit-cursor
       // query on the same path — fold() is idempotent over the repeat).
       if (q?.path === "v2_users/uid_test/answers") {
+        if (h.gateAnswers) {
+          return new Promise<void>((release) => { h.answersParked.push(release); })
+            .then(() => snapOf(h.answerDocs));
+        }
         if (!h.answerPageSize) return Promise.resolve(snapOf(h.answerDocs));
         const start = h.answerServed;
         h.answerServed += h.answerPageSize;
@@ -348,6 +367,10 @@ beforeEach(() => {
   h.aggFailIds.length = 0;
   h.voterDocs = {};
   h.voterQueries.length = 0;
+  h.gateAnswers = false;
+  h.answersParked.length = 0;
+  h.readPaths.length = 0;
+  h.signInUid = "uid_test";
   h.bankDocs = [
     {
       id: "q_1",
@@ -787,6 +810,75 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     // previous account's data straight back. The listener side is pinned
     // in test/lens-live.test.ts; this pins that the announcement fires.
     expect(dispatched).toContain("insight:local-purge");
+  });
+
+  it("discards the previous account's answers when the switch lands mid-hydrate", async () => {
+    // The case above switches accounts BETWEEN loads, which is the half
+    // `resetForNewUid` can handle by emptying maps. This is the half it
+    // cannot reach: a read already on the wire.
+    //
+    // hydrate folds every answer document into `state.votes`, several
+    // awaits past the point of no return. A switch that lands inside those
+    // awaits has the fold write the OUTGOING account's answers into the map
+    // the reset has just emptied — which is the sentence the auth watcher's
+    // own comment gives as the reason it exists at all: "one person's
+    // answers displayed to another".
+    h.answerDocs.push({
+      id: "q_1",
+      data: { qid: "q_1", surface: "daily", optionIdx: 1, answeredAt: { toMillis: () => 5 } },
+    });
+    h.gateAnswers = true;
+
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    // NOT bootLive(): it waits for `ready`, and the whole point is to act
+    // while the boot is still parked mid-hydrate.
+    void mod.initLive(1);
+    await vi.waitFor(() => { expect(h.answersParked).toHaveLength(1); });
+
+    // A different account signs in while that read is outstanding — and
+    // stays signed in, so the refresh the reset kicks does not sign the
+    // outgoing account straight back in.
+    h.signInUid = "someone_else";
+    h.authCb!({ uid: "someone_else" });
+    await vi.waitFor(() => { expect(LIVE.uid).toBe("someone_else"); });
+
+    // Let the INCOMING account's own boot finish first. `resetForNewUid`
+    // set `ready` false, so this becoming true is that run and no other —
+    // and it only happens if the switch DROPPED the in-flight refresh
+    // handle, since otherwise `refreshLive()` hands back the outgoing
+    // account's run, which is still parked below.
+    await vi.waitFor(() => { expect(LIVE.ready).toBe(true); });
+
+    // ONLY NOW does the previous account's read arrive, so its writes are
+    // the LAST ones to land. Ordering it this way round is the whole point:
+    // a stale write that lands before the new account's own is harmless by
+    // luck, and a test that cannot tell the two apart pins nothing.
+    //
+    // The gate comes off with the release because the stale run issues a
+    // SECOND read on the same path (D86's edit cursor) and would otherwise
+    // park again, stopping short of the disk write.
+    h.gateAnswers = false;
+    h.answersParked.forEach((release) => release());
+    await flush();
+    await flush();
+
+    expect(LIVE.myVotes(), "the previous account's answers were folded in")
+      .not.toHaveProperty("q_1");
+    // …and the on-disk mirror is not re-created under the outgoing uid,
+    // past the purge that had just swept it.
+    const cached = JSON.parse(storage.getItem(ANS_LS) || "null");
+    expect(cached?.uid ?? "someone_else", "the outgoing account's cache was rewritten")
+      .toBe("someone_else");
+    expect(cached?.votes ?? {}, "the outgoing account's votes reached the disk")
+      .not.toHaveProperty("q_1");
+    // The other half of the fix: the incoming account only hydrates if the
+    // switch DROPS the in-flight refresh handle. Without that,
+    // `refreshLive()` hands back the outgoing account's run and this read is
+    // never issued — which `publishTestResults`' own header had already
+    // recorded as a live hazard, with no test and no fix.
+    expect(h.readPaths, "the incoming account never hydrated")
+      .toContain("v2_users/someone_else/answers");
   });
 
   // ── the coalesced agg cache (D64) ───────────────────────────────────

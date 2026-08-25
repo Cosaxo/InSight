@@ -283,12 +283,41 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
   };
 
   const qRow = (qq) => {
+    // `window.WorldFeed &&` is the guard every other cross-group render
+    // site in this layer carries (daily-split.jsx's `feedEnabled`,
+    // app-shell's `window.PersonOverlay &&`, mirror-field-pops' two), and
+    // this one was bare.
+    //
+    // THE TWO GROUPS RACE, and this is the smaller one. main.jsx starts
+    // loadWorldFeed() and loadOverlays() in the same tick; the overlays
+    // group is ~352 KB of source against the feed group's ~475 KB, so the
+    // search button becoming live BEFORE WorldFeed exists is the expected
+    // ordering rather than the exotic one. The rows it lists come from
+    // `window.WORLD_FEED_QS`, which is published eagerly — so they are
+    // tappable in exactly that window, and `React.createElement(undefined)`
+    // throws "Element type is invalid". app-shell's ErrorBoundary catches
+    // it, which means the whole search overlay is replaced by the snag card
+    // rather than one row failing to expand. Permanent, not transient,
+    // whenever the feed chunk fetch simply fails — the case spec-index's
+    // own contract sentence ("a failed chunk costs the feed, not the app")
+    // promises is survivable.
+    //
+    // The tap is REMEMBERED rather than refused: `openQ` is still set, so
+    // when the chunk lands main.jsx re-renders the root and the row opens
+    // on its own. Awaiting the loader here instead — app-shell's
+    // openDeferred shape — would need `loadWorldFeed` on `window`, and a
+    // new shared global is exactly what check:globals rule 4 refuses.
+    //
+    // Bound once rather than read twice, for that same ratchet: the guard
+    // and the tag are one reference to the bridge, not two, so a fix for a
+    // missing guard does not cost a point of coupling to add.
+    const WorldFeed = window.WorldFeed;
     const isOpen = openQ && openQ.id === qq.id;
-    if (isOpen) {
+    if (isOpen && WorldFeed) {
       return (
         <div key={qq.id} data-openq="1" style={{ position: 'relative', border: '1px solid color-mix(in oklch, var(--accent) 32%, var(--rule))', borderRadius: 18, padding: '4px 12px 8px', margin: '6px 0 10px', background: 'var(--surface-2)', boxShadow: 'var(--shadow-card)' }}>
           <button className="press tap44" aria-label="Close question" onClick={() => setOpenQ(null)} style={{ position: 'absolute', top: 12, right: 12, zIndex: 2, width: 26, height: 26, borderRadius: '50%', border: '0.5px solid var(--rule)', background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, WebkitAppearance: 'none' }}>✕</button>
-          <window.WorldFeed focus={[qq]} cats={{}} onToggle={() => {}} beats={false}
+          <WorldFeed focus={[qq]} cats={{}} onToggle={() => {}} beats={false}
             opts={{ pass: false, clock: false, ripple: false, why: false }}
             onVote={() => setVotes(srchVotes())} />
         </div>

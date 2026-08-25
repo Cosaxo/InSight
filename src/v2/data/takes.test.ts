@@ -46,9 +46,49 @@ const h = vi.hoisted(() => ({
   queries: [] as Array<{ path?: string; constraints: Constraint[] }>,
   authCb: null as null | ((u: { uid: string } | null) => void),
   autoId: 0,
+  // A hold on the v2_takes read, so a case can put an account switch INSIDE
+  // the await rather than before or after it.
+  //
+  // PARKING IS OBSERVABLE, which is the whole design. A single "gate
+  // promise" the test swaps between calls is not enough: `loadTakes` awaits
+  // `getDb()` before it queries, so the test cannot know WHEN a call
+  // reaches the wire, and a gate installed for the second call gets picked
+  // up by the first. Here each parked read pushes its own resolver, so a
+  // case waits for `takesParked` to reach a length before doing anything
+  // else — every step is a fact about the store rather than a guess about
+  // microtask order.
+  gateTakes: false,
+  takesParked: [] as Array<() => void>,
+  // The same hold on the follow-graph read, for the case that watches the
+  // loading FLAG rather than the cache. `loadFollows` is the one loader with
+  // a public `followsLoading()`, so the flag is assertable directly instead
+  // of through a probe call.
+  gateFollows: false,
+  followsParked: [] as Array<() => void>,
 }));
 
-vi.mock("../../lib/firebase", () => ({
+vi.mock("../../lib/firebase", () => {
+  // MEMOISED, the way the real lib/firebase memoises its single `impl()`
+  // promise — and the way vote.test.ts's mock already does, with the same
+  // reasoning written out there. live.ts re-binds its whole Firestore
+  // namespace off this on EVERY `getDb()` (D110), so a factory returning a
+  // fresh `import()` each time can hand the second call a different module
+  // object than the first: the store then holds the REAL
+  // `collection`/`doc` while this file's doubles record nothing, and the
+  // read fails with an invalid-argument the test reads as a refusal.
+  //
+  // Invisible while every case booted once and read once. It bit the
+  // moment a case drove two loads across an account switch — the second
+  // `loadTakes` reported `Expected first argument to collection() to be a
+  // CollectionReference`, which is the real SDK complaining about this
+  // file's `{ __db: true }`.
+  //
+  // INSIDE the factory, not beside it: `vi.mock` is hoisted above every
+  // statement in the file, so a module-scope const here is in its temporal
+  // dead zone when the factory runs.
+  const fsApi = import("firebase/firestore");
+  const fnsApi = import("firebase/functions");
+  return {
   firebaseEnabled: true,
   anonSignIn: () => Promise.resolve("uid_test"),
   getDb: () => Promise.resolve({ __db: true }),
@@ -57,15 +97,16 @@ vi.mock("../../lib/firebase", () => ({
   // module (vi.mock hoists, so its position below is immaterial), so importing
   // it here hands the store exactly the doubles this file asserts on — and
   // every case in it now also exercises the bind step.
-  getFirestoreApi: () => import("firebase/firestore"),
-  getFunctionsApi: () => import("firebase/functions"),
+  getFirestoreApi: () => fsApi,
+  getFunctionsApi: () => fnsApi,
   linkGoogle: () => Promise.resolve(),
   googleSignOut: () => Promise.resolve(),
   subscribeToAuth: (cb: (u: { uid: string } | null) => void) => {
     h.authCb = cb;
     return () => { h.authCb = null; };
   },
-}));
+  };
+});
 
 vi.mock("../../lib/sentry", () => ({
   reportError: h.reportError,
@@ -123,7 +164,15 @@ vi.mock("firebase/firestore", () => {
     getDoc: () =>
       Promise.resolve({ exists: () => false, get: () => undefined, data: () => ({}) }),
     getDocs: (q: { path?: string }) => {
-      if (q?.path === "v2_takes") return Promise.resolve(snapOf(h.takeDocs));
+      if (q?.path === "v2_takes") {
+        if (!h.gateTakes) return Promise.resolve(snapOf(h.takeDocs));
+        return new Promise<void>((release) => { h.takesParked.push(release); })
+          .then(() => snapOf(h.takeDocs));
+      }
+      if (q?.path?.endsWith("/following") && h.gateFollows) {
+        return new Promise<void>((release) => { h.followsParked.push(release); })
+          .then(() => snapOf([]));
+      }
       if (q?.path === "v2_questions") return Promise.resolve(snapOf(h.bankDocs));
       return Promise.resolve(snapOf([]));
     },
@@ -206,6 +255,10 @@ beforeEach(() => {
   h.takeDocs.length = 0;
   h.authCb = null;
   h.autoId = 0;
+  h.gateTakes = false;
+  h.takesParked.length = 0;
+  h.gateFollows = false;
+  h.followsParked.length = 0;
   h.bankDocs = [
     {
       id: "q_1",
@@ -576,6 +629,87 @@ describe("resetForNewUid", () => {
 
     expect(LIVE.follows()).toBeNull();
     expect(LIVE.followsLoading()).toBe(false);
+  });
+
+  // ── the in-flight half (F24) ──────────────────────────────────────
+  //
+  // The two cases above switch accounts BETWEEN loads, which is the easy
+  // half: `resetForNewUid` empties eighteen maps and the assertion reads
+  // them straight afterwards. What it cannot reach is a read already on
+  // the wire. Every loader in live.ts has one shape — a guard, an await,
+  // then a write into `state` — so a switch that lands inside the await
+  // has the loader refill the map a millisecond after the function whose
+  // entire job is emptying it has run.
+  //
+  // `state.uid` is not a usable test for this, which is why the fix is a
+  // counter: by the time the loader resumes, `state.uid` is already the
+  // NEW uid, so a loader comparing against it agrees with itself and
+  // writes anyway.
+
+  it("discards a takes read that was already on the wire when the account changed", async () => {
+    h.takeDocs.push(takeDoc("t1", 2000));
+    const LIVE = await bootLive();
+
+    // On the wire under the OUTGOING account, and parked there.
+    h.gateTakes = true;
+    const inFlight = LIVE.social.loadTakes(GID);
+    await vi.waitFor(() => { expect(h.takesParked).toHaveLength(1); });
+
+    // …and now a different account signs in on the same device.
+    h.authCb?.({ uid: "uid_mid_flight" });
+    await vi.waitFor(() => { expect(LIVE.uid).toBe("uid_mid_flight"); });
+    expect(LIVE.social.takes(GID), "the reset did not empty the cache").toEqual([]);
+
+    // Only now does the previous account's read land.
+    h.takesParked[0]();
+    await inFlight;
+
+    // Circle takes are member-gated: this list was authorised by the
+    // OUTGOING account's membership, and the incoming account may not be in
+    // that circle at all. Before the generation guard it arrived a
+    // millisecond after the function whose whole job is emptying this map.
+    expect(LIVE.social.takes(GID), "the outgoing account's takes were restored").toEqual([]);
+  });
+
+  it("leaves the loading flag alone so the new account's own read can finish", async () => {
+    // The second half, and the one that is invisible on screen. A stale
+    // `finally` clearing a loading flag looks harmless — the flag is false
+    // either way — but it clears the flag the INCOMING account's read has
+    // since set, so the next caller sees "nothing in flight" and starts a
+    // duplicate query against a load that is already running.
+    //
+    // On loadFollows rather than loadTakes because it is the one loader
+    // with a public `followsLoading()`: the flag is the subject, so assert
+    // on the flag rather than on a probe call that infers it.
+    const LIVE = await bootLive();
+
+    h.gateFollows = true;
+    const outgoing = LIVE.loadFollows();
+    await vi.waitFor(() => { expect(h.followsParked).toHaveLength(1); });
+
+    h.authCb?.({ uid: "uid_flag_other" });
+    await vi.waitFor(() => { expect(LIVE.uid).toBe("uid_flag_other"); });
+    // The reset put the cache back to null, which is what lets the incoming
+    // account's own call past `if (state.follows) return`.
+    expect(LIVE.follows()).toBeNull();
+
+    const incoming = LIVE.loadFollows();
+    await vi.waitFor(() => { expect(h.followsParked).toHaveLength(2); });
+    expect(LIVE.followsLoading()).toBe(true);
+
+    // The outgoing account's read finishes FIRST — the ordering that makes
+    // this a bug rather than a curiosity.
+    h.followsParked[0]();
+    await outgoing;
+    expect(
+      LIVE.followsLoading(),
+      "a stale run cleared the in-flight mark the new account's own read is holding",
+    ).toBe(true);
+
+    h.followsParked[1]();
+    await incoming;
+    expect(LIVE.followsLoading()).toBe(false);
+    expect(LIVE.follows()).toEqual([]);
   });
 });
 
