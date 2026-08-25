@@ -20,7 +20,11 @@
 import React from "react";
 import LIVE from "../data/live";
 import { loadMine, mine, subscribePurchases, type Purchase } from "../data/purchases";
-import { cur, currencies, fmt, setCur, subscribeCur } from "../data/pricing";
+import { fmt, subscribeCur } from "../data/pricing";
+// The switch lives in its own module since phase 4: the ask-a-question
+// door (a different lazy chunk) renders it too, and CurSwitch.tsx's
+// header says why an import between the two overlays was the wrong wire.
+import { CurSwitch } from "./CurSwitch";
 
 const SANS = "var(--sans)";
 const K: React.CSSProperties = { fontFamily: SANS, fontSize: 10.5, fontWeight: 700, letterSpacing: "0.09em", textTransform: "uppercase", color: "var(--ink-3)" };
@@ -29,26 +33,6 @@ const useCur = (): void => {
   const [, bump] = React.useReducer((x: number) => x + 1, 0);
   React.useEffect(() => subscribeCur(bump), []);
 };
-
-/** € · kr · $ — one preference, persisted, read everywhere a price prints. */
-export function CurSwitch(): React.ReactElement | null {
-  useCur();
-  const list = currencies();
-  if (list.length < 2) return null;
-  return (
-    <span style={{ display: "inline-flex", gap: 2, border: "0.5px solid var(--rule)", borderRadius: 999, padding: 2, background: "var(--surface-2)", flexShrink: 0 }}>
-      {list.map((c) => {
-        const on = cur() === c;
-        return (
-          <button key={c} className="press" onClick={() => setCur(c)} aria-pressed={on} aria-label={`Prices in ${c}`}
-            style={{ border: "none", cursor: "pointer", WebkitAppearance: "none", borderRadius: 999, padding: "3px 9px", fontFamily: SANS, fontSize: 10.5, fontWeight: 800, background: on ? "var(--ink)" : "transparent", color: on ? "var(--surface)" : "var(--ink-3)", transition: "background .16s, color .16s" }}>
-            {c === "EUR" ? "€" : c === "NOK" ? "kr" : c === "USD" ? "$" : c}
-          </button>
-        );
-      })}
-    </span>
-  );
-}
 
 function Band({ children }: { children: React.ReactNode }): React.ReactElement {
   return (

@@ -1010,7 +1010,15 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(screen.queryByText(/\d+ people/), "a fabricated population came back").toBeNull();
     expect(screen.getByText("Learn")).not.toBeNull();
     expect(screen.getByRole("button", { name: "lots" })).not.toBeNull();
-    expect(screen.getByRole("button", { name: /suggest a question/i })).not.toBeNull();
+    // "Ask a question" since D274 §1 — the sheet's proposal path is the
+    // paid door, and the button wears the door's own name. The header's
+    // compose icon answers to the same accessible name, so the assertion
+    // keys on the visible label: the sheet's door is the one with text.
+    const doors = screen.getAllByRole("button", { name: /ask a question/i });
+    expect(
+      doors.some((b) => /ask a question/i.test(b.textContent || "")),
+      "the add sheet lost its own door — only the header icon matched",
+    ).toBe(true);
     expectNoBoundary("live add sheet");
   });
 

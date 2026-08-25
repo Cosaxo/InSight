@@ -81,6 +81,8 @@ export const CLAIMS = [
     /count of people by type, on any of the four[\s\S]{0,600}?not only the Big\s+Five/i],
   ["D202 · and that count is people, not a grouping of answers",
     /count of <em>people<\/em>, not a grouping of anyone/i],
+  ["D274 · a bought question's contract record is buyer-only, and the buyer gets no private cut",
+    /record of the contract[\s\S]{0,200}?only you can read it[\s\S]{0,200}?no private cut/i],
   ["D5 · duel picks stay sealed until the next day's reveal",
     /sealed[\s\S]{0,200}?until the day after/i],
   ["D9 · coordinates are never transmitted or stored",

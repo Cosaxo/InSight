@@ -627,6 +627,12 @@ function App() {
             {/* the passive lens ring rides in the header, not in the feed's
                 chip row — it reports across tabs, not just the feed */}
             {window.PassiveMeter && <window.PassiveMeter></window.PassiveMeter>}
+            {/* compose — the ask-a-question door (the paid path, D274 §1),
+                one tap from anywhere; same openDeferred synchronisation as
+                the cross-links that reached it before it had a button */}
+            <button className="icon-btn" aria-label="Ask a question" onClick={() => openDeferred(() => { closeAll(); setOv('suggest'); })}>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            </button>
             <button className="icon-btn" aria-label="Search" onClick={() => openDeferred(() => { closeAll(); setOv('search'); })}>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="11" cy="11" r="7"></circle><line x1="16.5" y1="16.5" x2="21" y2="21"></line></svg>
             </button>

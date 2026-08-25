@@ -705,10 +705,27 @@ const MAX_CHUNK_KB = 735;
 // is behind React.lazy, and the gate that decides whether it is in the bar
 // is a 1 KB pure module.
 //
+// 2440 → 2480 (2026-08-25): the 2026-08-24 redesign's build-out (D273/
+// D274) — the paid mechanism grew its client half. MEASURED: 2416 → 2456
+// across 105 → 111 chunks, and every new chunk is deferred:
+//
+//   +26+4+1 KB  suggestions-*.js — the door rebuilt as the paid path
+//               (D274 §1): rate board, scope ruler, contract sheet, and
+//               the pricing/sponsored imports rolldown grouped with it
+//   + 8.0 KB    AskedByYouOverlay-*.js — the buyer's room, React.lazy
+//   + 2.0 KB    CurSwitch-*.js — shared by the two chunks above, which
+//               is the whole reason it is its own module
+//   + 1.0 KB    purchases-*.js — the mine-only ledger store
+//
+// The eager graph moved 841 → 860 for the parts that ARE first-paint
+// surfaces — profile-general's PaidMineCard, the privacy panel's
+// asked-by-you row, the place scorecards' two-crowd split, the header's
+// compose button — against MAX_EAGER_KB's own unchanged 880.
+//
 // Headroom left: 24 KB. Still not room for a library — either SDK
 // rejoining first paint lands hundreds of KB over MAX_EAGER_KB and is
 // caught there, which is where that guarantee lives.
-const MAX_TOTAL_JS_KB = 2440;
+const MAX_TOTAL_JS_KB = 2480;
 // 955 → 966 (2026-08-14): D139's pulse card — the second fixed instrument
 // on the FIRST screen, so its card, its store's demo furniture and the
 // two LIVE members are legitimately eager (~10 KB min). What is not

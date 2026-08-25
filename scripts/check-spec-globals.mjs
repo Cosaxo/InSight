@@ -252,7 +252,8 @@ const COUPLING_BASELINE = {
   "src/v2/spec/relmap.jsx": 1,
   "src/v2/spec/search-overlay.jsx": 5,
   "src/v2/spec/segment-explorer.jsx": 1,
-  "src/v2/spec/suggestions.jsx": 1,
+  // suggestions.jsx left the map 2026-08-24: the D274 rebuild imported
+  // WORLD_TOPICS (its one remaining shared-global read) while it was open.
   "src/v2/spec/test-definitions.js": 4,
   "src/v2/spec/vote-cuts.js": 1,
   "src/v2/spec/world-feed-data.js": 4,

@@ -474,6 +474,11 @@ const NOT_SEEDED = {
     "build input, not content — the hand-reviewed exceptions to the artists "
     + "catalogue's mechanical rule (D267), read by scripts/build-catalog.mjs "
     + "and gated by check:catalogs against the committed catalogue",
+  "pricing.json":
+    "the published rate card, not question content (PAID-PLAN §6, D274 §3) "
+    + "— imported by src/v2/data/pricing.ts (the door prints it verbatim), "
+    + "refolded from the purchase ledger by scripts/build-pricing.mjs, and "
+    + "held to shape by check:pricing; never an input to the bank",
 };
 
 const contentFiles = readdirSync(join(root, "content"))

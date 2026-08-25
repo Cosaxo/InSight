@@ -196,7 +196,7 @@ describe("module stores drop their memory on the purge (D51)", () => {
 
   it("SUGGESTIONS: authored questions stop rendering as the new account's 'You'", async () => {
     await SUGGESTIONS.submit({ prompt: "purge-sentinel-question", type: "binary", options: ["a", "b"] });
-    // Your first real submission takes the board over from the demo trio
+    // Your first real ask takes the room over from the demo trio
     // (the v24 rule: the demo rows exist only until you have made your own).
     expect(SUGGESTIONS.counts().mine).toBe(1);
     purge();
@@ -205,9 +205,11 @@ describe("module stores drop their memory on the purge (D51)", () => {
     // be gone is the sentinel, asserted below on the persisted payload.
     expect(SUGGESTIONS.counts().mine).toBe(3);
     expect(stored("insight.suggestions.v1")).toBeNull();
-    SUGGESTIONS.toggleVote("sg01");
+    // The next write after the purge (an upvote until D274 retired the
+    // board; an ask now) must persist the NEW account's state alone.
+    await SUGGESTIONS.submit({ prompt: "post-purge-question", type: "binary", options: ["a", "b"] });
     const after = stored("insight.suggestions.v1")!;
-    expect(after).toContain("sg01");
+    expect(after).toContain("post-purge-question");
     expect(after).not.toContain("purge-sentinel-question");
   });
 
