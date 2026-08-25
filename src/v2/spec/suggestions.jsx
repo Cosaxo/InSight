@@ -157,7 +157,20 @@ function SgRateRow({ scope, name, onPick }) {
         <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 800, letterSpacing: '0.09em', textTransform: 'uppercase', color: SG_TONE[word] }}>{word}</span>
         <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' }}>{nBooked} of {booked.length} days booked · ×{PRICING.cohorts[scope].idx}</span>
         <span style={{ flex: 1 }}></span>
-        <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 750, color: 'var(--accent-ink)' }}>next open {sgNextOpen(scope)}</span>
+        {/* ONLY WHEN THERE IS ONE. `nextOpen` cannot express a sold-out
+            cohort: build-pricing writes null both for "tomorrow is open"
+            and for "no day in the window is", because the stored shape has
+            no third value — so a fully booked scope printed "next open
+            tomorrow" beside its own "14 of 14 days booked" and beside a row
+            of fourteen filled ticks. Two contradictory claims, and the
+            false one is the one a buyer acts on.
+            `booked` is the field that CAN say it, and firstOpen is already
+            read above for the tick colour. Nothing is drawn instead: the
+            count beside it already says the scope is full, and a second
+            sentence saying so is the shape COPY.md deletes. */}
+        {firstOpen !== -1 && (
+          <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 750, color: 'var(--accent-ink)' }}>next open {sgNextOpen(scope)}</span>
+        )}
       </div>
     </button>
   );
