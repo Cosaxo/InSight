@@ -8,7 +8,7 @@ import React from 'react';
 // InSight — VOTECUTS: the one cut list every who-voted breakdown reads from.
 // Demographics first, then the four tests. A test opens into its own subvalues:
 // the overall type, or a single axis split into the same five bands the Circle
-// map colours people by — rm-test-lenses.js owns both, so a cut here and a lens
+// map colours people by — relmap-lenses.jsx owns both, so a cut here and a lens
 // there always mean the same thing.
 // Converted off the shared-global bridge (D39, "convert on touch"):
 // daily-split.jsx and world-feed.jsx both import this by name. The window

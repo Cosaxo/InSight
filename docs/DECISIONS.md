@@ -19877,7 +19877,7 @@ so the rules and e2e suites were not run.
 
 **2026-08-17.** **Status:** binding. Owner's ask: *"let's start building
 the remaining parts like the predicts."* Foresight **CALL, tier A** — the
-half of [D126](#d126) that was designed at [D127](#d127) and never built —
+half of [D126](#d126--foresight--the-read-half-on-a-truth-that-now-exists) that was designed at [D127](#d127--a-machine-may-propose-an-outcome-never-be-the-reason-one-is-believed) and never built —
 is live end to end: a bank surface, a rules arm, a scheduled resolver, a
 feed card, and a gate that refuses a call the grader cannot run.
 
@@ -19908,7 +19908,7 @@ Three things make that a property rather than a promise:
 
 The module is byte-identical across both trees (`src/v2/data/callRubric.ts`
 · `functions/src/callRubric.ts`), held equal by `npm run check:calls` — the
-[D57](#d57) logic-generator arrangement, for a sharper reason: a drifted
+[D57](#d57--verified-logic-attempts-d31s-deferral-reversed--the-server-holds-the-key) logic-generator arrangement, for a sharper reason: a drifted
 copy would not merely mis-grade, it would make the app contradict itself on
 screen.
 

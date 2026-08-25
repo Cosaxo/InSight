@@ -27,7 +27,8 @@ import LIVE from '../data/live.ts';
 const RolesPanelLazy = React.lazy(() => import('../ui/LiveRolesPanel.tsx'));
 
 // InSight — ProfileOverlay (your own profile) + the Politics cards.
-// The test flow lives in test-overlay.jsx; question banks in test-defs.js.
+// The sit-down test flow is gone (D121 — the four core instruments fill
+// from the feed); question banks live in test-definitions.js.
 
 // `lensBoxed` left the signature with the v28 §10 teardown (this branch);
 // the Roles panel and the LIVE read arrived with D204 (main). The merge

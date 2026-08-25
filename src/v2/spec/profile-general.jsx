@@ -65,7 +65,7 @@ import {
   // — see loadGen and migrateV1 below.
   const GKEY_V1 = 'insight.profileGeneral.v1';
 
-  // ── seed from data.js, then overlay any saved edits ──
+  // ── seed from sample-data.js, then overlay any saved edits ──
   function seedFromData() {
     const me = IS_DATA.me || {};
     const s = me.stats || {};

@@ -5,8 +5,12 @@
 // WHY THIS EXISTS. Two different problems, one script, because they share a
 // subject: what a reader arriving with no context can actually find.
 //
-// 1. DECISIONS.md is ~19.5k lines and 194 records with no table of
-//    contents. Every other document here cites decisions by number — "D98
+// 1. DECISIONS.md is a very long file with no table of contents — the
+//    figures are not written here on purpose, because this script prints
+//    both every time it runs and a second copy in prose is the error the
+//    rest of this header is about. (It said "~19.5k lines and 194 records"
+//    for long enough to be off by ninety-eight records.) Every other
+//    document here cites decisions by number — "D98
 //    changed the answer", "read D111 before …" — so the file is addressed
 //    constantly and navigable only by grep. A grep for `D9` also matches
 //    D90-D99 and every `3D`; a grep for a title needs the title. The index
@@ -39,13 +43,18 @@
 //      client-only when it sits on the deploy path is a wrong answer to
 //      "can this block an emergency rules fix" — the trade ci.yml's
 //      comments make repeatedly.
-//   6. Every path ORIENTATION.md names in backticks exists. A map whose
-//      entries point at moved files is worse than no map, because it reads
-//      as current.
+//   6. Every path a MAP names in backticks exists — ORIENTATION.md,
+//      CLAUDE.md, README.md and every README. A map whose entries point at
+//      moved files is worse than no map, because it reads as current, and
+//      that argument never applied to only one of the eight.
 //   7. The Status column against each document's own declaration, in both
 //      directions — a plan read as a description of the tree is the most
 //      expensive mistake this page can cause, and a plan that gets built
 //      updates its own header and nothing else notices.
+//   9. Every `#dNNN-…` link resolves to a heading in DECISIONS.md. This
+//      repo renumbers records on merge, which rewrites the heading and
+//      leaves every link written against the old number pointing nowhere.
+//      Eight were broken when the rule was added.
 //   8. Every directory is named in ORIENTATION.md §3 — the third thing that
 //      page's opening line promises and the only one that was a convention
 //      rather than a rule. It had drifted to four when the rule was added:
@@ -262,7 +271,7 @@ if (write) {
 
 const ORIENTATION = "docs/ORIENTATION.md";
 const orientation = existsSync(join(root, ORIENTATION)) ? read(ORIENTATION) : null;
-const checked = { docs: 0, readmes: 0, gates: 0, dirs: 0 };
+const checked = { docs: 0, readmes: 0, gates: 0, dirs: 0, maps: 0 };
 if (!orientation) fail(`${ORIENTATION} is missing — it is the map every other rule here checks`);
 
 /**
@@ -397,20 +406,102 @@ if (orientation) {
       fail(`${ORIENTATION}: \`${gate}\` is marked "${row[1]}" but the workflows run it as "${want}"`);
   }
 
-  // Rule 6 — every path it names exists. Backticked, contains a slash, and
-  // either ends in a source extension or in a slash: that is narrow enough
-  // to skip `globalThis.X`, `agg.by` and `window.LIVE`, which are the
-  // backticked non-paths this page is full of.
+  // Rule 6 — every path these pages name exists. Backticked, contains a
+  // slash, and either ends in a source extension or in a slash: that is
+  // narrow enough to skip `globalThis.X`, `agg.by` and `window.LIVE`, which
+  // are the backticked non-paths these pages are full of.
+  //
+  // IT COVERS THE OTHER MAPS TOO, and used to cover one. ORIENTATION.md is
+  // not the only page that points somewhere: CLAUDE.md is the conventions,
+  // README.md carries a repo map of its own, and each README describes the
+  // directory it sits in. "A map whose entries point at moved files is worse
+  // than no map, because it reads as current" is the same argument for all
+  // eight, and holding one of them was an accident of where the rule started.
+  //
+  // Resolution is DIRECTORY-RELATIVE FIRST, then from the root, then from
+  // src/v2/ — because that is how these pages are written and reading them
+  // any other way would report their normal voice as broken. functions/
+  // README.md says `src/ops.ts` and means its own neighbour; src/v2/README.md
+  // says `data/live.ts` and means the same; CLAUDE.md sits at the root and
+  // still says `data/live.ts`, because its subject is the spec layer.
+  //
+  // GONE_ON_PURPOSE is the whole exemption list, and both entries are the
+  // same shape: a directory this repo deleted on a recorded decision and
+  // goes on citing as provenance. CLAUDE.md sanctions the first explicitly
+  // ("Ported files still cite them in header comments as provenance"), so a
+  // gate that failed on it would be asking the tree to forget where it came
+  // from. Anything else that cannot resolve is a wrong pointer.
   const EXT = /\.(md|ts|tsx|js|jsx|mjs|json|css|html|rules|txt|yml)$/;
-  const cited = new Set([...orientation.matchAll(/`([^`\s]+)`/g)].map((m) => m[1]));
-  for (const path of cited) {
-    if (!path.includes("/") || path.startsWith("#") || path.startsWith("http")) continue;
-    if (!EXT.test(path) && !path.endsWith("/")) continue;
-    // A `dir/*.jsx` group is a claim about the directory, not about a file.
-    const target = path.includes("*") ? dirname(path) : path.replace(/\/$/, "");
-    if (!existsSync(join(root, target))) fail(`${ORIENTATION} names \`${path}\`, which does not exist`);
-    else if (path.endsWith("/") && !statSync(join(root, target)).isDirectory())
-      fail(`${ORIENTATION} names \`${path}\` as a directory, but it is a file`);
+  const GONE_ON_PURPOSE = {
+    "design/spec-modules/": "deleted 2026-07-29 when the port completed; cited as provenance (CLAUDE.md)",
+    "src/legacy/": "deleted after Phase 5 shipped (D4); cited as history",
+  };
+  const MAPS = [
+    ORIENTATION,
+    "CLAUDE.md",
+    "README.md",
+    ...findReadmes(".").filter((f) => !f.startsWith(join("design", "standalone-"))),
+  ];
+  checked.maps = new Set(MAPS).size;
+  for (const page of new Set(MAPS)) {
+    const src = read(page);
+    const cited = new Set([...src.matchAll(/`([^`\s]+)`/g)].map((m) => m[1]));
+    for (const path of cited) {
+      if (!path.includes("/") || path.startsWith("#") || path.startsWith("http")) continue;
+      if (!EXT.test(path) && !path.endsWith("/")) continue;
+      // Matched on the raw token AND on it resolved against the page's own
+      // directory, because design/README.md writes the first entry as
+      // `spec-modules/` — its neighbour, in the voice every README uses.
+      const asWritten = path.endsWith("/") ? path : `${path}/`;
+      const asPlaced = `${join(dirname(page), path).replace(/\/$/, "")}/`;
+      if (GONE_ON_PURPOSE[asWritten] || GONE_ON_PURPOSE[asPlaced]) continue;
+      // A `dir/*.jsx` group is a claim about the directory, not about a file.
+      const target = path.includes("*") ? dirname(path) : path.replace(/\/$/, "");
+      const hit = [join(dirname(page), target), target, join("src", "v2", target)]
+        .map((t) => join(root, t))
+        .find((t) => existsSync(t));
+      if (!hit) fail(`${page} names \`${path}\`, which does not exist`);
+      else if (path.endsWith("/") && !statSync(hit).isDirectory())
+        fail(`${page} names \`${path}\` as a directory, but it is a file`);
+    }
+  }
+
+  // Rule 9 — every decision anchor resolves.
+  //
+  // Decisions are cited by number everywhere and the number is the only
+  // handle (§6 of the page this gate holds says exactly that), so a link
+  // into DECISIONS.md is the one navigation aid the whole citation habit
+  // rests on. It breaks silently and in bulk: this repo RENUMBERS records
+  // when a branch merges — "renumber D275-277 to D290-292" is a commit
+  // message here — and a renumber rewrites the heading while every link
+  // written against the old number keeps its stale slug. Eight were broken
+  // when this rule was added: five carried a right title with a wrong
+  // number (D231→D232, D232→D233, D199→D202, D200→D203, D201→D204, all from
+  // one renumber) and three inside DECISIONS.md itself used a bare `#d126`
+  // that never matched a heading at all.
+  //
+  // No exemption list and no judgement: an anchor either names a heading in
+  // that file or it does not. The slugger is the one above, the same
+  // function that generates the index, so the two cannot disagree about
+  // what a heading's anchor is.
+  {
+    const headings = new Set(
+      lines.filter((l) => l.startsWith("## D")).map((l) => slug(l.replace(/^##\s+/, ""))),
+    );
+    const pages = [DECISIONS, ...docs.map((d) => join("docs", d)), "CLAUDE.md", "README.md",
+      ...findReadmes(".").filter((f) => !f.startsWith(join("design", "standalone-")))];
+    for (const page of new Set(pages)) {
+      read(page).split("\n").forEach((line, i) => {
+        for (const m of line.matchAll(/\]\((?:[^)#\s]*DECISIONS\.md)?#(d\d[^)\s]*)\)/gi)) {
+          const a = m[1].toLowerCase();
+          if (headings.has(a)) return;
+          fail(
+            `${page}:${i + 1} links to #${a}, which matches no heading in ${DECISIONS}` +
+              ` — ${INDEX} carries the current slug for every record`,
+          );
+        }
+      });
+    }
   }
 
   // Rule 8 — every directory, which is the third thing this page's opening
@@ -497,6 +588,6 @@ if (!write) {
   console.log(
     `doc-index OK — ${records.filter((r) => r.kind === "record").length} decisions indexed; ` +
       `${ORIENTATION} maps ${checked.docs} docs, ${checked.readmes} READMEs, ${checked.gates} gates ` +
-      `and ${checked.dirs} directories.`,
+      `and ${checked.dirs} directories; ${checked.maps} pages hold every path they name.`,
   );
 }

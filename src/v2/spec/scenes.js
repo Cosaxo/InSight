@@ -14,7 +14,8 @@ import LIVE from '../data/live';
 // scenes.js — Scenes are the one follow list shared by the whole app: the orbit
 // (Mirror) is where you see and manage them, the World feed chip row is the same
 // list acting as filter. A scene is a community (members, match, vibe — defs live
-// in data.js groups) that also feeds you its questions. Persisted locally.
+// in sample-data.js groups) that also feeds you its questions. Persisted
+// locally.
 //
 // The binding is hoisted above the IIFE and assigned inside it — the shape
 // DAILYQ and FRIENDS took, and for the same reason: the wrapper is vestigial
