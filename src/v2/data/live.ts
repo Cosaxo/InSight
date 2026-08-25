@@ -448,6 +448,32 @@ function divisivenessOf(qid: string): number {
   return divisiveness(dense);
 }
 
+/**
+ * Whether this qid's stored answer is an option index — the only shape the
+ * voter fold can read.
+ *
+ * `state.votes` cannot answer this: every value goes in stringified, so a
+ * catalog pick ("1041", a dex number or the numeric part of a QID) looks
+ * exactly like an option index. Only the bank knows, which is why
+ * pickKindredQids takes this as a predicate rather than guessing from the
+ * value.
+ *
+ * A qid this device cannot resolve is KEPT. The banks are what the device
+ * has cached, and a question answered before a bank refresh may be missing
+ * from all of them; dropping it would shrink the pool on ignorance, which
+ * is a worse failure than the one being fixed.
+ */
+function storesOptionIdx(qid: string): boolean {
+  for (const bank of [
+    state.questions, state.feedBank, state.duelBank,
+    state.learnBank, state.callBank, state.pulseBank,
+  ]) {
+    const q = bank.find((x) => x.id === qid);
+    if (q) return q.type !== "catalog" && q.type !== "rank";
+  }
+  return true;
+}
+
 // How many of the viewer's own answers the Kindred ranking reads across.
 // Twelve shared questions is a legible likeness claim and the cost is
 // linear in this number — see loadKindred for why it is bounded at all.
@@ -3150,7 +3176,7 @@ const LIVE = {
     if (state.kindredLoading) return;
     state.kindredLoading = true;
     try {
-      const qids = pickKindredQids(state.votes, divisivenessOf, KINDRED_QUESTIONS);
+      const qids = pickKindredQids(state.votes, divisivenessOf, KINDRED_QUESTIONS, storesOptionIdx);
       // Sequential rather than parallel on purpose: each call is a
       // collection-group query, most of them are cache hits after the
       // first surface has run, and firing twelve at once at boot-adjacent
@@ -3256,7 +3282,7 @@ const LIVE = {
     notify();
     try {
       const db = await getDb();
-      const qids = pickKindredQids(state.votes, divisivenessOf, KINDRED_QUESTIONS);
+      const qids = pickKindredQids(state.votes, divisivenessOf, KINDRED_QUESTIONS, storesOptionIdx);
       const next: Record<string, Voter[]> = {};
       // Sequential, for the reason loadKindred is: twelve collection-group
       // queries fired at once is the shape that gets a client rate-limited.
