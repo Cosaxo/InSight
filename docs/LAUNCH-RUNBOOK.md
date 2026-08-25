@@ -1447,13 +1447,42 @@ That is a tester-count problem, not a workflow problem.
       the trigger and the answers disagree, which the incremental fold has
       no other way of telling anyone.
 
+      **`nothing to compare` is not that green.** It means the scan matched
+      no answers and the aggregate is empty too — consistent, and nothing
+      verified. If you expected answers for that question, the query is
+      what to look at, not the fold.
+
       The workflow reads the seed's own credentials
       (`FIREBASE_SERVICE_ACCOUNT`, `SEED_ADMIN_UIDS`,
       `VITE_FIREBASE_API_KEY`) from the `production` environment, so there
-      is nothing new to grant. The composite index the scan orders by
-      ships in `firestore.indexes.json`, so it needs a `--only firestore`
-      deploy to exist; a missing index fails the call with a console link
-      rather than a wrong answer.
+      is nothing new to grant.
+
+      **WHAT THE FIRST RUN ACTUALLY FOUND (2026-08-25, D293).** The step was
+      performed the day the tool merged, and it failed twice before it
+      passed. Both failures were about the deploy, not the tool, and both
+      are worth knowing before anyone reaches for this during an incident:
+
+      1. **Dispatched five seconds after the merge**, while the backend
+         deploy was still running. `cloudfunctions.net` answered with a 404
+         HTML page for a function that did not exist yet. **Wait for the
+         backend deploy to finish** before dispatching a rebuild that
+         depends on a just-merged change.
+      2. **Dispatched a minute after the deploy finished**, and got a bare
+         `INTERNAL`. The composite index the scan orders by (`qid` +
+         `answeredAt`, collection group) ships in `firestore.indexes.json`
+         and is created by the same deploy — but a freshly created index is
+         **not queryable until it finishes BUILDING**, which for this
+         collection takes minutes rather than seconds. The third dispatch,
+         2.5 minutes later and otherwise identical, succeeded. If a rebuild
+         fails right after an index change, **wait and re-run before
+         debugging anything**.
+      3. It then reported `scanned 0 … nothing to compare`, which is the
+         true state of the project: `answersCounted` is 0 in the pulse
+         trail. **So the plumbing is verified and the fold is not** — the
+         call reaches the function, the scan runs, the fold runs and the
+         comparison runs, over zero answers. The fold itself is covered
+         against emulated functions with real answers (e2e steps 7h, 7i,
+         9e). **Leave this step open until a question has real answers.**
 
 - [ ] **5.12 Turn on Cloud Billing export to BigQuery — so the prediction
       can be diffed against the invoice.** Cloud Console → Billing →

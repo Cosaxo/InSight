@@ -534,10 +534,35 @@ Bounds, so nobody discovers them mid-incident: entries older than 90 days
 have expired, so a ring dormant longer than the window is subtractable
 only for its last 90 days of activity. An account erased via
 `deleteAccount` took its attribution with it — right-to-erasure wins over
-forensics by design (D28 records the trade). No correction script ships
-in this repo: the first real incident should shape one against its actual
-form, not inherit an untested one; what must not be improvised is the
-order of operations above.
+forensics by design (D28 records the trade). 
+
+**Steps 3 and 4 now have a tool, and this paragraph used to say they did
+not** — it read "No correction script ships in this repo" until
+2026-08-25. D290 shipped one and never came back for the sentence, which
+is D183's failure repeating. `rebuildAggregateV2` rebuilds a question's
+aggregate from the answers that made it, and `--exclude` is exactly this
+runbook's subtraction: **Actions → Rebuild aggregate**, or
+`npm run rebuild:agg -- --qid <id> --exclude uidA,uidB` locally. It
+replays every arm — vote, rank and catalog, the last writing both
+documents in the order step 3 describes — so a rebuild cannot invent a
+projection the way a hand-written board can.
+
+Three things it does not change. **Attribution is still steps 1 and 2**,
+and still investigative: the tool takes a uid list, it does not find one.
+**The `edits` matrix (D226) is carried forward, not recomputed** — an
+answer records where it landed and never where it came from — so a ring's
+second thoughts still need the hand-subtraction step 3 describes. And it
+is **dry by default**: read the drift before passing `--apply`.
+
+Read `scanned` before you believe the drift. A scan that matched nothing
+agrees with an empty aggregate trivially, so the tool says `nothing to
+compare` rather than `drift: none` there, and refuses `--apply` outright
+if the aggregate is not empty (D293). A zero scan is more often a query
+that did not work — a composite index still building after a deploy, a
+qid that does not match the answers — than a question whose answers are
+gone.
+
+What must not be improvised is the order of operations above.
 
 ### Reading the velocity scan (D54)
 

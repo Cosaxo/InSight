@@ -560,6 +560,61 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
   ok("D290: --apply round-trips the aggregate unchanged, matrix and breakdown intact");
 }
 
+// 7i · the empty-scan refusal. THE MOST DESTRUCTIVE THING THIS TOOL CAN DO
+// is not a wrong fold — it is a right fold of nothing. The stamp guard
+// above catches an aggregate written DURING the scan; it cannot catch the
+// quieter case, where nobody wrote and the scan simply returned nothing.
+// Then the stamps match, the guard passes, and a whole-document `set` puts
+// `total: 0` over a document holding real votes.
+//
+// A scan returns nothing far more often because the query did not work — a
+// composite index still building after a deploy, a qid that does not match
+// what the answers carry — than because a question's answers are genuinely
+// gone. Both look identical from inside the function, so the refusal is on
+// the COMPARISON: no answers found, but something published.
+//
+// Found by the first production dry run (2026-08-25), which reported
+// `scanned 0 … drift: none` — correct, vacuous, and one flag away from
+// having overwritten something if the project had held any answers.
+{
+  const EMPTY = "e2e-empty-scan";
+  await adminDb.doc(`v2_questions/${EMPTY}`).set({ type: "binary", options: ["a", "b"], surface: "feed" });
+  await adminDb.doc(`v2_question_aggs/${EMPTY}`).set({ total: 7, counts: { 0: 4, 1: 3 }, by: {} });
+
+  // The dry run is allowed and must SAY it compared nothing, rather than
+  // reporting the -7 as if it had found a discrepancy in a fold it ran.
+  const dry = (await httpsCallable(fns, "rebuildAggregateV2")({ qid: EMPTY })).data;
+  if (dry.scanned !== 0) fail("the fixture is wrong — something answered " + EMPTY);
+  if (dry.emptyScan !== true) fail("a zero scan did not report emptyScan: " + JSON.stringify(dry));
+  if (dry.drift.total !== -7) fail("drift should be the whole published total: " + JSON.stringify(dry.drift));
+  ok("D290: a zero scan reports emptyScan and the full negative drift");
+
+  // …and applying it is refused. Demand the specific code: a bare catch
+  // here would pass on the not-found this step's own fixture could cause.
+  try {
+    await httpsCallable(fns, "rebuildAggregateV2")({ qid: EMPTY, apply: true });
+    fail("an empty scan OVERWROTE a published aggregate");
+  } catch (e) {
+    if (e?.code !== "functions/failed-precondition")
+      fail("expected failed-precondition on an empty scan, got " + (e?.code || e));
+  }
+  const survived = await adminDb.doc(`v2_question_aggs/${EMPTY}`).get();
+  if (survived.get("total") !== 7) fail("the refusal still wrote: " + JSON.stringify(survived.data()));
+  ok("D290: --apply on an empty scan is refused, and the aggregate survives");
+
+  // The escape hatch works, because a question's answers CAN genuinely go
+  // away (an erasure sweep, a retraction) and that is the D28 repair this
+  // tool exists for. What it must not be is silent.
+  const forced = (await httpsCallable(fns, "rebuildAggregateV2")({ qid: EMPTY, apply: true, allowEmpty: true })).data;
+  if (forced.applied !== true) fail("allowEmpty did not apply: " + JSON.stringify(forced));
+  const zeroed = await adminDb.doc(`v2_question_aggs/${EMPTY}`).get();
+  if (zeroed.get("total") !== 0) fail("allowEmpty did not zero it: " + JSON.stringify(zeroed.data()));
+  ok("D290: allowEmpty applies the empty fold deliberately");
+
+  await adminDb.doc(`v2_questions/${EMPTY}`).delete();
+  await adminDb.doc(`v2_question_aggs/${EMPTY}`).delete();
+}
+
 // 8 · the duel loop: create → join by code → sealed answers → reveal → streak
 const YESTER = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
 const created = await httpsCallable(fns, "createGroupV2")({ name: "The Crew", mode: "duo" });

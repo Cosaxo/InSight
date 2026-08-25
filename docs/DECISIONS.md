@@ -29766,3 +29766,124 @@ what they leave behind.
 never where it came from, so the matrix is not derivable from the answers
 and is carried forward instead. That is one field, stated at three sites,
 rather than two thirds of the system.
+## D293 · What the first production run of the repair tool cost, and the data-loss path it exposed
+
+**2026-08-25.** D290's `rebuildAggregateV2` merged, and the runbook's 5.10
+said to dry-run it once against production before anyone needed it during
+an incident. That was the right instruction and this is what performing it
+found: **three defects, none of them in the fold.** Two were in how the
+tool reports failure, and one was a path by which a repair tool could
+destroy the thing it repairs.
+
+### It failed twice before it passed, and neither failure was the tool
+
+**Dispatched five seconds after the merge**, while the backend deploy was
+still shipping the function. `cloudfunctions.net` returned a 404 HTML page.
+`operator-call.mjs` called `res.json()` on it, so what the operator read
+was:
+
+```
+Unexpected token '<', "\n<html><hea"... is not valid JSON
+```
+
+which names neither the status, nor the URL, nor the function — and reads
+like a bug in the caller rather than a deploy that had not finished.
+
+**Dispatched again after the deploy completed**, and got `INTERNAL
+INTERNAL`. The collection-group index the scan orders by (`qid` +
+`answeredAt`) ships in `firestore.indexes.json` and is created by that same
+deploy — but a freshly created index is not queryable until it finishes
+**BUILDING**. The third dispatch, 2.5 minutes later and byte-identical,
+succeeded. Nothing changed but time.
+
+The `fn-log` fallback the workflow carries for exactly this case reported
+nothing, correctly and uselessly: it ran 10ms after the failure, and Cloud
+Logging had not ingested the entry yet.
+
+### The general fault: a callable that throws a non-HttpsError says nothing
+
+Firebase discards the detail of anything that is not an `HttpsError` before
+the response leaves the server. `runRebuild` was called without a
+try/catch, so every failure inside it — a building index, a rules change, a
+malformed document — reached the operator as the five-letter string
+`INTERNAL`, pointing at a Cloud Run log that, in the minute after a
+failure, does not exist yet.
+
+That is a bad failure mode for any callable and the wrong one entirely for
+this one, whose two callers are a verification and an incident. It now
+catches, logs, and rethrows as an `HttpsError` carrying the underlying
+reason, with the index case named because it is the one thing about this
+tool that is not in the deployed code. Safe to return the detail here
+specifically because `assertOperator` has already run.
+
+### The real finding: a right fold of nothing
+
+The successful run reported:
+
+```
+scanned 0  folded 0  skipped 0  excluded 0
+drift: none — the published aggregate already matches the answers.
+```
+
+Both lines are true. Together they are a lie of the kind this repo keeps
+naming — **a check that passes because it never ran.** `answersCounted` is
+0 in the pulse trail, so the project genuinely holds no answers; the scan
+found nothing and agreed with an empty aggregate. Nothing was verified, and
+the workflow's own summary was busy telling the reader that `drift: none`
+means the question is healthy.
+
+Follow it one step further and it stops being a reporting problem. The
+concurrency guard added at D290 compares `updateTime` and catches an
+aggregate written **during** the scan. It cannot catch the quieter case:
+nobody wrote, and the scan simply returned nothing. Then the stamps match,
+the guard passes, and a whole-document `set` puts `total: 0` over a
+document holding real votes.
+
+**A scan returns nothing far more often because the query did not work than
+because a question's answers are gone.** An index still building — which
+had just happened, twice — a qid that does not match what the answers
+carry, a rules change. All of them are indistinguishable from the truth
+from inside the function. So the refusal is on the comparison rather than
+on the scan: **no answers found, but something published, and `apply` on →
+refuse.**
+
+It is a refusal with an escape hatch rather than a veto, because a
+question's answers really can go away — an erasure sweep, a retraction —
+and repairing exactly that is what D28 built this tool for. What it must
+not have is a silent path. `allowEmpty` is that hatch, and it has to be
+typed.
+
+### Proven by removing it
+
+The e2e's new 7i writes a question with a published aggregate of 7 and no
+answers, then asserts the dry run reports `emptyScan`, that `--apply` is
+refused with `failed-precondition`, that the document survives, and that
+`allowEmpty` then applies deliberately. Stubbing the guard to `if (false)`
+fails it with `an empty scan OVERWROTE a published aggregate` — measured,
+not assumed.
+
+`operator-call.mjs` got its first test at the same time (9 cases, 5 of
+which fail against the pre-fix code reproducing the exact production error
+text). It had shipped without one, on the grounds that the two callers
+predating it both worked — which was true of the happy path and of nothing
+else.
+
+### A fourth thing, found while writing this up
+
+`docs/DEPLOYMENT.md`'s D28 runbook — the one somebody follows during the
+incident this tool exists for — still ended with **"No correction script
+ships in this repo."** D290 shipped one, wired it to a workflow button,
+gave it an e2e step literally labelled `D28/D290: excluding one uid
+subtracts exactly its answer`, and never went back for that sentence. It
+is D183 again: the app changed and the document that promises what the app
+does did not. Corrected, with the tool's three limits stated at the same
+site (attribution is still manual, `edits` is carried not recomputed, dry
+by default) so the correction cannot read as more than it is.
+
+### What is verified now, and what is not
+
+The plumbing: the call reaches the function, the scan runs, the fold runs,
+the comparison runs, against production. The fold over real answers: still
+only against emulated functions (7h, 7i, 9e), because production has no
+answers to fold. Runbook 5.10 stays **open**, with that stated, rather than
+being ticked on a vacuous green.
