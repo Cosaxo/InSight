@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "axiom": "pattern",
+  "updated": "2026-08-25",
+  "nodes": [
+    {
+      "id": "pat-1",
+      "claim": "The perfect pattern engine is a learned representation over raw answer/event sequences — the LLM-shaped move — with classical factors kept as the auditable layer.",
+      "status": "conjecture",
+      "detail": "Factorization (the current K-dim fit) sees co-occurrence; a sequence model sees order, context and drift, and the recent wave of foundation-model results on biological patterns (the owner's reference) suggests the same architecture family extracts structure from behavioral sequences. The perfect engine is two-layer: a learned representation for power, distilled into low-dimensional auditable factors for everything user-facing — because a reading a person cannot recompute is a reading the product cannot honestly show. Scout task: survey behavioral-sequence foundation models and the bio-LLM results with citations; this node does not rise without them.",
+      "sources": [],
+      "edges": [{ "to": "pat-2", "type": "depends" }, { "to": "gen-5", "type": "supports" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "pat-2",
+      "claim": "An auditable layer is permanent: every published pattern must be recomputable by a reader from public numbers.",
+      "status": "argued",
+      "detail": "Whatever the engine (pat-1), the published artifact stays factor-shaped: vectors with n, reproducible from published aggregates, stable under re-runs (deterministic seeds). This is not conservatism about methods — it is the product's honesty contract extended to methodology: a black-box coupling is an assertion, and the app does not assert what cannot be recomputed. The perfect system therefore treats distillation quality (how much of the learned layer survives into the auditable one) as a first-class metric.",
+      "sources": [],
+      "edges": [],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "pat-3",
+      "claim": "Cross-axiom couplings graduate from correlation to within-person change, and the perfect engine is built for the second from the start.",
+      "status": "argued",
+      "detail": "Between-person correlation is confounded by everything people differ in; within-person designs (your short-sleep weeks vs your answers, bod-5) difference most of it away. A perfect engine therefore models person-periods natively — the time axis is not metadata, it is the identification strategy. This is also where the aging ambition becomes tractable at app scale: longitudinal phenotype change is measurable in cohorts far smaller than discovery genetics needs (gen-4).",
+      "sources": [],
+      "edges": [{ "to": "bod-5", "type": "depends" }, { "to": "gen-4", "type": "supports" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "pat-4",
+      "claim": "Coupling capacity is bounded by the paired population, and the perfect engine budgets it explicitly.",
+      "status": "argued",
+      "detail": "A cross-axiom coupling's n is the intersection of the axioms' populations — always smaller than either. Answers per day are conserved (density cannot be manufactured by adding questions or axioms), so the perfect engine maintains an explicit information budget: which pairs get density, which readings are affordable at current pairing, and what the marginal value of one more paired person is per pair. This turns 'what should we collect next' from taste into arithmetic — and is the pattern axiom's main gift to central's portfolio ranking.",
+      "sources": [],
+      "edges": [{ "to": "cen-2", "type": "supports" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "pat-5",
+      "claim": "The perfect engine treats honesty failures as model bugs: selection bias, retest effects and drift are modeled, not footnoted.",
+      "status": "argued",
+      "detail": "Who answers is never random (interest-selected feeds, attrition), items age (retest and exposure effects), and populations drift. An engine that publishes couplings without modeling these publishes artifacts of its own serving policy. The perfect engine carries an explicit sampling model beside every coupling — which is also what makes the core-served-to-everyone idea a methodological theorem here, not a product preference.",
+      "sources": [],
+      "edges": [{ "to": "pat-2", "type": "supports" }, { "to": "que-1", "type": "supports" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    }
+  ]
+}

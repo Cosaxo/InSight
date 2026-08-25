@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "axiom": "graph-optimizer",
+  "updated": "2026-08-25",
+  "nodes": [
+    {
+      "id": "go-1",
+      "claim": "A typed claims graph with an evidence ladder is the right substrate for machine-written theory.",
+      "status": "argued",
+      "detail": "Prose accumulates; a graph forces each claim to be one node with one status, makes contradictions first-class (an edge type), and gives every run a bounded unit of work (a node). The evidence ladder (conjecture→argued→cited→measured) is what separates theory-building from text generation: progress is status motion, which is checkable, rather than word count, which is not. This lane's standing job is to keep that property true as the graphs grow.",
+      "sources": [],
+      "edges": [],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "go-2",
+      "claim": "Bloat is the failure mode; health is measured, and pruning is a first-class act.",
+      "status": "argued",
+      "detail": "Recurring generative lanes fail by accumulation: near-duplicate nodes, stale conjectures, orphan claims nothing references. The optimizer maintains health metrics per graph — status mix, staleness (nodes untouched N runs), orphan rate, unresolved contradictions, near-duplicate candidates — publishes them for the digest, and performs merges/prunes with log rows. A graph whose node count only rises is presumed sick until shown otherwise.",
+      "sources": [],
+      "edges": [{ "to": "go-1", "type": "supports" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "go-3",
+      "claim": "Cross-graph structure is where the combination lives, so global ids and typed cross-edges are load-bearing, not decoration.",
+      "status": "argued",
+      "detail": "Central's combination theory is largely MADE of cross-graph edges (gen-3 supports cen-1, pat-4 supports cen-2). The optimizer therefore validates cross-references every run (no dangling ids), keeps id prefixes stable forever, and treats a broken cross-edge as a build failure, not a cosmetic one.",
+      "sources": [],
+      "edges": [{ "to": "cen-1", "type": "supports" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "go-4",
+      "claim": "Self-optimization is legitimate exactly when it is versioned, total and reversible.",
+      "status": "argued",
+      "detail": "This lane may change the schema and its own methods — the owner asked for a graph optimizer 'including itself' — under three bounds: every schema change bumps the version and migrates ALL graphs in the same run or does not land; changes are reversible from git history; and the optimizer never rewrites another lane's CONTENT (claims, statuses, details) — only structure (format, merges of literal duplicates with a log row, id hygiene). Content is each lane's; shape is this lane's.",
+      "sources": [],
+      "edges": [{ "to": "go-1", "type": "refines" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    }
+  ]
+}

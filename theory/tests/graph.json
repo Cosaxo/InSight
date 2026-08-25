@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "axiom": "tests",
+  "updated": "2026-08-25",
+  "nodes": [
+    {
+      "id": "tst-1",
+      "claim": "The perfect test axiom is one joint latent model over all instruments — the four core tests, the nine lenses and logic — not a shelf of separate scores.",
+      "status": "conjecture",
+      "detail": "Instruments correlate; scoring them separately throws that structure away and double-counts shared variance when other axioms consume them. The perfect axiom fits one latent trait space in which each instrument's dimensions are loadings, cross-instrument links (openness↔politics class) are geometry rather than authored lists, and a new lens is a new set of loadings, not a new silo. To argue: show a concrete consumer (central's combination, the map) that gets a different answer from the joint model than from the shelf.",
+      "sources": [],
+      "edges": [{ "to": "cen-1", "type": "supports" }, { "to": "pat-2", "type": "depends" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "tst-2",
+      "claim": "Passive administration — instruments filled by ordinary answering — is the perfect administration, not a budget compromise.",
+      "status": "argued",
+      "detail": "A sit-down test measures the person in test-taking mode; items encountered as ordinary daily questions measure the person being themselves, across moods and months. Reliability per item may be lower; validity per battery is plausibly higher, and the longitudinal spread is itself data (tst-4). InSight's D121 (instruments fill only from the feed) is the shadow. Open question: which claims here are supported by existing ambulatory-assessment literature — scout and cite.",
+      "sources": [],
+      "edges": [{ "to": "tst-1", "type": "supports" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "tst-3",
+      "claim": "Ability and disposition need different measurement theory, and the perfect axiom holds both in one space without conflating them.",
+      "status": "argued",
+      "detail": "Logic is scored against a key (there IS a right answer; guessing and ceiling effects matter); the instruments are self-positioning (there is no right answer; social desirability and reference-group effects matter). The perfect joint model (tst-1) therefore has two item families with different link functions, sharing one person-space. Treating logic as 'just another instrument' or the instruments as 'soft ability' are the two symmetric mistakes.",
+      "sources": [],
+      "edges": [{ "to": "tst-1", "type": "refines" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "tst-4",
+      "claim": "In the perfect axiom a test result is a trajectory, not a number.",
+      "status": "conjecture",
+      "detail": "Create-once scoring converges and freezes; people do not. The perfect axiom re-measures on a cadence (fresh item instances per era, the pulse move applied to instruments) and reports change with its uncertainty — 'has your openness moved' as a first-class reading. Depends on bod-5's within-person frame and que-2's item parameters (an item re-served must be calibrated for retest effects).",
+      "sources": [],
+      "edges": [{ "to": "bod-5", "type": "supports" }, { "to": "que-2", "type": "depends" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "tst-5",
+      "claim": "Archetypes are named regions of the trait space, and the perfect naming is data-anchored but human-worded.",
+      "status": "conjecture",
+      "detail": "Types earn their keep as compression for humans (a region-name beats five numbers in conversation). The perfect axiom derives the regions from real population structure (stable clusters, not authored grids), keeps the names human-authored (naming is a warmth act, not an optimization), and re-anchors regions only deliberately — a person's type must not change because a fit re-ran.",
+      "sources": [],
+      "edges": [{ "to": "tst-1", "type": "depends" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    }
+  ]
+}

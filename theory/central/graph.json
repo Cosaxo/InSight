@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "axiom": "central",
+  "updated": "2026-08-25",
+  "nodes": [
+    {
+      "id": "cen-1",
+      "claim": "The perfect combination is one joint person-model: every axiom contributes measurements of the same latent person, and couplings are the geometry of that shared space.",
+      "status": "conjecture",
+      "detail": "The alternative — pairwise correlation tables between axiom silos — cannot answer the questions the product exists for (what does EVERYTHING about you, together, look like; which axioms are redundant given the others). The conjecture: a single latent space with per-axiom measurement models (tst-1 and que-2 are its instrument halves, gen/bod columns its imported halves), where 'how axioms overlap' is literally shared variance structure. Central's standing work: specify this model family concretely enough that pattern theory can evaluate engines against it.",
+      "sources": [],
+      "edges": [{ "to": "tst-1", "type": "depends" }, { "to": "pat-1", "type": "depends" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "cen-2",
+      "claim": "An axiom's value is its marginal information about the rest — the portfolio is ranked by that, not by novelty or effort.",
+      "status": "conjecture",
+      "detail": "Given the joint model (cen-1), each axiom has a measurable marginal value: how much better the rest of the person is predicted with it than without it, at current pairing levels (pat-4's budget arithmetic). The portfolio ranking, the case for a new axiom, and the verdict on a data request (bridge) are all THIS number argued honestly. Standing hypothesis to test against the graphs as they mature: the questions axiom dominates early (deep, cheap, dense), imported bio axes gain value only as pairing grows.",
+      "sources": [],
+      "edges": [{ "to": "pat-4", "type": "depends" }, { "to": "gen-3", "type": "depends" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "cen-3",
+      "claim": "New axioms surface where the joint model's residuals cluster — and the current candidate list is: time-use/chronotype, voice, environment and place history, microbiome, social-graph texture.",
+      "status": "conjecture",
+      "detail": "A new axiom is justified when systematic person-variance remains that no current axiom explains (residual clustering), AND the candidate is measurable under §9's boundary. Each candidate needs its own mini-argument: what it would explain that nothing else does, its custody class, its pairing cost. This node exists to be repeatedly re-derived as the graphs mature — candidates should enter and leave with arguments, not fashion.",
+      "sources": [],
+      "edges": [{ "to": "cen-1", "type": "depends" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "cen-4",
+      "claim": "Outside-axiom entries are first-class: a person may cross one axiom against the rest without that axiom ever joining any crowd.",
+      "status": "argued",
+      "detail": "The owner's example: enter your DNA and see how it interacts with your other data — personally, without contributing to any aggregate. In the joint-model frame this is well-defined (condition YOUR person-model on the extra columns; publish nothing), and it matters for the portfolio: an axiom can be valuable at population zero, purely as a personal lens. It also cleanly separates two consents (use for me vs contribute to the crowd) that most systems conflate.",
+      "sources": [],
+      "edges": [{ "to": "cen-1", "type": "refines" }, { "to": "gen-2", "type": "supports" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "cen-5",
+      "claim": "The research ambition — contributions to areas like aging — runs through published, provenance-carrying couplings over consented aggregates, and through nothing else.",
+      "status": "argued",
+      "detail": "The perfect combination is a research instrument to the exact extent its outputs are reproducible by outsiders: couplings published with n, method, sampling model (pat-5) and provenance, over consented data, at aggregate grain. That is what a real research field can cite and check. The alternative ambitions (private discovery claims, individual-level readouts) fail §9 or fail science, usually both. gen-4 carries the aging-specific half.",
+      "sources": [],
+      "edges": [{ "to": "gen-4", "type": "supports" }, { "to": "pat-2", "type": "depends" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    }
+  ]
+}

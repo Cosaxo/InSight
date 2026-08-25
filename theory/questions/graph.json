@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "axiom": "questions",
+  "updated": "2026-08-25",
+  "nodes": [
+    {
+      "id": "que-1",
+      "claim": "The perfect bank serves each person the question that maximizes expected information about them — under the constraint that comparison requires shared ground.",
+      "status": "argued",
+      "detail": "Pure adaptive selection (ask whatever is most informative next) and pure uniformity (everyone answers everything) are both wrong: the first destroys cohort comparability, the second wastes the answer budget. The perfect axiom is the constrained optimum — a shared spine every person answers (comparability), with the remaining budget allocated adaptively (information). InSight's core/tail split is the practical shadow of exactly this theorem. Open problem: the right spine size as a function of population and question count.",
+      "sources": [],
+      "edges": [{ "to": "que-2", "type": "depends" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "que-2",
+      "claim": "A question is a measurement instrument with estimable parameters, and the perfect bank estimates them continuously.",
+      "status": "conjecture",
+      "detail": "Item response theory's frame: each question has difficulty/discrimination-like parameters relative to the latent traits it touches; answers estimate person and item jointly. Applied here: every question earns a measured profile (what it discriminates, how evenly it splits, what it correlates with), estimated from live aggregates, and selection (que-1) runs on those parameters rather than on topic labels. Scout task: which IRT-family models fit binary/ordinal opinion data at this scale; cite and raise.",
+      "sources": [],
+      "edges": [{ "to": "pat-2", "type": "depends" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "que-3",
+      "claim": "Question production is a closed loop: measured performance teaches the next question's shape.",
+      "status": "argued",
+      "detail": "InSight already runs the shadow of this (the scorecard: evenness, leaders' shapes, vintage comparison). The perfect version closes the loop tighter: every authored question is a hypothesis about what will split people, its live performance is the experiment, and the generator learns shape-level rules (length, concreteness, tension type) from measured outcomes — with the standing guardrail that warmth outranks any score, because a bank optimized to maximal disagreement converges on outrage, which is a worse instrument for every other axiom's purposes.",
+      "sources": [],
+      "edges": [{ "to": "que-1", "type": "supports" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "que-4",
+      "claim": "The perfect bank is culturally and linguistically portable, and knows where it is not.",
+      "status": "conjecture",
+      "detail": "A question that measures openness in Oslo may measure conformity pressure in another culture; translation moves item parameters. The perfect axiom tracks measurement invariance per question across language/culture cohorts and refuses cross-cohort comparison where invariance fails — a labeled refusal, in the app's own honesty grammar. Needs literature grounding (measurement invariance testing) before rising.",
+      "sources": [],
+      "edges": [{ "to": "que-2", "type": "depends" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "axiom": "map",
+  "updated": "2026-08-25",
+  "nodes": [
+    {
+      "id": "map-1",
+      "claim": "The perfect display is one geometry that every scale shares — you, your city, the world, and every axiom drawn in the same space with the same grammar.",
+      "status": "conjecture",
+      "detail": "InSight already runs one telescope (you→world) and one plane (the patterns Map); the perfect version unifies them: a single navigable space where zooming changes cohort, not metaphor, and where each axiom is a region or direction rather than a separate screen. The corner-doors instinct (connections radiating every direction) is this node's UI shadow. To argue: specify the geometry (what is distance, what is direction, what is size) at every zoom without a metaphor switch.",
+      "sources": [],
+      "edges": [{ "to": "map-2", "type": "depends" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "map-2",
+      "claim": "Distance means exactly one thing per view; a display that mixes meanings in one frame is wrong regardless of how it tests.",
+      "status": "argued",
+      "detail": "The cardinal display sin is a plane where some distances mean similarity, others mean geography, others mean layout convenience. InSight's own rule ('distance from the centre is unlikeness, never position') is the shadow. The perfect axiom states the semantic of every visual channel (distance, direction, size, hue) per view, and map theory reviews every proposed reading against that table before aesthetics are even discussed.",
+      "sources": [],
+      "edges": [],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "map-3",
+      "claim": "Authored taxonomy and learned embedding are both wrong alone; the perfect layout is a learned space pinned to stable authored anchors.",
+      "status": "conjecture",
+      "detail": "Pure authored branches (the current map's categories) cannot show discovered structure; pure embeddings (UMAP-class projections of the fit) are unstable — a re-fit teleports everything and the user's spatial memory is destroyed. The perfect layout learns positions but pins them to persistent anchors so change is local and legible ('this question drifted toward Values') rather than global. Depends on pattern theory for the stability half (pat-2).",
+      "sources": [],
+      "edges": [{ "to": "pat-2", "type": "depends" }, { "to": "map-1", "type": "supports" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "map-4",
+      "claim": "Uncertainty is geometry, not a footnote: the perfect display makes thin data LOOK thin.",
+      "status": "argued",
+      "detail": "Basis lines and n-labels are the honest-but-weak form; the perfect form encodes evidence visually — a reading resting on 8 people is smaller/fainter/wider than one resting on 8000, so misreading confidence requires ignoring the picture, not the caption. InSight's refuse-rather-than-fabricate discipline is the boundary case (n=0 draws nothing); this node extends it continuously.",
+      "sources": [],
+      "edges": [{ "to": "map-2", "type": "supports" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "map-5",
+      "claim": "Efficiency is a display property: the perfect map is drawable from published aggregates on a phone, with no per-view server work.",
+      "status": "argued",
+      "detail": "A display theory that needs a server render per interaction is a different (worse) product: slower, costlier, and structurally tempted toward per-user computation. The perfect map reads published, cacheable artifacts (the loadings-doc pattern) and computes layout on device — which also keeps the display layer independently verifiable: anyone can recompute the picture from the same public numbers.",
+      "sources": [],
+      "edges": [{ "to": "map-1", "type": "supports" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    }
+  ]
+}

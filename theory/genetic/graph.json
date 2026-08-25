@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "axiom": "genetic",
+  "updated": "2026-08-25",
+  "nodes": [
+    {
+      "id": "gen-1",
+      "claim": "The perfect genetic axiom imports genomes people already have; it never assays.",
+      "status": "argued",
+      "detail": "An assay pipeline (samples, labs, clinical accreditation) is a different institution, not a harder feature. Consumer raw files (23andMe/AncestryDNA class, hundreds of thousands of genotyped positions) already exist in the hands of exactly the people most likely to bring them, and importing keeps the perfect system on the analysis side, where its comparative advantage (the phenotype battery, gen-3) actually is. Even in the no-practical-limits frame, assaying adds custody and liability without adding analytical power the imported file lacks for trait work.",
+      "sources": [],
+      "edges": [{ "to": "gen-2", "type": "supports" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "gen-2",
+      "claim": "In the perfect system the genome stays where the person is; only derived, banded quantities travel.",
+      "status": "argued",
+      "detail": "Device-side scoring against published weight sets gives the crowd half everything it needs (score bands) while the raw sequence never enters anyone's custody. This is not a privacy compromise on the perfect design — it IS the perfect design, because a genome is unrevokable and familial (gen-6): minimizing custody is minimizing irreversible failure modes, and a system with fewer irreversible failure modes is better on pure design grounds. Open question for a future run: what the ceiling of device-side analysis is (imputation quality without a server, structural variants, polygenic interaction terms).",
+      "sources": [],
+      "edges": [{ "to": "gen-6", "type": "depends" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "gen-3",
+      "claim": "The scarce asset is the phenotype battery, not the genotypes; the perfect axiom is designed around that asymmetry.",
+      "status": "argued",
+      "detail": "Genotypes are commodity files; deep, longitudinal, freely-given phenotypes are what biobanks cannot buy cheaply. InSight's answer corpus is an unusually rich behavioral phenotyping instrument. The perfect genetic axiom therefore optimizes for pairing quality (how many people have BOTH a scored genome and a deep phenotype record) over genotype count, and treats every phenotype-side improvement (questions axiom) as a genetic-axiom improvement. Ranking claim for central: this asymmetry is the genetic axiom's main contribution to the combination.",
+      "sources": [],
+      "edges": [{ "to": "cen-1", "type": "supports" }, { "to": "que-1", "type": "depends" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "gen-4",
+      "claim": "The aging ambition runs through published aging measures crossed with the phenotype battery, not through discovery genetics.",
+      "status": "conjecture",
+      "detail": "Discovery GWAS needs cohorts orders of magnitude beyond an app; what an app-scale paired cohort CAN do is cross published aging-related scores and clocks with behavioral phenotypes nobody else measures, looking for behavior-aging correlates worth handing to real research. First scout task: survey the current state of aging clocks and aging-related polygenic measures with real citations, then restate this node at 'cited' or demote it honestly.",
+      "sources": [],
+      "edges": [{ "to": "gen-5", "type": "depends" }, { "to": "gen-3", "type": "depends" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "gen-5",
+      "claim": "LLM-shaped sequence models are the pattern engine of the perfect genetic analysis layer.",
+      "status": "conjecture",
+      "detail": "The owner's prompt cites the recent wave of LLM-like structures applied to biological patterns. The conjecture: the perfect axiom's analysis layer uses learned representations over sequence and multi-omic data (the way pat-1 proposes for answers), with classical polygenic scoring kept as the auditable baseline. Scout task: establish what genomic/protein language models actually deliver today for TRAIT-scale questions, with citations, before this node may rise.",
+      "sources": [],
+      "edges": [{ "to": "pat-1", "type": "supports" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "gen-6",
+      "claim": "Genetic data is never about one person; the perfect consent model is familial-aware.",
+      "status": "argued",
+      "detail": "A genome is shared with relatives who never consented. The perfect system therefore publishes only aggregate couplings (never an individual's genetic readout to anyone else), states the kinship fact in consent copy, and treats 'who participates' as itself confidential. This is a design axiom under CHARTER §9, not a limitation to engineer around.",
+      "sources": [],
+      "edges": [],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    }
+  ]
+}

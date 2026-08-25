@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "axiom": "body",
+  "updated": "2026-08-25",
+  "nodes": [
+    {
+      "id": "bod-1",
+      "claim": "The perfect body axiom is one measurement timeline fusing sensors, self-report and derived clinical values — not a set of disconnected trackers.",
+      "status": "conjecture",
+      "detail": "Sleep, heart data, activity, nutrition, and clinic-derived values (a resting HR from a physical, a scan-derived measure) are one body described by channels of different noise and cadence. The perfect axiom models them jointly on a person's timeline, so a coupling question ('do short sleepers answer risk differently') is asked of the fused state, not of one channel. To argue this node: show a concrete case where fusion changes a conclusion single channels get wrong.",
+      "sources": [],
+      "edges": [{ "to": "bod-3", "type": "depends" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "bod-2",
+      "claim": "Continuous streams stay at the body's edge; only bands cross into the combination.",
+      "status": "argued",
+      "detail": "The raw stream (beat-by-beat HR, minute steps) has maximal re-identification surface and near-zero marginal value for cross-axiom coupling, which operates at the band/summary grain anyway. The perfect system folds at the edge (device), crosses bands, and keeps the stream where the OS already holds it. Mirrors gen-2: minimizing custody is design quality, not compromise.",
+      "sources": [],
+      "edges": [{ "to": "gen-2", "type": "supports" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "bod-3",
+      "claim": "Self-report is a sensor with a knowable bias model, not a channel to discard when hardware arrives.",
+      "status": "argued",
+      "detail": "'How did you sleep?' and the watch's sleep stages disagree in structured, studiable ways — and the disagreement is itself signal (perceived vs measured sleep dissociates, and the perception half predicts different things). The perfect axiom keeps both channels and models the bias explicitly, rather than treating hardware as truth and reports as noise. Scout task: ground the perceived-vs-measured sleep literature with citations to raise this.",
+      "sources": [],
+      "edges": [{ "to": "bod-1", "type": "supports" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "bod-4",
+      "claim": "Meals and scans enter the perfect axiom as derived values, not as artifacts.",
+      "status": "argued",
+      "detail": "A meal photo stream and a DICOM file are storage-and-liability heavy artifacts whose analytical content, at the coupling grain, compresses to a handful of derived values (diet pattern, imaging-derived measures). The perfect axiom ingests the values with provenance and leaves artifact custody to institutions built for it. The door stays open for a future where on-device models derive values from artifacts locally — which would satisfy this node, not contradict it.",
+      "sources": [],
+      "edges": [{ "to": "bod-2", "type": "supports" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    },
+    {
+      "id": "bod-5",
+      "claim": "Within-person change beats between-person level for most body→mind couplings.",
+      "status": "conjecture",
+      "detail": "Whether YOUR short-sleep weeks shift YOUR answers is a stronger, less confounded question than whether short sleepers differ from long sleepers. The perfect axiom is longitudinal-first: its unit is the person-period, not the person. If this holds, it re-ranks what is worth collecting (streaks and transitions over snapshots) and hands pat-3 its best causal lever.",
+      "sources": [],
+      "edges": [{ "to": "pat-3", "type": "supports" }],
+      "created": "2026-08-25",
+      "updated": "2026-08-25"
+    }
+  ]
+}
