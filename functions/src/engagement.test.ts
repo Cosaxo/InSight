@@ -552,6 +552,46 @@ describe("the _state document is shared, so the digest must MERGE it", () => {
       "the digest replaced _state instead of merging it, which deletes the fg7 window runRollupFold writes to the same document minutes later",
     ).toEqual({ merge: true });
   });
+
+  // THREE writers, one document — the same shape one level up.
+  // v2_engagement_daily/{day} carries the digest's own fields plus two
+  // sections it does not own: `attn` (runAttentionFold) and `people`
+  // (runRollupFold), both written with { merge: true }.
+  //
+  // Reachable, and not only by a crash replay: the rules admit an
+  // attention shard dated up to two days AHEAD of request.time (clock
+  // skew), and the fold takes whatever shards exist for any day. So
+  // tonight's fold can create an attn-only doc for tomorrow — and
+  // tomorrow's digest, reaching that day for the first time, replaced it.
+  // The shards are deleted as they are folded, by the channel's own
+  // promise, so what a replacing write drops cannot be recomputed.
+  it("putDay merges, so an attn or people section folded earlier survives", async () => {
+    const calls: Array<{ path: string; data: unknown; opts: unknown }> = [];
+    const db = {
+      collection: (c: string) => ({
+        doc: (d: string) => ({
+          async set(data: unknown, opts?: unknown) { calls.push({ path: `${c}/${d}`, data, opts }); },
+        }),
+      }),
+    } as unknown as Parameters<typeof firestoreEngagementStore>[0];
+
+    const store = firestoreEngagementStore(db);
+    await store.putDay({
+      day: "2026-08-25", actives: 3, firstTime: 1, votes: 4, events: 5,
+      bySurface: { daily: 3 },
+      returned: {
+        d1: { of: 2, came: 1 }, d7: { of: 0, came: 0 }, d30: { of: 0, came: 0 },
+      },
+      streaksBroken: 0,
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0].path).toBe("v2_engagement_daily/2026-08-25");
+    expect(
+      calls[0].opts,
+      "the digest replaced the day doc, which deletes the attn and people sections the other two folds merge into the same document",
+    ).toEqual({ merge: true });
+  });
 });
 
 describe("a paged query's projection has to carry the field it orders by", () => {

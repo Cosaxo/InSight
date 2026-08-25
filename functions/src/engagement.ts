@@ -403,7 +403,25 @@ export function firestoreEngagementStore(db: Firestore): EngagementStore {
       return snap.data() as EngagementDay;
     },
     async putDay(day) {
-      await daily.doc(day.day).set({ ...day, foldedAt: FieldValue.serverTimestamp() });
+      // MERGE, because two other folds own sections of this same document:
+      // `attn` (runAttentionFold) and `people` (runRollupFold), both of
+      // which write with { merge: true }. A replacing write here deleted
+      // whichever of them had already landed — and it is reachable without
+      // a crash replay, since the rules admit an attention shard dated up
+      // to two days ahead of request.time, so tonight's fold can create an
+      // attn-only doc for a day this digest has not reached yet. The
+      // shards are deleted as they are folded, so what that dropped could
+      // not be recomputed.
+      //
+      // Safe against stale keys, which is the usual reason to prefer a
+      // replace: the only map the digest writes is `bySurface`, it is
+      // derived from an append-only ledger, and a re-fold of the same day
+      // therefore sees a superset of the keys it saw before. Nothing it
+      // wrote can need removing.
+      await daily.doc(day.day).set(
+        { ...day, foldedAt: FieldValue.serverTimestamp() },
+        { merge: true },
+      );
     },
   };
 }
