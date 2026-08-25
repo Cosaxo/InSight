@@ -118,5 +118,46 @@ export default defineConfig(({ mode }) => {
         reporter: ['text', 'html'],
       },
     },
+    build: {
+      // ── THE BROWSER FLOOR, WRITTEN DOWN ─────────────────────────
+      //
+      // These were unset, so the floor of the shipped bundle was
+      // whatever Vite's default happened to be that week — today
+      // `ios16.4` — while the floor of the app PACKAGE was
+      // IPHONEOS_DEPLOYMENT_TARGET in a pbxproj nobody had touched since
+      // Capacitor scaffolded it, at 15.0. The App Store publishes that
+      // number as the minimum OS, so an iPhone on 15.0 could install the
+      // app and then parse a stylesheet built out of `oklch()` (Safari
+      // 15.4) and `color-mix()` (16.2), with no `@supports` anywhere:
+      // custom properties parse permissively, so `--surface` and `--ink`
+      // fail at SUBSTITUTION and the page ground and text ink resolve to
+      // nothing. The JavaScript half was no better — `Object.hasOwn`
+      // (15.4) appears 63 times in the bundle.
+      //
+      // So iOS 15 was never a configuration this app ran in; it was only
+      // one it advertised. The floors are 16.4 in both halves now, and
+      // they are HERE rather than only in the pbxproj so that the two
+      // cannot drift again silently — `check:ios-floor` reads this
+      // literal and the pbxproj and refuses a disagreement, and it also
+      // holds the floor against what the stylesheets actually use, which
+      // is the half that moved.
+      //
+      // Pinning does NOT lower anything by itself, and it would be worth
+      // nothing if it implied otherwise: the CSS transformer is postcss,
+      // which passes modern colour syntax through verbatim whatever
+      // `cssTarget` says. This is a DECLARATION of the floor, and the
+      // gate is what makes it true. If iOS 15/16.1 support is ever
+      // wanted, lowering these two lines is where it starts — and the
+      // gate will then correctly refuse the build until the stylesheets
+      // are compiled down (`css.transformer: 'lightningcss'`) and
+      // `Object.hasOwn` is polyfilled.
+      //
+      // Android carries no equivalent number on purpose: `minSdkVersion`
+      // is 24, but Android WebView updates through Play independently of
+      // the OS, so there is no static pair for a gate to compare. The
+      // chrome111 floor below is the same generation as ios16.4.
+      target: ['chrome111', 'edge111', 'firefox114', 'safari16.4', 'ios16.4'],
+      cssTarget: ['chrome111', 'edge111', 'firefox114', 'safari16.4', 'ios16.4'],
+    },
   }
 })

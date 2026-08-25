@@ -225,6 +225,14 @@ jobs:
       # names, reported by email after the upload transferred and the build
       # number was spent. Same side of the line as the two above.
       - run: npm run check:ios-location
+      # Does the minimum OS the App Store publishes actually run the bundle
+      # it installs? Two floors that had never been compared: the pbxproj
+      # said 15.0 (Capacitor's scaffolding default, never a decision) while
+      # the stylesheet was built out of oklch() and color-mix() and Vite
+      # targeted ios16.4 by default. An iPhone on iOS 15 could install the
+      # app and render a page with no ground and no ink. Client-only and it
+      # reds a PR rather than a store submission, like the three above.
+      - run: npm run check:ios-floor
 
   typecheck-build:
     runs-on: ubuntu-latest

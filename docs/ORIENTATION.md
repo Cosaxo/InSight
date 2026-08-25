@@ -194,6 +194,7 @@ everything else: the static gates, and where each one runs.
 | `check:ios-spm` | ci | The npm alias that keeps the iOS SwiftPM graph resolvable |
 | `check:ios-facebook` | ci | That the postinstall actually stripped the Facebook SDK a transitive SPM manifest links in (D16) |
 | `check:ios-location` | ci | The iOS location declarations against what the app does. ITMS-90683 is why it exists |
+| `check:ios-floor` | ci | The minimum OS the App Store publishes, against the bundle it installs — the pbxproj, `CapApp-SPM`, `build.target`/`cssTarget` and what the stylesheets actually use. A colour function above the floor is fatal inside a custom property and harmless outside one (D289) |
 | `check:web-firebase` | release | That the shipped bundle actually carries the Firebase config |
 | `check:store-listing` | release | Marketing copy against both consoles' length limits |
 | `check:store-copy` | manual | No unfilled placeholders in the store-facing legal pages. A pre-submission gate, and off CI on purpose |

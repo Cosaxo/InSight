@@ -29221,3 +29221,86 @@ case proved nothing. Rewritten against a question that already carries a
 basis, it fails as it should. A test that cannot fail is the thing this
 tree keeps finding, and it is worth saying that the way to find one is to
 break the code on purpose and watch.
+
+## D289 · The minimum OS the store publishes, and the bundle it installs
+
+**2026-08-25.** **Status:** binding. `IPHONEOS_DEPLOYMENT_TARGET` goes
+15.0 → **16.4** in all four build configurations, `CapApp-SPM` goes
+`.v15` → `.v16`, `build.target` and `build.cssTarget` are pinned in
+`vite.config.ts` for the first time, and `check:ios-floor` holds the five
+places to each other.
+
+### iOS 15 was never a configuration this app ran in
+
+It was one it advertised. The number in the pbxproj is what the App Store
+publishes as the minimum OS, and it was Capacitor's scaffolding default —
+no decision record mentions it, and nothing had touched it. The bundle it
+installs was built for something else entirely:
+
+- **CSS.** One render-blocking stylesheet, **149 `oklch()`** (Safari 15.4)
+  and **103 `color-mix()`** (16.2), and `@supports` appears **zero** times
+  in either stylesheet. `--surface` and `--ink` — the page ground and the
+  text ink — are both `oklch`.
+- **JavaScript.** `Object.hasOwn` (15.4) appears **63 times** in the
+  emitted bundle, and `build.target` was unset, so the floor was whatever
+  Vite's default happened to be that week: `ios16.4`.
+
+So on 15.0–15.3 the JS throws and the palette is gone; on 15.4–16.1 the
+base colours resolve and every `color-mix()` token unsets. Raising the
+floor to 16.4 removes no capability the app had — it makes the package's
+claim match the bundle's, which is the only version of this that was ever
+true. **The bundle is byte-identical after the pin** (2062 KB / 748 KB,
+120 chunks), because the pin declares the floor Vite was already using.
+
+Lowering it again is a real option and the gate says so in its failure
+text: `css.transformer: 'lightningcss'` compiles the colour functions
+down, and `Object.hasOwn` needs a polyfill. That is a feature, not a
+revert, and it starts at those two lines.
+
+### Why a number was not the fix
+
+Two floors in five files with nothing comparing them is the same shape as
+D287's two bundle gates and D39's hand-maintained figures: a number kept
+correct by intention does not stay correct. `check:ios-floor` reads the
+pbxproj (and that its configurations agree — Xcode publishes whichever
+one archives), `Package.swift`, both Vite targets, and then the thing
+that actually moved: **what the stylesheets use.**
+
+**The rule it encodes is where the feature sits, not how new it is.**
+
+- **FATAL** — inside a custom property's value. Custom properties accept
+  almost any token stream, so nothing fails at parse time; the failure is
+  at SUBSTITUTION, where `var(--surface)` is invalid-at-computed-value-
+  time and the property falls back to its initial value. One unsupported
+  function in one token takes out every consumer of it.
+- **PROGRESSIVE** — an ordinary declaration. The value is dropped at parse
+  time and the declaration does not apply.
+
+The distinction is not academic and the tree proves it: **`text-wrap:
+pretty` and `balance` (Safari 17.5) are 23 uses ABOVE the new floor and
+are correctly allowed**, because below 17.5 the text is simply not
+balanced. Treat those as failures and the gate fails the tree on day one
+over nothing, which is how a gate gets bypassed; treat the `oklch` tokens
+as fine and it passes the exact bundle that shipped a page with no
+ground. Both directions are mutation-tested in
+`scripts/check-ios-floor.test.mjs`, and Mutant A (everything fatal) does
+red the real tree, so the noise is measured rather than asserted.
+
+The version table is deliberately NOT pinned by a test. Those numbers are
+facts about WebKit, not about this repo, and a test asserting
+`oklch === 15.4` would only assert that someone typed 15.4 twice.
+
+**Android carries no equivalent number, on purpose.** `minSdkVersion` is
+24, but Android WebView updates through Play independently of the OS, so
+there is no static pair for a gate to compare — the `chrome111` floor is
+the same generation as `ios16.4` and is declared beside it.
+
+### The JS half is a spot-check, and says so
+
+`build.target` makes esbuild lower **syntax** and polyfills **no API**, so
+an API newer than the floor ships as-is and throws on a device that
+installed the app legitimately. The list holds what this bundle uses
+(`Object.hasOwn`, `structuredClone`, `findLast`, `toSorted`,
+`toReversed`, `Array.fromAsync`, `Promise.withResolvers`); it is not a
+browserslist and the passing line says as much rather than implying a
+guarantee it does not make.
