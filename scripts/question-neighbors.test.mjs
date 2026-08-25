@@ -137,7 +137,9 @@ describe("the live corpus", () => {
   const domains = buildDomains();
 
   it("loads every domain non-empty, with prompts and ids", () => {
-    for (const name of ["daily", "feed", "duel", "pick", "suggestions"]) {
+    // "suggestions" left this list with the community board (D288 §1) —
+    // the SEED source is deleted, so there is no domain to load.
+    for (const name of ["daily", "feed", "duel", "pick"]) {
       expect(domains[name].length).toBeGreaterThan(0);
       for (const e of domains[name]) {
         expect(e.id).toBeTruthy();
@@ -224,16 +226,12 @@ describe("the live corpus", () => {
     }
   });
 
-  it("still sees the ungated suggestion twins (the detector is alive)", () => {
-    // If a rewrite ever removes both fixtures this pin goes stale loudly,
-    // which is the moment to find a new sentinel pair — a detector nothing
-    // exercises is the check:globals lesson all over again.
-    const money = domains.suggestions.find((e) => e.id === "sg07");
-    const best = Math.max(
-      ...domains.daily.map((d) => similarity(money.tokens, d.tokens)),
-    );
-    expect(best).toBe(1);
-  });
+  // The cross-source sentinel ("still sees the ungated suggestion twins")
+  // retired with the board (D288 §1): its fixtures were the SEED rows, and
+  // the pipeline it wired — extractArray over suggestions.js into a daily
+  // overlay — no longer exists. The metric's own live wire stands above as
+  // literal strings ("sees through phrasing"), and the daily extraction is
+  // pinned by the dq30 case.
 });
 
 // ── D123: the batch pre-flight ──
