@@ -198,6 +198,32 @@ export function replayFold(
 // control. `assertOperator` + SEED_ADMIN_UIDS is what stands in its place,
 // and `npm run check:appcheck` holds the exemption so it cannot spread by
 // copy-paste.
+/**
+ * A document's write stamp: `null` when it does not exist, a
+ * seconds.nanoseconds string when Firestore stamped it, and `undefined`
+ * when it exists but carries no stamp.
+ *
+ * Seconds and nanoseconds rather than millis, because two folds inside one
+ * millisecond is not hypothetical — it is D7's contention case, which is
+ * the situation somebody runs a rebuild in.
+ *
+ * The three-way return is deliberate and the `undefined` arm is the point.
+ * An earlier draft returned the string "unknown" there, which compares
+ * EQUAL to itself — so an unstamped document would have read as "nothing
+ * changed" and waved the write through, fail-open on the one path where
+ * the guard cannot actually see anything. The caller treats `undefined` as
+ * "cannot verify" and refuses, the way D65's `hidden` equality fails
+ * closed. Unreachable for a server read today; unreachable is not a reason
+ * to be wrong about it.
+ */
+export function docStamp(
+  snap: FirebaseFirestore.DocumentSnapshot,
+): string | null | undefined {
+  if (!snap.exists) return null;
+  const t = snap.updateTime;
+  return t ? `${t.seconds}.${t.nanoseconds}` : undefined;
+}
+
 const SCAN_PAGE = 500;
 
 /** A RUNAWAY GUARD, not the real ceiling. At SCAN_PAGE=500 this is 5M
@@ -244,12 +270,34 @@ export async function runRebuild(
   // Optimistic concurrency, and the reason it is here rather than a
   // transaction: a rebuild reads every answer to the question, which can be
   // hundreds of thousands of documents — far outside anything a Firestore
-  // transaction may hold. So the scan runs outside one and the WRITE checks
-  // that the stored total has not moved since the scan began. A live answer
-  // landing mid-scan aborts the rebuild instead of being erased by it.
+  // transaction may hold. So the scan runs outside one, and the WRITE
+  // refuses if the aggregate moved at all while it was running.
+  //
+  // AT ALL, not "if the total moved", which is what this compared for one
+  // draft and was wrong twice over. A D86 edit leaves `total` UNCHANGED by
+  // construction — the person was counted once and still is, they just hold
+  // a different option — so a total-only guard is blind to exactly the
+  // concurrent write that hurts most:
+  //
+  //   · the scan may have read that answer before the edit landed, so the
+  //     rebuild would overwrite the trigger's correct counts with pre-edit
+  //     ones; and
+  //   · `edits` is captured HERE, before the scan, so the apply would write
+  //     back a stale matrix and drop the cell that edit just folded. That
+  //     cell is unrecoverable — the matrix is the one field a rebuild
+  //     cannot recompute, which is the whole reason it is carried.
+  //
+  // `updateTime` is the exact test and costs nothing: Firestore stamps it
+  // on every write, so any concurrent fold — create, edit, or another
+  // rebuild — moves it. Compared as seconds+nanoseconds rather than
+  // milliseconds, because two folds inside one millisecond is precisely the
+  // contention case this tool exists alongside (D7).
   const before = await pubRef.get();
   const beforeTotal = (before.exists && (before.get("total") as number)) || 0;
-  // D226's matrix, carried rather than recomputed — see the header.
+  const beforeStamp = docStamp(before);
+  // D226's matrix, carried rather than recomputed — see the header. Safe to
+  // capture before the scan ONLY because the guard below refuses any write
+  // that happened since.
   const edits = before.exists ? (before.get("edits") as unknown) : undefined;
 
   const state = newFold(qid);
@@ -306,11 +354,20 @@ export async function runRebuild(
 
   if (opts.apply) {
     const now = await pubRef.get();
-    const nowTotal = (now.exists && (now.get("total") as number)) || 0;
-    if (nowTotal !== beforeTotal) {
+    const nowStamp = docStamp(now);
+    if (beforeStamp === undefined || nowStamp === undefined) {
       throw new HttpsError(
         "aborted",
-        `${qid} took an answer during the scan (${beforeTotal} → ${nowTotal}) — re-run`,
+        `${qid}'s aggregate carries no write stamp, so a concurrent fold cannot be `
+          + "ruled out — refusing rather than overwriting on an unverifiable read",
+      );
+    }
+    if (nowStamp !== beforeStamp) {
+      const nowTotal = (now.exists && (now.get("total") as number)) || 0;
+      throw new HttpsError(
+        "aborted",
+        `${qid} was written during the scan (total ${beforeTotal} → ${nowTotal}`
+          + `${nowTotal === beforeTotal ? ", an edit — the total does not move" : ""}) — re-run`,
       );
     }
     const payload = {

@@ -97,16 +97,29 @@ for (let i = 0; ; ) {
   const at = src.indexOf(PATH, i);
   if (at === -1) break;
   i = at + PATH.length;
-  // Walk back to the call that owns this path.
+  // Which call owns this path. Every site in this file writes it on one
+  // line — `await setDoc(doc(db, "v2_users", uid, "answers", qid), {` — so
+  // the call name is on the same line as the path, and scoping the test to
+  // that line is both sufficient and unambiguous.
+  //
+  // An earlier draft also tried a 200-character look-behind, which was
+  // dead weight at best: it regex-matched a whitespace-collapsed slice
+  // against an end-anchored pattern, so it could only ever agree with the
+  // line-scoped test or fire on something the line test had already
+  // caught. Removed rather than left looking load-bearing.
   const lineStart = src.lastIndexOf("\n", at) + 1;
-  const head = src.slice(Math.max(0, lineStart - 200), at);
-  const isUpdate = /updateDoc\(\s*doc\($/.test(head.replace(/\s+/g, " ").trim() + "")
-    || /updateDoc\(/.test(src.slice(lineStart, at));
-  const isCreate = /setDoc\(/.test(src.slice(lineStart, at));
+  const callLine = src.slice(lineStart, at);
   const line = src.slice(0, at).split("\n").length;
 
-  if (isUpdate) { edits++; continue; }
-  if (!isCreate) continue;
+  if (/updateDoc\(/.test(callLine)) { edits++; continue; }
+  if (!/setDoc\(/.test(callLine)) {
+    // Neither verb on the line means the scan shape has drifted from the
+    // code — a multi-line call, say. Report it: a site this cannot classify
+    // is a site it is not checking, and silence there is the whole failure
+    // mode this gate exists to prevent.
+    problems.push(`${SRC}:${line} — answers path reached by a call this scan cannot classify`);
+    continue;
+  }
   creates++;
 
   const p = payloadFor(src, at);

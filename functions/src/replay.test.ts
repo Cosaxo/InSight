@@ -19,7 +19,7 @@
 import { describe, it, expect } from "vitest";
 import { breakdownFor } from "./v2";
 import { BREAKDOWN_MAX_BUCKETS, type BreakdownCounts } from "./pure";
-import { replayFold, newFold, foldAnswerInto, finishFold, type ReplayAnswer } from "./replay";
+import { replayFold, newFold, foldAnswerInto, finishFold, docStamp, type ReplayAnswer } from "./replay";
 
 const QID = "daily-2026-08-24";
 
@@ -149,5 +149,47 @@ describe("what a rebuild is FOR", () => {
     expect(out.folded).toBe(2);
     expect(out.skipped).toBe(3);
     expect(out.counts).toEqual({ "0": 1, "19": 1 });
+  });
+});
+
+describe("the concurrency guard's stamp", () => {
+  // Not the interleaving — that needs two writers racing a live scan and is
+  // NOT covered by an automated test here; what is covered is the property
+  // a wrong implementation would get wrong, and the e2e's 7h proves the
+  // other direction (a quiet document does not abort a rebuild).
+  const snap = (exists: boolean, seconds?: number, nanoseconds?: number) =>
+    ({
+      exists,
+      updateTime: seconds === undefined ? undefined : { seconds, nanoseconds },
+    }) as unknown as Parameters<typeof docStamp>[0];
+
+  it("is null for a document that does not exist", () => {
+    expect(docStamp(snap(false))).toBeNull();
+    // …and an absent document is never equal to a present one, which is the
+    // create case: a rebuild of a question whose aggregate appeared mid-scan
+    // must abort rather than overwrite it.
+    expect(docStamp(snap(false))).not.toBe(docStamp(snap(true, 100, 0)));
+  });
+
+  it("separates two writes one nanosecond apart", () => {
+    // THE REASON THIS TEST EXISTS. `updateTime.toMillis()` is the obvious
+    // implementation and it collides here — two folds inside one
+    // millisecond is not a hypothetical, it is D7's contention case, i.e.
+    // exactly the situation someone runs a rebuild in.
+    expect(docStamp(snap(true, 1_700_000_000, 123_456_789)))
+      .not.toBe(docStamp(snap(true, 1_700_000_000, 123_456_790)));
+    // Same instant, same stamp — no false abort on a quiet document.
+    expect(docStamp(snap(true, 1_700_000_000, 123_456_789)))
+      .toBe(docStamp(snap(true, 1_700_000_000, 123_456_789)));
+  });
+
+  it("reports an unstamped document as unverifiable, not as unchanged", () => {
+    // An earlier draft returned the string "unknown" here, which compares
+    // EQUAL to itself — so an unstamped document read as "nothing changed"
+    // and waved the write through, fail-open on the one path where the
+    // guard can see nothing at all. `undefined` cannot be mistaken for a
+    // match, and runRebuild refuses on it.
+    expect(docStamp(snap(true))).toBeUndefined();
+    expect(docStamp(snap(true))).not.toBe(docStamp(snap(true, 1, 1)));
   });
 });

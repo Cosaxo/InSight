@@ -27762,6 +27762,40 @@ with the reason at the site. The loop breaks the moment the document
 appears, so the longer ceiling costs nothing on a run that does not need
 it.
 
-Green across all four runners: 343 functions tests, 1943 client tests,
+### The bug an adversarial re-read found in the tool itself
+
+`runRebuild`'s concurrency guard compared the stored **total** before and
+after the scan. That is blind to the concurrent write that hurts most: a
+**D86 edit leaves `total` unchanged by construction** — the person was
+counted once and still is, they just hold a different option — so an edit
+landing mid-scan passed the guard twice over.
+
+The scan may have read that answer before the edit landed, in which case
+the apply overwrites the trigger's correct counts with pre-edit ones. And
+`edits` is captured before the scan, so the apply writes back a stale
+matrix and drops the cell that edit just folded — a cell that is
+**unrecoverable**, because the matrix is the one field a rebuild cannot
+recompute, which is the entire reason it is carried forward.
+
+The guard now compares `updateTime`, which Firestore stamps on every
+write, as seconds **and nanoseconds**: `toMillis()` is the obvious
+implementation and it collides at exactly the moment this matters, since
+two folds inside one millisecond is D7's contention case — the situation
+an operator runs a rebuild in. Pinned in `replay.test.ts`.
+
+That test then found a second thing. The unstamped case returned the
+string `"unknown"`, which compares EQUAL to itself, so a document the
+guard could not see would have read as "nothing changed" and waved the
+write through — fail-open on the one path with no visibility at all. It
+returns `undefined` now and the caller refuses, the way D65's `hidden`
+equality fails closed. Unreachable for a server read; unreachable is not a
+reason to be wrong about it.
+
+What is NOT covered: the interleaving itself, which needs two writers
+racing a live scan. The e2e proves the other direction — a quiet document
+does not abort a rebuild — and the stamp's own properties are unit-tested.
+Stated rather than implied.
+
+Green across all four runners: 346 functions tests, 1943 client tests,
 347 script tests, the rules suite, 101 e2e checks and the 19-check
 erasure suite.
