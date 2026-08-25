@@ -126,10 +126,11 @@ Write only your own directory. Central additionally: `DIGEST.md`,
 `bridge/VERDICTS.md`, and appends to any `QUESTIONS.md`. The optimizer
 additionally: `graph/` and other graphs strictly per §5. Nobody
 touches `main` or any product branch, ever; no PRs from theory lanes;
-`LOG.md` is append-only; never delete another lane's content. The
-InSight checkout in the session is read-only context (its docs on
-`main` are how a theory learns what is real today) — theory work
-happens in the branch worktree.
+`LOG.md` is append-only; never delete another lane's content. Your
+container spawns empty: the clone you provision (per your prompt's
+`add_repo` step — measured 2026-08-25, PROBE4) is both your read-only
+context for the product's docs on `main` and the checkout your branch
+worktree hangs off — theory work happens only in the worktree.
 
 ## 8 · The bridge — the only path to reality
 
