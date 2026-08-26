@@ -1872,7 +1872,33 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   // nothing new — the status guard is the idempotency.
   const replay = await signedPost(sessionEvent, whsec);
   if (replay.status !== 200) fail("a replayed webhook errored: " + replay.status);
+  const afterReplay = await getDoc(doc(payDb, "v2_paid_bookings", bid));
+  if (afterReplay.get("duplicatePayments") !== undefined) {
+    fail("a REPLAY was recorded as a second payment: " + JSON.stringify(afterReplay.get("duplicatePayments")));
+  }
   ok("a replayed delivery is a no-op behind the status guard");
+
+  // A SECOND PAYMENT is not a replay, and the two used to be
+  // indistinguishable here: both answered 200 and both minted nothing,
+  // so a buyer charged twice for one question had the second charge
+  // recorded nowhere in this app — not on the booking, not in the
+  // purchase row, and so not reachable by the closer's refund. The
+  // payment intent is what tells them apart.
+  const second = await signedPost(
+    evt({ id: "evt_e2e_2", data: { object: { id: "cs_e2e_2", payment_intent: "pi_e2e_2" } } }),
+    whsec,
+  );
+  if (second.status !== 200) fail("a second payment errored: " + second.status);
+  const afterSecond = await getDoc(doc(payDb, "v2_paid_bookings", bid));
+  const dupes = afterSecond.get("duplicatePayments");
+  if (!Array.isArray(dupes) || !dupes.includes("pi_e2e_2")) {
+    fail("a SECOND real payment was swallowed: " + JSON.stringify(afterSecond.data()));
+  }
+  // …and it must not have minted a second question or moved the first.
+  if (afterSecond.get("stripePaymentIntent") !== "pi_e2e_1" || afterSecond.get("qid") !== qid) {
+    fail("the second payment overwrote the first: " + JSON.stringify(afterSecond.data()));
+  }
+  ok("a second real payment is recorded and alarmed, not swallowed");
 
   // The serving claim, closed end to end: the MAIN account answers the
   // paid question through the ORDINARY answer path and the ordinary

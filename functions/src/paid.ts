@@ -702,6 +702,30 @@ export const createPaidCheckoutV2 = onCall(
     const amountEur = isAd ? quote.flatEur : quote.capEur;
     const { default: Stripe } = await import("stripe");
     const stripe = new Stripe(key);
+    // ONE PAYABLE SESSION AT A TIME. Every call here used to mint a fresh
+    // Checkout session and overwrite the stored id without touching the
+    // old one, which stays payable for Stripe's default day — and
+    // web/paid-cancel.html actively tells the buyer that pressing Pay
+    // again "opens a fresh payment page". Two open sessions is two ways
+    // to be charged for one question.
+    //
+    // Expiring is best-effort by construction: Stripe refuses to expire a
+    // session that is already complete or expired, and a session that
+    // completed while this ran is exactly the case goLive's duplicate
+    // guard exists for. A failure here must not stop the buyer paying, so
+    // it is logged and the new session is minted regardless.
+    const priorSession = (snap.get("stripe") as { sessionId?: string } | undefined)?.sessionId;
+    if (priorSession) {
+      try {
+        await stripe.checkout.sessions.expire(priorSession);
+      } catch (err) {
+        logger.info(`[paid] could not expire the prior session for ${bid}`, {
+          metric: "paid_session_expire_skipped",
+          bid,
+          message: String((err as Error)?.message ?? err),
+        });
+      }
+    }
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       client_reference_id: bid,
@@ -948,7 +972,36 @@ export async function goLive(db: Firestore, bid: string, paymentIntentId: string
       return false;
     }
     // Stripe delivers at-least-once; "live" means an earlier delivery won.
-    if (snap.get("status") === "live") return true;
+    //
+    // A REPLAY AND A SECOND PAYMENT ARE NOT THE SAME THING, and this
+    // returned true for both. Nothing stops two Checkout sessions
+    // existing for one booking — the cancel page invites the buyer to
+    // press Pay again, which mints one — and if both complete, the second
+    // delivery landed here, answered 200, minted nothing and recorded
+    // nothing. A buyer charged twice for one question, with the second
+    // charge existing nowhere in this app: not on the booking, not in the
+    // purchase row, and therefore not reachable by the closer's refund.
+    //
+    // The intent id is what tells them apart: a replay carries the SAME
+    // one, a second payment a different one. There is no refund here on
+    // purpose — moving money is the operator's call, and a refund issued
+    // from a webhook retry path is its own hazard — but it is written
+    // down and alarmed, so "recorded nowhere" stops being true.
+    if (snap.get("status") === "live") {
+      const first = (snap.get("stripePaymentIntent") as string | null) ?? null;
+      if (paymentIntentId && first && paymentIntentId !== first) {
+        tx.update(bookingRef, {
+          duplicatePayments: FieldValue.arrayUnion(paymentIntentId),
+        });
+        logger.error(`[paid] SECOND payment for ${bid} — the buyer was charged twice`, {
+          metric: "paid_duplicate_payment",
+          bid,
+          firstIntent: first,
+          duplicateIntent: paymentIntentId,
+        });
+      }
+      return true;
+    }
     if (snap.get("status") !== "approved") {
       logger.warn(`[paid] webhook for ${bid} in status ${snap.get("status")} — ignored`);
       return false;
