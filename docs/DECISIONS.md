@@ -31034,3 +31034,33 @@ instead of being found by whoever reads carefully enough.
 `check:monitoring` held the *lists* equal to the directory the whole time.
 Nothing held the *prose* to the lists. The blockquote stopped quoting counts
 altogether, because a sentence that does not state a count cannot drift.
+**Amendment (same day) — the first production dry run, and exactly what it
+settles.** `Arm monitoring` dispatched against `prvfire33` from `main`
+(run 1, 18:15 UTC), `apply` off. It **succeeded, and no role was missing**:
+
+```
+apply-monitoring: project prvfire33, channel "InSight oncall" → …  (DRY RUN)
+  + notification channel "InSight oncall" — would create
+  + log-based metric agg_contention … duel_reveal_run … patterns_fit …
+    velocity_scan … engagement_digest — would create
+  + policy "onV2AnswerCreated is erroring" … and seven more — would create
+apply-monitoring: dry run. Re-run with --apply to create the above.
+```
+
+What that proves, stated narrowly because the temptation is to claim the
+whole thing:
+
+- **The credential reaches all three list endpoints**, including
+  `notificationChannels`, which `observe.mjs` never touches and which this
+  record could only say had "met a stub". `roles/monitoring.viewer`,
+  `roles/logging.configWriter` and the channel read are all in hand.
+- **The workflow's shell is right on a real runner** — the argv array, and
+  the two `[ … ] && ARGS+=(…)` guards under GitHub's `bash -e` with
+  `CHANNEL_NAME` empty. Tested locally first; this is the confirmation.
+- **The project holds none of the fourteen objects**, arrived at through a
+  different code path from D300's and agreeing with it.
+
+What it does **not** prove: the three POST endpoints. A create can still
+fail on a field the API rejects or a role the reads did not need, and
+`must()` would stop the run and name it. That is the one thing left, and
+only an `apply` run answers it.
