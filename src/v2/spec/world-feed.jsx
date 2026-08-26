@@ -2694,7 +2694,24 @@ class WorldFeed extends React.Component {
       rows.push(['Asked in', scene ? scene.name : leaf ? leaf.label : T.label]);
       const cat = q.type === 'pick' ? WF_CATALOGS[q.catalog] : null;
       if (cat) rows.push(['Catalogue', cat.total + ' ' + cat.noun]);
-      const n = wfVotes(q);
+      // THE SAME TOTAL THE CARD PRINTS. renderMeta draws
+      // `wfPcts(counts, mine).total`, which adds the viewer's own vote
+      // back: a live count EXCLUDES it (countsFor, data/deck.ts) and
+      // adding it is this surface's convention, not the rounding's.
+      // wfVotes is the RAW sum — right as the "top" sort key at the
+      // bottom of this file, wrong here, where the number sits one tap
+      // from the card's. On a card you had just answered the card said
+      // "13 votes" and this sheet said "Answers 12".
+      //
+      // Only the vote-bar shape diverged: rank, rate, dial, field and
+      // pick carry their own published totals, which the card prints
+      // unadjusted too, so those keep wfVotes.
+      const barShape = !!q.options
+        && q.type !== 'rank' && q.type !== 'rate' && q.type !== 'dial'
+        && q.type !== 'field' && q.type !== 'pick';
+      const n = barShape
+        ? wfPcts(q.options.map((o) => o.count), this.state.votes[q.id]).total
+        : wfVotes(q);
       if (n) rows.push(['Answers', wfFmt(n)]);
       rows.push(['On your map', WF_BRANCH[q.cat] || 'Interests']);
     }

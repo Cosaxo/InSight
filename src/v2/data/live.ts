@@ -4735,6 +4735,16 @@ const LIVE = {
         // phantom pick on every future boot.
         delete state.inflight[qid];
         cacheVote(qid, entity);
+        // …and the same two seams vote() stamps on ITS ack (R2/D270,
+        // R4/D271). They were missing here, and the shape of the gap is
+        // what made it invisible: the world feed stamps `s` for every card
+        // it scrolls past, pick cards included, so the seen DENOMINATOR
+        // counted these questions while the answered NUMERATOR could not.
+        // Every catalog pick therefore read as a question people look at
+        // and never answer, which is the exact signal QUESTION-FARM's
+        // scorecard uses to propose retiring one.
+        engagement.noteAnswer(q?.surface ?? "feed");
+        engagement.noteQid(qid, "a");
         notify();
         scheduleAggRefresh(db, qid);
       } catch (err) {
@@ -4796,6 +4806,11 @@ const LIVE = {
         });
         delete state.inflight[qid];
         cacheVote(qid, order.join(","));
+        // The same two seams, for the same reason as votePick above — a
+        // rank card is a feed card and is stamped `s` when it scrolls into
+        // view, so without this its conversion reads as zero.
+        engagement.noteAnswer(q.surface);
+        engagement.noteQid(qid, "a");
         notify();
         scheduleAggRefresh(db, qid);
       } catch (err) {

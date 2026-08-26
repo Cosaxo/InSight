@@ -33,6 +33,8 @@ import {
   getDocs,
   query,
   where,
+  orderBy,
+  limit,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -784,6 +786,24 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-6"), shard({ sampled: false })));
   });
 
+  it("refuses a sampling rate below the floor — the fold weighs by 1/rate", async () => {
+    // `rate` bounded only from above was a hole with a factor in it: the
+    // nightly fold multiplies every bucket by 1 / rate, so one create
+    // from one free anonymous account could add ~1e12 devices — and
+    // ~1e12 to any question's seen and answered counts — to the
+    // world-readable engagement day document, which is what the pulse
+    // console reads and what the retirement scorecard proposes from.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "r-tiny"), shard({ rate: 1e-12 })));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "r-zero"), shard({ rate: 0 })));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "r-neg"), shard({ rate: -0.5 })));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "r-over"), shard({ rate: 2 })));
+    // The floor itself is honest — it is MIN_SHARD_RATE in
+    // functions/src/engagement.ts, a tenth of a percent — and so is
+    // everything up to 1.
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_attention", "r-floor"), shard({ rate: 0.001 })));
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_attention", "r-one"), shard({ rate: 1 })));
+  });
+
   it("shards are readable and editable by NOBODY, and the qids map stays shut until D271", async () => {
     await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_attention", "mine"), shard()));
     // not even the writer: a readable pile is the funnel's raw material
@@ -1445,6 +1465,35 @@ describe("v2 follow graph (D101 — Circle)", () => {
     // client's mutual flag is a collection-group query on `to`, which is
     // only satisfiable because this read is open.
     await assertSucceeds(getDoc(followRef(STRANGER, OWNER, STRANGER)));
+  });
+
+  it("answers the followers direction AS A COLLECTION-GROUP QUERY", async () => {
+    // The case above pins the PATH read and says the mutual flag "depends
+    // on it". It does not: a collection-group query is bound only by a
+    // recursive-wildcard match, exactly as this file's own
+    // `insight_inbound_impressions` case spells out ("they fail because no
+    // match block binds a collection-group scope"). So the path grant was
+    // open, the COLLECTION_GROUP index for `following.to` was deployed,
+    // circle.ts issued the query — and the rules refused it, every time,
+    // for every user. loadCircle catches the refusal and hands back an
+    // empty set, so every Circle member rendered as not-mutual forever.
+    //
+    // This is the query circle.ts actually sends, filter included: the
+    // `to` clause is what makes the grant provable, so a query without it
+    // must still be refused.
+    await assertSucceeds(setDoc(followRef(STRANGER, STRANGER, OWNER), {
+      at: serverTimestamp(), to: OWNER,
+    }));
+    await assertSucceeds(getDocs(query(
+      collectionGroup(asUser(OWNER), "following"),
+      where("to", "==", OWNER),
+    )));
+    // Not a licence to enumerate the whole follow graph.
+    await assertFails(getDocs(collectionGroup(asUser(OWNER), "following")));
+    await assertFails(getDocs(query(
+      collectionGroup(asUser(OWNER), "following"),
+      where("to", "==", STRANGER),
+    )));
   });
 
   it("refuses a `to` that disagrees with the document id", async () => {
@@ -2201,6 +2250,33 @@ describe("world takes (D83 — anonymous, one per person per question)", () => {
     await assertSucceeds(setDoc(ref, wtake(OWNER, { text: "said better" })));
   });
 
+  // …and the one withdrawal that is not a withdrawal.
+  //
+  // A world take's id is deterministic, so delete-and-repost lands on the
+  // SAME address. On a take a moderator has REMOVED that is not a rewrite,
+  // it is an undo: clearFlagsFor wipes the flags with the verdict, so the
+  // reposted take does not re-enter the queue until somebody reports it
+  // afresh — and world scope is enforcing, not advisory. The avatar arm
+  // has refused both verbs on a hidden document since D178 for exactly
+  // this reason; the substrate that shape was borrowed from had not.
+  it("a removed world take cannot be deleted and reposted at the same id", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_takes", wid(OWNER)), {
+        gid: "world", authorUid: OWNER, qid: QID, text: "over the line",
+        createdAt: new Date(), hidden: true,
+        hiddenMeta: { by: "mod", policyLine: "H1" },
+      });
+    });
+    const ref = doc(asUser(OWNER), "v2_takes", wid(OWNER));
+    // The edit was already refused — updates are denied outright.
+    await assertFails(setDoc(ref, wtake(OWNER, { text: "over the line" })));
+    // The delete is the half that was open, and it is the whole bypass.
+    await assertFails(deleteDoc(ref));
+    // The author can still read their own removed take (the read gate's
+    // author arm), so this hides nothing from them that was not hidden.
+    await assertSucceeds(getDoc(ref));
+  });
+
   it("shape holds at world scale: qid required and bounded, author is the signer", async () => {
     // No qid: a world take with no question would be unreachable by any
     // surface — and unqueryable by the per-question index.
@@ -2635,6 +2711,26 @@ describe("people directory: found by name (D239)", () => {
       { name: "Olaf", nameKey: "olaf", handle: "someone_else" }));
   });
 
+  it("nor DROP it — omitting the field was the way around claim-once", async () => {
+    // The immutability clause read "no handle in the resulting document,
+    // or the same handle" — so a NON-merge write that simply omitted the
+    // field was legal, since every remaining key is on the allowlist and
+    // dropping a handle looked like never having had one.
+    // claimHandleV2's whole claim-once check is reading this field back,
+    // so after the drop it would mint a second handle while the first
+    // registry row still pointed at the same account: one account
+    // hoarding names out of a registry with no rate limit, no rename and
+    // no reclaim path (D190).
+    await seedRow();
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_people", OWNER),
+      { name: "Olaf", nameKey: "olaf" }));
+    // An account that has no handle yet is unaffected — absence is legal
+    // while there is nothing to remove, which is what a first name write
+    // does.
+    await assertSucceeds(setDoc(doc(asUser(STRANGER), "v2_people", STRANGER),
+      { name: "Stranger", nameKey: "stranger" }));
+  });
+
   // deleteAccount (admin SDK) owns removal — phase 3d. A client delete
   // would be the one path able to strip a row the erasure counts on.
   it("nobody deletes a row from a client, not even their own", async () => {
@@ -2684,6 +2780,26 @@ describe("handles: the account registry (D122)", () => {
     await assertFails(updateDoc(doc(asUser(OWNER), "v2_users", OWNER), { handle: "someoneelse" }));
   });
 
+  it("nor DROP it — omitting the field was the way around claim-once", async () => {
+    // The clause read "no handle in the resulting document, or the same
+    // handle", so a NON-merge setDoc that simply left the field out was
+    // legal: every remaining key is on the allowlist, and dropping a
+    // handle looked like never having had one. claimHandleV2 reads this
+    // field back as its ENTIRE claim-once check, so after the drop it
+    // mints a second handle while the first v2_handles row still points
+    // at this account — unlimited names out of a registry with no rate
+    // limit and no reclaim path (D190), the profile advertising the last.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER), { displayName: "Olaf", handle: "olaf" });
+    });
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER), { displayName: "Olaf" }));
+    // A profile that never had one is unaffected: absence is legal while
+    // there is nothing to remove, which is every ordinary first write.
+    await assertSucceeds(setDoc(doc(asUser(STRANGER), "v2_users", STRANGER), {
+      displayName: "Stranger",
+    }));
+  });
+
   it("…but a profile that HAS a handle can still edit everything else", async () => {
     // The failure this exists for ships green: request.resource.data is
     // the RESULTING document, so once the callable has written a handle,
@@ -2716,6 +2832,31 @@ describe("circle invitations (D122)", () => {
     // the invite code), and an invitee is by definition not a member yet —
     // which is why the circle's name is denormalised onto this doc.
     await assertSucceeds(getDoc(doc(asUser(FRIEND), "v2_groups", GID, "invites", FRIEND)));
+  });
+
+  it("the invitee finds it AS A COLLECTION-GROUP QUERY — the only way they can", async () => {
+    // An invitee never learns the group id from anywhere else: the group
+    // document is member-gated and they are not a member yet. The one way
+    // in is socialFetch.ts's collection-group query on `to`, and that is
+    // bound by a recursive-wildcard match, not by the path grant above —
+    // so the path grant was open, the COLLECTION_GROUP index for
+    // `invites.to` was deployed, the client issued the query, and the
+    // rules refused it. live.ts swallows the refusal, so the invitations
+    // list was permanently empty and D122's way into a circle led nowhere.
+    await seedInvite();
+    await assertSucceeds(getDocs(query(
+      collectionGroup(asUser(FRIEND), "invites"),
+      where("to", "==", FRIEND),
+      orderBy("at", "desc"),
+      limit(20),
+    )));
+    // And nobody else's: the filter is the grant, so a stranger asking for
+    // the invitee's mail is refused, as is asking for everyone's.
+    await assertFails(getDocs(query(
+      collectionGroup(asUser(STRANGER), "invites"),
+      where("to", "==", FRIEND),
+    )));
+    await assertFails(getDocs(collectionGroup(asUser(FRIEND), "invites")));
   });
 
   it("even a member cannot read it — the read arm for that cost a billed get()", async () => {

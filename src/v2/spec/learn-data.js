@@ -14,6 +14,7 @@
 // guarantee, which is the same fragility the `daily-questions.js` conversion
 // removed for `map-branches.js`. `window.LIVE` in learnMeasured() stays: it
 // is read at CALL time, and it is what the LIVE conversion will take.
+import { sharePcts } from '../data/pct';
 // The DEMO SAMPLE, not the bank (D284). This import used to be
 // `learn-questions.json` — the whole thing — so every learn card was
 // compiled into the app and `check:bundle` was about thirty-nine cards from
@@ -194,10 +195,21 @@ export function LEARN_COUNTS(card) {
 function learnMeasured(card) {
   const m = LEARN_COUNTS(card);
   if (!m) return null;
-  const pcts = m.counts.map((c) => Math.floor((c / m.total) * 100));
-  let rem = 100 - pcts.reduce((a, b) => a + b, 0);
-  for (let i = 0; rem > 0; i = (i + 1) % pcts.length, rem--) pcts[i]++;
-  return pcts;
+  // ONE ROUNDING RULE (data/pct.ts). This floored each share and then
+  // handed the leftover points out round-robin FROM INDEX 0, which is not
+  // largest-remainder: the extra points go to whichever options happen to
+  // come first rather than to the ones closest to their next whole point.
+  // Over 200k sampled 3–4 option vectors that printed a smaller count at a
+  // larger percentage 4,390 times and put the biggest share on an option
+  // fewer people picked 1,904 times — [203, 368, 305, 369] came out
+  // [17, 30, 24, 29], so 368 people read as 30% beside 369 people at 29%.
+  //
+  // These numbers are not decoration: they drive the "X% get this right"
+  // headline on the reveal, the crowd row in the card's own sheet and the
+  // Map node, printed beside the true counts they contradict. Third site
+  // of the same retired rule — the Mirror's and the feed's converted with
+  // pct.ts, the daily's on 2026-08-25, this one now.
+  return sharePcts(m.counts);
 }
 /**
  * Which source a card's numbers come from: 'measured', or 'none' in a live

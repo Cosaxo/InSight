@@ -298,15 +298,14 @@ jobs:
       # The bundle ships inside a native package, so the cost is parse and
       # eval rather than network — but nothing was watching it move.
       #
-      # The variable is repeated rather than hoisted to job level on purpose:
-      # check:bundle now REFUSES to grade a build that was not made as the
-      # shipping one, and it reads the flag from its own environment. Passing
-      # it here is the assertion that these two steps agree about which
-      # bundle they are talking about — the exact thing that was untrue
-      # between this job and ios-release.yml.
+      # No env block, and that is the point. check:bundle REFUSES to grade a
+      # build that was not made as the shipping one, and since 2026-08-26 it
+      # asks dist/ rather than its own environment — so the two steps cannot
+      # disagree about which bundle they mean, whatever this one is passed.
+      # The variable used to be repeated here as an assertion that they
+      # agreed; an assertion made of the same variable it was checking is
+      # what let a demo bundle be graded as the shipping one.
       - run: npm run check:bundle
-        env:
-          VITE_V2_LIVE: "true"
 
   unit-tests:
     runs-on: ubuntu-latest

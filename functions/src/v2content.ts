@@ -5338,6 +5338,215 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "feed-f93",
+  "surface": "feed",
+  "seq": 130,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Whose biography tonight: Churchill, Bowie, Serena Williams, or Marie Curie?",
+  "options": [
+   "Churchill",
+   "David Bowie",
+   "Serena Williams",
+   "Marie Curie"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f94",
+  "surface": "feed",
+  "seq": 131,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The song stuck in your head: fight it, or play it?",
+  "options": [
+   "Fight it",
+   "Play it"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f95",
+  "surface": "feed",
+  "seq": 132,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Tonight's film: a favourite again, or a gamble on something new?",
+  "options": [
+   "The favourite, again",
+   "Something new"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f96",
+  "surface": "feed",
+  "seq": 133,
+  "type": "vote",
+  "domain": null,
+  "prompt": "World Cup final: in the stadium, at home with friends, or the big screen in a pub?",
+  "options": [
+   "In the stadium",
+   "Home with friends",
+   "Big screen in a pub"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl12",
+  "surface": "feed",
+  "seq": 134,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Books finished last year — how many?",
+  "options": [
+   "0–3 books",
+   "3–5 books",
+   "5–8 books",
+   "8–10 books",
+   "10–13 books",
+   "13–15 books",
+   "15–18 books",
+   "18–20 books",
+   "20–23 books",
+   "23–25 books",
+   "25–28 books",
+   "28–30 books"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 30,
+  "unit": "books"
+ },
+ {
+  "id": "feed-f97",
+  "surface": "feed",
+  "seq": 135,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Pineapple on pizza?",
+  "options": [
+   "Obviously yes",
+   "Never"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f98",
+  "surface": "feed",
+  "seq": 136,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The narrator of your life's documentary: David Attenborough, or Morgan Freeman?",
+  "options": [
+   "David Attenborough",
+   "Morgan Freeman"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f99",
+  "surface": "feed",
+  "seq": 137,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your funeral song: make them cry, or make them dance?",
+  "options": [
+   "Make them cry",
+   "Make them dance"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f100",
+  "surface": "feed",
+  "seq": 138,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Laugh-track sitcoms: cosy, or unbearable?",
+  "options": [
+   "Cosy",
+   "Unbearable"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f101",
+  "surface": "feed",
+  "seq": 139,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A single world holiday, everyone off on the same day: dream, or nightmare?",
+  "options": [
+   "Dream",
+   "Nightmare"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl13",
+  "surface": "feed",
+  "seq": 140,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Hours of live sport in a good week?",
+  "options": [
+   "0–2 h",
+   "2–3 h",
+   "3–5 h",
+   "5–7 h",
+   "7–8 h",
+   "8–10 h",
+   "10–12 h",
+   "12–13 h",
+   "13–15 h",
+   "15–17 h",
+   "17–18 h",
+   "18–20 h"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 20,
+  "unit": "h"
+ },
+ {
+  "id": "feed-f102",
+  "surface": "feed",
+  "seq": 141,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your life's photos: in the cloud, or on a drive you can hold?",
+  "options": [
+   "The cloud",
+   "A drive I can hold"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,
@@ -5981,6 +6190,21 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "group-gd8",
+  "surface": "group",
+  "seq": 24,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The bill arrives. Split it even, or pay what you had?",
+  "options": [
+   "Even split",
+   "What you had"
+  ],
+  "topic": "classic",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "duo-000",
   "surface": "duo",
   "seq": 0,
@@ -6459,9 +6683,26 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
-  "id": "duo-020",
+  "id": "duo-050",
   "surface": "duo",
   "seq": 30,
+  "type": "binary",
+  "domain": null,
+  "prompt": "What slows them down most?",
+  "options": [
+   "Doubt",
+   "Perfectionism",
+   "People-pleasing",
+   "Distraction"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "duo-020",
+  "surface": "duo",
+  "seq": 31,
   "type": "binary",
   "domain": null,
   "prompt": "A free evening, both home. Ideal version?",
@@ -6479,7 +6720,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-021",
   "surface": "duo",
-  "seq": 31,
+  "seq": 32,
   "type": "binary",
   "domain": null,
   "prompt": "How do they like being woken?",
@@ -6497,7 +6738,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-022",
   "surface": "duo",
-  "seq": 32,
+  "seq": 33,
   "type": "binary",
   "domain": null,
   "prompt": "A good apology from them looks like…",
@@ -6515,7 +6756,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-023",
   "surface": "duo",
-  "seq": 33,
+  "seq": 34,
   "type": "binary",
   "domain": null,
   "prompt": "You are 20 minutes late to dinner. Their read?",
@@ -6532,7 +6773,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-024",
   "surface": "duo",
-  "seq": 34,
+  "seq": 35,
   "type": "binary",
   "domain": null,
   "prompt": "Love lands hardest as…",
@@ -6551,7 +6792,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-025",
   "surface": "duo",
-  "seq": 35,
+  "seq": 36,
   "type": "binary",
   "domain": null,
   "prompt": "Mid-argument, they want…",
@@ -6569,7 +6810,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-026",
   "surface": "duo",
-  "seq": 36,
+  "seq": 37,
   "type": "binary",
   "domain": null,
   "prompt": "The better anniversary?",
@@ -6586,7 +6827,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-027",
   "surface": "duo",
-  "seq": 37,
+  "seq": 38,
   "type": "binary",
   "domain": null,
   "prompt": "Money in this relationship should be…",
@@ -6604,7 +6845,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-028",
   "surface": "duo",
-  "seq": 38,
+  "seq": 39,
   "type": "binary",
   "domain": null,
   "prompt": "Their idea of being taken care of?",
@@ -6623,7 +6864,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-029",
   "surface": "duo",
-  "seq": 39,
+  "seq": 40,
   "type": "binary",
   "domain": null,
   "prompt": "A whole weekend together, no phones. Bliss or too much?",
@@ -6640,7 +6881,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-030",
   "surface": "duo",
-  "seq": 40,
+  "seq": 41,
   "type": "binary",
   "domain": null,
   "prompt": "They had a hard day and did not say so. The tell?",
@@ -6658,7 +6899,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-031",
   "surface": "duo",
-  "seq": 41,
+  "seq": 42,
   "type": "binary",
   "domain": null,
   "prompt": "Five years out, they picture…",
@@ -6676,7 +6917,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-032",
   "surface": "duo",
-  "seq": 42,
+  "seq": 43,
   "type": "binary",
   "domain": null,
   "prompt": "A big decision that affects you both. They…",
@@ -6694,7 +6935,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-033",
   "surface": "duo",
-  "seq": 43,
+  "seq": 44,
   "type": "binary",
   "domain": null,
   "prompt": "Would they tell you a truth that would hurt for a week?",
@@ -6712,7 +6953,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-034",
   "surface": "duo",
-  "seq": 44,
+  "seq": 45,
   "type": "binary",
   "domain": null,
   "prompt": "Jealousy shows up in them as…",
@@ -6731,7 +6972,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-035",
   "surface": "duo",
-  "seq": 45,
+  "seq": 46,
   "type": "binary",
   "domain": null,
   "prompt": "Kids, someday?",
@@ -6749,7 +6990,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-036",
   "surface": "duo",
-  "seq": 46,
+  "seq": 47,
   "type": "binary",
   "domain": null,
   "prompt": "The thing they would never compromise on?",
@@ -6768,7 +7009,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-037",
   "surface": "duo",
-  "seq": 47,
+  "seq": 48,
   "type": "binary",
   "domain": null,
   "prompt": "If you needed a year somewhere else, they would…",
@@ -6786,7 +7027,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-038",
   "surface": "duo",
-  "seq": 48,
+  "seq": 49,
   "type": "binary",
   "domain": null,
   "prompt": "What would make them feel most loved this year?",
@@ -6805,13 +7046,49 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "duo-039",
   "surface": "duo",
-  "seq": 49,
+  "seq": 50,
   "type": "binary",
   "domain": null,
   "prompt": "Old age, the two of you: side by side, or side by side and busy?",
   "options": [
    "Side by side",
    "Busy, together"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-051",
+  "surface": "duo",
+  "seq": 51,
+  "type": "binary",
+  "domain": null,
+  "prompt": "After a fight, the first move back is usually…",
+  "options": [
+   "A joke",
+   "A touch",
+   "Talking it out",
+   "Acting normal"
+  ],
+  "topic": null,
+  "axis": null,
+  "test": null,
+  "mode": "romantic",
+  "active": false
+ },
+ {
+  "id": "duo-052",
+  "surface": "duo",
+  "seq": 52,
+  "type": "binary",
+  "domain": null,
+  "prompt": "The retirement dream: settled deep somewhere, or still moving?",
+  "options": [
+   "Settled deep",
+   "Still moving"
   ],
   "topic": null,
   "axis": null,

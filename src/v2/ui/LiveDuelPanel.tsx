@@ -76,6 +76,32 @@ const LD_HAIR = "0.5px solid color-mix(in oklch, var(--rule), transparent 30%)";
 const ACC_GROUP = "var(--c-likeness)";
 const ACC_DUO = "var(--c-people)";
 const ROMANCE = "oklch(0.55 0.13 12)";
+
+/**
+ * Whether a stored `streak` is still a claim about the present.
+ *
+ * The server zeroes a duo's streak when a day settles unrevealed — but only
+ * for a group the scan LOOKS at, and the twice-hourly scan queries
+ * `pendingDays array-contains day`, which `onV2AnswerCreated` writes. So a
+ * duo where NEITHER partner played is never examined and its streak stands
+ * untouched, while the pair that missed by half — one partner still
+ * playing — is zeroed on the first miss. The more engaged pair lost its
+ * run and the abandoned one advertised a live streak indefinitely.
+ *
+ * The stored number is not wrong for long: `nextStreak` (functions/pure.ts)
+ * resets to 1 on any gap, so it self-heals the moment they play again. What
+ * needed fixing is the window in between, and the honest fix is here — do
+ * not print a run that nothing has confirmed is still running.
+ *
+ * TWO days of slack, not one. A day is revealed on the day AFTER it was
+ * played and the scan runs every two hours, so a perfectly healthy duo
+ * reads one or two days back depending on whether this morning's scan has
+ * happened yet. One day of slack would blank a live streak every morning.
+ */
+const dayKeyUTC = (offsetDays = 0): string =>
+  new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
+const streakIsLive = (g: { lastRevealDay?: string }): boolean =>
+  typeof g.lastRevealDay === "string" && g.lastRevealDay >= dayKeyUTC(-2);
 const GOOD = "var(--c-likeness)";
 const MISS = "var(--ochre)";
 
@@ -90,6 +116,9 @@ interface LiveGroup {
   duoMode?: string;
   inviteCode?: string;
   streak?: number;
+  /** The day the group last revealed. What makes `streak` a claim about NOW
+   *  rather than a number that was true once — see streakIsLive below. */
+  lastRevealDay?: string;
   memberUids?: string[];
   memberNames?: Record<string, string>;
   // People who asked to join and are waiting on a member (D240). ON the
@@ -1094,7 +1123,7 @@ function LdCard({ g, vh, nextName, newest }: {
       </span>
       {duo && romantic && <span aria-label="romantic mode" style={{ width: 7, height: 7, borderRadius: "50%", background: ROMANCE, flexShrink: 0 }} />}
       <span style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
-        {(g.streak || 0) > 0 && <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--ink-3)" }}>{g.streak}-day run</span>}
+        {(g.streak || 0) > 0 && streakIsLive(g) && <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--ink-3)" }}>{g.streak}-day run</span>}
         {!duo && <span style={{ fontSize: 11.5, fontWeight: 700, color: "var(--ink-3)" }}>{members.length}</span>}
         <button className="tap44" aria-label={"Manage " + (g.name || "this circle")} aria-expanded={menu}
           onClick={() => setMenu((v) => !v)}

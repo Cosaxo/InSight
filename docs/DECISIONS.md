@@ -29277,6 +29277,22 @@ D72's rule — refuse rather than fabricate — applied to a repair tool.
   confident wrong aggregate is the failure D161 rewrote the bank fetch to
   avoid. The fix if it ever fires is paging across invocations, not a
   larger constant.
+- **Pulse and the two duel surfaces are refused at the door** (added
+  2026-08-26, by the night audit). The scan keys on the BANK ID —
+  `collectionGroup("answers").where("qid", "==", qid)` — and both break
+  that in opposite directions. A **pulse** aggregate is keyed
+  `{qid}_{day}` and a pulse answer carries that composite as its own
+  `qid`, so the bank id matches no answer at all: the tool scanned zero
+  rows, found zero drift and reported success, which
+  `rebuild-aggregate.mjs` prints as *"the published aggregate already
+  matches the answers"* — a repair tool certifying health for a document
+  it never read. A **group or duo** answer never reaches the world fold
+  (`onV2AnswerCreated` returns first), so there is no aggregate to
+  repair, only one to MINT out of votes that stay sealed until their
+  reveal. `rebuildRefusal()` in `replay.ts` names both, `runRebuild`
+  consults it, and the e2e asserts the refusal through the real callable
+  — because the predicate alone could be, and for one commit was,
+  exported and tested and never asked.
 
 ### The reversal condition this sets up, recorded before it is needed
 
@@ -29766,7 +29782,62 @@ what they leave behind.
 never where it came from, so the matrix is not derivable from the answers
 and is carried forward instead. That is one field, stated at three sites,
 rather than two thirds of the system.
-## D293 · A deep clean, priced: what moved, what did not, and the eight rules that hold it
+
+## D293 · A moderation verdict's ID is not neutral, and the privacy page says it is
+
+**2026-08-26.** **Status:** binding as a RECORD OF A LIMIT; the repair is
+the owner's call and is deliberately not made here. Found by the
+2026-08-25 night audit, which corrected `docs/data-inventory.md` and
+raised the rest rather than editing the privacy page unattended — the
+right call under D183, and the reason this record exists instead of a
+commit.
+
+### The finding, which stands
+
+`v2_mod_verdicts` is append-only and survives erasure by design: it is
+the audit trail the advisory phase's judgement is assessed from. The
+inventory said it held "no author text and no author uid", and that was
+read as meaning the row cannot name the person moderated. **The field
+list is right and the reading is wrong**, because the row is keyed by the
+take id and that id is not opaque:
+
+| take shape | id | carries |
+| --- | --- | --- |
+| world take | `{qid}_{authorUid}` | the account **and** the question it wrote under |
+| reported face | `av_{uid}` | the account |
+| circle take | Firestore auto-id | nothing |
+
+`firestore.rules` pins the first shape — that determinism is what bounds
+a world take to one per person per question — so it is not incidental and
+cannot be dropped without giving up the bound. Two of the three shapes
+therefore retain a pseudonymous identifier of the moderated account,
+plus (for a world take) one fact about them, after everything else is
+erased.
+
+### Why this is a claim and not only an inaccuracy
+
+`web/privacy.html` says: *"Two things intentionally survive, and neither
+can identify you"* — the aggregates and the error reports. This is a
+third, and for two of the three shapes the second half of that sentence
+does not hold. Under D183 the long disclosure lives once, on that page,
+and `check:policy-claims` proves each claim is PRESENT — it cannot prove
+one is TRUE, which is why every gate was green while this stood.
+
+### The two repairs, and what each costs
+
+- **Disclose it.** Name the verdict log as a third survivor and say what
+  its id carries. Cheapest, honest, and it grows the page — which is what
+  D183 and COPY.md §3 both say a claim is allowed to do.
+- **Re-key the verdict.** Store an opaque verdict id and keep the take id
+  in a field the erasure sweeps. This trades the join the queue and the
+  verdict currently share, and it is a migration over existing rows.
+
+Not chosen here. Both are the owner's, and picking one unattended — on
+the page that is the app's single disclosure — is the failure D183 was
+written to stop. The retention itself is unchanged and still deliberate;
+what changed on 2026-08-26 is that the tree now describes it accurately.
+
+## D294 · A deep clean, priced: what moved, what did not, and the eight rules that hold it
 
 **2026-08-25.** **Status:** binding. Requested directly: *"Do a deep clean
 and structuring of this project."*

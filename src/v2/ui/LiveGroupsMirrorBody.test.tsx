@@ -416,6 +416,36 @@ describe("LiveGroupsMirrorBody · which scene runs most like you", () => {
     expect(line.textContent).toContain("3 of the 3 days you played");
   });
 
+  it("crowns the deep record over the thin one — the printed pct cannot decide it", () => {
+    // D277 §2's rule, and the site that had not converted when bfb5e9f6
+    // said every sibling had: two days both with the majority is 100% and
+    // 12 of 15 is 80%, so a pct sort announces the coin that landed twice.
+    const withMaj = (d: string) => day(d, 0, 0, 1);   // me with ada, bo apart
+    const against = (d: string) => day(d, 1, 0, 0);   // me alone
+    const thin = [withMaj("2026-08-01"), withMaj("2026-08-02")];
+    const deep = Array.from({ length: 15 }, (_, i) => {
+      const d = `2026-07-${String(i + 1).padStart(2, "0")}`;
+      return i < 12 ? withMaj(d) : against(d);
+    });
+    LIVE.social.groups = () => [GROUP, GROUP2];
+    LIVE.social.revealHistory = ((gid: string) => (gid === "g1" ? thin : deep)) as never;
+    render(<LiveGroupsMirrorBody />);
+    const line = screen.getByText(/runs most like you/);
+    expect(line.textContent).toContain("Book Club");
+    expect(line.textContent).toContain("12 of the 15 days you played");
+  });
+
+  it("says nothing when the field is flat — a name tiebreak is not a finding", () => {
+    // The comparator's last clause is a NAME tiebreak that never returns
+    // 0, so two circles on identical figures had one crowned
+    // alphabetically and presented as the answer. groupPortrait's own
+    // twin/breaks-ranks labels carry the same guard.
+    LIVE.social.groups = () => [GROUP, GROUP2];
+    LIVE.social.revealHistory = (() => CREW_DAYS) as never;
+    render(<LiveGroupsMirrorBody />);
+    expect(screen.queryByText(/runs most like you/)).toBeNull();
+  });
+
   it("says nothing with one group — a superlative of one is a caption", () => {
     LIVE.social.groups = () => [GROUP];
     LIVE.social.revealHistory = (() => CREW_DAYS) as never;

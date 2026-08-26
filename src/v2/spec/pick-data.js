@@ -567,6 +567,50 @@ export let PICK_QS;
       9109505: 2,   // darkred — below the floor
       0: 8,         // Not listed — renters and the undecided
     },
+    // first card of the films domain, 2026-08-25 (QID-keyed —
+    // public/films.txt, the D15 operator step run at last). The '0'
+    // bucket is honest work here: the catalogue is Wikidata's top 1000
+    // by sitelinks, and Forrest Gump and Spirited Away are genuinely
+    // not in it — their vote lands in Not listed, which is the floor
+    // demo the card exists to give.
+    pk26: {
+      172241: 27,   // The Shawshank Redemption — the internet's standing answer
+      47703: 20,    // The Godfather
+      104123: 15,   // Pulp Fiction
+      163872: 14,   // The Dark Knight
+      131074: 12,   // LOTR: The Return of the King
+      181795: 11,   // The Empire Strikes Back
+      44578: 10,    // Titanic
+      83495: 9,     // The Matrix
+      190050: 8,    // Fight Club
+      61448040: 7,  // Parasite
+      25188: 5,     // Inception — clears the floor but not the top 10; folds
+      132689: 5,    // Casablanca — same
+      484048: 4,    // Amélie — below the floor
+      13417189: 3,  // Interstellar — below the floor
+      0: 11,        // Not listed — the Gump and Ghibli vote, among others
+    },
+    // daily catalog-question run, 2026-08-26 — rewatch is the second films
+    // canon, and it is not favouritism: prestige drops (Shawshank does not
+    // crack this board) and comfort rises — the December films, the ones
+    // you can start from any minute.
+    pk27: {
+      105031: 22,   // Home Alone — the December engine
+      102438: 19,   // Harry Potter and the Philosopher's Stone
+      17738: 16,    // Star Wars: A New Hope
+      91540: 14,    // Back to the Future
+      127367: 13,   // LOTR: The Fellowship of the Ring
+      488655: 11,   // Groundhog Day — the joke writes itself
+      105598: 10,   // Die Hard — a Christmas film, per the annual argument
+      631103: 9,    // Mean Girls
+      83495: 8,     // The Matrix
+      188850: 7,    // Mamma Mia!
+      44578: 5,     // Titanic — clears the floor but not the top 10; folds
+      190588: 5,    // Love Actually — same
+      337078: 4,    // The Big Lebowski — below the floor
+      253978: 3,    // Dirty Dancing — below the floor
+      0: 12,        // Not listed — the Princess Bride vote has nowhere to file
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -868,6 +912,28 @@ export let PICK_QS;
         Men: { 1: 9, 129: 7, 16711681: 6, 2263843: 5, 8421377: 4 },
       },
     },
+    pk26: {
+      ageBand: {
+        // the young board runs dark and recent; Shawshank holds the elders
+        '18-24': { 163872: 9, 190050: 7, 83495: 6, 61448040: 5, 104123: 4 },
+        '25-34': { 172241: 8, 131074: 7, 104123: 6, 163872: 5, 181795: 4 },
+      },
+      gender: {
+        Women: { 172241: 8, 44578: 7, 131074: 6, 61448040: 5, 104123: 4 },
+        Men: { 47703: 9, 172241: 8, 181795: 6, 190050: 6, 83495: 5 },
+      },
+    },
+    pk27: {
+      ageBand: {
+        // Potter and Mean Girls are generational; Home Alone holds everyone
+        '18-24': { 102438: 8, 631103: 7, 105031: 6, 83495: 5, 188850: 4 },
+        '25-34': { 105031: 7, 91540: 6, 127367: 6, 17738: 5, 488655: 4 },
+      },
+      gender: {
+        Women: { 102438: 8, 631103: 7, 188850: 6, 105031: 5, 127367: 4 },
+        Men: { 17738: 8, 105598: 7, 91540: 6, 83495: 6, 488655: 5 },
+      },
+    },
   };
 
   const api = {
@@ -1028,6 +1094,8 @@ export let PICK_QS;
     { id: 'pk23', cat: 'fav', type: 'pick', domain: 'dogs', prompt: 'The most fun breed to say out loud?', n: 157 },
     { id: 'pk24', cat: 'fav', type: 'pick', domain: 'colors', prompt: 'Your favourite colour?', n: 168 },
     { id: 'pk25', cat: 'fav', type: 'pick', domain: 'colors', prompt: 'The colour you’d paint your front door?', n: 163 },
+    { id: 'pk26', cat: 'fav', type: 'pick', domain: 'films', prompt: 'Your favourite film?', n: 161 },
+    { id: 'pk27', cat: 'fav', type: 'pick', domain: 'films', prompt: 'The film you’ve rewatched the most?', n: 158 },
   ];
   window.PICK_QS = PICK_QS;
 })();

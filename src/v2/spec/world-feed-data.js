@@ -180,6 +180,8 @@ window.WORLD_FEED_QS = [
   { id: 'dl9', cat: 'movies', type: 'dial', prompt: 'Trailers before the film \u2014 how many minutes is right?', lo: 0, hi: 30, unit: 'min', med: 10, n: 4300, dist: [6, 9, 13, 17, 16, 12, 9, 7, 5, 3, 2, 1] },
   { id: 'dl10', cat: 'bigq', type: 'dial', prompt: 'How many close friends does a person need?', lo: 0, hi: 10, unit: 'friends', med: 3, n: 4900, dist: [4, 10, 18, 20, 15, 11, 8, 6, 4, 2, 1, 1] },
   { id: 'dl11', cat: 'tech', type: 'dial', prompt: 'How many hours a day on a phone is too many?', lo: 0, hi: 12, unit: 'h', med: 4, n: 4600, dist: [2, 5, 10, 15, 18, 16, 12, 9, 6, 4, 2, 1] },
+  { id: 'dl12', cat: 'culture', type: 'dial', prompt: 'Books finished last year — how many?', lo: 0, hi: 30, unit: 'books', med: 6, n: 4200, dist: [18, 20, 16, 12, 9, 7, 5, 4, 3, 2, 2, 2] },
+  { id: 'dl13', cat: 'sport', type: 'dial', prompt: 'Hours of live sport in a good week?', lo: 0, hi: 20, unit: 'h', med: 4, n: 4100, dist: [16, 18, 15, 12, 10, 8, 6, 5, 4, 3, 2, 1] },
   { id: 'fd1', cat: 'dilemma', type: 'field', prompt: 'Pineapple on pizza \u2014 place it', ax: ['tastes bad', 'tastes good'], ay: ['a crime', 'high art'], n: 6800, cloud: [[22, 72, 10, 14], [76, 26, 12, 15], [54, 50, 4, 10]] },
   { id: 'fd2', cat: 'bigq', type: 'field', prompt: 'Small talk \u2014 place it', ax: ['painful', 'pleasant'], ay: ['pointless', 'essential'], n: 4100, cloud: [[64, 32, 12, 16], [30, 60, 8, 14], [50, 48, 6, 12]] },
   { id: 'fd3', cat: 'bigq', type: 'field', prompt: 'AI assistants, today \u2014 place them', ax: ['overhyped', 'underrated'], ay: ['scary', 'exciting'], n: 5600, cloud: [[42, 38, 10, 16], [68, 30, 8, 13], [30, 66, 7, 12]] },
