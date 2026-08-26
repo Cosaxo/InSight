@@ -98,7 +98,8 @@
     "check:store-forms": "node scripts/check-store-forms.mjs",
     "seed": "node scripts/seed-content.mjs",
     "rebuild:agg": "node scripts/rebuild-aggregate.mjs",
-    "mod:queue": "node scripts/mod-queue.mjs"
+    "mod:queue": "node scripts/mod-queue.mjs",
+    "observe": "node scripts/observe.mjs"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "^8.2.0",
