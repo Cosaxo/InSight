@@ -30811,3 +30811,70 @@ card's own tap) but reaches the scored rows only when the trigger folds
 and the aggregate top-up lands — the same eventual consistency every
 surface already carries. `placeAsks` joined `LIVE_MEMBERS`, so the
 contract pin and the mount fixture both know it.
+
+## D304 · The athletes catalogue, its review file, and the pick card's browse tiles
+
+**Decided:** 2026-08-26 · **Status:** binding. The same owner review as
+D300–D303: the reference sheet's "The greatest athlete who ever lived ·
+Search 640 athletes" card, tiles included — a domain, a question and a
+presentation none of which existed.
+
+### 1 · The catalogue, and the disease it caught immediately
+
+`public/athletes.txt`: 640 sitelink-ranked humans, QID-keyed, built by a
+new `athletes` arm of `scripts/build-catalog.mjs`. Two mechanical
+lessons the build surfaced, both now in the builder's comments:
+
+- **The single-query shape does not exist for this domain.** The
+  person-side occupation closure (`wdt:P106/wdt:P279* athlete`) times
+  the endpoint out with or without the label service — probed twice —
+  so the builder stages it: the closure first (917 occupations), then
+  candidates per occupation chunk, ranked locally, labelled in chunks.
+  `spec.fetch` is the builder's new arm for a domain that gathers its
+  own rows; everything downstream (same-name dedupe, the top cut, the
+  format checks) treats them identically.
+- **D266's artists disease, confirmed one domain over.** The unrefined
+  ranking led with George W. Bush, with Albert Camus (goalkeeper) and
+  Niels Bohr (footballer) in the top ten — sitelinks rank the person,
+  P106 only asks whether they ever played. Same cure: at least a third
+  of an entry's occupations athletic. And the same residue: the ratio
+  dropped Serena Williams (2/7) and Pelé (2/7) while keeping Ursula von
+  der Leyen (1/3 — physician, politician, equestrian). So the D267
+  machinery arrived WITH the catalogue: `content/athlete-review.json`,
+  same parse, same applyReview, same both-directions hold in
+  `check:catalogs` (now a loop over both review/catalogue pairs). First
+  ruling: 20 admits, 1 reject, every entry auditable by name.
+- A third, smaller one: Wikidata is migrating same-everywhere names onto
+  one `mul` label and deleting the per-language copies — a raw
+  `LANG="en"` filter silently dropped Messi, the most-linked footballer
+  on earth. The label fetch reads `en` and `mul`, `en` winning.
+
+Deities carry athletic occupations too (Apollo ranked 15th before the
+`P31 Q5` constraint), and 640 rather than TOP_N matches the owner's
+sheet — the tail past it is single-league fame that "Not listed" absorbs
+honestly.
+
+### 2 · The wiring, all of it the existing rails
+
+`ATHLETE_KEYS` in the generated key sets; `athletes: { keys }` in the
+trigger's CATALOG_DOMAINS; an `ATHLETES` store in `data/catalogs.ts`
+(export-only, like COUNTRIES); the PickSearch domain ("Search 640
+athletes…"); the pickStore arm and noun; `CATALOG_FILES` so promote
+recognises the domain; and `pick-pk28` — the owner's prompt, promoted
+editorial — with a demo crowd in the archive. 688 seeded questions now.
+
+### 3 · The browse tiles
+
+The pick ask was a search field alone: the catalogue was invisible until
+you already knew what to type. `ui/PickTiles.tsx` draws the catalogue's
+HEAD as tappable tiles over the search — the popularity head the file
+already ships, so browsing costs no read and invents no ranking — and a
+tap is exactly the search's pick. Entries with no visual of their own
+wear a generated face (dots, stripes, rings, a split — deterministic
+from the key, so a tile keeps its face across sessions); emoji draw the
+character itself and colours their own hue, though today the row is
+offered ONLY for the sitelink-ranked domains (films, artists, athletes):
+the alphabetical catalogues' head is not a fame ranking, and offering it
+as one would be the D1 shape of misleading. The row owns its horizontal
+motion (`.h-scroll`), or dragging through it would slide the daily's
+mode axis.

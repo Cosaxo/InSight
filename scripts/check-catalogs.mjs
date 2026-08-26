@@ -73,6 +73,7 @@ function parseCatalogue(file, label) {
 
 const films = parseCatalogue(join(root, "public", "films.txt"), "films.txt");
 const artists = parseCatalogue(join(root, "public", "artists.txt"), "artists.txt");
+const athletes = parseCatalogue(join(root, "public", "athletes.txt"), "athletes.txt");
 const emoji = parseCatalogue(join(root, "public", "emoji.txt"), "emoji.txt");
 const countries = parseCatalogue(join(root, "public", "countries.txt"), "countries.txt");
 const dogs = parseCatalogue(join(root, "public", "dogs.txt"), "dogs.txt");
@@ -144,37 +145,42 @@ if (colors.present) {
 // operator learns which one was right at 3am. The cross-check below —
 // review against the COMMITTED catalogue — is this file's own and shares
 // nothing.
-{
-  const REVIEW = join(root, "content", "artist-review.json");
+// The athletes domain rides the same rails since D304 — the loop is the
+// only change; every check inside it is D267's, verbatim.
+for (const [reviewFile, catalogue, catFile, buildArg] of [
+  ["artist-review.json", artists, "artists.txt", "artists"],
+  ["athlete-review.json", athletes, "athletes.txt", "athletes"],
+]) {
+  const REVIEW = join(root, "content", reviewFile);
   let raw = null;
   try {
     raw = JSON.parse(readFileSync(REVIEW, "utf8"));
   } catch (e) {
-    errors.push(`content/artist-review.json: ${existsSync(REVIEW) ? `unparseable — ${e.message}` : "missing"}`);
+    errors.push(`content/${reviewFile}: ${existsSync(REVIEW) ? `unparseable — ${e.message}` : "missing"}`);
   }
   if (raw) {
     const review = parseReview(raw);
-    for (const e of review.errors) errors.push(`content/artist-review.json ${e}`);
+    for (const e of review.errors) errors.push(`content/${reviewFile} ${e}`);
 
     // Both directions against the committed catalogue, and only when it
     // exists: absence is the designed state for this domain (D266), and a
     // review file with no catalogue yet is exactly what a filled-in
     // ruling looks like the moment before the operator runs the builder.
-    if (artists.present) {
-      const inCatalogue = new Set(artists.keys);
+    if (catalogue.present) {
+      const inCatalogue = new Set(catalogue.keys);
       for (const [qid, entry] of review.reject) {
         if (inCatalogue.has(qid)) {
           errors.push(
-            `artists.txt still carries ${entry.name} (Q${qid}), which content/artist-review.json `
-            + "rejects — re-run scripts/build-catalog.mjs artists, never hand-edit the catalogue",
+            `${catFile} still carries ${entry.name} (Q${qid}), which content/${reviewFile} `
+            + `rejects — re-run scripts/build-catalog.mjs ${buildArg}, never hand-edit the catalogue`,
           );
         }
       }
       for (const [qid, entry] of review.admit) {
         if (!inCatalogue.has(qid)) {
           errors.push(
-            `content/artist-review.json admits ${entry.name} (Q${qid}) but artists.txt does not `
-            + "carry them — re-run scripts/build-catalog.mjs artists",
+            `content/${reviewFile} admits ${entry.name} (Q${qid}) but ${catFile} does not `
+            + `carry them — re-run scripts/build-catalog.mjs ${buildArg}`,
           );
         }
       }
@@ -183,11 +189,11 @@ if (colors.present) {
       // are what bind, so this is the only place the names are checked
       // against anything.
       for (const [qid, entry] of [...review.reject, ...review.admit]) {
-        const name = artists.names.get(qid);
+        const name = catalogue.names.get(qid);
         if (name && name !== entry.name) {
           errors.push(
-            `content/artist-review.json calls Q${qid} ${JSON.stringify(entry.name)}, `
-            + `artists.txt calls it ${JSON.stringify(name)} — one of them is ruling on the wrong person`,
+            `content/${reviewFile} calls Q${qid} ${JSON.stringify(entry.name)}, `
+            + `${catFile} calls it ${JSON.stringify(name)} — one of them is ruling on the wrong person`,
           );
         }
       }
@@ -217,6 +223,7 @@ if (src !== null) {
   for (const [name, cat, label] of [
     ["FILM_KEYS", films, "films.txt"],
     ["ARTIST_KEYS", artists, "artists.txt"],
+    ["ATHLETE_KEYS", athletes, "athletes.txt"],
     ["EMOJI_KEYS", emoji, "emoji.txt"],
     ["COUNTRY_KEYS", countries, "countries.txt"],
     ["DOG_KEYS", dogs, "dogs.txt"],
@@ -246,6 +253,7 @@ if (errors.length) {
 console.log(
   `check:catalogs OK — films ${films.present ? films.keys.length : "absent"}, ` +
     `artists ${artists.present ? artists.keys.length : "absent"}, ` +
+    `athletes ${athletes.present ? athletes.keys.length : "absent"}, ` +
     `emoji ${emoji.present ? emoji.keys.length : "absent"}, ` +
     `countries ${countries.present ? countries.keys.length : "absent"}, ` +
     `dogs ${dogs.present ? dogs.keys.length : "absent"}, ` +

@@ -5867,6 +5867,18 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "pick-pk28",
+  "surface": "feed",
+  "seq": 1023,
+  "type": "catalog",
+  "domain": "athletes",
+  "prompt": "The greatest athlete who ever lived?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "group-gu0",
   "surface": "group",
   "seq": 0,

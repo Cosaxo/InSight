@@ -492,6 +492,11 @@ const NOT_SEEDED = {
     "build input, not content — the hand-reviewed exceptions to the artists "
     + "catalogue's mechanical rule (D267), read by scripts/build-catalog.mjs "
     + "and gated by check:catalogs against the committed catalogue",
+  "athlete-review.json":
+    "build input, not content — the athletes catalogue's reviewed "
+    + "exceptions (D304, the D267 shape one domain over), read by "
+    + "scripts/build-catalog.mjs and gated by check:catalogs against the "
+    + "committed catalogue",
   "pricing.json":
     "the published rate card, not question content (PAID-PLAN §6, D288 §3) "
     + "— imported by src/v2/data/pricing.ts (the door prints it verbatim), "

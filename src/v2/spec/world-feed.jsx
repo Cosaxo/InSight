@@ -19,7 +19,7 @@ import { TEST_FEED_QS } from './test-feed-data.js';
 import { testFeedPool } from '../data/testFeed.ts';
 import { WORLD_CHANNELS } from './world-feed-data.js';
 import PLACES from '../data/places';
-import { FILMS, ARTISTS, EMOJI } from '../data/catalogs';
+import { FILMS, ARTISTS, ATHLETES, EMOJI } from '../data/catalogs';
 import POKEDEX from '../data/pokedex';
 // The live who-voted sheet, cohort-first (D125) — it owns the cohort
 // choice, the split drawn for it and the named roster underneath, which
@@ -31,6 +31,7 @@ import POKEDEX from '../data/pokedex';
 // paint (D25), so importing it here keeps it in the deferred chunk
 // instead of pulling it into the first-paint bundle.
 import LiveBreakdownPanel from '../ui/LiveBreakdownPanel';
+import PickTiles from '../ui/PickTiles.tsx';
 // The pick board's size — deck.ts's pinned twin of the server's
 // CANON_TOP_N (vote.test.ts holds all three equal). An import for D39's
 // reason above: live.ts already carries deck.ts in the entry graph, so
@@ -1535,6 +1536,7 @@ class WorldFeed extends React.Component {
   pickStore(domain) {
     return domain === 'films' ? FILMS
       : domain === 'artists' ? ARTISTS
+      : domain === 'athletes' ? ATHLETES
       : domain === 'emoji' ? EMOJI
       : domain === 'elements' ? ELEMENTS_CATALOG
       : domain === 'countries' ? COUNTRIES
@@ -1580,7 +1582,33 @@ class WorldFeed extends React.Component {
     const v = this.pickVal(q);
     const store = this.pickStore(q.domain);
     if (v == null) {
-      return <PickSearch domain={q.domain} accent={T.color} big={big} onPick={(id) => this.setPick(q, id)} onNotListed={() => this.setPick(q, store ? store.NOT_LISTED : 0)} />;
+      // The browse row (D304): the catalogue's popularity head as tiles
+      // over the search, so the domain is visible before you know what to
+      // type. ONLY the sitelink-ranked domains — their file's head IS a
+      // fame ranking; offering the alphabetical catalogues' head as if it
+      // were one would be the D1 shape of misleading. peek() is the
+      // committed file already parsed; the one load it may kick is the
+      // same fetch the picker itself pays on open.
+      const tiled = q.domain === 'films' || q.domain === 'artists' || q.domain === 'athletes';
+      let head = [];
+      if (tiled && store && store.peek) {
+        head = (store.peek() || []).slice(0, 8).map((e) => ({ id: e.key, name: e.name }));
+        if (!head.length && store.load) {
+          const kicked = this._tileKick || (this._tileKick = {});
+          if (!kicked[q.domain]) {
+            kicked[q.domain] = 1;
+            store.load().then(() => this.setState({ dexTick: (this.state.dexTick || 0) + 1 }), () => { kicked[q.domain] = 0; });
+          }
+        }
+      }
+      const search = <PickSearch domain={q.domain} accent={T.color} big={big} onPick={(id) => this.setPick(q, id)} onNotListed={() => this.setPick(q, store ? store.NOT_LISTED : 0)} />;
+      if (!head.length) return search;
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <PickTiles domain={q.domain} entries={head} accent={T.color} onPick={(id) => this.setPick(q, id)} />
+          {search}
+        </div>
+      );
     }
     // The reveal is a canon, not a split: top entities above the floor,
     // everyone else in one bucket. Your own pick always shows to YOU — it
@@ -1613,7 +1641,7 @@ class WorldFeed extends React.Component {
     // it. The entity count renders only when the fold covers at least two
     // entries (the subtraction-leak rule the backend fold keeps) and steps
     // down like the vote counts do, so it never ticks per-answer.
-    const nounOf = { pokemon: 'Pokémon', emoji: 'emoji', films: 'films', artists: 'artists' };
+    const nounOf = { pokemon: 'Pokémon', emoji: 'emoji', films: 'films', artists: 'artists', athletes: 'athletes' };
     const foldNoun = nounOf[q.domain] || 'picks';
     const foldNote = c.restEntities >= 5
       ? ` votes across ${Math.floor(c.restEntities / 5) * 5}+ other ${foldNoun}`
