@@ -727,10 +727,21 @@ export const createPaidCheckoutV2 = onCall(
         },
       }],
       // The web pages exist for exactly this hop (commerce stays on the
-      // web side): web/paid-done.html and web/paid-cancel.html on the
+      // web side): web/paid-done*.html and web/paid-cancel.html on the
       // hosting origin home.html already serves. The app never learns of
       // the payment from these pages — the webhook is the truth.
-      success_url: "https://prvfire33.web.app/paid-done.html",
+      //
+      // ONE PAGE PER PRODUCT. Both kinds used to land on the question's
+      // page, which tells the buyer their QUESTION is going live, that it
+      // starts serving TOMORROW, that everything it collects lands in
+      // Asked by you, and that the unserved part REFUNDS automatically at
+      // close. For an ad all four are false — it queues behind the ad
+      // running in its scope, it asks nothing, and it has no refund path
+      // (D315) — so an advertiser was promised a refund in writing, at
+      // the moment of payment, that nothing in this file will ever issue.
+      success_url: isAd
+        ? "https://prvfire33.web.app/paid-done-ad.html"
+        : "https://prvfire33.web.app/paid-done.html",
       cancel_url: "https://prvfire33.web.app/paid-cancel.html",
     });
     await snap.ref.update({
