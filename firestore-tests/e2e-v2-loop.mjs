@@ -1793,10 +1793,21 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
       body: payload,
     });
   };
-  const sessionEvent = JSON.stringify({
+  // `payment_status` is what makes this a PAID completion. The session is
+  // created without `payment_method_types`, so Stripe's dynamic methods
+  // apply and EUR's delayed ones (SEPA debit, bank transfer) deliver
+  // `completed` with "unpaid" and settle later — this fixture carried no
+  // such field at all, so it could not tell the two apart.
+  const evt = (over) => JSON.stringify({
     id: "evt_e2e_1", object: "event", type: "checkout.session.completed",
-    data: { object: { id: "cs_e2e_1", object: "checkout.session", client_reference_id: bid, metadata: { bid }, payment_intent: "pi_e2e_1" } },
+    ...over,
+    data: { object: {
+      id: "cs_e2e_1", object: "checkout.session", client_reference_id: bid,
+      metadata: { bid }, payment_intent: "pi_e2e_1", payment_status: "paid",
+      ...(over?.data?.object || {}),
+    } },
   });
+  const sessionEvent = evt();
 
   // A tampered delivery is refused BEFORE any state moves.
   const forged = await signedPost(sessionEvent, "whsec_wrong");
@@ -1804,6 +1815,29 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   const stillApproved = await getDoc(doc(payDb, "v2_paid_bookings", bid));
   if (stillApproved.get("status") !== "approved") fail("a refused webhook still moved the booking");
   ok("a mis-signed webhook is refused and moves nothing");
+
+  // AN UNPAID COMPLETION MOVES NOTHING. This is the ordinary first half
+  // of a delayed method — the buyer has committed, the money has not
+  // arrived — and taking it as payment would serve a 29-day window
+  // against a debit that may never clear.
+  const unpaid = await signedPost(evt({ data: { object: { payment_status: "unpaid" } } }), whsec);
+  if (unpaid.status !== 200) fail("an unpaid completion errored: " + unpaid.status);
+  const afterUnpaid = await getDoc(doc(payDb, "v2_paid_bookings", bid));
+  if (afterUnpaid.get("status") !== "approved") {
+    fail("an UNPAID checkout went live: " + JSON.stringify(afterUnpaid.data()));
+  }
+  ok("an unpaid completion is acknowledged and moves nothing");
+
+  // …and the failure that can follow it revokes nothing, because nothing
+  // was granted. What it must not do is look like success.
+  const failedEvt = await signedPost(
+    evt({ type: "checkout.session.async_payment_failed", data: { object: { payment_status: "unpaid" } } }),
+    whsec,
+  );
+  if (failedEvt.status !== 200) fail("a failed async payment errored: " + failedEvt.status);
+  const afterFail = await getDoc(doc(payDb, "v2_paid_bookings", bid));
+  if (afterFail.get("status") !== "approved") fail("a FAILED payment moved the booking");
+  ok("a failed delayed payment is recorded and moves nothing");
 
   const paid = await signedPost(sessionEvent, whsec);
   if (paid.status !== 200) fail("webhook answered " + paid.status + ": " + await paid.text());
@@ -1892,7 +1926,9 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
 
   const adEvent = (evtId, csId, bid, pi) => JSON.stringify({
     id: evtId, object: "event", type: "checkout.session.completed",
-    data: { object: { id: csId, object: "checkout.session", client_reference_id: bid, metadata: { bid }, payment_intent: pi } },
+    // `payment_status: "paid"` for the same reason the question's fixture
+    // carries it: a completion is not a payment for every method.
+    data: { object: { id: csId, object: "checkout.session", client_reference_id: bid, metadata: { bid }, payment_intent: pi, payment_status: "paid" } },
   });
   const adPaid = await signedPost(adEvent("evt_e2e_ad1", "cs_ad1", ad1.data.id, "pi_ad1"), whsec);
   if (adPaid.status !== 200) fail("ad webhook answered " + adPaid.status);

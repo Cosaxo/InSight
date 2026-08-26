@@ -1046,7 +1046,35 @@ export const stripeWebhookV2 = onRequest(
       res.status(400).send("bad signature");
       return;
     }
-    if (event.type !== "checkout.session.completed") {
+    // THREE EVENTS, because "the checkout completed" is not "the money
+    // arrived" for every payment method.
+    //
+    // The session is created without `payment_method_types`, so Stripe's
+    // dynamic methods apply — and for EUR that can include the
+    // delayed-notification ones (SEPA Direct Debit, bank transfer). Those
+    // deliver `checkout.session.completed` with `payment_status: "unpaid"`
+    // and settle hours or days later. This endpoint took `completed` as
+    // payment received, so a 29-day window could serve in full against a
+    // debit that never cleared, and the failure event was answered
+    // "ignored".
+    //
+    // So: `completed` goes live only when it says paid;
+    // `async_payment_succeeded` is when a delayed method actually clears,
+    // and without it the guard alone would mean those buyers never went
+    // live at all; `async_payment_failed` has nothing to revoke — the
+    // guard is why — but it is logged loudly rather than swallowed,
+    // because a buyer sitting on an approved booking that will never pay
+    // itself is an operator's problem, not noise.
+    //
+    // docs/DEPLOYMENT.md lists the events to subscribe to; all three are
+    // named there now.
+    const KIND = {
+      "checkout.session.completed": "completed",
+      "checkout.session.async_payment_succeeded": "async_ok",
+      "checkout.session.async_payment_failed": "async_fail",
+    } as const;
+    const kind = KIND[event.type as keyof typeof KIND];
+    if (!kind) {
       // Everything else is noise at this endpoint; 200 stops the retries.
       res.status(200).send("ignored");
       return;
@@ -1056,6 +1084,24 @@ export const stripeWebhookV2 = onRequest(
     if (!bid) {
       logger.warn("[paid] completed session without a booking reference");
       res.status(200).send("no reference");
+      return;
+    }
+    if (kind === "async_fail") {
+      logger.error(`[paid] delayed payment FAILED for ${bid} — the booking stays approved and unpaid`, {
+        metric: "paid_async_failed",
+        bid,
+      });
+      res.status(200).send("async failed");
+      return;
+    }
+    if (session.payment_status !== "paid") {
+      // Not an error: this is the ordinary first half of a delayed
+      // method, and `async_payment_succeeded` is what finishes it.
+      logger.info(`[paid] session for ${bid} completed unpaid (${String(session.payment_status)}) — waiting to settle`, {
+        metric: "paid_awaiting_settlement",
+        bid,
+      });
+      res.status(200).send("not paid yet");
       return;
     }
     const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : null;
