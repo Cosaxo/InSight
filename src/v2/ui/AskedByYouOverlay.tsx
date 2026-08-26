@@ -156,6 +156,33 @@ function PurchaseCard({ p }: { p: Purchase }): React.ReactElement {
   );
 }
 
+/** one bought AD (D315): band + state · the card's own words · the flat
+ * price and the window. No split, no meter, no shelf — an ad collects
+ * nothing, and the card says so instead of drawing an empty chart. */
+function AdPurchaseCard({ p }: { p: Purchase }): React.ReactElement {
+  useCur();
+  return (
+    <div className="card" style={{ marginTop: 12, padding: "13px 14px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+        <Band>{`ad · ${p.place || "everyone"} · until ${p.win.until}`}</Band>
+        {p.state === "running" ? <StateChip label="running" acc="var(--accent)" /> : <StateChip label={p.state} hollow />}
+      </div>
+      <div style={{ marginTop: 10, fontFamily: SANS, fontSize: 16.5, fontWeight: 750, letterSpacing: "-0.02em", lineHeight: 1.2, textWrap: "pretty", color: "var(--ink)" }}>{p.headline}</div>
+      <div style={{ marginTop: 5, fontFamily: SANS, fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45, textWrap: "pretty" }}>{p.adBody}</div>
+      <div style={{ marginTop: 7, fontFamily: SANS, fontSize: 11, fontWeight: 650, color: "var(--ink-3)" }}>
+        {p.advertiser}{p.dims.length > 0 ? ` · ${p.dims.join(" · ")}` : ""}
+      </div>
+      <div style={{ marginTop: 11, display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8 }}>
+        <span style={K}>flat window — no meter</span>
+        <span style={{ fontFamily: SANS, fontSize: 10.5, fontWeight: 700, color: "var(--ink-2)", fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{fmt(p.priceEur)} · runs {p.win.start} → {p.win.until}</span>
+      </div>
+      <div style={{ marginTop: 6, fontFamily: SANS, fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.45 }}>
+        An ad collects nothing — no answers, no clicks, no tracking. It runs, that is all.
+      </div>
+    </div>
+  );
+}
+
 export default function AskedByYouOverlay({ onClose }: { onClose: () => void }): React.ReactElement {
   useCur();
   const [, bump] = React.useReducer((x: number) => x + 1, 0);
@@ -167,6 +194,7 @@ export default function AskedByYouOverlay({ onClose }: { onClose: () => void }):
   }, []);
   const rows = LIVE.enabled ? mine() : [];
   const questions = (rows || []).filter((p) => p.kind === "question");
+  const adRows = (rows || []).filter((p) => p.kind === "ad");
   const subsRows = (rows || []).filter((p) => p.kind === "subscription");
   return (
     <div className="overlay">
@@ -181,13 +209,14 @@ export default function AskedByYouOverlay({ onClose }: { onClose: () => void }):
         </div>
         {rows == null ? (
           <div style={{ marginTop: 18, fontFamily: SANS, fontSize: 13, fontWeight: 600, color: "var(--ink-3)", textAlign: "center" }}>Reading your contracts…</div>
-        ) : questions.length === 0 && subsRows.length === 0 ? (
+        ) : questions.length === 0 && adRows.length === 0 && subsRows.length === 0 ? (
           <div className="card" style={{ marginTop: 16, padding: "22px 18px", textAlign: "center", fontFamily: SANS, fontSize: 13.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.5 }}>
             Nothing bought from this account yet. The door is “Ask a question” — one paid slot a day, each place.
           </div>
         ) : (
           <>
             {questions.map((p) => <PurchaseCard key={p.id} p={p} />)}
+            {adRows.map((p) => <AdPurchaseCard key={p.id} p={p} />)}
             {subsRows.map((p) => (
               // A subscription row exists before its SURFACE does: the §5
               // series card (per-day docs, the pulse grammar) is unbuilt,

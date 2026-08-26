@@ -1950,7 +1950,7 @@ describe("paid purchase records (docs/PAID-PLAN.md §7, D288 §3)", () => {
     )));
   });
 
-  it("no client writes at all — the operator's admin script is the only pen", async () => {
+  it("no client writes at all — the pens are server-side (webhook + operator script)", async () => {
     await seedPurchase();
     // Not even the buyer: a contract record the buyer could edit would
     // let a cap, a window or a locked rate drift from what was signed.
@@ -1960,6 +1960,54 @@ describe("paid purchase records (docs/PAID-PLAN.md §7, D288 §3)", () => {
     }));
     await assertFails(updateDoc(doc(asUser(OWNER), "v2_purchases", PID), { state: "closed" }));
     await assertFails(deleteDoc(doc(asUser(OWNER), "v2_purchases", PID)));
+  });
+});
+
+describe("paid-question bookings (paid.ts, D313)", () => {
+  const BID = `${OWNER}_bk1`;
+  const seedBooking = () => seed(async (db) => {
+    await setDoc(doc(db, "v2_paid_bookings", BID), {
+      uid: OWNER, prompt: "Should the night buses run all night?",
+      type: "binary", options: ["All night", "The hours are fine"],
+      topic: "culture", scope: "city", dims: { city: "Oslo, NO" },
+      wearName: true, buyerName: "Olaf", status: "approved",
+      quote: { ratePerAnswer: 0.144, capEur: 320, cap: 2222, windowDays: 29 },
+      reviewAttempts: 0, createdAt: serverTimestamp(),
+    });
+  });
+
+  it("the buyer reads their own booking; a stranger and the signed-out do not", async () => {
+    await seedBooking();
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_paid_bookings", BID)));
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_paid_bookings", BID)));
+    await assertFails(getDoc(doc(asSignedOut(), "v2_paid_bookings", BID)));
+  });
+
+  it("not listable — only a mine-only query passes (the D65 shape)", async () => {
+    await seedBooking();
+    await assertSucceeds(getDocs(query(
+      collection(asUser(OWNER), "v2_paid_bookings"),
+      where("uid", "==", OWNER),
+    )));
+    await assertFails(getDocs(collection(asUser(OWNER), "v2_paid_bookings")));
+    await assertFails(getDocs(query(
+      collection(asUser(STRANGER), "v2_paid_bookings"),
+      where("uid", "==", OWNER),
+    )));
+  });
+
+  it("no client writes — booking, verdict and payment stamps are server pens only", async () => {
+    await seedBooking();
+    // Not even the buyer, and especially not the status: a client that
+    // could write "approved" or "live" would skip the review and the
+    // payment both. The callable + trigger + webhook are the only pens.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_paid_bookings", `${OWNER}_bk2`), {
+      uid: OWNER, prompt: "Ferry or bridge?", type: "binary",
+      options: ["Ferry", "Bridge"], scope: "world", dims: {},
+      wearName: false, status: "approved", createdAt: serverTimestamp(),
+    }));
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_paid_bookings", BID), { status: "live" }));
+    await assertFails(deleteDoc(doc(asUser(OWNER), "v2_paid_bookings", BID)));
   });
 });
 

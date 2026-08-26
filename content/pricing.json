@@ -1,77 +1,78 @@
 {
-  "generated": "2026-08-24",
-  "currency": "EUR",
-  "base": 0.16,
-  "floorX": 0.9,
-  "ceilX": 2.5,
-  "floorWeek": 500,
-  "capEur": 320,
-  "fx": {
-    "NOK": 11.6,
-    "USD": 1.08
+ "generated": "2026-08-24",
+ "currency": "EUR",
+ "base": 0.16,
+ "floorX": 0.9,
+ "ceilX": 2.5,
+ "floorWeek": 500,
+ "capEur": 320,
+ "adBase": 320,
+ "fx": {
+  "NOK": 11.6,
+  "USD": 1.08
+ },
+ "trailingDays": 28,
+ "cohorts": {
+  "city": {
+   "idx": 0.9,
+   "booked": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "nextOpen": null
   },
-  "trailingDays": 28,
-  "cohorts": {
-    "city": {
-      "idx": 0.9,
-      "booked": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "nextOpen": null
-    },
-    "country": {
-      "idx": 0.9,
-      "booked": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "nextOpen": null
-    },
-    "world": {
-      "idx": 0.9,
-      "booked": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "nextOpen": null
-    }
+  "country": {
+   "idx": 0.9,
+   "booked": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "nextOpen": null
   },
-  "estimates": {}
+  "world": {
+   "idx": 0.9,
+   "booked": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "nextOpen": null
+  }
+ },
+ "estimates": {}
 }

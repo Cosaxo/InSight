@@ -20,7 +20,7 @@ import { useDialog } from './primitives.jsx';
 import { WPAL } from './world-palette.js';
 import { SUGGESTIONS } from './suggestions.js';
 import { WORLD_TOPICS } from './world-feed-data.js';
-import { PRICING, rate, demandWord, fmt, subscribeCur } from '../data/pricing';
+import { PRICING, rate, adFlat, demandWord, fmt, subscribeCur } from '../data/pricing';
 // Imported so the printed slot position cannot drift from the one the feed
 // actually holds (data/sponsored.ts is the seller of record).
 import { SPONSOR_AT } from '../data/sponsored';
@@ -114,11 +114,35 @@ const SG_TYPES = [['binary', 'this or that'], ['dilemma', 'dilemma'], ['choice',
 // ── your asks: status first, and a decline that states the standard it
 // missed, the reason behind it, and — where one exists — the way forward.
 // A LIVE row shows the review's own note as the reason (SUGGESTIONS.declineOf).
+//
+// Booking rows (D313) add three states the legacy pipeline never had:
+// "checking" (the automated review is running — seconds, usually),
+// "approved" (the pay button IS the next step, priced from the locked
+// quote), and "live" (the window it is serving). The pay tap asks the
+// server for a Stripe URL and opens it in the system browser — commerce
+// stays on the web side; if the open is blocked, the link renders and
+// the tap is the person's own.
 function SgMine({ s, SG, onResend }) {
   const col = sgHueCol(s.hue);
   const d = SG.declineOf(s);
-  const tone = s.status === 'picked' ? 'var(--c-city)' : s.status === 'declined' ? 'var(--ink-3)' : 'var(--ochre-ink)';
-  const label = s.status === 'picked' ? 'ran' : s.status === 'declined' ? 'declined' : 'in review';
+  const [payBusy, setPayBusy] = useSgState(false);
+  const [payUrl, setPayUrl] = useSgState(null);
+  const [payErr, setPayErr] = useSgState(null);
+  const tone = s.status === 'picked' || s.status === 'live' ? 'var(--c-city)'
+    : s.status === 'declined' ? 'var(--ink-3)'
+      : s.status === 'approved' ? 'var(--accent-ink)' : 'var(--ochre-ink)';
+  const label = s.status === 'picked' ? 'ran' : s.status === 'live' ? 'live'
+    : s.status === 'declined' ? 'declined'
+      : s.status === 'approved' ? 'approved' : s.booking ? 'checking' : 'in review';
+  const pay = async () => {
+    if (payBusy) return;
+    setPayBusy(true); setPayErr(null);
+    const res = await SG.payFor(s.id);
+    setPayBusy(false);
+    if (!res || res.ok === false) { setPayErr((res && res.message) || 'That didn\'t go through — try again.'); return; }
+    const w = window.open(res.url, '_blank');
+    if (!w) setPayUrl(res.url); // popup blocked — hand the link over instead
+  };
   return (
     <div className="card" style={{ padding: '14px 15px', display: 'flex', flexDirection: 'column', gap: 9 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -127,12 +151,36 @@ function SgMine({ s, SG, onResend }) {
         <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' }}>{s.ago === 'just now' ? 'just now' : s.ago + ' ago'}</span>
       </div>
       <div style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 16.5, lineHeight: 1.26, letterSpacing: '-0.32px', textWrap: 'pretty' }}>{s.prompt}</div>
+      {s.kind === 'ad' && s.adBody ? (
+        <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.45, textWrap: 'pretty' }}>{s.adBody}</div>
+      ) : null}
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
         <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: col }}></span>
         <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>
-          {s.status === 'picked' && s.ran ? s.ran : SG.audienceLabel(s.audience) + ' · ' + SG.cadenceLabel(s.cadence)}
+          {s.status === 'picked' && s.ran ? s.ran
+            : s.status === 'live' && s.win ? (s.kind === 'ad' ? 'ad · ' : '') + SG.audienceLabel(s.audience) + ' · runs ' + s.win.start + ' → ' + s.win.until
+              : s.kind === 'ad' ? 'ad by ' + (s.advertiser || 'you') + ' · ' + SG.audienceLabel(s.audience)
+                : SG.audienceLabel(s.audience) + ' · ' + SG.cadenceLabel(s.cadence)}
         </span>
       </div>
+      {s.status === 'approved' && s.quote ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 25%)', paddingTop: 10 }}>
+          <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.5, textWrap: 'pretty' }}>
+            {s.kind === 'ad'
+              ? 'Approved at ' + fmt(s.quote.flatEur) + ' flat — it runs ' + s.quote.windowDays + ' days from your scope\'s first open ad day after you pay.'
+              : 'Approved at ' + fmt(s.quote.ratePerAnswer) + ' per answer, capped at ' + fmt(s.quote.capEur) + ' — it runs ' + s.quote.windowDays + ' days from the day after you pay, and the unserved part refunds at close.'}
+          </span>
+          <button className="press" onClick={pay} disabled={payBusy} style={{ alignSelf: 'flex-start', padding: '9px 15px', borderRadius: 999, cursor: payBusy ? 'default' : 'pointer', WebkitAppearance: 'none', border: 'none', background: 'var(--ink)', color: 'var(--surface)', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 800 }}>
+            {payBusy ? 'Opening…' : 'Pay ' + fmt(s.kind === 'ad' ? s.quote.flatEur : s.quote.capEur) + ' →'}
+          </button>
+          {payUrl ? (
+            <a href={payUrl} target="_blank" rel="noreferrer" style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, color: 'var(--accent-ink)' }}>Open the payment page →</a>
+          ) : null}
+          {payErr ? (
+            <div role="alert" style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 650, color: 'var(--ink)', background: 'var(--surface-2)', border: '0.5px solid var(--rule)', borderRadius: 10, padding: '10px 12px', lineHeight: 1.5, textWrap: 'pretty' }}>{payErr}</div>
+          ) : null}
+        </div>
+      ) : null}
       {d ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 25%)', paddingTop: 10 }}>
           <span style={{ fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 800, letterSpacing: '-0.01em' }}>{d.line}</span>
@@ -256,20 +304,28 @@ const sgInput = {
 };
 
 // ── the composer IS the paid flow: question → shape → place & window →
-// price → contract. Money buys the place and the window, never the review
-// and never the frame (docs/PAID-PLAN.md; D288 §3). The contract step is
-// honest about its state: the paid path is a human contract today, so the
-// sheet names that instead of pretending a checkout exists.
+// price → book. Money buys the place and the window, never the review
+// and never the frame (docs/PAID-PLAN.md; D288 §3). Since D313 the flow
+// is machinery end to end: booking → automated review → Stripe checkout
+// on the web → live — and the sheet states exactly that, because the
+// old "human contract today" sentence stopped being true the day the
+// loop stopped needing one.
 function SgForm({ SG, initialAudience, onDone, onCancel }) {
   const [prompt, setPrompt] = useSgState('');
   const [type, setType] = useSgState('binary');
   const [opts, setOpts] = useSgState(['', '']);
   const [topicId, setTopicId] = useSgState(null);
-  const [cadence, setCadence] = useSgState('once');
+  // The ad lane (D315): same door, same review, same checkout — a
+  // different product behind the switch. Text-only, link-free, always
+  // named, flat-priced; the composer's question apparatus (type, options,
+  // topic) simply is not it.
+  const [adMode, setAdMode] = useSgState(false);
+  const [advertiser, setAdvertiser] = useSgState('');
+  const [headline, setHeadline] = useSgState('');
+  const [adBody, setAdBody] = useSgState('');
   const [audience, setAudience] = useSgState(initialAudience || 'world');
   const [wearName, setWearName] = useSgState(true);
   const [ageDim, setAgeDim] = useSgState(false);
-  const [topicDim, setTopicDim] = useSgState(false);
   const [paidStep, setPaidStep] = useSgState('form');
   const [sending, setSending] = useSgState(false);
   // the server's refusal, shown verbatim — the messages are written to be
@@ -284,19 +340,28 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
   const chooseType = (t) => { setType(t); const n = t === 'binary' ? 2 : t === 'dilemma' ? 3 : 4; setOpts(Array.from({ length: n }, (_, i) => opts[i] || '')); };
   const setOpt = (i, v) => setOpts((o) => o.map((x, j) => (j === i ? v : x)));
   const filled = opts.filter((o) => o.trim());
-  const valid = prompt.trim() && (!needOpts || filled.length >= 2);
+  const valid = adMode
+    ? advertiser.trim() && headline.trim() && adBody.trim()
+    : prompt.trim() && (!needOpts || filled.length >= 2);
 
   const scopeKey = audience === 'city' || audience === 'country' ? audience : 'world';
   const scopeName = sgScopeName(SG, audience);
   const band = SG.ageBand();
-  const hasTopicDim = topicDim && !!topic;
   const parentLabel = scopeKey === 'city' ? sgScopeName(SG, 'country') : 'everyone';
+  // Only dims the SERVING can match (sponsored.ts reads the anchors) —
+  // topic left this list with D313: it is content, the match never reads
+  // it, and a band printing an audience the device cannot verify would be
+  // the disclosure design lying about itself.
+  //
+  // An ad wears AT MOST ONE tag (D197 rule 4), and a place scope IS one —
+  // so the age chip only exists for a world-scoped ad, and the flag is
+  // ignored where a place already fills the quota.
+  const ageDimOn = ageDim && band && (!adMode || audience === 'world');
   const dims = [];
   if (audience === 'city') dims.push('City: ' + SG.audienceLabel('city'));
   if (audience === 'country') dims.push('Country: ' + SG.audienceLabel('country'));
-  if (ageDim && band) dims.push('Age: ' + band);
-  if (hasTopicDim) dims.push('Topic: ' + topic.label.toLowerCase());
-  const extraDims = (ageDim && band ? 1 : 0) + (hasTopicDim ? 1 : 0);
+  if (ageDimOn) dims.push('Age: ' + band);
+  const extraDims = ageDimOn ? 1 : 0;
   const buyer = wearName ? SG.meName() : 'The buyer';
   const whyLine = dims.length
     ? buyer + ' asked for ' + dims.map((d) => d.slice(d.indexOf(': ') + 2)).join(' · ') + ', and your profile says that.'
@@ -320,7 +385,22 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
   const submit = async () => {
     if (!valid || sending) return;
     setSending(true); setRefusal(null);
-    const res = await SG.submit({ prompt, type, options: needOpts ? opts : [], topic: topic ? topic.label : '', hue, cadence, audience });
+    // The audience the server books is RAW buckets (SG.audienceBucket) —
+    // the labels on the chips are display, and sponsored.ts matches the
+    // stored anchor values with exact equality. Topic is content, not an
+    // audience dim: nothing in the serving can match on it, and a band
+    // printing a dim the match never reads would be a disclosure that lies.
+    const dims = {};
+    if (audience === 'city') { const b = SG.audienceBucket('city'); if (b) dims.city = b; }
+    if (audience === 'country') { const b = SG.audienceBucket('country'); if (b) dims.country = b; }
+    if (ageDimOn) { const b = SG.audienceBucket('ageBand'); if (b) dims.ageBand = b; }
+    const res = await SG.submitPaid(adMode
+      ? { kind: 'ad', advertiser, headline, body: adBody, scope: scopeKey, dims }
+      : {
+        kind: 'question', prompt, type, options: needOpts ? opts : [],
+        topic: topic ? topic.id : null,
+        scope: scopeKey, dims, wearName,
+      });
     setSending(false);
     if (res && res.ok === false) { setRefusal(res.message); return; }
     onDone();
@@ -329,12 +409,28 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
   return (
     <div className="card" style={{ marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', marginBottom: 7 }}>
-        <div style={sgLabel}>your question</div>
+        <div style={sgLabel}>{adMode ? 'your ad' : 'your question'}</div>
         <span style={{ flex: 1 }}></span>
         <button onClick={onCancel} style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, color: 'var(--ink-2)' }}>Cancel</button>
       </div>
+      {/* the product switch (D315): a question collects answers and bills
+          per answer; an ad is text with a flat window. Same review, same
+          checkout, different object — the form says which it is building. */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+        <SgDoorChip on={!adMode} label="a question" onTap={() => setAdMode(false)}></SgDoorChip>
+        <SgDoorChip on={adMode} label="an ad — text only, no link" onTap={() => setAdMode(true)}></SgDoorChip>
+      </div>
+      {adMode ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+          <input value={advertiser} onChange={(e) => setAdvertiser(e.target.value)} placeholder="Advertiser — the name on the card" autoComplete="organization" maxLength={40} style={sgInput}></input>
+          <input value={headline} onChange={(e) => setHeadline(e.target.value)} placeholder="Headline" autoComplete="off" autoCapitalize="sentences" maxLength={70} style={sgInput}></input>
+          <input value={adBody} onChange={(e) => setAdBody(e.target.value)} placeholder="One line of text — no links, nothing tappable" autoComplete="off" autoCapitalize="sentences" enterKeyHint="done" maxLength={140} style={{ ...sgInput, padding: '10px 13px' }}></input>
+        </div>
+      ) : (
       <input value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="e.g. Sunrise or sunset?" autoFocus autoComplete="off" autoCapitalize="sentences" enterKeyHint="done" style={sgInput}></input>
+      )}
 
+      {adMode ? null : <>
       <div style={{ ...sgLabel, margin: '14px 0 7px' }}>hints · the review decides</div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
         {SG_TYPES.map(([id, lab]) => {
@@ -378,8 +474,24 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
           );
         })}
       </div>
+      </>}
 
-      {prompt.trim() ? (
+      {adMode && headline.trim() ? (
+        <div style={{ marginTop: 14 }}>
+          <div style={{ ...sgLabel, marginBottom: 7 }}>preview</div>
+          <div style={{ border: '1px solid var(--rule)', borderRadius: 16, background: 'var(--surface)', padding: '14px 14px 13px' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--ink)', color: 'var(--surface)', borderRadius: 999, padding: '4px 11px', maxWidth: '100%', boxSizing: 'border-box' }}>
+              <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 800, letterSpacing: '0.16em', flexShrink: 0 }}>PAID</span>
+              <span aria-hidden="true" style={{ width: 1, height: 12, background: 'color-mix(in oklch, var(--surface) 42%, transparent)', flexShrink: 0 }}></span>
+              <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{advertiser.trim() || 'Advertiser'}</span>
+            </div>
+            <div style={{ fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 19, lineHeight: 1.15, letterSpacing: '-0.4px', textWrap: 'pretty', margin: '10px 0 6px' }}>{headline}</div>
+            {adBody.trim() ? <div style={{ fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.45, textWrap: 'pretty' }}>{adBody}</div> : null}
+          </div>
+        </div>
+      ) : null}
+
+      {!adMode && prompt.trim() ? (
         <div style={{ marginTop: 14 }}>
           <div style={{ ...sgLabel, marginBottom: 7 }}>preview</div>
           <div style={{ border: '1px solid color-mix(in oklch, ' + topicCol + ' 26%, var(--rule))', borderRadius: 16, background: 'var(--surface)', padding: '14px 14px 12px' }}>
@@ -409,31 +521,51 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
         {paidStep === 'contract' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ border: '0.5px solid var(--rule)', borderRadius: 12, background: 'var(--surface-2)', padding: '2px 12px' }}>
-              {[
+              {(adMode ? [
                 ['Scope', scopeName],
-                ['Window', sgNextOpen(scopeKey)
-                  ? 'from ' + sgNextOpen(scopeKey) + ' · 29 days'
-                  : 'no open day in the next 14'],
+                // An ad's window queues behind the scope's running ad
+                // (D315) — its day-exclusivity is what the flat price
+                // buys, so the start is "first open ad day", not a date
+                // the sheet could go stale holding.
+                ['Window', 'first open ad day after you pay · 29 days'],
                 ['Audience', dims.join(' · ') || 'everyone — untagged'],
-                ['Rate', fmt(rate(scopeKey)) + ' per answer · ×' + PRICING.cohorts[scopeKey].idx + ' · locked'],
+                ['Price', fmt(adFlat(scopeKey)) + ' flat · ×' + PRICING.cohorts[scopeKey].idx + ' · locked at approval'],
+              ] : [
+                ['Scope', scopeName],
+                // The functional window (D313): serving starts the day
+                // after payment lands — never a pre-picked day that goes
+                // stale while the checkout sits open.
+                ['Window', 'from the day after you pay · 29 days'],
+                ['Audience', dims.join(' · ') || 'everyone — untagged'],
+                ['Rate', fmt(rate(scopeKey)) + ' per answer · ×' + PRICING.cohorts[scopeKey].idx + ' · locked at approval'],
                 ...(est ? [['Estimate', '≈ ' + sgFmtN(est.perDay * 29) + ' answers · from ' + est.campaigns + ' campaign' + (est.campaigns === 1 ? '' : 's')]] : []),
-                ['Your cap', fmt(PRICING.capEur) + ' — billing stops there'],
-              ].map((r, i, arr) => (
+                ['Your cap', fmt(PRICING.capEur) + ' up front · unserved answers refund at close'],
+              ]).map((r, i, arr) => (
                 <div key={r[0]} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, padding: '7px 0', borderBottom: i < arr.length - 1 ? '0.5px solid color-mix(in oklch, var(--rule), transparent 25%)' : 'none' }}>
                   <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' }}>{r[0]}</span>
                   <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 750, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums', textAlign: 'right' }}>{r[1]}</span>
                 </div>
               ))}
             </div>
+            {/* "Arranged directly for now — no self-serve yet" stood here
+                until D313 made it false: the loop is machinery now, and
+                the sheet says what the machinery actually does. The old
+                estimate line promised a free window extension nothing was
+                built to grant — the refund is the promise the closer
+                actually keeps. */}
             <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.5, textWrap: 'pretty' }}>
-              {est
-                ? 'Locked rate · the claim never shrinks · under 80% of the estimate at close, the window extends free until it is met.'
-                : 'Locked rate · the claim never shrinks.'}
+              {adMode
+                ? 'Flat price, no meter — an ad collects no answers, no clicks and no tracking. Other ads never overlap yours; a paid question in your scope shares the slot day-for-day.'
+                : 'Locked rate · billed per answer · what the window doesn\'t deliver refunds automatically at close.'}
             </span>
-            <span style={{ fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 750, color: 'var(--ink)' }}>Arranged directly for now — no self-serve yet.</span>
-            <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.45 }}>We reply within a day with the contract, at the published rate-card line.</span>
+            <span style={{ fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 750, color: 'var(--ink)' }}>Checked automatically before anything is charged.</span>
+            <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.45 }}>
+              {adMode
+                ? 'Approved ads unlock payment; the card runs from your scope\'s first open ad day and retires itself at window end.'
+                : 'Approved asks unlock payment; the card runs from the day after you pay, and every answer lands where you can watch it.'}
+            </span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <button className="press" onClick={submit} disabled={!valid || sending} style={{ flex: 1, minHeight: 44, borderRadius: 999, cursor: valid && !sending ? 'pointer' : 'default', WebkitAppearance: 'none', border: 'none', background: valid ? 'var(--ink)' : 'var(--surface-3)', color: valid ? 'var(--surface)' : 'var(--ink-3)', fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 800 }}>{sending ? 'Sending…' : 'Write to us →'}</button>
+              <button className="press" onClick={submit} disabled={!valid || sending} style={{ flex: 1, minHeight: 44, borderRadius: 999, cursor: valid && !sending ? 'pointer' : 'default', WebkitAppearance: 'none', border: 'none', background: valid ? 'var(--ink)' : 'var(--surface-3)', color: valid ? 'var(--surface)' : 'var(--ink-3)', fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 800 }}>{sending ? 'Booking…' : 'Book it →'}</button>
               <button className="press" onClick={() => setPaidStep('form')} style={{ border: 'none', background: 'none', cursor: 'pointer', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, color: 'var(--ink-2)' }}>Keep the draft</button>
             </div>
             {refusal ? (
@@ -444,35 +576,44 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
-                <span style={sgLabel}>scope — who gets asked</span>
-                <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>posted per answer · card of {sgDay(PRICING.generated)}</span>
+                <span style={sgLabel}>{adMode ? 'scope — who sees it' : 'scope — who gets asked'}</span>
+                <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>{adMode ? 'flat per window' : 'posted per answer'} · card of {sgDay(PRICING.generated)}</span>
               </div>
               <SgScopeRuler SG={SG} value={audience} onPick={setAudience}></SgScopeRuler>
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                <span style={sgLabel}>audience · combine freely</span>
+                <span style={sgLabel}>{adMode ? 'audience · one tag' : 'audience · combine freely'}</span>
                 <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>every dim is printed on the card</span>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 7 }}>
                 <SgDoorChip on={audience === 'city'} label={'City: ' + SG.audienceLabel('city')} onTap={() => setAudience(audience === 'city' ? 'world' : 'city')}></SgDoorChip>
                 <SgDoorChip on={audience === 'country'} label={'Country: ' + SG.audienceLabel('country')} onTap={() => setAudience(audience === 'country' ? 'world' : 'country')}></SgDoorChip>
-                {band ? <SgDoorChip on={ageDim} label={'Age: ' + band} onTap={() => setAgeDim(!ageDim)}></SgDoorChip> : null}
-                {topic ? <SgDoorChip on={hasTopicDim} label={'Topic: ' + topic.label.toLowerCase()} onTap={() => setTopicDim(!topicDim)}></SgDoorChip> : null}
+                {band && (!adMode || audience === 'world') ? <SgDoorChip on={ageDimOn} label={'Age: ' + band} onTap={() => setAgeDim(!ageDim)}></SgDoorChip> : null}
               </div>
+              {/* the floor line forecasts ANSWERS, which an ad does not
+                  collect — in ad mode the sentence would be about the
+                  wrong product, so it is absent rather than reworded */}
+              {adMode ? null : (
               <div style={{ marginTop: 7, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 650, color: underFloor ? 'var(--accent-ink)' : 'var(--ink-3)', lineHeight: 1.45, textWrap: 'pretty' }}>
                 {floorLine}
               </div>
+              )}
             </div>
             <div>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                 <span style={sgLabel}>window</span>
                 <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>first open day: {sgNextOpen(scopeKey) || 'none in the next 14'}</span>
               </div>
+              {/* "ask it daily" left with D313: the over-time lane is the
+                  pulse machinery (PAID-PLAN §8) and it is not wired to
+                  self-serve — a chip that books nothing different would be
+                  a control that lies. It returns when that lane does. */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 7 }}>
                 <SgDoorChip on={true} label="29 days" onTap={() => {}}></SgDoorChip>
-                <SgDoorChip on={cadence === 'daily'} label="ask it daily" onTap={() => setCadence(cadence === 'daily' ? 'once' : 'daily')}></SgDoorChip>
-                <SgDoorChip on={wearName} label="wear your name" onTap={() => setWearName(!wearName)}></SgDoorChip>
+                {adMode
+                  ? <SgDoorChip on={true} label={'named: ' + (advertiser.trim() || 'the advertiser')} onTap={() => {}}></SgDoorChip>
+                  : <SgDoorChip on={wearName} label="wear your name" onTap={() => setWearName(!wearName)}></SgDoorChip>}
               </div>
             </div>
             <div style={{ border: '1px solid color-mix(in oklch, var(--ink) 22%, var(--rule))', borderRadius: 14, background: 'var(--surface-2)', padding: '11px 12px' }}>
@@ -482,8 +623,10 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
               </div>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--ink)', color: 'var(--surface)', borderRadius: 999, padding: '4px 11px', marginTop: 9, maxWidth: '100%', boxSizing: 'border-box' }}>
                 <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 800, letterSpacing: '0.16em', flexShrink: 0 }}>PAID</span>
-                {wearName ? <span aria-hidden="true" style={{ width: 1, height: 12, background: 'color-mix(in oklch, var(--surface) 42%, transparent)', flexShrink: 0 }}></span> : null}
-                {wearName ? <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{SG.meName()}</span> : null}
+                {(adMode || wearName) ? <span aria-hidden="true" style={{ width: 1, height: 12, background: 'color-mix(in oklch, var(--surface) 42%, transparent)', flexShrink: 0 }}></span> : null}
+                {adMode
+                  ? <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{advertiser.trim() || 'Advertiser'}</span>
+                  : wearName ? <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{SG.meName()}</span> : null}
                 <span aria-hidden="true" style={{ width: 1, height: 12, background: 'color-mix(in oklch, var(--surface) 42%, transparent)', flexShrink: 0 }}></span>
                 <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, opacity: 0.72, whiteSpace: 'nowrap', flexShrink: 0 }}>29 days</span>
               </div>
@@ -493,9 +636,13 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
                   user reads. SponsorMark.tsx says the honest version on the
                   card and its test pins the old words out; this door says the
                   same. */}
-              <div style={{ marginTop: 3, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 650, color: 'var(--ink-2)', lineHeight: 1.45 }}>They get the same public numbers you do. There is no private cut.</div>
-              {prompt.trim() ? <div style={{ marginTop: 8, fontFamily: 'var(--sans)', fontSize: 15.5, fontWeight: 750, letterSpacing: '-0.02em', lineHeight: 1.2, textWrap: 'pretty' }}>{prompt}</div> : null}
-              {prompt.trim() && needOpts ? (
+              <div style={{ marginTop: 3, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 650, color: 'var(--ink-2)', lineHeight: 1.45 }}>
+                {adMode ? 'Text only, nothing tappable, nothing tracked — the card is the whole ad.' : 'They get the same public numbers you do. There is no private cut.'}
+              </div>
+              {adMode && headline.trim() ? <div style={{ marginTop: 8, fontFamily: 'var(--sans)', fontSize: 15.5, fontWeight: 750, letterSpacing: '-0.02em', lineHeight: 1.2, textWrap: 'pretty' }}>{headline}</div> : null}
+              {adMode && adBody.trim() ? <div style={{ marginTop: 5, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.45, textWrap: 'pretty' }}>{adBody}</div> : null}
+              {!adMode && prompt.trim() ? <div style={{ marginTop: 8, fontFamily: 'var(--sans)', fontSize: 15.5, fontWeight: 750, letterSpacing: '-0.02em', lineHeight: 1.2, textWrap: 'pretty' }}>{prompt}</div> : null}
+              {!adMode && prompt.trim() && needOpts ? (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
                   {(filled.length ? filled : ['Option 1', 'Option 2']).map((o, i, arr) => (
                     <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, border: '0.5px solid var(--rule)', borderRadius: 999, padding: '4px 11px', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 650, color: 'var(--ink-2)', opacity: filled.length ? 1 : 0.45 }}>
@@ -508,7 +655,7 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ minWidth: 0 }}>
-                  <span style={{ display: 'block', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 800, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{fmt(rate(scopeKey))} / answer</span>
+                  <span style={{ display: 'block', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 800, color: 'var(--ink)', fontVariantNumeric: 'tabular-nums' }}>{adMode ? fmt(adFlat(scopeKey)) + ' / window' : fmt(rate(scopeKey)) + ' / answer'}</span>
                   <span style={{ display: 'block', fontFamily: 'var(--sans)', fontSize: 10, fontWeight: 600, color: 'var(--ink-3)' }}>×{PRICING.cohorts[scopeKey].idx} · locked at booking</span>
                 </span>
                 <span style={{ flex: 1 }}></span>
@@ -533,6 +680,22 @@ function SuggestOverlay({ onClose }) {
   const [formAud, setFormAud] = useSgState('world');
   const c = SG.counts();
   const mine = SG.mine();
+  // While a booking sits in "checking", poll its row: the automated
+  // review settles in seconds and the verdict should land on the open
+  // sheet, not behind a reopen. Bounded (every 4s, ~2 minutes) rather
+  // than a listener — the door is opened, not watched (D124/D129), and
+  // past the burst the sweep's cadence is slower than anyone waits.
+  const checking = mine.some((s) => s.booking && s.status === 'review');
+  React.useEffect(() => {
+    if (!checking) return undefined;
+    let ticks = 0;
+    const t = setInterval(() => {
+      ticks += 1;
+      if (ticks > 30) { clearInterval(t); return; }
+      SG.refreshBookings();
+    }, 4000);
+    return () => clearInterval(t);
+  }, [checking, SG]);
   return (
     <div className="overlay" {...dlg}>
       <div className="app-header">

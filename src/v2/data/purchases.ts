@@ -13,10 +13,11 @@
 //      (D110) — nothing below runs at module scope.
 //
 // There is NO write path here at all — not a callable, not a fallback.
-// The operator's admin script is the collection's only pen
-// (scripts/record-purchase.mjs; firestore.rules pins `write: if false`),
-// and the room's whole honesty story is that it reads the buyer's own
-// rows plus the same public aggregates everyone reads.
+// The collection's pens are server-side (the Stripe payment webhook for
+// self-serve sales — paid.ts, D313 — and scripts/record-purchase.mjs for
+// hand contracts; firestore.rules pins `write: if false`), and the
+// room's whole honesty story is that it reads the buyer's own rows plus
+// the same public aggregates everyone reads.
 //
 // The split's reads: one v2_question_aggs getDoc per purchase, fetched
 // with the list and cached with it. A buyer has a handful of contracts;
@@ -27,8 +28,14 @@ import { getFirestoreApi, getDb, subscribeToAuth } from "../../lib/firebase";
 export interface PurchaseReport { label: string; ready: boolean; note?: string }
 export interface Purchase {
   id: string;
-  kind: "question" | "subscription";
+  kind: "question" | "subscription" | "ad";
   qid: string;
+  /** the ad sale's half (D315) — empty strings on question rows. An ad
+   * has a flat price and no meter: nothing here to count. */
+  advertiser: string;
+  headline: string;
+  adBody: string;
+  priceEur: number;
   prompt: string;
   options: string[];
   scope: "city" | "country" | "world";
@@ -74,12 +81,16 @@ function parseRow(id: string, d: Record<string, unknown>): Purchase {
   const w = (d.window || {}) as Record<string, unknown>;
   const b = (d.budget || {}) as Record<string, unknown>;
   const scope = ["city", "country", "world"].includes(str(d.scope)) ? (str(d.scope) as Purchase["scope"]) : "world";
-  const kind = d.kind === "subscription" ? "subscription" : "question";
+  const kind = d.kind === "subscription" ? "subscription" : d.kind === "ad" ? "ad" : "question";
   const state = d.state === "closed" ? "closed" : d.state === "lapsed" ? "lapsed" : "running";
   return {
     id,
     kind,
     qid: str(d.qid),
+    advertiser: str(d.advertiser),
+    headline: str(d.headline),
+    adBody: str(d.body),
+    priceEur: num(d.priceEur),
     prompt: str(d.prompt),
     options: Array.isArray(d.options) ? d.options.map((o) => str(o)) : [],
     scope,
