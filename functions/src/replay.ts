@@ -614,8 +614,25 @@ export async function runRebuild(
       // Both documents, because the private one is a real accumulator and
       // the public one is its projection — writing only one would leave
       // the next answer folding from a board it cannot fold from.
-      await privRef.set({ ent: canon.ent, entBy: canon.entBy, total: canon.total }, { merge: false });
-      await pubRef.set(canonPublishable(canon), { merge: false });
+      //
+      // ONE BATCH, not two awaits. The trigger writes this pair inside a
+      // transaction (v2.ts's catalog branch), so a rebuild that wrote them
+      // separately could be interleaved: a fold landing between the two
+      // left the private accumulator holding a real vote and the public
+      // board replaced with the projection from before it. The same split
+      // survives a process that dies mid-pair — a function timeout, an
+      // unhandled rejection — and on a quiet or retired catalogue nothing
+      // may answer that question again to repair it.
+      //
+      // What a batch does NOT close is the window between the stamp check
+      // above and this commit: a fold committing in there is overwritten
+      // either way. That one is transient — the private accumulator and
+      // the board still agree, and the next answer folds forward from
+      // them — which is exactly what the split state was not.
+      const batch = db.batch();
+      batch.set(privRef, { ent: canon.ent, entBy: canon.entBy, total: canon.total }, { merge: false });
+      batch.set(pubRef, canonPublishable(canon), { merge: false });
+      await batch.commit();
     } else if (arm === "rank") {
       await pubRef.set({ total: rank.total, pos: rank.pos }, { merge: false });
     } else {
