@@ -20,7 +20,10 @@ better understand, and get deeper data about, each other (the owner,
 2026-08-25) — so cross-axis connection is first-class subject matter
 in every lane (charter §1), with genetic and body explicitly charged
 with theorizing how the other axes' traits map onto genes and onto the
-body's parts and systems. Each lane improves one theory every other
+body's parts and systems. Sharper still (the owner, 2026-08-26): each
+axiom's purpose, or at least its main one, is to create data and
+data-connections as powerful and useful as possible — or to make
+another axiom's data stronger and more useful. Each lane improves one theory every other
 day (re-paced by the owner 2026-08-25 from the initial three-hourly
 trial) — as a claims graph with an evidence ladder (conjecture →
 argued → cited → measured), advanced by bounded runs that must move a
@@ -30,13 +33,16 @@ the buildable one — and just as deliberately may not disregard law,
 ethics or honesty (charter §9: no medical advice, no invented sources,
 consent and privacy as design axioms).
 
-Six of the eight are subject lanes — genetic, body, questions, tests,
-plus **map theory** (how everything should be displayed) and **pattern
-theory** (how patterns should be found). **Central** synthesizes: the
-combination theory, the axiom portfolio, new-axiom proposals, focus
-questions into the other lanes, and the weekly `DIGEST.md`. The
-**graph optimizer** keeps the graphs themselves healthy, including its
-own methods.
+Nine lanes: four subject axioms — genetic, body, questions, tests —
+plus **map theory** (how everything should be displayed), **pattern
+theory** (how patterns should be found), and **database theory** (the
+perfect, most efficient and most useful database for the axes and
+their connections — deliberately *not* an axiom, the owner's note
+2026-08-26: it stores and serves the measured sources; it is not one).
+**Central** synthesizes: the combination theory, the axiom portfolio,
+new-axiom proposals, focus questions into the other lanes, and the
+weekly `DIGEST.md`. The **graph optimizer** keeps the graphs
+themselves healthy, including its own methods.
 
 ## Why the branch shape
 
@@ -69,7 +75,7 @@ disposes.
 
 ## The account-side inventory (product-side copy)
 
-All eight fire a **fresh session per run** on model `claude-fable-5`
+All nine fire a **fresh session per run** on model `claude-fable-5`
 (the owner's 2026-08-25 direction: Fable orchestrates, subagents are
 Opus at matched effort, never lower), completion notifications off —
 the digest is the legibility channel.

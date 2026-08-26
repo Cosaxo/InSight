@@ -31,6 +31,10 @@ axes exist to be connected.** One of the app's core functions is to
 use and connect the different axes to better understand — and get
 deeper data about — each other. A trait read by one axis is shallow
 alone; crossed against the rest it becomes the thing the app is for.
+Sharper (the owner, 2026-08-26): each axis's purpose, or at least its
+main one, is to create data and data-connections as powerful and
+useful as possible — or to make another axis's data stronger and more
+useful.
 Every coupling below answers to that sentence, and so does the theory
 layer: [`AXIOM-THEORY.md`](AXIOM-THEORY.md)'s lanes carry it as
 first-class subject matter (charter §1), with genetic and body
