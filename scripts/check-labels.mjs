@@ -43,6 +43,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { stripComments } from "./strip-comments.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const srcDir = join(root, "src");
@@ -72,11 +73,6 @@ function walk(dir, out = []) {
 // a phantom one. profile-general.jsx has both — its Select comment says
 // "point at it with htmlFor" — so this is load-bearing, not defensive.
 // Newlines are preserved so reported line numbers stay true.
-function stripComments(src) {
-  return src
-    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
-    .replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + " ".repeat(m.length - p1.length));
-}
 
 // Read one JSX attribute value starting at `from` (the index just past `=`).
 // Returns { raw, end } or null.

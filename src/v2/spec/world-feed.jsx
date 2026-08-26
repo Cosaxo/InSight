@@ -106,12 +106,12 @@ const WF_DEFER_LS = 'insight.feedDefer.v1';
 const WF_BRANCH = { food: 'Food', sport: 'Body', movies: 'Taste', music: 'Taste', tech: 'Mind', culture: 'Values', dilemma: 'Morals', event: 'Mind', people: 'Values', bigq: 'Values', fav: 'Taste' };
 const WF_TOPICS = window.WORLD_TOPICS || [];
 const WF_TOPIC = Object.fromEntries(WF_TOPICS.map((t) => [t.id, t]));
-const WF_CHANNELS = WORLD_CHANNELS || [];
+const WF_CHANNELS = WORLD_CHANNELS;
 const WF_CHAN_SET = Object.fromEntries(WF_CHANNELS.map((id) => [id, true]));
 // second level of the tree: colour comes from the parent topic, label from the leaf
-const WF_SUB = (id) => (id && SUBTOPICS ? SUBTOPICS.get(id) : null);
+const WF_SUB = (id) => (id ? SUBTOPICS.get(id) : null);
 // background knowledge, only where a question can't be answered honestly without it
-const WF_BGTEXT = (q) => (q && (q.bg || (WORLD_BG || {})[q.id])) || null;
+const WF_BGTEXT = (q) => (q && (q.bg || WORLD_BG[q.id])) || null;
 const WF_LINE = '1px solid color-mix(in oklch, var(--rule), transparent 25%)';
 
 // ── the mounted window (D136) ──
@@ -392,7 +392,7 @@ class WorldFeed extends React.Component {
         });
       })
       : null;
-    this._unsubSubs = SUBTOPICS ? SUBTOPICS.subscribe(() => this.forceUpdate()) : null;
+    this._unsubSubs = SUBTOPICS.subscribe(() => this.forceUpdate());
     this._unsubLearn = LEARN.subscribe(() => this.forceUpdate());
     this._unsubLF = LEARN_FEED.subscribe(() => this.forceUpdate());
     // The purge (data/live.ts, D51): this component PERSISTS four of its
@@ -607,7 +607,7 @@ class WorldFeed extends React.Component {
     PASSIVE.record(q); // no-op unless this is a test's own question (q.test)
     // …and the same for a lens question. The scale runs agree→disagree while
     // the lens stores disagree→agree, hence 4 - val.
-    if (LENSES && q.lens) LENSES.record({ ...q, value: typeof val === 'number' ? 4 - val : 2 });
+    if (q.lens) LENSES.record({ ...q, value: typeof val === 'number' ? 4 - val : 2 });
     if (!refused) this._fresh = id; // gates the reveal's count-up + bar growth to the vote moment
     // the vote is felt, then the crowd's answer is felt arriving — timed to the
     // same stagger the bars use (2 steps), so hand and eye agree
@@ -616,7 +616,7 @@ class WorldFeed extends React.Component {
     // the feed's memory: with the crowd or against it. Local to this device
     // (feed-read.js) — it reports only your own answers, so no floor applies.
     // No crowd on a selfOnly card means no majority to be with.
-    if (FEEDREAD && q.options && typeof val === 'number' && !selfOnly) {
+    if (q.options && typeof val === 'number' && !selfOnly) {
       const counts = q.options.map((o) => o.count);
       const { p } = wfPcts(counts, val);
       FEEDREAD.log(id, { maj: p[val] === Math.max(...p) });
@@ -2237,7 +2237,7 @@ class WorldFeed extends React.Component {
     }
     // The 'add' panel has no question behind it, so every read of `q` from
     // here down has to tolerate its absence.
-    const takes = q ? ((WORLD_FEED_COMMENTS || {})[q.id] || []) : [];
+    const takes = q ? (WORLD_FEED_COMMENTS[q.id] || []) : [];
     const hasStats = true;
     const open = (id) => this.setState({ sheet: { q, T, panel: id }, sideFilter: null, replyTo: null });
     const D = big ? 32 : 30;
@@ -2413,7 +2413,7 @@ class WorldFeed extends React.Component {
     if (q.type === 'rate') return this.renderRateInsight(q, T, big);
     if (q.type === 'dial') return this.renderDialInsight(q, T, big);
     if (q.type === 'field') return this.renderFieldInsight(q, T, big);
-    if (!feedInsight || !q.options) return null;
+    if (!q.options) return null;
     const mine = typeof this.state.votes[q.id] === 'number' ? this.state.votes[q.id] : null;
     const counts = q.options.map((o) => o.count);
     // feedInsight here is the LIVE version (feed-read.js): it reads q alone,
@@ -2456,7 +2456,7 @@ class WorldFeed extends React.Component {
     const { q, T, panel } = s;
     // The 'add' panel has no question behind it, so every read of `q` from
     // here down has to tolerate its absence.
-    const takes = q ? ((WORLD_FEED_COMMENTS || {})[q.id] || []) : [];
+    const takes = q ? (WORLD_FEED_COMMENTS[q.id] || []) : [];
     const close = () => {
       if (s.closing) return;
       this.setState({ sheet: { ...s, closing: true }, replyTo: null, reportFor: null });
@@ -2694,7 +2694,24 @@ class WorldFeed extends React.Component {
       rows.push(['Asked in', scene ? scene.name : leaf ? leaf.label : T.label]);
       const cat = q.type === 'pick' ? WF_CATALOGS[q.catalog] : null;
       if (cat) rows.push(['Catalogue', cat.total + ' ' + cat.noun]);
-      const n = wfVotes(q);
+      // THE SAME TOTAL THE CARD PRINTS. renderMeta draws
+      // `wfPcts(counts, mine).total`, which adds the viewer's own vote
+      // back: a live count EXCLUDES it (countsFor, data/deck.ts) and
+      // adding it is this surface's convention, not the rounding's.
+      // wfVotes is the RAW sum — right as the "top" sort key at the
+      // bottom of this file, wrong here, where the number sits one tap
+      // from the card's. On a card you had just answered the card said
+      // "13 votes" and this sheet said "Answers 12".
+      //
+      // Only the vote-bar shape diverged: rank, rate, dial, field and
+      // pick carry their own published totals, which the card prints
+      // unadjusted too, so those keep wfVotes.
+      const barShape = !!q.options
+        && q.type !== 'rank' && q.type !== 'rate' && q.type !== 'dial'
+        && q.type !== 'field' && q.type !== 'pick';
+      const n = barShape
+        ? wfPcts(q.options.map((o) => o.count), this.state.votes[q.id]).total
+        : wfVotes(q);
       if (n) rows.push(['Answers', wfFmt(n)]);
       rows.push(['On your map', WF_BRANCH[q.cat] || 'Interests']);
     }
@@ -3629,7 +3646,7 @@ class WorldFeed extends React.Component {
     const tm = q.test ? PASSIVE.META[q.test] : null;
     // a lens question wears its lens's own name and hue, the same way a test
     // question wears its test's — otherwise it reads as an off-topic card
-    const lz = !tm && q.lens && LENSES ? LENSES.get(q.lens) : null;
+    const lz = !tm && q.lens ? LENSES.get(q.lens) : null;
     const mk = tm || (lz ? { label: lz.title, accent: `oklch(0.56 0.13 ${lz.hue})` } : null);
     // a knowledge card wears its field, coloured by its subject
     const kn = q.type === 'know' ? LEARN.field(q.f) : null;
@@ -3869,7 +3886,7 @@ class WorldFeed extends React.Component {
     // testFeedPool(), not the imported demo array: a live build's items
     // come from the bank with published counts, and reading the import
     // directly is what served fabricated ones for a build (D280).
-    const testSplit = partitionAnswered(testFeedPool(TEST_FEED_QS || []).filter((q) => PASSIVE.testFor(q)), sunk);
+    const testSplit = partitionAnswered(testFeedPool(TEST_FEED_QS).filter((q) => PASSIVE.testFor(q)), sunk);
     // Deferred items leave the stream until their wait is up (D121).
     //
     // Sampled ONCE per build, like `sunk` above and for the same reason: a

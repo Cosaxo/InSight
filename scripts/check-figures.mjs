@@ -34,15 +34,15 @@
 // seed step, and the seed step's number is the one an operator reads to
 // decide whether a seed run did what it should.
 //
-// It grew the k-floor pair after D81 paused it. The pause was scrupulous
-// in the app — every floor sentence branches on the constant, gated by
-// floor.test — and missed in prose: README kept claiming the design
-// floor, under the heading "Honesty is the architecture", which is the
-// UI-says-it-server-doesn't failure this product defines itself against,
-// committed in documentation instead of UI. The pair's entries hold in
-// both directions, so the eventual revert (D81's two-literal edit) fails
-// every stale pause sentence instead of trusting someone to remember
-// them — the prose half of the enumeration D81 promises.
+// It grew the k-floor pair after D81 paused it, and both entries are GONE
+// now — D98 deleted the constants and every sentence that quoted them, so
+// the reads went with them (the note beside the bank scan below is the
+// account). The episode is kept here because it is why this gate exists at
+// all: the pause was scrupulous in the app — every floor sentence branched
+// on the constant, gated by floor.test — and missed in prose, where README
+// went on claiming the design floor under the heading "Honesty is the
+// architecture". That is the UI-says-it-server-doesn't failure this product
+// defines itself against, committed in documentation instead of UI.
 //
 // DECISIONS.md is deliberately NOT covered. Its arithmetic is the state at
 // the moment a decision was taken, so a figure there going "stale" is the
@@ -333,7 +333,114 @@ const shippedFunctions = readdirSync(resolve(root, "functions", "src"), { recurs
     0,
   );
 
+// The feed bank and its core/tail split. Both figures were stale when
+// D296's audit looked: docs/SCALE-PLAN.md said "All 82 ... carry
+// core: true" and content/README.md said "Feed questions (82)", against a
+// file holding 130 questions of which 50 declare `core: false`. The second
+// half is the one that mattered — SCALE-PLAN's whole argument is about what
+// an unbounded feed costs, and a reader told the tail was empty would plan
+// against a state that ended some time ago. Counted here so neither can
+// drift again.
+const feedQs = JSON.parse(read("content/feed-questions.json")).questions;
+const feedCount = feedQs.length;
+const feedCoreCount = feedQs.filter((q) => q.core === true).length;
+const feedTailCount = feedQs.filter((q) => q.core === false).length;
+
+// Spec modules fully off the shared-global bridge: they export something and
+// assign nothing to window/globalThis, so an importer gets a binding and
+// there is no publication left behind. Read from the directory, never from a
+// list — CLAUDE.md hand-listed seven while the tree held 32, understating
+// its own migration by 25 modules, in the paragraph directly above the one
+// warning that a hand-kept figure does not stay current. Same shape and same
+// reason as the shippedFunctions walk above.
+const convertedSpecModules = (() => {
+  const dir = join(root, "src/v2/spec");
+  return readdirSync(dir)
+    .filter((f) => /\.(js|jsx)$/.test(f))
+    .filter((f) => {
+      const src = readFileSync(join(dir, f), "utf8");
+      if (!/^\s*export\s/m.test(src)) return false;
+      return !/(?:globalThis|window)\.[A-Za-z_$][\w$]*\s*=[^=]|Object\.assign\(\s*(?:globalThis|window)\s*,/.test(src);
+    }).length;
+})();
+
+// The mount smoke files, counted off the directory. CLAUDE.md §2 calls them
+// out by glob and then says how many, and the two parted company when
+// smoke-live.test.jsx landed: the glob matched six while the sentence said
+// five. Same class as every other entry here — a number beside a pattern,
+// where the pattern moves and the number does not.
+const smokeFiles = readdirSync(join(root, "src/v2/test"))
+  .filter((f) => /^smoke-.*\.test\.jsx$/.test(f)).length;
+
+// The city catalogue's size, read off the generated file's own header — the
+// same line check-cities.mjs parses. It is quoted exactly once in live
+// documentation and was quoted in seven code comments besides, none of them
+// gated; the comments now say "~11k" so a regeneration cannot make them
+// wrong by one, and this holds the one sentence that states the number.
+const cityPlaces = Number(
+  /# (\d+) places in \d+ countries/.exec(read("public/cities.txt"))?.[1] ?? 0,
+);
+
 const FIGURES = [
+  {
+    file: "docs/SCALE-PLAN.md",
+    what: "feed questions declaring `core: true`",
+    // `\s+` across the wrap, as elsewhere in this table — the sentence
+    // breaks after "in", and a re-wrap must not silently stop matching.
+    re: /(\d+) of the (?:\d+) in\s+`content\/feed-questions\.json` carry `core: true`/,
+    actual: String(feedCoreCount),
+    fix: (n) => `"${n} of the ${feedCount} ... carry \`core: true\`"`,
+  },
+  {
+    file: "docs/SCALE-PLAN.md",
+    what: "feed questions in the bank",
+    re: /(?:\d+) of the (\d+) in\s+`content\/feed-questions\.json` carry `core: true`/,
+    actual: String(feedCount),
+    fix: (n) => `"... of the ${n} in content/feed-questions.json"`,
+  },
+  {
+    file: "docs/SCALE-PLAN.md",
+    what: "feed questions declaring `core: false` (the tail)",
+    // `\s+` across the wrap: the clause breaks after "declare".
+    re: /(\d+) declare\s+`core: false`/,
+    actual: String(feedTailCount),
+    fix: (n) => `"${n} declare \`core: false\`"`,
+  },
+  {
+    file: "content/README.md",
+    what: "feed questions in the bank",
+    re: /\| Feed questions \((\d+)\)/,
+    actual: String(feedCount),
+    fix: (n) => `"Feed questions (${n})"`,
+  },
+  {
+    file: "docs/CATALOG-QUESTIONS.md",
+    what: "places in the city catalogue",
+    re: /`public\/cities\.txt` \(([\d,]+) places/,
+    actual: cityPlaces.toLocaleString("en-US"),
+    fix: (n) => `"\`public/cities.txt\` (${n} places"`,
+  },
+  {
+    file: "CLAUDE.md",
+    what: "mount smoke files over one harness (§2)",
+    re: /smoke-\*\.test\.jsx` \((\w+) files over one harness/,
+    actual: NUMBER_WORDS[smokeFiles] || String(smokeFiles),
+    fix: (n) => `"(${n} files over one harness"`,
+  },
+  {
+    file: "CLAUDE.md",
+    what: "spec modules off the shared-global bridge (§1)",
+    re: /^(\d+) modules are already off the bridge/m,
+    actual: String(convertedSpecModules),
+    fix: (n) => `"${n} modules are already off the bridge"`,
+  },
+  {
+    file: "CLAUDE.md",
+    what: "how far that figure had drifted (§1)",
+    re: /understate the migration by (\d+)\n?modules/m,
+    actual: String(convertedSpecModules - 7),
+    fix: (n) => `"understate the migration by ${n} modules"`,
+  },
   {
     file: "docs/LAUNCH-RUNBOOK.md",
     what: "monitoring alerts the operator step applies",

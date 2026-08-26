@@ -3,11 +3,10 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import React from 'react';
 
 // RelationshipMap — core: demo data, palette, color scales, and the
 // force-directed / rings layout engine. No JSX — loads as a plain script.
-// View lives in relationship-map.jsx, detail panels in relationship-map-panels.jsx.
+// View lives in relmap.jsx, detail panels in relmap-panels.jsx.
 let RMCoreExport;
 (function () {
   // ── deterministic PRNG ──

@@ -45,7 +45,7 @@ Safety answers when store listing time comes.
 | Profile photo (opt-in) | `v2_avatars/{uid}` + Storage `avatars/{uid}` | any signed-in user | D178: one image per account, at a FIXED object id so a second upload replaces the first rather than adding to a pile. The document holds a Storage download **token** — never a URL, so the field cannot name a host we do not control — plus `hidden`/`hiddenMeta`, which is a take's own shape: a face is reported, queued and removed through the same pipeline (D22/D83), and once removed it is frozen against both ways back (re-upload and delete-then-recreate). Off by default; initials are the permanent fallback. `deleteAccount` removes the document AND the object — the first Storage delete this app has ever done, and the reason `storage.rules` can no longer say erasure does not reach the bucket. **A REMOVE VERDICT now deletes the object too (D223).** It used to write `hidden: true` and stop, which hid the face everywhere the app draws it and nowhere else: `storage.rules` grants `avatars/{uid}` to any signed-in caller with no reference to that document, so the removed image was still two ordinary API calls away. The gate cannot live in the rules — Storage rules reach only the `(default)` database and D165 moved this app to a named one — so the delete is the control. The cost, stated: once the object is gone a wrongly-removed face is unappealable in substance; `hiddenMeta` keeps the DECISION auditable, not the image |
 | Flags on a take | `v2_flags` | nobody (write-only) | one per (take, user); circle takes flaggable by members, world takes by any signed-in user (D83); anonymous to the audience AND to the moderation run, which sees only server-folded counts |
 | Moderation queue | `v2_mod_queue` | nobody (server only) | holds a **copy of a flagged take's text**, so the run reads one collection and never the circle around it. Carries no author uid, deliberately. Erased when its take is |
-| Moderation verdicts | `v2_mod_verdicts` | nobody (server only) | append-only audit log: take id, verdict, policy line, run id, generation, and the MODERATOR's uid. No author text and no author uid |
+| Moderation verdicts | `v2_mod_verdicts` | nobody (server only) | append-only audit log: take id, verdict, policy line, run id, generation, and the MODERATOR's uid. No author text, and no author uid **as a field** — but the TAKE ID is not neutral, and this row said it was. A world take's id is `{qid}_{authorUid}` (firestore.rules pins it, and that determinism is the one-take bound) and a reported face is `av_{uid}`, so for those two shapes the id — and the stored `takeId` — carries the moderated account's uid, and a world take's carries the question it was written under. Only a circle take, which `postTake` mints as a Firestore auto-id, is uid-free. Corrected 2026-08-26; the retention is unchanged and deliberate (see the survivors list below), what changed is the description of it |
 | Question suggestions | `v2_suggestions` | **the author, and only the author** | "Ask a question" — the paid door (D288 §1 retired the community board, so every row here is a paid ask; the review conversation is where its contract is arranged): prompt, form, options, topic/audience/cadence hints, a credit opt-in, `status` (review / picked / declined) and a reviewer note. Written only by `suggestQuestionV2` (App Check, 3/day budget, declines place-scoped civic asks at the door — that subject is the paid research path); read by operators through `fetchSuggestionsV2`/`reviewSuggestionV2`. Promotion into the banks stays the human PR path (`--source community` provenance) — a picked suggestion becomes content carrying a vintage, never a byline. Rows erased by `deleteAccount` |
 | Paid purchase records | `v2_purchases` | **the buyer, and only the buyer** | one row per contract (PAID-PLAN §7, D288 §3): kind (question / subscription), the sponsored qid, scope + place, the D228 dims (≤3, each printed on the card's band), window, cadence, the budget cap and the per-answer rate LOCKED at booking, state, and the report-shelf milestones. Written only by the operator at contract time (`scripts/record-purchase.mjs`, admin SDK — selling is by hand, PAID-PLAN §9.2); no client write path and no callable. The demand the door shows is never read from here: `scripts/build-pricing.mjs` folds these rows into the committed `content/pricing.json`, which is the public half. Rows erased by `deleteAccount` (phase 4e) — the contract itself stays the business record, off-app |
 | Aggregates (exact) | `v2_aggs_private` | nobody (server only) | the CATALOG fold's accumulator, and nothing else. It used to hold the same numbers as the public document for every question — a cache, not a curtain, once D98 removed the floor those copies sat above — and that copy is gone: vote, edit and rank answers write no document here at all, because the published doc is their accumulator. What remains is the whole per-entity `ent` map and its `entBy` slices, of which `v2_question_aggs` publishes a bounded top-N. More than what publishes, never other than it; still no readers and still no secrets |
@@ -160,11 +160,26 @@ Three things deliberately survive, and all belong on a store form:
   and only an opt-out recorded by an older build turns it off) — and
 - **moderation verdict rows** (`v2_mod_verdicts`). They record that a take
   id was removed, kept or escalated, under which policy line, by which
-  moderator — no author text, no author uid. Once the take, the flags and
-  the profile are gone the id resolves to nothing, so what remains is a
-  record of a moderator's decision rather than data about the person who
-  was moderated. Kept because the log is the audit trail the advisory
-  phase's judgement is assessed from, and it is append-only by design.
+  moderator — no author text, and no author uid in any field.
+  **THE ID IS NOT NEUTRAL, and this paragraph used to say it was**: it
+  claimed that once the take, the flags and the profile are gone "the id
+  resolves to nothing". It does not. A world take's id is
+  `{qid}_{authorUid}` and a reported face is `av_{uid}`, so for those two
+  shapes the row retains a pseudonymous identifier of the moderated
+  account — and, for a world take, the question they wrote under — after
+  everything else about them is erased. A circle take's id is a Firestore
+  auto-id and does resolve to nothing.
+  Kept because the log is the audit trail the advisory phase's judgement is
+  assessed from, and it is append-only by design. What the retention COSTS
+  is the sentence above, stated accurately rather than assumed away.
+  **Open, and the owner's call**: `web/privacy.html` says "Two things
+  intentionally survive, and neither can identify you" and names the
+  aggregates and the error reports. This is a third, and for two of the
+  three take shapes the "neither can identify you" half does not hold. The
+  fix is either a disclosure on that page or a change to how a verdict is
+  keyed — the second trades the join the queue and the verdict share — and
+  neither is a change to make unattended. Raised 2026-08-26; recorded
+  with the arithmetic as **D293**.
 
 Journal-era (v1) collections (`insight_users/*`, `insight_discoverable`,
 aggregates) are no longer reachable by any client — their rules were

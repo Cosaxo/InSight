@@ -141,12 +141,19 @@ This is deliberate and temporary (see `src/v2/README.md`), but it is
 load-bearing today — and "temporary" only became true when something
 started measuring it (D39; see **The convention is shrinking** below).
 
-Seven modules are already off the bridge: `primitives.jsx`, `sample-data.js`,
-`daily-questions.js`, `world-catalogs.js`, `follows.js`, `result-rose.jsx`
+32 modules are already off the bridge — they export and publish nothing,
+so they are ordinary ESM with named exports. They are still listed in
+`spec-index.js`, but nothing waits on their side effects: the line is
+inertia plus rule 2, not a dependency. `primitives.jsx`, `sample-data.js`
 and `archetype-data.js` (D253 — the conversion that also lets the report
-builder run the matcher under node) are ordinary ESM modules with named
-exports. They are still listed in `spec-index.js`, but nothing waits on
-their side effects — the line is inertia plus rule 2, not a dependency.
+builder run the matcher under node) are the ones cited most often below.
+
+That figure is `check:figures`'s, computed off the tree, and it said
+**seven** in prose for long enough to understate the migration by 25
+modules — in the paragraph directly above the one warning that a
+hand-maintained figure is the documentation error this repo keeps
+re-committing. Run `npm run check:figures` rather than trusting this
+sentence; it is the sentence the gate now holds.
 
 **Rule 2 asks whether a file LOADS, not whether `spec-index.js` names it.**
 A spec module imported by another spec module satisfies it through the ESM
@@ -185,7 +192,7 @@ real slipped through:
 - `src/v2/data/vote.test.ts` pins the `window.LIVE` member surface, because
   renaming a member there passes tsc (consumers are `.jsx`), eslint and
   check:globals — then blanks the Map on a device.
-- `src/v2/test/smoke-*.test.jsx` (five files over one harness,
+- `src/v2/test/smoke-*.test.jsx` (six files over one harness,
   `test/mount-app.jsx`) mount `App` in jsdom and walk both tabs and every
   overlay. The three guards above are all **name**-level; these are the only
   ones that execute a render. Measured, not assumed: injecting

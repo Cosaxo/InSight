@@ -37,6 +37,7 @@ import { groupPortrait, MIN_SHARED, type GroupPortrait, type PortraitReveal } fr
 // instrument uses for a group reading, so "runs most like you" never
 // speaks from thinner history than a role would.
 import { MIN_GROUP } from "../data/roles";
+import { likenessRate } from "../data/cohort";
 
 // The stop's constellation (D152) — shared with Circle and the cohort
 // stops, so a group's cast is arranged by the same rule as every other
@@ -338,10 +339,28 @@ function LiveGroupsMirrorBody() {
       .map((x) => ({ x, p: groupPortrait(S.revealHistory(x.id) as unknown as PortraitReveal[], LIVE.uid) }))
       .filter((r) => r.p.daysPlayed >= MIN_GROUP);
     if (scored.length < 2) return null;
-    scored.sort((a, b) => b.p.alignPct - a.p.alignPct
+    // `likenessRate`, not the printed percentage — D277 §2's rule, and
+    // this was the site that had not converted when bfb5e9f6 said every
+    // sibling had. Sorting on alignPct puts a circle played twice, both
+    // days with the majority, above one at 45 of 50: "Book Club runs most
+    // like you — with it on 2 of the 2 days you played" is a sentence
+    // about a coin landing twice. Its own data module already ranks people
+    // this way (groupPortrait), for exactly this reason.
+    scored.sort((a, b) =>
+      likenessRate(b.p.meWithMaj, b.p.daysPlayed) - likenessRate(a.p.meWithMaj, a.p.daysPlayed)
       || b.p.daysPlayed - a.p.daysPlayed
       || (a.x.name || "").localeCompare(b.x.name || ""));
-    return scored[0];
+    // …and nobody is crowned on identical figures. The final clause is a
+    // NAME tiebreak that never returns 0, so a flat field named whichever
+    // circle sorted first alphabetically and presented it as a finding.
+    // groupPortrait's own twin/breaks-ranks labels carry the same guard
+    // and record the case it was reproduced on.
+    const flat = likenessRate(scored[0].p.meWithMaj, scored[0].p.daysPlayed)
+      === likenessRate(
+        scored[scored.length - 1].p.meWithMaj,
+        scored[scored.length - 1].p.daysPlayed,
+      );
+    return flat ? null : scored[0];
   })();
 
   return (

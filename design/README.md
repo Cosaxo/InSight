@@ -53,6 +53,22 @@ data mocked): open it in a browser and it runs. Treat it as **read-only**
 — design iteration ended with this file, and changes from here happen in
 the real codebase.
 
+## Two directories here are NOT frozen
+
+`read-only reference` describes the standalone revisions above. It does not
+describe these two, and reading it as though it did is the mistake this
+section exists to prevent — they are live sources with builders and gates
+pointed at them:
+
+| Path | What it is | What reads it |
+| --- | --- | --- |
+| `icon/` | `mark.svg`, the single source every app icon and the Play feature graphic is rasterised from | `scripts/gen-icons.mjs`, `scripts/gen-feature-graphic.mjs` |
+| `store/` | The store metadata: `store/listing.json` (marketing copy), `store/app-privacy.json` (the privacy nutrition label that exists twice on purpose), the generated `store/feature-graphic.png` and `store/screenshots/` | `scripts/asc-push.mjs` sends it to App Store Connect; `check:store-listing`, `check:store-forms`, `check:store-copy` and `check:data-inventory` read it |
+
+Editing `store/listing.json` changes what the App Store shows. Editing
+`store/app-privacy.json` changes what the app tells Apple it collects, and
+`check:store-forms` holds it to `docs/STORE-FORMS.md` in both directions.
+
 ## What v18 adds over v17
 
 Fourteen of the 93 modules moved, plus the page styles — a revision, not a

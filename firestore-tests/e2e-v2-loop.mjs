@@ -28,6 +28,7 @@ import { BREAKDOWN_DIMS, BREAKDOWN_DIM_VOCAB } from "../functions/lib/pure.js";
 // The report builder (PAID-PLAN §9.2): §7g drives it through THIS
 // harness's signed-in client, so the deployed rules referee every read.
 import { REPORT_READ_SET, buildReportData, makeReader, renderReportHtml } from "../scripts/report-lib.mjs";
+import { expectCode, expectDenied, fail, ok } from "./e2e-lib.mjs";
 
 // The named database (D165). The backend writes to FIRESTORE_DB_ID, so a
 // harness on `(default)` reads an empty database and reports a phantom
@@ -43,22 +44,6 @@ const fns = getFunctions(app, FUNCTIONS_REGION); connectFunctionsEmulator(fns, "
 adminInit({ projectId: "demo-insight" });
 const adminDb = adminFirestore(E2E_DB_ID);
 
-const fail = (msg) => { console.error("✗ " + msg); process.exit(1); };
-const ok = (msg) => console.log("✓ " + msg);
-
-// A bare `try { …; fail() } catch { ok() }` passes on ANY error — a typo, a
-// dropped connection, an emulator that never came up. For a SECURITY
-// assertion that is worse than no test, because it still counts toward the
-// green tally that gates the deploy. Demand the specific denial.
-const expectDenied = async (label, op) => {
-  try {
-    await op();
-  } catch (e) {
-    if (e?.code === "permission-denied") return ok(label);
-    return fail(`${label} — expected permission-denied, got ${e?.code || e}`);
-  }
-  fail(`${label} — the operation was ALLOWED`);
-};
 
 // 1 · anonymous-first auth (D3)
 const cred = await signInAnonymously(auth);
@@ -558,6 +543,61 @@ ok("breakdown: ageBand and city both 5/5; single-bucket country published");
   if (JSON.stringify(after.get("by").ageBand) !== JSON.stringify(untouched.get("by").ageBand))
     fail("the rebuild changed the breakdown: " + JSON.stringify(after.get("by").ageBand));
   ok("D290: --apply round-trips the aggregate unchanged, matrix and breakdown intact");
+}
+
+// 7i · the empty-scan refusal. THE MOST DESTRUCTIVE THING THIS TOOL CAN DO
+// is not a wrong fold — it is a right fold of nothing. The stamp guard
+// above catches an aggregate written DURING the scan; it cannot catch the
+// quieter case, where nobody wrote and the scan simply returned nothing.
+// Then the stamps match, the guard passes, and a whole-document `set` puts
+// `total: 0` over a document holding real votes.
+//
+// A scan returns nothing far more often because the query did not work — a
+// composite index still building after a deploy, a qid that does not match
+// what the answers carry — than because a question's answers are genuinely
+// gone. Both look identical from inside the function, so the refusal is on
+// the COMPARISON: no answers found, but something published.
+//
+// Found by the first production dry run (2026-08-25), which reported
+// `scanned 0 … drift: none` — correct, vacuous, and one flag away from
+// having overwritten something if the project had held any answers.
+{
+  const EMPTY = "e2e-empty-scan";
+  await adminDb.doc(`v2_questions/${EMPTY}`).set({ type: "binary", options: ["a", "b"], surface: "feed" });
+  await adminDb.doc(`v2_question_aggs/${EMPTY}`).set({ total: 7, counts: { 0: 4, 1: 3 }, by: {} });
+
+  // The dry run is allowed and must SAY it compared nothing, rather than
+  // reporting the -7 as if it had found a discrepancy in a fold it ran.
+  const dry = (await httpsCallable(fns, "rebuildAggregateV2")({ qid: EMPTY })).data;
+  if (dry.scanned !== 0) fail("the fixture is wrong — something answered " + EMPTY);
+  if (dry.emptyScan !== true) fail("a zero scan did not report emptyScan: " + JSON.stringify(dry));
+  if (dry.drift.total !== -7) fail("drift should be the whole published total: " + JSON.stringify(dry.drift));
+  ok("D290: a zero scan reports emptyScan and the full negative drift");
+
+  // …and applying it is refused. Demand the specific code: a bare catch
+  // here would pass on the not-found this step's own fixture could cause.
+  try {
+    await httpsCallable(fns, "rebuildAggregateV2")({ qid: EMPTY, apply: true });
+    fail("an empty scan OVERWROTE a published aggregate");
+  } catch (e) {
+    if (e?.code !== "functions/failed-precondition")
+      fail("expected failed-precondition on an empty scan, got " + (e?.code || e));
+  }
+  const survived = await adminDb.doc(`v2_question_aggs/${EMPTY}`).get();
+  if (survived.get("total") !== 7) fail("the refusal still wrote: " + JSON.stringify(survived.data()));
+  ok("D290: --apply on an empty scan is refused, and the aggregate survives");
+
+  // The escape hatch works, because a question's answers CAN genuinely go
+  // away (an erasure sweep, a retraction) and that is the D28 repair this
+  // tool exists for. What it must not be is silent.
+  const forced = (await httpsCallable(fns, "rebuildAggregateV2")({ qid: EMPTY, apply: true, allowEmpty: true })).data;
+  if (forced.applied !== true) fail("allowEmpty did not apply: " + JSON.stringify(forced));
+  const zeroed = await adminDb.doc(`v2_question_aggs/${EMPTY}`).get();
+  if (zeroed.get("total") !== 0) fail("allowEmpty did not zero it: " + JSON.stringify(zeroed.data()));
+  ok("D290: allowEmpty applies the empty fold deliberately");
+
+  await adminDb.doc(`v2_questions/${EMPTY}`).delete();
+  await adminDb.doc(`v2_question_aggs/${EMPTY}`).delete();
 }
 
 // 8 · the duel loop: create → join by code → sealed answers → reveal → streak
@@ -1116,9 +1156,65 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   // canonTopN's lossy projection, so a rebuild that wrote only the public
   // document would leave the next answer folding from something it cannot
   // fold from — which is why the private doc survived D290's collapse.
+  const privBefore = (await adminDb.doc(`v2_aggs_private/${PK_ID}`).get()).data();
   const c = await noop("catalog", PK_ID, ["total", "top", "rest", "by"]);
   if (c.dry.arm !== "catalog") fail(`catalog question routed to the ${c.dry.arm} arm`);
   ok("D290: catalog board rebuilds to itself — top, rest and the segment board unchanged");
+
+  // …and the private accumulator, which the paragraph above names and
+  // nothing here checked. It is the half a client cannot read, so only an
+  // admin handle can see it — and it is the half that goes wrong.
+  //
+  // This arm writes TWO documents where every other writes one, and it
+  // wrote them as two separate awaits while the TRIGGER writes the pair
+  // inside a transaction. A fold landing between them — or a process
+  // dying between them, which a function timeout is — left the
+  // accumulator holding a vote the board did not show. On a quiet or
+  // retired catalogue nothing may answer again to repair it. One batch
+  // now; what proves it is the pair agreeing after an --apply.
+  const privAfter = (await adminDb.doc(`v2_aggs_private/${PK_ID}`).get()).data();
+  if (!privBefore || !privAfter)
+    fail("the private catalog accumulator is missing — the rebuild dropped it or it never existed");
+  if (privAfter.total !== privBefore.total || JSON.stringify(privAfter.ent) !== JSON.stringify(privBefore.ent))
+    fail("--apply moved the private accumulator on a no-op rebuild: "
+      + JSON.stringify(privBefore) + " → " + JSON.stringify(privAfter));
+  const pubAfter = (await getDoc(doc(db, "v2_question_aggs", PK_ID))).data();
+  if (pubAfter.total !== privAfter.total)
+    fail(`the rebuild left the pair disagreeing: board total ${pubAfter.total}, accumulator ${privAfter.total}`);
+  for (const [k, v] of Object.entries(pubAfter.top || {})) {
+    if ((privAfter.ent || {})[k] !== v)
+      fail(`board entry ${k}=${v} is not in the accumulator: ` + JSON.stringify(privAfter.ent));
+  }
+  ok("D290: the catalog arm writes both documents as one commit — board and accumulator agree");
+
+  // D290's refusal, APPLIED — the "what replay cannot rebuild" list, which
+  // is where this tool's D72 rule (refuse rather than fabricate) is
+  // recorded. Cited as D292 when it landed; D292 is the read-only
+  // observer, and a citation that resolves to the wrong record is worse
+  // than none. `replay.test.ts` pins the predicate in
+  // isolation, so deleting the four lines in runRebuild that consult it
+  // left every suite green — the guard was exported, tested and never
+  // asked. It is the guard against a rebuild MINTING a public aggregate
+  // out of sealed duel votes, and against reporting health for a pulse,
+  // whose aggregates are keyed per day and which this tool cannot address.
+  //
+  // Asserted through the real callable, on a real bank question, because
+  // that is the half the unit test cannot reach.
+  for (const [qid, what] of [["group-gu0", "a sealed duel"], ["pulse-pace", "a per-day pulse"]]) {
+    let refused = null;
+    try {
+      await httpsCallable(fns, "rebuildAggregateV2")({ qid });
+    } catch (err) {
+      refused = String(err && err.message ? err.message : err);
+    }
+    if (!refused) fail(`the rebuild tool reported on ${what} (${qid}) instead of refusing it`);
+    // The refusal has to NAME the question and give a reason — a bare
+    // "failed-precondition" tells an operator nothing about which of the
+    // two unaddressable shapes they hit.
+    if (!refused.includes(qid) || refused.length < qid.length + 30)
+      fail(`${qid} was refused without saying why: ${refused}`);
+  }
+  ok("D290: the rebuild tool refuses a sealed duel and a per-day pulse, through the callable");
 }
 
 // 10 · Near presence (D84 / D174 / D176 / D177): the write path through
@@ -1301,16 +1397,6 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
 // rules.test.ts proves clients cannot write around it.
 {
   // The moderation e2e's discipline: demand the SPECIFIC refusal.
-  const expectCode = async (label, code, op) => {
-    try {
-      await op();
-    } catch (e) {
-      if (e?.code === code) return ok(label);
-      return fail(`${label} — expected ${code}, got ${e?.code || e}`);
-    }
-    fail(`${label} — the operation was ALLOWED`);
-  };
-
   const sub = await httpsCallable(fns, "suggestQuestionV2")({
     prompt: "Window seat or aisle seat?", type: "binary",
     options: ["Window", "Aisle"], topic: "travel", cadenceHint: "once", credit: true,
@@ -1384,16 +1470,6 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
 // path that can move a handle is claimHandleV2 — and the only way to prove
 // what it does is to call it.
 {
-  const expectCode = async (label, code, op) => {
-    try {
-      await op();
-    } catch (e) {
-      if (e?.code === code) return ok(label);
-      return fail(`${label} — expected ${code}, got ${e?.code || e}`);
-    }
-    fail(`${label} — the operation was ALLOWED`);
-  };
-
   const first = await httpsCallable(fns, "claimHandleV2")({ handle: "Olaf_T" });
   if (first.data?.handle !== "olaf_t") fail("claimHandleV2 did not fold the handle: " + JSON.stringify(first.data));
   const reg = await getDoc(doc(db, "v2_handles", "olaf_t"));
@@ -1435,16 +1511,6 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
 // regresses, inviting somebody starts throwing in exactly the
 // environments where nobody is watching it.
 {
-  const expectCode = async (label, code, op) => {
-    try {
-      await op();
-    } catch (e) {
-      if (e?.code === code) return ok(label);
-      return fail(`${label} — expected ${code}, got ${e?.code || e}`);
-    }
-    fail(`${label} — the operation was ALLOWED`);
-  };
-
   const made = await httpsCallable(fns, "createGroupV2")({ name: "The Picked", mode: "group" });
   const igid = made.data?.gid;
   if (!igid) fail("createGroupV2 for the invite case: " + JSON.stringify(made.data));

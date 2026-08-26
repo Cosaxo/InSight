@@ -28,6 +28,7 @@ import { getStorage as adminStorage } from "firebase-admin/storage";
 // output rather than repeated here (D201). `pretest:e2e` builds it, so
 // this harness cannot be pointed at a region the emulator is not on.
 import { FUNCTIONS_REGION } from "../functions/lib/ops.js";
+import { expectCode, fail, ok } from "./e2e-lib.mjs";
 
 // The named database (D165). The backend writes to FIRESTORE_DB_ID, so a
 // harness on `(default)` reads an empty database and reports a phantom
@@ -56,20 +57,6 @@ adminInit({ projectId: "demo-insight", storageBucket: "demo-insight.appspot.com"
 const adb = adminFirestore(E2E_DB_ID);
 const fns = getFunctions(app, FUNCTIONS_REGION); connectFunctionsEmulator(fns, "127.0.0.1", 5001);
 
-const fail = (msg) => { console.error("✗ " + msg); process.exit(1); };
-const ok = (msg) => console.log("✓ " + msg);
-
-// Same discipline as e2e-v2-loop.mjs: demand the SPECIFIC refusal, because
-// a bare try/catch pass counts any typo as a security win.
-const expectCode = async (label, code, op) => {
-  try {
-    await op();
-  } catch (e) {
-    if (e?.code === code) return ok(label);
-    return fail(`${label} — expected ${code}, got ${e?.code || e}`);
-  }
-  fail(`${label} — the operation was ALLOWED`);
-};
 
 const newUser = async () => {
   await signOut(auth).catch(() => {});

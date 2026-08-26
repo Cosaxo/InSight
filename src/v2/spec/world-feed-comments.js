@@ -3,7 +3,6 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import React from 'react';
 
 // world-feed-comments.js — takes on the feed questions. Part of the
 // pre-population promise: every question ships with a couple of live takes.

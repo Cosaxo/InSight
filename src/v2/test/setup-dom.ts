@@ -1,10 +1,12 @@
 // setup-dom.ts — the browser surface jsdom does not implement, stubbed
 // just far enough for the spec layer to mount.
 //
-// Loaded by every file under `--dir src` (vite.config.ts `setupFiles`),
-// including the pure-logic suites that run in node. Everything below is
-// therefore behind the `window` guard: in node there is nothing to patch
-// and this file must cost nothing.
+// Loaded by every file this repo's root vite config reaches (its
+// `setupFiles`) — that is three of the five runners, `test:unit`,
+// `test:scripts` and `test:rules`, not just `--dir src` — including every
+// pure-logic suite that runs in node. Everything below is therefore behind
+// the `window` guard: in node there is nothing to patch and this file must
+// cost nothing.
 //
 // The rule for what belongs here: a stub is legitimate when jsdom simply
 // has no implementation (matchMedia, the observers, canvas) and the spec

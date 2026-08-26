@@ -104,7 +104,7 @@ describe("LiveCircleBody · an empty circle is a field, not a paragraph", () => 
 describe("LiveCircleBody · the row is the stop's, not the data's", () => {
   const MEMBER = {
     uid: "u_ada", name: "Ada", mutual: true,
-    like: { pct: 80, same: 4, shared: 5 },
+    like: { pct: 80, same: 4, shared: 5, rate: 0.45 },
     answers: {},
   };
   const tabNames = () => screen.getAllByRole("tab").map((t) => t.textContent);
@@ -124,11 +124,39 @@ describe("LiveCircleBody · the row is the stop's, not the data's", () => {
   it("names the closest and least-alike members under the field — with two placed", () => {
     LIVE.circle = () => [
       MEMBER,
-      { uid: "u_bo", name: "Bo", mutual: false, like: { pct: 30, same: 1, shared: 4 }, answers: {} },
+      { uid: "u_bo", name: "Bo", mutual: false, like: { pct: 30, same: 1, shared: 4, rate: 0.07 }, answers: {} },
     ];
     render(<LiveCircleBody />);
     expect(screen.getByText(/mirrors you closest/).textContent).toContain("Ada");
     expect(screen.getByText(/mirrors you closest/).textContent).toContain("Bo");
+  });
+
+  it("crowns the deep match over the thin one — the printed pct cannot decide it", () => {
+    // The bug D277 §2 named and this site kept: 1 of 1 is 100% and 45 of
+    // 50 is 90%, so a pct sort puts the stranger who agreed once at the
+    // top — while the People tab beneath, which draws the same list in
+    // rankMembers order under "By likeness", puts the other one first.
+    // One screen, two answers.
+    LIVE.circle = () => [
+      { uid: "u_thin", name: "Thin", mutual: false, like: { pct: 100, same: 1, shared: 1, rate: 0.21 }, answers: {} },
+      { uid: "u_deep", name: "Deep", mutual: false, like: { pct: 90, same: 45, shared: 50, rate: 0.81 }, answers: {} },
+    ];
+    render(<LiveCircleBody />);
+    expect(screen.getByText(/mirrors you closest/).textContent).toContain("Deep");
+    expect(screen.getByText(/mirrors you least|mirrors you closest/).textContent).toContain("Thin");
+    // …and the closest is named before the least-alike, which is the
+    // direction the sentence reads.
+    const line = screen.getByText(/mirrors you closest/).textContent || "";
+    expect(line.indexOf("Deep")).toBeLessThan(line.indexOf("Thin"));
+  });
+
+  it("says nothing when the circle is flat — nobody is closest on equal numbers", () => {
+    LIVE.circle = () => [
+      { uid: "u_a", name: "Ann", mutual: false, like: { pct: 60, same: 3, shared: 5, rate: 0.31 }, answers: {} },
+      { uid: "u_b", name: "Bea", mutual: false, like: { pct: 60, same: 3, shared: 5, rate: 0.31 }, answers: {} },
+    ];
+    render(<LiveCircleBody />);
+    expect(screen.queryByText(/mirrors you closest/)).toBeNull();
   });
 
   it("says nothing under the field of one — the picture already says it", () => {

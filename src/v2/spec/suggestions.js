@@ -110,18 +110,39 @@ function liveMine() {
   return rows.map((r) => ({
     id: r.id, prompt: r.prompt, type: r.type, options: r.options,
     topic: r.topicHint, by: 'You', hue: hueOf(r.id), status: r.status,
-    ago: agoOf(r.atMs), cadence: r.cadenceHint || 'once',
+    ago: agoOf(r.atMs), atMs: r.atMs, cadence: r.cadenceHint || 'once',
     audience: (r.audienceHint || 'world').split(' ')[0], note: r.note,
     live: true, mine: true,
   }));
 }
 
+/**
+ * How long ago a row was asked, in MINUTES, for ordering only.
+ *
+ * The rendered `ago` string is not a sort key: agoOf emits three different
+ * units — 'just now', '{n}h' and '{n}d' — and the old comparator read the
+ * bare integer out of whichever it got. So a 23-hour-old ask (23) sorted
+ * behind a 9-day-old one (9), and any hours-old row sorted behind any
+ * days-old row with a smaller number. Since D288 §1 this is the ONLY list
+ * the door draws, so the row a buyer just submitted and is looking for was
+ * the one most likely to be pushed to the bottom.
+ *
+ * Live rows carry `atMs` and are ordered by it exactly. Demo and
+ * locally-saved rows have only the string, so the unit is read off it.
+ */
+const agoMins = (s) => {
+  if (typeof s.atMs === 'number' && s.atMs > 0) return Math.max(0, (Date.now() - s.atMs) / 60000);
+  const a = String(s.ago || '');
+  if (a === 'just now') return 0;
+  const n = parseInt(a, 10);
+  if (!Number.isFinite(n)) return Number.MAX_SAFE_INTEGER;
+  return a.endsWith('d') ? n * 1440 : n * 60;
+};
+
 /** Your asks, newest first — the only list the door draws (D288 §1). */
 function mine() {
   const own = LIVE.enabled ? liveMine() : (saved.mine.length ? saved.mine : MINE_DEMO).map((s) => ({ ...s, mine: true }));
-  return own
-    .map((s) => ({ ...s, days: s.ago === 'just now' ? -1 : (parseInt(s.ago, 10) || 99) }))
-    .sort((a, b) => a.days - b.days);
+  return own.slice().sort((a, b) => agoMins(a) - agoMins(b));
 }
 
 export const SUGGESTIONS = {

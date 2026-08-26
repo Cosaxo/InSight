@@ -3,7 +3,6 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import React from 'react';
 
 // compare-pop.js — plausible population averages per scale, for the Compare
 // breakdown. Every assessment is on the same 0..100-per-dimension scale as the

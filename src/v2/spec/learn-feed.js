@@ -3,7 +3,6 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import React from 'react';
 import { LEARN } from './learn-progress.js';
 
 // learn-feed.js — knowledge questions as a stream in the World feed rather than

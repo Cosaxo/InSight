@@ -97,7 +97,9 @@
     "test:coverage": "LC_ALL=en_US.UTF-8 vitest run --dir src --coverage",
     "check:store-forms": "node scripts/check-store-forms.mjs",
     "seed": "node scripts/seed-content.mjs",
-    "rebuild:agg": "node scripts/rebuild-aggregate.mjs"
+    "rebuild:agg": "node scripts/rebuild-aggregate.mjs",
+    "mod:queue": "node scripts/mod-queue.mjs",
+    "observe": "node scripts/observe.mjs"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "^8.2.0",
@@ -110,7 +112,6 @@
     "@capacitor/status-bar": "^8.0.2",
     "@sentry/browser": "10.60.0",
     "@sentry/capacitor": "^4.2.0",
-    "@sentry/react": "10.60.0",
     "capacitor-firebase-app-check": "npm:@capacitor-firebase/app-check@^8.3.0",
     "firebase": "^12.13.0",
     "react": "^19.2.4",

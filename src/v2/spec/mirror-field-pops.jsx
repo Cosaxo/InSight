@@ -134,7 +134,7 @@ function mfpSoWhat(pop, cfg) {
     if (pop === 'circle') parts.push([{ b: nm(top) }, ' mirrors you closest; ', { b: nm(low) }, ' least']);
     else if (pop === 'groups') parts.push([{ b: nm(top) }, ' is the scene that runs most like you']);
   }
-  if (DAILYQ && cfg.answersAud) {
+  if (cfg.answersAud) {
     const byCat = new Map();
     DAILYQ.questions.forEach((q) => {
       const mine = DAILYQ.myAnswer(q); if (mine == null) return;
@@ -155,7 +155,7 @@ function mfpSoWhat(pop, cfg) {
 
 function MFSoWhat({ pop, cfg }) {
   const [, bump] = React.useReducer((x) => x + 1, 0);
-  useEffectMFP(() => (DAILYQ ? DAILYQ.subscribe(bump) : undefined), []);
+  useEffectMFP(() => DAILYQ.subscribe(bump), []);
   const parts = mfpSoWhat(pop, cfg);
   if (!parts.length) return null; // too thin to say anything — say nothing
   return (

@@ -3,7 +3,6 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import React from 'react';
 import { DAILYQ } from './daily-questions.js';
 
 // InSight — Map branches: the shared category list for the Map tab (and the

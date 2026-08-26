@@ -120,62 +120,28 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
     )).toBe(true);
   });
 
-  it("engagement.ts rollupPage: engagement.folded keeps its collection-group index", () => {
-    // This one was in the file and NOT in the deployment. firestore.indexes.json
-    // carried two top-level "fieldOverrides" keys; JSON.parse keeps the last,
-    // so the first block — whose only entry was this override — was discarded
-    // on every read, including by firebase deploy. rollupPage's
-    // collectionGroup("engagement").where("folded","==",false) has therefore
-    // been querying an index that does not exist.
+  it("engagement.ts rollupPage: the (folded, day) collection-group composite exists", () => {
+    // rollupPage orders by `day` so the nightly queue is FIFO. Without an
+    // orderBy Firestore falls back to `__name__`, which for this group is
+    // `v2_users/{uid}/engagement/{day}` — uid-major, so above the cap the
+    // same low-sorting accounts are taken every night and the rest starve.
     //
-    // A duplicate key is invisible to every other gate: the file is valid
-    // JSON, the emulator does not enforce index configuration (see this
-    // file's header), and the override reads correctly to anyone opening it.
-    // The cheapest durable guard is to assert the entry SURVIVES A PARSE,
-    // which is precisely what a re-duplicated key would break.
-    const o = override("engagement", "folded");
-    expect(o, "engagement.folded override is missing from the PARSED config — check for a duplicate top-level key").toBeDefined();
-    expect(o!.indexes.some((i) => i.queryScope === "COLLECTION_GROUP" && i.order === "ASCENDING")).toBe(true);
-  });
-
-  it("firestore.indexes.json declares each top-level key exactly once", () => {
-    // The general form of the bug above. JSON.parse silently keeps the LAST
-    // of a duplicated key, so a second "indexes" or "fieldOverrides" block
-    // deletes the first one's entire contents with no error anywhere — not
-    // from the parser, not from the emulator, not from firebase deploy.
-    //
-    // Depth-aware rather than a line regex: "indexes" is also a key INSIDE
-    // every fieldOverride, so matching it anywhere counts 21 and proves
-    // nothing. Only depth 1 is a top-level declaration.
-    const raw = readFileSync(resolve(__dirname, "../../../firestore.indexes.json"), "utf8");
-    const seen: string[] = [];
-    let depth = 0;
-    let inStr = false;
-    let esc = false;
-    let start = 0;
-    for (let i = 0; i < raw.length; i++) {
-      const c = raw[i];
-      if (inStr) {
-        if (esc) esc = false;
-        else if (c === "\\") esc = true;
-        else if (c === '"') {
-          inStr = false;
-          // A string that closes at depth 1 and is followed by a colon is
-          // a top-level key.
-          if (depth === 1) {
-            const rest = raw.slice(i + 1).match(/^\s*:/);
-            if (rest) seen.push(raw.slice(start + 1, i));
-          }
-        }
-        continue;
-      }
-      if (c === '"') { inStr = true; esc = false; start = i; continue; }
-      if (c === "{" || c === "[") depth++;
-      else if (c === "}" || c === "]") depth--;
-    }
-    const dupes = seen.filter((k, i) => seen.indexOf(k) !== i);
-    expect(dupes, `duplicated top-level key(s) in firestore.indexes.json: ${dupes.join(", ")} — JSON.parse keeps only the last`).toEqual([]);
-    expect(seen.sort()).toEqual(["fieldOverrides", "indexes"]);
+    // The single-field `folded` override does not cover a query that also
+    // orders on another field, and the emulator does not enforce index
+    // configuration — so a missing composite fails in PRODUCTION ONLY,
+    // with FAILED_PRECONDITION, on a scheduled function nobody is watching.
+    // This assertion is the only thing standing between that and a silent
+    // nightly outage.
+    const hit = cfg.indexes.find(
+      (ix) =>
+        ix.collectionGroup === "engagement"
+        && ix.queryScope === "COLLECTION_GROUP"
+        && JSON.stringify(ix.fields) === JSON.stringify([
+          { fieldPath: "folded", order: "ASCENDING" },
+          { fieldPath: "day", order: "ASCENDING" },
+        ]),
+    );
+    expect(hit, "the engagement (folded, day) collection-group composite is missing or reshaped — rollupPage fails FAILED_PRECONDITION in production").toBeDefined();
   });
 
   it("live.ts's own-answer delta cursors: answeredAt and editedAt stay unexempted", () => {
@@ -195,6 +161,14 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
     // collection-scope — so this override is the whole difference between
     // digestEngagementV2 folding yesterday and throwing FAILED_PRECONDITION
     // at every run, in production only.
+    //
+    // It shipped in the file and out of the deployment: firestore.indexes.json
+    // carried two top-level `fieldOverrides` keys, JSON.parse keeps the last,
+    // and the block this override lived in was the discarded one — on every
+    // read, firebase deploy included. Nothing else could see it: the file is
+    // valid JSON, the emulator does not enforce index configuration (this
+    // file's header), and the override reads correctly to anyone opening it.
+    // Asserting the entry SURVIVES A PARSE is what a re-duplicated key breaks.
     const o = override("engagement", "folded");
     expect(o, "the engagement.folded override is missing — digestEngagementV2's collectionGroup query fails FAILED_PRECONDITION in production").toBeDefined();
     expect(
@@ -247,5 +221,9 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
       else if (c === "}" || c === "]") depth--;
     }
     expect(dupes, `firestore.indexes.json declares ${dupes.join(", ")} twice — JSON.parse keeps the last and silently drops the rest, so one of the blocks never deploys`).toEqual([]);
+    // And that the two keys the deploy reads are the two that are there —
+    // a third top-level key is either a typo firebase-tools ignores or a
+    // feature this file does not know it is shipping.
+    expect([...seen].sort()).toEqual(["fieldOverrides", "indexes"]);
   });
 });

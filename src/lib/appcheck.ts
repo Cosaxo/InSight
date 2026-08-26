@@ -42,7 +42,8 @@ import { Capacitor } from "@capacitor/core";
 // directory renames the identity and the collision is gone.
 //
 // The alias is therefore load-bearing: reverting it to the scoped name
-// re-breaks the iOS build. check-appcheck-alias.mjs guards it. See D10.
+// re-breaks the iOS build. `scripts/check-ios-spm.mjs` (`npm run
+// check:ios-spm`) guards it. See D10.
 import { FirebaseAppCheck } from "capacitor-firebase-app-check";
 
 let initialized = false;

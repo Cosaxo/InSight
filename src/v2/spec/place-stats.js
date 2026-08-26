@@ -3,7 +3,6 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import React from 'react';
 
 // place-stats.js — the member scorecards for Oslo / Norway / the world.
 // Baked averages + counts keep the cards full from day one; your own scores

@@ -103,6 +103,28 @@ export function utcDayKey(offsetDays = 0, nowMs: number = Date.now()): string {
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * A UTC day key `offsetDays` from `nowMs`, as `YYYY-MM-DD`.
+ *
+ * The nightly folds' signature — the clock first, the offset second — and
+ * deliberately not `utcDayKey` above, which takes them the other way round
+ * and defaults the clock. Both are correct and both are called; what was
+ * wrong is that this one existed TWICE, byte-identical, in engagement.ts and
+ * patterns.ts, two nightly functions whose day keys have to agree with each
+ * other and with the documents the other one wrote.
+ *
+ * It floors to midnight before adding, where `utcDayKey` adds milliseconds
+ * and slices the ISO string. In UTC the two agree — there is no offset to
+ * shift under them — so this is a style difference, not a second answer.
+ */
+const pad = (n: number) => String(n).padStart(2, "0");
+export function utcDay(nowMs: number, offsetDays: number): string {
+  const d = new Date(nowMs);
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() + offsetDays);
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+}
+
 export function prevDayKey(dayKey: string): string {
   const d = new Date(dayKey + "T00:00:00Z");
   return new Date(d.getTime() - 86400000).toISOString().slice(0, 10);
@@ -521,7 +543,7 @@ export function publishableDuelAgg(state: DuelAggState): Record<string, unknown>
 //
 //    `city` was excluded for that same reason until D9 replaced the profile's
 //    free-text city and country boxes with a picker over a fixed catalogue of
-//    10,929 places. Its values are now drawn from a closed vocabulary
+//    ~11k places. Its values are now drawn from a closed vocabulary
 //    ("Oslo, NO"), every one of them verified at build time to fit
 //    BREAKDOWN_MAX_LABEL and to survive breakdownBucket — see
 //    scripts/check-cities.mjs. The bucket cap still applies and matters more
@@ -612,7 +634,7 @@ export const BREAKDOWN_MAX_LABEL = 40;
 // sub-floor bucket, not the dimension". That was wrong in the same way the
 // city note was right: 24 of them cost the dimension.
 //
-// CITY AND COUNTRY CANNOT BE CLOSED THAT WAY — 10,929 places and ~249
+// CITY AND COUNTRY CANNOT BE CLOSED THAT WAY — ~11k places and ~249
 // countries against 24 slots — so membership would still leave them
 // exhaustible with real values. Their shapes stay, and the cap itself
 // changed instead: see the eviction rule in foldAnchors.
@@ -706,7 +728,7 @@ export function breakdownBucket(value: unknown, dim?: BreakdownDim): string | nu
 // and that is what made the dimension attackable: a bucket below the floor
 // is suppressed from every publish, so it occupies a slot while showing
 // nobody anything. 24 of those arriving early blanked `city` permanently,
-// and no vocabulary can prevent it there because the catalogue is 10,929
+// and no vocabulary can prevent it there because the catalogue is ~11k
 // places against 24 slots — the attacker only needs real city names.
 //
 // So a sub-floor bucket is evictable and a publishable one is not. The
@@ -1583,6 +1605,12 @@ export function seedDocMatches(
 // questions), never to a shipped question's option list.
 export interface SeedOptionConflict {
   qid: string;
+  /**
+   * Which frozen field changed. Absent means `options`, which is what every
+   * conflict was until catalogue questions turned out to have none — see
+   * the `domain` arm below.
+   */
+  field?: "options" | "domain";
   stored: string[];
   desired: string[];
 }
@@ -1606,8 +1634,31 @@ export function seedOptionConflict(
   const b = desired.options;
   if (!Array.isArray(a) || !Array.isArray(b)) return null;
   const same = a.length === b.length && a.every((v, i) => v === b[i]);
-  if (same) return null;
-  return { qid, stored: a.map(String), desired: b.map(String) };
+  if (!same) return { qid, field: "options", stored: a.map(String), desired: b.map(String) };
+
+  // …AND THE CATALOGUE DOMAIN, because for the one surface whose answers
+  // are catalogue keys the options check above can never fire.
+  //
+  // A catalog question ships `options: []` on both sides by construction,
+  // so `same` is true and the freeze returned null — for exactly the
+  // questions whose stored answers are keys rather than indices. `domain`
+  // IS seeded (it is in SEEDED_FIELDS), so a re-domained pick card passed
+  // the freeze and every stored `entity` silently re-keyed against a
+  // different catalogue. The small key spaces overlap — pokemon 1–1025,
+  // elements 1–118, dogs 1–554 — so "35" that meant Clefairy comes back as
+  // Bromine, in the trigger's validation and in the client's name
+  // resolution alike. That is precisely the failure D52's mechanism exists
+  // to prevent, one field over.
+  //
+  // Absent, null and "" are one value here: a question that never carried
+  // a domain and still does not has nothing to protect, and refusing that
+  // would wedge the seed for every non-catalogue question in the bank.
+  const dStored = typeof stored.domain === "string" ? stored.domain : "";
+  const dDesired = typeof desired.domain === "string" ? desired.domain : "";
+  if (dStored !== dDesired) {
+    return { qid, field: "domain", stored: [dStored || "(none)"], desired: [dDesired || "(none)"] };
+  }
+  return null;
 }
 
 /** One line per conflict, for the log and the operator's error. */
@@ -1615,7 +1666,13 @@ export function describeSeedOptionConflicts(
   conflicts: readonly SeedOptionConflict[],
 ): string {
   return conflicts
-    .map((c) => `${c.qid}: [${c.stored.join(" | ")}] -> [${c.desired.join(" | ")}]`)
+    // The field is named only when it is NOT options, so the line an
+    // operator has read a hundred times is unchanged and the new one says
+    // which freeze it tripped.
+    .map((c) => {
+      const where = c.field && c.field !== "options" ? ` (${c.field})` : "";
+      return `${c.qid}${where}: [${c.stored.join(" | ")}] -> [${c.desired.join(" | ")}]`;
+    })
     .join("; ");
 }
 
@@ -1740,6 +1797,73 @@ export const ROOM_MIN_TYPED = 8;
  * typed crowd rather than its size, which is why `capped` exists below.
  */
 export const ROOM_SAMPLE_CAP = 60;
+
+/**
+ * How many presence docs one fold may SCAN before it samples.
+ *
+ * THE BUG THIS EXISTS FOR is the one roomMixFor's own note warned about
+ * and then walked into: "Firestore orders a query with no explicit
+ * `orderBy` by document id… Key presence by something ordered (a cell
+ * prefix, a timestamp) and this stops being true silently." The query
+ * carries `where("until", ">", now)`, and an inequality IS an ordering —
+ * Firestore sorts by that field first — so the limit took the N
+ * SOONEST-EXPIRING presences, not a sample. Probed on the emulator (360
+ * docs over nine cells, `until` spread 5–179 minutes out): the sixty
+ * returned were exactly the sixty smallest, topping out at 33 minutes
+ * against a population reaching 179. At a festival — the case this
+ * feature exists for — that is a reading of the people about to leave,
+ * presented as the room.
+ *
+ * So the fold scans wider and samples from what it scanned. Five times
+ * the mix's sample and twelve times the roster's, which moves the point
+ * where the bias returns from 60 and 24 to 300, and costs presence reads
+ * only: these documents are one per person, and the roster's expensive
+ * half — every sampled person's answers — still folds over
+ * ROOM_PEOPLE_CAP people.
+ *
+ * IT DOES NOT ABOLISH THE BIAS, and the no-silent-caps rule means saying
+ * so: above 300 present phones in one 3x3 block the scan is still the
+ * soonest-expiring 300, and the sample is drawn from those. What the
+ * reading already declares is `capped`, which stays exactly as true.
+ */
+export const ROOM_SCAN_CAP = 300;
+
+/**
+ * A deterministic uniform sample of `n` from `items`.
+ *
+ * Seeded rather than `Math.random()` so a fold is testable and so two
+ * calls inside one beat window agree — the cached document is what a
+ * second caller reads, but a cache miss that races must not produce a
+ * visibly different room.
+ *
+ * Partial Fisher-Yates: only the first `n` positions have to be settled,
+ * so this is O(n) rather than O(items). Returns a copy, never the input.
+ */
+export function sampleN<T>(items: readonly T[], n: number, seed: string): T[] {
+  if (n <= 0 || !items.length) return [];
+  if (items.length <= n) return items.slice();
+  // FNV-1a over the seed, then xorshift32. Neither is cryptographic and
+  // neither needs to be: nobody bets on this, and the property wanted is
+  // "uncorrelated with expiry time", which any decent mixer gives.
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  let state = (h >>> 0) || 1;
+  const rnd = () => {
+    state ^= state << 13; state >>>= 0;
+    state ^= state >>> 17;
+    state ^= state << 5; state >>>= 0;
+    return state / 4294967296;
+  };
+  const out = items.slice();
+  for (let i = 0; i < n; i++) {
+    const j = i + Math.floor(rnd() * (out.length - i));
+    const t = out[i]; out[i] = out[j]; out[j] = t;
+  }
+  return out.slice(0, n);
+}
 
 export interface RoomMix {
   /** Type names, most common first, at most three. No shares, ever. */

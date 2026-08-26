@@ -119,13 +119,11 @@ export interface EngagementStore {
   putDay(day: EngagementDay): Promise<void>;
 }
 
-const pad = (n: number) => String(n).padStart(2, "0");
-export function utcDay(nowMs: number, offsetDays: number): string {
-  const d = new Date(nowMs);
-  d.setUTCHours(0, 0, 0, 0);
-  d.setUTCDate(d.getUTCDate() + offsetDays);
-  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
-}
+// The fold arithmetic lives in pure.ts (ORIENTATION §3). Re-exported
+// because this module's own test imports it from here, and because the
+// two nightly folds must not be able to disagree about what a day is.
+import { utcDay } from "./pure";
+export { utcDay };
 
 /** dayKey + delta, in UTC — "2026-08-01" + (-1) → "2026-07-31". */
 export function dayOffset(dayKey: string, delta: number): string {
@@ -264,7 +262,13 @@ export async function runEngagementDigest(
       const state = states.get(uid);
       // A state whose firstDay IS this day was written by a crashed run
       // of this same fold — still a first-timer (see the header).
-      if (!state || state.firstDay === day) firstTime++;
+      //
+      // …and so is one with NO cohort day: an account the pre-fix
+      // getStates left with `firstDay: ""` never had one recorded, so
+      // today is the first day the digest can honestly claim. Counted
+      // once, here, and then written below — after which it matches a
+      // cohort like anyone else.
+      if (!state || !state.firstDay || state.firstDay === day) firstTime++;
       if (state) {
         if (state.firstDay === cohortDay.d1) returned.d1++;
         if (state.firstDay === cohortDay.d7) returned.d7++;
@@ -280,7 +284,10 @@ export async function runEngagementDigest(
         const gap = dayGap(state.lastDay, day);
         if (gap >= 2 && state.streak >= STREAK_BROKEN_MIN) streaksBroken++;
         changed.set(uid, {
-          firstDay: state.firstDay,
+          // Adopt today when there is nothing to keep, keep it otherwise.
+          // The rest of the row is the account's own history and survives:
+          // the bug lost the cohort day, not the streak.
+          firstDay: state.firstDay || day,
           lastDay: day,
           activeDays: state.activeDays + 1,
           streak: gap === 1 ? state.streak + 1 : 1,
@@ -374,10 +381,46 @@ export function firestoreEngagementStore(db: Firestore): EngagementStore {
           db.collection("v2_users").doc(uid).collection("engagement").doc("_state"));
         const snaps = await db.getAll(...refs);
         snaps.forEach((snap, j) => {
-          if (snap.exists) {
+          // EXISTING is not the same as having been DIGESTED — the same
+          // distinction cohortOf needs one level up. runRollupFold creates
+          // this very document with nothing but `fg7` for an account that
+          // used the app without answering, so `snap.exists` is true while
+          // the digest has never seen that account.
+          //
+          // Read as a DigestState it came back with `firstDay: ""`, which
+          // equals no cohort day and never counts as a first-timer. So the
+          // day that person first ANSWERED was never recorded, the empty
+          // string was copied forward on every later day, and they could
+          // never match a d1/d7/d30 cohort again — for the rest of the
+          // account's life. Exactly the population rung 2 exists to see:
+          // people who browse before they commit.
+          //
+          // The digest's own field is the test, not the document — and
+          // that field is `lastDay`, not `firstDay`.
+          //
+          // Testing `firstDay` was this fix's own first attempt and it
+          // threw the baby out: an account the bug had already damaged
+          // carries `firstDay: ""` AND a real `lastDay`, `activeDays` and
+          // `streak`, because the old path copied the empty string forward
+          // while correctly accumulating the other three. Dropping the
+          // whole state re-stamped every one of those accounts as born on
+          // the first night after deploy — a streak of forty days reset to
+          // one, `streaksBroken` blind to it, and `firstTime` inflated by
+          // the size of that population, which is the DENOMINATOR
+          // cohortOf() hands the published d1/d7/d30 retention curve.
+          //
+          // `lastDay` is the honest test because the fold writes all four
+          // together, so a document that has one has been digested and a
+          // document that has none has not. The missing cohort day is then
+          // adopted below, where the fold can count it as a first-timer
+          // exactly once — which was the point — without discarding what
+          // the account earned.
+          const lastDay = snap.get("lastDay");
+          if (typeof lastDay === "string" && lastDay) {
+            const firstDay = snap.get("firstDay");
             out.set(chunk[j], {
-              firstDay: (snap.get("firstDay") as string) ?? "",
-              lastDay: (snap.get("lastDay") as string) ?? "",
+              firstDay: typeof firstDay === "string" ? firstDay : "",
+              lastDay,
               activeDays: (snap.get("activeDays") as number) ?? 0,
               streak: (snap.get("streak") as number) ?? 0,
             });
@@ -529,10 +572,31 @@ export interface AttentionStore {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+/**
+ * The smallest sampling rate a shard may claim, and therefore the largest
+ * number of devices one shard may stand for (1 / this = 1000).
+ *
+ * WHY A FLOOR AND NOT JUST A CEILING. `weight = 1 / rate` and the rules
+ * bounded `rate` only from above, so `rate: 1e-12` was a legal create —
+ * and one free anonymous account writing one shard could add ~1e12
+ * devices, and ~1e12 to any question's seen/answered counts, to a
+ * world-readable day document. Those counts are what the pulse console
+ * reads and what QUESTION-FARM's scorecard proposes retirements from.
+ *
+ * 0.001 is a tenth of a percent — smaller than any sample this app would
+ * ship (at a million devices it is a thousand shards a day, which is
+ * already the fewest that could carry the per-question map), and a single
+ * shard standing for more than a thousand devices is not a reading
+ * anybody should publish. Mirrored in firestore.rules as a create bound,
+ * so the honest fence is at the door and this is the reader's backstop —
+ * the same two-sided shape `QIDS_CAP` has.
+ */
+export const MIN_SHARD_RATE = 0.001;
+
 /** Pure: fold shards (all of one day, or several) into per-day deltas.
  * The rules pin the key vocabulary but deliberately not the values
  * (rules cannot iterate a map) — so the clamps live HERE, on the only
- * reader: buckets to 0..4 integers, rates to (0, 1]. */
+ * reader: buckets to 0..4 integers, rates to [MIN_SHARD_RATE, 1]. */
 const clampBucket = (raw: unknown): number =>
   typeof raw === "number" && Number.isFinite(raw) ? Math.min(4, Math.max(0, Math.trunc(raw))) : 0;
 
@@ -540,8 +604,17 @@ export function foldShards(shards: AttentionShardDoc[]): Map<string, AttnDelta> 
   const out = new Map<string, AttnDelta>();
   for (const shard of shards) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(shard.day)) continue;
+    // A rate outside the honest range weighs ONE device, which is what an
+    // absent or junk rate has always done here — not a rescale to the
+    // floor, because a shard claiming 1e-12 is not a shard that sampled
+    // hard, it is a shard that lied, and treating it as 1000 devices
+    // would be believing the lie by three orders of magnitude less.
     const rate =
-      typeof shard.rate === "number" && shard.rate > 0 && shard.rate <= 1 ? shard.rate : 1;
+      typeof shard.rate === "number"
+        && shard.rate >= MIN_SHARD_RATE
+        && shard.rate <= 1
+        ? shard.rate
+        : 1;
     const weight = 1 / rate;
     let delta = out.get(shard.day);
     if (!delta) {
@@ -827,8 +900,30 @@ export function firestoreRollupStore(db: Firestore): RollupStore {
       // The collection-group single-field index on `folded` is a
       // fieldOverride in firestore.indexes.json — deployed with the
       // rules, per the existing --only path.
+      // ORDERED BY DAY, and the order is the whole fairness argument.
+      //
+      // With no orderBy, Firestore falls back to `__name__` — which for
+      // this collection group is `v2_users/{uid}/engagement/{day}`, so the
+      // page was uid-major. Below the cap that is invisible; above it, the
+      // SAME low-sorting uids are taken every night and the high-sorting
+      // ones never reach the front of the queue. Their rollups die
+      // unfolded at the 90-day TTL, `people` becomes a biased
+      // sub-population rather than a count, and `fg7` never advances for
+      // them so D272's fade signal cannot fire for those accounts at all.
+      //
+      // The cap's stated contract — "leftovers fold the next night" — is
+      // only true if the queue is FIFO, so it is ordered by the day the
+      // rollup is for. Note that an explicit `__name__` order would be the
+      // same starvation with the fallback written down; the fix is a
+      // different key, not a stated one.
+      //
+      // Needs a COMPOSITE collection-group index (folded ASC, day ASC) —
+      // the single-field `folded` override no longer covers the query.
+      // The emulator does not enforce index configuration, so nothing in
+      // the e2e suites can catch its absence; indexes.test.ts pins it.
       const snap = await db.collectionGroup("engagement")
         .where("folded", "==", false)
+        .orderBy("day")
         .limit(cap)
         .get();
       return snap.docs.map((d) => ({

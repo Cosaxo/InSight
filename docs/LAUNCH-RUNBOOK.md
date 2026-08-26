@@ -22,7 +22,7 @@ the count is zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
 `check:store-listing` and `check:versions` pass; the daily bank is at 130
-questions of 671 seeded; the production backend is deployed. **Measured
+questions of 687 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -168,7 +168,7 @@ arithmetic.
       below because it documents how the gap was reasoned about while it
       was real.
       Actions → **Seed content** → Run workflow.
-      671 questions land in `v2_questions` — idempotent and, since D34,
+      687 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -179,7 +179,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **671** after the K=5 test expansion, D103's
+      and the bank is **687** after the K=5 test expansion, D103's
       retirement of the Thinking test, D114's continuum questions and the
       D14 go-live's pick promotion — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
@@ -982,7 +982,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 671 seeded questions are live regardless.
+      working, not a leak — the 687 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
@@ -1284,12 +1284,41 @@ That is a tester-count problem, not a workflow problem.
       against all five banks rather than assumed.
 ## Phase 5 — Production hygiene before the app is public
 
-- [ ] **5.1 Enable TTL on the aggregate event ledger** (one-time):
+- [ ] **5.1 Enable TTL on all THREE collection groups that stamp
+      `expireAt`** (one-time each):
       ```bash
-      gcloud firestore fields ttls update expireAt \
-        --collection-group=v2_agg_events --enable-ttl --project=prvfire33
+      for cg in v2_agg_events engagement v2_ratelimits; do
+        gcloud firestore fields ttls update expireAt \
+          --collection-group="$cg" --enable-ttl --project=prvfire33
+      done
       ```
-      Without it the ledger grows forever. `SHIP-CHECKLIST §5`.
+      Stamping `expireAt` does nothing on its own — a TTL policy is a
+      per-collection-group setting on the database, and the field is inert
+      until somebody turns it on. Nothing in this repository can read
+      whether one is enabled, so all three are unverifiable from here.
+
+      This step named `v2_agg_events` alone until 2026-08-26, which
+      under-counted the console work by two and left out the half with a
+      promise attached:
+
+      - **`v2_agg_events`** — the aggregate event ledger. Without the
+        policy it grows forever (`SHIP-CHECKLIST §5`).
+      - **`v2_users/{uid}/engagement/{yyyy-mm-dd}`** (D272,
+        `ROLLUP_TTL_DAYS = 90`) — **`web/privacy.html` promises this one in
+        so many words**: "each note deletes itself 90 days after its day,
+        so the account-linked trail is a rolling window". Deleting the
+        account still erases it immediately (phase 1b's recursive delete,
+        asserted in `e2e-delete-account.mjs`), so the promise's *erasure*
+        half holds regardless — it is the ROLLING-WINDOW half that is a
+        console toggle nobody was asked to flip. A promise in a privacy
+        policy kept by a setting no runbook names is the D183 failure with
+        a legal edge on it.
+      - **`v2_ratelimits`** (`suggestions.ts`, `v2social.ts` — `expireAt`
+        at double the rate-limit window) — the smallest of the three:
+        `deleteAccount` removes a living account's own ledgers by exact id,
+        so the residue is bounded per account rather than per request. Slow
+        growth, not runaway, and listed here because the comment asserting
+        the sweep should not be the only place it is asserted.
 - [ ] **5.2 Confirm the Authentication billing edition** — 30 seconds in
       the console, and the largest unknown on the bill. Anonymous-first
       means every install becomes an authenticated identity: free forever
@@ -1395,6 +1424,128 @@ That is a tester-count problem, not a workflow problem.
       dispatch that #2 exists to save, which is the trade being made, and
       it is the cheaper side once releases stop being daily.
 
+- [ ] **5.9b Delete the twelve OLD-PROJECT functions in `us-central1`.**
+      Read out of production by `npm run observe -- --functions` on
+      2026-08-26 (D301). These are **not this project's code** — Gen-1,
+      nodejs10/18/20, last deployed 2024–2025, from an app that shared the
+      `prvfire33` GCP project. The owner confirmed their provenance.
+
+      **Do `onUserDeleted` FIRST, on its own, and knowingly.** It is the
+      only one of the twelve that can see current data:
+
+      ```bash
+      npx firebase functions:delete onUserDeleted \
+        --project prvfire33 --region us-central1 --force
+      ```
+
+      It is a **Firebase Auth `user.delete` trigger scoped to the whole
+      project** (`resource=projects/prvfire33`) — Auth is project-wide, so
+      the database split does not isolate it. `functions/src/index.ts:882`
+      calls `getAuth().deleteUser(uid)`, which means **every InSight account
+      deletion runs 2024-era code from a different application.** What that
+      code does is unknown; the source is not in this repository. It is
+      executing on the erasure path either way, which is the argument for
+      removing it rather than against.
+
+      **Then the other eleven**, which are inert: every one is a Firestore
+      trigger or HTTPS function on the **`(default)`** database, and v2 lives
+      in **`insight`** (`functions/src/db.ts:29`). They cannot see v2 data.
+
+      ```bash
+      npx firebase functions:delete \
+        addFcmToken aggregatePollResults createLiveStream findSimilarUsers \
+        recalculateVoterPersonality scheduledDeletePastEvents \
+        sendChatNotificationsTrigger sendPushNotificationsTrigger \
+        sendUserPushNotificationsTrigger updateIsNewFieldNew \
+        updatePollResults \
+        --project prvfire33 --region us-central1 --force
+      ```
+
+      **Two of them bill on a timer** and are the only ones costing anything
+      today: `scheduledDeletePastEvents` and `updateIsNewFieldNew`. Both are
+      wired to the SAME Pub/Sub topic
+      (`firebase-schedule-scheduledDeletePastEvents-us-central1`) and
+      `updateIsNewFieldNew`'s entry point is `scheduledUpdateIsNewStatus` —
+      a deploy collision in the old project, inherited here. **Deleting a
+      Gen-1 scheduled function does not always remove its Cloud Scheduler
+      job and topic**; check for leftovers under Cloud Scheduler afterwards,
+      because a job whose target is gone still runs and still fails.
+
+      **Verify with the instrument rather than by eye:** re-run
+      `npm run observe -- --functions`. `strayCount` should fall by twelve
+      and no `us-central1` line should name a Gen-1 function.
+
+- [ ] **5.9c The Algolia extension in `europe-west3` — UNINSTALL, do not
+      delete.** Two functions there are
+      `ext-firestore-algolia-search-6ct7-*`, installed 2024-06-03, indexing
+      a `Cities/{documentID}` collection in `(default)` into Algolia. No
+      document in this repository mentions it.
+
+      **`functions:delete` is the wrong tool** — an extension's functions
+      are managed by the extension, and removing them by hand leaves the
+      instance installed and broken.
+
+      **`ext:uninstall` is ALSO the wrong tool, which is not what its name
+      or its own `--help` suggests.** In the pinned firebase-tools
+      (15.24.0) its entire action body is
+      `manifest.removeFromManifest(instanceId, config)` — it edits
+      `firebase.json` and never calls the Extensions API. The only caller of
+      `extensionsApi.deleteInstance` in the whole CLI is
+      `lib/deploy/extensions/tasks.js`, reachable only through
+      `deploy --only extensions`. And this repo's `firebase.json` has no
+      `extensions` key, so the command throws
+      `Extension instance … not found in firebase.json` before doing even
+      its local no-op. Verified by running `removeFromManifest` against this
+      repo's real config, not by reading the help text.
+
+      **Confirm the id, then uninstall in the Console:**
+
+      ```bash
+      npx firebase ext:list --project prvfire33      # this one IS correct
+      ```
+
+      Firebase Console → Extensions → the `firestore-algolia-search-…`
+      instance → Uninstall. That is the only route that does not involve
+      this repository's `firebase.json`.
+
+      *(The CLI route exists — `ext:export` to write the installed instances
+      into the manifest, delete the entry, then `deploy --only extensions`
+      — but that last step reconciles the WHOLE project against the local
+      manifest: anything `ext:export` missed is deleted too. Not worth it to
+      remove one instance.)*
+
+      It may also still be costing an Algolia plan outside this bill, and
+      uninstalling does not delete the Algolia index or revoke its API key.
+
+- [ ] **5.9d The nine stranded `us-central1` copies — THIS project's, and
+      a different decision.** `rebuildAreaAggregates`,
+      `rebuildCityAggregates`, `rebuildWorldAggregates`,
+      `scheduledAreaAggregates`, `scheduledCityAggregates`,
+      `scheduledWorldAggregates`, `scheduledTaxonomies`, `seedTaxonomies`,
+      `sendInboundImpression`.
+
+      These are **Gen-2, nodejs22, deployed 2026-07-29** — InSight's own
+      code. **D13 dropped them from the deploy `--only` list**, so they
+      stopped being deployed anywhere; they sit in `us-central1` because
+      that is simply where they last landed, before D201 moved the region
+      for everything still being deployed. D13 is the cause, not D201.
+
+      **This heading read `europe-west1` until it was reviewed** — the
+      region where all 42 LIVE functions are, one line above a nine-name
+      `--force` delete, in the item that points at a command whose own
+      documentation says in bold that the region must not be "fixed" to
+      match D201. The body two lines down said `us-central1` the whole time.
+      Three independent reviewers caught it; nothing mechanical would
+      have. `docs/DEPLOYMENT.md` § "One-off cleanup
+      still owed in production (D13)" has the command and it is correct as
+      written.
+
+      Kept separate from 5.9b **because the provenance is different**, and
+      the runbook conflated them until D301: twelve are another
+      application's, nine are ours. A single "delete the us-central1
+      leftovers" step would have been one command over two unrelated
+      decisions.
+
 - [ ] **5.9 Deploy the functions to `europe-west1` (D201), then confirm
       the old region is empty.** The code is merged and every gate is
       green; this is the operator half, and it is the one deploy here that
@@ -1415,9 +1566,20 @@ That is a tester-count problem, not a workflow problem.
 
       The full procedure, the verification command and the rollback are in
       [`DEPLOYMENT.md`](DEPLOYMENT.md) § Moving the functions. The short
-      form: deploy while nothing is being answered, then
-      `gcloud functions list --project prvfire33 --regions us-central1`
-      and delete anything that is not one of D13's nine v1 leftovers.
+      form: deploy while nothing is being answered, then check what is left
+      in the old region.
+
+      **The sweep clause here used to say "delete anything that is not one
+      of D13's nine v1 leftovers" — i.e. SPARE the nine — while 5.9d says
+      delete them.** Two open boxes in one document telling an operator
+      opposite things about the same nine functions. The census is now
+      5.9b/5.9c/5.9d, which split `us-central1` by provenance rather than
+      by "is it on D13's list", and this clause defers to them.
+
+      **The deploy half has already happened** (D300's reading: all 42 live
+      functions are in `europe-west1`, and `us-central1` holds only the 12
+      old-app functions and the 9 D13 leftovers). What keeps this box open
+      is the build bump below, not the deploy.
 
       **Then bump the build and ship it** (2.4). Every build shipped before
       this deploy — 21 and earlier — keeps
@@ -1427,11 +1589,20 @@ That is a tester-count problem, not a workflow problem.
       Mirror keep working, because they read Firestore directly and never
       go through a callable.
 
-- [ ] **5.10 Dry-run the replay tool once, on a question with real
-      answers.** D290 shipped `rebuildAggregateV2` and its unit tests, but
-      the callable has never run against production data — there was none
-      when it was written. Its first execution should not be during an
-      incident, which is the only other time anyone reaches for it.
+- [x] **5.10 Dry-run the replay tool once, on a question with real
+      answers.** **DONE 2026-08-26 on `daily-019`** (Actions run 6,
+      `apply` off): the scan pulled 5 real answers out of
+      `v2_users/{uid}/answers`, rebuilt the vote fold, and matched the
+      published aggregate exactly — `rebuilt total 5 counts {"0":5}` ·
+      `published total 5 counts {"0":5}` · `drift: none`. That is the
+      property the whole of D290 rests on, checked against production
+      rather than against an emulator, and it is the first non-vacuous
+      run: the 2026-08-25 attempt scanned zero (D295/D296).
+
+      D290 shipped `rebuildAggregateV2` and its unit tests, but
+      the callable had never run against production data. Its first
+      execution should not be during an incident, which is the only other
+      time anyone reaches for it.
 
       **Actions → Rebuild aggregate → Run workflow**, with the qid and
       `apply` left off. No checkout, no Node, no credentials on a laptop —
@@ -1447,13 +1618,49 @@ That is a tester-count problem, not a workflow problem.
       the trigger and the answers disagree, which the incremental fold has
       no other way of telling anyone.
 
+      **`nothing to compare` is not that green.** It means the scan matched
+      no answers and the aggregate is empty too — consistent, and nothing
+      verified. If you expected answers for that question, the query is
+      what to look at, not the fold.
+
       The workflow reads the seed's own credentials
       (`FIREBASE_SERVICE_ACCOUNT`, `SEED_ADMIN_UIDS`,
       `VITE_FIREBASE_API_KEY`) from the `production` environment, so there
-      is nothing new to grant. The composite index the scan orders by
-      ships in `firestore.indexes.json`, so it needs a `--only firestore`
-      deploy to exist; a missing index fails the call with a console link
-      rather than a wrong answer.
+      is nothing new to grant.
+
+      **WHAT THE FIRST RUN ACTUALLY FOUND (2026-08-25, D295).** The step was
+      performed the day the tool merged, and it failed twice before it
+      passed. Both failures were about the deploy, not the tool, and both
+      are worth knowing before anyone reaches for this during an incident:
+
+      1. **Dispatched five seconds after the merge**, while the backend
+         deploy was still running. `cloudfunctions.net` answered with a 404
+         HTML page for a function that did not exist yet. **Wait for the
+         backend deploy to finish** before dispatching a rebuild that
+         depends on a just-merged change.
+      2. **Dispatched a minute after the deploy finished**, and got a bare
+         `INTERNAL`. The composite index the scan orders by (`qid` +
+         `answeredAt`, collection group) ships in `firestore.indexes.json`
+         and is created by the same deploy — but a freshly created index is
+         **not queryable until it finishes BUILDING**, which for this
+         collection takes minutes rather than seconds. The third dispatch,
+         2.5 minutes later and otherwise identical, succeeded. If a rebuild
+         fails right after an index change, **wait and re-run before
+         debugging anything**.
+      3. It then reported `scanned 0 … nothing to compare` — true of
+         `daily-000`, which nobody has answered. **So the plumbing is
+         verified and the fold is not**: the call reaches the function, the
+         scan runs, the fold runs and the comparison runs, over zero
+         answers. The fold itself is covered against emulated functions with
+         real answers (e2e steps 7h, 7i, 9e).
+
+         **Pick a qid that HAS answers.** This entry first said the project
+         held none, quoting `answersCounted: 0` from the pulse trail; D296
+         found that number to be a broken reader, not a measurement — there
+         are 104 questions with answers in production. `daily-019` (total 5)
+         is the one with more than a single vote, and is what run 6
+         verified. `feed-f03` would exercise the rank arm the same way if
+         a rank fold ever needs the same confidence.
 
 - [ ] **5.12 Turn on Cloud Billing export to BigQuery — so the prediction
       can be diffed against the invoice.** Cloud Console → Billing →

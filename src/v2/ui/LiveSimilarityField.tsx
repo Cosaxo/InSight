@@ -618,7 +618,20 @@ export function NearField() {
         return { uid: p.uid, m: theirs ? scoreMatch(myFlat, flattenAxes(theirs), 3) : null };
       })
       .filter((p): p is { uid: string; m: NonNullable<ReturnType<typeof scoreMatch>> } => !!p.m)
-      .sort((a, b) => b.m.match - a.m.match)
+      // RAW, not the drawn number. This is the one place `raw` exists for
+      // — "deciding which people the field draws at all", in its own
+      // docstring — and Near was the site D277 §2 missed: `similarity.ts`
+      // converted both of its rankers and this one kept sorting on `match`.
+      //
+      // Two things follow from ranking on the printed figure. It carries
+      // the width bias `raw` folds AXIS_PRIOR in to remove, so a stranger
+      // matched on three axes can outrank one matched on twenty. And it is
+      // rounded onto ~20 integers, so a large tied block is resolved by
+      // whatever order the roster arrived in. The server hands back more
+      // people than the field draws (ROOM_PEOPLE_CAP against
+      // NEAR_FIELD_CAP), so the slice below is a real choice and both
+      // failures decide who is dropped.
+      .sort((a, b) => b.m.raw - a.m.raw || b.m.axes - a.m.axes || a.uid.localeCompare(b.uid))
       .slice(0, NEAR_FIELD_CAP)
     : [];
 

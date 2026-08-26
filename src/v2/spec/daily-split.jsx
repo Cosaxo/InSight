@@ -48,8 +48,16 @@ const LiveBreakdownPanel = React.lazy(() => import('../ui/LiveBreakdownPanel.tsx
 // reason (D156) — see the mode switch near the bottom of render().
 const LiveDuelPanel = React.lazy(() => import('../ui/LiveDuelPanel.tsx'));
 import ReactDOM from 'react-dom';
-import { IS_TESTS, IS_TEST_RESULTS, persistTestResult } from './test-definitions.js';
-import { PASSIVE } from './passive-progress.js';
+// This file bound IS_TESTS, IS_TEST_RESULTS, persistTestResult and PASSIVE
+// and referenced none of them — residue of the `else { window.IS_TEST_RESULTS
+// = … }` branch that converting test-definitions.js made unreachable
+// (src/v2/README.md). Both statements are gone rather than kept as
+// side-effect imports: TRACED, not assumed, because the first instinct was
+// to keep the edges for load order and that instinct was wrong. Neither
+// module waits on this file — spec-index.js reaches archetype-data.js at
+// line 9, which imports test-definitions.js, and type-marks.jsx and
+// result-card.jsx at 69 and 71, which import passive-progress.js, all long
+// before daily-split.jsx at 140.
 import NAV from '../data/nav';
 
 // daily-split.jsx — SPLIT: the daily tab. Three modes — World (vote blind,
@@ -372,6 +380,23 @@ class DailySplit extends React.Component {
       const q = DAILYQ.questions.find(x => x.prompt === s.prompt);
       if (q) return DAILYQ.categoryPath(q)[0];
     }
+    // THE LIVE ARM, and it has to come before the two demo maps below.
+    // A live daily carries its subject in `branch` (D100) — one of the
+    // fourteen CAT_META keys the Map is drawn from, so it is always a real
+    // branch and never needs translating. The demo deck literal in this
+    // file carries `region`/`cat` instead, and NOTHING writes either onto a
+    // live question: `buildS` (data/deck.ts) emits no `region` at all, and
+    // sets `cat: q.topic` — which the generator fills with the TONE for the
+    // daily surface (`topic: q.tone`, gen-v2content.mjs), so it is
+    // "light"/"deep"/"blend" and matches no key in `byCat` either.
+    //
+    // So before this arm existed, all three lines below missed on every
+    // live daily and the `|| 'Interests'` fired for all 130 of them. That
+    // is not a vague catch-all: 'Interests' is one of the fourteen, home to
+    // 8 bank questions, so the toast named a real branch the answer was not
+    // filed under — for the other 122. Silent, plausible, and wrong, which
+    // is the same shape as D296's retired predicate.
+    if (S.branch) return S.branch;
     const byRegion = { Taste: 'Food', Work: 'Mind', Society: 'Values' };
     const byCat = { dilemma: 'Morals', event: 'Mind', people: 'Values', bigq: 'Values' };
     return (S.region && byRegion[S.region]) || byCat[S.cat] || 'Interests';
@@ -718,7 +743,12 @@ class DailySplit extends React.Component {
         })) : null;
 
     // one quiet meta line above the question: day · topic — nothing else competes
-    const catLabel = (WORLD_TOPICS_V2.find(c => c.id === S.cat) || {}).label;
+    // `S.cat` is a WORLD_TOPICS id on the demo deck and the question's TONE
+    // on a live one ("light"/"deep"/"blend"), which matches no topic — so
+    // this was undefined for every live daily and the row below degraded to
+    // "Asked in · Today". `branch` is the live subject and is what the row
+    // is asking for.
+    const catLabel = (WORLD_TOPICS_V2.find(c => c.id === S.cat) || {}).label || S.branch;
 
     // ── the feed: answer today's question, then the feed starts ──
     const feedEnabled = this.props.feed !== false && window.WorldFeed && (!(window.LIVE && window.LIVE.enabled) || window.LIVE.feedReady); // live feed (Phase 4) or the demo feed offline
@@ -842,8 +872,28 @@ class DailySplit extends React.Component {
       })();
     const sheetHost = typeof document !== 'undefined' ? document.querySelector('.app') : null;
     // context is the one panel that opens before you answer — that is the point of it
+    // THE SAME TOTAL THE CARD PRINTS, and only when there is one.
+    //
+    // This summed `o.count` on its own — without the viewer's own vote,
+    // which `counts` adds a hundred lines above — so the sheet read
+    // exactly one lower than the "N votes" on the card it opens from. And
+    // it pushed the row unconditionally, so the first person to answer
+    // today saw "1 vote" on the card and "Answers 0" one tap away: a false
+    // zero on a live surface, which D1 forbids, contradicting the card
+    // behind it. The feed's twin has always guarded the same row with
+    // `if (n)`; the daily's is the outlier.
+    const ctxRows = [['Asked in', catLabel || 'Today']];
+    if (total >= 1) {
+      ctxRows.push(['Answers', total >= 1000 ? (total / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : String(total)]);
+    }
+    // Through mapBranch, not off `S.region` raw. The translator is right
+    // here in this file and line ~970's toast already uses it; this row
+    // bypassed it and read a field only the demo deck has, so the sheet and
+    // the toast could name different places for the same answer — and on a
+    // live daily both said 'Interests' regardless of subject.
+    ctxRows.push(['On your map', this.mapBranch(S)]);
     const ctxBody = h('div', { style: { padding: '2px 0 14px', display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: 14, rowGap: 9, alignItems: 'baseline' } },
-      [['Asked in', catLabel || 'Today'], ['Answers', (function () { const n = S.options.reduce((a, o) => a + (o.count || 0), 0); return n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : String(n); })()], ['On your map', S.region || 'Interests']]
+      ctxRows
         .map(([k, v]) => h(F, { key: k },
           h('span', { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', whiteSpace: 'nowrap' } }, k),
           h('span', { style: { fontSize: 13.5, fontWeight: 700, color: INK } }, v))));

@@ -529,8 +529,10 @@ only an equality on a present field is enforceable against a query — the
 presence test this replaced returned hidden takes to the whole circle on a
 `where("gid","==",…)` while denying the same document to `getDoc` (D65).
 An ordered list needs the `(gid ASC, hidden ASC, createdAt DESC)` composite
-in firestore.indexes.json — the only entry in that file's `indexes` array,
-declared ahead of the UI that will want it.
+in firestore.indexes.json, declared ahead of the UI that will want it.
+(`src/v2/data/indexes.test.ts` is the live account of which query shapes
+resolve against that file — this sentence used to add "the only entry in
+that file's `indexes` array", which stopped being true at the second one.)
 (deleteAccount erases a user's takes and flags by uid query)
 
 v2_flags/{takeId}_{uid}            one flag per (take, user), write-only
@@ -551,7 +553,7 @@ MOD_UIDS-gated callables (the D22 confinement)
 ## Functions
 
 - `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
-  into `v2_questions` (671 docs, stable ids `daily-000`, `feed-<id>`,
+  into `v2_questions` (687 docs, stable ids `daily-000`, `feed-<id>`,
   `pick-<id>`, `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
   operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
@@ -624,7 +626,7 @@ read: signed-in · write: nobody
 ## Read economics (client)
 
 A live boot costs ~20 reads, not ~380: one `v2_meta/app` read decides
-everything. The question bank (671 docs) caches in localStorage keyed by
+everything. The question bank (687 docs) caches in localStorage keyed by
 `contentRev`, and refreshes **incrementally** — one query for docs newer
 than the cache's `updatedAt` cursor, so a promotion cycle costs the
 handful of questions it added rather than the whole bank (D34;
@@ -659,7 +661,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 143 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 149 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

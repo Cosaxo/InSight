@@ -19877,7 +19877,7 @@ so the rules and e2e suites were not run.
 
 **2026-08-17.** **Status:** binding. Owner's ask: *"let's start building
 the remaining parts like the predicts."* Foresight **CALL, tier A** — the
-half of [D126](#d126) that was designed at [D127](#d127) and never built —
+half of [D126](#d126--foresight--the-read-half-on-a-truth-that-now-exists) that was designed at [D127](#d127--a-machine-may-propose-an-outcome-never-be-the-reason-one-is-believed) and never built —
 is live end to end: a bank surface, a rules arm, a scheduled resolver, a
 feed card, and a gate that refuses a call the grader cannot run.
 
@@ -19908,7 +19908,7 @@ Three things make that a property rather than a promise:
 
 The module is byte-identical across both trees (`src/v2/data/callRubric.ts`
 · `functions/src/callRubric.ts`), held equal by `npm run check:calls` — the
-[D57](#d57) logic-generator arrangement, for a sharper reason: a drifted
+[D57](#d57--verified-logic-attempts-d31s-deferral-reversed--the-server-holds-the-key) logic-generator arrangement, for a sharper reason: a drifted
 copy would not merely mis-grade, it would make the app contradict itself on
 screen.
 
@@ -28548,6 +28548,30 @@ row that names something a reader would actually find, so filling the gap
 with `now: 'Mind'` would replace a true fallback with a false claim, in
 the sheet D277 just made worth opening.
 
+> **Corrected 2026-08-26.** *"'Mind', 'Morals' and 'Taste' … are not
+> branches on that map at all"* is false for two of the three, and this
+> paragraph contradicts itself one sentence earlier: the branch list is the
+> seven seeds **plus the daily lane's emergent cats**, and
+> `EMERGENT_CATS` (`daily-questions.js:69`) is every `CAT_META` key without
+> a `seedId` — Sport, Film, Food, Travel, **Mind**, **Morals**, Music.
+> `map-branches.js:22-24` pushes all of them onto `CATS` unconditionally at
+> module load, not once a question in that branch has been answered. So
+> Mind and Morals are branches on that map, always. Only *Taste* is
+> genuinely absent — it is not a `CAT_META` key.
+>
+> **What that does and does not overturn.** The premise is gone: `now:
+> 'Mind'` would not have been a false claim. Whether the fallback should
+> change is still a judgement about the feed, and this note does not make
+> it — D282's decision stands as recorded, with its reason corrected rather
+> than its conclusion replaced.
+>
+> Found by the sweep for D296's bug class, which confirmed the DAILY card's
+> version of the same fallback and fixed it: there `S.region` was never
+> written by the live path at all, so `|| 'Interests'` fired for all 130
+> questions. The feed's is a different mechanism and was left alone, which
+> is what this correction is about — the check that read the record found
+> the record's own reasoning stale, not the code it protects.
+
 ## D283 · Every field is followed, and the follow list gets a way out
 
 **2026-08-24.** **Status:** binding. The owner's decision, taken against
@@ -29277,6 +29301,22 @@ D72's rule — refuse rather than fabricate — applied to a repair tool.
   confident wrong aggregate is the failure D161 rewrote the bank fetch to
   avoid. The fix if it ever fires is paging across invocations, not a
   larger constant.
+- **Pulse and the two duel surfaces are refused at the door** (added
+  2026-08-26, by the night audit). The scan keys on the BANK ID —
+  `collectionGroup("answers").where("qid", "==", qid)` — and both break
+  that in opposite directions. A **pulse** aggregate is keyed
+  `{qid}_{day}` and a pulse answer carries that composite as its own
+  `qid`, so the bank id matches no answer at all: the tool scanned zero
+  rows, found zero drift and reported success, which
+  `rebuild-aggregate.mjs` prints as *"the published aggregate already
+  matches the answers"* — a repair tool certifying health for a document
+  it never read. A **group or duo** answer never reaches the world fold
+  (`onV2AnswerCreated` returns first), so there is no aggregate to
+  repair, only one to MINT out of votes that stay sealed until their
+  reveal. `rebuildRefusal()` in `replay.ts` names both, `runRebuild`
+  consults it, and the e2e asserts the refusal through the real callable
+  — because the predicate alone could be, and for one commit was,
+  exported and tested and never asked.
 
 ### The reversal condition this sets up, recorded before it is needed
 
@@ -29766,3 +29806,1011 @@ what they leave behind.
 never where it came from, so the matrix is not derivable from the answers
 and is carried forward instead. That is one field, stated at three sites,
 rather than two thirds of the system.
+
+> **Corrected 2026-08-26 (D294's audit).** "The whole list" was true of the
+> three QUESTION aggregates the replay tool rebuilds, and false of the
+> record's own list of projections at the top of D290, which also names the
+> Patterns fit and the engagement digest. Neither is replayable from the
+> log:
+>
+> - **`v2_patterns/loadings`** (`functions/src/patterns.ts`) is an
+>   incremental online fold that reads YESTERDAY's `v2_agg_events` ledger
+>   and carries the prior model forward. The ledger has no anchors and
+>   expires at `LEDGER_RETENTION_DAYS` (90). Deliberate — the header says
+>   why: it keeps a read and a write off the trigger's hot path.
+> - **`v2_engagement_daily`** (D268) reads the same TTL'd ledger, and
+>   `runAttentionFold` folds device-written `v2_attention` shards into the
+>   day document and then DELETES them — which is ATTENTION.md §6's privacy
+>   promise, not an oversight. Once a shard is folded its raw contribution
+>   is gone.
+>
+> So the honest statement is narrower than D290's closing sentence: **every
+> aggregate derived from the ANSWERS is a rebuildable projection, and
+> `edits` is the whole list of exceptions within that set.** The two
+> ledger-derived projections are outside it by construction, and each has a
+> reason recorded at its own site. Both are recoverable only forward, by
+> waiting for the next run.
+## D293 · A moderation verdict's ID is not neutral, and the privacy page says it is
+
+**2026-08-26.** **Status:** binding as a RECORD OF A LIMIT; the repair is
+the owner's call and is deliberately not made here. Found by the
+2026-08-25 night audit, which corrected `docs/data-inventory.md` and
+raised the rest rather than editing the privacy page unattended — the
+right call under D183, and the reason this record exists instead of a
+commit.
+
+### The finding, which stands
+
+`v2_mod_verdicts` is append-only and survives erasure by design: it is
+the audit trail the advisory phase's judgement is assessed from. The
+inventory said it held "no author text and no author uid", and that was
+read as meaning the row cannot name the person moderated. **The field
+list is right and the reading is wrong**, because the row is keyed by the
+take id and that id is not opaque:
+
+| take shape | id | carries |
+| --- | --- | --- |
+| world take | `{qid}_{authorUid}` | the account **and** the question it wrote under |
+| reported face | `av_{uid}` | the account |
+| circle take | Firestore auto-id | nothing |
+
+`firestore.rules` pins the first shape — that determinism is what bounds
+a world take to one per person per question — so it is not incidental and
+cannot be dropped without giving up the bound. Two of the three shapes
+therefore retain a pseudonymous identifier of the moderated account,
+plus (for a world take) one fact about them, after everything else is
+erased.
+
+### Why this is a claim and not only an inaccuracy
+
+`web/privacy.html` says: *"Two things intentionally survive, and neither
+can identify you"* — the aggregates and the error reports. This is a
+third, and for two of the three shapes the second half of that sentence
+does not hold. Under D183 the long disclosure lives once, on that page,
+and `check:policy-claims` proves each claim is PRESENT — it cannot prove
+one is TRUE, which is why every gate was green while this stood.
+
+### The two repairs, and what each costs
+
+- **Disclose it.** Name the verdict log as a third survivor and say what
+  its id carries. Cheapest, honest, and it grows the page — which is what
+  D183 and COPY.md §3 both say a claim is allowed to do.
+- **Re-key the verdict.** Store an opaque verdict id and keep the take id
+  in a field the erasure sweeps. This trades the join the queue and the
+  verdict currently share, and it is a migration over existing rows.
+
+Not chosen here. Both are the owner's, and picking one unattended — on
+the page that is the app's single disclosure — is the failure D183 was
+written to stop. The retention itself is unchanged and still deliberate;
+what changed on 2026-08-26 is that the tree now describes it accurately.
+
+## D294 · A deep clean, priced: what moved, what did not, and the eight rules that hold it
+
+**2026-08-25.** **Status:** binding. Requested directly: *"Do a deep clean
+and structuring of this project."*
+
+Every finding below was reproduced before it was acted on, and every one
+that could recur is now held by a gate rather than by intention — which is
+this repo's own answer and the reason it had so little to find.
+
+### The defect the clean was worth doing for
+
+`data/pulse.ts` read `window.IS_DATA` as a TypeScript cast. `sample-data.js`
+came off the global bridge long ago and assigns nothing to `window`, so the
+name resolved to `undefined` on every demo build and the pulse card's city
+and country scopes drew "Your city" and "Your country" instead of Oslo and
+Norway. Two lines up, the same file read `window.IS_PULSE_HISTORY` — a
+prototype tweak knob whose panel v28 §5 dismantled into shipped defaults, so
+three of its four seeded histories were unreachable and nothing had ever
+written the name.
+
+Nothing could see either. **D280 taught `spec-globals.mjs` to see a cast
+WRITE and stopped there.** The READ side is the half rule 1 needs, and it
+stayed blind. `CAST_REF_RE` closes it: re-injecting the old line now fails
+`check:globals` by name.
+
+### The structural question, answered with the arithmetic
+
+`scripts/` is 105 flat files, `docs/` is 43, `src/v2/spec/` is 92. **None of
+them moves**, and the numbers are why rather than taste:
+
+| Directory | Path references in the tree | …of which in `DECISIONS.md` |
+| --- | --- | --- |
+| `scripts/` | 546 across 216 files | 69 |
+| `docs/` | 719 | 141 |
+
+Two hundred and ten historical citations are the argument. This file is
+append-only and its arithmetic is deliberately a snapshot; a rename either
+falsifies every one of them or forces rewriting the record to satisfy a
+reorganisation. Both directories already carry a naming convention that
+sorts them (`check-*`, `build-*`, `gen-*`, `cost-*`), and what was actually
+missing was not folders but currency — so the effort went to the map.
+
+The one cheap move if flatness ever does bite is `scripts/README.md`, which
+`check:docs` rule 3 would then pull into ORIENTATION automatically, at zero
+risk to any path.
+
+### What was deleted, and what deleting it revealed
+
+`spec/test-viz.jsx` and `spec/profile-test-viz.jsx` — five components, 325
+lines — defined nothing they exported and published nothing to `window`, so
+no import could bind them and no JSX tag could resolve them. Inert since the
+port. **The cost was not bytes**: measured at 0 KB of the eager graph either
+way, because rolldown already tree-shakes them. It was belief —
+`VISION-2026-08-24.md` §6 row 3 recorded a colour change to one of them as
+BUILT, applied at D287 against a screen that does not exist. The app's
+saved-result surface is `spec/result-card.jsx` with `result-rose.jsx`'s rose,
+reading `testNorm()`; the deleted pair read `testAvg()`, a back-compat shim
+whose only two callers they were. Shim gone, its seven assertions kept
+against `testNorm().avg`.
+
+Also gone: `FIRESTORE_REGIONAL` (read by nothing — `cost-arith.mjs`
+re-derives its own because it cannot import TypeScript), 33 `import React`
+statements the automatic JSX runtime has not needed since the port, six
+unused named bindings, twelve dead load-order guards on ESM imports (D108's
+pattern), two duplicated test cases in `indexes.test.ts` including two copies
+of the duplicate-key guard itself, four copies of `stripComments`, two of
+`utcDay`, three suites' worth of copy-pasted e2e assertion helpers, and the
+D121 test overlay's CSS residue — that last one worth 1 KB of the
+blocking-CSS ceiling, which had 5 KB of headroom.
+
+`@sentry/react` left `package.json` too, and the measurement is the point:
+**dropping the declaration does not drop the install.** npm installs optional
+peers, so it is still in `node_modules` and still in the lockfile, now marked
+`optional`/`peer`. What the removal buys is that the manifest stops declaring
+something the app does not import. The comment that had justified keeping it
+claimed npm would warn; `@sentry/capacitor` marks all three framework peers
+optional, so it never did.
+
+### The eight rules
+
+Five gates gained a rule, and each closes a class rather than an instance:
+
+1. **`check:globals` cast reads** — the mirror of D280, above.
+2. **`check:globals` rule 7, unreachable modules** — a spec module that
+   defines a component and neither exports nor publishes it. No allowlist
+   needed: the five real side-effect modules define no component.
+3. **`check:globals` rule 8, unused imports** — `no-unused-vars` is off for
+   this layer and its reason is right, but that reason is about
+   DECLARATIONS. An import cannot be a publication.
+4. **`check:docs` rule 8, every directory** — ORIENTATION's opening line has
+   always promised "every document, every gate, every directory". Rules 2-4
+   held the first two; the third was a convention and had drifted to four,
+   including `android/` and `ios/`, the entire native half.
+5. **`check:docs` rule 9, decision anchors** — this repo renumbers records
+   on merge, which rewrites the heading and leaves every link pointing
+   nowhere. Eight were broken.
+6. **`check:docs` rule 6, widened to every map** — CLAUDE.md, README.md and
+   all six READMEs, not ORIENTATION alone.
+7. **`check:docs` rule 2, widened to the root** — `SECURITY.md` is a live
+   policy `web/privacy.html` names to a user by filename, and no gate could
+   see a document outside `docs/`.
+8. **`check:versions` iOS vacuity floor** — both scans pushed a problem only
+   from inside the loop, so zero matches meant a pass. Reproduced: quote both
+   values the way Xcode legitimately writes build settings and the gate
+   printed "versions OK … across package.json, Android and iOS" having read
+   neither key. **D275's shape, on the release path.**
+
+Plus three `check:figures` entries. The worst figure found: CLAUDE.md said
+**seven** modules are off the shared-global bridge. The tree has **32** — an
+understatement of 25, in the paragraph directly above the one warning that a
+hand-maintained figure is the documentation error this repo keeps
+re-committing.
+
+### Measured and NOT built, so the next pass does not re-derive it
+
+A gate over file references in **code comments**, which is where most of the
+wrong pointers lived. 87 filename tokens in comments do not resolve. Nineteen
+were real and are fixed; **68 are legitimate**, across six classes: port
+provenance headers CLAUDE.md explicitly sanctions (29), gitignored derived
+output (9), past-tense records of deleted files (11), files outside the
+tracked tree (8), a catalogue that deliberately does not exist yet (3), and
+pattern fragments like `*.test.jsx` (8). A gate that is 80% allowlist is one
+this repo's own guidance says stops being read, so the reference scan stays a
+tool rather than a rule.
+
+Two smaller declines, for the same reason the directories do not move:
+`scripts/report.test.mjs` is the only test in `scripts/` whose basename has
+no subject file (its subject is `report-lib.mjs`), and renaming it would
+falsify a `DECISIONS.md` citation to buy alphabetical tidiness.
+`ui/patterns.css` carries eleven selectors that style markup the tab does not
+render — kept, because that file's whole contract is being diffable against
+the prototype it was ported from, and its header now says so instead of only
+saying "verbatim".
+
+### Two things this pass got wrong, and how
+
+Recorded because the house rule is *verify rather than assume, and say which
+it was* — and because both were caught by an adversarial re-check of the
+findings rather than by any gate:
+
+- **The daily-split edges.** Four unused bindings there were first replaced
+  with side-effect imports, on the reasoning that daily-split.jsx loads
+  before `test-definitions.js` and `passive-progress.js` in spec-index's
+  order and deleting the lines would move both evaluations later. Tracing
+  the graph instead of reasoning about the list: `archetype-data.js` (line
+  9) imports test-definitions.js, and `type-marks.jsx` and `result-card.jsx`
+  (69, 71) import passive-progress.js — all long before daily-split at 140.
+  The edges preserved nothing. Deleted outright.
+- **Rule 8's own hole.** Its first version required a comma after a default
+  binding, so `import PLACES from '…'` matched the pattern with no names
+  captured and passed. `profile-general.jsx` was carrying exactly that — an
+  import whose last reader went with the D39 conversion the comment above it
+  records. A new rule is not evidence that it fires; the probe is.
+
+### What held
+
+Thirty-nine gates pass. The three that do not are the three that did not
+before this work: `check:bundle` wants `VITE_V2_LIVE`, `check:web-firebase`
+wants the Firebase secrets, and `check:store-copy` is the manual
+pre-submission gate with its one known placeholder. Unit 2066, scripts 408,
+functions 359, rules 143, and all three e2e suites — 146 assertions against
+real emulated functions — green.
+
+## D295 · What the first production run of the repair tool cost, and the data-loss path it exposed
+
+**2026-08-25.** D290's `rebuildAggregateV2` merged, and the runbook's 5.10
+said to dry-run it once against production before anyone needed it during
+an incident. That was the right instruction and this is what performing it
+found: **three defects, none of them in the fold.** Two were in how the
+tool reports failure, and one was a path by which a repair tool could
+destroy the thing it repairs.
+
+### It failed twice before it passed, and neither failure was the tool
+
+**Dispatched five seconds after the merge**, while the backend deploy was
+still shipping the function. `cloudfunctions.net` returned a 404 HTML page.
+`operator-call.mjs` called `res.json()` on it, so what the operator read
+was:
+
+```
+Unexpected token '<', "\n<html><hea"... is not valid JSON
+```
+
+which names neither the status, nor the URL, nor the function — and reads
+like a bug in the caller rather than a deploy that had not finished.
+
+**Dispatched again after the deploy completed**, and got `INTERNAL
+INTERNAL`. The collection-group index the scan orders by (`qid` +
+`answeredAt`) ships in `firestore.indexes.json` and is created by that same
+deploy — but a freshly created index is not queryable until it finishes
+**BUILDING**. The third dispatch, 2.5 minutes later and byte-identical,
+succeeded. Nothing changed but time.
+
+The `fn-log` fallback the workflow carries for exactly this case reported
+nothing, correctly and uselessly: it ran 10ms after the failure, and Cloud
+Logging had not ingested the entry yet.
+
+### The general fault: a callable that throws a non-HttpsError says nothing
+
+Firebase discards the detail of anything that is not an `HttpsError` before
+the response leaves the server. `runRebuild` was called without a
+try/catch, so every failure inside it — a building index, a rules change, a
+malformed document — reached the operator as the five-letter string
+`INTERNAL`, pointing at a Cloud Run log that, in the minute after a
+failure, does not exist yet.
+
+That is a bad failure mode for any callable and the wrong one entirely for
+this one, whose two callers are a verification and an incident. It now
+catches, logs, and rethrows as an `HttpsError` carrying the underlying
+reason, with the index case named because it is the one thing about this
+tool that is not in the deployed code. Safe to return the detail here
+specifically because `assertOperator` has already run.
+
+### The real finding: a right fold of nothing
+
+The successful run reported:
+
+```
+scanned 0  folded 0  skipped 0  excluded 0
+drift: none — the published aggregate already matches the answers.
+```
+
+Both lines are true. Together they are a lie of the kind this repo keeps
+naming — **a check that passes because it never ran.** The scan found
+nothing for `daily-000` and agreed with an empty aggregate; nothing was
+verified, and the workflow's own summary was busy telling the reader that
+`drift: none` means the question is healthy.
+
+> **Corrected 2026-08-25, same day (D296).** This paragraph originally read
+> "`answersCounted` is 0 in the pulse trail, so the project genuinely holds
+> no answers." **That is false, and the reason it is false is a bug D296
+> found:** production held 104 aggregate documents and 108 answers at the
+> moment of this dry run. `answersCounted` reads 0 because the scorecard
+> gates on `agg.tooSmall === false`, a field D98 stopped writing — so every
+> real aggregate reads as unscored. `daily-000` really does have no answers,
+> which is why the run scanned 0; the project-wide claim was quoting a
+> broken instrument. Exactly the error this record is about, committed in
+> the record about it.
+
+Follow it one step further and it stops being a reporting problem. The
+concurrency guard added at D290 compares `updateTime` and catches an
+aggregate written **during** the scan. It cannot catch the quieter case:
+nobody wrote, and the scan simply returned nothing. Then the stamps match,
+the guard passes, and a whole-document `set` puts `total: 0` over a
+document holding real votes.
+
+**A scan returns nothing far more often because the query did not work than
+because a question's answers are gone.** An index still building — which
+had just happened, twice — a qid that does not match what the answers
+carry, a rules change. All of them are indistinguishable from the truth
+from inside the function. So the refusal is on the comparison rather than
+on the scan: **no answers found, but something published, and `apply` on →
+refuse.**
+
+It is a refusal with an escape hatch rather than a veto, because a
+question's answers really can go away — an erasure sweep, a retraction —
+and repairing exactly that is what D28 built this tool for. What it must
+not have is a silent path. `allowEmpty` is that hatch, and it has to be
+typed.
+
+### Proven by removing it
+
+The e2e's new 7i writes a question with a published aggregate of 7 and no
+answers, then asserts the dry run reports `emptyScan`, that `--apply` is
+refused with `failed-precondition`, that the document survives, and that
+`allowEmpty` then applies deliberately. Stubbing the guard to `if (false)`
+fails it with `an empty scan OVERWROTE a published aggregate` — measured,
+not assumed.
+
+`operator-call.mjs` got its first test at the same time (9 cases, 5 of
+which fail against the pre-fix code reproducing the exact production error
+text). It had shipped without one, on the grounds that the two callers
+predating it both worked — which was true of the happy path and of nothing
+else.
+
+### A fourth thing, found while writing this up
+
+`docs/DEPLOYMENT.md`'s D28 runbook — the one somebody follows during the
+incident this tool exists for — still ended with **"No correction script
+ships in this repo."** D290 shipped one, wired it to a workflow button,
+gave it an e2e step literally labelled `D28/D290: excluding one uid
+subtracts exactly its answer`, and never went back for that sentence. It
+is D183 again: the app changed and the document that promises what the app
+does did not. Corrected, with the tool's three limits stated at the same
+site (attribution is still manual, `edits` is carried not recomputed, dry
+by default) so the correction cannot read as more than it is.
+
+### What is verified now, and what is not
+
+The plumbing: the call reaches the function, the scan runs, the fold runs,
+the comparison runs, against production. The fold over real answers: still
+only against emulated functions (7h, 7i, 9e) — not because production has
+nothing to fold (D296: it has 104 questions with answers) but because the
+qid this run was pointed at, `daily-000`, is not one of them. Runbook 5.10
+stays **open**, and D296 names three qids that would actually exercise it.
+
+## D296 · The scorecard has been reading production through a retired predicate, and every number downstream inherited the zero
+
+**2026-08-25.** An audit of what is missing from the target architecture
+found something that is not missing at all. **Production holds 104
+questions with answers and 108 answers.** Every instrument in this
+repository has been reporting zero.
+
+### The bug is one expression
+
+`scripts/question-scorecard.mjs` decided whether an aggregate document was
+readable with:
+
+```js
+agg && agg.tooSmall === false
+```
+
+That was correct while a k-anonymity floor existed. The trigger stamped
+`tooSmall`, and a floored question published a document whose counts were
+not usable — so a fail-closed test was the right shape.
+
+**D98 removed the floor and stopped writing the field** (2026-08-11).
+`undefined === false` is `false`, so from that day every aggregate document
+in production read as *below floor*. Not an error, not a warning: a clean,
+confident zero, at eight call sites.
+
+D98 swept the CLIENT's copy of the same predicate in the same commit —
+`src/v2/data/deck.ts:289-292` still carries the note that a client reading
+the flag "would blank every count in the app". The script's copy was
+missed, and nothing failed, because `question-scorecard.mjs` had no test.
+
+### What it cost
+
+`content/scorecard.json` → `coverage.scored` has been `0` in every refresh
+since. Downstream, in order: `pulse-collect.mjs` sums those zeros into
+`totalAnswers`; `pulse.mjs` renames it `answersCounted`; `pulse-collect.mjs`
+derives `population.state` from it; the question farm's evenness, leaders,
+laggards and retirement lanes all gate on `signal === "scored"`, which no
+row could be. `pulse-render.mjs`'s empty state told the reader that
+questions were "served but not yet answered" — of 104 questions that had
+been answered.
+
+And it propagated into the record. `answersCounted: 0` is cited as evidence
+the project holds no answers at DECISIONS.md:9236, :10041, :12976, :26660,
+:27533 and :29302 — and, most sharply, in **D295, written today, in the
+paragraph about checks that pass because they never ran.** That citation is
+corrected in place above. The older records are left as written: they are
+dated statements of what was believed, and several were true when made —
+the project genuinely held no answers before 2026-08-11. What changed is
+that the instrument stopped being able to tell the difference.
+
+### Measured, not inferred
+
+Read live from `prvfire33` on 2026-08-25 by the same public path
+`scorecard --fetch` uses — anonymous sign-in, then the aggregates D98 made
+world-readable. 104 documents in `v2_question_aggs`. Sorted by `total`
+descending: `daily-019` at 5, and every one of the remaining 103 at exactly
+1. `tooSmall` **absent from all 104**.
+
+`v2_question_aggs` is `allow write: if false` and the trigger writes it only
+when folding an answer, so a document's existence *is* the signal — which is
+what the fix says.
+
+### The fix, and where it lives
+
+`isScoredAgg(agg)` in `scripts/scorecard-metrics.mjs` — the pure module that
+already has a test file — used at all eight sites. It is `!!agg`, with the
+reasoning above written at its definition rather than at the call sites, for
+the reason `pure.ts` gives about `breakdownFor`: three copies is how they
+drift, and this bug is what that drift looks like when one copy is left
+behind.
+
+The `below-floor` signal is removed rather than left unreachable, and with
+it the three `belowFloor` coverage counts, `pulse-collect`'s field and
+`pulse-render`'s prose. A permanently-zero number that a renderer explains
+in words is how a retired concept survives its own retirement.
+
+### Proven by putting the old predicate back
+
+Three tests in `scorecard-metrics.test.mjs`, over document literals
+transcribed from the live read. Restoring `agg && agg.tooSmall === false`
+fails all three. The tests also pin the legacy case: a pre-D98 document that
+still carries `tooSmall: true` counts, because it was published — the flag is
+data the reader no longer interprets, not a verdict it must obey.
+
+### What is now newly possible
+
+Runbook 5.10 — dry-running the replay tool against a question with real
+answers — has a target: `daily-019` (5 answers), or `feed-f03` for the rank
+arm. It was never blocked on a population. It was blocked on being able to
+see one.
+
+The next `npm run scorecard -- --fetch` will move `scored` from 0 to
+something real, and the pulse trail's `answersCounted` with it. That refresh
+is the owner's to run; this commit only makes the reader honest.
+
+## D297 · Doing the things that could be done, and the four latent faults that surfaced on the way
+
+**2026-08-26.** D296 made the instruments honest. This is what became
+possible once they were, and what broke when the data they had never seen
+finally arrived.
+
+### Runbook 5.10 is closed, and this time it means something
+
+`daily-019`, `apply` off, Actions run 6:
+
+```
+scanned 5   rebuilt total 5   counts {"0":5}
+            published total 5  counts {"0":5}
+drift: none
+```
+
+The scan pulled five real answers out of `v2_users/{uid}/answers`, folded
+them, and reproduced what the trigger had accumulated — **the property the
+whole of D290 rests on, checked against production rather than an
+emulator.** The 2026-08-25 attempt scanned zero and agreed with nothing
+(D295); this one is the first non-vacuous run, and it was one qid away the
+entire time.
+
+### The scorecard now reads production, and production has a shape
+
+First `--fetch` since the fix: `scored` 0 → **20**, learn 0 → **19**,
+summed answers 0 → **24** on the tracked bank.
+
+It also wrote the first `monitoring/engagement.json`, which answered a
+question nothing in the tree could: **`digestEngagementV2` has been
+running.** Eight consecutive day documents, 2026-08-18 to 08-25, three
+carrying real activity — 6 actives / 10 votes on the 20th, 1 / 4 on the
+22nd, 1 / 35 on the 24th. `pulse.test.mjs` had been asserting the opposite
+("the digest has not deployed"), correctly, and had written down the
+condition for flipping itself. It flipped.
+
+One thing to look at rather than to conclude: `foldedAt` is null on all
+eight. That is the attention fold's mark, and this is not the document it
+marks, so it is a lead and not a verdict.
+
+### Four faults nothing could have found without the data
+
+Each of these had been in the tree for weeks, harmless, waiting for a file
+or a number that had never existed.
+
+1. **The pulse rendered an alert policy named `undefined`.** Its policy
+   scanner took every `.json` in `monitoring/` except two named
+   exceptions. `engagement.json` became a third kind of file and therefore
+   a phantom alert. **`check:monitoring` had the same denylist** and
+   demanded a runbook of the engagement trail. Both now recognise a policy
+   by SHAPE — `displayName` plus a `conditions` array, which every Cloud
+   Monitoring policy carries. A denylist that must be edited whenever
+   somebody adds a file will be forgotten, and it starts lying at exactly
+   the moment somebody is adding a file.
+2. **`docs/MODERATION.md` asserted both sides of one fact.** D83 mounted
+   world takes behind a post-vote toggle on the live world card and the
+   live daily; forty lines below, pre-D83 residue still said "the
+   world-feed takes remain demo-only and `!S.live`-gated, which is D1
+   working rather than a gap". `world-feed.jsx:2232` settles it. The file
+   is listed in ORIENTATION as `tree` — a description of the app as it
+   exists — which is precisely the promise a self-contradiction breaks.
+3. **`firestore.rules` still named the duel fold as a second occupant of
+   `v2_aggs_private`,** which D290's first amendment had already collapsed
+   ("v2_aggs_private now means exactly one thing"). Two of three
+   descriptions were updated then and this one was not. Behaviour was never
+   affected — the path is `allow read, write: if false` either way.
+4. **D290's "and now this is the whole list"** was true of the three
+   question aggregates the replay tool rebuilds and false of D290's own
+   list of projections, which also names the Patterns fit and the
+   engagement digest. Neither is replayable: both read the 90-day-TTL
+   `v2_agg_events` ledger, which carries no anchors, and the attention fold
+   deletes its shards by design (ATTENTION.md §6's privacy promise). The
+   honest statement is narrower: **every aggregate derived from the ANSWERS
+   is rebuildable, and `edits` is the whole list of exceptions within that
+   set.**
+
+### The moderation queue has a reviewer for the first time
+
+`fetchModQueue` and `submitModVerdict` have been deployed and enforcing
+since D22 with **no caller anywhere in the tree except
+`firestore-tests/e2e-moderation.mjs`**. The substrate was live; the review
+half was a test harness. A maintainer holding MOD_UIDS had no screen, no
+script and no workflow.
+
+`npm run mod:queue` is that instrument, on `operator-call.mjs` like the
+others. **One verdict per invocation** — `MOD_RUN_CAP` bounds a run's blast
+radius server-side and the caller keeps the matching shape. No bulk mode,
+because a tool that can clear the queue in one command is a tool that
+eventually will, and confinement is the whole of D22. The `runId` is
+generated rather than accepted as a flag: one somebody can choose is one
+somebody can reuse.
+
+Fourteen tests against a stub, including that a removal without a policy
+line is refused **before** the round trip, and that a verdict invocation
+never reads the queue at all — so there is nothing for it to iterate. That
+last one was written first as a grep over the script's own source and
+passed vacuously, then failed once the regex was written with `s` and
+matched the READ path's loop. A source-shape test cannot tell two loops
+apart; a call count can.
+
+### Least privilege is nominal, and now it says so
+
+`ops.test.ts` asserts the two allowlists are separate instruments and
+passes, because it tests the MECHANISM: two variables, read independently.
+That is true of a configuration where both hold the same uid — which is
+production's, read out of the deploy log.
+
+`operatorModeratorOverlap()` reports the intersection, and warns once per
+production cold start while it is non-empty. Not a refusal: refusing would
+take moderation offline to punish a misconfiguration, which is worse than
+the misconfiguration. Runbook 5.7 is the one-variable fix, and the warning
+stops the moment it lands.
+
+### Two runbook gaps that nothing was counting
+
+- **5.1 named one of three collection groups that stamp `expireAt`.** The
+  missing two are `v2_users/{uid}/engagement/{yyyy-mm-dd}` — which
+  `web/privacy.html` promises in so many words, "each note deletes itself
+  90 days after its day" — and `v2_ratelimits`. Stamping the field does
+  nothing without a per-collection-group policy somebody enables. The
+  erasure half of that promise holds regardless (phase 1b's recursive
+  delete, asserted in `e2e-delete-account.mjs`); it is the ROLLING-WINDOW
+  half that was a console toggle no runbook named.
+- **5.9b, new:** the nine D13 v1 functions in `us-central1`.
+  `docs/DEPLOYMENT.md` has had the command since D13 and never had a
+  checkbox, so the ordered list that holds status was not holding this one.
+  Three of the nine are scheduled and still firing nightly against empty
+  collections — billed work producing output nobody reads, and silent,
+  because nothing downstream changes when they run.
+
+### And a stale figure with an argument resting on it
+
+`docs/SCALE-PLAN.md` said "All 82 in `content/feed-questions.json` carry
+`core: true`" against a file holding **130**, of which **50 declare
+`core: false`**. The count was wrong and the universal was wrong, and the
+second one mattered: SCALE-PLAN's whole subject is what an unbounded feed
+costs, and a reader told the tail was empty would be planning against a
+state that ended. Both figures, and `content/README.md`'s, are
+`check:figures` entries now — mutation-tested against the exact stale
+numbers that were sitting in the tree.
+
+## D298 · The review of D296/D297 found a bug D296 had created, and five things that were true of the stub instead of the server
+
+**2026-08-26.** A 20-agent adversarial review of the day's three commits
+raised 16 findings; 11 survived refutation. One is a fabricated statistic
+that shipped in a committed artifact, and it is the same class of error the
+day started with.
+
+### D296 made a null measurable, and three means counted it as unanimity
+
+Sixteen feed questions — 11 `dial`, 3 `field`, 2 `path` — declare neither
+`options` nor `items`. The scorecard computes `n = 0` for them,
+`optionShares` returns null, and `evenness` is null however many people
+answer. **Those rows were invisible to every rollup for the wrong reason:**
+the retired `tooSmall` predicate marked them below-floor along with
+everything else. D296 fixed the predicate and they arrived — into
+
+```js
+t.evenSum += r.evenness ?? 0;   // ×3: topics, types, rollupProduction
+```
+
+which turns *not measurable* into *perfectly unanimous*, and divides by a
+denominator that counted it. The artifact D297 committed says how it reads:
+`types.feed.dial {scored: 7, avgEvenness: 0}` — seven rows, not one of
+them measured. `types.feed.path` and three topic cells the same. A dial
+whose crowd is perfectly uniform scored the same 0 as one where everybody
+picked the same number.
+
+**The repo had already ruled on this and the ruling was not applied here.**
+`bucketEvenness` skips non-numeric evenness, pinned by a test whose comment
+is the whole argument in one line: *"scoring it as a landslide would invent
+a landslide that nobody voted in."* The buckets obeyed it; the three means
+did not. `feed-budget.mjs` had meanwhile flipped from `blind` to `signal`
+and started printing "read evenness per topic before allocating" — pointing
+the feed lane at the fabricated cells.
+
+`isMeasured(row)` now separates the two questions. **A row is `scored` when
+somebody answered it and `measured` when the split can be computed**; the
+mean's denominator is the second. A cell where nothing was measurable
+reports `null`, which the reader already renders as "no reading yet".
+Regenerated: `dial — (7)` where it said `dial 0 (7)`.
+
+### The shape filter pre-excluded exactly what the gate exists to catch
+
+D297 replaced `check:monitoring`'s denylist with "displayName is a string
+AND conditions is an array". Three of that gate's own rules exist to catch a
+policy missing `displayName`, `conditions` or `documentation.content` — so
+the filter silently excluded the malformed file instead of reporting it,
+and the gate would have gone green on the fault it was written for.
+
+Now **named-or-shaped**: a file is a candidate if `apply-monitoring` lists
+it *or* it carries either half of the shape. Shape alone is self-defeating,
+name alone misses a stray policy nobody wired up (rule 1's subject), and a
+denylist starts lying the moment somebody adds a file. Verified by deleting
+`displayName` from a real policy and watching the gate say so.
+
+Both scans also parsed every `.json` in `monitoring/` unguarded — including
+`pulse.json`, which is machine-written and gitignored, so it is the file
+there most likely to be caught half-written. An interrupted `npm run pulse`
+made the next one throw a syntax error naming a position and no file. Both
+guarded.
+
+### Five things that were true of the stub and not of the server
+
+- **`mod-queue`'s MOD_UIDS hint could not fire.** It tested
+  `/permission-denied/`; the wire carries
+  `{status: "PERMISSION_DENIED", message: "moderator-only"}`. **And its
+  test proved the stub**: the fixture used `message: "permission-denied"`,
+  a string the server never sends, so it carried both spellings and the
+  assertion held whichever one the script matched on — the only thing the
+  behaviour turns on. Fixture corrected to the real shape; it now fails
+  against the old regex.
+- **A verdict flag with no value degraded to a queue read and exited 0.**
+  `flag()` returned null both for absent and for present-with-nothing-after,
+  so `mod-queue --keep` printed the queue, recorded nothing, and exited
+  like a success.
+- **`--remove --line H3`** — the documented form with the id dropped, one
+  token off a paste — took `"--line"` as the takeId. Every check passed:
+  a non-empty string under 128 chars is a valid takeId to `modVerdictError`,
+  so a removal would be recorded against a take that does not exist.
+  Presence and value are now different questions, and a value beginning
+  `--` is a missing value.
+- **The D178 avatar comment named a hazard the server cannot produce.**
+  It said the queue omits `text` for an avatar and that printing it would
+  show `undefined`. It does not omit it — `runBuildModQueue` writes
+  `text: ""` explicitly. The branch is right; the reason was wrong, and the
+  test's fixture carried the invented `null`.
+- **`replay.ts` listed "a rules change" as a cause of an empty scan.**
+  `runRebuild` scans through the Admin SDK, which bypasses security rules
+  entirely. During an incident that sends an operator to read
+  `firestore.rules` for nothing.
+
+### And a not.toContain that could no longer fail
+
+`pulse.test.mjs` asserted the absence of "nothing has cleared the floor
+yet" — a sentence D296 rewrote in the same commit. An assertion against a
+string the code cannot emit passes for the wrong reason, which is the
+thing D296 is about. Tracked to the current wording, with the old one kept
+beside it.
+
+### What the review says about the day
+
+Five findings were refuted, and the refutations are worth as much as the
+confirmations: the catalog arm's refusal reads the right document, the
+`--allow-empty` flag name is consistent, and "50 of 130 is half the feed"
+was overstatement rather than error. What survived is one real
+regression, one gate that had stopped being a gate, and five claims that
+were true of a fixture. **Every one of those five would have been found by
+asking "does the server actually send this?" rather than "does the test
+pass?"** — and the tests passed.
+
+## D299 · Decision numbers get a gate, because three renumbers in two days is a process and not an accident
+
+**2026-08-26.** `doc-index` now holds two properties it never asked about:
+**every decision number is claimed exactly once, and the sequence has no
+holes.**
+
+### The thing that kept happening
+
+Records are written on branches. Main's night lanes record decisions
+continuously. So a branch that records one and stays open for a day comes
+back to find its number taken — three times in two days:
+
+- **D275–D277 → D290–D292** (main shipped D275 through D289 while the
+  branch was open)
+- **D293–D296 → D294–D297** (main shipped its own D293)
+- **D294–D297 → D295–D298** (main's deep clean renumbered *its* D293 to
+  D294, into the slot the previous renumber had just taken)
+
+Each one is hand work: the record's own heading, its self-references, and
+every file in the tree that cites it — while leaving the *other* side's
+numbers untouched, because `docs/data-inventory.md`'s D293 and CLAUDE.md's
+D294 are main's and a blanket replace corrupts a dozen shared files.
+
+### Nothing was checking the result
+
+Hand work at that shape misses one, and until today nothing would have
+said so. **Two records numbered D297 passed every gate in this repo** —
+verified by duplicating a heading and running the whole suite green.
+`doc-index` reported `298 decisions indexed` over 298 headings sharing 297
+numbers, because it counted headings and never asked whether the numbers
+were distinct.
+
+What that costs is not cosmetic. `DECISIONS-INDEX.md` renders two rows
+claiming the same id, so the map that exists to answer "what is D297"
+answers twice. Every `D297` citation in the tree becomes ambiguous. And the
+next author reads the highest number, picks the one after it, and orphans a
+record. A **hole** is the same mistake with the other sign — a renumber that
+shifted three records of four — so both halves are one rule.
+
+### Where it lives, and why not inline
+
+`scripts/decision-numbering.mjs`, extracted for the reason
+`scorecard-metrics.mjs` gives about the split-quality arithmetic:
+`doc-index.mjs` runs its whole gate at import and exits on any documentation
+problem in the tree, so a test that imported it would be hostage to all of
+them. The predicate is pure and has no I/O; `doc-index` calls it and turns
+each returned problem into one of its own failures.
+
+**Amendments are exempt by construction, not by omission.** `D7` and
+`D7 amendment (2026-08-03)` both say D7; only one claims it, which is
+exactly why `parseDecisions` gives them different `kind`s. Counting
+amendments would make every amended record a duplicate — and there are many,
+so that is most of the file's follow-ons rather than an edge case. The test
+pins the mirror too: an amendment must not *fill* a hole either, or a stray
+`## D296 amendment` would silence a genuinely missing D296.
+
+Fourteen tests. Removing the `kind === "record"` filter fails three of them;
+reporting only the first duplicate fails two.
+
+### What this does not fix
+
+The collision itself. This catches a botched renumber; it does not stop the
+renumber being needed. The real fix is either landing decision-recording
+branches same-day, or giving branch-local records a provisional marker until
+merge — both are conventions rather than code, and neither is chosen here.
+What is no longer possible is discovering the miss by following a citation
+months later.
+
+## D300 · The first look at production, and the two things it said that the repo had wrong
+
+**2026-08-26.** `npm run observe` ran against `prvfire33` for the first
+time. **All four readings came back. No role was missing.** Which is the
+first finding, and it is about me rather than about the project: this was
+reachable the entire time it was being described as blocked on runbook
+5.13's six gcloud commands.
+
+```
+✓ alertPolicies  0 live, 0 enabled; 8/8 committed NOT armed
+✓ logMetrics     0 log-based metric(s)
+✓ functions      66 deployed — europe-west1:42, us-central1:21,
+                               europe-west3:2, europe-north1:1
+✓ billing        enabled=true  account=billingAccounts/0185A3-9BC4AF-7E35D2
+```
+
+### Nothing is armed. Not "some" — nothing.
+
+Zero alert policies exist in the project and zero log-based metrics sit
+behind them. All eight committed policies are unarmed, and every one of
+them watches an **absence**:
+
+- `fitPatternsV2 has gone quiet`
+- `digestEngagementV2 has gone quiet`
+- `scheduledDuelReveals has gone quiet`
+- `ledgerVelocityScan has gone quiet`
+- `onV2AnswerCreated is erroring`
+- `onV2AnswerCreated is contending on the per-question aggregate`
+- Firestore read rate far above the cost model
+- Firestore write rate far above the cost model
+
+D296 happened under exactly this condition: every instrument reporting
+zero over 108 real answers for fifteen days, with nothing watching for a
+number that stopped moving. That is not a coincidence to note in passing —
+it is the same hole, and the sixth policy in that list is the recorded
+precondition for sharding (D290 layer 2), so the ladder's next rung has
+been gated on a detector that does not exist.
+
+### Twenty-one in the old region, and the repo said nine
+
+`docs/DEPLOYMENT.md` has carried a delete command for **nine** v1
+functions since D13, and runbook 5.9b — written this morning — repeated
+the figure. Production holds **21** in `us-central1`, plus **two in
+`europe-west3` and one in `europe-north1`** that no document in this
+repository mentions at all.
+
+Twelve of the 21 are named nowhere here: `updatePollResults`,
+`aggregatePollResults`, `sendPushNotificationsTrigger`,
+`sendUserPushNotificationsTrigger`, `sendChatNotificationsTrigger`,
+`addFcmToken`, `findSimilarUsers`, `createLiveStream`,
+`recalculateVoterPersonality`, `updateIsNewFieldNew`,
+`scheduledDeletePastEvents`, `onUserDeleted`.
+
+**None of the 21 is referenced by any live code file** — every `.ts`,
+`.tsx`, `.js` and `.jsx` in the tree was grepped; the only hits for the
+nine are two documents and this session's own test fixture. They are
+orphaned **relative to this repository**, which is not the same claim as
+safe to delete: several are v1 Firestore or Auth triggers that may still
+fire against v1 data, and `onUserDeleted` in particular sounds like an
+erasure path. Identifying them is work; the delete command as written
+names nine and stays correct.
+
+**Why the number was wrong.** D13 recorded what it had *retired*, and
+nothing ever compared that against what production *held*. The gap is
+seventeen months of deploys nobody enumerated, and it stayed invisible
+because no reader existed. The runbook item I wrote this morning inherited
+the error faithfully — a figure copied from a record rather than measured,
+which is the documentation error this repo keeps re-committing and now has
+a gate for in the one case (`check:figures`) where the truth is in the
+tree. Here it is not in the tree; it is in production, and the only fix is
+to look.
+
+### The reader made the same mistake, and that is the transferable part
+
+`observe.mjs` asked `byRegion["us-central1"]` — the only stale region this
+repo's prose has ever named. It would have reported 21 and silently missed
+the other three. **A reader that only asks about the wrongness it expects
+finds exactly the wrongness it expects.** It now reports strays in every
+region that is not `FUNCTIONS_REGION`, read out of `src/lib/region.ts`
+rather than retyped (D201), and the test pins a stray in a third region
+that the old shape would have dropped.
+
+### What is now true that was not this morning
+
+The project can be looked at. `alertPolicies … armed` is answered by name
+rather than by count, so arming them is verifiable the moment it is done
+rather than assumed. Every reading is a GET; the workflow needs no
+approval gate because it cannot change anything, and it runs daily at
+06:11 UTC.
+
+D292's separate least-privilege identity is still the right destination
+and is unaffected by this: it was never what stood between the project and
+its own state.
+
+## D301 · Twenty-one strays, three provenances, and one of them runs on every account deletion
+
+**2026-08-26.** `npm run observe -- --functions` described what D300
+counted. The 21 `us-central1` functions are not one leftover with one
+story — they are **two unrelated codebases plus an installed extension**,
+and the runbook had been treating them as a single cleanup since D13.
+
+### The split, by evidence rather than by name
+
+| | count | generation | runtime | last deployed | whose |
+| --- | --- | --- | --- | --- | --- |
+| Old project | 12 | GEN_1 | nodejs10 / 18 / 20 | 2024-03 → 2025-10 | another app on this GCP project |
+| Stranded ours | 9 | GEN_2 | nodejs22 | 2026-07-29 | InSight, left by D201's region move |
+| Algolia extension | 2 (`europe-west3`) | GEN_1 | nodejs18 | 2024-06-03 | `firestore-algolia-search` |
+
+The generation and runtime are what separate them, and neither is visible
+from a name. Nine of the twenty-one were on D13's list; the other twelve
+were on nobody's, and the runbook item written earlier the same day
+inherited the count "nine" from a record rather than from the deployment.
+
+### Eleven of the twelve cannot see this app's data. One can.
+
+The eleven are Firestore triggers or HTTPS functions on the **`(default)`**
+database. v2 lives in **`insight`** (`functions/src/db.ts:29`), and the
+`onV2AnswerCreated` trigger's own event filter says `database=insight`. A
+Firestore trigger cannot cross that boundary, so they are inert with
+respect to everything this project holds.
+
+**`onUserDeleted` is not a Firestore trigger.** It is a Firebase Auth
+`user.delete` trigger with `resource=projects/prvfire33` — **project-wide.
+Auth has no database to be scoped to.** And `functions/src/index.ts:882`
+ends the erasure path with:
+
+```js
+await getAuth().deleteUser(uid);
+```
+
+So **every InSight account deletion executes 2024-era code belonging to a
+different application.** What that code does is unknown and not knowable
+from here: the source is not in this repository, and the repository's own
+history cannot rule it out either — this checkout is a shallow clone
+(182 commits, earliest 2026-08-20), which is a fact worth writing down
+because `git log --all -S` returning nothing looked like proof and was an
+artifact of the clone depth.
+
+It has presumably been failing or no-opping harmlessly for a year. That is
+a guess. What is measured is that it runs, on the one path this product
+treats as a promise, and that is the argument for deleting it deliberately
+and first rather than inside a batch.
+
+### Two are billed work, and they collide
+
+`scheduledDeletePastEvents` and `updateIsNewFieldNew` are the only two on
+timers, so they are the only two costing anything. Both are wired to the
+**same** Pub/Sub topic —
+`firebase-schedule-scheduledDeletePastEvents-us-central1` — and
+`updateIsNewFieldNew`'s entry point is `scheduledUpdateIsNewStatus`. That
+is a deploy collision in the old project, inherited intact. Noted because
+deleting a Gen-1 scheduled function does not reliably remove its Cloud
+Scheduler job, and a job whose target is gone still fires and still fails.
+
+### The extension is not a stray deploy
+
+Two `europe-west3` functions are `firestore-algolia-search-6ct7`, indexing
+`Cities/{documentID}` from `(default)` into Algolia since 2024-06-03.
+`functions:delete` is the wrong instrument: an extension's functions belong
+to the instance, and removing them by hand leaves it installed and broken.
+`ext:uninstall` is the operation, and the instance id should be confirmed
+with `ext:list` rather than inferred from the function prefix — which is
+what this record does, having inferred it.
+
+### What is recorded and what is not
+
+Runbook 5.9b now deletes the twelve, `onUserDeleted` first and alone; 5.9c
+uninstalls the extension; 5.9d keeps the nine as a separate decision
+because they are ours. **No deletion is performed here.** These are
+production functions whose source this repository does not hold, so the
+operation is not reversible from the tree, and "probably fine" — the
+owner's own words, and almost certainly correct — is the right amount of
+confidence to act on and the wrong amount to act on unattended.
+
+The verification is the instrument rather than the eye: re-run
+`npm run observe -- --functions` and `strayCount` should fall by twelve.
+
+### Amended the same day, by the review of the plan itself
+
+28 objections were raised against these commands by three independent
+lenses and 23 were refuted. **Five survived, and two of them were errors in
+the commands as written:**
+
+1. **`ext:uninstall` does not uninstall anything.** In the pinned
+   firebase-tools (15.24.0) its entire action body is
+   `manifest.removeFromManifest(instanceId, config)` — it edits
+   `firebase.json` and never reaches the Extensions API; the only caller of
+   `extensionsApi.deleteInstance` in the CLI is
+   `lib/deploy/extensions/tasks.js`, behind `deploy --only extensions`. And
+   this repo's `firebase.json` has no `extensions` key, so the documented
+   command throws before doing even its local no-op. **This record said
+   "`ext:uninstall` is the operation" one section above.** It is not. The
+   Console is, and 5.9c now says so. Verified by executing
+   `removeFromManifest` against this repo's real config rather than by
+   reading the command's `--help`, which still describes the API behaviour
+   it lost.
+2. **Runbook 5.9d was headed "the nine stranded `europe-west1` copies"** —
+   the region where all 42 LIVE functions are — one line above a nine-name
+   `--force` delete, in an item pointing at a command whose own
+   documentation says in bold that the region must not be "fixed" to match
+   D201. The body two lines down said `us-central1` throughout. **Three
+   independent reviewers flagged it; no gate could.** A heading is prose,
+   the command underneath was right, and every check in this repo was
+   green.
+
+And three that were true but not commands: `DEPLOYMENT.md` described the
+wrong-region failure as "would delete nothing and report success" when
+15.24.0 throws and exits non-zero (opposite advice for an operator);
+item 5.9 still told the operator to SPARE the nine while 5.9d deletes them,
+two open boxes contradicting each other; and 5.9d attributed the nine to
+D201's region move when D13 dropping them from the deploy list is the
+cause.
+
+**What the ratio is worth saying about.** 23 of 28 objections were refuted,
+several of them confidently argued and wrong — including two claiming the
+database-isolation argument fails. The value was not in the hit rate. It
+was that the two real ones were a wrong command that fails loudly and a
+wrong region in a heading that would not have, and neither is the kind of
+thing the person who wrote them re-reads and catches.

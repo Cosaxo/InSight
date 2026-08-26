@@ -66,7 +66,7 @@ const CADENCE_HINTS = new Set(["once", "daily", "weekly"]);
 // A copy of scripts/question-quality.mjs's PLACES/CIVIC watchlist (same
 // runtime-import constraint as the bounds above; keep edits in both
 // places). The watchlist is deliberately small — big names only, never
-// the 10,929-place city catalogue, whose names collide with ordinary
+// the ~11k-place city catalogue, whose names collide with ordinary
 // English ("Nice", "Split") and would make the gate cry wolf.
 const PLACES = new Set((
   "norway sweden denmark finland iceland germany france spain italy " +
