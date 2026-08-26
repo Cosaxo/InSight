@@ -226,7 +226,7 @@ vi.mock("firebase/firestore", () => {
         // one, with the duplication invisible while there were two.
         const wheres = (q.parts || []).filter(
           (pt) => (pt as { __kind: string }).__kind === "where",
-        ) as Array<{ field: string; value: unknown }>;
+        ) as unknown as Array<{ field: string; value: unknown }>;
         const paid = wheres.find((w) => w.field === "paid");
         if (!paid) return Promise.resolve(snapOf(h.bankDocs));
         const floor = String(wheres.find((w) => w.field === "until")?.value ?? "");

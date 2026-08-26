@@ -103,6 +103,30 @@ if (typeof window !== "undefined") {
  * because its conversion is the committed, dated fx table — a
  * convenience, not the contract.
  */
+/**
+ * The EXACT euro figure, for the one place a rounded one is a lie: the
+ * control that charges it.
+ *
+ * `fmt` below rounds to a rate-card-shaped number on purpose — €288 reads
+ * as €290 above one hundred — which is right for a price list and wrong
+ * for the button. Stripe charges `Math.round(eur * 100)` cents in EUR
+ * (functions/src/paid.ts), so an ad's flat price showed "Pay €290" over a
+ * €288.00 debit, and at other legal index values the error runs the other
+ * way: 1.01 quotes €323.20 and the button said €320, a buyer charged more
+ * than the control they pressed.
+ *
+ * EUR always, and no `≈`: the charge is in euro whatever currency the
+ * card elsewhere is showing, so converting here would put an
+ * approximation on the one number that is exact.
+ */
+export const fmtExact = (eur: number): string => {
+  const cents = Math.round(eur * 100);
+  const whole = Math.trunc(cents / 100);
+  const rest = Math.abs(cents % 100);
+  const body = whole.toLocaleString("en-US").replace(/,/g, " ");
+  return "€" + (rest ? `${body}.${String(rest).padStart(2, "0")}` : body);
+};
+
 export const fmt = (eur: number): string => {
   const c = cur();
   const rateX = c === "EUR" ? 1 : (PRICING.fx || {})[c];

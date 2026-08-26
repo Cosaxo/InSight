@@ -20,7 +20,7 @@ import { useDialog } from './primitives.jsx';
 import { WPAL } from './world-palette.js';
 import { SUGGESTIONS } from './suggestions.js';
 import { WORLD_TOPICS } from './world-feed-data.js';
-import { PRICING, rate, adFlat, demandWord, fmt, subscribeCur } from '../data/pricing';
+import { PRICING, rate, adFlat, demandWord, fmt, fmtExact, subscribeCur } from '../data/pricing';
 // Imported so the printed slot position cannot drift from the one the feed
 // actually holds (data/sponsored.ts is the seller of record).
 import { SPONSOR_AT } from '../data/sponsored';
@@ -171,7 +171,11 @@ function SgMine({ s, SG, onResend }) {
               : 'Approved at ' + fmt(s.quote.ratePerAnswer) + ' per answer, capped at ' + fmt(s.quote.capEur) + ' — it runs ' + s.quote.windowDays + ' days from the day after you pay, and the unserved part refunds at close.'}
           </span>
           <button className="press" onClick={pay} disabled={payBusy} style={{ alignSelf: 'flex-start', padding: '9px 15px', borderRadius: 999, cursor: payBusy ? 'default' : 'pointer', WebkitAppearance: 'none', border: 'none', background: 'var(--ink)', color: 'var(--surface)', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 800 }}>
-            {payBusy ? 'Opening…' : 'Pay ' + fmt(s.kind === 'ad' ? s.quote.flatEur : s.quote.capEur) + ' →'}
+            {/* `fmtExact`, not `fmt`: this control charges the figure it
+                prints, and `fmt` rounds to a rate-card shape above a
+                hundred — an ad's €288 read "Pay €290". The rest of the
+                sheet keeps `fmt`, which is what it is for. */}
+            {payBusy ? 'Opening…' : 'Pay ' + fmtExact(s.kind === 'ad' ? s.quote.flatEur : s.quote.capEur) + ' →'}
           </button>
           {payUrl ? (
             <a href={payUrl} target="_blank" rel="noreferrer" style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, color: 'var(--accent-ink)' }}>Open the payment page →</a>
