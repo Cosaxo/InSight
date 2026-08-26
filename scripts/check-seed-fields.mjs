@@ -177,6 +177,50 @@ missing(
   "that mirror is what the no-op case asserts against, so without it every doc carrying the field reports as a phantom rewrite",
 );
 
+// ── the same disagreement, one level down: PER SURFACE (D310) ────────
+//
+// The union above answers "is `bg` transported at all", and the answer
+// stayed yes while the DAILY builder dropped it: the feed's emit covered
+// for every surface, the daily bank's seven context texts silently never
+// shipped, and the production seed's own `written` count (51 where 58
+// was owed) was the only thing anywhere that disagreed. So the union
+// check gains a per-entry half for the banks the lanes write into —
+// daily, feed, pick, the ones whose entries carry ids — holding that a
+// top-level source field the generator emits ANYWHERE is emitted on that
+// entry's own doc. Fields renamed on emit (`cat` → branch/sub, `tone` →
+// topic) never appear in the emitted union under their source names, so
+// they cannot false-positive here.
+{
+  const content = loadContent();
+  const byId = new Map();
+  for (const q of buildEntries(content)) byId.set(q.id, q);
+  const banks = [
+    ["daily", content.daily, (q) => `daily-${q.id}`],
+    ["feed", content.feed.questions, (q) => `feed-${q.id}`],
+    ["pick", content.pick.questions, (q) => `pick-${q.id}`],
+  ];
+  for (const [bank, list, docId] of banks) {
+    for (const src of list) {
+      const doc = byId.get(docId(src));
+      if (!doc) continue; // not emitted at all — not this rule's business
+      for (const f of Object.keys(src)) {
+        if (NOT_FIELDS.has(f) || NOT_TRANSPORTED[f] || !emitted.has(f)) continue;
+        // A falsy source value emitting nothing IS the emit-when-set
+        // idiom's contract (`core: false` means tail exactly like an
+        // absent `core`, D161) — the disease is a truthy value that
+        // never ships.
+        if (!src[f]) continue;
+        if (!(f in doc)) {
+          problems.push(
+            `\`${f}\` on ${bank} ${JSON.stringify(String(src.id))} is in the source and in the generator's emitted union, `
+            + `but the ${bank} builder drops it — it ships on other surfaces and silently not on this one`,
+          );
+        }
+      }
+    }
+  }
+}
+
 const retired = [...payload].filter((f) => !emitted.has(f)).sort();
 
 if (problems.length) {
