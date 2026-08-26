@@ -398,21 +398,25 @@ const ALLOW = new Map([]);
 export const DAILY_ID_WARN = 900; // of 999 — check-content pins /^daily-\d{3}$/
 export const DAILY_ID_FAIL = 970; // an id-scheme decision is due before 999
 // Bank headroom. These guarded live.ts's `limit(1500)` until D161 paged
-// that fetch, at which point the ceiling they watched stopped existing —
-// so they were re-pointed rather than deleted, because the NEXT silent
-// ceiling wants the same alarm at a different number.
+// that fetch, then the localStorage cache quota until D304 moved the
+// cache to IndexedDB (bankStore.ts) — each time, the ceiling they watched
+// stopped existing and they were re-pointed rather than deleted, because
+// the NEXT silent ceiling wants the same alarm at a different number.
 //
-// The next one is the localStorage bank cache. live.ts writes the whole
-// bank to `insight.bankCache.v2` inside a try/catch that ignores failure,
-// so crossing the browser quota does not break the app: it silently stops
-// caching, and every boot then pays a full bank fetch forever. A cost
-// cliff with no symptom is exactly this gate's subject.
+// The next one is the whole-bank fetch itself (BANK-DELIVERY §4): every
+// fresh install still reads the ENTIRE bank — billed per document, per
+// device — and every boot holds it in memory. Nothing breaks at any
+// size; the install cost just climbs with the bank until D302's paged
+// read path lands, which is a cost cliff with no symptom in a different
+// coat: the app that shipped at 700 documents looks identical at 20,000,
+// except in the bill and the first paint.
 //
-// Arithmetic: the quota is ~5 MB per origin, the bank is one of ~29
-// `insight.*` keys, so budget it roughly half. checkHeadroom() derives
-// bytes-per-document from the seed itself rather than assuming, and these
-// counts are that estimate rounded to something a human can hold:
-// 6,000 docs ≈ 1.5 MB, 10,000 ≈ 2.5 MB.
+// The counts keep their old values because the fetch pain arrives at the
+// same order of magnitude the quota did — checkHeadroom() derives
+// bytes-per-document from the seed itself, and 6,000 docs ≈ 1.6 MB on
+// the wire per install, 10,000 ≈ 2.7 MB. When the paged read path
+// ships, re-point these again or retire them (BANK-DELIVERY §3's rule:
+// a gate that once caught something is re-pointed, not deleted).
 // D162's sampled audit: one AI-reviewed question in this many gets read by
 // a person. A starting figure, not a measured one — move it with what the
 // audit actually finds.
@@ -1466,15 +1470,14 @@ export function checkHeadroom(corpus) {
   const cacheMB = (n) => ((bankBytes / Math.max(bankSize, 1)) * n / 1024 / 1024).toFixed(1);
   if (bankSize >= BANK_FAIL) {
     errs.push(
-      `seeded bank holds ${bankSize} docs ≈ ${cacheMB(bankSize)} MB of localStorage cache — over budget. `
-      + "live.ts caches the whole bank in `insight.bankCache.v2` and SWALLOWS a quota failure, so crossing this "
-      + "does not break anything: it silently stops caching and every boot pays a full bank fetch forever. "
-      + "Move the cache off localStorage (IndexedDB) before promoting more.",
+      `seeded bank holds ${bankSize} docs ≈ ${cacheMB(bankSize)} MB fetched WHOLE by every fresh install — over budget. `
+      + "The read path is still whole-bank (BANK-DELIVERY §4): nothing errors at this size, the per-device bill and "
+      + "the first paint just keep climbing with the bank. Build D302's paged read path before promoting more.",
     );
   } else if (bankSize >= BANK_WARN) {
     warn.push(
-      `seeded bank at ${bankSize} docs ≈ ${cacheMB(bankSize)} MB of localStorage cache — the quota is the next `
-      + "silent ceiling (a failed write is caught and ignored), so plan the move to IndexedDB",
+      `seeded bank at ${bankSize} docs ≈ ${cacheMB(bankSize)} MB fetched whole by every fresh install — the `
+      + "whole-bank read path is the next silent ceiling (the bill climbs with no symptom), so build D302's pages",
     );
   }
   return { errs, warn };

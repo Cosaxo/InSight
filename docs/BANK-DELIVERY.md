@@ -170,7 +170,17 @@ the cap raising. `duel-questions.json` at 24 KiB — the last bank still
 compiled in whole, on a weekly lane at 14.6 KiB, and crossing it is the
 signal to give it learn's treatment.
 
-## 3 · Ceiling 2 — the bank cache is in the small box
+## 3 · Ceiling 2 — the bank cache is in the small box · **BUILT (D304)**
+
+> Shipped 2026-08-26, the day D302 was adopted. `bankStore.ts` holds the
+> cache in IndexedDB; the three call sites became a get/put pair; the
+> legacy localStorage payload migrates (delta, key freed, store filled —
+> pinned in bank-cache.test.ts) and `BANK_WARN`/`BANK_FAIL` were
+> re-pointed at the whole-bank install fetch, §4's ceiling, exactly as
+> the closing paragraph below asked. D304 records the as-built, including
+> the one divergence: migration only consumes the legacy copy when the
+> new store demonstrably works. What follows is the reasoning as it
+> stood.
 
 `live.ts` caches the whole bank in `localStorage` under
 `insight.bankCache.v2`. The quota is ~5 MB per origin, shared with ~29
@@ -258,9 +268,10 @@ convert later, and a published count is usually as good.
    (unlisted import, and a listing nothing imports). Verified against the
    defect itself: point `learn-data.js` back at the full bank and the
    gate reports it.
-2. **Ceiling 2, when the bank passes ~2,000 documents** — comfortably
-   before `BANK_WARN`, because the failure is silent and a gate that
-   warns at the cliff edge warns too late. Three call sites.
+2. ~~**Ceiling 2, when the bank passes ~2,000 documents**~~ **Done —
+   D304**, ahead of its own trigger because D302's adoption made it the
+   enabler to build first. Three call sites, as counted; the migration
+   condition is the one thing built beyond the sketch.
 3. **Ceiling 3, when a real product need asks for it** — an interest
    model that selects server-side (D163), or a bank large enough that a
    first install feels slow. Not before. **The need was named 2026-08-26**:

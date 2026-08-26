@@ -99,6 +99,10 @@ async function getDb(): Promise<import("firebase/firestore").Firestore> {
   return db;
 }
 import { reportError, setSentryUser } from "../../lib/sentry";
+// The bank cache's storage (D304). IndexedDB behind a get/put pair that
+// never throws — a broken store reads as "no cache", exactly the contract
+// the localStorage version had, minus its 5 MB ceiling.
+import { bankGet, bankPut } from "./bankStore";
 // No imports of its own, so reading it here closes no cycle back through
 // data/cityAnchor — which imports this module.
 import { cityIsConfirmed } from "./cityConfirm";
@@ -1164,19 +1168,20 @@ async function hydrate(): Promise<void> {
   // Firestore's `in` takes up to 30 values, so the ceiling is not near.
   const BANK_SURFACES = ["daily", "feed", "test", "group", "duo", "learn", "pulse", "call"];
   let all: BankEntry[] | null = null;
-  // v2: the entry gained an `updatedAt` cursor. A v1 payload simply misses
-  // and pays one full refetch, which is the correct upgrade cost.
-  const BANK_LS = "insight.bankCache.v2";
+  // The store is bankStore.ts (IndexedDB) since D304; it reads the old
+  // localStorage payload once as a migration source, so an updating device
+  // pays a delta rather than a refetch. A v1-era payload simply misses and
+  // pays one full refetch, which is the correct upgrade cost.
   let cursor = 0;
-  try {
-    const cached = JSON.parse(localStorage.getItem(BANK_LS) || "null");
+  {
+    const cached = (await bankGet()) as
+      | { rev?: number; cursor?: number; questions?: BankEntry[] }
+      | null;
     if (cached && cached.rev === contentRev && Array.isArray(cached.questions) && cached.questions.length) {
       all = cached.questions as BankEntry[];
       cursor = Number(cached.cursor || 0);
       state.stats.bankSource = "cache";
     }
-  } catch {
-    /* corrupt cache — refetch below */
   }
   // Rows are stored without `updatedAt`: it is a transport field, and a
   // Timestamp does not survive JSON round-tripping as a Timestamp. Keeping
@@ -1291,11 +1296,10 @@ async function hydrate(): Promise<void> {
     cursor = maxCursor;
     state.stats.bankSource = "network";
   }
-  try {
-    localStorage.setItem(BANK_LS, JSON.stringify({ rev: contentRev, cursor, questions: all }));
-  } catch {
-    /* cache is best-effort */
-  }
+  // Best-effort by bankPut's own contract; awaited so the write has
+  // settled before `ready` flips and a test (or a fast tab close) can
+  // observe a boot whose cache write is still in flight.
+  await bankPut({ rev: contentRev, cursor, questions: all });
   const sorted = all.slice().sort((a, b) => (a.seq || 0) - (b.seq || 0));
   // `until` is the current-events serving window (docs/NEXT-FUNCTIONALITY
   // §1): a feed entry past its UTC day stops being OFFERED — the answers

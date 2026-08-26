@@ -18,6 +18,10 @@
 // fetch from a delta fetch.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+// The cache store is IndexedDB since D304. fake-indexeddb gives these
+// node-environment tests a real IDB implementation, and a fresh factory
+// per test is the storage-reset localStorage got from a new MemoryStorage.
+import { IDBFactory } from "fake-indexeddb";
 
 interface FakeDoc {
   id: string;
@@ -176,7 +180,27 @@ async function bootLive() {
   return mod.default;
 }
 
-const readCache = () => JSON.parse(storage.getItem(BANK_LS) || "null");
+// Through the module under test on purpose: bankStore IS the cache's
+// public surface now, and a test that peeked at raw IDB rows would keep
+// passing if live.ts stopped using the store. vi.resetModules hands back
+// a fresh module instance, but the stubbed indexedDB global underneath is
+// the same one, so reads and writes see the same database the boot did.
+interface CachedBank {
+  rev: number;
+  cursor: number;
+  questions: Array<{ id: string } & Record<string, unknown>>;
+}
+// Typed non-null because every caller asserts on the payload: a missing
+// row surfaces as a failed expectation on the very next line, which is
+// the failure a cache test wants to show anyway.
+const readCache = async (): Promise<CachedBank> => {
+  const { bankGet } = await import("./bankStore");
+  return (await bankGet()) as CachedBank;
+};
+const writeCache = async (payload: unknown): Promise<void> => {
+  const { bankPut } = await import("./bankStore");
+  await bankPut(payload);
+};
 const bankFetches = () => h.bankQueries.length;
 const isDelta = (i: number) =>
   (h.bankQueries[i]?.cons || []).some((c) => c.kind === "where" && c.field === "updatedAt");
@@ -190,6 +214,9 @@ beforeEach(() => {
   h.bankDocs = [q("q_1", 1000), q("q_2", 1000)];
   storage = new MemoryStorage();
   vi.stubGlobal("localStorage", storage);
+  // A brand-new IDB universe per test — no databases survive between
+  // cases, same as the fresh MemoryStorage above.
+  vi.stubGlobal("indexedDB", new IDBFactory());
   vi.stubGlobal("window", {
     dispatchEvent: () => true,
     addEventListener: () => {},
@@ -207,7 +234,7 @@ describe("question-bank cache", () => {
     await bootLive();
     expect(bankFetches()).toBe(1);
     expect(isDelta(0)).toBe(false);
-    const cached = readCache();
+    const cached = await readCache();
     expect(cached.questions).toHaveLength(2);
     // The cursor is the newest updatedAt seen, so the next boot can ask
     // for "what changed since" instead of "everything".
@@ -219,31 +246,31 @@ describe("question-bank cache", () => {
 
   it("asks only for the delta on a warm boot", async () => {
     await bootLive();
-    const first = readCache();
+    const first = await readCache();
     vi.resetModules();
     h.bankQueries.length = 0;
-    storage.setItem(BANK_LS, JSON.stringify(first));
+    await writeCache(first);
 
     await bootLive();
     expect(bankFetches()).toBe(1);
     expect(isDelta(0)).toBe(true);
     // Nothing changed, so the delta is empty and the bank still stands.
-    expect(readCache().questions).toHaveLength(2);
+    expect((await readCache())!.questions).toHaveLength(2);
   });
 
   it("pages a promoted question in without re-reading the bank", async () => {
     await bootLive();
-    const first = readCache();
+    const first = await readCache();
     vi.resetModules();
     h.bankQueries.length = 0;
-    storage.setItem(BANK_LS, JSON.stringify(first));
+    await writeCache(first);
     // One week later: the farm promoted a question (D30).
     h.bankDocs = [...h.bankDocs, q("q_3", 9000)];
 
     const LIVE = await bootLive();
     expect(bankFetches()).toBe(1);
     expect(isDelta(0)).toBe(true);
-    const cached = readCache();
+    const cached = await readCache();
     expect(cached.questions.map((x: { id: string }) => x.id).sort()).toEqual(["q_1", "q_2", "q_3"]);
     expect(cached.cursor).toBe(9000);
     expect(LIVE.ready).toBe(true);
@@ -251,16 +278,16 @@ describe("question-bank cache", () => {
 
   it("replaces an edited question rather than duplicating it", async () => {
     await bootLive();
-    const first = readCache();
+    const first = await readCache();
     vi.resetModules();
     h.bankQueries.length = 0;
-    storage.setItem(BANK_LS, JSON.stringify(first));
+    await writeCache(first);
     h.bankDocs = [q("q_1", 5000, { prompt: "Reworded q_1" }), q("q_2", 1000)];
 
     await bootLive();
-    const cached = readCache();
+    const cached = await readCache();
     expect(cached.questions).toHaveLength(2);
-    expect(cached.questions.find((x: { id: string }) => x.id === "q_1").prompt)
+    expect(cached.questions.find((x: { id: string }) => x.id === "q_1")!.prompt)
       .toBe("Reworded q_1");
   });
 
@@ -270,10 +297,10 @@ describe("question-bank cache", () => {
     // committed in the same instant by a later batch. The delta query must
     // therefore ask from slightly BEFORE the cursor.
     await bootLive();
-    const first = readCache();
+    const first = await readCache();
     vi.resetModules();
     h.bankQueries.length = 0;
-    storage.setItem(BANK_LS, JSON.stringify(first));
+    await writeCache(first);
 
     await bootLive();
     const where = (h.bankQueries[0].cons || []).find((c) => c.field === "updatedAt");
@@ -282,12 +309,12 @@ describe("question-bank cache", () => {
 
   it("falls back to a full fetch when contentRev invalidates the cache", async () => {
     await bootLive();
-    const first = readCache();
+    const first = await readCache();
     vi.resetModules();
     h.bankQueries.length = 0;
     // What an operator's `bumpRev` looks like from here: the cached rev no
     // longer matches, so the cursor is not trusted either.
-    storage.setItem(BANK_LS, JSON.stringify({ ...first, rev: first.rev + 1 }));
+    await writeCache({ ...first, rev: first.rev + 1 });
 
     await bootLive();
     expect(bankFetches()).toBe(1);
@@ -296,10 +323,10 @@ describe("question-bank cache", () => {
 
   it("keeps the session alive when the delta query fails", async () => {
     await bootLive();
-    const first = readCache();
+    const first = await readCache();
     vi.resetModules();
     h.bankQueries.length = 0;
-    storage.setItem(BANK_LS, JSON.stringify(first));
+    await writeCache(first);
     h.deltaError = () => new Error("network");
 
     // One promotion behind is invisible; a dead boot is not. The cached
@@ -307,7 +334,7 @@ describe("question-bank cache", () => {
     const LIVE = await bootLive();
     expect(LIVE.ready).toBe(true);
     expect(h.reportError).toHaveBeenCalled();
-    expect(readCache().questions).toHaveLength(2);
+    expect((await readCache())!.questions).toHaveLength(2);
   });
 
   // ── pagination (D161) ──
@@ -330,7 +357,7 @@ describe("question-bank cache", () => {
     await bootLive();
     // 1000 + 1000 + 500: the third page is short, which is what ends it.
     expect(bankFetches()).toBe(3);
-    expect(readCache().questions).toHaveLength(2500);
+    expect((await readCache())!.questions).toHaveLength(2500);
   });
 
   it("does not stop one page early when the bank is an exact multiple of the page", async () => {
@@ -342,7 +369,7 @@ describe("question-bank cache", () => {
     await bootLive();
     expect(bankFetches()).toBe(3);
     expect(h.bankQueries[2].cons.some((c) => c.kind === "startAfter")).toBe(true);
-    expect(readCache().questions).toHaveLength(2000);
+    expect((await readCache())!.questions).toHaveLength(2000);
   });
 
   it("reports rather than truncates silently when the cursor stops advancing", async () => {
@@ -365,7 +392,31 @@ describe("question-bank cache", () => {
     await bootLive();
     expect(bankFetches()).toBe(1);
     expect(isDelta(0)).toBe(false);
-    expect(readCache().questions.map((x: { id: string }) => x.id)).toEqual(["q_1", "q_2"]);
+    expect((await readCache())!.questions.map((x: { id: string }) => x.id)).toEqual(["q_1", "q_2"]);
+  });
+
+  // ── the localStorage era's payload migrates (D304) ────────────────
+  //
+  // A device updating across the store move holds a good cache in the
+  // old box and nothing in the new one. The migration's promise is
+  // threefold and each third has its own assertion: the old payload is
+  // USED (the boot pays a delta, not a refetch), the small box is FREED
+  // (the whole point of the move), and the new store holds the bank
+  // afterwards (so the next boot never touches localStorage at all).
+  it("migrates the v2 localStorage payload: delta fetch, key freed, store filled", async () => {
+    await bootLive();
+    const first = await readCache();
+    vi.resetModules();
+    h.bankQueries.length = 0;
+    // The updating device: empty IDB universe, old cache still in the box.
+    vi.stubGlobal("indexedDB", new IDBFactory());
+    storage.setItem(BANK_LS, JSON.stringify(first));
+
+    await bootLive();
+    expect(bankFetches()).toBe(1);
+    expect(isDelta(0)).toBe(true);
+    expect(storage.getItem(BANK_LS)).toBeNull();
+    expect((await readCache())!.questions).toHaveLength(2);
   });
 
   // ── every surface splitBanks can return has to reach it ──────────────
@@ -446,7 +497,7 @@ describe("question-bank cache", () => {
     // The archive is the product: the filter is a SERVING rule, so the
     // expired doc is still in the cache and its answers and aggregate are
     // untouched. `active: false` remains the hard kill.
-    expect(readCache().questions.map((x: { id: string }) => x.id)).toContain("n_closed");
+    expect((await readCache())!.questions.map((x: { id: string }) => x.id)).toContain("n_closed");
     expect(LIVE.ready).toBe(true);
   });
 });

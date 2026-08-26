@@ -31003,3 +31003,40 @@ D302's nightly fold stays the ranking's spine — global signal orders the
 bank; the profile chooses which of it a device is offered. Core density,
 the daily's one-question ritual, and every deny in `firestore.rules`
 stand.
+
+## D304 · The bank cache leaves the small box
+
+**2026-08-26.** D302 phase 1, BANK-DELIVERY §3 as-built, the day the
+plan was adopted. `src/v2/data/bankStore.ts` now holds the question-bank
+cache in IndexedDB (`insight-bank`, one store, one row); live.ts's three
+localStorage sites became a get/put pair with the contract the old code
+had — any storage failure reads as "no cache" and the boot refetches —
+minus the failure that contract existed to survive: the ~5 MB origin
+quota the bank was certain to grow into, whose crossing would have
+silently stopped caching and made every boot a full fetch forever.
+
+What §3 predicted held: the cursor, the delta query and splitBanks are
+untouched, and the store being async cost nothing because hydrate
+already was. Two things beyond the plan's sketch:
+
+- **Migration is conditional on the new store working.** bankGet
+  consumes the legacy `insight.bankCache.v2` payload — returned for the
+  boot, so an updating device pays a delta rather than a refetch, then
+  removed, freeing the box — but ONLY when IndexedDB opened and was
+  simply empty. Where IndexedDB itself fails, the legacy copy is read
+  and LEFT: a device whose new store never works keeps a
+  stale-but-delta-able cache, which beats a full fetch every boot.
+  Pinned in bank-cache.test.ts; the migration case asserts all three
+  halves — delta not refetch, key freed, store filled.
+- **The tripwires re-pointed, not retired** (§3's own rule for a gate
+  that once caught something). `BANK_WARN`/`BANK_FAIL` keep their
+  counts and change their subject: the whole-bank fetch every fresh
+  install still pays (§4's ceiling) until D302's paged read path lands.
+  The messages now say to build the pages, not to move the cache;
+  cost-scale, feed-budget and learn-budget's prose moved with them.
+
+Measured, not assumed: tsc, eslint, 2089 unit tests (bank-cache at 14,
+one new), 468 script tests, check:quality, check:globals, and the
+shipping bundle at 2096 KB against the 2440 ceiling — bankStore adds one
+small module to the entry graph and no shipped dependency
+(fake-indexeddb is dev-only, the tests' IDB implementation).
