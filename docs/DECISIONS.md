@@ -30814,3 +30814,125 @@ database-isolation argument fails. The value was not in the hit rate. It
 was that the two real ones were a wrong command that fails loudly and a
 wrong region in a heading that would not have, and neither is the kind of
 thing the person who wrote them re-reads and catches.
+
+## D302 · The applier could not apply, for the same reason the observer could not observe
+
+**2026-08-26.** D300 read production and found **zero alert policies and
+zero log-based metrics** — two days after `scripts/apply-monitoring.mjs`
+was written to create thirteen of them, tested, documented in two places
+and listed as one command in the runbook. The script was not wrong. It was
+unrunnable, and nothing in the repo could tell the difference.
+
+### The obstacle it named, and the one it had
+
+Its own header carried a correction (D47, 2026-08-04) retiring the reason
+everyone had been giving:
+
+> NOT because the deploy service account lacks the permission. It holds
+> `Editor` + `Firebase Admin`, and `Editor` includes
+> `monitoring.alertPolicies.create`. Permission was never the obstacle.
+
+That is true, and it was the whole diagnosis. Four lines below it the
+script called `execFileSync("gcloud", …)` and exited with *"gcloud is not
+on PATH. Install the Cloud SDK and `gcloud auth login`"* — a requirement
+for an interactive login against a project nobody had one for. So the
+header ruled out the obstacle that did not apply and did not name the one
+that did, which is a harder failure to see than a wrong reason: the
+sentence is correct, the correction above it is correct, and the tool
+still does not run.
+
+**This is D299's finding, one instrument later.** There, I treated
+D292's Workload-Identity design as a prerequisite for reading production
+when the credential was already in four workflows. Here, the same
+credential could already write — `Editor` includes the create permission,
+and the header says so — and the transport was a CLI instead of an HTTP
+request. Both times the thing was reachable and the reasoning about
+provisioning hid it. Both times the cost was the same: an instrument that
+did not exist while the thing it watches was going wrong.
+
+### What changed
+
+The transport, and nothing about what gets created. `apply-monitoring.mjs`
+now signs a JWT with `FIREBASE_SERVICE_ACCOUNT`, trades it for a
+cloud-platform OAuth token and POSTs to the Monitoring and Logging REST
+APIs — the path `fn-log.mjs` has used since D179 and `observe.mjs` since
+D299. `.github/workflows/monitoring.yml` dispatches it behind the
+`production` environment gate, `apply` off unless asked.
+
+`scripts/google-api.mjs` holds the exchange now, because this was the
+third caller and `pure.ts`'s rule about `breakdownFor` applies to scripts
+too: three copies is how they drift. `observe.mjs` moved onto it in the
+same change; `fn-log.mjs` is deliberately left, on the terms
+`operator-call.mjs` already sets for the two callers that predate it — it
+works, and rewriting a working script to save duplication is the trade
+this repo declines everywhere else.
+
+### The refusal that stands, and the one that was a fourth copy
+
+DEPLOYMENT.md § Alerting gives two reasons this is not on the deploy path.
+Only one survives, and the other was never about automation at all:
+
+- **Stands.** A pipeline that can rewrite an alert policy can delete one
+  silently, in a deploy that was about something else, and the blast
+  radius is "you stop being told when the Mirror stops moving". A
+  `workflow_dispatch` behind the `production` gate is not that pipeline.
+  `firebase-deploy.yml` calling this would be.
+- **Stands.** The notification channel id is an email address or a Slack
+  hook — per operator, per project, correctly not in this repo. It is a
+  workflow input now, typed by whoever dispatches.
+- **Retired, and it had already been retired once.** Runbook 5.5 said the
+  step must not be automated because "the deploy service account has no
+  monitoring role". That is the sentence D47 corrected in DEPLOYMENT.md on
+  2026-08-04, still standing in the runbook on 2026-08-26 — a **fourth**
+  copy of a retired reason, in the item whose own paragraph then called
+  building the automation "an open question with arguments both ways" and
+  left it. Two days of no alerts is what the open question cost.
+
+### The policy files say `notificationChannels: []`, and that is the bug worth pinning
+
+Every committed policy carries an empty channel list, because the id is
+not in this repo. A policy POSTed with that list is **accepted, enabled,
+listed and green — and pages nobody.** `npm run observe` would report
+`armed: true` for an alert chain that cannot reach a human, which is the
+exact false comfort every gate here exists to prevent, one level up.
+
+Nothing downstream can tell the difference, so it is pinned in
+`apply-monitoring.test.mjs`: every policy POST must carry the channel
+resource name. Removing the merge fails two cases. Ordering is pinned the
+same way — two policies read log-based metrics, and a policy created
+against a metric type that resolves to nothing never fires, which looks
+identical to the condition never occurring — so the test asserts every
+metric POST precedes every policy POST rather than merely that both
+happened.
+
+### A refusal is fatal here, unlike in the observer
+
+`observe.mjs` treats a 403 as a *result*: the point of that run is to
+learn which readings are available, so it reports the missing role and
+keeps going. This script does the opposite and stops, because its steps
+are ordered and dependent — the policies carry the channel id, two of them
+read metrics from the step before. Continuing past a failure would build
+half an alert chain and report success for it, which is the shape
+`check:monitoring` exists to prevent inside the repo and would be worse in
+the project, where no gate can see it.
+
+### Five copies of one figure, none of them right
+
+Correcting the docs turned up the same drift D39 built `check:figures`
+for, again, and this time in five places at once. `monitoring/` holds
+**eight** policies and **five** metrics. The prose said:
+
+| where | said | actual |
+| --- | --- | --- |
+| `docs/DEPLOYMENT.md` heading | "Alerting (**three** alerts, deliberately)" | 8 |
+| `docs/DEPLOYMENT.md` blockquote | "**both** log-based metrics and all **three** policies" | 5, 8 |
+| `docs/COSTS.md` § what is not covered | "`monitoring/` has **four** policies" | 8 |
+| `docs/LAUNCH-RUNBOOK.md` 5.5 | "widening it for **eight** policies is the worse trade" | 8, but priced against a premise D47 retired |
+| `apply-monitoring.mjs` header | "the **three** alert policies" | 8 (fixed at D291) |
+
+`check:monitoring` held the *lists* equal to the directory the whole time.
+Nothing held the *prose* to the lists. Both headings are `check:figures`
+entries now; the blockquote stopped quoting numbers instead, because a
+sentence that does not state a count cannot drift — and the runbook's
+priced trade was deleted with its premise rather than corrected, which is
+why its gate entry went too.

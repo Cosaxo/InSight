@@ -60,7 +60,7 @@ beforeEach(() => {
 
 const observe = async (args = []) => {
   const { stdout } = await run("node", [SCRIPT, ...args], {
-    env: { ...process.env, FIREBASE_SERVICE_ACCOUNT: SA, FIREBASE_PROJECT_ID: "prvfire33", OBSERVE_BASE: base },
+    env: { ...process.env, FIREBASE_SERVICE_ACCOUNT: SA, FIREBASE_PROJECT_ID: "prvfire33", GOOGLE_API_BASE: base },
   });
   return stdout;
 };

@@ -12,22 +12,41 @@
 // that looks like nothing from the outside: the app keeps serving, the
 // Mirror stops moving, and Eventarc piles up redeliveries for ~7 days.
 //
-// NOT on the deploy path, and it must not become so. The reasoning is
+// WHY IT DID NOT RUN, for two days, while saying all of that. This script
+// shelled out to `gcloud`, authenticated interactively. Its own header said
+// permission was never the obstacle — the deploy service account holds
+// `Editor`, which includes `monitoring.alertPolicies.create` — and then it
+// required a tool nobody had logged into, which is an obstacle of exactly
+// the same kind and one the header did not name. On 2026-08-26 the observer
+// read production and found zero alert policies and zero log-based metrics
+// (D300), two days after this file was written to create thirteen of them.
+//
+// So the transport is now the one observe.mjs proved reachable: sign a JWT
+// with FIREBASE_SERVICE_ACCOUNT, trade it for an OAuth token, POST to the
+// Monitoring and Logging APIs (D302). No gcloud, no interactive login, and
+// it runs from `.github/workflows/monitoring.yml` behind the production
+// environment gate. This is D299's finding applied a second time: a tool
+// that runs beats a better-provisioned tool that does not.
+//
+// STILL NOT ON THE DEPLOY PATH, and it must not become so. The reasoning is
 // DEPLOYMENT.md's, not this script's — repeated here because a script that
-// looks runnable in CI invites someone to run it there — but the version
-// this file first carried was the wrong one, and copying it forward is how
-// a wrong reason outlives the doc that retired it (D47):
+// looks runnable in CI invites someone to run it there — and only one of
+// its two halves was retired by the change above:
 //
-//   NOT because the deploy service account lacks the permission. It holds
-//   `Editor` + `Firebase Admin`, and `Editor` includes
-//   `monitoring.alertPolicies.create`. Permission was never the obstacle.
+//   RETIRED: "not because the deploy service account lacks the permission."
+//   That was already true and is now load-bearing rather than incidental —
+//   the same `Editor` role is what makes the REST path work.
 //
-//   BUT because a policy is useless without a notification channel id,
-//   which is an email address or a Slack hook — per operator, per project,
-//   and correctly not in this repo. And because a pipeline that can rewrite
-//   an alert policy can delete one silently, in a deploy that was about
-//   something else, and the blast radius is "you stop being told when the
-//   Mirror stops moving".
+//   STANDS: a policy is useless without a notification channel id, which is
+//   an email address or a Slack hook — per operator, per project, and
+//   correctly not in this repo. It is a workflow INPUT, typed by the person
+//   dispatching, not a secret and not a default.
+//
+//   STANDS, and is the real one: a pipeline that can rewrite an alert
+//   policy can delete one silently, in a deploy that was about something
+//   else, and the blast radius is "you stop being told when the Mirror
+//   stops moving". A separate manually-dispatched workflow is not that
+//   pipeline; `firebase-deploy.yml` calling this would be.
 //
 // Dry run by default, same posture as scrub-v1-discoverable.mjs: it prints
 // what it would create and changes nothing without --apply.
@@ -36,21 +55,22 @@
 // run reports "exists" rather than creating a duplicate policy that then
 // double-pages.
 //
-// Needs the gcloud CLI, authenticated (`gcloud auth login`) with monitoring
-// and logging admin on the project. Node stdlib only, like every other
-// script here that a human runs against production.
+// Env: FIREBASE_SERVICE_ACCOUNT (the deploy service-account JSON, contents).
+// Node stdlib only, like every other script here that a human runs against
+// production.
 
-import { execFileSync } from "node:child_process";
 import { readFileSync, existsSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+
+import { api, serviceAccount, accessToken, googleFetch } from "./google-api.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 const argv = process.argv.slice(2);
 const argOf = (flag) => { const i = argv.indexOf(flag); return i >= 0 ? argv[i + 1] : null; };
 const APPLY = argv.includes("--apply");
-const PROJECT = argOf("--project") || "prvfire33";
+const PROJECT = argOf("--project") || process.env.FIREBASE_PROJECT_ID || "prvfire33";
 const EMAIL = argOf("--email");
 const CHANNEL_NAME = argOf("--channel-name") || "InSight oncall";
 
@@ -125,38 +145,41 @@ if (!EMAIL) {
   process.exit(1);
 }
 
-// gcloud writes progress to stderr and data to stdout, so only stdout is
-// parsed. A non-zero exit throws with gcloud's own message attached, which
-// is more useful than anything this script could say about it.
-function gcloud(args, { json = true } = {}) {
-  const out = execFileSync("gcloud", [...args, "--project", PROJECT], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "inherit"],
-    maxBuffer: 32 * 1024 * 1024,
-  });
-  return json ? JSON.parse(out || "[]") : out;
-}
-
-function step(label, exists, doIt) {
-  if (exists) { console.log(`  = ${label} — already exists, skipped`); return false; }
-  if (!APPLY) { console.log(`  + ${label} — would create`); return false; }
-  doIt();
-  console.log(`  ✓ ${label} — created`);
-  return true;
-}
-
-try {
-  gcloud(["version"], { json: false });
-} catch {
-  console.error("apply-monitoring: gcloud is not on PATH. Install the Cloud SDK and `gcloud auth login`.");
-  process.exit(1);
-}
-
 for (const rel of POLICIES) {
   if (!existsSync(join(root, rel))) {
     console.error(`apply-monitoring: ${rel} is missing — it is the policy body, not a template.`);
     process.exit(1);
   }
+}
+
+const sa = serviceAccount("apply-monitoring");
+const token = await accessToken(sa, "apply-monitoring");
+
+const mon = (path) => api("monitoring.googleapis.com", `/v3/projects/${PROJECT}${path}`);
+const log = (path) => api("logging.googleapis.com", `/v2/projects/${PROJECT}${path}`);
+
+/** Unlike observe.mjs, a refusal here is FATAL rather than a result. The
+ *  steps below are ordered and dependent — policies carry the channel id,
+ *  and two of them read metrics created a step earlier — so continuing past
+ *  a failure would create half an alert chain and report success for it.
+ *  That is the exact shape check-monitoring exists to prevent in the repo,
+ *  and it would be worse in the project, where no gate can see it. */
+function must(what, res, role) {
+  if (res.ok) return res.body;
+  const why = res.status === 403 ? `\n    Grant ${role} to ${sa.client_email}.`
+    : res.status === 404 ? "\n    A 404 on a project path usually means the API is not enabled for this project."
+      : "";
+  console.error(`apply-monitoring: ${what} failed (${res.status}): ${res.message}${why}`);
+  process.exit(1);
+}
+
+let created = 0;
+async function step(label, exists, doIt) {
+  if (exists) { console.log(`  = ${label} — already exists, skipped`); return; }
+  if (!APPLY) { console.log(`  + ${label} — would create`); return; }
+  await doIt();
+  created++;
+  console.log(`  ✓ ${label} — created`);
 }
 
 console.log(
@@ -166,21 +189,25 @@ console.log(
 
 // ── 1. the notification channel ─────────────────────────────────────
 // Everything else references this, so it is first and its id is threaded
-// through. Matched on display name: gcloud has no natural key for a
-// channel, and a second channel with the same name would silently mean
-// half the alerts page one address and half the other.
-const channels = gcloud(["alpha", "monitoring", "channels", "list", "--format", "json"]);
-let channel = channels.find((c) => c.displayName === CHANNEL_NAME);
+// through. Matched on display name: a channel has no natural key, and a
+// second channel with the same name would silently mean half the alerts
+// page one address and half the other.
+const channelList = must(
+  "listing notification channels",
+  await googleFetch(mon("/notificationChannels"), token),
+  "roles/monitoring.notificationChannelEditor",
+);
+let channel = (channelList.notificationChannels || []).find((c) => c.displayName === CHANNEL_NAME);
 
-step(`notification channel "${CHANNEL_NAME}"`, Boolean(channel), () => {
-  gcloud([
-    "alpha", "monitoring", "channels", "create",
-    "--display-name", CHANNEL_NAME,
-    "--type", "email",
-    "--channel-labels", `email_address=${EMAIL}`,
-  ], { json: false });
-  const after = gcloud(["alpha", "monitoring", "channels", "list", "--format", "json"]);
-  channel = after.find((c) => c.displayName === CHANNEL_NAME);
+await step(`notification channel "${CHANNEL_NAME}"`, Boolean(channel), async () => {
+  channel = must(
+    "creating the notification channel",
+    await googleFetch(mon("/notificationChannels"), token, {
+      method: "POST",
+      body: { type: "email", displayName: CHANNEL_NAME, labels: { email_address: EMAIL }, enabled: true },
+    }),
+    "roles/monitoring.notificationChannelEditor",
+  );
 });
 
 if (channel && channel.labels?.email_address && channel.labels.email_address !== EMAIL) {
@@ -197,37 +224,62 @@ if (channel && channel.labels?.email_address && channel.labels.email_address !==
 // policy is created against a metric type that resolves to nothing and
 // never fires, which looks identical to "no contention" and to "the
 // reveal scan is healthy" respectively.
-const metrics = gcloud(["logging", "metrics", "list", "--format", "json"]);
+const metricList = must(
+  "listing log-based metrics",
+  await googleFetch(log("/metrics"), token),
+  "roles/logging.configWriter",
+);
+const liveMetrics = (metricList.metrics || []).map((m) => m.name);
+
 for (const m of METRICS) {
-  step(`log-based metric ${m.name}`, metrics.some((x) => x.name === m.name), () => {
-    gcloud([
-      "logging", "metrics", "create", m.name,
-      "--description", m.description,
-      "--log-filter", m.filter,
-    ], { json: false });
+  await step(`log-based metric ${m.name}`, liveMetrics.includes(m.name), async () => {
+    must(
+      `creating log-based metric ${m.name}`,
+      await googleFetch(log("/metrics"), token, {
+        method: "POST",
+        body: { name: m.name, description: m.description, filter: m.filter },
+      }),
+      "roles/logging.configWriter",
+    );
   });
 }
 
 // ── 3. the policies ─────────────────────────────────────────────────
-const existing = gcloud(["alpha", "monitoring", "policies", "list", "--format", "json"]);
+const policyList = must(
+  "listing alert policies",
+  await googleFetch(mon("/alertPolicies"), token),
+  "roles/monitoring.alertPolicyEditor",
+);
+const livePolicies = (policyList.alertPolicies || []).map((p) => p.displayName);
 
 for (const rel of POLICIES) {
   const body = JSON.parse(readFileSync(join(root, rel), "utf8"));
-  const already = existing.some((p) => p.displayName === body.displayName);
-  step(`policy "${body.displayName}"`, already, () => {
-    if (!channel) throw new Error("no notification channel id — the channel step did not complete");
-    gcloud([
-      "alpha", "monitoring", "policies", "create",
-      "--policy-from-file", join(root, rel),
-      "--notification-channels", channel.name,
-    ], { json: false });
+  await step(`policy "${body.displayName}"`, livePolicies.includes(body.displayName), async () => {
+    // The committed file carries `notificationChannels: []` because the id
+    // is per-operator and correctly not in the repo. Filling it at POST is
+    // the whole reason the channel step runs first — a policy created with
+    // an empty list is enabled, visible, green, and pages nobody.
+    if (!channel?.name) {
+      console.error("apply-monitoring: no notification channel id — the channel step did not complete.");
+      process.exit(1);
+    }
+    must(
+      `creating policy "${body.displayName}"`,
+      await googleFetch(mon("/alertPolicies"), token, {
+        method: "POST",
+        body: { ...body, notificationChannels: [channel.name] },
+      }),
+      "roles/monitoring.alertPolicyEditor",
+    );
   });
 }
 
 console.log(
   APPLY
-    ? "\napply-monitoring: done. Verify with:\n"
-      + `  gcloud alpha monitoring policies list --project ${PROJECT}\n`
+    ? `\napply-monitoring: done, ${created} created. Verify with the instrument rather`
+      + " than by eye:\n"
+      + "  npm run observe\n"
+      + "`armed` should read true and no committed policy should be listed missing.\n"
       + "Then send yourself a test page from the console — an alert nobody has\n"
       + "ever seen arrive is an alert you do not know is wired up.\n"
       + "\n"
@@ -235,8 +287,7 @@ console.log(
       + "    and absence conditions need a time series that has existed at\n"
       + "    least once. Until the first scheduled (indexed) reveal scan has\n"
       + "    run in production, it cannot fire — it is green because there is\n"
-      + "    nothing to be absent, not because the loop is healthy. Confirm\n"
-      + "    one run landed before counting it as cover:\n"
-      + `      gcloud logging read 'jsonPayload.metric="duel_reveal_run"' --limit 1 --project ${PROJECT}`
+      + "    nothing to be absent, not because the loop is healthy. The same\n"
+      + "    holds for the three nightly-job silence policies."
     : "\napply-monitoring: dry run. Re-run with --apply to create the above.",
 );

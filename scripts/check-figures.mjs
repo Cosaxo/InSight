@@ -449,12 +449,34 @@ const FIGURES = [
     fix: (n) => `"Apply the ${n} monitoring alerts"`,
   },
   {
-    file: "docs/LAUNCH-RUNBOOK.md",
-    what: "policies the deploy-role refusal is priced against",
-    // `\s+` across the wrap: the sentence breaks mid-clause in the runbook.
-    re: /widening\s+it for (\w+) policies is the worse trade/,
+    file: "docs/COSTS.md",
+    what: "alert policies in monitoring/",
+    // The fifth copy of this figure, and the fifth to be wrong: it said
+    // four. The others were the runbook step (two), apply-monitoring's own
+    // header (three), the retired deploy-role trade (eight, against the
+    // wrong premise) and DEPLOYMENT.md's heading (three).
+    re: /`monitoring\/` holds\s+(\w+) policies/,
     actual: NUMBER_WORDS[monitoringPolicies] || String(monitoringPolicies),
-    fix: (n) => `"widening it for ${n} policies is the worse trade"`,
+    fix: (n) => `"\`monitoring/\` holds ${n} policies"`,
+  },
+  {
+    file: "docs/DEPLOYMENT.md",
+    what: "alert policies the section documents",
+    // The heading carried "three alerts, deliberately" for as long as there
+    // were eight, and "Why only these three" underneath it — because five
+    // were added by later work that had no reason to re-read a heading.
+    // check:monitoring holds the LISTS equal to the directory; nothing held
+    // the prose to the lists.
+    re: /## Alerting \((\w+) policies, \w+ log-based metrics\)/,
+    actual: NUMBER_WORDS[monitoringPolicies] || String(monitoringPolicies),
+    fix: (n) => `"## Alerting (${n} policies, ...)"`,
+  },
+  {
+    file: "docs/DEPLOYMENT.md",
+    what: "log-based metrics the section documents",
+    re: /## Alerting \(\w+ policies, (\w+) log-based metrics\)/,
+    actual: NUMBER_WORDS[monitoringMetrics] || String(monitoringMetrics),
+    fix: (n) => `"## Alerting (..., ${n} log-based metrics)"`,
   },
   {
     file: "scripts/apply-monitoring.mjs",

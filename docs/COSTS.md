@@ -898,13 +898,15 @@ happens.
 still the largest single line that could be wrong without any code being
 wrong. Also console-only.
 
-**4 · A notification channel on the alert policies.** `monitoring/` has
-four policies and `check:monitoring` proves the chain from log line to
-condition — but `notificationChannels` is `[]` in every file, filled in by
-`npm run monitoring:apply --email`. A policy with no channel evaluates
-correctly and pages nobody, which is the same false comfort every other
-gate in this repo exists to prevent, and the same shape as the known limit
-already recorded against the absence alert.
+**4 · A notification channel on the alert policies.** `monitoring/` holds
+eight policies and `check:monitoring` proves the chain from log line to
+condition — but `notificationChannels` is `[]` in every file, filled in at
+POST time by the **Arm monitoring** workflow (`npm run monitoring:apply --
+--email` locally). A policy with no channel evaluates correctly and pages
+nobody, which is the same false comfort every other gate in this repo
+exists to prevent, and the same shape as the known limit already recorded
+against the absence alert. Not console-only any more, and not done either:
+on 2026-08-26 the project held none of them (D300, D302).
 
 **What was built here instead of a cap.**
 `monitoring/firestore-read-runaway.json` is the detection-latency half:

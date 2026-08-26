@@ -1,0 +1,124 @@
+# Arm the alert policies (D302), from the credential that is already here.
+#
+# WHY THIS EXISTS. `scripts/apply-monitoring.mjs` has been able to create
+# the notification channel, the five log-based metrics and the eight
+# policies since 2026-08-24 — through `gcloud`, authenticated interactively.
+# Nobody had a `gcloud auth login` against this project, so nothing ran, and
+# on 2026-08-26 the observer read production and found zero policies and
+# zero metrics (D300). The script's own header said permission was never the
+# obstacle; the obstacle was a tool nobody was logged into, which is the
+# same kind of obstacle and one it did not name.
+#
+# This is D299's finding a second time: an instrument that runs beats a
+# better-provisioned instrument that does not. The transport is now the
+# Monitoring and Logging REST APIs over FIREBASE_SERVICE_ACCOUNT — the same
+# credential observe.yml reads with, and the same `Editor` role that already
+# grants `monitoring.alertPolicies.create`.
+#
+# GATED, unlike observe.yml, and the difference is the whole point. That one
+# is read-only by construction and needs no human in front of it. This one
+# CREATES, so it carries `environment: production` for the same reason
+# rebuild-aggregate.yml does — and it is `workflow_dispatch` only, with
+# `apply` off unless asked.
+#
+# NOT ON THE DEPLOY PATH, and it must not become one. `firebase-deploy.yml`
+# calling this would be the pipeline DEPLOYMENT.md § Alerting refuses: one
+# that can rewrite an alert policy can delete one silently, in a deploy that
+# was about something else, and the blast radius is "you stop being told
+# when the Mirror stops moving".
+
+name: Arm monitoring
+
+on:
+  workflow_dispatch:
+    inputs:
+      email:
+        description: "Where the pages go. Creates a notification channel if one by this name does not exist."
+        type: string
+        required: true
+      apply:
+        description: "CREATE the channel, metrics and policies. Off = report what is missing and change nothing."
+        type: boolean
+        default: false
+      channel_name:
+        description: "Notification channel display name (default: InSight oncall)"
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+# Two runs would each see the same objects missing and each create them —
+# and a duplicate alert policy is not a harmless duplicate, it double-pages
+# for the rest of its life. Not `cancel-in-progress`: killing a run between
+# the channel and the policies leaves half an alert chain.
+concurrency:
+  group: arm-monitoring
+  cancel-in-progress: false
+
+jobs:
+  arm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Where FIREBASE_SERVICE_ACCOUNT is scoped and, for `apply`, where the
+    # approval sits.
+    environment: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+
+      - name: Arm
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT_ID: prvfire33
+          EMAIL: ${{ inputs.email }}
+          CHANNEL_NAME: ${{ inputs.channel_name }}
+        run: |
+          # pipefail, for the reason seed-content.yml records: `cmd | tee`
+          # reports TEE's status, so without it a FAILED run is a green job.
+          set -o pipefail
+          # EMAIL and CHANNEL_NAME are FREE TEXT and travel through the
+          # environment, never through GitHub expression syntax — an
+          # expression is substituted before the shell parses the line, so
+          # operator-supplied text would land directly in the command.
+          # `apply` IS interpolated, and that is safe for a different reason:
+          # it is type: boolean, so the only values that can reach here are
+          # true and false.
+          # An array rather than a string: --email carries free text, and a
+          # word-split string would break the first address with a space in
+          # it and, worse, would not break at all for one with a `;`.
+          ARGS=(--email "$EMAIL")
+          [ -n "$CHANNEL_NAME" ] && ARGS+=(--channel-name "$CHANNEL_NAME")
+          [ "${{ inputs.apply }}" = "true" ] && ARGS+=(--apply)
+          node scripts/apply-monitoring.mjs "${ARGS[@]}" 2>&1 | tee "$RUNNER_TEMP/arm.txt"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Arming monitoring"
+            echo ""
+            echo '```'
+            cat "$RUNNER_TEMP/arm.txt" 2>/dev/null || echo "(the script did not run — see the step log)"
+            echo '```'
+            echo ""
+            echo "#### Reading it"
+            echo ""
+            echo "\`+ … would create\` is a DRY RUN. Nothing was changed. Re-dispatch with"
+            echo "\`apply\` on to create them."
+            echo ""
+            echo "A failure naming \`roles/…\` is a role missing from the deploy service"
+            echo "account, not a code change — the line names the exact role and the"
+            echo "account to grant it to."
+            echo ""
+            echo "Afterwards, confirm with the instrument rather than by eye: run"
+            echo "**Observe production** and check \`armed\` reads true."
+            echo ""
+            echo "The four silence policies watch an ABSENCE, and an absence condition"
+            echo "needs a time series that has existed at least once. Until each"
+            echo "scheduled job has run once in production they are green because there"
+            echo "is nothing to be absent, not because the loop is healthy."
+          } >> "$GITHUB_STEP_SUMMARY"
