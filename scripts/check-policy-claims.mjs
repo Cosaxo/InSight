@@ -101,8 +101,19 @@ export const CLAIMS = [
     /carries your display name/i],
   ["D178 · the profile photo is optional and its metadata is stripped",
     /metadata is\s+stripped on your device/i],
-  ["D3 · no ads, no third-party analytics",
-    /no third-party analytics or tracking/i],
+  // The D3 row here — "no third-party analytics or tracking of any
+  // kind" — retired at D305 (2026-08-26): the owner removed the promise
+  // on the D225 posture (an unneeded promise is a standing liability),
+  // over the recorded recommendation to keep it. The page now DESCRIBES
+  // today's practice — no ad identifiers, no third-party analytics SDK,
+  // no data sold to advertisers, with "if that changes, this page
+  // changes first" — and pledges nothing about tomorrow. The store
+  // nutrition labels keep saying tracking-off because that stays a fact
+  // about the shipped app until an SDK actually ships; the day one
+  // does, the store forms and this page move together, as a product
+  // decision rather than a broken promise.
+  ["D305 · the tracking passage describes today and stays ahead of change",
+    /no third-party analytics SDK[\s\S]{0,200}?this\s+page changes first/i],
   ["D226 · a changed answer is counted publicly as a move between options",
     /moves from one option to another/i],
   ["D227 · the verified logic score also groups answers, in broad bands",

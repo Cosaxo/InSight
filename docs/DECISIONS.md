@@ -31143,3 +31143,40 @@ next `build-pricing.mjs` run folds, so the door's booked ticks can lag
 a sale until then — prices cannot, because the committed card is the
 price. And the review model's bill rides the Anthropic account, not
 COSTS.md's Firebase arithmetic; one line there names it.
+
+## D305 · The no-tracking promise retires; the page describes today and stays ahead of change
+
+**Date: 2026-08-26. The owner's call, made twice in plain words ("we
+should remove that promise", "it ruins the app") over the recorded
+recommendation to keep it.** The D225 posture, applied to the oldest
+pledge on the page: an unneeded promise is a standing liability, and
+this one — "no third-party analytics or tracking of any kind", pinned
+since D183 as the D3 row of `check:policy-claims` — bound every future
+product conversation about analytics, attribution or ad partners to a
+public promise-break, whatever the merits of the day.
+
+What changed, and what deliberately did not:
+
+- **The pledge is gone; the fact stays a fact.** `web/privacy.html` now
+  DESCRIBES current practice — no advertising identifiers, no
+  third-party analytics SDK, no personal data sold to advertisers —
+  and adds the one sentence that makes describing enough: *"If any of
+  that changes, this page changes first."* That sentence is the new
+  pin (the D252 shape: describe today, pledge nothing about tomorrow,
+  and gate the description so it cannot silently rot).
+- **Nothing was added.** Removing the promise ships no SDK, changes no
+  data flow, and moves no store form: the App Store nutrition label and
+  Play Data Safety still answer tracking-off because that remains true
+  of the shipped binary, held by `check:store-forms`. The day a
+  third-party SDK actually arrives, the store forms, an EEA consent
+  flow, ATT on iOS and this page move together — as a product build
+  with its own record, not a broken promise.
+- **The recommendation it overrides is part of this record**, per the
+  house rule that a disagreement is written down rather than papered
+  over: the advice (same day, in the ads discussion) was that the
+  pledge was a differentiator worth more than early ad fill, and that
+  an unsold slot here costs nothing. The owner weighed it and chose
+  freedom over the pledge. The self-serve ad path built beside this
+  decision (D306) needs no tracking either way — text-only, link-free,
+  matched on the device — so the first revenue arrives without spending
+  what this record unlocks.
