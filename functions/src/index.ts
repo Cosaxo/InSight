@@ -930,6 +930,11 @@ export { resolveCallsV2 } from "./calls";
 // loading vectors from the vote log, core corpus only (D161). The fold
 // that has to exist before the Patterns tab may ship (D167).
 export { fitPatternsV2 } from "./patterns";
+// D302: the nightly published serving order — per-topic question order
+// (volume, landslides sunk) onto v2_rank/{feed,learn}, the spine the
+// paged read path fetches against. Global signal only; no uid enters
+// the fold (D163/D303's line).
+export { rankBankV2 } from "./rank";
 // R1/D268: the nightly engagement digest — anonymous population counts
 // (actives, retention returns, answers by surface) folded from the same
 // ledger, one public day doc per UTC day. The rung-0 half of

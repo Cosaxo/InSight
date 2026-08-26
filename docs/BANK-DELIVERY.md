@@ -274,7 +274,10 @@ convert later, and a published count is usually as good.
    condition is the one thing built beyond the sketch.
 3. **Ceiling 3, when a real product need asks for it** — an interest
    model that selects server-side (D163), or a bank large enough that a
-   first install feels slow. Not before. **The need was named 2026-08-26**:
+   first install feels slow. Not before. **The order this step pages
+   against publishes nightly since D305** (`v2_rank/{feed,learn}`,
+   rankBankV2) — the server half is built; what remains is the client
+   fetch. **The need was named 2026-08-26**:
    the owner directed serving-by-selection — lazy pages, a published
    order, quality filtered by signal rather than prevented by cap —
    recorded as D302, adopted 2026-08-26 ("build the real fixes now") —

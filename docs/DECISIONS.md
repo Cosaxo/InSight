@@ -31040,3 +31040,49 @@ one new), 468 script tests, check:quality, check:globals, and the
 shipping bundle at 2096 KB against the 2440 ceiling — bankStore adds one
 small module to the entry graph and no shipped dependency
 (fake-indexeddb is dev-only, the tests' IDB implementation).
+
+## D305 · The serving order publishes nightly
+
+**2026-08-26.** D302's spine, as-built: `functions/src/rank.ts`, the
+fitPatternsV2 shape one job over — a pure fold behind an injected store,
+scheduled 3:07 UTC (after the fit at 2:37, before the velocity scan at
+3:47), publishing one world-readable document per ranked surface onto
+`v2_rank/{feed,learn}`. Rules, a rules test and the data-inventory row
+all carry the v2_patterns posture: readable by any signed-in user,
+written by nobody — a client-writable order would make what everyone is
+served forgeable in one request.
+
+**The order, v1: per topic, volume descending, ties by seq — and
+landslides sink.** At `RANK_DEAD_MIN` (20) answers with a leading option
+at `RANK_DEAD_SHARE` (90%), a question has stopped asking anything and
+serves last in its topic. That is D302 phase 4's first signal live in
+the order — the scorecard's own retire-proposal predicate, kept
+numerically equal so the two cannot drift — and the owner's "bad
+questions filtered out by the algorithm" in its first real form:
+demotion continuous and reversible, deletion still a lane's PR,
+`active: false` still the kill switch.
+
+**The boundary holds by shape, not by promise.** The fold's inputs are
+the compiled seed (PATTERNS_QIDS's own source) and the public
+aggregates; no uid can enter it, so the published order is the crowd's
+and D163/D303's line — the server half of selection is global — is
+structural. The daily is not ranked (positional by design, D302);
+test/duel/pulse/call are bounded rosters (D213's census) a device still
+takes whole.
+
+**Cost:** O(bank) aggregate reads per night (getAll, 300-chunks) plus
+two writes; a device pays one read per order doc it actually uses. At
+10,000 feed questions the doc is ~150 KB against Firestore's 1 MiB
+limit; the graduation when a surface approaches it is one doc per
+topic, and the module says so where the next author will look.
+
+**What reads it: nothing yet, deliberately.** The client half — the
+paged fetch against this order — is the next change. Publishing first
+means the order is real, measured and inspectable in production before
+any device depends on it, and a bad ranking costs nothing while nothing
+reads it.
+
+Measured: 384 functions tests (rank.test.ts at 7, new), 150 rules tests
+(one new — the count that moved five prose figures, all corrected by
+check:figures' own fix lines), deploy-targets, fn-runtime, appcheck and
+data-inventory green.

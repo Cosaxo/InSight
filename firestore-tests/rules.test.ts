@@ -692,6 +692,21 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(setDoc(doc(asUser(OWNER), "v2_patterns", "loadings-2"), { k: 8 }));
   });
 
+  it("the published serving order (D302) reads like an aggregate and writes like one — nobody", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_rank", "feed"), {
+        day: "2026-08-26",
+        topics: { food: { qids: ["feed-f10"], total: 7 } },
+      });
+    });
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_rank", "feed")));
+    // A client-writable order would make what everyone is served forgeable
+    // in one request — the v2_patterns argument, one shelf down.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_rank", "feed"), { topics: {} }));
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_rank", "feed"), { day: "2026-08-27" }));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_rank", "learn"), { topics: {} }));
+  });
+
   it("a person's Patterns state is readable and writable by NOBODY — the owner included", async () => {
     await seed(async (db) => {
       await setDoc(doc(db, "v2_users", OWNER, "patterns", "state"), { v: [0.2], n: 4 });
