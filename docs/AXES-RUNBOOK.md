@@ -57,16 +57,27 @@ by PR to this file — the prompts defer to it every firing.
 
 ### The account-side inventory (repo-side record)
 
-Created 2026-08-25 (D289): fresh session per fire, model
+Created 2026-08-25 (D289), rebound 2026-08-26: model
 `claude-fable-5`, completion notifications off. Update this table
 whenever a lane is added, rebound, re-paced, or retired — the farm's
 convention.
 
 | Routine | Trigger id | Run log | Binding |
 | --- | --- | --- | --- |
-| InSight axes build | `trig_01Xv8XYuv1zkiHV2jxpeCxC7` | #290 | fresh session per fire |
-| InSight axes skeptic | `trig_01YFrzSyWE2CwHMfpNr299mX` | #290 | fresh session per fire |
-| InSight axes retro | `trig_01MoSNSwpVSAu8YMEuHwaBK9` | #290 | fresh session per fire |
+| InSight axes build | `trig_01Hzg91yafFVsa1HsXBcZY9X` | #290 | dispatcher → fresh session |
+| InSight axes skeptic | `trig_01JkE1PGWeuGe9GykFnjg1Gh` | #290 | dispatcher → fresh session |
+| InSight axes retro | `trig_01CT2yRRXZy7DbtUGPyNCB4J` | #290 | dispatcher → fresh session |
+
+"Dispatcher → fresh session" (the 2026-08-26 rebind): a cron-spawned
+session carries no MCP tool grants, so the provisioning step's
+`add_repo` call stalled at a permission prompt nobody answers — the
+second platform measurement, after the empty-container one below. Each
+Routine now wakes a persistent dispatcher session
+(`session_01D44Wtdu5JfCYMJmYuKmLjc`) that forwards the lane prompt
+verbatim into a fresh session spawned with the provisioning tools
+pre-approved: same isolation and fresh container, working permissions,
+and every run readable afterwards. The theory lanes dispatch the same
+way; their ids live in the charter's §10 on `axiom-theory`.
 
 **Binding is a measurement, not a preference — and the measurement is
 in, amended 2026-08-25 evening.** The adoption shipped on the premise
