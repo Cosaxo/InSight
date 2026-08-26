@@ -5444,6 +5444,109 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "feed-f98",
+  "surface": "feed",
+  "seq": 136,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The narrator of your life's documentary: David Attenborough, or Morgan Freeman?",
+  "options": [
+   "David Attenborough",
+   "Morgan Freeman"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f99",
+  "surface": "feed",
+  "seq": 137,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your funeral song: make them cry, or make them dance?",
+  "options": [
+   "Make them cry",
+   "Make them dance"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f100",
+  "surface": "feed",
+  "seq": 138,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Laugh-track sitcoms: cosy, or unbearable?",
+  "options": [
+   "Cosy",
+   "Unbearable"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f101",
+  "surface": "feed",
+  "seq": 139,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A single world holiday, everyone off on the same day: dream, or nightmare?",
+  "options": [
+   "Dream",
+   "Nightmare"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl13",
+  "surface": "feed",
+  "seq": 140,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Hours of live sport in a good week?",
+  "options": [
+   "0–2 h",
+   "2–3 h",
+   "3–5 h",
+   "5–7 h",
+   "7–8 h",
+   "8–10 h",
+   "10–12 h",
+   "12–13 h",
+   "13–15 h",
+   "15–17 h",
+   "17–18 h",
+   "18–20 h"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 20,
+  "unit": "h"
+ },
+ {
+  "id": "feed-f102",
+  "surface": "feed",
+  "seq": 141,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your life's photos: in the cloud, or on a drive you can hold?",
+  "options": [
+   "The cloud",
+   "A drive I can hold"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,

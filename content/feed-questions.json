@@ -2682,6 +2682,101 @@
           "count": 2900
         }
       ]
+    },
+    {
+      "id": "f98",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "The narrator of your life's documentary: David Attenborough, or Morgan Freeman?",
+      "options": [
+        {
+          "label": "David Attenborough",
+          "count": 2900
+        },
+        {
+          "label": "Morgan Freeman",
+          "count": 2700
+        }
+      ]
+    },
+    {
+      "id": "f99",
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "Your funeral song: make them cry, or make them dance?",
+      "options": [
+        {
+          "label": "Make them cry",
+          "count": 2100
+        },
+        {
+          "label": "Make them dance",
+          "count": 3400
+        }
+      ]
+    },
+    {
+      "id": "f100",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "Laugh-track sitcoms: cosy, or unbearable?",
+      "options": [
+        {
+          "label": "Cosy",
+          "count": 2500
+        },
+        {
+          "label": "Unbearable",
+          "count": 2600
+        }
+      ]
+    },
+    {
+      "id": "f101",
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "prompt": "A single world holiday, everyone off on the same day: dream, or nightmare?",
+      "options": [
+        {
+          "label": "Dream",
+          "count": 2800
+        },
+        {
+          "label": "Nightmare",
+          "count": 2300
+        }
+      ]
+    },
+    {
+      "id": "dl13",
+      "core": false,
+      "cat": "sport",
+      "type": "dial",
+      "prompt": "Hours of live sport in a good week?",
+      "lo": 0,
+      "hi": 20,
+      "unit": "h"
+    },
+    {
+      "id": "f102",
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "Your life's photos: in the cloud, or on a drive you can hold?",
+      "options": [
+        {
+          "label": "The cloud",
+          "count": 2900
+        },
+        {
+          "label": "A drive I can hold",
+          "count": 2400
+        }
+      ]
     }
   ]
 }
