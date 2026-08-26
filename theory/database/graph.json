@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "axiom": "database",
+  "updated": "2026-08-26",
+  "nodes": [
+    {
+      "id": "db-1",
+      "claim": "The perfect database is designed around the join, not the store: the cross-axis connection is its unit of design.",
+      "status": "argued",
+      "detail": "The owner's purpose frame (charter §1) makes every axiom's output either powerful data in itself or a strengthener of another axiom's data — so the storage layer's success metric is the cost and expressiveness of axis-crossing reads, not write throughput or raw capacity. Schema, layout, indexing and precomputation are chosen so that the app's core operation — crossing one axis against another — is the cheapest thing the system does. A design that optimizes single-axis reads first has optimized the part of the product that is not the point.",
+      "sources": [],
+      "edges": [{ "to": "cen-1", "type": "supports" }],
+      "created": "2026-08-26",
+      "updated": "2026-08-26"
+    },
+    {
+      "id": "db-2",
+      "claim": "Custody is a layout property before it is a policy: the perfect database physically separates custody classes, so a policy error cannot read what the layout never co-located.",
+      "status": "argued",
+      "detail": "World-readable aggregates, owner-readable records and device-only source data live in physically distinct stores with distinct access machinery, and the private-to-public path is a one-way fold. In such a layout a rules bug leaks nothing the layout did not already co-locate — protection by construction rather than by configuration. The genetic theory's custody-minimal claim (gen-2) is this principle applied to one axis; here it is the general storage law.",
+      "sources": [],
+      "edges": [{ "to": "gen-2", "type": "supports" }],
+      "created": "2026-08-26",
+      "updated": "2026-08-26"
+    },
+    {
+      "id": "db-3",
+      "claim": "The perfect database is two databases and a bridge: an append-only private ledger of events, folding into exactly-shaped public read models.",
+      "status": "argued",
+      "detail": "Reads and writes want opposite shapes. The write side wants an immutable event ledger — auditable, replayable, erasable per person. The read side wants precomputed, bounded documents shaped exactly like the screens and fits that consume them. The bridge is the deterministic fold that turns one into the other, and it is the single place where custody transitions (db-2) happen. The product already lives a small version of this — write-time folds onto published aggregates — and the perfect form is that pattern made total.",
+      "sources": [],
+      "edges": [{ "to": "db-2", "type": "depends" }],
+      "created": "2026-08-26",
+      "updated": "2026-08-26"
+    },
+    {
+      "id": "db-4",
+      "claim": "Three readers, three shapes: the device, the population fit, and consented research export cannot be served efficiently by one storage shape.",
+      "status": "conjecture",
+      "detail": "The device wants small, cacheable, per-person documents; the population fit wants columnar matrices over the whole corpus; consented research export wants versioned, de-identified snapshots with provenance. The conjecture: the perfect database maintains all three as materializations of the same ledger (db-3) rather than forcing one shape to serve all readers. Scout task before this rises: survey how production systems split these demands — OLTP/OLAP separation, feature stores, clinical research data warehouses — with real citations.",
+      "sources": [],
+      "edges": [{ "to": "db-3", "type": "depends" }],
+      "created": "2026-08-26",
+      "updated": "2026-08-26"
+    },
+    {
+      "id": "db-5",
+      "claim": "Schema evolution is a first-class operation: versioned, all-or-none migration, with old shapes readable until the last consumer moves.",
+      "status": "argued",
+      "detail": "A database serving always-on devices and long-running research can neither take downtime nor break old readers, so every schema change ships with its migration and its compatibility window as one unit — a change that cannot say how every existing consumer survives it is not finished being designed. This branch's own graphs live by the same rule (charter §5); the principle is fractal, which is weak evidence it is a principle and not a habit.",
+      "sources": [],
+      "edges": [{ "to": "db-3", "type": "refines" }],
+      "created": "2026-08-26",
+      "updated": "2026-08-26"
+    }
+  ]
+}

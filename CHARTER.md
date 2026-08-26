@@ -34,12 +34,18 @@ when crossed against the rest. Every axiom theory treats cross-axis
 connection as first-class subject matter, not an appendix: what its
 axis could say about the others' measurements, and what theirs could
 say about its own, at the theoretically perfect capability — never
-bounded by what the app builds next.
+bounded by what the app builds next. Sharper, in the owner's words
+(2026-08-26): **each axiom's purpose — or at least its main one — is
+to create data and data-connections as powerful and useful as
+possible, or to make another axiom's data stronger and more useful.**
+A theory that loses track of which of those two it is currently
+serving is drifting.
 
 ## 2 · The lanes
 
-Eight recurring lanes, each firing every 3 hours as a fresh session,
-each owning one workspace directory. Orchestrator model is Fable at
+Nine recurring lanes — every lane every other day (§10), each firing
+as a fresh session spawned through the dispatcher — each owning one
+workspace directory. Orchestrator model is Fable at
 full reasoning; heavy subtasks fan out to Opus subagents at high
 effort; simple mechanical steps may use Opus at lower effort; **never a
 model below Opus** (owner's direction, 2026-08-25 — budget is
@@ -53,6 +59,7 @@ explicitly not the constraint; quality is).
 | Tests | `theory/tests/` | The perfect test axiom: logic, the four instruments and the nine lenses as one measurement system |
 | Map | `theory/map/` | Display theory: how all of this should be drawn, mapped and navigated — perfectly and most efficiently. Reads the other theories; does not write them |
 | Pattern | `theory/pattern/` | Calculation theory: how patterns should be found — the perfect successors to factorization, including LLM-shaped representation learning. Reads the others; does not write them |
+| Database | `theory/database/` | Infrastructure theory, deliberately NOT an axiom (the owner, 2026-08-26): the perfect, most efficient and most useful database for the axioms and their connections — the join as the unit of design, custody as layout, storage shapes per reader, schema evolution. Reads the others; does not write them |
 | Graph optimizer | `theory/graph-optimizer/` | The theory OF the graphs: schema, health, pruning, cross-links — including optimizing itself. The only lane that may touch every graph, and only for §5's reasons |
 | Central | `theory/central/` | The combination theory: how the axioms combine perfectly, which carry the most value, which new ones should exist — and §6's duties |
 
@@ -79,9 +86,14 @@ One firing = one bounded improvement to the lane's theory:
    `REQUESTS.md` (§8). Then run `node graph/check.mjs <lane>` from the
    branch root — red never lands: fix what it names, or log plainly
    what you could not.
-6. **Land** — commit `theory(<lane>): <what moved>`, then
+6. **Land** — set your git identity if unset (a fresh container has
+   none), commit `theory(<lane>): <what moved>`, then
    `git pull --rebase origin axiom-theory`, run the checker AGAIN,
-   and push, retrying 2s/4s/8s/16s on network failures. The second
+   and push, retrying 2s/4s/8s/16s on network failures. What reached
+   origin stays: never amend or force-push a landed commit —
+   cosmetics are not worth rewriting shared history (measured
+   2026-08-26: a run landed cleanly, then blocked itself trying to
+   re-sign its own commit). The second
    check is the race rule: if the rebase moved `graph/SCHEMA.md`
    beneath you, your graph is now behind the schema — bring YOUR OWN
    file to the current version per SCHEMA.md's migration note before
@@ -215,7 +227,7 @@ legibility channel); environment `env_013gTXHYYHNaKBiWe8c4gmtd`.
 **Cadence: every lane every other day (the owner's re-pace,
 2026-08-25)** — subject axioms on odd UTC dates, reader lanes on even
 dates, so a reader always works on subject output at most a day old;
-about four runs a day in total across the eight.
+four to five runs a day in total across the nine.
 
 | Lane | Trigger id | Schedule (UTC) |
 | --- | --- | --- |
@@ -223,6 +235,7 @@ about four runs a day in total across the eight.
 | Body | `trig_01AopNS2HAVVHFYk99w7oJv7` | `2 10 1-31/2 * *` |
 | Questions | `trig_01JeVZmgC9FB78L5VRxGQJ9L` | `2 11 1-31/2 * *` |
 | Tests | `trig_01URyaqWz9WgLdRJVDn6z8hX` | `2 12 1-31/2 * *` |
+| Database | `trig_01VDccEWW215SDJPE3ujHciL` | `2 8 2-30/2 * *` |
 | Map | `trig_014HZHQYSpjc4xQGfbyAgjXw` | `2 9 2-30/2 * *` |
 | Pattern | `trig_01AsWK9g327DuHD6XatbBAmR` | `2 10 2-30/2 * *` |
 | Graph optimizer | `trig_016uPKLAXGriwC7ukQyRRmUG` | `2 11 2-30/2 * *` |

@@ -36,6 +36,7 @@ const LANES = {
   tests: "tst",
   map: "map",
   pattern: "pat",
+  database: "db",
   "graph-optimizer": "go",
   central: "cen",
 };

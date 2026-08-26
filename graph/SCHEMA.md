@@ -29,8 +29,9 @@ other way around.
 
 Rules:
 
-- **Ids are global and permanent**: `<prefix>-<n>`, prefix per axiom
-  (`gen`, `bod`, `que`, `tst`, `map`, `pat`, `go`, `cen`), never reused
+- **Ids are global and permanent**: `<prefix>-<n>`, prefix per lane
+  (`gen`, `bod`, `que`, `tst`, `map`, `pat`, `db`, `go`, `cen` — `db`
+  added 2026-08-26 with the database lane), never reused
   after a prune. Cross-graph edges are legal (`"to": "cen-3"` from any
   graph) — they are how the combination theory attaches.
 - **Status is the evidence ladder** (CHARTER §4). It rises only with
