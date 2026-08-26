@@ -693,6 +693,62 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
 const awayCounts = (all: number[], counts: number[]): number[] =>
   all.map((a, i) => Math.max(0, a - (counts[i] || 0)));
 
+// ── the asks (D303) ─────────────────────────────────────────────────
+//
+// The place questions this viewer has not answered, straight from the
+// bank, answered here through the ordinary vote path — because the only
+// other door to them was the daily rotation, which serves a `rates`
+// question about once in five days and an unanswered scorecard could
+// not fill itself.
+//
+// Blind like the daily it is: the row shows no split. The facet scores
+// above are the PLACE's published averages, visible to every visitor of
+// this lens whether or not they answer — so an ask beside them leaks
+// nothing the card did not already say. The scale is D301's ramp row,
+// one tap, same stored optionIdx as everywhere else.
+function PlaceAsks({ asks }: {
+  asks: Array<{ id: string; text: string; optionCount: number }>;
+}) {
+  // A cap, not a queue: three at a time keeps the card a card, and the
+  // list recomputes as votes land, so the tail arrives by itself.
+  const show = asks.slice(0, 3);
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+      {show.map((a) => (
+        <div key={a.id} style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+          <div style={{ fontFamily: "var(--sans)", fontWeight: 700, fontSize: 13.5, color: "var(--ink)", textWrap: "pretty" }}>
+            {a.text}
+          </div>
+          <div style={{ display: "flex", gap: 4 }}>
+            {Array.from({ length: a.optionCount }, (_, i) => {
+              const t = Math.round((i * 100) / Math.max(1, a.optionCount - 1));
+              return (
+                <button
+                  key={i}
+                  onClick={() => LIVE.vote(a.id, String(i))}
+                  style={{
+                    flex: "1 1 0", minWidth: 0, height: 44, padding: 0,
+                    border: `1px solid color-mix(in oklch, var(--accent, var(--ink)) ${14 + Math.round(t * 0.26)}%, var(--rule))`,
+                    borderRadius: 11,
+                    background: `color-mix(in oklch, var(--accent, var(--ink)) ${5 + Math.round(t * 0.22)}%, var(--surface-2))`,
+                    fontFamily: "var(--sans)", fontWeight: 800, fontSize: 13.5, color: "var(--ink)",
+                    cursor: "pointer", WebkitAppearance: "none",
+                  }}
+                >{i + 1}</button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      {asks.length > show.length && (
+        <span style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
+          {asks.length - show.length} more after these.
+        </span>
+      )}
+    </div>
+  );
+}
+
 function ScoresLens({ qs, shortName, scope }: {
   qs: LensQuestion[];
   shortName: string;
@@ -703,6 +759,12 @@ function ScoresLens({ qs, shortName, scope }: {
   // hint D90 already lands it, and gating it would be a second decision
   // dressed as a consequence of this one.
   const unconfirmed = scope === "city" && LIVE.enabled && !cityIsConfirmed((LIVE.anchors() || {}).city);
+  // The ask rows recompute off the store's vote map, so a cast vote has
+  // to re-render this card — the qs prop alone only moves when the
+  // aggregates do.
+  const [, bump] = React.useReducer((n: number) => n + 1, 0);
+  React.useEffect(() => LIVE.subscribe(bump), []);
+  const asks = LIVE.enabled ? LIVE.placeAsks(scope) : [];
   // Which crowd the numbers and the sort describe (D288 §2): a viewing
   // lens, not a claim about the viewer — the viewer's own crowd is their
   // anchor's fact, and their tick draws the same either way. Transient on
@@ -738,12 +800,18 @@ function ScoresLens({ qs, shortName, scope }: {
     // exist in `content/` and the seeded docs carry no `rates` until an
     // operator reseeds, so the card is empty rather than wrong. That is
     // the direction to be wrong in — the whole point of the change.
+    //
+    // With asks in hand the emptiness is not a wall (D303): the sentence
+    // stays, and the way to change it sits right under it.
     return (
-      <LlEmpty>
-        {rates.length
-          ? <>Nobody here has scored {shortName} yet.</>
-          : <>Nothing scored yet — questions that rate {shortName} land here.</>}
-      </LlEmpty>
+      <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
+        <LlEmpty>
+          {rates.length
+            ? <>Nobody here has scored {shortName} yet.</>
+            : <>Nothing scored yet — questions that rate {shortName} land here.</>}
+        </LlEmpty>
+        {!!asks.length && <PlaceAsks asks={asks} />}
+      </div>
     );
   }
 
@@ -897,6 +965,14 @@ function ScoresLens({ qs, shortName, scope }: {
               </button>
             );
           })}
+        </div>
+      )}
+      {/* The unanswered rest, under a hairline (D303) — the scale rows
+          say what they are; a header would caption the control under it
+          (docs/COPY.md). */}
+      {!!asks.length && (
+        <div style={{ borderTop: "0.5px solid var(--rule)", paddingTop: 13 }}>
+          <PlaceAsks asks={asks} />
         </div>
       )}
     </div>

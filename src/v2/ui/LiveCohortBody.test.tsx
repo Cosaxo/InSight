@@ -55,6 +55,10 @@ const LIVE = vi.hoisted(() => ({
   // the lenses have their own suite; what these cases care about is that
   // the panel still renders its answer rows around them.
   myVotes: () => ({} as Record<string, string>),
+  // The Scores lens's ask rows (D303) — empty here so the stop cases stay
+  // about the stop; the ask arm has its own cases in the lens suite.
+  placeAsks: () => [] as Array<{ id: string; text: string; optionCount: number }>,
+  vote: vi.fn(),
   loadKindred: async () => {},
   kindred: () => [] as Array<{ uid: string; name: string; like: { shared: number; same: number; pct: number } }>,
   kindredLoading: () => false,

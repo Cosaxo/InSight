@@ -30767,3 +30767,47 @@ The remaining ~470 seeded questions without context mostly need none —
 but the reviewing lanes (QUESTION-FARM) may keep extending the set under
 §2's widened rule, one vintage at a time, and the length cap is the thing
 to hold: a sheet is context, not an article.
+
+## D303 · The scorecard learns to ask: unanswered place questions surface on the Scores lens
+
+**Decided:** 2026-08-26 · **Status:** binding. The same owner review as
+D300–D302: "I have not seen the score questions connected to city,
+country or earth."
+
+### 1 · Why nobody had seen them
+
+All 24 `rates:` questions live in the daily bank (D187), and the daily
+serves one question a day — so a place question surfaced about once in
+five days, and only as that day's blind card. Nothing else could ask
+one: the Scores lens reads `aggregated()`, which carries only questions
+somebody has already answered, so at a young population the scorecard
+was empty AND unfillable — the lens that exists to show the scores had
+no path to the questions that produce them.
+
+### 2 · The ask rows, and what they deliberately reuse
+
+`LIVE.placeAsks(scope)` walks the BANK (the device already holds it
+whole — the cold-boot fetch) for active ratings that rate the scope and
+carry no vote from this account. The Scores lens renders them under its
+scored rows — and inside its empty state, so "nobody has scored X yet"
+sits above the way to change it — as D301's one-tap scale row, capped at
+three visible with the rest counted.
+
+The vote goes through `vote()`, the one path every answer takes: same
+anchors snapshot, same D205 city gate (`answerAnchors(q.rates)`), same
+ledger. The daily card shows the question as answered when its rotation
+day arrives, because both read the same vote map.
+
+Blindness holds: the ask row shows no split. The facet scores above it
+are the PLACE's published averages, visible to every visitor of the lens
+whether or not they answer — the ask beside them leaks nothing the card
+did not already say, and the question's own split stays behind the
+answer like everywhere else.
+
+### 3 · The seam that stays honest
+
+A fresh vote leaves the ask list immediately (optimistic, like the
+card's own tap) but reaches the scored rows only when the trigger folds
+and the aggregate top-up lands — the same eventual consistency every
+surface already carries. `placeAsks` joined `LIVE_MEMBERS`, so the
+contract pin and the mount fixture both know it.

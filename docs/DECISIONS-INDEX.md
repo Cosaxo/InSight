@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 309 lines instead of
-30,770. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 310 lines instead of
+30,814. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -204,7 +204,7 @@ detect it.
 | **D184** | [Build 19's pre-flight: this time neither edit happened](DECISIONS.md#d184--build-19s-pre-flight-this-time-neither-edit-happened) | D273 (+6) | 18408 |
 | **D185** | [Crossroads gets a brief, and the gates learn what a story is](DECISIONS.md#d185--crossroads-gets-a-brief-and-the-gates-learn-what-a-story-is) | D187 (+1) | 18559 |
 | **D186** | [Build 19 is delivered, and the bump was made from the step list](DECISIONS.md#d186--build-19-is-delivered-and-the-bump-was-made-from-the-step-list) | D274 (+3) | 18733 |
-| **D187** | [The place scorecard rates the place](DECISIONS.md#d187--the-place-scorecard-rates-the-place) | D276 (+3) | 18803 |
+| **D187** | [The place scorecard rates the place](DECISIONS.md#d187--the-place-scorecard-rates-the-place) | D303 (+4) | 18803 |
 | **D188** | [The Mirror's tab row sits where a tab bar sits, and stops arguing with the stop about colour](DECISIONS.md#d188--the-mirrors-tab-row-sits-where-a-tab-bar-sits-and-stops-arguing-with-the-stop-about-colour) | D191 (+2) | 18963 |
 | **D189** | [The design gate was never looking, and two group hues never met the palette](DECISIONS.md#d189--the-design-gate-was-never-looking-and-two-group-hues-never-met-the-palette) | D191 | 19086 |
 | **D190** | [Your name and your handle belong to the account, the topic list opens onto the topics, and Circle and Groups get their row](DECISIONS.md#d190--your-name-and-your-handle-belong-to-the-account-the-topic-list-opens-onto-the-topics-and-circle-and-groups-get-their-row) | D282 (+3) | 19282 |
@@ -222,7 +222,7 @@ detect it.
 | **D202** | [The type mix reads every instrument, and D157 §4 is reversed](DECISIONS.md#d202--the-type-mix-reads-every-instrument-and-d157-4-is-reversed) | D252 (+3) | 20955 |
 | **D203** | [Five pulses, each with its own rhythm](DECISIONS.md#d203--five-pulses-each-with-its-own-rhythm) | D273 (+3) | 21057 |
 | **D204** | [Your role is a test result, and the dimension without data is not shipped](DECISIONS.md#d204--your-role-is-a-test-result-and-the-dimension-without-data-is-not-shipped) | D287 (+1) | 21171 |
-| **D205** | [An unconfirmed city does not score the place it names](DECISIONS.md#d205--an-unconfirmed-city-does-not-score-the-place-it-names) | D234 | 21272 |
+| **D205** | [An unconfirmed city does not score the place it names](DECISIONS.md#d205--an-unconfirmed-city-does-not-score-the-place-it-names) | D303 (+1) | 21272 |
 | **D206** | [A question carries several doors, and demand credit is conserved](DECISIONS.md#d206--a-question-carries-several-doors-and-demand-credit-is-conserved) | D234 (+1) | 21377 |
 | **D207** | [The Map goes lazy, and the door §5 was waiting on is open](DECISIONS.md#d207--the-map-goes-lazy-and-the-door-5-was-waiting-on-is-open) | D210 | 21445 |
 | **D208** | [The pen is not an error state, and a gate said it was](DECISIONS.md#d208--the-pen-is-not-an-error-state-and-a-gate-said-it-was) | D212 (+1) | 21558 |
@@ -320,6 +320,7 @@ detect it.
 | **D297** | [Doing the things that could be done, and the four latent faults that surfaced on the way](DECISIONS.md#d297--doing-the-things-that-could-be-done-and-the-four-latent-faults-that-surfaced-on-the-way) | D299 (+1) | 30278 |
 | **D298** | [The review of D296/D297 found a bug D296 had created, and five things that were true of the stub instead of the server](DECISIONS.md#d298--the-review-of-d296d297-found-a-bug-d296-had-created-and-five-things-that-were-true-of-the-stub-instead-of-the-server) | D299 | 30419 |
 | **D299** | [Decision numbers get a gate, because three renumbers in two days is a process and not an accident](DECISIONS.md#d299--decision-numbers-get-a-gate-because-three-renumbers-in-two-days-is-a-process-and-not-an-accident) | — | 30529 |
-| **D300** | [The breakdown gets its scale back: every canonical bucket, in vocabulary order, on top of the cohort reading](DECISIONS.md#d300--the-breakdown-gets-its-scale-back-every-canonical-bucket-in-vocabulary-order-on-top-of-the-cohort-reading) | D302 (+1) | 30597 |
-| **D301** | [A rating is one figure, not ten rows: the scale row, the ridge, and the mean](DECISIONS.md#d301--a-rating-is-one-figure-not-ten-rows-the-scale-row-the-ridge-and-the-mean) | D302 | 30663 |
-| **D302** | [Context reaches the daily's ⓘ, and the banks get their first subject-context pass](DECISIONS.md#d302--context-reaches-the-dailys--and-the-banks-get-their-first-subject-context-pass) | — | 30716 |
+| **D300** | [The breakdown gets its scale back: every canonical bucket, in vocabulary order, on top of the cohort reading](DECISIONS.md#d300--the-breakdown-gets-its-scale-back-every-canonical-bucket-in-vocabulary-order-on-top-of-the-cohort-reading) | D303 (+2) | 30597 |
+| **D301** | [A rating is one figure, not ten rows: the scale row, the ridge, and the mean](DECISIONS.md#d301--a-rating-is-one-figure-not-ten-rows-the-scale-row-the-ridge-and-the-mean) | D303 (+1) | 30663 |
+| **D302** | [Context reaches the daily's ⓘ, and the banks get their first subject-context pass](DECISIONS.md#d302--context-reaches-the-dailys--and-the-banks-get-their-first-subject-context-pass) | D303 | 30716 |
+| **D303** | [The scorecard learns to ask: unanswered place questions surface on the Scores lens](DECISIONS.md#d303--the-scorecard-learns-to-ask-unanswered-place-questions-surface-on-the-scores-lens) | — | 30771 |

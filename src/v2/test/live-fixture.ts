@@ -409,6 +409,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // jsdom), so fixture feed questions here would be furniture nothing
     // reads.
     coreFeedAggregated: () => [],
+    // The Scores lens's ask rows (D303). Empty by default: the fixture
+    // deck's one rating question already carries a vote in most cases,
+    // and the ask arm has its own unit suite (LiveMirrorLenses.test.tsx).
+    placeAsks: () => [],
     dailyBank: () => deck.map((q) => ({ id: q.id, prompt: q.text })),
     // Below the floor the server publishes `{ tooSmall: true }` and nothing
     // else — no counts, no total. Returning a full document with a flag set
