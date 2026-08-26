@@ -178,7 +178,8 @@ Three things deliberately survive, and all belong on a store form:
   three take shapes the "neither can identify you" half does not hold. The
   fix is either a disclosure on that page or a change to how a verdict is
   keyed — the second trades the join the queue and the verdict share — and
-  neither is a change to make unattended. Raised 2026-08-26.
+  neither is a change to make unattended. Raised 2026-08-26; recorded
+  with the arithmetic as **D293**.
 
 Journal-era (v1) collections (`insight_users/*`, `insight_discoverable`,
 aggregates) are no longer reachable by any client — their rules were

@@ -1147,7 +1147,11 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   }
   ok("D290: the catalog arm writes both documents as one commit — board and accumulator agree");
 
-  // D292's refusal, APPLIED. `replay.test.ts` pins the predicate in
+  // D290's refusal, APPLIED — the "what replay cannot rebuild" list, which
+  // is where this tool's D72 rule (refuse rather than fabricate) is
+  // recorded. Cited as D292 when it landed; D292 is the read-only
+  // observer, and a citation that resolves to the wrong record is worse
+  // than none. `replay.test.ts` pins the predicate in
   // isolation, so deleting the four lines in runRebuild that consult it
   // left every suite green — the guard was exported, tested and never
   // asked. It is the guard against a rebuild MINTING a public aggregate
@@ -1170,7 +1174,7 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
     if (!refused.includes(qid) || refused.length < qid.length + 30)
       fail(`${qid} was refused without saying why: ${refused}`);
   }
-  ok("D292: the rebuild tool refuses a sealed duel and a per-day pulse, through the callable");
+  ok("D290: the rebuild tool refuses a sealed duel and a per-day pulse, through the callable");
 }
 
 // 10 · Near presence (D84 / D174 / D176 / D177): the write path through
