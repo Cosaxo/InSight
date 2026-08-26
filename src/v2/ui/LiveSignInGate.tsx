@@ -47,9 +47,38 @@ function GateShell({ children }: { children: React.ReactNode }) {
 }
 
 function GateTitle() {
+  // The stacked lockup (D302): full iris over the wordmark — at 44px the
+  // full mark holds (compact is for below ~24px). Fills are the live
+  // tokens, one dot per accent hue. The negative left margin trims the
+  // artwork's built-in breathing room so the mark sits optically flush
+  // with the text edge.
   return (
-    <div style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 30, letterSpacing: "-0.03em", marginBottom: 10 }}>
-      in<span style={{ color: "var(--c-world)" }}>Sight</span>
+    <div style={{ marginBottom: 10 }}>
+      <svg viewBox="0 0 100 100" width="44" height="44" aria-hidden="true"
+        style={{ display: "block", margin: "0 0 12px -5px" }}>
+        <path d="M50 33 L64.7 41.5 L64.7 58.5 L50 67 L35.3 58.5 L35.3 41.5 Z M50 33 L50 16 M64.7 41.5 L82.3 39.5 M64.7 58.5 L82.3 60.5 M50 67 L50 84 M35.3 58.5 L17.7 60.5 M35.3 41.5 L17.7 39.5"
+          fill="none" stroke="oklch(0.62 0.012 70)" strokeWidth="2" strokeLinejoin="round" />
+        <circle cx="50" cy="16" r="5.5" fill="var(--c-around)" />
+        <circle cx="70" cy="22.5" r="5.5" fill="var(--c-groups)" />
+        <circle cx="82.3" cy="39.5" r="5.5" fill="var(--c-city)" />
+        <circle cx="82.3" cy="60.5" r="5.5" fill="var(--c-likeness)" />
+        <circle cx="70" cy="77.5" r="5.5" fill="var(--c-world)" />
+        <circle cx="50" cy="84" r="5.5" fill="var(--c-today)" />
+        <circle cx="30" cy="77.5" r="5.5" fill="var(--c-around)" />
+        <circle cx="17.7" cy="60.5" r="5.5" fill="var(--c-groups)" />
+        <circle cx="17.7" cy="39.5" r="5.5" fill="var(--c-city)" />
+        <circle cx="30" cy="22.5" r="5.5" fill="var(--c-likeness)" />
+        <circle cx="50" cy="33" r="6" fill="var(--c-today)" />
+        <circle cx="64.7" cy="41.5" r="6" fill="var(--c-people)" />
+        <circle cx="64.7" cy="58.5" r="6" fill="var(--c-groups)" />
+        <circle cx="50" cy="67" r="6" fill="var(--c-world)" />
+        <circle cx="35.3" cy="58.5" r="6" fill="var(--c-around)" />
+        <circle cx="35.3" cy="41.5" r="6" fill="var(--c-likeness)" />
+        <circle cx="50" cy="50" r="8" fill="var(--ink)" />
+      </svg>
+      <div style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 30, letterSpacing: "-0.03em" }}>
+        In<span style={{ color: "var(--c-world)" }}>Sight</span>
+      </div>
     </div>
   );
 }
