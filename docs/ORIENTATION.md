@@ -114,7 +114,8 @@ directions.
 | [`STORE-FORMS.md`](STORE-FORMS.md) | Apple's privacy and age-rating questionnaires, answered field by field | tree |
 | [`SCALE-PLAN.md`](SCALE-PLAN.md) | What an unbounded feed costs, what trips first, and the core/tail split it forces. §1's classification is built; the rest is not | mixed |
 | [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) | The same work as an ordered build list — open steps only | plan |
-| [`BANK-DELIVERY.md`](BANK-DELIVERY.md) | How many questions a device can be handed: the bundle, the localStorage cache, the whole-bank fetch — three ceilings, measured, in the order they bite. §2 built at D284 | mixed |
+| [`BANK-DELIVERY.md`](BANK-DELIVERY.md) | How many questions a device can be handed: the bundle, the cache store, the whole-bank fetch — three ceilings, measured, in the order they bite. §2 built at D284, §3 at D312; §4 remains | mixed |
+| [`ANSWER-SCALE.md`](ANSWER-SCALE.md) | The answers-side twin: the client caches that grow with every answered question (instrumented and moved to IndexedDB at D312), a life's archive on one device, and the daily's write wall with its post-D98 sharding shape re-derived, shelved on the alert | mixed |
 | [`FEATURE-COMPLETE.md`](FEATURE-COMPLETE.md) | Everything open between here and feature-complete — algorithms, question production, scale work, flips — one line each, pointing at the file that owns it | plan |
 | [`COST-REDUCTION.md`](COST-REDUCTION.md) | Getting the bill down. The big one was built at D129; the rest is analysis | mixed |
 | [`DEVICE-BIND.md`](DEVICE-BIND.md) | D29's activation gate: what ships, what you add, how to flip it on. Rules requirement is shipped **soft** | mixed |

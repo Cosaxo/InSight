@@ -400,19 +400,21 @@ export const DAILY_ID_FAIL = 970; // an id-scheme decision is due before 999
 // Bank headroom. These guarded live.ts's `limit(1500)` until D161 paged
 // that fetch, at which point the ceiling they watched stopped existing —
 // so they were re-pointed rather than deleted, because the NEXT silent
-// ceiling wants the same alarm at a different number.
+// ceiling wants the same alarm at a different number. Re-pointed a THIRD
+// time at D312: the localStorage quota cliff they watched second is gone
+// too — the bank cache lives in IndexedDB rows now (data/cacheStore.ts),
+// where these sizes are nothing — exactly as BANK-DELIVERY §3's closing
+// rule said to do rather than deleting them.
 //
-// The next one is the localStorage bank cache. live.ts writes the whole
-// bank to `insight.bankCache.v2` inside a try/catch that ignores failure,
-// so crossing the browser quota does not break the app: it silently stops
-// caching, and every boot then pays a full bank fetch forever. A cost
-// cliff with no symptom is exactly this gate's subject.
-//
-// Arithmetic: the quota is ~5 MB per origin, the bank is one of ~29
-// `insight.*` keys, so budget it roughly half. checkHeadroom() derives
-// bytes-per-document from the seed itself rather than assuming, and these
-// counts are that estimate rounded to something a human can hold:
-// 6,000 docs ≈ 1.5 MB, 10,000 ≈ 2.5 MB.
+// What they watch now is BANK-DELIVERY §4's ceiling, the only one left:
+// every device still holds the WHOLE bank in memory and walks it — the
+// feed pool, the topic counts, search, the test joins — and hydrate
+// getAll()s every row into that memory each boot. There is no hard cliff
+// at these numbers, which is why they kept their values: they are the
+// size at which "hand every device everything" wants re-arguing on a
+// low-end phone rather than assumed, comfortably before it becomes an
+// incident. checkHeadroom() still derives bytes-per-document from the
+// seed itself so the message moves when the documents do.
 // D162's sampled audit: one AI-reviewed question in this many gets read by
 // a person. A starting figure, not a measured one — move it with what the
 // audit actually finds.
@@ -1466,15 +1468,15 @@ export function checkHeadroom(corpus) {
   const cacheMB = (n) => ((bankBytes / Math.max(bankSize, 1)) * n / 1024 / 1024).toFixed(1);
   if (bankSize >= BANK_FAIL) {
     errs.push(
-      `seeded bank holds ${bankSize} docs ≈ ${cacheMB(bankSize)} MB of localStorage cache — over budget. `
-      + "live.ts caches the whole bank in `insight.bankCache.v2` and SWALLOWS a quota failure, so crossing this "
-      + "does not break anything: it silently stops caching and every boot pays a full bank fetch forever. "
-      + "Move the cache off localStorage (IndexedDB) before promoting more.",
+      `seeded bank holds ${bankSize} docs ≈ ${cacheMB(bankSize)} MB — past the point where handing every `
+      + "device the whole bank was last argued (BANK-DELIVERY §4). Every client holds all of it in memory "
+      + "and hydrate reads every cached row each boot; decide the per-device serving design before "
+      + "promoting more, rather than after a low-end phone reports it.",
     );
   } else if (bankSize >= BANK_WARN) {
     warn.push(
-      `seeded bank at ${bankSize} docs ≈ ${cacheMB(bankSize)} MB of localStorage cache — the quota is the next `
-      + "silent ceiling (a failed write is caught and ignored), so plan the move to IndexedDB",
+      `seeded bank at ${bankSize} docs ≈ ${cacheMB(bankSize)} MB, all of it held in memory on every `
+      + "device — BANK-DELIVERY §4's whole-bank design wants re-arguing before this doubles",
     );
   }
   return { errs, warn };

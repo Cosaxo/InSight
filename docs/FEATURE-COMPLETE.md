@@ -162,18 +162,24 @@ ordered list. Open, in its order:
   may grow only as fast as the audience that fills its cohort cells — a
   `check:quality` gate once there is a population to measure against.
   [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) 6.1.
-- **IndexedDB bank cache** (named as the real fix, unscheduled): replace
-  the localStorage bank cache before the bank crosses `BANK_WARN` /
-  `BANK_FAIL` in `scripts/question-quality.mjs` — crossing the browser
-  quota silently disables caching forever.
-  [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) 1.2.
+- ~~**IndexedDB bank cache**~~ — **built 2026-08-26 (D312)**: the bank,
+  aggregate and answers caches all moved to rows in `data/cacheStore.ts`
+  in one pass, the quota instrument shipped first (a swallowed
+  `insight.*` write now counts and the first quota failure reports), the
+  purge reaches the new store from both paths, and `check:purge` grew
+  the predicate that holds it. What remains open on that page is §4's
+  sharding design, shelved on the contention alert; the feed-vote mirror
+  stays in localStorage until the spec-layer conversion (the recorded
+  deviation). [`ANSWER-SCALE.md`](ANSWER-SCALE.md) §2, D312.
 - **Cost-model measurement debt** (decided; needs a week of real usage):
   measure the guessed inputs in `scripts/cost-arith.mjs` — bgCycles,
   onlineMin, the three D98 open rates — and re-run the write-contention
   versus read-crossover tie. [`COSTS.md`](COSTS.md) § the walls.
 - **Recorded, deliberately not built** (D7 discipline — build on
   evidence, not in advance): sharding the shared daily aggregate counter
-  (the first wall); the who-voted page-two cursor; incremental
+  (the first wall — the 2026-08-03 record's design predates D98 and is
+  re-derived buildable in [`ANSWER-SCALE.md`](ANSWER-SCALE.md) §4); the
+  who-voted page-two cursor; incremental
   `setFollowing`; the presence cache-miss threshold and the coarser room
   cache key; an avatar-overwrite rate limit; the CDN question; the
   graded breaker `mode` field, which needs an owner decision about what
