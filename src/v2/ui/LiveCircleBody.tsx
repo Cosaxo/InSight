@@ -36,7 +36,7 @@ import EmptyField from "./EmptyField";
 import MirrorLensTabs from "./MirrorLensTabs";
 import { useLensRowScroll } from "./lensRowScroll";
 import type { LensTab } from "./lensTabs";
-import { circleSplit } from "../data/circle";
+import { circleSplit, rankMembers } from "../data/circle";
 import { divisiveness, pctFor } from "../data/cohort";
 
 // The stop's constellation (D152). This body shipped as a flat list of
@@ -152,10 +152,25 @@ function LiveCircleBody() {
   // Quiet unless it can actually say something: two placeable members,
   // both with names (a "Someone mirrors you closest" line reads as a
   // bug, and inventing names is the D214 refusal).
-  const placed = members
-    .filter((m) => m.like.shared > 0 && m.name)
-    .sort((a, b) => b.like.pct - a.like.pct);
-  const soWhat = placed.length >= 2 && placed[0].uid !== placed[placed.length - 1].uid
+  //
+  // `rankMembers`, not a pct sort. This sorted on the printed percentage,
+  // which is the one thing D277 §2 established it cannot do: a member who
+  // matched 1 of 1 outranks one who matched 45 of 50, so the sentence
+  // named the thin match "mirrors you closest" while the People tab
+  // directly beneath — which draws `LIVE.circle()` in rankMembers order
+  // under the header "By likeness" — listed the other one first. The two
+  // halves of one screen disagreed. Every sibling ranker converted at
+  // D277; this was the site that did not.
+  //
+  // And quiet when the extremes are not actually apart. `uid` differing
+  // is not the same test as the NUMBERS differing, and in a circle where
+  // everyone sits at the same likeness the old guard still crowned one
+  // named person and told another they mirror you least, on identical
+  // figures. groupPortrait's sibling sentence carries the same guard.
+  const placed = rankMembers(members.filter((m) => m.like.shared > 0 && m.name));
+  const soWhat = placed.length >= 2
+    && placed[0].uid !== placed[placed.length - 1].uid
+    && placed[0].like.rate !== placed[placed.length - 1].like.rate
     ? { top: placed[0], low: placed[placed.length - 1] }
     : null;
 

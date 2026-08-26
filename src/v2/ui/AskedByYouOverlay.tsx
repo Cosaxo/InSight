@@ -21,6 +21,7 @@ import React from "react";
 import LIVE from "../data/live";
 import { loadMine, mine, subscribePurchases, type Purchase } from "../data/purchases";
 import { fmt, subscribeCur } from "../data/pricing";
+import { askWindow } from "../data/askWindow";
 // The switch lives in its own module since phase 4: the ask-a-question
 // door (a different lazy chunk) renders it too, and CurSwitch.tsx's
 // header says why an import between the two overlays was the wrong wire.
@@ -76,8 +77,23 @@ function PurchaseCard({ p }: { p: Purchase }): React.ReactElement {
   // captured once per mount (a lazy initializer keeps render pure): the
   // hairline is a days figure, and a card does not need to age on screen
   const [now] = React.useState(() => Date.now());
-  const daysTotal = t0 != null && t1 != null ? Math.max(1, Math.round((t1 - t0) / DAY)) : 1;
-  const daysLeft = t1 != null ? Math.max(0, Math.ceil((t1 - now) / DAY)) : 0;
+  // `askWindow` (data/askWindow.ts), not a second copy of the arithmetic.
+  // `until` is an INCLUSIVE day key everywhere else — live.ts's `fresh()`
+  // serves a question while `q.until >= today` — and this counted it
+  // exclusive, and against wall-clock `now` rather than today's UTC
+  // midnight. So the figure was one short all the way down and reached 0
+  // on the contract's LAST SERVING DAY: "0 of 51 days left" with the
+  // window hairline at 100%, beside a chip still saying running, while
+  // the question was still being asked.
+  //
+  // The shared function refuses a closed window by returning null, which
+  // is right for the serving ring and not for this card — a finished
+  // contract still draws, with nothing left to run.
+  const win = askWindow({ from: p.win.start, until: p.win.until }, new Date(now));
+  const daysTotal = win
+    ? win.days
+    : (t0 != null && t1 != null ? Math.max(1, Math.round((t1 - t0) / DAY) + 1) : 1);
+  const daysLeft = win ? win.daysLeft : 0;
   const windowLabel = `${p.place || "everyone"} · until ${p.win.until}`;
   return (
     <div className="card" style={{ marginTop: 12, padding: "13px 14px" }}>

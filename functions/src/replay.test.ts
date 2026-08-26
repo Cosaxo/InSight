@@ -24,7 +24,7 @@ import {
   type BreakdownCounts, type CanonCounts,
 } from "./pure";
 import {
-  replayFold, newFold, foldAnswerInto, finishFold, docStamp, armFor,
+  replayFold, newFold, foldAnswerInto, finishFold, docStamp, armFor, rebuildRefusal,
   newRankFold, foldRankAnswerInto, newCanonFold, foldCanonAnswerInto, canonPublishable,
   type ReplayAnswer,
 } from "./replay";
@@ -220,6 +220,43 @@ describe("which arm a question folds through", () => {
     // so the failure is a reported skip instead of a refused rebuild.
     expect(armFor(undefined)).toBe("vote");
     expect(armFor("something-new")).toBe("vote");
+  });
+});
+
+describe("the surfaces a rebuild must refuse rather than report clean", () => {
+  // The scan keys on the BANK ID. Two surfaces break that, and both used to
+  // fail quietly rather than loudly.
+  it("refuses pulse, whose aggregates are keyed per day", () => {
+    // A pulse answer carries `{qid}_{day}` as its own qid, so the bank id
+    // matches NO answer: the rebuild scanned zero rows, found zero drift and
+    // reported success — which rebuild-aggregate.mjs prints as "the published
+    // aggregate already matches the answers". Passing the composite instead
+    // fails the bank lookup, so the day's aggregate has no address here at
+    // all, and the honest answer is to say so.
+    const why = rebuildRefusal("pulse");
+    expect(why).toBeTruthy();
+    expect(why).toMatch(/\{qid\}_\{day\}/);
+  });
+
+  it("refuses the duel surfaces, where a rebuild would MINT an aggregate", () => {
+    // onV2AnswerCreated returns before the world fold for these, so there is
+    // no aggregate to repair — only one to invent, out of votes that stay
+    // sealed until their reveal.
+    for (const s of ["group", "duo"]) {
+      expect(rebuildRefusal(s), s).toMatch(/sealed duel votes/);
+    }
+  });
+
+  it("permits every surface the vote arm actually mirrors", () => {
+    // The control: without it the two cases above pass for a predicate that
+    // refuses everything, which would take the tool out of service entirely.
+    for (const s of ["daily", "feed", "test", "learn", "call"]) {
+      expect(rebuildRefusal(s), s).toBeNull();
+    }
+    // A question with no surface field is not a reason to refuse — the arm
+    // and the index guards below it decide what a stray answer does.
+    expect(rebuildRefusal(undefined)).toBeNull();
+    expect(rebuildRefusal("")).toBeNull();
   });
 });
 

@@ -113,8 +113,16 @@ vi.mock("../data/live", () => ({ default: LIVE, TAKE_MAX_CHARS: 280, localName: 
 
 const { default: LiveDuelPanel } = await import("./LiveDuelPanel");
 
+// Day keys the way the server writes them: UTC, YYYY-MM-DD.
+const dayKey = (offsetDays = 0) =>
+  new Date(Date.now() + offsetDays * 86400000).toISOString().slice(0, 10);
+
 const DUO = {
   id: "g1", name: "Us Two", mode: "duo", inviteCode: "ABCD2345", streak: 3,
+  // A three-day run is a claim about the present, so the fixture carries the
+  // reveal that makes it one. Without this the streak is a number that was
+  // true once, which is exactly the state the panel now refuses to print.
+  lastRevealDay: dayKey(-1),
   memberUids: ["u_me", "u_ada"], memberNames: { u_me: "Me", u_ada: "Ada" },
 };
 const Q = { id: "duo-000", prompt: "Coffee or tea?", options: ["Coffee", "Tea"], kind: "classic" };
@@ -1138,5 +1146,45 @@ describe("LiveDuelPanel · people waiting to be let in", () => {
     render(<LiveDuelPanel mode="duo" />);
     expect(screen.queryByText(/Wants to join/i)).toBeNull();
     expect(screen.queryByRole("button", { name: /^Let in$/ })).toBeNull();
+  });
+});
+
+// ── a streak is a claim about NOW ────────────────────────────────────────
+//
+// The server zeroes a duo's streak when a day settles unrevealed, but only
+// for a group the scan looks at — and the twice-hourly scan queries
+// `pendingDays array-contains day`, which onV2AnswerCreated writes. A duo
+// where NEITHER partner played is never examined, so its streak stood
+// untouched forever, while the pair that missed by half was zeroed on the
+// first miss. The abandoned duo advertised the live run; the more engaged
+// one lost it.
+describe("LiveDuelPanel · the run it prints has to still be running", () => {
+  it("prints the run when the pair revealed within the last two days", () => {
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.getByText(/3-day run/)).toBeTruthy();
+  });
+
+  it("still prints it on the morning before today's scan has run", () => {
+    // Two days of slack is deliberate: a day reveals on the day AFTER it was
+    // played and the scan runs every two hours, so a healthy duo legitimately
+    // reads two days back until this morning's scan happens. One day of slack
+    // would blank a live streak every morning.
+    LIVE.social.groups = () => [{ ...DUO, lastRevealDay: dayKey(-2) }];
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.getByText(/3-day run/)).toBeTruthy();
+  });
+
+  it("says nothing about a run the pair abandoned", () => {
+    LIVE.social.groups = () => [{ ...DUO, lastRevealDay: dayKey(-9) }];
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.queryByText(/day run/), "an abandoned duo advertised a live streak").toBeNull();
+    // The card itself is untouched — this hides one claim, not the duo.
+    expect(screen.getAllByText(/Ada/).length).toBeGreaterThan(0);
+  });
+
+  it("says nothing when the pair has never revealed at all", () => {
+    LIVE.social.groups = () => [{ ...DUO, lastRevealDay: undefined }];
+    render(<LiveDuelPanel mode="duo" />);
+    expect(screen.queryByText(/day run/)).toBeNull();
   });
 });

@@ -250,7 +250,7 @@ describe("day arithmetic", () => {
 
 // ── the attention fold (R2/D270) ────────────────────────────────────────
 import {
-  BUCKET_MIDPOINTS, SHARD_FOLD_CAP, foldShards, runAttentionFold,
+  BUCKET_MIDPOINTS, MIN_SHARD_RATE, SHARD_FOLD_CAP, foldShards, runAttentionFold,
   type AttentionShardDoc, type AttentionStore, type AttnDelta,
 } from "./engagement";
 
@@ -317,6 +317,30 @@ describe("foldShards", () => {
     const d = out.get("2026-08-22")!;
     expect(d.devices).toBe(10);
     expect(d.s.feedSeen).toEqual({ reach: 10, est: 15 }); // 1.5 × 10
+  });
+
+  it("refuses to believe a rate below the floor — the weight is 1/rate", () => {
+    // The hole this closes: the rules bounded `rate` from above only, so
+    // `rate: 1e-12` was a legal create and one shard would have added
+    // ~1e12 devices, and ~1e12 to a question's seen count, to a
+    // world-readable document. The floor is honoured in both places; this
+    // is the reader's half.
+    const out = foldShards([
+      sh("a", "2026-08-22", { feedSeen: 1 }, 1e-12),
+      sh("b", "2026-08-22", { feedSeen: 1 }, 0),
+      sh("c", "2026-08-22", { feedSeen: 1 }, -0.5),
+    ]);
+    const d = out.get("2026-08-22")!;
+    // One device each, the same answer an absent or junk rate has always
+    // had — not a rescale to the floor, which would still believe a
+    // liar, only by three orders of magnitude less.
+    expect(d.devices).toBe(3);
+    expect(d.s.feedSeen).toEqual({ reach: 3, est: 4.5 }); // 1.5 × 3 devices
+  });
+
+  it("still honours the smallest rate that is not a lie", () => {
+    const out = foldShards([sh("a", "2026-08-22", { feedSeen: 1 }, MIN_SHARD_RATE)]);
+    expect(out.get("2026-08-22")!.devices).toBe(1 / MIN_SHARD_RATE);
   });
 });
 
@@ -640,6 +664,93 @@ describe("the _state document is shared, so the digest must MERGE it", () => {
       calls[0].opts,
       "the digest replaced the day doc, which deletes the attn and people sections the other two folds merge into the same document",
     ).toEqual({ merge: true });
+  });
+});
+
+describe("a _state document is not proof the digest has seen an account", () => {
+  // runRollupFold writes `{ fg7 }` with merge onto the SAME document the
+  // digest owns, for any account that used the app without answering. So
+  // the doc exists while the digest has never folded that uid — and
+  // getStates gated on `snap.exists` alone, handing back `firstDay: ""`.
+  //
+  // An empty firstDay equals no cohort day and never counts as a
+  // first-timer, and `""` is copied forward on every later day, so that
+  // account could never appear in `firstTime` and never match a d1/d7/d30
+  // cohort again. It is exactly the population rung 2 was built to see:
+  // people who browse before they commit.
+  it("ignores a _state that carries only the rollup window", async () => {
+    const snapOf = (data: Record<string, unknown>) => ({
+      exists: true,
+      get: (k: string) => data[k],
+    });
+    const db = {
+      collection: () => ({
+        doc: () => ({ collection: () => ({ doc: () => ({}) }) }),
+      }),
+      getAll: async () => [
+        // the browser: runRollupFold's write, and nothing else
+        snapOf({ fg7: [2, 0, 1] }),
+        // the control — a real digest state, which must still come back
+        snapOf({ firstDay: "2026-08-01", lastDay: "2026-08-20", activeDays: 4, streak: 2 }),
+      ],
+    } as unknown as Parameters<typeof firestoreEngagementStore>[0];
+
+    const out = await firestoreEngagementStore(db).getStates(["browser", "answerer"]);
+
+    expect(
+      out.has("browser"),
+      "an fg7-only document was read as digest state, which pins firstDay to \"\" forever",
+    ).toBe(false);
+    expect(out.get("answerer")).toMatchObject({ firstDay: "2026-08-01", activeDays: 4 });
+  });
+
+  it("KEEPS the history of an account the bug already damaged", async () => {
+    // The account this whole fix is about does not look like the browser
+    // above once it has answered a few times: the old path copied
+    // `firstDay: ""` forward while correctly accumulating lastDay,
+    // activeDays and streak. A getStates that tests `firstDay` drops all
+    // four, and the fold's `!state` branch then re-stamps the account as
+    // born today — a forty-day streak reset to one, and `firstTime`
+    // inflated by that whole population on the first night after deploy,
+    // which is the DENOMINATOR the published d1/d7/d30 curve is read
+    // against. `lastDay` is the honest test.
+    const snapOf = (data: Record<string, unknown>) => ({ exists: true, get: (k: string) => data[k] });
+    const db = {
+      collection: () => ({ doc: () => ({ collection: () => ({ doc: () => ({}) }) }) }),
+      getAll: async () => [
+        snapOf({ fg7: [2, 0, 1], firstDay: "", lastDay: "2026-08-20", activeDays: 40, streak: 12 }),
+      ],
+    } as unknown as Parameters<typeof firestoreEngagementStore>[0];
+
+    const out = await firestoreEngagementStore(db).getStates(["damaged"]);
+    expect(out.has("damaged"), "a digested account was dropped for having no cohort day").toBe(true);
+    expect(out.get("damaged")).toMatchObject({
+      firstDay: "", lastDay: "2026-08-20", activeDays: 40, streak: 12,
+    });
+  });
+});
+
+describe("the cohort day an account never got", () => {
+  // The other half of the same fix: getStates hands the fold a state with
+  // no `firstDay`, and the fold adopts today as one — counting the account
+  // as a first-timer exactly once, and keeping everything else.
+  it("adopts today, counts the account once, and keeps its streak", async () => {
+    const { store, state } = memoryStore({ [Y]: [e("damaged", "q1")] });
+    // The damaged shape, as the old getStates left it: no cohort day, a
+    // real record. `lastDay` is the day before Y, so the streak extends.
+    state.users.set("damaged", {
+      firstDay: "", lastDay: utcDay(NOW, -2), activeDays: 40, streak: 12,
+    });
+    state.lastDay = utcDay(NOW, -2);
+    await runEngagementDigest(store, NOW, FEED);
+    const wrote = state.users.get("damaged")!;
+    expect(wrote.firstDay, "today was not adopted as the cohort day").toBe(Y);
+    expect(wrote.activeDays, "the account's history was discarded").toBe(41);
+    expect(wrote.streak, "a live streak was reset").toBe(13);
+    expect(
+      state.days.get(Y)!.firstTime,
+      "the adoption was not counted, or was counted more than once",
+    ).toBe(1);
   });
 });
 

@@ -216,6 +216,29 @@ export function inventoryRows(md, known) {
   return out;
 }
 
+/**
+ * The read audience a row must be held to, from every `allow read` on its
+ * collection.
+ *
+ * THE WIDEST GRANT DECIDES, and the first version of this asked for
+ * "exactly one classification" instead. That made the gate lose rows for a
+ * change that widened nothing: the day the follow graph gained a narrow
+ * collection-group arm beside its open path arm, {PUBLIC, OTHER} stopped
+ * being exactly one and the row dropped out of the checked set, 31 to 30 —
+ * silently, which is rule 2's whole failure mode.
+ *
+ * Widest is also the only sound reading. An extra rule can only ever add
+ * readers, so a PUBLIC arm means any signed-in user may read the
+ * collection whatever sits beside it, and NOBODY stands only when EVERY
+ * arm is `if false` — one conditional arm beside it means somebody can
+ * read it, and "nobody" is then a false claim. Anything else is declined.
+ */
+export function widestRead(classes) {
+  if (!classes || !classes.size) return "OTHER";
+  if (classes.has("PUBLIC")) return "PUBLIC";
+  return [...classes].every((c) => c === "NOBODY") ? "NOBODY" : "OTHER";
+}
+
 export const SAYS_PUBLIC = /any signed-in user|anyone signed in/i;
 export const SAYS_NOBODY = /\bnobody\b|\bno one\b/i;
 
@@ -223,18 +246,18 @@ export const SAYS_NOBODY = /\bnobody\b|\bno one\b/i;
 // working — a parser that mis-attributes, a `Where` cell that stops naming
 // its path, a read rule edited into a form this declines to read — takes
 // rows OUT of the checked set and leaves the gate green. The number can
-// rise freely; it may not fall without saying so. 27 is the tree this
-// landed against (D257).
-const READER_FLOOR = 27;
+// rise freely; it may not fall without saying so. 27 was the tree D257
+// landed against, and it then sat four below the real number for long
+// enough to swallow a row silently — which is the very failure it exists
+// to announce, so a floor that is not kept level with the tree is not a
+// floor. Raised to the tree on 2026-08-26 and to be raised again whenever
+// this gate reports more.
+const READER_FLOOR = 31;
 const readClasses = classifyReads(rules);
 let readerChecked = 0;
 for (const row of inventoryRows(inventory, named)) {
   if (!row.coll) continue;
-  const cls = readClasses.get(row.coll);
-  // Skipped on purpose: no read rule, more than one classification, or a
-  // condition this script declines to interpret.
-  if (!cls || cls.size !== 1) continue;
-  const only = [...cls][0];
+  const only = widestRead(readClasses.get(row.coll));
   if (only === "OTHER") continue;
   readerChecked++;
   const agrees = only === "PUBLIC" ? SAYS_PUBLIC.test(row.reader) : SAYS_NOBODY.test(row.reader);
