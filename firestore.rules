@@ -287,9 +287,22 @@ service cloud.firestore {
         // `handle` in its key set, and hasOnly would refuse it. Leaving it
         // off would mean claiming a handle silently froze your display
         // name forever — the kind of failure that ships green.
-        && (!("handle" in request.resource.data)
-          || (resource != null
-            && request.resource.data.handle == resource.data.get("handle", null)))
+        //
+        // ABSENCE IS NOT A FREE PASS. This read `!("handle" in …) || …`,
+        // so a NON-merge write that simply omitted the field was legal —
+        // every remaining key is on the allowlist, and dropping a handle
+        // looked like never having had one. claimHandleV2's entire
+        // claim-once check is reading this field back, so after the drop
+        // it minted a second handle while the first registry row still
+        // pointed here: one account could hoard names out of a registry
+        // with no rate limit, no rename and no reclaim path (D190), each
+        // one gone from the pool for good, with the profile advertising
+        // only the last. Absence is legal only while there is nothing to
+        // remove.
+        && (("handle" in request.resource.data)
+          ? (resource != null
+            && request.resource.data.handle == resource.data.get("handle", null))
+          : (resource == null || resource.data.get("handle", null) == null))
         // testResults.logic is the VERIFIED logic score, written only by
         // logicSubmitV2 (admin SDK bypasses rules) after server-side
         // scoring — a client-writable copy would be a forgeable one (D57).
@@ -1248,9 +1261,13 @@ service cloud.firestore {
         // presents `handle` in its key set. Leave it off the allowlist
         // and claiming a handle would silently freeze your name in the
         // directory forever — a failure that ships green.
-        && (!("handle" in request.resource.data)
-          || (resource != null
-            && request.resource.data.handle == resource.data.get("handle", null)));
+        // …and absence is legal only while there is nothing to remove,
+        // for the reason spelled out on v2_users above: a non-merge write
+        // that omits the field was a legal way to drop it.
+        && (("handle" in request.resource.data)
+          ? (resource != null
+            && request.resource.data.handle == resource.data.get("handle", null))
+          : (resource == null || resource.data.get("handle", null) == null));
       // deleteAccount (admin SDK) owns removal — phase 3d. This row is a
       // top-level document keyed by uid, so phase 1b's recursiveDelete of
       // v2_users/{uid} does not reach it, the same trap the handle

@@ -2698,6 +2698,26 @@ describe("people directory: found by name (D239)", () => {
       { name: "Olaf", nameKey: "olaf", handle: "someone_else" }));
   });
 
+  it("nor DROP it — omitting the field was the way around claim-once", async () => {
+    // The immutability clause read "no handle in the resulting document,
+    // or the same handle" — so a NON-merge write that simply omitted the
+    // field was legal, since every remaining key is on the allowlist and
+    // dropping a handle looked like never having had one.
+    // claimHandleV2's whole claim-once check is reading this field back,
+    // so after the drop it would mint a second handle while the first
+    // registry row still pointed at the same account: one account
+    // hoarding names out of a registry with no rate limit, no rename and
+    // no reclaim path (D190).
+    await seedRow();
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_people", OWNER),
+      { name: "Olaf", nameKey: "olaf" }));
+    // An account that has no handle yet is unaffected — absence is legal
+    // while there is nothing to remove, which is what a first name write
+    // does.
+    await assertSucceeds(setDoc(doc(asUser(STRANGER), "v2_people", STRANGER),
+      { name: "Stranger", nameKey: "stranger" }));
+  });
+
   // deleteAccount (admin SDK) owns removal — phase 3d. A client delete
   // would be the one path able to strip a row the erasure counts on.
   it("nobody deletes a row from a client, not even their own", async () => {
@@ -2745,6 +2765,26 @@ describe("handles: the account registry (D122)", () => {
       await setDoc(doc(db, "v2_users", OWNER), { displayName: "Olaf", handle: "olaf" });
     });
     await assertFails(updateDoc(doc(asUser(OWNER), "v2_users", OWNER), { handle: "someoneelse" }));
+  });
+
+  it("nor DROP it — omitting the field was the way around claim-once", async () => {
+    // The clause read "no handle in the resulting document, or the same
+    // handle", so a NON-merge setDoc that simply left the field out was
+    // legal: every remaining key is on the allowlist, and dropping a
+    // handle looked like never having had one. claimHandleV2 reads this
+    // field back as its ENTIRE claim-once check, so after the drop it
+    // mints a second handle while the first v2_handles row still points
+    // at this account — unlimited names out of a registry with no rate
+    // limit and no reclaim path (D190), the profile advertising the last.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER), { displayName: "Olaf", handle: "olaf" });
+    });
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER), { displayName: "Olaf" }));
+    // A profile that never had one is unaffected: absence is legal while
+    // there is nothing to remove, which is every ordinary first write.
+    await assertSucceeds(setDoc(doc(asUser(STRANGER), "v2_users", STRANGER), {
+      displayName: "Stranger",
+    }));
   });
 
   it("…but a profile that HAS a handle can still edit everything else", async () => {
