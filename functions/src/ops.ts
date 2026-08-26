@@ -9,6 +9,7 @@
 // SEED_ADMIN_UIDS (same contract seedContentV2 has used all along).
 
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
+import { logger } from "firebase-functions";
 import { setGlobalOptions } from "firebase-functions/v2/options";
 
 export function seedAdmins(): string[] {
@@ -16,6 +17,49 @@ export function seedAdmins(): string[] {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
+}
+
+/** The uids that are BOTH operator and moderator.
+ *
+ *  WHY THIS IS A FUNCTION AND NOT A COMMENT. `ops.test.ts` already asserts
+ *  that the two allowlists are separate instruments — an operator is not
+ *  thereby a moderator — and it passes, because it tests the MECHANISM:
+ *  two variables, read independently. It cannot see the VALUES, which is
+ *  where the separation actually has to hold.
+ *
+ *  It does not hold. Read out of the deploy log on 2026-08-25 (run
+ *  32883038909, "Write functions runtime env"): `SEED_ADMIN_UIDS` and
+ *  `MOD_UIDS` are the same single uid. So moderation.ts's own claim —
+ *  "least privilege cuts both ways: an operator uid is not thereby a
+ *  moderator, and a leaked moderator credential cannot seed content or
+ *  trigger reveals" — describes the wiring and not the deployment, and a
+ *  green test sat in front of that for as long as it has been true.
+ *
+ *  Runbook 5.7 is the fix and it is one variable edit. Until it happens the
+ *  honest thing is to say so where it can be seen, rather than to keep a
+ *  test that proves the harmless half. */
+export function operatorModeratorOverlap(): string[] {
+  const mods = new Set(
+    (process.env.MOD_UIDS || "").split(",").map((s) => s.trim()).filter(Boolean),
+  );
+  return seedAdmins().filter((uid) => mods.has(uid));
+}
+
+// Said once per cold start, in production only. A configuration warning
+// that fires on every instance is the point: it stops the moment the
+// second uid exists, and until then nothing else in the system mentions
+// that the two credentials are one credential. Not an HttpsError and not a
+// refusal — refusing would take moderation offline to punish a
+// misconfiguration, which is worse than the misconfiguration.
+if (process.env.FUNCTIONS_EMULATOR !== "true") {
+  const both = operatorModeratorOverlap();
+  if (both.length) {
+    logger.warn(
+      `[ops] ${both.length} uid(s) hold BOTH operator and moderator rights `
+        + "— least privilege is nominal, not deployed (runbook 5.7)",
+      { metric: "operator_moderator_overlap", count: both.length },
+    );
+  }
 }
 
 export function assertOperator(request: CallableRequest): void {

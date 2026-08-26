@@ -29766,6 +29766,30 @@ what they leave behind.
 never where it came from, so the matrix is not derivable from the answers
 and is carried forward instead. That is one field, stated at three sites,
 rather than two thirds of the system.
+
+> **Corrected 2026-08-26 (D294's audit).** "The whole list" was true of the
+> three QUESTION aggregates the replay tool rebuilds, and false of the
+> record's own list of projections at the top of D290, which also names the
+> Patterns fit and the engagement digest. Neither is replayable from the
+> log:
+>
+> - **`v2_patterns/loadings`** (`functions/src/patterns.ts`) is an
+>   incremental online fold that reads YESTERDAY's `v2_agg_events` ledger
+>   and carries the prior model forward. The ledger has no anchors and
+>   expires at `LEDGER_RETENTION_DAYS` (90). Deliberate — the header says
+>   why: it keeps a read and a write off the trigger's hot path.
+> - **`v2_engagement_daily`** (D268) reads the same TTL'd ledger, and
+>   `runAttentionFold` folds device-written `v2_attention` shards into the
+>   day document and then DELETES them — which is ATTENTION.md §6's privacy
+>   promise, not an oversight. Once a shard is folded its raw contribution
+>   is gone.
+>
+> So the honest statement is narrower than D290's closing sentence: **every
+> aggregate derived from the ANSWERS is a rebuildable projection, and
+> `edits` is the whole list of exceptions within that set.** The two
+> ledger-derived projections are outside it by construction, and each has a
+> reason recorded at its own site. Both are recoverable only forward, by
+> waiting for the next run.
 ## D293 · What the first production run of the repair tool cost, and the data-loss path it exposed
 
 **2026-08-25.** D290's `rebuildAggregateV2` merged, and the runbook's 5.10
@@ -29993,3 +30017,144 @@ see one.
 The next `npm run scorecard -- --fetch` will move `scored` from 0 to
 something real, and the pulse trail's `answersCounted` with it. That refresh
 is the owner's to run; this commit only makes the reader honest.
+
+## D295 · Doing the things that could be done, and the four latent faults that surfaced on the way
+
+**2026-08-26.** D294 made the instruments honest. This is what became
+possible once they were, and what broke when the data they had never seen
+finally arrived.
+
+### Runbook 5.10 is closed, and this time it means something
+
+`daily-019`, `apply` off, Actions run 6:
+
+```
+scanned 5   rebuilt total 5   counts {"0":5}
+            published total 5  counts {"0":5}
+drift: none
+```
+
+The scan pulled five real answers out of `v2_users/{uid}/answers`, folded
+them, and reproduced what the trigger had accumulated — **the property the
+whole of D290 rests on, checked against production rather than an
+emulator.** The 2026-08-25 attempt scanned zero and agreed with nothing
+(D293); this one is the first non-vacuous run, and it was one qid away the
+entire time.
+
+### The scorecard now reads production, and production has a shape
+
+First `--fetch` since the fix: `scored` 0 → **20**, learn 0 → **19**,
+summed answers 0 → **24** on the tracked bank.
+
+It also wrote the first `monitoring/engagement.json`, which answered a
+question nothing in the tree could: **`digestEngagementV2` has been
+running.** Eight consecutive day documents, 2026-08-18 to 08-25, three
+carrying real activity — 6 actives / 10 votes on the 20th, 1 / 4 on the
+22nd, 1 / 35 on the 24th. `pulse.test.mjs` had been asserting the opposite
+("the digest has not deployed"), correctly, and had written down the
+condition for flipping itself. It flipped.
+
+One thing to look at rather than to conclude: `foldedAt` is null on all
+eight. That is the attention fold's mark, and this is not the document it
+marks, so it is a lead and not a verdict.
+
+### Four faults nothing could have found without the data
+
+Each of these had been in the tree for weeks, harmless, waiting for a file
+or a number that had never existed.
+
+1. **The pulse rendered an alert policy named `undefined`.** Its policy
+   scanner took every `.json` in `monitoring/` except two named
+   exceptions. `engagement.json` became a third kind of file and therefore
+   a phantom alert. **`check:monitoring` had the same denylist** and
+   demanded a runbook of the engagement trail. Both now recognise a policy
+   by SHAPE — `displayName` plus a `conditions` array, which every Cloud
+   Monitoring policy carries. A denylist that must be edited whenever
+   somebody adds a file will be forgotten, and it starts lying at exactly
+   the moment somebody is adding a file.
+2. **`docs/MODERATION.md` asserted both sides of one fact.** D83 mounted
+   world takes behind a post-vote toggle on the live world card and the
+   live daily; forty lines below, pre-D83 residue still said "the
+   world-feed takes remain demo-only and `!S.live`-gated, which is D1
+   working rather than a gap". `world-feed.jsx:2232` settles it. The file
+   is listed in ORIENTATION as `tree` — a description of the app as it
+   exists — which is precisely the promise a self-contradiction breaks.
+3. **`firestore.rules` still named the duel fold as a second occupant of
+   `v2_aggs_private`,** which D290's first amendment had already collapsed
+   ("v2_aggs_private now means exactly one thing"). Two of three
+   descriptions were updated then and this one was not. Behaviour was never
+   affected — the path is `allow read, write: if false` either way.
+4. **D290's "and now this is the whole list"** was true of the three
+   question aggregates the replay tool rebuilds and false of D290's own
+   list of projections, which also names the Patterns fit and the
+   engagement digest. Neither is replayable: both read the 90-day-TTL
+   `v2_agg_events` ledger, which carries no anchors, and the attention fold
+   deletes its shards by design (ATTENTION.md §6's privacy promise). The
+   honest statement is narrower: **every aggregate derived from the ANSWERS
+   is rebuildable, and `edits` is the whole list of exceptions within that
+   set.**
+
+### The moderation queue has a reviewer for the first time
+
+`fetchModQueue` and `submitModVerdict` have been deployed and enforcing
+since D22 with **no caller anywhere in the tree except
+`firestore-tests/e2e-moderation.mjs`**. The substrate was live; the review
+half was a test harness. A maintainer holding MOD_UIDS had no screen, no
+script and no workflow.
+
+`npm run mod:queue` is that instrument, on `operator-call.mjs` like the
+others. **One verdict per invocation** — `MOD_RUN_CAP` bounds a run's blast
+radius server-side and the caller keeps the matching shape. No bulk mode,
+because a tool that can clear the queue in one command is a tool that
+eventually will, and confinement is the whole of D22. The `runId` is
+generated rather than accepted as a flag: one somebody can choose is one
+somebody can reuse.
+
+Fourteen tests against a stub, including that a removal without a policy
+line is refused **before** the round trip, and that a verdict invocation
+never reads the queue at all — so there is nothing for it to iterate. That
+last one was written first as a grep over the script's own source and
+passed vacuously, then failed once the regex was written with `s` and
+matched the READ path's loop. A source-shape test cannot tell two loops
+apart; a call count can.
+
+### Least privilege is nominal, and now it says so
+
+`ops.test.ts` asserts the two allowlists are separate instruments and
+passes, because it tests the MECHANISM: two variables, read independently.
+That is true of a configuration where both hold the same uid — which is
+production's, read out of the deploy log.
+
+`operatorModeratorOverlap()` reports the intersection, and warns once per
+production cold start while it is non-empty. Not a refusal: refusing would
+take moderation offline to punish a misconfiguration, which is worse than
+the misconfiguration. Runbook 5.7 is the one-variable fix, and the warning
+stops the moment it lands.
+
+### Two runbook gaps that nothing was counting
+
+- **5.1 named one of three collection groups that stamp `expireAt`.** The
+  missing two are `v2_users/{uid}/engagement/{yyyy-mm-dd}` — which
+  `web/privacy.html` promises in so many words, "each note deletes itself
+  90 days after its day" — and `v2_ratelimits`. Stamping the field does
+  nothing without a per-collection-group policy somebody enables. The
+  erasure half of that promise holds regardless (phase 1b's recursive
+  delete, asserted in `e2e-delete-account.mjs`); it is the ROLLING-WINDOW
+  half that was a console toggle no runbook named.
+- **5.9b, new:** the nine D13 v1 functions in `us-central1`.
+  `docs/DEPLOYMENT.md` has had the command since D13 and never had a
+  checkbox, so the ordered list that holds status was not holding this one.
+  Three of the nine are scheduled and still firing nightly against empty
+  collections — billed work producing output nobody reads, and silent,
+  because nothing downstream changes when they run.
+
+### And a stale figure with an argument resting on it
+
+`docs/SCALE-PLAN.md` said "All 82 in `content/feed-questions.json` carry
+`core: true`" against a file holding **130**, of which **50 declare
+`core: false`**. The count was wrong and the universal was wrong, and the
+second one mattered: SCALE-PLAN's whole subject is what an unbounded feed
+costs, and a reader told the tail was empty would be planning against a
+state that ended. Both figures, and `content/README.md`'s, are
+`check:figures` entries now — mutation-tested against the exact stale
+numbers that were sitting in the tree.

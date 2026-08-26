@@ -689,8 +689,24 @@ export function collectInstrumentation() {
     }
   }
 
+  // WHAT COUNTS AS A POLICY, by SHAPE rather than by name. This filter was
+  // a denylist — every .json in monitoring/ except pulse.json and
+  // rates.json — which meant any new non-policy file dropped in here
+  // silently became a row in the alert table with `undefined` for its name.
+  //
+  // Not hypothetical: the first `scorecard --fetch` to write
+  // monitoring/engagement.json (2026-08-26) produced exactly that, and the
+  // only reason it had never happened before is that no third kind of file
+  // had ever landed in this directory. A denylist that must be edited for
+  // every new file is a denylist that will be forgotten; a Cloud Monitoring
+  // alert policy always carries displayName and conditions, so ask for
+  // those instead and the question stops being maintained by hand.
   const policyFiles = readdirSync(join(ROOT, "monitoring"))
-    .filter((f) => f.endsWith(".json") && f !== "pulse.json" && f !== "rates.json");
+    .filter((f) => f.endsWith(".json"))
+    .filter((f) => {
+      const p = readJson(`monitoring/${f}`);
+      return typeof p.displayName === "string" && Array.isArray(p.conditions);
+    });
   const policies = policyFiles.map((f) => {
     const p = readJson(`monitoring/${f}`);
     const cond = p.conditions?.[0] || {};

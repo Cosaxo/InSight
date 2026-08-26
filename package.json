@@ -97,7 +97,8 @@
     "test:coverage": "LC_ALL=en_US.UTF-8 vitest run --dir src --coverage",
     "check:store-forms": "node scripts/check-store-forms.mjs",
     "seed": "node scripts/seed-content.mjs",
-    "rebuild:agg": "node scripts/rebuild-aggregate.mjs"
+    "rebuild:agg": "node scripts/rebuild-aggregate.mjs",
+    "mod:queue": "node scripts/mod-queue.mjs"
   },
   "dependencies": {
     "@capacitor-firebase/authentication": "^8.2.0",

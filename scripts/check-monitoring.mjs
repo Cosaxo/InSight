@@ -59,13 +59,24 @@ const problems = [];
 const fail = (msg) => problems.push(msg);
 
 // ── what is on disk ─────────────────────────────────────────────────
-// pulse.json and rates.json are the console's own files, not policies:
-// pulse.json is a generated artifact (gitignored) and rates.json is the
-// cost model's input. Same exclusion the pulse collector makes.
-const NOT_POLICIES = new Set(["pulse.json", "rates.json"]);
-const onDisk = readdirSync(join(root, "monitoring"))
-  .filter((f) => f.endsWith(".json") && !NOT_POLICIES.has(f))
-  .sort();
+// A policy is recognised by its SHAPE — displayName plus a conditions
+// array, which every Cloud Monitoring alert policy carries — rather than
+// by not being on a list of known non-policies.
+//
+// It was that list until 2026-08-26 (pulse.json, rates.json), and the list
+// was already one short: the first `scorecard --fetch` to write
+// monitoring/engagement.json made this gate demand a runbook of the
+// engagement trail, and made the pulse render it as an alert row named
+// `undefined`. Neither is a hard failure to diagnose, but both are failures
+// that arrive when somebody adds a file — which is the worst moment for a
+// gate to start lying, and a denylist guarantees it happens again. Same
+// filter the pulse collector makes, for the same reason.
+const isPolicy = (f) => {
+  if (!f.endsWith(".json")) return false;
+  const p = JSON.parse(read(`monitoring/${f}`));
+  return typeof p.displayName === "string" && Array.isArray(p.conditions);
+};
+const onDisk = readdirSync(join(root, "monitoring")).filter(isPolicy).sort();
 
 // ── what apply-monitoring says it will create ───────────────────────
 const applySrc = read("scripts/apply-monitoring.mjs");

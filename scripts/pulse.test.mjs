@@ -740,21 +740,44 @@ describe("the rendered page", () => {
 });
 
 describe("the engagement panel (R1/D268)", () => {
-  // The digest has not deployed, so the TREE holds no committed trail —
-  // and the collector must say so rather than inventing zeros. The day the
-  // first monitoring/engagement.json is committed, this case flips to
-  // asserting the present shape against the real artifact, the
-  // collectScorecard lesson: a fixture you wrote yourself proves nothing.
-  it("reads the tree honestly: no committed trail yet → present: false, with the fix in the note", () => {
+  // FLIPPED 2026-08-26, exactly as the case it replaces said to. It read:
+  //
+  //   "The digest has not deployed, so the TREE holds no committed trail —
+  //    and the collector must say so rather than inventing zeros. The day
+  //    the first monitoring/engagement.json is committed, this case flips
+  //    to asserting the present shape against the real artifact, the
+  //    collectScorecard lesson: a fixture you wrote yourself proves
+  //    nothing."
+  //
+  // That day is today. `npm run scorecard -- --fetch` wrote the first
+  // trail, and it answered a question the tree could not: digestEngagementV2
+  // HAS been running — eight consecutive day documents, 2026-08-18 to
+  // 08-25, three of them with real activity.
+  it("reads the REAL committed trail rather than a fixture", () => {
     const e = collectEngagement();
-    expect(e.present).toBe(false);
-    expect(e.note).toMatch(/scorecard -- --fetch/);
-    expect(e.note).toMatch(/digestEngagementV2/);
+    expect(e.present).toBe(true);
+    // Asserted as shape and bounds, not as today's numbers: the artifact is
+    // refreshed by a person running --fetch, so pinning `actives: 6` here
+    // makes this test fail on the next honest refresh. What must hold is
+    // that the collector reads it and folds it null-aware.
+    expect(e.days).toBeGreaterThan(0);
+    expect(e.lastDay).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(e.note).toBeUndefined();
   });
 
-  it("renders the honest-absence banner, not an empty chart", () => {
+  it("renders the trail rather than the honest-absence banner", () => {
     const html = renderPulse(collect(), []);
     expect(html).toContain("Engagement — the digest trail");
+    expect(html).not.toContain("No trail yet");
+  });
+
+  it("still says so honestly when the trail is ABSENT", () => {
+    // The behaviour the two flipped cases used to cover, kept — it is the
+    // state any fresh clone or new project is in, and "invent zeros" is
+    // the failure it guards. Driven by the collector's own fold rather
+    // than by deleting the committed file.
+    const e = { present: false, note: "no committed monitoring/engagement.json — `npm run scorecard -- --fetch` writes it once digestEngagementV2 has run" };
+    const html = renderPulse({ ...collect(), engagement: e }, []);
     expect(html).toContain("No trail yet");
   });
 
