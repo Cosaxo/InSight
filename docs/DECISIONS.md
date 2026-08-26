@@ -30593,3 +30593,82 @@ branches same-day, or giving branch-local records a provisional marker until
 merge — both are conventions rather than code, and neither is chosen here.
 What is no longer possible is discovering the miss by following a citation
 months later.
+
+## D300 · The iris mark: the identity stops being a first pass
+
+**2026-08-26.** The owner's identity canvas (committed verbatim at
+`design/identity-2026-08-26/`) replaces the first-pass launcher mark with
+the **iris**: a hexagon-and-spokes lattice, one dot per accent hue, you at
+the pupil. It is still the Mirror in one glyph — the crowd your answers
+are read against, arranged around you — but the crowd now wears the app's
+own seven tab hues (`--c-today/-around/-world/-city/-groups/-people/
+-likeness`) instead of anonymous gray, and the identity gained three rules
+the first pass never had:
+
+- **The ink tile is the primary icon.** Every launcher asset composites
+  the mark over `--ink`, not paper. The dot colours cannot be shared
+  between grounds — the paper conversions muddy on ink — so the canvas
+  specifies a brightened tile palette (nudging three hues: 235→240,
+  282→288, 8→12) with a near-white pupil. `design/icon/mark.svg` now
+  carries **two flat groups over one geometry**: id `mark` (paper —
+  the feature graphic) and id `mark-tile` (every icon). The Android
+  adaptive background (`values/ic_launcher_background.xml`) moved to ink
+  with it. The splash stays paper: it is the app's own ground, and the
+  icon deliberately stopped matching it.
+- **Full mark above ~24 px, compact below.** Under ~24 px the outer ring
+  muddies, so tiny surfaces drop to hexagon + pupil: the favicon
+  (`public/favicon.svg` = `web/favicon.svg`, compact on the ink tile —
+  the first branded favicon; the file had shipped the stock template
+  graphic since the repo began) and the in-app header's horizontal
+  lockup. The sign-in gate, `web/join.html` and `web/home.html` are big
+  enough to wear the full mark.
+- **The wordmark is capital-I "InSight"** (Hanken Grotesk 700, tight
+  tracking). The header, gate, join page and feature graphic said
+  "inSight"; the push-notification fallback titles in `v2social.ts` said
+  it too. All capitalised; the two-tone accent treatment stays.
+
+### The old mark's colours had drifted, which decided where colours live
+
+The retired mark's header claimed its colours were the design system's
+tokens "converted from oklch … so the icon cannot drift from the app".
+Inverting them says otherwise: its sienna `#b34f2a` is oklch(0.55 0.14
+40) — the token as it stood **before** styles.css retuned the accent
+family to 0.52 lightness. The conversion was honest the day it was made
+and stale ever after: the hand-maintained-figure failure (D39), wearing
+colour. Two consequences in this change:
+
+- **Committed assets** (mark.svg, favicons, join.html) bake today's
+  conversions, done with CSS Color 4 gamut mapping — chroma reduction,
+  the algorithm Chrome itself applies to out-of-gamut oklch(), which four
+  of the seven hues are — not channel clamping. Naively clamped values
+  are visibly wrong for petrol and indigo.
+- **In-app lockups** (app-shell header, sign-in gate) fill from the live
+  tokens (`var(--c-…)`, `var(--ink)`) so the next retune carries them
+  for free. Only surfaces with no stylesheet to read — icons, static
+  pages — carry hex.
+
+### The extraction trap the blank-icon tripwire caught
+
+Both generators slice their group out of mark.svg with `indexOf`. The
+first draft of the file's comment spelled the group tags out in angle
+brackets, the extractor matched the **comment**, and the opaque master
+rendered as pure ink — refused by `gen-icons`' 1%-coverage assertion, the
+exact failure that assertion was built for. Two guards came out of it:
+the comment in mark.svg now states the no-literal-tags rule about itself,
+and both extractors verify the payload contains circles before rendering,
+so a future comment edit fails with "matched the comment, not the group"
+instead of a blank icon (or, in the feature graphic's case — which had no
+coverage assertion — a silently markless PNG on the Play listing).
+
+### What did not change
+
+The notification status icon (`ic_stat_reveal.xml`) keeps the two-rings
+reveal motif — Android renders it as a silhouette, where the iris is
+just a blob. The boot screen stays a text wordmark for the reasons in
+`index.html`'s comment. The legacy splash PNGs stay solid white — the
+modern splash path is `backgroundColor` in capacitor.config.ts, and
+re-rasterising dead assets is not part of an identity. `check:store-listing`
+copy is prose and mentions no mark. Regeneration is unchanged and one
+command each: `node scripts/gen-icons.mjs` (16 launcher assets),
+`npm run build && node scripts/gen-feature-graphic.mjs` (Play graphic,
+re-run and committed with this change).

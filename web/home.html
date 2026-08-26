@@ -49,9 +49,13 @@
     }
     h1 { font-size: 34px; letter-spacing: -0.02em; margin: 0 0 6px; font-weight: 600; }
     .lede { color: var(--ink-2); font-size: 18px; margin: 0 0 40px; }
-    .dots { display: flex; gap: 9px; align-items: center; margin-bottom: 26px; }
-    .dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--ink-3); opacity: 0.5; display: block; }
-    .dots i.me { width: 17px; height: 17px; background: var(--accent); opacity: 1; }
+    /* Iris mark palette (D300): the light conversions from
+       design/icon/mark.svg, swapped for the identity's ink-tile set in
+       dark mode — the light dots muddy on a dark ground. */
+    .iris { display: block; margin-bottom: 22px;
+      --m-stroke: #8b857f; --m-pupil: #1d1914;
+      --m-40: #a94620; --m-85: #8c6400; --m-150: #0a7e3a; --m-195: #007b7c;
+      --m-235: #0072a5; --m-282: #5e5bb6; --m-8: #a83f59; }
     ul { list-style: none; padding: 0; margin: 0 0 40px; }
     li { padding: 13px 0; border-top: 1px solid var(--rule); }
     li:last-child { border-bottom: 1px solid var(--rule); }
@@ -60,13 +64,34 @@
     footer { color: var(--ink-3); font-size: 14px; }
     @media (prefers-color-scheme: dark) {
       :root { --paper: #1c1913; --ink: #ece5d8; --ink-2: #c3b9a6; --ink-3: #8d8271; --rule: #3b352b; }
+      .iris {
+        --m-stroke: #76706a; --m-pupil: #f8f6f4;
+        --m-40: #cf6139; --m-85: #cd9c1f; --m-150: #40a35c; --m-195: #009b9b;
+        --m-235: #0089c9; --m-282: #7e6cd9; --m-8: #d4556c; }
     }
   </style>
 </head>
 <body>
-  <div class="dots" aria-hidden="true">
-    <i></i><i></i><i class="me"></i><i></i><i></i>
-  </div>
+  <svg class="iris" viewBox="0 0 100 100" width="56" height="56" aria-hidden="true">
+    <path d="M50 33 L64.7 41.5 L64.7 58.5 L50 67 L35.3 58.5 L35.3 41.5 Z M50 33 L50 16 M64.7 41.5 L82.3 39.5 M64.7 58.5 L82.3 60.5 M50 67 L50 84 M35.3 58.5 L17.7 60.5 M35.3 41.5 L17.7 39.5" fill="none" stroke="var(--m-stroke)" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="50" cy="16" r="5.5" fill="var(--m-40)"/>
+    <circle cx="70" cy="22.5" r="5.5" fill="var(--m-85)"/>
+    <circle cx="82.3" cy="39.5" r="5.5" fill="var(--m-150)"/>
+    <circle cx="82.3" cy="60.5" r="5.5" fill="var(--m-195)"/>
+    <circle cx="70" cy="77.5" r="5.5" fill="var(--m-235)"/>
+    <circle cx="50" cy="84" r="5.5" fill="var(--m-282)"/>
+    <circle cx="30" cy="77.5" r="5.5" fill="var(--m-40)"/>
+    <circle cx="17.7" cy="60.5" r="5.5" fill="var(--m-85)"/>
+    <circle cx="17.7" cy="39.5" r="5.5" fill="var(--m-150)"/>
+    <circle cx="30" cy="22.5" r="5.5" fill="var(--m-195)"/>
+    <circle cx="50" cy="33" r="6" fill="var(--m-282)"/>
+    <circle cx="64.7" cy="41.5" r="6" fill="var(--m-8)"/>
+    <circle cx="64.7" cy="58.5" r="6" fill="var(--m-85)"/>
+    <circle cx="50" cy="67" r="6" fill="var(--m-235)"/>
+    <circle cx="35.3" cy="58.5" r="6" fill="var(--m-40)"/>
+    <circle cx="35.3" cy="41.5" r="6" fill="var(--m-195)"/>
+    <circle cx="50" cy="50" r="8" fill="var(--m-pupil)"/>
+  </svg>
   <h1>InSight</h1>
   <p class="lede">Answer one question a day. See where you stand.</p>
 

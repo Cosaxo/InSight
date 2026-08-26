@@ -383,6 +383,11 @@
   transition: color 0.4s ease;
   font-weight: 800;
 }
+/* The horizontal lockup (D300): compact iris + wordmark. Scoped to
+   .h-center rather than .h-title because overlay headers reuse .h-title
+   for plain text titles, which need no flex and must not inherit a gap. */
+.h-center .h-title { display: inline-flex; align-items: center; gap: 7px; }
+.h-center .h-title svg { display: block; flex: none; }
 /* small round icon button (header search etc.) */
 .icon-btn {
   width: 32px; height: 32px;

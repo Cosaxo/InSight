@@ -163,14 +163,15 @@ Both apps must be registered under `com.cosaxo.insight`:
 
 ## 3 · Store accounts & builds (device-gated)
 
-- **App icon — done, but it is a first pass.** Both shells shipped the
-  stock Capacitor mark until now, which is a hard rejection on iOS and an
-  instant tell on Android; nothing in this checklist mentioned it. The
-  mark now lives in `design/icon/mark.svg` (the Mirror in one glyph: you,
-  and the people you are placed among) in the design system's own colours,
-  and `node scripts/gen-icons.mjs` rasterises all 16 launcher assets from
-  it. Replace the SVG and re-run if a designer takes it further — do not
-  hand-edit the PNGs, they are generated.
+- **App icon — the iris (D300).** Both shells shipped the stock Capacitor
+  mark until 2026-08-03's first pass, and that pass was replaced by the
+  identity canvas's iris on 2026-08-26: hexagon-and-spokes lattice in the
+  app's seven accent hues on the ink tile, you at the pupil. The mark
+  lives in `design/icon/mark.svg` (two palette groups over one geometry —
+  D300 says why one is not enough), and `node scripts/gen-icons.mjs`
+  rasterises all 16 launcher assets from it. Replace the SVG and re-run
+  if a designer takes it further — do not hand-edit the PNGs, they are
+  generated.
   - **The rest of the imagery is generated too, as of 2026-08-03.**
     `npm run build:screenshots` drives the real app through six scenes at
     both stores' pixel sizes (`design/store/screenshots/`), and

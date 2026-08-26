@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- The adaptive icon's background layer. Brand paper, not #FFFFFF: it
-         must match the background baked into the legacy ic_launcher.png
-         rasters (scripts/gen-icons.mjs) and the splash backgroundColor in
-         capacitor.config.ts, or the same app shows a warm icon on Android
-         26+ and a cold one below it. -->
-    <color name="ic_launcher_background">#FAF9F2</color>
+    <!-- The adaptive icon's background layer: the ink tile (D300). Must
+         match INK in scripts/gen-icons.mjs, which bakes the same colour
+         into the legacy ic_launcher.png rasters — or the same app shows
+         one tile on Android 26+ and another below it. The splash stays
+         paper (capacitor.config.ts); the icon stopped matching it when
+         the identity moved the mark onto ink. -->
+    <color name="ic_launcher_background">#1D1914</color>
 </resources>

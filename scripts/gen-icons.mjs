@@ -17,13 +17,19 @@
 // showed up when the pixels were counted. Downsampling is also simply better
 // antialiasing than rendering a 48px viewport.
 //
+// The icon is the INK TILE (D300): the identity canvas's primary icon is
+// the mark on --ink, not on paper, so every output here composites the
+// mark-tile group (the brightened tile palette) over INK. The paper-ground
+// group in the same file belongs to the feature graphic, not to any icon.
+//
 // Three output families, and they are NOT the same picture:
 //   - ic_launcher_foreground: transparent, mark at 55% (Android composites
 //     it over @color/ic_launcher_background and then masks it — content must
 //     stay inside the 66/108 safe zone or a circular mask clips it).
-//   - ic_launcher / ic_launcher_round: opaque paper background, mark at 76%,
-//     for pre-26 Android which has no adaptive layer.
-//   - AppIcon-512@2x: opaque 1024, mark at 76%. iOS applies its own corner
+//   - ic_launcher / ic_launcher_round: opaque ink background, mark at 73%
+//     (the canvas's 13/96 tile padding), for pre-26 Android which has no
+//     adaptive layer.
+//   - AppIcon-512@2x: opaque 1024, mark at 73%. iOS applies its own corner
 //     mask and the store rejects alpha in the marketing icon, so this is
 //     written as RGB with no alpha channel at all.
 
@@ -35,7 +41,12 @@ import { tmpdir } from "node:os";
 import { deflateSync, inflateSync } from "node:zlib";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const PAPER = "#FAF9F2"; // matches capacitor.config.ts splash backgroundColor
+// The tile ground: --ink (oklch 0.216 0.011 70), same hex as the mark's
+// preview rect. MUST equal values/ic_launcher_background.xml, or Android
+// 26+ composites the adaptive foreground over one colour while pre-26
+// ships the other baked in. (The splash stays paper #FAF9F2 — the icon
+// stopped matching it at D300, deliberately.)
+const INK = "#1d1914";
 const MASTER = 1024;
 
 const CHROME = process.env.CHROME || [
@@ -166,9 +177,22 @@ function resize(src, size) {
 
 // ── render the two masters ───────────────────────────────────────────
 const markSvg = readFileSync(join(root, "design/icon/mark.svg"), "utf8");
-// Strip down to the <g id="mark"> payload so it can be re-embedded at
-// different scales without nested-svg sizing surprises.
-const inner = markSvg.slice(markSvg.indexOf('<g id="mark">'), markSvg.lastIndexOf("</svg>"));
+// Strip down to the <g id="mark-tile"> payload so it can be re-embedded at
+// different scales without nested-svg sizing surprises. The group is flat
+// by contract (see the comment in mark.svg), so its first </g> closes it —
+// slicing to the end of the file would drag the paper-ground group along.
+const tileStart = markSvg.indexOf('<g id="mark-tile">');
+if (tileStart < 0) {
+  console.error('gen-icons: design/icon/mark.svg has no <g id="mark-tile"> group.');
+  process.exit(1);
+}
+const inner = markSvg.slice(tileStart, markSvg.indexOf("</g>", tileStart) + 4);
+// A match inside mark.svg's own comment yields prose, not artwork — that
+// shipped a 0%-ink master on the first run. Real payload has the dots.
+if (!inner.includes("<circle")) {
+  console.error("gen-icons: mark-tile payload has no circles — matched the comment, not the group?");
+  process.exit(1);
+}
 
 const work = join(tmpdir(), "insight-icons");
 mkdirSync(work, { recursive: true });
@@ -187,7 +211,7 @@ ${bg ? `<rect x="0" y="0" width="100" height="100" fill="${bg}"/>` : ""}
   execFileSync(CHROME, [
     "--headless", "--disable-gpu", "--no-sandbox", "--hide-scrollbars",
     "--force-device-scale-factor=1",
-    `--default-background-color=${bg ? "FAF9F2FF" : "00000000"}`,
+    `--default-background-color=${bg ? bg.slice(1).toUpperCase() + "FF" : "00000000"}`,
     `--window-size=${MASTER},${MASTER}`,
     `--screenshot=${out}`,
     `file://${html}`,
@@ -199,20 +223,21 @@ ${bg ? `<rect x="0" y="0" width="100" height="100" fill="${bg}"/>` : ""}
   return img;
 }
 
-const opaque = renderMaster("opaque", { scale: 0.76, bg: PAPER });
+const opaque = renderMaster("opaque", { scale: 0.73, bg: INK });
 const alpha = renderMaster("alpha", { scale: 0.55, bg: null });
 
 // Refuse to ship a blank icon — the exact failure this script was rewritten
 // to avoid. The mark must cover a few percent of the master.
+const inkBytes = [1, 3, 5].map((i) => parseInt(INK.slice(i, i + 2), 16));
 function assertNotBlank(img, label) {
   const { w, h, ch, px } = img;
   let marked = 0;
   for (let i = 0; i < w * h; i++) {
     const o = i * ch;
-    if (ch === 4 ? px[o + 3] > 8 : !(px[o] === 0xfa && px[o + 1] === 0xf9 && px[o + 2] === 0xf2)) marked++;
+    if (ch === 4 ? px[o + 3] > 8 : !(px[o] === inkBytes[0] && px[o + 1] === inkBytes[1] && px[o + 2] === inkBytes[2])) marked++;
   }
   const pct = (100 * marked) / (w * h);
-  if (pct < 1) throw new Error(`gen-icons: ${label} master is ${pct.toFixed(2)}% ink — blank render`);
+  if (pct < 1) throw new Error(`gen-icons: ${label} master is ${pct.toFixed(2)}% marked — blank render`);
   return pct;
 }
 assertNotBlank(opaque, "opaque");
