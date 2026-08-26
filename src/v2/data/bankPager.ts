@@ -66,7 +66,7 @@ export function pageNeedList(
   cachedIds: ReadonlySet<string>,
   fields: readonly string[] | null,
   historyIds: readonly string[],
-  pageSize: number,
+  pageSize: number | ((field: string) => number),
 ): string[] {
   const need: string[] = [];
   const taken = new Set<string>();
@@ -77,12 +77,14 @@ export function pageNeedList(
   }
   if (!order || !order.topics) return need;
   const names = fields ?? Object.keys(order.topics);
+  const sizeOf = typeof pageSize === "function" ? pageSize : () => pageSize;
   for (const f of names) {
     const topic = order.topics[f];
     if (!topic || !Array.isArray(topic.qids)) continue;
+    const size = sizeOf(f);
     let fresh = 0;
     for (const qid of topic.qids) {
-      if (fresh >= pageSize) break;
+      if (fresh >= size) break;
       if (cachedIds.has(qid) || taken.has(qid)) continue;
       need.push(qid);
       taken.add(qid);
@@ -90,6 +92,34 @@ export function pageNeedList(
     }
   }
   return need;
+}
+
+/** How many answers a profile needs before it shapes anything, and how
+ * many in a topic before that topic counts as YOURS. Below the first,
+ * everyone gets the uniform feed — a profile of three answers "knowing"
+ * you is the over-eager personalization this floor refuses. */
+export const TASTE_MIN_TOTAL = 10;
+export const TASTE_TOPIC_MIN = 3;
+
+/**
+ * D303 phase 1's whole effect on serving, in one function: per-topic
+ * page sizes from the person's own profile. Topics they actually answer
+ * get the full page; the rest get a smaller one — never zero, because
+ * every topic stays on (D96: narrowing is a choice, not a default) and
+ * a cold topic must keep enough fresh cards to be discoverable, which
+ * is how a profile gets to change. Null profile, or one under the
+ * floor, means the flat base for everyone — a new device's feed is
+ * identical to the pre-profile feed.
+ */
+export function pageSizesByInterest(
+  profile: { t?: Record<string, number>; n?: number } | null,
+  base: number,
+): number | ((topic: string) => number) {
+  const total = profile?.n ?? 0;
+  const t = profile?.t;
+  if (!t || total < TASTE_MIN_TOTAL) return base;
+  const cold = Math.max(4, Math.ceil(base / 3));
+  return (topic) => ((t[topic] ?? 0) >= TASTE_TOPIC_MIN ? base : cold);
 }
 
 /** Per-field/topic bank totals off the order doc — the sheet's honest
@@ -122,7 +152,7 @@ export async function topUpPages<Row>(
   cachedIds: ReadonlySet<string>,
   fields: readonly string[] | null,
   historyIds: readonly string[],
-  pageSize: number,
+  pageSize: number | ((field: string) => number),
 ): Promise<{ rows: Row[]; totals: Record<string, number> }> {
   const order = await io.order();
   const need = pageNeedList(order, cachedIds, fields, historyIds, pageSize);

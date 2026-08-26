@@ -52,6 +52,8 @@ const h = vi.hoisted(() => ({
   // surface. Empty = no fold has run, which is every pre-D305 test's
   // world.
   rankOrders: {} as Record<string, { topics: Record<string, { qids: string[]; total: number }> }>,
+  // The owner's interest profile (D308), served at their own taste path.
+  tasteProfile: null as null | { t: Record<string, number>; n: number },
 }));
 
 vi.mock("../../lib/firebase", () => ({
@@ -111,6 +113,10 @@ vi.mock("firebase/firestore", () => {
       const order = rank ? h.rankOrders[rank[1]] : undefined;
       if (order) {
         return Promise.resolve({ exists: () => true, get: () => undefined, data: () => ({ ...order }) });
+      }
+      if (ref?.path === "v2_users/uid_test/taste/profile" && h.tasteProfile) {
+        const p = h.tasteProfile;
+        return Promise.resolve({ exists: () => true, get: () => undefined, data: () => ({ ...p }) });
       }
       return Promise.resolve({ exists: () => false, get: () => undefined, data: () => ({}) });
     },
@@ -240,6 +246,7 @@ beforeEach(() => {
   h.deltaError = null;
   h.stuckCursor = false;
   h.rankOrders = {};
+  h.tasteProfile = null;
   h.bankDocs = [q("q_1", 1000), q("q_2", 1000)];
   storage = new MemoryStorage();
   vi.stubGlobal("localStorage", storage);
@@ -557,6 +564,37 @@ describe("question-bank cache", () => {
       expect(feed.map((x) => x.id)).toContain("feed-t9");
     });
     expect((await readCache())!.questions.map((x) => x.id)).toContain("feed-t9");
+  });
+
+  it("pages an answered topic deeper than a cold one when the profile clears its floors", async () => {
+    // D303 phase 1's whole serving effect, end to end: the device reads
+    // ITS OWN profile — the one doc only its owner may read — and takes
+    // the full page for the topic it answers, a smaller one for the
+    // topic it never has. Both non-zero: a cold topic must stay
+    // discoverable or the profile could never change.
+    const tailDoc = (id: string, topic: string) =>
+      q(id, 1000, { surface: "feed", topic });
+    h.bankDocs = [
+      q("q_1", 1000),
+      ...Array.from({ length: 14 }, (_, i) => tailDoc(`feed-hot${String(i).padStart(2, "0")}`, "food")),
+      ...Array.from({ length: 14 }, (_, i) => tailDoc(`feed-cold${String(i).padStart(2, "0")}`, "music")),
+    ];
+    h.rankOrders.feed = {
+      topics: {
+        food: { qids: h.bankDocs.filter((d) => d.id.startsWith("feed-hot")).map((d) => d.id), total: 14 },
+        music: { qids: h.bankDocs.filter((d) => d.id.startsWith("feed-cold")).map((d) => d.id), total: 14 },
+      },
+    };
+    h.tasteProfile = { t: { food: 12 }, n: 12 };
+    await bootLive();
+    await vi.waitFor(async () => {
+      const cachedIds = (await readCache())!.questions.map((x) => x.id);
+      expect(cachedIds.filter((id) => id.startsWith("feed-hot"))).toHaveLength(12);
+    });
+    const cachedIds = (await readCache())!.questions.map((x) => x.id);
+    const cold = cachedIds.filter((id) => id.startsWith("feed-cold")).length;
+    expect(cold).toBeGreaterThan(0);
+    expect(cold).toBeLessThan(12);
   });
 
   it("heals a history card back into the pool even with no order published", async () => {

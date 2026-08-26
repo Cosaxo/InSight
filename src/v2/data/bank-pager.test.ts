@@ -11,8 +11,12 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  FEED_PAGE,
   LEARN_PAGE,
+  TASTE_MIN_TOTAL,
+  TASTE_TOPIC_MIN,
   pageNeedList,
+  pageSizesByInterest,
   pageTotals,
   topUpPages,
   type PageOrderDoc,
@@ -70,6 +74,46 @@ describe("pageNeedList", () => {
     const o = order({ cell: ids("cell", 3) });
     const cached = new Set([...ids("cell", 3), "learn-cap1"]);
     expect(pageNeedList(o, cached, null, ["learn-cap1"], LEARN_PAGE)).toEqual([]);
+  });
+});
+
+describe("pageSizesByInterest", () => {
+  const profile = (t: Record<string, number>) => ({
+    t,
+    n: Object.values(t).reduce((a, b) => a + b, 0),
+  });
+
+  it("keeps the flat page for a missing or under-floor profile", () => {
+    // A new device's feed must be identical to the pre-profile feed —
+    // three answers "knowing" you is the over-eager personalization the
+    // floor refuses.
+    expect(pageSizesByInterest(null, FEED_PAGE)).toBe(FEED_PAGE);
+    expect(pageSizesByInterest(profile({ food: TASTE_MIN_TOTAL - 1 }), FEED_PAGE)).toBe(FEED_PAGE);
+  });
+
+  it("gives answered topics the full page and cold topics a smaller, never-zero one", () => {
+    const sizes = pageSizesByInterest(
+      profile({ food: 9, sport: TASTE_TOPIC_MIN, music: 1 }),
+      FEED_PAGE,
+    );
+    expect(typeof sizes).toBe("function");
+    const f = sizes as (t: string) => number;
+    expect(f("food")).toBe(FEED_PAGE);
+    expect(f("sport")).toBe(FEED_PAGE);
+    // Under the per-topic floor, and never seen at all, both read as
+    // cold — smaller but NEVER zero (D96: every topic stays on, and a
+    // cold topic must stay discoverable or the profile can never grow).
+    expect(f("music")).toBeGreaterThan(0);
+    expect(f("music")).toBeLessThan(FEED_PAGE);
+    expect(f("never-answered")).toBe(f("music"));
+  });
+
+  it("feeds pageNeedList per topic", () => {
+    const o = order({ hot: ids("hot", FEED_PAGE * 2), cold: ids("cold", FEED_PAGE * 2) });
+    const sizes = pageSizesByInterest(profile({ hot: 20 }), FEED_PAGE) as (t: string) => number;
+    const need = pageNeedList(o, new Set(), null, [], sizes);
+    expect(need.filter((q) => q.startsWith("learn-hot"))).toHaveLength(FEED_PAGE);
+    expect(need.filter((q) => q.startsWith("learn-cold"))).toHaveLength(sizes("cold"));
   });
 });
 

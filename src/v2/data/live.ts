@@ -176,7 +176,8 @@ import { publishLearnBank, publishLearnTotals, type LearnCard } from "./learnBan
 // surface at boot. Pure arithmetic there; the I/O lives in the top-ups
 // below.
 import {
-  FEED_PAGE, LEARN_PAGE, followedFields, learnHistoryIds, topUpPages, type PageOrderDoc,
+  FEED_PAGE, LEARN_PAGE, followedFields, learnHistoryIds, pageSizesByInterest,
+  topUpPages, type PageOrderDoc,
 } from "./bankPager";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
 // this module passes its store state in.
@@ -1818,12 +1819,33 @@ async function topUpBankPages(db: Awaited<ReturnType<typeof getDb>>): Promise<vo
     // resolve to a document whatever page it was on. Core needs no heal
     // — it ships whole at boot by definition.
     const answered = Object.keys(state.votes).filter((id) => id.startsWith("feed-"));
+    // The person's own interest profile (D303 phase 1, D308) — the one
+    // document in the system only its owner may read, and the pager is
+    // the one thing that reads it: topics this person actually answers
+    // get the full page, the rest a smaller one, never zero (the
+    // arithmetic and its floors live in bankPager.pageSizesByInterest).
+    // Absent — a new account, a fresh project, the fold not yet run —
+    // every topic gets the flat page, which is exactly the pre-profile
+    // feed.
+    const profile = await (async () => {
+      try {
+        if (!state.uid) return null;
+        const snap = await getDoc(doc(db, "v2_users", state.uid, "taste", "profile"));
+        return snap.exists()
+          ? (snap.data() as { t?: Record<string, number>; n?: number })
+          : null;
+      } catch {
+        // A failed profile read costs personalization for a session,
+        // never the pages themselves.
+        return null;
+      }
+    })();
     const { rows } = await topUpPages(
       { order: () => orderOf("feed"), fetchByIds: (qids) => fetchByIds("feed", qids) },
       cachedBankIds(),
       null,
       answered,
-      FEED_PAGE,
+      pageSizesByInterest(profile, FEED_PAGE),
     );
     if (rows.length) {
       const byId = new Map(state.feedBank.map((q) => [q.id, q]));

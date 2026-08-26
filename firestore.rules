@@ -368,6 +368,26 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
+      // The interest profile (D303 phase 1, D308) — this person's FEED
+      // answers counted by topic, written nightly by fitTasteV2 (admin
+      // SDK) and read by the OWNER alone: their own device sizes its
+      // topic pages by it (D307), and D163's "a Mirror that secretly
+      // models you is a contradiction in terms" carries over — shown is
+      // the floor, so the owner read is the grant. NOT public, unlike
+      // the answers it derives from: what a person answered is the
+      // product (D98); what the system concluded they are INTO is a
+      // summary nobody signed up to be read as by strangers — the
+      // patterns-state argument, with the one reader the patterns state
+      // does not need. Client write closed: a self-writable profile
+      // would let a device forge its own fetch weighting, which is
+      // harmless today and a sponsored-targeting hole the day audiences
+      // exist. deleteAccount's recursive delete takes it, no new arm.
+      match /taste/{docId} {
+        allow get: if request.auth != null && request.auth.uid == uid;
+        allow list: if false;
+        allow write: if false;
+      }
+
       // Engagement, two shapes under one path, split by the ID DISCIPLINE:
       //
       //   `_state` (R1/D268) — the digest's bookkeeping (first/last

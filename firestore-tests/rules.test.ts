@@ -718,6 +718,24 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "patterns", "state"), { v: [1], n: 1 }));
   });
 
+  it("the interest profile is the owner's to read, a stranger's to never see, and nobody's to write (D303/D308)", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER, "taste", "profile"), { t: { food: 3 }, n: 3 });
+    });
+    // Shown to its subject is D163's floor, carried over the reversal —
+    // the owner read is the grant that makes "the app models you" a
+    // sentence the app can show rather than one it hopes nobody asks.
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_users", OWNER, "taste", "profile")));
+    // NOT public, unlike the answers it derives from (D98): what you
+    // answered is the product; what the system concluded you are INTO is
+    // a summary nobody signed up to be read as by strangers.
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "taste", "profile")));
+    // Client write closed: a self-writable profile would let a device
+    // forge its own fetch weighting.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "taste", "profile"), { t: { food: 99 }, n: 99 }));
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_users", OWNER, "taste", "profile"), { n: 99 }));
+  });
+
   it("the engagement day docs read like an aggregate and write like one — nobody (R1/D268)", async () => {
     await seed(async (db) => {
       await setDoc(doc(db, "v2_engagement_daily", "2026-08-22"), {

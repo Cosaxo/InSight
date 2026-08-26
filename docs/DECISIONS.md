@@ -30990,8 +30990,11 @@ prove it.
   people answered, not where they stand, and this document is eyes,
   not answers.
 - `docs/data-inventory.md` gains the row (`check:data-inventory`) and
-  the store privacy label moves with it (`check:labels`) — D163's "no
-  store form moves" was load-bearing and this record un-says it.
+  the store privacy label moves with it (`docs/STORE-FORMS.md` +
+  `design/store/app-privacy.json`, held equal by `check:store-forms` —
+  this line first named `check:labels`, which is the a11y gate; D308
+  caught it at build time) — D163's "no store form moves" was
+  load-bearing and this record un-says it.
 - `web/privacy.html` says it and `check:policy-claims` proves it; the
   purge sweeps it and the erasure e2e shows the sweep.
 - `MONITORING.md`'s refused row is re-drawn, dated: what remains
@@ -31193,3 +31196,69 @@ question limit" (D302's adoption) is now a property of the read path
 rather than an aspiration of the plan. D302's remaining piece is phase
 4's remaining signals (attention and evenness joining volume in the
 nightly fold).
+
+## D308 · The profile is real: feed answers counted by topic, and pages sized by them
+
+**2026-08-26.** D303 phase 1 as-built, the same day the reversal was
+recorded and adopted. Three parts and the checklist, each with its gate.
+
+**The fold** (`functions/src/taste.ts`, `fitTasteV2`, nightly 3:27 UTC —
+after the rank fold, before the velocity scan): this person's FEED
+answers counted by topic from the agg-events ledger, through the one-day
+reader the patterns fit now shares (`ledger.ts`, extracted here for
+D197's one-copy reason). One count per (person, question) per day — the
+D86 edit rule at heuristic strength, recorded rather than silently
+wrong. Cursor on `v2_meta/app` (`tasteLastDay`, the D265
+no-new-collection argument), 7-day catch-up, idempotent on retry. Feed
+only in v1: learn interest is the follow list the user already
+controls, and the daily has no selection to personalize.
+
+**The document** (`v2_users/{uid}/taste/profile` — `{t, n, at}`):
+owner-readable, client-unwritable, never listable. Owner-readable is
+D163's "shown" carried over the reversal; NOT public is the
+patterns-state argument with one reader added — what a person ANSWERED
+is the product (D98), what the system concluded they are INTO is a
+summary nobody signed up to be read as by strangers. The write deny is
+forward-looking: a self-writable profile would let a device forge its
+own fetch weighting — harmless today, a sponsored-targeting hole the
+day audiences exist.
+
+**The one reader** (`bankPager.pageSizesByInterest`, wired into the
+feed top-up): topics with `TASTE_TOPIC_MIN` (3) or more answers page at
+`FEED_PAGE`; the rest at max(4, a third of it) — never zero, D96's
+every-topic-on posture, and a cold topic must stay discoverable or the
+profile could never change. Below `TASTE_MIN_TOTAL` (10) answers the
+profile shapes nothing: a new device's feed is byte-identical to the
+pre-profile feed. A failed profile read costs personalization for one
+session, never the pages.
+
+**The checklist, shipped with it rather than after.** The rules block
+and its test (owner reads, stranger never, nobody writes);
+`docs/data-inventory.md`'s row; `web/privacy.html` states the
+arithmetic and `check:policy-claims` pins three sentences — including
+the PHASE-2 TRIPWIRE: "what you merely scrolled past or skipped stays
+on your device and is not collected" is now a pinned claim, so building
+phase 2 must retire that row in the same commit as the record that
+licenses it. The store label moved: User Content gains Product
+Personalisation (`STORE-FORMS.md` + `app-privacy.json`, held equal by
+`check:store-forms` — also where D303's checklist's `check:labels`
+misnomer surfaced; corrected in place). `MONITORING.md`'s refused row
+re-drawn, dated, with the crossed position kept above it — including
+the new duty the architecture no longer enforces: the console COULD
+now show what people are into and must not. And the erasure e2e seeds
+and asserts the profile's sweep, run green against the real emulated
+`deleteAccount`, so the page's "deleting your account deletes it" is a
+tested sentence.
+
+Measured: 390 functions tests (taste at 6, new; patterns' 11 unmoved
+across the ledger extraction), 2104 unit tests (bank-pager at 11;
+bank-cache at 18 — a profiled device pages its answered topic at 12 and
+a cold one at 4, end to end through a booted live.ts reading its own
+profile), 151 rules tests, the erasure e2e, and every drift gate:
+store-forms, policy-claims, data-inventory, deploy-targets, fn-runtime,
+appcheck, figures, globals (238 unchanged), bundle 2098 KB / 2440.
+
+What phase 2 would be, so the next reader knows where the line is: the
+pass/defer/read signals joining the fold — a real upload of behaviour,
+licensed only by its own record, the pinned page sentence retired in
+the same commit, and the store forms re-derived again.

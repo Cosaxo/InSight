@@ -75,7 +75,7 @@ npm --prefix functions run build     # the emulator loads functions/lib
 
 ## Deployed functions
 
-35 functions ship from this codebase (the deploy's `--only` list also
+36 functions ship from this codebase (the deploy's `--only` list also
 names `firestore:rules` and `firestore:indexes`, which are not functions).
 `scripts/check-deploy-targets.mjs` fails CI if an exported function is
 missing from that list — otherwise it would be built, tested, green and
