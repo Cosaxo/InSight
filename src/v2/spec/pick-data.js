@@ -567,6 +567,29 @@ export let PICK_QS;
       9109505: 2,   // darkred — below the floor
       0: 8,         // Not listed — renters and the undecided
     },
+    // first card of the films domain, 2026-08-25 (QID-keyed —
+    // public/films.txt, the D15 operator step run at last). The '0'
+    // bucket is honest work here: the catalogue is Wikidata's top 1000
+    // by sitelinks, and Forrest Gump and Spirited Away are genuinely
+    // not in it — their vote lands in Not listed, which is the floor
+    // demo the card exists to give.
+    pk26: {
+      172241: 27,   // The Shawshank Redemption — the internet's standing answer
+      47703: 20,    // The Godfather
+      104123: 15,   // Pulp Fiction
+      163872: 14,   // The Dark Knight
+      131074: 12,   // LOTR: The Return of the King
+      181795: 11,   // The Empire Strikes Back
+      44578: 10,    // Titanic
+      83495: 9,     // The Matrix
+      190050: 8,    // Fight Club
+      61448040: 7,  // Parasite
+      25188: 5,     // Inception — clears the floor but not the top 10; folds
+      132689: 5,    // Casablanca — same
+      484048: 4,    // Amélie — below the floor
+      13417189: 3,  // Interstellar — below the floor
+      0: 11,        // Not listed — the Gump and Ghibli vote, among others
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -868,6 +891,17 @@ export let PICK_QS;
         Men: { 1: 9, 129: 7, 16711681: 6, 2263843: 5, 8421377: 4 },
       },
     },
+    pk26: {
+      ageBand: {
+        // the young board runs dark and recent; Shawshank holds the elders
+        '18-24': { 163872: 9, 190050: 7, 83495: 6, 61448040: 5, 104123: 4 },
+        '25-34': { 172241: 8, 131074: 7, 104123: 6, 163872: 5, 181795: 4 },
+      },
+      gender: {
+        Women: { 172241: 8, 44578: 7, 131074: 6, 61448040: 5, 104123: 4 },
+        Men: { 47703: 9, 172241: 8, 181795: 6, 190050: 6, 83495: 5 },
+      },
+    },
   };
 
   const api = {
@@ -1028,6 +1062,7 @@ export let PICK_QS;
     { id: 'pk23', cat: 'fav', type: 'pick', domain: 'dogs', prompt: 'The most fun breed to say out loud?', n: 157 },
     { id: 'pk24', cat: 'fav', type: 'pick', domain: 'colors', prompt: 'Your favourite colour?', n: 168 },
     { id: 'pk25', cat: 'fav', type: 'pick', domain: 'colors', prompt: 'The colour you’d paint your front door?', n: 163 },
+    { id: 'pk26', cat: 'fav', type: 'pick', domain: 'films', prompt: 'Your favourite film?', n: 161 },
   ];
   window.PICK_QS = PICK_QS;
 })();
