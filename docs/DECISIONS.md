@@ -30593,3 +30593,69 @@ branches same-day, or giving branch-local records a provisional marker until
 merge — both are conventions rather than code, and neither is chosen here.
 What is no longer possible is discovering the miss by following a citation
 months later.
+
+## D300 · The breakdown gets its scale back: every canonical bucket, in vocabulary order, on top of the cohort reading
+
+**Decided:** 2026-08-26 · **Status:** binding. The owner's review with the
+current standalone beside the app: "the data breakdown shows only the
+current traits of the person that voted, in a very unorderly manner — it
+should show all categories like this." Approved with the full plan of the
+same review; this record is the breakdown half.
+
+### 1 · What the cohort-first sheet looked like at a young population
+
+D125 flipped the who-voted sheet the right way round — pick a cohort, and
+everything below is that cohort's reading of the question — and D149/D227
+built on that axis. All of it holds. What D125 did not anticipate is what
+its landing looks like with a handful of voters: `mixFor` sorts buckets by
+size and drops empties, and the dim chips filtered to published cells, so
+the sheet's whole offer was two chips in popularity order. A reader could
+not see the scale their cohort sits on, and a band nobody had answered
+from was indistinguishable from a band that does not exist — which since
+D98 are different facts, and the difference is publishable.
+
+The prototype never had the problem, because its demo sheet kept the
+all-rows shape: every group of the cut, one stacked bar each, the
+published split as the header bar. That is the shape the owner pointed
+at.
+
+### 2 · The rows return on top of D125, not instead of it
+
+A dim now lands on its whole scale at once, and the D125 reading is one
+tap in: a row expands into exactly the cohort body the sheet has drawn
+since D125 — option rows, then the divergence line — scoped to that row.
+Continuum forms (`renderBody`, D114) keep the chip flow unchanged: a
+dial's track has nothing honest to draw over a scale of zeros.
+
+The frame is the VOCABULARY, not the data:
+
+- `vocabMix` (data/cohort.ts) walks the canonical vocabulary in its own
+  order and lets the data fill it in — dense zero cells for buckets
+  nobody answered from, drawn greyed with their 0, because an exact zero
+  is the fact D98 bought. `mixFor` keeps its biggest-first contract for
+  the People lens; the two folds answer different questions.
+- The vocabulary source is `profile-vitals.js` via `ui/cohortVocab.ts` —
+  the module `check:anchors` already holds equal to the trigger's
+  `BREAKDOWN_DIM_VOCAB`. A third hand-typed copy would be the drift that
+  gate exists to stop.
+- Opt-outs and catch-alls ('Prefer not to say', 'Other') join the scale
+  only once somebody has picked them: a permanent zero row for declining
+  to answer reads as an ask. A bucket the vocabulary no longer knows is
+  appended rather than hidden — answers folded under an old spelling are
+  still answers.
+- Closed-vocabulary dims are ALWAYS offered now; a dim nobody has shared
+  renders as its scale at zero with a line saying so. Open vocabularies
+  (city, country) still need a published cell — there is no canonical
+  list of every city to draw at zero — and they draw observed buckets
+  only, biggest first.
+
+### 3 · What this deliberately does not touch
+
+The owner's reference sheet also cuts by Job (Sector / Stage / Setup),
+education facets (Studied / Trade / …) and all four tests. None of those
+is a rendering gap: `profession` is free text and deliberately not a dim
+(D8), the education facets are profile fields the app does not collect,
+and test results are aggregated per cohort by nothing. The sample-based
+Type and Logic cuts (D146, D227) remain the honest stand-ins. Structured
+job/education anchors would be a profile + vocabulary + trigger change on
+D8's turf and are recorded as open, not begun.

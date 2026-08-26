@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import {
   agreement, agreementOf, byOf, cellFor, divergence, divergenceFor, divisiveness, headlineFor,
   likenessRate, MAP_ANCHOR_DIM, meanScore, mixFor, pctFor, sliceSplit, standingIn, typicality,
+  vocabMix,
 } from "./cohort";
 
 // Two age bands and two genders over a 2-option question. Overall 12/8.
@@ -62,6 +63,46 @@ describe("mixFor", () => {
 
   it("is empty for a dimension nobody has filled in", () => {
     expect(mixFor(BY, "education", 2)).toEqual([]);
+  });
+});
+
+describe("vocabMix (D300)", () => {
+  const VOCAB = ["Under 18", "18-24", "25-34", "35-44", "Prefer not to say"];
+
+  it("returns the whole vocabulary in its own order, zeros included", () => {
+    const mix = vocabMix(BY, "ageBand", 2, VOCAB);
+    // 25-34 outnumbers 35-44 and still sits where the scale puts it, and
+    // the bands nobody answered from are drawn as dense zero cells rather
+    // than dropped — a scale with silent gaps is not a scale.
+    expect(mix.map((m) => m.bucket)).toEqual(["Under 18", "18-24", "25-34", "35-44"]);
+    expect(mix[0]).toEqual({ bucket: "Under 18", n: 0, counts: [0, 0] });
+    expect(mix[2].n).toBe(10);
+  });
+
+  it("includes an opt-out only once somebody has picked it", () => {
+    // "Prefer not to say" at zero reads as an ask; with an answer behind
+    // it, it is a cohort like any other.
+    const by = { gender: { "Woman": { "0": 2 }, "Prefer not to say": { "0": 1 } } };
+    const withIt = vocabMix(by, "gender", 1, ["Woman", "Man", "Prefer not to say"]);
+    expect(withIt.map((m) => m.bucket)).toEqual(["Woman", "Man", "Prefer not to say"]);
+    const without = vocabMix(BY, "gender", 2, ["Woman", "Man", "Prefer not to say"]);
+    expect(without.map((m) => m.bucket)).toEqual(["Woman", "Man"]);
+  });
+
+  it("appends buckets the vocabulary does not know, biggest first", () => {
+    // Answers folded under an old spelling are still answers; a
+    // vocabulary edit must never hide them.
+    const by = { gender: { "Woman": { "0": 1 }, "Femme": { "0": 2 }, "X": { "0": 5 } } };
+    const mix = vocabMix(by, "gender", 1, ["Woman", "Man"]);
+    expect(mix.map((m) => m.bucket)).toEqual(["Woman", "Man", "X", "Femme"]);
+  });
+
+  it("is the whole scale at zero for a dimension nobody has filled in", () => {
+    const mix = vocabMix(BY, "education", 2, ["School", "Degree"]);
+    expect(mix).toEqual([
+      { bucket: "School", n: 0, counts: [0, 0] },
+      { bucket: "Degree", n: 0, counts: [0, 0] },
+    ]);
   });
 });
 

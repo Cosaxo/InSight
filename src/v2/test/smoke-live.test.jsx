@@ -1216,9 +1216,14 @@ describe("the live gates hold in the DOM, not just in the source", () => {
       "the daily's seeded comments are reachable in live mode").toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Who voted what" }));
     await act(async () => { for (let i = 0; i < 60; i++) await Promise.resolve(); });
+    // The markers are the chips the LIVE panel can never legitimately
+    // grow: Where (live says City/Country) and Job (`profession` is free
+    // text, deliberately not a dim — D8). Education stopped being one at
+    // D300, when the live panel began offering every closed-vocabulary
+    // dim as its whole scale.
     expect(screen.queryByRole("button", { name: /^Where$/ }),
       "a hash-built cut chip is reachable in live mode").toBeNull();
-    expect(screen.queryByRole("button", { name: /^Education$/ }),
+    expect(screen.queryByRole("button", { name: /^Job$/ }),
       "a hash-built cut chip is reachable in live mode").toBeNull();
     expectNoBoundary("live daily engage row");
   });

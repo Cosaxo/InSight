@@ -124,6 +124,57 @@ export function mixFor(
     .sort((a, b) => b.n - a.n || a.bucket.localeCompare(b.bucket));
 }
 
+/**
+ * Vocabulary entries that are opt-outs or catch-alls rather than places on
+ * the scale. They are real cohorts once somebody has picked them, but a
+ * permanent zero row for "Prefer not to say" reads as an ask, not a fact —
+ * so `vocabMix` includes them only with answers behind them.
+ */
+export const VOCAB_TAIL = new Set(["Prefer not to say", "Other"]);
+
+/**
+ * The full-vocabulary mix for a CLOSED dim — every canonical bucket in
+ * vocabulary order, zeros included (D300).
+ *
+ * `mixFor` answers "how is this crowd composed" and sorts by size, which
+ * is right for the People lens and wrong for a breakdown that should read
+ * as a scale: age bands arrived in popularity order, and bands nobody had
+ * answered from vanished entirely, so a thin population rendered as two
+ * chips in no order at all. Here the VOCABULARY is the frame and the data
+ * fills it in — a zero row is a fact (D98: absent is zero, never
+ * withheld), and the scale stays a scale at any population.
+ *
+ * Buckets the vocabulary does not know are appended after it, biggest
+ * first: a vocabulary edit must never hide answers that were folded under
+ * the old spelling.
+ */
+export function vocabMix(
+  by: ByMap | undefined,
+  dim: string,
+  optionCount: number,
+  vocab: readonly string[],
+): Bucket[] {
+  const have = new Map(mixFor(by, dim, optionCount).map((b) => [b.bucket, b]));
+  const out: Bucket[] = [];
+  for (const v of vocab) {
+    const b = have.get(v);
+    if (b) {
+      out.push(b);
+      have.delete(v);
+    } else if (!VOCAB_TAIL.has(v)) {
+      out.push({
+        bucket: v,
+        n: 0,
+        counts: Array.from({ length: Math.max(0, optionCount) }, () => 0),
+      });
+    }
+  }
+  // Map preserves insertion order, and the insertions came from mixFor —
+  // so the unknown tail is already largest-first.
+  for (const b of have.values()) out.push(b);
+  return out;
+}
+
 /** One slice's split, as percentages, or null when the slice has no answers. */
 export function sliceSplit(
   by: ByMap | undefined,
