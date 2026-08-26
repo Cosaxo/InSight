@@ -12,6 +12,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { LIVE_MARKERS, missingLiveMarkers } from "./live-build-markers.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ASSETS = join(root, "dist", "assets");
@@ -900,40 +901,12 @@ const sentryKb = sentryChunks.reduce((n, s) => n + s.kb, 0);
 
 // ── IS THE V2 LIVE PATH IN THIS BUNDLE? Asked of the bundle ──────────
 //
-// `import.meta.env.VITE_V2_LIVE` is a build-time replacement, so in a demo
-// build it folds to `false` and rolldown shakes out everything behind
-// `LIVE.enabled` — which is what makes the question answerable from dist/
-// at all. It also means the flag's own string survives in neither build,
-// so the marker has to be something the live path REACHES.
-//
-// Firestore collection ids, and deliberately: each one has a `match`
-// block in firestore.rules, which `check:data-inventory` then forces to be
-// either a row in docs/data-inventory.md (`v2_attention`) or an exemption
-// carrying its reason (`v2_meta`, `v2_questions` — content and config, not
-// user data). Neither can be renamed quietly, and renaming a live
-// collection is a migration rather than a rename. Measured on this tree, the same command
-// with the flag the only difference, and again with the DSN removed to
-// confirm the two axes are independent:
-//
-//                   chunks LIVE   chunks DEMO
-//   v2_meta              1             0
-//   v2_questions         1             0
-//   v2_attention         1             0
-//
-// The obvious markers are the ones that do NOT work: `v2_users` and
-// `v2_answers` are in 3 chunks of both builds, because circle.ts and
-// cohort.ts reach them from code no flag folds away.
-//
-// ALL of them, not any: the direction that must not happen is a demo
-// bundle graded as the shipping one, and requiring every marker means a
-// demo build would have to retain all three by accident. The other
-// direction — a live build refused because someone renamed a collection —
-// costs a rebuild and names the missing marker in the message, which is
-// the failure this gate is supposed to have.
-const LIVE_MARKERS = ["v2_meta", "v2_questions", "v2_attention"];
-const liveMarkersSeen = LIVE_MARKERS.filter((m) =>
-  sized.some(({ f }) => readFileSync(join(ASSETS, f), "utf8").includes(m)));
-const LIVE_IN = liveMarkersSeen.length === LIVE_MARKERS.length;
+// scripts/live-build-markers.mjs is where the markers and the measurement
+// behind them live; check-web-firebase asks the same question off the same
+// list, which is the point of the module.
+const liveMissing = missingLiveMarkers(sized.map(({ f }) => readFileSync(join(ASSETS, f), "utf8")).join("\n"));
+const liveMarkersSeen = LIVE_MARKERS.filter((m) => !liveMissing.includes(m));
+const LIVE_IN = liveMissing.length === 0;
 
 if (!DEMO && !LIVE_IN) {
   console.error(
