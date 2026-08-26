@@ -108,12 +108,15 @@ describe("the overlays with no button — opened through the nav registry", () =
     fireEvent.change(screen.getByPlaceholderText("Option 2"), { target: { value: "Bridge" } });
     expect(screen.getByText(/No completed campaign here yet — no forecast/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /^Price it for/ }));
-    // the contract sheet: rate at the floor index, the honest channel, and
-    // no make-good clause — that promise needs an estimate to exist
-    expect(screen.getByText(/per answer · ×0\.9 · locked/)).toBeTruthy();
-    expect(screen.getByText(/Arranged directly for now — no self-serve yet\./)).toBeTruthy();
-    expect(screen.getByText("Locked rate · the claim never shrinks.")).toBeTruthy();
-    expect(document.body.textContent).not.toMatch(/under 80% of the estimate/);
+    // the contract sheet: rate at the floor index, the functional channel
+    // (D304 retired "arranged directly" the day the loop stopped being a
+    // human), and no make-good clause — the refund is the promise the
+    // closer actually keeps, and the old free-extension line must stay out
+    expect(screen.getByText(/per answer · ×0\.9 · locked at approval/)).toBeTruthy();
+    expect(screen.getByText(/Checked automatically before anything is charged\./)).toBeTruthy();
+    expect(screen.getByText(/refunds automatically at close/)).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/Arranged directly|no self-serve yet/);
+    expect(document.body.textContent).not.toMatch(/under 80% of the estimate|extends free/);
     expectNoBoundary("the composer and its contract sheet");
   });
 

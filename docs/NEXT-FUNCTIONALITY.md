@@ -612,9 +612,10 @@ ordinary question, arriving through a human contract path with
 invoicing outside the repo. So: sell contract-path deals as soon as
 there is traffic worth buying; the disclosure mark + `sponsor`
 provenance + window/tag fields are the first real build (S, mostly §1's
-machinery); a self-serve in-app purchase flow is the last build (L), and
-commerce should stay on the web/contract side regardless — the app
-displays disclosed content, it does not run a checkout.
+machinery); a self-serve purchase flow is the last build (L) — **built
+at D304 (2026-08-26)**, and exactly on this note's own terms: commerce
+stayed on the web side (Stripe Checkout in the system browser; the app
+displays disclosed content and opens a URL, it still runs no checkout).
 
 ## 7 · Order of work
 

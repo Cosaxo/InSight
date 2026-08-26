@@ -12,12 +12,17 @@
 // Needs admin credentials (GOOGLE_APPLICATION_CREDENTIALS or `gcloud auth
 // application-default login`), or --emulator with FIRESTORE_EMULATOR_HOST.
 //
-// This is the collection's ONLY pen. Selling is by hand today (PAID-PLAN
-// §9.2: "sell by hand at hand-set prices"), so there is deliberately no
-// callable and no client write arm — firestore.rules says `write: if
-// false` and rules.test.ts pins it. A deployed endpoint that can mint
-// contract records would be standing surface in exchange for nothing;
-// this script runs once per contract, by the human who signed it.
+// One of the collection's TWO pens since D304 — this script for
+// hand-arranged contracts, the Stripe payment webhook (functions/src/
+// paid.ts goLive) for the self-serve pipeline. Both are server-side:
+// firestore.rules still says `write: if false` and rules.test.ts pins
+// it, so there is no client write arm. The sentence that used to stand
+// here — "a deployed endpoint that can mint contract records would be
+// standing surface in exchange for nothing" — was true while selling
+// was by hand and was retired ON PURPOSE by D304: the webhook mints a
+// record only against a signature-verified Stripe payment, which is not
+// nothing. This script remains for sales the machinery does not carry
+// (reports sold standalone, subscriptions when they exist).
 //
 // The same sitting that records a purchase re-runs the pricing fold
 // (scripts/build-pricing.mjs) and commits the changed content/pricing.json

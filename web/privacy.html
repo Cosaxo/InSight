@@ -315,6 +315,14 @@
       buyer receives is the same public numbers everyone reads; there is
       no private cut. The current prices are published in the app and in
       its source. Deleting your account deletes the record with it.
+      Submitted questions are checked automatically — by our own rules
+      and by an AI reviewer (Anthropic&rsquo;s Claude) that reads only
+      what you typed into the ask — before any payment exists. Payment
+      itself runs on <strong>Stripe</strong>, on the web, as our payment
+      processor: Stripe receives your payment details and we never see
+      them; we keep only the booking, the payment&rsquo;s reference ids
+      and the refund owed if the window under-delivers, which is paid
+      back automatically when it closes.
     </li>
   </ul>
 

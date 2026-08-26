@@ -114,11 +114,35 @@ const SG_TYPES = [['binary', 'this or that'], ['dilemma', 'dilemma'], ['choice',
 // ── your asks: status first, and a decline that states the standard it
 // missed, the reason behind it, and — where one exists — the way forward.
 // A LIVE row shows the review's own note as the reason (SUGGESTIONS.declineOf).
+//
+// Booking rows (D304) add three states the legacy pipeline never had:
+// "checking" (the automated review is running — seconds, usually),
+// "approved" (the pay button IS the next step, priced from the locked
+// quote), and "live" (the window it is serving). The pay tap asks the
+// server for a Stripe URL and opens it in the system browser — commerce
+// stays on the web side; if the open is blocked, the link renders and
+// the tap is the person's own.
 function SgMine({ s, SG, onResend }) {
   const col = sgHueCol(s.hue);
   const d = SG.declineOf(s);
-  const tone = s.status === 'picked' ? 'var(--c-city)' : s.status === 'declined' ? 'var(--ink-3)' : 'var(--ochre-ink)';
-  const label = s.status === 'picked' ? 'ran' : s.status === 'declined' ? 'declined' : 'in review';
+  const [payBusy, setPayBusy] = useSgState(false);
+  const [payUrl, setPayUrl] = useSgState(null);
+  const [payErr, setPayErr] = useSgState(null);
+  const tone = s.status === 'picked' || s.status === 'live' ? 'var(--c-city)'
+    : s.status === 'declined' ? 'var(--ink-3)'
+      : s.status === 'approved' ? 'var(--accent-ink)' : 'var(--ochre-ink)';
+  const label = s.status === 'picked' ? 'ran' : s.status === 'live' ? 'live'
+    : s.status === 'declined' ? 'declined'
+      : s.status === 'approved' ? 'approved' : s.booking ? 'checking' : 'in review';
+  const pay = async () => {
+    if (payBusy) return;
+    setPayBusy(true); setPayErr(null);
+    const res = await SG.payFor(s.id);
+    setPayBusy(false);
+    if (!res || res.ok === false) { setPayErr((res && res.message) || 'That didn\'t go through — try again.'); return; }
+    const w = window.open(res.url, '_blank');
+    if (!w) setPayUrl(res.url); // popup blocked — hand the link over instead
+  };
   return (
     <div className="card" style={{ padding: '14px 15px', display: 'flex', flexDirection: 'column', gap: 9 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -130,9 +154,27 @@ function SgMine({ s, SG, onResend }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
         <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: '50%', background: col }}></span>
         <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)' }}>
-          {s.status === 'picked' && s.ran ? s.ran : SG.audienceLabel(s.audience) + ' · ' + SG.cadenceLabel(s.cadence)}
+          {s.status === 'picked' && s.ran ? s.ran
+            : s.status === 'live' && s.win ? SG.audienceLabel(s.audience) + ' · runs ' + s.win.start + ' → ' + s.win.until
+              : SG.audienceLabel(s.audience) + ' · ' + SG.cadenceLabel(s.cadence)}
         </span>
       </div>
+      {s.status === 'approved' && s.quote ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 25%)', paddingTop: 10 }}>
+          <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.5, textWrap: 'pretty' }}>
+            Approved at {fmt(s.quote.ratePerAnswer)} per answer, capped at {fmt(s.quote.capEur)} — it runs {s.quote.windowDays} days from the day after you pay, and the unserved part refunds at close.
+          </span>
+          <button className="press" onClick={pay} disabled={payBusy} style={{ alignSelf: 'flex-start', padding: '9px 15px', borderRadius: 999, cursor: payBusy ? 'default' : 'pointer', WebkitAppearance: 'none', border: 'none', background: 'var(--ink)', color: 'var(--surface)', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 800 }}>
+            {payBusy ? 'Opening…' : 'Pay ' + fmt(s.quote.capEur) + ' →'}
+          </button>
+          {payUrl ? (
+            <a href={payUrl} target="_blank" rel="noreferrer" style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, color: 'var(--accent-ink)' }}>Open the payment page →</a>
+          ) : null}
+          {payErr ? (
+            <div role="alert" style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 650, color: 'var(--ink)', background: 'var(--surface-2)', border: '0.5px solid var(--rule)', borderRadius: 10, padding: '10px 12px', lineHeight: 1.5, textWrap: 'pretty' }}>{payErr}</div>
+          ) : null}
+        </div>
+      ) : null}
       {d ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 25%)', paddingTop: 10 }}>
           <span style={{ fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 800, letterSpacing: '-0.01em' }}>{d.line}</span>
@@ -256,20 +298,20 @@ const sgInput = {
 };
 
 // ── the composer IS the paid flow: question → shape → place & window →
-// price → contract. Money buys the place and the window, never the review
-// and never the frame (docs/PAID-PLAN.md; D288 §3). The contract step is
-// honest about its state: the paid path is a human contract today, so the
-// sheet names that instead of pretending a checkout exists.
+// price → book. Money buys the place and the window, never the review
+// and never the frame (docs/PAID-PLAN.md; D288 §3). Since D304 the flow
+// is machinery end to end: booking → automated review → Stripe checkout
+// on the web → live — and the sheet states exactly that, because the
+// old "human contract today" sentence stopped being true the day the
+// loop stopped needing one.
 function SgForm({ SG, initialAudience, onDone, onCancel }) {
   const [prompt, setPrompt] = useSgState('');
   const [type, setType] = useSgState('binary');
   const [opts, setOpts] = useSgState(['', '']);
   const [topicId, setTopicId] = useSgState(null);
-  const [cadence, setCadence] = useSgState('once');
   const [audience, setAudience] = useSgState(initialAudience || 'world');
   const [wearName, setWearName] = useSgState(true);
   const [ageDim, setAgeDim] = useSgState(false);
-  const [topicDim, setTopicDim] = useSgState(false);
   const [paidStep, setPaidStep] = useSgState('form');
   const [sending, setSending] = useSgState(false);
   // the server's refusal, shown verbatim — the messages are written to be
@@ -289,14 +331,16 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
   const scopeKey = audience === 'city' || audience === 'country' ? audience : 'world';
   const scopeName = sgScopeName(SG, audience);
   const band = SG.ageBand();
-  const hasTopicDim = topicDim && !!topic;
   const parentLabel = scopeKey === 'city' ? sgScopeName(SG, 'country') : 'everyone';
+  // Only dims the SERVING can match (sponsored.ts reads the anchors) —
+  // topic left this list with D304: it is content, the match never reads
+  // it, and a band printing an audience the device cannot verify would be
+  // the disclosure design lying about itself.
   const dims = [];
   if (audience === 'city') dims.push('City: ' + SG.audienceLabel('city'));
   if (audience === 'country') dims.push('Country: ' + SG.audienceLabel('country'));
   if (ageDim && band) dims.push('Age: ' + band);
-  if (hasTopicDim) dims.push('Topic: ' + topic.label.toLowerCase());
-  const extraDims = (ageDim && band ? 1 : 0) + (hasTopicDim ? 1 : 0);
+  const extraDims = ageDim && band ? 1 : 0;
   const buyer = wearName ? SG.meName() : 'The buyer';
   const whyLine = dims.length
     ? buyer + ' asked for ' + dims.map((d) => d.slice(d.indexOf(': ') + 2)).join(' · ') + ', and your profile says that.'
@@ -320,7 +364,20 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
   const submit = async () => {
     if (!valid || sending) return;
     setSending(true); setRefusal(null);
-    const res = await SG.submit({ prompt, type, options: needOpts ? opts : [], topic: topic ? topic.label : '', hue, cadence, audience });
+    // The audience the server books is RAW buckets (SG.audienceBucket) —
+    // the labels on the chips are display, and sponsored.ts matches the
+    // stored anchor values with exact equality. Topic is content, not an
+    // audience dim: nothing in the serving can match on it, and a band
+    // printing a dim the match never reads would be a disclosure that lies.
+    const dims = {};
+    if (audience === 'city') { const b = SG.audienceBucket('city'); if (b) dims.city = b; }
+    if (audience === 'country') { const b = SG.audienceBucket('country'); if (b) dims.country = b; }
+    if (ageDim && band) { const b = SG.audienceBucket('ageBand'); if (b) dims.ageBand = b; }
+    const res = await SG.submitPaid({
+      prompt, type, options: needOpts ? opts : [],
+      topic: topic ? topic.id : null,
+      scope: scopeKey, dims, wearName,
+    });
     setSending(false);
     if (res && res.ok === false) { setRefusal(res.message); return; }
     onDone();
@@ -411,13 +468,14 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
             <div style={{ border: '0.5px solid var(--rule)', borderRadius: 12, background: 'var(--surface-2)', padding: '2px 12px' }}>
               {[
                 ['Scope', scopeName],
-                ['Window', sgNextOpen(scopeKey)
-                  ? 'from ' + sgNextOpen(scopeKey) + ' · 29 days'
-                  : 'no open day in the next 14'],
+                // The functional window (D304): serving starts the day
+                // after payment lands — never a pre-picked day that goes
+                // stale while the checkout sits open.
+                ['Window', 'from the day after you pay · 29 days'],
                 ['Audience', dims.join(' · ') || 'everyone — untagged'],
-                ['Rate', fmt(rate(scopeKey)) + ' per answer · ×' + PRICING.cohorts[scopeKey].idx + ' · locked'],
+                ['Rate', fmt(rate(scopeKey)) + ' per answer · ×' + PRICING.cohorts[scopeKey].idx + ' · locked at approval'],
                 ...(est ? [['Estimate', '≈ ' + sgFmtN(est.perDay * 29) + ' answers · from ' + est.campaigns + ' campaign' + (est.campaigns === 1 ? '' : 's')]] : []),
-                ['Your cap', fmt(PRICING.capEur) + ' — billing stops there'],
+                ['Your cap', fmt(PRICING.capEur) + ' up front · unserved answers refund at close'],
               ].map((r, i, arr) => (
                 <div key={r[0]} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 10, padding: '7px 0', borderBottom: i < arr.length - 1 ? '0.5px solid color-mix(in oklch, var(--rule), transparent 25%)' : 'none' }}>
                   <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' }}>{r[0]}</span>
@@ -425,15 +483,19 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
                 </div>
               ))}
             </div>
+            {/* "Arranged directly for now — no self-serve yet" stood here
+                until D304 made it false: the loop is machinery now, and
+                the sheet says what the machinery actually does. The old
+                estimate line promised a free window extension nothing was
+                built to grant — the refund is the promise the closer
+                actually keeps. */}
             <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.5, textWrap: 'pretty' }}>
-              {est
-                ? 'Locked rate · the claim never shrinks · under 80% of the estimate at close, the window extends free until it is met.'
-                : 'Locked rate · the claim never shrinks.'}
+              Locked rate · billed per answer · what the window doesn't deliver refunds automatically at close.
             </span>
-            <span style={{ fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 750, color: 'var(--ink)' }}>Arranged directly for now — no self-serve yet.</span>
-            <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.45 }}>We reply within a day with the contract, at the published rate-card line.</span>
+            <span style={{ fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 750, color: 'var(--ink)' }}>Checked automatically before anything is charged.</span>
+            <span style={{ fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)', lineHeight: 1.45 }}>Approved asks unlock payment; the card runs from the day after you pay, and every answer lands where you can watch it.</span>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <button className="press" onClick={submit} disabled={!valid || sending} style={{ flex: 1, minHeight: 44, borderRadius: 999, cursor: valid && !sending ? 'pointer' : 'default', WebkitAppearance: 'none', border: 'none', background: valid ? 'var(--ink)' : 'var(--surface-3)', color: valid ? 'var(--surface)' : 'var(--ink-3)', fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 800 }}>{sending ? 'Sending…' : 'Write to us →'}</button>
+              <button className="press" onClick={submit} disabled={!valid || sending} style={{ flex: 1, minHeight: 44, borderRadius: 999, cursor: valid && !sending ? 'pointer' : 'default', WebkitAppearance: 'none', border: 'none', background: valid ? 'var(--ink)' : 'var(--surface-3)', color: valid ? 'var(--surface)' : 'var(--ink-3)', fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 800 }}>{sending ? 'Booking…' : 'Book it →'}</button>
               <button className="press" onClick={() => setPaidStep('form')} style={{ border: 'none', background: 'none', cursor: 'pointer', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, color: 'var(--ink-2)' }}>Keep the draft</button>
             </div>
             {refusal ? (
@@ -458,7 +520,6 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
                 <SgDoorChip on={audience === 'city'} label={'City: ' + SG.audienceLabel('city')} onTap={() => setAudience(audience === 'city' ? 'world' : 'city')}></SgDoorChip>
                 <SgDoorChip on={audience === 'country'} label={'Country: ' + SG.audienceLabel('country')} onTap={() => setAudience(audience === 'country' ? 'world' : 'country')}></SgDoorChip>
                 {band ? <SgDoorChip on={ageDim} label={'Age: ' + band} onTap={() => setAgeDim(!ageDim)}></SgDoorChip> : null}
-                {topic ? <SgDoorChip on={hasTopicDim} label={'Topic: ' + topic.label.toLowerCase()} onTap={() => setTopicDim(!topicDim)}></SgDoorChip> : null}
               </div>
               <div style={{ marginTop: 7, fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 650, color: underFloor ? 'var(--accent-ink)' : 'var(--ink-3)', lineHeight: 1.45, textWrap: 'pretty' }}>
                 {floorLine}
@@ -469,9 +530,12 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
                 <span style={sgLabel}>window</span>
                 <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>first open day: {sgNextOpen(scopeKey) || 'none in the next 14'}</span>
               </div>
+              {/* "ask it daily" left with D304: the over-time lane is the
+                  pulse machinery (PAID-PLAN §8) and it is not wired to
+                  self-serve — a chip that books nothing different would be
+                  a control that lies. It returns when that lane does. */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 7 }}>
                 <SgDoorChip on={true} label="29 days" onTap={() => {}}></SgDoorChip>
-                <SgDoorChip on={cadence === 'daily'} label="ask it daily" onTap={() => setCadence(cadence === 'daily' ? 'once' : 'daily')}></SgDoorChip>
                 <SgDoorChip on={wearName} label="wear your name" onTap={() => setWearName(!wearName)}></SgDoorChip>
               </div>
             </div>
@@ -533,6 +597,22 @@ function SuggestOverlay({ onClose }) {
   const [formAud, setFormAud] = useSgState('world');
   const c = SG.counts();
   const mine = SG.mine();
+  // While a booking sits in "checking", poll its row: the automated
+  // review settles in seconds and the verdict should land on the open
+  // sheet, not behind a reopen. Bounded (every 4s, ~2 minutes) rather
+  // than a listener — the door is opened, not watched (D124/D129), and
+  // past the burst the sweep's cadence is slower than anyone waits.
+  const checking = mine.some((s) => s.booking && s.status === 'review');
+  React.useEffect(() => {
+    if (!checking) return undefined;
+    let ticks = 0;
+    const t = setInterval(() => {
+      ticks += 1;
+      if (ticks > 30) { clearInterval(t); return; }
+      SG.refreshBookings();
+    }, 4000);
+    return () => clearInterval(t);
+  }, [checking, SG]);
   return (
     <div className="overlay" {...dlg}>
       <div className="app-header">

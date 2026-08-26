@@ -22,7 +22,13 @@ cohort the Mirror slices by, and what is still prototype data — see
 ## Collections
 
 ```
-v2_questions/{qid}                 canonical bank, seeded by seedContentV2
+v2_questions/{qid}                 canonical bank, seeded by seedContentV2;
+                                   paid questions (id paidq-*) written live
+                                   by the payment webhook (paid.ts, D304) in
+                                   the same field shape, updatedAt fresh so
+                                   the bank's delta fetch carries them with
+                                   no deploy. The seed only touches its own
+                                   ids, so a reseed never disturbs them
   surface: daily|feed|group|duo|test|learn|pulse|call
   seq: int            rotation order within a surface
   type: binary|choice|scale|rating|vote|duel|rank|dial|field|path|catalog|pulse|call
@@ -548,6 +554,28 @@ v2_mod_queue/{takeId}              server-built daily (buildModQueue):
 v2_mod_verdicts/{takeId}           audit log, one per queue generation
 read/write: nobody client-side — both reachable solely through the
 MOD_UIDS-gated callables (the D22 confinement)
+
+v2_paid_bookings/{uid_ts}          a self-serve paid-question sale in
+  prompt, type, options, topic,    flight (paid.ts, D304). status walks
+  scope, dims (≤3, D228),          review → approved|declined → live:
+  wearName, buyerName?,            the automated review (gates + model)
+  status, note?, review?,          settles it, `quote` locks the rate ×
+  quote?, window?, qid?,           idx off the committed card at
+  stripe?, stripePaymentIntent?,   approval, and the payment webhook
+  reviewAttempts, createdAt        stamps live + window + qid in the
+                                   same transaction that writes the
+                                   purchase and the question
+read: the buyer (uid == auth.uid) · write: nobody (server pens only —
+the callable, the review trigger/sweep, the webhook)
+
+v2_purchases/{uid_bid}             one row per completed sale (PAID-PLAN
+  uid, kind, qid, prompt,          §7 shape) — written by the payment
+  options, scope, place, dims[],   webhook (D304) or the operator's
+  window{start,until}, cadence,    record-purchase.mjs for hand
+  budget{cap,capEur,rate…},        contracts; closePaidCampaignsV2 marks
+  state, reports[], closed?,       `closed` with the answer count and
+  stripePaymentIntent?             the refund it executed
+read: the buyer (uid == auth.uid) · write: nobody client-side
 ```
 
 ## Functions
@@ -661,7 +689,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 149 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 152 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

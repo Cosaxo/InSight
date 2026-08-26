@@ -3,10 +3,17 @@
 **Status: plan, except §3's aggregate half
 ([D226](DECISIONS.md#d226--the-edit-flow-matrix--second-thoughts-become-a-published-number)),
 §4's logic cut
-([D227](DECISIONS.md#d227--the-logic-cut--the-who-voted-sheet-groups-answers-by-the-verified-score))
-and §2's report builder v1
+([D227](DECISIONS.md#d227--the-logic-cut--the-who-voted-sheet-groups-answers-by-the-verified-score)),
+§2's report builder v1
 ([D251](DECISIONS.md#d251--the-report-builder-ships-and-reads-as-a-signed-in-user))
-— the first two built 2026-08-22, the builder 2026-08-23.** Requested by the owner 2026-08-21; everything
+— the first two built 2026-08-22, the builder 2026-08-23 — and the
+selling of §1's paid question itself, which stopped being "by hand" at
+[D304](DECISIONS.md#d304--the-paid-question-sells-itself-automated-review-stripe-checkout-and-a-question-that-goes-live-with-nobody-at-the-desk)
+(2026-08-26): automated review, Stripe checkout, the question written
+live by the webhook, the unserved cap auto-refunded at close. §9.2's
+"sell by hand at hand-set prices" is superseded for questions;
+subscriptions and standalone reports still sell by hand.** Requested by
+the owner 2026-08-21; everything
 else below is unbuilt and binds nothing. This page extends the recorded
 revenue
 paths ([`MONETIZATION.md`](MONETIZATION.md) paths 1–2, re-derived in

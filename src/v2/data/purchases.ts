@@ -13,10 +13,11 @@
 //      (D110) — nothing below runs at module scope.
 //
 // There is NO write path here at all — not a callable, not a fallback.
-// The operator's admin script is the collection's only pen
-// (scripts/record-purchase.mjs; firestore.rules pins `write: if false`),
-// and the room's whole honesty story is that it reads the buyer's own
-// rows plus the same public aggregates everyone reads.
+// The collection's pens are server-side (the Stripe payment webhook for
+// self-serve sales — paid.ts, D304 — and scripts/record-purchase.mjs for
+// hand contracts; firestore.rules pins `write: if false`), and the
+// room's whole honesty story is that it reads the buyer's own rows plus
+// the same public aggregates everyone reads.
 //
 // The split's reads: one v2_question_aggs getDoc per purchase, fetched
 // with the list and cached with it. A buyer has a handful of contracts;

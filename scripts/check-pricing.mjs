@@ -87,6 +87,23 @@ for (const [scope, e] of Object.entries(est)) {
   if (!(Number.isInteger(e.days) && e.days >= 1)) fail(`estimates.${scope}.days must be ≥ 1 — the basis ships with the figure`);
 }
 
+// ── the functions copy (D304) ───────────────────────────────────────────
+// The booking path prices server-side off functions/src/pricing.ts, a
+// generated embed of this same card (scripts/gen-pricing-ts.mjs — the
+// gen-v2content relationship). Byte-compare here so the price the server
+// charges and the price the door prints cannot drift: a card edit without
+// a regen fails THIS gate, not a buyer.
+try {
+  const { generatePricingTs } = await import("./gen-pricing-ts.mjs");
+  const want = generatePricingTs(readFileSync(resolve(root, FILE), "utf8"));
+  const have = readFileSync(resolve(root, "functions", "src", "pricing.ts"), "utf8");
+  if (want !== have) {
+    fail("functions/src/pricing.ts is out of sync with content/pricing.json — run `npm run build:pricing-ts` and commit it");
+  }
+} catch (err) {
+  fail(`functions/src/pricing.ts could not be compared — ${err.message}`);
+}
+
 if (fails.length) {
   console.error(`check-pricing: ${FILE} breaks its own rules:\n`);
   for (const f of fails) console.error(`  ✗ ${f}`);

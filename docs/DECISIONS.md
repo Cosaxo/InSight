@@ -31034,3 +31034,112 @@ instead of being found by whoever reads carefully enough.
 `check:monitoring` held the *lists* equal to the directory the whole time.
 Nothing held the *prose* to the lists. The blockquote stopped quoting counts
 altogether, because a sentence that does not state a count cannot drift.
+## D304 · The paid question sells itself: automated review, Stripe checkout, and a question that goes live with nobody at the desk
+
+**Date: 2026-08-26. Requested by the owner, who answered the four
+questions the build forced in one sitting: the loop must need him for
+NOTHING (an automated check against the guidelines approves what passes,
+"as long as they pay enough for a cohort"); money moves through Stripe
+on the web side; a held review retries rather than declining; and
+under-delivery refunds automatically at close.**
+
+### What this replaces
+
+PAID-PLAN §9.2 sold by hand and said so at every layer: the door's
+contract sheet printed "Arranged directly for now — no self-serve yet",
+`scripts/record-purchase.mjs` was deliberately the purchase collection's
+only pen ("a deployed endpoint that can mint contract records would be
+standing surface in exchange for nothing"), and a sold question reached
+devices as a content PR plus a deploy. Every one of those sentences was
+true and is now retired ON PURPOSE, by this record: the owner asked for
+a loop that runs while he sleeps, and a human PR per sale is the
+opposite of that.
+
+### The loop, and where each old boundary went
+
+`functions/src/paid.ts`, one status per hop on `v2_paid_bookings`:
+
+1. **book** — `bookPaidQuestionV2` (App Check, 5/day budget) validates
+   the form against the same bounds the bank's gates hold (types, the
+   synthesized LIKERT/RATING scales byte-equal to gen-v2content's, dims
+   ≤3 from the published vocabulary with the scope's place dim required,
+   topic from the feed's own list) and writes the booking. The buyer
+   name comes off the PROFILE, never the wire (D228's nameless purchase
+   stays available by having no name to print).
+2. **review** — the create trigger runs it: deterministic gates first,
+   then `claude-opus-5` against `REVIEW_GUIDELINES` (a constant a unit
+   test pins, so a rule cannot silently fall out of the prompt). Money
+   never buys the review (D288) — it runs BEFORE payment exists, which
+   is also why a decline needs no refund path. An API outage HOLDS the
+   booking; `sweepPaidReviewsV2` retries every 30 minutes forever — the
+   owner chose hold-and-retry over fail-closed. In the emulator, or any
+   deploy without the secret, the model half is SKIPPED loudly and
+   gates alone decide (`by: "gates-only"`) — the e2e must run offline,
+   and a phantom "the model approved it" would be worse than the honest
+   record that none did. A safety refusal from the reviewer IS a
+   decline: content the model will not assess does not run as a card.
+3. **approve** — the verdict locks the quote (base × idx off the
+   committed rate card, now embedded in the deploy as generated
+   `functions/src/pricing.ts` — `check:pricing` byte-compares it against
+   `content/pricing.json`, the gen-v2content relationship, because a
+   price the server does not verify is a price the client picked).
+4. **pay** — `createPaidCheckoutV2` turns an approved booking into a
+   Stripe Checkout session (EUR, the cap up front). Commerce stays on
+   the web side (NEXT-FUNCTIONALITY §6): the app opens the URL and
+   never renders a payment form.
+5. **live** — `stripeWebhookV2` (signature-verified, at-least-once-safe
+   behind the status guard) writes, in ONE transaction: the purchase
+   record (the exact shape the room already reads), the question doc
+   into `v2_questions`, and the booking's `live` stamp. The question
+   doc is the seed's own field shape with `updatedAt` fresh — the
+   bank's delta fetch picks it up on every device's next boot, so going
+   live needs no deploy, no contentRev bump, and no third serving path.
+   The window starts the day AFTER payment (today's decks are already
+   dealt) and runs the door's 29 days.
+6. **close** — `closePaidCampaignsV2` (daily) reads the answer count
+   off the PUBLIC aggregate — the same doc buyer and voters read, which
+   is what D164's bill-on-answers was for — and refunds
+   (cap − answers) × rate through Stripe. A failed refund HOLDS the
+   purchase open for tomorrow's run; closing it would record the debt
+   as settled.
+
+What did NOT move: the one-slot cap (concurrent buyers share by day
+rotation, priced in from D195), tail-never-core (the written doc carries
+no `core`), selection on the device (the audience tag rides the
+content), and the review's primacy over money. The audience "Topic"
+chip left the door in the same change: sponsored matching reads
+anchors, anchors have no topic, and a band printing a dim the match
+never reads would be the disclosure design lying about itself. The "ask
+it daily" chip left too — the over-time lane is the pulse machinery
+(PAID-PLAN §8) and it is not wired to self-serve; a chip that books
+nothing different is a control that lies. Both return when their
+machinery does.
+
+### The trail
+
+`v2_paid_bookings`: owner-read/write-false rules with tests, a
+composite index for the sweep, phase 4f in `deleteAccount` plus the
+`paidbook_` ledger, `data-inventory.md` row, SCHEMA-V2 note. The
+booking budget is 5/day where suggestions hold 3 — a model has no queue
+to pace, but each booking is a review someone (us) pays for.
+`web/privacy.html` gains the Stripe sentence and `check:policy-claims`
+holds it. The door's copy now states the functional truth ("Checked
+automatically before anything is charged"), and the old estimate line's
+free-extension promise — which nothing was ever built to grant — is
+replaced by the refund the closer actually keeps. Secrets
+(`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `ANTHROPIC_API_KEY`) and
+the webhook's dashboard configuration are DEPLOYMENT.md's; until they
+are set, production books and declines but cannot approve past gates,
+sell, or refund — each degradation logged, none silent.
+
+### What this deliberately leaves open
+
+Self-serve is questions only: place-score subscriptions (PAID-PLAN §5)
+still wait, the report shelf still points at the contract channel, and
+`record-purchase.mjs` stays the pen for hand-arranged sales — the
+webhook is a second pen for the same shape, not a replacement. The
+demand index still recomputes by script; a sale updates the ledger the
+next `build-pricing.mjs` run folds, so the door's booked ticks can lag
+a sale until then — prices cannot, because the committed card is the
+price. And the review model's bill rides the Anthropic account, not
+COSTS.md's Firebase arithmetic; one line there names it.

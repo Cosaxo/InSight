@@ -109,6 +109,17 @@ export const CLAIMS = [
     /verified logic score, in\s+four broad\s+bands/i],
   ["D251 · sold reports are packaged public numbers, never a private read",
     /report never contains\s+anything a signed-in user could not read/i],
+  // D304 is one disclosure in two halves, the D268 pair's shape: one row
+  // pins the automated review (a submitted ask is read by an AI reviewer
+  // — that is a processor a buyer should learn from the page, not from a
+  // decline), the other pins the payment boundary (Stripe holds the
+  // payment details; we keep the booking and the refund arithmetic).
+  // Deleting either half leaves a page describing a different pipeline
+  // than the one that runs.
+  ["D304 · paid submissions are reviewed automatically, by rules and an AI reviewer",
+    /checked automatically[\s\S]{0,200}?AI reviewer/i],
+  ["D304 · payment runs on Stripe and the payment details never reach us",
+    /Stripe receives your payment details and we never see\s+them/i],
   ["D253 · sold reports group answers by all four tests' types and axes",
     /matched type and axis\s+bands/i],
   // D268 is one disclosure in two halves, pinned separately for the D202

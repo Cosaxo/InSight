@@ -1702,5 +1702,164 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   ok("a scored attempt refuses a second submit");
 }
 
+// 12 · The self-serve paid-question loop (paid.ts, D304): book → the
+// automated review settles it (gates alone in the emulator — no model
+// key, and the run must prove that honest degradation, not paper over
+// it) → the locked quote → the SIGNED webhook goes live in one
+// transaction → the question serves and aggregates like any bank
+// question, which is the whole no-third-serving-path claim.
+{
+  const whsec = process.env.STRIPE_WEBHOOK_SECRET || "";
+  if (!whsec) {
+    fail("STRIPE_WEBHOOK_SECRET missing from the e2e env — package.json's test:e2e scripts set whsec_e2e for exactly this leg");
+  }
+
+  // A fresh account: the main uid's daily budgets are spent by earlier
+  // legs, and a buyer's loop should not lean on them anyway.
+  const payApp = initializeApp({ projectId: "demo-insight", apiKey: "demo", appId: "demo" }, "paid1");
+  const payAuth = getAuth(payApp); connectAuthEmulator(payAuth, "http://127.0.0.1:9099", { disableWarnings: true });
+  const payDb = getFirestore(payApp, E2E_DB_ID); connectFirestoreEmulator(payDb, "127.0.0.1", 8080);
+  const payFns = getFunctions(payApp, FUNCTIONS_REGION); connectFunctionsEmulator(payFns, "127.0.0.1", 5001);
+  const buyer = await signInAnonymously(payAuth);
+
+  const book = await httpsCallable(payFns, "bookPaidQuestionV2")({
+    prompt: "Should the harbour bath stay open all winter?",
+    type: "binary", options: ["Keep it open", "Close for winter"],
+    topic: "culture", scope: "city", dims: { city: "Oslo, NO" }, wearName: false,
+  });
+  const bid = book.data?.id;
+  if (!bid) fail("bookPaidQuestionV2 returned " + JSON.stringify(book.data));
+  ok("paid booking opened: " + bid.slice(0, 16) + "…");
+
+  // The review trigger settles it. Poll through the buyer's OWN read —
+  // the same rules-refereed path the door polls.
+  let booking = null;
+  for (let i = 0; i < 60; i++) {
+    const s = await getDoc(doc(payDb, "v2_paid_bookings", bid));
+    if (s.exists() && s.get("status") !== "review") { booking = s.data(); break; }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!booking) fail("the review never settled the booking");
+  if (booking.status !== "approved") fail("expected approved, got " + JSON.stringify(booking));
+  // The honest degradation: no ANTHROPIC_API_KEY in the emulator, so the
+  // verdict must SAY it was gates alone — a recorded "model" basis that no
+  // model produced would be the phantom approval paid.ts refuses to fake.
+  if (booking.review?.by !== "gates-only") {
+    fail("emulator review must record by=gates-only, got " + JSON.stringify(booking.review));
+  }
+  // The locked quote, off the committed card: base 0.16 × idx 0.9.
+  const q = booking.quote || {};
+  if (q.ratePerAnswer !== 0.144 || q.capEur !== 320 || q.cap !== Math.floor(320 / 0.144) || q.windowDays !== 29) {
+    fail("quote is not the committed card's arithmetic: " + JSON.stringify(q));
+  }
+  ok("review approved on gates alone (recorded as such) with the locked quote");
+
+  // A gate decline, with the reason written to be shown. Duplicate
+  // options are two indexes wearing one answer — the aggregate would
+  // publish a split between identical labels.
+  const bad = await httpsCallable(payFns, "bookPaidQuestionV2")({
+    prompt: "Ferry or ferry?", type: "binary", options: ["Ferry", "FERRY"],
+    topic: null, scope: "world", dims: {}, wearName: false,
+  });
+  let declined = null;
+  for (let i = 0; i < 40; i++) {
+    const s = await getDoc(doc(payDb, "v2_paid_bookings", bad.data.id));
+    if (s.exists() && s.get("status") !== "review") { declined = s.data(); break; }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!declined || declined.status !== "declined" || !/same thing/.test(declined.note || "")) {
+    fail("duplicate-option booking was not declined with its reason: " + JSON.stringify(declined));
+  }
+  ok("a gate decline lands with its reason, before any payment exists");
+
+  // Checkout refuses honestly while Stripe is unconfigured — the
+  // emulator has no STRIPE_SECRET_KEY on purpose.
+  await expectCode("checkout refuses without Stripe configured",
+    "functions/unavailable",
+    () => httpsCallable(payFns, "createPaidCheckoutV2")({ id: bid }));
+
+  // The webhook. A synthetic checkout.session.completed signed with the
+  // shared secret — the same t=…,v1=HMAC(t.payload) scheme
+  // Stripe.webhooks.constructEvent verifies (probed against stripe@18,
+  // not assumed).
+  const { createHmac } = await import("node:crypto");
+  const hookUrl = `http://127.0.0.1:5001/demo-insight/${FUNCTIONS_REGION}/stripeWebhookV2`;
+  const signedPost = (payload, secret) => {
+    const t = Math.floor(Date.now() / 1000);
+    const v1 = createHmac("sha256", secret).update(`${t}.${payload}`).digest("hex");
+    return fetch(hookUrl, {
+      method: "POST",
+      headers: { "content-type": "application/json", "stripe-signature": `t=${t},v1=${v1}` },
+      body: payload,
+    });
+  };
+  const sessionEvent = JSON.stringify({
+    id: "evt_e2e_1", object: "event", type: "checkout.session.completed",
+    data: { object: { id: "cs_e2e_1", object: "checkout.session", client_reference_id: bid, metadata: { bid }, payment_intent: "pi_e2e_1" } },
+  });
+
+  // A tampered delivery is refused BEFORE any state moves.
+  const forged = await signedPost(sessionEvent, "whsec_wrong");
+  if (forged.status !== 400) fail("a mis-signed webhook was not refused: " + forged.status);
+  const stillApproved = await getDoc(doc(payDb, "v2_paid_bookings", bid));
+  if (stillApproved.get("status") !== "approved") fail("a refused webhook still moved the booking");
+  ok("a mis-signed webhook is refused and moves nothing");
+
+  const paid = await signedPost(sessionEvent, whsec);
+  if (paid.status !== 200) fail("webhook answered " + paid.status + ": " + await paid.text());
+
+  // Live: booking stamped, purchase written in the room's exact shape,
+  // question doc world-readable in the seed's field shape.
+  const liveSnap = await getDoc(doc(payDb, "v2_paid_bookings", bid));
+  if (liveSnap.get("status") !== "live") fail("payment did not go live: " + JSON.stringify(liveSnap.data()));
+  const qid = liveSnap.get("qid");
+  if (qid !== `paidq-${bid}`) fail("unexpected qid: " + qid);
+  const purchase = await getDoc(doc(payDb, "v2_purchases", `${buyer.user.uid}_${bid}`));
+  if (!purchase.exists()) fail("the webhook wrote no purchase record");
+  if (purchase.get("state") !== "running" || purchase.get("qid") !== qid
+    || purchase.get("budget")?.ratePerAnswer !== 0.144
+    || purchase.get("stripePaymentIntent") !== "pi_e2e_1") {
+    fail("purchase record malformed: " + JSON.stringify(purchase.data()));
+  }
+  // Any signed-in user reads the question — it is bank content now. The
+  // MAIN account (a different uid) is the reader on purpose.
+  const qDoc = await getDoc(doc(db, "v2_questions", qid));
+  if (!qDoc.exists()) fail("the live question doc is not readable as bank content");
+  if (qDoc.get("surface") !== "feed" || qDoc.get("core") !== undefined || !qDoc.get("sponsor")
+    || !qDoc.get("updatedAt") || !qDoc.get("from") || !qDoc.get("until")) {
+    fail("live question doc missing its serving shape: " + JSON.stringify(qDoc.data()));
+  }
+  if (qDoc.get("sponsor").buyer !== undefined) {
+    fail("a nameless booking grew a buyer name: " + JSON.stringify(qDoc.get("sponsor")));
+  }
+  ok("payment went live: purchase + disclosed question in one transaction");
+
+  // At-least-once delivery: the SAME event again answers 200 and mints
+  // nothing new — the status guard is the idempotency.
+  const replay = await signedPost(sessionEvent, whsec);
+  if (replay.status !== 200) fail("a replayed webhook errored: " + replay.status);
+  ok("a replayed delivery is a no-op behind the status guard");
+
+  // The serving claim, closed end to end: the MAIN account answers the
+  // paid question through the ORDINARY answer path and the ordinary
+  // trigger folds it — same rules, same aggregate, no third path. (The
+  // answer works because the doc the webhook wrote satisfies the same
+  // get()-backed rules every bank question does.)
+  await setDoc(doc(db, `v2_users/${uid}/answers/${qid}`), {
+    qid, surface: "feed", optionIdx: 0,
+    answeredAt: serverTimestamp(), anchors: {},
+  });
+  let paidAgg = null;
+  for (let i = 0; i < 40; i++) {
+    const s = await getDoc(doc(db, "v2_question_aggs", qid));
+    if (s.exists()) { paidAgg = s.data(); break; }
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!paidAgg || paidAgg.counts?.["0"] !== 1) {
+    fail("the paid question's answer did not fold: " + JSON.stringify(paidAgg));
+  }
+  ok("a paid question takes answers and aggregates through the ordinary path");
+}
+
 console.log("\nALL E2E CHECKS PASSED");
 process.exit(0);
