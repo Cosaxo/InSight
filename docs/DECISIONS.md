@@ -30909,7 +30909,13 @@ conversion is its own reviewed change.
 
 1. **BANK-DELIVERY §3** — the bank cache to IndexedDB. Three call
    sites; takes the practical ceiling past 10,000 docs before any
-   architecture moves.
+   architecture moves. That figure is the interim's headroom, not a
+   target: the owner's direction (restated 2026-08-26: *"there should
+   be no question limit"*) is that after phase 3 bank size is
+   unbounded BY DESIGN — no device ever holds the catalogue, so no
+   number anywhere says how big it may be. `BANK_WARN`/`BANK_FAIL`
+   guard the whole-bank interim and retire or re-point with it
+   (§3's own rule for gates that caught something).
 2. **Learn pages.** A published learn order plus fetch-on-reach; then
    the lane's pace unbinds from consumption — `FIELD_TARGET` stays a
    shape goal (D283), cadence and `RUN_CAP` become throughput questions
