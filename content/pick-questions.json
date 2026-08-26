@@ -148,6 +148,12 @@
       "domain": "pokemon",
       "cat": "fav",
       "prompt": "The best Pokémon name?"
+    },
+    {
+      "id": "pk28",
+      "domain": "athletes",
+      "cat": "fav",
+      "prompt": "The greatest athlete who ever lived?"
     }
   ]
 }

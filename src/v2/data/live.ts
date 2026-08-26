@@ -4057,6 +4057,34 @@ const LIVE = {
       .map((q) => buildSPure(q, null, voteCtx(q.id), now));
   }),
   /**
+   * The place questions this account can still answer for a scope (D307)
+   * — every active `rating` in the daily bank that rates it and carries
+   * no vote from this account.
+   *
+   * From the BANK, not from aggregated(): a rates question the rotation
+   * has not reached usually has no published counts at all, and at a
+   * young population that is most of them — which left the Scores lens
+   * empty for weeks with nothing anyone could do about it. The ask is
+   * blind exactly like the daily it is: nothing here reveals a split,
+   * and the vote goes through vote(), the one path (anchors snapshot,
+   * D205's rates-aware city gate, the ledger) every answer takes.
+   *
+   * Daily bank only, which is where every `rates` question lives (D187);
+   * if the feed ever grows one, its serving is the feed's own filter and
+   * does not belong in this walk.
+   */
+  placeAsks(scope: string): Array<{ id: string; text: string; optionCount: number }> {
+    return state.questions
+      .filter((q) =>
+        q.active !== false && q.type === "rating" && q.rates === scope
+        && !state.votes[q.id])
+      .map((q) => ({
+        id: q.id,
+        text: q.prompt,
+        optionCount: (q.options || []).length,
+      }));
+  },
+  /**
    * The core feed questions with a published aggregate, as the same view
    * models — the Patterns pool's other half (the nightly fit folds
    * two-option daily + core feed, functions/src/patterns.ts). Core only
