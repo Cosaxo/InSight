@@ -207,9 +207,22 @@ describe("paidQuestionDoc — the third pen writes the seed's own shape", () => 
   const doc = paidQuestionDoc(BOOKING, "Olaf", "2026-08-27", "2026-09-24", 120000);
 
   it("is a feed question the client's bank fetch will carry", () => {
-    // live.ts filters `surface in BANK_SURFACES` and splitBanks demands
-    // ≥2 options; the answer rules bound optionIdx by options.size().
+    // THIS CASE'S OWN CLAIM STOPPED BEING TRUE the day D316/D321 landed,
+    // hours after this file. Its comment used to read "live.ts filters
+    // `surface in BANK_SURFACES`" — and the feed came out of that list:
+    // the boot fetch now asks for the boot surfaces plus `feed && core`,
+    // and everything else on the feed pages behind the order rankBankV2
+    // publishes from the COMPILED bank, which a document written here at
+    // runtime can never enter. So `surface: "feed"` alone reached nobody,
+    // and the case that was supposed to guarantee delivery kept passing.
+    //
+    // `paid` is the marker the third boot query asks for, paired with the
+    // window so the set is the campaigns RUNNING. Asserted together,
+    // because either alone is the bug back.
     expect(doc.surface).toBe("feed");
+    expect(doc.paid, "nothing marks this as bought — no boot query reaches it").toBe(true);
+    // splitBanks demands ≥2 options; the answer rules bound optionIdx by
+    // options.size().
     expect((doc.options as string[]).length).toBeGreaterThanOrEqual(2);
     expect(doc.from).toBe("2026-08-27");
     expect(doc.until).toBe("2026-09-24");
@@ -218,6 +231,8 @@ describe("paidQuestionDoc — the third pen writes the seed's own shape", () => 
   });
 
   it("is tail, never core, and always disclosed", () => {
+    // `core` would be the wrong way to make it reachable: core is the
+    // Mirror's corpus (D161), which a bought question must not join.
     expect("core" in doc).toBe(false);
     expect(doc.sponsor).toBeDefined(); // the PAID band renders from presence
     expect((doc.sponsor as { buyer?: string }).buyer).toBe("Olaf");

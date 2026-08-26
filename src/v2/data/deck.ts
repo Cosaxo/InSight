@@ -111,6 +111,17 @@ export interface QuestionDoc {
   // construction and carries no key, which is why readers must go through
   // `isCore()` below rather than testing this field directly.
   core?: boolean;
+  // Bought reach (D313). Set only by the paying webhook, on a question
+  // written into the bank at runtime — which is exactly the question no
+  // published order can carry, because `rankBankV2` builds the feed's
+  // order from the COMPILED bank. Absent on every seeded question, so
+  // like `core` it is emit-when-set and absence means "not this".
+  //
+  // The client's boot fetch asks for it beside `until`, so a bought
+  // question ships whole for the length of the window it was bought for
+  // (live.ts) — the delivery D313 sells and D316/D321 would otherwise
+  // have left with no route to a device.
+  paid?: boolean;
   // Doors (docs/TAGS-PLAN.md §1): the topics a feed question ALSO belongs
   // to, beside its `topic` home. Feed-only, emit-when-set, and reach-only —
   // the feed's filter, stock and search read topic ∪ also, while everything

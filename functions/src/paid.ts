@@ -855,6 +855,26 @@ export function paidQuestionDoc(
 ): Record<string, unknown> {
   return {
     surface: "feed",
+    // THE MARKER THE BOOT FETCH NEEDS, and the reason it exists rather
+    // than being inferred.
+    //
+    // D316/D321 narrowed what a device fetches whole: the boot surfaces,
+    // plus `surface == "feed" && core == true`. Everything else on the
+    // feed pages behind the order `rankBankV2` publishes — and that order
+    // is built from the COMPILED bank (`V2_QUESTIONS`), which a question
+    // written here at runtime can never be in. Both halves landed the same
+    // day as this file, in that sequence, so a bought question went into
+    // `v2_questions` and was fetched by nobody: the buyer paid, the
+    // aggregate stayed at zero, and the closer refunded the whole cap 29
+    // days later.
+    //
+    // `core` would be the wrong fix — core is the Mirror's corpus (D161),
+    // which a paid question must not join. This says what is actually
+    // true: a runtime question no compiled order carries, which therefore
+    // ships whole for the length of its window. Paired with `until` in the
+    // client's query, so the set is the campaigns RUNNING, not every one
+    // ever bought.
+    paid: true,
     seq,
     type: b.type,
     domain: null,

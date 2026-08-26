@@ -1371,6 +1371,10 @@ async function hydrate(): Promise<void> {
           (row) =>
             BANK_SURFACES.includes(row.surface)
             || (row.surface === "feed" && row.core === true)
+            // A bought question arriving mid-session is the same case as a
+            // freshly promoted core one: it has to reach the device, and
+            // no pager will ever offer it (see the third boot query).
+            || (row.surface === "feed" && row.paid === true)
             || byId.has(row.id),
         );
         for (const row of deltaRows) byId.set(row.id, row);
@@ -1447,7 +1451,27 @@ async function hydrate(): Promise<void> {
       .filter((q) => BANK_SURFACES.includes(q.surface));
     const coreRows = (await fetchPaged([where("surface", "==", "feed"), where("core", "==", true)]))
       .filter((q) => q.surface === "feed");
-    all = [...bootRows, ...coreRows];
+    // …and a third, for the questions no published order can carry.
+    //
+    // A BOUGHT question (D313) is written into `v2_questions` by the
+    // paying webhook at runtime, while `rankBankV2` builds the feed's
+    // order from the COMPILED bank — so a paid question is in no order,
+    // and the two queries above do not reach it either: it is not a boot
+    // surface, and it is not core (core is the Mirror's corpus, D161,
+    // which a bought question must not join). D313 and D316/D321 landed
+    // the same day in that sequence, and between them a buyer paid, the
+    // question was fetched by nobody, its aggregate stayed at zero, and
+    // the closer refunded the cap 29 days later.
+    //
+    // Bought reach ships WHOLE, like core, for exactly as long as it was
+    // bought for — which is why the window is in the query rather than
+    // left to `fresh()`: the set is the campaigns running today, not every
+    // one ever sold.
+    const paidRows = (await fetchPaged([
+      where("paid", "==", true),
+      where("until", ">=", utcDayKey(0)),
+    ])).filter((q) => q.surface === "feed");
+    all = [...bootRows, ...coreRows, ...paidRows];
     cursor = maxCursor;
     state.stats.bankSource = "network";
     // Whatever the cache held (a delta can overflow into this path from an

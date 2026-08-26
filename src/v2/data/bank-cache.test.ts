@@ -147,10 +147,25 @@ vi.mock("firebase/firestore", () => {
         const surfaceIn = cons.find((c) => c.kind === "where" && c.field === "surface" && c.op === "in");
         const surfaceEq = cons.find((c) => c.kind === "where" && c.field === "surface" && c.op === "==");
         const coreEq = cons.find((c) => c.kind === "where" && c.field === "core" && c.op === "==");
+        // …and the THIRD boot query's pair (D313's bought reach): `paid ==
+        // true` with the window still open. Both are applied here for the
+        // reason the paragraph above gives — a fake that ignores a
+        // constraint hands the query the whole bank, and the test then
+        // passes on a query that in production returns nothing.
+        const paidEq = cons.find((c) => c.kind === "where" && c.field === "paid" && c.op === "==");
+        const untilGte = cons.find((c) => c.kind === "where" && c.field === "until" && c.op === ">=");
         let docs = [...h.bankDocs].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
         if (surfaceIn) docs = docs.filter((d) => (surfaceIn.value as string[]).includes(d.data.surface as string));
         if (surfaceEq) docs = docs.filter((d) => d.data.surface === surfaceEq.value);
         if (coreEq) docs = docs.filter((d) => d.data.core === coreEq.value);
+        if (paidEq) docs = docs.filter((d) => d.data.paid === paidEq.value);
+        // Firestore drops a document that does not carry the field an
+        // inequality names — which is what keeps the seeded bank out of
+        // this query, so the fake has to do it too.
+        if (untilGte) {
+          docs = docs.filter((d) => typeof d.data.until === "string"
+            && (d.data.until as string) >= (untilGte.value as string));
+        }
         const after = cons.find((c) => c.kind === "startAfter")?.value as { id: string } | undefined;
         if (after && !h.stuckCursor) {
           docs = docs.slice(docs.findIndex((d) => d.id === after.id) + 1);
@@ -276,8 +291,9 @@ afterEach(() => {
 describe("question-bank cache", () => {
   it("fetches the whole bank on a cold boot and records the cursor", async () => {
     await bootLive();
-    // Two since D321: the boot surfaces, then the feed's core.
-    expect(bankFetches()).toBe(2);
+    // Three: the boot surfaces, the feed's core (D321), and the bought
+    // questions no published order can carry (D313).
+    expect(bankFetches()).toBe(3);
     expect(isDelta(0)).toBe(false);
     const cached = await readCache();
     expect(cached.questions).toHaveLength(2);
@@ -355,8 +371,8 @@ describe("question-bank cache", () => {
     await seedCache({ ...first, rev: first.rev + 1 });
 
     await bootLive();
-    // Both boot queries re-run — the cursor is not trusted either.
-    expect(bankFetches()).toBe(2);
+    // All three boot queries re-run — the cursor is not trusted either.
+    expect(bankFetches()).toBe(3);
     expect(isDelta(0)).toBe(false);
   });
 
@@ -393,8 +409,9 @@ describe("question-bank cache", () => {
     h.bankDocs = bulk(2500);
     await bootLive();
     // 1000 + 1000 + 500: the third page is short, which is what ends it.
-    // 1000 + 1000 + 500 pages, plus the core-feed query's one empty page.
-    expect(bankFetches()).toBe(4);
+    // Plus one empty page each for the core-feed and bought-question
+    // queries.
+    expect(bankFetches()).toBe(5);
     expect((await readCache()).questions).toHaveLength(2500);
   });
 
@@ -405,8 +422,9 @@ describe("question-bank cache", () => {
     // in the real world and look perfectly healthy doing it.
     h.bankDocs = bulk(2000);
     await bootLive();
-    // Three pages for the boot surfaces plus the core-feed query (D321).
-    expect(bankFetches()).toBe(4);
+    // Three pages for the boot surfaces, plus one each for the core-feed
+    // (D321) and bought-question (D313) queries.
+    expect(bankFetches()).toBe(5);
     expect(h.bankQueries[2].cons.some((c) => c.kind === "startAfter")).toBe(true);
     expect((await readCache()).questions).toHaveLength(2000);
   });
@@ -429,7 +447,8 @@ describe("question-bank cache", () => {
       JSON.stringify({ rev: 0, questions: [q("q_9", 0).data] }),
     );
     await bootLive();
-    expect(bankFetches()).toBe(2);
+    // The three boot queries (D321's core split, D313's bought reach).
+    expect(bankFetches()).toBe(3);
     expect(isDelta(0)).toBe(false);
     expect((await readCache()).questions.map((x: { id: string }) => x.id)).toEqual(["q_1", "q_2"]);
   });
@@ -508,6 +527,70 @@ describe("question-bank cache", () => {
     ]);
     expect(LIVE.pulseQs().map((x) => x.id)).toEqual(["pulse-pace"]);
     expect(LIVE.callQs().map((x) => x.id)).toEqual(["call-c01"]);
+  });
+
+  // ── bought reach has to reach somebody (D313 against D316/D321) ────
+  //
+  // A bought question is written into `v2_questions` by the paying
+  // webhook, at runtime. The boot fetch above asks for the boot surfaces
+  // and for `feed && core`; the rest of the feed pages behind the order
+  // `rankBankV2` publishes — and that order is built from the COMPILED
+  // bank, which a runtime document can never be in. Both halves landed on
+  // the same day in that sequence, and between them a paid question was
+  // in no query and no order: the buyer paid, the question reached zero
+  // devices, and the closer refunded the cap 29 days later.
+  //
+  // Asserted on the QUERY as well as the bank, for the reason the surface
+  // case gives: a document the server never returned and one the client
+  // filtered away look identical from the bank, and only one of them is a
+  // read nobody paid for.
+  it("fetches a bought question, which is neither a boot surface nor core", async () => {
+    h.bankDocs = [
+      q("q_1", 1000),
+      q("paidq-b1", 1000, {
+        surface: "feed", topic: "culture",
+        paid: true, from: dayKey(-1), until: dayKey(27),
+      }),
+      // The tail it must not drag in with it: a feed question that is
+      // neither core nor paid still pages behind the order.
+      q("feed-t9", 1000, { surface: "feed", topic: "culture" }),
+    ];
+    const LIVE = await bootLive();
+    const paidCons = h.bankQueries[2].cons.filter((c) => c.kind === "where");
+    expect(paidCons.map((c) => [c.field, c.op])).toEqual([["paid", "=="], ["until", ">="]]);
+    expect(
+      paidCons.find((c) => c.field === "paid")!.value,
+      "the third boot query does not ask for bought questions",
+    ).toBe(true);
+    void LIVE;
+    const ids = (await readCache()).questions.map((x: { id: string }) => x.id);
+    expect(ids, "a paid question reached no device — the buyer paid for nothing").toContain("paidq-b1");
+    expect(ids, "the paged tail came in with it, un-paging the feed").not.toContain("feed-t9");
+  });
+
+  it("keeps a bought question that arrives in the DELTA", async () => {
+    // Mid-session is the ordinary case: a campaign goes live when its
+    // payment clears, not when a device happens to boot. The delta drops
+    // an unheld non-core feed row on purpose (that is the pager's
+    // decision), so without its own clause the question waits for the
+    // next cold boot — or, if the device never rewrites its cache, longer.
+    h.bankDocs = [q("q_1", 1000)];
+    await bootLive();
+    vi.resetModules();
+    h.bankQueries.length = 0;
+    h.bankDocs = [...h.bankDocs, q("paidq-b2", 9000, {
+      surface: "feed", topic: "culture",
+      paid: true, from: dayKey(-1), until: dayKey(27),
+    })];
+    await bootLive();
+    // The delta, not a re-fetch: this is the cheap path, and the clause
+    // has to live in its keep-filter rather than being covered by a full
+    // read the next boot might not do.
+    expect(isDelta(0), "the boot re-fetched instead of taking the delta").toBe(true);
+    expect(
+      (await readCache()).questions.map((x: { id: string }) => x.id),
+      "a campaign that went live mid-session never reached the device",
+    ).toContain("paidq-b2");
   });
 
   // ── the current-events serving window (D231) ─────────────────────

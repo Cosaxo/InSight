@@ -211,7 +211,31 @@ vi.mock("firebase/firestore", () => {
     getDocs: (q: { path?: string; parts?: Array<{ __kind: string; value?: unknown }> }) => {
       // Lets a test simulate a network failure mid-hydrate.
       if (h.getDocsImpl) return Promise.reject(h.getDocsImpl());
-      if (q?.path === "v2_questions") return Promise.resolve(snapOf(h.bankDocs));
+      if (q?.path === "v2_questions") {
+        // THE BOOT IS THREE QUERIES since D321/D313 — the boot surfaces,
+        // `feed && core`, and the bought questions (`paid == true` with
+        // the window open). This stub deliberately serves the whole bank
+        // to the first two, which is why every feed fixture below reaches
+        // the deck without saying `core`; making it faithful is a bigger
+        // change than it looks and is on the night list.
+        //
+        // The PAID query is filtered, because it is the one this file
+        // would otherwise break: unfiltered it hands back the whole bank
+        // a third time, and hydrate concatenates the copies — which is
+        // how the patterns-gate count read three where the fixture holds
+        // one, with the duplication invisible while there were two.
+        const wheres = (q.parts || []).filter(
+          (pt) => (pt as { __kind: string }).__kind === "where",
+        ) as Array<{ field: string; value: unknown }>;
+        const paid = wheres.find((w) => w.field === "paid");
+        if (!paid) return Promise.resolve(snapOf(h.bankDocs));
+        const floor = String(wheres.find((w) => w.field === "until")?.value ?? "");
+        return Promise.resolve(snapOf(h.bankDocs.filter((d) =>
+          d.data.paid === paid.value
+          // Firestore drops a document that lacks the field an inequality
+          // names — which is what keeps the seeded bank out of this query.
+          && typeof d.data.until === "string" && (d.data.until as string) >= floor)));
+      }
       // The my-answers pull (and, on a warm boot, the D86 edit-cursor
       // query on the same path — fold() is idempotent over the repeat).
       if (q?.path === "v2_users/uid_test/answers") {
