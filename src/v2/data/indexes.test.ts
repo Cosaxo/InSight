@@ -138,6 +138,30 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
     expect(o!.indexes.some((i) => i.queryScope === "COLLECTION_GROUP" && i.order === "ASCENDING")).toBe(true);
   });
 
+  it("engagement.ts rollupPage: the (folded, day) collection-group composite exists", () => {
+    // rollupPage orders by `day` so the nightly queue is FIFO. Without an
+    // orderBy Firestore falls back to `__name__`, which for this group is
+    // `v2_users/{uid}/engagement/{day}` — uid-major, so above the cap the
+    // same low-sorting accounts are taken every night and the rest starve.
+    //
+    // The single-field `folded` override does not cover a query that also
+    // orders on another field, and the emulator does not enforce index
+    // configuration — so a missing composite fails in PRODUCTION ONLY,
+    // with FAILED_PRECONDITION, on a scheduled function nobody is watching.
+    // This assertion is the only thing standing between that and a silent
+    // nightly outage.
+    const hit = cfg.indexes.find(
+      (ix) =>
+        ix.collectionGroup === "engagement"
+        && ix.queryScope === "COLLECTION_GROUP"
+        && JSON.stringify(ix.fields) === JSON.stringify([
+          { fieldPath: "folded", order: "ASCENDING" },
+          { fieldPath: "day", order: "ASCENDING" },
+        ]),
+    );
+    expect(hit, "the engagement (folded, day) collection-group composite is missing or reshaped — rollupPage fails FAILED_PRECONDITION in production").toBeDefined();
+  });
+
   it("firestore.indexes.json declares each top-level key exactly once", () => {
     // The general form of the bug above. JSON.parse silently keeps the LAST
     // of a duplicated key, so a second "indexes" or "fieldOverrides" block

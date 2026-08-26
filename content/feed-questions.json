@@ -2575,6 +2575,208 @@
           "count": 2800
         }
       ]
+    },
+    {
+      "id": "f93",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "Whose biography tonight: Churchill, Bowie, Serena Williams, or Marie Curie?",
+      "options": [
+        {
+          "label": "Churchill",
+          "count": 1400
+        },
+        {
+          "label": "David Bowie",
+          "count": 1900
+        },
+        {
+          "label": "Serena Williams",
+          "count": 1300
+        },
+        {
+          "label": "Marie Curie",
+          "count": 1700
+        }
+      ]
+    },
+    {
+      "id": "f94",
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "The song stuck in your head: fight it, or play it?",
+      "options": [
+        {
+          "label": "Fight it",
+          "count": 2100
+        },
+        {
+          "label": "Play it",
+          "count": 3200
+        }
+      ]
+    },
+    {
+      "id": "f95",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "Tonight's film: a favourite again, or a gamble on something new?",
+      "options": [
+        {
+          "label": "The favourite, again",
+          "count": 2600
+        },
+        {
+          "label": "Something new",
+          "count": 2800
+        }
+      ]
+    },
+    {
+      "id": "f96",
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "prompt": "World Cup final: in the stadium, at home with friends, or the big screen in a pub?",
+      "options": [
+        {
+          "label": "In the stadium",
+          "count": 2200
+        },
+        {
+          "label": "Home with friends",
+          "count": 2500
+        },
+        {
+          "label": "Big screen in a pub",
+          "count": 1600
+        }
+      ]
+    },
+    {
+      "id": "dl12",
+      "core": false,
+      "cat": "culture",
+      "type": "dial",
+      "prompt": "Books finished last year — how many?",
+      "lo": 0,
+      "hi": 30,
+      "unit": "books"
+    },
+    {
+      "id": "f97",
+      "core": false,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "Pineapple on pizza?",
+      "options": [
+        {
+          "label": "Obviously yes",
+          "count": 2700
+        },
+        {
+          "label": "Never",
+          "count": 2900
+        }
+      ]
+    },
+    {
+      "id": "f98",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "The narrator of your life's documentary: David Attenborough, or Morgan Freeman?",
+      "options": [
+        {
+          "label": "David Attenborough",
+          "count": 2900
+        },
+        {
+          "label": "Morgan Freeman",
+          "count": 2700
+        }
+      ]
+    },
+    {
+      "id": "f99",
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "Your funeral song: make them cry, or make them dance?",
+      "options": [
+        {
+          "label": "Make them cry",
+          "count": 2100
+        },
+        {
+          "label": "Make them dance",
+          "count": 3400
+        }
+      ]
+    },
+    {
+      "id": "f100",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "Laugh-track sitcoms: cosy, or unbearable?",
+      "options": [
+        {
+          "label": "Cosy",
+          "count": 2500
+        },
+        {
+          "label": "Unbearable",
+          "count": 2600
+        }
+      ]
+    },
+    {
+      "id": "f101",
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "prompt": "A single world holiday, everyone off on the same day: dream, or nightmare?",
+      "options": [
+        {
+          "label": "Dream",
+          "count": 2800
+        },
+        {
+          "label": "Nightmare",
+          "count": 2300
+        }
+      ]
+    },
+    {
+      "id": "dl13",
+      "core": false,
+      "cat": "sport",
+      "type": "dial",
+      "prompt": "Hours of live sport in a good week?",
+      "lo": 0,
+      "hi": 20,
+      "unit": "h"
+    },
+    {
+      "id": "f102",
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "Your life's photos: in the cloud, or on a drive you can hold?",
+      "options": [
+        {
+          "label": "The cloud",
+          "count": 2900
+        },
+        {
+          "label": "A drive I can hold",
+          "count": 2400
+        }
+      ]
     }
   ]
 }

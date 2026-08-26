@@ -22,7 +22,7 @@ the count is zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
 `check:store-listing` and `check:versions` pass; the daily bank is at 130
-questions of 671 seeded; the production backend is deployed. **Measured
+questions of 687 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -168,7 +168,7 @@ arithmetic.
       below because it documents how the gap was reasoned about while it
       was real.
       Actions → **Seed content** → Run workflow.
-      671 questions land in `v2_questions` — idempotent and, since D34,
+      687 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -179,7 +179,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **671** after the K=5 test expansion, D103's
+      and the bank is **687** after the K=5 test expansion, D103's
       retirement of the Thinking test, D114's continuum questions and the
       D14 go-live's pick promotion — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
@@ -982,7 +982,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 671 seeded questions are live regardless.
+      working, not a leak — the 687 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
@@ -1486,7 +1486,7 @@ That is a tester-count problem, not a workflow problem.
       `published total 5 counts {"0":5}` · `drift: none`. That is the
       property the whole of D290 rests on, checked against production
       rather than against an emulator, and it is the first non-vacuous
-      run: the 2026-08-25 attempt scanned zero (D293/D294).
+      run: the 2026-08-25 attempt scanned zero (D294/D295).
 
       D290 shipped `rebuildAggregateV2` and its unit tests, but
       the callable had never run against production data. Its first
@@ -1517,7 +1517,7 @@ That is a tester-count problem, not a workflow problem.
       `VITE_FIREBASE_API_KEY`) from the `production` environment, so there
       is nothing new to grant.
 
-      **WHAT THE FIRST RUN ACTUALLY FOUND (2026-08-25, D293).** The step was
+      **WHAT THE FIRST RUN ACTUALLY FOUND (2026-08-25, D294).** The step was
       performed the day the tool merged, and it failed twice before it
       passed. Both failures were about the deploy, not the tool, and both
       are worth knowing before anyone reaches for this during an incident:
@@ -1544,7 +1544,7 @@ That is a tester-count problem, not a workflow problem.
          real answers (e2e steps 7h, 7i, 9e).
 
          **Pick a qid that HAS answers.** This entry first said the project
-         held none, quoting `answersCounted: 0` from the pulse trail; D294
+         held none, quoting `answersCounted: 0` from the pulse trail; D295
          found that number to be a broken reader, not a measurement — there
          are 104 questions with answers in production. `daily-019` (total 5)
          is the one with more than a single vote, and is what run 6

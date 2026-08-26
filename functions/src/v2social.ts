@@ -57,6 +57,8 @@ import {
   PRESENCE_LINGER_MIN,
   ROOM_SAMPLE_CAP,
   ROOM_PEOPLE_CAP,
+  ROOM_SCAN_CAP,
+  sampleN,
   roomMix,
   roomQids,
   tallyPicks,
@@ -1703,29 +1705,35 @@ async function roomMixFor(cells: string[], own: string): Promise<RoomMix | null>
       return hit.get("capped") === true ? { top, n, capped: true } : { top, n };
     }
     // WHICH sixty, when the cap binds, is the question worth having
-    // checked — and it was checked rather than reasoned about.
+    // checked — and the first answer was wrong.
     //
-    // A capped `in` runs as nine disjuncts merged, and if that merge were
-    // cell-major the sample above the cap would come out of whichever
-    // corner the planner reached first: a reading drawn from one end of
-    // the field and presented as the room. At a festival — the case this
-    // feature exists for — the cap is exactly what binds, so the bias
-    // would appear precisely where it matters and nowhere in testing.
+    // A capped `in` runs as nine disjuncts merged, and the original probe
+    // (360 docs seeded evenly over the nine) showed the sixty spanning all
+    // nine cells, 3-12 apiece. That much held. What it rested on did not:
+    // "Firestore orders a query with no explicit `orderBy` by document
+    // id" is only true with no inequality in the query, and the paragraph
+    // ended by naming its own killer — "key presence by something ordered
+    // (a cell prefix, a TIMESTAMP) and this stops being true silently."
+    // `until` is that timestamp, and an inequality on it IS the ordering.
     //
-    // Probed against the emulator (360 docs seeded evenly over the nine):
-    // the sixty returned spanned all nine cells, 3-12 apiece. Firestore
-    // orders a query with no explicit `orderBy` by document id, and these
-    // ids are uids — random, and uncorrelated with both cell and type. So
-    // the sample is unbiased, and the property it rests on is THE DOC ID
-    // BEING RANDOM, not anything about the merge. Key presence by
-    // something ordered (a cell prefix, a timestamp) and this stops being
-    // true silently.
-    const snap = await db.collection("v2_presence")
+    // Re-probed 2026-08-26, same 360 docs with `until` spread 5-179
+    // minutes out: the sixty returned were exactly the sixty smallest,
+    // topping out at 33 minutes against a population reaching 179. The
+    // reading was of the people about to LEAVE, presented as the room —
+    // and at a festival, the case this exists for, that is where it binds.
+    //
+    // So: scan ROOM_SCAN_CAP, sample ROOM_SAMPLE_CAP out of it. The seed
+    // is the cell and the beat window, so a cache miss that races itself
+    // does not draw two different rooms. Above the scan cap the bias
+    // returns — 300 present phones in one block — and `capped` already
+    // says the reading is drawn from a slice.
+    const scan = await db.collection("v2_presence")
       .where("cell", "in", cells)
       .where("until", ">", Timestamp.fromMillis(Date.now()))
-      .limit(ROOM_SAMPLE_CAP)
+      .limit(ROOM_SCAN_CAP)
       .get();
-    const mix = roomMix(snap.docs.map((d) => d.get("type") as string | undefined));
+    const sampled = sampleN(scan.docs, ROOM_SAMPLE_CAP, own + ":" + Math.floor(Date.now() / 240_000));
+    const mix = roomMix(sampled.map((d) => d.get("type") as string | undefined));
     await ref.set({
       top: mix ? mix.top : [],
       n: mix ? mix.n : 0,
@@ -1848,15 +1856,19 @@ async function roomFor(cells: string[], own: string, qids: string[]): Promise<Ro
       }
     }
     if (!hit) {
-      const present = await db.collection("v2_presence")
+      const scan = await db.collection("v2_presence")
         .where("cell", "in", cells)
         .where("until", ">", Timestamp.fromMillis(Date.now()))
-        .limit(ROOM_PEOPLE_CAP)
+        .limit(ROOM_SCAN_CAP)
         .get();
-      // See roomMixFor for why an uncapped-order sample is safe here: doc
-      // ids are uids, so Firestore's implicit ordering is random with
-      // respect to both cell and person.
-      people = present.docs.map((d) => {
+      // Scan wide, then sample — see roomMixFor above for the probe. The
+      // limit alone took the twenty-four SOONEST-EXPIRING presences,
+      // because the `until` inequality is itself the sort order, so the
+      // roster and the Compare fold over it described the people nearest
+      // to leaving rather than the room. Only the presence read widens:
+      // the expensive half below still folds over ROOM_PEOPLE_CAP people.
+      const present = sampleN(scan.docs, ROOM_PEOPLE_CAP, own + ":" + Math.floor(Date.now() / 240_000));
+      people = present.map((d) => {
         const t = d.get("type");
         return typeof t === "string" && t ? { uid: d.id, type: t } : { uid: d.id };
       });
@@ -1887,7 +1899,28 @@ async function roomFor(cells: string[], own: string, qids: string[]): Promise<Ro
       // republish an hour-old split as current, for as long as nobody
       // re-asked that question. A new window is a new room, so the counts
       // go with the roster.
-      await ref.set({ people, qs, at: FieldValue.serverTimestamp() }, { merge: hit });
+      //
+      // AND `at` IS ONLY WRITTEN ON A MISS, because it dates the ROSTER.
+      // Restamping it on a hit slid the four-minute window forward every
+      // time a call folded a question the cell had not seen — which is the
+      // ordinary case, since two people at different points in the day's
+      // deck send different qid slices. A cell with steady traffic
+      // therefore never re-sampled: newcomers stayed missing and people who
+      // had left stayed listed, for as long as the novel questions kept
+      // arriving. `people` is left alone for the same reason — on a hit it
+      // IS the cached roster, so rewriting it says nothing and re-dating it
+      // says something false.
+      //
+      // Bounding the window bounds the document too. `qs` grows a key per
+      // question asked, and `roomQids` shape-checks its input without
+      // holding it to any known set — so an unbounded window was also an
+      // unbounded map. A window that actually expires rewrites the doc
+      // wholesale on the next miss, which resets `qs` to what that call
+      // asked for.
+      await ref.set(
+        hit ? { qs } : { people, qs, at: FieldValue.serverTimestamp() },
+        { merge: hit },
+      );
     }
   } catch (err) {
     // The room is an extra on top of the count, like the mix: its failure

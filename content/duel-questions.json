@@ -210,6 +210,14 @@
         "Full — sorry",
         "Depends who"
       ]
+    },
+    {
+      "id": "gd8",
+      "prompt": "The bill arrives. Split it even, or pay what you had?",
+      "options": [
+        "Even split",
+        "What you had"
+      ]
     }
   ],
   "oneVsOne": [
@@ -510,6 +518,17 @@
         "Being fun",
         "Being right"
       ]
+    },
+    {
+      "id": "050",
+      "d": "mirror",
+      "prompt": "What slows them down most?",
+      "options": [
+        "Doubt",
+        "Perfectionism",
+        "People-pleasing",
+        "Distraction"
+      ]
     }
   ],
   "romantic": [
@@ -731,6 +750,28 @@
       "options": [
         "Side by side",
         "Busy, together"
+      ],
+      "active": false
+    },
+    {
+      "id": "051",
+      "d": "heat",
+      "prompt": "After a fight, the first move back is usually…",
+      "options": [
+        "A joke",
+        "A touch",
+        "Talking it out",
+        "Acting normal"
+      ],
+      "active": false
+    },
+    {
+      "id": "052",
+      "d": "ahead",
+      "prompt": "The retirement dream: settled deep somewhere, or still moving?",
+      "options": [
+        "Settled deep",
+        "Still moving"
       ],
       "active": false
     }

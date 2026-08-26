@@ -167,9 +167,9 @@ jobs:
           # literal JavaScript about to be copied into the shell, signed and
           # uploaded, so it is the one place the measurement cannot be of the
           # wrong artifact. It costs about a second and no extra build: the
-          # bundle is already here, and this env block already sets
-          # VITE_V2_LIVE, which the script now requires before it will grade
-          # anything.
+          # bundle is already here, and it is a live one — which is what the
+          # script requires before it will grade anything, asked of dist/
+          # itself rather than of this step's environment.
           #
           # Before `cap sync` for the same reason check:web-firebase is —
           # fail while the mistake is still in dist/, not after it is inside

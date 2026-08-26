@@ -334,7 +334,7 @@ const shippedFunctions = readdirSync(resolve(root, "functions", "src"), { recurs
   );
 
 // The feed bank and its core/tail split. Both figures were stale when
-// D294's audit looked: docs/SCALE-PLAN.md said "All 82 ... carry
+// D295's audit looked: docs/SCALE-PLAN.md said "All 82 ... carry
 // core: true" and content/README.md said "Feed questions (82)", against a
 // file holding 130 questions of which 50 declare `core: false`. The second
 // half is the one that mattered — SCALE-PLAN's whole argument is about what

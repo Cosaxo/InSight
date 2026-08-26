@@ -29277,6 +29277,22 @@ D72's rule — refuse rather than fabricate — applied to a repair tool.
   confident wrong aggregate is the failure D161 rewrote the bank fetch to
   avoid. The fix if it ever fires is paging across invocations, not a
   larger constant.
+- **Pulse and the two duel surfaces are refused at the door** (added
+  2026-08-26, by the night audit). The scan keys on the BANK ID —
+  `collectionGroup("answers").where("qid", "==", qid)` — and both break
+  that in opposite directions. A **pulse** aggregate is keyed
+  `{qid}_{day}` and a pulse answer carries that composite as its own
+  `qid`, so the bank id matches no answer at all: the tool scanned zero
+  rows, found zero drift and reported success, which
+  `rebuild-aggregate.mjs` prints as *"the published aggregate already
+  matches the answers"* — a repair tool certifying health for a document
+  it never read. A **group or duo** answer never reaches the world fold
+  (`onV2AnswerCreated` returns first), so there is no aggregate to
+  repair, only one to MINT out of votes that stay sealed until their
+  reveal. `rebuildRefusal()` in `replay.ts` names both, `runRebuild`
+  consults it, and the e2e asserts the refusal through the real callable
+  — because the predicate alone could be, and for one commit was,
+  exported and tested and never asked.
 
 ### The reversal condition this sets up, recorded before it is needed
 
@@ -29790,7 +29806,61 @@ rather than two thirds of the system.
 > ledger-derived projections are outside it by construction, and each has a
 > reason recorded at its own site. Both are recoverable only forward, by
 > waiting for the next run.
-## D293 · What the first production run of the repair tool cost, and the data-loss path it exposed
+## D293 · A moderation verdict's ID is not neutral, and the privacy page says it is
+
+**2026-08-26.** **Status:** binding as a RECORD OF A LIMIT; the repair is
+the owner's call and is deliberately not made here. Found by the
+2026-08-25 night audit, which corrected `docs/data-inventory.md` and
+raised the rest rather than editing the privacy page unattended — the
+right call under D183, and the reason this record exists instead of a
+commit.
+
+### The finding, which stands
+
+`v2_mod_verdicts` is append-only and survives erasure by design: it is
+the audit trail the advisory phase's judgement is assessed from. The
+inventory said it held "no author text and no author uid", and that was
+read as meaning the row cannot name the person moderated. **The field
+list is right and the reading is wrong**, because the row is keyed by the
+take id and that id is not opaque:
+
+| take shape | id | carries |
+| --- | --- | --- |
+| world take | `{qid}_{authorUid}` | the account **and** the question it wrote under |
+| reported face | `av_{uid}` | the account |
+| circle take | Firestore auto-id | nothing |
+
+`firestore.rules` pins the first shape — that determinism is what bounds
+a world take to one per person per question — so it is not incidental and
+cannot be dropped without giving up the bound. Two of the three shapes
+therefore retain a pseudonymous identifier of the moderated account,
+plus (for a world take) one fact about them, after everything else is
+erased.
+
+### Why this is a claim and not only an inaccuracy
+
+`web/privacy.html` says: *"Two things intentionally survive, and neither
+can identify you"* — the aggregates and the error reports. This is a
+third, and for two of the three shapes the second half of that sentence
+does not hold. Under D183 the long disclosure lives once, on that page,
+and `check:policy-claims` proves each claim is PRESENT — it cannot prove
+one is TRUE, which is why every gate was green while this stood.
+
+### The two repairs, and what each costs
+
+- **Disclose it.** Name the verdict log as a third survivor and say what
+  its id carries. Cheapest, honest, and it grows the page — which is what
+  D183 and COPY.md §3 both say a claim is allowed to do.
+- **Re-key the verdict.** Store an opaque verdict id and keep the take id
+  in a field the erasure sweeps. This trades the join the queue and the
+  verdict currently share, and it is a migration over existing rows.
+
+Not chosen here. Both are the owner's, and picking one unattended — on
+the page that is the app's single disclosure — is the failure D183 was
+written to stop. The retention itself is unchanged and still deliberate;
+what changed on 2026-08-26 is that the tree now describes it accurately.
+
+## D294 · What the first production run of the repair tool cost, and the data-loss path it exposed
 
 **2026-08-25.** D290's `rebuildAggregateV2` merged, and the runbook's 5.10
 said to dry-run it once against production before anyone needed it during
@@ -29855,9 +29925,9 @@ nothing for `daily-000` and agreed with an empty aggregate; nothing was
 verified, and the workflow's own summary was busy telling the reader that
 `drift: none` means the question is healthy.
 
-> **Corrected 2026-08-25, same day (D294).** This paragraph originally read
+> **Corrected 2026-08-25, same day (D295).** This paragraph originally read
 > "`answersCounted` is 0 in the pulse trail, so the project genuinely holds
-> no answers." **That is false, and the reason it is false is a bug D294
+> no answers." **That is false, and the reason it is false is a bug D295
 > found:** production held 104 aggregate documents and 108 answers at the
 > moment of this dry run. `answersCounted` reads 0 because the scorecard
 > gates on `agg.tooSmall === false`, a field D98 stopped writing — so every
@@ -29919,11 +29989,11 @@ by default) so the correction cannot read as more than it is.
 The plumbing: the call reaches the function, the scan runs, the fold runs,
 the comparison runs, against production. The fold over real answers: still
 only against emulated functions (7h, 7i, 9e) — not because production has
-nothing to fold (D294: it has 104 questions with answers) but because the
+nothing to fold (D295: it has 104 questions with answers) but because the
 qid this run was pointed at, `daily-000`, is not one of them. Runbook 5.10
-stays **open**, and D294 names three qids that would actually exercise it.
+stays **open**, and D295 names three qids that would actually exercise it.
 
-## D294 · The scorecard has been reading production through a retired predicate, and every number downstream inherited the zero
+## D295 · The scorecard has been reading production through a retired predicate, and every number downstream inherited the zero
 
 **2026-08-25.** An audit of what is missing from the target architecture
 found something that is not missing at all. **Production holds 104
@@ -29966,7 +30036,7 @@ been answered.
 
 And it propagated into the record. `answersCounted: 0` is cited as evidence
 the project holds no answers at DECISIONS.md:9236, :10041, :12976, :26660,
-:27533 and :29302 — and, most sharply, in **D293, written today, in the
+:27533 and :29302 — and, most sharply, in **D294, written today, in the
 paragraph about checks that pass because they never ran.** That citation is
 corrected in place above. The older records are left as written: they are
 dated statements of what was believed, and several were true when made —
@@ -30018,9 +30088,9 @@ The next `npm run scorecard -- --fetch` will move `scored` from 0 to
 something real, and the pulse trail's `answersCounted` with it. That refresh
 is the owner's to run; this commit only makes the reader honest.
 
-## D295 · Doing the things that could be done, and the four latent faults that surfaced on the way
+## D296 · Doing the things that could be done, and the four latent faults that surfaced on the way
 
-**2026-08-26.** D294 made the instruments honest. This is what became
+**2026-08-26.** D295 made the instruments honest. This is what became
 possible once they were, and what broke when the data they had never seen
 finally arrived.
 
@@ -30038,7 +30108,7 @@ The scan pulled five real answers out of `v2_users/{uid}/answers`, folded
 them, and reproduced what the trigger had accumulated — **the property the
 whole of D290 rests on, checked against production rather than an
 emulator.** The 2026-08-25 attempt scanned zero and agreed with nothing
-(D293); this one is the first non-vacuous run, and it was one qid away the
+(D294); this one is the first non-vacuous run, and it was one qid away the
 entire time.
 
 ### The scorecard now reads production, and production has a shape
@@ -30159,28 +30229,28 @@ state that ended. Both figures, and `content/README.md`'s, are
 `check:figures` entries now — mutation-tested against the exact stale
 numbers that were sitting in the tree.
 
-## D296 · The review of D294/D295 found a bug D294 had created, and five things that were true of the stub instead of the server
+## D297 · The review of D295/D296 found a bug D295 had created, and five things that were true of the stub instead of the server
 
 **2026-08-26.** A 20-agent adversarial review of the day's three commits
 raised 16 findings; 11 survived refutation. One is a fabricated statistic
 that shipped in a committed artifact, and it is the same class of error the
 day started with.
 
-### D294 made a null measurable, and three means counted it as unanimity
+### D295 made a null measurable, and three means counted it as unanimity
 
 Sixteen feed questions — 11 `dial`, 3 `field`, 2 `path` — declare neither
 `options` nor `items`. The scorecard computes `n = 0` for them,
 `optionShares` returns null, and `evenness` is null however many people
 answer. **Those rows were invisible to every rollup for the wrong reason:**
 the retired `tooSmall` predicate marked them below-floor along with
-everything else. D294 fixed the predicate and they arrived — into
+everything else. D295 fixed the predicate and they arrived — into
 
 ```js
 t.evenSum += r.evenness ?? 0;   // ×3: topics, types, rollupProduction
 ```
 
 which turns *not measurable* into *perfectly unanimous*, and divides by a
-denominator that counted it. The artifact D295 committed says how it reads:
+denominator that counted it. The artifact D296 committed says how it reads:
 `types.feed.dial {scored: 7, avgEvenness: 0}` — seven rows, not one of
 them measured. `types.feed.path` and three topic cells the same. A dial
 whose crowd is perfectly uniform scored the same 0 as one where everybody
@@ -30202,7 +30272,7 @@ Regenerated: `dial — (7)` where it said `dial 0 (7)`.
 
 ### The shape filter pre-excluded exactly what the gate exists to catch
 
-D295 replaced `check:monitoring`'s denylist with "displayName is a string
+D296 replaced `check:monitoring`'s denylist with "displayName is a string
 AND conditions is an array". Three of that gate's own rules exist to catch a
 policy missing `displayName`, `conditions` or `documentation.content` — so
 the filter silently excluded the malformed file instead of reporting it,
@@ -30253,9 +30323,9 @@ guarded.
 ### And a not.toContain that could no longer fail
 
 `pulse.test.mjs` asserted the absence of "nothing has cleared the floor
-yet" — a sentence D294 rewrote in the same commit. An assertion against a
+yet" — a sentence D295 rewrote in the same commit. An assertion against a
 string the code cannot emit passes for the wrong reason, which is the
-thing D294 is about. Tracked to the current wording, with the old one kept
+thing D295 is about. Tracked to the current wording, with the old one kept
 beside it.
 
 ### What the review says about the day

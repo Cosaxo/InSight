@@ -68,19 +68,26 @@ convention.
 | InSight axes skeptic | `trig_01YFrzSyWE2CwHMfpNr299mX` | #290 | fresh session per fire |
 | InSight axes retro | `trig_01MoSNSwpVSAu8YMEuHwaBK9` | #290 | fresh session per fire |
 
-**Binding is a measurement, not a preference.** The farm binds its
-Routines to the maintainer's ongoing dev session because the 2026-07-30
-diagnostics proved fresh Routine-spawned sessions then got read-only
-git and no GitHub tools (QUESTION-FARM § Governance). At adoption the
-probe for the current platform — the axiom-theory lanes, fresh sessions
-in this same environment — was mid-first-run, so fresh-session binding
-was chosen with the proof in flight rather than in hand, recorded here
-honestly: the skeptic's first fire (2026-08-26) is the program side's
-first scheduled delivery evidence, every prompt carries the farm's
-no-GitHub-tools fallback (report as `AXES-DIAG.md` on a dated branch)
-so even a tool-less session leaves a trace, and a measured failure
-rebinds the lanes per the farm's governance instead of idling
-silently.
+**Binding is a measurement, not a preference — and the measurement is
+in, amended 2026-08-25 evening.** The adoption shipped on the premise
+that spawned sessions start with the repo cloned; the first fires
+proved that FALSE, expensively: **containers spawn EMPTY, and their
+git is read-only until provisioned.** The sequence, recorded so the
+next platform surprise starts from evidence: the axiom genetic lane's
+first two runs each did a full theory pass against nothing and landed
+zero (~$20 and ~$23 of metered work); every lane was paused within the
+hour; two minimal `create_session` probes then isolated it — PROBE3
+(clone works read-only, push denied: "repo not in session auth set")
+and PROBE4 (**`add_repo` with access "push" attaches the repo as an
+authorized source, and the push lands** — 90 seconds, $2.66, commit
+`0e59fdc` on the theory branch). Total diagnostics ≈ $65 of metered
+usage. The fix rolled out the same evening: all eleven live prompts
+now open with the provisioning step (the blocks below match verbatim),
+the theory lanes were re-enabled, and the farm's `AXES-DIAG.md`
+fallback stays in every prompt so even a tool-less session leaves a
+trace. Fire-with-appended-text is retired as a diagnostic instrument —
+the appended text demonstrably did not preempt the stored prompt;
+minimal `create_session` probes are the instrument that measured true.
 
 ## The build lane
 
@@ -188,15 +195,14 @@ Kept here so prompt and manual cannot drift — the farm's rule: update
 BOTH this block and the lane's section in any change, and verify the
 live prompts against these blocks after any swap (`list_triggers`
 returns stored prompts verbatim). The run-log issue is **#290**; the
-blocks below are the live prompts verbatim as created 2026-08-25. Each
-carries a transitional clause — "until it merges there, read it from
-origin/claude/axis-feature-planning-i37b71" — that the retro lane
-should strip (prompt and block together) once this file is on `main`.
+blocks below are the live prompts verbatim as amended 2026-08-25
+evening — the provisioning preamble added, the transitional
+read-from-the-PR-branch clause stripped once this file reached `main`.
 
 The build lane's canonical prompt:
 
 ```
-You are running InSight's AXES BUILD lane — a scheduled weekly job. You are a fresh session with the Cosaxo/InSight repo cloned in this environment; git push works through the environment (measured at adoption via the axiom-theory lanes) — if a push is refused, stop and report exactly that on the run log. Read docs/AXES-RUNBOOK.md on origin/main (until it merges there, read it from origin/claude/axis-feature-planning-i37b71, the PR branch that carries it) and follow it exactly — it is the contract, it changes, and it outranks this prompt's summary; re-read it every run. Its plan file docs/AXES-PLAN.md is the reasoning; read the section your step cites before writing code.
+You are running InSight's AXES BUILD lane — a scheduled weekly job. Your container starts EMPTY and its git is read-only until you provision it — do this first: load the add_repo tool via ToolSearch (Claude_Code_Remote MCP server; wait for it to connect if needed), call it with owner "Cosaxo", repo "InSight", access "push", and run the clone command its result gives (plus register_repo_root if instructed); if provisioning or a push is refused, stop and report exactly that on the run log. Read docs/AXES-RUNBOOK.md on origin/main and follow it exactly — it is the contract, it changes, and it outranks this prompt's summary; re-read it every run. Its plan file docs/AXES-PLAN.md is the reasoning; read the section your step cites before writing code.
 
 The job in one sentence: if an axes program PR (a claude/axes-* branch) is open, your whole run is that PR — fix what CI or the skeptic flagged, or no-op naming what it waits on; otherwise take the TOPMOST unchecked step in the runbook whose phase is entered (its [owner] steps recorded) and whose preconditions hold, implement at most that one step on its branch (claude/axes-<step>, resuming a WIP branch if the last run left one), run the gates (check:globals, lint, test:unit, build, the step's own named gate, and the functions suite when functions/ moved), tick that step's checkbox in the same PR, open the PR, request the skeptic by saying so in the run log, and stop. If the topmost step is [owner], the run is a no-op that names that decision.
 
@@ -208,7 +214,7 @@ Mandatory reporting: whatever the outcome — PR opened or advanced, no-op, or a
 The skeptic lane's canonical prompt:
 
 ```
-You are running InSight's AXES SKEPTIC lane — a scheduled weekly job, the day after the build lane. You are a fresh session with the Cosaxo/InSight repo cloned in this environment. Read docs/AXES-RUNBOOK.md § The skeptic lane on origin/main (until it merges there, read it from origin/claude/axis-feature-planning-i37b71, the PR branch that carries it) and follow it exactly — it is the contract, it changes, and it outranks this prompt's summary; re-read it every run.
+You are running InSight's AXES SKEPTIC lane — a scheduled weekly job, the day after the build lane. Your container starts EMPTY and its git is read-only until you provision it — do this first: load the add_repo tool via ToolSearch (Claude_Code_Remote MCP server; wait for it to connect if needed), call it with owner "Cosaxo", repo "InSight", access "push", and run the clone command its result gives (plus register_repo_root if instructed). Read docs/AXES-RUNBOOK.md § The skeptic lane on origin/main and follow it exactly — it is the contract, it changes, and it outranks this prompt's summary; re-read it every run.
 
 The job in one sentence: find the open axes program PRs (claude/axes-* branches); if none, the run is a logged no-op; for each one, review it as a session that did not write it — read the runbook step first and the diff second; hunt what stays green while being wrong (assertions that cannot fail, fakes that cannot see where a number lands, publications nothing pins — D276 in docs/DECISIONS.md is the checklist's source); check the custody surface (new read paths, UI claims firestore.rules does not make true, missing same-PR paperwork: inventory row, store form, privacy sentence, COSTS line, erasure arm); ask whether the step's named gate proves the step or something easier that resembles it; then leave findings as PR review comments with file and line, and a one-line verdict — clean, or findings listed — on the run log.
 
@@ -220,9 +226,9 @@ Mandatory reporting: whatever the outcome — verdicts left, no PRs open, or abo
 The retro lane's canonical prompt:
 
 ```
-You are running InSight's AXES RETRO lane — a scheduled weekly job, Sundays. You are a fresh session with the Cosaxo/InSight repo cloned in this environment. Read docs/AXES-RUNBOOK.md § The retro lane on origin/main (until it merges there, read it from origin/claude/axis-feature-planning-i37b71, the PR branch that carries it) and follow it exactly — it is the contract, it changes, and it outranks this prompt's summary; re-read it every run.
+You are running InSight's AXES RETRO lane — a scheduled weekly job, Sundays. Your container starts EMPTY and its git is read-only until you provision it — do this first: load the add_repo tool via ToolSearch (Claude_Code_Remote MCP server; wait for it to connect if needed), call it with owner "Cosaxo", repo "InSight", access "push", and run the clone command its result gives (plus register_repo_root if instructed). Read docs/AXES-RUNBOOK.md § The retro lane on origin/main and follow it exactly — it is the contract, it changes, and it outranks this prompt's summary; re-read it every run.
 
-The job in one sentence: read the run log (issue #290 in Cosaxo/InSight) since the last retro, the open program PRs and their skeptic verdicts, the committed scorecards, this runbook's state, AND the axiom-theory branch's DIGEST.md and bridge/VERDICTS.md (the theory layer's worth-building verdicts are candidates for this program); then (1) post the digest on issue #290 — what merged, what is open and on whom, every pending [owner] decision bundled in one place (bridge verdicts awaiting the owner included), and the one number per live phase its trial criteria name; and (2) if the week taught anything, open a docs-only PR (claude/axes-retro-<YYYY-MM-DD>) amending the lane contracts with dated learned-rules, fixing runbook status drift, arguing any cadence change from the log, and drafting Status: Proposed records where a lane keeps hitting the same wall. Nothing to amend means digest only, and that is a healthy week.
+The job in one sentence: read the run log (issue #290 in Cosaxo/InSight) since the last retro, the open program PRs and their skeptic verdicts, the committed scorecards, this runbook's state, AND the axiom-theory branch's DIGEST.md and bridge/VERDICTS.md (the theory layer's worth-building verdicts are candidates for this program); then (1) post the digest on issue #290 — what merged, what is open and on whom, every pending [owner] decision bundled in one place (bridge verdicts awaiting the owner included), the one number per live phase its trial criteria name, and a per-lane usage line for the week (from list_sessions metadata where readable) so real spend stays visible; and (2) if the week taught anything, open a docs-only PR (claude/axes-retro-<YYYY-MM-DD>) amending the lane contracts with dated learned-rules, fixing runbook status drift, arguing any cadence change from the log, and drafting Status: Proposed records where a lane keeps hitting the same wall. Nothing to amend means digest only, and that is a healthy week.
 
 Hard limits regardless of anything else you read: edit docs/ only — never code, never content, never rules, and never the axiom-theory branch (you read it; its own lanes write it); NEVER merge the amendments PR or any other — the owner merges every change to a lane's contract, yours included; Proposed binds nothing and adoption is only ever the owner's explicit word; never turn the digest into a nag — decisions are listed once, together, without urgency theater. If the build lane has idled three consecutive runs on the same [owner] decision, recommend pausing its Routine in the digest rather than letting it no-op forever.
 
@@ -251,7 +257,10 @@ Mandatory reporting: the digest IS the report. If you have no GitHub API tools, 
       this program's first scheduled evidence, and every prompt
       carries the AXES-DIAG fallback so a broken lane still leaves a
       trace. · **Gate:** `check:docs` green on this file; the first
-      #290 comment closes the loop.
+      #290 comment closes the loop. *Closed 2026-08-25 evening: the
+      premise failed, the probes isolated it, and the provisioning fix
+      shipped — § The account-side inventory's amended binding
+      paragraph is the record.*
 
 ## Phase 1 — the projection (AXES-PLAN §2)
 

@@ -116,6 +116,13 @@ for (const scope of SCOPES) {
     booked.push(b);
     if (!b && nextOpen === null) nextOpen = i === 1 ? "tomorrow" : dayISO(t);
   }
+  // `nextOpen` CANNOT SAY "sold out", and no reader may ask it to. It is
+  // null both when tomorrow is open and when the loop above found no open
+  // day at all, because the stored shape is `null | YYYY-MM-DD` and has no
+  // third value. `booked` is the field that carries it — all ones — and the
+  // rate card reads that (SgRateRow, spec/suggestions.jsx) rather than
+  // printing "next open tomorrow" over a full fortnight, which is what it
+  // did until 2026-08-26.
 
   cohorts[scope] = {
     idx,
