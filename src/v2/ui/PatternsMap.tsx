@@ -202,10 +202,14 @@ export default function PatternsMap({ items, version, topic }: {
           </g>
           {/* the next-up beacon rides its own top layer (2026-08-24) — drawn
               after every dot so neither the ring nor the label is ever
-              buried by a neighbour */}
+              buried by a neighbour. Since 2026-08-26 it is also a tap
+              target of its own: the ring reaches past the dot's hit
+              circle underneath, and the map's one instruction should be
+              its easiest button */}
           {beacon && (
-            <g pointerEvents="none">
-              <circle cx={beacon.x} cy={beacon.y} r={rOf(beacon.i) + 3.5} fill="none" stroke="var(--accent)" strokeWidth="1.4"></circle>
+            <g onClick={(e) => { e.stopPropagation(); pick(beacon.i); }} style={{ cursor: "pointer" }}>
+              <circle cx={beacon.x} cy={beacon.y} r={Math.max(14, rOf(beacon.i) + 9)} fill="transparent"></circle>
+              <circle cx={beacon.x} cy={beacon.y} r={rOf(beacon.i) + 3.5} fill="none" stroke="var(--accent)" strokeWidth="1.4" pointerEvents="none"></circle>
               <circle className="qm-pulse" cx={beacon.x} cy={beacon.y} r={rOf(beacon.i) + 3} fill="none" stroke="var(--accent)" strokeWidth="1.5"></circle>
               <text className="qm-nextlab" x={Math.max(42, Math.min(W - 42, beacon.x))} y={beacon.y > H - 26 ? beacon.y - rOf(beacon.i) - 9 : beacon.y + rOf(beacon.i) + 15}
                 textAnchor="middle" fill="var(--ink)"
@@ -218,7 +222,9 @@ export default function PatternsMap({ items, version, topic }: {
           <span style={{ color: "var(--rule)" }}>·</span>
           <i className="qm-line is-dash"></i><span>opposite</span>
           <span style={{ color: "var(--rule)" }}>·</span>
-          <i className="qm-dot is-fill"></i><span>lit</span>
+          {/* "answered", not "lit" (2026-08-26) — the legend says what the
+              ink means in the reader's words, not the renderer's */}
+          <i className="qm-dot is-fill"></i><span>answered</span>
           <span style={{ color: "var(--rule)" }}>·</span>
           <i className="qm-dot"></i><span>open</span>
         </div>
@@ -248,6 +254,16 @@ export default function PatternsMap({ items, version, topic }: {
           <div className="qm-says">
             {says && says.id === q.q.id && says.rows.filter((x) => x.s).length === 0 && (
               <span className="qm-saytext">Its strongest links don’t have enough people in both samples to say more yet.</span>
+            )}
+            {/* what a tie IS, said once under the rows (2026-08-26). The
+                prototype says "over everyone who answered both"; live the
+                rows are the bounded samples each row already states — the
+                sentence names the mechanism at the samples' own scope
+                rather than borrowing the crowd's (D146). */}
+            {says && says.id === q.q.id && says.rows.some((x) => x.s) && (
+              <span style={{ paddingTop: 8, borderTop: "1px solid color-mix(in oklch, var(--rule), transparent 30%)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)", textWrap: "pretty" }}>
+                Each tie is a straight count over the people in both samples · “usually” is how they split regardless of the first pick.
+              </span>
             )}
             {says && says.id === q.q.id && says.rows.map(({ j, s }, k) => {
               if (!s) return null;
@@ -302,12 +318,15 @@ export default function PatternsMap({ items, version, topic }: {
             <div style={{ display: "flex", alignItems: "baseline", gap: 9, marginTop: 14 }}>
               <span style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1 }}>{nAns}</span>
               <span style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.4, textWrap: "pretty" }}>
-                of the <b style={{ color: "var(--ink)", fontWeight: 700 }}>{items.length} questions</b> here are lit by your answers · <b style={{ color: "var(--ink)", fontWeight: 700 }}>{rest.length} ties</b> hold between them.
+                of the <b style={{ color: "var(--ink)", fontWeight: 700 }}>{items.length} questions</b> here are answered · <b style={{ color: "var(--ink)", fontWeight: 700 }}>{rest.length} ties</b> hold between them.
               </span>
             </div>
           )}
-          <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid color-mix(in oklch, var(--rule), transparent 30%)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
-            Drawn from the crowd’s latest answers · core questions only — a feed answer outside the shared corpus isn’t placed here.
+          {/* the geometry, said in words (2026-08-26) — position was the one
+              reading on this map with no stated basis; D161's core-only
+              clause keeps its place after it */}
+          <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid color-mix(in oklch, var(--rule), transparent 30%)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)", textWrap: "pretty" }}>
+            Close together = answers that predict each other · drawn from the crowd’s latest answers · core questions only — a feed answer outside the shared corpus isn’t placed here.
           </div>
         </div>
       )}

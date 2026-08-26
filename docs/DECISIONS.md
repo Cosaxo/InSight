@@ -31438,3 +31438,104 @@ same crank taken now because the review asked now. The daily's variety
 is its own instrument: one question a day is the design, and the ask
 rows D307 added are how the rotation's thin forms reach a reader who
 wants them sooner.
+
+## D310 · The 2026-08-26 client passes ship; the two owner decisions and the paid family wait
+
+**2026-08-26.** VISION-2026-08-26 §9 step 2, built exactly as scoped: every
+item from the fourth numbered standalone that needed no owner decision, no
+new read, and no rules change. The two gates the plan named stay shut —
+anonymous answers (§1) and the seat-split subscription pricing (§2.2) are
+sentences the owner has not said, so nothing of either is here — and the
+paid family (§2) waits on them. What shipped, and what the build proved the
+plan had wrong:
+
+### The working (§3) — `PATTERNS.working`, and two copy corrections
+
+The Oracle's "why?" now rebuilds the sealed call as rows: each evidence
+answer the grade named, the crowd split it contributed (through `tell()`'s
+existing caches — at most three bounded fetches, most already paid for by
+`say()`), ink weighted by its pull, the coin as the hairline. The seal's
+pinned timing did not move; `grade()` names three evidence questions
+instead of two, which old records simply predate. Two of the design's
+sentences could not ship as written, and the divergences are in the code
+comments where they happen:
+
+- *"It guessed at the coin, and the empty disc says so"* is false live
+  twice over: a call with no evidence falls back to the crowd's own lean
+  (not the coin), and the disc's ink is faint, not empty. The line ships
+  as *"the call is the crowd's own lean, and the faint ink says so."*
+- The design has one empty state; the live surface needs two, because
+  D146's floor creates a case the prototype cannot have: evidence that
+  really carried the call but has under 12 shared voters to count in the
+  open. Thinness is named as thinness (`hadEv` on the `Working` shape),
+  never dressed as absence.
+
+### The Patterns polish (§4) — including the accent handback
+
+Lens swaps slide from the side you moved toward (direction rides in the
+lens state — a render-read ref is what `react-hooks/refs` refuses); the
+"answer next" beacon is a tap target with its own ≥14px halo; the two maps'
+legends and cards state their geometry in words. One more claim the build
+would not ship as drawn: the People card's *"closer only ever means more
+agreement"* is true of the prototype's agreement layout and NOT of the live
+ridge solve, so the live line says what the fold does — *"their answers
+alone place them — closer means answering more alike."* Same rescope on the
+tie sentence: *"over everyone who answered both"* became *"over the people
+in both samples"*, because bounded samples are what the rows count. The
+Patterns tab hands the dusk-indigo accent back (one ternary arm in
+`app-shell.jsx`); `patterns.css` carries the slide, the seat sized by
+`--d`, the tile grid, and the ledger's standing `.or-cap` key.
+
+### Play together (§5) — and the third instance of the restore race
+
+The person overlay grows its doors card: 1v1 (Open / invited / Start / the
+add-them-first line) and shared-group chips, each led by the person's
+nearest named type folded from the shared record alone
+(`poPersonTypes` — the duo dims with the sides swapped, the group dims
+without `cast`, which D204 refused and the registry never carried). The
+jump rides a new `data/duelCue.ts` — the `mapCue` take-once shape, chosen
+so check:globals' rule-4 count stays at its baseline instead of paying two
+window globals and two window events — and both daily viewers assert the
+landing repeatedly for a beat, because scroll-memory's restore undoes a
+one-shot jump (the profile-overlay subnav race, third instance). The build
+also caught two Compiler bail shapes the hard way: a cleanup returned as a
+call result (`return onDuelCue(go)`) and a ref-derived list read in an
+effect closure each make the Compiler bail out of the whole component,
+which silently un-reports every suppressed finding in it — the disables go
+"unused" and the lint fails, which is the ratchet working. Both shapes are
+named in comments at the site.
+
+### The feed's participation pass (§6) — one deliberate reversal inside it
+
+`wfDid` gives each demo friend an activity share; every friend surface
+(tiles, the four sheets, the rank grid, the cut roster) now shows only
+friends who answered, with honest empty states and the who-hasn't line. The
+tile marks are identity avatars in per-friend hues through `WPAL.ink`, and
+they render in BOTH drawings — which deliberately supersedes the ported
+comment "v2 drops them from the tile": that judgement answered marks-as-
+furniture, and participation is the design's better answer to the same
+problem (most tiles now carry none, so the two that appear mean
+something). The `footer`/`off` arms are not ported (lab furniture, the
+D287 `friendVotes` verdict extended), the live gate stands (`q.live`
+cards still draw no friend marks), and the live `feedInsight` still has
+no `friends` kind.
+
+### The still fix (§7.1) — a live crash no gate could see, now measured
+
+`person-mindmap.jsx`'s still path read `keep` sixteen lines above its
+`const` — a temporal-dead-zone ReferenceError on every MEASURED still
+render, crashing the person overlay's map crop to its boundary. Every
+gate was structurally blind to it: eslint sees a resolvable name, tsc
+does not check `.jsx`, and the smoke suites run in jsdom, where the pane
+never measures and the component parks forever on its pre-measure
+`if (!view)` placeholder — the probe that established this is
+`src/v2/test/person-mindmap-still.test.jsx`, which mounts the still with
+prototype-getter dimensions so the measured path is finally reachable,
+and which fails with the exact ReferenceError when the fix is reverted.
+The fix is the standalone's own line (`return new Set()`).
+
+Everything above landed with its tests (2105 unit + the scripts suite),
+lint/tsc/globals/purge/a11y/tap-targets/bundle all green, and the
+coupling ratchet unmoved at its baseline. The plan file's §0 table now
+carries each item's as-built state; §1 and §2 still say "owner decision
+first", because they still are.

@@ -554,7 +554,15 @@ function PersonMindMap({ p, following, centerName, still }) {
       kept.push({ x0: sx - 22, x1: sx + 22, y: pt.y * z });   // the hub dot itself is keep-out
     });
     const cands = [];
-    if (still) return keep;   // a still shows branch names only
+    // A still shows branch names only — return the EMPTY set, not `keep`:
+    // `keep` is declared with `const` sixteen lines down, so reading it here
+    // is a temporal-dead-zone ReferenceError and every measured still render
+    // crashed to the overlay's boundary. No jsdom test can reach this line —
+    // the pre-measure `if (!view)` return above is where a zero-size
+    // container parks forever — which is why the crash shipped silently
+    // (2026-08-26 standalone carries the same fix; the regression test
+    // measures the container by hand).
+    if (still) return new Set();
     nodes.forEach((n) => {
       const pt = pos[n.id];
       if (!pt || hidden(n) || n.quiet) return;   // group level: mass without labels
