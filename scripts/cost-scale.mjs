@@ -108,8 +108,9 @@ console.log("  once the bank passed its limit — a truncated corpus with nothin
 console.log("  anywhere. D161 paged it; the loop ends on a short page and never on a count");
 console.log("  it believes in advance, and bank-cache.test.ts asserts completeness.");
 console.log();
-console.log("  NEXT is the localStorage bank cache, and it is silent in the same way: the");
-console.log("  quota failure is caught and ignored, so crossing it stops the caching and");
-console.log("  makes every boot pay a full fetch, forever, with no symptom. check:quality's");
-console.log("  BANK_WARN/BANK_FAIL now watch that budget and say so in MB.\n");
+console.log("  NEXT is the whole-bank install fetch, silent in the same way: every fresh");
+console.log("  device still reads the entire bank (the localStorage quota cliff is gone —");
+console.log("  D318 moved the cache to IndexedDB), so nothing errors at any size and the");
+console.log("  per-device bill just climbs until D316's paged read path lands. check:quality's");
+console.log("  BANK_WARN/BANK_FAIL now watch that fetch and say so in MB.\n");
 console.log("  docs/SCALE-PLAN.md is the plan these numbers were computed for.\n");

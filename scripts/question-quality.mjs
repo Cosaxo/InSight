@@ -406,15 +406,18 @@ export const DAILY_ID_FAIL = 970; // an id-scheme decision is due before 999
 // where these sizes are nothing — exactly as BANK-DELIVERY §3's closing
 // rule said to do rather than deleting them.
 //
-// What they watch now is BANK-DELIVERY §4's ceiling, the only one left:
-// every device still holds the WHOLE bank in memory and walks it — the
-// feed pool, the topic counts, search, the test joins — and hydrate
-// getAll()s every row into that memory each boot. There is no hard cliff
-// at these numbers, which is why they kept their values: they are the
-// size at which "hand every device everything" wants re-arguing on a
-// low-end phone rather than assumed, comfortably before it becomes an
-// incident. checkHeadroom() still derives bytes-per-document from the
-// seed itself so the message moves when the documents do.
+// What they watch now is what remains of BANK-DELIVERY §4 after the
+// paged read path (D320/D321): the INSTALL fetch no longer scales with
+// the bank — a fresh device takes the boot surfaces, the feed's core
+// and a page per topic — but a device's MEMORY still holds every row
+// its cache has accumulated, and hydrate reads all of them each boot
+// (the feed pool, the topic counts, search, the test joins walk that
+// memory). There is no hard cliff at these numbers, which is why they
+// kept their values: they are the size at which "hold everything a
+// device has ever met in memory" wants re-arguing on a low-end phone
+// rather than assumed, comfortably before it becomes an incident.
+// checkHeadroom() still derives bytes-per-document from the seed itself
+// so the message moves when the documents do.
 // D162's sampled audit: one AI-reviewed question in this many gets read by
 // a person. A starting figure, not a measured one — move it with what the
 // audit actually finds.
@@ -1468,15 +1471,15 @@ export function checkHeadroom(corpus) {
   const cacheMB = (n) => ((bankBytes / Math.max(bankSize, 1)) * n / 1024 / 1024).toFixed(1);
   if (bankSize >= BANK_FAIL) {
     errs.push(
-      `seeded bank holds ${bankSize} docs ≈ ${cacheMB(bankSize)} MB — past the point where handing every `
-      + "device the whole bank was last argued (BANK-DELIVERY §4). Every client holds all of it in memory "
-      + "and hydrate reads every cached row each boot; decide the per-device serving design before "
-      + "promoting more, rather than after a low-end phone reports it.",
+      `seeded bank holds ${bankSize} docs ≈ ${cacheMB(bankSize)} MB — past the point where a device holding `
+      + "its whole cache in memory was last argued (BANK-DELIVERY §4). The install fetch is paged since "
+      + "D320/D321, but every cached row is still read into memory each boot; decide the in-memory design "
+      + "before promoting more, rather than after a low-end phone reports it.",
     );
   } else if (bankSize >= BANK_WARN) {
     warn.push(
-      `seeded bank at ${bankSize} docs ≈ ${cacheMB(bankSize)} MB, all of it held in memory on every `
-      + "device — BANK-DELIVERY §4's whole-bank design wants re-arguing before this doubles",
+      `seeded bank at ${bankSize} docs ≈ ${cacheMB(bankSize)} MB — the install fetch is paged (D320/D321), `
+      + "but a device still holds every cached row in memory; that design wants re-arguing before this doubles",
     );
   }
   return { errs, warn };

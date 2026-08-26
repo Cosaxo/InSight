@@ -49,6 +49,12 @@ const h = vi.hoisted(() => ({
   // Simulates a cursor that never advances — the one way the paging loop
   // could spin forever. The guard's job is to report and stop.
   stuckCursor: false,
+  // The published serving orders (D319) the pagers read, keyed by
+  // surface. Empty = no fold has run, which is every pre-D319 test's
+  // world.
+  rankOrders: {} as Record<string, { topics: Record<string, { qids: string[]; total: number }> }>,
+  // The owner's interest profile (D322), served at their own taste path.
+  tasteProfile: null as null | { t: Record<string, number>; n: number },
 }));
 
 vi.mock("../../lib/firebase", () => ({
@@ -103,20 +109,48 @@ vi.mock("firebase/firestore", () => {
     documentId: () => ({ kind: "documentId" }),
     serverTimestamp: () => ({ __kind: "serverTimestamp" }),
     Timestamp: { fromMillis: (ms: number) => ({ ms, toMillis: () => ms }) },
-    getDoc: () =>
-      Promise.resolve({ exists: () => false, get: () => undefined, data: () => ({}) }),
+    getDoc: (ref: { path?: string }) => {
+      const rank = ref?.path?.match(/^v2_rank\/(\w+)$/);
+      const order = rank ? h.rankOrders[rank[1]] : undefined;
+      if (order) {
+        return Promise.resolve({ exists: () => true, get: () => undefined, data: () => ({ ...order }) });
+      }
+      if (ref?.path === "v2_users/uid_test/taste/profile" && h.tasteProfile) {
+        const p = h.tasteProfile;
+        return Promise.resolve({ exists: () => true, get: () => undefined, data: () => ({ ...p }) });
+      }
+      return Promise.resolve({ exists: () => false, get: () => undefined, data: () => ({}) });
+    },
     getDocs: (q: { path?: string; cons?: Constraint[] }) => {
       if (q?.path !== "v2_questions") return Promise.resolve(snapOf([]));
       const cons = q.cons || [];
       h.bankQueries.push({ path: q.path, cons });
+      // The pagers' fetch-by-id (D320/D321): where(documentId(), "in", ids).
+      const byId = cons.find(
+        (c) => c.kind === "where" && typeof c.field === "object"
+          && (c.field as unknown as Constraint).kind === "documentId",
+      );
+      if (byId) {
+        const ids = byId.value as string[];
+        return Promise.resolve(snapOf(h.bankDocs.filter((d) => ids.includes(d.id))));
+      }
       const lim = (cons.find((c) => c.kind === "limit")?.value as number) ?? Infinity;
       const delta = cons.find((c) => c.kind === "where" && c.field === "updatedAt");
       if (!delta) {
         // Real Firestore semantics for the full fetch: ordered by document
-        // id, advanced past the cursor, capped at the limit. Without all
-        // three the paging test would pass against a mock that hands back
-        // everything in one go — which is the bug, not the fix.
+        // id, advanced past the cursor, capped at the limit, and — since
+        // D321 splits the boot into two queries — FILTERED by the query's
+        // own surface/core constraints. Without the filters the core-feed
+        // query would hand back the whole bank and the tests could not
+        // tell the two queries' results apart, which is the bug, not the
+        // fix.
+        const surfaceIn = cons.find((c) => c.kind === "where" && c.field === "surface" && c.op === "in");
+        const surfaceEq = cons.find((c) => c.kind === "where" && c.field === "surface" && c.op === "==");
+        const coreEq = cons.find((c) => c.kind === "where" && c.field === "core" && c.op === "==");
         let docs = [...h.bankDocs].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+        if (surfaceIn) docs = docs.filter((d) => (surfaceIn.value as string[]).includes(d.data.surface as string));
+        if (surfaceEq) docs = docs.filter((d) => d.data.surface === surfaceEq.value);
+        if (coreEq) docs = docs.filter((d) => d.data.core === coreEq.value);
         const after = cons.find((c) => c.kind === "startAfter")?.value as { id: string } | undefined;
         if (after && !h.stuckCursor) {
           docs = docs.slice(docs.findIndex((d) => d.id === after.id) + 1);
@@ -215,6 +249,8 @@ beforeEach(() => {
   h.bankQueries.length = 0;
   h.deltaError = null;
   h.stuckCursor = false;
+  h.rankOrders = {};
+  h.tasteProfile = null;
   h.bankDocs = [q("q_1", 1000), q("q_2", 1000)];
   storage = new MemoryStorage();
   vi.stubGlobal("localStorage", storage);
@@ -240,7 +276,8 @@ afterEach(() => {
 describe("question-bank cache", () => {
   it("fetches the whole bank on a cold boot and records the cursor", async () => {
     await bootLive();
-    expect(bankFetches()).toBe(1);
+    // Two since D321: the boot surfaces, then the feed's core.
+    expect(bankFetches()).toBe(2);
     expect(isDelta(0)).toBe(false);
     const cached = await readCache();
     expect(cached.questions).toHaveLength(2);
@@ -318,7 +355,8 @@ describe("question-bank cache", () => {
     await seedCache({ ...first, rev: first.rev + 1 });
 
     await bootLive();
-    expect(bankFetches()).toBe(1);
+    // Both boot queries re-run — the cursor is not trusted either.
+    expect(bankFetches()).toBe(2);
     expect(isDelta(0)).toBe(false);
   });
 
@@ -355,7 +393,8 @@ describe("question-bank cache", () => {
     h.bankDocs = bulk(2500);
     await bootLive();
     // 1000 + 1000 + 500: the third page is short, which is what ends it.
-    expect(bankFetches()).toBe(3);
+    // 1000 + 1000 + 500 pages, plus the core-feed query's one empty page.
+    expect(bankFetches()).toBe(4);
     expect((await readCache()).questions).toHaveLength(2500);
   });
 
@@ -366,7 +405,8 @@ describe("question-bank cache", () => {
     // in the real world and look perfectly healthy doing it.
     h.bankDocs = bulk(2000);
     await bootLive();
-    expect(bankFetches()).toBe(3);
+    // Three pages for the boot surfaces plus the core-feed query (D321).
+    expect(bankFetches()).toBe(4);
     expect(h.bankQueries[2].cons.some((c) => c.kind === "startAfter")).toBe(true);
     expect((await readCache()).questions).toHaveLength(2000);
   });
@@ -389,7 +429,7 @@ describe("question-bank cache", () => {
       JSON.stringify({ rev: 0, questions: [q("q_9", 0).data] }),
     );
     await bootLive();
-    expect(bankFetches()).toBe(1);
+    expect(bankFetches()).toBe(2);
     expect(isDelta(0)).toBe(false);
     expect((await readCache()).questions.map((x: { id: string }) => x.id)).toEqual(["q_1", "q_2"]);
   });
@@ -440,7 +480,7 @@ describe("question-bank cache", () => {
   // delta cases are: a surface dropped by the server-side `in` and a
   // surface dropped by the client-side filter look identical from the
   // bank, and only one of them costs a read.
-  it("fetches every surface splitBanks can return, pulse and call included", async () => {
+  it("fetches every boot surface, pulse and call included — and the paged two deliberately not", async () => {
     h.bankDocs = [
       q("q_1", 1000),
       q("pulse-pace", 1000, {
@@ -451,9 +491,21 @@ describe("question-bank cache", () => {
     ];
     const LIVE = await bootLive();
     const asked = (h.bankQueries[0].cons.find((c) => c.field === "surface")?.value || []) as string[];
-    for (const s of ["daily", "feed", "test", "group", "duo", "learn", "pulse", "call"]) {
+    for (const s of ["daily", "test", "group", "duo", "pulse", "call"]) {
       expect(asked, `the bank query does not ask for ${s}`).toContain(s);
     }
+    // Learn and the feed PAGE against the published order since
+    // D320/D321 — the boot `in` carrying either again would silently
+    // re-inflate the install fetch the paging exists to remove. Learn's
+    // reach guarantee moved to the pager cases below; the feed's CORE
+    // rides the second query, asserted here on its constraints.
+    expect(asked, "learn is back in the boot fetch").not.toContain("learn");
+    expect(asked, "the feed is back in the boot `in` — core rides its own query").not.toContain("feed");
+    const coreCons = h.bankQueries[1].cons.filter((c) => c.kind === "where");
+    expect(coreCons).toEqual([
+      { kind: "where", field: "surface", op: "==", value: "feed" },
+      { kind: "where", field: "core", op: "==", value: true },
+    ]);
     expect(LIVE.pulseQs().map((x) => x.id)).toEqual(["pulse-pace"]);
     expect(LIVE.callQs().map((x) => x.id)).toEqual(["call-c01"]);
   });
@@ -478,10 +530,17 @@ describe("question-bank cache", () => {
     new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
 
   it("stops serving a now question the day after its window closes", async () => {
+    // `now` questions are TAIL by design (sold-inventory reasoning in
+    // QUESTION-FARM; the corpus wants density, not current events), so
+    // since D321 they reach a device through the pager — this case runs
+    // the window rule at PAGE ARRIVAL, which is where it lives for
+    // everything the boot fetch no longer carries. The feed pool needs
+    // one core question for buildFeedGlobals to build at all.
     const nowQ = (id: string, from: string, until: string) =>
       q(id, 1000, { surface: "feed", topic: "now", from, until });
     h.bankDocs = [
       q("q_1", 1000),
+      q("feed-core1", 1000, { surface: "feed", topic: "food", core: true }),
       nowQ("n_open", dayKey(-2), dayKey(2)),
       // Both boundaries are INCLUSIVE, and both are the off-by-one worth
       // pinning: a window closing today still serves today, and one that
@@ -493,11 +552,22 @@ describe("question-bank cache", () => {
       // this week rather than having to be awake on the day.
       nowQ("n_future", dayKey(1), dayKey(5)),
     ];
+    h.rankOrders.feed = {
+      // The nightly fold would exclude the closed and the future; the
+      // hand-built order lists all four so the CLIENT's arrival filter
+      // is what these assertions exercise — the fold's own exclusion is
+      // rank.test.ts's, and a card can close between fold and fetch.
+      topics: { now: { qids: ["n_open", "n_closes_today", "n_closed", "n_future"], total: 4 } },
+    };
     const LIVE = await bootLive();
+    await vi.waitFor(() => {
+      const feed = (window as unknown as { WORLD_FEED_QS?: Array<{ id: string }> })
+        .WORLD_FEED_QS || [];
+      expect(feed.map((x) => x.id), "an open window stopped serving").toContain("n_open");
+    });
     const feed = (window as unknown as { WORLD_FEED_QS?: Array<{ id: string }> })
       .WORLD_FEED_QS || [];
     const ids = feed.map((x) => x.id);
-    expect(ids, "an open window stopped serving").toContain("n_open");
     expect(ids, "a window closing today must still serve today").toContain("n_closes_today");
     expect(ids, "a closed question is still being offered — the lane's whole promise").not.toContain("n_closed");
     expect(ids, "a question whose window has not opened is being offered early").not.toContain("n_future");
@@ -506,5 +576,116 @@ describe("question-bank cache", () => {
     // untouched. `active: false` remains the hard kill.
     expect((await readCache()).questions.map((x: { id: string }) => x.id)).toContain("n_closed");
     expect(LIVE.ready).toBe(true);
+  });
+
+  // ── the paged surfaces (D320 learn, D321 feed tail, D322 profile) ──
+  //
+  // Reach guarantees live HERE now, not in the surface list: a device
+  // meets paged cards through the pager — first page per field/topic of
+  // the published order, minus what the cache holds, plus everything the
+  // device has history with. Asserted through the engine-facing pool and
+  // the persisted cache, because those are the two places a missing card
+  // actually hurts: a session with nothing to serve, and a map or a
+  // Mirror that forgets.
+  const learnDoc = (id: string, field: string) =>
+    q(id, 1000, {
+      surface: "learn", type: "choice", topic: field,
+      options: ["A", "B", "C", "D"], c: 0, t: 2, p: 60, k: `Fact ${id}`,
+    });
+
+  it("pages learn in from the published order, publishes the pool, persists the page", async () => {
+    h.bankDocs = [
+      q("q_1", 1000),
+      learnDoc("learn-cell1", "cell"),
+      learnDoc("learn-cell2", "cell"),
+      learnDoc("learn-sol1", "solar"),
+    ];
+    h.rankOrders.learn = {
+      topics: {
+        cell: { qids: ["learn-cell2", "learn-cell1"], total: 9 },
+        solar: { qids: ["learn-sol1"], total: 4 },
+      },
+    };
+    await bootLive();
+    const { learnCards, learnFieldTotal } = await import("./learnBank");
+    await vi.waitFor(() => {
+      expect(learnCards([]).map((c) => c.id).sort()).toEqual(["cell1", "cell2", "sol1"]);
+    });
+    // The sheet's denominator is the BANK's count off the order doc, not
+    // the fetched page — the page-size lie is the D283 report again.
+    expect(learnFieldTotal("cell")).toBe(2);
+    // Persisted: the next boot serves these from the cache, no re-fetch.
+    await vi.waitFor(async () => {
+      expect((await readCache()).questions.map((x) => x.id)).toContain("learn-cell1");
+    });
+  });
+
+  it("heals an answered tail question back with no order published", async () => {
+    // The feed's history is its answers: this device voted on a tail
+    // question (the answers cache says so) and the bank cache lost the
+    // doc. It must come back — served again AND persisted — without any
+    // order doc, or the Mirror holds a vote it cannot name.
+    storage.setItem("insight.answersCache.v1", JSON.stringify({
+      uid: "uid_test", votes: { "feed-t9": "0" }, maxTs: 500, maxEditTs: 0,
+    }));
+    h.bankDocs = [
+      q("q_1", 1000),
+      q("feed-t9", 1000, { surface: "feed", topic: "food" }),
+    ];
+    await bootLive();
+    await vi.waitFor(() => {
+      const feed = (window as unknown as { WORLD_FEED_QS?: Array<{ id: string }> })
+        .WORLD_FEED_QS || [];
+      expect(feed.map((x) => x.id)).toContain("feed-t9");
+    });
+    expect((await readCache()).questions.map((x) => x.id)).toContain("feed-t9");
+  });
+
+  it("heals a history card back into the pool even with no order published", async () => {
+    // The mastery map says this device knows cell9; the cache lost it (a
+    // contentRev bump refetches only the boot surfaces). No order doc —
+    // the heal is by id and must not wait for a fold that may never have
+    // run on a small project.
+    storage.setItem("insight.learn.v3", JSON.stringify({
+      c: { cell9: { s: "known", k: 3, seen: 1, miss: 0, pos: 0, at: 1 } },
+      lvl: {}, pos: 1, order: ["cell9"],
+    }));
+    h.bankDocs = [q("q_1", 1000), learnDoc("learn-cell9", "cell")];
+    await bootLive();
+    const { learnCards } = await import("./learnBank");
+    await vi.waitFor(() => {
+      expect(learnCards([]).map((c) => c.id)).toContain("cell9");
+    });
+  });
+
+  it("pages an answered topic deeper than a cold one when the profile clears its floors", async () => {
+    // D317 phase 1's whole serving effect, end to end: the device reads
+    // ITS OWN profile — the one doc only its owner may read — and takes
+    // the full page for the topic it answers, a smaller one for the
+    // topic it never has. Both non-zero: a cold topic must stay
+    // discoverable or the profile could never change.
+    const tailDoc = (id: string, topic: string) =>
+      q(id, 1000, { surface: "feed", topic });
+    h.bankDocs = [
+      q("q_1", 1000),
+      ...Array.from({ length: 14 }, (_, i) => tailDoc(`feed-hot${String(i).padStart(2, "0")}`, "food")),
+      ...Array.from({ length: 14 }, (_, i) => tailDoc(`feed-cold${String(i).padStart(2, "0")}`, "music")),
+    ];
+    h.rankOrders.feed = {
+      topics: {
+        food: { qids: h.bankDocs.filter((d) => d.id.startsWith("feed-hot")).map((d) => d.id), total: 14 },
+        music: { qids: h.bankDocs.filter((d) => d.id.startsWith("feed-cold")).map((d) => d.id), total: 14 },
+      },
+    };
+    h.tasteProfile = { t: { food: 12 }, n: 12 };
+    await bootLive();
+    await vi.waitFor(async () => {
+      const cachedIds = (await readCache()).questions.map((x) => x.id);
+      expect(cachedIds.filter((id) => id.startsWith("feed-hot"))).toHaveLength(12);
+    });
+    const cachedIds = (await readCache()).questions.map((x) => x.id);
+    const cold = cachedIds.filter((id) => id.startsWith("feed-cold")).length;
+    expect(cold).toBeGreaterThan(0);
+    expect(cold).toBeLessThan(12);
   });
 });

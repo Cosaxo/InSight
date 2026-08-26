@@ -81,6 +81,17 @@ export const CLAIMS = [
     /count of people by type, on any of the four[\s\S]{0,600}?not only the Big\s+Five/i],
   ["D202 · and that count is people, not a grouping of answers",
     /count of <em>people<\/em>, not a grouping of anyone/i],
+  ["D322 · the interest profile is counted from feed answers, and the page says the arithmetic",
+    /count which topics your feed answers fall into/i],
+  ["D322 · the profile is owner-only and never an ad input",
+    /interest profile[\s\S]{0,600}?never used for advertising/i],
+  // The phase-2 tripwire (D317): folding behaviour in is a FUTURE
+  // decision, and this sentence is the promise that it has not happened
+  // yet. Building phase 2 must retire this row in the same commit, with
+  // the record that licenses it — exactly the visit this gate exists to
+  // force.
+  ["D317 · behaviour stays on the device — the profile is answers only",
+    /scrolled past or skipped stays on your device and is not\s+collected/i],
   ["D288 · a bought question's contract record is buyer-only, and the buyer gets no private cut",
     /record of the contract[\s\S]{0,200}?only you can read it[\s\S]{0,200}?no private cut/i],
   ["D5 · duel picks stay sealed until the next day's reveal",
@@ -101,14 +112,36 @@ export const CLAIMS = [
     /carries your display name/i],
   ["D178 · the profile photo is optional and its metadata is stripped",
     /metadata is\s+stripped on your device/i],
-  ["D3 · no ads, no third-party analytics",
-    /no third-party analytics or tracking/i],
+  // The D3 row here — "no third-party analytics or tracking of any
+  // kind" — retired at D314 (2026-08-26): the owner removed the promise
+  // on the D225 posture (an unneeded promise is a standing liability),
+  // over the recorded recommendation to keep it. The page now DESCRIBES
+  // today's practice — no ad identifiers, no third-party analytics SDK,
+  // no data sold to advertisers, with "if that changes, this page
+  // changes first" — and pledges nothing about tomorrow. The store
+  // nutrition labels keep saying tracking-off because that stays a fact
+  // about the shipped app until an SDK actually ships; the day one
+  // does, the store forms and this page move together, as a product
+  // decision rather than a broken promise.
+  ["D314 · the tracking passage describes today and stays ahead of change",
+    /no third-party analytics SDK[\s\S]{0,200}?this\s+page changes first/i],
   ["D226 · a changed answer is counted publicly as a move between options",
     /moves from one option to another/i],
   ["D227 · the verified logic score also groups answers, in broad bands",
     /verified logic score, in\s+four broad\s+bands/i],
   ["D251 · sold reports are packaged public numbers, never a private read",
     /report never contains\s+anything a signed-in user could not read/i],
+  // D313 is one disclosure in two halves, the D268 pair's shape: one row
+  // pins the automated review (a submitted ask is read by an AI reviewer
+  // — that is a processor a buyer should learn from the page, not from a
+  // decline), the other pins the payment boundary (Stripe holds the
+  // payment details; we keep the booking and the refund arithmetic).
+  // Deleting either half leaves a page describing a different pipeline
+  // than the one that runs.
+  ["D313 · paid submissions are reviewed automatically, by rules and an AI reviewer",
+    /checked automatically[\s\S]{0,200}?AI reviewer/i],
+  ["D313 · payment runs on Stripe and the payment details never reach us",
+    /Stripe receives your payment details and we never see\s+them/i],
   ["D253 · sold reports group answers by all four tests' types and axes",
     /matched type and axis\s+bands/i],
   // D268 is one disclosure in two halves, pinned separately for the D202

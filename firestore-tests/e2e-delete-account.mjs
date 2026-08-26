@@ -135,6 +135,14 @@ await adb.doc(`v2_users/${uid}/foresight/daily-000__ageBand__25-34`).set({
 // the subtree wipe" a tested claim rather than an assumed one (the
 // foresight row's reasoning, one collection over). The OTHER control
 // below proves the wipe is the account's, not the collection's.
+// The interest profile (D317/D322): under the account's own subtree, so
+// phase 1b's recursive delete is what takes it — seeded so "covered by
+// the subtree wipe" is a tested claim, the foresight row's reasoning.
+// The privacy page promises this deletion by name, which is one more
+// reason it may not be assumed.
+await adb.doc(`v2_users/${uid}/taste/profile`).set({
+  t: { food: 3, sport: 1 }, n: 4, at: new Date(),
+});
 await adb.doc(`v2_users/${uid}/engagement/_state`).set({
   firstDay: "2026-08-01", lastDay: "2026-08-22", activeDays: 9, streak: 2, fg7: [2, 3, 2],
 });
@@ -287,8 +295,9 @@ await adb.doc(`v2_ratelimits/suggest_${uid}`).set({ events: [Date.now()] });
 
 // paid purchase records (PAID-PLAN §7, D288 §3): the contract ledger, keyed
 // to the buyer. OTHER's row is the control — phase 4e queries on uid and
-// must not take the whole ledger with it. Seeded with admin because that is
-// the ONLY pen this collection has (no client write path, no callable).
+// must not take the whole ledger with it. Seeded with admin because the
+// pens are server-side only (the D313 webhook and the operator script; no
+// client write path).
 await adb.doc(`v2_purchases/${uid}_e2e`).set({
   uid, kind: "question", qid: "pd_e2e", scope: "city", place: "Oslo",
   dims: ["city:Oslo"], window: { start: "2026-08-24", until: "2026-09-21" },
@@ -301,6 +310,23 @@ await adb.doc(`v2_purchases/${OTHER}_e2e`).set({
   cadence: "once", budget: { cap: 4000, capEur: 640, ratePerAnswer: 0.16 },
   state: "running", reports: [], at: new Date(),
 });
+
+// paid-question bookings (paid.ts, D313): the pre-payment half of a sale —
+// free text and a verdict under a uid, phase 4f. OTHER's row is the
+// control again; the budget ledger rides the same sweep as suggest_.
+await adb.doc(`v2_paid_bookings/${uid}_e2e`).set({
+  uid, prompt: "their in-flight paid ask", type: "binary",
+  options: ["a", "b"], topic: null, scope: "world", dims: {},
+  wearName: false, status: "review", reviewAttempts: 0, createdAt: new Date(),
+});
+await adb.doc(`v2_paid_bookings/${OTHER}_e2e`).set({
+  uid: OTHER, prompt: "someone else's paid ask", type: "binary",
+  options: ["a", "b"], topic: null, scope: "world", dims: {},
+  wearName: false, status: "approved",
+  quote: { ratePerAnswer: 0.144, capEur: 320, cap: 2222, windowDays: 29 },
+  reviewAttempts: 0, createdAt: new Date(),
+});
+await adb.doc(`v2_ratelimits/paidbook_${uid}`).set({ events: [Date.now()] });
 // The presence doc (D84): the one location-shaped datum an account can
 // hold, and the wipe must take it — a cell that outlives its account is a
 // standing "someone was here" nobody can retract.
@@ -424,6 +450,9 @@ for (const [path, label] of [
   [`v2_ratelimits/suggest_${uid}`, "their suggestion budget ledger"],
   [`v2_purchases/${uid}_e2e`, "their purchase record"],
   [`v2_purchases/${OTHER}_e2e`, "someone else's purchase record"],
+  [`v2_paid_bookings/${uid}_e2e`, "their paid-question booking"],
+  [`v2_paid_bookings/${OTHER}_e2e`, "someone else's paid-question booking"],
+  [`v2_ratelimits/paidbook_${uid}`, "their booking budget ledger"],
 ]) await mustExist(path, label);
 ok("seeded every wipe phase, and verified it landed");
 
@@ -508,6 +537,7 @@ for (const [path, label] of [
   [`v2_flags/av_${uid}_${OTHER}`, "somebody else's flag on their FACE"],
   [`v2_users/${uid}/following/${OTHER}`, "the account's own follow"],
   [`v2_users/${uid}/foresight/daily-000__ageBand__25-34`, "a foresight verdict"],
+  [`v2_users/${uid}/taste/profile`, "their interest profile (D317/D322) — the page promises this by name"],
   [`v2_users/${uid}/engagement/_state`, "the digest's bookkeeping pair (D268)"],
   [`v2_users/${uid}/engagement/2026-08-22`, "a person-channel day rollup (D272)"],
   [`v2_users/${OTHER}/following/${uid}`, "someone else's follow OF this account"],
@@ -520,7 +550,9 @@ for (const [path, label] of [
   [`v2_mod_queue/${MY_TAKE}`, "the queue's copy of their take"],
   [`v2_suggestions/${uid}_e2e`, "their question suggestion (phase 4d)"],
   [`v2_purchases/${uid}_e2e`, "their purchase record (phase 4e)"],
+  [`v2_paid_bookings/${uid}_e2e`, "their paid-question booking (phase 4f)"],
   [`v2_ratelimits/suggest_${uid}`, "their suggestion budget ledger"],
+  [`v2_ratelimits/paidbook_${uid}`, "their booking budget ledger"],
   [`v2_agg_events/evt_mine`, "their agg-ledger entry"],
   ["v2_handles/erasable", "their handle — the name goes back into circulation"],
   [`v2_people/${uid}`, "their directory row — an erased account stops being findable by name"],
@@ -569,6 +601,9 @@ ok("someone else's question suggestion survives");
 if (!(await exists(`v2_purchases/${OTHER}_e2e`)))
   fail("someone else's purchase record was deleted — phase 4e matched more than the uid");
 ok("someone else's purchase record survives (D288 §3)");
+if (!(await exists(`v2_paid_bookings/${OTHER}_e2e`)))
+  fail("someone else's paid booking was deleted — phase 4f matched more than the uid");
+ok("someone else's paid-question booking survives (D313)");
 if (!(await exists(`v2_users/${OTHER}/engagement/2026-08-22`)))
   fail("someone else's engagement rollup was deleted — the wipe took the collection, not the account");
 ok("someone else's engagement rollup survives (D272)");

@@ -139,6 +139,21 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // The published serving order (D316) — one document per ranked
+    // surface (`feed`, `learn`): per-topic question orderings the nightly
+    // rankBankV2 (admin SDK) derives from the public aggregates. Global
+    // signal only — volume with landslides sunk — so nothing per-person
+    // is in it or ever enters the fold (D163/D317's line: the server
+    // half of the order is the crowd's, never a profile).
+    //
+    // Write is closed for the v2_patterns reason, one shelf down: a
+    // client-writable order would make what everyone is served forgeable
+    // in one request.
+    match /v2_rank/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     // Engagement day docs (R1/D268) — the nightly digest's anonymous
     // population counts (actives, first answerers, cohort returns,
     // answers by surface), one doc per UTC day plus the fold's own
@@ -351,6 +366,26 @@ service cloud.firestore {
       // recursive delete of v2_users/{uid} takes it with the account.
       match /patterns/{docId} {
         allow read, write: if false;
+      }
+
+      // The interest profile (D317 phase 1, D322) — this person's FEED
+      // answers counted by topic, written nightly by fitTasteV2 (admin
+      // SDK) and read by the OWNER alone: their own device sizes its
+      // topic pages by it (D321), and D163's "a Mirror that secretly
+      // models you is a contradiction in terms" carries over — shown is
+      // the floor, so the owner read is the grant. NOT public, unlike
+      // the answers it derives from: what a person answered is the
+      // product (D98); what the system concluded they are INTO is a
+      // summary nobody signed up to be read as by strangers — the
+      // patterns-state argument, with the one reader the patterns state
+      // does not need. Client write closed: a self-writable profile
+      // would let a device forge its own fetch weighting, which is
+      // harmless today and a sponsored-targeting hole the day audiences
+      // exist. deleteAccount's recursive delete takes it, no new arm.
+      match /taste/{docId} {
+        allow get: if request.auth != null && request.auth.uid == uid;
+        allow list: if false;
+        allow write: if false;
       }
 
       // Engagement, two shapes under one path, split by the ID DISCIPLINE:
@@ -1598,18 +1633,38 @@ service cloud.firestore {
 
     // ── Paid purchase records (docs/PAID-PLAN.md §7, D288 §3) ────────
     //
-    // One row per contract — scope, dims, window, the rate LOCKED at
+    // One row per sale — scope, dims, window, the rate LOCKED at
     // booking, budget cap, state, report milestones. Written by the
-    // OPERATOR at contract time (scripts/record-purchase.mjs, admin
-    // SDK): selling is by hand today (PAID-PLAN §9.2), so there is no
-    // client write path and no callable — a write arm nothing uses
-    // would be surface without a subject. The buyer reads their own
-    // rows (the room, PaidMineCard); the demand the door shows is NOT
-    // read from here — scripts/build-pricing.mjs folds these into the
-    // committed content/pricing.json, which is the public half.
+    // server only: the Stripe webhook at payment time (paid.ts goLive,
+    // D313) and the operator's script for hand contracts
+    // (scripts/record-purchase.mjs) — both admin SDK, so there is no
+    // client write path and rules-side the arm stays closed. The buyer
+    // reads their own rows (the room, PaidMineCard); the demand the
+    // door shows is NOT read from here — scripts/build-pricing.mjs
+    // folds these into the committed content/pricing.json, which is
+    // the public half.
     // Same list shape as v2_suggestions: a query must filter
     // uid == request.auth.uid or Firestore refuses it wholesale (D65).
     match /v2_purchases/{pid} {
+      allow read: if request.auth != null
+        && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+
+    // ── Paid-question bookings (paid.ts, D313) ─────────────────────
+    //
+    // The pre-payment half of a self-serve sale: the composed question,
+    // the audience, the automated review's verdict and its note, the
+    // locked quote, the Stripe session id once checkout began. Written
+    // only by the server (bookPaidQuestionV2 and the review/webhook
+    // machinery — the callable holds App Check, the booking budget and
+    // the review order, none of which rules can express). The BUYER
+    // reads their own rows so the door can show
+    // review → approved → live, and a decline with its reason; nobody
+    // else has a door here at all.
+    // Same list shape as v2_suggestions: a query must filter
+    // uid == request.auth.uid or Firestore refuses it wholesale (D65).
+    match /v2_paid_bookings/{bid} {
       allow read: if request.auth != null
         && resource.data.uid == request.auth.uid;
       allow write: if false;
