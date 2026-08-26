@@ -250,7 +250,7 @@ describe("day arithmetic", () => {
 
 // ── the attention fold (R2/D270) ────────────────────────────────────────
 import {
-  BUCKET_MIDPOINTS, SHARD_FOLD_CAP, foldShards, runAttentionFold,
+  BUCKET_MIDPOINTS, MIN_SHARD_RATE, SHARD_FOLD_CAP, foldShards, runAttentionFold,
   type AttentionShardDoc, type AttentionStore, type AttnDelta,
 } from "./engagement";
 
@@ -317,6 +317,30 @@ describe("foldShards", () => {
     const d = out.get("2026-08-22")!;
     expect(d.devices).toBe(10);
     expect(d.s.feedSeen).toEqual({ reach: 10, est: 15 }); // 1.5 × 10
+  });
+
+  it("refuses to believe a rate below the floor — the weight is 1/rate", () => {
+    // The hole this closes: the rules bounded `rate` from above only, so
+    // `rate: 1e-12` was a legal create and one shard would have added
+    // ~1e12 devices, and ~1e12 to a question's seen count, to a
+    // world-readable document. The floor is honoured in both places; this
+    // is the reader's half.
+    const out = foldShards([
+      sh("a", "2026-08-22", { feedSeen: 1 }, 1e-12),
+      sh("b", "2026-08-22", { feedSeen: 1 }, 0),
+      sh("c", "2026-08-22", { feedSeen: 1 }, -0.5),
+    ]);
+    const d = out.get("2026-08-22")!;
+    // One device each, the same answer an absent or junk rate has always
+    // had — not a rescale to the floor, which would still believe a
+    // liar, only by three orders of magnitude less.
+    expect(d.devices).toBe(3);
+    expect(d.s.feedSeen).toEqual({ reach: 3, est: 4.5 }); // 1.5 × 3 devices
+  });
+
+  it("still honours the smallest rate that is not a lie", () => {
+    const out = foldShards([sh("a", "2026-08-22", { feedSeen: 1 }, MIN_SHARD_RATE)]);
+    expect(out.get("2026-08-22")!.devices).toBe(1 / MIN_SHARD_RATE);
   });
 });
 

@@ -545,10 +545,31 @@ export interface AttentionStore {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+/**
+ * The smallest sampling rate a shard may claim, and therefore the largest
+ * number of devices one shard may stand for (1 / this = 1000).
+ *
+ * WHY A FLOOR AND NOT JUST A CEILING. `weight = 1 / rate` and the rules
+ * bounded `rate` only from above, so `rate: 1e-12` was a legal create —
+ * and one free anonymous account writing one shard could add ~1e12
+ * devices, and ~1e12 to any question's seen/answered counts, to a
+ * world-readable day document. Those counts are what the pulse console
+ * reads and what QUESTION-FARM's scorecard proposes retirements from.
+ *
+ * 0.001 is a tenth of a percent — smaller than any sample this app would
+ * ship (at a million devices it is a thousand shards a day, which is
+ * already the fewest that could carry the per-question map), and a single
+ * shard standing for more than a thousand devices is not a reading
+ * anybody should publish. Mirrored in firestore.rules as a create bound,
+ * so the honest fence is at the door and this is the reader's backstop —
+ * the same two-sided shape `QIDS_CAP` has.
+ */
+export const MIN_SHARD_RATE = 0.001;
+
 /** Pure: fold shards (all of one day, or several) into per-day deltas.
  * The rules pin the key vocabulary but deliberately not the values
  * (rules cannot iterate a map) — so the clamps live HERE, on the only
- * reader: buckets to 0..4 integers, rates to (0, 1]. */
+ * reader: buckets to 0..4 integers, rates to [MIN_SHARD_RATE, 1]. */
 const clampBucket = (raw: unknown): number =>
   typeof raw === "number" && Number.isFinite(raw) ? Math.min(4, Math.max(0, Math.trunc(raw))) : 0;
 
@@ -556,8 +577,17 @@ export function foldShards(shards: AttentionShardDoc[]): Map<string, AttnDelta> 
   const out = new Map<string, AttnDelta>();
   for (const shard of shards) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(shard.day)) continue;
+    // A rate outside the honest range weighs ONE device, which is what an
+    // absent or junk rate has always done here — not a rescale to the
+    // floor, because a shard claiming 1e-12 is not a shard that sampled
+    // hard, it is a shard that lied, and treating it as 1000 devices
+    // would be believing the lie by three orders of magnitude less.
     const rate =
-      typeof shard.rate === "number" && shard.rate > 0 && shard.rate <= 1 ? shard.rate : 1;
+      typeof shard.rate === "number"
+        && shard.rate >= MIN_SHARD_RATE
+        && shard.rate <= 1
+        ? shard.rate
+        : 1;
     const weight = 1 / rate;
     let delta = out.get(shard.day);
     if (!delta) {

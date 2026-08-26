@@ -773,6 +773,24 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-6"), shard({ sampled: false })));
   });
 
+  it("refuses a sampling rate below the floor — the fold weighs by 1/rate", async () => {
+    // `rate` bounded only from above was a hole with a factor in it: the
+    // nightly fold multiplies every bucket by 1 / rate, so one create
+    // from one free anonymous account could add ~1e12 devices — and
+    // ~1e12 to any question's seen and answered counts — to the
+    // world-readable engagement day document, which is what the pulse
+    // console reads and what the retirement scorecard proposes from.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "r-tiny"), shard({ rate: 1e-12 })));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "r-zero"), shard({ rate: 0 })));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "r-neg"), shard({ rate: -0.5 })));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "r-over"), shard({ rate: 2 })));
+    // The floor itself is honest — it is MIN_SHARD_RATE in
+    // functions/src/engagement.ts, a tenth of a percent — and so is
+    // everything up to 1.
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_attention", "r-floor"), shard({ rate: 0.001 })));
+    await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_attention", "r-one"), shard({ rate: 1 })));
+  });
+
   it("shards are readable and editable by NOBODY, and the qids map stays shut until D271", async () => {
     await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_attention", "mine"), shard()));
     // not even the writer: a readable pile is the funnel's raw material

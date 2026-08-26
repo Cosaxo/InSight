@@ -196,7 +196,14 @@ service cloud.firestore {
         && request.resource.data.platform in ["ios", "android", "web"]
         && request.resource.data.sampled == true
         && request.resource.data.rate is number
-        && request.resource.data.rate > 0
+        // FLOOR, not just a ceiling. The fold weighs each shard by
+        // 1 / rate, so `rate > 0` alone let one create add ~1e12 devices
+        // — and ~1e12 to any question's seen/answered counts — to the
+        // world-readable engagement day document, from one free
+        // anonymous account. 0.001 is MIN_SHARD_RATE in
+        // functions/src/engagement.ts, which clamps again on the read;
+        // this is the honest fence at the door.
+        && request.resource.data.rate >= 0.001
         && request.resource.data.rate <= 1
         && request.resource.data.s is map
         && request.resource.data.s.keys().hasOnly([
