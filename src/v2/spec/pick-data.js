@@ -590,6 +590,27 @@ export let PICK_QS;
       13417189: 3,  // Interstellar — below the floor
       0: 11,        // Not listed — the Gump and Ghibli vote, among others
     },
+    // daily catalog-question run, 2026-08-26 — rewatch is the second films
+    // canon, and it is not favouritism: prestige drops (Shawshank does not
+    // crack this board) and comfort rises — the December films, the ones
+    // you can start from any minute.
+    pk27: {
+      105031: 22,   // Home Alone — the December engine
+      102438: 19,   // Harry Potter and the Philosopher's Stone
+      17738: 16,    // Star Wars: A New Hope
+      91540: 14,    // Back to the Future
+      127367: 13,   // LOTR: The Fellowship of the Ring
+      488655: 11,   // Groundhog Day — the joke writes itself
+      105598: 10,   // Die Hard — a Christmas film, per the annual argument
+      631103: 9,    // Mean Girls
+      83495: 8,     // The Matrix
+      188850: 7,    // Mamma Mia!
+      44578: 5,     // Titanic — clears the floor but not the top 10; folds
+      190588: 5,    // Love Actually — same
+      337078: 4,    // The Big Lebowski — below the floor
+      253978: 3,    // Dirty Dancing — below the floor
+      0: 12,        // Not listed — the Princess Bride vote has nowhere to file
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -902,6 +923,17 @@ export let PICK_QS;
         Men: { 47703: 9, 172241: 8, 181795: 6, 190050: 6, 83495: 5 },
       },
     },
+    pk27: {
+      ageBand: {
+        // Potter and Mean Girls are generational; Home Alone holds everyone
+        '18-24': { 102438: 8, 631103: 7, 105031: 6, 83495: 5, 188850: 4 },
+        '25-34': { 105031: 7, 91540: 6, 127367: 6, 17738: 5, 488655: 4 },
+      },
+      gender: {
+        Women: { 102438: 8, 631103: 7, 188850: 6, 105031: 5, 127367: 4 },
+        Men: { 17738: 8, 105598: 7, 91540: 6, 83495: 6, 488655: 5 },
+      },
+    },
   };
 
   const api = {
@@ -1063,6 +1095,7 @@ export let PICK_QS;
     { id: 'pk24', cat: 'fav', type: 'pick', domain: 'colors', prompt: 'Your favourite colour?', n: 168 },
     { id: 'pk25', cat: 'fav', type: 'pick', domain: 'colors', prompt: 'The colour you’d paint your front door?', n: 163 },
     { id: 'pk26', cat: 'fav', type: 'pick', domain: 'films', prompt: 'Your favourite film?', n: 161 },
+    { id: 'pk27', cat: 'fav', type: 'pick', domain: 'films', prompt: 'The film you’ve rewatched the most?', n: 158 },
   ];
   window.PICK_QS = PICK_QS;
 })();
