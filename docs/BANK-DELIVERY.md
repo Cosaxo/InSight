@@ -1,6 +1,8 @@
 # Bank delivery — three ceilings, in the order they bite
 
-**Status: mixed — §2 is BUILT (D284, 2026-08-24); §3 and §4 are plan.** Written 2026-08-24 on the
+**Status: mixed — §2 is BUILT (D284, 2026-08-24) and §3 is BUILT (D303,
+2026-08-26, via [`ANSWER-SCALE.md`](ANSWER-SCALE.md) §2.2 — the bank rode
+the answer caches' move); §4 is plan.** Written 2026-08-24 on the
 owner's direction after D283: the question banks should grow by an order
 of magnitude, and *"it's a good thing they don't run out"* is the product
 argument that outranks any figure on this page. Nothing here refuses
@@ -170,7 +172,16 @@ the cap raising. `duel-questions.json` at 24 KiB — the last bank still
 compiled in whole, on a weekly lane at 14.6 KiB, and crossing it is the
 signal to give it learn's treatment.
 
-## 3 · Ceiling 2 — the bank cache is in the small box
+## 3 · Ceiling 2 — the bank cache is in the small box · **BUILT (D303)**
+
+> Landed 2026-08-26 inside ANSWER-SCALE §2.2's pass — that page found
+> the ANSWER-side caches racing the bank for the same quota, so the box
+> was opened once for all of them. As built: rows per question plus a
+> {rev, cursor} meta row in `data/cacheStore.ts`, the cursor and delta
+> shape untouched, the legacy key retired after its rows commit, and
+> `BANK_WARN`/`BANK_FAIL` re-pointed a third time at §4's
+> whole-bank-in-memory ceiling. What follows is the reasoning as it
+> stood, and it held.
 
 `live.ts` caches the whole bank in `localStorage` under
 `insight.bankCache.v2`. The quota is ~5 MB per origin, shared with ~29
@@ -258,9 +269,10 @@ convert later, and a published count is usually as good.
    (unlisted import, and a listing nothing imports). Verified against the
    defect itself: point `learn-data.js` back at the full bank and the
    gate reports it.
-2. **Ceiling 2, when the bank passes ~2,000 documents** — comfortably
-   before `BANK_WARN`, because the failure is silent and a gate that
-   warns at the cliff edge warns too late. Three call sites.
+2. ~~**Ceiling 2, when the bank passes ~2,000 documents**~~ — **Done,
+   D303**, ahead of the trigger: ANSWER-SCALE §2 found the answer-side
+   caches racing the bank for the same quota, and the owner's direction
+   to build that plan opened the box once for all of them.
 3. **Ceiling 3, when a real product need asks for it** — an interest
    model that selects server-side (D163), or a bank large enough that a
    first install feels slow. Not before.

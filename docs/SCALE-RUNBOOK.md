@@ -99,6 +99,14 @@ increase the current headroom is weeks.
       naming a number to stay under. Not scheduled — it is not due until
       roughly 6,000 questions.
 
+      **The move happened 2026-08-26 (D303)**, ahead of that schedule and
+      from the other side: [`ANSWER-SCALE.md`](ANSWER-SCALE.md) found the
+      ANSWER-state caches racing the bank for the same origin quota, and
+      the bank cache rode their move into `data/cacheStore.ts`. The gate
+      was re-pointed a third time — at the whole-bank-in-memory design
+      ([`BANK-DELIVERY.md`](BANK-DELIVERY.md) §4), the ceiling that
+      remains.
+
 ## Phase 2 — Finish D161 (the Mirror side)
 
 Sequenced with the first tail content, not before: while the tail is

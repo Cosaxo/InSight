@@ -30893,3 +30893,132 @@ copy is prose and mentions no mark. Regeneration is unchanged and one
 command each: `node scripts/gen-icons.mjs` (16 launcher assets),
 `npm run build && node scripts/gen-feature-graphic.mjs` (Play graphic,
 re-run and committed with this change).
+
+## D303 · The answer-state caches leave the quota: the instrument, then the IndexedDB rows
+
+**2026-08-26, on the owner's direction to start building
+[`ANSWER-SCALE.md`](ANSWER-SCALE.md).** Phases §2.1 and §2.2 are built —
+the two that page called "now" and "same pass as the bank's move". §4
+(sharding the daily's aggregate) stays deliberately on the shelf: its
+trigger is the contention alert, which has never fired, and building it
+at zero users is the exact thing D7's discipline refuses. This record is
+the as-built, including three deviations from the plan and one
+test-harness bug the rework surfaced.
+
+### §2.1 — the swallow reports (`lsSet`, live.ts)
+
+Every `insight.*` localStorage write already caught-and-ignored failure —
+the right degradation, no sensor. Twelve write sites now funnel through
+one helper that counts every swallowed write
+(`stats.cacheWriteFailures`) and reports the first QUOTA-shaped failure
+once per session, `where: "quota"`, carrying the key and the size that
+failed. Quota is told apart from a merely absent storage (private mode,
+disabled) by error name/code — the legacy spellings included (code 22,
+`NS_ERROR_DOM_QUOTA_REACHED`) — because absence is an environment and
+quota is the box filling, and only the second is the condition
+ANSWER-SCALE reads deadlines from. Four tests pin the session surviving
+a dead storage, the once-per-session throttle, and the
+quota/environment split.
+
+### §2.2 — one IndexedDB database for the fat caches (`data/cacheStore.ts`)
+
+The bank, aggregate and answers caches — the three that grow with the
+bank or with what the account has answered — moved from localStorage
+blobs to rows in `insight-cache` (stores: `bank`, `aggs`, `answers`,
+`meta`), best-effort by the same contract as before. What is different
+by design rather than by medium:
+
+- **Rows keyed by qid, so a write is the size of the change.** The
+  aggregates blob was re-serialized WHOLE roughly once a second during a
+  vote burst, on the main thread, on a map nothing prunes — a cost that
+  grew with the archive forever. The flush now drains a dirty set;
+  `storeAgg()` is the one door into `state.aggs` that persists, so the
+  set cannot silently miss a site.
+- **The first transaction is created synchronously once the connection
+  is open.** Found by the hide-flush test, kept because it is a real
+  guarantee, not a test convenience: `visibilitychange` is the last work
+  a backgrounded WebView is promised, and the first draft's
+  `await open()` put a microtask boundary inside exactly the window the
+  flush exists to beat — the connection promise was already resolved and
+  the await still deferred the transaction. `write()` takes a sync path
+  off the resolved handle.
+- **Crash ordering, both directions.** Chunked bulk writes commit their
+  meta row in the LAST transaction, so a process killed mid-import
+  leaves rows without a cursor and every reader treats that as "no
+  cache" — a torn write degrades to a refetch, never to a cache that
+  lies about its completeness. The legacy localStorage payload is used
+  for one warm boot, written into the store, and its key removed only
+  AFTER the commit, so an upgrading device always holds one complete
+  copy (the aggs display cache alone migrates fire-and-forget; losing
+  its 1 s window costs a capped refetch).
+- **The purge reaches the new box from both directions.** cacheStore
+  hears `insight:local-purge` (the uid-change path), and `deleteAccount`
+  AWAITS `clearAll()` beside `clearIndexedDbPersistence` — the privacy
+  page's clears-this-device claim is about a device that may be sold,
+  not about an event that was dispatched. `check:purge` grew the
+  matching second predicate (a file that opens IndexedDB owes the
+  listener), verified by mutation: renaming the listener string fails
+  the gate. Cross-account safety does not rest on the clear alone: the
+  answers store carries its owner uid in meta, `cacheVote` compares
+  module state (`answersCacheOwner`) before filing a row, and
+  `resetForNewUid` clears that owner before the purge runs.
+- **An IDB-warm boot with an empty delta writes nothing.** The blob
+  shape rewrote the whole bank every boot; the row shape writes the
+  delta or nothing. A hung open resolves null after 1.5 s so the boot
+  race is never hostage to a wedged IndexedDB — the session simply runs
+  uncached, the same degradation as no IndexedDB at all.
+
+`BANK_WARN`/`BANK_FAIL` re-pointed a THIRD time, per BANK-DELIVERY §3's
+closing rule: the localStorage cliff they watched is gone, so they now
+name §4's whole-bank-in-memory design — the only ceiling left — at the
+same doc counts, as the size where "hand every device everything" wants
+re-arguing rather than assuming.
+
+### Deviations from the plan, named
+
+1. **`insight.feedVotes.v1` stays in localStorage.** §2.2 said it "rides
+   along"; it does not, because the spec feed reads it synchronously at
+   store init and moving it means an async boot seam through the spec
+   layer — the exact kind of change the bridge migration wants done
+   deliberately, not as a rider. It is entry-per-feed-answer small
+   relative to the movers, it has a working fallback (world-feed falls
+   back to store votes), and §2.1's instrument now reports if it ever
+   becomes the problem. Revisit with the spec-layer conversion, not
+   before.
+2. **The test-item aggregates persist on purpose now.** Under the
+   whole-map blob they persisted INCIDENTALLY — whenever any other agg
+   write flushed, the map carried them. Per-row writes end incidental
+   persistence, so `loadSimilarity` marks its batch dirty deliberately;
+   a cached test aggregate saves the `AGG_ID_CAP` top-up re-fetching it
+   next boot.
+3. **The recheck stamps (`insight.aggCheck.v1`) moved too** — not named
+   by the plan, same curve (one number per answered question), zero
+   extra cost in the same pass; they ride the meta store.
+
+### The harness bug worth keeping
+
+vote.test.ts's window stub kept ONE listener per event type and its
+`dispatchEvent` invoked none of them. Real windows dispatch to every
+listener; several stores register for `insight:local-purge`, so the stub
+silently dropped whichever registered first — which is how cacheStore's
+purge clear passed unexercised until the uid-change case failed. The
+stub now dispatches to all registrations in order. A last-wins listener
+stub is exactly the shape that would hide a real store's missing purge
+wipe behind another store's presence.
+
+`fake-indexeddb` joined devDependencies for cacheStore's own suite — a
+spec implementation rather than a hand-rolled double, because
+transaction auto-commit and event ordering are where a hand-mirrored
+fake would encode this module's assumptions back at it. Suites that
+drive live.ts without stubbing `indexedDB` exercise the no-IndexedDB
+fallback for free.
+
+### What deliberately did not change
+
+The sharding design (ANSWER-SCALE §4) stays a design; the patterns
+fold's uid-range paging stays a comment in its own header until DAU asks
+for it; the small `insight.*` keys stay in localStorage under the §2.1
+instrument; and no store form, rules line or data-inventory row moved —
+the caches hold the same data they always held, in a box the same purge
+reaches, which is what the new check:purge predicate and the
+deleteAccount test now hold in place.

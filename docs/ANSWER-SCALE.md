@@ -1,8 +1,12 @@
 # Answer volume — the ceilings that grow with use, not with content
 
-**Status: plan only — nothing is built from this page.** Written
-2026-08-26, out of the owner's question "is this system ready for high
-numbers of questions and answers?". The **questions** half of that has
+**Status: mixed — §2.1 and §2.2 are BUILT (D303, 2026-08-26); §4 is a
+design on the shelf, §3 needs nothing.** Written 2026-08-26, out of the
+owner's question "is this system ready for high numbers of questions and
+answers?", and built the same day on the owner's direction — D303 is the
+as-built, including the deviations (`insight.feedVotes.v1` stays behind,
+the test aggregates persist deliberately now, the recheck stamps moved
+too). The **questions** half of that has
 its plans and most of the urgent parts are built:
 [`SCALE-PLAN.md`](SCALE-PLAN.md) is what an unbounded feed costs (its
 core/tail split classified and enforced in the Mirror),
@@ -120,7 +124,12 @@ product truthfulness, which is the dearer currency here.
 bank, which is tree state; a device's answered count is runtime state.
 So the gate's shape is wrong for it, and the remedy splits in two:
 
-### 2.1 · Phase 1 — instrument the swallow (S)
+### 2.1 · Phase 1 — instrument the swallow (S) · **BUILT (D303)**
+
+> `lsSet` in live.ts: every swallowed write counts
+> (`stats.cacheWriteFailures`), the first quota-shaped failure reports
+> once per session with the key and size, and an absent storage stays
+> silent. What follows is the reasoning as it stood.
 
 The D7 amendment's lesson, applied before it needs re-learning: the
 condition must be observable before anything is built for it. One
@@ -132,7 +141,15 @@ real devices — which is also the trigger for phase 2 that
 `BANK-DELIVERY.md` §3's own trigger (bank past ~2,000 docs) cannot see,
 because that trigger watches the bank and this ceiling moves with use.
 
-### 2.2 · Phase 2 — one IndexedDB store for the hand caches (M)
+### 2.2 · Phase 2 — one IndexedDB store for the hand caches (M) · **BUILT (D303)**
+
+> `data/cacheStore.ts`, same day — the trigger collapsed to "the owner
+> said build". As built with three recorded deviations, D303: the feed
+> mirror STAYS in localStorage (the spec feed reads it synchronously — it
+> moves with the bridge migration, not as a rider), the test aggregates
+> persist deliberately where the blob persisted them incidentally, and
+> the recheck stamps moved along. The purge half landed as planned, both
+> directions, with `check:purge` grown to see IndexedDB openers.
 
 The same move `BANK-DELIVERY.md` §3 already plans for the bank cache, in
 the same pass, for the same reason: the app already keeps Firestore's
@@ -249,14 +266,13 @@ taken down and built.
 
 ## 5 · Order of work
 
-1. **Instrument the quota swallow (§2.1).** S, now — it is the sensor
-   for everything else on this page, and its absence is the same hole
-   the D7 amendment closed for contention.
-2. **The IndexedDB move for bank + answer caches together (§2.2).** M.
-   Trigger: `BANK-DELIVERY.md` §5's (bank past ~2,000 docs) **or** the
-   first real quota reports from step 1 — whichever arrives first, and
-   step 1 is what makes the second trigger exist. Purge and
-   `check:purge` extended in the same change.
+1. ~~**Instrument the quota swallow (§2.1).**~~ **Done — D303.** The
+   sensor exists; what it reports from real devices is what the
+   remaining numbers on this page firm up against.
+2. ~~**The IndexedDB move for bank + answer caches together (§2.2).**~~
+   **Done — D303**, ahead of both planned triggers on the owner's
+   direction. Purge and `check:purge` extended in the same change; the
+   feed mirror's stay-behind is the recorded deviation.
 3. **Sharding stays shelved, buildable (§4).** Build on the alert. The
    COSTS.md line lands with the build, not before.
 4. **The patterns fold pages by uid range** when DAU approaches its
