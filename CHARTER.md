@@ -197,24 +197,43 @@ Filled by the chartering session; update on any change. Cadence is the
 dial for everything — a struggling or circling lane gets re-paced, not
 re-scoped, first.
 
-Created 2026-08-25 from the chartering session: fresh session per
-fire, model `claude-fable-5`, completion notifications off (the digest
-is the legibility channel), environment `env_013gTXHYYHNaKBiWe8c4gmtd`.
+Created 2026-08-25 from the chartering session; **rebuilt 2026-08-26
+morning** after the first day measured two things: a full theory run
+is real money (~$20 metered), and a cron-spawned fresh session carries
+no MCP tool grants — so the `add_repo` provisioning step stalled at a
+permission prompt nobody answers (the questions lane's first fire
+lived 73 seconds and landed nothing). The fires therefore go through a
+persistent **dispatcher** session (`session_01D44Wtdu5JfCYMJmYuKmLjc`,
+"Axiom dispatcher"): each Routine wakes the dispatcher, which forwards
+the lane prompt VERBATIM into a fresh session spawned with the
+provisioning tools pre-approved — same isolation, same fresh
+container, working permissions, and every run readable afterwards. The
+dispatcher never does lane work and never alters a prompt. Model
+`claude-fable-5`; completion notifications off (the digest is the
+legibility channel); environment `env_013gTXHYYHNaKBiWe8c4gmtd`.
+
+**Cadence: every lane every other day (the owner's re-pace,
+2026-08-25)** — subject axioms on odd UTC dates, reader lanes on even
+dates, so a reader always works on subject output at most a day old;
+about four runs a day in total across the eight.
 
 | Lane | Trigger id | Schedule (UTC) |
 | --- | --- | --- |
-| Genetic | `trig_01FY24wP7QVx6yKtyPySwuCw` | `2 */3 * * *` |
-| Body | `trig_01M13uuj3VWVRfQEapN24oET` | `17 */3 * * *` |
-| Questions | `trig_01UHsDc9ZzLv9neXq3tq91Z2` | `32 */3 * * *` |
-| Tests | `trig_011B7J7eoCCCH5157wFXJPuu` | `47 */3 * * *` |
-| Map | `trig_01MBKTtp3GCAjTrCacyxiJYh` | `2 1-23/3 * * *` |
-| Pattern | `trig_01XoDDuaeE5een4aviG6D4uU` | `17 1-23/3 * * *` |
-| Graph optimizer | `trig_01DmXvzjjQpy394oXjGvz9qk` | `32 1-23/3 * * *` |
-| Central | `trig_01Nv8PzPcsB1sayi5CDNkGCz` | `47 1-23/3 * * *` |
+| Genetic | `trig_01TcrGm7c7cEsCR1TVg5d8V4` | `2 9 1-31/2 * *` |
+| Body | `trig_01AopNS2HAVVHFYk99w7oJv7` | `2 10 1-31/2 * *` |
+| Questions | `trig_01JeVZmgC9FB78L5VRxGQJ9L` | `2 11 1-31/2 * *` |
+| Tests | `trig_01URyaqWz9WgLdRJVDn6z8hX` | `2 12 1-31/2 * *` |
+| Map | `trig_014HZHQYSpjc4xQGfbyAgjXw` | `2 9 2-30/2 * *` |
+| Pattern | `trig_01AsWK9g327DuHD6XatbBAmR` | `2 10 2-30/2 * *` |
+| Graph optimizer | `trig_016uPKLAXGriwC7ukQyRRmUG` | `2 11 2-30/2 * *` |
+| Central | `trig_017ZfLe6VNmVGZ677qqvkqgm` | `2 12 2-30/2 * *` |
 
-Two hour-groups so at most four lanes share an hour, fifteen minutes
-apart; every lane fires every 3 hours; central sits last in its group
-so it reads the freshest axiom work.
+Central still sits last in its group so it reads the freshest axiom
+work. The three product-side program Routines (build · skeptic ·
+retro, `docs/AXES-RUNBOOK.md` on `main`) dispatch the same way; their
+ids live in the runbook's own inventory. Pausing any lane stays one
+toggle in the claude.ai Routines UI — a paused Routine simply never
+wakes the dispatcher.
 
 ## 11 · Stop and re-plan
 
