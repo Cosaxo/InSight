@@ -5338,6 +5338,112 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "feed-f93",
+  "surface": "feed",
+  "seq": 130,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Whose biography tonight: Churchill, Bowie, Serena Williams, or Marie Curie?",
+  "options": [
+   "Churchill",
+   "David Bowie",
+   "Serena Williams",
+   "Marie Curie"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f94",
+  "surface": "feed",
+  "seq": 131,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The song stuck in your head: fight it, or play it?",
+  "options": [
+   "Fight it",
+   "Play it"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f95",
+  "surface": "feed",
+  "seq": 132,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Tonight's film: a favourite again, or a gamble on something new?",
+  "options": [
+   "The favourite, again",
+   "Something new"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f96",
+  "surface": "feed",
+  "seq": 133,
+  "type": "vote",
+  "domain": null,
+  "prompt": "World Cup final: in the stadium, at home with friends, or the big screen in a pub?",
+  "options": [
+   "In the stadium",
+   "Home with friends",
+   "Big screen in a pub"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl12",
+  "surface": "feed",
+  "seq": 134,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Books finished last year — how many?",
+  "options": [
+   "0–3 books",
+   "3–5 books",
+   "5–8 books",
+   "8–10 books",
+   "10–13 books",
+   "13–15 books",
+   "15–18 books",
+   "18–20 books",
+   "20–23 books",
+   "23–25 books",
+   "25–28 books",
+   "28–30 books"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 30,
+  "unit": "books"
+ },
+ {
+  "id": "feed-f97",
+  "surface": "feed",
+  "seq": 135,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Pineapple on pizza?",
+  "options": [
+   "Obviously yes",
+   "Never"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,
