@@ -40,7 +40,7 @@ export interface LiveQuestion {
   // that rates no place, and for any doc seeded before D187.
   tag?: string;
   rates?: string;
-  // The card's background paragraph (D281). Carried since D302 so the
+  // The card's background paragraph (D281). Carried since D306 so the
   // daily's About sheet can lead with it the way the feed's does — the
   // field was seeded and the feed read it, while this deck dropped it.
   bg?: string;

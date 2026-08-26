@@ -1,5 +1,5 @@
 // The canonical anchor vocabularies, dim-keyed, for the breakdown's
-// full-scale rows (D300).
+// full-scale rows (D304).
 //
 // ONE source: src/v2/spec/profile-vitals.js, the module `check:anchors`
 // holds equal to the trigger's BREAKDOWN_DIM_VOCAB (functions/src/pure.ts).

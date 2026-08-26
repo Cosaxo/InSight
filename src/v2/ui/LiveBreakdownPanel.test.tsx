@@ -109,7 +109,7 @@ const pctRow = (label: string) => {
 
 // A dim's rows view repeats the option labels — once as the Everyone
 // header's legend, once in an expanded row's option rows — so cohort
-// readings are addressed through the expanded region (D300) rather than
+// readings are addressed through the expanded region (D304) rather than
 // globally.
 const detail = (name: RegExp) => screen.getByRole("region", { name });
 const pctRowIn = (scope: HTMLElement, label: string) => {
@@ -129,7 +129,7 @@ describe("LiveBreakdownPanel · the split is drawn FOR a cohort", () => {
   });
 
   it("expanding a row redraws the SAME options with THAT cohort's numbers", () => {
-    // The D125 reading, one tap into the D300 rows: a row expands into
+    // The D125 reading, one tap into the D304 rows: a row expands into
     // the cohort's own option rows, and switching rows switches the
     // numbers without the options moving.
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
@@ -183,7 +183,7 @@ describe("LiveBreakdownPanel · the split is drawn FOR a cohort", () => {
 
 describe("LiveBreakdownPanel · what it will not claim", () => {
   it("offers every closed-vocabulary dim, and open dims only when published", () => {
-    // A closed vocabulary IS the body now (D300): a dim nobody has shared
+    // A closed vocabulary IS the body now (D304): a dim nobody has shared
     // opens onto its whole scale at zero, which since D98 is a fact. An
     // open vocabulary still needs a published cell — there is no
     // canonical list of every city to draw at zero.
@@ -277,7 +277,7 @@ describe("LiveBreakdownPanel · a cohort answers in percentages (D149)", () => {
   });
 });
 
-// ── the whole scale, in order (D300) ─────────────────────────────────
+// ── the whole scale, in order (D304) ─────────────────────────────────
 //
 // The rows view exists because the cohort-first sheet at a young
 // population showed two chips in popularity order and nothing else: the
@@ -285,7 +285,7 @@ describe("LiveBreakdownPanel · a cohort answers in percentages (D149)", () => {
 // had answered from was indistinguishable from a band that does not
 // exist. These cases hold the frame: vocabulary order, zeros drawn,
 // opt-outs earned, and nothing folded under an old vocabulary hidden.
-describe("LiveBreakdownPanel · the whole scale, in order (D300)", () => {
+describe("LiveBreakdownPanel · the whole scale, in order (D304)", () => {
   it("draws every age band in vocabulary order, zeros included — never popularity order", () => {
     // 55-64 outnumbers 25-34 here; the scale must not resort around that.
     LIVE.aggFor = () => ({
@@ -368,14 +368,14 @@ describe("LiveBreakdownPanel · the whole scale, in order (D300)", () => {
   });
 });
 
-// ── a rating answers with its average (D301) ─────────────────────────
+// ── a rating answers with its average (D305) ─────────────────────────
 //
 // Ten option rows about a ten-step scale answer none of the questions a
 // reader brings to it. With kind="rating" every body that would draw
 // option rows draws the average and the spread instead, and cohort rows
 // fill to their MEAN — the same `meanScore` the Scores lens reads, so no
 // two surfaces can disagree about what a cohort averages.
-describe("LiveBreakdownPanel · a rating answers with its average (D301)", () => {
+describe("LiveBreakdownPanel · a rating answers with its average (D305)", () => {
   const TEN = Array.from({ length: 10 }, (_, i) => String(i + 1));
   // 20 answers, mean 6.0; 25-34 run high (mean 8.0), 55-64 low (4.0).
   const RAGG = {

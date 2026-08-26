@@ -37,12 +37,24 @@ const OUT = join(OUT_DIR, "feature-graphic.png");
 
 const TAGLINE = "Answer one question. See where you stand.";
 
-// Pull the <g id="mark"> group out of the icon master so the graphic and
-// the launcher icons are provably the same artwork.
+// Pull the <g id="mark"> group — the paper-ground palette — out of the
+// icon master so the graphic and the launcher icons are provably the same
+// geometry. (The launcher icons themselves take the sibling mark-tile
+// group; this composition sits on the app's light surface, so it wears
+// the light conversion.) The group is flat by contract (see mark.svg), so
+// its first </g> closes it — slicing to the end of the file would drag
+// the tile group along.
 const markSvg = readFileSync(join(ROOT, "design/icon/mark.svg"), "utf8");
-const markInner = markSvg.slice(markSvg.indexOf('<g id="mark">'), markSvg.lastIndexOf("</svg>"));
-if (!markInner.startsWith('<g id="mark">')) {
+const markStart = markSvg.indexOf('<g id="mark">');
+if (markStart < 0) {
   console.error("gen-feature-graphic: design/icon/mark.svg has no <g id=\"mark\"> group.");
+  process.exit(1);
+}
+const markInner = markSvg.slice(markStart, markSvg.indexOf("</g>", markStart) + 4);
+// A match inside mark.svg's own comment yields prose, not artwork (see the
+// comment rule in that file). Real payload has the dots.
+if (!markInner.includes("<circle")) {
+  console.error("gen-feature-graphic: mark payload has no circles — matched the comment, not the group?");
   process.exit(1);
 }
 
@@ -72,7 +84,7 @@ await page.evaluate(({ markInner, tagline, W, H }) => {
       font-family:var(--sans);overflow:hidden;">
       <svg viewBox="0 0 100 100" width="188" height="188" style="flex:none;filter:drop-shadow(0 10px 26px color-mix(in oklch, var(--shadow-ink) 20%, transparent))">${markInner}</svg>
       <div style="display:flex;flex-direction:column;gap:14px;max-width:520px">
-        <div style="font-size:82px;font-weight:800;letter-spacing:-0.045em;line-height:1;color:var(--ink)">in<span style="color:var(--accent)">Sight</span></div>
+        <div style="font-size:82px;font-weight:800;letter-spacing:-0.045em;line-height:1;color:var(--ink)">In<span style="color:var(--accent)">Sight</span></div>
         <div style="font-size:27px;font-weight:600;line-height:1.28;color:var(--ink-2);letter-spacing:-0.012em">${tagline}</div>
       </div>
     </div>`;

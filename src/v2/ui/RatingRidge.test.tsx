@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 //
 // The ridge is the one figure three surfaces share for an ordinal spread
-// (D301) — the cases here pin what makes it that figure rather than a
+// (D305) — the cases here pin what makes it that figure rather than a
 // bar chart: every step drawn whether or not anyone chose it, your own
 // column marked, and the crowd's peak named only when it is not yours.
 import { afterEach, describe, expect, it } from "vitest";

@@ -1,5 +1,5 @@
 // PickTiles — the catalogue's head as tappable tiles on the pick card
-// (D304). The owner's reference sheet draws the browse row — patterned
+// (D308). The owner's reference sheet draws the browse row — patterned
 // cards under the search field — and a search-only ask kept the whole
 // catalogue invisible until you already knew what to type. The tiles are
 // the popularity head the catalogue ships anyway, so browsing costs no

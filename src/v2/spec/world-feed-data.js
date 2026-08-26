@@ -185,7 +185,7 @@ window.WORLD_FEED_QS = [
   { id: 'fd1', cat: 'dilemma', type: 'field', prompt: 'Pineapple on pizza \u2014 place it', ax: ['tastes bad', 'tastes good'], ay: ['a crime', 'high art'], n: 6800, cloud: [[22, 72, 10, 14], [76, 26, 12, 15], [54, 50, 4, 10]] },
   { id: 'fd2', cat: 'bigq', type: 'field', prompt: 'Small talk \u2014 place it', ax: ['painful', 'pleasant'], ay: ['pointless', 'essential'], n: 4100, cloud: [[64, 32, 12, 16], [30, 60, 8, 14], [50, 48, 6, 12]] },
   { id: 'fd3', cat: 'bigq', type: 'field', prompt: 'AI assistants, today \u2014 place them', ax: ['overhyped', 'underrated'], ay: ['scary', 'exciting'], n: 5600, cloud: [[42, 38, 10, 16], [68, 30, 8, 13], [30, 66, 7, 12]] },
-  // 2026-08-26 lane batch (D305) \u2014 the two continuum twins; copy matches
+  // 2026-08-26 lane batch (D309) \u2014 the two continuum twins; copy matches
   // content/feed-questions.json exactly, texture is this demo pool's own
   { id: 'dl14', cat: 'music', type: 'dial', prompt: 'How old were you when your taste in music settled?', lo: 10, hi: 40, unit: 'yrs', med: 17, n: 3400, dist: [4, 10, 18, 20, 15, 10, 7, 5, 4, 3, 2, 2] },
   { id: 'fd4', cat: 'bigq', type: 'field', prompt: 'Human nature \u2014 place it', ax: ['selfish', 'kind'], ay: ['fixed', 'changeable'], n: 4700, cloud: [[70, 30, 11, 15], [28, 68, 9, 14], [50, 48, 5, 12]] },

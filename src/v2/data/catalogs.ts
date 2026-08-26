@@ -126,7 +126,7 @@ function makeCatalog(asset: string): Catalog {
 
 const FILMS = makeCatalog("films.txt");
 const ARTISTS = makeCatalog("artists.txt");
-// QID-keyed like films/artists (build-catalog.mjs athletes, D304) —
+// QID-keyed like films/artists (build-catalog.mjs athletes, D308) —
 // export-only, like COUNTRIES: its consumers import it.
 const ATHLETES = makeCatalog("athletes.txt");
 // Codepoint-keyed (build-emoji.mjs); the display name embeds the character

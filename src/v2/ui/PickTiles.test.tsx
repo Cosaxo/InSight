@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The browse row (D304): the catalogue's popularity head as tiles, with
+// The browse row (D308): the catalogue's popularity head as tiles, with
 // generated faces for entries that have no visual of their own and the
 // entry's own visual where one exists. The cases hold the seams: a tap
 // is the search's pick (the key, never the name), a face is stable for a

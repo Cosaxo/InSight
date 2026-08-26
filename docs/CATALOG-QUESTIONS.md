@@ -15,7 +15,7 @@ design sketch, after the v15 UI merge; the same day, steps 1–3 shipped
 (Pokédex catalogue, demo `pick` card, canon backend — **D14**) and step
 4's machinery followed (QID key sets, domain-aware validation, the
 Wikidata generator — **D15**). The eighth domain, **athletes**, was
-committed 2026-08-26 (**D304**): 640 sitelink-ranked entries under the
+committed 2026-08-26 (**D308**): 640 sitelink-ranked entries under the
 artists' ratio rule (≥⅓ of occupations athletic, checked against the
 P279* closure under Q2066131) with `content/athlete-review.json` as its
 reviewed-exceptions file — the D267 machinery, one domain over — plus

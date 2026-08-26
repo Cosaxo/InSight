@@ -494,7 +494,7 @@ const NOT_SEEDED = {
     + "and gated by check:catalogs against the committed catalogue",
   "athlete-review.json":
     "build input, not content — the athletes catalogue's reviewed "
-    + "exceptions (D304, the D267 shape one domain over), read by "
+    + "exceptions (D308, the D267 shape one domain over), read by "
     + "scripts/build-catalog.mjs and gated by check:catalogs against the "
     + "committed catalogue",
   "pricing.json":

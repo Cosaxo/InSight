@@ -693,7 +693,7 @@ function ExploreLens({ qs }: { qs: LensQuestion[] }) {
 const awayCounts = (all: number[], counts: number[]): number[] =>
   all.map((a, i) => Math.max(0, a - (counts[i] || 0)));
 
-// ── the asks (D303) ─────────────────────────────────────────────────
+// ── the asks (D307) ─────────────────────────────────────────────────
 //
 // The place questions this viewer has not answered, straight from the
 // bank, answered here through the ordinary vote path — because the only
@@ -704,7 +704,7 @@ const awayCounts = (all: number[], counts: number[]): number[] =>
 // Blind like the daily it is: the row shows no split. The facet scores
 // above are the PLACE's published averages, visible to every visitor of
 // this lens whether or not they answer — so an ask beside them leaks
-// nothing the card did not already say. The scale is D301's ramp row,
+// nothing the card did not already say. The scale is D305's ramp row,
 // one tap, same stored optionIdx as everywhere else.
 function PlaceAsks({ asks }: {
   asks: Array<{ id: string; text: string; optionCount: number }>;
@@ -801,7 +801,7 @@ function ScoresLens({ qs, shortName, scope }: {
     // operator reseeds, so the card is empty rather than wrong. That is
     // the direction to be wrong in — the whole point of the change.
     //
-    // With asks in hand the emptiness is not a wall (D303): the sentence
+    // With asks in hand the emptiness is not a wall (D307): the sentence
     // stays, and the way to change it sits right under it.
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 13 }}>
@@ -967,7 +967,7 @@ function ScoresLens({ qs, shortName, scope }: {
           })}
         </div>
       )}
-      {/* The unanswered rest, under a hairline (D303) — the scale rows
+      {/* The unanswered rest, under a hairline (D307) — the scale rows
           say what they are; a header would caption the control under it
           (docs/COPY.md). */}
       {!!asks.length && (

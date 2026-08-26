@@ -66,7 +66,7 @@ describe("mixFor", () => {
   });
 });
 
-describe("vocabMix (D300)", () => {
+describe("vocabMix (D304)", () => {
   const VOCAB = ["Under 18", "18-24", "25-34", "35-44", "Prefer not to say"];
 
   it("returns the whole vocabulary in its own order, zeros included", () => {

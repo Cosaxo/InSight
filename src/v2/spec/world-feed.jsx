@@ -1582,7 +1582,7 @@ class WorldFeed extends React.Component {
     const v = this.pickVal(q);
     const store = this.pickStore(q.domain);
     if (v == null) {
-      // The browse row (D304): the catalogue's popularity head as tiles
+      // The browse row (D308): the catalogue's popularity head as tiles
       // over the search, so the domain is visible before you know what to
       // type. ONLY the sitelink-ranked domains — their file's head IS a
       // fame ranking; offering the alphabetical catalogues' head as if it

@@ -134,7 +134,7 @@ export const VOCAB_TAIL = new Set(["Prefer not to say", "Other"]);
 
 /**
  * The full-vocabulary mix for a CLOSED dim — every canonical bucket in
- * vocabulary order, zeros included (D300).
+ * vocabulary order, zeros included (D304).
  *
  * `mixFor` answers "how is this crowd composed" and sorts by size, which
  * is right for the People lens and wrong for a breakdown that should read

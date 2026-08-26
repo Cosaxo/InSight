@@ -3,7 +3,7 @@
 // form, so the daily's result, the who-voted sheet and the Map keep
 // drawing the same shape for the same kind of number.
 //
-// Born for D301: a ten-step rating rendered as ten stacked option rows
+// Born for D305: a ten-step rating rendered as ten stacked option rows
 // filled more than a screen, on the answer card and again on every sheet
 // that redrew it. A rating's reading is a POSITION on a scale plus a
 // spread around it — one figure, not ten rows.

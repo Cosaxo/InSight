@@ -24,14 +24,14 @@ const WORLD_SUBTOPICS = [
 
 // ── background knowledge ────────────────────────────────────────────────────
 // Only for questions that cannot be answered honestly without a fact — and,
-// since D302, for a named subject the reader may be meeting for the first
+// since D306, for a named subject the reader may be meeting for the first
 // time (who Mozart was, what a trolley problem is). Rules: definitions,
 // events and the subject's who/what, never arguments (those live in the
 // reveal), and never more than ~40 words. If a question needs more than
 // that, rewrite the question.
 // Converted (D249). No window mirror: world-feed.jsx was the only reader.
 //
-// SCOPE since D302: this map serves the DEMO pool. The bank's own
+// SCOPE since D306: this map serves the DEMO pool. The bank's own
 // questions carry `bg` on the seeded doc (content/*.json → the seed), so
 // a live card never reads this map unless its id happens to be one the
 // demo pool shares — and for those ids the bank copy wins (WF_BGTEXT

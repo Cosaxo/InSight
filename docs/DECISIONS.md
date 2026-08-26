@@ -30594,7 +30594,447 @@ merge — both are conventions rather than code, and neither is chosen here.
 What is no longer possible is discovering the miss by following a citation
 months later.
 
-## D300 · The breakdown gets its scale back: every canonical bucket, in vocabulary order, on top of the cohort reading
+## D300 · The first look at production, and the two things it said that the repo had wrong
+
+**2026-08-26.** `npm run observe` ran against `prvfire33` for the first
+time. **All four readings came back. No role was missing.** Which is the
+first finding, and it is about me rather than about the project: this was
+reachable the entire time it was being described as blocked on runbook
+5.13's six gcloud commands.
+
+```
+✓ alertPolicies  0 live, 0 enabled; 8/8 committed NOT armed
+✓ logMetrics     0 log-based metric(s)
+✓ functions      66 deployed — europe-west1:42, us-central1:21,
+                               europe-west3:2, europe-north1:1
+✓ billing        enabled=true  account=billingAccounts/0185A3-9BC4AF-7E35D2
+```
+
+### Nothing is armed. Not "some" — nothing.
+
+Zero alert policies exist in the project and zero log-based metrics sit
+behind them. All eight committed policies are unarmed, and every one of
+them watches an **absence**:
+
+- `fitPatternsV2 has gone quiet`
+- `digestEngagementV2 has gone quiet`
+- `scheduledDuelReveals has gone quiet`
+- `ledgerVelocityScan has gone quiet`
+- `onV2AnswerCreated is erroring`
+- `onV2AnswerCreated is contending on the per-question aggregate`
+- Firestore read rate far above the cost model
+- Firestore write rate far above the cost model
+
+D296 happened under exactly this condition: every instrument reporting
+zero over 108 real answers for fifteen days, with nothing watching for a
+number that stopped moving. That is not a coincidence to note in passing —
+it is the same hole, and the sixth policy in that list is the recorded
+precondition for sharding (D290 layer 2), so the ladder's next rung has
+been gated on a detector that does not exist.
+
+### Twenty-one in the old region, and the repo said nine
+
+`docs/DEPLOYMENT.md` has carried a delete command for **nine** v1
+functions since D13, and runbook 5.9b — written this morning — repeated
+the figure. Production holds **21** in `us-central1`, plus **two in
+`europe-west3` and one in `europe-north1`** that no document in this
+repository mentions at all.
+
+Twelve of the 21 are named nowhere here: `updatePollResults`,
+`aggregatePollResults`, `sendPushNotificationsTrigger`,
+`sendUserPushNotificationsTrigger`, `sendChatNotificationsTrigger`,
+`addFcmToken`, `findSimilarUsers`, `createLiveStream`,
+`recalculateVoterPersonality`, `updateIsNewFieldNew`,
+`scheduledDeletePastEvents`, `onUserDeleted`.
+
+**None of the 21 is referenced by any live code file** — every `.ts`,
+`.tsx`, `.js` and `.jsx` in the tree was grepped; the only hits for the
+nine are two documents and this session's own test fixture. They are
+orphaned **relative to this repository**, which is not the same claim as
+safe to delete: several are v1 Firestore or Auth triggers that may still
+fire against v1 data, and `onUserDeleted` in particular sounds like an
+erasure path. Identifying them is work; the delete command as written
+names nine and stays correct.
+
+**Why the number was wrong.** D13 recorded what it had *retired*, and
+nothing ever compared that against what production *held*. The gap is
+seventeen months of deploys nobody enumerated, and it stayed invisible
+because no reader existed. The runbook item I wrote this morning inherited
+the error faithfully — a figure copied from a record rather than measured,
+which is the documentation error this repo keeps re-committing and now has
+a gate for in the one case (`check:figures`) where the truth is in the
+tree. Here it is not in the tree; it is in production, and the only fix is
+to look.
+
+### The reader made the same mistake, and that is the transferable part
+
+`observe.mjs` asked `byRegion["us-central1"]` — the only stale region this
+repo's prose has ever named. It would have reported 21 and silently missed
+the other three. **A reader that only asks about the wrongness it expects
+finds exactly the wrongness it expects.** It now reports strays in every
+region that is not `FUNCTIONS_REGION`, read out of `src/lib/region.ts`
+rather than retyped (D201), and the test pins a stray in a third region
+that the old shape would have dropped.
+
+### What is now true that was not this morning
+
+The project can be looked at. `alertPolicies … armed` is answered by name
+rather than by count, so arming them is verifiable the moment it is done
+rather than assumed. Every reading is a GET; the workflow needs no
+approval gate because it cannot change anything, and it runs daily at
+06:11 UTC.
+
+D292's separate least-privilege identity is still the right destination
+and is unaffected by this: it was never what stood between the project and
+its own state.
+
+## D301 · Twenty-one strays, three provenances, and one of them runs on every account deletion
+
+**2026-08-26.** `npm run observe -- --functions` described what D300
+counted. The 21 `us-central1` functions are not one leftover with one
+story — they are **two unrelated codebases plus an installed extension**,
+and the runbook had been treating them as a single cleanup since D13.
+
+### The split, by evidence rather than by name
+
+| | count | generation | runtime | last deployed | whose |
+| --- | --- | --- | --- | --- | --- |
+| Old project | 12 | GEN_1 | nodejs10 / 18 / 20 | 2024-03 → 2025-10 | another app on this GCP project |
+| Stranded ours | 9 | GEN_2 | nodejs22 | 2026-07-29 | InSight, left by D201's region move |
+| Algolia extension | 2 (`europe-west3`) | GEN_1 | nodejs18 | 2024-06-03 | `firestore-algolia-search` |
+
+The generation and runtime are what separate them, and neither is visible
+from a name. Nine of the twenty-one were on D13's list; the other twelve
+were on nobody's, and the runbook item written earlier the same day
+inherited the count "nine" from a record rather than from the deployment.
+
+### Eleven of the twelve cannot see this app's data. One can.
+
+The eleven are Firestore triggers or HTTPS functions on the **`(default)`**
+database. v2 lives in **`insight`** (`functions/src/db.ts:29`), and the
+`onV2AnswerCreated` trigger's own event filter says `database=insight`. A
+Firestore trigger cannot cross that boundary, so they are inert with
+respect to everything this project holds.
+
+**`onUserDeleted` is not a Firestore trigger.** It is a Firebase Auth
+`user.delete` trigger with `resource=projects/prvfire33` — **project-wide.
+Auth has no database to be scoped to.** And `functions/src/index.ts:882`
+ends the erasure path with:
+
+```js
+await getAuth().deleteUser(uid);
+```
+
+So **every InSight account deletion executes 2024-era code belonging to a
+different application.** What that code does is unknown and not knowable
+from here: the source is not in this repository, and the repository's own
+history cannot rule it out either — this checkout is a shallow clone
+(182 commits, earliest 2026-08-20), which is a fact worth writing down
+because `git log --all -S` returning nothing looked like proof and was an
+artifact of the clone depth.
+
+It has presumably been failing or no-opping harmlessly for a year. That is
+a guess. What is measured is that it runs, on the one path this product
+treats as a promise, and that is the argument for deleting it deliberately
+and first rather than inside a batch.
+
+### Two are billed work, and they collide
+
+`scheduledDeletePastEvents` and `updateIsNewFieldNew` are the only two on
+timers, so they are the only two costing anything. Both are wired to the
+**same** Pub/Sub topic —
+`firebase-schedule-scheduledDeletePastEvents-us-central1` — and
+`updateIsNewFieldNew`'s entry point is `scheduledUpdateIsNewStatus`. That
+is a deploy collision in the old project, inherited intact. Noted because
+deleting a Gen-1 scheduled function does not reliably remove its Cloud
+Scheduler job, and a job whose target is gone still fires and still fails.
+
+### The extension is not a stray deploy
+
+Two `europe-west3` functions are `firestore-algolia-search-6ct7`, indexing
+`Cities/{documentID}` from `(default)` into Algolia since 2024-06-03.
+`functions:delete` is the wrong instrument: an extension's functions belong
+to the instance, and removing them by hand leaves it installed and broken.
+`ext:uninstall` is the operation, and the instance id should be confirmed
+with `ext:list` rather than inferred from the function prefix — which is
+what this record does, having inferred it.
+
+### What is recorded and what is not
+
+Runbook 5.9b now deletes the twelve, `onUserDeleted` first and alone; 5.9c
+uninstalls the extension; 5.9d keeps the nine as a separate decision
+because they are ours. **No deletion is performed here.** These are
+production functions whose source this repository does not hold, so the
+operation is not reversible from the tree, and "probably fine" — the
+owner's own words, and almost certainly correct — is the right amount of
+confidence to act on and the wrong amount to act on unattended.
+
+The verification is the instrument rather than the eye: re-run
+`npm run observe -- --functions` and `strayCount` should fall by twelve.
+
+### Amended the same day, by the review of the plan itself
+
+28 objections were raised against these commands by three independent
+lenses and 23 were refuted. **Five survived, and two of them were errors in
+the commands as written:**
+
+1. **`ext:uninstall` does not uninstall anything.** In the pinned
+   firebase-tools (15.24.0) its entire action body is
+   `manifest.removeFromManifest(instanceId, config)` — it edits
+   `firebase.json` and never reaches the Extensions API; the only caller of
+   `extensionsApi.deleteInstance` in the CLI is
+   `lib/deploy/extensions/tasks.js`, behind `deploy --only extensions`. And
+   this repo's `firebase.json` has no `extensions` key, so the documented
+   command throws before doing even its local no-op. **This record said
+   "`ext:uninstall` is the operation" one section above.** It is not. The
+   Console is, and 5.9c now says so. Verified by executing
+   `removeFromManifest` against this repo's real config rather than by
+   reading the command's `--help`, which still describes the API behaviour
+   it lost.
+2. **Runbook 5.9d was headed "the nine stranded `europe-west1` copies"** —
+   the region where all 42 LIVE functions are — one line above a nine-name
+   `--force` delete, in an item pointing at a command whose own
+   documentation says in bold that the region must not be "fixed" to match
+   D201. The body two lines down said `us-central1` throughout. **Three
+   independent reviewers flagged it; no gate could.** A heading is prose,
+   the command underneath was right, and every check in this repo was
+   green.
+
+And three that were true but not commands: `DEPLOYMENT.md` described the
+wrong-region failure as "would delete nothing and report success" when
+15.24.0 throws and exits non-zero (opposite advice for an operator);
+item 5.9 still told the operator to SPARE the nine while 5.9d deletes them,
+two open boxes contradicting each other; and 5.9d attributed the nine to
+D201's region move when D13 dropping them from the deploy list is the
+cause.
+
+**What the ratio is worth saying about.** 23 of 28 objections were refuted,
+several of them confidently argued and wrong — including two claiming the
+database-isolation argument fails. The value was not in the hit rate. It
+was that the two real ones were a wrong command that fails loudly and a
+wrong region in a heading that would not have, and neither is the kind of
+thing the person who wrote them re-reads and catches.
+## D302 · The iris mark: the identity stops being a first pass
+
+**2026-08-26.** The owner's identity canvas (committed verbatim at
+`design/identity-2026-08-26/`) replaces the first-pass launcher mark with
+the **iris**: a hexagon-and-spokes lattice, one dot per accent hue, you at
+the pupil. It is still the Mirror in one glyph — the crowd your answers
+are read against, arranged around you — but the crowd now wears the app's
+own seven tab hues (`--c-today/-around/-world/-city/-groups/-people/
+-likeness`) instead of anonymous gray, and the identity gained three rules
+the first pass never had:
+
+- **The ink tile is the primary icon.** Every launcher asset composites
+  the mark over `--ink`, not paper. The dot colours cannot be shared
+  between grounds — the paper conversions muddy on ink — so the canvas
+  specifies a brightened tile palette (nudging three hues: 235→240,
+  282→288, 8→12) with a near-white pupil. `design/icon/mark.svg` now
+  carries **two flat groups over one geometry**: id `mark` (paper —
+  the feature graphic) and id `mark-tile` (every icon). The Android
+  adaptive background (`values/ic_launcher_background.xml`) moved to ink
+  with it. The splash stays paper: it is the app's own ground, and the
+  icon deliberately stopped matching it.
+- **Full mark above ~24 px, compact below.** Under ~24 px the outer ring
+  muddies, so tiny surfaces drop to hexagon + pupil: the favicon
+  (`public/favicon.svg` = `web/favicon.svg`, compact on the ink tile —
+  the first branded favicon; the file had shipped the stock template
+  graphic since the repo began) and the in-app header's horizontal
+  lockup. The sign-in gate, `web/join.html` and `web/home.html` are big
+  enough to wear the full mark.
+- **The wordmark is capital-I "InSight"** (Hanken Grotesk 700, tight
+  tracking). The header, gate, join page and feature graphic said
+  "inSight"; the push-notification fallback titles in `v2social.ts` said
+  it too. All capitalised; the two-tone accent treatment stays.
+
+### The old mark's colours had drifted, which decided where colours live
+
+The retired mark's header claimed its colours were the design system's
+tokens "converted from oklch … so the icon cannot drift from the app".
+Inverting them says otherwise: its sienna `#b34f2a` is oklch(0.55 0.14
+40) — the token as it stood **before** styles.css retuned the accent
+family to 0.52 lightness. The conversion was honest the day it was made
+and stale ever after: the hand-maintained-figure failure (D39), wearing
+colour. Two consequences in this change:
+
+- **Committed assets** (mark.svg, favicons, join.html) bake today's
+  conversions, done with CSS Color 4 gamut mapping — chroma reduction,
+  the algorithm Chrome itself applies to out-of-gamut oklch(), which four
+  of the seven hues are — not channel clamping. Naively clamped values
+  are visibly wrong for petrol and indigo.
+- **In-app lockups** (app-shell header, sign-in gate) fill from the live
+  tokens (`var(--c-…)`, `var(--ink)`) so the next retune carries them
+  for free. Only surfaces with no stylesheet to read — icons, static
+  pages — carry hex.
+
+### The extraction trap the blank-icon tripwire caught
+
+Both generators slice their group out of mark.svg with `indexOf`. The
+first draft of the file's comment spelled the group tags out in angle
+brackets, the extractor matched the **comment**, and the opaque master
+rendered as pure ink — refused by `gen-icons`' 1%-coverage assertion, the
+exact failure that assertion was built for. Two guards came out of it:
+the comment in mark.svg now states the no-literal-tags rule about itself,
+and both extractors verify the payload contains circles before rendering,
+so a future comment edit fails with "matched the comment, not the group"
+instead of a blank icon (or, in the feature graphic's case — which had no
+coverage assertion — a silently markless PNG on the Play listing).
+
+### What did not change
+
+The notification status icon (`ic_stat_reveal.xml`) keeps the two-rings
+reveal motif — Android renders it as a silhouette, where the iris is
+just a blob. The boot screen stays a text wordmark for the reasons in
+`index.html`'s comment. The legacy splash PNGs stay solid white — the
+modern splash path is `backgroundColor` in capacitor.config.ts, and
+re-rasterising dead assets is not part of an identity. `check:store-listing`
+copy is prose and mentions no mark. Regeneration is unchanged and one
+command each: `node scripts/gen-icons.mjs` (16 launcher assets),
+`npm run build && node scripts/gen-feature-graphic.mjs` (Play graphic,
+re-run and committed with this change).
+## D303 · The applier could not apply, for the same reason the observer could not observe
+
+**2026-08-26.** D300 read production and found **zero alert policies and
+zero log-based metrics** — two days after `scripts/apply-monitoring.mjs`
+was written to create thirteen of them, tested, documented in two places
+and listed as one command in the runbook. The script was not wrong. It was
+unrunnable, and nothing in the repo could tell the difference.
+
+### The obstacle it named, and the one it had
+
+Its own header carried a correction (D47, 2026-08-04) retiring the reason
+everyone had been giving:
+
+> NOT because the deploy service account lacks the permission. It holds
+> `Editor` + `Firebase Admin`, and `Editor` includes
+> `monitoring.alertPolicies.create`. Permission was never the obstacle.
+
+That is true, and it was the whole diagnosis. Four lines below it the
+script called `execFileSync("gcloud", …)` and exited with *"gcloud is not
+on PATH. Install the Cloud SDK and `gcloud auth login`"* — a requirement
+for an interactive login against a project nobody had one for. So the
+header ruled out the obstacle that did not apply and did not name the one
+that did, which is a harder failure to see than a wrong reason: the
+sentence is correct, the correction above it is correct, and the tool
+still does not run.
+
+**This is D300's finding, one instrument later.** There, I treated
+D292's Workload-Identity design as a prerequisite for reading production
+when the credential was already in four workflows. Here, the same
+credential could already write — `Editor` includes the create permission,
+and the header says so — and the transport was a CLI instead of an HTTP
+request. Both times the thing was reachable and the reasoning about
+provisioning hid it. Both times the cost was the same: an instrument that
+did not exist while the thing it watches was going wrong.
+
+### What changed
+
+The transport, and nothing about what gets created. `apply-monitoring.mjs`
+now signs a JWT with `FIREBASE_SERVICE_ACCOUNT`, trades it for a
+cloud-platform OAuth token and POSTs to the Monitoring and Logging REST
+APIs — the path `fn-log.mjs` has used since 2026-08-07 and `observe.mjs`
+since D300. `.github/workflows/monitoring.yml` dispatches it behind the
+`production` environment gate, `apply` off unless asked.
+
+`scripts/google-api.mjs` holds the exchange now, because this was the
+third caller and `pure.ts`'s rule about `breakdownFor` applies to scripts
+too: three copies is how they drift. `observe.mjs` moved onto it in the
+same change; `fn-log.mjs` is deliberately left, on the terms
+`operator-call.mjs` already sets for the two callers that predate it — it
+works, and rewriting a working script to save duplication is the trade
+this repo declines everywhere else.
+
+### The refusal that stands, and the one that was a fourth copy
+
+DEPLOYMENT.md § Alerting gives two reasons this is not on the deploy path.
+Only one survives, and the other was never about automation at all:
+
+- **Stands.** A pipeline that can rewrite an alert policy can delete one
+  silently, in a deploy that was about something else, and the blast
+  radius is "you stop being told when the Mirror stops moving". A
+  `workflow_dispatch` behind the `production` gate is not that pipeline.
+  `firebase-deploy.yml` calling this would be.
+- **Stands.** The notification channel id is an email address or a Slack
+  hook — per operator, per project, correctly not in this repo. It is a
+  workflow input now, typed by whoever dispatches.
+- **Retired, and it had already been retired once.** Runbook 5.5 said the
+  step must not be automated because "the deploy service account has no
+  monitoring role". That is the sentence D47 corrected in DEPLOYMENT.md on
+  2026-08-04, still standing in the runbook on 2026-08-26 — **the last
+  place still asserting it.** Counted rather than guessed: at `ca7097bc`
+  the sentence appears in three files, and the other two (`DEPLOYMENT.md`,
+  `MONITORING.md`) both quote it in order to correct it. This record first
+  called it "a fourth copy", which was a guess and was wrong. It was in the
+  item whose own paragraph then called
+  building the automation "an open question with arguments both ways" and
+  left it. It stood for one day — the paragraph is dated 2026-08-25
+  (`8fb442f9`) — and what it cost is not days of alerting, which were
+  zero either way, but that the answer was already in the repo when the
+  question was written down.
+
+### The policy files say `notificationChannels: []`, and that is the bug worth pinning
+
+Every committed policy carries an empty channel list, because the id is
+not in this repo. A policy POSTed with that list is **accepted, enabled,
+listed and green — and pages nobody.** `npm run observe` would report
+`armed: true` for an alert chain that cannot reach a human, which is the
+exact false comfort every gate here exists to prevent, one level up.
+
+Nothing downstream can tell the difference, so it is pinned in
+`apply-monitoring.test.mjs`: every policy POST must carry the channel
+resource name. Removing the merge fails two cases. Ordering is pinned the
+same way — two policies read log-based metrics, and a policy created
+against a metric type that resolves to nothing never fires, which looks
+identical to the condition never occurring — so the test asserts every
+metric POST precedes every policy POST rather than merely that both
+happened.
+
+### A refusal is fatal here, unlike in the observer
+
+`observe.mjs` treats a 403 as a *result*: the point of that run is to
+learn which readings are available, so it reports the missing role and
+keeps going. This script does the opposite and stops, because its steps
+are ordered and dependent — the policies carry the channel id, two of them
+read metrics from the step before. Continuing past a failure would build
+half an alert chain and report success for it, which is the shape
+`check:monitoring` exists to prevent inside the repo and would be worse in
+the project, where no gate can see it.
+
+### Three copies wrong, two already fixed, and one this sweep walked past
+
+Correcting the docs turned up the same drift D39 built `check:figures` for.
+`monitoring/` holds **eight** policies and **five** metrics. What the prose
+said, and what was actually true of it at `ca7097bc`:
+
+| where | said | verdict |
+| --- | --- | --- |
+| `docs/DEPLOYMENT.md` heading | "Alerting (**three** alerts, deliberately)" | wrong — 8 |
+| `docs/DEPLOYMENT.md` blockquote | "**both** log-based metrics and all **three** policies" | wrong — 5 and 8 |
+| `docs/COSTS.md` § what is not covered | "`monitoring/` has **four** policies" | wrong — 8 |
+| `docs/LAUNCH-RUNBOOK.md` 5.5 | "widening it for **eight** policies is the worse trade" | **number correct.** Deleted for its premise (D47), not its figure |
+| `apply-monitoring.mjs` header | "the **three** alert policies" | **already corrected at D291.** Read here as still wrong |
+| `docs/MONITORING.md` instruments table | "**seven** alert policies" | wrong — 8, and **this sweep missed it** |
+
+**This section first said "five copies of one figure, none of them right",
+and that was itself a wrong figure.** Three were wrong. The runbook's
+"eight" was correct and its defect was a retired premise; the header row
+was fixed two days earlier by D291's own three-copy sweep, which this
+record cites in the same table it counts the row in. A record about
+miscounting, miscounting.
+
+And the sweep it describes missed one. `docs/MONITORING.md`'s instruments
+table said **seven**, byte-identical before and after the commit that
+claimed to have found every copy. It was found by reviewing the record, not
+by writing it — which is the actual lesson, and the reason the count is
+gated rather than re-counted: `check:figures` now holds `DEPLOYMENT.md`'s
+heading, `COSTS.md`'s sentence and `MONITORING.md`'s table row to
+`apply-monitoring.mjs`'s own `POLICIES` list, so the next one fails CI
+instead of being found by whoever reads carefully enough.
+
+`check:monitoring` held the *lists* equal to the directory the whole time.
+Nothing held the *prose* to the lists. The blockquote stopped quoting counts
+altogether, because a sentence that does not state a count cannot drift.
+## D304 · The breakdown gets its scale back: every canonical bucket, in vocabulary order, on top of the cohort reading
 
 **Decided:** 2026-08-26 · **Status:** binding. The owner's review with the
 current standalone beside the app: "the data breakdown shows only the
@@ -30660,10 +31100,10 @@ Type and Logic cuts (D146, D227) remain the honest stand-ins. Structured
 job/education anchors would be a profile + vocabulary + trigger change on
 D8's turf and are recorded as open, not begun.
 
-## D301 · A rating is one figure, not ten rows: the scale row, the ridge, and the mean
+## D305 · A rating is one figure, not ten rows: the scale row, the ridge, and the mean
 
 **Decided:** 2026-08-26 · **Status:** binding. The same owner review as
-D300: "questions with a lot of options still use a bit too much space
+D304: "questions with a lot of options still use a bit too much space
 when showing all their options — for example when rating things out of
 10, so all options can't fit on one page."
 
@@ -30696,7 +31136,7 @@ small ridge" (map-bottom-card.jsx).
   routing rides along unchanged).
 - The breakdown sheet takes `kind`: with `kind="rating"` every body
   that would draw option rows draws the mean and the ridge
-  (`LbRatingBody`), D300's cohort rows fill to each cohort's MEAN with
+  (`LbRatingBody`), D304's cohort rows fill to each cohort's MEAN with
   the seam at everyone's, and the divergence sentence compares means —
   "more likely to say 7" is a true sentence about a histogram bucket
   and a useless one about a scale. The mean is `meanScore`
@@ -30713,10 +31153,10 @@ aggregate's dense cells all hold exactly as they were. This is a
 presentation decision about surfaces, which is why it could ship without
 touching functions/ at all.
 
-## D302 · Context reaches the daily's ⓘ, and the banks get their first subject-context pass
+## D306 · Context reaches the daily's ⓘ, and the banks get their first subject-context pass
 
 **Decided:** 2026-08-26 · **Status:** binding. The same owner review as
-D300/D301: "a question like Mozart or Beethoven should have context about
+D304/D305: "a question like Mozart or Beethoven should have context about
 them in the info box — in general more context on most questions."
 
 ### 1 · The slot existed and the daily could not reach it
@@ -30768,10 +31208,10 @@ but the reviewing lanes (QUESTION-FARM) may keep extending the set under
 §2's widened rule, one vintage at a time, and the length cap is the thing
 to hold: a sheet is context, not an article.
 
-## D303 · The scorecard learns to ask: unanswered place questions surface on the Scores lens
+## D307 · The scorecard learns to ask: unanswered place questions surface on the Scores lens
 
 **Decided:** 2026-08-26 · **Status:** binding. The same owner review as
-D300–D302: "I have not seen the score questions connected to city,
+D304–D306: "I have not seen the score questions connected to city,
 country or earth."
 
 ### 1 · Why nobody had seen them
@@ -30790,7 +31230,7 @@ no path to the questions that produce them.
 whole — the cold-boot fetch) for active ratings that rate the scope and
 carry no vote from this account. The Scores lens renders them under its
 scored rows — and inside its empty state, so "nobody has scored X yet"
-sits above the way to change it — as D301's one-tap scale row, capped at
+sits above the way to change it — as D305's one-tap scale row, capped at
 three visible with the rest counted.
 
 The vote goes through `vote()`, the one path every answer takes: same
@@ -30812,10 +31252,10 @@ and the aggregate top-up lands — the same eventual consistency every
 surface already carries. `placeAsks` joined `LIVE_MEMBERS`, so the
 contract pin and the mount fixture both know it.
 
-## D304 · The athletes catalogue, its review file, and the pick card's browse tiles
+## D308 · The athletes catalogue, its review file, and the pick card's browse tiles
 
 **Decided:** 2026-08-26 · **Status:** binding. The same owner review as
-D300–D303: the reference sheet's "The greatest athlete who ever lived ·
+D304–D307: the reference sheet's "The greatest athlete who ever lived ·
 Search 640 athletes" card, tiles included — a domain, a question and a
 presentation none of which existed.
 
@@ -30879,7 +31319,7 @@ as one would be the D1 shape of misleading. The row owns its horizontal
 motion (`.h-scroll`), or dragging through it would slide the daily's
 mode axis.
 
-## D305 · A lane batch on the budget's own allocation, and why the interleave cadences stand
+## D309 · A lane batch on the budget's own allocation, and why the interleave cadences stand
 
 **Decided:** 2026-08-26 · **Status:** binding. The last item of the
 owner's 2026-08-26 review: "there seem to be fewer kinds of questions
@@ -30911,7 +31351,7 @@ when your taste in music settled?", 10–40 yrs) and `fd4` (bigq, "Human
 nature — place it", selfish↔kind × fixed↔changeable), each written twice
 per the lane's rule (content copy + demo-pool twin with its own
 texture); votes into people, movies, culture; and the event slot's
-artefacts-return question with a `bg` under D302's rule. All tail
+artefacts-return question with a `bg` under D306's rule. All tail
 (`core: false`, D161), all with farm provenance, batch 2026-08-26.
 694 seeded questions now; the bank's wire size moves to 192.3 KiB.
 
@@ -30921,5 +31361,5 @@ A one-off cannot outrun depletion — the scheduled lanes are the engine
 (D145's budget fires twice weekly), and this batch is one turn of the
 same crank taken now because the review asked now. The daily's variety
 is its own instrument: one question a day is the design, and the ask
-rows D303 added are how the rotation's thin forms reach a reader who
+rows D307 added are how the rotation's thin forms reach a reader who
 wants them sooner.

@@ -138,7 +138,7 @@ export interface LiveFixtureOptions {
    */
   background?: boolean;
   /**
-   * Give the DAILY (daily-000) a background (D302) — the same slot the
+   * Give the DAILY (daily-000) a background (D306) — the same slot the
    * feed's `i` got at D281, read through buildS's bg carry. Opt-in so the
    * default mount keeps pinning the daily sheet's no-background arm.
    */
@@ -220,7 +220,7 @@ export const BG_TEXT =
   "Fixture background: the durable facts this question cannot be answered without, "
   + "stated plainly and taking no side between the options on the card.";
 
-// The daily's own background (D302) — distinct from BG_TEXT so a test can
+// The daily's own background (D306) — distinct from BG_TEXT so a test can
 // tell which sheet it is reading, same 90-character floor for the same
 // reason.
 export const DAILY_BG_TEXT =
@@ -287,7 +287,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   const deck = [
     {
       ...liveQuestion("daily-000", "Would you rather know, or be known?", tooSmall),
-      // D302: the daily's About sheet leads with a background when the
+      // D306: the daily's About sheet leads with a background when the
       // question carries one — opt-in, so the default mount keeps the
       // no-background arm honest.
       ...(opts.dailyBg ? { bg: DAILY_BG_TEXT } : {}),
@@ -409,7 +409,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // jsdom), so fixture feed questions here would be furniture nothing
     // reads.
     coreFeedAggregated: () => [],
-    // The Scores lens's ask rows (D303). Empty by default: the fixture
+    // The Scores lens's ask rows (D307). Empty by default: the fixture
     // deck's one rating question already carries a vote in most cases,
     // and the ask arm has its own unit suite (LiveMirrorLenses.test.tsx).
     placeAsks: () => [],

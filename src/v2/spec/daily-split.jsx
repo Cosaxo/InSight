@@ -37,7 +37,7 @@ import { sharePcts } from '../data/pct';
 // boot.
 import PulseCard from '../ui/PulseCard.tsx';
 import PULSE from '../data/pulse.ts';
-// The rating result's ridge (D301) — static like PulseCard: a voted
+// The rating result's ridge (D305) — static like PulseCard: a voted
 // rating day draws it on the first screen, so lazy would only add a
 // flash, and the component is a leaf a few hundred bytes long.
 import RatingRidge from '../ui/RatingRidge.tsx';
@@ -378,7 +378,7 @@ class DailySplit extends React.Component {
     this.setState({ editHold: id });
     this._ehT = setTimeout(() => this.setState({ editHold: null }), 2600);
   }
-  // ONE vote path for every ask shape — D301 gave the daily two (the
+  // ONE vote path for every ask shape — D305 gave the daily two (the
   // option column and the rating scale row), and two copies of this is
   // how they drift. D86: after a hold-to-change the server still holds
   // the old vote — LIVE.vote is create-only, so a re-pick routes through
@@ -396,7 +396,7 @@ class DailySplit extends React.Component {
     }
     if (moved) { this.syncToMap(S, next); this.showMapToast(S.id); }
     // The consequence beat animates SIDES; ten steps of one scale are not
-    // sides, so a rating goes straight to its result (D301).
+    // sides, so a rating goes straight to its result (D305).
     this.setState(s => ({ votes: { ...s.votes, [S.id]: next }, repick: null, filter: 'all', beat: (moved && this.props.beats !== false && window.ConsequenceBeat && S.type !== 'rating') ? S.id : null }));
   }
   mapBranch(S) {
@@ -590,7 +590,7 @@ class DailySplit extends React.Component {
     const PINK = 'var(--c-around)', VIOLET = 'var(--c-today)', TEAL = 'var(--c-likeness)';
     return [
       { id: 's1', cat: 'culture', region: 'Taste', regionHue: 40, regionBase: 1, text: 'Pineapple belongs on pizza.',
-        // D302: the demo daily carries a background where its live twin
+        // D306: the demo daily carries a background where its live twin
         // does, so the About sheet's paragraph arm is visible in mock mode
         bg: 'Hawaiian pizza — ham and pineapple — was invented in 1962 by Sam Panopoulos, a Greek-born cook in Chatham, Ontario, Canada, and named after the brand of canned pineapple he used.',
         options: [ { id: 'yes', label: 'Absolutely', count: 5642, color: PINK }, { id: 'no', label: 'Never', count: 6210, color: VIOLET } ],
@@ -925,7 +925,7 @@ class DailySplit extends React.Component {
     // the toast could name different places for the same answer — and on a
     // live daily both said 'Interests' regardless of subject.
     ctxRows.push(['On your map', this.mapBranch(S)]);
-    // The background paragraph — D281 gave the feed's `i` this slot, D302
+    // The background paragraph — D281 gave the feed's `i` this slot, D306
     // gives the daily's the same one: facts and the subject's who/what,
     // never the arguments. Same shape as world-feed's renderContext, down
     // to the hairline over the rows, so the two sheets read as one thing.
@@ -967,7 +967,7 @@ class DailySplit extends React.Component {
         // asking: each side carries its own hue mark and sits left-aligned, so
         // the two rows read as choices rather than two empty boxes
         ? (S.type === 'rating'
-          // A ten-step rating as ONE row (D301): ten stacked 56px option
+          // A ten-step rating as ONE row (D305): ten stacked 56px option
           // buttons filled more than a screen before the question could
           // be answered. The scale is a ramp of the topic's hue — a
           // rotation of distinct hues reads as categories, and a scale is
@@ -989,7 +989,7 @@ class DailySplit extends React.Component {
             // The result as the Map's card draws the same number
             // (mmt-ridge, map-bottom-card.jsx): the average, the spread,
             // your column — not ten stacked tiles taller than the screen
-            // (D301). The whole figure carries the tiles' hold-to-change,
+            // (D305). The whole figure carries the tiles' hold-to-change,
             // since there is no "your row" to hold.
             ? (() => {
                 const avg = total ? counts.reduce((a, c, i) => a + c * (i + 1), 0) / total : 0;
@@ -1074,7 +1074,7 @@ class DailySplit extends React.Component {
             svgI('<path d="M5 19.5V13M12 19.5V5.5M19 19.5V10"/>', 17),
             'Who voted')),
         st.liveStats === S.id && h(React.Suspense, { fallback: null },
-          // kind: a rating's sheet reads as averages, not option rows (D301).
+          // kind: a rating's sheet reads as averages, not option rows (D305).
           h(LiveBreakdownPanel, { qid: S.id, options: S.options.map(o => o.label), mine: myIdx, kind: S.type })),
         // The daily's options in the question's own order, so each take
         // carries its author's side and the list can be filtered by side

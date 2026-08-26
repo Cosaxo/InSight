@@ -144,7 +144,7 @@ describe("PickSearch · each domain searches its own catalogue", () => {
     expect(screen.getAllByRole("option")[0].textContent).toMatch(/Nina Simone/);
   });
 
-  it("offers athletes for the athletes domain, keyed by QID (D304)", async () => {
+  it("offers athletes for the athletes domain, keyed by QID (D308)", async () => {
     const { onPick } = mount("athletes");
     type("serena");
     await choose(/Serena Williams/);

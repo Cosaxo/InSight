@@ -143,7 +143,7 @@ describe("buildS", () => {
     });
   });
 
-  it("carries the background paragraph when the doc has one (D302)", () => {
+  it("carries the background paragraph when the doc has one (D306)", () => {
     // The field was seeded (D281) and the feed read it while this deck
     // dropped it — so the daily's About sheet could never lead with it.
     const q = qd("q1", { bg: "Background the sheet leads with." });

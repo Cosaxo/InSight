@@ -14,28 +14,41 @@ bridge.
 
 An **axiom** is the theory of an axis's perfect form
 ([`AXES-PLAN.md`](AXES-PLAN.md) §1 defines the axes; the owner's
-framing, 2026-08-25). Each lane improves one theory every three hours —
-as a claims graph with an evidence ladder (conjecture → argued → cited
-→ measured), advanced by bounded runs that must move a claim's status
-or prune, never merely grow. The lanes deliberately **disregard the
+framing, 2026-08-25). **The axes exist to be connected** — one of the
+app's core functions is to use and connect the different axes to
+better understand, and get deeper data about, each other (the owner,
+2026-08-25) — so cross-axis connection is first-class subject matter
+in every lane (charter §1), with genetic and body explicitly charged
+with theorizing how the other axes' traits map onto genes and onto the
+body's parts and systems. Sharper still (the owner, 2026-08-26): each
+axiom's purpose, or at least its main one, is to create data and
+data-connections as powerful and useful as possible — or to make
+another axiom's data stronger and more useful. Each lane improves one theory every other
+day (re-paced by the owner 2026-08-25 from the initial three-hourly
+trial) — as a claims graph with an evidence ladder (conjecture →
+argued → cited → measured), advanced by bounded runs that must move a
+claim's status or prune, never merely grow. The lanes deliberately **disregard the
 project's practical limitations** — they seek the perfect system, not
 the buildable one — and just as deliberately may not disregard law,
 ethics or honesty (charter §9: no medical advice, no invented sources,
 consent and privacy as design axioms).
 
-Six of the eight are subject lanes — genetic, body, questions, tests,
-plus **map theory** (how everything should be displayed) and **pattern
-theory** (how patterns should be found). **Central** synthesizes: the
-combination theory, the axiom portfolio, new-axiom proposals, focus
-questions into the other lanes, and the weekly `DIGEST.md`. The
-**graph optimizer** keeps the graphs themselves healthy, including its
-own methods.
+Nine lanes: four subject axioms — genetic, body, questions, tests —
+plus **map theory** (how everything should be displayed), **pattern
+theory** (how patterns should be found), and **database theory** (the
+perfect, most efficient and most useful database for the axes and
+their connections — deliberately *not* an axiom, the owner's note
+2026-08-26: it stores and serves the measured sources; it is not one).
+**Central** synthesizes: the combination theory, the axiom portfolio,
+new-axiom proposals, focus questions into the other lanes, and the
+weekly `DIGEST.md`. The **graph optimizer** keeps the graphs
+themselves healthy, including its own methods.
 
 ## Why the branch shape
 
 `axiom-theory` is an orphan branch: it carries no product code, so a
 lane physically cannot touch the app, and `ci.yml` (pull requests and
-`main` pushes only) never fires on its ~60 daily theory commits. The
+`main` pushes only) never fires on its theory commits. The
 product's history, gates and PR list stay clean by construction rather
 than by discipline.
 
@@ -62,35 +75,33 @@ disposes.
 
 ## The account-side inventory (product-side copy)
 
-All eight fire a **fresh session per run** on model `claude-fable-5`
+All nine fire a **fresh session per run** on model `claude-fable-5`
 (the owner's 2026-08-25 direction: Fable orchestrates, subagents are
 Opus at matched effort, never lower), completion notifications off —
-the digest is the legibility channel. The charter's §10 carries the
-same table and is updated first; ids are recorded because
-`update_trigger`/`delete_trigger` need them.
+the digest is the legibility channel.
 
-| Lane | Trigger id | Schedule (UTC) |
-| --- | --- | --- |
-| Genetic | `trig_01FY24wP7QVx6yKtyPySwuCw` | `2 */3 * * *` |
-| Body | `trig_01M13uuj3VWVRfQEapN24oET` | `17 */3 * * *` |
-| Questions | `trig_01UHsDc9ZzLv9neXq3tq91Z2` | `32 */3 * * *` |
-| Tests | `trig_011B7J7eoCCCH5157wFXJPuu` | `47 */3 * * *` |
-| Map | `trig_01MBKTtp3GCAjTrCacyxiJYh` | `2 1-23/3 * * *` |
-| Pattern | `trig_01XoDDuaeE5een4aviG6D4uU` | `17 1-23/3 * * *` |
-| Graph optimizer | `trig_01DmXvzjjQpy394oXjGvz9qk` | `32 1-23/3 * * *` |
-| Central | `trig_01Nv8PzPcsB1sayi5CDNkGCz` | `47 1-23/3 * * *` |
-
-Two hour-groups, fifteen minutes apart, so at most four lanes share an
-hour and central reads the freshest axiom work; each lane still fires
-every three hours.
+The lanes were rebound on the evening of 2026-08-25 (the first day's
+measurement: cron-spawned sessions stall on the provisioning step's
+permission prompt, so the crons now wake a persistent dispatcher
+session that spawns each run with its tools pre-approved), and the
+owner re-paced the cadence the same evening: **every lane every other
+day** — subject axioms (genetic, body, questions, tests) at
+09:02–12:02 UTC on odd dates, reader lanes (map, pattern, graph
+optimizer, central) at the same hours on even dates, so readers always
+work on subject output at most a day old. **The charter's §10 table
+carries the live trigger ids** and is updated first on any change;
+this page stopped copying the ids the evening they started moving.
 
 ## The owner's controls
 
 Pause any lane in the claude.ai Routines UI; re-pace with one
 `update_trigger` (cadence is the dial for a circling lane — charter
-§11); read `DIGEST.md` on the branch weekly. The farm's economics
-apply: a run that finds nothing to advance logs that honestly and
-costs little; eight lanes at three-hour cadence is roughly sixty-four
-runs a day, accepted explicitly by the owner at chartering ("budget is
-not an issue"), and the first weeks' digests are what say whether the
-cadence earns itself.
+§11); read `DIGEST.md` on the branch weekly. The economics were
+re-measured on day one: a full theory run is real money (~$20 of
+metered value on the first measured runs — the chartering plan's "a
+no-advance run costs little" did not survive contact), which is half
+of why the owner re-paced the 64-run/day trial to every-other-day
+(~4 runs/day) the same evening. A run that finds nothing to advance
+still logs that honestly; the weekly digest plus a next-morning
+quality peek (2026-08-26) are what say whether the cadence earns
+itself.

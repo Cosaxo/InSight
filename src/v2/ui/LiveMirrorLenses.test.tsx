@@ -59,7 +59,7 @@ const LIVE = vi.hoisted(() => ({
   // that want a drawing supply all four.
   myCity: "Oslo, NO",
   myVotes: () => ({}) as Record<string, string>,
-  // The Scores lens's ask rows (D303) and the vote they cast through the
+  // The Scores lens's ask rows (D307) and the vote they cast through the
   // ordinary path. Empty/spy by default; the ask cases supply both.
   placeAsks: (scope: string) => { void scope; return [] as Array<{ id: string; text: string; optionCount: number }>; },
   vote: vi.fn((qid: string, optionId: string) => { void qid; void optionId; }),
@@ -558,14 +558,14 @@ describe("Explore", () => {
 // not in it cannot be shown that by absence — nothing on the card would
 // look different. The card says it instead, and only where it is true:
 // City, live, and the phone has never agreed with the anchor.
-// ── the asks (D303) ─────────────────────────────────────────────────
+// ── the asks (D307) ─────────────────────────────────────────────────
 //
 // The only other door to a `rates` question was the daily rotation — one
 // such day in five — so a scorecard could sit empty with nothing anyone
 // could do about it. The cases hold the seam: rows from the BANK (not
 // the aggregates), votes through the one ordinary path, and a cap that
 // keeps the card a card.
-describe("Scores · the asks (D303)", () => {
+describe("Scores · the asks (D307)", () => {
   const SCORED: LensQuestion = {
     id: "r1", type: "rating", rates: "city", tag: "Safety",
     text: "How safe do you feel walking home at night?",
@@ -580,7 +580,7 @@ describe("Scores · the asks (D303)", () => {
     LIVE.placeAsks = () => [ASK];
     mount("scores", [SCORED]);
     expect(screen.getByText("Rate the food where you live.")).toBeTruthy();
-    // Ten steps, one tap each — D301's scale row, not ten stacked rows.
+    // Ten steps, one tap each — D305's scale row, not ten stacked rows.
     expect(screen.getByRole("button", { name: "10" })).toBeTruthy();
   });
 

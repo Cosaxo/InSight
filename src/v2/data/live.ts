@@ -4057,7 +4057,7 @@ const LIVE = {
       .map((q) => buildSPure(q, null, voteCtx(q.id), now));
   }),
   /**
-   * The place questions this account can still answer for a scope (D303)
+   * The place questions this account can still answer for a scope (D307)
    * — every active `rating` in the daily bank that rates it and carries
    * no vote from this account.
    *

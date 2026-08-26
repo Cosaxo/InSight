@@ -824,7 +824,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expectNoBoundary("live daily, About sheet branch");
   });
 
-  // D302 — the daily's `i` carries the same background slot the feed's
+  // D306 — the daily's `i` carries the same background slot the feed's
   // got at D281, through buildS's bg carry (the field was seeded and the
   // feed read it while the daily deck dropped it). The no-background arm
   // is already pinned above: "leaves a card with no background" opens
@@ -1237,7 +1237,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // The markers are the chips the LIVE panel can never legitimately
     // grow: Where (live says City/Country) and Job (`profession` is free
     // text, deliberately not a dim — D8). Education stopped being one at
-    // D300, when the live panel began offering every closed-vocabulary
+    // D304, when the live panel began offering every closed-vocabulary
     // dim as its whole scale.
     expect(screen.queryByRole("button", { name: /^Where$/ }),
       "a hash-built cut chip is reachable in live mode").toBeNull();

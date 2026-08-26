@@ -50,7 +50,7 @@
 // Compare and constellation surfaces still name people. It retires the
 // roster as the answer to "how did everyone vote".
 //
-// THE ROWS CAME BACK AT D300, ON TOP OF D125 RATHER THAN INSTEAD OF IT.
+// THE ROWS CAME BACK AT D304, ON TOP OF D125 RATHER THAN INSTEAD OF IT.
 // A dim now lands on its whole scale at once — every canonical bucket in
 // vocabulary order, zeros drawn, the published split as the header bar —
 // because the cohort-first sheet at a young population showed two chips
@@ -203,7 +203,7 @@ function LbOptionRows({ options, counts, mine, mode = "pct" }: {
   );
 }
 
-// ── a rating's body: the average and the spread (D301) ───────────────
+// ── a rating's body: the average and the spread (D305) ───────────────
 //
 // A ten-step rating drawn as LbOptionRows is ten rows of noise — the
 // reading of an ordinal scale is a POSITION plus a spread, which is one
@@ -231,12 +231,12 @@ function LbRatingBody({ counts, mine }: { counts: number[]; mine: number }) {
   );
 }
 
-// ── the all-rows overview (D300) ─────────────────────────────────────
+// ── the all-rows overview (D304) ─────────────────────────────────────
 //
 // A dim opens onto its whole scale at once: the published split as an
 // "Everyone" header bar, then one stacked bar per canonical bucket, in
 // vocabulary order, zeros included. This is the shape D125 replaced — and
-// D300 brings it back as the dim's LANDING rather than instead of the
+// D304 brings it back as the dim's LANDING rather than instead of the
 // cohort reading: tapping a row expands that cohort's own option rows and
 // divergence line in place, so "what does the answer look like from where
 // they stand" stays one tap away while the scale reads whole.
@@ -257,13 +257,13 @@ function LbCohortRows({ dim, buckets, options, overall, myBucket, openBucket, on
   openBucket: string;
   onRow: (bucket: string) => void;
   renderDetail: (b: Bucket) => React.ReactNode;
-  /** The question's bank type — a rating's rows read as averages (D301). */
+  /** The question's bank type — a rating's rows read as averages (D305). */
   kind?: string;
 }) {
   const overallPct = pctFor(overall);
   // A rating's row is a POSITION, not a split: ten stacked segments per
   // row are stripes about nothing, so each bar fills to the cohort's
-  // AVERAGE and prints it, and the seam marks everyone's (D301).
+  // AVERAGE and prints it, and the seam marks everyone's (D305).
   const rating = kind === "rating";
   const overallMean = rating ? meanScore(overall) : null;
   const seamPct = rating
@@ -513,7 +513,7 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
   mine?: number;
   /**
    * The question's bank type. A `rating` collapses every option-rows body
-   * to the average and the spread (D301) — ten rows about a ten-step
+   * to the average and the spread (D305) — ten rows about a ten-step
    * scale answer none of the questions a reader brings to it.
    */
   kind?: string;
@@ -564,7 +564,7 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
   // and it has nothing honest to draw over a scale of zeros.
   const publishedDims = COHORT_DIMS.filter((d) => by?.[d] && Object.keys(by[d]).length);
   // For the option-bar body, closed-vocabulary dims are ALWAYS offered
-  // (D300): their body is the whole scale, and a dim nobody has shared
+  // (D304): their body is the whole scale, and a dim nobody has shared
   // renders as that scale at zero with a line saying so — since D98 that
   // is a fact, not a gap. Open vocabularies (city, country) still need a
   // published cell: there is no canonical list of every city to draw at
@@ -603,7 +603,7 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
     : (logicRows[0]?.band || "");
   const logicRow = logicRows.find((r) => r.band === openBand) || null;
 
-  // The rows view (D300) reads the whole scale — canonical order, zeros
+  // The rows view (D304) reads the whole scale — canonical order, zeros
   // included — while the continuum chips keep observed cells only, in the
   // same canonical order. city/country have no vocabulary, so both fall
   // back to the observed mix.
@@ -825,7 +825,7 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
               // Where this cohort parts company with everyone — the same
               // fold the Mirror's Explore lens reads, so the two surfaces
               // cannot disagree about which option a group is unusual on.
-              // A rating compares MEANS instead (D301): "more likely to
+              // A rating compares MEANS instead (D305): "more likely to
               // say 7" is a true sentence about a histogram bucket and a
               // useless one about a scale.
               const d = rating ? null : divergenceFor(by, openDim, b.bucket, overall, n);

@@ -60,7 +60,7 @@ beforeEach(() => {
 
 const observe = async (args = []) => {
   const { stdout } = await run("node", [SCRIPT, ...args], {
-    env: { ...process.env, FIREBASE_SERVICE_ACCOUNT: SA, FIREBASE_PROJECT_ID: "prvfire33", OBSERVE_BASE: base },
+    env: { ...process.env, FIREBASE_SERVICE_ACCOUNT: SA, FIREBASE_PROJECT_ID: "prvfire33", GOOGLE_API_BASE: base },
   });
   return stdout;
 };
@@ -126,10 +126,38 @@ describe("the alert reading, which runbook 5.5 exists for", () => {
     expect(j.readings.alertPolicies.armed).toBe(true);
     expect(j.readings.alertPolicies.missing).toEqual([]);
   });
+
+  it("counts a DISABLED policy as disabled", async () => {
+    // `enabled` is a bare boolean in the v3 JSON representation, not a
+    // protobuf wrapper. Read as `p.enabled?.value !== false` it was
+    // `(false)?.value` -> undefined -> `undefined !== false` -> true, so
+    // enabledCount could only ever equal liveCount and a policy somebody had
+    // switched off in the console still read as armed cover.
+    reply["monitoring.googleapis.com"] = {
+      status: 200,
+      body: {
+        alertPolicies: [
+          { displayName: "on", enabled: true },
+          { displayName: "off", enabled: false },
+          // The API omits the field when it is true, so absent must count.
+          { displayName: "absent" },
+        ],
+      },
+    };
+    const j = await asJson();
+    expect(j.readings.alertPolicies.liveCount).toBe(3);
+    expect(j.readings.alertPolicies.enabledCount).toBe(2);
+  });
 });
 
 describe("the region reading, which runbook 5.9b exists for", () => {
-  it("names what is still in us-central1", async () => {
+  it("names strays in EVERY region, not only the one the docs expect", async () => {
+    // Written as "is anything in us-central1" first, because that is the
+    // only stale region this repo's prose has ever named. The first
+    // production run found 21 there AND two in europe-west3 and one in
+    // europe-north1 that no document mentions — so a reader that only asks
+    // about the region it expects to be wrong finds exactly the wrongness
+    // it expected.
     reply["cloudfunctions.googleapis.com"] = {
       status: 200,
       body: {
@@ -137,21 +165,31 @@ describe("the region reading, which runbook 5.9b exists for", () => {
           { name: "projects/prvfire33/locations/europe-west1/functions/onV2AnswerCreated" },
           { name: "projects/prvfire33/locations/us-central1/functions/scheduledTaxonomies" },
           { name: "projects/prvfire33/locations/us-central1/functions/rebuildWorldAggregates" },
+          { name: "projects/prvfire33/locations/europe-west3/functions/somethingNobodyNamed" },
         ],
       },
     };
     const out = await observe();
-    expect(out).toContain("us-central1 still holds 2");
+    expect(out).toContain("3 outside europe-west1");
+    expect(out).toContain("us-central1 (2)");
     expect(out).toContain("scheduledTaxonomies");
+    // The one the old shape would have missed entirely.
+    expect(out).toContain("europe-west3 (1)");
+    expect(out).toContain("somethingNobodyNamed");
+
     const j = await asJson();
-    expect(j.readings.functions.byRegion).toEqual({ "europe-west1": 1, "us-central1": 2 });
+    expect(j.readings.functions.canonicalRegion).toBe("europe-west1");
+    expect(j.readings.functions.strayCount).toBe(3);
+    expect(Object.keys(j.readings.functions.strays).sort()).toEqual(["europe-west3", "us-central1"]);
   });
 
-  it("stays quiet when the old region is empty", async () => {
+  it("stays quiet when everything is in the canonical region", async () => {
     reply["cloudfunctions.googleapis.com"] = {
       status: 200,
       body: { functions: [{ name: "projects/prvfire33/locations/europe-west1/functions/x" }] },
     };
-    expect(await observe()).not.toContain("us-central1");
+    const out = await observe();
+    expect(out).not.toContain("outside");
+    expect((await asJson()).readings.functions.strayCount).toBe(0);
   });
 });

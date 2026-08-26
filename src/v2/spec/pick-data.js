@@ -611,7 +611,7 @@ export let PICK_QS;
       253978: 3,    // Dirty Dancing — below the floor
       0: 12,        // Not listed — the Princess Bride vote has nowhere to file
     },
-    // athletes catalogue run (D304) — the GOAT board: the bar-argument
+    // athletes catalogue run (D308) — the GOAT board: the bar-argument
     // canon, football-heavy the way worldwide fame is
     pk28: {
       36107: 24,    // Muhammad Ali — the standing answer to the question

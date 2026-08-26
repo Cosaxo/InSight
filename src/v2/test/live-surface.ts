@@ -31,7 +31,7 @@ export const LIVE_MEMBERS = [
   // Patterns pool's other half (v28 §2). Core only, D161's sample-bias
   // rule; two-option only, the fit's own encoding.
   "coreFeedAggregated",
-  // The unanswered place questions for a scope (D303) — the Scores
+  // The unanswered place questions for a scope (D307) — the Scores
   // lens's ask rows. From the bank, not the aggregates: an unanswered
   // rates question usually has no counts yet, which is the point.
   "placeAsks",

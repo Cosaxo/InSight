@@ -145,7 +145,7 @@ if (colors.present) {
 // operator learns which one was right at 3am. The cross-check below —
 // review against the COMMITTED catalogue — is this file's own and shares
 // nothing.
-// The athletes domain rides the same rails since D304 — the loop is the
+// The athletes domain rides the same rails since D308 — the loop is the
 // only change; every check inside it is D267's, verbatim.
 for (const [reviewFile, catalogue, catFile, buildArg] of [
   ["artist-review.json", artists, "artists.txt", "artists"],
