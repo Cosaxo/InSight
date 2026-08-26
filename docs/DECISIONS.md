@@ -30501,3 +30501,71 @@ regression, one gate that had stopped being a gate, and five claims that
 were true of a fixture. **Every one of those five would have been found by
 asking "does the server actually send this?" rather than "does the test
 pass?"** — and the tests passed.
+
+## D299 · Decision numbers get a gate, because three renumbers in two days is a process and not an accident
+
+**2026-08-26.** `doc-index` now holds two properties it never asked about:
+**every decision number is claimed exactly once, and the sequence has no
+holes.**
+
+### The thing that kept happening
+
+Records are written on branches. Main's night lanes record decisions
+continuously. So a branch that records one and stays open for a day comes
+back to find its number taken — three times in two days:
+
+- **D275–D277 → D290–D292** (main shipped D275 through D289 while the
+  branch was open)
+- **D293–D296 → D294–D297** (main shipped its own D293)
+- **D294–D297 → D295–D298** (main's deep clean renumbered *its* D293 to
+  D294, into the slot the previous renumber had just taken)
+
+Each one is hand work: the record's own heading, its self-references, and
+every file in the tree that cites it — while leaving the *other* side's
+numbers untouched, because `docs/data-inventory.md`'s D293 and CLAUDE.md's
+D294 are main's and a blanket replace corrupts a dozen shared files.
+
+### Nothing was checking the result
+
+Hand work at that shape misses one, and until today nothing would have
+said so. **Two records numbered D297 passed every gate in this repo** —
+verified by duplicating a heading and running the whole suite green.
+`doc-index` reported `298 decisions indexed` over 298 headings sharing 297
+numbers, because it counted headings and never asked whether the numbers
+were distinct.
+
+What that costs is not cosmetic. `DECISIONS-INDEX.md` renders two rows
+claiming the same id, so the map that exists to answer "what is D297"
+answers twice. Every `D297` citation in the tree becomes ambiguous. And the
+next author reads the highest number, picks the one after it, and orphans a
+record. A **hole** is the same mistake with the other sign — a renumber that
+shifted three records of four — so both halves are one rule.
+
+### Where it lives, and why not inline
+
+`scripts/decision-numbering.mjs`, extracted for the reason
+`scorecard-metrics.mjs` gives about the split-quality arithmetic:
+`doc-index.mjs` runs its whole gate at import and exits on any documentation
+problem in the tree, so a test that imported it would be hostage to all of
+them. The predicate is pure and has no I/O; `doc-index` calls it and turns
+each returned problem into one of its own failures.
+
+**Amendments are exempt by construction, not by omission.** `D7` and
+`D7 amendment (2026-08-03)` both say D7; only one claims it, which is
+exactly why `parseDecisions` gives them different `kind`s. Counting
+amendments would make every amended record a duplicate — and there are many,
+so that is most of the file's follow-ons rather than an edge case. The test
+pins the mirror too: an amendment must not *fill* a hole either, or a stray
+`## D296 amendment` would silence a genuinely missing D296.
+
+Fourteen tests. Removing the `kind === "record"` filter fails three of them;
+reporting only the first duplicate fails two.
+
+### What this does not fix
+
+The collision itself. This catches a botched renumber; it does not stop the
+renumber being needed. The real fix is either landing decision-recording
+branches same-day, or giving branch-local records a provisional marker until
+merge — both are conventions rather than code, and neither is chosen here.
+What is no longer possible is discovering the miss by following a citation
+months later.

@@ -55,6 +55,8 @@
 //      repo renumbers records on merge, which rewrites the heading and
 //      leaves every link written against the old number pointing nowhere.
 //      Eight were broken when the rule was added.
+//  10. Every decision number is claimed exactly once and the sequence has
+//      no holes — the renumber guard; see the block that implements it.
 //   8. Every directory is named in ORIENTATION.md §3 — the third thing that
 //      page's opening line promises and the only one that was a convention
 //      rather than a rule. It had drifted to four when the rule was added:
@@ -80,6 +82,7 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { numberingProblems } from "./decision-numbering.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (rel) => readFileSync(join(root, rel), "utf8");
@@ -266,6 +269,15 @@ if (write) {
 } else if (read(INDEX) !== rendered) {
   fail(`${INDEX} is out of date — run \`npm run build:doc-index\``);
 }
+
+// -------------------------------------------------- the numbering itself
+//
+// RULE 10: every decision number is claimed exactly once, and the sequence
+// has no holes. The predicate lives in decision-numbering.mjs — extracted
+// so it can be tested, since this script exits on any documentation problem
+// in the tree and a test importing it would be hostage to all of them. That
+// module's header carries the three renumbers that motivated the rule.
+for (const problem of numberingProblems(records)) fail(problem);
 
 // -------------------------------------------------------------- orientation
 
