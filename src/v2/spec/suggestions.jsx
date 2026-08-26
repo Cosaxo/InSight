@@ -59,7 +59,25 @@ const SG_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep'
 const sgDay = (iso) => { const d = new Date(iso + 'T00:00:00Z'); return Number.isNaN(d.getTime()) ? iso : d.getUTCDate() + ' ' + SG_MONTHS[d.getUTCMonth()]; };
 // null in the card means "tomorrow is open" — build-pricing writes the
 // first covered date only when tomorrow is not (so the word never staledates).
-const sgNextOpen = (scope) => { const c = PRICING.cohorts[scope]; return c.nextOpen == null ? 'tomorrow' : sgDay(c.nextOpen); };
+//
+// …AND IT ALSO MEANS "NO OPEN DAY AT ALL", which is build-pricing's own
+// warning: the stored shape is `null | YYYY-MM-DD` and has no third value,
+// so a fully booked scope arrives here indistinguishable from an empty
+// one. `booked` is the field that can tell them apart — all ones — and
+// asking it is this function's job rather than each caller's. 3fc470c0
+// guarded the rate row and left the two callers inside the COMPOSER, which
+// is the screen a buyer commits from and the one place nothing else on the
+// page disputes the claim.
+//
+// Returns null for a full scope; the callers say what that means in their
+// own words, because "from tomorrow · 29 days" and "first open day" want
+// different sentences.
+const sgNextOpen = (scope) => {
+  const c = PRICING.cohorts[scope];
+  const booked = c.booked || [];
+  if (booked.length && booked.every(Boolean)) return null;
+  return c.nextOpen == null ? 'tomorrow' : sgDay(c.nextOpen);
+};
 const SG_TONE = { quiet: 'var(--ink-3)', steady: 'var(--ochre-ink)', contested: 'var(--accent-ink)' };
 const sgScopeName = (SG, a) => (a === 'world' || a === 'like' ? 'Everyone' : SG.audienceLabel(a));
 
@@ -393,7 +411,9 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
             <div style={{ border: '0.5px solid var(--rule)', borderRadius: 12, background: 'var(--surface-2)', padding: '2px 12px' }}>
               {[
                 ['Scope', scopeName],
-                ['Window', 'from ' + sgNextOpen(scopeKey) + ' · 29 days'],
+                ['Window', sgNextOpen(scopeKey)
+                  ? 'from ' + sgNextOpen(scopeKey) + ' · 29 days'
+                  : 'no open day in the next 14'],
                 ['Audience', dims.join(' · ') || 'everyone — untagged'],
                 ['Rate', fmt(rate(scopeKey)) + ' per answer · ×' + PRICING.cohorts[scopeKey].idx + ' · locked'],
                 ...(est ? [['Estimate', '≈ ' + sgFmtN(est.perDay * 29) + ' answers · from ' + est.campaigns + ' campaign' + (est.campaigns === 1 ? '' : 's')]] : []),
@@ -447,7 +467,7 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
             <div>
               <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
                 <span style={sgLabel}>window</span>
-                <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>first open day: {sgNextOpen(scopeKey)}</span>
+                <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>first open day: {sgNextOpen(scopeKey) || 'none in the next 14'}</span>
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 7 }}>
                 <SgDoorChip on={true} label="29 days" onTap={() => {}}></SgDoorChip>
