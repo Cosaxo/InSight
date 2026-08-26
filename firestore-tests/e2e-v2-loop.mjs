@@ -1146,6 +1146,31 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
       fail(`board entry ${k}=${v} is not in the accumulator: ` + JSON.stringify(privAfter.ent));
   }
   ok("D290: the catalog arm writes both documents as one commit — board and accumulator agree");
+
+  // D292's refusal, APPLIED. `replay.test.ts` pins the predicate in
+  // isolation, so deleting the four lines in runRebuild that consult it
+  // left every suite green — the guard was exported, tested and never
+  // asked. It is the guard against a rebuild MINTING a public aggregate
+  // out of sealed duel votes, and against reporting health for a pulse,
+  // whose aggregates are keyed per day and which this tool cannot address.
+  //
+  // Asserted through the real callable, on a real bank question, because
+  // that is the half the unit test cannot reach.
+  for (const [qid, what] of [["group-gu0", "a sealed duel"], ["pulse-pace", "a per-day pulse"]]) {
+    let refused = null;
+    try {
+      await httpsCallable(fns, "rebuildAggregateV2")({ qid });
+    } catch (err) {
+      refused = String(err && err.message ? err.message : err);
+    }
+    if (!refused) fail(`the rebuild tool reported on ${what} (${qid}) instead of refusing it`);
+    // The refusal has to NAME the question and give a reason — a bare
+    // "failed-precondition" tells an operator nothing about which of the
+    // two unaddressable shapes they hit.
+    if (!refused.includes(qid) || refused.length < qid.length + 30)
+      fail(`${qid} was refused without saying why: ${refused}`);
+  }
+  ok("D292: the rebuild tool refuses a sealed duel and a per-day pulse, through the callable");
 }
 
 // 10 · Near presence (D84 / D174 / D176 / D177): the write path through
