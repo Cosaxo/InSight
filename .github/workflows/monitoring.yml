@@ -61,13 +61,22 @@ jobs:
   arm:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Where FIREBASE_SERVICE_ACCOUNT is scoped. NOT an approval: D87 is
-    # recorded as `Applied: not yet`, so the `production` environment carries
-    # no protection rules today and this job starts unattended like the other
-    # three that name it. The declaration is what makes the approval reach
-    # this workflow the day somebody ticks the checkbox — it is a placement,
-    # not a guarantee, and saying otherwise would promise a human who is not
-    # there.
+    # Where FIREBASE_SERVICE_ACCOUNT is scoped, and — measured on
+    # 2026-08-26, not assumed — a BRANCH RESTRICTION. A dispatch of this
+    # workflow from a feature branch fails in about a second with no steps
+    # and no logs, with `apply` both on and off, while observe.yml (no
+    # `environment:`) runs from the same branch and this workflow runs from
+    # `main`. That isolates it to the environment, and a deployment branch
+    # policy is the mechanism GitHub has for it.
+    #
+    # So this line does more than scope a secret: **it means arming can only
+    # happen from `main`**, i.e. from something that went through review.
+    # That is a real protection and it is worth more than the sentence it
+    # replaced, which claimed the environment "carries no protection rules
+    # today" on the strength of D87 being recorded as `Applied: not yet`.
+    # D87 is about a REVIEWER requirement; the branch policy is a different
+    # rule and it is on. Whether a reviewer requirement is also on is not
+    # established here — no run has ever waited for one.
     environment: production
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
