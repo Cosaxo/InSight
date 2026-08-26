@@ -30771,3 +30771,46 @@ confidence to act on and the wrong amount to act on unattended.
 
 The verification is the instrument rather than the eye: re-run
 `npm run observe -- --functions` and `strayCount` should fall by twelve.
+
+### Amended the same day, by the review of the plan itself
+
+28 objections were raised against these commands by three independent
+lenses and 23 were refuted. **Five survived, and two of them were errors in
+the commands as written:**
+
+1. **`ext:uninstall` does not uninstall anything.** In the pinned
+   firebase-tools (15.24.0) its entire action body is
+   `manifest.removeFromManifest(instanceId, config)` — it edits
+   `firebase.json` and never reaches the Extensions API; the only caller of
+   `extensionsApi.deleteInstance` in the CLI is
+   `lib/deploy/extensions/tasks.js`, behind `deploy --only extensions`. And
+   this repo's `firebase.json` has no `extensions` key, so the documented
+   command throws before doing even its local no-op. **This record said
+   "`ext:uninstall` is the operation" one section above.** It is not. The
+   Console is, and 5.9c now says so. Verified by executing
+   `removeFromManifest` against this repo's real config rather than by
+   reading the command's `--help`, which still describes the API behaviour
+   it lost.
+2. **Runbook 5.9d was headed "the nine stranded `europe-west1` copies"** —
+   the region where all 42 LIVE functions are — one line above a nine-name
+   `--force` delete, in an item pointing at a command whose own
+   documentation says in bold that the region must not be "fixed" to match
+   D201. The body two lines down said `us-central1` throughout. **Three
+   independent reviewers flagged it; no gate could.** A heading is prose,
+   the command underneath was right, and every check in this repo was
+   green.
+
+And three that were true but not commands: `DEPLOYMENT.md` described the
+wrong-region failure as "would delete nothing and report success" when
+15.24.0 throws and exits non-zero (opposite advice for an operator);
+item 5.9 still told the operator to SPARE the nine while 5.9d deletes them,
+two open boxes contradicting each other; and 5.9d attributed the nine to
+D201's region move when D13 dropping them from the deploy list is the
+cause.
+
+**What the ratio is worth saying about.** 23 of 28 objections were refuted,
+several of them confidently argued and wrong — including two claiming the
+database-isolation argument fails. The value was not in the hit rate. It
+was that the two real ones were a wrong command that fails loudly and a
+wrong region in a heading that would not have, and neither is the kind of
+thing the person who wrote them re-reads and catches.

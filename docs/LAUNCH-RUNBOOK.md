@@ -1483,17 +1483,41 @@ That is a tester-count problem, not a workflow problem.
 
       **`functions:delete` is the wrong tool** — an extension's functions
       are managed by the extension, and removing them by hand leaves the
-      instance installed and broken. Confirm the instance id first rather
-      than trusting the one inferred from the function prefix:
+      instance installed and broken.
+
+      **`ext:uninstall` is ALSO the wrong tool, which is not what its name
+      or its own `--help` suggests.** In the pinned firebase-tools
+      (15.24.0) its entire action body is
+      `manifest.removeFromManifest(instanceId, config)` — it edits
+      `firebase.json` and never calls the Extensions API. The only caller of
+      `extensionsApi.deleteInstance` in the whole CLI is
+      `lib/deploy/extensions/tasks.js`, reachable only through
+      `deploy --only extensions`. And this repo's `firebase.json` has no
+      `extensions` key, so the command throws
+      `Extension instance … not found in firebase.json` before doing even
+      its local no-op. Verified by running `removeFromManifest` against this
+      repo's real config, not by reading the help text.
+
+      **Confirm the id, then uninstall in the Console:**
 
       ```bash
-      npx firebase ext:list --project prvfire33
-      npx firebase ext:uninstall <instance-id> --project prvfire33
+      npx firebase ext:list --project prvfire33      # this one IS correct
       ```
 
-      It may also still be costing an Algolia plan outside this bill.
+      Firebase Console → Extensions → the `firestore-algolia-search-…`
+      instance → Uninstall. That is the only route that does not involve
+      this repository's `firebase.json`.
 
-- [ ] **5.9d The nine stranded `europe-west1` copies — THIS project's, and
+      *(The CLI route exists — `ext:export` to write the installed instances
+      into the manifest, delete the entry, then `deploy --only extensions`
+      — but that last step reconciles the WHOLE project against the local
+      manifest: anything `ext:export` missed is deleted too. Not worth it to
+      remove one instance.)*
+
+      It may also still be costing an Algolia plan outside this bill, and
+      uninstalling does not delete the Algolia index or revoke its API key.
+
+- [ ] **5.9d The nine stranded `us-central1` copies — THIS project's, and
       a different decision.** `rebuildAreaAggregates`,
       `rebuildCityAggregates`, `rebuildWorldAggregates`,
       `scheduledAreaAggregates`, `scheduledCityAggregates`,
@@ -1501,8 +1525,18 @@ That is a tester-count problem, not a workflow problem.
       `sendInboundImpression`.
 
       These are **Gen-2, nodejs22, deployed 2026-07-29** — InSight's own
-      code, left in `us-central1` when D201 moved the region and D13 dropped
-      them from the deploy list. `docs/DEPLOYMENT.md` § "One-off cleanup
+      code. **D13 dropped them from the deploy `--only` list**, so they
+      stopped being deployed anywhere; they sit in `us-central1` because
+      that is simply where they last landed, before D201 moved the region
+      for everything still being deployed. D13 is the cause, not D201.
+
+      **This heading read `europe-west1` until it was reviewed** — the
+      region where all 42 LIVE functions are, one line above a nine-name
+      `--force` delete, in the item that points at a command whose own
+      documentation says in bold that the region must not be "fixed" to
+      match D201. The body two lines down said `us-central1` the whole time.
+      Three independent reviewers caught it; nothing mechanical would
+      have. `docs/DEPLOYMENT.md` § "One-off cleanup
       still owed in production (D13)" has the command and it is correct as
       written.
 
@@ -1532,9 +1566,20 @@ That is a tester-count problem, not a workflow problem.
 
       The full procedure, the verification command and the rollback are in
       [`DEPLOYMENT.md`](DEPLOYMENT.md) § Moving the functions. The short
-      form: deploy while nothing is being answered, then
-      `gcloud functions list --project prvfire33 --regions us-central1`
-      and delete anything that is not one of D13's nine v1 leftovers.
+      form: deploy while nothing is being answered, then check what is left
+      in the old region.
+
+      **The sweep clause here used to say "delete anything that is not one
+      of D13's nine v1 leftovers" — i.e. SPARE the nine — while 5.9d says
+      delete them.** Two open boxes in one document telling an operator
+      opposite things about the same nine functions. The census is now
+      5.9b/5.9c/5.9d, which split `us-central1` by provenance rather than
+      by "is it on D13's list", and this clause defers to them.
+
+      **The deploy half has already happened** (D300's reading: all 42 live
+      functions are in `europe-west1`, and `us-central1` holds only the 12
+      old-app functions and the 9 D13 leftovers). What keeps this box open
+      is the build bump below, not the deploy.
 
       **Then bump the build and ship it** (2.4). Every build shipped before
       this deploy — 21 and earlier — keeps

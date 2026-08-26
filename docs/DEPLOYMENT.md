@@ -100,8 +100,16 @@ npx firebase functions:delete rebuildAreaAggregates scheduledAreaAggregates \
 
 **`us-central1` in that command is correct and must not be "fixed" to
 match D201.** Those nine functions were deployed before the move and are
-still sitting in the old region; naming the new one would delete nothing
-and report success. It is the one place in this repo where the old region
+still sitting in the old region.
+
+Naming the new region **fails loudly**, which is better news than this
+paragraph gave it credit for until 2026-08-26: it said the wrong region
+"would delete nothing and report success", and in firebase-tools 15.24.0
+`functions:delete` throws `The specified filters do not match any existing
+functions in project prvfire33` and exits non-zero
+(`lib/commands/functions-delete.js:56`). Nothing is touched. Worth stating
+accurately, because "silently does nothing" and "hard error" send an
+operator to two different places. It is the one place in this repo where the old region
 is the right answer — everywhere else it is a stale copy.
 
 Until that runs, three schedules keep firing against empty collections —
