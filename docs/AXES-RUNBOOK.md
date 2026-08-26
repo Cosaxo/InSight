@@ -57,16 +57,27 @@ by PR to this file — the prompts defer to it every firing.
 
 ### The account-side inventory (repo-side record)
 
-Created 2026-08-25 (D289): fresh session per fire, model
+Created 2026-08-25 (D289), rebound 2026-08-26: model
 `claude-fable-5`, completion notifications off. Update this table
 whenever a lane is added, rebound, re-paced, or retired — the farm's
 convention.
 
 | Routine | Trigger id | Run log | Binding |
 | --- | --- | --- | --- |
-| InSight axes build | `trig_01Xv8XYuv1zkiHV2jxpeCxC7` | #290 | fresh session per fire |
-| InSight axes skeptic | `trig_01YFrzSyWE2CwHMfpNr299mX` | #290 | fresh session per fire |
-| InSight axes retro | `trig_01MoSNSwpVSAu8YMEuHwaBK9` | #290 | fresh session per fire |
+| InSight axes build | `trig_01Hzg91yafFVsa1HsXBcZY9X` | #290 | dispatcher → fresh session |
+| InSight axes skeptic | `trig_01JkE1PGWeuGe9GykFnjg1Gh` | #290 | dispatcher → fresh session |
+| InSight axes retro | `trig_01CT2yRRXZy7DbtUGPyNCB4J` | #290 | dispatcher → fresh session |
+
+"Dispatcher → fresh session" (the 2026-08-26 rebind): a cron-spawned
+session carries no MCP tool grants, so the provisioning step's
+`add_repo` call stalled at a permission prompt nobody answers — the
+second platform measurement, after the empty-container one below. Each
+Routine now wakes a persistent dispatcher session
+(`session_01D44Wtdu5JfCYMJmYuKmLjc`) that forwards the lane prompt
+verbatim into a fresh session spawned with the provisioning tools
+pre-approved: same isolation and fresh container, working permissions,
+and every run readable afterwards. The theory lanes dispatch the same
+way; their ids live in the charter's §10 on `axiom-theory`.
 
 **Binding is a measurement, not a preference — and the measurement is
 in, amended 2026-08-25 evening.** The adoption shipped on the premise
@@ -88,6 +99,24 @@ fallback stays in every prompt so even a tool-less session leaves a
 trace. Fire-with-appended-text is retired as a diagnostic instrument —
 the appended text demonstrably did not preempt the stored prompt;
 minimal `create_session` probes are the instrument that measured true.
+
+**The permission surface is committed, not per-session (added
+2026-08-25, owner's direction: lanes must never stall on a prompt).**
+`.claude/settings.json` on `main` pre-approves the lanes' working
+toolset — git/npm/node under Bash, file edits, web research, the
+`add_repo`/`register_repo_root` provisioning pair, and the GitHub reads
+plus the PR/issue writes this program's lanes use — so a fired session
+with nobody watching never sits at a permission prompt. Honest basis:
+no run has yet been *observed* stalling on one (PROBE4 pushed with
+none); this is prevention, adopted because a single stall would waste a
+full lane slot. What the file deliberately does **not** pre-approve is
+its own fence: `merge_pull_request` and auto-merge stay off the list
+(the never-merge tier, D289), as do the GitHub API file-write tools
+(git is the landing path — an API write would skip the local gates) and
+trigger/session mutation (the cadence dial stays the owner's, charter
+§11). Nothing is put in `deny`: the farm's D212 self-merge is a
+different program's contract, and this file reaches every session in
+the repo, so it hardens by omission only.
 
 ## The build lane
 
