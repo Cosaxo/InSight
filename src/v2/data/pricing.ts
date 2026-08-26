@@ -24,6 +24,7 @@ interface PricingFile {
   ceilX: number;
   floorWeek: number;
   capEur: number;
+  adBase: number;
   fx: Record<string, number>;
   trailingDays: number;
   cohorts: Record<Scope, CohortPricing>;
@@ -35,6 +36,11 @@ export const PRICING = PRICING_JSON as PricingFile;
 /** The posted per-answer line for a cohort: base × its committed idx. */
 export const rate = (scope: Scope): number =>
   Math.round(PRICING.base * PRICING.cohorts[scope].idx * 1000) / 1000;
+
+/** The ad window's flat line (D306): adBase × the same committed idx —
+ * one figure for the whole window, because an ad has nothing to meter. */
+export const adFlat = (scope: Scope): number =>
+  Math.round(PRICING.adBase * PRICING.cohorts[scope].idx * 100) / 100;
 
 /** The demand word the door prints, mapped from the committed idx bands. */
 export const demandWord = (scope: Scope): "quiet" | "steady" | "contested" => {

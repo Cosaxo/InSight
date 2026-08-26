@@ -18,6 +18,7 @@ export interface PricingCard {
   ceilX: number;
   floorWeek: number;
   capEur: number;
+  adBase: number;
   fx: Record<string, number>;
   trailingDays: number;
   cohorts: Record<"city" | "country" | "world", PricingCohort>;
@@ -31,6 +32,7 @@ export const PRICING_CARD: PricingCard = {
  "ceilX": 2.5,
  "floorWeek": 500,
  "capEur": 320,
+ "adBase": 320,
  "fx": {
   "NOK": 11.6,
   "USD": 1.08

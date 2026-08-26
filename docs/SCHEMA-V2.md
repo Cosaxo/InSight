@@ -243,13 +243,18 @@ v2_ads/{id}                        a feed ad (D197) — path 3, NOT path 2
                                    breakdown dims, matched ON THE DEVICE
                                    (data/sponsored.ts). The server is never
                                    asked who should see what
+  from?                            D306: a self-serve ad queued behind the
+                                   scope's running one starts later than it
+                                   was paid — pickPaid holds it until this
+                                   day, the exclusivity its flat price buys
   active?, seq, updatedAt
-read: signed-in · write: nobody (seed only). An ad takes no answer, so
-there is no answer arm for it anywhere in firestore.rules, no aggregate
-keyed to it and nothing per-person in it — which is why deleteAccount has
-nothing to reach here. The seed DELETES what the bank no longer names,
-unlike v2_questions: a question is permanent because answers are keyed to
-it, and an ad has none.
+read: signed-in · write: nobody client-side (the seed, and since D306 the
+payment webhook at paidad-* ids). An ad takes no answer, so there is no
+answer arm for it anywhere in firestore.rules, no aggregate keyed to it
+and nothing per-person in it — which is why deleteAccount has nothing to
+reach here. The seed DELETES what the bank no longer names, unlike
+v2_questions — but SPARES paidad-* ids, whose retirement belongs to the
+daily closer (their pen), at window end.
 
 v2_call_outcomes/{qid}             a graded Foresight CALL (D194)
   outcomeIdx: 0|1|-1               the winning option, or -1 for VOID:
@@ -570,11 +575,15 @@ the callable, the review trigger/sweep, the webhook)
 
 v2_purchases/{uid_bid}             one row per completed sale (PAID-PLAN
   uid, kind, qid, prompt,          §7 shape) — written by the payment
-  options, scope, place, dims[],   webhook (D304) or the operator's
-  window{start,until}, cadence,    record-purchase.mjs for hand
+  options, scope, place, dims[],   webhook (D304; ad sales D306) or the
+  window{start,until}, cadence,    operator's record-purchase.mjs for hand
   budget{cap,capEur,rate…},        contracts; closePaidCampaignsV2 marks
-  state, reports[], closed?,       `closed` with the answer count and
-  stripePaymentIntent?             the refund it executed
+  state, reports[], closed?,       `closed` with the answer count and the
+  stripePaymentIntent?             refund it executed. A kind:"ad" row
+  — ad rows: adId, advertiser,     carries the flat `priceEur` and its
+  headline, body, priceEur         paidad-* id instead of qid/budget —
+                                   no meter, no refund, and the closer
+                                   also deletes its v2_ads doc at close
 read: the buyer (uid == auth.uid) · write: nobody client-side
 ```
 

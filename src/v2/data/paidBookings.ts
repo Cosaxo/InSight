@@ -31,10 +31,17 @@ export interface BookingQuote {
   capEur: number;
   cap: number;
   windowDays: number;
+  /** the ad lane's flat window figure (D306) — 0 on question quotes */
+  flatEur: number;
 }
 
 export interface MyBooking {
   id: string;
+  kind: "question" | "ad";
+  /** the ad half (D306) — empty strings on question bookings */
+  advertiser: string;
+  headline: string;
+  body: string;
   prompt: string;
   type: string;
   options: string[];
@@ -54,10 +61,14 @@ export interface MyBooking {
 }
 
 export interface BookingPayload {
+  kind: "question" | "ad";
   prompt: string;
   type: string;
   options: string[];
   topic: string | null;
+  advertiser: string;
+  headline: string;
+  body: string;
   scope: "city" | "country" | "world";
   dims: Record<string, string>;
   wearName: boolean;
@@ -116,6 +127,10 @@ function parseRow(id: string, d: Record<string, unknown>): MyBooking {
   }
   return {
     id,
+    kind: d.kind === "ad" ? "ad" : "question",
+    advertiser: str(d.advertiser),
+    headline: str(d.headline),
+    body: str(d.body),
     prompt: str(d.prompt),
     type: str(d.type, "binary"),
     options: Array.isArray(d.options) ? d.options.map((o) => str(o)) : [],
@@ -126,7 +141,7 @@ function parseRow(id: string, d: Record<string, unknown>): MyBooking {
     status,
     note: d.note ? str(d.note) : null,
     quote: q
-      ? { ratePerAnswer: num(q.ratePerAnswer), capEur: num(q.capEur), cap: num(q.cap), windowDays: num(q.windowDays) }
+      ? { ratePerAnswer: num(q.ratePerAnswer), capEur: num(q.capEur), cap: num(q.cap), windowDays: num(q.windowDays), flatEur: num(q.flatEur) }
       : null,
     win: w && w.start ? { start: str(w.start), until: str(w.until) } : null,
     qid: d.qid ? str(d.qid) : null,

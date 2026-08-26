@@ -114,8 +114,14 @@ because it is a promise: the prototype's *"never names, never your
 profile"* is FALSE post-D98, and the shipped line is *they get the same
 public numbers you do; there is no private cut.*
 
-**3 · Ads in the world feed** — **BUILT, and unsold
-([D197](DECISIONS.md#d197--the-feed-gets-real-ads-and-they-are-not-sponsored-questions)).**
+**3 · Ads in the world feed** — **BUILT (D197), and SELF-SERVE since
+[D306](DECISIONS.md#d306--ads-sell-themselves-too--flat-priced-windows-through-the-same-loop-and-no-google)
+(2026-08-26): an ad books through the same door and review as a paid
+question, pays a flat committed window price (adBase × idx — nothing to
+meter, so nothing else is honest), queues day-exclusively behind the
+scope's running ad, and is written into `v2_ads` by the payment
+webhook. Google ad networks were weighed and refused in the same
+record.**
 A text card: advertiser, headline, one line, the same disclosure band a
 sponsored question wears, and no image, logo, brand colour or link —
 `check:content` refuses each by name. **No tap-through is the design, not

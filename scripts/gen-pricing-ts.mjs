@@ -49,6 +49,7 @@ export function generatePricingTs(json) {
     "  ceilX: number;\n" +
     "  floorWeek: number;\n" +
     "  capEur: number;\n" +
+    "  adBase: number;\n" +
     "  fx: Record<string, number>;\n" +
     "  trailingDays: number;\n" +
     "  cohorts: Record<\"city\" | \"country\" | \"world\", PricingCohort>;\n" +

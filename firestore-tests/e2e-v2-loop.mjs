@@ -1859,6 +1859,87 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
     fail("the paid question's answer did not fold: " + JSON.stringify(paidAgg));
   }
   ok("a paid question takes answers and aggregates through the ordinary path");
+
+  // 13 · The ad lane (D306): same loop, a different product — flat quote,
+  // queued day-exclusive windows, the webhook writing v2_ads, and the
+  // reseed NOT eating what the webhook wrote.
+  const dayKey = (off) => new Date(Date.now() + off * 86400000).toISOString().slice(0, 10);
+  const dayAfter = (k) => new Date(Date.parse(`${k}T00:00:00Z`) + 86400000).toISOString().slice(0, 10);
+
+  const bookAd = (headline) => httpsCallable(payFns, "bookPaidQuestionV2")({
+    kind: "ad", advertiser: "Harbour Sauna", headline,
+    body: "Open every morning from six, all winter.",
+    scope: "city", dims: { city: "Oslo, NO" },
+  });
+  const settleAd = async (id) => {
+    for (let i = 0; i < 40; i++) {
+      const s = await getDoc(doc(payDb, "v2_paid_bookings", id));
+      if (s.exists() && s.get("status") !== "review") return s;
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    fail("the ad review never settled " + id);
+    return null;
+  };
+
+  const ad1 = await bookAd("The water is warmer than you think");
+  const ad1Snap = await settleAd(ad1.data.id);
+  if (ad1Snap.get("status") !== "approved") fail("ad booking not approved: " + JSON.stringify(ad1Snap.data()));
+  const adQuote = ad1Snap.get("quote") || {};
+  if (adQuote.flatEur !== 288 || adQuote.windowDays !== 29) {
+    fail("ad quote is not adBase × idx off the committed card: " + JSON.stringify(adQuote));
+  }
+  ok("an ad books and approves at the flat committed price");
+
+  const adEvent = (evtId, csId, bid, pi) => JSON.stringify({
+    id: evtId, object: "event", type: "checkout.session.completed",
+    data: { object: { id: csId, object: "checkout.session", client_reference_id: bid, metadata: { bid }, payment_intent: pi } },
+  });
+  const adPaid = await signedPost(adEvent("evt_e2e_ad1", "cs_ad1", ad1.data.id, "pi_ad1"), whsec);
+  if (adPaid.status !== 200) fail("ad webhook answered " + adPaid.status);
+  const ad1Live = await getDoc(doc(payDb, "v2_paid_bookings", ad1.data.id));
+  const adId1 = ad1Live.get("adId");
+  if (ad1Live.get("status") !== "live" || adId1 !== `paidad-${ad1.data.id}`) {
+    fail("ad payment did not go live: " + JSON.stringify(ad1Live.data()));
+  }
+  const adPurchase1 = await getDoc(doc(payDb, "v2_purchases", `${buyer.user.uid}_${ad1.data.id}`));
+  if (!adPurchase1.exists() || adPurchase1.get("kind") !== "ad" || adPurchase1.get("priceEur") !== 288) {
+    fail("ad purchase malformed: " + JSON.stringify(adPurchase1.data()));
+  }
+  const w1 = adPurchase1.get("window");
+  if (w1.start !== dayKey(1)) fail("first ad in an empty scope must start tomorrow, got " + JSON.stringify(w1));
+  // The ad doc is bank content any signed-in user reads, in the seed's
+  // own field shape plus the queued-start `from` the client filter honours.
+  const adDoc1 = await getDoc(doc(db, "v2_ads", adId1));
+  if (!adDoc1.exists() || adDoc1.get("from") !== w1.start || adDoc1.get("until") !== w1.until
+    || adDoc1.get("advertiser") !== "Harbour Sauna" || !adDoc1.get("updatedAt")) {
+    fail("live ad doc missing its serving shape: " + JSON.stringify(adDoc1.data()));
+  }
+  ok("ad payment went live: purchase + v2_ads doc in one transaction");
+
+  // Day-exclusivity: a second ad in the same scope QUEUES — its window
+  // begins the day after the first one ends, never overlapping it.
+  const ad2 = await bookAd("Warmer still on Tuesdays");
+  await settleAd(ad2.data.id);
+  const ad2Paid = await signedPost(adEvent("evt_e2e_ad2", "cs_ad2", ad2.data.id, "pi_ad2"), whsec);
+  if (ad2Paid.status !== 200) fail("second ad webhook answered " + ad2Paid.status);
+  const adPurchase2 = await getDoc(doc(payDb, "v2_purchases", `${buyer.user.uid}_${ad2.data.id}`));
+  const w2 = adPurchase2.get("window");
+  if (w2.start !== dayAfter(w1.until)) {
+    fail(`second ad did not queue: first ends ${w1.until}, second starts ${w2.start}`);
+  }
+  ok("a second ad in the scope queues the day after the first — windows never overlap");
+
+  // The reseed must not eat sold ads: content/ads.json is deliberately
+  // empty, so without the paidad- sparing runSeedAds would delete BOTH
+  // docs here — this assertion is the sparing's pin, not a formality.
+  await httpsCallable(fns, "seedContentV2")({});
+  if (!(await getDoc(doc(db, "v2_ads", adId1))).exists()) {
+    fail("a reseed deleted a sold ad — the paidad- sparing is broken");
+  }
+  if (!(await getDoc(doc(db, "v2_ads", `paidad-${ad2.data.id}`))).exists()) {
+    fail("a reseed deleted the queued sold ad");
+  }
+  ok("a reseed leaves sold ads standing (the seed spares paidad- ids)");
 }
 
 console.log("\nALL E2E CHECKS PASSED");

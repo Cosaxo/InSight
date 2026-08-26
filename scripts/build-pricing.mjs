@@ -72,8 +72,9 @@ const db = getFirestore();
 // re-pricing is an edit to pricing.json reviewed in a PR — this script
 // only ever moves the demand-derived fields.
 const prev = JSON.parse(readFileSync(OUT, "utf8"));
-const { base, floorX, ceilX, floorWeek, capEur, currency, trailingDays, fx } = prev;
+const { base, floorX, ceilX, floorWeek, capEur, currency, trailingDays, fx, adBase } = prev;
 if (!(base > 0) || !(floorX > 0) || !(ceilX >= floorX)) die("pricing.json constants are out of shape — fix the file first");
+if (!(adBase > 0)) die("adBase must be a positive flat window figure (D306) — fix the file first");
 
 const DAY = 24 * 60 * 60 * 1000;
 const dayISO = (t) => new Date(t).toISOString().slice(0, 10);
@@ -81,6 +82,11 @@ const todayUTC = Date.parse(`${dayISO(Date.now())}T00:00:00Z`);
 
 const snap = await db.collection("v2_purchases").get();
 const purchases = snap.docs.map((d) => d.data()).filter((p) => p && p.kind === "question");
+// Ads occupy the SAME slot-days the demand index prices (D306), so they
+// fold into sold/booked with the questions. They stay out of `purchases`
+// because the estimates below predict answers per day, and an ad has no
+// answers to predict from.
+const slotCampaigns = snap.docs.map((d) => d.data()).filter((p) => p && (p.kind === "question" || p.kind === "ad"));
 
 const parse = (s) => {
   const t = Date.parse(`${s}T00:00:00Z`);
@@ -97,12 +103,13 @@ const cohorts = {};
 const estimates = {};
 for (const scope of SCOPES) {
   const mine = purchases.filter((p) => p.scope === scope);
+  const slotMine = slotCampaigns.filter((p) => p.scope === scope);
 
   // sold ÷ available slot-days over the trailing window, one slot per day
   let sold = 0;
   for (let i = 1; i <= trailingDays; i++) {
     const t = todayUTC - i * DAY;
-    if (mine.some((p) => covers(p, t))) sold++;
+    if (slotMine.some((p) => covers(p, t))) sold++;
   }
   const ratio = trailingDays ? sold / trailingDays : 0;
   const idx = Math.round(Math.min(ceilX, Math.max(floorX, floorX + ratio * (ceilX - floorX))) * 100) / 100;
@@ -112,7 +119,7 @@ for (const scope of SCOPES) {
   let nextOpen = null;
   for (let i = 1; i <= 14; i++) {
     const t = todayUTC + i * DAY;
-    const b = mine.some((p) => p.state === "running" && covers(p, t)) ? 1 : 0;
+    const b = slotMine.some((p) => p.state === "running" && covers(p, t)) ? 1 : 0;
     booked.push(b);
     if (!b && nextOpen === null) nextOpen = i === 1 ? "tomorrow" : dayISO(t);
   }
@@ -153,7 +160,7 @@ for (const scope of SCOPES) {
 
 const out = {
   generated: dayISO(Date.now()),
-  currency, base, floorX, ceilX, floorWeek, capEur, fx, trailingDays,
+  currency, base, floorX, ceilX, floorWeek, capEur, adBase, fx, trailingDays,
   cohorts,
   estimates,
 };

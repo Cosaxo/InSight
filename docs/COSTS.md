@@ -1185,14 +1185,14 @@ Three caveats worth carrying:
 Named, so the next correction starts from a list rather than from a
 surprise:
 
-- **The paid loop's off-Firebase bills (D304).** The automated review is
-  one `claude-opus-5` call per booking — cents each, billed to the
-  Anthropic account, bounded by the 5/day/account booking budget — and
-  Stripe takes its processing fee out of each checkout and returns
+- **The paid loop's off-Firebase bills (D304; ads D306).** The automated
+  review is one `claude-opus-5` call per booking — cents each, billed to
+  the Anthropic account, bounded by the 5/day/account booking budget —
+  and Stripe takes its processing fee out of each checkout and returns
   nothing on the refunded remainder. Both ride other ledgers than the
   Firebase bill this file models; the Firestore side of the loop (a
   booking doc, a handful of status writes, one purchase, one question
-  doc, the closer's daily bounded scan) is noise against the
+  or ad doc, the closer's daily bounded scan) is noise against the
   read-dominated bill.
 - **Cloud Logging volume**, estimated in the fixed-cost table above but not
   derived from the actual log statements per invocation.

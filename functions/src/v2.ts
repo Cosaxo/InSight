@@ -325,6 +325,11 @@ export async function runSeedAds(db: Firestore): Promise<number> {
   const batch = db.batch();
   let n = 0;
   for (const doc of existing.docs) {
+    // Self-serve ads (paid.ts, D306) are not the seed's to retire: the
+    // webhook wrote them against a payment, and the daily closer deletes
+    // them when their window ends — the same accumulation-control this
+    // delete provides for committed ads, owned by the pen that made them.
+    if (doc.id.startsWith("paidad-")) continue;
     if (!want.has(doc.id)) { batch.delete(doc.ref); n++; }
   }
   for (const a of V2_ADS) {

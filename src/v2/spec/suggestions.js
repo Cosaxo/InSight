@@ -127,7 +127,12 @@ function liveMine() {
 function liveBookings() {
   const rows = (sgPaid && sgPaid.myBookings()) || [];
   return rows.map((r) => ({
-    id: r.id, prompt: r.prompt, type: r.type, options: r.options,
+    id: r.id, kind: r.kind || 'question',
+    // an ad row wears its headline where a question wears its prompt —
+    // one card shape in the room, two products behind it (D306)
+    prompt: r.kind === 'ad' ? r.headline : r.prompt,
+    advertiser: r.advertiser, adBody: r.body,
+    type: r.type, options: r.options,
     topic: r.topic, by: 'You', hue: hueOf(r.id), status: r.status,
     ago: agoOf(r.atMs), atMs: r.atMs, cadence: 'once',
     audience: r.scope, note: r.note, quote: r.quote, win: r.win,
@@ -232,18 +237,23 @@ export const SUGGESTIONS = {
     return sgPaid ? sgPaid.loadBookings(true) : Promise.resolve([]);
   },
   /**
-   * Open a paid booking (D304) — the functional pipeline. Returns
+   * Open a paid booking (D304; the ad lane D306) — the functional
+   * pipeline. Returns
    *   { ok: true, id }              — booked; the review is running
    *   { ok: false, code, message }  — the server's refusal, shown verbatim
    */
-  submitPaid({ prompt, type, options, topic, scope, dims, wearName }) {
+  submitPaid({ kind, prompt, type, options, topic, advertiser, headline, body, scope, dims, wearName }) {
     const opts = (options || []).filter(Boolean);
     if (LIVE.enabled) {
       return import('../data/paidBookings').then((p) => p.submitBooking({
+        kind: kind === 'ad' ? 'ad' : 'question',
         prompt: String(prompt || '').trim(),
         type: type || 'binary',
         options: opts,
         topic: topic || null,
+        advertiser: String(advertiser || '').trim(),
+        headline: String(headline || '').trim(),
+        body: String(body || '').trim(),
         scope: scope || 'world',
         dims: dims || {},
         wearName: wearName !== false,
@@ -251,7 +261,10 @@ export const SUGGESTIONS = {
     }
     // Demo: the ask lands in the local room as "review", same as ever —
     // there is no demo payment and nothing here pretends one.
-    return this.submit({ prompt, type, options: opts, topic: topic || '', cadence: 'once', audience: scope || 'world' });
+    return this.submit({
+      prompt: kind === 'ad' ? headline : prompt,
+      type, options: opts, topic: topic || '', cadence: 'once', audience: scope || 'world',
+    });
   },
   /** An approved booking's checkout URL. The caller opens it — a payment
    * page is the one surface that must not render inside the app

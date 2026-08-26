@@ -1,9 +1,9 @@
 {
-  "status": "EMPTY, DELIBERATELY (D197). The machinery ships; the inventory does not. Writing an ad here means printing a real company's name on a card nobody bought — D1's no-fabrication rule pointed at a claim about money rather than about a crowd, and the worse of the two: an invented crowd misleads about a number, an invented advertiser misleads about a relationship. The first row arrives with a contract behind it.",
-  "comment": "Feed ads (docs/MONETIZATION.md path 3). AN AD IS NOT A SPONSORED QUESTION, and the two are kept apart on purpose — path 2 sells a QUESTION, which is answered like any other and folds into the same public aggregate everyone reads; path 3 sells a CARD, which takes no answer and produces no data at all. They share the disclosure band and the single paid slot; they are otherwise different objects, and prose that blurs them makes the disclosure argument impossible to have (D196).",
+  "status": "EMPTY, DELIBERATELY (D197), and since D306 usually staying that way: this file is the COMMITTED pen \u2014 hand contracts an operator seeds \u2014 while self-serve ads are written by the payment webhook straight into v2_ads at paidad-* ids (paid.ts, D306), never as rows here. Either way no ad exists without a real buyer behind it: writing one here without a contract would print a company's name on a card nobody bought (D1's no-fabrication rule pointed at money), and the webhook only writes against a verified payment.",
+  "comment": "Feed ads (docs/MONETIZATION.md path 3). AN AD IS NOT A SPONSORED QUESTION, and the two are kept apart on purpose \u2014 path 2 sells a QUESTION, which is answered like any other and folds into the same public aggregate everyone reads; path 3 sells a CARD, which takes no answer and produces no data at all. They share the disclosure band and the single paid slot; they are otherwise different objects, and prose that blurs them makes the disclosure argument impossible to have (D196).",
   "authoring": [
     "Five rules, and `npm run check:content` holds all five:",
-    "1. TEXT ONLY. `advertiser`, `headline`, `body` — and nothing else.",
+    "1. TEXT ONLY. `advertiser`, `headline`, `body` \u2014 and nothing else.",
     "   No image, no logo, no brand colour, no link. Every one of those is",
     "   refused by name rather than by omission, so adding one is a",
     "   conversation rather than a commit.",
@@ -18,7 +18,7 @@
     "   ON THE DEVICE (src/v2/data/sponsored.ts). The server is never asked",
     "   who should see what.",
     "5. THE BAND IS THE APP'S. The disclosure is drawn by ui/SponsorMark",
-    "   — the app's ink, the word PAID, the advertiser's name, the window —",
+    "   \u2014 the app's ink, the word PAID, the advertiser's name, the window \u2014",
     "   and an advertiser cannot restyle it, because nothing in this file",
     "   can carry a style.",
     "",

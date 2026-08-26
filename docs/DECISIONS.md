@@ -31180,3 +31180,69 @@ What changed, and what deliberately did not:
   decision (D306) needs no tracking either way — text-only, link-free,
   matched on the device — so the first revenue arrives without spending
   what this record unlocks.
+
+## D306 · Ads sell themselves too — flat-priced windows through the same loop, and no Google
+
+**Date: 2026-08-26. The owner asked "what do you think about building
+out the system but starting with google ads so we have revenue before
+real advertisers?"; the recorded answer was no on Google — it would
+ship the canonical third-party tracker into an app whose store labels
+answer tracking-off, negate D197's whole ad design (text-only,
+link-free, device-matched, unmeasured), and earn pocket change at
+current scale — and yes on the system: the D197 ad becomes the D304
+loop's second product.** The owner took that recommendation, so first
+ad revenue arrives with zero tracking and zero promises moved (D305,
+decided the same hour, was about the PLEDGE — this build adds no SDK
+and no data flow either way).
+
+The design, and where each piece of it was forced rather than chosen:
+
+- **Flat price, because there is nothing to meter.** A question bills
+  per answer, a public number both sides read (D164). An ad produces no
+  answers, no clicks (nothing is tappable — D197) and no impressions
+  (counting them is the measurement apparatus MONETIZATION.md refuses).
+  The only honest price is the WINDOW itself: `adBase` (€320, committed
+  beside `capEur`) × the scope's demand index, `check:pricing`-clamped,
+  locked at approval like every quote. No refunds — nothing can
+  measurably under-deliver — so the closer's ad job is bookkeeping.
+- **Ads queue; they never share with each other.** A question diluted
+  by slot rotation self-corrects through billing and the refund. A
+  flat-priced ad diluted by another ad would silently get less for the
+  same money — so `adStartDay` starts a new ad the day after the
+  scope's running one ends, inside the webhook's transaction (two
+  racing payments serialize), and `from` joined the FeedAd shape so a
+  queued window cannot serve early (pickPaid holds it; pinned). Sharing
+  with paid QUESTIONS remains and the contract sheet says so before
+  payment — their billing absorbs the split day, the ad buyer reads it
+  in plain words.
+- **One audience tag, always named.** D197's rules carry over as
+  written: at most one dim (`AD_AUDIENCE_MAX`, vs the question path's
+  three), the advertiser printed on every card (no nameless ads — the
+  name is reviewed content, not an identity claim), text bounds and the
+  URL nose mirrored byte-for-byte from `check:content`'s ad rules.
+- **The review is the same review**, with an ad clause: assertions get
+  claims-shaped scrutiny (miracle claims, impersonation, one-sided
+  political campaign copy — civic QUESTIONS stay welcome inventory; an
+  ad has no answer space to keep it honest). The no-link rule is what
+  makes automated ad review tolerable at all: an ad that cannot send
+  anyone anywhere has almost nothing to gain by sneaking through.
+- **The pens divide by id.** The webhook writes `v2_ads/paidad-*`;
+  `runSeedAds` — whose delete-what-the-bank-drops behavior exists so
+  the pool cannot accumulate — now SPARES that prefix, and the daily
+  closer takes over the retirement (delete at window end), so the
+  accumulation control survives with the ownership moved to the pen
+  that made the doc. The e2e pins the sparing against a real reseed
+  over the deliberately-empty committed file, which without the sparing
+  deletes everything.
+- **The room and the door tell the ad's truth**: a kind:"ad" purchase
+  card shows the words, the flat price and the window — "an ad collects
+  nothing; it runs, that is all" — and the composer's ad lane prints
+  the flat line where the question lane prints per-answer, with the
+  forecast machinery absent rather than reworded (it predicts answers,
+  which is the wrong product).
+
+`content/ads.json` stays the committed pen for hand contracts and stays
+empty until one exists; its status note now says where self-serve ads
+actually live. Demand honesty: ad campaigns fold into the slot-day
+arithmetic `build-pricing.mjs` prices (same inventory, same idx) and
+stay out of the answer estimates (nothing to estimate).

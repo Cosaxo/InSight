@@ -127,13 +127,17 @@ export function pickSponsored<T extends SponsoredQ>(
   return sorted[i];
 }
 
-/** One feed ad (D197) — text, an advertiser, a window. Never a question. */
+/** One feed ad (D197) — text, an advertiser, a window. Never a question.
+ * `from` joined with D306: a committed ad's window opens at seed time so
+ * it never carries one, but a self-serve ad QUEUES behind the scope's
+ * running ad (paid.ts adStartDay) and must not serve before its day. */
 export interface FeedAd {
   id: string;
   seq?: number;
   advertiser: string;
   headline: string;
   body: string;
+  from?: string;
   until?: string;
   audience?: Record<string, string>;
   active?: boolean;
@@ -174,8 +178,12 @@ export function pickPaid<T extends SponsoredQ>(
     // An ad's window is enforced HERE as well as by the seed, because the
     // pool is cached on the device: a session that outlived the last day
     // of a campaign would otherwise keep serving it. Questions get the
-    // same filter one layer up, in live.ts's bank build.
+    // same filter one layer up, in live.ts's bank build. Both ends since
+    // D306: a queued self-serve ad carries `from` and must not serve
+    // before its scheduled day — that day-exclusivity is what its flat
+    // price bought.
     && (!today || !a.until || a.until >= today)
+    && (!today || !a.from || a.from <= today)
     && matches({ buyer: a.advertiser, audience: a.audience }, anchors));
   const pool: Array<{ id: string; slot: PaidSlot<T> }> = [
     ...eligibleQs.map((q) => ({ id: q.id, slot: { kind: "question" as const, question: q } })),

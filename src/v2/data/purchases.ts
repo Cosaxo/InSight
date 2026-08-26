@@ -28,8 +28,14 @@ import { getFirestoreApi, getDb, subscribeToAuth } from "../../lib/firebase";
 export interface PurchaseReport { label: string; ready: boolean; note?: string }
 export interface Purchase {
   id: string;
-  kind: "question" | "subscription";
+  kind: "question" | "subscription" | "ad";
   qid: string;
+  /** the ad sale's half (D306) — empty strings on question rows. An ad
+   * has a flat price and no meter: nothing here to count. */
+  advertiser: string;
+  headline: string;
+  adBody: string;
+  priceEur: number;
   prompt: string;
   options: string[];
   scope: "city" | "country" | "world";
@@ -75,12 +81,16 @@ function parseRow(id: string, d: Record<string, unknown>): Purchase {
   const w = (d.window || {}) as Record<string, unknown>;
   const b = (d.budget || {}) as Record<string, unknown>;
   const scope = ["city", "country", "world"].includes(str(d.scope)) ? (str(d.scope) as Purchase["scope"]) : "world";
-  const kind = d.kind === "subscription" ? "subscription" : "question";
+  const kind = d.kind === "subscription" ? "subscription" : d.kind === "ad" ? "ad" : "question";
   const state = d.state === "closed" ? "closed" : d.state === "lapsed" ? "lapsed" : "running";
   return {
     id,
     kind,
     qid: str(d.qid),
+    advertiser: str(d.advertiser),
+    headline: str(d.headline),
+    adBody: str(d.body),
+    priceEur: num(d.priceEur),
     prompt: str(d.prompt),
     options: Array.isArray(d.options) ? d.options.map((o) => str(o)) : [],
     scope,

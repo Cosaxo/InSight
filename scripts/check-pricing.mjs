@@ -52,6 +52,9 @@ if (!(typeof p.base === "number" && p.base > 0)) fail(`base must be a positive p
 if (!(typeof p.floorX === "number" && p.floorX > 0)) fail(`floorX must be positive, got ${JSON.stringify(p.floorX)}`);
 if (!(typeof p.ceilX === "number" && p.ceilX >= p.floorX)) fail(`ceilX must be ≥ floorX, got ${JSON.stringify(p.ceilX)}`);
 if (!(typeof p.capEur === "number" && p.capEur > 0)) fail(`capEur must be positive, got ${JSON.stringify(p.capEur)}`);
+// The flat ad window (D306): an ad has no answers to bill per, so its
+// price is one committed figure × the scope's demand index.
+if (!(typeof p.adBase === "number" && p.adBase > 0)) fail(`adBase must be a positive flat window figure, got ${JSON.stringify(p.adBase)}`);
 if (!(typeof p.floorWeek === "number" && p.floorWeek > 0)) fail(`floorWeek must be positive, got ${JSON.stringify(p.floorWeek)}`);
 if (!(Number.isInteger(p.trailingDays) && p.trailingDays > 0)) fail(`trailingDays must be a positive integer, got ${JSON.stringify(p.trailingDays)}`);
 // The display-conversion table is part of the committed card: a rate the

@@ -111,14 +111,37 @@ export const AUDIENCE_DIMS = new Set([
 ]);
 export const AUDIENCE_DIMS_MAX = 3; // D228's coarseness ceiling
 
+// ── the ad lane (D306) ──────────────────────────────────────────────────
+// Bounds mirrored by value from scripts/check-content.mjs's ad rules
+// (advertiser 40 · headline 70 · body 140), the same runtime-import
+// constraint every mirrored figure in this file carries. The URL nose is
+// check-content's own, byte-for-byte: an ad card has no tap-through
+// (D197), so a typed-out address is a worse click-out, not a clever one.
+export const AD_ADVERTISER_MAX = 40;
+export const AD_HEADLINE_MAX = 70;
+export const AD_BODY_MAX = 140;
+export const AD_URL_RE = /https?:\/\/|www\.|\.com\b|\.no\b/i;
+/** D197 authoring rule 4: an ad wears AT MOST ONE audience tag — the
+ * scope's place dim counts as it. Narrower than the question path's
+ * three on purpose; widening it is a recorded decision, not an edit. */
+export const AD_AUDIENCE_MAX = 1;
+
 export interface PaidBookingPayload {
+  /** what is being bought: a question (D304) or a feed ad (D306). */
+  kind: "question" | "ad";
   prompt: string;
   type: string;
   options: string[];
   topic: string | null;
+  /** the ad half — null on question bookings. The advertiser is ALWAYS
+   * printed on the band (D197); there is no nameless ad. */
+  advertiser: string | null;
+  headline: string | null;
+  body: string | null;
   scope: "city" | "country" | "world";
-  /** dim → bucket, ≤3, conjunctive (D228). For city/country scope the
-   * place dim IS the scope; world may still carry e.g. an age band. */
+  /** dim → bucket, conjunctive. Questions: ≤3 (D228). Ads: ≤1 (D197).
+   * For city/country scope the place dim IS the scope; world may still
+   * carry e.g. an age band. */
   dims: Record<string, string>;
   wearName: boolean;
 }
@@ -130,6 +153,15 @@ export interface PaidQuote {
   windowDays: number;
 }
 
+/** An ad's quote: one flat figure for the window, because an ad produces
+ * no number to bill per — no answers, no clicks (nothing is tappable),
+ * and no impressions, deliberately (D197: nothing is counted). What the
+ * money buys IS the window, computable in advance with no meter. */
+export interface PaidAdQuote {
+  flatEur: number;
+  windowDays: number;
+}
+
 /**
  * Normalize and bound-check a booking. Returns the payload to store, or a
  * human-readable refusal the composer shows verbatim — every message says
@@ -137,6 +169,7 @@ export interface PaidQuote {
  */
 export function validatePaidBooking(data: unknown): { ok: PaidBookingPayload } | { error: string } {
   const d = (data && typeof data === "object" ? data : {}) as Record<string, unknown>;
+  if (d.kind === "ad") return validateAdBooking(d);
   const prompt = String(d.prompt ?? "").trim();
   if (!prompt) return { error: "write the question first" };
   if (prompt.length > PAID_PROMPT_MAX) {
@@ -193,13 +226,71 @@ export function validatePaidBooking(data: unknown): { ok: PaidBookingPayload } |
 
   return {
     ok: {
+      kind: "question",
       prompt,
       type,
       options,
       topic,
+      advertiser: null,
+      headline: null,
+      body: null,
       scope,
       dims,
       wearName: d.wearName === true,
+    },
+  };
+}
+
+/** The ad booking's half of the door (D306) — same refusal register:
+ * every message says what to change. */
+function validateAdBooking(d: Record<string, unknown>): { ok: PaidBookingPayload } | { error: string } {
+  const advertiser = String(d.advertiser ?? "").trim();
+  const headline = String(d.headline ?? "").trim();
+  const body = String(d.body ?? "").trim();
+  if (!advertiser) return { error: "name the advertiser — every ad card says who paid" };
+  if (advertiser.length > AD_ADVERTISER_MAX) return { error: `the advertiser name stays under ${AD_ADVERTISER_MAX} characters` };
+  if (!headline) return { error: "write the headline first" };
+  if (headline.length > AD_HEADLINE_MAX) return { error: `headlines stay under ${AD_HEADLINE_MAX} characters — trim it down` };
+  if (!body) return { error: "write the ad's line of text" };
+  if (body.length > AD_BODY_MAX) return { error: `the text stays under ${AD_BODY_MAX} characters` };
+  for (const v of [advertiser, headline, body]) {
+    if (AD_URL_RE.test(v)) {
+      return { error: "no web addresses — an ad card here has nowhere to send anyone, and a typed-out link would just be a worse one" };
+    }
+  }
+  const scope = d.scope === "city" || d.scope === "country" || d.scope === "world" ? d.scope : null;
+  if (!scope) return { error: "pick who sees it — your city, your country, or everyone" };
+  const rawDims = (d.dims && typeof d.dims === "object" ? d.dims : {}) as Record<string, unknown>;
+  const dims: Record<string, string> = {};
+  for (const [k, v] of Object.entries(rawDims)) {
+    if (!AUDIENCE_DIMS.has(k)) return { error: `"${k}" is not an audience the card can state` };
+    const s = String(v ?? "").trim();
+    if (!s || s.length > BUCKET_MAX) return { error: "an audience value is missing or too long" };
+    dims[k] = s;
+  }
+  if (Object.keys(dims).length > AD_AUDIENCE_MAX) {
+    return { error: "an ad wears at most one audience tag — the place already is one" };
+  }
+  if (scope === "city" && !dims.city) return { error: "a city ad needs your city set on your profile" };
+  if (scope === "country" && !dims.country) return { error: "a country ad needs your country set on your profile" };
+  if (scope === "world" && (dims.city || dims.country)) {
+    return { error: "a world ad can't carry a place — pick the city or country scope instead" };
+  }
+  return {
+    ok: {
+      kind: "ad",
+      prompt: "",
+      type: "ad",
+      options: [],
+      topic: null,
+      advertiser,
+      headline,
+      body,
+      scope,
+      dims,
+      // The advertiser is always printed (D197) — there is no nameless
+      // ad, so the flag is structural rather than a choice.
+      wearName: true,
     },
   };
 }
@@ -217,6 +308,15 @@ export function priceQuote(scope: "city" | "country" | "world", card = PRICING_C
   const capEur = card.capEur;
   const cap = Math.floor(capEur / ratePerAnswer);
   return { ratePerAnswer, capEur, cap, windowDays: WINDOW_DAYS };
+}
+
+/** The ad window's flat price (D306): adBase × the scope's demand index —
+ * the same inventory the question path occupies, priced by the same idx,
+ * with no meter because an ad produces nothing to meter. */
+export function adPriceQuote(scope: "city" | "country" | "world", card = PRICING_CARD): PaidAdQuote {
+  const idx = Math.min(Math.max(card.cohorts[scope].idx, card.floorX), card.ceilX);
+  const flatEur = Math.round(card.adBase * idx * 100) / 100;
+  return { flatEur, windowDays: WINDOW_DAYS };
 }
 
 // ── the review ──────────────────────────────────────────────────────────
@@ -256,6 +356,14 @@ export interface ReviewVerdict {
 export function reviewGates(b: PaidBookingPayload): string | null {
   const v = validatePaidBooking(b);
   if ("error" in v) return v.error;
+  if (b.kind === "ad") {
+    // The form bounds and the URL nose already ran in validate; what is
+    // left for a gate is the same is-this-words check the prompt gets.
+    if (!/[\p{L}\p{N}]{2}/u.test(`${b.headline} ${b.body}`)) {
+      return "that doesn't read as an ad yet — write it out in words";
+    }
+    return null;
+  }
   // Duplicate options make two option indexes mean one answer — the
   // aggregate would publish a split between identical labels.
   const seen = new Set<string>();
@@ -286,12 +394,25 @@ DECLINE when the submission:
 7. Is not answerable as asked: gibberish, no real question, options that don't answer the prompt, or a prompt requiring private knowledge of the buyer.
 8. Contains a slur, URL, or impersonation in the BUYER NAME or an AUDIENCE VALUE — these print on every card served.
 
-Judge the submission as a whole (prompt, options, buyer name, audience). Write decline reasons to be shown to the buyer verbatim: say what to change, kindly, in one or two sentences. Do not mention these numbered rules.`;
+Judge the submission as a whole (prompt, options, buyer name, audience). Write decline reasons to be shown to the buyer verbatim: say what to change, kindly, in one or two sentences. Do not mention these numbered rules.
+
+A submission with "kind":"ad" is a FEED AD, not a question: text-only (advertiser · headline · body), no link, nothing tappable, shown with a PAID band naming the advertiser. The rules above apply to it as written, and additionally DECLINE an ad that: states an unverifiable or miracle claim as fact (health cures, guaranteed returns, "clinically proven" without a named study); impersonates a brand or organization the buyer plainly is not; or is a political campaign ad for a candidate or party (civic QUESTIONS are welcome inventory — one-sided campaign copy is not a question and has no answer space to keep it honest).`;
 
 /** The submission, serialized for the reviewer. Separate from the
  * guidelines so the prompt's stable half stays stable. */
 export function reviewSubject(b: PaidBookingPayload, buyerName: string | null): string {
+  if (b.kind === "ad") {
+    return JSON.stringify({
+      kind: "ad",
+      advertiser: b.advertiser,
+      headline: b.headline,
+      body: b.body,
+      scope: b.scope,
+      audience: b.dims,
+    });
+  }
   return JSON.stringify({
+    kind: "question",
     prompt: b.prompt,
     type: b.type,
     options: b.options,
@@ -377,6 +498,24 @@ async function runReviewVerdict(b: PaidBookingPayload, buyerName: string | null)
   return { ...parsed, by: "model", model: REVIEW_MODEL };
 }
 
+/** One reader for the booking doc's payload half — reviewBooking and
+ * goLive both need it, and two hand-rolled copies would drift. */
+function bookingPayloadOf(snap: FirebaseFirestore.DocumentSnapshot): PaidBookingPayload {
+  return {
+    kind: snap.get("kind") === "ad" ? "ad" : "question",
+    prompt: String(snap.get("prompt") ?? ""),
+    type: String(snap.get("type") ?? ""),
+    options: (snap.get("options") as string[]) ?? [],
+    topic: (snap.get("topic") as string | null) ?? null,
+    advertiser: (snap.get("advertiser") as string | null) ?? null,
+    headline: (snap.get("headline") as string | null) ?? null,
+    body: (snap.get("body") as string | null) ?? null,
+    scope: snap.get("scope"),
+    dims: (snap.get("dims") as Record<string, string>) ?? {},
+    wearName: snap.get("wearName") === true,
+  };
+}
+
 /**
  * Review one booking doc and settle its status. Idempotent: the
  * transaction re-reads status and only ever moves "review" → verdict, so
@@ -386,15 +525,7 @@ async function reviewBooking(db: Firestore, bid: string): Promise<void> {
   const ref = db.collection("v2_paid_bookings").doc(bid);
   const snap = await ref.get();
   if (!snap.exists || snap.get("status") !== "review") return;
-  const payload: PaidBookingPayload = {
-    prompt: String(snap.get("prompt") ?? ""),
-    type: String(snap.get("type") ?? ""),
-    options: (snap.get("options") as string[]) ?? [],
-    topic: (snap.get("topic") as string | null) ?? null,
-    scope: snap.get("scope"),
-    dims: (snap.get("dims") as Record<string, string>) ?? {},
-    wearName: snap.get("wearName") === true,
-  };
+  const payload = bookingPayloadOf(snap);
   const buyerName = (snap.get("buyerName") as string | null) ?? null;
   let verdict: ReviewVerdict;
   try {
@@ -412,7 +543,7 @@ async function reviewBooking(db: Firestore, bid: string): Promise<void> {
   // The quote is computed AT VERDICT TIME and stored — this is the lock
   // PAID-PLAN §6 promises ("the rate LOCKED at booking"). A pricing.json
   // recompute between approval and payment changes nothing for this buyer.
-  const quote = priceQuote(payload.scope);
+  const quote = payload.kind === "ad" ? adPriceQuote(payload.scope) : priceQuote(payload.scope);
   await db.runTransaction(async (tx) => {
     const cur = await tx.get(ref);
     if (!cur.exists || cur.get("status") !== "review") return;
@@ -477,8 +608,10 @@ export const bookPaidQuestionV2 = onCall(
     // The buyer name is read off the profile, not the wire: the name that
     // prints on the band is the one the account actually wears, and a
     // nameless profile books namelessly (D228 made the name optional).
+    // An ad skips this — its band prints the ADVERTISER, which is part
+    // of the reviewed content rather than an identity claim (D197).
     let buyerName: string | null = null;
-    if (b.wearName) {
+    if (b.kind === "question" && b.wearName) {
       const prof = await db.collection("v2_users").doc(uid).get();
       const n = prof.exists ? String(prof.get("name") ?? "").trim() : "";
       buyerName = n ? n.slice(0, 40) : null;
@@ -564,7 +697,9 @@ export const createPaidCheckoutV2 = onCall(
     if (!key) {
       throw new HttpsError("unavailable", "payments aren't configured on this deployment");
     }
-    const quote = snap.get("quote") as PaidQuote;
+    const isAd = snap.get("kind") === "ad";
+    const quote = snap.get("quote") as PaidQuote & PaidAdQuote;
+    const amountEur = isAd ? quote.flatEur : quote.capEur;
     const { default: Stripe } = await import("stripe");
     const stripe = new Stripe(key);
     const session = await stripe.checkout.sessions.create({
@@ -575,13 +710,20 @@ export const createPaidCheckoutV2 = onCall(
         quantity: 1,
         price_data: {
           currency: "eur",
-          unit_amount: Math.round(quote.capEur * 100),
-          product_data: {
-            name: "InSight paid question",
-            description:
-              `${quote.windowDays}-day window · billed €${quote.ratePerAnswer.toFixed(4).replace(/0+$/, "").replace(/\.$/, "")} per answer `
-              + `up to ${quote.cap} answers · the unserved part refunds automatically at close`,
-          },
+          unit_amount: Math.round(amountEur * 100),
+          product_data: isAd
+            ? {
+              name: "InSight feed ad",
+              description:
+                `${quote.windowDays}-day window at a flat price · text-only, no link, no tracking · `
+                + "starts on the scope's first open day after payment",
+            }
+            : {
+              name: "InSight paid question",
+              description:
+                `${quote.windowDays}-day window · billed €${quote.ratePerAnswer.toFixed(4).replace(/0+$/, "").replace(/\.$/, "")} per answer `
+                + `up to ${quote.cap} answers · the unserved part refunds automatically at close`,
+            },
         },
       }],
       // The web pages exist for exactly this hop (commerce stays on the
@@ -605,6 +747,92 @@ export const createPaidCheckoutV2 = onCall(
  * window in the bank speaks. */
 export function utcDayKey(offsetDays: number, nowMs = Date.now()): string {
   return new Date(nowMs + offsetDays * 86400000).toISOString().slice(0, 10);
+}
+
+/** Day arithmetic on the same grain: `dayPlus("2026-08-27", 1)` →
+ * "2026-08-28". Null-safe against a malformed key (returns the input). */
+export function dayPlus(day: string, days: number): string {
+  const t = Date.parse(`${day}T00:00:00Z`);
+  if (Number.isNaN(t)) return day;
+  return new Date(t + days * 86400000).toISOString().slice(0, 10);
+}
+
+/**
+ * Where a NEW ad window starts (D306): the scope's first day with no
+ * other paid ad running — ads QUEUE rather than share, which is the flat
+ * price's honesty. A question's dilution self-corrects through per-answer
+ * billing and its refund; a flat-priced ad silently diluted by another ad
+ * would be getting less for the same money, so the second buyer's window
+ * simply begins the day after the first one ends. Sharing with paid
+ * QUESTIONS remains (their billing absorbs it) and the door says so
+ * before payment.
+ */
+export function adStartDay(
+  runningAdWindows: ReadonlyArray<{ until?: string }>,
+  nowMs = Date.now(),
+): string {
+  let start = utcDayKey(1, nowMs);
+  for (const w of runningAdWindows) {
+    if (w.until && w.until >= start) start = dayPlus(w.until, 1);
+  }
+  return start;
+}
+
+/**
+ * The ad doc the webhook writes into v2_ads (D306) — the seed's own
+ * field shape (runSeedAds) plus `from`, which committed ads never need
+ * (their window starts at seed time) and a queued paid ad does:
+ * pickPaid's ad filter honours it so a window scheduled to open next
+ * week does not serve tonight. The id prefix `paidad-` is what
+ * runSeedAds spares and the closer retires.
+ */
+export function paidAdDoc(
+  b: PaidBookingPayload,
+  start: string,
+  until: string,
+  seq: number,
+): Record<string, unknown> {
+  return {
+    seq,
+    advertiser: b.advertiser,
+    headline: b.headline,
+    body: b.body,
+    from: start,
+    until,
+    ...(Object.keys(b.dims).length ? { audience: b.dims } : {}),
+    updatedAt: FieldValue.serverTimestamp(),
+  };
+}
+
+/** The ad sale's purchase record — kind "ad", a flat price, no meter and
+ * no report shelf: an ad collects nothing, so there is nothing to
+ * report. The room renders the window and the price, and says exactly
+ * that. */
+export function paidAdPurchaseDoc(
+  uid: string,
+  adId: string,
+  b: PaidBookingPayload,
+  quote: PaidAdQuote,
+  start: string,
+  until: string,
+  paymentIntentId: string | null,
+): Record<string, unknown> {
+  return {
+    uid,
+    kind: "ad",
+    adId,
+    advertiser: b.advertiser,
+    headline: b.headline,
+    body: b.body,
+    scope: b.scope,
+    place: b.scope === "city" ? b.dims.city ?? null : b.scope === "country" ? b.dims.country ?? null : null,
+    dims: Object.entries(b.dims).map(([k, v]) => `${k}:${v}`),
+    window: { start, until },
+    priceEur: quote.flatEur,
+    state: "running",
+    ...(paymentIntentId ? { stripePaymentIntent: paymentIntentId } : {}),
+    createdAt: FieldValue.serverTimestamp(),
+  };
 }
 
 /**
@@ -682,7 +910,6 @@ export function paidPurchaseDoc(
  */
 export async function goLive(db: Firestore, bid: string, paymentIntentId: string | null): Promise<boolean> {
   const bookingRef = db.collection("v2_paid_bookings").doc(bid);
-  const qid = `paidq-${bid}`;
   return db.runTransaction(async (tx) => {
     const snap = await tx.get(bookingRef);
     if (!snap.exists) {
@@ -695,15 +922,44 @@ export async function goLive(db: Firestore, bid: string, paymentIntentId: string
       logger.warn(`[paid] webhook for ${bid} in status ${snap.get("status")} — ignored`);
       return false;
     }
-    const b: PaidBookingPayload = {
-      prompt: String(snap.get("prompt") ?? ""),
-      type: String(snap.get("type") ?? ""),
-      options: (snap.get("options") as string[]) ?? [],
-      topic: (snap.get("topic") as string | null) ?? null,
-      scope: snap.get("scope"),
-      dims: (snap.get("dims") as Record<string, string>) ?? {},
-      wearName: snap.get("wearName") === true,
-    };
+    const b = bookingPayloadOf(snap);
+    const uid = String(snap.get("uid"));
+    // seq places the card in bank order for anything that sorts by it;
+    // sponsored cards leave the ordinary stream (partitionSponsored), so
+    // this is bookkeeping, not placement. Day-derived for stability.
+    const seq = 100000 + Math.floor(Date.now() / 86400000);
+
+    if (b.kind === "ad") {
+      const quote = snap.get("quote") as PaidAdQuote;
+      // The scheduling read runs INSIDE the transaction, before any
+      // write, so two payments racing for the same scope serialize: the
+      // second retries against the first's committed window and queues
+      // behind it (adStartDay). This is the day-exclusivity the flat
+      // price is honest by.
+      const runningAds = await tx.get(
+        db.collection("v2_purchases")
+          .where("kind", "==", "ad")
+          .where("scope", "==", b.scope)
+          .where("state", "==", "running"),
+      );
+      const start = adStartDay(runningAds.docs.map((d) => (d.get("window") as { until?: string }) ?? {}));
+      const until = dayPlus(start, WINDOW_DAYS - 1); // 29 days inclusive
+      const adId = `paidad-${bid}`;
+      tx.set(db.collection("v2_ads").doc(adId), paidAdDoc(b, start, until, seq));
+      tx.set(
+        db.collection("v2_purchases").doc(`${uid}_${bid}`),
+        paidAdPurchaseDoc(uid, adId, b, quote, start, until, paymentIntentId),
+      );
+      tx.update(bookingRef, {
+        status: "live",
+        adId,
+        window: { start, until },
+        paidAt: Timestamp.now(),
+        ...(paymentIntentId ? { stripePaymentIntent: paymentIntentId } : {}),
+      });
+      return true;
+    }
+
     const quote = snap.get("quote") as PaidQuote;
     const buyerName = (snap.get("buyerName") as string | null) ?? null;
     // The window starts TOMORROW (UTC): today's decks are already dealt
@@ -711,14 +967,11 @@ export async function goLive(db: Firestore, bid: string, paymentIntentId: string
     // its first fully-served day is the honest version of "29 days".
     const start = utcDayKey(1);
     const until = utcDayKey(WINDOW_DAYS); // start + 28 more days, inclusive
-    // seq places the card in bank order for anything that sorts by it;
-    // sponsored cards leave the ordinary stream (partitionSponsored), so
-    // this is bookkeeping, not placement. Day-derived for stability.
-    const seq = 100000 + Math.floor(Date.now() / 86400000);
+    const qid = `paidq-${bid}`;
     tx.set(db.collection("v2_questions").doc(qid), paidQuestionDoc(b, buyerName, start, until, seq));
     tx.set(
-      db.collection("v2_purchases").doc(`${snap.get("uid")}_${bid}`),
-      paidPurchaseDoc(String(snap.get("uid")), qid, b, quote, start, until, paymentIntentId),
+      db.collection("v2_purchases").doc(`${uid}_${bid}`),
+      paidPurchaseDoc(uid, qid, b, quote, start, until, paymentIntentId),
     );
     tx.update(bookingRef, {
       status: "live",
@@ -803,7 +1056,6 @@ export const closePaidCampaignsV2 = onSchedule(
     const db = firestore();
     const today = utcDayKey(0);
     const running = await db.collection("v2_purchases")
-      .where("kind", "==", "question")
       .where("state", "==", "running")
       .limit(200)
       .get();
@@ -812,6 +1064,20 @@ export const closePaidCampaignsV2 = onSchedule(
     for (const doc of running.docs) {
       const until = String((doc.get("window") as { until?: string })?.until ?? "");
       if (!until || until >= today) continue; // still serving
+      const kind = String(doc.get("kind") ?? "question");
+      if (kind === "ad") {
+        // No refund arithmetic: the flat price bought the window and the
+        // window ran (D306). The DELETE is the janitor half runSeedAds
+        // gave up for `paidad-` ids: an expired paid ad would otherwise
+        // sit in a pool every client downloads whole, forever — the
+        // exact accumulation the seed's own delete exists to prevent.
+        const adId = String(doc.get("adId") ?? "");
+        if (adId) await db.collection("v2_ads").doc(adId).delete();
+        await doc.ref.update({ state: "closed", closed: { at: Timestamp.now() } });
+        logger.info(`[paid] closed ad ${doc.id}`, { metric: "paid_campaign_closed" });
+        continue;
+      }
+      if (kind !== "question") continue; // subscriptions (PAID-PLAN §5) are not this job's
       const qid = String(doc.get("qid") ?? "");
       const budget = (doc.get("budget") as { cap: number; capEur: number; ratePerAnswer: number }) ?? { cap: 0, capEur: 0, ratePerAnswer: 0 };
       let answers = 0;
