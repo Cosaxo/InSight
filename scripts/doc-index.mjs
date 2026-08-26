@@ -281,6 +281,33 @@ for (const problem of numberingProblems(records)) fail(problem);
 
 // -------------------------------------------------------------- orientation
 
+/**
+ * Top-level names .gitignore takes out of the repo.
+ *
+ * Read from the file rather than hardcoded, so a build output added there
+ * is skipped here without a second edit — the failure mode of a
+ * hand-kept list being a red gate on someone else's `dist-ssr/`. Only
+ * plain top-level entries count (no slash inside, no glob), which is the
+ * shape of the entries that matter.
+ *
+ * Used by BOTH the document rules and the directory rule. It was inlined
+ * in the directory rule alone, and filtered on `isDirectory()` there — so
+ * an ignored FILE at the root still reached rule 5, and any scratch note
+ * a person keeps beside the repo turned this gate red demanding that the
+ * map name it. The gate is loud rather than silent about it, which is the
+ * good direction, but a file .gitignore has already declared not part of
+ * the repo is not the map's to name.
+ */
+const gitIgnoredTop = () => new Set([
+  ".git",
+  ...read(".gitignore")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter((l) => l && !l.startsWith("#") && !l.startsWith("!"))
+    .filter((l) => !/[*?[\]]/.test(l) && !l.slice(0, -1).includes("/"))
+    .map((l) => l.replace(/\/$/, "")),
+]);
+
 const ORIENTATION = "docs/ORIENTATION.md";
 const orientation = existsSync(join(root, ORIENTATION)) ? read(ORIENTATION) : null;
 const checked = { docs: 0, readmes: 0, gates: 0, dirs: 0, maps: 0 };
@@ -341,8 +368,13 @@ if (orientation) {
     .filter((f) => f.endsWith(".md"))
     .filter((f) => f !== "ORIENTATION.md" && f !== "DECISIONS-INDEX.md")
     .sort();
+  const ignoredTop = gitIgnoredTop();
   const rootDocs = readdirSync(root)
     .filter((f) => f.endsWith(".md") && f !== "README.md" && f !== "CLAUDE.md")
+    // …and nothing .gitignore has already taken out of the repo. A
+    // scratch note beside the checkout is not a document this map owes a
+    // row; see gitIgnoredTop.
+    .filter((f) => !ignoredTop.has(f))
     .sort();
   checked.docs = docs.length + rootDocs.length;
   for (const doc of docs) {
@@ -556,20 +588,8 @@ if (orientation) {
   // carries two directories (`android/` · `ios/`) satisfies both. What the
   // rule refuses is a directory the page never mentions in any form.
   //
-  // The skip set is read from .gitignore rather than hardcoded, so a build
-  // output directory added there is skipped here without a second edit —
-  // the failure mode of a hand-kept list being a red gate on someone else's
-  // `dist-ssr/`. Only plain top-level entries count (no slash inside, no
-  // glob), which is exactly the shape of the directory entries there.
-  const ignored = new Set([
-    ".git",
-    ...read(".gitignore")
-      .split("\n")
-      .map((l) => l.trim())
-      .filter((l) => l && !l.startsWith("#") && !l.startsWith("!"))
-      .filter((l) => !/[*?[\]]/.test(l) && !l.slice(0, -1).includes("/"))
-      .map((l) => l.replace(/\/$/, "")),
-  ]);
+  // The skip set is gitIgnoredTop's, shared with the document rules.
+  const ignored = gitIgnoredTop();
   const subdirs = (dir) =>
     readdirSync(join(root, dir), { withFileTypes: true })
       .filter((e) => e.isDirectory() && !ignored.has(e.name))
