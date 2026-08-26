@@ -8,7 +8,7 @@
     {
       "displayName": "no completed ledgerVelocityScan run for 30 hours",
       "conditionAbsent": {
-        "filter": "metric.type=\"logging.googleapis.com/user/velocity_scan\"",
+        "filter": "metric.type=\"logging.googleapis.com/user/velocity_scan\" AND resource.type=\"cloud_run_revision\"",
         "duration": "108000s",
         "aggregations": [
           {

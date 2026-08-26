@@ -9,7 +9,7 @@
     {
       "displayName": "no completed scheduled reveal scan for 6 hours",
       "conditionAbsent": {
-        "filter": "metric.type=\"logging.googleapis.com/user/duel_reveal_run\"",
+        "filter": "metric.type=\"logging.googleapis.com/user/duel_reveal_run\" AND resource.type=\"cloud_run_revision\"",
         "duration": "21600s",
         "aggregations": [
           {
