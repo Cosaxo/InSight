@@ -79,6 +79,7 @@ both enforced rather than promised:
 | `design/` | Two different things under one name. The **standalone revisions** are the frozen prototype and its history — read-only reference, and what "do not edit design/" is about. `design/icon/` and `design/store/` are the opposite: live SOURCES that builders rasterise and gates read, and that `asc:push` sends to App Store Connect | `design/README.md` |
 | `.github/workflows/` | `backend-checks.yml` is called by **both** `ci.yml` and `firebase-deploy.yml`, so what guards a PR guards production | `docs/DEPLOYMENT.md` |
 | `.github/scripts/` | `report_audit_issue.py` — the weekly dependency audit's issue writer. A file rather than an inline `run:` block, and hand-written rather than a third-party action: the workflow whose subject is supply-chain hygiene adds no SHA of its own to pin | `.github/workflows/security-audit.yml` |
+| `.claude/` | Committed Claude Code project settings: the permission allowlist that keeps the autonomous lanes' sessions from stalling on prompts. Hardening is by omission — no merge tools, no API file writes, no trigger mutation, and no `deny` list, because the file reaches every session in the repo | `docs/AXES-RUNBOOK.md` § the permission paragraph |
 
 ## 4 · The documents
 
@@ -119,7 +120,7 @@ directions.
 | [`DEVICE-BIND.md`](DEVICE-BIND.md) | D29's activation gate: what ships, what you add, how to flip it on. Rules requirement is shipped **soft** | mixed |
 | [`VISION-V28.md`](VISION-V28.md) | The v28 design. Its third tab was adopted on trial (D166 §1), built, unmounted for the v1 release (D217) and is back on a data gate (D265) — the row's own §0 table carries each item's verdict | plan |
 | [`VISION-2026-08-24.md`](VISION-2026-08-24.md) | The 2026-08-24 design measured against the tree. The visual passes are built (D287); the remainder is decided (D288 — the board retires, honest crowd labels, the paid mechanism builds ahead of demand) and sequenced in its own §9 runbook: purchase records → the buyer's room → the committed rate card → the door, with the scorecard crowds and the groups "so what" fold alongside. Source extracted to `design/standalone-2026-08-24/` | mixed |
-| [`VISION-2026-08-26.md`](VISION-2026-08-26.md) | The 2026-08-26 design measured against the tree. The client passes are built (D300 — the Oracle's "working", the Patterns polish, Play together, the feed's participation pass, and a still-render crash fix); the two big halves still wait on their owner decisions: anonymous answers + private results (the first amendment D98 would notice) and the co-funded seats / catalog window. Source extracted to `design/standalone-2026-08-26/` | mixed |
+| [`VISION-2026-08-26.md`](VISION-2026-08-26.md) | The 2026-08-26 design measured against the tree. The client passes are built (D310 — the Oracle's "working", the Patterns polish, Play together, the feed's participation pass, and a still-render crash fix); the two big halves still wait on their owner decisions: anonymous answers + private results (the first amendment D98 would notice) and the co-funded seats / catalog window. Source extracted to `design/standalone-2026-08-26/` | mixed |
 | [`PEOPLE-MAP.md`](PEOPLE-MAP.md) | The patterns Map transposed: people placed by their answers. The People lens shipped at D214; the plane switch and whole-world variant stay deferred with their arithmetic | mixed |
 | [`NEXT-FUNCTIONALITY.md`](NEXT-FUNCTIONALITY.md) | Six ideas measured against the architecture. Plan notes, not decisions | plan |
 | [`AXES-PLAN.md`](AXES-PLAN.md) | The owner's axis frame: every source the app measures as one family, the genetic and body axes it does not have yet, and where their doors go. Nothing new is built | plan |
@@ -148,6 +149,7 @@ than of a subject:
 | `firestore-tests/README.md` | How the rules and e2e suites are structured and run |
 | `content/README.md` | The question bank formats and how content reaches the seed |
 | `design/README.md` | The frozen prototype and its revisions |
+| `design/identity-2026-08-26/README.md` | The identity canvas the iris mark ships from (D302), and where each of its cards went |
 
 ## 5 · The gates
 

@@ -22,7 +22,7 @@ the count is zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
 `check:store-listing` and `check:versions` pass; the daily bank is at 130
-questions of 687 seeded; the production backend is deployed. **Measured
+questions of 694 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -168,7 +168,7 @@ arithmetic.
       below because it documents how the gap was reasoned about while it
       was real.
       Actions → **Seed content** → Run workflow.
-      687 questions land in `v2_questions` — idempotent and, since D34,
+      694 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -179,7 +179,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **687** after the K=5 test expansion, D103's
+      and the bank is **694** after the K=5 test expansion, D103's
       retirement of the Thinking test, D114's continuum questions and the
       D14 go-live's pick promotion — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
@@ -982,7 +982,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 687 seeded questions are live regardless.
+      working, not a leak — the 694 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
@@ -1341,36 +1341,60 @@ That is a tester-count problem, not a workflow problem.
       objects remain converts a dead feature into an erasure gap. Update
       `firestore-tests/storage.rules.test.ts` in the same commit.
 - [ ] **5.5 Apply the eight monitoring alerts** (`monitoring/*.json`):
+      dispatch **Arm monitoring** with `apply` off to see what is missing,
+      then again with it on. It runs behind the `production` environment
+      gate on `FIREBASE_SERVICE_ACCOUNT`, needs nothing on your machine, and
+      is idempotent. Locally it is the same script:
       ```bash
       npm run monitoring:apply -- --email you@example.com           # report
       npm run monitoring:apply -- --email you@example.com --apply   # do it
       ```
-      One command for what used to be four console steps with a channel id
-      pasted between them. Idempotent and dry-run by default. No policy is
-      applied by the pipeline, and this script must not be put on
-      it — the deploy service account has no monitoring role, and widening
-      it for eight policies is the worse trade. They cover failures that look like nothing from the
-      outside: the app keeps serving while the Mirror stops moving, or
-      keeps moving while falling further behind. `DEPLOYMENT.md § Alerting`.
+      Then dispatch **Observe production** and check `armed` reads true —
+      the step is done when the instrument says so, not when the job is
+      green. They cover failures that look like nothing from the outside:
+      the app keeps serving while the Mirror stops moving, or keeps moving
+      while falling further behind. `DEPLOYMENT.md § Alerting`.
 
-      **What that refusal does and does not say, because it was misread
-      once.** It rules out the DEPLOY PATH, and its reason is about the
-      DEPLOY service account — the one that pushes rules and functions, and
-      that nobody wants holding a monitoring role it needs twice a year. It
-      does not say the step cannot be automated. A separate
-      `workflow_dispatch` with its own credential is not the deploy path,
-      and `seed-content.yml` is the proof that shape works: an operator
-      callable run against production from CI, behind the `production`
-      environment's protection rules (D87), with no dev machine anywhere.
-      Whether that is worth building for eight policies applied once is an
-      open question with arguments both ways; what is settled is only the
-      narrow thing this paragraph settles.
+      **This step was open for two days with a script that could do it,
+      and the reason is worth keeping.** The script existed on 2026-08-24
+      and shelled out to `gcloud`. Nobody had a `gcloud auth login` against
+      this project, so it never ran — and on 2026-08-26 the observer read
+      the project and found **zero** policies and **zero** log-based
+      metrics (D300). The tool was written, tested, documented and
+      unrunnable, which is the same failure D300 named one instrument
+      earlier: a tool that runs beats a better-provisioned tool that does
+      not. D303 moved it onto the REST APIs, over the credential four
+      workflows already use.
 
-      The count above is held by `check:figures` now. It said **two** while
-      the tree carried eight, `apply-monitoring.mjs`'s own header said
-      three, and the refusal priced a trade against the wrong number by 4x
-      — three copies of one figure, none of them right, which is the exact
-      failure D39 built that gate for.
+      **What the old refusal said, and which half of it survived.** This
+      item used to say the step must not be automated because "the deploy
+      service account has no monitoring role" — the **last place still
+      asserting** a reason D47 retired on 2026-08-04. Counted rather than
+      guessed: `git show ca7097bc` finds that sentence in three files, and
+      the other two (`DEPLOYMENT.md`, `MONITORING.md`) both quote it in
+      order to correct it. This item was the only one still standing on it.
+      The account holds `Editor`, which includes
+      `monitoring.alertPolicies.create`; permission was never the obstacle,
+      and it is now the thing that makes the REST path work. What survives
+      is the narrow refusal: not on the DEPLOY PATH, because a pipeline
+      that can rewrite an alert policy can delete one silently in a deploy
+      about something else. A `workflow_dispatch` behind the `production`
+      gate is not that pipeline, and the item's own paragraph had already
+      said so — it called building one "an open question with arguments
+      both ways" and left it, on 2026-08-25. It was answered the next
+      day, and not by new information: `seed-content.yml` had been the
+      proof of that shape since 2026-08-06.
+
+      The count above is held by `check:figures`. D291 found **four
+      quotations of two figures, none of them right** — this step's title
+      said "the two monitoring alerts", its refusal priced a trade against
+      "two policies" (4x off), and `apply-monitoring.mjs`'s header said
+      three policies and two metrics. `DEPLOYMENT.md § Alerting`'s heading,
+      `COSTS.md`'s sentence and `MONITORING.md`'s instruments row are held
+      to the same lists now (D303), for the same reason: the heading read
+      "three alerts, deliberately" for as long as there were eight, and
+      `MONITORING.md` said seven through a sweep that claimed to have found
+      every copy.
 - [x] **5.6 Version lockstep — holds at 2.0.0 build 26.**
       *This line was stale three times, each one a bump behind 2.4 — build
       11 on 2026-08-13, build 12 later the same day, then 13 against a tree
@@ -1424,27 +1448,127 @@ That is a tester-count problem, not a workflow problem.
       dispatch that #2 exists to save, which is the trade being made, and
       it is the cheaper side once releases stop being daily.
 
-- [ ] **5.9b Delete the nine D13 v1 functions, which are a DIFFERENT
-      us-central1 leftover from 5.9's.** `docs/DEPLOYMENT.md`
-      § "One-off cleanup still owed in production (D13)" has the exact
-      command and it has never had a checkbox — so nothing in the ordered
-      list that holds status has been counting it. Two reasons it is easy
-      to think 5.9 covers this and it does not:
+- [ ] **5.9b Delete the twelve OLD-PROJECT functions in `us-central1`.**
+      Read out of production by `npm run observe -- --functions` on
+      2026-08-26 (D301). These are **not this project's code** — Gen-1,
+      nodejs10/18/20, last deployed 2024–2025, from an app that shared the
+      `prvfire33` GCP project. The owner confirmed their provenance.
 
-      1. **Dropping a name from the deploy `--only` list stops deploying a
-         function; it does not delete the deployed copy.** Today's deploy
-         log lists only `europe-west1` names because the `--only` filter
-         protects everything else from view — it is not evidence the old
-         copies are gone.
-      2. **Three of the nine are SCHEDULED.** They keep firing nightly
-         against empty collections: billed work producing output nobody
-         reads, and — unlike 5.9's duplicated triggers — silent, because
-         nothing downstream changes when they run.
+      **Do `onUserDeleted` FIRST, on its own, and knowingly.** It is the
+      only one of the twelve that can see current data:
 
-      `us-central1` in that command is correct and must not be "fixed" to
-      match D201; see the warning at that heading. Verification is
-      `gcloud functions list --project prvfire33 --regions us-central1`,
-      which nothing in this repo can run.
+      ```bash
+      npx firebase functions:delete onUserDeleted \
+        --project prvfire33 --region us-central1 --force
+      ```
+
+      It is a **Firebase Auth `user.delete` trigger scoped to the whole
+      project** (`resource=projects/prvfire33`) — Auth is project-wide, so
+      the database split does not isolate it. `functions/src/index.ts:882`
+      calls `getAuth().deleteUser(uid)`, which means **every InSight account
+      deletion runs 2024-era code from a different application.** What that
+      code does is unknown; the source is not in this repository. It is
+      executing on the erasure path either way, which is the argument for
+      removing it rather than against.
+
+      **Then the other eleven**, which are inert: every one is a Firestore
+      trigger or HTTPS function on the **`(default)`** database, and v2 lives
+      in **`insight`** (`functions/src/db.ts:29`). They cannot see v2 data.
+
+      ```bash
+      npx firebase functions:delete \
+        addFcmToken aggregatePollResults createLiveStream findSimilarUsers \
+        recalculateVoterPersonality scheduledDeletePastEvents \
+        sendChatNotificationsTrigger sendPushNotificationsTrigger \
+        sendUserPushNotificationsTrigger updateIsNewFieldNew \
+        updatePollResults \
+        --project prvfire33 --region us-central1 --force
+      ```
+
+      **Two of them bill on a timer** and are the only ones costing anything
+      today: `scheduledDeletePastEvents` and `updateIsNewFieldNew`. Both are
+      wired to the SAME Pub/Sub topic
+      (`firebase-schedule-scheduledDeletePastEvents-us-central1`) and
+      `updateIsNewFieldNew`'s entry point is `scheduledUpdateIsNewStatus` —
+      a deploy collision in the old project, inherited here. **Deleting a
+      Gen-1 scheduled function does not always remove its Cloud Scheduler
+      job and topic**; check for leftovers under Cloud Scheduler afterwards,
+      because a job whose target is gone still runs and still fails.
+
+      **Verify with the instrument rather than by eye:** re-run
+      `npm run observe -- --functions`. `strayCount` should fall by twelve
+      and no `us-central1` line should name a Gen-1 function.
+
+- [ ] **5.9c The Algolia extension in `europe-west3` — UNINSTALL, do not
+      delete.** Two functions there are
+      `ext-firestore-algolia-search-6ct7-*`, installed 2024-06-03, indexing
+      a `Cities/{documentID}` collection in `(default)` into Algolia. No
+      document in this repository mentions it.
+
+      **`functions:delete` is the wrong tool** — an extension's functions
+      are managed by the extension, and removing them by hand leaves the
+      instance installed and broken.
+
+      **`ext:uninstall` is ALSO the wrong tool, which is not what its name
+      or its own `--help` suggests.** In the pinned firebase-tools
+      (15.24.0) its entire action body is
+      `manifest.removeFromManifest(instanceId, config)` — it edits
+      `firebase.json` and never calls the Extensions API. The only caller of
+      `extensionsApi.deleteInstance` in the whole CLI is
+      `lib/deploy/extensions/tasks.js`, reachable only through
+      `deploy --only extensions`. And this repo's `firebase.json` has no
+      `extensions` key, so the command throws
+      `Extension instance … not found in firebase.json` before doing even
+      its local no-op. Verified by running `removeFromManifest` against this
+      repo's real config, not by reading the help text.
+
+      **Confirm the id, then uninstall in the Console:**
+
+      ```bash
+      npx firebase ext:list --project prvfire33      # this one IS correct
+      ```
+
+      Firebase Console → Extensions → the `firestore-algolia-search-…`
+      instance → Uninstall. That is the only route that does not involve
+      this repository's `firebase.json`.
+
+      *(The CLI route exists — `ext:export` to write the installed instances
+      into the manifest, delete the entry, then `deploy --only extensions`
+      — but that last step reconciles the WHOLE project against the local
+      manifest: anything `ext:export` missed is deleted too. Not worth it to
+      remove one instance.)*
+
+      It may also still be costing an Algolia plan outside this bill, and
+      uninstalling does not delete the Algolia index or revoke its API key.
+
+- [ ] **5.9d The nine stranded `us-central1` copies — THIS project's, and
+      a different decision.** `rebuildAreaAggregates`,
+      `rebuildCityAggregates`, `rebuildWorldAggregates`,
+      `scheduledAreaAggregates`, `scheduledCityAggregates`,
+      `scheduledWorldAggregates`, `scheduledTaxonomies`, `seedTaxonomies`,
+      `sendInboundImpression`.
+
+      These are **Gen-2, nodejs22, deployed 2026-07-29** — InSight's own
+      code. **D13 dropped them from the deploy `--only` list**, so they
+      stopped being deployed anywhere; they sit in `us-central1` because
+      that is simply where they last landed, before D201 moved the region
+      for everything still being deployed. D13 is the cause, not D201.
+
+      **This heading read `europe-west1` until it was reviewed** — the
+      region where all 42 LIVE functions are, one line above a nine-name
+      `--force` delete, in the item that points at a command whose own
+      documentation says in bold that the region must not be "fixed" to
+      match D201. The body two lines down said `us-central1` the whole time.
+      Three independent reviewers caught it; nothing mechanical would
+      have. `docs/DEPLOYMENT.md` § "One-off cleanup
+      still owed in production (D13)" has the command and it is correct as
+      written.
+
+      Kept separate from 5.9b **because the provenance is different**, and
+      the runbook conflated them until D301: twelve are another
+      application's, nine are ours. A single "delete the us-central1
+      leftovers" step would have been one command over two unrelated
+      decisions.
 
 - [ ] **5.9 Deploy the functions to `europe-west1` (D201), then confirm
       the old region is empty.** The code is merged and every gate is
@@ -1466,9 +1590,20 @@ That is a tester-count problem, not a workflow problem.
 
       The full procedure, the verification command and the rollback are in
       [`DEPLOYMENT.md`](DEPLOYMENT.md) § Moving the functions. The short
-      form: deploy while nothing is being answered, then
-      `gcloud functions list --project prvfire33 --regions us-central1`
-      and delete anything that is not one of D13's nine v1 leftovers.
+      form: deploy while nothing is being answered, then check what is left
+      in the old region.
+
+      **The sweep clause here used to say "delete anything that is not one
+      of D13's nine v1 leftovers" — i.e. SPARE the nine — while 5.9d says
+      delete them.** Two open boxes in one document telling an operator
+      opposite things about the same nine functions. The census is now
+      5.9b/5.9c/5.9d, which split `us-central1` by provenance rather than
+      by "is it on D13's list", and this clause defers to them.
+
+      **The deploy half has already happened** (D300's reading: all 42 live
+      functions are in `europe-west1`, and `us-central1` holds only the 12
+      old-app functions and the 9 D13 leftovers). What keeps this box open
+      is the build bump below, not the deploy.
 
       **Then bump the build and ship it** (2.4). Every build shipped before
       this deploy — 21 and earlier — keeps

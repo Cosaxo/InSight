@@ -136,7 +136,7 @@ export function pathOptions(q) {
 export const CATALOG_FILES = {
   pokemon: "pokedex.txt", emoji: "emoji.txt", elements: "elements.txt",
   countries: "countries.txt", dogs: "dogs.txt", colors: "colors.txt",
-  films: "films.txt", artists: "artists.txt",
+  films: "films.txt", artists: "artists.txt", athletes: "athletes.txt",
 };
 
 // Catalogue picks run their own seq lane from here (D232, amended at

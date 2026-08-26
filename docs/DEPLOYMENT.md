@@ -100,8 +100,16 @@ npx firebase functions:delete rebuildAreaAggregates scheduledAreaAggregates \
 
 **`us-central1` in that command is correct and must not be "fixed" to
 match D201.** Those nine functions were deployed before the move and are
-still sitting in the old region; naming the new one would delete nothing
-and report success. It is the one place in this repo where the old region
+still sitting in the old region.
+
+Naming the new region **fails loudly**, which is better news than this
+paragraph gave it credit for until 2026-08-26: it said the wrong region
+"would delete nothing and report success", and in firebase-tools 15.24.0
+`functions:delete` throws `The specified filters do not match any existing
+functions in project prvfire33` and exits non-zero
+(`lib/commands/functions-delete.js:56`). Nothing is touched. Worth stating
+accurately, because "silently does nothing" and "hard error" send an
+operator to two different places. It is the one place in this repo where the old region
 is the right answer — everywhere else it is a stale copy.
 
 Until that runs, three schedules keep firing against empty collections —
@@ -142,13 +150,18 @@ made twice and done never, which is the failure
 `.github/workflows/seed-content.yml`'s header records happening to the
 seed instruction two separate times.
 
-**What the environment gates.** Two jobs, and only two — verified rather
-than assumed, by grepping `environment:` across every workflow:
+**What the environment gates.** Four jobs — verified rather than assumed,
+by grepping `environment: production` across every workflow. It said "two
+jobs, and only two" for as long as there were four: `rebuild-aggregate.yml`
+joined at D290 and `monitoring.yml` at D303, and neither author re-read a
+sentence in a different document that had counted them.
 
 | Workflow | Job | What a gate would hold |
 | --- | --- | --- |
 | `firebase-deploy.yml` | `deploy` | rules, indexes, functions, hosted legal pages |
 | `seed-content.yml` | `seed` | `seedContentV2` writing `v2_questions` |
+| `rebuild-aggregate.yml` | `rebuild` | `rebuildAggregateV2` overwriting a published aggregate |
+| `monitoring.yml` | `arm` | creating the notification channel, log-based metrics and alert policies |
 
 `ios-release.yml` uses a different environment and is unaffected.
 
@@ -614,7 +627,7 @@ read during calm, an hourly one during an incident. If evidence ever
 justifies standing eyes, the `metric: velocity_flag` field is what a
 log-based metric selects on — the plumbing is in the line already.
 
-## Alerting (three alerts, deliberately)
+## Alerting (eight policies, five log-based metrics)
 
 Everything above assumes somebody already knows something is wrong. Until
 this was added, nothing told them: detection was a human choosing to run
@@ -623,18 +636,30 @@ exactly the one that looks like nothing from the outside — the app keeps
 serving, the Mirror just stops moving while Eventarc piles up redeliveries
 for ~7 days.
 
-> **One command applies all of this**, idempotently and dry-run by default:
+> **One dispatch applies all of this**, idempotently and dry-run by
+> default: the **Arm monitoring** workflow (`.github/workflows/monitoring.yml`),
+> `apply` off to report and on to create. It runs behind the `production`
+> environment gate, on `FIREBASE_SERVICE_ACCOUNT` — no local tooling, no
+> login. Locally it is the same script:
 >
 > ```bash
 > npm run monitoring:apply -- --email you@example.com           # report
 > npm run monitoring:apply -- --email you@example.com --apply   # do it
 > ```
 >
-> It creates the channel, both log-based metrics and all three policies in
-> the order below, skipping whatever already exists. The manual steps stay
-> written out because the script is a convenience over them, not a
-> replacement for knowing what it did — and because the reason each object
-> exists is the useful part.
+> It creates the channel, then every log-based metric, then every policy —
+> in that order, skipping whatever already exists. Then confirm with the
+> instrument rather than by eye: `npm run observe` reads the project back
+> and `armed` is the answer.
+>
+> **It used to need `gcloud`, and that is why none of this existed.** The
+> script shelled out to an interactively-authenticated CLI nobody had logged
+> in with, so it never ran — and on 2026-08-26 the observer found zero
+> policies and zero metrics in the project, two days after the script was
+> written to create every one of them (D300, D303). The manual steps below
+> stay written out because the reason each object exists is the useful part,
+> but they are no longer the way to do it: `gcloud alpha monitoring` needs
+> the same login, and the same nobody has it.
 
 `monitoring/onV2AnswerCreated-errors.json` is a Cloud Monitoring policy
 that fires on any `severity>=ERROR` from that trigger. It is **not applied
@@ -749,10 +774,15 @@ condition needs a time series that has existed at least once; against a
 metric with no points it does not fire. So this policy is blind to "the
 scheduled reveal never worked at all" and only ever proves "it worked and
 then stopped." Apply it, then confirm a first run actually landed —
-`npm run monitoring:apply` prints the `gcloud logging read` that checks —
-or it sits green meaning nothing.
+confirm a first run actually landed with `gcloud logging read
+'jsonPayload.metric="duel_reveal_run"' --limit 1 --project prvfire33`, or it
+sits green meaning nothing. **Not `npm run observe`** — the observer reads
+metric DEFINITIONS (`projects.metrics.list`), never log entries or a time
+series, so it lists `duel_reveal_run` from the moment arming creates it,
+whether or not a scan has ever run. This paragraph said `observe` for one
+commit, which is the paragraph's own warning happening to the paragraph.
 
-**Why only these three.** An alert nobody acts on trains people to ignore
+**Why these three came first.** An alert nobody acts on trains people to ignore
 the channel, and at zero users most signals are noise. These are the
 conditions where the gap between "broken" and "visibly broken" is measured
 in days: a crashing trigger that accumulates redeliveries, a ceiling that

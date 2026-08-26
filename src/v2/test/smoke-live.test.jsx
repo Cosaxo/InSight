@@ -35,7 +35,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 // jsdom, and the v15 revision roughly doubled the spec layer's feed weight —
 // the slowest cases sat at ~4.8s before it and tip over under suite load.
 vi.setConfig({ testTimeout: 15000 });
-import { BG_TEXT, FEED_OPTIONS, FEED_PROMPT, LEARN_CARD_PROMPT, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, TEST_ITEM_OPTIONS, TEST_ITEM_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
+import { BG_TEXT, DAILY_BG_TEXT, FEED_OPTIONS, FEED_PROMPT, LEARN_CARD_PROMPT, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, TEST_ITEM_OPTIONS, TEST_ITEM_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
 import NAV from "../data/nav";
 import { PATTERNS_EARNED_KEY, PATTERNS_MIN_BASIS, PATTERNS_MIN_MINE, PATTERNS_MIN_POOL } from "../data/patternsReady";
 import { awaitText, growFeed, openHeaderOverlay, settleBeat, swipeDaily } from "./mount-app";
@@ -824,6 +824,24 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expectNoBoundary("live daily, About sheet branch");
   });
 
+  // D306 — the daily's `i` carries the same background slot the feed's
+  // got at D281, through buildS's bg carry (the field was seeded and the
+  // feed read it while the daily deck dropped it). The no-background arm
+  // is already pinned above: "leaves a card with no background" opens
+  // this same sheet on the default fixture and finds only the rows.
+  it("leads the daily's About sheet with its background when the question carries one", async () => {
+    localStorage.clear();
+    const expectNoBoundary = mountLive({ dailyBg: true });
+    await growFeed();
+    // The button promotes itself — D281's promise, kept here too: a card
+    // with facts behind it must not wear the label of one without…
+    fireEvent.click(screen.getAllByRole("button", { name: /What you need to know/i })[0]);
+    // …and the sheet leads with the paragraph, the rows beneath it.
+    expect(screen.getByText(DAILY_BG_TEXT)).toBeTruthy();
+    expect(screen.getByText(/^On your map$/)).toBeTruthy();
+    expectNoBoundary("live daily, background sheet");
+  });
+
   // D284 — the learn bank left the JavaScript, and this is what proves the
   // live path picked it up.
   //
@@ -1216,9 +1234,14 @@ describe("the live gates hold in the DOM, not just in the source", () => {
       "the daily's seeded comments are reachable in live mode").toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Who voted what" }));
     await act(async () => { for (let i = 0; i < 60; i++) await Promise.resolve(); });
+    // The markers are the chips the LIVE panel can never legitimately
+    // grow: Where (live says City/Country) and Job (`profession` is free
+    // text, deliberately not a dim — D8). Education stopped being one at
+    // D304, when the live panel began offering every closed-vocabulary
+    // dim as its whole scale.
     expect(screen.queryByRole("button", { name: /^Where$/ }),
       "a hash-built cut chip is reachable in live mode").toBeNull();
-    expect(screen.queryByRole("button", { name: /^Education$/ }),
+    expect(screen.queryByRole("button", { name: /^Job$/ }),
       "a hash-built cut chip is reachable in live mode").toBeNull();
     expectNoBoundary("live daily engage row");
   });

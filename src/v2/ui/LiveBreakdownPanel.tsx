@@ -49,14 +49,28 @@
 // and D146's type fold are both built on, and the Mirror's People,
 // Compare and constellation surfaces still name people. It retires the
 // roster as the answer to "how did everyone vote".
+//
+// THE ROWS CAME BACK AT D304, ON TOP OF D125 RATHER THAN INSTEAD OF IT.
+// A dim now lands on its whole scale at once — every canonical bucket in
+// vocabulary order, zeros drawn, the published split as the header bar —
+// because the cohort-first sheet at a young population showed two chips
+// in popularity order and nothing else: the reader could not see the
+// scale their cohort sits on, and cohorts nobody had answered from were
+// indistinguishable from cohorts that do not exist. The D125 reading
+// survives one tap in: a row expands into exactly the cohort body this
+// file has drawn since D125 — option rows, then the divergence line —
+// scoped to that row. Continuum forms (renderBody) keep the chip flow:
+// a dial's track has nothing honest to draw over a scale of zeros.
 import React from "react";
 import LIVE from "../data/live";
 import { VOTER_FETCH_CAP } from "../data/voters";
 import { bucketLabel } from "./cohortLabels";
 import {
-  COHORT_DIMS, DIM_LABEL, cellFor, divergenceFor, mixFor, pctFor, byOf,
-  type ByMap,
+  COHORT_DIMS, DIM_LABEL, cellFor, divergenceFor, meanScore, mixFor, pctFor, byOf, vocabMix,
+  type ByMap, type Bucket,
 } from "../data/cohort";
+import { DIM_VOCAB } from "./cohortVocab";
+import RatingRidge from "./RatingRidge";
 import { typeDivergence, typeSplitFor, type TypeSplitRow } from "../data/typeSplit";
 import { logicDivergence, logicSplitFor, type LogicSplitRow } from "../data/logicSplit";
 import { parseLogicPct } from "../data/similarity";
@@ -189,6 +203,197 @@ function LbOptionRows({ options, counts, mine, mode = "pct" }: {
   );
 }
 
+// ── a rating's body: the average and the spread (D305) ───────────────
+//
+// A ten-step rating drawn as LbOptionRows is ten rows of noise — the
+// reading of an ordinal scale is a POSITION plus a spread, which is one
+// figure. Same ridge the Map's card draws for the same number, and the
+// same mean `meanScore` gives the Scores lens, so no two surfaces can
+// disagree about what a cohort averages.
+function LbRatingBody({ counts, mine }: { counts: number[]; mine: number }) {
+  const s = meanScore(counts);
+  if (!s) return null;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 7, fontFamily: "var(--sans)" }}>
+        <span style={{ fontWeight: 800, fontSize: 24, letterSpacing: "-0.03em", color: "var(--ink)", fontVariantNumeric: "tabular-nums" }}>
+          {s.mean.toFixed(1)}
+        </span>
+        <span style={{ fontWeight: 700, fontSize: 12, color: "var(--ink-3)" }}>/ {s.max} average</span>
+        {mine >= 0 && (
+          <span style={{ marginLeft: "auto", fontWeight: 600, fontSize: 12, color: "var(--ink-2)" }}>
+            you said {mine + 1}
+          </span>
+        )}
+      </div>
+      <RatingRidge counts={counts} mine={mine} />
+    </div>
+  );
+}
+
+// ── the all-rows overview (D304) ─────────────────────────────────────
+//
+// A dim opens onto its whole scale at once: the published split as an
+// "Everyone" header bar, then one stacked bar per canonical bucket, in
+// vocabulary order, zeros included. This is the shape D125 replaced — and
+// D304 brings it back as the dim's LANDING rather than instead of the
+// cohort reading: tapping a row expands that cohort's own option rows and
+// divergence line in place, so "what does the answer look like from where
+// they stand" stays one tap away while the scale reads whole.
+//
+// A zero bucket is drawn greyed, with its 0, as a fact (D98: absent is
+// zero, never withheld) — except the opt-outs, which vocabMix keeps only
+// once somebody has picked them. The thin vertical seam on each row marks
+// where EVERYONE landed on the first option, so a row's lean reads
+// against the crowd without a glance back up.
+function LbCohortRows({ dim, buckets, options, overall, myBucket, openBucket, onRow, renderDetail, kind }: {
+  dim: string;
+  buckets: Bucket[];
+  options: string[];
+  overall: number[];
+  /** The viewer's own bucket key in this dim, or "". */
+  myBucket: string;
+  /** The expanded row's bucket key, or "". */
+  openBucket: string;
+  onRow: (bucket: string) => void;
+  renderDetail: (b: Bucket) => React.ReactNode;
+  /** The question's bank type — a rating's rows read as averages (D305). */
+  kind?: string;
+}) {
+  const overallPct = pctFor(overall);
+  // A rating's row is a POSITION, not a split: ten stacked segments per
+  // row are stripes about nothing, so each bar fills to the cohort's
+  // AVERAGE and prints it, and the seam marks everyone's (D305).
+  const rating = kind === "rating";
+  const overallMean = rating ? meanScore(overall) : null;
+  const seamPct = rating
+    ? (overallMean ? (overallMean.mean / overallMean.max) * 100 : 0)
+    : (overallPct[0] || 0);
+  const many = buckets.length > 6;
+  const barH = many ? 20 : 26;
+  const radius = many ? 5 : 7;
+  const GRID: React.CSSProperties = {
+    display: "grid", gridTemplateColumns: "92px 1fr", gap: 10, alignItems: "center",
+  };
+  const rowLabel = (label: string, you: boolean, empty: boolean) => (
+    <span style={{
+      fontFamily: "var(--sans)", fontWeight: 800, fontSize: many ? 11.5 : 12,
+      minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+      color: empty ? "var(--ink-3)" : you ? "var(--ink)" : "var(--ink-2)",
+    }}>{label}</span>
+  );
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: many ? 6 : 8 }}>
+      <div style={{ ...GRID, alignItems: "end" }}>
+        <span style={{ fontFamily: "var(--sans)", fontWeight: 700, fontSize: 11.5, color: "var(--ink-3)" }}>Everyone</span>
+        {rating ? (
+          <span style={{ position: "relative", display: "block", height: 30, borderRadius: 8, overflow: "hidden", border: LB_LINE, background: "var(--surface)" }}>
+            <span aria-hidden="true" style={{
+              position: "absolute", left: 0, top: 0, bottom: 0, width: `${seamPct}%`,
+              background: "color-mix(in oklch, var(--accent, var(--ink)) 30%, var(--surface))",
+            }}></span>
+            <span style={{
+              position: "absolute", inset: 0, display: "flex", alignItems: "center", padding: "0 9px",
+              fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 800, color: "var(--ink)",
+              fontVariantNumeric: "tabular-nums",
+            }}>{overallMean ? `${overallMean.mean.toFixed(1)} / ${overallMean.max}` : ""}</span>
+          </span>
+        ) : (
+          <span style={{ display: "flex", height: 30, borderRadius: 8, overflow: "hidden" }}>
+            {overallPct.map((p, oi) => (
+              <span key={oi} style={{
+                width: `${p}%`, boxSizing: "border-box", background: sideFill(oi, options.length),
+                display: "flex", alignItems: "center",
+                justifyContent: oi === overallPct.length - 1 ? "flex-end" : "flex-start",
+                padding: "0 9px", color: "#fff", fontFamily: "var(--sans)",
+                fontSize: 11.5, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden",
+              }}>{p >= 24 ? options[oi] : ""}</span>
+            ))}
+          </span>
+        )}
+      </div>
+      {buckets.map((b) => {
+        const label = bucketLabel(dim, b.bucket);
+        const you = b.bucket === myBucket;
+        // The 0 is printed rather than the row dropped: an exact zero is
+        // the fact D98 bought, and a scale with silent gaps is the
+        // "unorderly" sheet this view replaces. Not a button — there is
+        // no cohort reading to open.
+        if (!b.n) {
+          return (
+            <div key={b.bucket} style={GRID}>
+              {rowLabel(label, false, true)}
+              <span style={{
+                height: barH, borderRadius: radius, border: LB_LINE,
+                background: "var(--surface)", opacity: 0.6, display: "flex",
+                alignItems: "center", padding: "0 9px",
+                fontFamily: "var(--sans)", fontSize: 10.5, fontWeight: 700,
+                color: "var(--ink-3)", fontVariantNumeric: "tabular-nums",
+              }}>0</span>
+            </div>
+          );
+        }
+        const open = openBucket === b.bucket;
+        const pct = pctFor(b.counts);
+        const rowMean = rating ? meanScore(b.counts) : null;
+        return (
+          <React.Fragment key={b.bucket}>
+            <button
+              onClick={() => onRow(open ? "" : b.bucket)}
+              aria-expanded={open}
+              aria-label={`${label} · ${b.n}${you ? " · you" : ""}`}
+              style={{
+                ...GRID, width: "100%", padding: 0, border: "none", background: "none",
+                cursor: "pointer", WebkitAppearance: "none", textAlign: "left",
+              }}
+            >
+              {rowLabel(label, you, false)}
+              <span style={{
+                position: "relative", display: "flex", height: barH, borderRadius: radius,
+                overflow: "visible", boxShadow: you ? "0 0 0 1.5px var(--ink)" : "none",
+              }}>
+                {rating ? (
+                  <span style={{ position: "absolute", inset: 0, borderRadius: radius, overflow: "hidden", border: LB_LINE, background: "var(--surface)" }}>
+                    <span aria-hidden="true" style={{
+                      position: "absolute", left: 0, top: 0, bottom: 0,
+                      width: `${rowMean ? (rowMean.mean / rowMean.max) * 100 : 0}%`,
+                      background: "color-mix(in oklch, var(--accent, var(--ink)) 30%, var(--surface))",
+                    }}></span>
+                    <span style={{
+                      position: "absolute", inset: 0, display: "flex", alignItems: "center", padding: "0 8px",
+                      fontFamily: "var(--sans)", fontSize: many ? 10.5 : 11, fontWeight: 800,
+                      color: "var(--ink)", fontVariantNumeric: "tabular-nums",
+                    }}>{rowMean ? rowMean.mean.toFixed(1) : ""}</span>
+                  </span>
+                ) : (
+                  <span style={{ position: "absolute", inset: 0, display: "flex", borderRadius: radius, overflow: "hidden" }}>
+                    {pct.map((p, oi) => (
+                      <span key={oi} style={{ width: `${p}%`, background: sideFill(oi, options.length) }}></span>
+                    ))}
+                  </span>
+                )}
+                <span aria-hidden="true" style={{
+                  position: "absolute", top: -3, bottom: -3, left: `${seamPct}%`,
+                  width: 1.5, borderRadius: 1, background: "var(--ink)", opacity: 0.55,
+                }}></span>
+              </span>
+            </button>
+            {open && (
+              <div role="region" aria-label={`${label} split`} style={{
+                margin: "0 0 4px", padding: "8px 0 8px 12px",
+                borderLeft: "2px solid var(--rule)",
+                display: "flex", flexDirection: "column", gap: 9,
+              }}>
+                {renderDetail(b)}
+              </div>
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── the Friends cut ──────────────────────────────────────────────────
 //
 // The one cut that answers with people. Both halves are reads the app
@@ -301,11 +506,17 @@ function LbFriends({ qid, options, mine }: {
   );
 }
 
-function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
+function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
   qid: string;
   options: string[];
   /** The viewer's own option index, or -1. */
   mine?: number;
+  /**
+   * The question's bank type. A `rating` collapses every option-rows body
+   * to the average and the spread (D305) — ten rows about a ten-step
+   * scale answer none of the questions a reader brings to it.
+   */
+  kind?: string;
   /**
    * A body for question forms whose result is not a list of options — the
    * dial's track and the field's plane (D114). Given this cohort's dense
@@ -341,16 +552,26 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
 
   if (!LIVE.enabled || !qid) return null;
 
+  const rating = kind === "rating";
   const n = options.length;
   const agg = LIVE.aggFor(qid);
   const by: ByMap | undefined = byOf(agg);
   const overall = Array.from({ length: n }, (_, i) => (agg?.counts || {})[String(i)] || 0);
   const overallN = overall.reduce((a, b) => a + b, 0);
 
-  // Only dims the server actually published for this question. A chip for
-  // a dim with no cells would open onto an empty row and read as a bug
-  // rather than as "nobody who answered filled that in".
-  const dims = COHORT_DIMS.filter((d) => by?.[d] && Object.keys(by[d]).length);
+  // Dims the server published cells for. For a continuum body (renderBody)
+  // these stay the only chips offered — a dial's track draws a POSITION,
+  // and it has nothing honest to draw over a scale of zeros.
+  const publishedDims = COHORT_DIMS.filter((d) => by?.[d] && Object.keys(by[d]).length);
+  // For the option-bar body, closed-vocabulary dims are ALWAYS offered
+  // (D304): their body is the whole scale, and a dim nobody has shared
+  // renders as that scale at zero with a line saying so — since D98 that
+  // is a fact, not a gap. Open vocabularies (city, country) still need a
+  // published cell: there is no canonical list of every city to draw at
+  // zero.
+  const dims = renderBody
+    ? publishedDims
+    : COHORT_DIMS.filter((d) => DIM_VOCAB[d] || publishedDims.includes(d));
   const openDim = (typeOpen || friendsOpen || logicOpen)
     ? ""
     : (dims.includes(dim as (typeof COHORT_DIMS)[number]) ? dim : "");
@@ -382,10 +603,23 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
     : (logicRows[0]?.band || "");
   const logicRow = logicRows.find((r) => r.band === openBand) || null;
 
-  const buckets = openDim ? mixFor(by, openDim, n) : [];
-  const openBucket = buckets.some((b) => b.bucket === bucket)
-    ? bucket
-    : (buckets[0]?.bucket || "");
+  // The rows view (D304) reads the whole scale — canonical order, zeros
+  // included — while the continuum chips keep observed cells only, in the
+  // same canonical order. city/country have no vocabulary, so both fall
+  // back to the observed mix.
+  const rowsView = !!openDim && !renderBody;
+  const vocab = openDim ? DIM_VOCAB[openDim] : undefined;
+  const allBuckets = openDim
+    ? (vocab ? vocabMix(by, openDim, n, vocab) : mixFor(by, openDim, n))
+    : [];
+  const buckets = renderBody ? allBuckets.filter((b) => b.n > 0) : allBuckets;
+  const dimN = buckets.reduce((a, b) => a + b.n, 0);
+  // On the rows view nothing is pre-expanded: the scale itself is the
+  // landing, and a row with no answers cannot open — there is no reading
+  // inside it.
+  const openBucket = rowsView
+    ? (buckets.some((b) => b.bucket === bucket && b.n > 0) ? bucket : "")
+    : (buckets.some((b) => b.bucket === bucket) ? bucket : (buckets[0]?.bucket || ""));
 
   const counts = openDim && openBucket
     ? (cellFor(by, openDim, openBucket, n) || [])
@@ -395,20 +629,18 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
     ? { dim: TYPE_PICK, bucket: openType, label: openType || "Types", n: typeRow?.n ?? 0 }
     : logicOpen
       ? { dim: LOGIC_PICK, bucket: openBand, label: logicRow?.label || "Logic", n: logicRow?.n ?? 0 }
-      : {
-        dim: openDim,
-        bucket: openDim ? openBucket : "",
-        label: openDim ? bucketLabel(openDim, openBucket) : "Everyone",
-        n: cohortN,
-      };
-
-  // Where this cohort parts company with everyone. Read from the same fold
-  // the Mirror's Explore lens uses, so the two surfaces cannot disagree
-  // about which option a group is unusual on.
-  const diff = openDim && openBucket
-    ? divergenceFor(by, openDim, openBucket, overall, n)
-    : null;
-  const overallPct = pctFor(overall);
+      : rowsView
+        // The rows view is the DIM's reading, whichever row is expanded —
+        // the expanded region names its own cohort. Its count is the
+        // answers that carry this anchor, which can honestly run under
+        // the card's total: an answer with no age set is in no band.
+        ? { dim: openDim, bucket: openBucket, label: DIM_LABEL[openDim] || openDim, n: dimN }
+        : {
+          dim: openDim,
+          bucket: openDim ? openBucket : "",
+          label: openDim ? bucketLabel(openDim, openBucket) : "Everyone",
+          n: cohortN,
+        };
 
   // The viewer's own bucket, so their cohort is findable in a long chip
   // row without reading every label. Off the store's live anchors rather
@@ -512,7 +744,7 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
             )
       )}
 
-      {!!openDim && (
+      {!!openDim && renderBody && (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {buckets.map((b) => {
             const isMine = myAnchors[openDim] === b.bucket;
@@ -551,12 +783,14 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
           // out of exact published cells, and handing them a bounded
           // sample would put a sampled position on a track that reads as
           // the population's.
-          <LbOptionRows
-            options={options}
-            counts={typeRow.counts}
-            mine={mine}
-            mode={split && split.enough ? "pct" : "count"}
-          />
+          rating
+            ? <LbRatingBody counts={typeRow.counts} mine={mine} />
+            : <LbOptionRows
+              options={options}
+              counts={typeRow.counts}
+              mine={mine}
+              mode={split && split.enough ? "pct" : "count"}
+            />
         )
       ) : logicOpen ? (
         !logicRow ? null : !logicRow.n ? (
@@ -567,13 +801,81 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
           // otherwise. No renderBody here for the type cut's own reason —
           // a sampled position must not draw on a track that reads as the
           // population's.
-          <LbOptionRows
-            options={options}
-            counts={logicRow.counts}
-            mine={mine}
-            mode={lsplit && lsplit.enough ? "pct" : "count"}
-          />
+          rating
+            ? <LbRatingBody counts={logicRow.counts} mine={mine} />
+            : <LbOptionRows
+              options={options}
+              counts={logicRow.counts}
+              mine={mine}
+              mode={lsplit && lsplit.enough ? "pct" : "count"}
+            />
         )
+      ) : rowsView ? (
+        <>
+          <LbCohortRows
+            dim={openDim}
+            buckets={buckets}
+            options={options}
+            overall={overall}
+            myBucket={myAnchors[openDim] || ""}
+            openBucket={openBucket}
+            onRow={setBucket}
+            kind={kind}
+            renderDetail={(b) => {
+              // Where this cohort parts company with everyone — the same
+              // fold the Mirror's Explore lens reads, so the two surfaces
+              // cannot disagree about which option a group is unusual on.
+              // A rating compares MEANS instead (D305): "more likely to
+              // say 7" is a true sentence about a histogram bucket and a
+              // useless one about a scale.
+              const d = rating ? null : divergenceFor(by, openDim, b.bucket, overall, n);
+              const basePct = pctFor(overall);
+              const label = bucketLabel(openDim, b.bucket);
+              const bMean = rating ? meanScore(b.counts) : null;
+              const oMean = rating ? meanScore(overall) : null;
+              const meanGap = bMean && oMean ? bMean.mean - oMean.mean : 0;
+              return (
+                <>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                    <span style={{ flex: 1, fontFamily: "var(--sans)", fontWeight: 800, fontSize: 13, color: "var(--ink)" }}>
+                      {label}
+                    </span>
+                    <span style={{ fontFamily: "var(--sans)", fontWeight: 600, fontSize: 12, color: "var(--ink-3)", fontVariantNumeric: "tabular-nums" }}>
+                      {b.n.toLocaleString()} {b.n === 1 ? "answer" : "answers"}
+                    </span>
+                  </div>
+                  {rating
+                    ? <LbRatingBody counts={b.counts} mine={mine} />
+                    : <LbOptionRows options={options} counts={b.counts} mine={mine} />}
+                  {/* "Same as everyone" is a real finding on a cohort
+                      screen — stated rather than left as an absence the
+                      reader has to interpret. */}
+                  <div style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.5, textWrap: "pretty" }}>
+                    {rating ? (
+                      bMean && oMean && Math.abs(meanGap) >= 0.1
+                        ? <>
+                          {label} average <strong style={{ color: "var(--ink-2)" }}>{bMean.mean.toFixed(1)}</strong>
+                          {" "}— {Math.abs(meanGap).toFixed(1)} {meanGap > 0 ? "above" : "below"} everyone.
+                        </>
+                        : <>{label} land right where everyone lands.</>
+                    ) : d && d.gap > 0
+                      ? <>
+                        {label} are <strong style={{ color: "var(--ink-2)" }}>{d.gap} points</strong>
+                        {" "}{d.pct[d.optionIdx] > (basePct[d.optionIdx] || 0) ? "more" : "less"} likely
+                        to say {options[d.optionIdx]} than everyone.
+                      </>
+                      : <>{label} answered this exactly like everyone else.</>}
+                  </div>
+                </>
+              );
+            }}
+          />
+          {!dimN && (
+            <LbNote>
+              Nobody who answered has shared their {(DIM_LABEL[openDim] || openDim).toLowerCase()} yet.
+            </LbNote>
+          )}
+        </>
       ) : !cohortN ? (
         // Since D98 an absent cell means exactly zero, never withheld —
         // so this is a fact about the cohort and is worth saying plainly.
@@ -581,7 +883,9 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
       ) : (
         renderBody
           ? renderBody(counts, pick, overall)
-          : <LbOptionRows options={options} counts={counts} mine={mine} />
+          : rating
+            ? <LbRatingBody counts={counts} mine={mine} />
+            : <LbOptionRows options={options} counts={counts} mine={mine} />
       )}
 
       {/* THE BASIS, stated every time the type cut is open.
@@ -638,23 +942,6 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
               </>
             );
           })()}
-        </div>
-      )}
-
-      {/* One line, and only when there is something to say. "Same as
-          everyone" is a real finding on a cohort screen — it is the
-          answer to the question the chips just asked — so it is stated
-          rather than left as an absence the reader has to interpret.
-          A custom body carries its own comparison; see renderBody. */}
-      {!friendsOpen && !renderBody && !!openDim && !!cohortN && (
-        <div style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.5, textWrap: "pretty" }}>
-          {diff && diff.gap > 0
-            ? <>
-              {pick.label} are <strong style={{ color: "var(--ink-2)" }}>{diff.gap} points</strong>
-              {" "}{diff.pct[diff.optionIdx] > (overallPct[diff.optionIdx] || 0) ? "more" : "less"} likely
-              to say {options[diff.optionIdx]} than everyone.
-            </>
-            : <>{pick.label} answered this exactly like everyone else.</>}
         </div>
       )}
 
