@@ -1424,8 +1424,40 @@ That is a tester-count problem, not a workflow problem.
       dispatch that #2 exists to save, which is the trade being made, and
       it is the cheaper side once releases stop being daily.
 
-- [ ] **5.9b Delete the nine D13 v1 functions, which are a DIFFERENT
-      us-central1 leftover from 5.9's.** `docs/DEPLOYMENT.md`
+- [ ] **5.9b Delete the v1 leftovers — there are TWENTY-ONE in
+      `us-central1`, not nine, plus three more in two regions no document
+      mentions.** Read out of production by `npm run observe` on
+      2026-08-26 (D300), which is the first time anything could answer it:
+
+      ```
+      66 deployed — europe-west1:42, us-central1:21,
+                    europe-west3:2, europe-north1:1
+      ```
+
+      **Nine of the 21 are D13's list** and appear in `docs/DEPLOYMENT.md`'s
+      delete command. **Twelve are named nowhere in this repository at
+      all**: `updatePollResults`, `aggregatePollResults`,
+      `sendPushNotificationsTrigger`, `sendUserPushNotificationsTrigger`,
+      `sendChatNotificationsTrigger`, `addFcmToken`, `findSimilarUsers`,
+      `createLiveStream`, `recalculateVoterPersonality`,
+      `updateIsNewFieldNew`, `scheduledDeletePastEvents`, `onUserDeleted`.
+
+      **None of the 21 is referenced by any live code file** — verified by
+      grepping every `.ts/.tsx/.js/.jsx` in the tree; the only hits for the
+      nine are `DEPLOYMENT.md`, `DECISIONS.md` and `observe.test.mjs`'s
+      fixture. That makes them orphaned **relative to this repository**,
+      which is NOT the same as safe to delete: several are v1 Firestore or
+      Auth triggers that may still fire against v1 data, and `onUserDeleted`
+      in particular sounds like an erasure path. **Identify before deleting**
+      — the delete command in `DEPLOYMENT.md` names nine and is safe as
+      written; extending it to the other twelve is a decision, not a
+      cleanup.
+
+      The original entry said "nine" because that is what D13 recorded, and
+      D13 recorded what it had retired rather than what production held.
+      Nothing checked the difference until there was a reader.
+
+      **The DIFFERENT-leftover note still stands**, and matters more now: `docs/DEPLOYMENT.md`
       § "One-off cleanup still owed in production (D13)" has the exact
       command and it has never had a checkbox — so nothing in the ordered
       list that holds status has been counting it. Two reasons it is easy

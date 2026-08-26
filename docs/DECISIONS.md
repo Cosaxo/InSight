@@ -30593,3 +30593,97 @@ branches same-day, or giving branch-local records a provisional marker until
 merge — both are conventions rather than code, and neither is chosen here.
 What is no longer possible is discovering the miss by following a citation
 months later.
+
+## D300 · The first look at production, and the two things it said that the repo had wrong
+
+**2026-08-26.** `npm run observe` ran against `prvfire33` for the first
+time. **All four readings came back. No role was missing.** Which is the
+first finding, and it is about me rather than about the project: this was
+reachable the entire time it was being described as blocked on runbook
+5.13's six gcloud commands.
+
+```
+✓ alertPolicies  0 live, 0 enabled; 8/8 committed NOT armed
+✓ logMetrics     0 log-based metric(s)
+✓ functions      66 deployed — europe-west1:42, us-central1:21,
+                               europe-west3:2, europe-north1:1
+✓ billing        enabled=true  account=billingAccounts/0185A3-9BC4AF-7E35D2
+```
+
+### Nothing is armed. Not "some" — nothing.
+
+Zero alert policies exist in the project and zero log-based metrics sit
+behind them. All eight committed policies are unarmed, and every one of
+them watches an **absence**:
+
+- `fitPatternsV2 has gone quiet`
+- `digestEngagementV2 has gone quiet`
+- `scheduledDuelReveals has gone quiet`
+- `ledgerVelocityScan has gone quiet`
+- `onV2AnswerCreated is erroring`
+- `onV2AnswerCreated is contending on the per-question aggregate`
+- Firestore read rate far above the cost model
+- Firestore write rate far above the cost model
+
+D296 happened under exactly this condition: every instrument reporting
+zero over 108 real answers for fifteen days, with nothing watching for a
+number that stopped moving. That is not a coincidence to note in passing —
+it is the same hole, and the sixth policy in that list is the recorded
+precondition for sharding (D290 layer 2), so the ladder's next rung has
+been gated on a detector that does not exist.
+
+### Twenty-one in the old region, and the repo said nine
+
+`docs/DEPLOYMENT.md` has carried a delete command for **nine** v1
+functions since D13, and runbook 5.9b — written this morning — repeated
+the figure. Production holds **21** in `us-central1`, plus **two in
+`europe-west3` and one in `europe-north1`** that no document in this
+repository mentions at all.
+
+Twelve of the 21 are named nowhere here: `updatePollResults`,
+`aggregatePollResults`, `sendPushNotificationsTrigger`,
+`sendUserPushNotificationsTrigger`, `sendChatNotificationsTrigger`,
+`addFcmToken`, `findSimilarUsers`, `createLiveStream`,
+`recalculateVoterPersonality`, `updateIsNewFieldNew`,
+`scheduledDeletePastEvents`, `onUserDeleted`.
+
+**None of the 21 is referenced by any live code file** — every `.ts`,
+`.tsx`, `.js` and `.jsx` in the tree was grepped; the only hits for the
+nine are two documents and this session's own test fixture. They are
+orphaned **relative to this repository**, which is not the same claim as
+safe to delete: several are v1 Firestore or Auth triggers that may still
+fire against v1 data, and `onUserDeleted` in particular sounds like an
+erasure path. Identifying them is work; the delete command as written
+names nine and stays correct.
+
+**Why the number was wrong.** D13 recorded what it had *retired*, and
+nothing ever compared that against what production *held*. The gap is
+seventeen months of deploys nobody enumerated, and it stayed invisible
+because no reader existed. The runbook item I wrote this morning inherited
+the error faithfully — a figure copied from a record rather than measured,
+which is the documentation error this repo keeps re-committing and now has
+a gate for in the one case (`check:figures`) where the truth is in the
+tree. Here it is not in the tree; it is in production, and the only fix is
+to look.
+
+### The reader made the same mistake, and that is the transferable part
+
+`observe.mjs` asked `byRegion["us-central1"]` — the only stale region this
+repo's prose has ever named. It would have reported 21 and silently missed
+the other three. **A reader that only asks about the wrongness it expects
+finds exactly the wrongness it expects.** It now reports strays in every
+region that is not `FUNCTIONS_REGION`, read out of `src/lib/region.ts`
+rather than retyped (D201), and the test pins a stray in a third region
+that the old shape would have dropped.
+
+### What is now true that was not this morning
+
+The project can be looked at. `alertPolicies … armed` is answered by name
+rather than by count, so arming them is verifiable the moment it is done
+rather than assumed. Every reading is a GET; the workflow needs no
+approval gate because it cannot change anything, and it runs daily at
+06:11 UTC.
+
+D292's separate least-privilege identity is still the right destination
+and is unaffected by this: it was never what stood between the project and
+its own state.
