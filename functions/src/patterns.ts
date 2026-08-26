@@ -182,7 +182,7 @@ export function firestorePatternsStore(db: Firestore): PatternsStore {
   return {
     async ledgerDay(dayKey) {
       // One reader for one day of the ledger, shared with the taste fold
-      // (ledger.ts, extracted at D319 for D197's one-copy reason).
+      // (ledger.ts, extracted at D322 for D197's one-copy reason).
       return readLedgerDay(db, dayKey);
     },
     async getModel() {

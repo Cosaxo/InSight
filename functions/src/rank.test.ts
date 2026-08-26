@@ -1,4 +1,4 @@
-// Unit tests for the nightly published serving order (rank.ts, D313).
+// Unit tests for the nightly published serving order (rank.ts, D316).
 //
 // Everything here runs against the injected store and a hand-built bank —
 // the patterns.test.ts shape — because the fold's promises are about
@@ -143,7 +143,7 @@ describe("runBankRank", () => {
       Date.UTC(2026, 7, 26, 12),
       bank,
     );
-    // The daily is positional (D313) — its qid must not even be asked for.
+    // The daily is positional (D316) — its qid must not even be asked for.
     expect(asked).toEqual([["feed-a", "learn-cell1"]]);
     expect(put.map((p) => p.surface).sort()).toEqual(["feed", "learn"]);
     const feed = put.find((p) => p.surface === "feed")!.doc;

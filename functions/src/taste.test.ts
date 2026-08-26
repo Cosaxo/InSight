@@ -1,4 +1,4 @@
-// Unit tests for the taste fold (taste.ts, D314 phase 1 / D319).
+// Unit tests for the taste fold (taste.ts, D317 phase 1 / D322).
 //
 // Injected store, hand-built topic map — the patterns.test.ts shape —
 // because the fold's promises are about COUNTING, and counting bugs are

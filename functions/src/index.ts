@@ -930,12 +930,12 @@ export { resolveCallsV2 } from "./calls";
 // loading vectors from the vote log, core corpus only (D161). The fold
 // that has to exist before the Patterns tab may ship (D167).
 export { fitPatternsV2 } from "./patterns";
-// D313: the nightly published serving order — per-topic question order
+// D316: the nightly published serving order — per-topic question order
 // (volume, landslides sunk) onto v2_rank/{feed,learn}, the spine the
 // paged read path fetches against. Global signal only; no uid enters
-// the fold (D163/D314's line).
+// the fold (D163/D317's line).
 export { rankBankV2 } from "./rank";
-// D314 phase 1 (D319): the per-person interest profile — feed answers
+// D317 phase 1 (D322): the per-person interest profile — feed answers
 // counted by topic, nightly, onto v2_users/{uid}/taste/profile. Derived
 // from answers alone (public by D98); the pager sizes topic pages by it
 // and nothing else reads it.

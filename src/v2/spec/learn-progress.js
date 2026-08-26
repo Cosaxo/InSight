@@ -253,7 +253,7 @@ export const LEARN = (function () {
     subject: (id) => SBY[id] || null,
     fieldsOf: (sid) => FIELDS.filter((f) => f.subject === sid),
     card: (id) => BYID[id] || null,
-    // The BANK's count where the published order carries one (D317): the
+    // The BANK's count where the published order carries one (D320): the
     // live pool is a page since learn left the boot fetch, so counting it
     // here would claim the page size — the exact under-count D283 was
     // reported as. Null (demo, or order not yet loaded) falls back to the

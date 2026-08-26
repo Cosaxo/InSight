@@ -13,16 +13,16 @@ holds the reasoning for the three that bite.
 Re-derive this file if any of these change: a new stored field, a new SDK,
 the takes surface going live, or product analytics being added.
 
-**Re-derived 2026-08-26 for D319 (the interest profile, D314 phase 1).**
+**Re-derived 2026-08-26 for D322 (the interest profile, D317 phase 1).**
 New stored field: `v2_users/{uid}/taste/profile` — feed answers counted
 by topic, server-derived nightly, owner-readable only, used to size the
-feed's topic pages (D318). **One answer moves**: User Content → Other
+feed's topic pages (D321). **One answer moves**: User Content → Other
 User Content gains the **Product Personalisation** purpose beside App
 Functionality, because content selection is now personalised from that
 content — the honest reading of Apple's purpose list. Collected/linked/
 tracking all unchanged (the profile is an arrangement of answers already
 declared; nothing new leaves the device — behaviour stays out until
-D314 phase 2, which must re-derive this file). Play's parked form (D42)
+D317 phase 2, which must re-derive this file). Play's parked form (D42)
 gains the matching "Personalization" purpose on its answers rows when it
 is actually filed.
 
@@ -80,7 +80,7 @@ companies' apps or sites.
 | Identifiers | **User ID** | Yes | App Functionality | The Firebase uid, anonymous by default (D3) — every install becomes one at first paint — **and the handle since D122**, which Apple's own definition of this type names ("any screen name, handle, account ID …"). See the note below the table |
 | Contact Info | **Email Address** | Yes | App Functionality | Only if the user links Google. See the warning below |
 | Contact Info | **Name** | Yes | App Functionality | Optional display name, shown in group and duel reveals |
-| User Content | **Other User Content** | Yes | App Functionality, Product Personalisation (D319) | Answers and test results, the anchors each answer was given under, and question suggestions (D138). The personalisation purpose is the interest profile: feed answers counted by topic, used to size the feed's topic pages. See the note below the table |
+| User Content | **Other User Content** | Yes | App Functionality, Product Personalisation (D322) | Answers and test results, the anchors each answer was given under, and question suggestions (D138). The personalisation purpose is the interest profile: feed answers counted by topic, used to size the feed's topic pages. See the note below the table |
 | User Content | **Photos or Videos** | Yes | App Functionality | **Optional profile photo, off by default (D178)** — shown anywhere the app shows the user's name, including to people nearby since D177. Shrunk and re-encoded on the device, which drops the original's EXIF. See the note below the table |
 | Location | **Coarse Location** | Yes | App Functionality | City name; 0.002° presence cell |
 | Health & Fitness | **Health** | Yes | App Functionality | **New at D203.** Two of the five pulse questions are "How did you sleep?" and "How was your energy today?" — one five-step answer a day each, keyed to a UTC day. See the note below the table |

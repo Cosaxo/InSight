@@ -49,11 +49,11 @@ const h = vi.hoisted(() => ({
   // Simulates a cursor that never advances — the one way the paging loop
   // could spin forever. The guard's job is to report and stop.
   stuckCursor: false,
-  // The published serving orders (D316) the pagers read, keyed by
-  // surface. Empty = no fold has run, which is every pre-D316 test's
+  // The published serving orders (D319) the pagers read, keyed by
+  // surface. Empty = no fold has run, which is every pre-D319 test's
   // world.
   rankOrders: {} as Record<string, { topics: Record<string, { qids: string[]; total: number }> }>,
-  // The owner's interest profile (D319), served at their own taste path.
+  // The owner's interest profile (D322), served at their own taste path.
   tasteProfile: null as null | { t: Record<string, number>; n: number },
 }));
 
@@ -125,7 +125,7 @@ vi.mock("firebase/firestore", () => {
       if (q?.path !== "v2_questions") return Promise.resolve(snapOf([]));
       const cons = q.cons || [];
       h.bankQueries.push({ path: q.path, cons });
-      // The pagers' fetch-by-id (D317/D318): where(documentId(), "in", ids).
+      // The pagers' fetch-by-id (D320/D321): where(documentId(), "in", ids).
       const byId = cons.find(
         (c) => c.kind === "where" && typeof c.field === "object"
           && (c.field as unknown as Constraint).kind === "documentId",
@@ -139,7 +139,7 @@ vi.mock("firebase/firestore", () => {
       if (!delta) {
         // Real Firestore semantics for the full fetch: ordered by document
         // id, advanced past the cursor, capped at the limit, and — since
-        // D318 splits the boot into two queries — FILTERED by the query's
+        // D321 splits the boot into two queries — FILTERED by the query's
         // own surface/core constraints. Without the filters the core-feed
         // query would hand back the whole bank and the tests could not
         // tell the two queries' results apart, which is the bug, not the
@@ -276,7 +276,7 @@ afterEach(() => {
 describe("question-bank cache", () => {
   it("fetches the whole bank on a cold boot and records the cursor", async () => {
     await bootLive();
-    // Two since D318: the boot surfaces, then the feed's core.
+    // Two since D321: the boot surfaces, then the feed's core.
     expect(bankFetches()).toBe(2);
     expect(isDelta(0)).toBe(false);
     const cached = await readCache();
@@ -405,7 +405,7 @@ describe("question-bank cache", () => {
     // in the real world and look perfectly healthy doing it.
     h.bankDocs = bulk(2000);
     await bootLive();
-    // Three pages for the boot surfaces plus the core-feed query (D318).
+    // Three pages for the boot surfaces plus the core-feed query (D321).
     expect(bankFetches()).toBe(4);
     expect(h.bankQueries[2].cons.some((c) => c.kind === "startAfter")).toBe(true);
     expect((await readCache()).questions).toHaveLength(2000);
@@ -495,7 +495,7 @@ describe("question-bank cache", () => {
       expect(asked, `the bank query does not ask for ${s}`).toContain(s);
     }
     // Learn and the feed PAGE against the published order since
-    // D317/D318 — the boot `in` carrying either again would silently
+    // D320/D321 — the boot `in` carrying either again would silently
     // re-inflate the install fetch the paging exists to remove. Learn's
     // reach guarantee moved to the pager cases below; the feed's CORE
     // rides the second query, asserted here on its constraints.
@@ -532,7 +532,7 @@ describe("question-bank cache", () => {
   it("stops serving a now question the day after its window closes", async () => {
     // `now` questions are TAIL by design (sold-inventory reasoning in
     // QUESTION-FARM; the corpus wants density, not current events), so
-    // since D318 they reach a device through the pager — this case runs
+    // since D321 they reach a device through the pager — this case runs
     // the window rule at PAGE ARRIVAL, which is where it lives for
     // everything the boot fetch no longer carries. The feed pool needs
     // one core question for buildFeedGlobals to build at all.
@@ -578,7 +578,7 @@ describe("question-bank cache", () => {
     expect(LIVE.ready).toBe(true);
   });
 
-  // ── the paged surfaces (D317 learn, D318 feed tail, D319 profile) ──
+  // ── the paged surfaces (D320 learn, D321 feed tail, D322 profile) ──
   //
   // Reach guarantees live HERE now, not in the surface list: a device
   // meets paged cards through the pager — first page per field/topic of
@@ -659,7 +659,7 @@ describe("question-bank cache", () => {
   });
 
   it("pages an answered topic deeper than a cold one when the profile clears its floors", async () => {
-    // D314 phase 1's whole serving effect, end to end: the device reads
+    // D317 phase 1's whole serving effect, end to end: the device reads
     // ITS OWN profile — the one doc only its owner may read — and takes
     // the full page for the topic it answers, a smaller one for the
     // topic it never has. Both non-zero: a cold topic must stay

@@ -52,7 +52,7 @@
 //                      check:quality's BANK_WARN of 6000, headroom to spare.
 //                      (That constant was 1200, guarding an unpaginated
 //                      fetch; D161 paged the fetch and re-pointed it at the
-//                      localStorage cache budget, and D315 moved the cache
+//                      localStorage cache budget, and D318 moved the cache
 //                      to IndexedDB and re-pointed it again, at the
 //                      whole-bank install fetch — so the headroom this
 //                      paragraph reasons about got much larger.) Raise it

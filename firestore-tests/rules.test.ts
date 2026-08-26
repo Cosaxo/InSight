@@ -692,7 +692,7 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(setDoc(doc(asUser(OWNER), "v2_patterns", "loadings-2"), { k: 8 }));
   });
 
-  it("the published serving order (D313) reads like an aggregate and writes like one — nobody", async () => {
+  it("the published serving order (D316) reads like an aggregate and writes like one — nobody", async () => {
     await seed(async (db) => {
       await setDoc(doc(db, "v2_rank", "feed"), {
         day: "2026-08-26",
@@ -718,7 +718,7 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "patterns", "state"), { v: [1], n: 1 }));
   });
 
-  it("the interest profile is the owner's to read, a stranger's to never see, and nobody's to write (D314/D319)", async () => {
+  it("the interest profile is the owner's to read, a stranger's to never see, and nobody's to write (D317/D322)", async () => {
     await seed(async (db) => {
       await setDoc(doc(db, "v2_users", OWNER, "taste", "profile"), { t: { food: 3 }, n: 3 });
     });

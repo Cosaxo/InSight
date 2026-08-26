@@ -407,7 +407,7 @@ export const DAILY_ID_FAIL = 970; // an id-scheme decision is due before 999
 // rule said to do rather than deleting them.
 //
 // What they watch now is what remains of BANK-DELIVERY §4 after the
-// paged read path (D317/D318): the INSTALL fetch no longer scales with
+// paged read path (D320/D321): the INSTALL fetch no longer scales with
 // the bank — a fresh device takes the boot surfaces, the feed's core
 // and a page per topic — but a device's MEMORY still holds every row
 // its cache has accumulated, and hydrate reads all of them each boot
@@ -1473,12 +1473,12 @@ export function checkHeadroom(corpus) {
     errs.push(
       `seeded bank holds ${bankSize} docs ≈ ${cacheMB(bankSize)} MB — past the point where a device holding `
       + "its whole cache in memory was last argued (BANK-DELIVERY §4). The install fetch is paged since "
-      + "D317/D318, but every cached row is still read into memory each boot; decide the in-memory design "
+      + "D320/D321, but every cached row is still read into memory each boot; decide the in-memory design "
       + "before promoting more, rather than after a low-end phone reports it.",
     );
   } else if (bankSize >= BANK_WARN) {
     warn.push(
-      `seeded bank at ${bankSize} docs ≈ ${cacheMB(bankSize)} MB — the install fetch is paged (D317/D318), `
+      `seeded bank at ${bankSize} docs ≈ ${cacheMB(bankSize)} MB — the install fetch is paged (D320/D321), `
       + "but a device still holds every cached row in memory; that design wants re-arguing before this doubles",
     );
   }

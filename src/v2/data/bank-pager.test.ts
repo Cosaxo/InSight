@@ -1,5 +1,5 @@
-// Unit tests for the bank pager's arithmetic (bankPager.ts — D317 for
-// learn, D318 for the feed tail).
+// Unit tests for the bank pager's arithmetic (bankPager.ts — D320 for
+// learn, D321 for the feed tail).
 //
 // The paging rules are pure and tested here without any I/O; the wiring
 // (fetch shapes, state append, cache persist) is bank-cache.test.ts's,

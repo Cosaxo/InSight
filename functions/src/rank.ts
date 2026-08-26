@@ -1,9 +1,9 @@
-// rank.ts — the nightly published serving order (D313; the spine D314's
+// rank.ts — the nightly published serving order (D316; the spine D317's
 // profile will choose from). The arithmetic is pure and injected-store
 // tested (the patterns.ts shape, one job over); this file decides WHAT
 // is ranked and WHERE the order lives.
 //
-// WHY A PUBLISHED ORDER EXISTS AT ALL. D313 pages the bank: a device
+// WHY A PUBLISHED ORDER EXISTS AT ALL. D316 pages the bank: a device
 // stops being handed every question and fetches what a screen actually
 // reaches. Pages need an order to page BY, and the order has to be the
 // same for everyone at zero marginal reads — so it is computed once a
@@ -12,12 +12,12 @@
 // doc (one read), then fetches question documents as it reaches them.
 // Per-request ranking — the naive recommender — would bill per
 // impression; this bills O(bank) reads per NIGHT and O(pages actually
-// read) per device, which is the whole cost argument of D313.
+// read) per device, which is the whole cost argument of D316.
 //
 // THE ORDER'S BASIS, v1: crowd volume, with landslides sunk. Volume
 // (the aggregate's `total`) is the one global signal every question
-// already publishes, and it is personal to nobody — D163/D314's line
-// holds because this fold never reads a uid. The sink is D313 phase 4's
+// already publishes, and it is personal to nobody — D163/D317's line
+// holds because this fold never reads a uid. The sink is D316 phase 4's
 // first signal: a question ≥ RANK_DEAD_MIN answers whose leading option
 // holds ≥ RANK_DEAD_SHARE of them is the scorecard's landslide — a
 // correct average nobody needs to be asked (the retire-proposal
@@ -25,7 +25,7 @@
 // a human to read a retire proposal. Deletion stays the lane's;
 // `active: false` stays the kill switch; this only orders.
 //
-// SURFACES: feed and learn — the two D313 unbounds. The daily is
+// SURFACES: feed and learn — the two D316 unbounds. The daily is
 // positional by design (cohort comparison needs everyone on the same
 // question), and test/duel/pulse/call are bounded rosters (D213's
 // census) a device still takes whole.
@@ -47,11 +47,11 @@ import { V2_QUESTIONS, type V2SeedQuestion } from "./v2content";
 import { db as firestore } from "./db";
 import { utcDay } from "./pure";
 
-/** The surfaces the order covers — the two D313 pages. */
+/** The surfaces the order covers — the two D316 pages. */
 export const RANK_SURFACES = ["feed", "learn"] as const;
 export type RankSurface = (typeof RANK_SURFACES)[number];
 
-/** The landslide sink (D313 phase 4's first signal): at this many answers
+/** The landslide sink (D316 phase 4's first signal): at this many answers
  * with the leading option at this share, a question has stopped asking
  * anything and serves last in its topic. The numbers are the scorecard's
  * own retire-proposal floor, kept equal on purpose — one predicate,
@@ -86,7 +86,7 @@ export interface RankStore {
   putOrder(surface: RankSurface, doc: RankDoc): Promise<void>;
 }
 
-const BASIS = "volume desc, landslides sink (D313); ties by seq";
+const BASIS = "volume desc, landslides sink (D316); ties by seq";
 
 /** Landslide: enough answers that the split is believed, and a leading
  * option holding nearly all of them. */

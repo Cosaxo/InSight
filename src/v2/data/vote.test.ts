@@ -1197,7 +1197,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
   // is real work rather than a pass-through — the bank speaks
   // `learn-cell1`/`prompt`/`options`/`topic` and the engine speaks
   // `cell1`/`q`/`a`/`f` — so it is asserted field by field.
-  // Learn left the boot fetch at D317 — a live device meets cards through
+  // Learn left the boot fetch at D320 — a live device meets cards through
   // the pager (order pages + history heal). These cases ride the HISTORY
   // path: seeding `insight.learn.v3` with the card marks it as one this
   // device has answered, so the pager fetches it by id with no order doc
@@ -1226,7 +1226,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     await bootLive();
     // A sentinel sample, so "fell through to the caller's array" and
     // "published nothing" cannot pass as each other. Waited for: the
-    // pager is deliberately not part of boot (D317), so the page lands
+    // pager is deliberately not part of boot (D320), so the page lands
     // just after ready.
     await vi.waitFor(() => {
       expect(learnCards([{ id: "sample1", f: "cell", q: "s", a: ["a"], c: 0, t: 0, p: 50, k: "s" }])).toHaveLength(1);
@@ -1987,14 +1987,14 @@ describe("LIVE.learnMine — the answer the trigger has not folded yet", () => {
     data: {
       surface: "learn", seq: 1, type: "choice", prompt: "Learn cell1",
       options: ["A", "B", "C", "D"], topic: null, test: null, active: true,
-      // Keyed since D317: cardLanded() watches the engine pool, and the
+      // Keyed since D320: cardLanded() watches the engine pool, and the
       // publication drops an unkeyed card — the answer-key fields are
       // load-bearing for the fixture reaching it, not for these cases.
       c: 0, t: 1, p: 50, k: "Learn cell1",
     },
   };
   const aggPath = "v2_question_aggs/learn-cell1";
-  // Learn pages since D317: the card reaches state.learnBank through the
+  // Learn pages since D320: the card reaches state.learnBank through the
   // pager's history heal, just after ready — so each case seeds the
   // history and waits for the card before answering it, the same order a
   // real session imposes (the engine only serves cards already in the
