@@ -703,6 +703,55 @@ describe("a _state document is not proof the digest has seen an account", () => 
     ).toBe(false);
     expect(out.get("answerer")).toMatchObject({ firstDay: "2026-08-01", activeDays: 4 });
   });
+
+  it("KEEPS the history of an account the bug already damaged", async () => {
+    // The account this whole fix is about does not look like the browser
+    // above once it has answered a few times: the old path copied
+    // `firstDay: ""` forward while correctly accumulating lastDay,
+    // activeDays and streak. A getStates that tests `firstDay` drops all
+    // four, and the fold's `!state` branch then re-stamps the account as
+    // born today — a forty-day streak reset to one, and `firstTime`
+    // inflated by that whole population on the first night after deploy,
+    // which is the DENOMINATOR the published d1/d7/d30 curve is read
+    // against. `lastDay` is the honest test.
+    const snapOf = (data: Record<string, unknown>) => ({ exists: true, get: (k: string) => data[k] });
+    const db = {
+      collection: () => ({ doc: () => ({ collection: () => ({ doc: () => ({}) }) }) }),
+      getAll: async () => [
+        snapOf({ fg7: [2, 0, 1], firstDay: "", lastDay: "2026-08-20", activeDays: 40, streak: 12 }),
+      ],
+    } as unknown as Parameters<typeof firestoreEngagementStore>[0];
+
+    const out = await firestoreEngagementStore(db).getStates(["damaged"]);
+    expect(out.has("damaged"), "a digested account was dropped for having no cohort day").toBe(true);
+    expect(out.get("damaged")).toMatchObject({
+      firstDay: "", lastDay: "2026-08-20", activeDays: 40, streak: 12,
+    });
+  });
+});
+
+describe("the cohort day an account never got", () => {
+  // The other half of the same fix: getStates hands the fold a state with
+  // no `firstDay`, and the fold adopts today as one — counting the account
+  // as a first-timer exactly once, and keeping everything else.
+  it("adopts today, counts the account once, and keeps its streak", async () => {
+    const { store, state } = memoryStore({ [Y]: [e("damaged", "q1")] });
+    // The damaged shape, as the old getStates left it: no cohort day, a
+    // real record. `lastDay` is the day before Y, so the streak extends.
+    state.users.set("damaged", {
+      firstDay: "", lastDay: utcDay(NOW, -2), activeDays: 40, streak: 12,
+    });
+    state.lastDay = utcDay(NOW, -2);
+    await runEngagementDigest(store, NOW, FEED);
+    const wrote = state.users.get("damaged")!;
+    expect(wrote.firstDay, "today was not adopted as the cohort day").toBe(Y);
+    expect(wrote.activeDays, "the account's history was discarded").toBe(41);
+    expect(wrote.streak, "a live streak was reset").toBe(13);
+    expect(
+      state.days.get(Y)!.firstTime,
+      "the adoption was not counted, or was counted more than once",
+    ).toBe(1);
+  });
 });
 
 describe("a paged query's projection has to carry the field it orders by", () => {

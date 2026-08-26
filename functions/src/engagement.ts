@@ -264,7 +264,13 @@ export async function runEngagementDigest(
       const state = states.get(uid);
       // A state whose firstDay IS this day was written by a crashed run
       // of this same fold — still a first-timer (see the header).
-      if (!state || state.firstDay === day) firstTime++;
+      //
+      // …and so is one with NO cohort day: an account the pre-fix
+      // getStates left with `firstDay: ""` never had one recorded, so
+      // today is the first day the digest can honestly claim. Counted
+      // once, here, and then written below — after which it matches a
+      // cohort like anyone else.
+      if (!state || !state.firstDay || state.firstDay === day) firstTime++;
       if (state) {
         if (state.firstDay === cohortDay.d1) returned.d1++;
         if (state.firstDay === cohortDay.d7) returned.d7++;
@@ -280,7 +286,10 @@ export async function runEngagementDigest(
         const gap = dayGap(state.lastDay, day);
         if (gap >= 2 && state.streak >= STREAK_BROKEN_MIN) streaksBroken++;
         changed.set(uid, {
-          firstDay: state.firstDay,
+          // Adopt today when there is nothing to keep, keep it otherwise.
+          // The rest of the row is the account's own history and survives:
+          // the bug lost the cohort day, not the streak.
+          firstDay: state.firstDay || day,
           lastDay: day,
           activeDays: state.activeDays + 1,
           streak: gap === 1 ? state.streak + 1 : 1,
@@ -388,12 +397,32 @@ export function firestoreEngagementStore(db: Firestore): EngagementStore {
           // account's life. Exactly the population rung 2 exists to see:
           // people who browse before they commit.
           //
-          // The digest's own field is the test, not the document.
-          const firstDay = snap.get("firstDay");
-          if (typeof firstDay === "string" && firstDay) {
+          // The digest's own field is the test, not the document — and
+          // that field is `lastDay`, not `firstDay`.
+          //
+          // Testing `firstDay` was this fix's own first attempt and it
+          // threw the baby out: an account the bug had already damaged
+          // carries `firstDay: ""` AND a real `lastDay`, `activeDays` and
+          // `streak`, because the old path copied the empty string forward
+          // while correctly accumulating the other three. Dropping the
+          // whole state re-stamped every one of those accounts as born on
+          // the first night after deploy — a streak of forty days reset to
+          // one, `streaksBroken` blind to it, and `firstTime` inflated by
+          // the size of that population, which is the DENOMINATOR
+          // cohortOf() hands the published d1/d7/d30 retention curve.
+          //
+          // `lastDay` is the honest test because the fold writes all four
+          // together, so a document that has one has been digested and a
+          // document that has none has not. The missing cohort day is then
+          // adopted below, where the fold can count it as a first-timer
+          // exactly once — which was the point — without discarding what
+          // the account earned.
+          const lastDay = snap.get("lastDay");
+          if (typeof lastDay === "string" && lastDay) {
+            const firstDay = snap.get("firstDay");
             out.set(chunk[j], {
-              firstDay,
-              lastDay: (snap.get("lastDay") as string) ?? "",
+              firstDay: typeof firstDay === "string" ? firstDay : "",
+              lastDay,
               activeDays: (snap.get("activeDays") as number) ?? 0,
               streak: (snap.get("streak") as number) ?? 0,
             });
