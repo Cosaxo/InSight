@@ -31539,3 +31539,45 @@ lint/tsc/globals/purge/a11y/tap-targets/bundle all green, and the
 coupling ratchet unmoved at its baseline. The plan file's §0 table now
 carries each item's as-built state; §1 and §2 still say "owner decision
 first", because they still are.
+
+## D311 · The daily builder dropped `bg`, the seed's own written-count told on it, and the seed-fields gate learns surfaces
+
+**Decided:** 2026-08-26 · **Status:** binding. Found minutes after the
+D306 content shipped, by arithmetic: the production seed chained off the
+deploy and reported `written 51, skipped 643` where 58 writes were owed
+— 44 changed feed docs, 7 new docs, and 7 daily `bg` texts that never
+left the repo.
+
+### 1 · The fourth recurrence, one level down
+
+D234, D281 and D284 are all the same failure — a field alive in the
+generator and dead somewhere on the transport — and `check:seed-fields`
+exists to end that class. It compares the UNION of emitted keys, and the
+union was satisfied: the FEED builder emits `bg` (D281), so "is `bg`
+transported" answered yes while the DAILY builder, a separate object
+literal thirty lines up, emitted everything except it. Every gate
+green: `check:content` holds compiled-equals-generated (the compiled
+file faithfully carried the bug), `check:quality` validates the source
+text, and D306's own smoke test injected `bg` at the fixture — proving
+the client renders the field, not that the pipeline delivers it. The
+one honest number anywhere was the seed's write count.
+
+### 2 · The fix, and the gate that would have refused it
+
+One emit-when-set line in the daily builder, beside its neighbours —
+the whole change, as the gate's failure text has always promised. And
+the gate grows the half it was missing: for the banks the lanes write
+into (daily, feed, pick — the id-carrying ones), a top-level source
+field that the generator emits ANYWHERE must be emitted on that entry's
+own doc. Falsy source values stay exempt — `core: false` means tail
+exactly like an absent `core` (D161), which is the emit-when-set
+idiom's contract, and the first run of the rule flagged exactly that
+before the exemption existed. Run red-then-green: seven `bg on daily`
+failures against the pre-fix tree, silent after it. 58 `bg` docs emit
+now (51 feed · 7 daily); the wire figure moves 192.3 → 193.8 KiB.
+
+### 3 · What carries it live
+
+Nothing manual: the deploy fires on `functions/**`, the seed chains on
+the deploy (seed-content.yml's `workflow_run`), and the next run owes
+exactly seven writes. A `written` that is not 7 is the number to chase.

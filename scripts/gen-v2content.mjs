@@ -261,6 +261,13 @@ export function buildEntries(content = loadContent()) {
       // Daily-only and emitted only when set: a question that rates no
       // place carries no key, and Scores draws only what names its stop.
       ...(q.rates ? { rates: String(q.rates) } : {}),
+      // The background the card's ⓘ opens (D281), emitted here since
+      // D311: the feed builder below carried this exact line and this one
+      // did not, so the union-level seed-fields check stayed green while
+      // the daily's context texts never left the repo — the production
+      // seed's own `written` count was the first thing to disagree. The
+      // per-surface half of that gate exists because of this absence.
+      ...(typeof q.bg === "string" && q.bg ? { bg: q.bg } : {}),
       axis: q.axis ?? null,
       test: null,
       ...flags(q),
