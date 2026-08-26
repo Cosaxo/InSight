@@ -1424,59 +1424,93 @@ That is a tester-count problem, not a workflow problem.
       dispatch that #2 exists to save, which is the trade being made, and
       it is the cheaper side once releases stop being daily.
 
-- [ ] **5.9b Delete the v1 leftovers — there are TWENTY-ONE in
-      `us-central1`, not nine, plus three more in two regions no document
-      mentions.** Read out of production by `npm run observe` on
-      2026-08-26 (D300), which is the first time anything could answer it:
+- [ ] **5.9b Delete the twelve OLD-PROJECT functions in `us-central1`.**
+      Read out of production by `npm run observe -- --functions` on
+      2026-08-26 (D301). These are **not this project's code** — Gen-1,
+      nodejs10/18/20, last deployed 2024–2025, from an app that shared the
+      `prvfire33` GCP project. The owner confirmed their provenance.
 
+      **Do `onUserDeleted` FIRST, on its own, and knowingly.** It is the
+      only one of the twelve that can see current data:
+
+      ```bash
+      npx firebase functions:delete onUserDeleted \
+        --project prvfire33 --region us-central1 --force
       ```
-      66 deployed — europe-west1:42, us-central1:21,
-                    europe-west3:2, europe-north1:1
+
+      It is a **Firebase Auth `user.delete` trigger scoped to the whole
+      project** (`resource=projects/prvfire33`) — Auth is project-wide, so
+      the database split does not isolate it. `functions/src/index.ts:882`
+      calls `getAuth().deleteUser(uid)`, which means **every InSight account
+      deletion runs 2024-era code from a different application.** What that
+      code does is unknown; the source is not in this repository. It is
+      executing on the erasure path either way, which is the argument for
+      removing it rather than against.
+
+      **Then the other eleven**, which are inert: every one is a Firestore
+      trigger or HTTPS function on the **`(default)`** database, and v2 lives
+      in **`insight`** (`functions/src/db.ts:29`). They cannot see v2 data.
+
+      ```bash
+      npx firebase functions:delete \
+        addFcmToken aggregatePollResults createLiveStream findSimilarUsers \
+        recalculateVoterPersonality scheduledDeletePastEvents \
+        sendChatNotificationsTrigger sendPushNotificationsTrigger \
+        sendUserPushNotificationsTrigger updateIsNewFieldNew \
+        updatePollResults \
+        --project prvfire33 --region us-central1 --force
       ```
 
-      **Nine of the 21 are D13's list** and appear in `docs/DEPLOYMENT.md`'s
-      delete command. **Twelve are named nowhere in this repository at
-      all**: `updatePollResults`, `aggregatePollResults`,
-      `sendPushNotificationsTrigger`, `sendUserPushNotificationsTrigger`,
-      `sendChatNotificationsTrigger`, `addFcmToken`, `findSimilarUsers`,
-      `createLiveStream`, `recalculateVoterPersonality`,
-      `updateIsNewFieldNew`, `scheduledDeletePastEvents`, `onUserDeleted`.
+      **Two of them bill on a timer** and are the only ones costing anything
+      today: `scheduledDeletePastEvents` and `updateIsNewFieldNew`. Both are
+      wired to the SAME Pub/Sub topic
+      (`firebase-schedule-scheduledDeletePastEvents-us-central1`) and
+      `updateIsNewFieldNew`'s entry point is `scheduledUpdateIsNewStatus` —
+      a deploy collision in the old project, inherited here. **Deleting a
+      Gen-1 scheduled function does not always remove its Cloud Scheduler
+      job and topic**; check for leftovers under Cloud Scheduler afterwards,
+      because a job whose target is gone still runs and still fails.
 
-      **None of the 21 is referenced by any live code file** — verified by
-      grepping every `.ts/.tsx/.js/.jsx` in the tree; the only hits for the
-      nine are `DEPLOYMENT.md`, `DECISIONS.md` and `observe.test.mjs`'s
-      fixture. That makes them orphaned **relative to this repository**,
-      which is NOT the same as safe to delete: several are v1 Firestore or
-      Auth triggers that may still fire against v1 data, and `onUserDeleted`
-      in particular sounds like an erasure path. **Identify before deleting**
-      — the delete command in `DEPLOYMENT.md` names nine and is safe as
-      written; extending it to the other twelve is a decision, not a
-      cleanup.
+      **Verify with the instrument rather than by eye:** re-run
+      `npm run observe -- --functions`. `strayCount` should fall by twelve
+      and no `us-central1` line should name a Gen-1 function.
 
-      The original entry said "nine" because that is what D13 recorded, and
-      D13 recorded what it had retired rather than what production held.
-      Nothing checked the difference until there was a reader.
+- [ ] **5.9c The Algolia extension in `europe-west3` — UNINSTALL, do not
+      delete.** Two functions there are
+      `ext-firestore-algolia-search-6ct7-*`, installed 2024-06-03, indexing
+      a `Cities/{documentID}` collection in `(default)` into Algolia. No
+      document in this repository mentions it.
 
-      **The DIFFERENT-leftover note still stands**, and matters more now: `docs/DEPLOYMENT.md`
-      § "One-off cleanup still owed in production (D13)" has the exact
-      command and it has never had a checkbox — so nothing in the ordered
-      list that holds status has been counting it. Two reasons it is easy
-      to think 5.9 covers this and it does not:
+      **`functions:delete` is the wrong tool** — an extension's functions
+      are managed by the extension, and removing them by hand leaves the
+      instance installed and broken. Confirm the instance id first rather
+      than trusting the one inferred from the function prefix:
 
-      1. **Dropping a name from the deploy `--only` list stops deploying a
-         function; it does not delete the deployed copy.** Today's deploy
-         log lists only `europe-west1` names because the `--only` filter
-         protects everything else from view — it is not evidence the old
-         copies are gone.
-      2. **Three of the nine are SCHEDULED.** They keep firing nightly
-         against empty collections: billed work producing output nobody
-         reads, and — unlike 5.9's duplicated triggers — silent, because
-         nothing downstream changes when they run.
+      ```bash
+      npx firebase ext:list --project prvfire33
+      npx firebase ext:uninstall <instance-id> --project prvfire33
+      ```
 
-      `us-central1` in that command is correct and must not be "fixed" to
-      match D201; see the warning at that heading. Verification is
-      `gcloud functions list --project prvfire33 --regions us-central1`,
-      which nothing in this repo can run.
+      It may also still be costing an Algolia plan outside this bill.
+
+- [ ] **5.9d The nine stranded `europe-west1` copies — THIS project's, and
+      a different decision.** `rebuildAreaAggregates`,
+      `rebuildCityAggregates`, `rebuildWorldAggregates`,
+      `scheduledAreaAggregates`, `scheduledCityAggregates`,
+      `scheduledWorldAggregates`, `scheduledTaxonomies`, `seedTaxonomies`,
+      `sendInboundImpression`.
+
+      These are **Gen-2, nodejs22, deployed 2026-07-29** — InSight's own
+      code, left in `us-central1` when D201 moved the region and D13 dropped
+      them from the deploy list. `docs/DEPLOYMENT.md` § "One-off cleanup
+      still owed in production (D13)" has the command and it is correct as
+      written.
+
+      Kept separate from 5.9b **because the provenance is different**, and
+      the runbook conflated them until D301: twelve are another
+      application's, nine are ours. A single "delete the us-central1
+      leftovers" step would have been one command over two unrelated
+      decisions.
 
 - [ ] **5.9 Deploy the functions to `europe-west1` (D201), then confirm
       the old region is empty.** The code is merged and every gate is

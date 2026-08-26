@@ -30687,3 +30687,87 @@ approval gate because it cannot change anything, and it runs daily at
 D292's separate least-privilege identity is still the right destination
 and is unaffected by this: it was never what stood between the project and
 its own state.
+
+## D301 · Twenty-one strays, three provenances, and one of them runs on every account deletion
+
+**2026-08-26.** `npm run observe -- --functions` described what D300
+counted. The 21 `us-central1` functions are not one leftover with one
+story — they are **two unrelated codebases plus an installed extension**,
+and the runbook had been treating them as a single cleanup since D13.
+
+### The split, by evidence rather than by name
+
+| | count | generation | runtime | last deployed | whose |
+| --- | --- | --- | --- | --- | --- |
+| Old project | 12 | GEN_1 | nodejs10 / 18 / 20 | 2024-03 → 2025-10 | another app on this GCP project |
+| Stranded ours | 9 | GEN_2 | nodejs22 | 2026-07-29 | InSight, left by D201's region move |
+| Algolia extension | 2 (`europe-west3`) | GEN_1 | nodejs18 | 2024-06-03 | `firestore-algolia-search` |
+
+The generation and runtime are what separate them, and neither is visible
+from a name. Nine of the twenty-one were on D13's list; the other twelve
+were on nobody's, and the runbook item written earlier the same day
+inherited the count "nine" from a record rather than from the deployment.
+
+### Eleven of the twelve cannot see this app's data. One can.
+
+The eleven are Firestore triggers or HTTPS functions on the **`(default)`**
+database. v2 lives in **`insight`** (`functions/src/db.ts:29`), and the
+`onV2AnswerCreated` trigger's own event filter says `database=insight`. A
+Firestore trigger cannot cross that boundary, so they are inert with
+respect to everything this project holds.
+
+**`onUserDeleted` is not a Firestore trigger.** It is a Firebase Auth
+`user.delete` trigger with `resource=projects/prvfire33` — **project-wide.
+Auth has no database to be scoped to.** And `functions/src/index.ts:882`
+ends the erasure path with:
+
+```js
+await getAuth().deleteUser(uid);
+```
+
+So **every InSight account deletion executes 2024-era code belonging to a
+different application.** What that code does is unknown and not knowable
+from here: the source is not in this repository, and the repository's own
+history cannot rule it out either — this checkout is a shallow clone
+(182 commits, earliest 2026-08-20), which is a fact worth writing down
+because `git log --all -S` returning nothing looked like proof and was an
+artifact of the clone depth.
+
+It has presumably been failing or no-opping harmlessly for a year. That is
+a guess. What is measured is that it runs, on the one path this product
+treats as a promise, and that is the argument for deleting it deliberately
+and first rather than inside a batch.
+
+### Two are billed work, and they collide
+
+`scheduledDeletePastEvents` and `updateIsNewFieldNew` are the only two on
+timers, so they are the only two costing anything. Both are wired to the
+**same** Pub/Sub topic —
+`firebase-schedule-scheduledDeletePastEvents-us-central1` — and
+`updateIsNewFieldNew`'s entry point is `scheduledUpdateIsNewStatus`. That
+is a deploy collision in the old project, inherited intact. Noted because
+deleting a Gen-1 scheduled function does not reliably remove its Cloud
+Scheduler job, and a job whose target is gone still fires and still fails.
+
+### The extension is not a stray deploy
+
+Two `europe-west3` functions are `firestore-algolia-search-6ct7`, indexing
+`Cities/{documentID}` from `(default)` into Algolia since 2024-06-03.
+`functions:delete` is the wrong instrument: an extension's functions belong
+to the instance, and removing them by hand leaves it installed and broken.
+`ext:uninstall` is the operation, and the instance id should be confirmed
+with `ext:list` rather than inferred from the function prefix — which is
+what this record does, having inferred it.
+
+### What is recorded and what is not
+
+Runbook 5.9b now deletes the twelve, `onUserDeleted` first and alone; 5.9c
+uninstalls the extension; 5.9d keeps the nine as a separate decision
+because they are ours. **No deletion is performed here.** These are
+production functions whose source this repository does not hold, so the
+operation is not reversible from the tree, and "probably fine" — the
+owner's own words, and almost certainly correct — is the right amount of
+confidence to act on and the wrong amount to act on unattended.
+
+The verification is the instrument rather than the eye: re-run
+`npm run observe -- --functions` and `strayCount` should fall by twelve.
