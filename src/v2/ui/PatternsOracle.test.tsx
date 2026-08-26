@@ -22,6 +22,7 @@ const PATTERNS = vi.hoisted(() => ({
   seal: vi.fn((): unknown => null),
   grade: vi.fn((): unknown => null),
   tell: vi.fn(async (): Promise<unknown> => null),
+  working: vi.fn(async (): Promise<unknown> => null),
   meter: vi.fn(() => ({ records: [] as OracleRecord[], called: 0, avgBits: 0 })),
 }));
 vi.mock("../data/patterns", () => ({ default: PATTERNS, PATTERNS }));
@@ -94,6 +95,56 @@ describe("the sealed instrument", () => {
     render(<PatternsOracle items={[QA]} version={1} />);
     fireEvent.click(screen.getByText("qa-yes"));
     expect(LIVE.vote).not.toHaveBeenCalled();
+  });
+});
+
+describe("the working (2026-08-26)", () => {
+  const openWhy = async () => {
+    render(<PatternsOracle items={[QA, item("qb", 1)]} version={1} />);
+    fireEvent.click(screen.getByText("qa-no"));
+    fireEvent.click(screen.getByLabelText(/Why it called/));
+    return screen.findByText("its working");
+  };
+
+  it("rebuilds the call as rows — the answer, the split, the stated basis", async () => {
+    PATTERNS.working.mockResolvedValue({
+      rows: [{ evId: "qb", side: 1, share: 0.81, n: 26, w: 0.4 }],
+      hadEv: true,
+    });
+    await openWhy();
+    expect(PATTERNS.working).toHaveBeenCalledWith("qa");
+    // the row: your answer on the evidence question, the crowd word for
+    // its split, and the D146 basis — a count, never a percent
+    expect(screen.getByText("qb-no")).toBeTruthy();
+    expect(screen.getByText(/nearly always\s+pick/)).toBeTruthy();
+    expect(screen.getByText(/26 in both samples/)).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/\d%/);
+    // the standing basis line under every working
+    expect(screen.getByText(/sealed before your tap/)).toBeTruthy();
+  });
+
+  it("a call carried by nothing says so, in the crowd's-own-lean words", async () => {
+    PATTERNS.working.mockResolvedValue({ rows: [], hadEv: false });
+    await openWhy();
+    expect(screen.getByText(/the call is the crowd’s own lean/)).toBeTruthy();
+  });
+
+  it("thin evidence is named as thinness, never dressed as absence", async () => {
+    PATTERNS.working.mockResolvedValue({ rows: [], hadEv: true });
+    await openWhy();
+    expect(screen.getByText(/under 12 in both samples/)).toBeTruthy();
+    expect(screen.queryByText(/crowd’s own lean/)).toBeNull();
+  });
+
+  it("the ledger's standing key appears once a record exists", () => {
+    PATTERNS.meter.mockReturnValue({
+      records: [{ qid: "qb", p0: 0.7, pred: 0, at: 1, mine: 1, bits: 1.2 }],
+      called: 0,
+      avgBits: 1.2,
+    });
+    render(<PatternsOracle items={[QA, item("qb", 1)]} version={1} />);
+    expect(screen.getByText("you broke its guess")).toBeTruthy();
+    expect(screen.getByText("it had you")).toBeTruthy();
   });
 });
 
