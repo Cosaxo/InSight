@@ -66,10 +66,11 @@ import LIVE from "../data/live";
 import { VOTER_FETCH_CAP } from "../data/voters";
 import { bucketLabel } from "./cohortLabels";
 import {
-  COHORT_DIMS, DIM_LABEL, cellFor, divergenceFor, mixFor, pctFor, byOf, vocabMix,
+  COHORT_DIMS, DIM_LABEL, cellFor, divergenceFor, meanScore, mixFor, pctFor, byOf, vocabMix,
   type ByMap, type Bucket,
 } from "../data/cohort";
 import { DIM_VOCAB } from "./cohortVocab";
+import RatingRidge from "./RatingRidge";
 import { typeDivergence, typeSplitFor, type TypeSplitRow } from "../data/typeSplit";
 import { logicDivergence, logicSplitFor, type LogicSplitRow } from "../data/logicSplit";
 import { parseLogicPct } from "../data/similarity";
@@ -202,6 +203,34 @@ function LbOptionRows({ options, counts, mine, mode = "pct" }: {
   );
 }
 
+// ── a rating's body: the average and the spread (D301) ───────────────
+//
+// A ten-step rating drawn as LbOptionRows is ten rows of noise — the
+// reading of an ordinal scale is a POSITION plus a spread, which is one
+// figure. Same ridge the Map's card draws for the same number, and the
+// same mean `meanScore` gives the Scores lens, so no two surfaces can
+// disagree about what a cohort averages.
+function LbRatingBody({ counts, mine }: { counts: number[]; mine: number }) {
+  const s = meanScore(counts);
+  if (!s) return null;
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 7, fontFamily: "var(--sans)" }}>
+        <span style={{ fontWeight: 800, fontSize: 24, letterSpacing: "-0.03em", color: "var(--ink)", fontVariantNumeric: "tabular-nums" }}>
+          {s.mean.toFixed(1)}
+        </span>
+        <span style={{ fontWeight: 700, fontSize: 12, color: "var(--ink-3)" }}>/ {s.max} average</span>
+        {mine >= 0 && (
+          <span style={{ marginLeft: "auto", fontWeight: 600, fontSize: 12, color: "var(--ink-2)" }}>
+            you said {mine + 1}
+          </span>
+        )}
+      </div>
+      <RatingRidge counts={counts} mine={mine} />
+    </div>
+  );
+}
+
 // ── the all-rows overview (D300) ─────────────────────────────────────
 //
 // A dim opens onto its whole scale at once: the published split as an
@@ -217,7 +246,7 @@ function LbOptionRows({ options, counts, mine, mode = "pct" }: {
 // once somebody has picked them. The thin vertical seam on each row marks
 // where EVERYONE landed on the first option, so a row's lean reads
 // against the crowd without a glance back up.
-function LbCohortRows({ dim, buckets, options, overall, myBucket, openBucket, onRow, renderDetail }: {
+function LbCohortRows({ dim, buckets, options, overall, myBucket, openBucket, onRow, renderDetail, kind }: {
   dim: string;
   buckets: Bucket[];
   options: string[];
@@ -228,8 +257,18 @@ function LbCohortRows({ dim, buckets, options, overall, myBucket, openBucket, on
   openBucket: string;
   onRow: (bucket: string) => void;
   renderDetail: (b: Bucket) => React.ReactNode;
+  /** The question's bank type — a rating's rows read as averages (D301). */
+  kind?: string;
 }) {
   const overallPct = pctFor(overall);
+  // A rating's row is a POSITION, not a split: ten stacked segments per
+  // row are stripes about nothing, so each bar fills to the cohort's
+  // AVERAGE and prints it, and the seam marks everyone's (D301).
+  const rating = kind === "rating";
+  const overallMean = rating ? meanScore(overall) : null;
+  const seamPct = rating
+    ? (overallMean ? (overallMean.mean / overallMean.max) * 100 : 0)
+    : (overallPct[0] || 0);
   const many = buckets.length > 6;
   const barH = many ? 20 : 26;
   const radius = many ? 5 : 7;
@@ -247,17 +286,31 @@ function LbCohortRows({ dim, buckets, options, overall, myBucket, openBucket, on
     <div style={{ display: "flex", flexDirection: "column", gap: many ? 6 : 8 }}>
       <div style={{ ...GRID, alignItems: "end" }}>
         <span style={{ fontFamily: "var(--sans)", fontWeight: 700, fontSize: 11.5, color: "var(--ink-3)" }}>Everyone</span>
-        <span style={{ display: "flex", height: 30, borderRadius: 8, overflow: "hidden" }}>
-          {overallPct.map((p, oi) => (
-            <span key={oi} style={{
-              width: `${p}%`, boxSizing: "border-box", background: sideFill(oi, options.length),
-              display: "flex", alignItems: "center",
-              justifyContent: oi === overallPct.length - 1 ? "flex-end" : "flex-start",
-              padding: "0 9px", color: "#fff", fontFamily: "var(--sans)",
-              fontSize: 11.5, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden",
-            }}>{p >= 24 ? options[oi] : ""}</span>
-          ))}
-        </span>
+        {rating ? (
+          <span style={{ position: "relative", display: "block", height: 30, borderRadius: 8, overflow: "hidden", border: LB_LINE, background: "var(--surface)" }}>
+            <span aria-hidden="true" style={{
+              position: "absolute", left: 0, top: 0, bottom: 0, width: `${seamPct}%`,
+              background: "color-mix(in oklch, var(--accent, var(--ink)) 30%, var(--surface))",
+            }}></span>
+            <span style={{
+              position: "absolute", inset: 0, display: "flex", alignItems: "center", padding: "0 9px",
+              fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 800, color: "var(--ink)",
+              fontVariantNumeric: "tabular-nums",
+            }}>{overallMean ? `${overallMean.mean.toFixed(1)} / ${overallMean.max}` : ""}</span>
+          </span>
+        ) : (
+          <span style={{ display: "flex", height: 30, borderRadius: 8, overflow: "hidden" }}>
+            {overallPct.map((p, oi) => (
+              <span key={oi} style={{
+                width: `${p}%`, boxSizing: "border-box", background: sideFill(oi, options.length),
+                display: "flex", alignItems: "center",
+                justifyContent: oi === overallPct.length - 1 ? "flex-end" : "flex-start",
+                padding: "0 9px", color: "#fff", fontFamily: "var(--sans)",
+                fontSize: 11.5, fontWeight: 800, whiteSpace: "nowrap", overflow: "hidden",
+              }}>{p >= 24 ? options[oi] : ""}</span>
+            ))}
+          </span>
+        )}
       </div>
       {buckets.map((b) => {
         const label = bucketLabel(dim, b.bucket);
@@ -282,6 +335,7 @@ function LbCohortRows({ dim, buckets, options, overall, myBucket, openBucket, on
         }
         const open = openBucket === b.bucket;
         const pct = pctFor(b.counts);
+        const rowMean = rating ? meanScore(b.counts) : null;
         return (
           <React.Fragment key={b.bucket}>
             <button
@@ -298,13 +352,28 @@ function LbCohortRows({ dim, buckets, options, overall, myBucket, openBucket, on
                 position: "relative", display: "flex", height: barH, borderRadius: radius,
                 overflow: "visible", boxShadow: you ? "0 0 0 1.5px var(--ink)" : "none",
               }}>
-                <span style={{ position: "absolute", inset: 0, display: "flex", borderRadius: radius, overflow: "hidden" }}>
-                  {pct.map((p, oi) => (
-                    <span key={oi} style={{ width: `${p}%`, background: sideFill(oi, options.length) }}></span>
-                  ))}
-                </span>
+                {rating ? (
+                  <span style={{ position: "absolute", inset: 0, borderRadius: radius, overflow: "hidden", border: LB_LINE, background: "var(--surface)" }}>
+                    <span aria-hidden="true" style={{
+                      position: "absolute", left: 0, top: 0, bottom: 0,
+                      width: `${rowMean ? (rowMean.mean / rowMean.max) * 100 : 0}%`,
+                      background: "color-mix(in oklch, var(--accent, var(--ink)) 30%, var(--surface))",
+                    }}></span>
+                    <span style={{
+                      position: "absolute", inset: 0, display: "flex", alignItems: "center", padding: "0 8px",
+                      fontFamily: "var(--sans)", fontSize: many ? 10.5 : 11, fontWeight: 800,
+                      color: "var(--ink)", fontVariantNumeric: "tabular-nums",
+                    }}>{rowMean ? rowMean.mean.toFixed(1) : ""}</span>
+                  </span>
+                ) : (
+                  <span style={{ position: "absolute", inset: 0, display: "flex", borderRadius: radius, overflow: "hidden" }}>
+                    {pct.map((p, oi) => (
+                      <span key={oi} style={{ width: `${p}%`, background: sideFill(oi, options.length) }}></span>
+                    ))}
+                  </span>
+                )}
                 <span aria-hidden="true" style={{
-                  position: "absolute", top: -3, bottom: -3, left: `${overallPct[0] || 0}%`,
+                  position: "absolute", top: -3, bottom: -3, left: `${seamPct}%`,
                   width: 1.5, borderRadius: 1, background: "var(--ink)", opacity: 0.55,
                 }}></span>
               </span>
@@ -437,11 +506,17 @@ function LbFriends({ qid, options, mine }: {
   );
 }
 
-function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
+function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
   qid: string;
   options: string[];
   /** The viewer's own option index, or -1. */
   mine?: number;
+  /**
+   * The question's bank type. A `rating` collapses every option-rows body
+   * to the average and the spread (D301) — ten rows about a ten-step
+   * scale answer none of the questions a reader brings to it.
+   */
+  kind?: string;
   /**
    * A body for question forms whose result is not a list of options — the
    * dial's track and the field's plane (D114). Given this cohort's dense
@@ -477,6 +552,7 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
 
   if (!LIVE.enabled || !qid) return null;
 
+  const rating = kind === "rating";
   const n = options.length;
   const agg = LIVE.aggFor(qid);
   const by: ByMap | undefined = byOf(agg);
@@ -707,12 +783,14 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
           // out of exact published cells, and handing them a bounded
           // sample would put a sampled position on a track that reads as
           // the population's.
-          <LbOptionRows
-            options={options}
-            counts={typeRow.counts}
-            mine={mine}
-            mode={split && split.enough ? "pct" : "count"}
-          />
+          rating
+            ? <LbRatingBody counts={typeRow.counts} mine={mine} />
+            : <LbOptionRows
+              options={options}
+              counts={typeRow.counts}
+              mine={mine}
+              mode={split && split.enough ? "pct" : "count"}
+            />
         )
       ) : logicOpen ? (
         !logicRow ? null : !logicRow.n ? (
@@ -723,12 +801,14 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
           // otherwise. No renderBody here for the type cut's own reason —
           // a sampled position must not draw on a track that reads as the
           // population's.
-          <LbOptionRows
-            options={options}
-            counts={logicRow.counts}
-            mine={mine}
-            mode={lsplit && lsplit.enough ? "pct" : "count"}
-          />
+          rating
+            ? <LbRatingBody counts={logicRow.counts} mine={mine} />
+            : <LbOptionRows
+              options={options}
+              counts={logicRow.counts}
+              mine={mine}
+              mode={lsplit && lsplit.enough ? "pct" : "count"}
+            />
         )
       ) : rowsView ? (
         <>
@@ -740,13 +820,20 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
             myBucket={myAnchors[openDim] || ""}
             openBucket={openBucket}
             onRow={setBucket}
+            kind={kind}
             renderDetail={(b) => {
               // Where this cohort parts company with everyone — the same
               // fold the Mirror's Explore lens reads, so the two surfaces
               // cannot disagree about which option a group is unusual on.
-              const d = divergenceFor(by, openDim, b.bucket, overall, n);
+              // A rating compares MEANS instead (D301): "more likely to
+              // say 7" is a true sentence about a histogram bucket and a
+              // useless one about a scale.
+              const d = rating ? null : divergenceFor(by, openDim, b.bucket, overall, n);
               const basePct = pctFor(overall);
               const label = bucketLabel(openDim, b.bucket);
+              const bMean = rating ? meanScore(b.counts) : null;
+              const oMean = rating ? meanScore(overall) : null;
+              const meanGap = bMean && oMean ? bMean.mean - oMean.mean : 0;
               return (
                 <>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
@@ -757,12 +844,21 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
                       {b.n.toLocaleString()} {b.n === 1 ? "answer" : "answers"}
                     </span>
                   </div>
-                  <LbOptionRows options={options} counts={b.counts} mine={mine} />
+                  {rating
+                    ? <LbRatingBody counts={b.counts} mine={mine} />
+                    : <LbOptionRows options={options} counts={b.counts} mine={mine} />}
                   {/* "Same as everyone" is a real finding on a cohort
                       screen — stated rather than left as an absence the
                       reader has to interpret. */}
                   <div style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.5, textWrap: "pretty" }}>
-                    {d && d.gap > 0
+                    {rating ? (
+                      bMean && oMean && Math.abs(meanGap) >= 0.1
+                        ? <>
+                          {label} average <strong style={{ color: "var(--ink-2)" }}>{bMean.mean.toFixed(1)}</strong>
+                          {" "}— {Math.abs(meanGap).toFixed(1)} {meanGap > 0 ? "above" : "below"} everyone.
+                        </>
+                        : <>{label} land right where everyone lands.</>
+                    ) : d && d.gap > 0
                       ? <>
                         {label} are <strong style={{ color: "var(--ink-2)" }}>{d.gap} points</strong>
                         {" "}{d.pct[d.optionIdx] > (basePct[d.optionIdx] || 0) ? "more" : "less"} likely
@@ -787,7 +883,9 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody }: {
       ) : (
         renderBody
           ? renderBody(counts, pick, overall)
-          : <LbOptionRows options={options} counts={counts} mine={mine} />
+          : rating
+            ? <LbRatingBody counts={counts} mine={mine} />
+            : <LbOptionRows options={options} counts={counts} mine={mine} />
       )}
 
       {/* THE BASIS, stated every time the type cut is open.

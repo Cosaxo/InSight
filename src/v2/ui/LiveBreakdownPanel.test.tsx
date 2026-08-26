@@ -368,6 +368,58 @@ describe("LiveBreakdownPanel · the whole scale, in order (D300)", () => {
   });
 });
 
+// ── a rating answers with its average (D301) ─────────────────────────
+//
+// Ten option rows about a ten-step scale answer none of the questions a
+// reader brings to it. With kind="rating" every body that would draw
+// option rows draws the average and the spread instead, and cohort rows
+// fill to their MEAN — the same `meanScore` the Scores lens reads, so no
+// two surfaces can disagree about what a cohort averages.
+describe("LiveBreakdownPanel · a rating answers with its average (D301)", () => {
+  const TEN = Array.from({ length: 10 }, (_, i) => String(i + 1));
+  // 20 answers, mean 6.0; 25-34 run high (mean 8.0), 55-64 low (4.0).
+  const RAGG = {
+    counts: { "3": 5, "5": 5, "7": 10 },
+    total: 20,
+    by: {
+      ageBand: {
+        "25-34": { "7": 10 },
+        "55-64": { "3": 5, "5": 5 },
+      },
+    },
+  };
+
+  it("draws Everyone as average and spread, never ten rows", () => {
+    LIVE.aggFor = () => RAGG;
+    render(<LiveBreakdownPanel qid="q1" options={TEN} mine={7} kind="rating" />);
+    // counts: idx3=5, idx5=5, idx7=10 → mean (4*5+6*5+8*10)/20 = 6.5.
+    expect(screen.getByText("6.5")).toBeTruthy();
+    expect(screen.getByText("/ 10 average")).toBeTruthy();
+    expect(screen.getByText("you said 8")).toBeTruthy();
+    expect(screen.getByRole("img", { name: /Spread across 10 steps/ })).toBeTruthy();
+    // No option-row list: "7" as a row label with a percentage would be
+    // the ten-row wall this mode exists to retire.
+    expect(screen.queryByText("70%")).toBeNull();
+  });
+
+  it("rows carry each cohort's average, compared in means not points", () => {
+    LIVE.aggFor = () => RAGG;
+    render(<LiveBreakdownPanel qid="q1" options={TEN} mine={7} kind="rating" />);
+    fireEvent.click(chip("Age"));
+    // The dim header bar states everyone's mean once.
+    expect(screen.getByText("6.5 / 10")).toBeTruthy();
+    // Each populated row prints its own mean.
+    expect(screen.getByText("8.0")).toBeTruthy();
+    expect(screen.getByText("5.0")).toBeTruthy();
+    fireEvent.click(chip(/^25-34 · 10/));
+    const region = detail(/^25-34 split$/);
+    expect(within(region).getByText("/ 10 average")).toBeTruthy();
+    // 8.0 against 6.5 → 1.5 above everyone, said in means.
+    expect(screen.getByText(/1\.5 above everyone/)).toBeTruthy();
+    expect(screen.queryByText(/points/)).toBeNull();
+  });
+});
+
 // ── the one cut that answers with people (D149) ──────────────────────
 describe("LiveBreakdownPanel · the Friends cut", () => {
   const FRIENDS = ["f1", "f2", "f3"];

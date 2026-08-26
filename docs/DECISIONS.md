@@ -30659,3 +30659,56 @@ and test results are aggregated per cohort by nothing. The sample-based
 Type and Logic cuts (D146, D227) remain the honest stand-ins. Structured
 job/education anchors would be a profile + vocabulary + trigger change on
 D8's turf and are recorded as open, not begun.
+
+## D301 · A rating is one figure, not ten rows: the scale row, the ridge, and the mean
+
+**Decided:** 2026-08-26 · **Status:** binding. The same owner review as
+D300: "questions with a lot of options still use a bit too much space
+when showing all their options — for example when rating things out of
+10, so all options can't fit on one page."
+
+### 1 · Where the ten rows were
+
+Everywhere the scale went. A `rating` becomes options `"1"…"10"` at the
+bank boundary (daily-questions.js), and every surface downstream drew
+those ten options with the machinery built for CHOICES: the daily's ask
+was ten stacked 56px buttons (taller than a phone screen before the
+question could be answered), the result ten flex tiles inside
+`sdSplitStageH(10)` = 653px, and the who-voted sheet ten `LbOptionRows`
+per cohort. Each was correct for a categorical question and each was
+noise here, because a scale's reading is a POSITION plus a spread — one
+figure — and the Map's card has known that since its `mmt-ridge`
+existed: "rating → too many rows; show the group's full spread as a
+small ridge" (map-bottom-card.jsx).
+
+### 2 · One figure, three surfaces, one component
+
+- `ui/RatingRidge.tsx` is the mmt-ridge shape in component form: every
+  step drawn whether or not anyone chose it, your column marked, the
+  crowd's peak named only when it is not yours. The daily's result and
+  the breakdown sheet both draw it; the Map keeps its own (same shape,
+  its own chrome).
+- The daily's ask is a single row of ten steps on a ramp of the topic's
+  hue — a ramp, not the option-colour rotation, because distinct hues
+  read as categories and a scale is not categories. Same tap, same vote
+  path, same stored optionIdx: `castVote` is the one vote path both ask
+  shapes share now, extracted so two copies cannot drift (D86's edit
+  routing rides along unchanged).
+- The breakdown sheet takes `kind`: with `kind="rating"` every body
+  that would draw option rows draws the mean and the ridge
+  (`LbRatingBody`), D300's cohort rows fill to each cohort's MEAN with
+  the seam at everyone's, and the divergence sentence compares means —
+  "more likely to say 7" is a true sentence about a histogram bucket
+  and a useless one about a scale. The mean is `meanScore`
+  (data/cohort.ts), the same fold the Scores lens reads, so no two
+  surfaces can disagree about what a cohort averages.
+- The consequence beat is skipped for ratings: it animates SIDES, and
+  ten steps of one scale are not sides.
+
+### 3 · What did not change
+
+The bank, the wire, and the answer. A rating is still ten options and an
+optionIdx — D52's frozen option sets, D86's one edit shape and the
+aggregate's dense cells all hold exactly as they were. This is a
+presentation decision about surfaces, which is why it could ship without
+touching functions/ at all.

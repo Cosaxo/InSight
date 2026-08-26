@@ -37,6 +37,10 @@ import { sharePcts } from '../data/pct';
 // boot.
 import PulseCard from '../ui/PulseCard.tsx';
 import PULSE from '../data/pulse.ts';
+// The rating result's ridge (D301) — static like PulseCard: a voted
+// rating day draws it on the first screen, so lazy would only add a
+// flash, and the component is a leaf a few hundred bytes long.
+import RatingRidge from '../ui/RatingRidge.tsx';
 const LiveTakesPanel = React.lazy(() => import('../ui/LiveTakesPanel.tsx'));
 // The live who-voted sheet (D125), on exactly the same terms — lazy, for
 // the same measured reason, and reached by ESM so the coupling meter stays
@@ -373,6 +377,27 @@ class DailySplit extends React.Component {
     clearTimeout(this._ehT);
     this.setState({ editHold: id });
     this._ehT = setTimeout(() => this.setState({ editHold: null }), 2600);
+  }
+  // ONE vote path for every ask shape — D301 gave the daily two (the
+  // option column and the rating scale row), and two copies of this is
+  // how they drift. D86: after a hold-to-change the server still holds
+  // the old vote — LIVE.vote is create-only, so a re-pick routes through
+  // editVote. A false return (unacked write, or the 60s cooldown) keeps
+  // the standing pick and says why on the meta line. (One window read,
+  // hoisted — the vote call used two.)
+  castVote(S, optId) {
+    let next = optId, moved = true;
+    const L = S.live ? window.LIVE : null;
+    if (L) {
+      const prior = (L.myVotes && L.myVotes()[S.id]) || null;
+      if (prior == null) L.vote(S.id, next);
+      else if (prior === next) moved = false; // re-picked the standing vote: nothing to say
+      else if (!(L.editVote && L.editVote(S.id, next))) { next = prior; moved = false; this.holdNote(S.id); }
+    }
+    if (moved) { this.syncToMap(S, next); this.showMapToast(S.id); }
+    // The consequence beat animates SIDES; ten steps of one scale are not
+    // sides, so a rating goes straight to its result (D301).
+    this.setState(s => ({ votes: { ...s.votes, [S.id]: next }, repick: null, filter: 'all', beat: (moved && this.props.beats !== false && window.ConsequenceBeat && S.type !== 'rating') ? S.id : null }));
   }
   mapBranch(S) {
     const s = DAILYSPLIT_DQ_SYNC[S.id];
@@ -927,30 +952,49 @@ class DailySplit extends React.Component {
         // 236px column left a 22px word floating in a 115px box, reading as a skeleton
         // asking: each side carries its own hue mark and sits left-aligned, so
         // the two rows read as choices rather than two empty boxes
-        ? h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
-            S.options.map((o, i) => h('button', { key: o.id, className: 'press sd-opt', onClick: () => {
-              // D86: after a hold-to-change the server still holds the old
-              // vote — LIVE.vote is create-only, so a re-pick routes through
-              // editVote. A false return (unacked write, or the 60s
-              // cooldown) keeps the standing pick and says why on the meta
-              // line. (One window read, hoisted — the vote call used two.)
-              let next = o.id, moved = true;
-              const L = S.live ? window.LIVE : null;
-              if (L) {
-                const prior = (L.myVotes && L.myVotes()[S.id]) || null;
-                if (prior == null) L.vote(S.id, next);
-                else if (prior === next) moved = false; // re-picked the standing vote: nothing to say
-                else if (!(L.editVote && L.editVote(S.id, next))) { next = prior; moved = false; this.holdNote(S.id); }
-              }
-              if (moved) { this.syncToMap(S, next); this.showMapToast(S.id); }
-              this.setState(s => ({ votes: { ...s.votes, [S.id]: next }, repick: null, filter: 'all', beat: (moved && this.props.beats !== false && window.ConsequenceBeat) ? S.id : null }));
-            }, style: { '--opt': o.color, minHeight: 56, background: 'color-mix(in oklch, ' + o.color + ' 11%, var(--surface-2))', border: '1px solid color-mix(in oklch, ' + o.color + ' 32%, var(--rule))', borderRadius: 15, padding: '13px 18px', display: 'flex', alignItems: 'center', gap: 13, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none', boxShadow: 'none', transition: 'background .16s ease, border-color .16s ease' } },
+        ? (S.type === 'rating'
+          // A ten-step rating as ONE row (D301): ten stacked 56px option
+          // buttons filled more than a screen before the question could
+          // be answered. The scale is a ramp of the topic's hue — a
+          // rotation of distinct hues reads as categories, and a scale is
+          // not categories. Same tap, same vote path, same stored
+          // optionIdx as the column it replaces.
+          ? h('div', { style: { display: 'flex', gap: 5 } },
+              S.options.map((o, i) => {
+                const t = Math.round((i * 100) / Math.max(1, S.options.length - 1));
+                return h('button', { key: o.id, className: 'press', onClick: () => this.castVote(S, o.id), style: { flex: '1 1 0', minWidth: 0, height: 52, border: '1px solid color-mix(in oklch, ' + topicCol + ' ' + (14 + Math.round(t * 0.26)) + '%, var(--rule))', borderRadius: 12, background: 'color-mix(in oklch, ' + topicCol + ' ' + (5 + Math.round(t * 0.22)) + '%, var(--surface-2))', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 15, color: 'var(--ink)', cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } }, o.label);
+              }))
+          : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 8 } },
+            S.options.map((o, i) => h('button', { key: o.id, className: 'press sd-opt', onClick: () => this.castVote(S, o.id), style: { '--opt': o.color, minHeight: 56, background: 'color-mix(in oklch, ' + o.color + ' 11%, var(--surface-2))', border: '1px solid color-mix(in oklch, ' + o.color + ' 32%, var(--rule))', borderRadius: 15, padding: '13px 18px', display: 'flex', alignItems: 'center', gap: 13, cursor: 'pointer', textAlign: 'left', WebkitAppearance: 'none', boxShadow: 'none', transition: 'background .16s ease, border-color .16s ease' } },
               h('span', { 'aria-hidden': true, style: { width: 9, height: 9, borderRadius: '50%', background: o.color, flexShrink: 0 } }),
-              h('span', { style: { fontWeight: 800, fontSize: 21, color: 'var(--ink)', letterSpacing: '-0.025em', textWrap: 'pretty' } }, o.label))))
+              h('span', { style: { fontWeight: 800, fontSize: 21, color: 'var(--ink)', letterSpacing: '-0.025em', textWrap: 'pretty' } }, o.label)))))
         : (st.beat === S.id && window.ConsequenceBeat)
         ? h(window.ConsequenceBeat, { key: 'beat-' + S.id, seed: S.id, options: S.options, pcts: rp, mineIdx: myIdx, height: 320, onDone: () => this.setState({ beat: null }) })
         : h('div', { style: { ...col(11), animation: 'popIn .35s cubic-bezier(0.2,0.8,0.2,1)' } },
-            h('div', { style: { display: 'flex', flexDirection: 'column', gap: 7, height: sdSplitStageH(S.options.length) } },
+            S.type === 'rating'
+            // The result as the Map's card draws the same number
+            // (mmt-ridge, map-bottom-card.jsx): the average, the spread,
+            // your column — not ten stacked tiles taller than the screen
+            // (D301). The whole figure carries the tiles' hold-to-change,
+            // since there is no "your row" to hold.
+            ? (() => {
+                const avg = total ? counts.reduce((a, c, i) => a + c * (i + 1), 0) / total : 0;
+                const lpEnd = () => { clearTimeout(this._lpT); if (this.state.pressing) this.setState({ pressing: false }); };
+                const lp = canChange ? {
+                  onPointerDown: () => { clearTimeout(this._lpT); this.setState({ pressing: true }); this._lpT = setTimeout(() => { this.setState({ pressing: false }); onReset(); }, 550); },
+                  onPointerUp: lpEnd, onPointerLeave: lpEnd, onPointerCancel: lpEnd,
+                  onContextMenu: (e) => e.preventDefault(),
+                  title: 'Hold to change your vote',
+                  'aria-label': 'You said ' + (myIdx + 1) + '. Hold to change it.',
+                } : {};
+                return h('div', { ...lp, style: { display: 'flex', flexDirection: 'column', gap: 9, padding: '2px 2px 0', transform: st.pressing ? 'scale(0.985)' : 'none', transition: 'transform .45s cubic-bezier(0.2,0.8,0.2,1)', touchAction: 'pan-y', userSelect: 'none', WebkitUserSelect: 'none', cursor: canChange ? 'pointer' : 'default' } },
+                  h('div', { style: { display: 'flex', alignItems: 'baseline', gap: 8 } },
+                    h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 30, letterSpacing: '-0.04em' } }, avg ? (Math.round(avg * 10) / 10).toFixed(1) : '—'),
+                    h('span', { style: { fontWeight: 700, fontSize: 12.5, color: 'var(--ink-3)' } }, '/ ' + S.options.length + ' average'),
+                    myIdx >= 0 && h('span', { style: { marginLeft: 'auto', fontWeight: 700, fontSize: 12.5, color: 'var(--ink-2)' } }, 'you said ' + (myIdx + 1))),
+                  h(RatingRidge, { counts, mine: myIdx, color: topicCol, height: 64 }));
+              })()
+            : h('div', { style: { display: 'flex', flexDirection: 'column', gap: 7, height: sdSplitStageH(S.options.length) } },
             S.options.map((o, i) => {
               // change-vote lives behind a long-press on your own bar
               const mineRow = myVote === o.id;
@@ -1016,7 +1060,8 @@ class DailySplit extends React.Component {
             svgI('<path d="M5 19.5V13M12 19.5V5.5M19 19.5V10"/>', 17),
             'Who voted')),
         st.liveStats === S.id && h(React.Suspense, { fallback: null },
-          h(LiveBreakdownPanel, { qid: S.id, options: S.options.map(o => o.label), mine: myIdx })),
+          // kind: a rating's sheet reads as averages, not option rows (D301).
+          h(LiveBreakdownPanel, { qid: S.id, options: S.options.map(o => o.label), mine: myIdx, kind: S.type })),
         // The daily's options in the question's own order, so each take
         // carries its author's side and the list can be filtered by side
         // (D149). Same order the aggregate's cells are keyed in, which is
