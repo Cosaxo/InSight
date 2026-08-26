@@ -30817,7 +30817,8 @@ thing the person who wrote them re-reads and catches.
 
 ## D302 · Serving becomes selection: pages instead of the whole bank, and the order inherits the caps' job
 
-**Status:** Proposed · **Requested:** 2026-08-26, owner: *"don't fetch
+**Status:** binding — adopted 2026-08-26, owner: *"we should build the
+real fixes now."* · **Requested:** 2026-08-26, owner: *"don't fetch
 every question every time — there should be lazy loading and algorithms
 deciding what questions to show … like learn, no need to limit that in
 any meaningful capacity, facts are facts, and if you create what turns
@@ -30929,7 +30930,8 @@ conversion is its own reviewed change.
 
 ## D303 · The taste model moves to the server, because selection cannot be personal from inside a page
 
-**Status:** Proposed · **Requested:** 2026-08-26, owner, on being told
+**Status:** binding — adopted 2026-08-26 with D302, owner: *"we should
+build the real fixes now."* · **Requested:** 2026-08-26, owner, on being told
 D302 keeps the server's half of the order global: *"this app should
 absolutely track what you personally like — if not, it does not work."*
 This reverses the row D163 narrowed — **server-side per-user content
