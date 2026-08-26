@@ -1,18 +1,21 @@
 {
   "displayName": "fitPatternsV2 has gone quiet",
   "documentation": {
-    "content": "The nightly fitPatternsV2 run has not reported a completed scan.\n\nWHY THIS POLICY EXISTS. It is the third instance of the shape scheduledDuelReveals-silent.json exists for, and it was missing until an audit counted the schedules against the policies: five policies, and neither of the two nightly jobs among them. A scheduled function that stops running reports NOTHING — no error, no page, no failed request — because the failure is an absence. Everything downstream keeps serving whatever it last published, so the console stays green and the app looks healthy while the number on screen ages.\n\nWHAT IT WATCHES. The log-based metric `patterns_fit`, which functions/src/patterns.ts already emitted before this policy existed — the emit side was never the gap. `conditionAbsent` over a window longer than one run: the cron is 02:37 UTC daily, so 30 hours is one missed run plus six hours of slack, rather than the 3x-the-period the two-hourly reveal scan can afford.\n\nWHY IT MATTERS HERE. the Patterns tab has no other source: v2_patterns/loadings is what the Map places questions by and what the Oracle estimates from, and a fit that stops running leaves the tab drawing a model that quietly ages.\n\nFIRST RESPONSE. Check Cloud Scheduler for the job's last execution and its status, then the function's own logs for the run that should have happened. A run that STARTED and threw shows up in the errors, not here; this policy is specifically for the run that never began — a paused scheduler job, a failed deploy that dropped the trigger, or a quota block. check:deploy-targets and check:fn-runtime cover the deploy-side causes at commit time, so a fire here after a green deploy points at the scheduler or the project, not the code."
+    "content": "The nightly fitPatternsV2 run has not reported a completed scan.\n\nWHY THIS POLICY EXISTS. It is the third instance of the shape scheduledDuelReveals-silent.json exists for, and it was missing until an audit counted the schedules against the policies: five policies, and neither of the two nightly jobs among them. A scheduled function that stops running reports NOTHING — no error, no page, no failed request — because the failure is an absence. Everything downstream keeps serving whatever it last published, so the console stays green and the app looks healthy while the number on screen ages.\n\nWHAT IT WATCHES. The log-based metric `patterns_fit`, which functions/src/patterns.ts already emitted before this policy existed — the emit side was never the gap. A THRESHOLD over a trailing 24 hours rather than an absence — see below; the cron is 02:37 UTC daily.\n\nWHY IT MATTERS HERE. the Patterns tab has no other source: v2_patterns/loadings is what the Map places questions by and what the Oracle estimates from, and a fit that stops running leaves the tab drawing a model that quietly ages.\n\nFIRST RESPONSE. Check Cloud Scheduler for the job's last execution and its status, then the function's own logs for the run that should have happened. A run that STARTED and threw shows up in the errors, not here; this policy is specifically for the run that never began — a paused scheduler job, a failed deploy that dropped the trigger, or a quota block. check:deploy-targets and check:fn-runtime cover the deploy-side causes at commit time, so a fire here after a green deploy points at the scheduler or the project, not the code.\n\nWHY THIS IS A THRESHOLD AND NOT AN ABSENCE, which is the arithmetic that\ndecides it. Cloud Monitoring refuses any `conditionAbsent.duration` over\n**23h30m (84600s)** — a server-side ceiling that appears in neither the v3\ndiscovery document nor alert.proto, both of which state only a 120s\nminimum. It is real: the first `--apply` run met it after the\n`resource.type` fix, and six independent public repositories record it,\nseveral as live-verified.\n\nThat ceiling makes an absence condition **unable to express this policy at\nall**. The cron is 02:37 UTC daily, so the healthy gap between two runs is\n86400s — LONGER than the longest window the API will accept. Any absence\npolicy here goes true for the ~30 minutes between the 84600s mark and the\nnext run, every single morning. An alert that pages daily is one the\noperator learns to delete, which is the failure `DEPLOYMENT.md § Alerting`\nopens by refusing.\n\nSo the shape changed instead of the number: count the runs in a trailing\n24 hours and fire when there are none. `ALIGN_SUM` over an 86400s\nalignment period (the alerting maximum is 90000s), `COMPARISON_LT 1`, held\nfor an hour. On a healthy day that sum is 1 and the condition never goes\ntrue; on a missed run it is 0.\n\n`evaluationMissingData: EVALUATION_MISSING_DATA_ACTIVE` is what keeps the\nabsence half. A threshold over a series that has stopped emitting entirely\n— the function deleted, the trigger dropped — would otherwise evaluate\nnothing and stay green forever, which is the exact hole the absence\ncondition existed to close. ACTIVE treats missing data as the condition\nbeing met. It requires a `duration` of at least 60s, which is why the hour\nis not zero.\n"
   },
   "combiner": "OR",
   "conditions": [
     {
-      "displayName": "no completed fitPatternsV2 run for 30 hours",
-      "conditionAbsent": {
+      "displayName": "no completed fitPatternsV2 run in 24 hours",
+      "conditionThreshold": {
         "filter": "metric.type=\"logging.googleapis.com/user/patterns_fit\" AND resource.type=\"cloud_run_revision\"",
-        "duration": "108000s",
+        "comparison": "COMPARISON_LT",
+        "thresholdValue": 1,
+        "duration": "3600s",
+        "evaluationMissingData": "EVALUATION_MISSING_DATA_ACTIVE",
         "aggregations": [
           {
-            "alignmentPeriod": "3600s",
+            "alignmentPeriod": "86400s",
             "perSeriesAligner": "ALIGN_SUM"
           }
         ]
@@ -20,9 +23,6 @@
     }
   ],
   "alertStrategy": {
-    "notificationRateLimit": {
-      "period": "3600s"
-    },
     "autoClose": "604800s"
   },
   "enabled": true,

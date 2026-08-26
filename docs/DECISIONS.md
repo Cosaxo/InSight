@@ -31539,3 +31539,74 @@ lint/tsc/globals/purge/a11y/tap-targets/bundle all green, and the
 coupling ratchet unmoved at its baseline. The plan file's §0 table now
 carries each item's as-built state; §1 and §2 still say "owner decision
 first", because they still are.
+
+**Amendment (same day, third) — every remaining body defect, found in one
+pass instead of one per production run.** The `resource.type` fix worked
+and the next POST died on a different field. Two runs, two defects, one
+each, at a merge and a dispatch apiece — so all eight bodies went through
+a validation pass against the live v3 discovery document rather than
+waiting for the API to reveal the third.
+
+**`notificationRateLimit` was on seven of eight, and is legal on one.** The
+discovery document is explicit: *"Required for log-based alerting policies,
+i.e. policies with a LogMatch condition. This limit is not implemented for
+alerting policies that do not have a LogMatch condition."* The trap is the
+phrase **log-based**. Six of these threshold or watch a
+`logging.googleapis.com/user/*` metric, which makes the METRIC log-based
+and the POLICY not: the API classifies by condition type. Only
+`onV2AnswerCreated-errors.json` has a `conditionMatchedLog`, and it is the
+only policy this API has ever accepted from this repo. Removed from the
+other seven; `autoClose` carries no such restriction and stays.
+
+**And an absence condition cannot watch a daily job at all.** Cloud
+Monitoring caps `conditionAbsent.duration` at **23h30m (84600s)**. That
+ceiling is in neither the discovery document nor `alert.proto` — both state
+only a 120s minimum — which is why an earlier review refuted it *from the
+schema's silence* and was wrong. Silence is not permission. Six independent
+public repositories record the limit, several as live-verified, one quoting
+the refusal verbatim.
+
+The arithmetic that follows is the actual finding:
+
+| job | cron | healthy gap | longest legal window |
+| --- | --- | --- | --- |
+| `digestEngagementV2` | 02:23 daily | 86400s | 84600s |
+| `fitPatternsV2` | 02:37 daily | 86400s | 84600s |
+| `ledgerVelocityScan` | 03:47 daily | 86400s | 84600s |
+| `scheduledDuelReveals` | every 120 min | 7200s | 84600s |
+
+For the three nightly jobs the healthy gap is **longer than any window the
+API will accept**, so every legal absence policy goes true for the ~30
+minutes before each morning's run. Lowering 108000s to 84600s would not
+have fixed them; it would have produced three alerts that page daily, which
+`DEPLOYMENT.md § Alerting` opens by refusing — *"an alert nobody acts on
+trains people to ignore the channel"*.
+
+So the shape changed rather than the number. The three are now trailing-24h
+**thresholds**: `ALIGN_SUM` over an 86400s alignment period (the alerting
+maximum is 90000s), `COMPARISON_LT 1`, held for an hour. A healthy day sums
+to 1 and never goes true; a missed run sums to 0.
+`evaluationMissingData: EVALUATION_MISSING_DATA_ACTIVE` keeps the half a
+plain threshold loses — a series that stops emitting *entirely*, because
+the function was deleted or the trigger dropped, evaluates nothing and
+would stay green forever, which is the exact hole the absence condition
+existed to close. It requires a duration of at least 60s, which is why the
+hour is not zero.
+
+`scheduledDuelReveals` stays an absence condition and is untouched: two
+hourly, 21600s window, three times the healthy gap and well under the
+ceiling. The shape was never wrong — the cadence is.
+
+**Rules 6 and 7** hold both in `check:monitoring`, mutation-verified. Rule 7
+holds the API limit and says in its own failure text that it cannot hold
+the design consequence, because a gate cannot know a watched job's cron.
+
+**What this says about the earlier refutation, which is the part worth
+keeping.** The 23h30m claim was raised, and killed, by a verifier that did
+exactly what it was asked: it went to the authoritative schema, found only
+a minimum documented, and refuted a claim that could not be sourced. That
+is the right procedure and it produced a wrong answer, because the
+constraint is server-side validation that never reached the schema. The
+correction did not come from better reading. It came from **running the
+thing** — and then from six strangers who had run it before.
+
