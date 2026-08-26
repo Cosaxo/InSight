@@ -48,6 +48,17 @@ const AS_JSON = argv.includes("--json");
 const DETAIL = argv.includes("--functions");
 const PROJECT = process.env.FIREBASE_PROJECT_ID || "prvfire33";
 
+// ABOVE the REGION block on purpose: `die`'s only remaining call site is
+// INSIDE that IIFE, which runs during module evaluation, and a `const` is
+// in the temporal dead zone until its own line executes. Declared after it,
+// the region guard threw `Cannot access 'die' before initialization`
+// instead of naming the file and the constant — reproduced by breaking the
+// regex. eslint cannot see it: the name IS referenced, and
+// `no-use-before-define` is off for scripts/*.mjs. The extraction into
+// google-api.mjs is what left this call alone; it had three siblings that
+// ran after the declaration and hid it.
+const die = (m) => { console.error(`observe: ${m}`); process.exit(1); };
+
 // READ, not retyped (D201/D200) — the same scan operator-call.mjs makes, and
 // for the same reason: a wrong region here would report every live function
 // as a stray.
@@ -57,8 +68,6 @@ const REGION = (() => {
   if (!m) die("could not read FUNCTIONS_REGION from src/lib/region.ts");
   return m[1];
 })();
-
-const die = (m) => { console.error(`observe: ${m}`); process.exit(1); };
 
 const sa = serviceAccount("observe");
 
@@ -112,7 +121,14 @@ const results = await Promise.all([
         // could answer it before today.
         armed: missing.length === 0,
         missing,
-        enabledCount: (b.alertPolicies || []).filter((p) => p.enabled?.value !== false).length,
+        // `enabled` is a BARE BOOLEAN in the v3 JSON representation, not a
+        // protobuf wrapper — the discovery doc gives `{"type":"boolean"}`
+        // with no $ref. Read as `p.enabled !== false` it was
+        // `(false)?.value` -> undefined -> `undefined !== false` -> true, so
+        // a DISABLED policy counted as enabled and this number could only
+        // ever equal liveCount. `!== false` is kept for the field being
+        // absent, which the API omits when it is true.
+        enabledCount: (b.alertPolicies || []).filter((p) => p.enabled !== false).length,
       };
     },
   ),

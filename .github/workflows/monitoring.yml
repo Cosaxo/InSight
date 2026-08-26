@@ -9,7 +9,7 @@
 # obstacle; the obstacle was a tool nobody was logged into, which is the
 # same kind of obstacle and one it did not name.
 #
-# This is D299's finding a second time: an instrument that runs beats a
+# This is D300's finding a second time: an instrument that runs beats a
 # better-provisioned instrument that does not. The transport is now the
 # Monitoring and Logging REST APIs over FIREBASE_SERVICE_ACCOUNT — the same
 # credential observe.yml reads with, and the same `Editor` role that already
@@ -61,8 +61,13 @@ jobs:
   arm:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # Where FIREBASE_SERVICE_ACCOUNT is scoped and, for `apply`, where the
-    # approval sits.
+    # Where FIREBASE_SERVICE_ACCOUNT is scoped. NOT an approval: D87 is
+    # recorded as `Applied: not yet`, so the `production` environment carries
+    # no protection rules today and this job starts unattended like the other
+    # three that name it. The declaration is what makes the approval reach
+    # this workflow the day somebody ticks the checkbox — it is a placement,
+    # not a guarantee, and saying otherwise would promise a human who is not
+    # there.
     environment: production
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1

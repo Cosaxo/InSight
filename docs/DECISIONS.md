@@ -30841,7 +30841,7 @@ that did, which is a harder failure to see than a wrong reason: the
 sentence is correct, the correction above it is correct, and the tool
 still does not run.
 
-**This is D299's finding, one instrument later.** There, I treated
+**This is D300's finding, one instrument later.** There, I treated
 D292's Workload-Identity design as a prerequisite for reading production
 when the credential was already in four workflows. Here, the same
 credential could already write — `Editor` includes the create permission,
@@ -30855,8 +30855,8 @@ did not exist while the thing it watches was going wrong.
 The transport, and nothing about what gets created. `apply-monitoring.mjs`
 now signs a JWT with `FIREBASE_SERVICE_ACCOUNT`, trades it for a
 cloud-platform OAuth token and POSTs to the Monitoring and Logging REST
-APIs — the path `fn-log.mjs` has used since D179 and `observe.mjs` since
-D299. `.github/workflows/monitoring.yml` dispatches it behind the
+APIs — the path `fn-log.mjs` has used since 2026-08-07 and `observe.mjs`
+since D300. `.github/workflows/monitoring.yml` dispatches it behind the
 `production` environment gate, `apply` off unless asked.
 
 `scripts/google-api.mjs` holds the exchange now, because this was the
@@ -30883,10 +30883,17 @@ Only one survives, and the other was never about automation at all:
 - **Retired, and it had already been retired once.** Runbook 5.5 said the
   step must not be automated because "the deploy service account has no
   monitoring role". That is the sentence D47 corrected in DEPLOYMENT.md on
-  2026-08-04, still standing in the runbook on 2026-08-26 — a **fourth**
-  copy of a retired reason, in the item whose own paragraph then called
+  2026-08-04, still standing in the runbook on 2026-08-26 — **the last
+  place still asserting it.** Counted rather than guessed: at `ca7097bc`
+  the sentence appears in three files, and the other two (`DEPLOYMENT.md`,
+  `MONITORING.md`) both quote it in order to correct it. This record first
+  called it "a fourth copy", which was a guess and was wrong. It was in the
+  item whose own paragraph then called
   building the automation "an open question with arguments both ways" and
-  left it. Two days of no alerts is what the open question cost.
+  left it. It stood for one day — the paragraph is dated 2026-08-25
+  (`8fb442f9`) — and what it cost is not days of alerting, which were
+  zero either way, but that the answer was already in the repo when the
+  question was written down.
 
 ### The policy files say `notificationChannels: []`, and that is the bug worth pinning
 
@@ -30916,23 +30923,37 @@ half an alert chain and report success for it, which is the shape
 `check:monitoring` exists to prevent inside the repo and would be worse in
 the project, where no gate can see it.
 
-### Five copies of one figure, none of them right
+### Three copies wrong, two already fixed, and one this sweep walked past
 
-Correcting the docs turned up the same drift D39 built `check:figures`
-for, again, and this time in five places at once. `monitoring/` holds
-**eight** policies and **five** metrics. The prose said:
+Correcting the docs turned up the same drift D39 built `check:figures` for.
+`monitoring/` holds **eight** policies and **five** metrics. What the prose
+said, and what was actually true of it at `ca7097bc`:
 
-| where | said | actual |
+| where | said | verdict |
 | --- | --- | --- |
-| `docs/DEPLOYMENT.md` heading | "Alerting (**three** alerts, deliberately)" | 8 |
-| `docs/DEPLOYMENT.md` blockquote | "**both** log-based metrics and all **three** policies" | 5, 8 |
-| `docs/COSTS.md` § what is not covered | "`monitoring/` has **four** policies" | 8 |
-| `docs/LAUNCH-RUNBOOK.md` 5.5 | "widening it for **eight** policies is the worse trade" | 8, but priced against a premise D47 retired |
-| `apply-monitoring.mjs` header | "the **three** alert policies" | 8 (fixed at D291) |
+| `docs/DEPLOYMENT.md` heading | "Alerting (**three** alerts, deliberately)" | wrong — 8 |
+| `docs/DEPLOYMENT.md` blockquote | "**both** log-based metrics and all **three** policies" | wrong — 5 and 8 |
+| `docs/COSTS.md` § what is not covered | "`monitoring/` has **four** policies" | wrong — 8 |
+| `docs/LAUNCH-RUNBOOK.md` 5.5 | "widening it for **eight** policies is the worse trade" | **number correct.** Deleted for its premise (D47), not its figure |
+| `apply-monitoring.mjs` header | "the **three** alert policies" | **already corrected at D291.** Read here as still wrong |
+| `docs/MONITORING.md` instruments table | "**seven** alert policies" | wrong — 8, and **this sweep missed it** |
+
+**This section first said "five copies of one figure, none of them right",
+and that was itself a wrong figure.** Three were wrong. The runbook's
+"eight" was correct and its defect was a retired premise; the header row
+was fixed two days earlier by D291's own three-copy sweep, which this
+record cites in the same table it counts the row in. A record about
+miscounting, miscounting.
+
+And the sweep it describes missed one. `docs/MONITORING.md`'s instruments
+table said **seven**, byte-identical before and after the commit that
+claimed to have found every copy. It was found by reviewing the record, not
+by writing it — which is the actual lesson, and the reason the count is
+gated rather than re-counted: `check:figures` now holds `DEPLOYMENT.md`'s
+heading, `COSTS.md`'s sentence and `MONITORING.md`'s table row to
+`apply-monitoring.mjs`'s own `POLICIES` list, so the next one fails CI
+instead of being found by whoever reads carefully enough.
 
 `check:monitoring` held the *lists* equal to the directory the whole time.
-Nothing held the *prose* to the lists. Both headings are `check:figures`
-entries now; the blockquote stopped quoting numbers instead, because a
-sentence that does not state a count cannot drift — and the runbook's
-priced trade was deleted with its premise rather than corrected, which is
-why its gate entry went too.
+Nothing held the *prose* to the lists. The blockquote stopped quoting counts
+altogether, because a sentence that does not state a count cannot drift.

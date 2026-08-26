@@ -11,7 +11,8 @@
 // between them would share a comment header and nothing else.
 //
 // What IS shared is that this dance was already written twice against
-// Google's own APIs — fn-log.mjs since D179, observe.mjs since D299 — and
+// Google's own APIs — fn-log.mjs since 2026-08-07, observe.mjs since D300
+// — and
 // apply-monitoring is the third caller. pure.ts's rule about breakdownFor
 // applies to scripts as much as to functions: "three copies is how they
 // drift." fn-log.mjs is deliberately NOT migrated here, on the same terms
@@ -77,7 +78,23 @@ export async function accessToken(sa, tag = "google-api") {
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer", assertion: jwt }),
   });
-  const body = await res.json();
+  // TEXT THEN PARSE, not res.json() — D295's defect, and it was carried into
+  // this file verbatim from observe.mjs before the review caught it. A
+  // non-JSON token response (an HTML 502 from Google's front end, or the
+  // 403 body this repo's own agent proxy returns) makes res.json() reject
+  // BEFORE the !res.ok branch below can run, so the operator gets
+  // `Unexpected token '<'` naming neither the status nor the URL — and the
+  // message that names both is unreachable. googleFetch 25 lines down was
+  // already written this way; this function is the one that did not get it,
+  // in the file whose stated purpose is to be the single correct copy.
+  const text = await res.text();
+  let body = null;
+  try { body = JSON.parse(text); } catch { /* an HTML error page is the platform, not the API */ }
+  if (!body) {
+    const head = text.replace(/\s+/g, " ").trim().slice(0, 160);
+    console.error(`${tag}: token exchange returned ${res.status} ${res.statusText} with a non-JSON body.\n    ${head || "(empty)"}`);
+    process.exit(1);
+  }
   if (!res.ok) {
     console.error(`${tag}: token exchange failed (${res.status}): ${body.error_description || JSON.stringify(body)}`);
     process.exit(1);

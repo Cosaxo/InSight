@@ -40,6 +40,7 @@ const CHANNEL_ID = "projects/prvfire33/notificationChannels/9001";
 // same path, and the whole point of several cases below is which of the two
 // happened, so the stub cannot key on host alone the way observe's does.
 let reply;
+let tokenReply;
 let calls;
 let server, base;
 
@@ -51,10 +52,20 @@ beforeAll(async () => {
     req.on("data", (c) => { raw += c; });
     req.on("end", () => {
       if (req.url.startsWith("/oauth2.googleapis.com")) {
-        res.writeHead(200, { "content-type": "application/json" });
-        return res.end(JSON.stringify({ access_token: "TOK" }));
+        res.writeHead(tokenReply.status, { "content-type": tokenReply.contentType });
+        return res.end(tokenReply.raw);
       }
-      calls.push({ method: req.method, url: req.url, body: raw ? JSON.parse(raw) : null });
+      // The AUTH HEADER is recorded, not just the body. Without it the whole
+      // credential path — the reason this commit exists — is unasserted: the
+      // review deleted the bearer header outright and all ten cases stayed
+      // green, because a stub that ignores Authorization cannot tell a
+      // signed request from an anonymous one.
+      calls.push({
+        method: req.method,
+        url: req.url,
+        auth: req.headers.authorization || null,
+        body: raw ? JSON.parse(raw) : null,
+      });
       const r = reply[key(req.method, req.url)] || { status: 200, body: {} };
       res.writeHead(r.status, { "content-type": "application/json" });
       res.end(JSON.stringify(r.body));
@@ -78,8 +89,16 @@ const committedDisplayNames = () =>
   APPLIED_POLICIES.map((rel) => JSON.parse(readFileSync(join(root, rel), "utf8")).displayName);
 
 // The same list apply-monitoring holds, read out of its source the way
-// check-monitoring reads it — so a policy added to the repo and not to the
-// list cannot make this test pass by being absent from both.
+// check-monitoring reads it.
+//
+// This comment used to claim the reading also meant "a policy added to the
+// repo and not to the list cannot make this test pass by being absent from
+// both." It cannot, and the review demonstrated it: committing an unlisted
+// monitoring/*.json leaves all ten cases green, because a file absent from
+// this list is simply never asserted about. `check:monitoring` rule 1 is
+// what catches that, in CI, and it is the only thing that does. Kept as a
+// false-reason correction rather than deleted, because the reading is still
+// the right one — it just buys idempotence coverage, not drift coverage.
 const APPLIED_POLICIES = [
   ...readFileSync(join(root, "scripts/apply-monitoring.mjs"), "utf8")
     .matchAll(/"(monitoring\/[\w.-]+\.json)"/g),
@@ -87,6 +106,7 @@ const APPLIED_POLICIES = [
 
 beforeEach(() => {
   calls = [];
+  tokenReply = { status: 200, contentType: "application/json", raw: JSON.stringify({ access_token: "TOK" }) };
   reply = {
     [key("GET", CHANNELS)]: { status: 200, body: { notificationChannels: [] } },
     [key("POST", CHANNELS)]: {
@@ -102,7 +122,18 @@ beforeEach(() => {
 
 const apply = async (args = []) => {
   const { stdout } = await run("node", [SCRIPT, "--email", "you@example.com", ...args], {
-    env: { ...process.env, FIREBASE_SERVICE_ACCOUNT: SA, GOOGLE_API_BASE: base },
+    env: {
+      ...process.env,
+      FIREBASE_SERVICE_ACCOUNT: SA,
+      GOOGLE_API_BASE: base,
+      // PINNED, not inherited. The script resolves
+      // `--project || FIREBASE_PROJECT_ID || "prvfire33"`, and every stub
+      // key below hard-codes the prvfire33 path — so a developer or a
+      // runner with FIREBASE_PROJECT_ID set to anything else moves every
+      // URL off the keys and fails seven of these cases for a reason that
+      // has nothing to do with the code.
+      FIREBASE_PROJECT_ID: "prvfire33",
+    },
   });
   return stdout;
 };
@@ -112,7 +143,18 @@ const apply = async (args = []) => {
 const applyFails = async (args = []) => {
   try {
     await run("node", [SCRIPT, "--email", "you@example.com", ...args], {
-      env: { ...process.env, FIREBASE_SERVICE_ACCOUNT: SA, GOOGLE_API_BASE: base },
+      env: {
+      ...process.env,
+      FIREBASE_SERVICE_ACCOUNT: SA,
+      GOOGLE_API_BASE: base,
+      // PINNED, not inherited. The script resolves
+      // `--project || FIREBASE_PROJECT_ID || "prvfire33"`, and every stub
+      // key below hard-codes the prvfire33 path — so a developer or a
+      // runner with FIREBASE_PROJECT_ID set to anything else moves every
+      // URL off the keys and fails seven of these cases for a reason that
+      // has nothing to do with the code.
+      FIREBASE_PROJECT_ID: "prvfire33",
+    },
     });
   } catch (err) {
     return { code: err.code, stderr: err.stderr };
@@ -228,6 +270,62 @@ describe("the channel that points somewhere else", () => {
     // …and the policies still get the existing channel's id, because half
     // an alert chain is worse than one pointing at the wrong inbox.
     expect(posts().find((c) => c.url === POLICIES).body.notificationChannels).toEqual([CHANNEL_ID]);
+  });
+});
+
+describe("the credential path", () => {
+  // The reason this commit exists is that the script now signs its own
+  // requests instead of shelling out to a logged-in gcloud. None of that was
+  // asserted: the review deleted the bearer header and broke every JWT claim
+  // in one pass, and all 478 script tests stayed green.
+  it("signs every API call with the token it minted", async () => {
+    await apply(["--apply"]);
+    expect(calls.length).toBeGreaterThan(10);
+    for (const c of calls) expect(c.auth).toBe("Bearer TOK");
+  });
+
+  it("names the status when the token endpoint answers with HTML", async () => {
+    // D295's defect, and it was carried into google-api.mjs verbatim before
+    // the review caught it: `res.json()` rejects before the `!res.ok` branch
+    // can run, so the operator gets `Unexpected token '<'` naming neither the
+    // status nor the URL. This repo's own agent proxy returns exactly such a
+    // body (CLAUDE.md § Things that look like bugs but are not).
+    tokenReply = { status: 502, contentType: "text/html", raw: "<html><head><title>502 Bad Gateway</title></head></html>" };
+    const { code, stderr } = await applyFails(["--apply"]);
+    expect(code).toBe(1);
+    expect(stderr).toContain("502");
+    expect(stderr).not.toContain("Unexpected token");
+    // …and it stopped there: nothing was created with a token it never got.
+    expect(calls).toEqual([]);
+  });
+
+  it("reports a JSON token refusal with the reason Google gave", async () => {
+    tokenReply = {
+      status: 400,
+      contentType: "application/json",
+      raw: JSON.stringify({ error: "invalid_grant", error_description: "Invalid grant: account not found" }),
+    };
+    const { stderr } = await applyFails(["--apply"]);
+    expect(stderr).toContain("Invalid grant: account not found");
+  });
+});
+
+describe("--channel-name", () => {
+  // The flag the WORKFLOW passes: monitoring.yml declares `channel_name` as
+  // a dispatch input and forwards it. It had no test, so renaming the flag
+  // left all ten cases green — and the "points at someone else" case names
+  // --channel-name as its own remedy, so the covered case's stated fix was
+  // the uncovered one.
+  it("is what the lookup and the creation both use", async () => {
+    reply[key("GET", CHANNELS)] = {
+      status: 200,
+      body: { notificationChannels: [{ name: CHANNEL_ID, displayName: "InSight oncall", labels: { email_address: "you@example.com" } }] },
+    };
+    const out = await apply(["--channel-name", "Somewhere else", "--apply"]);
+    const made = posts().filter((c) => c.url === CHANNELS);
+    expect(made).toHaveLength(1);
+    expect(made[0].body.displayName).toBe("Somewhere else");
+    expect(out).toContain('channel "Somewhere else"');
   });
 });
 

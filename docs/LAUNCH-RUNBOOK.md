@@ -1361,15 +1361,19 @@ That is a tester-count problem, not a workflow problem.
       this project, so it never ran — and on 2026-08-26 the observer read
       the project and found **zero** policies and **zero** log-based
       metrics (D300). The tool was written, tested, documented and
-      unrunnable, which is the same failure D299 named one instrument
+      unrunnable, which is the same failure D300 named one instrument
       earlier: a tool that runs beats a better-provisioned tool that does
       not. D302 moved it onto the REST APIs, over the credential four
       workflows already use.
 
       **What the old refusal said, and which half of it survived.** This
       item used to say the step must not be automated because "the deploy
-      service account has no monitoring role" — a **fourth** copy of a
-      reason D47 retired on 2026-08-04. It holds `Editor`, which includes
+      service account has no monitoring role" — the **last place still
+      asserting** a reason D47 retired on 2026-08-04. Counted rather than
+      guessed: `git show ca7097bc` finds that sentence in three files, and
+      the other two (`DEPLOYMENT.md`, `MONITORING.md`) both quote it in
+      order to correct it. This item was the only one still standing on it.
+      The account holds `Editor`, which includes
       `monitoring.alertPolicies.create`; permission was never the obstacle,
       and it is now the thing that makes the REST path work. What survives
       is the narrow refusal: not on the DEPLOY PATH, because a pipeline
@@ -1377,16 +1381,20 @@ That is a tester-count problem, not a workflow problem.
       about something else. A `workflow_dispatch` behind the `production`
       gate is not that pipeline, and the item's own paragraph had already
       said so — it called building one "an open question with arguments
-      both ways" and left it. Two days of no alerts is what the open
-      question cost.
+      both ways" and left it, on 2026-08-25. It was answered the next
+      day, and not by new information: `seed-content.yml` had been the
+      proof of that shape since 2026-08-06.
 
-      The count above is held by `check:figures`. It said **two** while the
-      tree carried eight, `apply-monitoring.mjs`'s own header said three,
-      and the retired refusal priced its trade against the wrong number by
-      4x — three copies of one figure, none right, which is the exact
-      failure D39 built that gate for. `DEPLOYMENT.md § Alerting`'s heading
-      is held to the same lists now, for the same reason: it read "three
-      alerts, deliberately" for as long as there were eight.
+      The count above is held by `check:figures`. D291 found **four
+      quotations of two figures, none of them right** — this step's title
+      said "the two monitoring alerts", its refusal priced a trade against
+      "two policies" (4x off), and `apply-monitoring.mjs`'s header said
+      three policies and two metrics. `DEPLOYMENT.md § Alerting`'s heading,
+      `COSTS.md`'s sentence and `MONITORING.md`'s instruments row are held
+      to the same lists now (D302), for the same reason: the heading read
+      "three alerts, deliberately" for as long as there were eight, and
+      `MONITORING.md` said seven through a sweep that claimed to have found
+      every copy.
 - [x] **5.6 Version lockstep — holds at 2.0.0 build 26.**
       *This line was stale three times, each one a bump behind 2.4 — build
       11 on 2026-08-13, build 12 later the same day, then 13 against a tree

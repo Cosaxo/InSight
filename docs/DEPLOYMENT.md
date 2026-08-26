@@ -150,13 +150,18 @@ made twice and done never, which is the failure
 `.github/workflows/seed-content.yml`'s header records happening to the
 seed instruction two separate times.
 
-**What the environment gates.** Two jobs, and only two — verified rather
-than assumed, by grepping `environment:` across every workflow:
+**What the environment gates.** Four jobs — verified rather than assumed,
+by grepping `environment: production` across every workflow. It said "two
+jobs, and only two" for as long as there were four: `rebuild-aggregate.yml`
+joined at D290 and `monitoring.yml` at D302, and neither author re-read a
+sentence in a different document that had counted them.
 
 | Workflow | Job | What a gate would hold |
 | --- | --- | --- |
 | `firebase-deploy.yml` | `deploy` | rules, indexes, functions, hosted legal pages |
 | `seed-content.yml` | `seed` | `seedContentV2` writing `v2_questions` |
+| `rebuild-aggregate.yml` | `rebuild` | `rebuildAggregateV2` overwriting a published aggregate |
+| `monitoring.yml` | `arm` | creating the notification channel, log-based metrics and alert policies |
 
 `ios-release.yml` uses a different environment and is unaffected.
 
@@ -769,8 +774,13 @@ condition needs a time series that has existed at least once; against a
 metric with no points it does not fire. So this policy is blind to "the
 scheduled reveal never worked at all" and only ever proves "it worked and
 then stopped." Apply it, then confirm a first run actually landed —
-`npm run observe` shows whether a first heartbeat landed — or it sits green
-meaning nothing.
+confirm a first run actually landed with `gcloud logging read
+'jsonPayload.metric="duel_reveal_run"' --limit 1 --project prvfire33`, or it
+sits green meaning nothing. **Not `npm run observe`** — the observer reads
+metric DEFINITIONS (`projects.metrics.list`), never log entries or a time
+series, so it lists `duel_reveal_run` from the moment arming creates it,
+whether or not a scan has ever run. This paragraph said `observe` for one
+commit, which is the paragraph's own warning happening to the paragraph.
 
 **Why these three came first.** An alert nobody acts on trains people to ignore
 the channel, and at zero users most signals are noise. These are the
