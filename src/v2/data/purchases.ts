@@ -14,7 +14,7 @@
 //
 // There is NO write path here at all — not a callable, not a fallback.
 // The collection's pens are server-side (the Stripe payment webhook for
-// self-serve sales — paid.ts, D304 — and scripts/record-purchase.mjs for
+// self-serve sales — paid.ts, D313 — and scripts/record-purchase.mjs for
 // hand contracts; firestore.rules pins `write: if false`), and the
 // room's whole honesty story is that it reads the buyer's own rows plus
 // the same public aggregates everyone reads.
@@ -30,7 +30,7 @@ export interface Purchase {
   id: string;
   kind: "question" | "subscription" | "ad";
   qid: string;
-  /** the ad sale's half (D306) — empty strings on question rows. An ad
+  /** the ad sale's half (D315) — empty strings on question rows. An ad
    * has a flat price and no meter: nothing here to count. */
   advertiser: string;
   headline: string;

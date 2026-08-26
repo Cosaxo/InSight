@@ -93,6 +93,29 @@ export interface TellShare {
   n: number;
 }
 
+/** One row of the working (2026-08-26): a prior answer of the viewer's
+ * that carried the sealed call, with the crowd split it contributed. */
+export interface WorkingRow {
+  /** The evidence question's id — the UI resolves it against the pool. */
+  evId: string;
+  /** The viewer's side on it. */
+  side: 0 | 1;
+  /** Of the people in both samples on the viewer's side, the share that
+   * picked the CALLED side of the target. */
+  share: number;
+  /** People behind the share — the stated basis (D146). */
+  n: number;
+  /** The answer's pull on the call, for ink weight only — never printed. */
+  w: number;
+}
+export interface Working {
+  rows: WorkingRow[];
+  /** Whether the sealed record named any evidence at all — the UI's
+   * empty states differ: "guessed at the coin" is only true when it
+   * did not. */
+  hadEv: boolean;
+}
+
 interface LoadingsDoc { k: number; q: Record<string, { v: number[]; n: number; sum: number }> }
 
 let loadings: LoadingsDoc | null = null;
@@ -264,6 +287,8 @@ export const PATTERNS = {
       const nodes: MapNode[] = [{ id: qid, L: target.L, n: target.n },
         ...answered.map((p) => ({ id: p.q.id, L: p.L, n: p.n }))];
       const { U } = mapGeometry(nodes);
+      // Top THREE since 2026-08-26 — the working shows up to three rows;
+      // the old top-2 records stay valid, they just have less to show.
       rec.ev = answered
         .map((p, i) => {
           let s = 0;
@@ -271,7 +296,7 @@ export const PATTERNS = {
           return { id: p.q.id, w: Math.abs(s) * Math.abs((p.mine as number) - p.marginal) };
         })
         .sort((a, b) => b.w - a.w)
-        .slice(0, 2)
+        .slice(0, 3)
         .map((x) => x.id);
     }
     persistLog();
@@ -338,6 +363,53 @@ export const PATTERNS = {
     saySessionCache.set(key, best);
     return best;
   },
+  /** The working (2026-08-26): the sealed call rebuilt in the open. One
+   * row per evidence question the GRADE named (grade-time evidence, held
+   * on the record — not a fresh re-solve, so the rows really are answers
+   * the viewer had given before the seal), each with the crowd split it
+   * contributed, read through tell()'s shared caches: at most three
+   * bounded fetches, most already paid for by say(). A row is kept only
+   * when its tell actually points at the call (the 0.54 floor the single
+   * tell line always used) — evidence that pulled the solve but cannot
+   * be counted in the open is not shown as though it could.
+   *
+   * The weight is the same pull the grade ranked by, recomputed over the
+   * CURRENT pool — it decides ink opacity, never a printed number, so
+   * pool drift since the grade cannot change what the rows claim. */
+  async working(qid: string): Promise<Working | null> {
+    const rec = logSaved().find((r) => r.qid === qid);
+    if (!rec || rec.mine == null || !loadings) return null;
+    const evIds = rec.ev ?? [];
+    if (!evIds.length) return { rows: [], hadEv: false };
+    const items = pool();
+    const target = items.find((p) => p.q.id === qid);
+    if (!target) return { rows: [], hadEv: true };
+    // the grade's own weight, for the rows that still resolve
+    const answered = items.filter((p) => p.q.id !== qid && p.mine != null);
+    const wOf = new Map<string, number>();
+    if (answered.length) {
+      const nodes: MapNode[] = [{ id: qid, L: target.L, n: target.n },
+        ...answered.map((p) => ({ id: p.q.id, L: p.L, n: p.n }))];
+      const { U } = mapGeometry(nodes);
+      answered.forEach((p, i) => {
+        let s = 0;
+        for (let k = 0; k < U[0].length; k++) s += U[0][k] * U[i + 1][k];
+        wOf.set(p.q.id, Math.abs(s) * Math.abs((p.mine as number) - p.marginal));
+      });
+    }
+    const rows: WorkingRow[] = [];
+    for (const evId of evIds) {
+      const ev = items.find((p) => p.q.id === evId);
+      if (!ev || ev.mine == null) continue; // the bank moved on — an unresolvable id is silence, not a guess
+      const side: 0 | 1 = ev.mine === 1 ? 0 : 1;
+      const share = await this.tell(qid, evId, side).catch(() => null);
+      if (!share || share.shares[rec.pred] < 0.54) continue;
+      rows.push({ evId, side, share: share.shares[rec.pred], n: share.n, w: wOf.get(evId) ?? 0 });
+    }
+    rows.sort((a, b) => b.w - a.w);
+    return { rows, hadEv: true };
+  },
+
   /** The Oracle's evidence line (2026-08-20 standalone): among the people
    * in both bounded samples who took `evIdx` on the evidence question, how
    * the target splits. Null under 12 such people — a share from fewer says

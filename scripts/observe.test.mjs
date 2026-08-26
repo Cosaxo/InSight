@@ -12,6 +12,7 @@ import { createServer } from "node:http";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { generateKeyPairSync } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -39,7 +40,12 @@ beforeAll(async () => {
         res.writeHead(200, { "content-type": "application/json" });
         return res.end(JSON.stringify({ access_token: "TOK" }));
       }
-      const r = reply[host] || { status: 200, body: {} };
+      // `entries:list` is a POST to the same host as the metrics GET and
+      // returns a different shape, so it is keyed separately. Keying the
+      // whole host would make one of the two readings answer the other's
+      // body — which is how a stub agrees with itself and proves nothing.
+      const key = req.url.includes("entries:list") ? "logging:entries" : host;
+      const r = reply[key] || { status: 200, body: {} };
       res.writeHead(r.status, { "content-type": "application/json" });
       res.end(JSON.stringify(r.body));
     });
@@ -55,6 +61,10 @@ beforeEach(() => {
     "logging.googleapis.com": { status: 200, body: { metrics: [{ name: "m1" }] } },
     "cloudfunctions.googleapis.com": { status: 200, body: { functions: [] } },
     "cloudbilling.googleapis.com": { status: 200, body: { billingEnabled: true, billingAccountName: "billingAccounts/X" } },
+    "logging:entries": {
+      status: 200,
+      body: { entries: [{ resource: { type: "cloud_run_revision", labels: { service_name: "onv2answercreated", project_id: "p" } }, timestamp: "2026-08-26T00:00:00Z" }] },
+    },
   };
 });
 
@@ -147,6 +157,55 @@ describe("the alert reading, which runbook 5.5 exists for", () => {
     const j = await asJson();
     expect(j.readings.alertPolicies.liveCount).toBe(3);
     expect(j.readings.alertPolicies.enabledCount).toBe(2);
+  });
+});
+
+describe("--metrics: what a log-based metric's series is written against", () => {
+  // The reading that exists because guessing this shipped a 400 to
+  // production on 2026-08-26, and because guessing it WRONG would have
+  // shipped something quieter: a policy that is accepted, enabled and
+  // permanently unable to fire.
+  it("is off unless asked for", async () => {
+    const j = await asJson();
+    expect(j.metricResources).toBeUndefined();
+  });
+
+  it("reports the resource type the entries actually carry", async () => {
+    const j = JSON.parse(await observe(["--json", "--metrics"]));
+    expect(j.metricResources.length).toBeGreaterThan(0);
+    for (const m of j.metricResources) {
+      expect(m.status).toBe("ok");
+      expect(m.resourceType).toBe("cloud_run_revision");
+    }
+  });
+
+  it("reads one metric per name in apply-monitoring's own list", async () => {
+    const names = [
+      ...readFileSync(join(root, "scripts/apply-monitoring.mjs"), "utf8")
+        .matchAll(/name:\s*"([\w]+)",[\s\S]{0,400}?filter:\s*(['"])([\s\S]*?)\2/g),
+    ].map((m) => m[1]);
+    const j = JSON.parse(await observe(["--json", "--metrics"]));
+    expect(j.metricResources.map((m) => m.metric).sort()).toEqual(names.sort());
+  });
+
+  it("says so when nothing has emitted the metric yet, rather than inventing a type", async () => {
+    // check:monitoring rule 4 proves a function CONTAINS the emit line. It
+    // cannot say whether that line has ever run, and a metric with no points
+    // makes an absence policy unable to fire at all (D48.1).
+    reply["logging:entries"] = { status: 200, body: {} };
+    const out = await observe(["--metrics"]);
+    expect(out).toContain("no entry yet");
+    const j = JSON.parse(await observe(["--json", "--metrics"]));
+    expect(j.metricResources[0].entries).toBe(0);
+    expect(j.metricResources[0].resourceType).toBeNull();
+  });
+
+  it("reports a refusal per metric instead of dying", async () => {
+    reply["logging:entries"] = { status: 403, body: { error: { message: "Permission logging.logEntries.list denied." } } };
+    const out = await observe(["--metrics"]);
+    expect(out).toContain("grant roles/logging.viewer");
+    // …and the four ordinary readings still answered.
+    expect(out).toContain("✓ billing");
   });
 });
 

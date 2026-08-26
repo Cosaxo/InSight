@@ -115,7 +115,7 @@ const SG_TYPES = [['binary', 'this or that'], ['dilemma', 'dilemma'], ['choice',
 // missed, the reason behind it, and — where one exists — the way forward.
 // A LIVE row shows the review's own note as the reason (SUGGESTIONS.declineOf).
 //
-// Booking rows (D304) add three states the legacy pipeline never had:
+// Booking rows (D313) add three states the legacy pipeline never had:
 // "checking" (the automated review is running — seconds, usually),
 // "approved" (the pay button IS the next step, priced from the locked
 // quote), and "live" (the window it is serving). The pay tap asks the
@@ -305,7 +305,7 @@ const sgInput = {
 
 // ── the composer IS the paid flow: question → shape → place & window →
 // price → book. Money buys the place and the window, never the review
-// and never the frame (docs/PAID-PLAN.md; D288 §3). Since D304 the flow
+// and never the frame (docs/PAID-PLAN.md; D288 §3). Since D313 the flow
 // is machinery end to end: booking → automated review → Stripe checkout
 // on the web → live — and the sheet states exactly that, because the
 // old "human contract today" sentence stopped being true the day the
@@ -315,7 +315,7 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
   const [type, setType] = useSgState('binary');
   const [opts, setOpts] = useSgState(['', '']);
   const [topicId, setTopicId] = useSgState(null);
-  // The ad lane (D306): same door, same review, same checkout — a
+  // The ad lane (D315): same door, same review, same checkout — a
   // different product behind the switch. Text-only, link-free, always
   // named, flat-priced; the composer's question apparatus (type, options,
   // topic) simply is not it.
@@ -349,7 +349,7 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
   const band = SG.ageBand();
   const parentLabel = scopeKey === 'city' ? sgScopeName(SG, 'country') : 'everyone';
   // Only dims the SERVING can match (sponsored.ts reads the anchors) —
-  // topic left this list with D304: it is content, the match never reads
+  // topic left this list with D313: it is content, the match never reads
   // it, and a band printing an audience the device cannot verify would be
   // the disclosure design lying about itself.
   //
@@ -413,7 +413,7 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
         <span style={{ flex: 1 }}></span>
         <button onClick={onCancel} style={{ border: 'none', background: 'none', padding: 0, cursor: 'pointer', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700, color: 'var(--ink-2)' }}>Cancel</button>
       </div>
-      {/* the product switch (D306): a question collects answers and bills
+      {/* the product switch (D315): a question collects answers and bills
           per answer; an ad is text with a flat window. Same review, same
           checkout, different object — the form says which it is building. */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
@@ -524,7 +524,7 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
               {(adMode ? [
                 ['Scope', scopeName],
                 // An ad's window queues behind the scope's running ad
-                // (D306) — its day-exclusivity is what the flat price
+                // (D315) — its day-exclusivity is what the flat price
                 // buys, so the start is "first open ad day", not a date
                 // the sheet could go stale holding.
                 ['Window', 'first open ad day after you pay · 29 days'],
@@ -532,7 +532,7 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
                 ['Price', fmt(adFlat(scopeKey)) + ' flat · ×' + PRICING.cohorts[scopeKey].idx + ' · locked at approval'],
               ] : [
                 ['Scope', scopeName],
-                // The functional window (D304): serving starts the day
+                // The functional window (D313): serving starts the day
                 // after payment lands — never a pre-picked day that goes
                 // stale while the checkout sits open.
                 ['Window', 'from the day after you pay · 29 days'],
@@ -548,7 +548,7 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
               ))}
             </div>
             {/* "Arranged directly for now — no self-serve yet" stood here
-                until D304 made it false: the loop is machinery now, and
+                until D313 made it false: the loop is machinery now, and
                 the sheet says what the machinery actually does. The old
                 estimate line promised a free window extension nothing was
                 built to grant — the refund is the promise the closer
@@ -605,7 +605,7 @@ function SgForm({ SG, initialAudience, onDone, onCancel }) {
                 <span style={sgLabel}>window</span>
                 <span style={{ fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 600, color: 'var(--ink-3)' }}>first open day: {sgNextOpen(scopeKey) || 'none in the next 14'}</span>
               </div>
-              {/* "ask it daily" left with D304: the over-time lane is the
+              {/* "ask it daily" left with D313: the over-time lane is the
                   pulse machinery (PAID-PLAN §8) and it is not wired to
                   self-serve — a chip that books nothing different would be
                   a control that lies. It returns when that lane does. */}

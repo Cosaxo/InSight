@@ -1702,7 +1702,7 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   ok("a scored attempt refuses a second submit");
 }
 
-// 12 · The self-serve paid-question loop (paid.ts, D304): book → the
+// 12 · The self-serve paid-question loop (paid.ts, D313): book → the
 // automated review settles it (gates alone in the emulator — no model
 // key, and the run must prove that honest degradation, not paper over
 // it) → the locked quote → the SIGNED webhook goes live in one
@@ -1860,7 +1860,7 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   }
   ok("a paid question takes answers and aggregates through the ordinary path");
 
-  // 13 · The ad lane (D306): same loop, a different product — flat quote,
+  // 13 · The ad lane (D315): same loop, a different product — flat quote,
   // queued day-exclusive windows, the webhook writing v2_ads, and the
   // reseed NOT eating what the webhook wrote.
   const dayKey = (off) => new Date(Date.now() + off * 86400000).toISOString().slice(0, 10);

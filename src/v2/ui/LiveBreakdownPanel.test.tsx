@@ -28,7 +28,7 @@
 // the arithmetic these draw is unit-tested in data/cohort.test.ts.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { Voter } from "../data/voters";
 
 const LIVE = vi.hoisted(() => ({
@@ -107,6 +107,16 @@ const pctRow = (label: string) => {
   return row?.textContent || "";
 };
 
+// A dim's rows view repeats the option labels — once as the Everyone
+// header's legend, once in an expanded row's option rows — so cohort
+// readings are addressed through the expanded region (D304) rather than
+// globally.
+const detail = (name: RegExp) => screen.getByRole("region", { name });
+const pctRowIn = (scope: HTMLElement, label: string) => {
+  const row = within(scope).getByText(label).closest("div")?.parentElement;
+  return row?.textContent || "";
+};
+
 describe("LiveBreakdownPanel · the split is drawn FOR a cohort", () => {
   it("opens on Everyone, showing the question's own published split", () => {
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
@@ -118,22 +128,27 @@ describe("LiveBreakdownPanel · the split is drawn FOR a cohort", () => {
     expect(pctRow("Stay home")).toMatch(/10%/);
   });
 
-  it("picking a cohort redraws the SAME options with THAT cohort's numbers", () => {
-    // The whole point. Before D125 this tap changed which rows of a
-    // crowd-chart were highlighted; the answer itself never moved.
+  it("expanding a row redraws the SAME options with THAT cohort's numbers", () => {
+    // The D125 reading, one tap into the D304 rows: a row expands into
+    // the cohort's own option rows, and switching rows switches the
+    // numbers without the options moving.
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
     fireEvent.click(chip("Age"));
     fireEvent.click(chip(/^25-34 · 20/));
     // 15/4/1 of 20 → 75/20/5.
-    expect(pctRow("Beach")).toMatch(/75%/);
-    expect(pctRow("City break")).toMatch(/20%/);
-    expect(pctRow("Stay home")).toMatch(/5%/);
+    const r1 = detail(/^25-34 split$/);
+    expect(pctRowIn(r1, "Beach")).toMatch(/75%/);
+    expect(pctRowIn(r1, "City break")).toMatch(/20%/);
+    expect(pctRowIn(r1, "Stay home")).toMatch(/5%/);
 
     fireEvent.click(chip(/^55-64 · 10/));
-    // 3/5/2 of 10 → 30/50/20. A different crowd, a different answer.
-    expect(pctRow("Beach")).toMatch(/30%/);
-    expect(pctRow("City break")).toMatch(/50%/);
-    expect(pctRow("Stay home")).toMatch(/20%/);
+    // 3/5/2 of 10 → 30/50/20. A different crowd, a different answer —
+    // and one region at a time, because the expansion IS the pick.
+    const r2 = detail(/^55-64 split$/);
+    expect(screen.queryByRole("region", { name: /^25-34 split$/ })).toBeNull();
+    expect(pctRowIn(r2, "Beach")).toMatch(/30%/);
+    expect(pctRowIn(r2, "City break")).toMatch(/50%/);
+    expect(pctRowIn(r2, "Stay home")).toMatch(/20%/);
   });
 
   it("keeps every option, in the question's order, at every cohort", () => {
@@ -142,7 +157,9 @@ describe("LiveBreakdownPanel · the split is drawn FOR a cohort", () => {
     // question from the card's.
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
     fireEvent.click(chip("Age"));
-    const labels = screen.getAllByText(/Beach|City break|Stay home/)
+    fireEvent.click(chip(/^25-34 · 20/));
+    const labels = within(detail(/^25-34 split$/))
+      .getAllByText(/Beach|City break|Stay home/)
       .map((el) => el.textContent);
     expect(labels.slice(0, 3)).toEqual(OPTS);
   });
@@ -165,14 +182,28 @@ describe("LiveBreakdownPanel · the split is drawn FOR a cohort", () => {
 });
 
 describe("LiveBreakdownPanel · what it will not claim", () => {
-  it("offers only the dimensions the server actually published", () => {
-    // A chip for a dim with no cells opens onto an empty screen and reads
-    // as a broken app rather than as "nobody who answered filled that in".
+  it("offers every closed-vocabulary dim, and open dims only when published", () => {
+    // A closed vocabulary IS the body now (D304): a dim nobody has shared
+    // opens onto its whole scale at zero, which since D98 is a fact. An
+    // open vocabulary still needs a published cell — there is no
+    // canonical list of every city to draw at zero.
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
     expect(chip("Age")).toBeTruthy();
     expect(chip("Country")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "Education" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Relationship" })).toBeNull();
+    expect(chip("Education")).toBeTruthy();
+    expect(chip("Relationship")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "City" })).toBeNull();
+  });
+
+  it("draws a dim nobody has shared as its whole scale at zero, and says so", () => {
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    fireEvent.click(chip("Education"));
+    expect(screen.getByText(/Nobody who answered has shared their education yet/)).toBeTruthy();
+    // The scale is drawn, not implied: canonical levels, greyed, zero.
+    expect(screen.getByText("High school")).toBeTruthy();
+    expect(screen.getByText("Bachelor's")).toBeTruthy();
+    // A zero row is a fact, not a control — there is no reading inside it.
+    expect(screen.queryByRole("button", { name: /^Bachelor's/ })).toBeNull();
   });
 
   it("resolves a bucket KEY to a name — a country chip is not an ISO code", () => {
@@ -234,7 +265,7 @@ describe("LiveBreakdownPanel · a cohort answers in percentages (D149)", () => {
     expect(screen.queryByText("Ada")).toBeNull();
     expect(screen.queryByText("Cyd")).toBeNull();
     // What it says instead is the cohort's own split.
-    expect(pctRow("Beach")).toMatch(/75%/);
+    expect(pctRowIn(detail(/^25-34 split$/), "Beach")).toMatch(/75%/);
   });
 
   it("marks the viewer's own cohort in the chip row", () => {
@@ -243,6 +274,149 @@ describe("LiveBreakdownPanel · a cohort answers in percentages (D149)", () => {
     fireEvent.click(chip("Age"));
     expect(chip(/^55-64 · 10 · you$/)).toBeTruthy();
     expect(chip(/^25-34 · 20$/)).toBeTruthy();
+  });
+});
+
+// ── the whole scale, in order (D304) ─────────────────────────────────
+//
+// The rows view exists because the cohort-first sheet at a young
+// population showed two chips in popularity order and nothing else: the
+// reader could not see the scale their cohort sits on, and a band nobody
+// had answered from was indistinguishable from a band that does not
+// exist. These cases hold the frame: vocabulary order, zeros drawn,
+// opt-outs earned, and nothing folded under an old vocabulary hidden.
+describe("LiveBreakdownPanel · the whole scale, in order (D304)", () => {
+  it("draws every age band in vocabulary order, zeros included — never popularity order", () => {
+    // 55-64 outnumbers 25-34 here; the scale must not resort around that.
+    LIVE.aggFor = () => ({
+      counts: { "0": 5, "1": 7 },
+      total: 12,
+      by: { ageBand: { "55-64": { "1": 7 }, "25-34": { "0": 5 } } },
+    });
+    render(<LiveBreakdownPanel qid="q1" options={["A", "B"]} />);
+    fireEvent.click(chip("Age"));
+    const rows = screen.getAllByText(/^(Under 18|18-24|25-34|35-44|45-54|55-64|65\+)$/)
+      .map((el) => el.textContent);
+    expect(rows).toEqual(["Under 18", "18-24", "25-34", "35-44", "45-54", "55-64", "65+"]);
+  });
+
+  it("keeps 'Prefer not to say' off the scale until somebody picks it", () => {
+    LIVE.aggFor = () => ({
+      counts: { "0": 3 },
+      total: 3,
+      by: { gender: { "Woman": { "0": 2 }, "Prefer not to say": { "0": 1 } } },
+    });
+    render(<LiveBreakdownPanel qid="q1" options={["A", "B"]} />);
+    fireEvent.click(chip("Gender"));
+    // Present with an answer behind it — a real cohort like any other…
+    expect(chip(/^Prefer not to say · 1/)).toBeTruthy();
+
+    cleanup();
+    LIVE.aggFor = () => ({
+      counts: { "0": 2 },
+      total: 2,
+      by: { gender: { "Woman": { "0": 2 } } },
+    });
+    render(<LiveBreakdownPanel qid="q1" options={["A", "B"]} />);
+    fireEvent.click(chip("Gender"));
+    // …and absent at zero: a permanent zero row for declining to answer
+    // reads as an ask, not a fact. Real places on the scale stay drawn.
+    expect(screen.queryByText("Prefer not to say")).toBeNull();
+    expect(screen.getByText("Non-binary")).toBeTruthy();
+  });
+
+  it("appends a bucket the vocabulary no longer knows rather than hiding it", () => {
+    // Answers folded under an old spelling are still answers.
+    LIVE.aggFor = () => ({
+      counts: { "0": 4 },
+      total: 4,
+      by: { gender: { "Woman": { "0": 1 }, "Two-spirit": { "0": 3 } } },
+    });
+    render(<LiveBreakdownPanel qid="q1" options={["A", "B"]} />);
+    fireEvent.click(chip("Gender"));
+    const rows = screen.getAllByText(/^(Woman|Man|Non-binary|Two-spirit)$/)
+      .map((el) => el.textContent);
+    expect(rows).toEqual(["Woman", "Man", "Non-binary", "Two-spirit"]);
+  });
+
+  it("closes an expanded row on a second tap, back to the whole scale", () => {
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    fireEvent.click(chip("Age"));
+    fireEvent.click(chip(/^25-34 · 20/));
+    expect(detail(/^25-34 split$/)).toBeTruthy();
+    fireEvent.click(chip(/^25-34 · 20/));
+    expect(screen.queryByRole("region", { name: /^25-34 split$/ })).toBeNull();
+  });
+
+  it("heads the rows with the answers that carry this anchor", () => {
+    // The header counts the anchor's answers, which can honestly run
+    // under the card's total when some answers carry no band at all:
+    // here 25 of 30 answers have an age band.
+    LIVE.aggFor = () => ({
+      counts: { "0": 18, "1": 9, "2": 3 },
+      total: 30,
+      by: {
+        ageBand: {
+          "25-34": { "0": 15, "1": 4, "2": 1 },
+          "55-64": { "0": 3, "2": 2 },
+        },
+      },
+    });
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    fireEvent.click(chip("Age"));
+    expect(screen.getByText("25 answers")).toBeTruthy();
+  });
+});
+
+// ── a rating answers with its average (D305) ─────────────────────────
+//
+// Ten option rows about a ten-step scale answer none of the questions a
+// reader brings to it. With kind="rating" every body that would draw
+// option rows draws the average and the spread instead, and cohort rows
+// fill to their MEAN — the same `meanScore` the Scores lens reads, so no
+// two surfaces can disagree about what a cohort averages.
+describe("LiveBreakdownPanel · a rating answers with its average (D305)", () => {
+  const TEN = Array.from({ length: 10 }, (_, i) => String(i + 1));
+  // 20 answers, mean 6.0; 25-34 run high (mean 8.0), 55-64 low (4.0).
+  const RAGG = {
+    counts: { "3": 5, "5": 5, "7": 10 },
+    total: 20,
+    by: {
+      ageBand: {
+        "25-34": { "7": 10 },
+        "55-64": { "3": 5, "5": 5 },
+      },
+    },
+  };
+
+  it("draws Everyone as average and spread, never ten rows", () => {
+    LIVE.aggFor = () => RAGG;
+    render(<LiveBreakdownPanel qid="q1" options={TEN} mine={7} kind="rating" />);
+    // counts: idx3=5, idx5=5, idx7=10 → mean (4*5+6*5+8*10)/20 = 6.5.
+    expect(screen.getByText("6.5")).toBeTruthy();
+    expect(screen.getByText("/ 10 average")).toBeTruthy();
+    expect(screen.getByText("you said 8")).toBeTruthy();
+    expect(screen.getByRole("img", { name: /Spread across 10 steps/ })).toBeTruthy();
+    // No option-row list: "7" as a row label with a percentage would be
+    // the ten-row wall this mode exists to retire.
+    expect(screen.queryByText("70%")).toBeNull();
+  });
+
+  it("rows carry each cohort's average, compared in means not points", () => {
+    LIVE.aggFor = () => RAGG;
+    render(<LiveBreakdownPanel qid="q1" options={TEN} mine={7} kind="rating" />);
+    fireEvent.click(chip("Age"));
+    // The dim header bar states everyone's mean once.
+    expect(screen.getByText("6.5 / 10")).toBeTruthy();
+    // Each populated row prints its own mean.
+    expect(screen.getByText("8.0")).toBeTruthy();
+    expect(screen.getByText("5.0")).toBeTruthy();
+    fireEvent.click(chip(/^25-34 · 10/));
+    const region = detail(/^25-34 split$/);
+    expect(within(region).getByText("/ 10 average")).toBeTruthy();
+    // 8.0 against 6.5 → 1.5 above everyone, said in means.
+    expect(screen.getByText(/1\.5 above everyone/)).toBeTruthy();
+    expect(screen.queryByText(/points/)).toBeNull();
   });
 });
 
@@ -537,7 +711,7 @@ describe("LiveBreakdownPanel · the type cut", () => {
     fireEvent.click(chip("Type"));
     fireEvent.click(chip("Age"));
     fireEvent.click(chip(/^25-34 · 20/));
-    expect(pctRow("Beach")).toMatch(/75%/);
+    expect(pctRowIn(detail(/^25-34 split$/), "Beach")).toMatch(/75%/);
     expect(screen.queryByText(/carry a Big Five/)).toBeNull();
   });
 });
@@ -621,7 +795,7 @@ describe("LiveBreakdownPanel · the logic cut (D227)", () => {
     fireEvent.click(chip("Logic"));
     fireEvent.click(chip("Age"));
     fireEvent.click(chip(/^25-34 · 20/));
-    expect(pctRow("Beach")).toMatch(/75%/);
+    expect(pctRowIn(detail(/^25-34 split$/), "Beach")).toMatch(/75%/);
     expect(screen.queryByText(/verified logic score/)).toBeNull();
   });
 });

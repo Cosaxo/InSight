@@ -24,7 +24,7 @@ cohort the Mirror slices by, and what is still prototype data — see
 ```
 v2_questions/{qid}                 canonical bank, seeded by seedContentV2;
                                    paid questions (id paidq-*) written live
-                                   by the payment webhook (paid.ts, D304) in
+                                   by the payment webhook (paid.ts, D313) in
                                    the same field shape, updatedAt fresh so
                                    the bank's delta fetch carries them with
                                    no deploy. The seed only touches its own
@@ -243,12 +243,12 @@ v2_ads/{id}                        a feed ad (D197) — path 3, NOT path 2
                                    breakdown dims, matched ON THE DEVICE
                                    (data/sponsored.ts). The server is never
                                    asked who should see what
-  from?                            D306: a self-serve ad queued behind the
+  from?                            D315: a self-serve ad queued behind the
                                    scope's running one starts later than it
                                    was paid — pickPaid holds it until this
                                    day, the exclusivity its flat price buys
   active?, seq, updatedAt
-read: signed-in · write: nobody client-side (the seed, and since D306 the
+read: signed-in · write: nobody client-side (the seed, and since D315 the
 payment webhook at paidad-* ids). An ad takes no answer, so there is no
 answer arm for it anywhere in firestore.rules, no aggregate keyed to it
 and nothing per-person in it — which is why deleteAccount has nothing to
@@ -561,7 +561,7 @@ read/write: nobody client-side — both reachable solely through the
 MOD_UIDS-gated callables (the D22 confinement)
 
 v2_paid_bookings/{uid_ts}          a self-serve paid-question sale in
-  prompt, type, options, topic,    flight (paid.ts, D304). status walks
+  prompt, type, options, topic,    flight (paid.ts, D313). status walks
   scope, dims (≤3, D228),          review → approved|declined → live:
   wearName, buyerName?,            the automated review (gates + model)
   status, note?, review?,          settles it, `quote` locks the rate ×
@@ -575,7 +575,7 @@ the callable, the review trigger/sweep, the webhook)
 
 v2_purchases/{uid_bid}             one row per completed sale (PAID-PLAN
   uid, kind, qid, prompt,          §7 shape) — written by the payment
-  options, scope, place, dims[],   webhook (D304; ad sales D306) or the
+  options, scope, place, dims[],   webhook (D313; ad sales D315) or the
   window{start,until}, cadence,    operator's record-purchase.mjs for hand
   budget{cap,capEur,rate…},        contracts; closePaidCampaignsV2 marks
   state, reports[], closed?,       `closed` with the answer count and the
@@ -590,7 +590,7 @@ read: the buyer (uid == auth.uid) · write: nobody client-side
 ## Functions
 
 - `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
-  into `v2_questions` (687 docs, stable ids `daily-000`, `feed-<id>`,
+  into `v2_questions` (694 docs, stable ids `daily-000`, `feed-<id>`,
   `pick-<id>`, `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
   operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
@@ -663,7 +663,7 @@ read: signed-in · write: nobody
 ## Read economics (client)
 
 A live boot costs ~20 reads, not ~380: one `v2_meta/app` read decides
-everything. The question bank (687 docs) caches in localStorage keyed by
+everything. The question bank (694 docs) caches in localStorage keyed by
 `contentRev`, and refreshes **incrementally** — one query for docs newer
 than the cache's `updatedAt` cursor, so a promotion cycle costs the
 handful of questions it added rather than the whole bank (D34;

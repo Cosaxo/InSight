@@ -205,7 +205,7 @@ describe("the paid slot holds ONE thing, of either kind (D197)", () => {
     expect(pickPaid([], [ad("ad-a", { until: "2026-08-17" })], OSLO, 0, "2026-08-17")?.kind).toBe("ad");
   });
 
-  it("holds a queued ad until its scheduled day (D306)", () => {
+  it("holds a queued ad until its scheduled day (D315)", () => {
     // A self-serve ad that queued behind another (paid.ts adStartDay)
     // carries `from`; serving it early would break the day-exclusivity
     // its flat price bought. Committed ads carry no `from` and serve.

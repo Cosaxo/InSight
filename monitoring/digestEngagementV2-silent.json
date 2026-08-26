@@ -8,7 +8,7 @@
     {
       "displayName": "no completed digestEngagementV2 run for 30 hours",
       "conditionAbsent": {
-        "filter": "metric.type=\"logging.googleapis.com/user/engagement_digest\"",
+        "filter": "metric.type=\"logging.googleapis.com/user/engagement_digest\" AND resource.type=\"cloud_run_revision\"",
         "duration": "108000s",
         "aggregations": [
           {

@@ -37,7 +37,7 @@ export const PRICING = PRICING_JSON as PricingFile;
 export const rate = (scope: Scope): number =>
   Math.round(PRICING.base * PRICING.cohorts[scope].idx * 1000) / 1000;
 
-/** The ad window's flat line (D306): adBase × the same committed idx —
+/** The ad window's flat line (D315): adBase × the same committed idx —
  * one figure for the whole window, because an ad has nothing to meter. */
 export const adFlat = (scope: Scope): number =>
   Math.round(PRICING.adBase * PRICING.cohorts[scope].idx * 100) / 100;

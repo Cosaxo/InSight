@@ -55,7 +55,7 @@ import {
   type CatalogSpec,
   type SeedOptionConflict,
 } from "./pure";
-import { FILM_KEYS, ARTIST_KEYS, EMOJI_KEYS, COUNTRY_KEYS, DOG_KEYS, COLOR_KEYS } from "./catalogKeys";
+import { FILM_KEYS, ARTIST_KEYS, ATHLETE_KEYS, EMOJI_KEYS, COUNTRY_KEYS, DOG_KEYS, COLOR_KEYS } from "./catalogKeys";
 
 const REGION = FUNCTIONS_REGION;
 
@@ -280,6 +280,7 @@ export const CATALOG_DOMAINS: Record<string, CatalogSpec> = {
   pokemon: { max: CATALOG_MAX_ENTITY },
   films: { keys: FILM_KEYS },
   artists: { keys: ARTIST_KEYS },
+  athletes: { keys: ATHLETE_KEYS },
   // Unicode codepoints — sparse like QIDs, stable by Unicode policy.
   emoji: { keys: EMOJI_KEYS },
   elements: { max: CATALOG_MAX_ELEMENT },
@@ -325,7 +326,7 @@ export async function runSeedAds(db: Firestore): Promise<number> {
   const batch = db.batch();
   let n = 0;
   for (const doc of existing.docs) {
-    // Self-serve ads (paid.ts, D306) are not the seed's to retire: the
+    // Self-serve ads (paid.ts, D315) are not the seed's to retire: the
     // webhook wrote them against a payment, and the daily closer deletes
     // them when their window ends — the same accumulation-control this
     // delete provides for committed ads, owned by the pen that made them.

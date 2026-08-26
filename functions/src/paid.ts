@@ -1,8 +1,8 @@
-// paid.ts — the self-serve paid-question loop (D304).
+// paid.ts — the self-serve paid-question loop (D313).
 //
 // What this closes: PAID-PLAN §9.2 sold by hand — a human contract, an
 // operator script per sale (record-purchase.mjs), a content PR per
-// question. D304 (owner, 2026-08-26) replaces the human with machinery
+// question. D313 (owner, 2026-08-26) replaces the human with machinery
 // end to end: a buyer composes in the app, an AUTOMATED review checks the
 // ask against the guidelines, the price comes off the committed rate card
 // server-side, payment runs through Stripe Checkout on the web, and the
@@ -111,7 +111,7 @@ export const AUDIENCE_DIMS = new Set([
 ]);
 export const AUDIENCE_DIMS_MAX = 3; // D228's coarseness ceiling
 
-// ── the ad lane (D306) ──────────────────────────────────────────────────
+// ── the ad lane (D315) ──────────────────────────────────────────────────
 // Bounds mirrored by value from scripts/check-content.mjs's ad rules
 // (advertiser 40 · headline 70 · body 140), the same runtime-import
 // constraint every mirrored figure in this file carries. The URL nose is
@@ -127,7 +127,7 @@ export const AD_URL_RE = /https?:\/\/|www\.|\.com\b|\.no\b/i;
 export const AD_AUDIENCE_MAX = 1;
 
 export interface PaidBookingPayload {
-  /** what is being bought: a question (D304) or a feed ad (D306). */
+  /** what is being bought: a question (D313) or a feed ad (D315). */
   kind: "question" | "ad";
   prompt: string;
   type: string;
@@ -241,7 +241,7 @@ export function validatePaidBooking(data: unknown): { ok: PaidBookingPayload } |
   };
 }
 
-/** The ad booking's half of the door (D306) — same refusal register:
+/** The ad booking's half of the door (D315) — same refusal register:
  * every message says what to change. */
 function validateAdBooking(d: Record<string, unknown>): { ok: PaidBookingPayload } | { error: string } {
   const advertiser = String(d.advertiser ?? "").trim();
@@ -310,7 +310,7 @@ export function priceQuote(scope: "city" | "country" | "world", card = PRICING_C
   return { ratePerAnswer, capEur, cap, windowDays: WINDOW_DAYS };
 }
 
-/** The ad window's flat price (D306): adBase × the scope's demand index —
+/** The ad window's flat price (D315): adBase × the scope's demand index —
  * the same inventory the question path occupies, priced by the same idx,
  * with no meter because an ad produces nothing to meter. */
 export function adPriceQuote(scope: "city" | "country" | "world", card = PRICING_CARD): PaidAdQuote {
@@ -758,7 +758,7 @@ export function dayPlus(day: string, days: number): string {
 }
 
 /**
- * Where a NEW ad window starts (D306): the scope's first day with no
+ * Where a NEW ad window starts (D315): the scope's first day with no
  * other paid ad running — ads QUEUE rather than share, which is the flat
  * price's honesty. A question's dilution self-corrects through per-answer
  * billing and its refund; a flat-priced ad silently diluted by another ad
@@ -779,7 +779,7 @@ export function adStartDay(
 }
 
 /**
- * The ad doc the webhook writes into v2_ads (D306) — the seed's own
+ * The ad doc the webhook writes into v2_ads (D315) — the seed's own
  * field shape (runSeedAds) plus `from`, which committed ads never need
  * (their window starts at seed time) and a queued paid ad does:
  * pickPaid's ad filter honours it so a window scheduled to open next
@@ -1067,7 +1067,7 @@ export const closePaidCampaignsV2 = onSchedule(
       const kind = String(doc.get("kind") ?? "question");
       if (kind === "ad") {
         // No refund arithmetic: the flat price bought the window and the
-        // window ran (D306). The DELETE is the janitor half runSeedAds
+        // window ran (D315). The DELETE is the janitor half runSeedAds
         // gave up for `paidad-` ids: an expired paid ad would otherwise
         // sit in a pool every client downloads whole, forever — the
         // exact accumulation the seed's own delete exists to prevent.

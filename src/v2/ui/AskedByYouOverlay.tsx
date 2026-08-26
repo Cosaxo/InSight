@@ -156,7 +156,7 @@ function PurchaseCard({ p }: { p: Purchase }): React.ReactElement {
   );
 }
 
-/** one bought AD (D306): band + state · the card's own words · the flat
+/** one bought AD (D315): band + state · the card's own words · the flat
  * price and the window. No split, no meter, no shelf — an ad collects
  * nothing, and the card says so instead of drawing an empty chart. */
 function AdPurchaseCard({ p }: { p: Purchase }): React.ReactElement {

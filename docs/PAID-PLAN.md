@@ -8,7 +8,7 @@
 ([D251](DECISIONS.md#d251--the-report-builder-ships-and-reads-as-a-signed-in-user))
 — the first two built 2026-08-22, the builder 2026-08-23 — and the
 selling of §1's paid question itself, which stopped being "by hand" at
-[D304](DECISIONS.md#d304--the-paid-question-sells-itself-automated-review-stripe-checkout-and-a-question-that-goes-live-with-nobody-at-the-desk)
+[D313](DECISIONS.md#d313--the-paid-question-sells-itself-automated-review-stripe-checkout-and-a-question-that-goes-live-with-nobody-at-the-desk)
 (2026-08-26): automated review, Stripe checkout, the question written
 live by the webhook, the unserved cap auto-refunded at close. §9.2's
 "sell by hand at hand-set prices" is superseded for questions;

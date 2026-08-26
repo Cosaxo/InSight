@@ -36,6 +36,21 @@
 //      with no points is not merely quiet — a metric-ABSENCE condition
 //      against it cannot fire at all (D48.1), so it reports health it has
 //      never measured.
+//   5. Every metric-based condition filter also restricts `resource.type`.
+//      Cloud Monitoring REJECTS a create without one — 400, "must specify a
+//      restriction on resource.type" — and nothing in this repo could see
+//      that until an --apply run took the error in production on
+//      2026-08-26, having already created the channel, all five metrics and
+//      one policy. Five of the eight committed policies had a bare
+//      `metric.type=…` filter. Rule 3 proves the metric a condition names
+//      exists; only this proves the filter is one the API will accept.
+//
+//      SHAPE ONLY, and the limit is worth stating: this cannot check the
+//      VALUE. A filter naming a resource type the series never carries is
+//      accepted, enabled, listed and permanently green — worse than the
+//      400, because nothing says so. `npm run observe -- --metrics` reads
+//      one real log entry per metric and reports the type it actually
+//      carries; that is the check for the value, and it needs production.
 //
 // Plus a shape check: a policy with no conditions, or no runbook, is a page
 // at 3am with nothing to act on.
@@ -150,6 +165,29 @@ for (const f of onDisk) {
   }
 }
 
+// ── rule 5: a metric-based filter restricts resource.type ───────────
+// Runs over the same parsed policies rule 3 walked, but separately, because
+// the two failures are different: rule 3's is a filter that resolves to
+// nothing and stays quiet, this one's is a create the API refuses outright.
+for (const f of onDisk) {
+  let policy;
+  try { policy = JSON.parse(read(`monitoring/${f}`)); } catch { continue; }
+  for (const cond of policy.conditions ?? []) {
+    for (const key of ["conditionThreshold", "conditionAbsent"]) {
+      const filter = cond[key]?.filter;
+      if (!filter || !/metric\.type\s*=/.test(filter)) continue;
+      if (/resource\.type\s*=/.test(filter)) continue;
+      fail(`monitoring/${f}: ${key} filters on a metric.type with no resource.type restriction.\n`
+        + `    ${filter}\n`
+        + "    Cloud Monitoring rejects the create with 400 — \"must specify a restriction\n"
+        + "    on resource.type\". This is not a lint: the policy cannot be created at all,\n"
+        + "    and apply-monitoring stops the run there, leaving whatever it made before it.\n"
+        + "    For a logging.googleapis.com/user/* metric the right value is the resource of\n"
+        + "    the LOG ENTRIES it counts — `npm run observe -- --metrics` measures it.");
+    }
+  }
+}
+
 // ── rule 4: each metric selects on a field a function emits ──────────
 const fnSrc = readdirSync(join(root, "functions/src"))
   .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"))
@@ -183,5 +221,6 @@ if (problems.length) {
 
 console.log(
   `check:monitoring OK — ${onDisk.length} policies, ${metricNames.length} log-based metrics, `
-  + "every condition resolves to a metric and every metric to a field a function emits.",
+  + "every condition resolves to a metric, every metric to a field a function emits, "
+  + "and every metric-based filter restricts resource.type.",
 );

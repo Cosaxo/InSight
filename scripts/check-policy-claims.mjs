@@ -102,7 +102,7 @@ export const CLAIMS = [
   ["D178 · the profile photo is optional and its metadata is stripped",
     /metadata is\s+stripped on your device/i],
   // The D3 row here — "no third-party analytics or tracking of any
-  // kind" — retired at D305 (2026-08-26): the owner removed the promise
+  // kind" — retired at D314 (2026-08-26): the owner removed the promise
   // on the D225 posture (an unneeded promise is a standing liability),
   // over the recorded recommendation to keep it. The page now DESCRIBES
   // today's practice — no ad identifiers, no third-party analytics SDK,
@@ -112,7 +112,7 @@ export const CLAIMS = [
   // about the shipped app until an SDK actually ships; the day one
   // does, the store forms and this page move together, as a product
   // decision rather than a broken promise.
-  ["D305 · the tracking passage describes today and stays ahead of change",
+  ["D314 · the tracking passage describes today and stays ahead of change",
     /no third-party analytics SDK[\s\S]{0,200}?this\s+page changes first/i],
   ["D226 · a changed answer is counted publicly as a move between options",
     /moves from one option to another/i],
@@ -120,16 +120,16 @@ export const CLAIMS = [
     /verified logic score, in\s+four broad\s+bands/i],
   ["D251 · sold reports are packaged public numbers, never a private read",
     /report never contains\s+anything a signed-in user could not read/i],
-  // D304 is one disclosure in two halves, the D268 pair's shape: one row
+  // D313 is one disclosure in two halves, the D268 pair's shape: one row
   // pins the automated review (a submitted ask is read by an AI reviewer
   // — that is a processor a buyer should learn from the page, not from a
   // decline), the other pins the payment boundary (Stripe holds the
   // payment details; we keep the booking and the refund arithmetic).
   // Deleting either half leaves a page describing a different pipeline
   // than the one that runs.
-  ["D304 · paid submissions are reviewed automatically, by rules and an AI reviewer",
+  ["D313 · paid submissions are reviewed automatically, by rules and an AI reviewer",
     /checked automatically[\s\S]{0,200}?AI reviewer/i],
-  ["D304 · payment runs on Stripe and the payment details never reach us",
+  ["D313 · payment runs on Stripe and the payment details never reach us",
     /Stripe receives your payment details and we never see\s+them/i],
   ["D253 · sold reports group answers by all four tests' types and axes",
     /matched type and axis\s+bands/i],

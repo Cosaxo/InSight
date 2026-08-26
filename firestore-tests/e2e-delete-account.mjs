@@ -288,7 +288,7 @@ await adb.doc(`v2_ratelimits/suggest_${uid}`).set({ events: [Date.now()] });
 // paid purchase records (PAID-PLAN §7, D288 §3): the contract ledger, keyed
 // to the buyer. OTHER's row is the control — phase 4e queries on uid and
 // must not take the whole ledger with it. Seeded with admin because the
-// pens are server-side only (the D304 webhook and the operator script; no
+// pens are server-side only (the D313 webhook and the operator script; no
 // client write path).
 await adb.doc(`v2_purchases/${uid}_e2e`).set({
   uid, kind: "question", qid: "pd_e2e", scope: "city", place: "Oslo",
@@ -303,7 +303,7 @@ await adb.doc(`v2_purchases/${OTHER}_e2e`).set({
   state: "running", reports: [], at: new Date(),
 });
 
-// paid-question bookings (paid.ts, D304): the pre-payment half of a sale —
+// paid-question bookings (paid.ts, D313): the pre-payment half of a sale —
 // free text and a verdict under a uid, phase 4f. OTHER's row is the
 // control again; the budget ledger rides the same sweep as suggest_.
 await adb.doc(`v2_paid_bookings/${uid}_e2e`).set({
@@ -594,7 +594,7 @@ if (!(await exists(`v2_purchases/${OTHER}_e2e`)))
 ok("someone else's purchase record survives (D288 §3)");
 if (!(await exists(`v2_paid_bookings/${OTHER}_e2e`)))
   fail("someone else's paid booking was deleted — phase 4f matched more than the uid");
-ok("someone else's paid-question booking survives (D304)");
+ok("someone else's paid-question booking survives (D313)");
 if (!(await exists(`v2_users/${OTHER}/engagement/2026-08-22`)))
   fail("someone else's engagement rollup was deleted — the wipe took the collection, not the account");
 ok("someone else's engagement rollup survives (D272)");

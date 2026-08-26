@@ -74,7 +74,7 @@ const db = getFirestore();
 const prev = JSON.parse(readFileSync(OUT, "utf8"));
 const { base, floorX, ceilX, floorWeek, capEur, currency, trailingDays, fx, adBase } = prev;
 if (!(base > 0) || !(floorX > 0) || !(ceilX >= floorX)) die("pricing.json constants are out of shape — fix the file first");
-if (!(adBase > 0)) die("adBase must be a positive flat window figure (D306) — fix the file first");
+if (!(adBase > 0)) die("adBase must be a positive flat window figure (D315) — fix the file first");
 
 const DAY = 24 * 60 * 60 * 1000;
 const dayISO = (t) => new Date(t).toISOString().slice(0, 10);
@@ -82,7 +82,7 @@ const todayUTC = Date.parse(`${dayISO(Date.now())}T00:00:00Z`);
 
 const snap = await db.collection("v2_purchases").get();
 const purchases = snap.docs.map((d) => d.data()).filter((p) => p && p.kind === "question");
-// Ads occupy the SAME slot-days the demand index prices (D306), so they
+// Ads occupy the SAME slot-days the demand index prices (D315), so they
 // fold into sold/booked with the questions. They stay out of `purchases`
 // because the estimates below predict answers per day, and an ad has no
 // answers to predict from.

@@ -59,6 +59,10 @@ const LIVE = vi.hoisted(() => ({
   // that want a drawing supply all four.
   myCity: "Oslo, NO",
   myVotes: () => ({}) as Record<string, string>,
+  // The Scores lens's ask rows (D307) and the vote they cast through the
+  // ordinary path. Empty/spy by default; the ask cases supply both.
+  placeAsks: (scope: string) => { void scope; return [] as Array<{ id: string; text: string; optionCount: number }>; },
+  vote: vi.fn((qid: string, optionId: string) => { void qid; void optionId; }),
   testFeedItems: () => [] as Array<Record<string, unknown>>,
   aggFor: (qid: string) => { void qid; return null as Record<string, unknown> | null; },
   loadNames: vi.fn(async () => {}),
@@ -128,6 +132,8 @@ beforeEach(() => {
   LIVE.testFeedItems = () => [];
   LIVE.myTestResults = () => ({});
   LIVE.aggFor = () => null;
+  LIVE.placeAsks = () => [];
+  LIVE.vote = vi.fn();
 });
 afterEach(cleanup);
 
@@ -552,6 +558,65 @@ describe("Explore", () => {
 // not in it cannot be shown that by absence — nothing on the card would
 // look different. The card says it instead, and only where it is true:
 // City, live, and the phone has never agreed with the anchor.
+// ── the asks (D307) ─────────────────────────────────────────────────
+//
+// The only other door to a `rates` question was the daily rotation — one
+// such day in five — so a scorecard could sit empty with nothing anyone
+// could do about it. The cases hold the seam: rows from the BANK (not
+// the aggregates), votes through the one ordinary path, and a cap that
+// keeps the card a card.
+describe("Scores · the asks (D307)", () => {
+  const SCORED: LensQuestion = {
+    id: "r1", type: "rating", rates: "city", tag: "Safety",
+    text: "How safe do you feel walking home at night?",
+    options: ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+    counts: [0, 0, 2, 0, 0, 0, 0, 0, 2, 0],
+    all: [0, 0, 2, 0, 0, 0, 0, 0, 2, 0],
+    by: {}, mine: 8,
+  };
+  const ASK = { id: "daily-093", text: "Rate the food where you live.", optionCount: 10 };
+
+  it("offers the unanswered place questions under the scored rows", () => {
+    LIVE.placeAsks = () => [ASK];
+    mount("scores", [SCORED]);
+    expect(screen.getByText("Rate the food where you live.")).toBeTruthy();
+    // Ten steps, one tap each — D305's scale row, not ten stacked rows.
+    expect(screen.getByRole("button", { name: "10" })).toBeTruthy();
+  });
+
+  it("casts the tap through the ordinary vote path, as the option index", () => {
+    LIVE.placeAsks = () => [ASK];
+    mount("scores", [SCORED]);
+    fireEvent.click(screen.getByRole("button", { name: "7" }));
+    expect(LIVE.vote).toHaveBeenCalledWith("daily-093", "6");
+  });
+
+  it("keeps the empty scorecard honest and answerable at once", () => {
+    // "Nobody has scored it" stays a fact; the way to change it sits
+    // right under the sentence instead of behind the rotation.
+    LIVE.placeAsks = () => [ASK];
+    mount("scores", []);
+    expect(screen.getByText(/Nothing scored yet/)).toBeTruthy();
+    expect(screen.getByText("Rate the food where you live.")).toBeTruthy();
+  });
+
+  it("caps the visible asks and counts the rest", () => {
+    LIVE.placeAsks = () => Array.from({ length: 5 }, (_, i) => ({
+      id: `d${i}`, text: `Place question ${i} long enough to read.`, optionCount: 10,
+    }));
+    mount("scores", []);
+    expect(screen.getByText("Place question 0 long enough to read.")).toBeTruthy();
+    expect(screen.getByText("Place question 2 long enough to read.")).toBeTruthy();
+    expect(screen.queryByText("Place question 3 long enough to read.")).toBeNull();
+    expect(screen.getByText("2 more after these.")).toBeTruthy();
+  });
+
+  it("offers nothing when every place question is answered", () => {
+    mount("scores", [SCORED]);
+    expect(screen.queryByRole("button", { name: "7" })).toBeNull();
+  });
+});
+
 describe("Scores · the confirmed-city note", () => {
   const RATED_CITY: LensQuestion = {
     id: "d1", type: "rating", rates: "city", tag: "Safety",

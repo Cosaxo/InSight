@@ -5,7 +5,7 @@
 // fails the gate.
 //
 // The committed rate card (PAID-PLAN §6, D288 §3), embedded so the
-// booking path can price server-side (D304). The client keeps reading
+// booking path can price server-side (D313). The client keeps reading
 // content/pricing.json; this copy exists because a deployed function
 // cannot reach that file and a price the server does not verify is a
 // price the client picked.

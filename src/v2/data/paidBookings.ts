@@ -1,4 +1,4 @@
-// The client half of the self-serve paid-question loop (paid.ts, D304).
+// The client half of the self-serve paid-question loop (paid.ts, D313).
 // Three jobs: open a booking through the callable, read back this
 // account's own rows so the door can show review → approved → live, and
 // turn an approved row into a Stripe Checkout URL.
@@ -31,14 +31,14 @@ export interface BookingQuote {
   capEur: number;
   cap: number;
   windowDays: number;
-  /** the ad lane's flat window figure (D306) — 0 on question quotes */
+  /** the ad lane's flat window figure (D315) — 0 on question quotes */
   flatEur: number;
 }
 
 export interface MyBooking {
   id: string;
   kind: "question" | "ad";
-  /** the ad half (D306) — empty strings on question bookings */
+  /** the ad half (D315) — empty strings on question bookings */
   advertiser: string;
   headline: string;
   body: string;

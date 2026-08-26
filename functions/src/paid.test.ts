@@ -1,5 +1,5 @@
 // paid.test.ts — the pure half of the self-serve paid-question loop
-// (paid.ts, D304): what a booking must look like to get in, what the
+// (paid.ts, D313): what a booking must look like to get in, what the
 // quote arithmetic locks, what the review holds, and — the part a green
 // emulator cannot prove — that the question doc the webhook writes wears
 // exactly the shape the client's bank fetch and the answer rules expect.
@@ -289,7 +289,7 @@ describe("utcDayKey", () => {
   });
 });
 
-// ── the ad lane (D306) ──────────────────────────────────────────────────
+// ── the ad lane (D315) ──────────────────────────────────────────────────
 
 describe("validatePaidBooking — kind ad", () => {
   it("accepts an honest ad and normalizes it", () => {
@@ -352,7 +352,7 @@ describe("adPriceQuote", () => {
   });
 });
 
-describe("adStartDay — ads queue, never overlap (D306)", () => {
+describe("adStartDay — ads queue, never overlap (D315)", () => {
   const NOW = Date.UTC(2026, 7, 26, 12);
   it("starts tomorrow in an empty scope", () => {
     expect(adStartDay([], NOW)).toBe("2026-08-27");

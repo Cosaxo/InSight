@@ -19,7 +19,7 @@ import { TEST_FEED_QS } from './test-feed-data.js';
 import { testFeedPool } from '../data/testFeed.ts';
 import { WORLD_CHANNELS } from './world-feed-data.js';
 import PLACES from '../data/places';
-import { FILMS, ARTISTS, EMOJI } from '../data/catalogs';
+import { FILMS, ARTISTS, ATHLETES, EMOJI } from '../data/catalogs';
 import POKEDEX from '../data/pokedex';
 // The live who-voted sheet, cohort-first (D125) — it owns the cohort
 // choice, the split drawn for it and the named roster underneath, which
@@ -31,6 +31,7 @@ import POKEDEX from '../data/pokedex';
 // paint (D25), so importing it here keeps it in the deferred chunk
 // instead of pulling it into the first-paint bundle.
 import LiveBreakdownPanel from '../ui/LiveBreakdownPanel';
+import PickTiles from '../ui/PickTiles.tsx';
 // The pick board's size — deck.ts's pinned twin of the server's
 // CANON_TOP_N (vote.test.ts holds all three equal). An import for D39's
 // reason above: live.ts already carries deck.ts in the entry graph, so
@@ -271,7 +272,26 @@ function WFFlipList({ rows, order, gap }) {
     </div>
   );
 }
-const WF_FRIENDS = [{ name: 'Alex', init: 'A' }, { name: 'Mia', init: 'M' }, { name: 'Jordi', init: 'J' }, { name: 'Sara', init: 'S' }, { name: 'Noah', init: 'N' }, { name: 'Elif', init: 'E' }];
+// Each demo friend carries an identity hue and an activity share
+// (2026-08-26). A friend appears on a question ONLY if wfDid says they
+// answered it — most cards carry 0–2 friends, many carry none, and that
+// silence is what keeps friend marks from becoming furniture. The hues
+// are identity, not sides: a full-strength fill carrying #fff, so every
+// use routes through WPAL.ink (the palette gate, D189).
+const WF_FRIENDS = [
+  { name: 'Alex', init: 'A', hue: 'oklch(0.55 0.1 40)', act: 0.5 },
+  { name: 'Mia', init: 'M', hue: 'oklch(0.55 0.1 325)', act: 0.42 },
+  { name: 'Jordi', init: 'J', hue: 'oklch(0.55 0.1 235)', act: 0.34 },
+  { name: 'Sara', init: 'S', hue: 'oklch(0.55 0.1 150)', act: 0.26 },
+  { name: 'Noah', init: 'N', hue: 'oklch(0.55 0.1 275)', act: 0.2 },
+  { name: 'Elif', init: 'E', hue: 'oklch(0.55 0.1 85)', act: 0.14 },
+];
+const wfDid = (q, f) => wfHash('did:' + q.id + ':' + f.name) < f.act;
+// one friend as a small identity avatar; k > 0 overlaps leftward
+const wfFrAv = (f, D, k) => (
+  <span key={f.name} title={f.name} style={{ width: D, height: D, borderRadius: '50%', marginLeft: k ? -Math.round(D * 0.28) : 0, flexShrink: 0, boxSizing: 'border-box', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: Math.round(D * 0.56), background: WPAL.ink(f.hue), color: '#fff', boxShadow: '0 0 0 1.5px var(--surface)', position: 'relative', zIndex: 4 - k }}>{f.init}</span>
+);
+const wfFrNone = (txt) => <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)', textAlign: 'center', padding: '18px 0' }}>{txt}</div>;
 
 class WorldFeed extends React.Component {
   state = { votes: wfLoad(), knowRes: {}, pickQ: {}, pending: {}, open: {}, panels: {}, dims: {}, cutAxis: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, reportFor: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), deferred: wfLoadMap(WF_DEFER_LS), ripple: null, liveTakesOpen: {}, editFor: {}, editHold: null, doneOpen: false, shown: WF_PAGE };
@@ -1287,7 +1307,7 @@ class WorldFeed extends React.Component {
     const ranked = C.items.slice().sort((a, b) => b.count - a.count);
     const headShare = ranked.reduce((a, i) => a + (i.count / C.picks) * 100, 0);
     const overall = ranked[0];
-    const groups = dim === 'friends' ? WF_FRIENDS.map((f) => ({ label: f.name, init: f.init })) : WF_GRP(dim, axis);
+    const groups = dim === 'friends' ? WF_FRIENDS.filter((f) => wfDid(q, f)).map((f) => ({ label: f.name, init: f.init })) : WF_GRP(dim, axis);
     const line = (g) => {
       const r = wfPickGroup(q.id, cutKey + ':' + g.label, ranked, headShare);
       const win = r[0];
@@ -1317,7 +1337,7 @@ class WorldFeed extends React.Component {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
         {this.renderCutChips(q, dim)}
         <div style={{ background: 'var(--ink)', color: 'var(--surface)', borderRadius: 12, padding: '12px 14px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ flex: 1, minWidth: 0 }}>{nDiv ? nDiv + ' of ' + groups.length + ' put someone else first' : 'Every group agrees'}</span>
+          <span style={{ flex: 1, minWidth: 0 }}>{!groups.length ? 'None of your friends has answered this one yet' : nDiv ? nDiv + ' of ' + groups.length + ' put someone else first' : 'Every group agrees'}</span>
           <span style={{ flexShrink: 0, fontSize: 12, fontWeight: 800, background: 'color-mix(in oklch, var(--surface) 22%, transparent)', borderRadius: 999, padding: '3px 10px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 130 }}>{overall.name}</span>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column' }}>{groups.map(line)}</div>
@@ -1535,6 +1555,7 @@ class WorldFeed extends React.Component {
   pickStore(domain) {
     return domain === 'films' ? FILMS
       : domain === 'artists' ? ARTISTS
+      : domain === 'athletes' ? ATHLETES
       : domain === 'emoji' ? EMOJI
       : domain === 'elements' ? ELEMENTS_CATALOG
       : domain === 'countries' ? COUNTRIES
@@ -1580,7 +1601,33 @@ class WorldFeed extends React.Component {
     const v = this.pickVal(q);
     const store = this.pickStore(q.domain);
     if (v == null) {
-      return <PickSearch domain={q.domain} accent={T.color} big={big} onPick={(id) => this.setPick(q, id)} onNotListed={() => this.setPick(q, store ? store.NOT_LISTED : 0)} />;
+      // The browse row (D308): the catalogue's popularity head as tiles
+      // over the search, so the domain is visible before you know what to
+      // type. ONLY the sitelink-ranked domains — their file's head IS a
+      // fame ranking; offering the alphabetical catalogues' head as if it
+      // were one would be the D1 shape of misleading. peek() is the
+      // committed file already parsed; the one load it may kick is the
+      // same fetch the picker itself pays on open.
+      const tiled = q.domain === 'films' || q.domain === 'artists' || q.domain === 'athletes';
+      let head = [];
+      if (tiled && store && store.peek) {
+        head = (store.peek() || []).slice(0, 8).map((e) => ({ id: e.key, name: e.name }));
+        if (!head.length && store.load) {
+          const kicked = this._tileKick || (this._tileKick = {});
+          if (!kicked[q.domain]) {
+            kicked[q.domain] = 1;
+            store.load().then(() => this.setState({ dexTick: (this.state.dexTick || 0) + 1 }), () => { kicked[q.domain] = 0; });
+          }
+        }
+      }
+      const search = <PickSearch domain={q.domain} accent={T.color} big={big} onPick={(id) => this.setPick(q, id)} onNotListed={() => this.setPick(q, store ? store.NOT_LISTED : 0)} />;
+      if (!head.length) return search;
+      return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <PickTiles domain={q.domain} entries={head} accent={T.color} onPick={(id) => this.setPick(q, id)} />
+          {search}
+        </div>
+      );
     }
     // The reveal is a canon, not a split: top entities above the floor,
     // everyone else in one bucket. Your own pick always shows to YOU — it
@@ -1613,7 +1660,7 @@ class WorldFeed extends React.Component {
     // it. The entity count renders only when the fold covers at least two
     // entries (the subtraction-leak rule the backend fold keeps) and steps
     // down like the vote counts do, so it never ticks per-answer.
-    const nounOf = { pokemon: 'Pokémon', emoji: 'emoji', films: 'films', artists: 'artists' };
+    const nounOf = { pokemon: 'Pokémon', emoji: 'emoji', films: 'films', artists: 'artists', athletes: 'athletes' };
     const foldNoun = nounOf[q.domain] || 'picks';
     const foldNote = c.restEntities >= 5
       ? ` votes across ${Math.floor(c.restEntities / 5) * 5}+ other ${foldNoun}`
@@ -1743,7 +1790,7 @@ class WorldFeed extends React.Component {
   // on a live card it would additionally be a fabrication.
   friendSides(q, counts) {
     const total = counts.reduce((a, b) => a + b, 0) || 1;
-    return WF_FRIENDS.map((f) => {
+    return WF_FRIENDS.filter((f) => wfDid(q, f)).map((f) => {
       const r = wfHash(q.id + ':' + f.name); let acc = 0, oi = counts.length - 1;
       for (let i = 0; i < counts.length; i++) { acc += counts[i] / total; if (r < acc) { oi = i; break; } }
       return { ...f, oi };
@@ -1888,14 +1935,19 @@ class WorldFeed extends React.Component {
                     <span style={{ fontWeight: win ? 800 : 700, fontSize: big ? 19 : 15, letterSpacing: '-0.02em' }}>{o.label}</span>
                     {isMine && <span style={{ fontSize: 13, fontWeight: v2 ? 500 : 700, color: 'var(--ink-2)', whiteSpace: 'nowrap', animation: !v2 && fresh ? 'chipPop .35s var(--ease-spring) var(--rv-2) both' : 'none' }}>{'· you'}</span>}
                   </div>
-                  {/* Friend dots: DEMO CARDS ONLY. WF_FRIENDS are invented
-                      and friendSides derives their side from a hash, so on a
-                      live card this would be both a fabrication and the named
-                      who-voted at world scale that D1 forbids. v2 drops them
-                      from the tile — the footer row carries that weight. */}
-                  {!v2 && fr.length > 0 && (
-                    <button onClick={() => this.openSheet(q, T, 'stats')} aria-label={fr.map((f) => f.name).join(', ') + ' picked ' + o.label} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 2px', border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0, WebkitAppearance: 'none' }}>
-                      {fr.map((f) => <span key={f.name} title={f.name} style={{ width: 9, height: 9, borderRadius: '50%', background: col, boxShadow: '0 0 0 1.5px var(--surface)' }}></span>)}
+                  {/* Friend marks: DEMO CARDS ONLY (the `sides` gate above —
+                      WF_FRIENDS are invented, and on a live card this would
+                      be both a fabrication and the named who-voted at world
+                      scale that D1 forbids). Identity avatars since
+                      2026-08-26, in BOTH drawings: v2 dropped the old
+                      side-coloured dots as furniture, and the participation
+                      gate (wfDid) is the design's answer to the same
+                      problem — most tiles now carry none, so the two that
+                      appear mean something. */}
+                  {fr.length > 0 && (
+                    <button onClick={() => this.openSheet(q, T, 'stats')} aria-label={fr.map((f) => f.name).join(', ') + ' picked ' + o.label} style={{ display: 'flex', alignItems: 'center', padding: '4px 2px', border: 'none', background: 'none', cursor: 'pointer', flexShrink: 0, WebkitAppearance: 'none', animation: fresh ? 'chipPop .35s var(--ease-spring) .55s both' : 'none' }}>
+                      {fr.slice(0, 2).map((f, k) => wfFrAv(f, big ? 17 : 15, k))}
+                      {fr.length > 2 && <span style={{ marginLeft: 4, fontFamily: 'var(--sans)', fontSize: 10.5, fontWeight: 700, color: 'var(--ink-2)' }}>+{fr.length - 2}</span>}
                     </button>
                   )}
                   {/* every side carries its number — one read of the split,
@@ -3059,7 +3111,7 @@ class WorldFeed extends React.Component {
         )}
         {dim === 'friends' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-            {WF_FRIENDS.map((f) => {
+            {WF_FRIENDS.filter((f) => wfDid(q, f)).map((f) => {
               const a = wfRateAvg(q.id, 'f:' + f.name, avg);
               const s = Math.round(a);
               return (
@@ -3074,6 +3126,7 @@ class WorldFeed extends React.Component {
                 </div>
               );
             })}
+            {!WF_FRIENDS.some((f) => wfDid(q, f)) && wfFrNone('None of your friends has rated this one yet.')}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
@@ -3312,7 +3365,7 @@ class WorldFeed extends React.Component {
         )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
           {dim === 'friends'
-            ? WF_FRIENDS.map((f) => this.dialTrackRow(q, T, v, f.name, null, this.dialGrpAvg(q, 'f:' + f.name)))
+            ? (WF_FRIENDS.some((f) => wfDid(q, f)) ? WF_FRIENDS.filter((f) => wfDid(q, f)).map((f) => this.dialTrackRow(q, T, v, f.name, null, this.dialGrpAvg(q, 'f:' + f.name))) : wfFrNone('None of your friends has answered this one yet.'))
             : WF_GRP(dim, axis).map((g) => this.dialTrackRow(q, T, v, g.label, g.color, this.dialGrpAvg(q, cutKey + ':' + g.label)))}
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'var(--sans)', fontSize: 11, fontWeight: 600, color: 'var(--ink-3)', padding: '0 40px 0 104px' }}>
@@ -3392,7 +3445,7 @@ class WorldFeed extends React.Component {
     const axis = this.state.cutAxis[q.id] || null, cutKey = WF_CUTKEY(dim, axis), youBand = WF_YOU(dim, axis);
     const v = this.state.votes[q.id];
     const marks = (dim === 'friends'
-      ? WF_FRIENDS.map((f) => ({ label: f.name, short: f.init, key: 'f:' + f.name }))
+      ? WF_FRIENDS.filter((f) => wfDid(q, f)).map((f) => ({ label: f.name, short: f.init, key: 'f:' + f.name }))
       : WF_GRP(dim, axis).map((g) => ({ label: g.label, short: g.label, color: g.color, key: cutKey + ':' + g.label }))
     ).map((g) => {
       const [x, y] = this.fieldGrpPos(q, g.key);
@@ -3445,10 +3498,11 @@ class WorldFeed extends React.Component {
     const total = counts.reduce((a, b) => a + b, 0);
     const myVote = this.state.votes[q.id];
     const mySide = typeof myVote === 'number' ? myVote : null;
-    // friends pick sides deterministically, weighted by the real split
-    const pick = (name) => { const r = wfHash(q.id + ':' + name); let acc = 0; for (let i = 0; i < counts.length; i++) { acc += counts[i] / total; if (r < acc) return i; } return counts.length - 1; };
-    const friends = WF_FRIENDS.map((f) => ({ ...f, oi: pick(f.name) }));
-    const same = mySide == null ? null : friends.filter((f) => f.oi === mySide).length;
+    // same derivation as the card marks (friendSides) — the two must agree,
+    // and only friends who answered appear (2026-08-26)
+    const friends = this.friendSides(q, counts);
+    const notYet = WF_FRIENDS.filter((f) => !wfDid(q, f));
+    const same = mySide == null || !friends.length ? null : friends.filter((f) => f.oi === mySide).length;
     // the world's own split — it becomes the header bar (legend + baseline in one)
     // and every group's seam is read against it
     const op = counts.map((c) => Math.round((c / total) * 100));
@@ -3462,14 +3516,17 @@ class WorldFeed extends React.Component {
         {this.renderCutChips(q, dim)}
         {dim === 'friends' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ background: 'var(--ink)', color: 'var(--surface)', borderRadius: 12, padding: '12px 14px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 14 }}>{same != null ? same + ' of ' + friends.length + ' friends are on your side' : 'How your friends voted'}</div>
+            <div style={{ background: 'var(--ink)', color: 'var(--surface)', borderRadius: 12, padding: '12px 14px', fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 14 }}>{!friends.length ? 'None of your friends has answered this one yet' : same != null ? same + ' of ' + friends.length + (friends.length === 1 ? ' friend is' : ' friends are') + ' on your side' : 'How your friends voted'}</div>
             {friends.map((f) => (
               <div key={f.name} style={{ background: 'var(--surface)', border: WF_LINE, borderRadius: 12, padding: '9px 11px', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ width: 30, height: 30, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, background: wfShade(T.color, f.oi), color: wfShadeText(f.oi) }}>{f.init}</span>
+                {/* the avatar wears the friend's own hue (identity); only the
+                    pick chip wears the side (2026-08-26) */}
+                <span style={{ width: 30, height: 30, borderRadius: '50%', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, background: WPAL.ink(f.hue), color: '#fff' }}>{f.init}</span>
                 <span style={{ flex: 1, fontWeight: 800, fontSize: 13.5 }}>{f.name}</span>
                 <span style={{ background: wfShade(T.color, f.oi), color: wfShadeText(f.oi), fontSize: 10.5, fontWeight: 800, padding: '3px 10px', borderRadius: 999, whiteSpace: 'nowrap', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}>{q.options[f.oi].label}</span>
               </div>
             ))}
+            {friends.length > 0 && notYet.length > 0 && <div style={{ fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 600, color: 'var(--ink-3)', padding: '2px 4px 0', textWrap: 'pretty' }}>{notYet.map((f) => f.name).join(', ')} {notYet.length === 1 ? "hasn't" : "haven't"} answered this one.</div>}
           </div>
         ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: rowGap }}>
@@ -3533,7 +3590,8 @@ class WorldFeed extends React.Component {
     const tot1 = p1.reduce((a, b) => a + b, 0);
     const firstOf = (name) => { const r = wfHash(q.id + ':first:' + name); let acc = 0; for (let k = 0; k < items.length; k++) { acc += p1[k] / tot1; if (r < acc) return k; } return 0; };
     const top = items[0];
-    const nTop = WF_FRIENDS.filter((f) => firstOf(f.name) === 0).length;
+    const rkFr = WF_FRIENDS.filter((f) => wfDid(q, f));
+    const nTop = rkFr.filter((f) => firstOf(f.name) === 0).length;
     const GRID = { display: 'grid', gridTemplateColumns: `84px repeat(${N}, 1fr)`, gap: 5, alignItems: 'center' };
     const cellCol = (share) => `color-mix(in oklch, ${T.color} ${Math.min(100, Math.round(share * 1.7))}%, var(--surface-3))`;
     return (
@@ -3561,7 +3619,7 @@ class WorldFeed extends React.Component {
             </div>
           );
         })}
-        <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', marginTop: 4 }}>{nTop} of {WF_FRIENDS.length} friends had {top.label.toLowerCase()} first.</div>
+        {rkFr.length ? <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 500, color: 'var(--ink-2)', marginTop: 4 }}>{nTop} of {rkFr.length} {rkFr.length === 1 ? 'friend' : 'friends'} had {top.label.toLowerCase()} first.</div> : null}
       </div>
     );
   }

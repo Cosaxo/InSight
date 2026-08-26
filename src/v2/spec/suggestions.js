@@ -15,7 +15,7 @@
 //   · DEMO — the prototype room: your submissions in localStorage, three
 //     baked examples (one per state) until you have made your own.
 //   · LIVE — your submissions are REAL. The functional pipeline is the
-//     D304 booking loop (data/paidBookings.ts → bookPaidQuestionV2 →
+//     D313 booking loop (data/paidBookings.ts → bookPaidQuestionV2 →
 //     automated review → Stripe checkout → live); rows from the legacy
 //     D138 write-in path (data/suggestions.ts) still render with their
 //     verdicts, because a buyer who wrote in before self-serve existed
@@ -28,7 +28,7 @@ import { IS_DATA } from './sample-data.js';
 // overlays group, but the queries and the modules behind them still cost
 // nothing until a real open (D124/D129 posture).
 let sgData = null; // ../data/suggestions, once the door has opened
-let sgPaid = null; // ../data/paidBookings (D304), same ride
+let sgPaid = null; // ../data/paidBookings (D313), same ride
 let sgBucketLabel = null; // ../ui/cohortLabels.bucketLabel, same ride
 
 // ── the hints an ask can carry. Hints, not settings: the review decides,
@@ -119,7 +119,7 @@ function liveMine() {
   }));
 }
 
-// The BOOKING rows (D304) — the functional pipeline, in the same card
+// The BOOKING rows (D313) — the functional pipeline, in the same card
 // shape plus what the row now has to say: the locked quote (approved
 // rows print the price the pay button charges), the served window (live
 // rows), and `booking: true` so SgMine renders the states this pipeline
@@ -129,7 +129,7 @@ function liveBookings() {
   return rows.map((r) => ({
     id: r.id, kind: r.kind || 'question',
     // an ad row wears its headline where a question wears its prompt —
-    // one card shape in the room, two products behind it (D306)
+    // one card shape in the room, two products behind it (D315)
     prompt: r.kind === 'ad' ? r.headline : r.prompt,
     advertiser: r.advertiser, adBody: r.body,
     type: r.type, options: r.options,
@@ -164,7 +164,7 @@ const agoMins = (s) => {
 };
 
 /** Your asks, newest first — the only list the door draws (D288 §1).
- * Live: the booking pipeline (D304) first-class, plus any legacy
+ * Live: the booking pipeline (D313) first-class, plus any legacy
  * suggestion rows — a buyer who wrote in before self-serve existed keeps
  * their row and its verdict. */
 function mine() {
@@ -237,7 +237,7 @@ export const SUGGESTIONS = {
     return sgPaid ? sgPaid.loadBookings(true) : Promise.resolve([]);
   },
   /**
-   * Open a paid booking (D304; the ad lane D306) — the functional
+   * Open a paid booking (D313; the ad lane D315) — the functional
    * pipeline. Returns
    *   { ok: true, id }              — booked; the review is running
    *   { ok: false, code, message }  — the server's refusal, shown verbatim

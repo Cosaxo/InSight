@@ -56,6 +56,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "branch": "Sport",
   "sub": "Football",
   "tag": "The GOAT",
+  "bg": "Lionel Messi and Cristiano Ronaldo defined two decades of football between them: eight and five Ballons d'Or, over 800 career goals each, a World Cup for Messi in 2022 and five Champions League titles for Ronaldo.",
   "axis": null,
   "test": null
  },
@@ -74,6 +75,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "branch": "Film",
   "sub": "Directors",
   "tag": "Director duel",
+  "bg": "Quentin Tarantino writes talk-heavy, violent genre films — Pulp Fiction, Kill Bill, Once Upon a Time in Hollywood. Wes Anderson builds symmetrical pastel worlds with deadpan ensembles — The Grand Budapest Hotel, Moonrise Kingdom.",
   "axis": null,
   "test": null
  },
@@ -92,6 +94,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "branch": "Food",
   "sub": "Debates",
   "tag": "Pineapple",
+  "bg": "Hawaiian pizza — ham and pineapple — was invented in 1962 by Sam Panopoulos, a Greek-born cook in Chatham, Ontario, Canada, and named after the brand of canned pineapple he used.",
   "axis": null,
   "test": null
  },
@@ -358,6 +361,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "branch": "Mind",
   "sub": "Technology",
   "tag": "AI",
+  "bg": "Artificial intelligence covers systems that learn patterns from data rather than following hand-written rules — the approach behind today's chatbots, translators and image generators.",
   "axis": null,
   "test": null
  },
@@ -378,6 +382,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "branch": "Mind",
   "sub": "Civilisation",
   "tag": "Best invention",
+  "bg": "Writing first appeared in Mesopotamia around 5,000 years ago. Vaccination, anaesthesia and antibiotics each cut death rates within a generation. The internet connected most of humanity inside thirty years.",
   "axis": null,
   "test": null
  },
@@ -1510,6 +1515,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "branch": "Body",
   "sub": "Heat or cold",
   "tag": "Heat or cold",
+  "bg": "Sauna heat and cold-water immersion both trigger short, sharp stress responses the body adapts to. Finland counts about three million saunas for 5.6 million people; ice swimming is its winter twin.",
   "axis": null,
   "test": null
  },
@@ -2487,6 +2493,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "branch": "Film",
   "sub": "The classics",
   "tag": "Black and white",
+  "bg": "The first films were black and white by necessity — colour arrived commercially in the 1930s and became standard only in the 1960s. Directors still choose monochrome deliberately, from Schindler's List to Roma.",
   "axis": null,
   "test": null
  },
@@ -2775,6 +2782,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "sport",
   "axis": null,
   "test": null,
+  "bg": "The Super Bowl has crowned American football's champion since 1967, one winner-take-all night; the Champions League final has crowned Europe's top club side in a lineage running back to 1956.",
   "core": true
  },
  {
@@ -2791,6 +2799,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "sport",
   "axis": null,
   "test": null,
+  "bg": "Olympic gold arrives once every four years across dozens of sports; football's World Cup, also quadrennial, draws the largest audience of any single sporting event on earth.",
   "core": true
  },
  {
@@ -2824,6 +2833,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "sport",
   "axis": null,
   "test": null,
+  "bg": "Video assistant referees review four things only: goals, penalties, red cards and mistaken identity. Introduced at the 2018 World Cup and in the Premier League from 2019.",
   "core": true
  },
  {
@@ -2860,6 +2870,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "also": [
    "tech"
   ],
+  "bg": "E-sports were a medal event at the 2022 Asian Games, and the IOC has run separate Olympic Esports events since 2021 without adding them to the Olympic programme.",
   "core": true
  },
  {
@@ -2948,6 +2959,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "also": [
    "tech"
   ],
+  "bg": "Cultivated meat is grown from animal cells in a tank, with no slaughter. Singapore approved sale in 2020 and the US in 2023; volumes are tiny and costs still far above farmed meat.",
   "core": true
  },
  {
@@ -3100,6 +3112,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "movies",
   "axis": null,
   "test": null,
+  "bg": "A 2011 University of California study had people read short stories with and without the ending revealed first — the 'spoiled' readers rated the stories slightly higher on average.",
   "core": true,
   "active": false
  },
@@ -3154,6 +3167,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "also": [
    "tech"
   ],
+  "bg": "Vinyl is analogue: a continuous groove, with surface noise and less dynamic range than digital. Most records since the 1990s are cut from digital masters, so differences owe as much to mastering as to format.",
   "core": true
  },
  {
@@ -3204,6 +3218,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "tech",
   "axis": null,
   "test": null,
+  "bg": "Brain-computer interfaces read neural signals through implanted electrodes. Trial participants with paralysis have moved cursors and robotic arms and produced speech. The implants require brain surgery and remain research, not products.",
   "core": true
  },
  {
@@ -3223,6 +3238,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "also": [
    "event"
   ],
+  "bg": "Several countries have restricted phones in schools nationally, others leave it to each school. Studies point both ways: less distraction, but also fewer chances to teach digital habits.",
   "core": true
  },
  {
@@ -3294,6 +3310,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "tech",
   "axis": null,
   "test": null,
+  "bg": "Driverless taxis carry paying passengers in a handful of cities, with remote operators on standby. They are cleared only inside mapped service areas, and are pulled after incidents.",
   "core": true
  },
  {
@@ -3313,6 +3330,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "also": [
    "event"
   ],
+  "bg": "US federal law lets employers pay tipped staff as little as $2.13 an hour if tips make up the rest. In much of Europe and Japan, service is included in the listed price.",
   "core": true
  },
  {
@@ -3525,6 +3543,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "event",
   "axis": null,
   "test": null,
+  "bg": "About two dozen countries require voting, and roughly half of those enforce it — Australia and Belgium fine non-voters. Turnout in those countries runs far above comparable voluntary systems.",
   "core": true,
   "political": true
  },
@@ -3542,6 +3561,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "event",
   "axis": null,
   "test": null,
+  "bg": "Trials in Iceland, the UK and elsewhere cut hours with no cut in pay. Most reported steady output and lower burnout; the trials were small, and mostly office work.",
   "core": true,
   "political": true
  },
@@ -3559,6 +3579,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "event",
   "axis": null,
   "test": null,
+  "bg": "Pontevedra, Ghent and Oslo among others have closed their centres to most cars, with permits for residents and deliveries. Measured effects: less traffic and cleaner air, and disputes over shop takings.",
   "core": true,
   "political": true
  },
@@ -3641,6 +3662,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "bigq",
   "axis": null,
   "test": null,
+  "bg": "Determinism holds that every choice follows from prior causes; compatibilism holds that free will can still be real in such a world. Brain studies find activity preceding a reported decision, which both camps read differently.",
   "core": true
  },
  {
@@ -3657,6 +3679,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "bigq",
   "axis": null,
   "test": null,
+  "bg": "Astronomers have confirmed nearly 6,000 planets around other stars, several of them potentially temperate. No evidence of life beyond Earth has been found, and no candidate signal has survived follow-up checks.",
   "core": true
  },
  {
@@ -3673,6 +3696,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "bigq",
   "axis": null,
   "test": null,
+  "bg": "Studies track income against self-reported wellbeing. A 2010 study found happiness flattening above a middle income; a 2021 one found it still rising slowly at high incomes. Both rest on people rating their own lives.",
   "core": true,
   "active": false
  },
@@ -3756,6 +3780,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "sport",
   "axis": null,
   "test": null,
+  "bg": "Electronic line calling uses ball-tracking cameras and a recorded voice instead of line judges. The tour has moved towards it since 2020; some events now have no line judges at all.",
   "core": true
  },
  {
@@ -3772,6 +3797,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "sport",
   "axis": null,
   "test": null,
+  "bg": "Open-water rules commonly mandate wetsuits in cold water and forbid them in warm — World Triathlon draws its lines around 16°C and the low twenties. Ice swimmers race skin in water near freezing.",
   "core": true
  },
  {
@@ -3869,6 +3895,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "bigq",
   "axis": null,
   "test": null,
+  "bg": "A ship has every plank replaced, one at a time. The puzzle is attributed to Plutarch, writing on the ship of Theseus kept in Athens; it tests what makes a thing the same thing over time.",
   "core": true
  },
  {
@@ -3885,6 +3912,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "bigq",
   "axis": null,
   "test": null,
+  "bg": "Philosophers call the two positions moral realism — moral facts exist and are found — and anti-realism, where morality is something humans construct. Both have serious defenders; neither is settled.",
   "core": true
  },
  {
@@ -3917,6 +3945,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "culture",
   "axis": null,
   "test": null,
+  "bg": "Chess time controls: blitz gives each player 3–5 minutes for the whole game, rapid 10–60, classical 90 minutes or more plus added time. Ratings are kept separately for each.",
   "core": true
  },
  {
@@ -3982,6 +4011,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "food",
   "axis": null,
   "test": null,
+  "bg": "Both are fermented drinks: kombucha is sweetened tea fermented by a bacteria-and-yeast culture; kefir is milk or water fermented by kefir grains. Kefir carries more microbial strains, kombucha more acid.",
   "core": true
  },
  {
@@ -4011,6 +4041,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "lo": 40,
   "hi": 90,
   "unit": "yrs",
+  "bg": "Global life expectancy at birth was around 31 in 1900 and is past 73 today. The UN's statistics count 'older persons' from 65; gerontologists increasingly split young-old from old-old at 75.",
   "core": true
  },
  {
@@ -4075,6 +4106,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "lo": 1,
   "hi": 12,
   "unit": "h",
+  "bg": "Surveys put worldwide daily screen time near seven hours, work included. Formal guidance exists mainly for children — the WHO advises essentially none before age two.",
   "core": true
  },
  {
@@ -4507,6 +4539,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "music",
   "axis": null,
   "test": null,
+  "bg": "ABBA: Swedish pop quartet, Eurovision winners in 1974, ten years together and a 2021 reunion album. Queen: British rock band fronted by Freddie Mercury, from Bohemian Rhapsody to the 1985 Live Aid set.",
   "core": true
  },
  {
@@ -4523,6 +4556,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "people",
   "axis": null,
   "test": null,
+  "bg": "Albert Einstein rewrote physics with special and general relativity (1905, 1915) and won the 1921 Nobel Prize. William Shakespeare wrote some 37 plays and 154 sonnets that four centuries of theatre keep staging.",
   "core": true
  },
  {
@@ -4552,6 +4586,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "lo": 0,
   "hi": 100,
   "unit": "yrs",
+  "bg": "Twelve people have walked on the Moon, the last in 1972, and nobody has travelled farther since. A Mars crew would spend six to nine months in transit each way; official ambitions name the 2030s at the earliest.",
   "core": true
  },
  {
@@ -4600,6 +4635,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "food",
   "axis": null,
   "test": null,
+  "bg": "Merriam-Webster's dictionary reckons a hot dog fits its sandwich definition — a filling between bread. The US National Hot Dog and Sausage Council formally disagrees, calling it a category of its own.",
   "core": true
  },
  {
@@ -4630,7 +4666,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "people",
   "axis": null,
-  "test": null
+  "test": null,
+  "bg": "Marie Curie won Nobel Prizes in two different sciences for her work on radioactivity — still the only person to have done so. Ada Lovelace's 1843 notes on Babbage's Analytical Engine contain what is widely counted the first published computer program."
  },
  {
   "id": "feed-f65",
@@ -4661,6 +4698,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "event",
   "axis": null,
   "test": null,
+  "bg": "Australia legislated a minimum age of 16 for social media accounts in 2024, the first country to do so. The usual platform minimum of 13 traces to a 1998 US children's-privacy law.",
   "political": true
  },
  {
@@ -4704,7 +4742,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 25,
   "hi": 45,
-  "unit": "yrs"
+  "unit": "yrs",
+  "bg": "Sports science places most athletic peaks between 25 and 30 — sprinters earlier, endurance athletes and goalkeepers later. Tom Brady won a Super Bowl at 43; gymnasts have won world titles at 16."
  },
  {
   "id": "feed-f68",
@@ -4719,7 +4758,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "music",
   "axis": null,
-  "test": null
+  "test": null,
+  "bg": "Mozart (1756–1791) wrote more than 600 works — operas, symphonies, the unfinished Requiem — in a 35-year life. Beethoven (1770–1827) bridged the classical and romantic eras and composed his late masterpieces, the Ninth Symphony among them, after going deaf."
  },
  {
   "id": "feed-f69",
@@ -4766,7 +4806,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "event",
   "axis": null,
-  "test": null
+  "test": null,
+  "bg": "The modern Games have rotated hosts since 1896. Recent editions have run billions over budget, and a fixed site — Athens is the perennial candidate — gets proposed after nearly every expensive Games."
  },
  {
   "id": "feed-dl7",
@@ -4794,7 +4835,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null,
   "lo": 1,
   "hi": 10,
-  "unit": "cups"
+  "unit": "cups",
+  "bg": "Europe's food-safety authority puts routine caffeine intake up to 400 mg a day — roughly four to five cups of coffee — within safe limits for healthy adults, and half that in pregnancy."
  },
  {
   "id": "feed-f72",
@@ -4852,7 +4894,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "people",
   "axis": null,
-  "test": null
+  "test": null,
+  "bg": "Napoleon Bonaparte crowned himself Emperor of the French in 1804, redrew Europe's map and laws, and fell at Waterloo. Cleopatra VII ruled Egypt for two decades as its last pharaoh, allied by turns with Caesar and Mark Antony."
  },
  {
   "id": "feed-f74",
@@ -4912,7 +4955,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "sport",
   "axis": null,
-  "test": null
+  "test": null,
+  "bg": "The World Cup's first shootout came in 1982, and the 1994 final between Brazil and Italy was the first settled by one. Antonín Panenka won Euro 1976 with the chipped penalty that still bears his name."
  },
  {
   "id": "feed-f78",
@@ -4987,7 +5031,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "event",
   "axis": null,
-  "test": null
+  "test": null,
+  "bg": "In a total eclipse the Moon covers the Sun completely for a few minutes and day drops to twilight. For any single spot on Earth, totality passes overhead roughly once in 375 years."
  },
  {
   "id": "feed-f81",
@@ -5049,7 +5094,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "people",
   "axis": null,
-  "test": null
+  "test": null,
+  "bg": "Frida Kahlo painted unsparing self-portraits threaded with Mexican folk imagery, much of it from bed after a bus crash at eighteen. Pablo Picasso co-invented Cubism and left tens of thousands of works, Guernica among them."
  },
  {
   "id": "feed-f85",
@@ -5246,7 +5292,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "people",
   "axis": null,
-  "test": null
+  "test": null,
+  "bg": "Mozart died at 35 with his Requiem unfinished on the desk. Van Gogh died at 37, having painted nearly 900 canvases in a single decade and sold almost none of them in his lifetime."
  },
  {
   "id": "feed-f89",
@@ -5292,6 +5339,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "event",
   "axis": null,
   "test": null,
+  "bg": "Daylight saving began as a coal-saving measure in the First World War. The European Parliament voted in 2019 to end the twice-yearly change, but member states never settled which time to keep, so the clocks still move.",
   "political": true
  },
  {
@@ -5352,7 +5400,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "people",
   "axis": null,
-  "test": null
+  "test": null,
+  "bg": "Churchill led Britain through the Second World War and won a Nobel Prize in Literature. Bowie reinvented pop across five decades. Serena Williams took 23 Grand Slam singles titles. Curie won Nobels in two different sciences."
  },
  {
   "id": "feed-f94",
@@ -5441,7 +5490,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "food",
   "axis": null,
-  "test": null
+  "test": null,
+  "bg": "Hawaiian pizza — ham and pineapple — was invented in 1962 by Sam Panopoulos, a Greek-born cook in Chatham, Ontario, Canada, and named after the brand of canned pineapple he used."
  },
  {
   "id": "feed-f98",
@@ -5456,7 +5506,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "people",
   "axis": null,
-  "test": null
+  "test": null,
+  "bg": "David Attenborough has narrated British natural history broadcasting since the 1950s, from Life on Earth to Planet Earth. Morgan Freeman's narration runs from The Shawshank Redemption to March of the Penguins."
  },
  {
   "id": "feed-f99",
@@ -5545,6 +5596,131 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "topic": "tech",
   "axis": null,
   "test": null
+ },
+ {
+  "id": "feed-f103",
+  "surface": "feed",
+  "seq": 142,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Whose diary would you rather read?",
+  "options": [
+   "Someone famous",
+   "A stranger your age"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl14",
+  "surface": "feed",
+  "seq": 143,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How old were you when your taste in music settled?",
+  "options": [
+   "10–13 yrs",
+   "13–15 yrs",
+   "15–18 yrs",
+   "18–20 yrs",
+   "20–23 yrs",
+   "23–25 yrs",
+   "25–28 yrs",
+   "28–30 yrs",
+   "30–33 yrs",
+   "33–35 yrs",
+   "35–38 yrs",
+   "38–40 yrs"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "lo": 10,
+  "hi": 40,
+  "unit": "yrs"
+ },
+ {
+  "id": "feed-f104",
+  "surface": "feed",
+  "seq": 144,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Watching a film in pieces over a week?",
+  "options": [
+   "Fine",
+   "One sitting or nothing"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-fd4",
+  "surface": "feed",
+  "seq": 145,
+  "type": "field",
+  "domain": null,
+  "prompt": "Human nature — place it",
+  "options": [
+   "selfish · changeable",
+   "lean selfish · changeable",
+   "lean kind · changeable",
+   "kind · changeable",
+   "selfish · middle",
+   "lean selfish · middle",
+   "lean kind · middle",
+   "kind · middle",
+   "selfish · fixed",
+   "lean selfish · fixed",
+   "lean kind · fixed",
+   "kind · fixed"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "also": [
+   "dilemma"
+  ],
+  "ax": [
+   "selfish",
+   "kind"
+  ],
+  "ay": [
+   "fixed",
+   "changeable"
+  ]
+ },
+ {
+  "id": "feed-f105",
+  "surface": "feed",
+  "seq": 146,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Lending a favourite book?",
+  "options": [
+   "Gladly",
+   "Never the good ones"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f106",
+  "surface": "feed",
+  "seq": 147,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Artefacts taken long ago, sitting in faraway museums?",
+  "options": [
+   "Return them",
+   "Keep them on show"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "bg": "Museums have begun returning contested holdings — Germany sent Benin Bronzes back to Nigeria in 2022, and talks over the Parthenon Marbles continue. The universal-museum position holds that one collection shows objects to more of the world."
  },
  {
   "id": "pick-pk04",
@@ -5817,6 +5993,18 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "type": "catalog",
   "domain": "pokemon",
   "prompt": "The best Pokémon name?",
+  "options": [],
+  "topic": "fav",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "pick-pk28",
+  "surface": "feed",
+  "seq": 1023,
+  "type": "catalog",
+  "domain": "athletes",
+  "prompt": "The greatest athlete who ever lived?",
   "options": [],
   "topic": "fav",
   "axis": null,

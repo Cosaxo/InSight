@@ -283,11 +283,11 @@ None are committed files:
 | `DC_PRIVATE_KEY` *(secret, not a variable)* | `functions/src/deviceBind.ts` | The DeviceCheck `.p8` contents. Stored as a GitHub **secret**; the deploy step \n-escapes it into the dotenv, the function unescapes. |
 | `DC_ENV` | `functions/src/deviceBind.ts` | Set to `development` only when probing with development-signed builds — Apple routes dev-signed device tokens to the development endpoint. Unset ⇒ production endpoint. |
 | `PLAY_PACKAGE_NAME` | `functions/src/deviceBind.ts` | Android package for Play Integrity decode/recall. Unset ⇒ `com.cosaxo.insight`, which is correct; exists so a future flavor/id change is one variable. |
-| `STRIPE_SECRET_KEY` *(secret)* | `functions/src/paid.ts` | The Stripe API key (`sk_live_…`, or `sk_test_…` while rehearsing) for the self-serve paid-question loop (D304): checkout sessions and the closer's refunds. Unset ⇒ `createPaidCheckoutV2` answers `unavailable` and the closer records refund arithmetic without executing it — bookings and reviews still run. |
+| `STRIPE_SECRET_KEY` *(secret)* | `functions/src/paid.ts` | The Stripe API key (`sk_live_…`, or `sk_test_…` while rehearsing) for the self-serve paid-question loop (D313): checkout sessions and the closer's refunds. Unset ⇒ `createPaidCheckoutV2` answers `unavailable` and the closer records refund arithmetic without executing it — bookings and reviews still run. |
 | `STRIPE_WEBHOOK_SECRET` *(secret)* | `functions/src/paid.ts` | The signing secret (`whsec_…`) of the Stripe webhook endpoint pointed at `stripeWebhookV2` (see below). Unset ⇒ the webhook answers 503 and no payment can go live. |
 | `ANTHROPIC_API_KEY` *(secret)* | `functions/src/paid.ts` | The Claude API key the automated paid-question review calls (`claude-opus-5` against `REVIEW_GUIDELINES`). Unset ⇒ reviews decide on the deterministic gates alone, logged as `paid_review_gates_only` — fail-open ONLY past the gates, and the deploy warning names it. |
 
-**Stripe webhook, one-time setup (D304):** in the Stripe dashboard add a
+**Stripe webhook, one-time setup (D313):** in the Stripe dashboard add a
 webhook endpoint for the event `checkout.session.completed`, pointed at
 `stripeWebhookV2`'s HTTPS URL (printed by the deploy;
 `https://stripewebhookv2-<hash>-ew.a.run.app` shape, or

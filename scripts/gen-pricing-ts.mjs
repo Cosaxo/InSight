@@ -5,7 +5,7 @@
 // functions copy is transport, and a gate (check:pricing, extended for
 // this) compares them byte-for-byte so neither can drift from the other.
 //
-// Why the functions tree needs the rate card at all (D304): the booking
+// Why the functions tree needs the rate card at all (D313): the booking
 // path prices a paid question SERVER-SIDE — the client's figure is
 // display, never the invoice — and a Cloud Function cannot read a repo
 // file outside its own deploy bundle at runtime. Importing the JSON
@@ -36,7 +36,7 @@ export function generatePricingTs(json) {
     "// fails the gate.\n" +
     "//\n" +
     "// The committed rate card (PAID-PLAN §6, D288 §3), embedded so the\n" +
-    "// booking path can price server-side (D304). The client keeps reading\n" +
+    "// booking path can price server-side (D313). The client keeps reading\n" +
     "// content/pricing.json; this copy exists because a deployed function\n" +
     "// cannot reach that file and a price the server does not verify is a\n" +
     "// price the client picked.\n" +

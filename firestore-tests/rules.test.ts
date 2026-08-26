@@ -1930,7 +1930,7 @@ describe("paid purchase records (docs/PAID-PLAN.md §7, D288 §3)", () => {
   });
 });
 
-describe("paid-question bookings (paid.ts, D304)", () => {
+describe("paid-question bookings (paid.ts, D313)", () => {
   const BID = `${OWNER}_bk1`;
   const seedBooking = () => seed(async (db) => {
     await setDoc(doc(db, "v2_paid_bookings", BID), {

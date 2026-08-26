@@ -91,7 +91,7 @@ jobs:
           # verbatim (real newlines) or \n-escaped; the write below
           # normalizes, and functions/src/deviceBind.ts unescapes.
           DC_PRIVATE_KEY: ${{ secrets.DC_PRIVATE_KEY }}
-          # The paid-question loop's credentials (paid.ts, D304) — all
+          # The paid-question loop's credentials (paid.ts, D313) — all
           # three SECRETS. Deliberately the dotenv mechanism rather than
           # defineSecret(): Secret Manager entries that do not exist make
           # `firebase deploy` refuse, and a paid feature must never block
@@ -132,7 +132,7 @@ jobs:
           # Normalize real newlines to \n so the PEM survives dotenv's
           # one-line-per-value format; the function unescapes either way.
           printf 'DC_PRIVATE_KEY="%s"\n' "$(printf '%s' "$DC_PRIVATE_KEY" | sed ':a;N;$!ba;s/\n/\\n/g')" >> functions/.env.prvfire33
-          # The paid-question loop (D304). Each missing credential turns
+          # The paid-question loop (D313). Each missing credential turns
           # one hop off, loudly, and the rest of the loop keeps its shape:
           # no ANTHROPIC_API_KEY → reviews pass on deterministic gates
           # alone; no STRIPE keys → approved bookings cannot be paid and

@@ -611,6 +611,25 @@ export let PICK_QS;
       253978: 3,    // Dirty Dancing — below the floor
       0: 12,        // Not listed — the Princess Bride vote has nowhere to file
     },
+    // athletes catalogue run (D308) — the GOAT board: the bar-argument
+    // canon, football-heavy the way worldwide fame is
+    pk28: {
+      36107: 24,    // Muhammad Ali — the standing answer to the question
+      615: 21,      // Lionel Messi
+      41421: 19,    // Michael Jordan
+      12897: 16,    // Pelé
+      11571: 14,    // Cristiano Ronaldo
+      1189: 12,     // Usain Bolt
+      11459: 11,    // Serena Williams
+      1426: 9,      // Roger Federer
+      39562: 8,     // Michael Phelps
+      17515: 7,     // Diego Maradona
+      36159: 5,     // LeBron James — clears the floor but not the top 10; folds
+      52651: 5,     // Jesse Owens — same
+      7520267: 4,   // Simone Biles — below the floor
+      209518: 3,    // Wayne Gretzky — below the floor
+      0: 10,        // Not listed — the local-hero vote, among others
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -934,6 +953,18 @@ export let PICK_QS;
         Men: { 17738: 8, 105598: 7, 91540: 6, 83495: 6, 488655: 5 },
       },
     },
+    pk28: {
+      ageBand: {
+        // the GOAT skews generational: the youth cell is the streaming
+        // era's stars, the older cell the settled canon
+        '18-24': { 615: 9, 11571: 8, 36159: 6, 1189: 5, 7520267: 4 },
+        '25-34': { 36107: 8, 41421: 7, 615: 6, 1426: 5, 39562: 4 },
+      },
+      gender: {
+        Women: { 11459: 8, 7520267: 7, 615: 6, 36107: 5, 1189: 4 },
+        Men: { 36107: 9, 615: 8, 41421: 7, 11571: 6, 12897: 5 },
+      },
+    },
   };
 
   const api = {
@@ -1096,6 +1127,7 @@ export let PICK_QS;
     { id: 'pk25', cat: 'fav', type: 'pick', domain: 'colors', prompt: 'The colour you’d paint your front door?', n: 163 },
     { id: 'pk26', cat: 'fav', type: 'pick', domain: 'films', prompt: 'Your favourite film?', n: 161 },
     { id: 'pk27', cat: 'fav', type: 'pick', domain: 'films', prompt: 'The film you’ve rewatched the most?', n: 158 },
+    { id: 'pk28', cat: 'fav', type: 'pick', domain: 'athletes', prompt: 'The greatest athlete who ever lived?', n: 160 },
   ];
   window.PICK_QS = PICK_QS;
 })();

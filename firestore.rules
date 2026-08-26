@@ -1601,7 +1601,7 @@ service cloud.firestore {
     // One row per sale — scope, dims, window, the rate LOCKED at
     // booking, budget cap, state, report milestones. Written by the
     // server only: the Stripe webhook at payment time (paid.ts goLive,
-    // D304) and the operator's script for hand contracts
+    // D313) and the operator's script for hand contracts
     // (scripts/record-purchase.mjs) — both admin SDK, so there is no
     // client write path and rules-side the arm stays closed. The buyer
     // reads their own rows (the room, PaidMineCard); the demand the
@@ -1616,7 +1616,7 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // ── Paid-question bookings (paid.ts, D304) ─────────────────────
+    // ── Paid-question bookings (paid.ts, D313) ─────────────────────
     //
     // The pre-payment half of a self-serve sale: the composed question,
     // the audience, the automated review's verdict and its note, the
