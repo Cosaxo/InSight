@@ -31144,3 +31144,52 @@ imports), and the shipping bundle at 2097 KB against 2440.
 
 What remains of D302: the feed tail (phase 3) and demotion's remaining
 signals (phase 4). The feed still ships whole at boot.
+
+## D307 · The feed tail leaves the boot fetch, and the whole-bank install is over
+
+**2026-08-26.** D302 phase 3 as-built, learn's shape (D306) applied to
+the feed with one structural difference: **core ships whole, always.**
+The boot fetch became two queries — the boot surfaces' `in`, then
+`surface == "feed" AND core == true` — because the corpus the Mirror
+folds (D161) is valuable BECAUSE every device holds all of it, and
+Firestore cannot say "these surfaces, or feed where core" in one query.
+The tail pages behind `v2_rank/feed` (D305) at `FEED_PAGE` (12) per
+topic per boot: today's bank holds about that many per topic in total,
+so the paged feed reproduces the whole-bank feed exactly until the
+lanes outgrow it — which is the point where paging starts paying.
+
+The pager GENERALIZED (learnPager.ts → bankPager.ts, pageNeedList and
+topUpPages with a per-surface page size) rather than duplicated. The
+feed's history heal is its ANSWERS: every voted `feed-` qid must
+resolve to a document whatever page it was on, or the Mirror holds a
+vote it cannot name. Arrival rules split by destination: the CACHE
+takes every fetched row (the archive keeps expired docs — the n_closed
+rule), the serving pool only the servable — which moved the `now`
+lane's window test to page arrival, where that rule now lives for
+everything the boot no longer carries. The delta grew the matching
+keep: a NEW core feed question merges (a promotion must reach every
+device), a new tail or learn doc is dropped (the pager's decision), an
+edit to anything held merges by id.
+
+Recorded limits, each with its fix named: the topic sheet's per-topic
+counts still count the POOL — at today's bank nothing changes, and when
+the tail outgrows a page the published order's totals are the fix
+(publishLearnTotals' shape), with D283's under-count report as the
+failure it prevents. Search still searches what the device holds; full-
+bank search is a published slice or a server query, later. Both are
+BANK-DELIVERY §4 census rows, now half-converted.
+
+Measured: 2100 unit tests — bank-cache at 17 (the two-query boot with
+the core constraint asserted field by field, tail paging through the
+order, the answered heal, and the window rule at arrival), vote.test's
+84 untouched (its blanket mock feeds fixtures through the core query,
+which is the constraint mirror doing its job) — lint, check:globals
+baseline unchanged, shipping bundle 2098 KB against 2440.
+
+**With D304–D307 the install stops scaling with the bank**: a fresh
+device fetches the boot surfaces, the core corpus, and a page per
+topic — O(core + pages), never O(bank) — and "there should be no
+question limit" (D302's adoption) is now a property of the read path
+rather than an aspiration of the plan. D302's remaining piece is phase
+4's remaining signals (attention and evenness joining volume in the
+nightly fold).

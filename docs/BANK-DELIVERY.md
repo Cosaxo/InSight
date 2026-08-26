@@ -1,8 +1,8 @@
 # Bank delivery — three ceilings, in the order they bite
 
-**Status: mostly built — §2 BUILT (D284, 2026-08-24); §3 BUILT (D304,
-2026-08-26); §4 half-built (learn converted at D306, the feed still
-ships whole).** Written 2026-08-24 on the
+**Status: built — §2 (D284, 2026-08-24), §3 (D304, 2026-08-26), §4
+(learn at D306, the feed tail at D307, both 2026-08-26; core ships
+whole by design — D161, not a remainder).** Written 2026-08-24 on the
 owner's direction after D283: the question banks should grow by an order
 of magnitude, and *"it's a good thing they don't run out"* is the product
 argument that outranks any figure on this page. Nothing here refuses
@@ -256,10 +256,13 @@ server query or a published aggregate. That is real design work with
 real cost changes, and **it is not needed for volume** — phases 1 and 2
 take the practical ceiling past anything the lanes can write for years.
 
-**Learn converted 2026-08-26 (D306)**: out of the boot fetch, paged
-against D305's published order, history healed by id, the sheet's
-counts published rather than counted off the page. The feed still
-ships whole; its conversion is the remaining half of this section.
+**Learn converted 2026-08-26 (D306), the feed tail the same day
+(D307)**: both out of the boot fetch, paged against D305's published
+orders, history healed by id (learn's mastery map; the feed's answers).
+Core ships whole by design — the corpus's value is that every device
+holds it (D161). Of the census above, the topic counts and search still
+read the device's pool; their conversions are recorded in D307 with the
+fixes named.
 
 The one thing worth doing early is **not making it worse**: a new surface
 that folds over the whole bank at render time is another consumer to
@@ -279,12 +282,11 @@ convert later, and a published count is usually as good.
    D304**, ahead of its own trigger because D302's adoption made it the
    enabler to build first. Three call sites, as counted; the migration
    condition is the one thing built beyond the sketch.
-3. **Ceiling 3, when a real product need asks for it** — an interest
-   model that selects server-side (D163), or a bank large enough that a
-   first install feels slow. Not before. **The order this step pages
-   against publishes nightly since D305** (`v2_rank/{feed,learn}`,
-   rankBankV2) — the server half is built; what remains is the client
-   fetch. **The need was named 2026-08-26**:
+3. ~~**Ceiling 3, when a real product need asks for it**~~ **Done —
+   D305 (the published order), D306 (learn) and D307 (the feed tail),
+   all 2026-08-26.** The install stops scaling with the bank: boot
+   surfaces + core + a page per topic, O(core + pages) per device.
+   **The need was named 2026-08-26**:
    the owner directed serving-by-selection — lazy pages, a published
    order, quality filtered by signal rather than prevented by cap —
    recorded as D302, adopted 2026-08-26 ("build the real fixes now") —

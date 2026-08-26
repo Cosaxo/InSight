@@ -171,10 +171,13 @@ import { publishTestFeed } from "./testFeed";
 // The Learn engine's cards. Published by name for testFeed's reason, and
 // because the bundle stopped carrying the bank at D284.
 import { publishLearnBank, publishLearnTotals, type LearnCard } from "./learnBank";
-// Which learn cards a device actually fetches (D306): pages against the
-// published order instead of the whole surface at boot. Pure arithmetic
-// there; the I/O lives in topUpLearnBank below.
-import { followedFields, learnHistoryIds, topUpLearn, type LearnOrderDoc } from "./learnPager";
+// Which paged cards a device actually fetches (learn at D306, the feed
+// tail at D307): pages against the published order instead of the whole
+// surface at boot. Pure arithmetic there; the I/O lives in the top-ups
+// below.
+import {
+  FEED_PAGE, LEARN_PAGE, followedFields, learnHistoryIds, topUpPages, type PageOrderDoc,
+} from "./bankPager";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
 // this module passes its store state in.
 import {
@@ -1192,23 +1195,25 @@ async function hydrate(): Promise<void> {
   // advancing (a bug), and BOTH are reported rather than truncated
   // quietly.
   const BANK_MAX_PAGES = 100;
-  // Every surface splitBanks can return EXCEPT learn, and each half of
-  // that sentence is load-bearing. The except is D306: learn PAGES
-  // against the published order (v2_rank/learn, D305) instead of
-  // shipping whole at boot — a learn doc still reaches state.learnBank,
-  // from the cache (everything this device was ever handed) and from
-  // topUpLearnBank's per-field pages, and the delta below keeps cached
-  // learn docs fresh BY ID. The rest is the pulse/call lesson: this
-  // constant decides what the boot fetch IS, and a surface missing by
-  // accident is a surface whose questions do not exist as far as the
-  // live app is concerned — `pulse` and `call` were absent from the day
-  // this fetch was written, and neither ever reached a device while
-  // everything looked green. Pinned in bank-cache.test.ts on the query
-  // as well as the output, in BOTH directions now: pulse/call in, learn
-  // out-but-served.
+  // Every surface splitBanks can return EXCEPT the two paged ones, and
+  // each half of that sentence is load-bearing. The excepts are D306 and
+  // D307: learn and the feed's TAIL page against the published order
+  // (v2_rank/{learn,feed}, D305) instead of shipping whole at boot — the
+  // feed's CORE still ships whole via its own query below (the corpus
+  // the Mirror folds, D161), and a paged doc still reaches its bank
+  // slice, from the cache (everything this device was ever handed) and
+  // from the top-ups' pages, with the delta below keeping cached paged
+  // docs fresh BY ID. The rest is the pulse/call lesson: this constant
+  // decides what the boot fetch IS, and a surface missing by accident is
+  // a surface whose questions do not exist as far as the live app is
+  // concerned — `pulse` and `call` were absent from the day this fetch
+  // was written, and neither ever reached a device while everything
+  // looked green. Pinned in bank-cache.test.ts on the query as well as
+  // the output, in BOTH directions now: pulse/call in, learn and the
+  // tail out-but-served.
   //
   // Firestore's `in` takes up to 30 values, so the ceiling is not near.
-  const BANK_SURFACES = ["daily", "feed", "test", "group", "duo", "pulse", "call"];
+  const BANK_SURFACES = ["daily", "test", "group", "duo", "pulse", "call"];
   let all: BankEntry[] | null = null;
   // The store is bankStore.ts (IndexedDB) since D304; it reads the old
   // localStorage payload once as a migration source, so an updating device
@@ -1278,13 +1283,19 @@ async function hydrate(): Promise<void> {
         all = null;
       } else {
         const byId = new Map(all.map((q) => [q.id, q]));
-        // A boot surface merges as before; a row outside them merges only
-        // if this device already holds it — an edit to a paged learn card.
-        // A NEW learn doc this device never paged is dropped on purpose:
-        // which learn cards a device holds is the pager's decision (D306),
-        // not the delta's.
+        // A boot surface merges as before, and so does a CORE feed row —
+        // a freshly promoted core question must reach every device, since
+        // core ships whole (D307). A row outside both merges only if this
+        // device already holds it — an edit to a paged card arriving. A
+        // NEW paged doc (learn, or a tail question) is dropped on
+        // purpose: which paged cards a device holds is the pager's
+        // decision (D306/D307), not the delta's.
         for (const row of rowsOf(dsnap)) {
-          if (BANK_SURFACES.includes(row.surface) || byId.has(row.id)) byId.set(row.id, row);
+          if (
+            BANK_SURFACES.includes(row.surface)
+            || (row.surface === "feed" && row.core === true)
+            || byId.has(row.id)
+          ) byId.set(row.id, row);
         }
         all = [...byId.values()];
         cursor = Math.max(cursor, cursorOf(dsnap));
@@ -1315,37 +1326,51 @@ async function hydrate(): Promise<void> {
     // bug being designed out is a full page read as a complete result, so
     // "fewer rows came back than I asked for" is the only signal that
     // means the end, and any count-based check would reintroduce it.
-    const rows: BankEntry[] = [];
-    // The page's last DocumentSnapshot, handed straight back to startAfter.
-    let after: unknown = null;
-    let pages = 0;
     let maxCursor = 0;
-    for (;;) {
-      const page = await getDocs(
-        query(
-          collection(db, "v2_questions"),
-          where("surface", "in", BANK_SURFACES),
-          orderBy(documentId()),
-          ...(after ? [startAfter(after)] : []),
-          limit(BANK_PAGE),
-        ),
-      );
-      rows.push(...rowsOf(page).filter((q) => BANK_SURFACES.includes(q.surface)));
-      maxCursor = Math.max(maxCursor, cursorOf(page));
-      pages += 1;
-      if (page.size < BANK_PAGE) break;
-      if (pages >= BANK_MAX_PAGES) {
-        // Loud, because this is the exact shape of the failure the paging
-        // replaced. Serving what we have is still better than serving
-        // nothing — but it must never be indistinguishable from success.
-        reportError(new Error(
-          `bank paging hit BANK_MAX_PAGES (${BANK_MAX_PAGES} x ${BANK_PAGE}) — truncated at ${rows.length} questions`,
-        ), { where: "hydrate.bankPaging" });
-        break;
+    const fetchPaged = async (wheres: unknown[]): Promise<BankEntry[]> => {
+      const out: BankEntry[] = [];
+      // The page's last DocumentSnapshot, handed straight to startAfter.
+      let after: unknown = null;
+      let pages = 0;
+      for (;;) {
+        const page = await getDocs(
+          query(
+            collection(db, "v2_questions"),
+            ...(wheres as never[]),
+            orderBy(documentId()),
+            ...(after ? [startAfter(after)] : []),
+            limit(BANK_PAGE),
+          ),
+        );
+        out.push(...rowsOf(page));
+        maxCursor = Math.max(maxCursor, cursorOf(page));
+        pages += 1;
+        if (page.size < BANK_PAGE) break;
+        if (pages >= BANK_MAX_PAGES) {
+          // Loud, because this is the exact shape of the failure the
+          // paging replaced. Serving what we have is still better than
+          // serving nothing — but it must never be indistinguishable
+          // from success.
+          reportError(new Error(
+            `bank paging hit BANK_MAX_PAGES (${BANK_MAX_PAGES} x ${BANK_PAGE}) — truncated at ${out.length} questions`,
+          ), { where: "hydrate.bankPaging" });
+          break;
+        }
+        after = page.docs[page.docs.length - 1];
       }
-      after = page.docs[page.docs.length - 1];
-    }
-    all = rows;
+      return out;
+    };
+    // Two queries because Firestore cannot say "these surfaces, OR feed
+    // where core" in one: the boot surfaces whole, then the feed's CORE
+    // (D307) — the corpus the Mirror folds (D161) ships to every device
+    // always, while the tail pages behind the published order like learn
+    // does. Each query's rows are filtered by its own constraint's
+    // client-side mirror, the pulse/call lesson.
+    const bootRows = (await fetchPaged([where("surface", "in", BANK_SURFACES)]))
+      .filter((q) => BANK_SURFACES.includes(q.surface));
+    const coreRows = (await fetchPaged([where("surface", "==", "feed"), where("core", "==", true)]))
+      .filter((q) => q.surface === "feed");
+    all = [...bootRows, ...coreRows];
     cursor = maxCursor;
     state.stats.bankSource = "network";
   }
@@ -1698,69 +1723,120 @@ async function hydrate(): Promise<void> {
 
   buildFeedGlobals();
 
-  // Learn's pages (D306), deliberately not awaited: two more round trips
-  // that Learn needs and first paint does not. Failure costs a session's
-  // fresh cards, never the boot — the engine serves the cached slice
-  // published above until the top-up lands. Handed hydrate's own db
-  // rather than calling getDb() again: the members are already bound,
-  // and a second concurrent bind buys nothing.
-  void topUpLearnBank(db);
+  // The pages (learn D306, feed tail D307), deliberately not awaited: a
+  // few more round trips the surfaces need and first paint does not.
+  // Failure costs a session's fresh cards, never the boot — everything
+  // serves the cached slices published above until the top-ups land.
+  // Handed hydrate's own db rather than calling getDb() again: the
+  // members are already bound, and a second concurrent bind buys
+  // nothing (and lost a mocked-import race once — D306).
+  void topUpBankPages(db);
 }
 
-// One boot's learn top-up (D306): read the published order (D305), fetch
-// the first page per followed field that this device does not already
-// hold, plus any card the device has HISTORY with that fell out of the
-// cache — a rev bump refetches the boot surfaces and drops paged learn
-// docs, and a mastered card missing from the pool is a fact missing from
-// the map. Fetched rows join state.learnBank, the engine's pool, and the
+// The cache's ids — the pager's seen-set. From the raw payload, NOT the
+// active-filtered bank slices: a killed or expired card is still cached
+// (the archive rule), and a seen-set that forgot it would re-fetch it
+// every boot forever.
+function cachedBankIds(): Set<string> {
+  return new Set((bankPayload?.questions ?? []).map((q) => q.id));
+}
+
+// The serving filter, hydrate's own rule at page-arrival time: alive and
+// inside the from/until window today. Paged rows join the CACHE
+// unfiltered (the archive keeps expired docs — the n_closed rule) and
+// the serving pool filtered.
+function servableNow(q: QuestionDoc): boolean {
+  const today = utcDayKey(0);
+  return q.active !== false && (!q.until || q.until >= today) && (!q.from || q.from <= today);
+}
+
+// One boot's top-ups (D306/D307): per paged surface, read the published
+// order (D305), fetch the first page per field/topic this device does
+// not already hold, plus any card the device has HISTORY with that fell
+// out of the cache — a rev bump refetches only the boot surfaces, and a
+// mastered card missing from the learn pool is a fact missing from the
+// map, an answered tail question missing from the cache is an answer
+// the Mirror cannot name. Fetched rows join their bank slice and the
 // persisted cache, so the next boot starts from them.
-async function topUpLearnBank(
-  db: Awaited<ReturnType<typeof getDb>>,
-): Promise<void> {
+async function topUpBankPages(db: Awaited<ReturnType<typeof getDb>>): Promise<void> {
+  const orderOf = async (surface: string): Promise<PageOrderDoc | null> => {
+    const snap = await getDoc(doc(db, "v2_rank", surface));
+    return snap.exists() ? (snap.data() as PageOrderDoc) : null;
+  };
+  const fetchByIds = async (
+    surface: string,
+    qids: string[],
+  ): Promise<Array<QuestionDoc & { id: string }>> => {
+    const out: Array<QuestionDoc & { id: string }> = [];
+    for (let i = 0; i < qids.length; i += 30) {
+      const chunk = qids.slice(i, i + 30);
+      const snap = await getDocs(
+        query(collection(db, "v2_questions"), where(documentId(), "in", chunk)),
+      );
+      for (const d of snap.docs) {
+        const row = d.data() as QuestionDoc & { updatedAt?: unknown };
+        delete row.updatedAt;
+        if (row.surface === surface) out.push({ id: d.id, ...row });
+      }
+    }
+    return out;
+  };
+  const persist = async (rows: Array<QuestionDoc & { id: string }>): Promise<void> => {
+    if (!bankPayload || !rows.length) return;
+    const cacheById = new Map(bankPayload.questions.map((q) => [q.id, q]));
+    for (const row of rows) cacheById.set(row.id, row);
+    bankPayload.questions = [...cacheById.values()];
+    await bankPut(bankPayload);
+  };
+
+  // Each surface fails alone: a bad learn order must not cost the feed
+  // its pages, or the other way around. The next boot retries either.
   try {
-    const io = {
-      order: async (): Promise<LearnOrderDoc | null> => {
-        const snap = await getDoc(doc(db, "v2_rank", "learn"));
-        return snap.exists() ? (snap.data() as LearnOrderDoc) : null;
-      },
-      fetchByIds: async (qids: string[]): Promise<Array<QuestionDoc & { id: string }>> => {
-        const out: Array<QuestionDoc & { id: string }> = [];
-        for (let i = 0; i < qids.length; i += 30) {
-          const chunk = qids.slice(i, i + 30);
-          const snap = await getDocs(
-            query(collection(db, "v2_questions"), where(documentId(), "in", chunk)),
-          );
-          for (const d of snap.docs) {
-            const row = d.data() as QuestionDoc & { updatedAt?: unknown };
-            delete row.updatedAt;
-            // The order excludes killed cards nightly, but a card killed
-            // TODAY can still be in it — same active rule as the bank.
-            if (row.surface === "learn" && row.active !== false) {
-              out.push({ id: d.id, ...row });
-            }
-          }
-        }
-        return out;
-      },
-    };
-    const cached = new Set(state.learnBank.map((q) => q.id));
-    const { rows, totals } = await topUpLearn(io, cached, followedFields(), learnHistoryIds());
+    const { rows, totals } = await topUpPages(
+      { order: () => orderOf("learn"), fetchByIds: (qids) => fetchByIds("learn", qids) },
+      cachedBankIds(),
+      followedFields(),
+      learnHistoryIds(),
+      LEARN_PAGE,
+    );
     publishLearnTotals(totals);
-    if (!rows.length) return;
-    const byId = new Map(state.learnBank.map((q) => [q.id, q]));
-    for (const row of rows) byId.set(row.id, row);
-    state.learnBank = [...byId.values()];
-    publishLearnBank(toLearnCards(state.learnBank));
-    if (bankPayload) {
-      const cacheById = new Map(bankPayload.questions.map((q) => [q.id, q]));
-      for (const row of rows) cacheById.set(row.id, row);
-      bankPayload.questions = [...cacheById.values()];
-      await bankPut(bankPayload);
+    if (rows.length) {
+      const byId = new Map(state.learnBank.map((q) => [q.id, q]));
+      // The engine's pool takes only the servable (a card killed after
+      // the nightly fold can still be in the order); the cache takes all.
+      for (const row of rows) if (servableNow(row)) byId.set(row.id, row);
+      state.learnBank = [...byId.values()];
+      publishLearnBank(toLearnCards(state.learnBank));
+      await persist(rows);
     }
   } catch (err) {
-    // A failed top-up must not cost the session: the engine keeps serving
-    // the cached slice, and the next boot retries.
     reportError(err, { where: "hydrate.learnPages" });
+  }
+
+  try {
+    // The feed's history is its answers: every voted feed- qid must
+    // resolve to a document whatever page it was on. Core needs no heal
+    // — it ships whole at boot by definition.
+    const answered = Object.keys(state.votes).filter((id) => id.startsWith("feed-"));
+    const { rows } = await topUpPages(
+      { order: () => orderOf("feed"), fetchByIds: (qids) => fetchByIds("feed", qids) },
+      cachedBankIds(),
+      null,
+      answered,
+      FEED_PAGE,
+    );
+    if (rows.length) {
+      const byId = new Map(state.feedBank.map((q) => [q.id, q]));
+      for (const row of rows) if (servableNow(row)) byId.set(row.id, row);
+      state.feedBank = [...byId.values()].sort((a, b) => (a.seq || 0) - (b.seq || 0));
+      // The pool changed, so the feed's view of it rebuilds — the same
+      // call every vote already makes.
+      buildFeedGlobals();
+      await persist(rows);
+      notify();
+    }
+  } catch (err) {
+    reportError(err, { where: "hydrate.feedPages" });
   }
 }
 
