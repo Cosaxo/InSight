@@ -401,7 +401,7 @@ export const DAILY_ID_FAIL = 970; // an id-scheme decision is due before 999
 // that fetch, at which point the ceiling they watched stopped existing —
 // so they were re-pointed rather than deleted, because the NEXT silent
 // ceiling wants the same alarm at a different number. Re-pointed a THIRD
-// time at D303: the localStorage quota cliff they watched second is gone
+// time at D311: the localStorage quota cliff they watched second is gone
 // too — the bank cache lives in IndexedDB rows now (data/cacheStore.ts),
 // where these sizes are nothing — exactly as BANK-DELIVERY §3's closing
 // rule said to do rather than deleting them.

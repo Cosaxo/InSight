@@ -13,6 +13,10 @@ import { IS_DATA } from './sample-data.js';
 import { Av, AnonAv, anonName, Kicker, useDialog } from './primitives.jsx';
 import { IS_TEST_RESULTS } from './test-definitions.js';
 import { WPAL } from './world-palette.js';
+import { IS_matchArchetype } from './archetype-data.js';
+import { steadiness, MIN_DUO, MIN_GROUP } from '../data/roles';
+import { cueDuel } from '../data/duelCue';
+import NAV from '../data/nav';
 
 // Expanded Person profile — a detailed portrait of similarity
 // Replaces the basic PersonOverlay — registration is spec-index.js's
@@ -93,6 +97,72 @@ function derivePerson(p, me) {
   return { big5, political, morals, chronotype, sleepAvg, closest };
 }
 
+// ─── The instruments turned toward one person (2026-08-26) ───
+// The same role math the Roles panel runs on YOU, read for THEM off the
+// shared record: the duo dims with the sides swapped (their insight is
+// their right guesses on you), and their own seat in each group you
+// share, blended by days. Reads only what the overlay's record cards
+// already draw — your duels with them, your common groups — so it
+// discloses nothing new. No `cast` dim: the registry dropped it with the
+// live refusal (D204 — a dead axis presented as a measurement), so the
+// demo matches on the same three group dims the app scores anywhere.
+const poClamp = (v) => Math.max(0, Math.min(100, Math.round(v)));
+const poRate = (r, t) => (t ? poClamp((r / t) * 100) : 50);
+function poPersonTypes(pid) {
+  const out = { duo: null, group: null };
+  const duo = DUELS.partners().find((x) => x.id === pid && x.played >= MIN_DUO);
+  if (duo) {
+    const byRun = [];
+    let same = 0, shared = 0;
+    for (let d = 1; d <= duo.played; d++) {
+      const day = DUELS.duoDay(pid, d);
+      byRun.push(!!day.byRight);
+      if (day.myAns != null && day.theirAns != null) { shared++; if (day.myAns === day.theirAns) same++; }
+    }
+    const dims = [
+      { id: 'read', value: poRate(duo.readBy.right, duo.readBy.total) },
+      { id: 'seen', value: poRate(duo.read.right, duo.read.total) },
+      { id: 'like', value: poRate(same, shared) },
+      { id: 'steady', value: steadiness(byRun) },
+    ];
+    const m = IS_matchArchetype('duo', dims);
+    if (m) out.duo = { ...m.list[m.idx], n: duo.played };
+  }
+  const sharedGs = DUELS.groups().filter((g) => g.members.some((mm) => mm.id === pid && !mm.pending));
+  const items = sharedGs.map((g) => {
+    const P = DUELS.groupPortrait(g.id);
+    if (!P || P.days < MIN_GROUP || P.withMaj[pid] == null) return null;
+    const ms = DUELS.groupMembers(g.id).filter((m2) => !m2.pending);
+    let withThem = 0; const majRun = [];
+    for (let i = 1; i <= P.days; i++) {
+      const gp = DUELS.groupPicks(g.id, i);
+      const row = gp.rows.find((r) => r.who.some((w) => w.id === pid));
+      if (!row) { majRun.push(true); continue; }
+      withThem += gp.counts[row.oi] - 1; // everyone on their option but them
+      majRun.push(row.oi === gp.majority);
+    }
+    const pull = ms.length && P.days ? withThem / (ms.length * P.days) : 0.5;
+    return {
+      n: P.days,
+      dims: [
+        { id: 'own', value: poClamp(100 - (P.withMaj[pid] / P.days) * 100) },
+        { id: 'pull', value: poClamp(pull * 100) },
+        { id: 'settle', value: steadiness(majRun) },
+      ],
+    };
+  }).filter(Boolean);
+  if (items.length) {
+    const total = items.reduce((a, r) => a + r.n, 0);
+    const dims = ['own', 'pull', 'settle'].map((id) => ({
+      id,
+      value: poClamp(items.reduce((a, r) => a + r.dims.find((d) => d.id === id).value * r.n, 0) / total),
+    }));
+    const m = IS_matchArchetype('group', dims);
+    if (m) out.group = { ...m.list[m.idx], n: items.length };
+  }
+  return out;
+}
+
 // ─── Per-dimension similarity scores (0..100) used in the affinity composer ───
 function affinityBreakdown(me, prof, p) {
   // Big5: invert mean absolute distance (0..100 each axis)
@@ -156,6 +226,9 @@ function PersonOverlay({ p: rawP, onClose, me }) {
   // the edit that caused it.
   const [, fBump] = React.useReducer((x) => x + 1, 0);
   React.useEffect(() => FRIENDS.subscribe(fBump), []);
+  // Play together re-renders on duel state too: Start flips the row to
+  // invited, Cancel back, an accepted invite to Open (2026-08-26)
+  React.useEffect(() => DUELS.subscribe(fBump), []);
   const [confirmRemove, setConfirmRemove] = React.useState(false);
   // hoisted for the same reason as the two above: the mind-map still opens
   // full-screen from a tap, and its state must not sit past the early return.
@@ -353,6 +426,81 @@ function PersonOverlay({ p: rawP, onClose, me }) {
             </div>
           );
         })()}
+
+        {/* ─── Play together — the doors (2026-08-26): a 1v1 with them, the
+            groups you share. Each row leads with their nearest named type,
+            read off the shared record alone (poPersonTypes above). The
+            jump cues the viewer (data/duelCue) and walks through NAV —
+            the daily ruler's licensed exit, D166's joint, unchanged. ─── */}
+        {!p.anon && p.id ? (() => {
+          const duo = DUELS.partners().find((x) => x.id === p.id) || null;
+          const playing = !!(duo && duo.played > 0);
+          const invited = !!(duo && duo.state === 'invited');
+          const goDuo = () => { cueDuel({ mode: 'duo', id: p.id }); NAV.goNav('track:duo'); };
+          const goGroup = (gid) => { cueDuel({ mode: 'group', id: gid }); NAV.goNav('track:group'); };
+          const gs = DUELS.groups();
+          const shared = gs.filter((g) => g.members.some((m) => m.id === p.id));
+          const addable = isFriend ? gs.filter((g) => !g.members.some((m) => m.id === p.id)).slice(0, 4) : [];
+          if (!duo && !isFriend && !shared.length) return null;
+          const pt = poPersonTypes(p.id);
+          const typeSpan = (t) => <span title={t.line} style={{ fontWeight: 800, color: 'var(--ink-2)' }}>{t.name}</span>;
+          const lab = (t) => <span style={{ width: 52, flexShrink: 0, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 800, color: 'var(--ink)' }}>{t}</span>;
+          const mut = { flex: 1, minWidth: 0, fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', textWrap: 'pretty' };
+          const pill = { flexShrink: 0, whiteSpace: 'nowrap', border: 'none', cursor: 'pointer', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 800, padding: '6px 14px', borderRadius: 999, background: themColor, color: '#fff' };
+          const gchip = (g) => {
+            const mem = g.members.find((m) => m.id === p.id);
+            const pend = !!(mem && mem.pending);
+            return (
+              <button key={g.id} className="press" onClick={() => { if (!pend) goGroup(g.id); }} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', border: '0.5px solid ' + (pend ? 'var(--rule)' : `color-mix(in oklch, ${themColor} 36%, var(--rule))`), background: pend ? 'var(--surface-2)' : `color-mix(in oklch, ${themColor} 8%, var(--surface-2))`, color: pend ? 'var(--ink-3)' : 'var(--ink)', borderRadius: 999, padding: '5px 12px', cursor: pend ? 'default' : 'pointer', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700 }}>
+                {g.name}{pend ? <span style={{ fontWeight: 600, fontSize: 11 }}>· invited</span> : null}
+              </button>
+            );
+          };
+          return (
+            <div style={{ marginBottom: 26 }}>
+              <div style={{ marginBottom: 11 }}><Kicker>Play together</Kicker></div>
+              <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                  {lab('1v1')}
+                  {duo && !invited ? (
+                    <React.Fragment>
+                      <span style={mut}>{pt.duo ? typeSpan(pt.duo) : null}{pt.duo ? ' · ' : ''}{playing ? duo.played + ' days played' : 'new 1v1 · today’s question is up'}</span>
+                      <button className="press" onClick={goDuo} style={pill}>Open</button>
+                    </React.Fragment>
+                  ) : invited ? (
+                    <React.Fragment>
+                      <span style={mut}>invited · waiting on {firstName}</span>
+                      <button className="press" onClick={() => DUELS.cancelDuo(p.id)} style={{ ...pill, background: 'var(--surface-2)', color: 'var(--ink-2)', border: '0.5px solid var(--rule)' }}>Cancel</button>
+                    </React.Fragment>
+                  ) : isFriend ? (
+                    <React.Fragment>
+                      <span style={mut}>one question a day — read each other</span>
+                      <button className="press" onClick={() => DUELS.startDuo(p.id)} style={pill}>Start</button>
+                    </React.Fragment>
+                  ) : (
+                    <span style={mut}>for friends — add {firstName} first</span>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: 11, borderTop: '0.5px solid var(--rule)', paddingTop: 12, alignItems: 'baseline' }}>
+                  {lab('Groups')}
+                  <span style={{ flex: 1, minWidth: 0, display: 'flex', flexWrap: 'wrap', gap: 7, alignItems: 'center' }}>
+                    {shared.length && pt.group ? <span style={{ ...mut, flex: 'none' }}>{typeSpan(pt.group)} in</span> : null}
+                    {shared.length ? shared.map(gchip) : addable.length ? (
+                      <React.Fragment>
+                        <span style={{ ...mut, flex: 'none' }}>add {firstName} to</span>
+                        {addable.map((g) => (
+                          <button key={g.id} className="press" onClick={() => DUELS.addGroupMembers(g.id, [p.id])} style={{ display: 'inline-flex', alignItems: 'center', whiteSpace: 'nowrap', border: '0.5px solid var(--rule)', background: 'var(--surface-2)', color: 'var(--ink)', borderRadius: 999, padding: '5px 12px', cursor: 'pointer', WebkitAppearance: 'none', fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 700 }}>+ {g.name}</button>
+                        ))}
+                      </React.Fragment>
+                    ) : (
+                      <span style={mut}>none together yet</span>
+                    )}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })() : null}
 
         {/* ─── The 1v1 record — the one thing only a duel can tell you: how well
             each of you actually reads the other. Same dot language as the daily,

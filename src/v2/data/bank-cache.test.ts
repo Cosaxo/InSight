@@ -18,7 +18,7 @@
 // fetch from a delta fetch.
 
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
-// The bank cache lives in IndexedDB since D303 (docs/ANSWER-SCALE.md
+// The bank cache lives in IndexedDB since D311 (docs/ANSWER-SCALE.md
 // §2.2) — rows per question plus a meta row carrying {rev, cursor}. The
 // factory is a suite variable so a mid-test resetModules simulates "next
 // boot, same device": the module state resets, the disk does not.
@@ -394,7 +394,7 @@ describe("question-bank cache", () => {
     expect((await readCache()).questions.map((x: { id: string }) => x.id)).toEqual(["q_1", "q_2"]);
   });
 
-  // ── the localStorage → IndexedDB migration (D303) ─────────────────
+  // ── the localStorage → IndexedDB migration (D311) ─────────────────
   //
   // An upgrading device holds the blob and no rows. The blob must be
   // USED (a warm delta boot, not a cold refetch — the whole point of the

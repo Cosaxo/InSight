@@ -1,0 +1,35 @@
+--- recorded/duo-daily.jsx
++++ 2026-08-26/duo-daily.jsx
+@@ -350,6 +350,32 @@
+     };
+ 
+     const nLeft = ordered.filter(isPending).length;
++    // a profile's “Open 1v1” lands here with window.DUO_FOCUS set — select + scroll.
++    // scroll-memory restores the fresh scroller to its saved position just after
++    // mount, so a one-shot jump gets undone: assert the target repeatedly for a
++    // beat, instantly, until it sticks.
++    useEffect(() => {
++      const go = () => {
++        const f = window.DUO_FOCUS; if (!f) return; delete window.DUO_FOCUS;
++        if (!ordered.some((x) => x.id === f)) return;
++        setCur(f);
++        const t0 = Date.now();
++        const tick = setInterval(() => {
++          const sc = scRef.current, el = rootRef.current;
++          const done = () => clearInterval(tick);
++          if (Date.now() - t0 > 1400) return done();
++          if (!sc || !el) return;
++          const card = el.querySelector('[data-duo-card="' + f + '"]'); if (!card) return;
++          const railH = railRef.current ? railRef.current.offsetHeight : 80;
++          const target = Math.max(0, card.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - railH - 14);
++          if (Math.abs(sc.scrollTop - target) > 40) sc.scrollTop = target;
++          else if (Date.now() - t0 > 800) done();
++        }, 120);
++      };
++      go();
++      window.addEventListener('is:duo-focus', go);
++      return () => window.removeEventListener('is:duo-focus', go);
++    }, []);
+     return (
+       <div ref={rootRef} style={col(10)}>
+         <div style={{ display: 'flex', alignItems: 'baseline', padding: '0 2px', scrollSnapAlign: 'start' }}>

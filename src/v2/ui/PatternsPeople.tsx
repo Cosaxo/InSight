@@ -202,11 +202,13 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
           </g>
         </svg>
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 6, padding: "6px 6px 9px", fontFamily: SANS, fontSize: 11, fontWeight: 600, color: "var(--ink-3)" }}>
-          <span style={{ width: 9, height: 9, borderRadius: "50%", background: "oklch(0.56 0.09 250)", flexShrink: 0 }}></span><span>placed</span>
+          {/* "a person", not "placed" (2026-08-26) — the legend names the
+              thing, not the algorithm's verb for it */}
+          <span style={{ width: 9, height: 9, borderRadius: "50%", background: "oklch(0.56 0.09 250)", flexShrink: 0 }}></span><span>a person</span>
           <span style={{ color: "var(--rule)" }}>·</span>
           {/* 250, not 40 — the swatch must be the same hue as the dots it
               explains (2026-08-24: the prototype's own legend fix) */}
-          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "oklch(0.56 0.09 250)", opacity: 0.5, flexShrink: 0 }}></span><span>= fewer shared answers</span>
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "oklch(0.56 0.09 250)", opacity: 0.5, flexShrink: 0 }}></span><span>fainter = fewer shared answers</span>
           <span style={{ color: "var(--rule)" }}>·</span>
           <span style={{ width: 9, height: 9, borderRadius: "50%", border: "1.4px solid var(--accent)", boxSizing: "border-box", flexShrink: 0 }}></span><span>you</span>
         </div>
@@ -215,6 +217,10 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
       {selP ? (
         <div className="card" style={{ padding: "14px 16px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            {/* the identity dot (2026-08-26): the card wears the dot's own
+                hue, so the reader can find on the field the person the
+                card is about */}
+            <i style={{ width: 11, height: 11, borderRadius: "50%", background: `oklch(0.56 0.09 ${selP.hue})`, flex: "none" }}></i>
             <span style={{ fontFamily: SANS, fontSize: 17, fontWeight: 800, letterSpacing: "-0.02em" }}>{selP.name || "Someone"}</span>
             {selP.chips.map((c, k) => <span key={k} style={chipStyle}>{c}</span>)}
           </div>
@@ -222,7 +228,16 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
             Agrees with you on <b style={{ fontWeight: 800 }}>{selP.agree} of {selP.shared}</b> shared answers here
           </div>
           <div style={{ marginTop: 8, height: 8, borderRadius: 99, background: "var(--surface-3)", overflow: "hidden" }}>
-            <i style={{ display: "block", width: `${Math.round((selP.agree / selP.shared) * 100)}%`, height: "100%", borderRadius: 99, background: "color-mix(in oklab, var(--accent) 34%, var(--surface-2))", transition: "width .3s ease" }}></i>
+            <i style={{ display: "block", width: `${Math.round((selP.agree / selP.shared) * 100)}%`, height: "100%", borderRadius: 99, background: `color-mix(in oklab, oklch(0.56 0.09 ${selP.hue}) 50%, var(--surface-2))`, transition: "width .3s ease" }}></i>
+          </div>
+          {/* the position's basis (2026-08-26). The prototype's line is
+              "that count alone places them · closer only ever means more
+              agreement" — true of its agreement layout, not of this one:
+              live positions come from the same ridge solve as yours
+              (peopleMap.ts), over their answers and nothing else. Say
+              that, and no more. */}
+          <div style={{ marginTop: 7, fontFamily: SANS, fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)", textWrap: "pretty" }}>
+            Their answers alone place them — closer means answering more alike.
           </div>
           {selP.tie ? (
             <div style={{ marginTop: 11, fontFamily: SANS, fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)" }}>
@@ -246,9 +261,12 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
               people placed around you, from the <b style={{ color: "var(--ink)", fontWeight: 700 }}>{field.answered} questions</b> you’ve answered here. Tap anyone.
             </span>
           </div>
-          {/* The stated sample: newest-first, capped lists (VOTER_FETCH_CAP) — the who-voted sheet's own honest bias. */}
-          <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid color-mix(in oklch, var(--rule), transparent 30%)", fontFamily: SANS, fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)" }}>
-            Drawn from the crowd’s latest answers.
+          {/* The stated sample: newest-first, capped lists (VOTER_FETCH_CAP) — the
+              who-voted sheet's own honest bias — with the geometry said in words
+              first (2026-08-26): position was the one reading here with no
+              stated basis. */}
+          <div style={{ marginTop: 10, paddingTop: 8, borderTop: "1px solid color-mix(in oklch, var(--rule), transparent 30%)", fontFamily: SANS, fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)", textWrap: "pretty" }}>
+            Close together = answers alike · drawn from the crowd’s latest answers.
           </div>
         </div>
       )}

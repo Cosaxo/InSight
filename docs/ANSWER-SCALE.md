@@ -1,9 +1,9 @@
 # Answer volume — the ceilings that grow with use, not with content
 
-**Status: mixed — §2.1 and §2.2 are BUILT (D303, 2026-08-26); §4 is a
+**Status: mixed — §2.1 and §2.2 are BUILT (D311, 2026-08-26); §4 is a
 design on the shelf, §3 needs nothing.** Written 2026-08-26, out of the
 owner's question "is this system ready for high numbers of questions and
-answers?", and built the same day on the owner's direction — D303 is the
+answers?", and built the same day on the owner's direction — D311 is the
 as-built, including the deviations (`insight.feedVotes.v1` stays behind,
 the test aggregates persist deliberately now, the recheck stamps moved
 too). The **questions** half of that has
@@ -124,7 +124,7 @@ product truthfulness, which is the dearer currency here.
 bank, which is tree state; a device's answered count is runtime state.
 So the gate's shape is wrong for it, and the remedy splits in two:
 
-### 2.1 · Phase 1 — instrument the swallow (S) · **BUILT (D303)**
+### 2.1 · Phase 1 — instrument the swallow (S) · **BUILT (D311)**
 
 > `lsSet` in live.ts: every swallowed write counts
 > (`stats.cacheWriteFailures`), the first quota-shaped failure reports
@@ -141,10 +141,10 @@ real devices — which is also the trigger for phase 2 that
 `BANK-DELIVERY.md` §3's own trigger (bank past ~2,000 docs) cannot see,
 because that trigger watches the bank and this ceiling moves with use.
 
-### 2.2 · Phase 2 — one IndexedDB store for the hand caches (M) · **BUILT (D303)**
+### 2.2 · Phase 2 — one IndexedDB store for the hand caches (M) · **BUILT (D311)**
 
 > `data/cacheStore.ts`, same day — the trigger collapsed to "the owner
-> said build". As built with three recorded deviations, D303: the feed
+> said build". As built with three recorded deviations, D311: the feed
 > mirror STAYS in localStorage (the spec feed reads it synchronously — it
 > moves with the bridge migration, not as a rider), the test aggregates
 > persist deliberately where the blob persisted them incidentally, and
@@ -266,11 +266,11 @@ taken down and built.
 
 ## 5 · Order of work
 
-1. ~~**Instrument the quota swallow (§2.1).**~~ **Done — D303.** The
+1. ~~**Instrument the quota swallow (§2.1).**~~ **Done — D311.** The
    sensor exists; what it reports from real devices is what the
    remaining numbers on this page firm up against.
 2. ~~**The IndexedDB move for bank + answer caches together (§2.2).**~~
-   **Done — D303**, ahead of both planned triggers on the owner's
+   **Done — D311**, ahead of both planned triggers on the owner's
    direction. Purge and `check:purge` extended in the same change; the
    feed mirror's stay-behind is the recorded deviation.
 3. **Sharding stays shelved, buildable (§4).** Build on the alert. The

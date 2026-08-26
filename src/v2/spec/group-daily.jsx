@@ -7,6 +7,7 @@ import React from 'react';
 import { RevealClock } from './reveal-clock.js';
 import { DUELS } from './duels-data.js';
 import { Sheet } from './primitives.jsx';
+import { takeDuelCue, onDuelCue } from '../data/duelCue';
 // The palette gate (D189). Both marks below are a full-strength fill
 // carrying #fff, which is the case world-palette.js's header names for
 // ink() in as many words — and this module was the one place a group hue
@@ -407,6 +408,38 @@ import NAV from '../data/nav';
       const railH = railRef.current ? railRef.current.offsetHeight : 80;
       sc.scrollTo({ top: card.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - railH - 14, behavior: 'smooth' });
     };
+
+    // a profile's group chip lands here through the duel cue (data/duelCue,
+    // 2026-08-26) — select + scroll, asserted repeatedly: scroll-memory's
+    // restore would undo a one-shot (see duo-daily's twin effect, and its
+    // note on why the cleanup is an explicit closure).
+    useEffect(() => {
+      const go = () => {
+        const f = takeDuelCue('group'); if (!f) return;
+        // store, not the ref-derived list — see duo-daily's twin comment
+        if (!DUELS.groups().some((x) => x.id === f)) return;
+        setCur(f);
+        const t0 = Date.now();
+        const step = () => {
+          if (Date.now() - t0 > 1400) return; // self-terminating — no timer survives the beat
+          const sc = scRef.current, el = rootRef.current;
+          if (sc && el) {
+            const card = el.querySelector('[data-group-card="' + f + '"]');
+            if (card) {
+              const railH = railRef.current ? railRef.current.offsetHeight : 80;
+              const target = Math.max(0, card.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - railH - 14);
+              if (Math.abs(sc.scrollTop - target) > 40) sc.scrollTop = target;
+              else if (Date.now() - t0 > 800) return; // held long enough — settled
+            }
+          }
+          setTimeout(step, 120);
+        };
+        step();
+      };
+      go();
+      const off = onDuelCue(go);
+      return () => { off(); };
+    }, []);
 
     const nLeft = ordered.filter((g) => !g.done).length;
     return (

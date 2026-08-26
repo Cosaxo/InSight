@@ -138,6 +138,12 @@ export interface LiveFixtureOptions {
    */
   background?: boolean;
   /**
+   * Give the DAILY (daily-000) a background (D306) — the same slot the
+   * feed's `i` got at D281, read through buildS's bg carry. Opt-in so the
+   * default mount keeps pinning the daily sheet's no-background arm.
+   */
+  dailyBg?: boolean;
+  /**
    * Give the LAST world card a current-events window (D231). Opt-in for
    * the same reason `sponsored` is — a window is a property of one topic,
    * and a fixture that always carried one would have every other live case
@@ -214,6 +220,13 @@ export const BG_TEXT =
   "Fixture background: the durable facts this question cannot be answered without, "
   + "stated plainly and taking no side between the options on the card.";
 
+// The daily's own background (D306) — distinct from BG_TEXT so a test can
+// tell which sheet it is reading, same 90-character floor for the same
+// reason.
+export const DAILY_BG_TEXT =
+  "Fixture daily background: who or what this question names, stated plainly "
+  + "for a reader meeting the subject for the first time.";
+
 function liveQuestion(
   id: string,
   prompt: string,
@@ -272,7 +285,13 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   const votes: Record<string, string> = {};
   const listeners = new Set<() => void>();
   const deck = [
-    liveQuestion("daily-000", "Would you rather know, or be known?", tooSmall),
+    {
+      ...liveQuestion("daily-000", "Would you rather know, or be known?", tooSmall),
+      // D306: the daily's About sheet leads with a background when the
+      // question carries one — opt-in, so the default mount keeps the
+      // no-background arm honest.
+      ...(opts.dailyBg ? { bg: DAILY_BG_TEXT } : {}),
+    },
     // A second branch and an ordinal type, so the archive the Mirror
     // reads exercises the branch filter and the Scores lens rather than
     // only their "nothing here" arms.
@@ -390,6 +409,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // jsdom), so fixture feed questions here would be furniture nothing
     // reads.
     coreFeedAggregated: () => [],
+    // The Scores lens's ask rows (D307). Empty by default: the fixture
+    // deck's one rating question already carries a vote in most cases,
+    // and the ask arm has its own unit suite (LiveMirrorLenses.test.tsx).
+    placeAsks: () => [],
     dailyBank: () => deck.map((q) => ({ id: q.id, prompt: q.text })),
     // Below the floor the server publishes `{ tooSmall: true }` and nothing
     // else — no counts, no total. Returning a full document with a flag set

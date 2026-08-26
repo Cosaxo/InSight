@@ -1,0 +1,33 @@
+--- recorded/group-daily.jsx
++++ 2026-08-26/group-daily.jsx
+@@ -371,6 +371,30 @@
+       const railH = railRef.current ? railRef.current.offsetHeight : 80;
+       sc.scrollTo({ top: card.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - railH - 14, behavior: 'smooth' });
+     };
++    // a profile's group chip lands here with window.GROUP_FOCUS set — select +
++    // scroll. Asserted repeatedly: scroll-memory's restore would undo a one-shot.
++    useEffect(() => {
++      const go = () => {
++        const f = window.GROUP_FOCUS; if (!f) return; delete window.GROUP_FOCUS;
++        if (!ordered.some((x) => x.id === f)) return;
++        setCur(f);
++        const t0 = Date.now();
++        const tick = setInterval(() => {
++          const sc = scRef.current, el = rootRef.current;
++          const done = () => clearInterval(tick);
++          if (Date.now() - t0 > 1400) return done();
++          if (!sc || !el) return;
++          const card = el.querySelector('[data-group-card="' + f + '"]'); if (!card) return;
++          const railH = railRef.current ? railRef.current.offsetHeight : 80;
++          const target = Math.max(0, card.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - railH - 14);
++          if (Math.abs(sc.scrollTop - target) > 40) sc.scrollTop = target;
++          else if (Date.now() - t0 > 800) done();
++        }, 120);
++      };
++      go();
++      window.addEventListener('is:group-focus', go);
++      return () => window.removeEventListener('is:group-focus', go);
++    }, []);
+ 
+     const nLeft = ordered.filter((g) => !g.done).length;
+     return (

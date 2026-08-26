@@ -240,6 +240,8 @@ const appPrivacyRows = JSON.parse(read("design/store/app-privacy.json")).collect
 // this repo writes small counts as words. Only the values these rules can
 // actually reach need an entry; anything outside the table falls back to
 // digits and the diff says so plainly.
+const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1);
+
 const NUMBER_WORDS = {
   1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six",
   7: "seven", 8: "eight", 9: "nine", 10: "ten", 11: "eleven", 12: "twelve",
@@ -305,6 +307,17 @@ const appCheckExemptions = (() => {
   if (!block) throw new Error("check-figures: could not find EXEMPT in check-appcheck.mjs");
   return [...block[1].matchAll(/^\s{2}(\w+):\s*\{/gm)].length;
 })();
+
+// Jobs carrying `environment: production`, counted from the workflow files
+// rather than from the sentence that describes them. DEPLOYMENT.md said "two
+// jobs, and only two — verified rather than assumed" for as long as there
+// were four: rebuild-aggregate.yml joined at D290, monitoring.yml at D303,
+// and a claim that advertises its own verification is exactly the one nobody
+// re-checks. Counted on the YAML key at job indent, not on the string, so the
+// prose inside a workflow comment cannot inflate it.
+const gatedJobs = readdirSync(join(root, ".github/workflows"))
+  .filter((f) => f.endsWith(".yml"))
+  .reduce((n, f) => n + (read(`.github/workflows/${f}`).match(/^ {4}environment: production$/gm) || []).length, 0);
 
 // The alerting surface, counted from apply-monitoring.mjs's own lists
 // rather than restated. check:monitoring already holds those lists equal to
@@ -449,12 +462,54 @@ const FIGURES = [
     fix: (n) => `"Apply the ${n} monitoring alerts"`,
   },
   {
-    file: "docs/LAUNCH-RUNBOOK.md",
-    what: "policies the deploy-role refusal is priced against",
-    // `\s+` across the wrap: the sentence breaks mid-clause in the runbook.
-    re: /widening\s+it for (\w+) policies is the worse trade/,
+    file: "docs/DEPLOYMENT.md",
+    what: "jobs carrying `environment: production`",
+    // Capitalised: the figure opens the sentence, so the word in the prose
+    // is "Four" and a lowercase `actual` would fail on a correct document.
+    re: /\*\*What the environment gates\.\*\* (\w+) jobs/,
+    actual: cap(NUMBER_WORDS[gatedJobs] || String(gatedJobs)),
+    fix: (n) => `"**What the environment gates.** ${n} jobs"`,
+  },
+  {
+    file: "docs/MONITORING.md",
+    what: "alert policies in the instruments table",
+    // The copy D303's own sweep MISSED while claiming to have found them
+    // all — byte-identical before and after that commit, at seven against a
+    // tree of eight. Gated now for the reason the sweep exists.
+    re: /\| `monitoring\/\*\.json` \| (\w+) alert policies/,
     actual: NUMBER_WORDS[monitoringPolicies] || String(monitoringPolicies),
-    fix: (n) => `"widening it for ${n} policies is the worse trade"`,
+    fix: (n) => `"| \`monitoring/*.json\` | ${n} alert policies"`,
+  },
+  {
+    file: "docs/COSTS.md",
+    what: "alert policies in monitoring/",
+    // One of three copies that were actually wrong when D303 swept for them
+    // — it said four. The others were DEPLOYMENT.md's heading and its
+    // blockquote. (D303 first claimed five; the runbook's "eight" was right
+    // and priced against a retired premise, and apply-monitoring's header
+    // had already been fixed at D291. See D303's own correction.)
+    re: /`monitoring\/` holds\s+(\w+) policies/,
+    actual: NUMBER_WORDS[monitoringPolicies] || String(monitoringPolicies),
+    fix: (n) => `"\`monitoring/\` holds ${n} policies"`,
+  },
+  {
+    file: "docs/DEPLOYMENT.md",
+    what: "alert policies the section documents",
+    // The heading carried "three alerts, deliberately" for as long as there
+    // were eight, and "Why only these three" underneath it — because five
+    // were added by later work that had no reason to re-read a heading.
+    // check:monitoring holds the LISTS equal to the directory; nothing held
+    // the prose to the lists.
+    re: /## Alerting \((\w+) policies, \w+ log-based metrics\)/,
+    actual: NUMBER_WORDS[monitoringPolicies] || String(monitoringPolicies),
+    fix: (n) => `"## Alerting (${n} policies, ...)"`,
+  },
+  {
+    file: "docs/DEPLOYMENT.md",
+    what: "log-based metrics the section documents",
+    re: /## Alerting \(\w+ policies, (\w+) log-based metrics\)/,
+    actual: NUMBER_WORDS[monitoringMetrics] || String(monitoringMetrics),
+    fix: (n) => `"## Alerting (..., ${n} log-based metrics)"`,
   },
   {
     file: "scripts/apply-monitoring.mjs",

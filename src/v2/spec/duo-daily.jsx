@@ -8,6 +8,7 @@ import { ReadRun, RUN_DOTS } from './read-run.jsx';
 import { DUELS } from './duels-data.js';
 import { RevealClock } from './reveal-clock.js';
 import { Sheet } from './primitives.jsx';
+import { takeDuelCue, onDuelCue } from '../data/duelCue';
 import ReactDOM from 'react-dom';
 
 // duo-daily.jsx — the daily tab's 1v1 mode. A vertical stack of duels, one
@@ -356,6 +357,44 @@ let DuoDomainsImpl;
       const railH = railRef.current ? railRef.current.offsetHeight : 80;
       sc.scrollTo({ top: card.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - railH - 14, behavior: 'smooth' });
     };
+
+
+    // a profile's "Open 1v1" lands here through the duel cue (data/duelCue,
+    // 2026-08-26) — select + scroll. scroll-memory restores the fresh
+    // scroller to its saved position just after mount, so a one-shot jump
+    // gets undone: assert the target repeatedly for a beat, instantly,
+    // until it sticks (the profile-overlay subnav race, third instance).
+    // The cleanup is an explicit closure, not `return onDuelCue(go)` — the
+    // Compiler bails out of the whole component on a call-result cleanup,
+    // which un-reports the lazy-ref findings the disables above suppress.
+    useEffect(() => {
+      const go = () => {
+        const f = takeDuelCue('duo'); if (!f) return;
+        // existence via the store, not the ref-derived list — a render ref
+        // in this closure is another shape the Compiler refuses
+        if (!DUELS.partners().some((x) => x.id === f)) return;
+        setCur(f);
+        const t0 = Date.now();
+        const step = () => {
+          if (Date.now() - t0 > 1400) return; // self-terminating — no timer survives the beat
+          const sc = scRef.current, el = rootRef.current;
+          if (sc && el) {
+            const card = el.querySelector('[data-duo-card="' + f + '"]');
+            if (card) {
+              const railH = railRef.current ? railRef.current.offsetHeight : 80;
+              const target = Math.max(0, card.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - railH - 14);
+              if (Math.abs(sc.scrollTop - target) > 40) sc.scrollTop = target;
+              else if (Date.now() - t0 > 800) return; // held long enough — settled
+            }
+          }
+          setTimeout(step, 120);
+        };
+        step();
+      };
+      go();
+      const off = onDuelCue(go);
+      return () => { off(); };
+    }, []);
 
     const nLeft = ordered.filter(isPending).length;
     return (

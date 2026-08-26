@@ -8,7 +8,7 @@
     {
       "displayName": "no completed fitPatternsV2 run for 30 hours",
       "conditionAbsent": {
-        "filter": "metric.type=\"logging.googleapis.com/user/patterns_fit\"",
+        "filter": "metric.type=\"logging.googleapis.com/user/patterns_fit\" AND resource.type=\"cloud_run_revision\"",
         "duration": "108000s",
         "aggregations": [
           {

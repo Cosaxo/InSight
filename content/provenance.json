@@ -1610,6 +1610,54 @@
         "by": "ai",
         "audited": false
       }
+    },
+    "f103": {
+      "source": "farm",
+      "batch": "2026-08-26",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl14": {
+      "source": "farm",
+      "batch": "2026-08-26",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f104": {
+      "source": "farm",
+      "batch": "2026-08-26",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "fd4": {
+      "source": "farm",
+      "batch": "2026-08-26",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f105": {
+      "source": "farm",
+      "batch": "2026-08-26",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f106": {
+      "source": "farm",
+      "batch": "2026-08-26",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
     }
   },
   "pick": {
@@ -1819,6 +1867,10 @@
         "at": "2026-08-23",
         "audited": false
       }
+    },
+    "pk28": {
+      "source": "editorial",
+      "batch": "2026-08-26"
     }
   }
 }

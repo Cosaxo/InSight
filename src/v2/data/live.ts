@@ -99,7 +99,7 @@ async function getDb(): Promise<import("firebase/firestore").Firestore> {
   return db;
 }
 import { reportError, setSentryUser } from "../../lib/sentry";
-// The fat caches' IndexedDB home (D303, docs/ANSWER-SCALE.md §2.2). Small
+// The fat caches' IndexedDB home (D311, docs/ANSWER-SCALE.md §2.2). Small
 // and dependency-free, so a static import here costs the entry chunk a few
 // hundred bytes — nothing like the SDK-import trap the note above is about.
 import * as cacheStore from "./cacheStore";
@@ -624,7 +624,7 @@ let answersCacheOwner: string | null = null;
 // `stored` is the answer's value in the cache's own string form: an
 // optionIdx or entity as digits, a rank order as the joined "2,0,1,3"
 // (D233) — exactly what hydrate's fold would re-derive from the doc.
-// One row per answer (D303): the write is the size of the vote, not of
+// One row per answer (D311): the write is the size of the vote, not of
 // the archive, which is the whole point of the per-row store.
 function cacheVote(aid: string, stored: number | string): void {
   if (torndown) return;
@@ -770,7 +770,7 @@ const AGG_CACHE_MS = 1000;
 let aggCacheTimer: ReturnType<typeof setTimeout> | null = null;
 
 // The aggregates whose disk rows are behind their in-memory copy. This
-// set is what D303 buys: the cache used to be one localStorage blob, so
+// set is what D311 buys: the cache used to be one localStorage blob, so
 // every flush re-serialized the WHOLE map — ~0.7 full JSON.stringify/sec
 // at 50k DAU's fan-out rates, synchronously in the handler, on a map
 // nothing prunes, so the cost grew with the archive forever. Rows keyed
@@ -1224,7 +1224,7 @@ async function hydrate(): Promise<void> {
   // Firestore's `in` takes up to 30 values, so the ceiling is not near.
   const BANK_SURFACES = ["daily", "feed", "test", "group", "duo", "learn", "pulse", "call"];
   let all: BankEntry[] | null = null;
-  // The localStorage era's key — read once as a migration source (D303)
+  // The localStorage era's key — read once as a migration source (D311)
   // and removed after the rows land in IndexedDB, so an upgrading device
   // pays neither a refetch nor a second copy of the bank in the small box.
   const BANK_LS = "insight.bankCache.v2";
@@ -1492,7 +1492,7 @@ async function hydrate(): Promise<void> {
   // the app works, so stay live and let the daily surface say so.
 
   // ── my answers: cached + incremental (created docs never refetch) ──
-  // The localStorage era's key — a migration source only (D303), removed
+  // The localStorage era's key — a migration source only (D311), removed
   // once the rows land in IndexedDB. It CANNOT simply be dropped: losing
   // the cache re-offers answered questions on the next boot only until
   // the refetch heals it, but losing it silently was the answers side of
@@ -1680,7 +1680,7 @@ async function hydrate(): Promise<void> {
   // listener, so a first voter's empty snapshot would otherwise be frozen
   // forever. Since D98 that window is one answer wide rather than the
   // whole climb to a k-floor, so this re-reads far less than it used to.
-  const AGG_LS = "insight.aggsCache.v1"; // legacy: migration source only (D303)
+  const AGG_LS = "insight.aggsCache.v1"; // legacy: migration source only (D311)
   try {
     const rows = await cacheStore.readAll<AggDoc>("aggs");
     rows.forEach((v, k) => {
@@ -1712,7 +1712,7 @@ async function hydrate(): Promise<void> {
   // Also: this was serial. A returning user with 150 answered questions
   // still under the k-floor ran 5 round trips one after another inside the
   // 2.5s boot race — and losing that race used to be permanent.
-  // The recheck stamps ride the meta store (D303): one number per
+  // The recheck stamps ride the meta store (D311): one number per
   // answered question, so the map is another thing that grows with the
   // archive — small beside the aggregates, but the same curve, and it
   // costs nothing to move in the same pass. Legacy key: migration source.
@@ -3810,7 +3810,7 @@ const LIVE = {
         state.testAggsLoaded = true;
         // Persist the batch. Under the old whole-map blob these rows were
         // written incidentally — whenever any OTHER agg write flushed the
-        // map, the test items rode along — and the per-row store (D303)
+        // map, the test items rode along — and the per-row store (D311)
         // ends incidental persistence, so what used to happen by accident
         // is asked for here on purpose: a cached test aggregate saves the
         // AGG_ID_CAP top-up re-fetching it next boot.
@@ -4171,7 +4171,7 @@ const LIVE = {
     } catch (err) {
       reportError(err, { where: "deleteAccount.clearCache" });
     }
-    // The hand-rolled cache store is a THIRD box (D303): Firestore's
+    // The hand-rolled cache store is a THIRD box (D311): Firestore's
     // mirror above, `insight.*` localStorage below, and this one holds
     // the same answers and bank between them. AWAITED, not left to the
     // purge event's fire-and-forget listener — web/privacy.html says
@@ -4243,6 +4243,34 @@ const LIVE = {
       // label on them would be a guess (deck.ts's buildS takes null).
       .map((q) => buildSPure(q, null, voteCtx(q.id), now));
   }),
+  /**
+   * The place questions this account can still answer for a scope (D307)
+   * — every active `rating` in the daily bank that rates it and carries
+   * no vote from this account.
+   *
+   * From the BANK, not from aggregated(): a rates question the rotation
+   * has not reached usually has no published counts at all, and at a
+   * young population that is most of them — which left the Scores lens
+   * empty for weeks with nothing anyone could do about it. The ask is
+   * blind exactly like the daily it is: nothing here reveals a split,
+   * and the vote goes through vote(), the one path (anchors snapshot,
+   * D205's rates-aware city gate, the ledger) every answer takes.
+   *
+   * Daily bank only, which is where every `rates` question lives (D187);
+   * if the feed ever grows one, its serving is the feed's own filter and
+   * does not belong in this walk.
+   */
+  placeAsks(scope: string): Array<{ id: string; text: string; optionCount: number }> {
+    return state.questions
+      .filter((q) =>
+        q.active !== false && q.type === "rating" && q.rates === scope
+        && !state.votes[q.id])
+      .map((q) => ({
+        id: q.id,
+        text: q.prompt,
+        optionCount: (q.options || []).length,
+      }));
+  },
   /**
    * The core feed questions with a published aggregate, as the same view
    * models — the Patterns pool's other half (the nightly fit folds

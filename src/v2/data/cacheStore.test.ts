@@ -1,4 +1,4 @@
-// cacheStore's contract (D303, docs/ANSWER-SCALE.md §2.2), driven against
+// cacheStore's contract (D311, docs/ANSWER-SCALE.md §2.2), driven against
 // fake-indexeddb — a spec implementation, not a hand-rolled double,
 // because transaction auto-commit and event ordering are exactly where a
 // hand-mirrored fake would encode this module's own assumptions back at
