@@ -241,7 +241,7 @@ describe("isMeasured — a scored row is not automatically a measurable one", ()
   // `options` nor `items`. The scorecard computes n = 0 for them,
   // optionShares returns null, and evenness is null however many people
   // answered. They were invisible to the rollups for the wrong reason until
-  // D295 — the retired tooSmall predicate marked every aggregate
+  // D296 — the retired tooSmall predicate marked every aggregate
   // below-floor — and arrived the moment that was fixed.
   const measurable = { signal: "scored", total: 40, evenness: 0.82, qid: "feed-f57", surface: "feed", type: "vote", topic: "music", topics: ["music"] };
   const dial = { signal: "scored", total: 40, evenness: null, qid: "feed-dl5", surface: "feed", type: "dial", topic: "event", topics: ["event"] };

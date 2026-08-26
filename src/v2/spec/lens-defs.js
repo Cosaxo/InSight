@@ -33,7 +33,8 @@ import LIVE from '../data/live';
 //      would mean part of "your" result was invented. Here the prior is
 //      zero-weighted in live mode: your score is your answers, and `demo`
 //      is only ever drawn as the reference shape — the same "you vs the
-//      typical person" language test-viz.jsx already uses.
+//      typical person" language every result surface uses (result-card.jsx,
+//      through `testNorm`).
 window.IS_LENSES = [
   {
     id: 'moral', tier: 1, hue: 355, title: 'Moral foundations',

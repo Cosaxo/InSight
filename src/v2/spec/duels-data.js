@@ -10,7 +10,6 @@
 // OFF THE GLOBAL BRIDGE (D108): `DUELS` is a named export, not a
 // `window.DUELS`, so its nine consumers hold it as a module binding that
 // load order cannot leave unset. Nothing here publishes to global scope.
-import React from 'react';
 import DUEL_CONTENT from '../../../content/duel-questions.json';
 import { FRIENDS } from './follows.js';
 import { IS_DATA } from './sample-data.js';

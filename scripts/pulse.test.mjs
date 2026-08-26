@@ -707,10 +707,10 @@ describe("the rendered page", () => {
     expect(html).not.toContain("No scorecard yet");
     // …and the scorecard's empty state must step aside. Tracked to the
     // CURRENT wording: this searched for "nothing has cleared the floor
-    // yet" until 2026-08-26, and D295 rewrote that sentence in the same
+    // yet" until 2026-08-26, and D296 rewrote that sentence in the same
     // commit — leaving an assertion that could no longer fail. A
     // not.toContain against a string the code cannot emit is a test that
-    // passes for the wrong reason, which is what D295 was about.
+    // passes for the wrong reason, which is what D296 was about.
     expect(html).not.toContain("no question has been answered yet");
     expect(html).not.toContain("nothing has cleared the floor yet");
     expect(html).not.toContain("undefined");

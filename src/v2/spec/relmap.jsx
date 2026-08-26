@@ -13,7 +13,7 @@ import NAV from '../data/nav';
 // You sit at the center; each circle (family, friends, work…) gathers around its
 // own hub; members orbit their hub. Four lenses recolor the graph. Pan, zoom,
 // drag a node to pin it, search to filter, tap a node for the full profile.
-// Data + layout: relationship-map-core.js · panels: relationship-map-panels.jsx
+// Data + layout: relmap-core.js · panels: relmap-panels.jsx
 //
 // The map itself is EXPORTED (D200) in the shape relmap-core.js beside it
 // already uses: a binding hoisted out of the IIFE, assigned at the foot,

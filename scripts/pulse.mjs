@@ -110,10 +110,12 @@ function readTrail() {
 // failure mode CLAUDE.md's rule about keeping client-only checks off the
 // backend path is protecting against, pointed the other way.
 //
-// Where it belongs instead is the farm's scheduled run, beside the
-// scorecard read it already does — a job that runs daily and whose job it
-// IS to write questions. That wiring lives outside this repo, so this
-// prints the recommendation rather than pretending to have done it.
+// Where it belongs instead is a scheduled job, beside the scorecard read
+// it already does — one that runs daily and whose job it IS to write
+// questions. That job is `.github/workflows/pulse.yml`, which runs
+// `node scripts/pulse.mjs --check` on its cron as a step named for what it
+// is; this comment said the wiring lived outside the repo for as long as
+// the workflow had existed.
 
 const RUNWAY_FLOOR = 21;   // three weeks — two farm cycles of notice
 

@@ -3,10 +3,9 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import React from 'react';
 
 // InSight — Map tab layout engine + shared helpers. No JSX — plain script.
-// The tab component lives in map-tab.jsx; branch chips in map-tab-chips.jsx.
+// The tab component lives in map-tab.jsx; branch chips in map-chiprow.jsx.
 // A named export since the Map went lazy (v28 §5, D39's convert-on-touch):
 // map-tab and person-mindmap import the binding, map-ring.test.js pins the
 // arithmetic through it, and no window copy remains to drift.

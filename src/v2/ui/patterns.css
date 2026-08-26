@@ -2,7 +2,23 @@
    standalone's patterns.css + oracle.css (design/standalone-2026-08-20/,
    verbatim: every class below is the prototype's, and the comments are
    its own). Imported by PatternsTab.tsx, so it ships with the lazy
-   patterns chunk rather than the first paint. */
+   patterns chunk rather than the first paint.
+
+   VERBATIM HAS A COST, and it is measured rather than assumed: eleven
+   selectors here style markup the tab does not render — .pt-chip, .pt-next,
+   .pt-note, .pt-svg, .pt-svgcard, .qm-key, .qm-keybtn, .qm-meta, .qm-prog,
+   .qm-tlab, .qm-topsay, fourteen rule blocks between them. They are kept
+   ON PURPOSE, and the reason is the header above: this file is the
+   prototype's sheet, and the ports that will fill the lenses out are
+   supposed to be able to diff against it. The trade is affordable because
+   this stylesheet is in the LAZY patterns chunk — the first-paint sheet
+   (src/v2/styles.css) gets the opposite treatment, and its residue from the
+   D121 test overlay was deleted rather than annotated.
+
+   If a future pass decides the port is finished, delete them and drop this
+   paragraph with them. What must not happen is the third option: leaving
+   them while the header still says only "verbatim", which reads as a
+   promise that every rule here draws something. */
 /* patterns.css — the Patterns tab shell: ruler, sub-row, notes.
    Map lens chrome is at the foot; the Oracle lens carries its own (oracle.css). */
 .pt-wrap{display:flex;flex-direction:column;gap:12px;padding-top:2px}

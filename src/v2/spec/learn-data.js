@@ -14,7 +14,6 @@
 // guarantee, which is the same fragility the `daily-questions.js` conversion
 // removed for `map-branches.js`. `window.LIVE` in learnMeasured() stays: it
 // is read at CALL time, and it is what the LIVE conversion will take.
-import React from 'react';
 import { sharePcts } from '../data/pct';
 // The DEMO SAMPLE, not the bank (D284). This import used to be
 // `learn-questions.json` — the whole thing — so every learn card was

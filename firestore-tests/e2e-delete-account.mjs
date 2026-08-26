@@ -28,6 +28,7 @@ import { getStorage as adminStorage } from "firebase-admin/storage";
 // output rather than repeated here (D201). `pretest:e2e` builds it, so
 // this harness cannot be pointed at a region the emulator is not on.
 import { FUNCTIONS_REGION } from "../functions/lib/ops.js";
+import { fail, ok } from "./e2e-lib.mjs";
 
 // The named database (D165). The backend writes to FIRESTORE_DB_ID, so a
 // harness on `(default)` reads an empty database and reports a phantom
@@ -38,8 +39,6 @@ const E2E_DB_ID = process.env.FIRESTORE_DB_ID || "insight";
 
 const PROJECT = "demo-insight";
 
-const fail = (msg) => { console.error("✗ " + msg); process.exit(1); };
-const ok = (msg) => console.log("✓ " + msg);
 
 // ── admin (rules bypassed) — the only trustworthy observer here ──
 // The bucket has to be NAMED (D178). A demo project has no default one

@@ -1,9 +1,9 @@
 # Rank and catalog go-live — the two feed forms the live bank withholds
 
 **Status: BOTH HALVES BUILT.** §2 (catalog) shipped 2026-08-23 as
-[D232](DECISIONS.md#d231--catalog-questions-go-live-seventeen-picks-promoted-through-one-pen);
+[D232](DECISIONS.md#d232--catalog-questions-go-live-seventeen-picks-promoted-through-one-pen);
 §3 (rank) shipped the same day as
-[D233](DECISIONS.md#d232--rank-questions-live-an-answer-carries-an-order-and-the-exclusion-retires),
+[D233](DECISIONS.md#d233--rank-questions-live-an-answer-carries-an-order-and-the-exclusion-retires),
 which also closes D12. The records carry the as-built deviations —
 D232 reversed one planned item (`feed-budget.mjs`, whose regulator
 reads only the subject taxonomy — a call D233 then reversed BACK when

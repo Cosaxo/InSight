@@ -1486,7 +1486,7 @@ That is a tester-count problem, not a workflow problem.
       `published total 5 counts {"0":5}` · `drift: none`. That is the
       property the whole of D290 rests on, checked against production
       rather than against an emulator, and it is the first non-vacuous
-      run: the 2026-08-25 attempt scanned zero (D294/D295).
+      run: the 2026-08-25 attempt scanned zero (D295/D296).
 
       D290 shipped `rebuildAggregateV2` and its unit tests, but
       the callable had never run against production data. Its first
@@ -1517,7 +1517,7 @@ That is a tester-count problem, not a workflow problem.
       `VITE_FIREBASE_API_KEY`) from the `production` environment, so there
       is nothing new to grant.
 
-      **WHAT THE FIRST RUN ACTUALLY FOUND (2026-08-25, D294).** The step was
+      **WHAT THE FIRST RUN ACTUALLY FOUND (2026-08-25, D295).** The step was
       performed the day the tool merged, and it failed twice before it
       passed. Both failures were about the deploy, not the tool, and both
       are worth knowing before anyone reaches for this during an incident:
@@ -1544,7 +1544,7 @@ That is a tester-count problem, not a workflow problem.
          real answers (e2e steps 7h, 7i, 9e).
 
          **Pick a qid that HAS answers.** This entry first said the project
-         held none, quoting `answersCounted: 0` from the pulse trail; D295
+         held none, quoting `answersCounted: 0` from the pulse trail; D296
          found that number to be a broken reader, not a measurement — there
          are 104 questions with answers in production. `daily-019` (total 5)
          is the one with more than a single vote, and is what run 6

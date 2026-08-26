@@ -1,13 +1,20 @@
 // Accessibility ratchet: the app may not get less keyboard-reachable.
 //
-// WHY A RATCHET RATHER THAN A CLEAN SWEEP. Every one of the findings below
-// is in `src/v2/spec/` — the ~19.8k lines ported verbatim from the frozen
-// prototype. The hand-written layer (`src/v2/ui/*.tsx`, `src/lib`) has
-// **zero**. Fixing 16 files of ported JSX blind means adding key handlers and
-// focus behaviour to components no test asserts the interaction of, which is
-// the same trade src/v2/README.md refuses for the deferred React Compiler
-// findings: "Changing effect re-run timing blind is a worse trade than
-// recording the debt."
+// WHY A RATCHET RATHER THAN A CLEAN SWEEP. Most of the findings are in
+// `src/v2/spec/` — the JSX ported verbatim from the frozen prototype —
+// and fixing ported JSX blind means adding key handlers and focus behaviour
+// to components no test asserts the interaction of, which is the same trade
+// src/v2/README.md refuses for the deferred React Compiler findings:
+// "Changing effect re-run timing blind is a worse trade than recording the
+// debt."
+//
+// HOW MANY, AND WHERE, is not written here on purpose. This header used to
+// say every finding was in the spec layer and the hand-written layer had
+// zero, and BASELINE twelve lines below listed two `src/v2/ui/*.tsx` files
+// and one in `src/dev/` — a header contradicted by its own file, in the
+// direction that flatters. The run prints the live split on every
+// invocation and BASELINE is the list itself; both are computed, and a
+// third copy in prose is the thing check-figures.mjs exists to prevent.
 //
 // What a ratchet buys that a blanket disable does not: new code cannot add
 // to it, and the number can only be lowered deliberately. That is the same
@@ -32,7 +39,7 @@ import { ESLint } from "eslint";
 //   no-autofocus — the rule is right in general: focus moving without being
 //     asked is disorienting on a screen reader.
 //
-// EVERY ONE OF THE EIGHT IS A DELIBERATE KEEP (D250), and the reason is
+// EVERY ONE OF THEM IS A DELIBERATE KEEP (D250), and the reason is
 // recorded here rather than silenced with an inline disable — `npm run
 // lint` runs --report-unused-disable-directives against a config that has
 // no jsx-a11y rules in it, so a disable comment naming one would itself
@@ -127,7 +134,7 @@ import { ESLint } from "eslint";
 // component fails the rule, htmlFor+id passes.
 //
 // What is left, and why each is a different bug:
-//   - no-autofocus (8) and the rest: recorded above and in D21.
+//   - no-autofocus and the rest: recorded above and in D21.
 const BASELINE = {
   "src/dev/TweaksPanel.jsx": 1,
   "src/v2/spec/group-daily.jsx": 1,

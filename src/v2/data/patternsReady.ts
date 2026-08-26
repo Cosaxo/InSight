@@ -187,8 +187,8 @@ const LS = PATTERNS_EARNED_KEY;
  * So the crossing is written down once. Reading a stale `true` is safe by
  * construction: it says this account cleared the floor, which is a fact
  * about its past, and the tab's own lens floors still hold the present.
- * Erasing it is the purge's job — `forgetPatternsEarned`, called from the
- * `insight:local-purge` arm, so a uid change hands the next account a
+ * Erasing it is the purge's job — the `insight:local-purge` listener at
+ * the foot of this module, so a uid change hands the next account a
  * gate it has to earn for itself.
  *
  * Best-effort storage on purpose: a browser that refuses localStorage

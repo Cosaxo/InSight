@@ -212,6 +212,18 @@ describe("a day the pulse never asked on is absent, not missed", () => {
     });
   });
 
+  // The city and country scopes are named after the demo room's own place,
+  // not after a placeholder. They drew "Your city" / "Your country" for as
+  // long as the read was `window.IS_DATA?.me` — a cast, so check:globals
+  // could not see it (D280) and sample-data.js had long since come off the
+  // bridge, leaving the name unset on every build. Pinned to the strings
+  // because that is the difference the fallback hides.
+  it("names the demo scopes after the room's own city and country", () => {
+    expect(PULSE.scope("pulse-pace", "city").label).toBe("Oslo");
+    expect(PULSE.scope("pulse-pace", "country").label).toBe("Norway");
+    expect(PULSE.scope("pulse-pace", "world").label).toBe("World");
+  });
+
   it("reports an empty run for a paused pulse rather than a broken one", () => {
     PULSE.setCadence("pulse-pace", "off");
     const st = PULSE.streak("pulse-pace");

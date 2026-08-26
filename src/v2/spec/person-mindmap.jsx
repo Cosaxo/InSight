@@ -26,7 +26,7 @@ import { MTBranchChips } from './map-chiprow.jsx';
 // reads exactly like yours. Their answers are deterministic per person and
 // lean toward yours in proportion to your affinity; tapping an answer shows
 // how it compares to what YOU said. Some details stay hidden until you're
-// friends. (map-tab.css, MapLens hues, MapTabLayout clusters)
+// friends. (styles.css, MapLens hues, MapTabLayout clusters)
 // `PersonMindMap` is exported by name (D39, "convert on touch") — the person
 // overlay renders it twice, as a still and full-screen, and imports it. The
 // rest of this module still publishes through the window bag, so the export

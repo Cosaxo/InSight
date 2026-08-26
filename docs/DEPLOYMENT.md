@@ -557,7 +557,7 @@ is **dry by default**: read the drift before passing `--apply`.
 Read `scanned` before you believe the drift. A scan that matched nothing
 agrees with an empty aggregate trivially, so the tool says `nothing to
 compare` rather than `drift: none` there, and refuses `--apply` outright
-if the aggregate is not empty (D294). A zero scan is more often a query
+if the aggregate is not empty (D295). A zero scan is more often a query
 that did not work — a composite index still building after a deploy, a
 qid that does not match the answers — than a question whose answers are
 gone.

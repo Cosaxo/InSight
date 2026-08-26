@@ -529,8 +529,10 @@ only an equality on a present field is enforceable against a query — the
 presence test this replaced returned hidden takes to the whole circle on a
 `where("gid","==",…)` while denying the same document to `getDoc` (D65).
 An ordered list needs the `(gid ASC, hidden ASC, createdAt DESC)` composite
-in firestore.indexes.json — the only entry in that file's `indexes` array,
-declared ahead of the UI that will want it.
+in firestore.indexes.json, declared ahead of the UI that will want it.
+(`src/v2/data/indexes.test.ts` is the live account of which query shapes
+resolve against that file — this sentence used to add "the only entry in
+that file's `indexes` array", which stopped being true at the second one.)
 (deleteAccount erases a user's takes and flags by uid query)
 
 v2_flags/{takeId}_{uid}            one flag per (take, user), write-only

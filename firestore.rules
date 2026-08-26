@@ -223,8 +223,12 @@ service cloud.firestore {
         // so the server learns a QUESTION's pass rate and never a
         // person's passes. Capped INCLUDING the client's overflow cell,
         // which is why this cap and QIDS_CAP in
-        // src/v2/data/engagement.ts are one number, held equal by hand
-        // and pinned by both sides' tests. Values are clamped by the
+        // src/v2/data/engagement.ts are one number. Held equal by hand,
+        // and now pinned as an EQUALITY: engagement.test.ts reads this
+        // file and compares. It said "pinned by both sides' tests" while
+        // each side only pinned itself — a length here, a literal list
+        // there — so adding a key to one and not the other failed
+        // nothing. Values are clamped by the
         // fold — the `s` map's reasoning above, one shelf up.
         && (!("qids" in request.resource.data)
           || (request.resource.data.qids is map

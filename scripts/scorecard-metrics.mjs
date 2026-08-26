@@ -95,7 +95,7 @@ export const isScoredAgg = (agg) => !!agg;
  *
  *  Those rows used to be invisible here for the wrong reason: the retired
  *  `tooSmall` predicate marked every aggregate below-floor, so nothing
- *  reached a rollup at all. D295 fixed the predicate and they arrived —
+ *  reached a rollup at all. D296 fixed the predicate and they arrived —
  *  into `t.evenSum += r.evenness ?? 0`, which turns "not measurable" into a
  *  perfect landslide and divides by a denominator that counted it.
  *

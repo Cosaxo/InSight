@@ -15,7 +15,8 @@ import { IS_TEST_RESULTS } from './test-definitions.js';
 import { WPAL } from './world-palette.js';
 
 // Expanded Person profile — a detailed portrait of similarity
-// Replaces the basic PersonOverlay registered in overlays.jsx
+// Replaces the basic PersonOverlay — registration is spec-index.js's
+// `loadOverlays` group
 
 (function () {
 

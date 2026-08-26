@@ -3,7 +3,6 @@
 // OFF THE GLOBAL BRIDGE (D108): `SCENES` is a named export, not a
 // `window.SCENES`, so its four consumers hold it as a module binding that
 // load order cannot leave unset. Nothing here publishes to global scope.
-import React from 'react';
 import { IS_DATA } from './sample-data.js';
 import { WPAL } from './world-palette.js';
 // The offers() gate below — the imported binding, not window.LIVE, for the
@@ -14,7 +13,8 @@ import LIVE from '../data/live';
 // scenes.js — Scenes are the one follow list shared by the whole app: the orbit
 // (Mirror) is where you see and manage them, the World feed chip row is the same
 // list acting as filter. A scene is a community (members, match, vibe — defs live
-// in data.js groups) that also feeds you its questions. Persisted locally.
+// in sample-data.js groups) that also feeds you its questions. Persisted
+// locally.
 //
 // The binding is hoisted above the IIFE and assigned inside it — the shape
 // DAILYQ and FRIENDS took, and for the same reason: the wrapper is vestigial

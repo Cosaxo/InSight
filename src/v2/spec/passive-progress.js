@@ -12,7 +12,6 @@
 // ASSIGNED — in a fallback branch that only ran when test-definitions.js had
 // not loaded. Importing the name from its real owner removed the edge, and
 // converting test-definitions.js made that fallback dead code, so it went too.
-import React from 'react';
 import { IS_TESTS, IS_TEST_RESULTS, TEST_HUE } from './test-definitions.js';
 
 // passive-progress.js — progress for the five core tests. Only a test's OWN

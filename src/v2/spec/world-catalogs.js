@@ -3,7 +3,6 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import React from 'react';
 
 // world-catalogs.js — catalogue questions. A vote has two sides; a catalogue has
 // hundreds of entries, so the interaction is search-and-pick and the result is a

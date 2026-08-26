@@ -39,7 +39,10 @@ export default defineConfig(({ mode }) => {
       // (`test/smoke-*.test.jsx`) and the panel suites carry it.
       //
       // setupFiles runs for ALL of them, so it must stay a no-op outside
-      // jsdom — see the guard at the top of the file.
+      // jsdom — see the guard at the top of the file. "All of them" is
+      // wider than `--dir src`: `test:scripts` and `test:rules` resolve
+      // this same root config, so the setup file loads for three of the
+      // five runners, two of which have no DOM at all.
       setupFiles: ['./src/v2/test/setup-dom.ts'],
       // Worker threads, not child processes — and this is a bug fix, not
       // a preference.

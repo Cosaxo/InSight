@@ -204,11 +204,6 @@ export function testNorm(testKey: string): TestNorm {
   return measuredNorms()[testKey] || { avg: {}, n: {}, src: "measured" };
 }
 
-/** The one-line convenience the old `IS_TEST_AVG[k]` call sites want. */
-export function testAvg(testKey: string): Record<string, number> {
-  return testNorm(testKey).avg;
-}
-
 /** True when this instrument has at least one axis with a real baseline. */
 export function hasNorm(testKey: string): boolean {
   return Object.keys(testNorm(testKey).avg).length > 0;

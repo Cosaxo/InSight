@@ -16,10 +16,10 @@ import { passiveStanding } from './passive-meter.jsx';
 import { list as anchorList } from './map-anchors.js';
 import { PROFILE_GENERAL_LS } from '../data/cityAnchor';
 import { CITY_OK_LEAF } from '../data/cityConfirm.ts';
-// An import, not the window.PLACES read this file used to carry — the
-// typed module is importable from spec (logic-test precedent), so the D39
-// coupling meter moves DOWN with this change.
-import PLACES from '../data/places';
+// `PLACES` stood here as an import (D39 converted it from a window.PLACES
+// read, which is what moved the coupling meter down). The import outlived
+// its last reader and is gone; the typed module is still importable from
+// spec if a reader comes back.
 import { SCENES } from './scenes.js';
 // The rings-and-you drawing every empty surface shows now (D172).
 import EmptyField from '../ui/EmptyField.tsx';
@@ -35,8 +35,8 @@ const TraitWebCardLazy = React.lazy(() => import('../ui/TraitWebCard.tsx'));
 // account-creation questions) must ask with the same words, and
 // check:anchors reads that file for the client half of its comparison.
 import {
-  AGE_BANDS, DAYS, EDU_OPTS, GENDER_OPTS, HEIGHT_OPTS, JOB_OPTS, MONTHS,
-  REL_OPTS, YEARS, ageBandOf, anchorsFrom, calcAge,
+  DAYS, EDU_OPTS, GENDER_OPTS, HEIGHT_OPTS, JOB_OPTS, MONTHS,
+  REL_OPTS, YEARS, anchorsFrom, calcAge,
 } from './profile-vitals.js';
 
 // ─────────────────────────────────────────────────────────────
@@ -65,7 +65,7 @@ import {
   // — see loadGen and migrateV1 below.
   const GKEY_V1 = 'insight.profileGeneral.v1';
 
-  // ── seed from data.js, then overlay any saved edits ──
+  // ── seed from sample-data.js, then overlay any saved edits ──
   function seedFromData() {
     const me = IS_DATA.me || {};
     const s = me.stats || {};

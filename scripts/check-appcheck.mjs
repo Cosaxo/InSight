@@ -5,9 +5,12 @@
 // standing between the public surface and unlimited free anonymous
 // accounts (D3, D10, D28). `enforceAppCheck` is a per-function option, so
 // omitting it is silent: the function builds, deploys, passes every test
-// and serves any caller on the internet. Six of the eleven callables carry
-// it and five do not, and until this script existed nothing said which of
-// those was a decision.
+// and serves any caller on the internet. When this script was written six of
+// eleven callables carried it and five did not, and nothing said which of
+// those was a decision. The census has more than doubled since; the run
+// prints the live one, and no number is restated here — this header said
+// "six of the eleven" against a tree with twenty-six for long enough to be
+// wrong by more than it was ever right.
 //
 // WHAT IT CHECKS, and why not the compiled output. The natural place for
 // this is check-fn-runtime.mjs, which already walks every exported function
@@ -30,6 +33,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { stripComments } from "./strip-comments.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = join(root, "functions", "src");
@@ -139,11 +143,6 @@ const EXEMPT = {
 const CALLABLE =
   /export\s+const\s+(\w+)\s*=\s*onCall\s*(?:<[^>]*>)?\s*\(\s*(?:\/\/[^\n]*\n\s*)*\{([^}]*)\}/g;
 
-function stripComments(text) {
-  return text
-    .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
-    .replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + " ".repeat(m.length - p1.length));
-}
 
 const enforcing = [];
 const missing = [];
@@ -174,11 +173,13 @@ for (const file of readdirSync(SRC, { recursive: true })
   // emulator without an allowlisted uid and the comment survives the PR.
   //
   // Blanking rather than deleting, so every index and line number below
-  // still points at the real file. Deliberately a local copy of
-  // spec-globals.mjs's `stripComments` and not an import: this gate runs on
+  // still points at the real file. It was a local copy of spec-globals.mjs's
+  // `stripComments` for a good reason — this gate runs on
   // backend-checks.yml, which firebase-deploy.yml calls, and that module
-  // scans the whole client spec layer at import time — a deploy gate must
-  // not be able to fail because src/v2/spec moved.
+  // scans the whole client spec layer at import time, so a deploy gate must
+  // not import it. `strip-comments.mjs` is that reason answered rather than
+  // worked around: it does no top-level work at all, so importing it cannot
+  // fail because src/v2/spec moved.
   const src = stripComments(readFileSync(join(SRC, file), "utf8"));
 
   // Counted separately from the matches below so a callable written in a

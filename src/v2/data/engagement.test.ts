@@ -17,6 +17,8 @@
 //      accumulates visible→hidden.
 //   5. The purge listener drops to fresh-boot without writing back; the
 //      full cycle is purge-wipe.test.ts's.
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   arm, bucketize, bucketizeMinutes, daypartOf, flushPast, markDepthEnd,
@@ -314,8 +316,38 @@ describe("buckets", () => {
 
 describe("the key list", () => {
   it("is the shard vocabulary the rules arm whitelists — additions land in both or neither", () => {
-    // 31 since tabPatterns joined with the D265 remount.
+    // 31 since tabPatterns joined with the D265 remount. Kept alongside the
+    // cross-file case below: this one also pins that comment and catches a
+    // duplicate, neither of which set equality can see.
     expect(S_KEYS).toHaveLength(31);
     expect(new Set(S_KEYS).size).toBe(S_KEYS.length);
+  });
+
+  // THE HALF THAT WAS MISSING. firestore.rules whitelists this vocabulary by
+  // hand and its own comment said the two were "held equal by hand and
+  // pinned by both sides' tests" — but each side pinned only ITSELF: a
+  // length here, a literal list there. Adding a key to S_KEYS and not to the
+  // rules is a write the rules refuse, and the digest simply stops counting
+  // whatever it was; adding it to the rules and not here is a key nothing
+  // ever sends. Neither fails anything today.
+  //
+  // Same shape as voters.test.ts's surface-list case, which reads the rules
+  // out of this exact directory for exactly this reason. Anchored on
+  // `data.s.` because a second `keys().hasOnly` sits twenty lines below it
+  // for the anchors map, and the non-null assertion is what makes a MOVED
+  // rule fail loudly instead of passing on an empty match.
+  it("matches the shard whitelist in firestore.rules, key for key", () => {
+    const rules = readFileSync(resolve(__dirname, "../../../firestore.rules"), "utf8");
+    const arm = rules.match(/request\.resource\.data\.s\.keys\(\)\.hasOnly\(\[([\s\S]*?)\]\)/);
+    expect(arm, "the shard `s` whitelist was not found in firestore.rules").not.toBeNull();
+    const fromRules = arm![1].split(",").map((x) => x.trim().replace(/"/g, "")).filter(Boolean);
+    expect(fromRules).toEqual([...S_KEYS]);
+  });
+
+  it("matches the qids cap in firestore.rules", () => {
+    const rules = readFileSync(resolve(__dirname, "../../../firestore.rules"), "utf8");
+    const cap = rules.match(/request\.resource\.data\.qids\.size\(\) <= (\d+)/);
+    expect(cap, "the qids size cap was not found in firestore.rules").not.toBeNull();
+    expect(Number(cap![1])).toBe(QIDS_CAP);
   });
 });

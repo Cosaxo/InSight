@@ -66,8 +66,6 @@ import './spec/vote-cuts.js';
 // imports both by name (D137), so the ESM graph loads them into whichever
 // chunk it lands in and rule 2 is satisfied without a line. relmap.jsx
 // itself is named in loadOverlays at the foot of this file.
-import './spec/test-viz.jsx';
-import './spec/profile-test-viz.jsx';
 import './spec/type-marks.jsx';
 import './spec/result-rose.jsx';
 import './spec/result-card.jsx';

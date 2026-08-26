@@ -3,7 +3,6 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import React from 'react';
 import { FRIENDS } from './follows.js';
 import { LEARN } from './learn-progress.js';
 import { IS_DATA } from './sample-data.js';
