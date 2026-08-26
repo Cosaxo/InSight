@@ -31064,3 +31064,48 @@ What it does **not** prove: the three POST endpoints. A create can still
 fail on a field the API rejects or a role the reads did not need, and
 `must()` would stop the run and name it. That is the one thing left, and
 only an `apply` run answers it.
+
+**Amendment (same day, second) — the first `--apply` run, the defect it
+found, and a protection nobody knew was on.** Three things, all measured.
+
+**1. The transport works and the policy bodies did not.** `--apply` created
+the channel, all five metrics and one policy, then took a 400 on the sixth
+POST:
+
+```
+condition_threshold.filter had an invalid value of
+metric.type="logging.googleapis.com/user/agg_contention": must specify a
+restriction on "resource.type"
+```
+
+Five of the eight committed policies carried a bare `metric.type=…` filter.
+`must()` stopped the run there rather than continuing — the refusal this
+record describes, doing its job on its first real outing. It left seven
+objects and named the eighth, which is the outcome the design intended and
+strictly better than eight partial policies and a green job.
+
+**2. The fix was measured, not reasoned**, and that mattered more than it
+looks. `observe --metrics` (added for this) reads one real log entry per
+metric and reports the monitored resource it carries: `cloud_run_revision`
+for four of the five, `no entry yet` for `agg_contention`, which nothing has
+emitted because there has been no contention. The instinct — "they are gen2,
+so cloud_run_revision" — was right. It was still worth measuring, because a
+policy naming a resource type its series never carries is accepted, enabled,
+listed and permanently green, and a wrong guess here is quieter than the 400
+and therefore worse. `check:monitoring` **rule 5** now holds the shape;
+`observe --metrics` is the only thing that can hold the value.
+
+**3. `environment: production` restricts the BRANCH, and nothing here knew
+it.** Dispatching this workflow from a feature branch fails in about a
+second with no steps and no logs — with `apply` on and with it off — while
+`observe.yml`, which declares no environment, runs from that same branch,
+and this workflow runs from `main`. Three readings, one variable.
+
+So arming can only happen from `main`, which is to say from something that
+went through review. That is a real protection, and it is *better* than what
+this repo believed: D87 is recorded as `Applied: not yet`, and the comment
+this amendment corrects said the environment "carries no protection rules
+today". D87 is about a REVIEWER requirement. A deployment branch policy is a
+different rule, it is on, and no document here mentioned it. Whether the
+reviewer half is also on remains unestablished — no run has ever waited.
+
