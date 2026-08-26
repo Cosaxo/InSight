@@ -1,5 +1,5 @@
-// bankStore.ts — the question-bank cache, out of the small box (D304,
-// building D302 phase 1; BANK-DELIVERY §3 as-built).
+// bankStore.ts — the question-bank cache, out of the small box (D315,
+// building D313 phase 1; BANK-DELIVERY §3 as-built).
 //
 // live.ts used to keep the whole bank in localStorage under
 // `insight.bankCache.v2`, which put a ~5 MB origin quota — shared with
@@ -21,7 +21,7 @@
 const DB_NAME = "insight-bank";
 const STORE = "bank";
 const KEY = "cache";
-// Where the cache lived until D304. Read once as a migration source — so
+// Where the cache lived until D315. Read once as a migration source — so
 // an updating device pays a delta fetch, not a full one — and removed
 // only when the new store is known to work, because freeing the small box
 // is half the point and stranding a device with no cache at all is not.

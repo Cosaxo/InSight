@@ -110,7 +110,7 @@ console.log("  it believes in advance, and bank-cache.test.ts asserts completene
 console.log();
 console.log("  NEXT is the whole-bank install fetch, silent in the same way: every fresh");
 console.log("  device still reads the entire bank (the localStorage quota cliff is gone —");
-console.log("  D304 moved the cache to IndexedDB), so nothing errors at any size and the");
-console.log("  per-device bill just climbs until D302's paged read path lands. check:quality's");
+console.log("  D315 moved the cache to IndexedDB), so nothing errors at any size and the");
+console.log("  per-device bill just climbs until D313's paged read path lands. check:quality's");
 console.log("  BANK_WARN/BANK_FAIL now watch that fetch and say so in MB.\n");
 console.log("  docs/SCALE-PLAN.md is the plan these numbers were computed for.\n");

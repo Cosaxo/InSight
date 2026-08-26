@@ -57,7 +57,7 @@
 //                      the headroom another lane may need. (That constant was
 //                      1200, guarding an unpaginated fetch; D161 paged the
 //                      fetch and re-pointed it at the localStorage cache
-//                      budget; D304 moved the cache to IndexedDB and
+//                      budget; D315 moved the cache to IndexedDB and
 //                      re-pointed it again, at the whole-bank install fetch.)
 //   OPEN_MAX     = 10  unreviewed cards on the lane's open PR at which
 //                      generation stops entirely. Equal to RUN_CAP, and

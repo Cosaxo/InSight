@@ -1,9 +1,9 @@
-// bankPager.ts — which cards a device actually fetches (D306 for learn,
-// D307 for the feed tail; both build D302 phases 2–3).
+// bankPager.ts — which cards a device actually fetches (D317 for learn,
+// D318 for the feed tail; both build D313 phases 2–3).
 //
 // A paged surface left the whole-bank boot fetch: a device takes PAGES
 // against the order rankBankV2 publishes nightly onto `v2_rank/{surface}`
-// (D305). This module is the arithmetic of that — which qids are needed —
+// (D316). This module is the arithmetic of that — which qids are needed —
 // behind injected I/O, so the paging rules are unit-testable the way the
 // bank cache's are. Learn pages per followed field; the feed pages its
 // TAIL per topic while core ships whole at boot (D161: the corpus's value
@@ -13,7 +13,7 @@
 // shortcut. A card the device was ever handed is in the bank cache
 // (bankStore.ts), so "first N of the published order not in the cache"
 // is exactly "next N this device has not met" — no profile, no upload,
-// nothing the server learns (D303's phase 1 boundary: the fetch pattern
+// nothing the server learns (D314's phase 1 boundary: the fetch pattern
 // is topic-coarse, and the ORDER is the crowd's). Cached cards are never
 // re-fetched and never dropped: the learn map reads mastered cards out
 // of the pool and the feed's archive keeps expired docs (the n_closed
@@ -24,7 +24,7 @@
 // consumes (learn serves about one card in seven feed cards; the feed's
 // page rides on top of the whole core), so in-session exhaustion falls
 // back to what the device already holds until the next boot. That is a
-// recorded limit (D306), not an oversight: the alternative is the UI
+// recorded limit (D317), not an oversight: the alternative is the UI
 // signalling the data layer mid-session, a seam worth adding when a
 // measured session actually outruns a page.
 
@@ -102,7 +102,7 @@ export const TASTE_MIN_TOTAL = 10;
 export const TASTE_TOPIC_MIN = 3;
 
 /**
- * D303 phase 1's whole effect on serving, in one function: per-topic
+ * D314 phase 1's whole effect on serving, in one function: per-topic
  * page sizes from the person's own profile. Topics they actually answer
  * get the full page; the rest get a smaller one — never zero, because
  * every topic stays on (D96: narrowing is a choice, not a default) and

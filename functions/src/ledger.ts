@@ -1,6 +1,6 @@
 // ledger.ts — one reader for one UTC day of the agg-events ledger (D28).
 //
-// Extracted when the taste fold (D303/D308) became the ledger's third
+// Extracted when the taste fold (D314/D319) became the ledger's third
 // nightly reader, because the second copy is how D197 happened: the bank
 // parser existed in three copies and the one with a try/catch reported an
 // invented wire size instead of failing. patterns.ts read the day inline

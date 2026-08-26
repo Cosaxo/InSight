@@ -398,7 +398,7 @@ const ALLOW = new Map([]);
 export const DAILY_ID_WARN = 900; // of 999 — check-content pins /^daily-\d{3}$/
 export const DAILY_ID_FAIL = 970; // an id-scheme decision is due before 999
 // Bank headroom. These guarded live.ts's `limit(1500)` until D161 paged
-// that fetch, then the localStorage cache quota until D304 moved the
+// that fetch, then the localStorage cache quota until D315 moved the
 // cache to IndexedDB (bankStore.ts) — each time, the ceiling they watched
 // stopped existing and they were re-pointed rather than deleted, because
 // the NEXT silent ceiling wants the same alarm at a different number.
@@ -406,7 +406,7 @@ export const DAILY_ID_FAIL = 970; // an id-scheme decision is due before 999
 // The next one is the whole-bank fetch itself (BANK-DELIVERY §4): every
 // fresh install still reads the ENTIRE bank — billed per document, per
 // device — and every boot holds it in memory. Nothing breaks at any
-// size; the install cost just climbs with the bank until D302's paged
+// size; the install cost just climbs with the bank until D313's paged
 // read path lands, which is a cost cliff with no symptom in a different
 // coat: the app that shipped at 700 documents looks identical at 20,000,
 // except in the bill and the first paint.
@@ -1472,12 +1472,12 @@ export function checkHeadroom(corpus) {
     errs.push(
       `seeded bank holds ${bankSize} docs ≈ ${cacheMB(bankSize)} MB fetched WHOLE by every fresh install — over budget. `
       + "The read path is still whole-bank (BANK-DELIVERY §4): nothing errors at this size, the per-device bill and "
-      + "the first paint just keep climbing with the bank. Build D302's paged read path before promoting more.",
+      + "the first paint just keep climbing with the bank. Build D313's paged read path before promoting more.",
     );
   } else if (bankSize >= BANK_WARN) {
     warn.push(
       `seeded bank at ${bankSize} docs ≈ ${cacheMB(bankSize)} MB fetched whole by every fresh install — the `
-      + "whole-bank read path is the next silent ceiling (the bill climbs with no symptom), so build D302's pages",
+      + "whole-bank read path is the next silent ceiling (the bill climbs with no symptom), so build D313's pages",
     );
   }
   return { errs, warn };

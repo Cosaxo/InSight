@@ -1,7 +1,7 @@
 # Bank delivery — three ceilings, in the order they bite
 
-**Status: built — §2 (D284, 2026-08-24), §3 (D304, 2026-08-26), §4
-(learn at D306, the feed tail at D307, both 2026-08-26; core ships
+**Status: built — §2 (D284, 2026-08-24), §3 (D315, 2026-08-26), §4
+(learn at D317, the feed tail at D318, both 2026-08-26; core ships
 whole by design — D161, not a remainder).** Written 2026-08-24 on the
 owner's direction after D283: the question banks should grow by an order
 of magnitude, and *"it's a good thing they don't run out"* is the product
@@ -172,14 +172,14 @@ the cap raising. `duel-questions.json` at 24 KiB — the last bank still
 compiled in whole, on a weekly lane at 14.6 KiB, and crossing it is the
 signal to give it learn's treatment.
 
-## 3 · Ceiling 2 — the bank cache is in the small box · **BUILT (D304)**
+## 3 · Ceiling 2 — the bank cache is in the small box · **BUILT (D315)**
 
-> Shipped 2026-08-26, the day D302 was adopted. `bankStore.ts` holds the
+> Shipped 2026-08-26, the day D313 was adopted. `bankStore.ts` holds the
 > cache in IndexedDB; the three call sites became a get/put pair; the
 > legacy localStorage payload migrates (delta, key freed, store filled —
 > pinned in bank-cache.test.ts) and `BANK_WARN`/`BANK_FAIL` were
 > re-pointed at the whole-bank install fetch, §4's ceiling, exactly as
-> the closing paragraph below asked. D304 records the as-built, including
+> the closing paragraph below asked. D315 records the as-built, including
 > the one divergence: migration only consumes the legacy copy when the
 > new store demonstrably works. What follows is the reasoning as it
 > stood.
@@ -256,12 +256,12 @@ server query or a published aggregate. That is real design work with
 real cost changes, and **it is not needed for volume** — phases 1 and 2
 take the practical ceiling past anything the lanes can write for years.
 
-**Learn converted 2026-08-26 (D306), the feed tail the same day
-(D307)**: both out of the boot fetch, paged against D305's published
+**Learn converted 2026-08-26 (D317), the feed tail the same day
+(D318)**: both out of the boot fetch, paged against D316's published
 orders, history healed by id (learn's mastery map; the feed's answers).
 Core ships whole by design — the corpus's value is that every device
 holds it (D161). Of the census above, the topic counts and search still
-read the device's pool; their conversions are recorded in D307 with the
+read the device's pool; their conversions are recorded in D318 with the
 fixes named.
 
 The one thing worth doing early is **not making it worse**: a new surface
@@ -279,17 +279,17 @@ convert later, and a published count is usually as good.
    defect itself: point `learn-data.js` back at the full bank and the
    gate reports it.
 2. ~~**Ceiling 2, when the bank passes ~2,000 documents**~~ **Done —
-   D304**, ahead of its own trigger because D302's adoption made it the
+   D315**, ahead of its own trigger because D313's adoption made it the
    enabler to build first. Three call sites, as counted; the migration
    condition is the one thing built beyond the sketch.
 3. ~~**Ceiling 3, when a real product need asks for it**~~ **Done —
-   D305 (the published order), D306 (learn) and D307 (the feed tail),
+   D316 (the published order), D317 (learn) and D318 (the feed tail),
    all 2026-08-26.** The install stops scaling with the bank: boot
    surfaces + core + a page per topic, O(core + pages) per device.
    **The need was named 2026-08-26**:
    the owner directed serving-by-selection — lazy pages, a published
    order, quality filtered by signal rather than prevented by cap —
-   recorded as D302, adopted 2026-08-26 ("build the real fixes now") —
+   recorded as D313, adopted 2026-08-26 ("build the real fixes now") —
    this step's clock is running, and §3 stays the enabler to build
    first.
 

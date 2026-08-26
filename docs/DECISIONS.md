@@ -30815,7 +30815,7 @@ was that the two real ones were a wrong command that fails loudly and a
 wrong region in a heading that would not have, and neither is the kind of
 thing the person who wrote them re-reads and catches.
 
-## D302 · Serving becomes selection: pages instead of the whole bank, and the order inherits the caps' job
+## D313 · Serving becomes selection: pages instead of the whole bank, and the order inherits the caps' job
 
 **Status:** binding — adopted 2026-08-26, owner: *"we should build the
 real fixes now."* · **Requested:** 2026-08-26, owner: *"don't fetch
@@ -30868,8 +30868,8 @@ the tree already practices:
 The owner, told exactly this, answered the same day that the app
 *"should absolutely track what you personally like — if not, it does not
 work"* — and that reversal is its own record, as this paragraph asked:
-**D303**. The two adopt independently: D302 alone is the paged bank with
-on-device taste; with D303, the fetch itself becomes personal.
+**D314**. The two adopt independently: D313 alone is the paged bank with
+on-device taste; with D314, the fetch itself becomes personal.
 
 ### What "filtered out by the algorithm" changes, exactly
 
@@ -30928,11 +30928,11 @@ conversion is its own reviewed change.
    fold; retire proposals keep proposing deletion, and the order stops
    waiting for them.
 
-## D303 · The taste model moves to the server, because selection cannot be personal from inside a page
+## D314 · The taste model moves to the server, because selection cannot be personal from inside a page
 
-**Status:** binding — adopted 2026-08-26 with D302, owner: *"we should
+**Status:** binding — adopted 2026-08-26 with D313, owner: *"we should
 build the real fixes now."* · **Requested:** 2026-08-26, owner, on being told
-D302 keeps the server's half of the order global: *"this app should
+D313 keeps the server's half of the order global: *"this app should
 absolutely track what you personally like — if not, it does not work."*
 This reverses the row D163 narrowed — **server-side per-user content
 selection**, refused there outright, is what this record builds. D163
@@ -30941,10 +30941,10 @@ oversight"; so is this one, and it is the owner crossing it.
 
 ### Why the device model is not enough, said honestly
 
-D302 pages the bank: the server chooses what a device is handed, and the
+D313 pages the bank: the server chooses what a device is handed, and the
 device re-orders what arrived. Under a global published order everyone
 is handed the same popular head, so a device model can only sort the
-window it was given — and at the bank sizes D302 exists for, the
+window it was given — and at the bank sizes D313 exists for, the
 choosing IS the personalization. The owner's sentence is the
 architectural fact: a taste model that never leaves the phone cannot
 reach into the fetch.
@@ -30992,7 +30992,7 @@ prove it.
 - `docs/data-inventory.md` gains the row (`check:data-inventory`) and
   the store privacy label moves with it (`docs/STORE-FORMS.md` +
   `design/store/app-privacy.json`, held equal by `check:store-forms` —
-  this line first named `check:labels`, which is the a11y gate; D308
+  this line first named `check:labels`, which is the a11y gate; D319
   caught it at build time) — D163's "no store form moves" was
   load-bearing and this record un-says it.
 - `web/privacy.html` says it and `check:policy-claims` proves it; the
@@ -31002,14 +31002,14 @@ prove it.
 
 ### What it does not change
 
-D302's nightly fold stays the ranking's spine — global signal orders the
+D313's nightly fold stays the ranking's spine — global signal orders the
 bank; the profile chooses which of it a device is offered. Core density,
 the daily's one-question ritual, and every deny in `firestore.rules`
 stand.
 
-## D304 · The bank cache leaves the small box
+## D315 · The bank cache leaves the small box
 
-**2026-08-26.** D302 phase 1, BANK-DELIVERY §3 as-built, the day the
+**2026-08-26.** D313 phase 1, BANK-DELIVERY §3 as-built, the day the
 plan was adopted. `src/v2/data/bankStore.ts` now holds the question-bank
 cache in IndexedDB (`insight-bank`, one store, one row); live.ts's three
 localStorage sites became a get/put pair with the contract the old code
@@ -31034,7 +31034,7 @@ already was. Two things beyond the plan's sketch:
 - **The tripwires re-pointed, not retired** (§3's own rule for a gate
   that once caught something). `BANK_WARN`/`BANK_FAIL` keep their
   counts and change their subject: the whole-bank fetch every fresh
-  install still pays (§4's ceiling) until D302's paged read path lands.
+  install still pays (§4's ceiling) until D313's paged read path lands.
   The messages now say to build the pages, not to move the cache;
   cost-scale, feed-budget and learn-budget's prose moved with them.
 
@@ -31044,9 +31044,9 @@ shipping bundle at 2096 KB against the 2440 ceiling — bankStore adds one
 small module to the entry graph and no shipped dependency
 (fake-indexeddb is dev-only, the tests' IDB implementation).
 
-## D305 · The serving order publishes nightly
+## D316 · The serving order publishes nightly
 
-**2026-08-26.** D302's spine, as-built: `functions/src/rank.ts`, the
+**2026-08-26.** D313's spine, as-built: `functions/src/rank.ts`, the
 fitPatternsV2 shape one job over — a pure fold behind an injected store,
 scheduled 3:07 UTC (after the fit at 2:37, before the velocity scan at
 3:47), publishing one world-readable document per ranked surface onto
@@ -31058,7 +31058,7 @@ served forgeable in one request.
 **The order, v1: per topic, volume descending, ties by seq — and
 landslides sink.** At `RANK_DEAD_MIN` (20) answers with a leading option
 at `RANK_DEAD_SHARE` (90%), a question has stopped asking anything and
-serves last in its topic. That is D302 phase 4's first signal live in
+serves last in its topic. That is D313 phase 4's first signal live in
 the order — the scorecard's own retire-proposal predicate, kept
 numerically equal so the two cannot drift — and the owner's "bad
 questions filtered out by the algorithm" in its first real form:
@@ -31068,8 +31068,8 @@ demotion continuous and reversible, deletion still a lane's PR,
 **The boundary holds by shape, not by promise.** The fold's inputs are
 the compiled seed (PATTERNS_QIDS's own source) and the public
 aggregates; no uid can enter it, so the published order is the crowd's
-and D163/D303's line — the server half of selection is global — is
-structural. The daily is not ranked (positional by design, D302);
+and D163/D314's line — the server half of selection is global — is
+structural. The daily is not ranked (positional by design, D313);
 test/duel/pulse/call are bounded rosters (D213's census) a device still
 takes whole.
 
@@ -31090,18 +31090,18 @@ Measured: 384 functions tests (rank.test.ts at 7, new), 150 rules tests
 check:figures' own fix lines), deploy-targets, fn-runtime, appcheck and
 data-inventory green.
 
-## D306 · Learn leaves the boot fetch: the first paged surface
+## D317 · Learn leaves the boot fetch: the first paged surface
 
-**2026-08-26.** D302 phases 2–3 for the first surface, as-built. A
+**2026-08-26.** D313 phases 2–3 for the first surface, as-built. A
 device is no longer handed every learn card: `BANK_SURFACES` dropped
 `learn`, and `topUpLearnBank` — kicked at the end of hydrate, never
-awaited, handed hydrate's own `db` — pages cards in against the D305
+awaited, handed hydrate's own `db` — pages cards in against the D316
 order: one read of `v2_rank/learn`, then the first `LEARN_PAGE` (24)
 per followed field that the cache does not hold, fetched by id in
 30-chunks. The arithmetic is pure (`learnPager.ts`, its own suite);
 the seen-set is the CACHE — a card this device was ever handed is in
 bankStore, so "first N not cached" is "next N never met here" with no
-profile and no upload. D303 phase 1's boundary holds by construction:
+profile and no upload. D314 phase 1's boundary holds by construction:
 the only thing the server could see is which ids a device fetched.
 
 Three obligations beyond the happy path, each pinned:
@@ -31145,18 +31145,18 @@ Measured: 2099 unit tests (bank-cache at 16, learn-pager at 8, vote at
 eslint, check:globals (the 238 baseline unchanged: the new seams are
 imports), and the shipping bundle at 2097 KB against 2440.
 
-What remains of D302: the feed tail (phase 3) and demotion's remaining
+What remains of D313: the feed tail (phase 3) and demotion's remaining
 signals (phase 4). The feed still ships whole at boot.
 
-## D307 · The feed tail leaves the boot fetch, and the whole-bank install is over
+## D318 · The feed tail leaves the boot fetch, and the whole-bank install is over
 
-**2026-08-26.** D302 phase 3 as-built, learn's shape (D306) applied to
+**2026-08-26.** D313 phase 3 as-built, learn's shape (D317) applied to
 the feed with one structural difference: **core ships whole, always.**
 The boot fetch became two queries — the boot surfaces' `in`, then
 `surface == "feed" AND core == true` — because the corpus the Mirror
 folds (D161) is valuable BECAUSE every device holds all of it, and
 Firestore cannot say "these surfaces, or feed where core" in one query.
-The tail pages behind `v2_rank/feed` (D305) at `FEED_PAGE` (12) per
+The tail pages behind `v2_rank/feed` (D316) at `FEED_PAGE` (12) per
 topic per boot: today's bank holds about that many per topic in total,
 so the paged feed reproduces the whole-bank feed exactly until the
 lanes outgrow it — which is the point where paging starts paying.
@@ -31189,17 +31189,17 @@ order, the answered heal, and the window rule at arrival), vote.test's
 which is the constraint mirror doing its job) — lint, check:globals
 baseline unchanged, shipping bundle 2098 KB against 2440.
 
-**With D304–D307 the install stops scaling with the bank**: a fresh
+**With D315–D318 the install stops scaling with the bank**: a fresh
 device fetches the boot surfaces, the core corpus, and a page per
 topic — O(core + pages), never O(bank) — and "there should be no
-question limit" (D302's adoption) is now a property of the read path
-rather than an aspiration of the plan. D302's remaining piece is phase
+question limit" (D313's adoption) is now a property of the read path
+rather than an aspiration of the plan. D313's remaining piece is phase
 4's remaining signals (attention and evenness joining volume in the
 nightly fold).
 
-## D308 · The profile is real: feed answers counted by topic, and pages sized by them
+## D319 · The profile is real: feed answers counted by topic, and pages sized by them
 
-**2026-08-26.** D303 phase 1 as-built, the same day the reversal was
+**2026-08-26.** D314 phase 1 as-built, the same day the reversal was
 recorded and adopted. Three parts and the checklist, each with its gate.
 
 **The fold** (`functions/src/taste.ts`, `fitTasteV2`, nightly 3:27 UTC —
@@ -31241,7 +31241,7 @@ on your device and is not collected" is now a pinned claim, so building
 phase 2 must retire that row in the same commit as the record that
 licenses it. The store label moved: User Content gains Product
 Personalisation (`STORE-FORMS.md` + `app-privacy.json`, held equal by
-`check:store-forms` — also where D303's checklist's `check:labels`
+`check:store-forms` — also where D314's checklist's `check:labels`
 misnomer surfaced; corrected in place). `MONITORING.md`'s refused row
 re-drawn, dated, with the crossed position kept above it — including
 the new duty the architecture no longer enforces: the console COULD

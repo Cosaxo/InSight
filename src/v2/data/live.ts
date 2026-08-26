@@ -99,7 +99,7 @@ async function getDb(): Promise<import("firebase/firestore").Firestore> {
   return db;
 }
 import { reportError, setSentryUser } from "../../lib/sentry";
-// The bank cache's storage (D304). IndexedDB behind a get/put pair that
+// The bank cache's storage (D315). IndexedDB behind a get/put pair that
 // never throws — a broken store reads as "no cache", exactly the contract
 // the localStorage version had, minus its 5 MB ceiling.
 import { bankGet, bankPut } from "./bankStore";
@@ -171,8 +171,8 @@ import { publishTestFeed } from "./testFeed";
 // The Learn engine's cards. Published by name for testFeed's reason, and
 // because the bundle stopped carrying the bank at D284.
 import { publishLearnBank, publishLearnTotals, type LearnCard } from "./learnBank";
-// Which paged cards a device actually fetches (learn at D306, the feed
-// tail at D307): pages against the published order instead of the whole
+// Which paged cards a device actually fetches (learn at D317, the feed
+// tail at D318): pages against the published order instead of the whole
 // surface at boot. Pure arithmetic there; the I/O lives in the top-ups
 // below.
 import {
@@ -1087,7 +1087,7 @@ function computeDeck(): void {
 }
 
 // The boot's cache payload, kept after hydrate returns so the learn pager
-// (D306) can append the pages it fetches and persist through the same
+// (D317) can append the pages it fetches and persist through the same
 // bankPut the boot used. Null until a hydrate has run.
 let bankPayload: {
   rev: number;
@@ -1167,7 +1167,7 @@ async function hydrate(): Promise<void> {
     /* meta is best-effort — absence just means no caching/update info */
   }
 
-  // ── question bank: cached (bankStore, D304) and keyed by contentRev ──
+  // ── question bank: cached (bankStore, D315) and keyed by contentRev ──
   // The bank is static content; a boot should cost 1 meta read, not
   // ~190 bank reads. Single-field query (no composite index).
   interface BankEntry extends QuestionDoc {
@@ -1197,9 +1197,9 @@ async function hydrate(): Promise<void> {
   // quietly.
   const BANK_MAX_PAGES = 100;
   // Every surface splitBanks can return EXCEPT the two paged ones, and
-  // each half of that sentence is load-bearing. The excepts are D306 and
-  // D307: learn and the feed's TAIL page against the published order
-  // (v2_rank/{learn,feed}, D305) instead of shipping whole at boot — the
+  // each half of that sentence is load-bearing. The excepts are D317 and
+  // D318: learn and the feed's TAIL page against the published order
+  // (v2_rank/{learn,feed}, D316) instead of shipping whole at boot — the
   // feed's CORE still ships whole via its own query below (the corpus
   // the Mirror folds, D161), and a paged doc still reaches its bank
   // slice, from the cache (everything this device was ever handed) and
@@ -1216,7 +1216,7 @@ async function hydrate(): Promise<void> {
   // Firestore's `in` takes up to 30 values, so the ceiling is not near.
   const BANK_SURFACES = ["daily", "test", "group", "duo", "pulse", "call"];
   let all: BankEntry[] | null = null;
-  // The store is bankStore.ts (IndexedDB) since D304; it reads the old
+  // The store is bankStore.ts (IndexedDB) since D315; it reads the old
   // localStorage payload once as a migration source, so an updating device
   // pays a delta rather than a refetch. A v1-era payload simply misses and
   // pays one full refetch, which is the correct upgrade cost.
@@ -1236,7 +1236,7 @@ async function hydrate(): Promise<void> {
   // it would leave a plain {seconds,nanoseconds} object on the cache path
   // and a real Timestamp on the network path — the kind of difference that
   // only shows up in whichever branch nobody tested.
-  // Unfiltered on purpose since D306 — the two fetch paths keep different
+  // Unfiltered on purpose since D317 — the two fetch paths keep different
   // rows. The full fetch keeps the boot surfaces (its query asked for
   // exactly those anyway); the delta ALSO keeps a row this device already
   // holds, whatever its surface, because that is an edit to a paged learn
@@ -1286,11 +1286,11 @@ async function hydrate(): Promise<void> {
         const byId = new Map(all.map((q) => [q.id, q]));
         // A boot surface merges as before, and so does a CORE feed row —
         // a freshly promoted core question must reach every device, since
-        // core ships whole (D307). A row outside both merges only if this
+        // core ships whole (D318). A row outside both merges only if this
         // device already holds it — an edit to a paged card arriving. A
         // NEW paged doc (learn, or a tail question) is dropped on
         // purpose: which paged cards a device holds is the pager's
-        // decision (D306/D307), not the delta's.
+        // decision (D317/D318), not the delta's.
         for (const row of rowsOf(dsnap)) {
           if (
             BANK_SURFACES.includes(row.surface)
@@ -1363,7 +1363,7 @@ async function hydrate(): Promise<void> {
     };
     // Two queries because Firestore cannot say "these surfaces, OR feed
     // where core" in one: the boot surfaces whole, then the feed's CORE
-    // (D307) — the corpus the Mirror folds (D161) ships to every device
+    // (D318) — the corpus the Mirror folds (D161) ships to every device
     // always, while the tail pages behind the published order like learn
     // does. Each query's rows are filtered by its own constraint's
     // client-side mirror, the pulse/call lesson.
@@ -1378,7 +1378,7 @@ async function hydrate(): Promise<void> {
   // Best-effort by bankPut's own contract; awaited so the write has
   // settled before `ready` flips and a test (or a fast tab close) can
   // observe a boot whose cache write is still in flight. Held at module
-  // scope afterwards so the learn pager (D306) can append the pages it
+  // scope afterwards so the learn pager (D317) can append the pages it
   // fetches and persist the same payload.
   bankPayload = { rev: contentRev, cursor, questions: all };
   await bankPut(bankPayload);
@@ -1425,7 +1425,7 @@ async function hydrate(): Promise<void> {
   state.feedBank = banks.feed;
   state.duelBank = banks.duel;
   state.learnBank = banks.learn;
-  // The Learn bank (D284, paged at D306). Published HERE, beside the
+  // The Learn bank (D284, paged at D317). Published HERE, beside the
   // split, and not in buildFeedGlobals: that function opens `if
   // (!state.feedBank.length) return`, so a bank with learn cards and no
   // feed questions would have served none of them — Learn does not depend
@@ -1433,7 +1433,7 @@ async function hydrate(): Promise<void> {
   // vote.test.ts's first learn case, which is exactly the bank that shape
   // describes.
   //
-  // Since D306 this slice is the CACHE's learn cards — everything this
+  // Since D317 this slice is the CACHE's learn cards — everything this
   // device was ever handed — not the whole surface; topUpLearnBank
   // (kicked at the end of hydrate) pages fresh cards in against the
   // published order and re-publishes. Publishing the cached slice first
@@ -1724,13 +1724,13 @@ async function hydrate(): Promise<void> {
 
   buildFeedGlobals();
 
-  // The pages (learn D306, feed tail D307), deliberately not awaited: a
+  // The pages (learn D317, feed tail D318), deliberately not awaited: a
   // few more round trips the surfaces need and first paint does not.
   // Failure costs a session's fresh cards, never the boot — everything
   // serves the cached slices published above until the top-ups land.
   // Handed hydrate's own db rather than calling getDb() again: the
   // members are already bound, and a second concurrent bind buys
-  // nothing (and lost a mocked-import race once — D306).
+  // nothing (and lost a mocked-import race once — D317).
   void topUpBankPages(db);
 }
 
@@ -1751,8 +1751,8 @@ function servableNow(q: QuestionDoc): boolean {
   return q.active !== false && (!q.until || q.until >= today) && (!q.from || q.from <= today);
 }
 
-// One boot's top-ups (D306/D307): per paged surface, read the published
-// order (D305), fetch the first page per field/topic this device does
+// One boot's top-ups (D317/D318): per paged surface, read the published
+// order (D316), fetch the first page per field/topic this device does
 // not already hold, plus any card the device has HISTORY with that fell
 // out of the cache — a rev bump refetches only the boot surfaces, and a
 // mastered card missing from the learn pool is a fact missing from the
@@ -1819,7 +1819,7 @@ async function topUpBankPages(db: Awaited<ReturnType<typeof getDb>>): Promise<vo
     // resolve to a document whatever page it was on. Core needs no heal
     // — it ships whole at boot by definition.
     const answered = Object.keys(state.votes).filter((id) => id.startsWith("feed-"));
-    // The person's own interest profile (D303 phase 1, D308) — the one
+    // The person's own interest profile (D314 phase 1, D319) — the one
     // document in the system only its owner may read, and the pager is
     // the one thing that reads it: topics this person actually answers
     // get the full page, the rest a smaller one, never zero (the

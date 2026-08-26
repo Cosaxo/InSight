@@ -179,7 +179,7 @@ consoles, which are not in this repo and never will be.
 | Retention or engagement sliced by anchor | D8 — the anchors exist; nothing suppresses them since D98 |
 | Anything sliced by political result | D8; GDPR Art. 9 |
 | Skip / pass / hesitation rates | QUESTION-FARM.md, "Deliberately out of scope" |
-| **Server-side** per-user content selection, ad targeting profiles | MONETIZATION.md, "Ruled out by standing posture"; narrowed by D163, crossed knowingly at D303 (built D308) — see below |
+| **Server-side** per-user content selection, ad targeting profiles | MONETIZATION.md, "Ruled out by standing posture"; narrowed by D163, crossed knowingly at D314 (built D319) — see below |
 
 The second row used to read: "the same suppression that stops a paying city
 identifying a person stops the owner doing it." D98 deleted the suppression,
@@ -216,16 +216,16 @@ server to show. And the interest model must not shape the Mirror: a
 feed selected by interest produces an interest-selected sample, which is
 why the core/tail split ([`SCALE-PLAN.md`](SCALE-PLAN.md) §1) exists.
 
-**Re-drawn 2026-08-26 (D303, built at D308), and the two paragraphs
+**Re-drawn 2026-08-26 (D314, built at D319), and the two paragraphs
 above are kept as the position that was crossed.** The owner's decision:
 the app "should absolutely track what you personally like — if not, it
-does not work", and under the paged read path (D306/D307) that is
+does not work", and under the paged read path (D317/D318) that is
 architecturally true — a device only re-orders what the server chose to
 send, so selection that works needs the server to know something. What
 was built is the NARROW form: `v2_users/{uid}/taste/profile`, this
 person's feed answers counted by topic, derived nightly from the ledger
 — from answers that are already public — with passes, defers and dwell
-still on the device (folding those in is D303 phase 2, a future record,
+still on the device (folding those in is D314 phase 2, a future record,
 and `check:policy-claims` pins the page sentence that promises it has
 not happened). So "the server never learns what any person was shown"
 still holds; "or what they are into" does not, and this row stops
@@ -236,7 +236,7 @@ show what people are into and **must not** — that is now a refusal
 this row carries rather than a fact the architecture enforced. What
 stays refused outright: ad targeting, audiences, engagement scoring,
 selling, and any read of the profile beyond selection. The Mirror
-sentence above survives whole — core is never paged (D307), so the
+sentence above survives whole — core is never paged (D318), so the
 corpus stays an interest-neutral sample.
 
 ## The fifth thing: instrumentation

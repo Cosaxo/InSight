@@ -139,11 +139,11 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // The published serving order (D302) — one document per ranked
+    // The published serving order (D313) — one document per ranked
     // surface (`feed`, `learn`): per-topic question orderings the nightly
     // rankBankV2 (admin SDK) derives from the public aggregates. Global
     // signal only — volume with landslides sunk — so nothing per-person
-    // is in it or ever enters the fold (D163/D303's line: the server
+    // is in it or ever enters the fold (D163/D314's line: the server
     // half of the order is the crowd's, never a profile).
     //
     // Write is closed for the v2_patterns reason, one shelf down: a
@@ -368,10 +368,10 @@ service cloud.firestore {
         allow read, write: if false;
       }
 
-      // The interest profile (D303 phase 1, D308) — this person's FEED
+      // The interest profile (D314 phase 1, D319) — this person's FEED
       // answers counted by topic, written nightly by fitTasteV2 (admin
       // SDK) and read by the OWNER alone: their own device sizes its
-      // topic pages by it (D307), and D163's "a Mirror that secretly
+      // topic pages by it (D318), and D163's "a Mirror that secretly
       // models you is a contradiction in terms" carries over — shown is
       // the floor, so the owner read is the grant. NOT public, unlike
       // the answers it derives from: what a person answered is the
