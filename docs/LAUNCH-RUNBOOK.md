@@ -22,7 +22,7 @@ the count is zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
 `check:store-listing` and `check:versions` pass; the daily bank is at 130
-questions of 687 seeded; the production backend is deployed. **Measured
+questions of 694 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -168,7 +168,7 @@ arithmetic.
       below because it documents how the gap was reasoned about while it
       was real.
       Actions → **Seed content** → Run workflow.
-      687 questions land in `v2_questions` — idempotent and, since D34,
+      694 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -179,7 +179,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **687** after the K=5 test expansion, D103's
+      and the bank is **694** after the K=5 test expansion, D103's
       retirement of the Thinking test, D114's continuum questions and the
       D14 go-live's pick promotion — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
@@ -982,7 +982,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 687 seeded questions are live regardless.
+      working, not a leak — the 694 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
@@ -1341,36 +1341,60 @@ That is a tester-count problem, not a workflow problem.
       objects remain converts a dead feature into an erasure gap. Update
       `firestore-tests/storage.rules.test.ts` in the same commit.
 - [ ] **5.5 Apply the eight monitoring alerts** (`monitoring/*.json`):
+      dispatch **Arm monitoring** with `apply` off to see what is missing,
+      then again with it on. It runs behind the `production` environment
+      gate on `FIREBASE_SERVICE_ACCOUNT`, needs nothing on your machine, and
+      is idempotent. Locally it is the same script:
       ```bash
       npm run monitoring:apply -- --email you@example.com           # report
       npm run monitoring:apply -- --email you@example.com --apply   # do it
       ```
-      One command for what used to be four console steps with a channel id
-      pasted between them. Idempotent and dry-run by default. No policy is
-      applied by the pipeline, and this script must not be put on
-      it — the deploy service account has no monitoring role, and widening
-      it for eight policies is the worse trade. They cover failures that look like nothing from the
-      outside: the app keeps serving while the Mirror stops moving, or
-      keeps moving while falling further behind. `DEPLOYMENT.md § Alerting`.
+      Then dispatch **Observe production** and check `armed` reads true —
+      the step is done when the instrument says so, not when the job is
+      green. They cover failures that look like nothing from the outside:
+      the app keeps serving while the Mirror stops moving, or keeps moving
+      while falling further behind. `DEPLOYMENT.md § Alerting`.
 
-      **What that refusal does and does not say, because it was misread
-      once.** It rules out the DEPLOY PATH, and its reason is about the
-      DEPLOY service account — the one that pushes rules and functions, and
-      that nobody wants holding a monitoring role it needs twice a year. It
-      does not say the step cannot be automated. A separate
-      `workflow_dispatch` with its own credential is not the deploy path,
-      and `seed-content.yml` is the proof that shape works: an operator
-      callable run against production from CI, behind the `production`
-      environment's protection rules (D87), with no dev machine anywhere.
-      Whether that is worth building for eight policies applied once is an
-      open question with arguments both ways; what is settled is only the
-      narrow thing this paragraph settles.
+      **This step was open for two days with a script that could do it,
+      and the reason is worth keeping.** The script existed on 2026-08-24
+      and shelled out to `gcloud`. Nobody had a `gcloud auth login` against
+      this project, so it never ran — and on 2026-08-26 the observer read
+      the project and found **zero** policies and **zero** log-based
+      metrics (D300). The tool was written, tested, documented and
+      unrunnable, which is the same failure D300 named one instrument
+      earlier: a tool that runs beats a better-provisioned tool that does
+      not. D303 moved it onto the REST APIs, over the credential four
+      workflows already use.
 
-      The count above is held by `check:figures` now. It said **two** while
-      the tree carried eight, `apply-monitoring.mjs`'s own header said
-      three, and the refusal priced a trade against the wrong number by 4x
-      — three copies of one figure, none of them right, which is the exact
-      failure D39 built that gate for.
+      **What the old refusal said, and which half of it survived.** This
+      item used to say the step must not be automated because "the deploy
+      service account has no monitoring role" — the **last place still
+      asserting** a reason D47 retired on 2026-08-04. Counted rather than
+      guessed: `git show ca7097bc` finds that sentence in three files, and
+      the other two (`DEPLOYMENT.md`, `MONITORING.md`) both quote it in
+      order to correct it. This item was the only one still standing on it.
+      The account holds `Editor`, which includes
+      `monitoring.alertPolicies.create`; permission was never the obstacle,
+      and it is now the thing that makes the REST path work. What survives
+      is the narrow refusal: not on the DEPLOY PATH, because a pipeline
+      that can rewrite an alert policy can delete one silently in a deploy
+      about something else. A `workflow_dispatch` behind the `production`
+      gate is not that pipeline, and the item's own paragraph had already
+      said so — it called building one "an open question with arguments
+      both ways" and left it, on 2026-08-25. It was answered the next
+      day, and not by new information: `seed-content.yml` had been the
+      proof of that shape since 2026-08-06.
+
+      The count above is held by `check:figures`. D291 found **four
+      quotations of two figures, none of them right** — this step's title
+      said "the two monitoring alerts", its refusal priced a trade against
+      "two policies" (4x off), and `apply-monitoring.mjs`'s header said
+      three policies and two metrics. `DEPLOYMENT.md § Alerting`'s heading,
+      `COSTS.md`'s sentence and `MONITORING.md`'s instruments row are held
+      to the same lists now (D303), for the same reason: the heading read
+      "three alerts, deliberately" for as long as there were eight, and
+      `MONITORING.md` said seven through a sweep that claimed to have found
+      every copy.
 - [x] **5.6 Version lockstep — holds at 2.0.0 build 26.**
       *This line was stale three times, each one a bump behind 2.4 — build
       11 on 2026-08-13, build 12 later the same day, then 13 against a tree

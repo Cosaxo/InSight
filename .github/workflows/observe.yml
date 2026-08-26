@@ -29,6 +29,10 @@ on:
         description: "Also list every deployed function with its trigger, generation and last deploy date"
         type: boolean
         default: false
+      metrics:
+        description: "Also report which monitored resource each log-based metric's series is written against (needed to write a policy filter)"
+        type: boolean
+        default: false
   schedule:
     # Daily, after the nightly functions have run and their logs have
     # settled. 06:11 UTC is deliberately off the hour: the scheduled folds
@@ -65,9 +69,10 @@ jobs:
         # makes at its own interpolation, stated here rather than left to be
         # inferred from the absence of an env indirection.
         run: |
-          ARGS=""
-          [ "${{ inputs.functions }}" = "true" ] && ARGS="--functions"
-          node scripts/observe.mjs $ARGS 2>&1 | tee "$RUNNER_TEMP/observe.txt"
+          ARGS=()
+          [ "${{ inputs.functions }}" = "true" ] && ARGS+=(--functions)
+          [ "${{ inputs.metrics }}" = "true" ] && ARGS+=(--metrics)
+          node scripts/observe.mjs "${ARGS[@]}" 2>&1 | tee "$RUNNER_TEMP/observe.txt"
 
       - name: Summary
         if: always()

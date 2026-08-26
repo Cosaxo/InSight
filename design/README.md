@@ -31,15 +31,28 @@ its population chips at D216 — the Patterns tab ported whole
 its port and lists the behaviours the ports refused). Same rule again:
 it does not re-point this file.
 
-**Two more followed in the same numbered series** (`InSight_2`,
-`InSight_3`): the **2026-08-22** upload carried the paid question
-report's design, extracted to `standalone-2026-08-22/` and implemented
-by the report builder (D251); the **2026-08-24** upload turns the
-suggestion board into the paid door, adds the buyer's room, splits the
-place scorecards into locals and visitors, and makes five smaller moves
-— extracted to `standalone-2026-08-24/`, with the plan at
-[`docs/VISION-2026-08-24.md`](../docs/VISION-2026-08-24.md). Each
-directory README is its inventory; neither re-points this file.
+**Three more followed in the same numbered series** (`InSight_2`,
+`InSight_3`, `InSight_4`): the **2026-08-22** upload carried the paid
+question report's design, extracted to `standalone-2026-08-22/` and
+implemented by the report builder (D251); the **2026-08-24** upload
+turns the suggestion board into the paid door, adds the buyer's room,
+splits the place scorecards into locals and visitors, and makes five
+smaller moves — extracted to `standalone-2026-08-24/`, with the plan at
+[`docs/VISION-2026-08-24.md`](../docs/VISION-2026-08-24.md); the
+**2026-08-26** upload adds anonymous answers and private test results
+(the first design to amend D98 itself), co-funded subscription seats
+with a read-only catalog window, the Oracle's "working", and a
+Patterns/person-overlay polish pass — extracted to
+`standalone-2026-08-26/`, with the plan at
+[`docs/VISION-2026-08-26.md`](../docs/VISION-2026-08-26.md). Each
+directory README is its inventory; none re-points this file.
+
+**One directory here is not an app prototype at all**:
+`identity-2026-08-26/` is the owner's identity canvas — the iris mark,
+its two palettes, the lockups and the compact-variant rule — committed
+verbatim for the same ephemeral-upload reason as the standalones. Its
+inventory README maps each card to the live artifact; the working source
+it feeds is `icon/mark.svg` (below), and D302 records the decision.
 
 The earlier v9 prototype and the extracted `spec-modules/`
 directory were deleted on 2026-07-29, v14 on 2026-07-30, v15 on

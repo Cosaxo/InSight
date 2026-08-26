@@ -17,10 +17,11 @@
 // it records `where` constraints, which is the only way to tell a full
 // fetch from a delta fetch.
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
-// The cache store is IndexedDB since D315. fake-indexeddb gives these
-// node-environment tests a real IDB implementation, and a fresh factory
-// per test is the storage-reset localStorage got from a new MemoryStorage.
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
+// The bank cache lives in IndexedDB since D312 (docs/ANSWER-SCALE.md
+// §2.2) — rows per question plus a meta row carrying {rev, cursor}. The
+// factory is a suite variable so a mid-test resetModules simulates "next
+// boot, same device": the module state resets, the disk does not.
 import { IDBFactory } from "fake-indexeddb";
 
 interface FakeDoc {
@@ -124,7 +125,7 @@ vi.mock("firebase/firestore", () => {
       if (q?.path !== "v2_questions") return Promise.resolve(snapOf([]));
       const cons = q.cons || [];
       h.bankQueries.push({ path: q.path, cons });
-      // The pager's fetch-by-id (D317): where(documentId(), "in", [...]).
+      // The pagers' fetch-by-id (D317/D318): where(documentId(), "in", ids).
       const byId = cons.find(
         (c) => c.kind === "where" && typeof c.field === "object"
           && (c.field as unknown as Constraint).kind === "documentId",
@@ -186,8 +187,29 @@ class MemoryStorage {
 }
 
 let storage: MemoryStorage;
+let idb: IDBFactory;
 
 const BANK_LS = "insight.bankCache.v2";
+
+// Read and seed the IndexedDB cache in the old blob's vocabulary
+// ({rev, cursor, questions}) so the assertions keep their shape while the
+// storage is rows + meta. Rows come back sorted by id for determinism —
+// the store's own key order.
+const readCache = async () => {
+  const cs = await import("./cacheStore");
+  const meta = await cs.readMeta<{ rev: number; cursor: number }>("bank");
+  const rows = await cs.readAll<Record<string, unknown> & { id: string }>("bank");
+  return { rev: meta?.rev ?? 0, cursor: meta?.cursor ?? 0, questions: [...rows.values()] };
+};
+const seedCache = async (payload: {
+  rev: number; cursor: number; questions: Array<{ id: string }>;
+}) => {
+  const cs = await import("./cacheStore");
+  await cs.write("bank", payload.questions.map((q) => [q.id, q]), {
+    meta: [["bank", { rev: payload.rev, cursor: payload.cursor }]],
+    clearFirst: true,
+  });
+};
 
 const q = (id: string, updatedAt: number, over: Record<string, unknown> = {}): FakeDoc => ({
   id,
@@ -210,31 +232,13 @@ const q = (id: string, updatedAt: number, over: Record<string, unknown> = {}): F
 async function bootLive() {
   const mod = await import("./live");
   await mod.initLive(1);
-  await vi.waitFor(() => { expect(mod.default.ready).toBe(true); });
+  // 5 s, not the 1 s default: the stuck-cursor case below writes 100
+  // duplicate pages (100k rows) through the cache store, and
+  // fake-indexeddb structured-clones every one of them.
+  await vi.waitFor(() => { expect(mod.default.ready).toBe(true); }, { timeout: 5000 });
   return mod.default;
 }
 
-// Through the module under test on purpose: bankStore IS the cache's
-// public surface now, and a test that peeked at raw IDB rows would keep
-// passing if live.ts stopped using the store. vi.resetModules hands back
-// a fresh module instance, but the stubbed indexedDB global underneath is
-// the same one, so reads and writes see the same database the boot did.
-interface CachedBank {
-  rev: number;
-  cursor: number;
-  questions: Array<{ id: string } & Record<string, unknown>>;
-}
-// Typed non-null because every caller asserts on the payload: a missing
-// row surfaces as a failed expectation on the very next line, which is
-// the failure a cache test wants to show anyway.
-const readCache = async (): Promise<CachedBank> => {
-  const { bankGet } = await import("./bankStore");
-  return (await bankGet()) as CachedBank;
-};
-const writeCache = async (payload: unknown): Promise<void> => {
-  const { bankPut } = await import("./bankStore");
-  await bankPut(payload);
-};
 const bankFetches = () => h.bankQueries.length;
 const isDelta = (i: number) =>
   (h.bankQueries[i]?.cons || []).some((c) => c.kind === "where" && c.field === "updatedAt");
@@ -250,9 +254,8 @@ beforeEach(() => {
   h.bankDocs = [q("q_1", 1000), q("q_2", 1000)];
   storage = new MemoryStorage();
   vi.stubGlobal("localStorage", storage);
-  // A brand-new IDB universe per test — no databases survive between
-  // cases, same as the fresh MemoryStorage above.
-  vi.stubGlobal("indexedDB", new IDBFactory());
+  idb = new IDBFactory();
+  vi.stubGlobal("indexedDB", idb);
   vi.stubGlobal("window", {
     dispatchEvent: () => true,
     addEventListener: () => {},
@@ -263,6 +266,11 @@ beforeEach(() => {
   });
   vi.stubGlobal("navigator", { onLine: true });
   vi.stubEnv("VITE_V2_LIVE", "true");
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
 });
 
 describe("question-bank cache", () => {
@@ -283,24 +291,20 @@ describe("question-bank cache", () => {
 
   it("asks only for the delta on a warm boot", async () => {
     await bootLive();
-    const first = await readCache();
     vi.resetModules();
     h.bankQueries.length = 0;
-    await writeCache(first);
 
     await bootLive();
     expect(bankFetches()).toBe(1);
     expect(isDelta(0)).toBe(true);
     // Nothing changed, so the delta is empty and the bank still stands.
-    expect((await readCache())!.questions).toHaveLength(2);
+    expect((await readCache()).questions).toHaveLength(2);
   });
 
   it("pages a promoted question in without re-reading the bank", async () => {
     await bootLive();
-    const first = await readCache();
     vi.resetModules();
     h.bankQueries.length = 0;
-    await writeCache(first);
     // One week later: the farm promoted a question (D30).
     h.bankDocs = [...h.bankDocs, q("q_3", 9000)];
 
@@ -315,16 +319,14 @@ describe("question-bank cache", () => {
 
   it("replaces an edited question rather than duplicating it", async () => {
     await bootLive();
-    const first = await readCache();
     vi.resetModules();
     h.bankQueries.length = 0;
-    await writeCache(first);
     h.bankDocs = [q("q_1", 5000, { prompt: "Reworded q_1" }), q("q_2", 1000)];
 
     await bootLive();
     const cached = await readCache();
     expect(cached.questions).toHaveLength(2);
-    expect(cached.questions.find((x: { id: string }) => x.id === "q_1")!.prompt)
+    expect(cached.questions.find((x: { id: string }) => x.id === "q_1")?.prompt)
       .toBe("Reworded q_1");
   });
 
@@ -337,7 +339,6 @@ describe("question-bank cache", () => {
     const first = await readCache();
     vi.resetModules();
     h.bankQueries.length = 0;
-    await writeCache(first);
 
     await bootLive();
     const where = (h.bankQueries[0].cons || []).find((c) => c.field === "updatedAt");
@@ -351,7 +352,7 @@ describe("question-bank cache", () => {
     h.bankQueries.length = 0;
     // What an operator's `bumpRev` looks like from here: the cached rev no
     // longer matches, so the cursor is not trusted either.
-    await writeCache({ ...first, rev: first.rev + 1 });
+    await seedCache({ ...first, rev: first.rev + 1 });
 
     await bootLive();
     // Both boot queries re-run — the cursor is not trusted either.
@@ -361,10 +362,8 @@ describe("question-bank cache", () => {
 
   it("keeps the session alive when the delta query fails", async () => {
     await bootLive();
-    const first = await readCache();
     vi.resetModules();
     h.bankQueries.length = 0;
-    await writeCache(first);
     h.deltaError = () => new Error("network");
 
     // One promotion behind is invisible; a dead boot is not. The cached
@@ -372,7 +371,7 @@ describe("question-bank cache", () => {
     const LIVE = await bootLive();
     expect(LIVE.ready).toBe(true);
     expect(h.reportError).toHaveBeenCalled();
-    expect((await readCache())!.questions).toHaveLength(2);
+    expect((await readCache()).questions).toHaveLength(2);
   });
 
   // ── pagination (D161) ──
@@ -393,10 +392,10 @@ describe("question-bank cache", () => {
   it("pages a bank larger than one page, and every question arrives", async () => {
     h.bankDocs = bulk(2500);
     await bootLive();
-    // 1000 + 1000 + 500 — the third page is short, which is what ends it
-    // — plus the core-feed query's one empty page (D318).
+    // 1000 + 1000 + 500: the third page is short, which is what ends it.
+    // 1000 + 1000 + 500 pages, plus the core-feed query's one empty page.
     expect(bankFetches()).toBe(4);
-    expect((await readCache())!.questions).toHaveLength(2500);
+    expect((await readCache()).questions).toHaveLength(2500);
   });
 
   it("does not stop one page early when the bank is an exact multiple of the page", async () => {
@@ -409,7 +408,7 @@ describe("question-bank cache", () => {
     // Three pages for the boot surfaces plus the core-feed query (D318).
     expect(bankFetches()).toBe(4);
     expect(h.bankQueries[2].cons.some((c) => c.kind === "startAfter")).toBe(true);
-    expect((await readCache())!.questions).toHaveLength(2000);
+    expect((await readCache()).questions).toHaveLength(2000);
   });
 
   it("reports rather than truncates silently when the cursor stops advancing", async () => {
@@ -432,31 +431,39 @@ describe("question-bank cache", () => {
     await bootLive();
     expect(bankFetches()).toBe(2);
     expect(isDelta(0)).toBe(false);
-    expect((await readCache())!.questions.map((x: { id: string }) => x.id)).toEqual(["q_1", "q_2"]);
+    expect((await readCache()).questions.map((x: { id: string }) => x.id)).toEqual(["q_1", "q_2"]);
   });
 
-  // ── the localStorage era's payload migrates (D315) ────────────────
+  // ── the localStorage → IndexedDB migration (D312) ─────────────────
   //
-  // A device updating across the store move holds a good cache in the
-  // old box and nothing in the new one. The migration's promise is
-  // threefold and each third has its own assertion: the old payload is
-  // USED (the boot pays a delta, not a refetch), the small box is FREED
-  // (the whole point of the move), and the new store holds the bank
-  // afterwards (so the next boot never touches localStorage at all).
-  it("migrates the v2 localStorage payload: delta fetch, key freed, store filled", async () => {
+  // An upgrading device holds the blob and no rows. The blob must be
+  // USED (a warm delta boot, not a cold refetch — the whole point of the
+  // migration path is that the upgrade costs nothing), the rows must land
+  // in IndexedDB, and the blob must be gone — removed AFTER the write
+  // commits, so a device killed mid-upgrade still holds one complete
+  // copy. The next boot is then an ordinary IndexedDB warm boot.
+  it("migrates a legacy localStorage cache into IndexedDB and retires the key", async () => {
     await bootLive();
     const first = await readCache();
+    // Rewind the device to the localStorage era: blob present, rows absent.
     vi.resetModules();
     h.bankQueries.length = 0;
-    // The updating device: empty IDB universe, old cache still in the box.
-    vi.stubGlobal("indexedDB", new IDBFactory());
+    idb = new IDBFactory();
+    vi.stubGlobal("indexedDB", idb);
     storage.setItem(BANK_LS, JSON.stringify(first));
 
     await bootLive();
     expect(bankFetches()).toBe(1);
+    expect(isDelta(0), "a legacy cache must warm-boot, not refetch").toBe(true);
+    expect((await readCache()).questions).toHaveLength(2);
+    expect(storage.getItem(BANK_LS), "the blob outlived its migration").toBeNull();
+
+    // …and the boot after that reads IndexedDB alone, still as a delta.
+    vi.resetModules();
+    h.bankQueries.length = 0;
+    await bootLive();
+    expect(bankFetches()).toBe(1);
     expect(isDelta(0)).toBe(true);
-    expect(storage.getItem(BANK_LS)).toBeNull();
-    expect((await readCache())!.questions).toHaveLength(2);
   });
 
   // ── every surface splitBanks can return has to reach it ──────────────
@@ -473,7 +480,7 @@ describe("question-bank cache", () => {
   // delta cases are: a surface dropped by the server-side `in` and a
   // surface dropped by the client-side filter look identical from the
   // bank, and only one of them costs a read.
-  it("fetches every boot surface, pulse and call included — and learn deliberately not", async () => {
+  it("fetches every boot surface, pulse and call included — and the paged two deliberately not", async () => {
     h.bankDocs = [
       q("q_1", 1000),
       q("pulse-pace", 1000, {
@@ -503,117 +510,6 @@ describe("question-bank cache", () => {
     expect(LIVE.callQs().map((x) => x.id)).toEqual(["call-c01"]);
   });
 
-  // ── learn pages against the published order (D317) ─────────────────
-  //
-  // Learn's reach guarantee lives HERE now, not in the surface list: a
-  // device meets learn cards through the pager — first page per followed
-  // field of v2_rank/learn's order, minus what the cache already holds,
-  // plus any card the device has history with. Asserted through the
-  // engine-facing pool (learnCards) and the persisted cache, because
-  // those are the two places a missing card actually hurts: a session
-  // with nothing to serve, and a map that forgets a fact.
-  const learnDoc = (id: string, field: string) =>
-    q(id, 1000, {
-      surface: "learn", type: "choice", topic: field,
-      options: ["A", "B", "C", "D"], c: 0, t: 2, p: 60, k: `Fact ${id}`,
-    });
-
-  it("pages learn in from the published order, publishes the pool, persists the page", async () => {
-    h.bankDocs = [
-      q("q_1", 1000),
-      learnDoc("learn-cell1", "cell"),
-      learnDoc("learn-cell2", "cell"),
-      learnDoc("learn-sol1", "solar"),
-    ];
-    h.rankOrders.learn = {
-      topics: {
-        cell: { qids: ["learn-cell2", "learn-cell1"], total: 9 },
-        solar: { qids: ["learn-sol1"], total: 4 },
-      },
-    };
-    await bootLive();
-    const { learnCards, learnFieldTotal } = await import("./learnBank");
-    await vi.waitFor(() => {
-      expect(learnCards([]).map((c) => c.id).sort()).toEqual(["cell1", "cell2", "sol1"]);
-    });
-    // The sheet's denominator is the BANK's count off the order doc, not
-    // the fetched page — the page-size lie is the D283 report again.
-    expect(learnFieldTotal("cell")).toBe(2);
-    // Persisted: the next boot serves these from the cache, no re-fetch.
-    await vi.waitFor(async () => {
-      expect((await readCache())!.questions.map((x) => x.id)).toContain("learn-cell1");
-    });
-  });
-
-  it("heals an answered tail question back with no order published", async () => {
-    // The feed's history is its answers: this device voted on a tail
-    // question (the answers cache says so) and the bank cache lost the
-    // doc. It must come back — served again AND persisted — without any
-    // order doc, or the Mirror holds a vote it cannot name.
-    storage.setItem("insight.answersCache.v1", JSON.stringify({
-      uid: "uid_test", votes: { "feed-t9": "0" }, maxTs: 500, maxEditTs: 0,
-    }));
-    h.bankDocs = [
-      q("q_1", 1000),
-      q("feed-t9", 1000, { surface: "feed", topic: "food" }),
-    ];
-    await bootLive();
-    await vi.waitFor(() => {
-      const feed = (window as unknown as { WORLD_FEED_QS?: Array<{ id: string }> })
-        .WORLD_FEED_QS || [];
-      expect(feed.map((x) => x.id)).toContain("feed-t9");
-    });
-    expect((await readCache())!.questions.map((x) => x.id)).toContain("feed-t9");
-  });
-
-  it("pages an answered topic deeper than a cold one when the profile clears its floors", async () => {
-    // D314 phase 1's whole serving effect, end to end: the device reads
-    // ITS OWN profile — the one doc only its owner may read — and takes
-    // the full page for the topic it answers, a smaller one for the
-    // topic it never has. Both non-zero: a cold topic must stay
-    // discoverable or the profile could never change.
-    const tailDoc = (id: string, topic: string) =>
-      q(id, 1000, { surface: "feed", topic });
-    h.bankDocs = [
-      q("q_1", 1000),
-      ...Array.from({ length: 14 }, (_, i) => tailDoc(`feed-hot${String(i).padStart(2, "0")}`, "food")),
-      ...Array.from({ length: 14 }, (_, i) => tailDoc(`feed-cold${String(i).padStart(2, "0")}`, "music")),
-    ];
-    h.rankOrders.feed = {
-      topics: {
-        food: { qids: h.bankDocs.filter((d) => d.id.startsWith("feed-hot")).map((d) => d.id), total: 14 },
-        music: { qids: h.bankDocs.filter((d) => d.id.startsWith("feed-cold")).map((d) => d.id), total: 14 },
-      },
-    };
-    h.tasteProfile = { t: { food: 12 }, n: 12 };
-    await bootLive();
-    await vi.waitFor(async () => {
-      const cachedIds = (await readCache())!.questions.map((x) => x.id);
-      expect(cachedIds.filter((id) => id.startsWith("feed-hot"))).toHaveLength(12);
-    });
-    const cachedIds = (await readCache())!.questions.map((x) => x.id);
-    const cold = cachedIds.filter((id) => id.startsWith("feed-cold")).length;
-    expect(cold).toBeGreaterThan(0);
-    expect(cold).toBeLessThan(12);
-  });
-
-  it("heals a history card back into the pool even with no order published", async () => {
-    // The mastery map says this device knows cell9; the cache lost it (a
-    // contentRev bump refetches only the boot surfaces). No order doc —
-    // the heal is by id and must not wait for a fold that may never have
-    // run on a small project.
-    storage.setItem("insight.learn.v3", JSON.stringify({
-      c: { cell9: { s: "known", k: 3, seen: 1, miss: 0, pos: 0, at: 1 } },
-      lvl: {}, pos: 1, order: ["cell9"],
-    }));
-    h.bankDocs = [q("q_1", 1000), learnDoc("learn-cell9", "cell")];
-    await bootLive();
-    const { learnCards } = await import("./learnBank");
-    await vi.waitFor(() => {
-      expect(learnCards([]).map((c) => c.id)).toContain("cell9");
-    });
-  });
-
   // ── the current-events serving window (D231) ─────────────────────
   //
   // `fresh()` is the whole promise of the `now` lane — "the lane's
@@ -636,8 +532,8 @@ describe("question-bank cache", () => {
   it("stops serving a now question the day after its window closes", async () => {
     // `now` questions are TAIL by design (sold-inventory reasoning in
     // QUESTION-FARM; the corpus wants density, not current events), so
-    // since D318 they reach a device through the pager — this case now
-    // runs the window rule at PAGE ARRIVAL, which is where it lives for
+    // since D318 they reach a device through the pager — this case runs
+    // the window rule at PAGE ARRIVAL, which is where it lives for
     // everything the boot fetch no longer carries. The feed pool needs
     // one core question for buildFeedGlobals to build at all.
     const nowQ = (id: string, from: string, until: string) =>
@@ -678,7 +574,118 @@ describe("question-bank cache", () => {
     // The archive is the product: the filter is a SERVING rule, so the
     // expired doc is still in the cache and its answers and aggregate are
     // untouched. `active: false` remains the hard kill.
-    expect((await readCache())!.questions.map((x: { id: string }) => x.id)).toContain("n_closed");
+    expect((await readCache()).questions.map((x: { id: string }) => x.id)).toContain("n_closed");
     expect(LIVE.ready).toBe(true);
+  });
+
+  // ── the paged surfaces (D317 learn, D318 feed tail, D319 profile) ──
+  //
+  // Reach guarantees live HERE now, not in the surface list: a device
+  // meets paged cards through the pager — first page per field/topic of
+  // the published order, minus what the cache holds, plus everything the
+  // device has history with. Asserted through the engine-facing pool and
+  // the persisted cache, because those are the two places a missing card
+  // actually hurts: a session with nothing to serve, and a map or a
+  // Mirror that forgets.
+  const learnDoc = (id: string, field: string) =>
+    q(id, 1000, {
+      surface: "learn", type: "choice", topic: field,
+      options: ["A", "B", "C", "D"], c: 0, t: 2, p: 60, k: `Fact ${id}`,
+    });
+
+  it("pages learn in from the published order, publishes the pool, persists the page", async () => {
+    h.bankDocs = [
+      q("q_1", 1000),
+      learnDoc("learn-cell1", "cell"),
+      learnDoc("learn-cell2", "cell"),
+      learnDoc("learn-sol1", "solar"),
+    ];
+    h.rankOrders.learn = {
+      topics: {
+        cell: { qids: ["learn-cell2", "learn-cell1"], total: 9 },
+        solar: { qids: ["learn-sol1"], total: 4 },
+      },
+    };
+    await bootLive();
+    const { learnCards, learnFieldTotal } = await import("./learnBank");
+    await vi.waitFor(() => {
+      expect(learnCards([]).map((c) => c.id).sort()).toEqual(["cell1", "cell2", "sol1"]);
+    });
+    // The sheet's denominator is the BANK's count off the order doc, not
+    // the fetched page — the page-size lie is the D283 report again.
+    expect(learnFieldTotal("cell")).toBe(2);
+    // Persisted: the next boot serves these from the cache, no re-fetch.
+    await vi.waitFor(async () => {
+      expect((await readCache()).questions.map((x) => x.id)).toContain("learn-cell1");
+    });
+  });
+
+  it("heals an answered tail question back with no order published", async () => {
+    // The feed's history is its answers: this device voted on a tail
+    // question (the answers cache says so) and the bank cache lost the
+    // doc. It must come back — served again AND persisted — without any
+    // order doc, or the Mirror holds a vote it cannot name.
+    storage.setItem("insight.answersCache.v1", JSON.stringify({
+      uid: "uid_test", votes: { "feed-t9": "0" }, maxTs: 500, maxEditTs: 0,
+    }));
+    h.bankDocs = [
+      q("q_1", 1000),
+      q("feed-t9", 1000, { surface: "feed", topic: "food" }),
+    ];
+    await bootLive();
+    await vi.waitFor(() => {
+      const feed = (window as unknown as { WORLD_FEED_QS?: Array<{ id: string }> })
+        .WORLD_FEED_QS || [];
+      expect(feed.map((x) => x.id)).toContain("feed-t9");
+    });
+    expect((await readCache()).questions.map((x) => x.id)).toContain("feed-t9");
+  });
+
+  it("heals a history card back into the pool even with no order published", async () => {
+    // The mastery map says this device knows cell9; the cache lost it (a
+    // contentRev bump refetches only the boot surfaces). No order doc —
+    // the heal is by id and must not wait for a fold that may never have
+    // run on a small project.
+    storage.setItem("insight.learn.v3", JSON.stringify({
+      c: { cell9: { s: "known", k: 3, seen: 1, miss: 0, pos: 0, at: 1 } },
+      lvl: {}, pos: 1, order: ["cell9"],
+    }));
+    h.bankDocs = [q("q_1", 1000), learnDoc("learn-cell9", "cell")];
+    await bootLive();
+    const { learnCards } = await import("./learnBank");
+    await vi.waitFor(() => {
+      expect(learnCards([]).map((c) => c.id)).toContain("cell9");
+    });
+  });
+
+  it("pages an answered topic deeper than a cold one when the profile clears its floors", async () => {
+    // D314 phase 1's whole serving effect, end to end: the device reads
+    // ITS OWN profile — the one doc only its owner may read — and takes
+    // the full page for the topic it answers, a smaller one for the
+    // topic it never has. Both non-zero: a cold topic must stay
+    // discoverable or the profile could never change.
+    const tailDoc = (id: string, topic: string) =>
+      q(id, 1000, { surface: "feed", topic });
+    h.bankDocs = [
+      q("q_1", 1000),
+      ...Array.from({ length: 14 }, (_, i) => tailDoc(`feed-hot${String(i).padStart(2, "0")}`, "food")),
+      ...Array.from({ length: 14 }, (_, i) => tailDoc(`feed-cold${String(i).padStart(2, "0")}`, "music")),
+    ];
+    h.rankOrders.feed = {
+      topics: {
+        food: { qids: h.bankDocs.filter((d) => d.id.startsWith("feed-hot")).map((d) => d.id), total: 14 },
+        music: { qids: h.bankDocs.filter((d) => d.id.startsWith("feed-cold")).map((d) => d.id), total: 14 },
+      },
+    };
+    h.tasteProfile = { t: { food: 12 }, n: 12 };
+    await bootLive();
+    await vi.waitFor(async () => {
+      const cachedIds = (await readCache()).questions.map((x) => x.id);
+      expect(cachedIds.filter((id) => id.startsWith("feed-hot"))).toHaveLength(12);
+    });
+    const cachedIds = (await readCache()).questions.map((x) => x.id);
+    const cold = cachedIds.filter((id) => id.startsWith("feed-cold")).length;
+    expect(cold).toBeGreaterThan(0);
+    expect(cold).toBeLessThan(12);
   });
 });

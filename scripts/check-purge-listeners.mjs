@@ -23,6 +23,17 @@
 // exemption list is documentation, and a stale entry (file stops matching
 // the predicate) fails too, so the list cannot outlive its subjects.
 //
+// SECOND PREDICATE since D312: a file that OPENS IndexedDB itself
+// (`indexedDB.open`) is a store persisting app state in a box the
+// localStorage sweep cannot reach, so it owes the same listener. Today
+// that is data/cacheStore.ts, whose listener clears its stores — the
+// answers, aggregates and bank caches moved there precisely because the
+// quota-shared localStorage was the wrong box, and a purge that swept
+// only the old box would leave a sold device holding the account's whole
+// answer archive. (Firestore's own persistentLocalCache is not matched:
+// the SDK opens its database internally, and deleteAccount clears it
+// through clearIndexedDbPersistence — see live.ts.)
+//
 // WHAT THIS CANNOT SEE, stated so nobody over-trusts it: that the listener
 // actually drops the right state, or drops it without save()-ing the key
 // straight back. That half lives in src/v2/test/purge-wipe.test.ts, which
@@ -43,9 +54,10 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // longer matches the predicate fails as stale.
 const EXEMPT = {
   "src/v2/data/live.ts":
-    "the dispatcher itself — its caches are uid-scoped (answers cache "
-    + "stores the uid) or public content (bank, aggregates), and "
-    + "uidChanged() rebuilds its state before the purge runs",
+    "the dispatcher itself — the fat caches moved to data/cacheStore.ts "
+    + "(D312), which listens; what still writes localStorage here is "
+    + "uid-scoped (the profile cache stamps its owner) or public/mirror "
+    + "state that uidChanged() rebuilds before the purge runs",
   "src/v2/data/deviceBind.ts":
     "the bind memo carries the uid and activationPlan compares it before "
     + "any use — a stale memo for another uid is inert",
@@ -107,7 +119,8 @@ for (const file of files) {
   const src = stripComments(readFileSync(file, "utf8"));
   const writes = /localStorage\s*\.\s*setItem/.test(src);
   const insightKey = /['"]insight\./.test(src);
-  if (!(writes && insightKey)) continue;
+  const opensIdb = /indexedDB\s*\.\s*open\s*\(/.test(src);
+  if (!(writes && insightKey) && !opensIdb) continue;
   matched.add(rel);
   const listens = src.includes("insight:local-purge");
   if (listens || EXEMPT[rel]) continue;

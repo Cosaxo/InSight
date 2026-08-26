@@ -99,10 +99,12 @@ async function getDb(): Promise<import("firebase/firestore").Firestore> {
   return db;
 }
 import { reportError, setSentryUser } from "../../lib/sentry";
-// The bank cache's storage (D315). IndexedDB behind a get/put pair that
-// never throws — a broken store reads as "no cache", exactly the contract
-// the localStorage version had, minus its 5 MB ceiling.
-import { bankGet, bankPut } from "./bankStore";
+// The fat caches' IndexedDB home (D312, docs/ANSWER-SCALE.md §2.2). Small
+// and dependency-free, so a static import here costs the entry chunk a few
+// hundred bytes — nothing like the SDK-import trap the note above is about.
+// (This branch's D315 built the same move as a single-blob bankStore.ts in
+// parallel; the merge converged on this store — see the D315 amendment.)
+import * as cacheStore from "./cacheStore";
 // No imports of its own, so reading it here closes no cycle back through
 // data/cityAnchor — which imports this module.
 import { cityIsConfirmed } from "./cityConfirm";
@@ -306,7 +308,7 @@ const state = {
   // (functions/src/patterns.ts) — the crowd half of the Patterns tab's
   // mount gate (D265), riding the meta read hydrate already pays.
   meta: { latestBuild: 0, minBuild: 0, updateUrl: "", patternsPool: 0, patternsBasis: 0 },
-  stats: { bankSource: "none", aggsFetched: 0, answersFetched: 0, callOutcomesFetched: 0 },
+  stats: { bankSource: "none", aggsFetched: 0, answersFetched: 0, callOutcomesFetched: 0, cacheWriteFailures: 0 },
   groups: [] as Array<Record<string, unknown> & { id: string }>,
   duelBank: [] as Array<QuestionDoc & { id: string }>,
   reveals: {} as Record<string, Record<string, unknown> | null>,
@@ -578,20 +580,66 @@ const REVEAL_HIST_DAYS = 14;
 // Clearing the timer alone would not close the snapshot writers.
 let torndown = false;
 
+// ── the quota instrument (docs/ANSWER-SCALE.md §2.1) ─────────────────
+//
+// Every `insight.*` write in this tree is guarded-and-swallowed, which is
+// the right degradation and a terrible sensor: the quota is per-origin, so
+// the day it fills EVERY store silently stops persisting at once — and the
+// caches that fill it grow with what the account has ANSWERED, which no
+// static gate can see (question-quality.mjs's bank budget watches the
+// bank's half and assumes the rest stays small). This is the sensor, not a
+// fix: count every swallowed write, and report the first QUOTA-shaped
+// failure once per session with the key and the size that failed, so the
+// deadline for moving the caches off localStorage arrives as dated reports
+// from real devices instead of as users whose app stopped remembering.
+//
+// Detection only, deliberately — the write stays best-effort and the
+// in-memory state stays correct, exactly as before. Quota is told apart
+// from a merely absent storage (private mode, disabled) because the two
+// mean different things: absence is an environment, quota is the box
+// filling, and only the second is the condition ANSWER-SCALE exists for.
+let quotaReported = false;
+function isQuotaError(err: unknown): boolean {
+  const e = err as { name?: string; code?: number } | null | undefined;
+  // The spec'd name, plus the legacy spellings that still reach real
+  // devices: old WebKit throws code 22, old Firefox NS_ERROR_DOM_QUOTA_
+  // REACHED / code 1014.
+  return !!e && (e.name === "QuotaExceededError"
+    || e.name === "NS_ERROR_DOM_QUOTA_REACHED"
+    || e.code === 22 || e.code === 1014);
+}
+function lsSet(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch (err) {
+    state.stats.cacheWriteFailures += 1;
+    if (isQuotaError(err) && !quotaReported) {
+      quotaReported = true;
+      reportError(
+        new Error(`localStorage quota exceeded writing ${key} (${value.length} chars)`),
+        { where: "quota" },
+      );
+    }
+  }
+}
+
+// Which uid the IndexedDB answers store currently belongs to — set by
+// hydrate when it writes the store's meta row, cleared by resetForNewUid.
+// It replaces the `cached.uid !== state.uid` guard the localStorage blob
+// carried: cacheVote must never file a vote into another account's rows,
+// and comparing module state costs no read where re-reading the meta row
+// per vote would.
+let answersCacheOwner: string | null = null;
+
 // `stored` is the answer's value in the cache's own string form: an
 // optionIdx or entity as digits, a rank order as the joined "2,0,1,3"
 // (D233) — exactly what hydrate's fold would re-derive from the doc.
+// One row per answer (D312): the write is the size of the vote, not of
+// the archive, which is the whole point of the per-row store.
 function cacheVote(aid: string, stored: number | string): void {
   if (torndown) return;
-  try {
-    const ANS_LS = "insight.answersCache.v1";
-    const cached = JSON.parse(localStorage.getItem(ANS_LS) || "null") || { uid: state.uid, votes: {}, maxTs: 0 };
-    if (cached.uid !== state.uid) return;
-    cached.votes[aid] = String(stored);
-    localStorage.setItem(ANS_LS, JSON.stringify(cached));
-  } catch {
-    /* best-effort */
-  }
+  if (!state.uid || state.uid !== answersCacheOwner) return;
+  void cacheStore.write("answers", [[aid, String(stored)]]);
 }
 
 // ── the profile cache, on disk (D129) ────────────────────────────
@@ -643,7 +691,7 @@ export function localName(): string {
 }
 
 function saveLocalName(name: string): void {
-  try { localStorage.setItem(NAME_LS, name); } catch { /* private mode */ }
+  lsSet(NAME_LS, name);
 }
 // Entries kept, newest first. A voter list is capped at VOTER_FETCH_CAP and
 // a curious user opens many, so this map is the one client cache with no
@@ -704,7 +752,7 @@ function writeProfileCache(): void {
       // stays absent on disk — the absent/null line survives the round trip.
       e[u] = { n: state.names[u], s: state.scores[u], l: state.logicPcts[u], t: profileSeen.get(u) ?? now };
     }
-    localStorage.setItem(PROFILE_LS, JSON.stringify({ owner: state.uid, e }));
+    lsSet(PROFILE_LS, JSON.stringify({ owner: state.uid, e }));
   } catch {
     /* best-effort: quota, private mode, no storage */
   }
@@ -731,33 +779,45 @@ function saveProfileCache(): void {
 const AGG_CACHE_MS = 1000;
 let aggCacheTimer: ReturnType<typeof setTimeout> | null = null;
 
-function writeAggCache(): void {
-  if (torndown) return;
-  try {
-    localStorage.setItem("insight.aggsCache.v1", JSON.stringify(state.aggs));
-  } catch {
-    /* best-effort */
-  }
+// The aggregates whose disk rows are behind their in-memory copy. This
+// set is what D312 buys: the cache used to be one localStorage blob, so
+// every flush re-serialized the WHOLE map — ~0.7 full JSON.stringify/sec
+// at 50k DAU's fan-out rates, synchronously in the handler, on a map
+// nothing prunes, so the cost grew with the archive forever. Rows keyed
+// by qid make a flush the size of what CHANGED; every write to
+// state.aggs that wants persisting goes through storeAgg so the set
+// cannot silently miss a site.
+const aggDirty = new Set<string>();
+function storeAgg(id: string, agg: AggDoc): void {
+  state.aggs[id] = agg;
+  aggDirty.add(id);
 }
 
-// Coalesced, because the caller is the agg snapshot handler and the thing
-// being written is the WHOLE aggs map. The daily question is globally
-// shared, so every publish on it fans out to every listening client
-// (docs/COSTS.md finding 2) — at the fan-out rates that document already
-// predicts, an immediate write is ~0.7 full JSON.stringify/sec of the
-// entire map at 50k DAU and ~6.9/sec at 500k, synchronously on the main
-// thread inside the handler. The map itself is never pruned, so the cost
-// per serialisation grows with the session too.
+function flushAggCache(): void {
+  if (torndown || !aggDirty.size) return;
+  const rows: Array<[string, unknown]> = [];
+  for (const id of aggDirty) {
+    // An id emptied since it was marked (resetForNewUid) has nothing to
+    // persist — and must not write `undefined` over a row.
+    if (state.aggs[id]) rows.push([id, state.aggs[id]]);
+  }
+  aggDirty.clear();
+  if (rows.length) void cacheStore.write("aggs", rows);
+}
+
+// Coalesced, because the caller is the agg snapshot handler and votes
+// arrive in bursts — one disk transaction per burst, not one per answer.
 //
 // Leading-schedule/trailing-write rather than a restarting debounce: a
 // steady stream of publishes must still reach disk about once a second,
 // where a restarting timer would starve and write nothing until the burst
-// ended. State is read at write time, so nothing in the window is lost.
+// ended. The dirty set is read at flush time, so nothing in the window is
+// lost.
 function saveAggCache(): void {
   if (torndown || aggCacheTimer) return;
   aggCacheTimer = setTimeout(() => {
     aggCacheTimer = null;
-    writeAggCache();
+    flushAggCache();
   }, AGG_CACHE_MS);
 }
 
@@ -801,7 +861,7 @@ async function drainAggRefresh(db: Awaited<ReturnType<typeof getDb>>): Promise<v
   ))));
   for (const snap of snaps) {
     for (const d of snap.docs) {
-      state.aggs[d.id] = d.data() as AggDoc;
+      storeAgg(d.id, d.data() as AggDoc);
       got = true;
       // Clear the display flag only for an ACKED write — a
       // still-inflight one cannot be in the agg we just read, and
@@ -833,19 +893,17 @@ function scheduleAggRefresh(db: Awaited<ReturnType<typeof getDb>>, qid: string):
   }, AGG_REFRESH_MS);
 }
 
-// Drops a queued write. Hygiene rather than a leak fix, and it is worth
-// being exact about which: on the uid-change path `resetForNewUid` empties
-// `state.aggs` BEFORE it calls purgeLocalTrace, so the worst a surviving
-// timer writes is `{}` — no previous account's aggregate can ride it — and
-// deleteAccount is covered by `torndown` anyway. What this buys is one
-// fewer pointless write and no timer holding the old map alive.
-//
-// Measured, because the comment that used to sit here claimed more: with
-// this cancel removed, no test in the tree fails. The uid-change case in
-// vote.test.ts pins the contract that matters (nothing of the old account
-// survives) and that contract holds either way, because the new session
-// legitimately re-creates the key empty a moment later.
+// Drops a queued write AND the dirty set behind it. Hygiene rather than a
+// leak fix, and it is worth being exact about which: on the uid-change
+// path `resetForNewUid` empties `state.aggs` BEFORE it calls
+// purgeLocalTrace, so a surviving flush finds its dirty ids pointing at
+// nothing and writes no rows — no previous account's aggregate can ride
+// it — and deleteAccount is covered by `torndown` anyway. What this buys
+// is one fewer pointless transaction and no timer holding stale ids
+// alive; the discard semantics (versus the hide handler's flush) are why
+// this clears the set rather than draining it.
 function cancelAggCache(): void {
+  aggDirty.clear();
   if (aggCacheTimer) {
     clearTimeout(aggCacheTimer);
     aggCacheTimer = null;
@@ -1020,7 +1078,7 @@ async function refreshAggs(qids: readonly string[]): Promise<void> {
       where(documentId(), "in", qids.slice(0, 30)),
     ));
     snap.docs.forEach((d) => {
-      state.aggs[d.id] = d.data() as AggDoc;
+      storeAgg(d.id, d.data() as AggDoc);
       // Same rule the snapshot handler applied: a fresh aggregate means the
       // trigger has (very likely) folded the vote in, so stop
       // double-counting it. A premature clear self-heals on the next read.
@@ -1086,14 +1144,12 @@ function computeDeck(): void {
   state.deckIds = computeDeckIds(state.questions.map((q) => q.id), today);
 }
 
-// The boot's cache payload, kept after hydrate returns so the learn pager
-// (D317) can append the pages it fetches and persist through the same
-// bankPut the boot used. Null until a hydrate has run.
-let bankPayload: {
-  rev: number;
-  cursor: number;
-  questions: Array<QuestionDoc & { id: string }>;
-} | null = null;
+// The cached bank's ids, kept after hydrate returns so the pagers
+// (D317/D318) know what this device already holds. Ids rather than a
+// payload since the merge with D312: the rows themselves live in
+// cacheStore and the pagers append there directly. Null until a hydrate
+// has run.
+let bankIds: Set<string> | null = null;
 
 // The bank's learn slice in the ENGINE's vocabulary (D284):
 // `learn-cell1`/`prompt`/`options`/`topic` become `cell1`/`q`/`a`/`f`.
@@ -1167,7 +1223,7 @@ async function hydrate(): Promise<void> {
     /* meta is best-effort — absence just means no caching/update info */
   }
 
-  // ── question bank: cached (bankStore, D315) and keyed by contentRev ──
+  // ── question bank: cached (cacheStore rows, D312/D315) keyed by contentRev ──
   // The bank is static content; a boot should cost 1 meta read, not
   // ~190 bank reads. Single-field query (no composite index).
   interface BankEntry extends QuestionDoc {
@@ -1216,20 +1272,39 @@ async function hydrate(): Promise<void> {
   // Firestore's `in` takes up to 30 values, so the ceiling is not near.
   const BANK_SURFACES = ["daily", "test", "group", "duo", "pulse", "call"];
   let all: BankEntry[] | null = null;
-  // The store is bankStore.ts (IndexedDB) since D315; it reads the old
-  // localStorage payload once as a migration source, so an updating device
-  // pays a delta rather than a refetch. A v1-era payload simply misses and
-  // pays one full refetch, which is the correct upgrade cost.
+  // The localStorage era's key — read once as a migration source (D312)
+  // and removed after the rows land in IndexedDB, so an upgrading device
+  // pays neither a refetch nor a second copy of the bank in the small box.
+  const BANK_LS = "insight.bankCache.v2";
   let cursor = 0;
-  {
-    const cached = (await bankGet()) as
-      | { rev?: number; cursor?: number; questions?: BankEntry[] }
-      | null;
-    if (cached && cached.rev === contentRev && Array.isArray(cached.questions) && cached.questions.length) {
-      all = cached.questions as BankEntry[];
-      cursor = Number(cached.cursor || 0);
-      state.stats.bankSource = "cache";
+  // Which medium the cache came from. "idb" is the steady state and gets
+  // only the DELTA written back — a warm boot with an empty delta writes
+  // nothing, where the blob shape re-serialized the whole bank every boot.
+  // Anything else (a legacy localStorage payload, a full fetch, an
+  // invalidated rev) rewrites the store whole so the next boot is "idb".
+  let bankCacheFrom: "idb" | null = null;
+  let deltaRows: BankEntry[] = [];
+  try {
+    const bankMeta = await cacheStore.readMeta<{ rev: number; cursor: number }>("bank");
+    if (bankMeta && bankMeta.rev === contentRev) {
+      const rows = await cacheStore.readAll<BankEntry>("bank");
+      if (rows.size) {
+        all = [...rows.values()];
+        cursor = Number(bankMeta.cursor || 0);
+        bankCacheFrom = "idb";
+        state.stats.bankSource = "cache";
+      }
     }
+    if (!all) {
+      const cached = JSON.parse(localStorage.getItem(BANK_LS) || "null");
+      if (cached && cached.rev === contentRev && Array.isArray(cached.questions) && cached.questions.length) {
+        all = cached.questions as BankEntry[];
+        cursor = Number(cached.cursor || 0);
+        state.stats.bankSource = "cache";
+      }
+    }
+  } catch {
+    /* corrupt cache — refetch below */
   }
   // Rows are stored without `updatedAt`: it is a transport field, and a
   // Timestamp does not survive JSON round-tripping as a Timestamp. Keeping
@@ -1290,14 +1365,15 @@ async function hydrate(): Promise<void> {
         // device already holds it — an edit to a paged card arriving. A
         // NEW paged doc (learn, or a tail question) is dropped on
         // purpose: which paged cards a device holds is the pager's
-        // decision (D317/D318), not the delta's.
-        for (const row of rowsOf(dsnap)) {
-          if (
+        // decision (D317/D318), not the delta's. deltaRows is the KEPT
+        // set, because it is also what the idb write-back below persists.
+        deltaRows = rowsOf(dsnap).filter(
+          (row) =>
             BANK_SURFACES.includes(row.surface)
             || (row.surface === "feed" && row.core === true)
-            || byId.has(row.id)
-          ) byId.set(row.id, row);
-        }
+            || byId.has(row.id),
+        );
+        for (const row of deltaRows) byId.set(row.id, row);
         all = [...byId.values()];
         cursor = Math.max(cursor, cursorOf(dsnap));
         if (dsnap.size) state.stats.bankSource = "delta";
@@ -1374,14 +1450,36 @@ async function hydrate(): Promise<void> {
     all = [...bootRows, ...coreRows];
     cursor = maxCursor;
     state.stats.bankSource = "network";
+    // Whatever the cache held (a delta can overflow into this path from an
+    // "idb" load), what stands now is the fetch — rewrite whole below.
+    bankCacheFrom = null;
   }
-  // Best-effort by bankPut's own contract; awaited so the write has
-  // settled before `ready` flips and a test (or a fast tab close) can
-  // observe a boot whose cache write is still in flight. Held at module
-  // scope afterwards so the learn pager (D317) can append the pages it
-  // fetches and persist the same payload.
-  bankPayload = { rev: contentRev, cursor, questions: all };
-  await bankPut(bankPayload);
+  // Awaited, and cheap to await: within a chunk the write is one atomic
+  // transaction, so a killed process leaves the old cache, never a torn
+  // one — and ordering the legacy key's removal AFTER the commit means an
+  // upgrading device always holds at least one complete copy.
+  if (bankCacheFrom === "idb") {
+    if (deltaRows.length) {
+      await cacheStore.write("bank", deltaRows.map((r) => [r.id, r]), {
+        meta: [["bank", { rev: contentRev, cursor }]],
+      });
+    }
+  } else {
+    await cacheStore.write("bank", all.map((r) => [r.id, r]), {
+      meta: [["bank", { rev: contentRev, cursor }]],
+      clearFirst: true,
+    });
+    try {
+      localStorage.removeItem(BANK_LS);
+    } catch {
+      /* best-effort */
+    }
+  }
+  // The pager's seen-set (D317/D318): ids only, at module scope, so the
+  // top-ups know what this device already holds — including killed and
+  // expired rows the serving filters drop, which must never be
+  // re-fetched every boot.
+  bankIds = new Set(all.map((q) => q.id));
   const sorted = all.slice().sort((a, b) => (a.seq || 0) - (b.seq || 0));
   // `until` is the current-events serving window (docs/NEXT-FUNCTIONALITY
   // §1): a feed entry past its UTC day stops being OFFERED — the answers
@@ -1453,39 +1551,66 @@ async function hydrate(): Promise<void> {
   // the app works, so stay live and let the daily surface say so.
 
   // ── my answers: cached + incremental (created docs never refetch) ──
+  // The localStorage era's key — a migration source only (D312), removed
+  // once the rows land in IndexedDB. It CANNOT simply be dropped: losing
+  // the cache re-offers answered questions on the next boot only until
+  // the refetch heals it, but losing it silently was the answers side of
+  // the quota failure §2.1 instruments, and this account's archive is the
+  // biggest thing the old blob held.
   const ANS_LS = "insight.answersCache.v1";
   const uidA = state.uid;
   let maxTs = 0;
   let maxEditTs = 0;
   if (uidA) {
+    // "idb" gets only what this boot fetched written back; anything else
+    // (legacy blob, cold pull) rewrites the store whole — same shape as
+    // the bank cache above, same crash-safety argument (meta rides the
+    // last chunk, so a torn write reads as "no cache", never as a
+    // complete one).
+    let answersFrom: "idb" | null = null;
     try {
-      const cached = JSON.parse(localStorage.getItem(ANS_LS) || "null");
-      if (cached && cached.uid === uidA && cached.votes) {
-        Object.assign(state.votes, cached.votes);
-        maxTs = Number(cached.maxTs || 0);
-        maxEditTs = Number(cached.maxEditTs || 0);
+      const ansMeta = await cacheStore.readMeta<{ uid: string; maxTs: number; maxEditTs: number }>("answers");
+      if (ansMeta && ansMeta.uid === uidA) {
+        const rows = await cacheStore.readAll<string>("answers");
+        rows.forEach((v, k) => {
+          state.votes[k] = v;
+        });
+        maxTs = Number(ansMeta.maxTs || 0);
+        maxEditTs = Number(ansMeta.maxEditTs || 0);
+        answersFrom = "idb";
+      } else {
+        const cached = JSON.parse(localStorage.getItem(ANS_LS) || "null");
+        if (cached && cached.uid === uidA && cached.votes) {
+          Object.assign(state.votes, cached.votes);
+          maxTs = Number(cached.maxTs || 0);
+          maxEditTs = Number(cached.maxEditTs || 0);
+        }
       }
     } catch {
       /* refetch below */
     }
+    // What this boot's queries handed back, in the cache's own string
+    // form — the write-back below is sized by this, not by the archive.
+    const fetchedRows: Array<[string, string]> = [];
     const fold = (d: { id: string; get: (f: string) => unknown }) => {
-      const optionIdx = d.get("optionIdx");
-      if (typeof optionIdx === "number") state.votes[d.id] = String(optionIdx);
       // Catalog answers carry `entity` and rank answers carry `order` —
-      // never `optionIdx` (D14/D233). Both join the same map in string
-      // form (the entity's digits; the order joined with commas) —
+      // never `optionIdx` (D14/D233). All three join the same map in
+      // string form (the entity's digits; the order joined with commas) —
       // votes[] is "what did I answer", and every consumer that
       // INTERPRETS the value goes through the question's type
-      // (mirrorVoteValue, buildFeedGlobals) — so skipping either here
+      // (mirrorVoteValue, buildFeedGlobals) — so skipping any here
       // would re-offer the card on a fresh device and the create-only
       // rule would then refuse the re-answer.
-      else {
-        const entity = d.get("entity");
-        if (typeof entity === "number") state.votes[d.id] = String(entity);
-        else {
-          const order = d.get("order");
-          if (Array.isArray(order)) state.votes[d.id] = order.join(",");
-        }
+      const optionIdx = d.get("optionIdx");
+      const entity = d.get("entity");
+      const order = d.get("order");
+      const val = typeof optionIdx === "number" ? String(optionIdx)
+        : typeof entity === "number" ? String(entity)
+        : Array.isArray(order) ? order.join(",")
+        : null;
+      if (val !== null) {
+        state.votes[d.id] = val;
+        fetchedRows.push([d.id, val]);
       }
       const at = d.get("answeredAt") as { toMillis?: () => number } | undefined;
       if (at && typeof at.toMillis === "function") maxTs = Math.max(maxTs, at.toMillis());
@@ -1579,11 +1704,30 @@ async function hydrate(): Promise<void> {
       state.stats.answersFetched += esnap.size;
       esnap.docs.forEach(fold);
     }
-    try {
-      localStorage.setItem(ANS_LS, JSON.stringify({ uid: uidA, votes: state.votes, maxTs, maxEditTs }));
-    } catch {
-      /* best-effort */
+    const ansMeta: Array<[string, unknown]> = [["answers", { uid: uidA, maxTs, maxEditTs }]];
+    if (answersFrom === "idb") {
+      // The warm boot: at most the two bounded delta pages moved, so the
+      // write is those rows plus the cursors — never the archive.
+      await cacheStore.write("answers", fetchedRows, { meta: ansMeta });
+    } else {
+      // Cold pull or legacy blob: everything in state.votes is current,
+      // so rewrite the store whole and retire the localStorage copy only
+      // after the commit (the bank cache above has the ordering argument).
+      await cacheStore.write(
+        "answers",
+        Object.entries(state.votes).map(([k, v]) => [k, v]),
+        { meta: ansMeta, clearFirst: true },
+      );
+      try {
+        localStorage.removeItem(ANS_LS);
+      } catch {
+        /* best-effort */
+      }
     }
+    // From here votes may file rows — cacheVote refuses until the store's
+    // owner is this uid, or an ack racing hydrate could write into a
+    // store whose meta still names the previous account.
+    answersCacheOwner = uidA;
   }
 
   // ── aggregates: cached; fetch answered questions' aggs that are
@@ -1595,10 +1739,26 @@ async function hydrate(): Promise<void> {
   // listener, so a first voter's empty snapshot would otherwise be frozen
   // forever. Since D98 that window is one answer wide rather than the
   // whole climb to a k-floor, so this re-reads far less than it used to.
-  const AGG_LS = "insight.aggsCache.v1";
+  const AGG_LS = "insight.aggsCache.v1"; // legacy: migration source only (D312)
   try {
-    const cached = JSON.parse(localStorage.getItem(AGG_LS) || "null");
-    if (cached && typeof cached === "object") Object.assign(state.aggs, cached);
+    const rows = await cacheStore.readAll<AggDoc>("aggs");
+    rows.forEach((v, k) => {
+      state.aggs[k] = v;
+    });
+    if (!rows.size) {
+      const cached = JSON.parse(localStorage.getItem(AGG_LS) || "null");
+      if (cached && typeof cached === "object") {
+        Object.assign(state.aggs, cached);
+        // Migrate: mark every imported entry dirty so the flush the
+        // top-up below schedules carries them into IndexedDB. Display
+        // cache, so losing the 1 s window to a kill costs a refetch at
+        // most — the two caches above order removal after commit because
+        // theirs cost more.
+        for (const id of Object.keys(cached as Record<string, unknown>)) aggDirty.add(id);
+        localStorage.removeItem(AGG_LS);
+        saveAggCache();
+      }
+    }
   } catch {
     /* best-effort */
   }
@@ -1611,13 +1771,21 @@ async function hydrate(): Promise<void> {
   // Also: this was serial. A returning user with 150 answered questions
   // still under the k-floor ran 5 round trips one after another inside the
   // 2.5s boot race — and losing that race used to be permanent.
+  // The recheck stamps ride the meta store (D312): one number per
+  // answered question, so the map is another thing that grows with the
+  // archive — small beside the aggregates, but the same curve, and it
+  // costs nothing to move in the same pass. Legacy key: migration source.
   const AGG_CHECK_LS = "insight.aggCheck.v1";
   const AGG_RECHECK_MS = 6 * 60 * 60 * 1000;
   const AGG_ID_CAP = 120;
   try {
     let checked: Record<string, number> = {};
     try {
-      checked = JSON.parse(localStorage.getItem(AGG_CHECK_LS) || "{}") || {};
+      checked = (await cacheStore.readMeta<Record<string, number>>("aggCheck")) || {};
+      if (!Object.keys(checked).length) {
+        checked = JSON.parse(localStorage.getItem(AGG_CHECK_LS) || "{}") || {};
+        localStorage.removeItem(AGG_CHECK_LS);
+      }
     } catch {
       /* corrupt — treat as empty */
     }
@@ -1637,16 +1805,12 @@ async function hydrate(): Promise<void> {
       getDocs(query(collection(db, "v2_question_aggs"), where(documentId(), "in", chunk)))));
     snaps.forEach((snap) => {
       snap.docs.forEach((d) => {
-        state.aggs[d.id] = d.data() as AggDoc;
+        storeAgg(d.id, d.data() as AggDoc);
       });
       state.stats.aggsFetched += snap.size;
     });
     answeredWorld.forEach((id) => { checked[id] = nowMs; });
-    try {
-      localStorage.setItem(AGG_CHECK_LS, JSON.stringify(checked));
-    } catch {
-      /* best-effort */
-    }
+    void cacheStore.writeMeta("aggCheck", checked);
     saveAggCache();
   } catch (err) {
     reportError(err, { where: "hydrate.aggs" });
@@ -1717,7 +1881,7 @@ async function hydrate(): Promise<void> {
       const mv = mirrorVoteValue(q, v);
       if (mv != null) wf[q.id] = mv;
     });
-    localStorage.setItem(WF_LS, JSON.stringify(wf));
+    lsSet(WF_LS, JSON.stringify(wf));
   } catch {
     /* localStorage unavailable — feed falls back to store votes */
   }
@@ -1734,12 +1898,12 @@ async function hydrate(): Promise<void> {
   void topUpBankPages(db);
 }
 
-// The cache's ids — the pager's seen-set. From the raw payload, NOT the
+// The cache's ids — the pager's seen-set. From the raw cache, NOT the
 // active-filtered bank slices: a killed or expired card is still cached
 // (the archive rule), and a seen-set that forgot it would re-fetch it
 // every boot forever.
 function cachedBankIds(): Set<string> {
-  return new Set((bankPayload?.questions ?? []).map((q) => q.id));
+  return new Set(bankIds ?? []);
 }
 
 // The serving filter, hydrate's own rule at page-arrival time: alive and
@@ -1783,11 +1947,13 @@ async function topUpBankPages(db: Awaited<ReturnType<typeof getDb>>): Promise<vo
     return out;
   };
   const persist = async (rows: Array<QuestionDoc & { id: string }>): Promise<void> => {
-    if (!bankPayload || !rows.length) return;
-    const cacheById = new Map(bankPayload.questions.map((q) => [q.id, q]));
-    for (const row of rows) cacheById.set(row.id, row);
-    bankPayload.questions = [...cacheById.values()];
-    await bankPut(bankPayload);
+    if (!rows.length) return;
+    // Rows into the same store the boot reads (D312's cacheStore), NO
+    // meta: the cursor must not advance for a page — a paged row's
+    // updatedAt can be newer than an unfetched edit on another surface,
+    // and a cursor past that edit would seal it out of every delta.
+    await cacheStore.write("bank", rows.map((r) => [r.id, r] as [string, unknown]));
+    for (const row of rows) bankIds?.add(row.id);
   };
 
   // Each surface fails alone: a bad learn order must not cost the feed
@@ -3086,7 +3252,10 @@ const LIVE = {
   near: NEAR,
   feedReady: false,
   get stats() {
-    return { ...state.stats };
+    // The two storage boxes' failure counters side by side (§2.1's
+    // instrument and cacheStore's) — one diagnostic for "this device is
+    // not persisting", whichever medium is failing.
+    return { ...state.stats, idbWriteFailures: cacheStore.cacheStoreFailures() };
   },
   get appBuild(): number {
     return typeof __APP_BUILD__ === "number" ? __APP_BUILD__ : 0;
@@ -3825,7 +3994,7 @@ const LIVE = {
           getDocs(query(collection(db, "v2_question_aggs"), where(documentId(), "in", chunk)))
             .then((snap) => {
               snap.docs.forEach((d) => {
-                state.aggs[d.id] = d.data() as AggDoc;
+                storeAgg(d.id, d.data() as AggDoc);
               });
               // Counted, which it was not before — the other three agg
               // reads all increment this and these are the largest batch
@@ -3837,6 +4006,13 @@ const LIVE = {
         // Set even when some docs came back absent: absent means no
         // answers yet (D98), which re-asking this session cannot change.
         state.testAggsLoaded = true;
+        // Persist the batch. Under the old whole-map blob these rows were
+        // written incidentally — whenever any OTHER agg write flushed the
+        // map, the test items rode along — and the per-row store (D312)
+        // ends incidental persistence, so what used to happen by accident
+        // is asked for here on purpose: a cached test aggregate saves the
+        // AGG_ID_CAP top-up re-fetching it next boot.
+        saveAggCache();
       }
       await this.loadKindred();
     } catch (err) {
@@ -4193,6 +4369,17 @@ const LIVE = {
     } catch (err) {
       reportError(err, { where: "deleteAccount.clearCache" });
     }
+    // The hand-rolled cache store is a THIRD box (D312): Firestore's
+    // mirror above, `insight.*` localStorage below, and this one holds
+    // the same answers and bank between them. AWAITED, not left to the
+    // purge event's fire-and-forget listener — web/privacy.html says
+    // deletion clears this device, and that claim is about a device that
+    // may be sold, not about an event that was dispatched.
+    try {
+      await cacheStore.clearAll();
+    } catch (err) {
+      reportError(err, { where: "deleteAccount.clearCacheStore" });
+    }
     // "There is no undo" must include THIS device: purge every local
     // trace so the next (fresh anonymous) session doesn't resurrect the
     // deleted account's votes, results, or identity — then drop the
@@ -4254,6 +4441,34 @@ const LIVE = {
       // label on them would be a guess (deck.ts's buildS takes null).
       .map((q) => buildSPure(q, null, voteCtx(q.id), now));
   }),
+  /**
+   * The place questions this account can still answer for a scope (D307)
+   * — every active `rating` in the daily bank that rates it and carries
+   * no vote from this account.
+   *
+   * From the BANK, not from aggregated(): a rates question the rotation
+   * has not reached usually has no published counts at all, and at a
+   * young population that is most of them — which left the Scores lens
+   * empty for weeks with nothing anyone could do about it. The ask is
+   * blind exactly like the daily it is: nothing here reveals a split,
+   * and the vote goes through vote(), the one path (anchors snapshot,
+   * D205's rates-aware city gate, the ledger) every answer takes.
+   *
+   * Daily bank only, which is where every `rates` question lives (D187);
+   * if the feed ever grows one, its serving is the feed's own filter and
+   * does not belong in this walk.
+   */
+  placeAsks(scope: string): Array<{ id: string; text: string; optionCount: number }> {
+    return state.questions
+      .filter((q) =>
+        q.active !== false && q.type === "rating" && q.rates === scope
+        && !state.votes[q.id])
+      .map((q) => ({
+        id: q.id,
+        text: q.prompt,
+        optionCount: (q.options || []).length,
+      }));
+  },
   /**
    * The core feed questions with a published aggregate, as the same view
    * models — the Patterns pool's other half (the nightly fit folds
@@ -4887,7 +5102,7 @@ const LIVE = {
           const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
           if (qid in wf) {
             delete wf[qid];
-            localStorage.setItem(WF_LS, JSON.stringify(wf));
+            lsSet(WF_LS, JSON.stringify(wf));
           }
         } catch {
           /* best-effort */
@@ -4954,7 +5169,7 @@ const LIVE = {
           const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
           if (qid in wf) {
             delete wf[qid];
-            localStorage.setItem(WF_LS, JSON.stringify(wf));
+            lsSet(WF_LS, JSON.stringify(wf));
           }
         } catch {
           /* best-effort */
@@ -5020,7 +5235,7 @@ const LIVE = {
           const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
           if (qid in wf) {
             delete wf[qid];
-            localStorage.setItem(WF_LS, JSON.stringify(wf));
+            lsSet(WF_LS, JSON.stringify(wf));
           }
         } catch {
           /* best-effort */
@@ -5099,7 +5314,7 @@ const LIVE = {
             const q = feedById(qid);
             const mv = q ? mirrorVoteValue(q, prev) : null;
             wf[qid] = mv != null ? mv : Number(prev);
-            localStorage.setItem(WF_LS, JSON.stringify(wf));
+            lsSet(WF_LS, JSON.stringify(wf));
           }
         } catch {
           /* best-effort */
@@ -5142,6 +5357,10 @@ function resetForNewUid(uid: string): void {
   state.unaggregated = {};
   state.editedAt = {};
   state.aggs = {};
+  // Before the purge below: a vote ack still in flight must not file the
+  // OLD account's answer into a store the new account's hydrate is about
+  // to claim. hydrate re-sets it once the new uid's meta row is written.
+  answersCacheOwner = null;
   state.groups = [];
   state.reveals = {};
   state.revealHist = {};
@@ -5478,7 +5697,7 @@ export function refreshLive(): Promise<void> {
       try {
         const [db, mod] = await Promise.all([getDb(), import("./socialFetch")]);
         await mod.writeDirectoryRow(db, forUid, name);
-        localStorage.setItem(KEY, JSON.stringify({ uid: forUid, name }));
+        lsSet(KEY, JSON.stringify({ uid: forUid, name }));
       } catch (err) {
         reportError(err, { where: "directoryHeal" });
       }
@@ -5730,11 +5949,13 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
       // Hiding is the last callback a mobile WebView is guaranteed to get
       // before the OS may kill it, and saveAggCache is coalesced now — so
       // flush the pending write here rather than lose up to AGG_CACHE_MS
-      // of counts. Cancel first: writeAggCache is the timer's own body,
-      // and leaving the timer armed would write the same map twice.
+      // of counts. Drop the TIMER only, then flush: cancelAggCache would
+      // discard the dirty set (its callers mean "forget"), and this
+      // handler means the opposite.
       if (aggCacheTimer) {
-        cancelAggCache();
-        writeAggCache();
+        clearTimeout(aggCacheTimer);
+        aggCacheTimer = null;
+        flushAggCache();
       }
       // The deck poll stops NOW, not after the grace period: a timer costs
       // nothing to drop and nothing to re-arm, so there is no swap to

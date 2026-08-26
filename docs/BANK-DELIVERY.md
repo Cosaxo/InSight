@@ -1,6 +1,8 @@
 # Bank delivery — three ceilings, in the order they bite
 
-**Status: built — §2 (D284, 2026-08-24), §3 (D315, 2026-08-26), §4
+**Status: built — §2 (D284, 2026-08-24); §3 (D312, 2026-08-26, via
+[`ANSWER-SCALE.md`](ANSWER-SCALE.md) §2.2 — the bank rode the answer
+caches' move; the parallel D315 build converged on it in the merge); §4
 (learn at D317, the feed tail at D318, both 2026-08-26; core ships
 whole by design — D161, not a remainder).** Written 2026-08-24 on the
 owner's direction after D283: the question banks should grow by an order
@@ -172,17 +174,18 @@ the cap raising. `duel-questions.json` at 24 KiB — the last bank still
 compiled in whole, on a weekly lane at 14.6 KiB, and crossing it is the
 signal to give it learn's treatment.
 
-## 3 · Ceiling 2 — the bank cache is in the small box · **BUILT (D315)**
+## 3 · Ceiling 2 — the bank cache is in the small box · **BUILT (D312)**
 
-> Shipped 2026-08-26, the day D313 was adopted. `bankStore.ts` holds the
-> cache in IndexedDB; the three call sites became a get/put pair; the
-> legacy localStorage payload migrates (delta, key freed, store filled —
-> pinned in bank-cache.test.ts) and `BANK_WARN`/`BANK_FAIL` were
-> re-pointed at the whole-bank install fetch, §4's ceiling, exactly as
-> the closing paragraph below asked. D315 records the as-built, including
-> the one divergence: migration only consumes the legacy copy when the
-> new store demonstrably works. What follows is the reasoning as it
-> stood.
+> Landed 2026-08-26 inside ANSWER-SCALE §2.2's pass — that page found
+> the ANSWER-side caches racing the bank for the same quota, so the box
+> was opened once for all of them. As built: rows per question plus a
+> {rev, cursor} meta row in `data/cacheStore.ts`, the cursor and delta
+> shape untouched, the legacy key retired after its rows commit, and
+> `BANK_WARN`/`BANK_FAIL` re-pointed a third time at §4's
+> whole-bank-in-memory ceiling. What follows is the reasoning as it
+> stood, and it held. (The same day's paged-read-path branch built the
+> same move independently as `bankStore.ts` — D315 — and the merge
+> converged on this store; the D315 amendment records the collision.)
 
 `live.ts` caches the whole bank in `localStorage` under
 `insight.bankCache.v2`. The quota is ~5 MB per origin, shared with ~29
@@ -278,20 +281,22 @@ convert later, and a published count is usually as good.
    (unlisted import, and a listing nothing imports). Verified against the
    defect itself: point `learn-data.js` back at the full bank and the
    gate reports it.
-2. ~~**Ceiling 2, when the bank passes ~2,000 documents**~~ **Done —
-   D315**, ahead of its own trigger because D313's adoption made it the
-   enabler to build first. Three call sites, as counted; the migration
-   condition is the one thing built beyond the sketch.
+2. ~~**Ceiling 2, when the bank passes ~2,000 documents**~~ — **Done,
+   D312**, ahead of the trigger: ANSWER-SCALE §2 found the answer-side
+   caches racing the bank for the same quota, and the owner's direction
+   to build that plan opened the box once for all of them. (D315 built
+   the same move in parallel on the paged-read-path branch; the merge
+   converged on D312's store.)
 3. ~~**Ceiling 3, when a real product need asks for it**~~ **Done —
    D316 (the published order), D317 (learn) and D318 (the feed tail),
    all 2026-08-26.** The install stops scaling with the bank: boot
-   surfaces + core + a page per topic, O(core + pages) per device.
-   **The need was named 2026-08-26**:
-   the owner directed serving-by-selection — lazy pages, a published
-   order, quality filtered by signal rather than prevented by cap —
-   recorded as D313, adopted 2026-08-26 ("build the real fixes now") —
-   this step's clock is running, and §3 stays the enabler to build
-   first.
+   surfaces + core + a page per topic, O(core + pages) per device. The
+   need was named 2026-08-26: the owner directed serving-by-selection —
+   lazy pages, a published order, quality filtered by signal rather
+   than prevented by cap — recorded as D313, adopted the same day
+   ("build the real fixes now"). What §4 still holds is the in-memory
+   walk: a device reads every cached row into memory each boot, and
+   that design is what `BANK_WARN`/`BANK_FAIL` now watch.
 
 Steps 1 and 2 are independent and can land in either order. Step 3
 depends on neither.

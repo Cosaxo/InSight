@@ -13,6 +13,12 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+// The answers and aggregate caches live in IndexedDB since D312
+// (docs/ANSWER-SCALE.md §2.2) — fake-indexeddb is the spec implementation
+// these cases persist into, and IDBDatabase's prototype is where a write
+// TRANSACTION can be counted, which is the only honest way left to assert
+// coalescing now that no localStorage spy sees the flush.
+import { IDBFactory, IDBDatabase } from "fake-indexeddb";
 import { LIVE_MEMBERS, LIVE_NEAR_MEMBERS, LIVE_SOCIAL_MEMBERS } from "../test/live-surface";
 import { FUNCTIONS_REGION } from "../../lib/region";
 import { CANON_BOARD_N } from "./deck";
@@ -335,6 +341,12 @@ const listeners: {
   window: Record<string, () => void>;
   document: Record<string, () => void>;
 } = { window: {}, document: {} };
+// EVERY window listener, in registration order — the capture map above
+// keeps one slot per type (the wake tests fire "the" handler), but
+// several stores register for insight:local-purge and a real window
+// dispatches to all of them; a last-wins stub silently dropped
+// cacheStore's purge clear (D312) under whichever store registered later.
+const windowListenerList: Array<[string, () => void]> = [];
 
 // Events live.ts dispatches on the stubbed window (insight:local-purge),
 // so a test can assert the purge announced itself.
@@ -342,6 +354,32 @@ const dispatched: string[] = [];
 
 const ANS_LS = "insight.answersCache.v1";
 const WF_LS = "insight.feedVotes.v1";
+
+// The answers cache's IndexedDB shape, read and seeded through cacheStore
+// itself so the assertions below keep the old blob's vocabulary
+// ({uid, votes, maxTs}) while the storage is rows + a meta row (D312).
+// Dynamic imports, because vi.resetModules gives each boot a fresh module
+// instance and the helper must talk to the one the booted live.ts uses.
+const readAnsCache = async () => {
+  const cs = await import("./cacheStore");
+  const meta = await cs.readMeta<{ uid: string; maxTs: number; maxEditTs: number }>("answers");
+  const rows = await cs.readAll<string>("answers");
+  return { ...(meta || {}), votes: Object.fromEntries(rows) } as {
+    uid?: string; maxTs?: number; maxEditTs?: number; votes: Record<string, string>;
+  };
+};
+const seedAnsCache = async (p: {
+  uid: string; votes: Record<string, string>; maxTs: number; maxEditTs?: number;
+}) => {
+  const cs = await import("./cacheStore");
+  await cs.write("answers", Object.entries(p.votes), {
+    meta: [["answers", { uid: p.uid, maxTs: p.maxTs, maxEditTs: p.maxEditTs || 0 }]],
+  });
+};
+const readAggCache = async () => {
+  const cs = await import("./cacheStore");
+  return Object.fromEntries(await cs.readAll<Record<string, unknown>>("aggs"));
+};
 
 beforeEach(() => {
   vi.resetModules();
@@ -384,6 +422,10 @@ beforeEach(() => {
   ];
   storage = new MemoryStorage();
   vi.stubGlobal("localStorage", storage);
+  // A fresh IndexedDB per test: the answers and aggregate caches live
+  // there since D312, and a shared factory would leak one test's rows
+  // into the next the way a shared MemoryStorage would.
+  vi.stubGlobal("indexedDB", new IDBFactory());
   // initLive attaches `online` / `visibilitychange` handlers for the
   // reconnect path. The stub carries addEventListener so that code path is
   // actually taken here rather than skipped by its typeof guard — and
@@ -391,9 +433,21 @@ beforeEach(() => {
   listeners.window = {};
   listeners.document = {};
   dispatched.length = 0;
+  windowListenerList.length = 0;
   vi.stubGlobal("window", {
-    dispatchEvent: (e: Event) => { dispatched.push(e?.type); return true; },
-    addEventListener: (type: string, fn: () => void) => { listeners.window[type] = fn; },
+    // Faithful to a real window: dispatch INVOKES every registered
+    // listener, because cacheStore's purge clear rides exactly this path
+    // (D312) and a stub that only records the type would leave the
+    // IndexedDB stores full through every purge case below.
+    dispatchEvent: (e: Event) => {
+      dispatched.push(e?.type);
+      for (const [type, fn] of windowListenerList) if (type === e?.type) fn();
+      return true;
+    },
+    addEventListener: (type: string, fn: () => void) => {
+      listeners.window[type] = fn;
+      windowListenerList.push([type, fn]);
+    },
     removeEventListener: (type: string) => { delete listeners.window[type]; },
   });
   vi.stubGlobal("document", {
@@ -500,7 +554,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(LIVE.myVotes()).toMatchObject({ q_1: "1" });
     expect(LIVE.confirmedVotes()).not.toHaveProperty("q_1");
     // the answers cache mirrors only server-acked docs — nothing yet
-    const cached = JSON.parse(storage.getItem(ANS_LS) || "{}");
+    const cached = await readAnsCache();
     expect(cached.votes || {}).not.toHaveProperty("q_1");
 
     d.resolve(); // avoid a dangling pending promise
@@ -525,7 +579,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(LIVE.myVotes()).toMatchObject({ q_1: "0" });
     // ack re-notifies so persistent records (the Map) pick it up
     expect(listener.mock.calls.length).toBeGreaterThan(notifiesBeforeAck);
-    const cached = JSON.parse(storage.getItem(ANS_LS) || "{}");
+    const cached = await readAnsCache();
     expect(cached.votes).toMatchObject({ q_1: "0" });
   });
 
@@ -638,7 +692,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(LIVE.myVotes()).not.toHaveProperty("q_1");
     expect(LIVE.confirmedVotes()).not.toHaveProperty("q_1");
     expect(JSON.parse(storage.getItem(WF_LS) || "{}")).not.toHaveProperty("q_1");
-    const cached = JSON.parse(storage.getItem(ANS_LS) || "{}");
+    const cached = await readAnsCache();
     expect(cached.votes || {}).not.toHaveProperty("q_1");
     expect(listener.mock.calls.length).toBeGreaterThan(notifiesBeforeReject);
     expect(h.reportError).toHaveBeenCalledWith(boom, { where: "vote", qid: "q_1" });
@@ -686,7 +740,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     d.resolve();
     await flush();
     expect(LIVE.confirmedVotes()).toMatchObject({ q_1: "0" });
-    const cached = JSON.parse(storage.getItem(ANS_LS) || "{}");
+    const cached = await readAnsCache();
     expect(cached.votes).toMatchObject({ q_1: "0" });
   });
 
@@ -717,7 +771,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(LIVE.myVotes()).toMatchObject({ q_1: "1" });
     expect(LIVE.confirmedVotes()).toMatchObject({ q_1: "1" });
     expect(JSON.parse(storage.getItem(WF_LS) || "{}")).toMatchObject({ q_1: 1 });
-    const cached = JSON.parse(storage.getItem(ANS_LS) || "{}");
+    const cached = await readAnsCache();
     expect(cached.votes).toMatchObject({ q_1: "1" });
     expect(h.reportError).toHaveBeenCalledWith(boom, { where: "editVote", qid: "q_1" });
   });
@@ -808,22 +862,34 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(dispatched).toContain("insight:local-purge");
   });
 
-  // ── the coalesced agg cache (D64) ───────────────────────────────────
+  // ── the coalesced agg cache (D64, rows since D312) ──────────────────
   //
   // saveAggCache used to run JSON.stringify over the WHOLE aggs map
   // synchronously inside the agg snapshot handler, and that handler fires
   // once per publish on a globally-shared question — COSTS.md finding 2's
   // own fan-out numbers make that ~0.7 full serialisations/sec at 50k DAU
-  // and ~6.9/sec at 500k, on the main thread. It is coalesced now, which
-  // buys the throughput and costs three new ways to be wrong: a write that
-  // never lands, a write that lands after the purge, and a write lost to a
-  // backgrounded WebView. One case each.
+  // and ~6.9/sec at 500k, on the main thread. It is coalesced (D64) and
+  // per-row in IndexedDB now (D312), which keeps the same three ways to
+  // be wrong: a write that never lands, a write that lands after the
+  // purge, and a write lost to a backgrounded WebView. One case each —
+  // asserted on the store's CONTENTS plus a count of readwrite
+  // transactions on the `aggs` store, because no localStorage spy sees
+  // the flush any more.
   //
   // Real timers rather than fake ones: boot itself schedules a write, and
   // switching clocks underneath a pending real timer leaks it into whatever
   // test runs next. Each case waits out the window instead.
-  const AGG_LS = "insight.aggsCache.v1";
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  const spyAggTx = () => {
+    const spy = vi.spyOn(IDBDatabase.prototype, "transaction");
+    return {
+      count: () => spy.mock.calls.filter((c) => {
+        const scope = Array.isArray(c[0]) ? c[0] : [c[0]];
+        return scope.includes("aggs") && c[1] === "readwrite";
+      }).length,
+      restore: () => spy.mockRestore(),
+    };
+  };
   // Stage the aggregate and run one poll tick — the same body the interval
   // runs, so these cases still drive the real refresh path (D129). It is
   // async now, where the snapshot callback was synchronous, which is why
@@ -837,47 +903,43 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     const mod = await import("./live");
     await mod._aggPollForTest().tick();
   };
-  const aggWrites = (spy: { mock: { calls: unknown[][] } }) =>
-    spy.mock.calls.filter((c) => c[0] === AGG_LS).length;
 
   it("coalesces a burst of agg snapshots into one cache write, carrying the last state", async () => {
     await bootLive();
-    await sleep(1200); // let boot's own write land, so the spy counts only ours
-    const spy = vi.spyOn(storage, "setItem");
+    await sleep(1200); // let boot's own flush land, so the spy counts only ours
+    const spy = spyAggTx();
 
     for (let i = 1; i <= 5; i++) await emitAgg(i);
-    // Nothing synchronous — that is the whole point; the handler used to
-    // stringify the map five times right here.
-    expect(aggWrites(spy)).toBe(0);
+    // Nothing lands during the burst — the handler used to serialise the
+    // map five times right here; now not even one row transaction opens
+    // until the window closes.
+    expect(spy.count()).toBe(0);
+    expect(await readAggCache()).not.toHaveProperty("q_1");
 
     await sleep(1200);
-    expect(aggWrites(spy)).toBe(1);
-    // Leading-schedule/trailing-write: the write happens a beat after the
-    // FIRST snapshot but serialises state at write time, so it carries the
+    expect(spy.count()).toBe(1);
+    // Leading-schedule/trailing-write: the flush happens a beat after the
+    // FIRST snapshot but reads state at write time, so it carries the
     // fifth one's total rather than the first's.
-    expect(JSON.parse(storage.getItem(AGG_LS) || "{}")).toMatchObject({
-      q_1: { total: 5 },
-    });
-    spy.mockRestore();
+    expect(await readAggCache()).toMatchObject({ q_1: { total: 5 } });
+    spy.restore();
   });
 
   it("a uid change carries no previous account's aggregate past the purge", async () => {
     // Same contract as the feed-vote mirror above — none of the previous
-    // account's data survives, NOT that the key never comes back — and the
-    // coalescing is what makes it worth re-pinning here: between the
+    // account's data survives, NOT that the store never fills again — and
+    // the coalescing is what makes it worth re-pinning here: between the
     // snapshot and the purge there is now a write in flight that there
-    // never used to be.
-    //
-    // Honest about what this does and does not prove. Removing the
-    // cancelAggCache() call from purgeLocalTrace fails NOTHING in this
-    // tree, this case included, and that is not a gap in the case: on this
-    // path resetForNewUid empties state.aggs before it purges, so a
-    // surviving timer can only write `{}`, and the new session re-creates
-    // the key empty within the window regardless. The cancel is hygiene.
-    // What is actually load-bearing here is the assertion below.
+    // never used to be. Since D312 the cancel is load-bearing where it
+    // used to be hygiene: cancelAggCache clears the DIRTY SET as well as
+    // the timer, and without that the new session's first flush would
+    // carry the old ids (they point at an emptied map, so they would
+    // write nothing — but the set clearing is what this case leans on,
+    // so it is said here).
     await bootLive();
+    await emitAgg(3); // a persisted aggregate from the outgoing account
     await sleep(1200);
-    expect(storage.getItem(AGG_LS)).not.toBeNull(); // boot wrote one
+    expect(await readAggCache()).toHaveProperty("q_1");
 
     await emitAgg(9); // schedules a write…
     // Emptied BEFORE the uid change, not after. Since D129 the aggregate is
@@ -891,13 +953,13 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(h.authCb).toBeTypeOf("function");
     h.authCb!({ uid: "someone_else" }); // …and the purge lands first
     await flush();
-    expect(storage.getItem(AGG_LS)).toBeNull();
+    expect(await readAggCache()).toEqual({});
 
-    // Past the window the pending write would have fired in: the key may be
-    // back (the new uid's own poll writes it), but never carrying the counts
-    // the previous account's in-flight write was holding.
+    // Past the window the pending write would have fired in: the store may
+    // fill again (the new uid's own poll writes it), but never carrying
+    // the counts the previous account's in-flight write was holding.
     await sleep(1200);
-    expect(JSON.parse(storage.getItem(AGG_LS) || "{}")).not.toHaveProperty("q_1");
+    expect(await readAggCache()).not.toHaveProperty("q_1");
   });
 
   it("hiding the app flushes the pending agg write rather than losing it", async () => {
@@ -906,27 +968,27 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     // then; now it can be up to a second in the future.
     await bootLive();
     await sleep(1200);
-    const spy = vi.spyOn(storage, "setItem");
+    const spy = spyAggTx();
 
     await emitAgg(7);
-    expect(aggWrites(spy)).toBe(0); // still pending
+    expect(spy.count()).toBe(0); // still pending
+    expect(await readAggCache()).not.toHaveProperty("q_1");
 
     expect(listeners.document.visibilitychange).toBeTypeOf("function");
     (document as unknown as { hidden: boolean }).hidden = true;
     listeners.document.visibilitychange();
 
-    // Synchronous — the flush is the point.
-    expect(aggWrites(spy)).toBe(1);
-    expect(JSON.parse(storage.getItem(AGG_LS) || "{}")).toMatchObject({
-      q_1: { total: 7 },
-    });
+    // Issued on the spot — the transaction is open before this handler
+    // returns, which is what survives a kill.
+    expect(spy.count()).toBe(1);
+    expect(await readAggCache()).toMatchObject({ q_1: { total: 7 } });
 
-    // …and exactly once: the flush cancels the timer, so the window
-    // expiring afterwards must not write the same map a second time.
+    // …and exactly once: the flush drops the timer and drains the dirty
+    // set, so the window expiring afterwards must not write again.
     await sleep(1200);
-    expect(aggWrites(spy)).toBe(1);
+    expect(spy.count()).toBe(1);
     (document as unknown as { hidden: boolean }).hidden = false;
-    spy.mockRestore();
+    spy.restore();
   });
 
   it("a revoked session keeps real data on screen rather than blanking to demo", async () => {
@@ -1030,11 +1092,11 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     );
     // answers from an earlier session, exactly as the warm cache hands
     // them over (maxTs > 0 keeps this the incremental-boot path)
-    storage.setItem(ANS_LS, JSON.stringify({
+    await seedAnsCache({
       uid: "uid_test",
       votes: { q_feed_dial: "0", q_feed_field: "6", q_feed_vote: "1" },
       maxTs: 5, maxEditTs: 0,
-    }));
+    });
     await bootLive();
     const wf = JSON.parse(storage.getItem(WF_LS) || "{}");
     expect(wf.q_feed_dial).toBeCloseTo(42.0833, 3); // bucket 0 of 40–90 — NOT 0
@@ -1326,12 +1388,12 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
       expect(call!.data.entity).toBe(128514);
       expect(call!.data.surface).toBe("feed");
       expect(call!.data).not.toHaveProperty("optionIdx");
-      const notCached = JSON.parse(storage.getItem(ANS_LS) || "{}");
+      const notCached = await readAnsCache();
       expect(notCached.votes || {}).not.toHaveProperty("pick-pk04");
       d.resolve();
       await flush();
       expect(LIVE.confirmedVotes()).toMatchObject({ "pick-pk04": "128514" });
-      const cached = JSON.parse(storage.getItem(ANS_LS) || "{}");
+      const cached = await readAnsCache();
       expect(cached.votes).toMatchObject({ "pick-pk04": "128514" });
     });
 
@@ -1562,7 +1624,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
       d.resolve();
       await flush();
       expect(LIVE.confirmedVotes()).toMatchObject({ "feed-f03": "2,0,1,3" });
-      const cached = JSON.parse(storage.getItem(ANS_LS) || "{}");
+      const cached = await readAnsCache();
       expect(cached.votes).toMatchObject({ "feed-f03": "2,0,1,3" });
     });
 
@@ -2041,7 +2103,12 @@ describe("LIVE.deleteAccount — the on-device half of erasure", () => {
   it("terminates the client and clears the IndexedDB cache, in that order", async () => {
     const LIVE = await bootLive();
     await captureCallable();
+    // Both boxes hold traces: a legacy localStorage blob and the D312
+    // cache store's rows. Erasure has to reach each.
     localStorage.setItem(ANS_LS, JSON.stringify({ day: 1, votes: { q_1: "0" } }));
+    LIVE.vote("q_1", "0");
+    await flush();
+    expect((await readAnsCache()).votes).toHaveProperty("q_1");
 
     await LIVE.deleteAccount();
 
@@ -2051,6 +2118,10 @@ describe("LIVE.deleteAccount — the on-device half of erasure", () => {
     expect(h.cacheTeardown).toEqual(["terminate", "clearIndexedDbPersistence"]);
     // …and the localStorage half it always did still happens after it.
     expect(localStorage.getItem(ANS_LS)).toBeNull();
+    // …and the hand-rolled cache store is emptied too — AWAITED by
+    // deleteAccount, not left to the purge event, because the privacy
+    // page's claim is about the device, not about a dispatch (D312).
+    expect((await readAnsCache()).votes).toEqual({});
   });
 
   it("unlatches teardown when the wipe is refused, so the session survives", async () => {
@@ -2079,11 +2150,10 @@ describe("LIVE.deleteAccount — the on-device half of erasure", () => {
     // The observable: cacheVote is `if (torndown) return`, so a latched
     // store silently stops writing the answers cache while vote() keeps
     // issuing the Firestore write — the split that made this invisible.
-    storage.removeItem(ANS_LS);
     LIVE.vote("q_1", "1");
     await flush();
-    const cached = JSON.parse(storage.getItem(ANS_LS) || "null");
-    expect(cached?.votes?.q_1, "the store stayed torn down after a refused delete")
+    const cached = await readAnsCache();
+    expect(cached.votes.q_1, "the store stayed torn down after a refused delete")
       .toBe("1");
   });
 

@@ -110,7 +110,20 @@ function Ruler({ lens, onLens }: { lens: Lens; onLens: (l: Lens) => void }): Rea
 
 export default function PatternsTab(): React.ReactElement {
   const version = usePatterns();
-  const [lens, setLens] = React.useState<Lens>("map");
+  // the incoming lens slides from the side you moved toward on the ruler
+  // (2026-08-26) — the axis is a place, not a list, so a swap has a
+  // direction. The direction rides IN the lens state (one object, one
+  // set) rather than in a ref: the class reads it during render, and a
+  // render-read ref is exactly what react-hooks/refs refuses. First
+  // mount keeps the plain fade: nothing was moved from.
+  const [lensSt, setLensSt] = React.useState<{ id: Lens; dir: "" | "l" | "r" }>({ id: "map", dir: "" });
+  const lens = lensSt.id;
+  const setLens = (id: Lens): void => setLensSt((cur) => {
+    if (id === cur.id) return cur;
+    const a = LENSES.findIndex((s) => s.id === cur.id);
+    const b = LENSES.findIndex((s) => s.id === id);
+    return { id, dir: b > a ? "r" : "l" };
+  });
   const [topic, setTopic] = React.useState("all");
   const [ppop, setPpop] = React.useState<PeoplePop>("world");
 
@@ -199,7 +212,7 @@ export default function PatternsTab(): React.ReactElement {
           </div>
         )}
       </div>
-      <div key={lens} className="fade-in pt-stack">
+      <div key={lens} className={(lensSt.dir ? "pt-slide-" + lensSt.dir : "fade-in") + " pt-stack"}>
         {lens === "map" && <PatternsMap items={items} version={version} topic={topic} />}
         {lens === "oracle" && <PatternsOracle items={items} version={version} />}
         {lens === "people" && (

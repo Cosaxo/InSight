@@ -398,25 +398,26 @@ const ALLOW = new Map([]);
 export const DAILY_ID_WARN = 900; // of 999 — check-content pins /^daily-\d{3}$/
 export const DAILY_ID_FAIL = 970; // an id-scheme decision is due before 999
 // Bank headroom. These guarded live.ts's `limit(1500)` until D161 paged
-// that fetch, then the localStorage cache quota until D315 moved the
-// cache to IndexedDB (bankStore.ts) — each time, the ceiling they watched
-// stopped existing and they were re-pointed rather than deleted, because
-// the NEXT silent ceiling wants the same alarm at a different number.
+// that fetch, at which point the ceiling they watched stopped existing —
+// so they were re-pointed rather than deleted, because the NEXT silent
+// ceiling wants the same alarm at a different number. Re-pointed a THIRD
+// time at D312: the localStorage quota cliff they watched second is gone
+// too — the bank cache lives in IndexedDB rows now (data/cacheStore.ts),
+// where these sizes are nothing — exactly as BANK-DELIVERY §3's closing
+// rule said to do rather than deleting them.
 //
-// The next one is the whole-bank fetch itself (BANK-DELIVERY §4): every
-// fresh install still reads the ENTIRE bank — billed per document, per
-// device — and every boot holds it in memory. Nothing breaks at any
-// size; the install cost just climbs with the bank until D313's paged
-// read path lands, which is a cost cliff with no symptom in a different
-// coat: the app that shipped at 700 documents looks identical at 20,000,
-// except in the bill and the first paint.
-//
-// The counts keep their old values because the fetch pain arrives at the
-// same order of magnitude the quota did — checkHeadroom() derives
-// bytes-per-document from the seed itself, and 6,000 docs ≈ 1.6 MB on
-// the wire per install, 10,000 ≈ 2.7 MB. When the paged read path
-// ships, re-point these again or retire them (BANK-DELIVERY §3's rule:
-// a gate that once caught something is re-pointed, not deleted).
+// What they watch now is what remains of BANK-DELIVERY §4 after the
+// paged read path (D317/D318): the INSTALL fetch no longer scales with
+// the bank — a fresh device takes the boot surfaces, the feed's core
+// and a page per topic — but a device's MEMORY still holds every row
+// its cache has accumulated, and hydrate reads all of them each boot
+// (the feed pool, the topic counts, search, the test joins walk that
+// memory). There is no hard cliff at these numbers, which is why they
+// kept their values: they are the size at which "hold everything a
+// device has ever met in memory" wants re-arguing on a low-end phone
+// rather than assumed, comfortably before it becomes an incident.
+// checkHeadroom() still derives bytes-per-document from the seed itself
+// so the message moves when the documents do.
 // D162's sampled audit: one AI-reviewed question in this many gets read by
 // a person. A starting figure, not a measured one — move it with what the
 // audit actually finds.
@@ -1470,14 +1471,15 @@ export function checkHeadroom(corpus) {
   const cacheMB = (n) => ((bankBytes / Math.max(bankSize, 1)) * n / 1024 / 1024).toFixed(1);
   if (bankSize >= BANK_FAIL) {
     errs.push(
-      `seeded bank holds ${bankSize} docs ≈ ${cacheMB(bankSize)} MB fetched WHOLE by every fresh install — over budget. `
-      + "The read path is still whole-bank (BANK-DELIVERY §4): nothing errors at this size, the per-device bill and "
-      + "the first paint just keep climbing with the bank. Build D313's paged read path before promoting more.",
+      `seeded bank holds ${bankSize} docs ≈ ${cacheMB(bankSize)} MB — past the point where a device holding `
+      + "its whole cache in memory was last argued (BANK-DELIVERY §4). The install fetch is paged since "
+      + "D317/D318, but every cached row is still read into memory each boot; decide the in-memory design "
+      + "before promoting more, rather than after a low-end phone reports it.",
     );
   } else if (bankSize >= BANK_WARN) {
     warn.push(
-      `seeded bank at ${bankSize} docs ≈ ${cacheMB(bankSize)} MB fetched whole by every fresh install — the `
-      + "whole-bank read path is the next silent ceiling (the bill climbs with no symptom), so build D313's pages",
+      `seeded bank at ${bankSize} docs ≈ ${cacheMB(bankSize)} MB — the install fetch is paged (D317/D318), `
+      + "but a device still holds every cached row in memory; that design wants re-arguing before this doubles",
     );
   }
   return { errs, warn };

@@ -11,7 +11,7 @@
 //
 // THE SEEN-SET IS THE CACHE, and that is the design rather than a
 // shortcut. A card the device was ever handed is in the bank cache
-// (bankStore.ts), so "first N of the published order not in the cache"
+// (cacheStore.ts rows since the D312 merge), so "first N of the published order not in the cache"
 // is exactly "next N this device has not met" — no profile, no upload,
 // nothing the server learns (D314's phase 1 boundary: the fetch pattern
 // is topic-coarse, and the ORDER is the crowd's). Cached cards are never

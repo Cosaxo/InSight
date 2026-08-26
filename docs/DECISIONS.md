@@ -30814,6 +30814,904 @@ database-isolation argument fails. The value was not in the hit rate. It
 was that the two real ones were a wrong command that fails loudly and a
 wrong region in a heading that would not have, and neither is the kind of
 thing the person who wrote them re-reads and catches.
+## D302 · The iris mark: the identity stops being a first pass
+
+**2026-08-26.** The owner's identity canvas (committed verbatim at
+`design/identity-2026-08-26/`) replaces the first-pass launcher mark with
+the **iris**: a hexagon-and-spokes lattice, one dot per accent hue, you at
+the pupil. It is still the Mirror in one glyph — the crowd your answers
+are read against, arranged around you — but the crowd now wears the app's
+own seven tab hues (`--c-today/-around/-world/-city/-groups/-people/
+-likeness`) instead of anonymous gray, and the identity gained three rules
+the first pass never had:
+
+- **The ink tile is the primary icon.** Every launcher asset composites
+  the mark over `--ink`, not paper. The dot colours cannot be shared
+  between grounds — the paper conversions muddy on ink — so the canvas
+  specifies a brightened tile palette (nudging three hues: 235→240,
+  282→288, 8→12) with a near-white pupil. `design/icon/mark.svg` now
+  carries **two flat groups over one geometry**: id `mark` (paper —
+  the feature graphic) and id `mark-tile` (every icon). The Android
+  adaptive background (`values/ic_launcher_background.xml`) moved to ink
+  with it. The splash stays paper: it is the app's own ground, and the
+  icon deliberately stopped matching it.
+- **Full mark above ~24 px, compact below.** Under ~24 px the outer ring
+  muddies, so tiny surfaces drop to hexagon + pupil: the favicon
+  (`public/favicon.svg` = `web/favicon.svg`, compact on the ink tile —
+  the first branded favicon; the file had shipped the stock template
+  graphic since the repo began) and the in-app header's horizontal
+  lockup. The sign-in gate, `web/join.html` and `web/home.html` are big
+  enough to wear the full mark.
+- **The wordmark is capital-I "InSight"** (Hanken Grotesk 700, tight
+  tracking). The header, gate, join page and feature graphic said
+  "inSight"; the push-notification fallback titles in `v2social.ts` said
+  it too. All capitalised; the two-tone accent treatment stays.
+
+### The old mark's colours had drifted, which decided where colours live
+
+The retired mark's header claimed its colours were the design system's
+tokens "converted from oklch … so the icon cannot drift from the app".
+Inverting them says otherwise: its sienna `#b34f2a` is oklch(0.55 0.14
+40) — the token as it stood **before** styles.css retuned the accent
+family to 0.52 lightness. The conversion was honest the day it was made
+and stale ever after: the hand-maintained-figure failure (D39), wearing
+colour. Two consequences in this change:
+
+- **Committed assets** (mark.svg, favicons, join.html) bake today's
+  conversions, done with CSS Color 4 gamut mapping — chroma reduction,
+  the algorithm Chrome itself applies to out-of-gamut oklch(), which four
+  of the seven hues are — not channel clamping. Naively clamped values
+  are visibly wrong for petrol and indigo.
+- **In-app lockups** (app-shell header, sign-in gate) fill from the live
+  tokens (`var(--c-…)`, `var(--ink)`) so the next retune carries them
+  for free. Only surfaces with no stylesheet to read — icons, static
+  pages — carry hex.
+
+### The extraction trap the blank-icon tripwire caught
+
+Both generators slice their group out of mark.svg with `indexOf`. The
+first draft of the file's comment spelled the group tags out in angle
+brackets, the extractor matched the **comment**, and the opaque master
+rendered as pure ink — refused by `gen-icons`' 1%-coverage assertion, the
+exact failure that assertion was built for. Two guards came out of it:
+the comment in mark.svg now states the no-literal-tags rule about itself,
+and both extractors verify the payload contains circles before rendering,
+so a future comment edit fails with "matched the comment, not the group"
+instead of a blank icon (or, in the feature graphic's case — which had no
+coverage assertion — a silently markless PNG on the Play listing).
+
+### What did not change
+
+The notification status icon (`ic_stat_reveal.xml`) keeps the two-rings
+reveal motif — Android renders it as a silhouette, where the iris is
+just a blob. The boot screen stays a text wordmark for the reasons in
+`index.html`'s comment. The legacy splash PNGs stay solid white — the
+modern splash path is `backgroundColor` in capacitor.config.ts, and
+re-rasterising dead assets is not part of an identity. `check:store-listing`
+copy is prose and mentions no mark. Regeneration is unchanged and one
+command each: `node scripts/gen-icons.mjs` (16 launcher assets),
+`npm run build && node scripts/gen-feature-graphic.mjs` (Play graphic,
+re-run and committed with this change).
+## D303 · The applier could not apply, for the same reason the observer could not observe
+
+**2026-08-26.** D300 read production and found **zero alert policies and
+zero log-based metrics** — two days after `scripts/apply-monitoring.mjs`
+was written to create thirteen of them, tested, documented in two places
+and listed as one command in the runbook. The script was not wrong. It was
+unrunnable, and nothing in the repo could tell the difference.
+
+### The obstacle it named, and the one it had
+
+Its own header carried a correction (D47, 2026-08-04) retiring the reason
+everyone had been giving:
+
+> NOT because the deploy service account lacks the permission. It holds
+> `Editor` + `Firebase Admin`, and `Editor` includes
+> `monitoring.alertPolicies.create`. Permission was never the obstacle.
+
+That is true, and it was the whole diagnosis. Four lines below it the
+script called `execFileSync("gcloud", …)` and exited with *"gcloud is not
+on PATH. Install the Cloud SDK and `gcloud auth login`"* — a requirement
+for an interactive login against a project nobody had one for. So the
+header ruled out the obstacle that did not apply and did not name the one
+that did, which is a harder failure to see than a wrong reason: the
+sentence is correct, the correction above it is correct, and the tool
+still does not run.
+
+**This is D300's finding, one instrument later.** There, I treated
+D292's Workload-Identity design as a prerequisite for reading production
+when the credential was already in four workflows. Here, the same
+credential could already write — `Editor` includes the create permission,
+and the header says so — and the transport was a CLI instead of an HTTP
+request. Both times the thing was reachable and the reasoning about
+provisioning hid it. Both times the cost was the same: an instrument that
+did not exist while the thing it watches was going wrong.
+
+### What changed
+
+The transport, and nothing about what gets created. `apply-monitoring.mjs`
+now signs a JWT with `FIREBASE_SERVICE_ACCOUNT`, trades it for a
+cloud-platform OAuth token and POSTs to the Monitoring and Logging REST
+APIs — the path `fn-log.mjs` has used since 2026-08-07 and `observe.mjs`
+since D300. `.github/workflows/monitoring.yml` dispatches it behind the
+`production` environment gate, `apply` off unless asked.
+
+`scripts/google-api.mjs` holds the exchange now, because this was the
+third caller and `pure.ts`'s rule about `breakdownFor` applies to scripts
+too: three copies is how they drift. `observe.mjs` moved onto it in the
+same change; `fn-log.mjs` is deliberately left, on the terms
+`operator-call.mjs` already sets for the two callers that predate it — it
+works, and rewriting a working script to save duplication is the trade
+this repo declines everywhere else.
+
+### The refusal that stands, and the one that was a fourth copy
+
+DEPLOYMENT.md § Alerting gives two reasons this is not on the deploy path.
+Only one survives, and the other was never about automation at all:
+
+- **Stands.** A pipeline that can rewrite an alert policy can delete one
+  silently, in a deploy that was about something else, and the blast
+  radius is "you stop being told when the Mirror stops moving". A
+  `workflow_dispatch` behind the `production` gate is not that pipeline.
+  `firebase-deploy.yml` calling this would be.
+- **Stands.** The notification channel id is an email address or a Slack
+  hook — per operator, per project, correctly not in this repo. It is a
+  workflow input now, typed by whoever dispatches.
+- **Retired, and it had already been retired once.** Runbook 5.5 said the
+  step must not be automated because "the deploy service account has no
+  monitoring role". That is the sentence D47 corrected in DEPLOYMENT.md on
+  2026-08-04, still standing in the runbook on 2026-08-26 — **the last
+  place still asserting it.** Counted rather than guessed: at `ca7097bc`
+  the sentence appears in three files, and the other two (`DEPLOYMENT.md`,
+  `MONITORING.md`) both quote it in order to correct it. This record first
+  called it "a fourth copy", which was a guess and was wrong. It was in the
+  item whose own paragraph then called
+  building the automation "an open question with arguments both ways" and
+  left it. It stood for one day — the paragraph is dated 2026-08-25
+  (`8fb442f9`) — and what it cost is not days of alerting, which were
+  zero either way, but that the answer was already in the repo when the
+  question was written down.
+
+### The policy files say `notificationChannels: []`, and that is the bug worth pinning
+
+Every committed policy carries an empty channel list, because the id is
+not in this repo. A policy POSTed with that list is **accepted, enabled,
+listed and green — and pages nobody.** `npm run observe` would report
+`armed: true` for an alert chain that cannot reach a human, which is the
+exact false comfort every gate here exists to prevent, one level up.
+
+Nothing downstream can tell the difference, so it is pinned in
+`apply-monitoring.test.mjs`: every policy POST must carry the channel
+resource name. Removing the merge fails two cases. Ordering is pinned the
+same way — two policies read log-based metrics, and a policy created
+against a metric type that resolves to nothing never fires, which looks
+identical to the condition never occurring — so the test asserts every
+metric POST precedes every policy POST rather than merely that both
+happened.
+
+### A refusal is fatal here, unlike in the observer
+
+`observe.mjs` treats a 403 as a *result*: the point of that run is to
+learn which readings are available, so it reports the missing role and
+keeps going. This script does the opposite and stops, because its steps
+are ordered and dependent — the policies carry the channel id, two of them
+read metrics from the step before. Continuing past a failure would build
+half an alert chain and report success for it, which is the shape
+`check:monitoring` exists to prevent inside the repo and would be worse in
+the project, where no gate can see it.
+
+### Three copies wrong, two already fixed, and one this sweep walked past
+
+Correcting the docs turned up the same drift D39 built `check:figures` for.
+`monitoring/` holds **eight** policies and **five** metrics. What the prose
+said, and what was actually true of it at `ca7097bc`:
+
+| where | said | verdict |
+| --- | --- | --- |
+| `docs/DEPLOYMENT.md` heading | "Alerting (**three** alerts, deliberately)" | wrong — 8 |
+| `docs/DEPLOYMENT.md` blockquote | "**both** log-based metrics and all **three** policies" | wrong — 5 and 8 |
+| `docs/COSTS.md` § what is not covered | "`monitoring/` has **four** policies" | wrong — 8 |
+| `docs/LAUNCH-RUNBOOK.md` 5.5 | "widening it for **eight** policies is the worse trade" | **number correct.** Deleted for its premise (D47), not its figure |
+| `apply-monitoring.mjs` header | "the **three** alert policies" | **already corrected at D291.** Read here as still wrong |
+| `docs/MONITORING.md` instruments table | "**seven** alert policies" | wrong — 8, and **this sweep missed it** |
+
+**This section first said "five copies of one figure, none of them right",
+and that was itself a wrong figure.** Three were wrong. The runbook's
+"eight" was correct and its defect was a retired premise; the header row
+was fixed two days earlier by D291's own three-copy sweep, which this
+record cites in the same table it counts the row in. A record about
+miscounting, miscounting.
+
+And the sweep it describes missed one. `docs/MONITORING.md`'s instruments
+table said **seven**, byte-identical before and after the commit that
+claimed to have found every copy. It was found by reviewing the record, not
+by writing it — which is the actual lesson, and the reason the count is
+gated rather than re-counted: `check:figures` now holds `DEPLOYMENT.md`'s
+heading, `COSTS.md`'s sentence and `MONITORING.md`'s table row to
+`apply-monitoring.mjs`'s own `POLICIES` list, so the next one fails CI
+instead of being found by whoever reads carefully enough.
+
+`check:monitoring` held the *lists* equal to the directory the whole time.
+Nothing held the *prose* to the lists. The blockquote stopped quoting counts
+altogether, because a sentence that does not state a count cannot drift.
+
+**Amendment (same day) — the first production dry run, and exactly what it
+settles.** `Arm monitoring` dispatched against `prvfire33` from `main`
+(run 1, 18:15 UTC), `apply` off. It **succeeded, and no role was missing**:
+
+```
+apply-monitoring: project prvfire33, channel "InSight oncall" → …  (DRY RUN)
+  + notification channel "InSight oncall" — would create
+  + log-based metric agg_contention … duel_reveal_run … patterns_fit …
+    velocity_scan … engagement_digest — would create
+  + policy "onV2AnswerCreated is erroring" … and seven more — would create
+apply-monitoring: dry run. Re-run with --apply to create the above.
+```
+
+What that proves, stated narrowly because the temptation is to claim the
+whole thing:
+
+- **The credential reaches all three list endpoints**, including
+  `notificationChannels`, which `observe.mjs` never touches and which this
+  record could only say had "met a stub". `roles/monitoring.viewer`,
+  `roles/logging.configWriter` and the channel read are all in hand.
+- **The workflow's shell is right on a real runner** — the argv array, and
+  the two `[ … ] && ARGS+=(…)` guards under GitHub's `bash -e` with
+  `CHANNEL_NAME` empty. Tested locally first; this is the confirmation.
+- **The project holds none of the fourteen objects**, arrived at through a
+  different code path from D300's and agreeing with it.
+
+What it does **not** prove: the three POST endpoints. A create can still
+fail on a field the API rejects or a role the reads did not need, and
+`must()` would stop the run and name it. That is the one thing left, and
+only an `apply` run answers it.
+
+**Amendment (same day, second) — the first `--apply` run, the defect it
+found, and a protection nobody knew was on.** Three things, all measured.
+
+**1. The transport works and the policy bodies did not.** `--apply` created
+the channel, all five metrics and one policy, then took a 400 on the sixth
+POST:
+
+```
+condition_threshold.filter had an invalid value of
+metric.type="logging.googleapis.com/user/agg_contention": must specify a
+restriction on "resource.type"
+```
+
+Five of the eight committed policies carried a bare `metric.type=…` filter.
+`must()` stopped the run there rather than continuing — the refusal this
+record describes, doing its job on its first real outing. It left seven
+objects and named the eighth, which is the outcome the design intended and
+strictly better than eight partial policies and a green job.
+
+**2. The fix was measured, not reasoned**, and that mattered more than it
+looks. `observe --metrics` (added for this) reads one real log entry per
+metric and reports the monitored resource it carries: `cloud_run_revision`
+for four of the five, `no entry yet` for `agg_contention`, which nothing has
+emitted because there has been no contention. The instinct — "they are gen2,
+so cloud_run_revision" — was right. It was still worth measuring, because a
+policy naming a resource type its series never carries is accepted, enabled,
+listed and permanently green, and a wrong guess here is quieter than the 400
+and therefore worse. `check:monitoring` **rule 5** now holds the shape;
+`observe --metrics` is the only thing that can hold the value.
+
+**3. `environment: production` restricts the BRANCH, and nothing here knew
+it.** Dispatching this workflow from a feature branch fails in about a
+second with no steps and no logs — with `apply` on and with it off — while
+`observe.yml`, which declares no environment, runs from that same branch,
+and this workflow runs from `main`. Three readings, one variable.
+
+So arming can only happen from `main`, which is to say from something that
+went through review. That is a real protection, and it is *better* than what
+this repo believed: D87 is recorded as `Applied: not yet`, and the comment
+this amendment corrects said the environment "carries no protection rules
+today". D87 is about a REVIEWER requirement. A deployment branch policy is a
+different rule, it is on, and no document here mentioned it. Whether the
+reviewer half is also on remains unestablished — no run has ever waited.
+## D304 · The breakdown gets its scale back: every canonical bucket, in vocabulary order, on top of the cohort reading
+
+**Decided:** 2026-08-26 · **Status:** binding. The owner's review with the
+current standalone beside the app: "the data breakdown shows only the
+current traits of the person that voted, in a very unorderly manner — it
+should show all categories like this." Approved with the full plan of the
+same review; this record is the breakdown half.
+
+### 1 · What the cohort-first sheet looked like at a young population
+
+D125 flipped the who-voted sheet the right way round — pick a cohort, and
+everything below is that cohort's reading of the question — and D149/D227
+built on that axis. All of it holds. What D125 did not anticipate is what
+its landing looks like with a handful of voters: `mixFor` sorts buckets by
+size and drops empties, and the dim chips filtered to published cells, so
+the sheet's whole offer was two chips in popularity order. A reader could
+not see the scale their cohort sits on, and a band nobody had answered
+from was indistinguishable from a band that does not exist — which since
+D98 are different facts, and the difference is publishable.
+
+The prototype never had the problem, because its demo sheet kept the
+all-rows shape: every group of the cut, one stacked bar each, the
+published split as the header bar. That is the shape the owner pointed
+at.
+
+### 2 · The rows return on top of D125, not instead of it
+
+A dim now lands on its whole scale at once, and the D125 reading is one
+tap in: a row expands into exactly the cohort body the sheet has drawn
+since D125 — option rows, then the divergence line — scoped to that row.
+Continuum forms (`renderBody`, D114) keep the chip flow unchanged: a
+dial's track has nothing honest to draw over a scale of zeros.
+
+The frame is the VOCABULARY, not the data:
+
+- `vocabMix` (data/cohort.ts) walks the canonical vocabulary in its own
+  order and lets the data fill it in — dense zero cells for buckets
+  nobody answered from, drawn greyed with their 0, because an exact zero
+  is the fact D98 bought. `mixFor` keeps its biggest-first contract for
+  the People lens; the two folds answer different questions.
+- The vocabulary source is `profile-vitals.js` via `ui/cohortVocab.ts` —
+  the module `check:anchors` already holds equal to the trigger's
+  `BREAKDOWN_DIM_VOCAB`. A third hand-typed copy would be the drift that
+  gate exists to stop.
+- Opt-outs and catch-alls ('Prefer not to say', 'Other') join the scale
+  only once somebody has picked them: a permanent zero row for declining
+  to answer reads as an ask. A bucket the vocabulary no longer knows is
+  appended rather than hidden — answers folded under an old spelling are
+  still answers.
+- Closed-vocabulary dims are ALWAYS offered now; a dim nobody has shared
+  renders as its scale at zero with a line saying so. Open vocabularies
+  (city, country) still need a published cell — there is no canonical
+  list of every city to draw at zero — and they draw observed buckets
+  only, biggest first.
+
+### 3 · What this deliberately does not touch
+
+The owner's reference sheet also cuts by Job (Sector / Stage / Setup),
+education facets (Studied / Trade / …) and all four tests. None of those
+is a rendering gap: `profession` is free text and deliberately not a dim
+(D8), the education facets are profile fields the app does not collect,
+and test results are aggregated per cohort by nothing. The sample-based
+Type and Logic cuts (D146, D227) remain the honest stand-ins. Structured
+job/education anchors would be a profile + vocabulary + trigger change on
+D8's turf and are recorded as open, not begun.
+
+## D305 · A rating is one figure, not ten rows: the scale row, the ridge, and the mean
+
+**Decided:** 2026-08-26 · **Status:** binding. The same owner review as
+D304: "questions with a lot of options still use a bit too much space
+when showing all their options — for example when rating things out of
+10, so all options can't fit on one page."
+
+### 1 · Where the ten rows were
+
+Everywhere the scale went. A `rating` becomes options `"1"…"10"` at the
+bank boundary (daily-questions.js), and every surface downstream drew
+those ten options with the machinery built for CHOICES: the daily's ask
+was ten stacked 56px buttons (taller than a phone screen before the
+question could be answered), the result ten flex tiles inside
+`sdSplitStageH(10)` = 653px, and the who-voted sheet ten `LbOptionRows`
+per cohort. Each was correct for a categorical question and each was
+noise here, because a scale's reading is a POSITION plus a spread — one
+figure — and the Map's card has known that since its `mmt-ridge`
+existed: "rating → too many rows; show the group's full spread as a
+small ridge" (map-bottom-card.jsx).
+
+### 2 · One figure, three surfaces, one component
+
+- `ui/RatingRidge.tsx` is the mmt-ridge shape in component form: every
+  step drawn whether or not anyone chose it, your column marked, the
+  crowd's peak named only when it is not yours. The daily's result and
+  the breakdown sheet both draw it; the Map keeps its own (same shape,
+  its own chrome).
+- The daily's ask is a single row of ten steps on a ramp of the topic's
+  hue — a ramp, not the option-colour rotation, because distinct hues
+  read as categories and a scale is not categories. Same tap, same vote
+  path, same stored optionIdx: `castVote` is the one vote path both ask
+  shapes share now, extracted so two copies cannot drift (D86's edit
+  routing rides along unchanged).
+- The breakdown sheet takes `kind`: with `kind="rating"` every body
+  that would draw option rows draws the mean and the ridge
+  (`LbRatingBody`), D304's cohort rows fill to each cohort's MEAN with
+  the seam at everyone's, and the divergence sentence compares means —
+  "more likely to say 7" is a true sentence about a histogram bucket
+  and a useless one about a scale. The mean is `meanScore`
+  (data/cohort.ts), the same fold the Scores lens reads, so no two
+  surfaces can disagree about what a cohort averages.
+- The consequence beat is skipped for ratings: it animates SIDES, and
+  ten steps of one scale are not sides.
+
+### 3 · What did not change
+
+The bank, the wire, and the answer. A rating is still ten options and an
+optionIdx — D52's frozen option sets, D86's one edit shape and the
+aggregate's dense cells all hold exactly as they were. This is a
+presentation decision about surfaces, which is why it could ship without
+touching functions/ at all.
+
+## D306 · Context reaches the daily's ⓘ, and the banks get their first subject-context pass
+
+**Decided:** 2026-08-26 · **Status:** binding. The same owner review as
+D304/D305: "a question like Mozart or Beethoven should have context about
+them in the info box — in general more context on most questions."
+
+### 1 · The slot existed and the daily could not reach it
+
+D281 gave every feed card the `i` whose sheet leads with a background
+paragraph, seeded on the doc (`bg`, in SEEDED_FIELDS) and read by
+`buildFeedGlobals`. The daily had the same button and the same sheet —
+and could never show a paragraph, for a D296-class reason: the field was
+seeded and the feed read it, while `buildS` (the daily deck) dropped it
+on the floor. Nothing was red; the sheet simply always opened on its
+three rows.
+
+`buildS` now carries `bg`, the daily's sheet leads with the paragraph
+over a hairline when one exists, and the button keeps D281's promise on
+this surface too: it promotes itself to "What you need to know" so a card
+with facts behind it does not wear the label of one without. The demo
+deck's literals carry three backgrounds so mock mode shows the same
+thing.
+
+### 2 · The rule widens: subject context is context
+
+The bg rule was "only for questions that cannot be answered honestly
+without a fact". The owner's ask adds the other legitimate kind: a named
+subject the reader may be meeting for the first time — who Mozart was,
+what a trolley problem is. The rule in world-subtopics.js now says both,
+with the same bounds (facts and definitions, never arguments, ~40 words;
+`check:quality` holds 90–320 chars, refuses questions-as-context and the
+unambiguous argue-forms).
+
+### 3 · The first pass: 51 questions, and where the texts live
+
+44 feed + 7 daily questions now carry `bg` (the `now` channel's six
+already did): 19 lifted verbatim from `WORLD_BG` for bank questions that
+had been resolving them by id collision — the fact now rides the seeded
+doc instead of a client map — and 32 written new, mostly the named-people
+and named-thing cards (Mozart/Beethoven included) plus the dials whose
+scale benefits from a baseline fact. The daily got only the handful with
+a named subject: most daily questions ask about the answerer, and a
+context sheet for "How optimistic are you" would be padding.
+
+`WORLD_BG` stays, scoped to the demo pool, with a comment saying the bank
+copy is the product's. The wire cost of the pass is +8.8 KiB on the
+cold-boot bank fetch (COSTS.md figure moved 181.5 → 190.3 KiB).
+
+### 4 · Open, deliberately
+
+The remaining ~470 seeded questions without context mostly need none —
+but the reviewing lanes (QUESTION-FARM) may keep extending the set under
+§2's widened rule, one vintage at a time, and the length cap is the thing
+to hold: a sheet is context, not an article.
+
+## D307 · The scorecard learns to ask: unanswered place questions surface on the Scores lens
+
+**Decided:** 2026-08-26 · **Status:** binding. The same owner review as
+D304–D306: "I have not seen the score questions connected to city,
+country or earth."
+
+### 1 · Why nobody had seen them
+
+All 24 `rates:` questions live in the daily bank (D187), and the daily
+serves one question a day — so a place question surfaced about once in
+five days, and only as that day's blind card. Nothing else could ask
+one: the Scores lens reads `aggregated()`, which carries only questions
+somebody has already answered, so at a young population the scorecard
+was empty AND unfillable — the lens that exists to show the scores had
+no path to the questions that produce them.
+
+### 2 · The ask rows, and what they deliberately reuse
+
+`LIVE.placeAsks(scope)` walks the BANK (the device already holds it
+whole — the cold-boot fetch) for active ratings that rate the scope and
+carry no vote from this account. The Scores lens renders them under its
+scored rows — and inside its empty state, so "nobody has scored X yet"
+sits above the way to change it — as D305's one-tap scale row, capped at
+three visible with the rest counted.
+
+The vote goes through `vote()`, the one path every answer takes: same
+anchors snapshot, same D205 city gate (`answerAnchors(q.rates)`), same
+ledger. The daily card shows the question as answered when its rotation
+day arrives, because both read the same vote map.
+
+Blindness holds: the ask row shows no split. The facet scores above it
+are the PLACE's published averages, visible to every visitor of the lens
+whether or not they answer — the ask beside them leaks nothing the card
+did not already say, and the question's own split stays behind the
+answer like everywhere else.
+
+### 3 · The seam that stays honest
+
+A fresh vote leaves the ask list immediately (optimistic, like the
+card's own tap) but reaches the scored rows only when the trigger folds
+and the aggregate top-up lands — the same eventual consistency every
+surface already carries. `placeAsks` joined `LIVE_MEMBERS`, so the
+contract pin and the mount fixture both know it.
+
+## D308 · The athletes catalogue, its review file, and the pick card's browse tiles
+
+**Decided:** 2026-08-26 · **Status:** binding. The same owner review as
+D304–D307: the reference sheet's "The greatest athlete who ever lived ·
+Search 640 athletes" card, tiles included — a domain, a question and a
+presentation none of which existed.
+
+### 1 · The catalogue, and the disease it caught immediately
+
+`public/athletes.txt`: 640 sitelink-ranked humans, QID-keyed, built by a
+new `athletes` arm of `scripts/build-catalog.mjs`. Two mechanical
+lessons the build surfaced, both now in the builder's comments:
+
+- **The single-query shape does not exist for this domain.** The
+  person-side occupation closure (`wdt:P106/wdt:P279* athlete`) times
+  the endpoint out with or without the label service — probed twice —
+  so the builder stages it: the closure first (917 occupations), then
+  candidates per occupation chunk, ranked locally, labelled in chunks.
+  `spec.fetch` is the builder's new arm for a domain that gathers its
+  own rows; everything downstream (same-name dedupe, the top cut, the
+  format checks) treats them identically.
+- **D266's artists disease, confirmed one domain over.** The unrefined
+  ranking led with George W. Bush, with Albert Camus (goalkeeper) and
+  Niels Bohr (footballer) in the top ten — sitelinks rank the person,
+  P106 only asks whether they ever played. Same cure: at least a third
+  of an entry's occupations athletic. And the same residue: the ratio
+  dropped Serena Williams (2/7) and Pelé (2/7) while keeping Ursula von
+  der Leyen (1/3 — physician, politician, equestrian). So the D267
+  machinery arrived WITH the catalogue: `content/athlete-review.json`,
+  same parse, same applyReview, same both-directions hold in
+  `check:catalogs` (now a loop over both review/catalogue pairs). First
+  ruling: 20 admits, 1 reject, every entry auditable by name.
+- A third, smaller one: Wikidata is migrating same-everywhere names onto
+  one `mul` label and deleting the per-language copies — a raw
+  `LANG="en"` filter silently dropped Messi, the most-linked footballer
+  on earth. The label fetch reads `en` and `mul`, `en` winning.
+
+Deities carry athletic occupations too (Apollo ranked 15th before the
+`P31 Q5` constraint), and 640 rather than TOP_N matches the owner's
+sheet — the tail past it is single-league fame that "Not listed" absorbs
+honestly.
+
+### 2 · The wiring, all of it the existing rails
+
+`ATHLETE_KEYS` in the generated key sets; `athletes: { keys }` in the
+trigger's CATALOG_DOMAINS; an `ATHLETES` store in `data/catalogs.ts`
+(export-only, like COUNTRIES); the PickSearch domain ("Search 640
+athletes…"); the pickStore arm and noun; `CATALOG_FILES` so promote
+recognises the domain; and `pick-pk28` — the owner's prompt, promoted
+editorial — with a demo crowd in the archive. 688 seeded questions now.
+
+### 3 · The browse tiles
+
+The pick ask was a search field alone: the catalogue was invisible until
+you already knew what to type. `ui/PickTiles.tsx` draws the catalogue's
+HEAD as tappable tiles over the search — the popularity head the file
+already ships, so browsing costs no read and invents no ranking — and a
+tap is exactly the search's pick. Entries with no visual of their own
+wear a generated face (dots, stripes, rings, a split — deterministic
+from the key, so a tile keeps its face across sessions); emoji draw the
+character itself and colours their own hue, though today the row is
+offered ONLY for the sitelink-ranked domains (films, artists, athletes):
+the alphabetical catalogues' head is not a fame ranking, and offering it
+as one would be the D1 shape of misleading. The row owns its horizontal
+motion (`.h-scroll`), or dragging through it would slide the daily's
+mode axis.
+
+## D309 · A lane batch on the budget's own allocation, and why the interleave cadences stand
+
+**Decided:** 2026-08-26 · **Status:** binding. The last item of the
+owner's 2026-08-26 review: "there seem to be fewer kinds of questions
+than I would like showing up in the app — it's mostly tests and learn."
+
+### 1 · The mechanism, named before the fix
+
+The feed is not tilted by its cadences. `interleaveFeed` weaves one test
+card per four world cards and one lens card per nine, with knowledge at
+the reader's own Learn cadence (`LEARN_FEED.every()`) — a fresh account
+sees mostly world questions. What the owner is feeling is the OTHER end:
+answered world cards leave the fresh feed (the D-partition behind the
+Answered expander), the world bank is finite, and the test/learn streams
+are deep — 160 test items and 146 learn cards against what was 142 feed
+questions. Deplete the world half and the side streams are what remain.
+That is the depletion SCALE-PLAN §1 names, and the cure is production,
+not cadence: retuning TEST_EVERY to starve tests would slow the four
+instruments every Mirror surface feeds on, to mask a content shortage.
+The cadences stand; the engagement rungs (D270–D272) are what would
+justify touching them, with numbers instead of a feeling.
+
+### 2 · The batch, exactly as the lane's budget allocated it
+
+`npm run feed:budget` granted 6 — one each into people, music, movies,
+bigq, culture and event, thinnest-first — and this batch wrote exactly
+that, leaning continuum where the topic allowed because the owner's
+review asked for more of those forms: `dl14` (music, "How old were you
+when your taste in music settled?", 10–40 yrs) and `fd4` (bigq, "Human
+nature — place it", selfish↔kind × fixed↔changeable), each written twice
+per the lane's rule (content copy + demo-pool twin with its own
+texture); votes into people, movies, culture; and the event slot's
+artefacts-return question with a `bg` under D306's rule. All tail
+(`core: false`, D161), all with farm provenance, batch 2026-08-26.
+694 seeded questions now; the bank's wire size moves to 192.3 KiB.
+
+### 3 · What this deliberately is not
+
+A one-off cannot outrun depletion — the scheduled lanes are the engine
+(D145's budget fires twice weekly), and this batch is one turn of the
+same crank taken now because the review asked now. The daily's variety
+is its own instrument: one question a day is the design, and the ask
+rows D307 added are how the rotation's thin forms reach a reader who
+wants them sooner.
+
+## D310 · The 2026-08-26 client passes ship; the two owner decisions and the paid family wait
+
+**2026-08-26.** VISION-2026-08-26 §9 step 2, built exactly as scoped: every
+item from the fourth numbered standalone that needed no owner decision, no
+new read, and no rules change. The two gates the plan named stay shut —
+anonymous answers (§1) and the seat-split subscription pricing (§2.2) are
+sentences the owner has not said, so nothing of either is here — and the
+paid family (§2) waits on them. What shipped, and what the build proved the
+plan had wrong:
+
+### The working (§3) — `PATTERNS.working`, and two copy corrections
+
+The Oracle's "why?" now rebuilds the sealed call as rows: each evidence
+answer the grade named, the crowd split it contributed (through `tell()`'s
+existing caches — at most three bounded fetches, most already paid for by
+`say()`), ink weighted by its pull, the coin as the hairline. The seal's
+pinned timing did not move; `grade()` names three evidence questions
+instead of two, which old records simply predate. Two of the design's
+sentences could not ship as written, and the divergences are in the code
+comments where they happen:
+
+- *"It guessed at the coin, and the empty disc says so"* is false live
+  twice over: a call with no evidence falls back to the crowd's own lean
+  (not the coin), and the disc's ink is faint, not empty. The line ships
+  as *"the call is the crowd's own lean, and the faint ink says so."*
+- The design has one empty state; the live surface needs two, because
+  D146's floor creates a case the prototype cannot have: evidence that
+  really carried the call but has under 12 shared voters to count in the
+  open. Thinness is named as thinness (`hadEv` on the `Working` shape),
+  never dressed as absence.
+
+### The Patterns polish (§4) — including the accent handback
+
+Lens swaps slide from the side you moved toward (direction rides in the
+lens state — a render-read ref is what `react-hooks/refs` refuses); the
+"answer next" beacon is a tap target with its own ≥14px halo; the two maps'
+legends and cards state their geometry in words. One more claim the build
+would not ship as drawn: the People card's *"closer only ever means more
+agreement"* is true of the prototype's agreement layout and NOT of the live
+ridge solve, so the live line says what the fold does — *"their answers
+alone place them — closer means answering more alike."* Same rescope on the
+tie sentence: *"over everyone who answered both"* became *"over the people
+in both samples"*, because bounded samples are what the rows count. The
+Patterns tab hands the dusk-indigo accent back (one ternary arm in
+`app-shell.jsx`); `patterns.css` carries the slide, the seat sized by
+`--d`, the tile grid, and the ledger's standing `.or-cap` key.
+
+### Play together (§5) — and the third instance of the restore race
+
+The person overlay grows its doors card: 1v1 (Open / invited / Start / the
+add-them-first line) and shared-group chips, each led by the person's
+nearest named type folded from the shared record alone
+(`poPersonTypes` — the duo dims with the sides swapped, the group dims
+without `cast`, which D204 refused and the registry never carried). The
+jump rides a new `data/duelCue.ts` — the `mapCue` take-once shape, chosen
+so check:globals' rule-4 count stays at its baseline instead of paying two
+window globals and two window events — and both daily viewers assert the
+landing repeatedly for a beat, because scroll-memory's restore undoes a
+one-shot jump (the profile-overlay subnav race, third instance). The build
+also caught two Compiler bail shapes the hard way: a cleanup returned as a
+call result (`return onDuelCue(go)`) and a ref-derived list read in an
+effect closure each make the Compiler bail out of the whole component,
+which silently un-reports every suppressed finding in it — the disables go
+"unused" and the lint fails, which is the ratchet working. Both shapes are
+named in comments at the site.
+
+### The feed's participation pass (§6) — one deliberate reversal inside it
+
+`wfDid` gives each demo friend an activity share; every friend surface
+(tiles, the four sheets, the rank grid, the cut roster) now shows only
+friends who answered, with honest empty states and the who-hasn't line. The
+tile marks are identity avatars in per-friend hues through `WPAL.ink`, and
+they render in BOTH drawings — which deliberately supersedes the ported
+comment "v2 drops them from the tile": that judgement answered marks-as-
+furniture, and participation is the design's better answer to the same
+problem (most tiles now carry none, so the two that appear mean
+something). The `footer`/`off` arms are not ported (lab furniture, the
+D287 `friendVotes` verdict extended), the live gate stands (`q.live`
+cards still draw no friend marks), and the live `feedInsight` still has
+no `friends` kind.
+
+### The still fix (§7.1) — a live crash no gate could see, now measured
+
+`person-mindmap.jsx`'s still path read `keep` sixteen lines above its
+`const` — a temporal-dead-zone ReferenceError on every MEASURED still
+render, crashing the person overlay's map crop to its boundary. Every
+gate was structurally blind to it: eslint sees a resolvable name, tsc
+does not check `.jsx`, and the smoke suites run in jsdom, where the pane
+never measures and the component parks forever on its pre-measure
+`if (!view)` placeholder — the probe that established this is
+`src/v2/test/person-mindmap-still.test.jsx`, which mounts the still with
+prototype-getter dimensions so the measured path is finally reachable,
+and which fails with the exact ReferenceError when the fix is reverted.
+The fix is the standalone's own line (`return new Set()`).
+
+Everything above landed with its tests (2105 unit + the scripts suite),
+lint/tsc/globals/purge/a11y/tap-targets/bundle all green, and the
+coupling ratchet unmoved at its baseline. The plan file's §0 table now
+carries each item's as-built state; §1 and §2 still say "owner decision
+first", because they still are.
+
+## D311 · The daily builder dropped `bg`, the seed's own written-count told on it, and the seed-fields gate learns surfaces
+
+**Decided:** 2026-08-26 · **Status:** binding. Found minutes after the
+D306 content shipped, by arithmetic: the production seed chained off the
+deploy and reported `written 51, skipped 643` where 58 writes were owed
+— 44 changed feed docs, 7 new docs, and 7 daily `bg` texts that never
+left the repo.
+
+### 1 · The fourth recurrence, one level down
+
+D234, D281 and D284 are all the same failure — a field alive in the
+generator and dead somewhere on the transport — and `check:seed-fields`
+exists to end that class. It compares the UNION of emitted keys, and the
+union was satisfied: the FEED builder emits `bg` (D281), so "is `bg`
+transported" answered yes while the DAILY builder, a separate object
+literal thirty lines up, emitted everything except it. Every gate
+green: `check:content` holds compiled-equals-generated (the compiled
+file faithfully carried the bug), `check:quality` validates the source
+text, and D306's own smoke test injected `bg` at the fixture — proving
+the client renders the field, not that the pipeline delivers it. The
+one honest number anywhere was the seed's write count.
+
+### 2 · The fix, and the gate that would have refused it
+
+One emit-when-set line in the daily builder, beside its neighbours —
+the whole change, as the gate's failure text has always promised. And
+the gate grows the half it was missing: for the banks the lanes write
+into (daily, feed, pick — the id-carrying ones), a top-level source
+field that the generator emits ANYWHERE must be emitted on that entry's
+own doc. Falsy source values stay exempt — `core: false` means tail
+exactly like an absent `core` (D161), which is the emit-when-set
+idiom's contract, and the first run of the rule flagged exactly that
+before the exemption existed. Run red-then-green: seven `bg on daily`
+failures against the pre-fix tree, silent after it. 58 `bg` docs emit
+now (51 feed · 7 daily); the wire figure moves 192.3 → 193.8 KiB.
+
+### 3 · What carries it live
+
+Nothing manual: the deploy fires on `functions/**`, the seed chains on
+the deploy (seed-content.yml's `workflow_run`), and the next run owes
+exactly seven writes. A `written` that is not 7 is the number to chase.
+
+
+## D312 · The answer-state caches leave the quota: the instrument, then the IndexedDB rows
+
+**2026-08-26, on the owner's direction to start building
+[`ANSWER-SCALE.md`](ANSWER-SCALE.md).** Phases §2.1 and §2.2 are built —
+the two that page called "now" and "same pass as the bank's move". §4
+(sharding the daily's aggregate) stays deliberately on the shelf: its
+trigger is the contention alert, which has never fired, and building it
+at zero users is the exact thing D7's discipline refuses. This record is
+the as-built, including three deviations from the plan and one
+test-harness bug the rework surfaced.
+
+### §2.1 — the swallow reports (`lsSet`, live.ts)
+
+Every `insight.*` localStorage write already caught-and-ignored failure —
+the right degradation, no sensor. Twelve write sites now funnel through
+one helper that counts every swallowed write
+(`stats.cacheWriteFailures`) and reports the first QUOTA-shaped failure
+once per session, `where: "quota"`, carrying the key and the size that
+failed. Quota is told apart from a merely absent storage (private mode,
+disabled) by error name/code — the legacy spellings included (code 22,
+`NS_ERROR_DOM_QUOTA_REACHED`) — because absence is an environment and
+quota is the box filling, and only the second is the condition
+ANSWER-SCALE reads deadlines from. Four tests pin the session surviving
+a dead storage, the once-per-session throttle, and the
+quota/environment split.
+
+### §2.2 — one IndexedDB database for the fat caches (`data/cacheStore.ts`)
+
+The bank, aggregate and answers caches — the three that grow with the
+bank or with what the account has answered — moved from localStorage
+blobs to rows in `insight-cache` (stores: `bank`, `aggs`, `answers`,
+`meta`), best-effort by the same contract as before. What is different
+by design rather than by medium:
+
+- **Rows keyed by qid, so a write is the size of the change.** The
+  aggregates blob was re-serialized WHOLE roughly once a second during a
+  vote burst, on the main thread, on a map nothing prunes — a cost that
+  grew with the archive forever. The flush now drains a dirty set;
+  `storeAgg()` is the one door into `state.aggs` that persists, so the
+  set cannot silently miss a site.
+- **The first transaction is created synchronously once the connection
+  is open.** Found by the hide-flush test, kept because it is a real
+  guarantee, not a test convenience: `visibilitychange` is the last work
+  a backgrounded WebView is promised, and the first draft's
+  `await open()` put a microtask boundary inside exactly the window the
+  flush exists to beat — the connection promise was already resolved and
+  the await still deferred the transaction. `write()` takes a sync path
+  off the resolved handle.
+- **Crash ordering, both directions.** Chunked bulk writes commit their
+  meta row in the LAST transaction, so a process killed mid-import
+  leaves rows without a cursor and every reader treats that as "no
+  cache" — a torn write degrades to a refetch, never to a cache that
+  lies about its completeness. The legacy localStorage payload is used
+  for one warm boot, written into the store, and its key removed only
+  AFTER the commit, so an upgrading device always holds one complete
+  copy (the aggs display cache alone migrates fire-and-forget; losing
+  its 1 s window costs a capped refetch).
+- **The purge reaches the new box from both directions.** cacheStore
+  hears `insight:local-purge` (the uid-change path), and `deleteAccount`
+  AWAITS `clearAll()` beside `clearIndexedDbPersistence` — the privacy
+  page's clears-this-device claim is about a device that may be sold,
+  not about an event that was dispatched. `check:purge` grew the
+  matching second predicate (a file that opens IndexedDB owes the
+  listener), verified by mutation: renaming the listener string fails
+  the gate. Cross-account safety does not rest on the clear alone: the
+  answers store carries its owner uid in meta, `cacheVote` compares
+  module state (`answersCacheOwner`) before filing a row, and
+  `resetForNewUid` clears that owner before the purge runs.
+- **An IDB-warm boot with an empty delta writes nothing.** The blob
+  shape rewrote the whole bank every boot; the row shape writes the
+  delta or nothing. A hung open resolves null after 1.5 s so the boot
+  race is never hostage to a wedged IndexedDB — the session simply runs
+  uncached, the same degradation as no IndexedDB at all.
+
+`BANK_WARN`/`BANK_FAIL` re-pointed a THIRD time, per BANK-DELIVERY §3's
+closing rule: the localStorage cliff they watched is gone, so they now
+name §4's whole-bank-in-memory design — the only ceiling left — at the
+same doc counts, as the size where "hand every device everything" wants
+re-arguing rather than assuming.
+
+### Deviations from the plan, named
+
+1. **`insight.feedVotes.v1` stays in localStorage.** §2.2 said it "rides
+   along"; it does not, because the spec feed reads it synchronously at
+   store init and moving it means an async boot seam through the spec
+   layer — the exact kind of change the bridge migration wants done
+   deliberately, not as a rider. It is entry-per-feed-answer small
+   relative to the movers, it has a working fallback (world-feed falls
+   back to store votes), and §2.1's instrument now reports if it ever
+   becomes the problem. Revisit with the spec-layer conversion, not
+   before.
+2. **The test-item aggregates persist on purpose now.** Under the
+   whole-map blob they persisted INCIDENTALLY — whenever any other agg
+   write flushed, the map carried them. Per-row writes end incidental
+   persistence, so `loadSimilarity` marks its batch dirty deliberately;
+   a cached test aggregate saves the `AGG_ID_CAP` top-up re-fetching it
+   next boot.
+3. **The recheck stamps (`insight.aggCheck.v1`) moved too** — not named
+   by the plan, same curve (one number per answered question), zero
+   extra cost in the same pass; they ride the meta store.
+
+### The harness bug worth keeping
+
+vote.test.ts's window stub kept ONE listener per event type and its
+`dispatchEvent` invoked none of them. Real windows dispatch to every
+listener; several stores register for `insight:local-purge`, so the stub
+silently dropped whichever registered first — which is how cacheStore's
+purge clear passed unexercised until the uid-change case failed. The
+stub now dispatches to all registrations in order. A last-wins listener
+stub is exactly the shape that would hide a real store's missing purge
+wipe behind another store's presence.
+
+`fake-indexeddb` joined devDependencies for cacheStore's own suite — a
+spec implementation rather than a hand-rolled double, because
+transaction auto-commit and event ordering are where a hand-mirrored
+fake would encode this module's assumptions back at it. Suites that
+drive live.ts without stubbing `indexedDB` exercise the no-IndexedDB
+fallback for free.
+
+### What deliberately did not change
+
+The sharding design (ANSWER-SCALE §4) stays a design; the patterns
+fold's uid-range paging stays a comment in its own header until DAU asks
+for it; the small `insight.*` keys stay in localStorage under the §2.1
+instrument; and no store form, rules line or data-inventory row moved —
+the caches hold the same data they always held, in a box the same purge
+reaches, which is what the new check:purge predicate and the
+deleteAccount test now hold in place.
+
 
 ## D313 · Serving becomes selection: pages instead of the whole bank, and the order inherits the caps' job
 
@@ -31043,6 +31941,22 @@ one new), 468 script tests, check:quality, check:globals, and the
 shipping bundle at 2096 KB against the 2440 ceiling — bankStore adds one
 small module to the entry graph and no shipped dependency
 (fake-indexeddb is dev-only, the tests' IDB implementation).
+
+## D315 amendment (2026-08-26) · The merge converged on D312's store, the same day
+
+Main built the same move in parallel: D312 (ANSWER-SCALE §2.2) opened
+one IndexedDB database for the bank, aggregate and answers caches —
+rows per question, crash-ordered meta, purge listeners, the superset of
+what this record's `bankStore.ts` did for the bank alone. Two stores
+for one purpose is the D197 shape, so the merge kept D312's
+`cacheStore.ts` and deleted `bankStore.ts` the day it was born. What
+this record argued survives entirely — the quota ceiling is gone, the
+migration is conditional on the new store working (D312 orders the
+legacy key's removal after the rows commit, the same property), and the
+tripwires re-pointed — it is only the module that lost the race. The
+pagers (D317/D318) persist their pages through cacheStore rows, with no
+meta write: a page must not advance the delta cursor past edits it
+never fetched.
 
 ## D316 · The serving order publishes nightly
 

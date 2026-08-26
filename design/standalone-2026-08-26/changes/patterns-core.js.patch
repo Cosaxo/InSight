@@ -1,0 +1,31 @@
+--- recorded/patterns-core.js
++++ 2026-08-26/patterns-core.js
+@@ -249,7 +249,7 @@
+     // draws it as the disc's ink density, so a guess made on nothing looks like
+     // a guess made on nothing.
+     const mass = contrib.reduce((s, c) => s + Math.abs(c.d), 0);
+-    return { pred, conf: Math.max(p0, 1 - p0), post: [p0, 1 - p0], ev, mass, nf: answered.length };
++    return { pred, conf: Math.max(p0, 1 - p0), post: [p0, 1 - p0], ev, mass, nf: answered.length, contrib: contrib.map((c) => ({ id: Q[c.j].id, w: c.d * sgn })) };
+   }
+   // ── the tell: ONE piece of evidence, counted directly, only when asked.
+   // Among world voters who answered the evidence question the way YOU did, how
+@@ -471,6 +471,19 @@
+     qs, pop, links, counts, pca, fieldPts, mePoint, kin, compare, answer, nextQ, meter, reset, pairIn, trail, fingerprint, defiances, pull, tell, myco: () => MYCO,
+     pops: () => [{ id: 'circle', label: 'Circle', n: circle().length }, { id: 'country', label: MYCO, n: members('country').length }, { id: 'world', label: 'World', n: N }],
+     oracleFor: (qid) => { init(); return _oracle(qid); },
++    // the working, on demand: the sealed reading rebuilt from the same answers
++    // (this question excluded), every contribution re-counted in the open — the
++    // proof the call was made from your prior answers and nothing else
++    working: (qid) => {
++      init();
++      const A = eff(); const rest = {};
++      Object.keys(A).forEach((id) => { if (id !== qid) rest[id] = A[id]; });
++      const o = _oracle(qid, rest);
++      const rows = (o.contrib || []).filter((c) => c.w > 0.006).sort((a, b) => b.w - a.w).slice(0, 3)
++        .map((c) => ({ ...c, t: tell(qid, c.id) }))
++        .filter((r) => r.t && r.t.share[o.pred] > 0.5);
++      return { pred: o.pred, conf: o.conf, mass: o.mass, nf: o.nf, rows };
++    },
+     log: () => { init(); return S.log.slice(); },
+     answers: () => eff(),
+     // the shared header: one dataset, three lenses

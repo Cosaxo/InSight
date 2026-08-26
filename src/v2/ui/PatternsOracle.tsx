@@ -22,7 +22,7 @@
 // will do instead of offering a reset that could only lie.
 import React from "react";
 import LIVE from "../data/live";
-import PATTERNS, { type OracleRecord, type PoolItem, type TellShare } from "../data/patterns";
+import PATTERNS, { type OracleRecord, type PoolItem, type Working } from "../data/patterns";
 // @ts-expect-error TS7016 — untyped spec module (named export, D189)
 import { WPAL } from "../spec/world-palette.js";
 // @ts-expect-error TS7016 — untyped spec module (named export, convert-on-touch)
@@ -87,9 +87,8 @@ const OR_HINT: Record<string, string> = {
   ledger: "Your record is below — a mark up where you broke the guess, a tick down where it had you. Press one to recall it.",
 };
 
-/** The viewer's option index on an item, from the encoded ±1. */
-const mineIdx = (p: PoolItem | undefined): 0 | 1 | null =>
-  !p || p.mine == null ? null : p.mine === 1 ? 0 : 1;
+// (the viewer's-side helper that stood here moved into PATTERNS.working —
+// the engine resolves evidence sides now, so the UI never re-derives them)
 
 // the record: one mark per answer, on a single baseline. Press one to
 // recall it. In `group` mode (the done state) the same marks are re-laid
@@ -194,6 +193,15 @@ function OrDone({ log, qOf, anyOpen }: {
           </div>
         )}
         <OrLedger log={log} qOf={qOf} sel={sel} onPick={setSel} group={true} topIx={topIx}></OrLedger>
+        {log.length > 0 && (
+          <div className="or-cap" aria-hidden="true">
+            <i className="or-cap-up"></i><span>you broke its guess</span>
+            <span className="or-cap-dot">·</span>
+            <i className="or-cap-dn"></i><span>it had you</span>
+            <span className="or-cap-dot">·</span>
+            <span>colour = topic</span>
+          </div>
+        )}
         <div className="or-slot">{rc && rq && (
           <div className="or-aside">{"“" + rq.q.text + "”"} — it called <b>{rq.q.options[rc.pred]?.label}</b>. {rc.pred === rc.mine ? "You did too." : <>You said <b>{rc.mine != null ? rq.q.options[rc.mine]?.label : ""}</b>.</>}</div>
         )}</div>
@@ -219,7 +227,7 @@ export default function PatternsOracle({ items }: {
   const [why, setWhy] = React.useState(false);
   const [sel, setSel] = React.useState<number | null>(null); // a recalled ledger mark
   const [hints, setHints] = React.useState<Record<string, 1>>(() => ({ ...orHints() }));
-  const [tell, setTell] = React.useState<{ ev: PoolItem; share: TellShare } | null | "none">(null);
+  const [work, setWork] = React.useState<Working | null | "pending">(null);
 
   const qOf = React.useCallback(
     (qid: string) => items.find((p) => p.q.id === qid),
@@ -243,25 +251,19 @@ export default function PatternsOracle({ items }: {
     return () => clearTimeout(t);
   }, [rec]);
 
-  // the on-demand evidence line: the strongest real crowd reading among
-  // the sealed record's evidence questions — bounded (≤2 tells, rows
-  // shared with say()'s cache), and honest when nothing qualifies
+  // the working, on demand (2026-08-26): every evidence answer the grade
+  // named, each with the crowd split it contributed — bounded (≤3 tells,
+  // rows shared with say()'s cache), and honest row by row: a tell that
+  // cannot clear the 12-in-both-samples floor is absence, not a bar
   React.useEffect(() => {
-    if (!why || !rec || !curItem) { setTell(null); return; }
+    if (!why || !rec || !curItem) { setWork(null); return; }
     let on = true;
-    void (async () => {
-      for (const evId of rec.ev ?? []) {
-        const ev = qOf(evId);
-        const side = mineIdx(ev);
-        if (!ev || side == null) continue;
-        const share = await PATTERNS.tell(rec.qid, evId, side).catch(() => null);
-        if (!on) return;
-        if (share && share.shares[rec.pred] >= 0.54) { setTell({ ev, share }); return; }
-      }
-      if (on) setTell("none");
-    })();
+    setWork("pending");
+    void PATTERNS.working(rec.qid)
+      .then((w) => { if (on) setWork(w); })
+      .catch(() => { if (on) setWork({ rows: [], hadEv: (rec.ev ?? []).length > 0 }); });
     return () => { on = false; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- rec names the sealed record; qOf follows items
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- rec names the sealed record
   }, [why, rec?.qid]);
 
   const next = () => {
@@ -269,7 +271,7 @@ export default function PatternsOracle({ items }: {
     setRec(null);
     setWhy(false);
     setSel(null);
-    setTell(null);
+    setWork(null);
   };
 
   if (!curItem) {
@@ -337,7 +339,12 @@ export default function PatternsOracle({ items }: {
           clickable <div> a keyboard can never reach (the a11y ratchet's
           exact case), and Next already does the job — so the instrument
           is a labeled group and only real controls take input */}
+      {/* --d rides here for the tiles' dashed seat (patterns.css): the seat
+          is drawn at the disc's own size, identical both sides — the SIZE
+          is public before the tap (it is the disc's), only the side is
+          sealed, so nothing leaks (2026-08-26) */}
       <div key={q.id + "-inst"} className={"or-inst" + (rec ? " is-live" : "")} role="group"
+        style={{ "--d": dsty["--d"] } as React.CSSProperties}
         aria-label={rec
           ? "It called " + (q.options[rec.pred]?.label ?? "") + "; you said " + (rec.mine != null ? q.options[rec.mine]?.label ?? "" : "")
           : "Its guess is sealed — pick a side"}>
@@ -369,14 +376,53 @@ export default function PatternsOracle({ items }: {
         <div className="or-aside">{"“" + rq.q.text + "”"} — it called <b>{rq.q.options[rc.pred]?.label}</b>. {rc.pred === rc.mine ? "You did too." : <>You said <b>{rc.mine != null ? rq.q.options[rc.mine]?.label : ""}</b>.</>}</div>
       )}
       {why && !rc && rec && (
-        <div className="or-aside">{tell && tell !== "none"
-          ? <>People who picked <b>{tell.ev.q.options[mineIdx(tell.ev) ?? 0]?.label}</b> on {"“" + tell.ev.q.text + "”"} {orWord(tell.share.shares[rec.pred])} pick <b>{q.options[rec.pred]?.label}</b> — {tell.share.n} in both samples.</>
-          : tell === "none"
-            ? <>Nothing in your answers pointed either way here.</>
-            : <>Reading the crowd…</>}</div>
+        // the working (2026-08-26): the sealed call rebuilt in the open —
+        // one row per evidence answer, its bar the crowd split it
+        // contributed, the hairline the coin, ink weighted by its pull.
+        // Three empty states, each its own truth: still fetching; a call
+        // your answers never moved (the prototype says "guessed at the
+        // coin" — live the call falls back to the crowd's own lean, so
+        // that is what the line says); and evidence real but below the
+        // 12-in-both-samples floor, which is thinness, not absence.
+        <div className="or-proof">
+          <span className="or-proof-kick">its working</span>
+          {work === "pending" ? (
+            <span className="or-ev-none">Reading the crowd…</span>
+          ) : work && work.rows.length ? work.rows.map((r, k) => {
+            const evq = qOf(r.evId);
+            if (!evq) return null;
+            const wmax = work.rows[0].w || 1;
+            const evFill = th != null ? `oklch(0.78 0.07 ${th})` : "color-mix(in oklab, var(--ink), var(--surface-2) 35%)";
+            return (
+              <div className="or-ev" key={r.evId} style={{ animationDelay: `${k * 80}ms` }}>
+                <span className="or-ev-q">You said <b>{evq.q.options[r.side]?.label}</b>{" — "}{"“" + evq.q.text + "”"}</span>
+                <span className="or-ev-row">
+                  <span className="or-ev-bar"><i style={{ width: `${Math.round(r.share * 100)}%`, background: evFill, opacity: 0.55 + 0.45 * Math.min(1, r.w / wmax) }}></i><em></em></span>
+                  <span className="or-ev-word">{orWord(r.share)} pick <b>{q.options[rec.pred]?.label}</b> · {r.n} in both samples</span>
+                </span>
+              </div>
+            );
+          }) : work && !work.hadEv ? (
+            <span className="or-ev-none">Nothing in your answers pointed either way here — the call is the crowd’s own lean, and the faint ink says so.</span>
+          ) : (
+            <span className="or-ev-none">The answers that moved it don’t have enough shared voters to count in the open — under 12 in both samples.</span>
+          )}
+          <span className="or-proof-base">sealed before your tap · counted only from answers you’d already given · the mark is the coin</span>
+        </div>
       )}
       {hint && <div className="or-aside is-hint">{hint}</div>}
       <OrLedger log={log} qOf={qOf} sel={sel} onPick={(k) => { setSel(k); setWhy(false); }}></OrLedger>
+      {/* the ledger's standing key (2026-08-26) — the one-time hint taught
+          it; this keeps it true after the hint is gone */}
+      {log.length > 0 && (
+        <div className="or-cap" aria-hidden="true">
+          <i className="or-cap-up"></i><span>you broke its guess</span>
+          <span className="or-cap-dot">·</span>
+          <i className="or-cap-dn"></i><span>it had you</span>
+          <span className="or-cap-dot">·</span>
+          <span>tap to recall</span>
+        </div>
+      )}
       <div className="or-foot">
         {rec
           ? <button className="or-next" onClick={next}>Next</button>

@@ -599,7 +599,11 @@ function App() {
 
   return (
     <IOSDevice width={402} height={874}>
-      <div className={appClasses} data-tab={tab} data-view={tab === 'track' ? 'track:' + dailyMode : tab === 'patterns' ? 'patterns' : 'mirror:' + mirrorPop} data-lens-style="underline" data-docked={tab === 'track' && docked ? '' : undefined} data-mpop={tab === 'mirror' ? mirrorPop : undefined} style={tab === 'mirror' ? { '--accent': mirrorPop === 'you' ? 'var(--c-today)' : mirrorPop === 'circle' ? 'var(--c-people)' : mirrorPop === 'groups' ? 'var(--c-groups)' : mirrorPop === 'world' ? 'var(--c-world)' : 'var(--c-city)' } : tab === 'patterns' ? { '--accent': 'var(--c-today)' } : undefined}>
+      {/* Patterns wears the app's BASE accent since the 2026-08-26 design —
+          the dusk-indigo override retired (the tab is not the daily's, and
+          borrowing --c-today said it was); only the mirror still re-accents
+          per population. */}
+      <div className={appClasses} data-tab={tab} data-view={tab === 'track' ? 'track:' + dailyMode : tab === 'patterns' ? 'patterns' : 'mirror:' + mirrorPop} data-lens-style="underline" data-docked={tab === 'track' && docked ? '' : undefined} data-mpop={tab === 'mirror' ? mirrorPop : undefined} style={tab === 'mirror' ? { '--accent': mirrorPop === 'you' ? 'var(--c-today)' : mirrorPop === 'circle' ? 'var(--c-people)' : mirrorPop === 'groups' ? 'var(--c-groups)' : mirrorPop === 'world' ? 'var(--c-world)' : 'var(--c-city)' } : undefined}>
 
         <header className="app-header">
           <button aria-label="Profile" className={"avatar-btn" + (ov === 'profile' ? ' is-on' : '')} onClick={() => { if (ov === 'profile') { setOv(null); } else { openDeferred(() => { closeAll(); setOv('profile'); }); } }}>
@@ -609,7 +613,26 @@ function App() {
               wordmark until the ruler scrolls away — then the two crossfade
               and a compact ruler takes over. */}
           <div className="h-center">
-            <div className="h-title">in<em>Sight</em></div>
+            <div className="h-title">
+              {/* The compact iris, not the full mark: at 21px the outer
+                  ring muddies (D302 — full mark above ~24px, compact
+                  below). Fills are the live tokens rather than baked hex,
+                  so a palette retune cannot strand this the way it
+                  stranded the old icon's sienna. The wordmark span is
+                  load-bearing: h-title is a flex row, and bare text here
+                  would let the gap split "In" from "Sight". */}
+              <svg viewBox="0 0 100 100" width="21" height="21" aria-hidden="true">
+                <path d="M50 24 L72.5 37 L72.5 63 L50 76 L27.5 63 L27.5 37 Z" fill="none" stroke="oklch(0.62 0.012 70)" strokeWidth="3.4" strokeLinejoin="round"/>
+                <circle cx="50" cy="24" r="10" fill="var(--c-today)"/>
+                <circle cx="72.5" cy="37" r="10" fill="var(--c-people)"/>
+                <circle cx="72.5" cy="63" r="10" fill="var(--c-groups)"/>
+                <circle cx="50" cy="76" r="10" fill="var(--c-world)"/>
+                <circle cx="27.5" cy="63" r="10" fill="var(--c-around)"/>
+                <circle cx="27.5" cy="37" r="10" fill="var(--c-likeness)"/>
+                <circle cx="50" cy="50" r="12.5" fill="var(--ink)"/>
+              </svg>
+              <span>In<em>Sight</em></span>
+            </div>
             {tab === 'track' && (
               <div className="h-dockslot">
                 <div className="h-dockruler" role="tablist" aria-label="How far this answer reaches">

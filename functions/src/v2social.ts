@@ -295,7 +295,7 @@ async function requestJoinImpl(request: CallableRequest): Promise<{
       db,
       (fresh.get("memberUids") || []) as string[],
       {
-        title: out.name || "inSight",
+        title: out.name || "InSight",
         body: `${myName || "Someone"} wants to join.`,
       },
       { kind: "join-request", gid: out.gid },
@@ -372,7 +372,7 @@ export const approveJoinV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   });
   await sendPushToUids(
     db, [who],
-    { title: name || "inSight", body: "You're in." },
+    { title: name || "InSight", body: "You're in." },
     { kind: "join-approved", gid },
     "invites",
     "join-approved",
@@ -1432,7 +1432,7 @@ export const inviteToGroupV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enfor
     db,
     invited,
     {
-      title: groupName || "inSight",
+      title: groupName || "InSight",
       body: mode === "duo" ? `${who} wants to play with you.` : `${who} invited you to join.`,
     },
     { kind: "invite", gid, mode },
