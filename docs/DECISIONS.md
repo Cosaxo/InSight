@@ -28548,6 +28548,30 @@ row that names something a reader would actually find, so filling the gap
 with `now: 'Mind'` would replace a true fallback with a false claim, in
 the sheet D277 just made worth opening.
 
+> **Corrected 2026-08-26.** *"'Mind', 'Morals' and 'Taste' … are not
+> branches on that map at all"* is false for two of the three, and this
+> paragraph contradicts itself one sentence earlier: the branch list is the
+> seven seeds **plus the daily lane's emergent cats**, and
+> `EMERGENT_CATS` (`daily-questions.js:69`) is every `CAT_META` key without
+> a `seedId` — Sport, Film, Food, Travel, **Mind**, **Morals**, Music.
+> `map-branches.js:22-24` pushes all of them onto `CATS` unconditionally at
+> module load, not once a question in that branch has been answered. So
+> Mind and Morals are branches on that map, always. Only *Taste* is
+> genuinely absent — it is not a `CAT_META` key.
+>
+> **What that does and does not overturn.** The premise is gone: `now:
+> 'Mind'` would not have been a false claim. Whether the fallback should
+> change is still a judgement about the feed, and this note does not make
+> it — D282's decision stands as recorded, with its reason corrected rather
+> than its conclusion replaced.
+>
+> Found by the sweep for D296's bug class, which confirmed the DAILY card's
+> version of the same fallback and fixed it: there `S.region` was never
+> written by the live path at all, so `|| 'Interests'` fired for all 130
+> questions. The feed's is a different mechanism and was left alone, which
+> is what this correction is about — the check that read the record found
+> the record's own reasoning stale, not the code it protects.
+
 ## D283 · Every field is followed, and the follow list gets a way out
 
 **2026-08-24.** **Status:** binding. The owner's decision, taken against
