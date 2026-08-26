@@ -209,6 +209,9 @@ export const deleteAccount = onCall(
       // Paid purchase records swept by phase 4e (PAID-PLAN §7, D288 §3) —
       // the buyer's contract ledger, keyed by uid.
       purchases: 0,
+      // Paid-question bookings swept by phase 4f (paid.ts, D313) — the
+      // pre-payment half of a sale, keyed by uid.
+      paidBookings: 0,
       // Reveal docs scrubbed of this uid (phase 1c-bis). Reported for the
       // same reason as modQueueOrphans: it is the number that tells an
       // operator whether the collection-group sweep actually reached
@@ -809,6 +812,8 @@ export const deleteAccount = onCall(
       // The suggestion budget (suggestions.ts), same pattern and same
       // reasoning: added with the callable, not after an audit.
       await db.collection("v2_ratelimits").doc(`suggest_${uid}`).delete();
+      // The paid-booking budget (paid.ts, D313), same pattern again.
+      await db.collection("v2_ratelimits").doc(`paidbook_${uid}`).delete();
     } catch (err) {
       logger.error("[deleteAccount] rate-limit ledger wipe failed:", err);
       failed.push("ratelimits");
@@ -847,11 +852,11 @@ export const deleteAccount = onCall(
 
     // 4e. This account's paid purchase records (PAID-PLAN §7, D288 §3).
     //     Uid-keyed like everything else the sweep covers; the business
-    //     record of a contract lives with the contract itself, off-app
-    //     (selling is by hand, PAID-PLAN §9.2), and the bought QUESTION
-    //     survives as content the way a promoted suggestion does — the
-    //     purchase ROW still goes, and the next pricing.json rebuild
-    //     folds a ledger that no longer names this account.
+    //     record of a sale lives with the payment processor (Stripe since
+    //     D313; the hand contract before it), off-app, and the bought
+    //     QUESTION survives as content the way a promoted suggestion
+    //     does — the purchase ROW still goes, and the next pricing.json
+    //     rebuild folds a ledger that no longer names this account.
     try {
       counts.purchases = await deleteQueryDocs(
         db.collection("v2_purchases").where("uid", "==", uid),
@@ -859,6 +864,21 @@ export const deleteAccount = onCall(
     } catch (err) {
       logger.error("[deleteAccount] purchases wipe failed:", err);
       failed.push("purchases");
+    }
+
+    // 4f. This account's paid-question bookings (paid.ts, D313). The
+    //     pre-payment half of a sale: prompt, audience, the review's
+    //     verdict and note — free text under a uid, covered the way the
+    //     suggestions are. A booking that went LIVE already left its
+    //     durable halves elsewhere (the purchase row, erased above with
+    //     this account; the question doc, which survives as content).
+    try {
+      counts.paidBookings = await deleteQueryDocs(
+        db.collection("v2_paid_bookings").where("uid", "==", uid),
+      );
+    } catch (err) {
+      logger.error("[deleteAccount] paid-booking wipe failed:", err);
+      failed.push("paidBookings");
     }
 
     // 5. Any wipe failure above must abort BEFORE the auth delete:
@@ -938,6 +958,13 @@ export { digestEngagementV2 } from "./engagement";
 // "Suggest a question" — the community board's write path and the
 // operator review instruments (docs/NEXT-FUNCTIONALITY.md §6).
 export { suggestQuestionV2, fetchSuggestionsV2, reviewSuggestionV2 } from "./suggestions";
+// The self-serve paid-question loop (D313): book → automated review →
+// Stripe checkout → the webhook writes the purchase and the live
+// question → the closer refunds what the window did not deliver.
+export {
+  bookPaidQuestionV2, onPaidBookingCreated, sweepPaidReviewsV2,
+  createPaidCheckoutV2, stripeWebhookV2, closePaidCampaignsV2,
+} from "./paid";
 // D290: the replay tool — rebuild a question's aggregate from the answers
 // that made it. The operator half of "answers are the source of truth,
 // aggregates are disposable projections": D28's correction runbook could

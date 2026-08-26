@@ -31711,3 +31711,216 @@ instrument; and no store form, rules line or data-inventory row moved —
 the caches hold the same data they always held, in a box the same purge
 reaches, which is what the new check:purge predicate and the
 deleteAccount test now hold in place.
+
+## D313 · The paid question sells itself: automated review, Stripe checkout, and a question that goes live with nobody at the desk
+
+**Date: 2026-08-26. Requested by the owner, who answered the four
+questions the build forced in one sitting: the loop must need him for
+NOTHING (an automated check against the guidelines approves what passes,
+"as long as they pay enough for a cohort"); money moves through Stripe
+on the web side; a held review retries rather than declining; and
+under-delivery refunds automatically at close.**
+
+### What this replaces
+
+PAID-PLAN §9.2 sold by hand and said so at every layer: the door's
+contract sheet printed "Arranged directly for now — no self-serve yet",
+`scripts/record-purchase.mjs` was deliberately the purchase collection's
+only pen ("a deployed endpoint that can mint contract records would be
+standing surface in exchange for nothing"), and a sold question reached
+devices as a content PR plus a deploy. Every one of those sentences was
+true and is now retired ON PURPOSE, by this record: the owner asked for
+a loop that runs while he sleeps, and a human PR per sale is the
+opposite of that.
+
+### The loop, and where each old boundary went
+
+`functions/src/paid.ts`, one status per hop on `v2_paid_bookings`:
+
+1. **book** — `bookPaidQuestionV2` (App Check, 5/day budget) validates
+   the form against the same bounds the bank's gates hold (types, the
+   synthesized LIKERT/RATING scales byte-equal to gen-v2content's, dims
+   ≤3 from the published vocabulary with the scope's place dim required,
+   topic from the feed's own list) and writes the booking. The buyer
+   name comes off the PROFILE, never the wire (D228's nameless purchase
+   stays available by having no name to print).
+2. **review** — the create trigger runs it: deterministic gates first,
+   then `claude-opus-5` against `REVIEW_GUIDELINES` (a constant a unit
+   test pins, so a rule cannot silently fall out of the prompt). Money
+   never buys the review (D288) — it runs BEFORE payment exists, which
+   is also why a decline needs no refund path. An API outage HOLDS the
+   booking; `sweepPaidReviewsV2` retries every 30 minutes forever — the
+   owner chose hold-and-retry over fail-closed. In the emulator, or any
+   deploy without the secret, the model half is SKIPPED loudly and
+   gates alone decide (`by: "gates-only"`) — the e2e must run offline,
+   and a phantom "the model approved it" would be worse than the honest
+   record that none did. A safety refusal from the reviewer IS a
+   decline: content the model will not assess does not run as a card.
+3. **approve** — the verdict locks the quote (base × idx off the
+   committed rate card, now embedded in the deploy as generated
+   `functions/src/pricing.ts` — `check:pricing` byte-compares it against
+   `content/pricing.json`, the gen-v2content relationship, because a
+   price the server does not verify is a price the client picked).
+4. **pay** — `createPaidCheckoutV2` turns an approved booking into a
+   Stripe Checkout session (EUR, the cap up front). Commerce stays on
+   the web side (NEXT-FUNCTIONALITY §6): the app opens the URL and
+   never renders a payment form.
+5. **live** — `stripeWebhookV2` (signature-verified, at-least-once-safe
+   behind the status guard) writes, in ONE transaction: the purchase
+   record (the exact shape the room already reads), the question doc
+   into `v2_questions`, and the booking's `live` stamp. The question
+   doc is the seed's own field shape with `updatedAt` fresh — the
+   bank's delta fetch picks it up on every device's next boot, so going
+   live needs no deploy, no contentRev bump, and no third serving path.
+   The window starts the day AFTER payment (today's decks are already
+   dealt) and runs the door's 29 days.
+6. **close** — `closePaidCampaignsV2` (daily) reads the answer count
+   off the PUBLIC aggregate — the same doc buyer and voters read, which
+   is what D164's bill-on-answers was for — and refunds
+   (cap − answers) × rate through Stripe. A failed refund HOLDS the
+   purchase open for tomorrow's run; closing it would record the debt
+   as settled.
+
+What did NOT move: the one-slot cap (concurrent buyers share by day
+rotation, priced in from D195), tail-never-core (the written doc carries
+no `core`), selection on the device (the audience tag rides the
+content), and the review's primacy over money. The audience "Topic"
+chip left the door in the same change: sponsored matching reads
+anchors, anchors have no topic, and a band printing a dim the match
+never reads would be the disclosure design lying about itself. The "ask
+it daily" chip left too — the over-time lane is the pulse machinery
+(PAID-PLAN §8) and it is not wired to self-serve; a chip that books
+nothing different is a control that lies. Both return when their
+machinery does.
+
+### The trail
+
+`v2_paid_bookings`: owner-read/write-false rules with tests, a
+composite index for the sweep, phase 4f in `deleteAccount` plus the
+`paidbook_` ledger, `data-inventory.md` row, SCHEMA-V2 note. The
+booking budget is 5/day where suggestions hold 3 — a model has no queue
+to pace, but each booking is a review someone (us) pays for.
+`web/privacy.html` gains the Stripe sentence and `check:policy-claims`
+holds it. The door's copy now states the functional truth ("Checked
+automatically before anything is charged"), and the old estimate line's
+free-extension promise — which nothing was ever built to grant — is
+replaced by the refund the closer actually keeps. Secrets
+(`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `ANTHROPIC_API_KEY`) and
+the webhook's dashboard configuration are DEPLOYMENT.md's; until they
+are set, production books and declines but cannot approve past gates,
+sell, or refund — each degradation logged, none silent.
+
+### What this deliberately leaves open
+
+Self-serve is questions only: place-score subscriptions (PAID-PLAN §5)
+still wait, the report shelf still points at the contract channel, and
+`record-purchase.mjs` stays the pen for hand-arranged sales — the
+webhook is a second pen for the same shape, not a replacement. The
+demand index still recomputes by script; a sale updates the ledger the
+next `build-pricing.mjs` run folds, so the door's booked ticks can lag
+a sale until then — prices cannot, because the committed card is the
+price. And the review model's bill rides the Anthropic account, not
+COSTS.md's Firebase arithmetic; one line there names it.
+
+## D314 · The no-tracking promise retires; the page describes today and stays ahead of change
+
+**Date: 2026-08-26. The owner's call, made twice in plain words ("we
+should remove that promise", "it ruins the app") over the recorded
+recommendation to keep it.** The D225 posture, applied to the oldest
+pledge on the page: an unneeded promise is a standing liability, and
+this one — "no third-party analytics or tracking of any kind", pinned
+since D183 as the D3 row of `check:policy-claims` — bound every future
+product conversation about analytics, attribution or ad partners to a
+public promise-break, whatever the merits of the day.
+
+What changed, and what deliberately did not:
+
+- **The pledge is gone; the fact stays a fact.** `web/privacy.html` now
+  DESCRIBES current practice — no advertising identifiers, no
+  third-party analytics SDK, no personal data sold to advertisers —
+  and adds the one sentence that makes describing enough: *"If any of
+  that changes, this page changes first."* That sentence is the new
+  pin (the D252 shape: describe today, pledge nothing about tomorrow,
+  and gate the description so it cannot silently rot).
+- **Nothing was added.** Removing the promise ships no SDK, changes no
+  data flow, and moves no store form: the App Store nutrition label and
+  Play Data Safety still answer tracking-off because that remains true
+  of the shipped binary, held by `check:store-forms`. The day a
+  third-party SDK actually arrives, the store forms, an EEA consent
+  flow, ATT on iOS and this page move together — as a product build
+  with its own record, not a broken promise.
+- **The recommendation it overrides is part of this record**, per the
+  house rule that a disagreement is written down rather than papered
+  over: the advice (same day, in the ads discussion) was that the
+  pledge was a differentiator worth more than early ad fill, and that
+  an unsold slot here costs nothing. The owner weighed it and chose
+  freedom over the pledge. The self-serve ad path built beside this
+  decision (D315) needs no tracking either way — text-only, link-free,
+  matched on the device — so the first revenue arrives without spending
+  what this record unlocks.
+
+## D315 · Ads sell themselves too — flat-priced windows through the same loop, and no Google
+
+**Date: 2026-08-26. The owner asked "what do you think about building
+out the system but starting with google ads so we have revenue before
+real advertisers?"; the recorded answer was no on Google — it would
+ship the canonical third-party tracker into an app whose store labels
+answer tracking-off, negate D197's whole ad design (text-only,
+link-free, device-matched, unmeasured), and earn pocket change at
+current scale — and yes on the system: the D197 ad becomes the D313
+loop's second product.** The owner took that recommendation, so first
+ad revenue arrives with zero tracking and zero promises moved (D314,
+decided the same hour, was about the PLEDGE — this build adds no SDK
+and no data flow either way).
+
+The design, and where each piece of it was forced rather than chosen:
+
+- **Flat price, because there is nothing to meter.** A question bills
+  per answer, a public number both sides read (D164). An ad produces no
+  answers, no clicks (nothing is tappable — D197) and no impressions
+  (counting them is the measurement apparatus MONETIZATION.md refuses).
+  The only honest price is the WINDOW itself: `adBase` (€320, committed
+  beside `capEur`) × the scope's demand index, `check:pricing`-clamped,
+  locked at approval like every quote. No refunds — nothing can
+  measurably under-deliver — so the closer's ad job is bookkeeping.
+- **Ads queue; they never share with each other.** A question diluted
+  by slot rotation self-corrects through billing and the refund. A
+  flat-priced ad diluted by another ad would silently get less for the
+  same money — so `adStartDay` starts a new ad the day after the
+  scope's running one ends, inside the webhook's transaction (two
+  racing payments serialize), and `from` joined the FeedAd shape so a
+  queued window cannot serve early (pickPaid holds it; pinned). Sharing
+  with paid QUESTIONS remains and the contract sheet says so before
+  payment — their billing absorbs the split day, the ad buyer reads it
+  in plain words.
+- **One audience tag, always named.** D197's rules carry over as
+  written: at most one dim (`AD_AUDIENCE_MAX`, vs the question path's
+  three), the advertiser printed on every card (no nameless ads — the
+  name is reviewed content, not an identity claim), text bounds and the
+  URL nose mirrored byte-for-byte from `check:content`'s ad rules.
+- **The review is the same review**, with an ad clause: assertions get
+  claims-shaped scrutiny (miracle claims, impersonation, one-sided
+  political campaign copy — civic QUESTIONS stay welcome inventory; an
+  ad has no answer space to keep it honest). The no-link rule is what
+  makes automated ad review tolerable at all: an ad that cannot send
+  anyone anywhere has almost nothing to gain by sneaking through.
+- **The pens divide by id.** The webhook writes `v2_ads/paidad-*`;
+  `runSeedAds` — whose delete-what-the-bank-drops behavior exists so
+  the pool cannot accumulate — now SPARES that prefix, and the daily
+  closer takes over the retirement (delete at window end), so the
+  accumulation control survives with the ownership moved to the pen
+  that made the doc. The e2e pins the sparing against a real reseed
+  over the deliberately-empty committed file, which without the sparing
+  deletes everything.
+- **The room and the door tell the ad's truth**: a kind:"ad" purchase
+  card shows the words, the flat price and the window — "an ad collects
+  nothing; it runs, that is all" — and the composer's ad lane prints
+  the flat line where the question lane prints per-answer, with the
+  forecast machinery absent rather than reworded (it predicts answers,
+  which is the wrong product).
+
+`content/ads.json` stays the committed pen for hand contracts and stays
+empty until one exists; its status note now says where self-serve ads
+actually live. Demand honesty: ad campaigns fold into the slot-day
+arithmetic `build-pricing.mjs` prices (same inventory, same idx) and
+stay out of the answer estimates (nothing to estimate).

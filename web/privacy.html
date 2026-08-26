@@ -309,12 +309,20 @@
       Google Drive.
     </li>
     <li>
-      <strong>If you buy a question.</strong> A record of the contract is
+      <strong>If you buy a question or an ad.</strong> A record of the contract is
       kept on your account — what was asked, the place and window it was
       bought for, the rate and the cap — and only you can read it. What a
       buyer receives is the same public numbers everyone reads; there is
       no private cut. The current prices are published in the app and in
       its source. Deleting your account deletes the record with it.
+      Submitted questions and ads are checked automatically — by our own
+      rules and by an AI reviewer (Anthropic&rsquo;s Claude) that reads only
+      what you typed into the ask — before any payment exists. Payment
+      itself runs on <strong>Stripe</strong>, on the web, as our payment
+      processor: Stripe receives your payment details and we never see
+      them; we keep only the booking, the payment&rsquo;s reference ids
+      and the refund owed if the window under-delivers, which is paid
+      back automatically when it closes.
     </li>
   </ul>
 
@@ -337,11 +345,10 @@
     single picture you choose, if you choose one: a profile photo is
     optional, off until you add it, and its embedded metadata (including
     any location the camera wrote into it) is stripped on your device
-    before it is uploaded. No advertising
-    identifiers. No third-party analytics or tracking of any kind — there
-    is no product analytics SDK in this app at all. We do not sell or
-    share data with advertisers, because we do not have the kind of data
-    an advertiser would want and do not intend to.
+    before it is uploaded. Today the app ships no advertising
+    identifiers and no third-party analytics SDK, and we do not sell or
+    share personal data with advertisers. If any of that changes, this
+    page changes first.
   </p>
 
   <h2>How the public counts work</h2>

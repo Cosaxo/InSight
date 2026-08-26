@@ -91,6 +91,16 @@ jobs:
           # verbatim (real newlines) or \n-escaped; the write below
           # normalizes, and functions/src/deviceBind.ts unescapes.
           DC_PRIVATE_KEY: ${{ secrets.DC_PRIVATE_KEY }}
+          # The paid-question loop's credentials (paid.ts, D313) — all
+          # three SECRETS. Deliberately the dotenv mechanism rather than
+          # defineSecret(): Secret Manager entries that do not exist make
+          # `firebase deploy` refuse, and a paid feature must never block
+          # an emergency rules deploy. Empty values degrade honestly at
+          # runtime (review decides on gates alone; checkout and refunds
+          # refuse), each with its own warning below.
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           if [ -z "$SEED_ADMIN_UIDS" ]; then
             echo "::warning::SEED_ADMIN_UIDS is empty — seedContentV2, revealDuelsNowV2 and the rebuild* callables will return permission-denied. Set it on the production environment, then re-run via workflow_dispatch."
@@ -122,6 +132,20 @@ jobs:
           # Normalize real newlines to \n so the PEM survives dotenv's
           # one-line-per-value format; the function unescapes either way.
           printf 'DC_PRIVATE_KEY="%s"\n' "$(printf '%s' "$DC_PRIVATE_KEY" | sed ':a;N;$!ba;s/\n/\\n/g')" >> functions/.env.prvfire33
+          # The paid-question loop (D313). Each missing credential turns
+          # one hop off, loudly, and the rest of the loop keeps its shape:
+          # no ANTHROPIC_API_KEY → reviews pass on deterministic gates
+          # alone; no STRIPE keys → approved bookings cannot be paid and
+          # closed campaigns cannot refund.
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::warning::ANTHROPIC_API_KEY is empty — paid-question reviews run on gates alone (paid.ts logs paid_review_gates_only)."
+          fi
+          if [ -z "$STRIPE_SECRET_KEY" ] || [ -z "$STRIPE_WEBHOOK_SECRET" ]; then
+            echo "::warning::STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET incomplete — createPaidCheckoutV2 refuses, stripeWebhookV2 answers 503, and the closer records refunds without executing them."
+          fi
+          printf 'STRIPE_SECRET_KEY=%s\n' "$STRIPE_SECRET_KEY" >> functions/.env.prvfire33
+          printf 'STRIPE_WEBHOOK_SECRET=%s\n' "$STRIPE_WEBHOOK_SECRET" >> functions/.env.prvfire33
+          printf 'ANTHROPIC_API_KEY=%s\n' "$ANTHROPIC_API_KEY" >> functions/.env.prvfire33
 
       - name: Write service account key
         env:
@@ -179,7 +203,7 @@ jobs:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa-key.json
         run: >
           npx firebase deploy --project prvfire33 --non-interactive --force
-          --only "functions:deleteAccount,functions:seedContentV2,functions:onV2AnswerCreated,functions:onV2AnswerUpdated,functions:createGroupV2,functions:joinGroupV2,functions:requestJoinV2,functions:approveJoinV2,functions:declineJoinV2,functions:leaveGroupV2,functions:claimHandleV2,functions:inviteToGroupV2,functions:acceptGroupInviteV2,functions:declineGroupInviteV2,functions:nearbyCountV2,functions:nearbyRoomV2,functions:registerPushToken,functions:scheduledDuelReveals,functions:revealDuelsNowV2,functions:buildModQueue,functions:buildModQueueNow,functions:fetchModQueue,functions:submitModVerdict,functions:activateDeviceV2,functions:ledgerVelocityScan,functions:logicStartV2,functions:logicSubmitV2,functions:suggestQuestionV2,functions:fetchSuggestionsV2,functions:reviewSuggestionV2,functions:resolveCallsV2,functions:fitPatternsV2,functions:digestEngagementV2,functions:rebuildAggregateV2"
+          --only "functions:deleteAccount,functions:seedContentV2,functions:onV2AnswerCreated,functions:onV2AnswerUpdated,functions:createGroupV2,functions:joinGroupV2,functions:requestJoinV2,functions:approveJoinV2,functions:declineJoinV2,functions:leaveGroupV2,functions:claimHandleV2,functions:inviteToGroupV2,functions:acceptGroupInviteV2,functions:declineGroupInviteV2,functions:nearbyCountV2,functions:nearbyRoomV2,functions:registerPushToken,functions:scheduledDuelReveals,functions:revealDuelsNowV2,functions:buildModQueue,functions:buildModQueueNow,functions:fetchModQueue,functions:submitModVerdict,functions:activateDeviceV2,functions:ledgerVelocityScan,functions:logicStartV2,functions:logicSubmitV2,functions:suggestQuestionV2,functions:fetchSuggestionsV2,functions:reviewSuggestionV2,functions:resolveCallsV2,functions:fitPatternsV2,functions:digestEngagementV2,functions:rebuildAggregateV2,functions:bookPaidQuestionV2,functions:onPaidBookingCreated,functions:sweepPaidReviewsV2,functions:createPaidCheckoutV2,functions:stripeWebhookV2,functions:closePaidCampaignsV2"
 
       # The legal pages and the landing page they are reached from. Both
       # stores refuse a submission without a reachable privacy-policy URL,

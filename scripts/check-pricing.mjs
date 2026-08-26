@@ -52,6 +52,9 @@ if (!(typeof p.base === "number" && p.base > 0)) fail(`base must be a positive p
 if (!(typeof p.floorX === "number" && p.floorX > 0)) fail(`floorX must be positive, got ${JSON.stringify(p.floorX)}`);
 if (!(typeof p.ceilX === "number" && p.ceilX >= p.floorX)) fail(`ceilX must be ≥ floorX, got ${JSON.stringify(p.ceilX)}`);
 if (!(typeof p.capEur === "number" && p.capEur > 0)) fail(`capEur must be positive, got ${JSON.stringify(p.capEur)}`);
+// The flat ad window (D315): an ad has no answers to bill per, so its
+// price is one committed figure × the scope's demand index.
+if (!(typeof p.adBase === "number" && p.adBase > 0)) fail(`adBase must be a positive flat window figure, got ${JSON.stringify(p.adBase)}`);
 if (!(typeof p.floorWeek === "number" && p.floorWeek > 0)) fail(`floorWeek must be positive, got ${JSON.stringify(p.floorWeek)}`);
 if (!(Number.isInteger(p.trailingDays) && p.trailingDays > 0)) fail(`trailingDays must be a positive integer, got ${JSON.stringify(p.trailingDays)}`);
 // The display-conversion table is part of the committed card: a rate the
@@ -85,6 +88,23 @@ for (const [scope, e] of Object.entries(est)) {
   if (!(Number.isInteger(e.perDay) && e.perDay >= 0)) fail(`estimates.${scope}.perDay must be a non-negative integer`);
   if (!(Number.isInteger(e.campaigns) && e.campaigns >= 1)) fail(`estimates.${scope} without campaigns ≥ 1 — a forecast needs a completed campaign behind it (D288 §3)`);
   if (!(Number.isInteger(e.days) && e.days >= 1)) fail(`estimates.${scope}.days must be ≥ 1 — the basis ships with the figure`);
+}
+
+// ── the functions copy (D313) ───────────────────────────────────────────
+// The booking path prices server-side off functions/src/pricing.ts, a
+// generated embed of this same card (scripts/gen-pricing-ts.mjs — the
+// gen-v2content relationship). Byte-compare here so the price the server
+// charges and the price the door prints cannot drift: a card edit without
+// a regen fails THIS gate, not a buyer.
+try {
+  const { generatePricingTs } = await import("./gen-pricing-ts.mjs");
+  const want = generatePricingTs(readFileSync(resolve(root, FILE), "utf8"));
+  const have = readFileSync(resolve(root, "functions", "src", "pricing.ts"), "utf8");
+  if (want !== have) {
+    fail("functions/src/pricing.ts is out of sync with content/pricing.json — run `npm run build:pricing-ts` and commit it");
+  }
+} catch (err) {
+  fail(`functions/src/pricing.ts could not be compared — ${err.message}`);
 }
 
 if (fails.length) {
