@@ -68,6 +68,24 @@ describe("the room", () => {
     expect(screen.getByText("city:Oslo")).toBeTruthy();
   });
 
+  it("counts the last serving day as a day — `until` is inclusive", () => {
+    // The card read `until` as exclusive and measured against wall-clock
+    // now, so on the contract's final serving day it printed "0 of N days
+    // left" with the hairline full — beside a chip still saying running,
+    // while live.ts's `fresh()` (`q.until >= today`) was still serving the
+    // question. Every other reader treats both ends as inclusive.
+    const today = new Date().toISOString().slice(0, 10);
+    const back = (n: number) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+    STORE.rows = [{ ...PURCHASE, win: { start: today, until: today } }];
+    render(<AskedByYouOverlay onClose={() => {}} />);
+    // A window opened and closed on one day serves for one day, not zero.
+    expect(screen.getByText(/days left/).textContent).toBe("1 of 1 days left");
+    cleanup();
+    STORE.rows = [{ ...PURCHASE, win: { start: back(2), until: today } }];
+    render(<AskedByYouOverlay onClose={() => {}} />);
+    expect(screen.getByText(/days left/).textContent).toBe("1 of 3 days left");
+  });
+
   it("caps the spend line at the cap — billing stops there", () => {
     STORE.rows = [{ ...PURCHASE, counts: [9000, 1000] }];
     render(<AskedByYouOverlay onClose={() => {}} />);
