@@ -1,0 +1,32 @@
+--- recorded/daily-questions.js
++++ 2026-08-26/daily-questions.js
+@@ -241,6 +241,12 @@
+   const LS = 'insight.dailyq.v1';
+   let saved = {};
+   try { saved = JSON.parse(localStorage.getItem(LS) || '{}'); } catch (e) { saved = {}; }
++  // answers voted anonymously — they still count, but stay off your public map
++  // (someone opening your map never sees them)
++  const LSA = 'insight.dailyq.anon.v1';
++  let anonSaved = {};
++  try { anonSaved = JSON.parse(localStorage.getItem(LSA) || '{}'); } catch (e) { anonSaved = {}; }
++  const saveAnon = () => { try { localStorage.setItem(LSA, JSON.stringify(anonSaved)); } catch (e) {} };
+   const listeners = new Set();
+ 
+   // ── personal branch placement (overrides the crowd's voted default) ───────
+@@ -290,11 +296,15 @@
+     today: QUESTIONS[0],
+     myAnswer,
+     isAnswered: (q) => myAnswer(q) != null,
+-    answer(id, choice) {
++    answer(id, choice, anon) {
+       saved[id] = choice;
++      if (anon) anonSaved[id] = true; else delete anonSaved[id];
+       try { localStorage.setItem(LS, JSON.stringify(saved)); } catch (e) {}
++      saveAnon();
+       listeners.forEach(f => f());
+     },
++    isAnon: (id) => !!anonSaved[id && typeof id === 'object' ? id.id : id],
++    setAnon(id, on) { if (on) anonSaved[id] = true; else delete anonSaved[id]; saveAnon(); listeners.forEach(f => f()); },
+     unansweredCount() { return QUESTIONS.filter(q => myAnswer(q) == null).length; },
+     // questions the user still hasn't answered, newest first
+     unanswered() { return QUESTIONS.filter(q => myAnswer(q) == null); },
