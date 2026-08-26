@@ -30814,3 +30814,106 @@ database-isolation argument fails. The value was not in the hit rate. It
 was that the two real ones were a wrong command that fails loudly and a
 wrong region in a heading that would not have, and neither is the kind of
 thing the person who wrote them re-reads and catches.
+
+## D302 · Serving becomes selection: pages instead of the whole bank, and the order inherits the caps' job
+
+**Status:** Proposed · **Requested:** 2026-08-26, owner: *"don't fetch
+every question every time — there should be lazy loading and algorithms
+deciding what questions to show … like learn, no need to limit that in
+any meaningful capacity, facts are facts, and if you create what turns
+out to be bad questions they should just eventually be filtered out by
+the algorithm. One does not need to answer every question, like one does
+not need to watch every YouTube video."*
+
+**What is recorded here.** The direction, its boundary against the
+decisions already binding, the arithmetic that shapes the build, and the
+phases — so that adopting it is a status flip rather than a design
+session. Nothing is built from this record while it says Proposed
+(D82's shape).
+
+### What it decides, in three sentences
+
+The bank stops being something every device holds and becomes something
+a device **pages through**: a server-published order says what a fresh
+screen offers, the device fetches what it actually reaches, and the
+cache keeps what it has seen — this is the "real product need" that
+[`BANK-DELIVERY.md`](BANK-DELIVERY.md) §5 step 3 was waiting to be
+named. Production volume stops being sized to consumption — learn
+first, the feed tail behind it — because runway stops costing every
+device once nobody is handed the whole bank. Performance quality moves
+from pre-emptive caps to the serving order: a question that measures
+badly sinks in the published ranking instead of waiting for a human to
+read a retire proposal — demotion is the order's, deletion stays a
+lane's PR, `active: false` stays the kill switch.
+
+### The boundary it does not cross
+
+D163 stands: **server-side per-user selection stays refused**. The
+YouTube outcome does not need the YouTube profile, and the split is one
+the tree already practices:
+
+- **The server's half is global.** A scheduled function folds the same
+  public aggregates the scorecard already reads — volume, evenness,
+  D271 attention — into a published per-topic order, the
+  `fitPatternsV2` shape: one nightly fold, small published docs
+  (`v2_meta/app` and `v2_patterns/loadings` are the precedents). It
+  knows what the crowd did with a question; it never learns what a
+  person was shown.
+- **The device's half is personal.** D163's interest model (binding,
+  not built) orders *within* the pages the device fetched, off the
+  pass/defer/read signals already on the device. This record is the
+  product need that build was waiting for.
+
+If the owner ever wants the server half personal, that is a reversal of
+D163 to record on its own — not a reading of this one.
+
+### What "filtered out by the algorithm" changes, exactly
+
+The signals exist and are advisory: `retireProposals`, `deadDuels`,
+`weakTraps` are cited in PR bodies for a human to act on (D33, D40).
+Adoption graduates the SIGNALS into the published order — continuous,
+reversible demotion — while retirement (removing a question) keeps its
+lane and its deliberateness. The per-card FORM gates do not move:
+`check:quality`'s rules are what make a card an InSight card, none of
+them is a volume cap, and BANK-DELIVERY §6's sentence — the bar does
+not move with the volume — binds here too.
+
+### The corpus stays bounded, and that is not a contradiction
+
+"One does not need to answer every question" is already the tail's
+contract: **core** (D161) is the bounded half the Mirror folds and the
+patterns fit solves over, and it stays bounded because its value is
+density. What unbounds is the tail and learn — learn first, because it
+is outside the corpus entirely (a learn card joins no cohort fold), its
+bank already left the bundle (D284), and its shortage is the one the
+owner keeps meeting (D283, and again today).
+
+### The arithmetic that shapes the build
+
+Today the whole-bank fetch is ~671 docs / ~185 KiB, once per install
+plus deltas — nearly free, which is why `costs:scale` bills 513 and
+100,000 docs identically. A naive recommender inverts that: per-request
+ranking bills per impression. The repo-shaped answer is the nightly-fit
+pattern above — O(one scheduled fold) per night plus O(pages actually
+read) per device, instead of O(bank) per device. What assumes
+whole-bank today is BANK-DELIVERY §4's census: the daily deck
+(positional, one a day — stays), the feed pool and weave, the topic
+sheet's counts (published instead), search, and the test/Mirror joins
+(core-only, so they never page — the corpus is the bounded half). Each
+conversion is its own reviewed change.
+
+### Phases (each graduates on build; none starts while Proposed)
+
+1. **BANK-DELIVERY §3** — the bank cache to IndexedDB. Three call
+   sites; takes the practical ceiling past 10,000 docs before any
+   architecture moves.
+2. **Learn pages.** A published learn order plus fetch-on-reach; then
+   the lane's pace unbinds from consumption — `FIELD_TARGET` stays a
+   shape goal (D283), cadence and `RUN_CAP` become throughput questions
+   answered by the writing bar rather than the read path.
+3. **Feed tail pages.** A published per-topic order for the tail;
+   D163's device model orders within fetched pages. Core keeps shipping
+   whole.
+4. **Demotion in the order.** The scorecard's signals feed the nightly
+   fold; retire proposals keep proposing deletion, and the order stops
+   waiting for them.

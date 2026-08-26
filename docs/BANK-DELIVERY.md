@@ -263,7 +263,11 @@ convert later, and a published count is usually as good.
    warns at the cliff edge warns too late. Three call sites.
 3. **Ceiling 3, when a real product need asks for it** — an interest
    model that selects server-side (D163), or a bank large enough that a
-   first install feels slow. Not before.
+   first install feels slow. Not before. **The need was named 2026-08-26**:
+   the owner directed serving-by-selection — lazy pages, a published
+   order, quality filtered by signal rather than prevented by cap —
+   recorded as D302 (Proposed). Adoption starts this step's clock, and
+   §3 stays the enabler to build first.
 
 Steps 1 and 2 are independent and can land in either order. Step 3
 depends on neither.
