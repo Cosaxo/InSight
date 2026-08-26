@@ -294,7 +294,7 @@ const state = {
   // (functions/src/patterns.ts) — the crowd half of the Patterns tab's
   // mount gate (D265), riding the meta read hydrate already pays.
   meta: { latestBuild: 0, minBuild: 0, updateUrl: "", patternsPool: 0, patternsBasis: 0 },
-  stats: { bankSource: "none", aggsFetched: 0, answersFetched: 0, callOutcomesFetched: 0 },
+  stats: { bankSource: "none", aggsFetched: 0, answersFetched: 0, callOutcomesFetched: 0, cacheWriteFailures: 0 },
   groups: [] as Array<Record<string, unknown> & { id: string }>,
   duelBank: [] as Array<QuestionDoc & { id: string }>,
   reveals: {} as Record<string, Record<string, unknown> | null>,
@@ -566,6 +566,49 @@ const REVEAL_HIST_DAYS = 14;
 // Clearing the timer alone would not close the snapshot writers.
 let torndown = false;
 
+// ── the quota instrument (docs/ANSWER-SCALE.md §2.1) ─────────────────
+//
+// Every `insight.*` write in this tree is guarded-and-swallowed, which is
+// the right degradation and a terrible sensor: the quota is per-origin, so
+// the day it fills EVERY store silently stops persisting at once — and the
+// caches that fill it grow with what the account has ANSWERED, which no
+// static gate can see (question-quality.mjs's bank budget watches the
+// bank's half and assumes the rest stays small). This is the sensor, not a
+// fix: count every swallowed write, and report the first QUOTA-shaped
+// failure once per session with the key and the size that failed, so the
+// deadline for moving the caches off localStorage arrives as dated reports
+// from real devices instead of as users whose app stopped remembering.
+//
+// Detection only, deliberately — the write stays best-effort and the
+// in-memory state stays correct, exactly as before. Quota is told apart
+// from a merely absent storage (private mode, disabled) because the two
+// mean different things: absence is an environment, quota is the box
+// filling, and only the second is the condition ANSWER-SCALE exists for.
+let quotaReported = false;
+function isQuotaError(err: unknown): boolean {
+  const e = err as { name?: string; code?: number } | null | undefined;
+  // The spec'd name, plus the legacy spellings that still reach real
+  // devices: old WebKit throws code 22, old Firefox NS_ERROR_DOM_QUOTA_
+  // REACHED / code 1014.
+  return !!e && (e.name === "QuotaExceededError"
+    || e.name === "NS_ERROR_DOM_QUOTA_REACHED"
+    || e.code === 22 || e.code === 1014);
+}
+function lsSet(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch (err) {
+    state.stats.cacheWriteFailures += 1;
+    if (isQuotaError(err) && !quotaReported) {
+      quotaReported = true;
+      reportError(
+        new Error(`localStorage quota exceeded writing ${key} (${value.length} chars)`),
+        { where: "quota" },
+      );
+    }
+  }
+}
+
 // `stored` is the answer's value in the cache's own string form: an
 // optionIdx or entity as digits, a rank order as the joined "2,0,1,3"
 // (D233) — exactly what hydrate's fold would re-derive from the doc.
@@ -576,7 +619,7 @@ function cacheVote(aid: string, stored: number | string): void {
     const cached = JSON.parse(localStorage.getItem(ANS_LS) || "null") || { uid: state.uid, votes: {}, maxTs: 0 };
     if (cached.uid !== state.uid) return;
     cached.votes[aid] = String(stored);
-    localStorage.setItem(ANS_LS, JSON.stringify(cached));
+    lsSet(ANS_LS, JSON.stringify(cached));
   } catch {
     /* best-effort */
   }
@@ -631,7 +674,7 @@ export function localName(): string {
 }
 
 function saveLocalName(name: string): void {
-  try { localStorage.setItem(NAME_LS, name); } catch { /* private mode */ }
+  lsSet(NAME_LS, name);
 }
 // Entries kept, newest first. A voter list is capped at VOTER_FETCH_CAP and
 // a curious user opens many, so this map is the one client cache with no
@@ -692,7 +735,7 @@ function writeProfileCache(): void {
       // stays absent on disk — the absent/null line survives the round trip.
       e[u] = { n: state.names[u], s: state.scores[u], l: state.logicPcts[u], t: profileSeen.get(u) ?? now };
     }
-    localStorage.setItem(PROFILE_LS, JSON.stringify({ owner: state.uid, e }));
+    lsSet(PROFILE_LS, JSON.stringify({ owner: state.uid, e }));
   } catch {
     /* best-effort: quota, private mode, no storage */
   }
@@ -721,11 +764,7 @@ let aggCacheTimer: ReturnType<typeof setTimeout> | null = null;
 
 function writeAggCache(): void {
   if (torndown) return;
-  try {
-    localStorage.setItem("insight.aggsCache.v1", JSON.stringify(state.aggs));
-  } catch {
-    /* best-effort */
-  }
+  lsSet("insight.aggsCache.v1", JSON.stringify(state.aggs));
 }
 
 // Coalesced, because the caller is the agg snapshot handler and the thing
@@ -1291,11 +1330,7 @@ async function hydrate(): Promise<void> {
     cursor = maxCursor;
     state.stats.bankSource = "network";
   }
-  try {
-    localStorage.setItem(BANK_LS, JSON.stringify({ rev: contentRev, cursor, questions: all }));
-  } catch {
-    /* cache is best-effort */
-  }
+  lsSet(BANK_LS, JSON.stringify({ rev: contentRev, cursor, questions: all }));
   const sorted = all.slice().sort((a, b) => (a.seq || 0) - (b.seq || 0));
   // `until` is the current-events serving window (docs/NEXT-FUNCTIONALITY
   // §1): a feed entry past its UTC day stops being OFFERED — the answers
@@ -1518,11 +1553,7 @@ async function hydrate(): Promise<void> {
       state.stats.answersFetched += esnap.size;
       esnap.docs.forEach(fold);
     }
-    try {
-      localStorage.setItem(ANS_LS, JSON.stringify({ uid: uidA, votes: state.votes, maxTs, maxEditTs }));
-    } catch {
-      /* best-effort */
-    }
+    lsSet(ANS_LS, JSON.stringify({ uid: uidA, votes: state.votes, maxTs, maxEditTs }));
   }
 
   // ── aggregates: cached; fetch answered questions' aggs that are
@@ -1581,11 +1612,7 @@ async function hydrate(): Promise<void> {
       state.stats.aggsFetched += snap.size;
     });
     answeredWorld.forEach((id) => { checked[id] = nowMs; });
-    try {
-      localStorage.setItem(AGG_CHECK_LS, JSON.stringify(checked));
-    } catch {
-      /* best-effort */
-    }
+    lsSet(AGG_CHECK_LS, JSON.stringify(checked));
     saveAggCache();
   } catch (err) {
     reportError(err, { where: "hydrate.aggs" });
@@ -1656,7 +1683,7 @@ async function hydrate(): Promise<void> {
       const mv = mirrorVoteValue(q, v);
       if (mv != null) wf[q.id] = mv;
     });
-    localStorage.setItem(WF_LS, JSON.stringify(wf));
+    lsSet(WF_LS, JSON.stringify(wf));
   } catch {
     /* localStorage unavailable — feed falls back to store votes */
   }
@@ -4689,7 +4716,7 @@ const LIVE = {
           const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
           if (qid in wf) {
             delete wf[qid];
-            localStorage.setItem(WF_LS, JSON.stringify(wf));
+            lsSet(WF_LS, JSON.stringify(wf));
           }
         } catch {
           /* best-effort */
@@ -4756,7 +4783,7 @@ const LIVE = {
           const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
           if (qid in wf) {
             delete wf[qid];
-            localStorage.setItem(WF_LS, JSON.stringify(wf));
+            lsSet(WF_LS, JSON.stringify(wf));
           }
         } catch {
           /* best-effort */
@@ -4822,7 +4849,7 @@ const LIVE = {
           const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
           if (qid in wf) {
             delete wf[qid];
-            localStorage.setItem(WF_LS, JSON.stringify(wf));
+            lsSet(WF_LS, JSON.stringify(wf));
           }
         } catch {
           /* best-effort */
@@ -4901,7 +4928,7 @@ const LIVE = {
             const q = feedById(qid);
             const mv = q ? mirrorVoteValue(q, prev) : null;
             wf[qid] = mv != null ? mv : Number(prev);
-            localStorage.setItem(WF_LS, JSON.stringify(wf));
+            lsSet(WF_LS, JSON.stringify(wf));
           }
         } catch {
           /* best-effort */
@@ -5280,7 +5307,7 @@ export function refreshLive(): Promise<void> {
       try {
         const [db, mod] = await Promise.all([getDb(), import("./socialFetch")]);
         await mod.writeDirectoryRow(db, forUid, name);
-        localStorage.setItem(KEY, JSON.stringify({ uid: forUid, name }));
+        lsSet(KEY, JSON.stringify({ uid: forUid, name }));
       } catch (err) {
         reportError(err, { where: "directoryHeal" });
       }
