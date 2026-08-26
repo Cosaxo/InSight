@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- The adaptive icon's background layer: the ink tile (D300). Must
+    <!-- The adaptive icon's background layer: the ink tile (D302). Must
          match INK in scripts/gen-icons.mjs, which bakes the same colour
          into the legacy ic_launcher.png rasters — or the same app shows
          one tile on Android 26+ and another below it. The splash stays

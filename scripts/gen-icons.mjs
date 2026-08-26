@@ -17,7 +17,7 @@
 // showed up when the pixels were counted. Downsampling is also simply better
 // antialiasing than rendering a 48px viewport.
 //
-// The icon is the INK TILE (D300): the identity canvas's primary icon is
+// The icon is the INK TILE (D302): the identity canvas's primary icon is
 // the mark on --ink, not on paper, so every output here composites the
 // mark-tile group (the brightened tile palette) over INK. The paper-ground
 // group in the same file belongs to the feature graphic, not to any icon.
@@ -45,7 +45,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // preview rect. MUST equal values/ic_launcher_background.xml, or Android
 // 26+ composites the adaptive foreground over one colour while pre-26
 // ships the other baked in. (The splash stays paper #FAF9F2 — the icon
-// stopped matching it at D300, deliberately.)
+// stopped matching it at D302, deliberately.)
 const INK = "#1d1914";
 const MASTER = 1024;
 

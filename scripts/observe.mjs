@@ -38,7 +38,22 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const argv = process.argv.slice(2);
 const AS_JSON = argv.includes("--json");
+// Per-function detail. Off by default because the normal reading is a
+// count and a stray list; on when somebody is deciding whether a stray is
+// safe to delete, which needs the trigger, the schedule and whether it has
+// run — facts that live only in the deployment, never in this repo.
+const DETAIL = argv.includes("--functions");
 const PROJECT = process.env.FIREBASE_PROJECT_ID || "prvfire33";
+
+// READ, not retyped (D201/D200) — the same scan operator-call.mjs makes, and
+// for the same reason: a wrong region here would report every live function
+// as a stray.
+const REGION = (() => {
+  const src = readFileSync(new URL("../src/lib/region.ts", import.meta.url), "utf8");
+  const m = src.match(/export const FUNCTIONS_REGION = "([^"]+)"/);
+  if (!m) die("could not read FUNCTIONS_REGION from src/lib/region.ts");
+  return m[1];
+})();
 
 const die = (m) => { console.error(`observe: ${m}`); process.exit(1); };
 
@@ -156,13 +171,47 @@ const results = await Promise.all([
         const region = f.name?.split("/")[3] || "?";
         (byRegion[region] ||= []).push(f.name.split("/").pop());
       }
+      // ANY region that is not the canonical one, not just us-central1.
+      // Written as `byRegion["us-central1"]` first, because that is the only
+      // stale region the repo's prose has ever named — and the first run
+      // found 21 there AND two more in europe-west3 and one in
+      // europe-north1 that no document mentions. A reader that only asks
+      // about the region it expects to be wrong finds exactly the wrongness
+      // it expected, which is the same shape as the runbook counting nine
+      // where production holds 21.
+      const strays = Object.fromEntries(
+        Object.entries(byRegion).filter(([r]) => r !== REGION).map(([r, n]) => [r, n]),
+      );
+      // Kept whole so --functions can describe a stray without a second
+      // call. An eventTrigger with a pubsub topic named `firebase-schedule-*`
+      // IS a scheduled function — the v2 API models schedules that way, so
+      // "does this bill me every night" is answerable without the source.
+      const detail = fns.map((f) => {
+        const ev = f.eventTrigger || {};
+        const topic = ev.pubsubTopic || "";
+        const scheduled = /firebase-schedule/.test(topic);
+        return {
+          name: f.name.split("/").pop(),
+          region: f.name.split("/")[3],
+          state: f.state || "?",
+          env: f.environment || "?",          // GEN_1 or GEN_2
+          entryPoint: f.buildConfig?.entryPoint || null,
+          runtime: f.buildConfig?.runtime || null,
+          updateTime: f.updateTime || null,
+          trigger: scheduled ? "schedule"
+            : ev.eventType ? ev.eventType
+              : f.serviceConfig?.uri ? "https"
+                : "?",
+          eventFilters: (ev.eventFilters || []).map((x) => `${x.attribute}=${x.value}`),
+        };
+      });
       return {
+        detail,
         count: fns.length,
         byRegion: Object.fromEntries(Object.entries(byRegion).map(([r, n]) => [r, n.length])),
-        // D13's nine v1 leftovers and runbook 5.9's old-region copies are
-        // both "is anything still in us-central1" — a question the repo has
-        // asked in prose twice and could never answer.
-        staleRegion: byRegion["us-central1"] || [],
+        canonicalRegion: REGION,
+        strays,
+        strayCount: Object.values(strays).reduce((a, n) => a + n.length, 0),
       };
     },
   ),
@@ -200,9 +249,23 @@ if (AS_JSON) {
       console.log(`  ✓ logMetrics     ${r.count} log-based metric(s)`);
     } else if (r.name === "functions") {
       console.log(`  ✓ functions      ${r.count} deployed — ${JSON.stringify(r.byRegion)}`);
-      if (r.staleRegion.length) {
-        console.log(`      us-central1 still holds ${r.staleRegion.length}: ${r.staleRegion.join(", ")}`);
+      if (r.strayCount) {
+        console.log(`      ${r.strayCount} outside ${r.canonicalRegion}:`);
+        for (const [region, names] of Object.entries(r.strays)) {
+          console.log(`        ${region} (${names.length}): ${names.join(", ")}`);
+        }
         console.log("      (runbook 5.9b / D13 — dropping a name from --only never deleted these)");
+      }
+      if (DETAIL) {
+        console.log("");
+        for (const d of r.detail.sort((a, b) => (a.region + a.name).localeCompare(b.region + b.name))) {
+          const stray = d.region !== r.canonicalRegion ? " *" : "  ";
+          console.log(`     ${stray}${d.region.padEnd(15)} ${d.name.padEnd(34)} ${String(d.env).padEnd(6)} ${d.state.padEnd(8)} ${d.trigger}`);
+          if (d.eventFilters.length) console.log(`        on ${d.eventFilters.join(" ")}`);
+          console.log(`        entry ${d.entryPoint ?? "?"} · ${d.runtime ?? "?"} · last deployed ${d.updateTime ?? "?"}`);
+        }
+        console.log("\n      * = outside the canonical region. `schedule` means it fires on a");
+        console.log("        timer and bills for it; an event type means it fires on a write.");
       }
     } else if (r.name === "billing") {
       console.log(`  ✓ billing        enabled=${r.enabled} account=${r.account ?? "-"}`);

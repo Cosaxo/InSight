@@ -30594,7 +30594,228 @@ merge — both are conventions rather than code, and neither is chosen here.
 What is no longer possible is discovering the miss by following a citation
 months later.
 
-## D300 · The iris mark: the identity stops being a first pass
+## D300 · The first look at production, and the two things it said that the repo had wrong
+
+**2026-08-26.** `npm run observe` ran against `prvfire33` for the first
+time. **All four readings came back. No role was missing.** Which is the
+first finding, and it is about me rather than about the project: this was
+reachable the entire time it was being described as blocked on runbook
+5.13's six gcloud commands.
+
+```
+✓ alertPolicies  0 live, 0 enabled; 8/8 committed NOT armed
+✓ logMetrics     0 log-based metric(s)
+✓ functions      66 deployed — europe-west1:42, us-central1:21,
+                               europe-west3:2, europe-north1:1
+✓ billing        enabled=true  account=billingAccounts/0185A3-9BC4AF-7E35D2
+```
+
+### Nothing is armed. Not "some" — nothing.
+
+Zero alert policies exist in the project and zero log-based metrics sit
+behind them. All eight committed policies are unarmed, and every one of
+them watches an **absence**:
+
+- `fitPatternsV2 has gone quiet`
+- `digestEngagementV2 has gone quiet`
+- `scheduledDuelReveals has gone quiet`
+- `ledgerVelocityScan has gone quiet`
+- `onV2AnswerCreated is erroring`
+- `onV2AnswerCreated is contending on the per-question aggregate`
+- Firestore read rate far above the cost model
+- Firestore write rate far above the cost model
+
+D296 happened under exactly this condition: every instrument reporting
+zero over 108 real answers for fifteen days, with nothing watching for a
+number that stopped moving. That is not a coincidence to note in passing —
+it is the same hole, and the sixth policy in that list is the recorded
+precondition for sharding (D290 layer 2), so the ladder's next rung has
+been gated on a detector that does not exist.
+
+### Twenty-one in the old region, and the repo said nine
+
+`docs/DEPLOYMENT.md` has carried a delete command for **nine** v1
+functions since D13, and runbook 5.9b — written this morning — repeated
+the figure. Production holds **21** in `us-central1`, plus **two in
+`europe-west3` and one in `europe-north1`** that no document in this
+repository mentions at all.
+
+Twelve of the 21 are named nowhere here: `updatePollResults`,
+`aggregatePollResults`, `sendPushNotificationsTrigger`,
+`sendUserPushNotificationsTrigger`, `sendChatNotificationsTrigger`,
+`addFcmToken`, `findSimilarUsers`, `createLiveStream`,
+`recalculateVoterPersonality`, `updateIsNewFieldNew`,
+`scheduledDeletePastEvents`, `onUserDeleted`.
+
+**None of the 21 is referenced by any live code file** — every `.ts`,
+`.tsx`, `.js` and `.jsx` in the tree was grepped; the only hits for the
+nine are two documents and this session's own test fixture. They are
+orphaned **relative to this repository**, which is not the same claim as
+safe to delete: several are v1 Firestore or Auth triggers that may still
+fire against v1 data, and `onUserDeleted` in particular sounds like an
+erasure path. Identifying them is work; the delete command as written
+names nine and stays correct.
+
+**Why the number was wrong.** D13 recorded what it had *retired*, and
+nothing ever compared that against what production *held*. The gap is
+seventeen months of deploys nobody enumerated, and it stayed invisible
+because no reader existed. The runbook item I wrote this morning inherited
+the error faithfully — a figure copied from a record rather than measured,
+which is the documentation error this repo keeps re-committing and now has
+a gate for in the one case (`check:figures`) where the truth is in the
+tree. Here it is not in the tree; it is in production, and the only fix is
+to look.
+
+### The reader made the same mistake, and that is the transferable part
+
+`observe.mjs` asked `byRegion["us-central1"]` — the only stale region this
+repo's prose has ever named. It would have reported 21 and silently missed
+the other three. **A reader that only asks about the wrongness it expects
+finds exactly the wrongness it expects.** It now reports strays in every
+region that is not `FUNCTIONS_REGION`, read out of `src/lib/region.ts`
+rather than retyped (D201), and the test pins a stray in a third region
+that the old shape would have dropped.
+
+### What is now true that was not this morning
+
+The project can be looked at. `alertPolicies … armed` is answered by name
+rather than by count, so arming them is verifiable the moment it is done
+rather than assumed. Every reading is a GET; the workflow needs no
+approval gate because it cannot change anything, and it runs daily at
+06:11 UTC.
+
+D292's separate least-privilege identity is still the right destination
+and is unaffected by this: it was never what stood between the project and
+its own state.
+
+## D301 · Twenty-one strays, three provenances, and one of them runs on every account deletion
+
+**2026-08-26.** `npm run observe -- --functions` described what D300
+counted. The 21 `us-central1` functions are not one leftover with one
+story — they are **two unrelated codebases plus an installed extension**,
+and the runbook had been treating them as a single cleanup since D13.
+
+### The split, by evidence rather than by name
+
+| | count | generation | runtime | last deployed | whose |
+| --- | --- | --- | --- | --- | --- |
+| Old project | 12 | GEN_1 | nodejs10 / 18 / 20 | 2024-03 → 2025-10 | another app on this GCP project |
+| Stranded ours | 9 | GEN_2 | nodejs22 | 2026-07-29 | InSight, left by D201's region move |
+| Algolia extension | 2 (`europe-west3`) | GEN_1 | nodejs18 | 2024-06-03 | `firestore-algolia-search` |
+
+The generation and runtime are what separate them, and neither is visible
+from a name. Nine of the twenty-one were on D13's list; the other twelve
+were on nobody's, and the runbook item written earlier the same day
+inherited the count "nine" from a record rather than from the deployment.
+
+### Eleven of the twelve cannot see this app's data. One can.
+
+The eleven are Firestore triggers or HTTPS functions on the **`(default)`**
+database. v2 lives in **`insight`** (`functions/src/db.ts:29`), and the
+`onV2AnswerCreated` trigger's own event filter says `database=insight`. A
+Firestore trigger cannot cross that boundary, so they are inert with
+respect to everything this project holds.
+
+**`onUserDeleted` is not a Firestore trigger.** It is a Firebase Auth
+`user.delete` trigger with `resource=projects/prvfire33` — **project-wide.
+Auth has no database to be scoped to.** And `functions/src/index.ts:882`
+ends the erasure path with:
+
+```js
+await getAuth().deleteUser(uid);
+```
+
+So **every InSight account deletion executes 2024-era code belonging to a
+different application.** What that code does is unknown and not knowable
+from here: the source is not in this repository, and the repository's own
+history cannot rule it out either — this checkout is a shallow clone
+(182 commits, earliest 2026-08-20), which is a fact worth writing down
+because `git log --all -S` returning nothing looked like proof and was an
+artifact of the clone depth.
+
+It has presumably been failing or no-opping harmlessly for a year. That is
+a guess. What is measured is that it runs, on the one path this product
+treats as a promise, and that is the argument for deleting it deliberately
+and first rather than inside a batch.
+
+### Two are billed work, and they collide
+
+`scheduledDeletePastEvents` and `updateIsNewFieldNew` are the only two on
+timers, so they are the only two costing anything. Both are wired to the
+**same** Pub/Sub topic —
+`firebase-schedule-scheduledDeletePastEvents-us-central1` — and
+`updateIsNewFieldNew`'s entry point is `scheduledUpdateIsNewStatus`. That
+is a deploy collision in the old project, inherited intact. Noted because
+deleting a Gen-1 scheduled function does not reliably remove its Cloud
+Scheduler job, and a job whose target is gone still fires and still fails.
+
+### The extension is not a stray deploy
+
+Two `europe-west3` functions are `firestore-algolia-search-6ct7`, indexing
+`Cities/{documentID}` from `(default)` into Algolia since 2024-06-03.
+`functions:delete` is the wrong instrument: an extension's functions belong
+to the instance, and removing them by hand leaves it installed and broken.
+`ext:uninstall` is the operation, and the instance id should be confirmed
+with `ext:list` rather than inferred from the function prefix — which is
+what this record does, having inferred it.
+
+### What is recorded and what is not
+
+Runbook 5.9b now deletes the twelve, `onUserDeleted` first and alone; 5.9c
+uninstalls the extension; 5.9d keeps the nine as a separate decision
+because they are ours. **No deletion is performed here.** These are
+production functions whose source this repository does not hold, so the
+operation is not reversible from the tree, and "probably fine" — the
+owner's own words, and almost certainly correct — is the right amount of
+confidence to act on and the wrong amount to act on unattended.
+
+The verification is the instrument rather than the eye: re-run
+`npm run observe -- --functions` and `strayCount` should fall by twelve.
+
+### Amended the same day, by the review of the plan itself
+
+28 objections were raised against these commands by three independent
+lenses and 23 were refuted. **Five survived, and two of them were errors in
+the commands as written:**
+
+1. **`ext:uninstall` does not uninstall anything.** In the pinned
+   firebase-tools (15.24.0) its entire action body is
+   `manifest.removeFromManifest(instanceId, config)` — it edits
+   `firebase.json` and never reaches the Extensions API; the only caller of
+   `extensionsApi.deleteInstance` in the CLI is
+   `lib/deploy/extensions/tasks.js`, behind `deploy --only extensions`. And
+   this repo's `firebase.json` has no `extensions` key, so the documented
+   command throws before doing even its local no-op. **This record said
+   "`ext:uninstall` is the operation" one section above.** It is not. The
+   Console is, and 5.9c now says so. Verified by executing
+   `removeFromManifest` against this repo's real config rather than by
+   reading the command's `--help`, which still describes the API behaviour
+   it lost.
+2. **Runbook 5.9d was headed "the nine stranded `europe-west1` copies"** —
+   the region where all 42 LIVE functions are — one line above a nine-name
+   `--force` delete, in an item pointing at a command whose own
+   documentation says in bold that the region must not be "fixed" to match
+   D201. The body two lines down said `us-central1` throughout. **Three
+   independent reviewers flagged it; no gate could.** A heading is prose,
+   the command underneath was right, and every check in this repo was
+   green.
+
+And three that were true but not commands: `DEPLOYMENT.md` described the
+wrong-region failure as "would delete nothing and report success" when
+15.24.0 throws and exits non-zero (opposite advice for an operator);
+item 5.9 still told the operator to SPARE the nine while 5.9d deletes them,
+two open boxes contradicting each other; and 5.9d attributed the nine to
+D201's region move when D13 dropping them from the deploy list is the
+cause.
+
+**What the ratio is worth saying about.** 23 of 28 objections were refuted,
+several of them confidently argued and wrong — including two claiming the
+database-isolation argument fails. The value was not in the hit rate. It
+was that the two real ones were a wrong command that fails loudly and a
+wrong region in a heading that would not have, and neither is the kind of
+thing the person who wrote them re-reads and catches.
+
+## D302 · The iris mark: the identity stops being a first pass
 
 **2026-08-26.** The owner's identity canvas (committed verbatim at
 `design/identity-2026-08-26/`) replaces the first-pass launcher mark with

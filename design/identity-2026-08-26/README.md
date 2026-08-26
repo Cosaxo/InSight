@@ -1,4 +1,4 @@
-# The identity canvas — the iris mark (D300)
+# The identity canvas — the iris mark (D302)
 
 `Logo_and_Name.dc.html` is the owner's 2026-08-26 identity canvas,
 committed verbatim: the upload is ephemeral, this directory is the
@@ -25,4 +25,4 @@ Where each card went:
 The oklch→hex conversions and both palettes are documented where they
 are consumed, in `design/icon/mark.svg`'s header. Treat this directory
 as **read-only reference**: identity iteration from here happens in the
-real assets, and D300 records what shipped and why.
+real assets, and D302 records what shipped and why.

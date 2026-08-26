@@ -147,7 +147,7 @@ than of a subject:
 | `firestore-tests/README.md` | How the rules and e2e suites are structured and run |
 | `content/README.md` | The question bank formats and how content reaches the seed |
 | `design/README.md` | The frozen prototype and its revisions |
-| `design/identity-2026-08-26/README.md` | The identity canvas the iris mark ships from (D300), and where each of its cards went |
+| `design/identity-2026-08-26/README.md` | The identity canvas the iris mark ships from (D302), and where each of its cards went |
 
 ## 5 · The gates
 

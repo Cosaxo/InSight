@@ -46,7 +46,7 @@ directory README is its inventory; neither re-points this file.
 its two palettes, the lockups and the compact-variant rule — committed
 verbatim for the same ephemeral-upload reason as the standalones. Its
 inventory README maps each card to the live artifact; the working source
-it feeds is `icon/mark.svg` (below), and D300 records the decision.
+it feeds is `icon/mark.svg` (below), and D302 records the decision.
 
 The earlier v9 prototype and the extracted `spec-modules/`
 directory were deleted on 2026-07-29, v14 on 2026-07-30, v15 on

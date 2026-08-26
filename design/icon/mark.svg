@@ -1,4 +1,4 @@
-<!-- InSight app mark — the iris (D300). Source of truth for every launcher
+<!-- InSight app mark — the iris (D302). Source of truth for every launcher
      icon and the Play feature graphic. Regenerate the rasters with:
      node scripts/gen-icons.mjs
 

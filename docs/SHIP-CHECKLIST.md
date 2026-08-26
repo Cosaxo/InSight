@@ -163,12 +163,12 @@ Both apps must be registered under `com.cosaxo.insight`:
 
 ## 3 · Store accounts & builds (device-gated)
 
-- **App icon — the iris (D300).** Both shells shipped the stock Capacitor
+- **App icon — the iris (D302).** Both shells shipped the stock Capacitor
   mark until 2026-08-03's first pass, and that pass was replaced by the
   identity canvas's iris on 2026-08-26: hexagon-and-spokes lattice in the
   app's seven accent hues on the ink tile, you at the pupil. The mark
   lives in `design/icon/mark.svg` (two palette groups over one geometry —
-  D300 says why one is not enough), and `node scripts/gen-icons.mjs`
+  D302 says why one is not enough), and `node scripts/gen-icons.mjs`
   rasterises all 16 launcher assets from it. Replace the SVG and re-run
   if a designer takes it further — do not hand-edit the PNGs, they are
   generated.

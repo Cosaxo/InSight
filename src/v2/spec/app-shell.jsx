@@ -611,7 +611,7 @@ function App() {
           <div className="h-center">
             <div className="h-title">
               {/* The compact iris, not the full mark: at 21px the outer
-                  ring muddies (D300 — full mark above ~24px, compact
+                  ring muddies (D302 — full mark above ~24px, compact
                   below). Fills are the live tokens rather than baked hex,
                   so a palette retune cannot strand this the way it
                   stranded the old icon's sienna. The wordmark span is

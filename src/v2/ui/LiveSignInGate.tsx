@@ -47,7 +47,7 @@ function GateShell({ children }: { children: React.ReactNode }) {
 }
 
 function GateTitle() {
-  // The stacked lockup (D300): full iris over the wordmark — at 44px the
+  // The stacked lockup (D302): full iris over the wordmark — at 44px the
   // full mark holds (compact is for below ~24px). Fills are the live
   // tokens, one dot per accent hue. The negative left margin trims the
   // artwork's built-in breathing room so the mark sits optically flush
