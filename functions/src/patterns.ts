@@ -39,6 +39,7 @@ import type { Firestore } from "firebase-admin/firestore";
 import { LIGHT_UNBOUNDED, FUNCTIONS_REGION } from "./ops";
 import { V2_QUESTIONS } from "./v2content";
 import { db as firestore } from "./db";
+import { readLedgerDay } from "./ledger";
 import {
   PATTERNS_K,
   PATTERNS_MIN_BASIS,
@@ -180,31 +181,9 @@ export function firestorePatternsStore(db: Firestore): PatternsStore {
   const modelRef = db.collection("v2_patterns").doc("loadings");
   return {
     async ledgerDay(dayKey) {
-      const start = new Date(`${dayKey}T00:00:00Z`);
-      const end = new Date(start.getTime() + 86400000);
-      const out: PatternsLedgerEntry[] = [];
-      // paged like the velocity scan — the day's ledger can be large and
-      // the fold only needs three fields of it
-      let query = db
-        .collection("v2_agg_events")
-        .where("at", ">=", start)
-        .where("at", "<", end)
-        .orderBy("at")
-        .select("uid", "qid", "optionIdx", "at")
-        .limit(5000);
-      for (;;) {
-        const snap = await query.get();
-        for (const d of snap.docs) {
-          out.push({
-            uid: String(d.get("uid") ?? ""),
-            qid: String(d.get("qid") ?? ""),
-            optionIdx: d.get("optionIdx") as number | undefined,
-          });
-        }
-        if (snap.size < 5000) break;
-        query = query.startAfter(snap.docs[snap.size - 1]);
-      }
-      return out;
+      // One reader for one day of the ledger, shared with the taste fold
+      // (ledger.ts, extracted at D322 for D197's one-copy reason).
+      return readLedgerDay(db, dayKey);
     },
     async getModel() {
       const snap = await modelRef.get();

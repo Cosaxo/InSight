@@ -135,6 +135,14 @@ await adb.doc(`v2_users/${uid}/foresight/daily-000__ageBand__25-34`).set({
 // the subtree wipe" a tested claim rather than an assumed one (the
 // foresight row's reasoning, one collection over). The OTHER control
 // below proves the wipe is the account's, not the collection's.
+// The interest profile (D317/D322): under the account's own subtree, so
+// phase 1b's recursive delete is what takes it — seeded so "covered by
+// the subtree wipe" is a tested claim, the foresight row's reasoning.
+// The privacy page promises this deletion by name, which is one more
+// reason it may not be assumed.
+await adb.doc(`v2_users/${uid}/taste/profile`).set({
+  t: { food: 3, sport: 1 }, n: 4, at: new Date(),
+});
 await adb.doc(`v2_users/${uid}/engagement/_state`).set({
   firstDay: "2026-08-01", lastDay: "2026-08-22", activeDays: 9, streak: 2, fg7: [2, 3, 2],
 });
@@ -529,6 +537,7 @@ for (const [path, label] of [
   [`v2_flags/av_${uid}_${OTHER}`, "somebody else's flag on their FACE"],
   [`v2_users/${uid}/following/${OTHER}`, "the account's own follow"],
   [`v2_users/${uid}/foresight/daily-000__ageBand__25-34`, "a foresight verdict"],
+  [`v2_users/${uid}/taste/profile`, "their interest profile (D317/D322) — the page promises this by name"],
   [`v2_users/${uid}/engagement/_state`, "the digest's bookkeeping pair (D268)"],
   [`v2_users/${uid}/engagement/2026-08-22`, "a person-channel day rollup (D272)"],
   [`v2_users/${OTHER}/following/${uid}`, "someone else's follow OF this account"],

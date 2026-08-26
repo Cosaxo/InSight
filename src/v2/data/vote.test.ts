@@ -1197,9 +1197,22 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
   // is real work rather than a pass-through — the bank speaks
   // `learn-cell1`/`prompt`/`options`/`topic` and the engine speaks
   // `cell1`/`q`/`a`/`f` — so it is asserted field by field.
+  // Learn left the boot fetch at D320 — a live device meets cards through
+  // the pager (order pages + history heal). These cases ride the HISTORY
+  // path: seeding `insight.learn.v3` with the card marks it as one this
+  // device has answered, so the pager fetches it by id with no order doc
+  // published — which is also exactly the no-fold world a fresh project
+  // is in. The publication under test is unchanged; only the road in is.
+  const seedLearnHistory = (...cardIds: string[]) => {
+    const c: Record<string, unknown> = {};
+    for (const id of cardIds) c[id] = { s: "known", k: 3, seen: 1, miss: 0, pos: 0, at: 1 };
+    storage.setItem("insight.learn.v3", JSON.stringify({ c, lvl: {}, pos: 1, order: [] }));
+  };
+
   it("publishes the bank's learn cards in the engine's own vocabulary", async () => {
     const { learnCards, resetLearnBank } = await import("./learnBank");
     resetLearnBank();
+    seedLearnHistory("cell1");
     h.bankDocs.push({
       id: "learn-cell1",
       data: {
@@ -1212,7 +1225,12 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     });
     await bootLive();
     // A sentinel sample, so "fell through to the caller's array" and
-    // "published nothing" cannot pass as each other.
+    // "published nothing" cannot pass as each other. Waited for: the
+    // pager is deliberately not part of boot (D320), so the page lands
+    // just after ready.
+    await vi.waitFor(() => {
+      expect(learnCards([{ id: "sample1", f: "cell", q: "s", a: ["a"], c: 0, t: 0, p: 50, k: "s" }])).toHaveLength(1);
+    });
     const cards = learnCards([{ id: "sample1", f: "cell", q: "s", a: ["a"], c: 0, t: 0, p: 50, k: "s" }]);
     expect(cards).toHaveLength(1);
     expect(cards[0]).toEqual({
@@ -1241,15 +1259,32 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     // wrong answer, silently, on the one surface whose whole promise is
     // that there is a right one. An empty Learn until the next seed run is
     // the honest failure.
-    h.bankDocs.push({
-      id: "learn-old1",
-      data: {
-        surface: "learn", seq: 0, type: "choice", topic: "cell", test: null, active: true,
-        prompt: "A card from before the change", options: ["A", "B", "C", "D"],
+    // The keyed sibling is the positive signal: when IT has landed, the
+    // pager pass is complete, so old1's absence is the drop and not a
+    // page that never arrived — without it this case passes on an empty
+    // bank, which proves nothing.
+    seedLearnHistory("old1", "cell1");
+    h.bankDocs.push(
+      {
+        id: "learn-old1",
+        data: {
+          surface: "learn", seq: 0, type: "choice", topic: "cell", test: null, active: true,
+          prompt: "A card from before the change", options: ["A", "B", "C", "D"],
+        },
       },
-    });
+      {
+        id: "learn-cell1",
+        data: {
+          surface: "learn", seq: 1, type: "choice", topic: "cell", test: null, active: true,
+          prompt: "A keyed card", options: ["A", "B", "C", "D"], c: 0, t: 1, p: 50, k: "Keyed",
+        },
+      },
+    );
     await bootLive();
-    expect(learnCards([{ id: "sample1", f: "cell", q: "s", a: ["a"], c: 0, t: 0, p: 50, k: "s" }])).toEqual([]);
+    await vi.waitFor(() => {
+      expect(learnCards([]).map((c) => c.id)).toContain("cell1");
+    });
+    expect(learnCards([]).map((c) => c.id)).not.toContain("old1");
     resetLearnBank();
   });
 
@@ -1952,17 +1987,40 @@ describe("LIVE.learnMine — the answer the trigger has not folded yet", () => {
     data: {
       surface: "learn", seq: 1, type: "choice", prompt: "Learn cell1",
       options: ["A", "B", "C", "D"], topic: null, test: null, active: true,
+      // Keyed since D320: cardLanded() watches the engine pool, and the
+      // publication drops an unkeyed card — the answer-key fields are
+      // load-bearing for the fixture reaching it, not for these cases.
+      c: 0, t: 1, p: 50, k: "Learn cell1",
     },
   };
   const aggPath = "v2_question_aggs/learn-cell1";
+  // Learn pages since D320: the card reaches state.learnBank through the
+  // pager's history heal, just after ready — so each case seeds the
+  // history and waits for the card before answering it, the same order a
+  // real session imposes (the engine only serves cards already in the
+  // pool, so learnAnswer cannot fire before the card exists).
+  const seedLearnMineHistory = () => {
+    storage.setItem("insight.learn.v3", JSON.stringify({
+      c: { cell1: { s: "learning", k: 1, seen: 1, miss: 0, pos: 0, at: 1 } },
+      lvl: {}, pos: 1, order: [],
+    }));
+  };
+  const cardLanded = async () => {
+    const { learnCards } = await import("./learnBank");
+    await vi.waitFor(() => {
+      expect(learnCards([]).map((c) => c.id)).toContain("cell1");
+    });
+  };
 
   it("marks the answer pending when the re-read does not contain it", async () => {
+    seedLearnMineHistory();
     h.bankDocs.push(CARD);
     // One stranger's answer on option 1, and the trigger has not run for
     // ours. This is the overwhelmingly common case: a Firestore trigger
     // cannot fold and commit inside one client round-trip.
     h.getDocImpl = (path) => (path === aggPath ? { total: 1, counts: { "1": 1 } } : null);
     const LIVE = await bootLive();
+    await cardLanded();
     LIVE.learnAnswer("cell1", 0);
     await vi.waitFor(() => {
       expect(LIVE.learnMine("cell1")).toEqual({ idx: 0, folded: false });
@@ -1970,11 +2028,13 @@ describe("LIVE.learnMine — the answer the trigger has not folded yet", () => {
   });
 
   it("marks it folded when the trigger won the race", async () => {
+    seedLearnMineHistory();
     h.bankDocs.push(CARD);
     // The count on OUR option went up between the cached copy and the
     // re-read, so the published document already has us.
     h.getDocImpl = (path) => (path === aggPath ? { total: 2, counts: { "0": 1, "1": 1 } } : null);
     const LIVE = await bootLive();
+    await cardLanded();
     await LIVE.loadLearnAggs(["cell1"]);
     LIVE.learnAnswer("cell1", 0);
     await vi.waitFor(() => {
@@ -1987,10 +2047,12 @@ describe("LIVE.learnMine — the answer the trigger has not folded yet", () => {
     // the count moved without us in it. Erring toward "folded" undercounts
     // by one against a document that is right; erring the other way
     // double-counts the reader, which is what the fix exists to prevent.
+    seedLearnMineHistory();
     h.bankDocs.push(CARD);
     h.aggDocs = [{ id: "learn-cell1", data: { total: 1, counts: { "0": 1 } } }];
     h.getDocImpl = (path) => (path === aggPath ? { total: 2, counts: { "0": 2 } } : null);
     const LIVE = await bootLive();
+    await cardLanded();
     await LIVE.loadLearnAggs(["cell1"]);
     LIVE.learnAnswer("cell1", 0);
     await vi.waitFor(() => {
@@ -2006,9 +2068,11 @@ describe("LIVE.learnMine — the answer the trigger has not folded yet", () => {
   it("records nothing when the write itself failed", async () => {
     // A refused write leaves no answer on the server, so adding one to the
     // reveal would be inventing a person.
+    seedLearnMineHistory();
     h.bankDocs.push(CARD);
     h.setDocImpl = () => Promise.reject(new Error("permission-denied"));
     const LIVE = await bootLive();
+    await cardLanded();
     LIVE.learnAnswer("cell1", 0);
     await vi.waitFor(() => {
       expect(h.reportError).toHaveBeenCalled();

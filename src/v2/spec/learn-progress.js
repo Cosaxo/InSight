@@ -8,7 +8,7 @@ import { LEARN_CARDS, LEARN_FIELDS, LEARN_SPLIT, LEARN_SUBJECTS } from './learn-
 // Which build's cards these are (D284). `LEARN_CARDS` above is the demo
 // SAMPLE now — five a field, compiled in so the demo build has something
 // to serve — and a live build's bank arrives here after boot.
-import { learnCards, subscribeLearnBank } from '../data/learnBank.ts';
+import { learnCards, learnFieldTotal, subscribeLearnBank } from '../data/learnBank.ts';
 
 // learn-progress.js — the engine behind Learn. Three ideas, no more:
 //
@@ -253,7 +253,12 @@ export const LEARN = (function () {
     subject: (id) => SBY[id] || null,
     fieldsOf: (sid) => FIELDS.filter((f) => f.subject === sid),
     card: (id) => BYID[id] || null,
-    total: (fid) => (BYF[fid] || []).length,
+    // The BANK's count where the published order carries one (D320): the
+    // live pool is a page since learn left the boot fetch, so counting it
+    // here would claim the page size — the exact under-count D283 was
+    // reported as. Null (demo, or order not yet loaded) falls back to the
+    // pool, which is then the whole truth.
+    total: (fid) => learnFieldTotal(fid) ?? (BYF[fid] || []).length,
     hueOf, colorOf,
     mine: () => F.map((id) => FBY[id]).filter(Boolean),
     has: (id) => F.indexOf(id) >= 0,
@@ -275,7 +280,10 @@ export const LEARN = (function () {
       const cs = BYF[fid] || [];
       let known = 0, learning = 0;
       cs.forEach((c) => { const s = st(c.id); if (!s) return; if (s.s === 'known') known++; else learning++; });
-      return { known, learning, total: cs.length };
+      // Same bank-over-pool rule as total() above: known/learning are
+      // device truth (the pool holds every card with history, by the
+      // pager's cache rule), but the denominator is the bank's.
+      return { known, learning, total: learnFieldTotal(fid) ?? cs.length };
     },
     reset: () => { S = { c: {}, lvl: {}, pos: 0, order: [] }; save(); },
     subscribe: (f) => { listeners.add(f); return () => listeners.delete(f); },

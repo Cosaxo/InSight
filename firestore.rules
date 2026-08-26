@@ -139,6 +139,21 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // The published serving order (D316) — one document per ranked
+    // surface (`feed`, `learn`): per-topic question orderings the nightly
+    // rankBankV2 (admin SDK) derives from the public aggregates. Global
+    // signal only — volume with landslides sunk — so nothing per-person
+    // is in it or ever enters the fold (D163/D317's line: the server
+    // half of the order is the crowd's, never a profile).
+    //
+    // Write is closed for the v2_patterns reason, one shelf down: a
+    // client-writable order would make what everyone is served forgeable
+    // in one request.
+    match /v2_rank/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     // Engagement day docs (R1/D268) — the nightly digest's anonymous
     // population counts (actives, first answerers, cohort returns,
     // answers by surface), one doc per UTC day plus the fold's own
@@ -351,6 +366,26 @@ service cloud.firestore {
       // recursive delete of v2_users/{uid} takes it with the account.
       match /patterns/{docId} {
         allow read, write: if false;
+      }
+
+      // The interest profile (D317 phase 1, D322) — this person's FEED
+      // answers counted by topic, written nightly by fitTasteV2 (admin
+      // SDK) and read by the OWNER alone: their own device sizes its
+      // topic pages by it (D321), and D163's "a Mirror that secretly
+      // models you is a contradiction in terms" carries over — shown is
+      // the floor, so the owner read is the grant. NOT public, unlike
+      // the answers it derives from: what a person answered is the
+      // product (D98); what the system concluded they are INTO is a
+      // summary nobody signed up to be read as by strangers — the
+      // patterns-state argument, with the one reader the patterns state
+      // does not need. Client write closed: a self-writable profile
+      // would let a device forge its own fetch weighting, which is
+      // harmless today and a sponsored-targeting hole the day audiences
+      // exist. deleteAccount's recursive delete takes it, no new arm.
+      match /taste/{docId} {
+        allow get: if request.auth != null && request.auth.uid == uid;
+        allow list: if false;
+        allow write: if false;
       }
 
       // Engagement, two shapes under one path, split by the ID DISCIPLINE:

@@ -31924,3 +31924,468 @@ empty until one exists; its status note now says where self-serve ads
 actually live. Demand honesty: ad campaigns fold into the slot-day
 arithmetic `build-pricing.mjs` prices (same inventory, same idx) and
 stay out of the answer estimates (nothing to estimate).
+
+
+## D316 · Serving becomes selection: pages instead of the whole bank, and the order inherits the caps' job
+
+**Status:** binding — adopted 2026-08-26, owner: *"we should build the
+real fixes now."* · **Requested:** 2026-08-26, owner: *"don't fetch
+every question every time — there should be lazy loading and algorithms
+deciding what questions to show … like learn, no need to limit that in
+any meaningful capacity, facts are facts, and if you create what turns
+out to be bad questions they should just eventually be filtered out by
+the algorithm. One does not need to answer every question, like one does
+not need to watch every YouTube video."*
+
+**What is recorded here.** The direction, its boundary against the
+decisions already binding, the arithmetic that shapes the build, and the
+phases — so that adopting it is a status flip rather than a design
+session. Nothing is built from this record while it says Proposed
+(D82's shape).
+
+### What it decides, in three sentences
+
+The bank stops being something every device holds and becomes something
+a device **pages through**: a server-published order says what a fresh
+screen offers, the device fetches what it actually reaches, and the
+cache keeps what it has seen — this is the "real product need" that
+[`BANK-DELIVERY.md`](BANK-DELIVERY.md) §5 step 3 was waiting to be
+named. Production volume stops being sized to consumption — learn
+first, the feed tail behind it — because runway stops costing every
+device once nobody is handed the whole bank. Performance quality moves
+from pre-emptive caps to the serving order: a question that measures
+badly sinks in the published ranking instead of waiting for a human to
+read a retire proposal — demotion is the order's, deletion stays a
+lane's PR, `active: false` stays the kill switch.
+
+### The boundary it does not cross
+
+D163 stands: **server-side per-user selection stays refused**. The
+YouTube outcome does not need the YouTube profile, and the split is one
+the tree already practices:
+
+- **The server's half is global.** A scheduled function folds the same
+  public aggregates the scorecard already reads — volume, evenness,
+  D271 attention — into a published per-topic order, the
+  `fitPatternsV2` shape: one nightly fold, small published docs
+  (`v2_meta/app` and `v2_patterns/loadings` are the precedents). It
+  knows what the crowd did with a question; it never learns what a
+  person was shown.
+- **The device's half is personal.** D163's interest model (binding,
+  not built) orders *within* the pages the device fetched, off the
+  pass/defer/read signals already on the device. This record is the
+  product need that build was waiting for.
+
+The owner, told exactly this, answered the same day that the app
+*"should absolutely track what you personally like — if not, it does not
+work"* — and that reversal is its own record, as this paragraph asked:
+**D317**. The two adopt independently: D316 alone is the paged bank with
+on-device taste; with D317, the fetch itself becomes personal.
+
+### What "filtered out by the algorithm" changes, exactly
+
+The signals exist and are advisory: `retireProposals`, `deadDuels`,
+`weakTraps` are cited in PR bodies for a human to act on (D33, D40).
+Adoption graduates the SIGNALS into the published order — continuous,
+reversible demotion — while retirement (removing a question) keeps its
+lane and its deliberateness. The per-card FORM gates do not move:
+`check:quality`'s rules are what make a card an InSight card, none of
+them is a volume cap, and BANK-DELIVERY §6's sentence — the bar does
+not move with the volume — binds here too.
+
+### The corpus stays bounded, and that is not a contradiction
+
+"One does not need to answer every question" is already the tail's
+contract: **core** (D161) is the bounded half the Mirror folds and the
+patterns fit solves over, and it stays bounded because its value is
+density. What unbounds is the tail and learn — learn first, because it
+is outside the corpus entirely (a learn card joins no cohort fold), its
+bank already left the bundle (D284), and its shortage is the one the
+owner keeps meeting (D283, and again today).
+
+### The arithmetic that shapes the build
+
+Today the whole-bank fetch is ~671 docs / ~185 KiB, once per install
+plus deltas — nearly free, which is why `costs:scale` bills 513 and
+100,000 docs identically. A naive recommender inverts that: per-request
+ranking bills per impression. The repo-shaped answer is the nightly-fit
+pattern above — O(one scheduled fold) per night plus O(pages actually
+read) per device, instead of O(bank) per device. What assumes
+whole-bank today is BANK-DELIVERY §4's census: the daily deck
+(positional, one a day — stays), the feed pool and weave, the topic
+sheet's counts (published instead), search, and the test/Mirror joins
+(core-only, so they never page — the corpus is the bounded half). Each
+conversion is its own reviewed change.
+
+### Phases (each graduates on build; none starts while Proposed)
+
+1. **BANK-DELIVERY §3** — the bank cache to IndexedDB. Three call
+   sites; takes the practical ceiling past 10,000 docs before any
+   architecture moves. That figure is the interim's headroom, not a
+   target: the owner's direction (restated 2026-08-26: *"there should
+   be no question limit"*) is that after phase 3 bank size is
+   unbounded BY DESIGN — no device ever holds the catalogue, so no
+   number anywhere says how big it may be. `BANK_WARN`/`BANK_FAIL`
+   guard the whole-bank interim and retire or re-point with it
+   (§3's own rule for gates that caught something).
+2. **Learn pages.** A published learn order plus fetch-on-reach; then
+   the lane's pace unbinds from consumption — `FIELD_TARGET` stays a
+   shape goal (D283), cadence and `RUN_CAP` become throughput questions
+   answered by the writing bar rather than the read path.
+3. **Feed tail pages.** A published per-topic order for the tail;
+   D163's device model orders within fetched pages. Core keeps shipping
+   whole.
+4. **Demotion in the order.** The scorecard's signals feed the nightly
+   fold; retire proposals keep proposing deletion, and the order stops
+   waiting for them.
+
+## D317 · The taste model moves to the server, because selection cannot be personal from inside a page
+
+**Status:** binding — adopted 2026-08-26 with D316, owner: *"we should
+build the real fixes now."* · **Requested:** 2026-08-26, owner, on being told
+D316 keeps the server's half of the order global: *"this app should
+absolutely track what you personally like — if not, it does not work."*
+This reverses the row D163 narrowed — **server-side per-user content
+selection**, refused there outright, is what this record builds. D163
+named its own crossing "a considered position being crossed, not an
+oversight"; so is this one, and it is the owner crossing it.
+
+### Why the device model is not enough, said honestly
+
+D316 pages the bank: the server chooses what a device is handed, and the
+device re-orders what arrived. Under a global published order everyone
+is handed the same popular head, so a device model can only sort the
+window it was given — and at the bank sizes D316 exists for, the
+choosing IS the personalization. The owner's sentence is the
+architectural fact: a taste model that never leaves the phone cannot
+reach into the fetch.
+
+### What survives D163, because it was never about the bytes' address
+
+- **Shown and editable, with a reset.** "A Mirror that secretly models
+  you is a contradiction in terms" does not move to the server with the
+  model — it binds harder there.
+- **The daily stays global** — cohort comparison is meaningless if
+  different people got different questions — **and the Mirror folds
+  core only** (D161). Personal selection is the tail's and learn's.
+- **Ad targeting stays refused.** The profile exists to pick questions
+  and for nothing else; D164's revenue paths do not gain an input.
+
+### What is actually new, named plainly
+
+D98 published what people ANSWERED, never what they looked at. Answers
+are already server-side and public, so a taste model derived from them
+adds no exposure — the new artifact is the profile document itself. The
+genuinely new CLASS of data is behaviour — shown, passed, deferred —
+which today never leaves the device (`insight.feedPass.v1` and kin), and
+D163's skip/pass sentence ("a pass stays local-only, the server never
+receives it") is the exact line that moves if phase 2 is built. So the
+build phases by exposure, not by effort:
+
+1. **Profile from answers.** The server derives per-user topic interest
+   from the answers it already holds, and selection reads it. No new
+   signal leaves the device.
+2. **Behaviour uploads, only if 1 ranks poorly.** Pass/defer/read
+   events join the profile. This is the full reversal, and adopting
+   this record does not license it — it graduates on its own evidence,
+   as its own amendment here.
+
+### The checklist adoption signs up for
+
+The D98 discipline, pointed at this: if the app tracks what you like,
+something has to make every promise about that true, and a test has to
+prove it.
+
+- A per-user profile document, **owner-and-server readable, never
+  public** — D98's presence deny is the precedent: it published what
+  people answered, not where they stand, and this document is eyes,
+  not answers.
+- `docs/data-inventory.md` gains the row (`check:data-inventory`) and
+  the store privacy label moves with it (`docs/STORE-FORMS.md` +
+  `design/store/app-privacy.json`, held equal by `check:store-forms` —
+  this line first named `check:labels`, which is the a11y gate; D322
+  caught it at build time) — D163's "no store form moves" was
+  load-bearing and this record un-says it.
+- `web/privacy.html` says it and `check:policy-claims` proves it; the
+  purge sweeps it and the erasure e2e shows the sweep.
+- `MONITORING.md`'s refused row is re-drawn, dated: what remains
+  refused is ad targeting and any use of the profile beyond selection.
+
+### What it does not change
+
+D316's nightly fold stays the ranking's spine — global signal orders the
+bank; the profile chooses which of it a device is offered. Core density,
+the daily's one-question ritual, and every deny in `firestore.rules`
+stand.
+
+## D318 · The bank cache leaves the small box
+
+**2026-08-26.** D316 phase 1, BANK-DELIVERY §3 as-built, the day the
+plan was adopted. `src/v2/data/bankStore.ts` now holds the question-bank
+cache in IndexedDB (`insight-bank`, one store, one row); live.ts's three
+localStorage sites became a get/put pair with the contract the old code
+had — any storage failure reads as "no cache" and the boot refetches —
+minus the failure that contract existed to survive: the ~5 MB origin
+quota the bank was certain to grow into, whose crossing would have
+silently stopped caching and made every boot a full fetch forever.
+
+What §3 predicted held: the cursor, the delta query and splitBanks are
+untouched, and the store being async cost nothing because hydrate
+already was. Two things beyond the plan's sketch:
+
+- **Migration is conditional on the new store working.** bankGet
+  consumes the legacy `insight.bankCache.v2` payload — returned for the
+  boot, so an updating device pays a delta rather than a refetch, then
+  removed, freeing the box — but ONLY when IndexedDB opened and was
+  simply empty. Where IndexedDB itself fails, the legacy copy is read
+  and LEFT: a device whose new store never works keeps a
+  stale-but-delta-able cache, which beats a full fetch every boot.
+  Pinned in bank-cache.test.ts; the migration case asserts all three
+  halves — delta not refetch, key freed, store filled.
+- **The tripwires re-pointed, not retired** (§3's own rule for a gate
+  that once caught something). `BANK_WARN`/`BANK_FAIL` keep their
+  counts and change their subject: the whole-bank fetch every fresh
+  install still pays (§4's ceiling) until D316's paged read path lands.
+  The messages now say to build the pages, not to move the cache;
+  cost-scale, feed-budget and learn-budget's prose moved with them.
+
+Measured, not assumed: tsc, eslint, 2089 unit tests (bank-cache at 14,
+one new), 468 script tests, check:quality, check:globals, and the
+shipping bundle at 2096 KB against the 2440 ceiling — bankStore adds one
+small module to the entry graph and no shipped dependency
+(fake-indexeddb is dev-only, the tests' IDB implementation).
+
+## D318 amendment (2026-08-26) · The merge converged on D312's store, the same day
+
+Main built the same move in parallel: D312 (ANSWER-SCALE §2.2) opened
+one IndexedDB database for the bank, aggregate and answers caches —
+rows per question, crash-ordered meta, purge listeners, the superset of
+what this record's `bankStore.ts` did for the bank alone. Two stores
+for one purpose is the D197 shape, so the merge kept D312's
+`cacheStore.ts` and deleted `bankStore.ts` the day it was born. What
+this record argued survives entirely — the quota ceiling is gone, the
+migration is conditional on the new store working (D312 orders the
+legacy key's removal after the rows commit, the same property), and the
+tripwires re-pointed — it is only the module that lost the race. The
+pagers (D320/D321) persist their pages through cacheStore rows, with no
+meta write: a page must not advance the delta cursor past edits it
+never fetched.
+
+## D319 · The serving order publishes nightly
+
+**2026-08-26.** D316's spine, as-built: `functions/src/rank.ts`, the
+fitPatternsV2 shape one job over — a pure fold behind an injected store,
+scheduled 3:07 UTC (after the fit at 2:37, before the velocity scan at
+3:47), publishing one world-readable document per ranked surface onto
+`v2_rank/{feed,learn}`. Rules, a rules test and the data-inventory row
+all carry the v2_patterns posture: readable by any signed-in user,
+written by nobody — a client-writable order would make what everyone is
+served forgeable in one request.
+
+**The order, v1: per topic, volume descending, ties by seq — and
+landslides sink.** At `RANK_DEAD_MIN` (20) answers with a leading option
+at `RANK_DEAD_SHARE` (90%), a question has stopped asking anything and
+serves last in its topic. That is D316 phase 4's first signal live in
+the order — the scorecard's own retire-proposal predicate, kept
+numerically equal so the two cannot drift — and the owner's "bad
+questions filtered out by the algorithm" in its first real form:
+demotion continuous and reversible, deletion still a lane's PR,
+`active: false` still the kill switch.
+
+**The boundary holds by shape, not by promise.** The fold's inputs are
+the compiled seed (PATTERNS_QIDS's own source) and the public
+aggregates; no uid can enter it, so the published order is the crowd's
+and D163/D317's line — the server half of selection is global — is
+structural. The daily is not ranked (positional by design, D316);
+test/duel/pulse/call are bounded rosters (D213's census) a device still
+takes whole.
+
+**Cost:** O(bank) aggregate reads per night (getAll, 300-chunks) plus
+two writes; a device pays one read per order doc it actually uses. At
+10,000 feed questions the doc is ~150 KB against Firestore's 1 MiB
+limit; the graduation when a surface approaches it is one doc per
+topic, and the module says so where the next author will look.
+
+**What reads it: nothing yet, deliberately.** The client half — the
+paged fetch against this order — is the next change. Publishing first
+means the order is real, measured and inspectable in production before
+any device depends on it, and a bad ranking costs nothing while nothing
+reads it.
+
+Measured: 384 functions tests (rank.test.ts at 7, new), 150 rules tests
+(one new — the count that moved five prose figures, all corrected by
+check:figures' own fix lines), deploy-targets, fn-runtime, appcheck and
+data-inventory green.
+
+## D320 · Learn leaves the boot fetch: the first paged surface
+
+**2026-08-26.** D316 phases 2–3 for the first surface, as-built. A
+device is no longer handed every learn card: `BANK_SURFACES` dropped
+`learn`, and `topUpLearnBank` — kicked at the end of hydrate, never
+awaited, handed hydrate's own `db` — pages cards in against the D319
+order: one read of `v2_rank/learn`, then the first `LEARN_PAGE` (24)
+per followed field that the cache does not hold, fetched by id in
+30-chunks. The arithmetic is pure (`learnPager.ts`, its own suite);
+the seen-set is the CACHE — a card this device was ever handed is in
+bankStore, so "first N not cached" is "next N never met here" with no
+profile and no upload. D317 phase 1's boundary holds by construction:
+the only thing the server could see is which ids a device fetched.
+
+Three obligations beyond the happy path, each pinned:
+
+- **History heals by id, order or no order.** A contentRev bump
+  refetches only the boot surfaces, so paged learn docs fall out of the
+  cache — and a mastered card missing from the pool is a fact missing
+  from the map (`mastered()` reads the pool's index). The pager
+  re-fetches every card `insight.learn.v3` has history with, across
+  all fields, before any page, and works with no order doc published —
+  which is every project the fold has not run on.
+- **The delta keeps paged cards fresh.** The boot delta merges a row
+  outside the boot surfaces only when the device already holds it — an
+  edit to a paged learn card arrives; a NEW learn doc is dropped there
+  on purpose, because which cards a device holds is the pager's
+  decision, not the delta's.
+- **The sheet's denominator is the bank's, not the page's.**
+  `publishLearnTotals` carries per-field counts off the order doc and
+  the engine's `total()`/`stats()` prefer them — a pool claiming the
+  page size would be D283's under-count report again, rebuilt.
+
+Recorded limits, not oversights: the top-up runs per boot, not per
+serve — a session that outruns a 24-per-field page falls back to the
+engine's own slow/warm fillers until the next boot, and the mid-session
+seam waits for a measured session that actually needs it. A card killed
+after the nightly fold can serve for up to a day; `active: false` still
+kills it from the pool on the next boot.
+
+One harness find worth keeping: the first wiring had the pager call
+`getDb()` concurrently with `hydrateSocial()`'s, and vitest's mocked
+dynamic `import("firebase/firestore")` LOST that race — the fourth
+resolution handed the REAL SDK into a fully mocked suite, fourteen
+tests red with a `collection()` error no changed line explained. The
+fix is also the better design (hydrate hands the pager its `db`; the
+members were already bound), but the mechanism — two concurrent
+dynamic imports of a mocked specifier resolving differently — is worth
+this paragraph the next time a mocked suite fails where no edit points.
+
+Measured: 2099 unit tests (bank-cache at 16, learn-pager at 8, vote at
+84 — its learn cases now ride the history-heal path end to end), tsc,
+eslint, check:globals (the 238 baseline unchanged: the new seams are
+imports), and the shipping bundle at 2097 KB against 2440.
+
+What remains of D316: the feed tail (phase 3) and demotion's remaining
+signals (phase 4). The feed still ships whole at boot.
+
+## D321 · The feed tail leaves the boot fetch, and the whole-bank install is over
+
+**2026-08-26.** D316 phase 3 as-built, learn's shape (D320) applied to
+the feed with one structural difference: **core ships whole, always.**
+The boot fetch became two queries — the boot surfaces' `in`, then
+`surface == "feed" AND core == true` — because the corpus the Mirror
+folds (D161) is valuable BECAUSE every device holds all of it, and
+Firestore cannot say "these surfaces, or feed where core" in one query.
+The tail pages behind `v2_rank/feed` (D319) at `FEED_PAGE` (12) per
+topic per boot: today's bank holds about that many per topic in total,
+so the paged feed reproduces the whole-bank feed exactly until the
+lanes outgrow it — which is the point where paging starts paying.
+
+The pager GENERALIZED (learnPager.ts → bankPager.ts, pageNeedList and
+topUpPages with a per-surface page size) rather than duplicated. The
+feed's history heal is its ANSWERS: every voted `feed-` qid must
+resolve to a document whatever page it was on, or the Mirror holds a
+vote it cannot name. Arrival rules split by destination: the CACHE
+takes every fetched row (the archive keeps expired docs — the n_closed
+rule), the serving pool only the servable — which moved the `now`
+lane's window test to page arrival, where that rule now lives for
+everything the boot no longer carries. The delta grew the matching
+keep: a NEW core feed question merges (a promotion must reach every
+device), a new tail or learn doc is dropped (the pager's decision), an
+edit to anything held merges by id.
+
+Recorded limits, each with its fix named: the topic sheet's per-topic
+counts still count the POOL — at today's bank nothing changes, and when
+the tail outgrows a page the published order's totals are the fix
+(publishLearnTotals' shape), with D283's under-count report as the
+failure it prevents. Search still searches what the device holds; full-
+bank search is a published slice or a server query, later. Both are
+BANK-DELIVERY §4 census rows, now half-converted.
+
+Measured: 2100 unit tests — bank-cache at 17 (the two-query boot with
+the core constraint asserted field by field, tail paging through the
+order, the answered heal, and the window rule at arrival), vote.test's
+84 untouched (its blanket mock feeds fixtures through the core query,
+which is the constraint mirror doing its job) — lint, check:globals
+baseline unchanged, shipping bundle 2098 KB against 2440.
+
+**With D318–D321 the install stops scaling with the bank**: a fresh
+device fetches the boot surfaces, the core corpus, and a page per
+topic — O(core + pages), never O(bank) — and "there should be no
+question limit" (D316's adoption) is now a property of the read path
+rather than an aspiration of the plan. D316's remaining piece is phase
+4's remaining signals (attention and evenness joining volume in the
+nightly fold).
+
+## D322 · The profile is real: feed answers counted by topic, and pages sized by them
+
+**2026-08-26.** D317 phase 1 as-built, the same day the reversal was
+recorded and adopted. Three parts and the checklist, each with its gate.
+
+**The fold** (`functions/src/taste.ts`, `fitTasteV2`, nightly 3:27 UTC —
+after the rank fold, before the velocity scan): this person's FEED
+answers counted by topic from the agg-events ledger, through the one-day
+reader the patterns fit now shares (`ledger.ts`, extracted here for
+D197's one-copy reason). One count per (person, question) per day — the
+D86 edit rule at heuristic strength, recorded rather than silently
+wrong. Cursor on `v2_meta/app` (`tasteLastDay`, the D265
+no-new-collection argument), 7-day catch-up, idempotent on retry. Feed
+only in v1: learn interest is the follow list the user already
+controls, and the daily has no selection to personalize.
+
+**The document** (`v2_users/{uid}/taste/profile` — `{t, n, at}`):
+owner-readable, client-unwritable, never listable. Owner-readable is
+D163's "shown" carried over the reversal; NOT public is the
+patterns-state argument with one reader added — what a person ANSWERED
+is the product (D98), what the system concluded they are INTO is a
+summary nobody signed up to be read as by strangers. The write deny is
+forward-looking: a self-writable profile would let a device forge its
+own fetch weighting — harmless today, a sponsored-targeting hole the
+day audiences exist.
+
+**The one reader** (`bankPager.pageSizesByInterest`, wired into the
+feed top-up): topics with `TASTE_TOPIC_MIN` (3) or more answers page at
+`FEED_PAGE`; the rest at max(4, a third of it) — never zero, D96's
+every-topic-on posture, and a cold topic must stay discoverable or the
+profile could never change. Below `TASTE_MIN_TOTAL` (10) answers the
+profile shapes nothing: a new device's feed is byte-identical to the
+pre-profile feed. A failed profile read costs personalization for one
+session, never the pages.
+
+**The checklist, shipped with it rather than after.** The rules block
+and its test (owner reads, stranger never, nobody writes);
+`docs/data-inventory.md`'s row; `web/privacy.html` states the
+arithmetic and `check:policy-claims` pins three sentences — including
+the PHASE-2 TRIPWIRE: "what you merely scrolled past or skipped stays
+on your device and is not collected" is now a pinned claim, so building
+phase 2 must retire that row in the same commit as the record that
+licenses it. The store label moved: User Content gains Product
+Personalisation (`STORE-FORMS.md` + `app-privacy.json`, held equal by
+`check:store-forms` — also where D317's checklist's `check:labels`
+misnomer surfaced; corrected in place). `MONITORING.md`'s refused row
+re-drawn, dated, with the crossed position kept above it — including
+the new duty the architecture no longer enforces: the console COULD
+now show what people are into and must not. And the erasure e2e seeds
+and asserts the profile's sweep, run green against the real emulated
+`deleteAccount`, so the page's "deleting your account deletes it" is a
+tested sentence.
+
+Measured: 390 functions tests (taste at 6, new; patterns' 11 unmoved
+across the ledger extraction), 2104 unit tests (bank-pager at 11;
+bank-cache at 18 — a profiled device pages its answered topic at 12 and
+a cold one at 4, end to end through a booted live.ts reading its own
+profile), 151 rules tests, the erasure e2e, and every drift gate:
+store-forms, policy-claims, data-inventory, deploy-targets, fn-runtime,
+appcheck, figures, globals (238 unchanged), bundle 2098 KB / 2440.
+
+What phase 2 would be, so the next reader knows where the line is: the
+pass/defer/read signals joining the fold — a real upload of behaviour,
+licensed only by its own record, the pinned page sentence retired in
+the same commit, and the store forms re-derived again.
