@@ -403,7 +403,6 @@ export function collectScorecard() {
     // is most of the bank and says nothing; after launch a stubbornly high
     // number means the deck is not getting through what has been written.
     unserved: cov.unserved ?? 0,
-    belowFloor: cov.belowFloor ?? 0,
     questionsTracked: cov.questions ?? perQuestion.length,
     // The product's own bar, as a distribution rather than an average: a
     // mean evenness hides the shape, and the shape is the thing ("splits,
@@ -690,8 +689,36 @@ export function collectInstrumentation() {
     }
   }
 
+  // WHAT COUNTS AS A POLICY, by SHAPE rather than by name. This filter was
+  // a denylist — every .json in monitoring/ except pulse.json and
+  // rates.json — which meant any new non-policy file dropped in here
+  // silently became a row in the alert table with `undefined` for its name.
+  //
+  // Not hypothetical: the first `scorecard --fetch` to write
+  // monitoring/engagement.json (2026-08-26) produced exactly that, and the
+  // only reason it had never happened before is that no third kind of file
+  // had ever landed in this directory. A denylist that must be edited for
+  // every new file is a denylist that will be forgotten; a Cloud Monitoring
+  // alert policy always carries displayName and conditions, so ask for
+  // those instead and the question stops being maintained by hand.
   const policyFiles = readdirSync(join(ROOT, "monitoring"))
-    .filter((f) => f.endsWith(".json") && f !== "pulse.json" && f !== "rates.json");
+    .filter((f) => f.endsWith(".json"))
+    .filter((f) => {
+      // try/catch because this now parses EVERY .json in the directory,
+      // and one of them is monitoring/pulse.json — machine-written by
+      // scripts/pulse.mjs and gitignored, so the file here most likely to
+      // be caught half-written by an interrupted run. Without the guard an
+      // interrupted `npm run pulse` makes the NEXT `npm run pulse` throw a
+      // JSON syntax error naming a position and no file.
+      //
+      // Shape alone is the right test here, unlike in check-monitoring:
+      // the gate is what must CATCH a policy missing displayName, so it
+      // deliberately admits malformed ones. This only draws a table, and a
+      // row it cannot name is a row headed `undefined`.
+      let p;
+      try { p = readJson(`monitoring/${f}`); } catch { return false; }
+      return typeof p.displayName === "string" && Array.isArray(p.conditions);
+    });
   const policies = policyFiles.map((f) => {
     const p = readJson(`monitoring/${f}`);
     const cond = p.conditions?.[0] || {};

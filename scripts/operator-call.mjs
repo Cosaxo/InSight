@@ -67,6 +67,37 @@ export function operatorContext(tag = "operator-call") {
   return { project, region, apiKey, sa, uid: uids[0], die };
 }
 
+/** `res.json()` on a response that is not JSON throws `Unexpected token
+ *  '<'`, which names neither the status nor the URL — and the two failures
+ *  that actually produce HTML here are the two an operator most needs to
+ *  tell apart: a callable that is not deployed (404) and a platform error
+ *  in front of one that is (5xx). Both were indistinguishable from a bug in
+ *  this script until 2026-08-25, when the first production dry run raced the
+ *  deploy that was still shipping the function and reported exactly that.
+ *
+ *  So: read the body as text, and parse it ourselves. */
+async function readJson(res, ctx, what, url) {
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    // An HTML error page is the platform answering, not the function. Lead
+    // with the status and the URL, because between them they name the fix.
+    const head = text.replace(/\s+/g, " ").trim().slice(0, 160);
+    ctx.die(
+      `${what} returned ${res.status} ${res.statusText} with a non-JSON body.\n`
+      + `    ${url}\n`
+      + `    body: ${head || "(empty)"}\n`
+      + (res.status === 404
+        ? "    A 404 here is usually the function not being DEPLOYED rather than a\n"
+        + "    wrong name — check the backend deploy has finished for the commit\n"
+        + "    that introduced it. Nothing reached the function, so its log is empty."
+        : "    HTML from cloudfunctions.net is the platform in front of the function,\n"
+        + "    not the function body — so its Cloud Run log will have nothing in it."),
+    );
+  }
+}
+
 /** RS256 custom token, signed locally with the key in the JSON — no IAM
  *  round trip, so this needs no serviceAccountTokenCreator role. `aud` is
  *  the fixed identitytoolkit audience; getting it wrong returns
@@ -89,12 +120,14 @@ function customToken(sa, uid) {
 
 async function idToken(ctx) {
   const base = process.env.SEED_IDENTITY_BASE || "https://identitytoolkit.googleapis.com";
-  const res = await fetch(`${base}/v1/accounts:signInWithCustomToken?key=${ctx.apiKey}`, {
+  const url = `${base}/v1/accounts:signInWithCustomToken?key=${ctx.apiKey}`;
+  const res = await fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ token: customToken(ctx.sa, ctx.uid), returnSecureToken: true }),
   });
-  const body = await res.json();
+  // The key is in the URL, so redact it — this string reaches a job log.
+  const body = await readJson(res, ctx, "the custom-token exchange", url.replace(/key=.*/, "key=***"));
   if (!res.ok) {
     ctx.die(
       `custom-token exchange failed (${res.status}): ${body.error?.message || JSON.stringify(body)}\n`
@@ -111,12 +144,13 @@ export async function callOperator(ctx, name, data) {
   const base = process.env.SEED_FUNCTIONS_BASE
     || `https://${ctx.region}-${ctx.project}.cloudfunctions.net`;
   const token = await idToken(ctx);
-  const res = await fetch(`${base}/${name}`, {
+  const url = `${base}/${name}`;
+  const res = await fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
     body: JSON.stringify({ data }),
   });
-  const body = await res.json();
+  const body = await readJson(res, ctx, name, url);
   if (!res.ok || body.error) {
     const e = body.error || {};
     // A bare INTERNAL means the function threw something that was not an

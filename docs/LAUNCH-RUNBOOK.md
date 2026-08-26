@@ -1284,12 +1284,41 @@ That is a tester-count problem, not a workflow problem.
       against all five banks rather than assumed.
 ## Phase 5 — Production hygiene before the app is public
 
-- [ ] **5.1 Enable TTL on the aggregate event ledger** (one-time):
+- [ ] **5.1 Enable TTL on all THREE collection groups that stamp
+      `expireAt`** (one-time each):
       ```bash
-      gcloud firestore fields ttls update expireAt \
-        --collection-group=v2_agg_events --enable-ttl --project=prvfire33
+      for cg in v2_agg_events engagement v2_ratelimits; do
+        gcloud firestore fields ttls update expireAt \
+          --collection-group="$cg" --enable-ttl --project=prvfire33
+      done
       ```
-      Without it the ledger grows forever. `SHIP-CHECKLIST §5`.
+      Stamping `expireAt` does nothing on its own — a TTL policy is a
+      per-collection-group setting on the database, and the field is inert
+      until somebody turns it on. Nothing in this repository can read
+      whether one is enabled, so all three are unverifiable from here.
+
+      This step named `v2_agg_events` alone until 2026-08-26, which
+      under-counted the console work by two and left out the half with a
+      promise attached:
+
+      - **`v2_agg_events`** — the aggregate event ledger. Without the
+        policy it grows forever (`SHIP-CHECKLIST §5`).
+      - **`v2_users/{uid}/engagement/{yyyy-mm-dd}`** (D272,
+        `ROLLUP_TTL_DAYS = 90`) — **`web/privacy.html` promises this one in
+        so many words**: "each note deletes itself 90 days after its day,
+        so the account-linked trail is a rolling window". Deleting the
+        account still erases it immediately (phase 1b's recursive delete,
+        asserted in `e2e-delete-account.mjs`), so the promise's *erasure*
+        half holds regardless — it is the ROLLING-WINDOW half that is a
+        console toggle nobody was asked to flip. A promise in a privacy
+        policy kept by a setting no runbook names is the D183 failure with
+        a legal edge on it.
+      - **`v2_ratelimits`** (`suggestions.ts`, `v2social.ts` — `expireAt`
+        at double the rate-limit window) — the smallest of the three:
+        `deleteAccount` removes a living account's own ledgers by exact id,
+        so the residue is bounded per account rather than per request. Slow
+        growth, not runaway, and listed here because the comment asserting
+        the sweep should not be the only place it is asserted.
 - [ ] **5.2 Confirm the Authentication billing edition** — 30 seconds in
       the console, and the largest unknown on the bill. Anonymous-first
       means every install becomes an authenticated identity: free forever
@@ -1395,6 +1424,28 @@ That is a tester-count problem, not a workflow problem.
       dispatch that #2 exists to save, which is the trade being made, and
       it is the cheaper side once releases stop being daily.
 
+- [ ] **5.9b Delete the nine D13 v1 functions, which are a DIFFERENT
+      us-central1 leftover from 5.9's.** `docs/DEPLOYMENT.md`
+      § "One-off cleanup still owed in production (D13)" has the exact
+      command and it has never had a checkbox — so nothing in the ordered
+      list that holds status has been counting it. Two reasons it is easy
+      to think 5.9 covers this and it does not:
+
+      1. **Dropping a name from the deploy `--only` list stops deploying a
+         function; it does not delete the deployed copy.** Today's deploy
+         log lists only `europe-west1` names because the `--only` filter
+         protects everything else from view — it is not evidence the old
+         copies are gone.
+      2. **Three of the nine are SCHEDULED.** They keep firing nightly
+         against empty collections: billed work producing output nobody
+         reads, and — unlike 5.9's duplicated triggers — silent, because
+         nothing downstream changes when they run.
+
+      `us-central1` in that command is correct and must not be "fixed" to
+      match D201; see the warning at that heading. Verification is
+      `gcloud functions list --project prvfire33 --regions us-central1`,
+      which nothing in this repo can run.
+
 - [ ] **5.9 Deploy the functions to `europe-west1` (D201), then confirm
       the old region is empty.** The code is merged and every gate is
       green; this is the operator half, and it is the one deploy here that
@@ -1427,11 +1478,20 @@ That is a tester-count problem, not a workflow problem.
       Mirror keep working, because they read Firestore directly and never
       go through a callable.
 
-- [ ] **5.10 Dry-run the replay tool once, on a question with real
-      answers.** D290 shipped `rebuildAggregateV2` and its unit tests, but
-      the callable has never run against production data — there was none
-      when it was written. Its first execution should not be during an
-      incident, which is the only other time anyone reaches for it.
+- [x] **5.10 Dry-run the replay tool once, on a question with real
+      answers.** **DONE 2026-08-26 on `daily-019`** (Actions run 6,
+      `apply` off): the scan pulled 5 real answers out of
+      `v2_users/{uid}/answers`, rebuilt the vote fold, and matched the
+      published aggregate exactly — `rebuilt total 5 counts {"0":5}` ·
+      `published total 5 counts {"0":5}` · `drift: none`. That is the
+      property the whole of D290 rests on, checked against production
+      rather than against an emulator, and it is the first non-vacuous
+      run: the 2026-08-25 attempt scanned zero (D295/D296).
+
+      D290 shipped `rebuildAggregateV2` and its unit tests, but
+      the callable had never run against production data. Its first
+      execution should not be during an incident, which is the only other
+      time anyone reaches for it.
 
       **Actions → Rebuild aggregate → Run workflow**, with the qid and
       `apply` left off. No checkout, no Node, no credentials on a laptop —
@@ -1447,13 +1507,49 @@ That is a tester-count problem, not a workflow problem.
       the trigger and the answers disagree, which the incremental fold has
       no other way of telling anyone.
 
+      **`nothing to compare` is not that green.** It means the scan matched
+      no answers and the aggregate is empty too — consistent, and nothing
+      verified. If you expected answers for that question, the query is
+      what to look at, not the fold.
+
       The workflow reads the seed's own credentials
       (`FIREBASE_SERVICE_ACCOUNT`, `SEED_ADMIN_UIDS`,
       `VITE_FIREBASE_API_KEY`) from the `production` environment, so there
-      is nothing new to grant. The composite index the scan orders by
-      ships in `firestore.indexes.json`, so it needs a `--only firestore`
-      deploy to exist; a missing index fails the call with a console link
-      rather than a wrong answer.
+      is nothing new to grant.
+
+      **WHAT THE FIRST RUN ACTUALLY FOUND (2026-08-25, D295).** The step was
+      performed the day the tool merged, and it failed twice before it
+      passed. Both failures were about the deploy, not the tool, and both
+      are worth knowing before anyone reaches for this during an incident:
+
+      1. **Dispatched five seconds after the merge**, while the backend
+         deploy was still running. `cloudfunctions.net` answered with a 404
+         HTML page for a function that did not exist yet. **Wait for the
+         backend deploy to finish** before dispatching a rebuild that
+         depends on a just-merged change.
+      2. **Dispatched a minute after the deploy finished**, and got a bare
+         `INTERNAL`. The composite index the scan orders by (`qid` +
+         `answeredAt`, collection group) ships in `firestore.indexes.json`
+         and is created by the same deploy — but a freshly created index is
+         **not queryable until it finishes BUILDING**, which for this
+         collection takes minutes rather than seconds. The third dispatch,
+         2.5 minutes later and otherwise identical, succeeded. If a rebuild
+         fails right after an index change, **wait and re-run before
+         debugging anything**.
+      3. It then reported `scanned 0 … nothing to compare` — true of
+         `daily-000`, which nobody has answered. **So the plumbing is
+         verified and the fold is not**: the call reaches the function, the
+         scan runs, the fold runs and the comparison runs, over zero
+         answers. The fold itself is covered against emulated functions with
+         real answers (e2e steps 7h, 7i, 9e).
+
+         **Pick a qid that HAS answers.** This entry first said the project
+         held none, quoting `answersCounted: 0` from the pulse trail; D296
+         found that number to be a broken reader, not a measurement — there
+         are 104 questions with answers in production. `daily-019` (total 5)
+         is the one with more than a single vote, and is what run 6
+         verified. `feed-f03` would exercise the rank arm the same way if
+         a rank fold ever needs the same confidence.
 
 - [ ] **5.12 Turn on Cloud Billing export to BigQuery — so the prediction
       can be diffed against the invoice.** Cloud Console → Billing →

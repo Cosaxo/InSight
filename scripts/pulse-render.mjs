@@ -662,11 +662,10 @@ function scorecardBlock(sc) {
   ])}
 
   ${nothingScored ? `<div class="empty" style="margin-top:16px"><b>A scorecard exists, and
-    nothing has cleared the floor yet.</b> ${int(sc.questionsTracked)} questions are
-    tracked and ${int(sc.unserved)} have never been served; ${int(sc.belowFloor)} are
-    served but not yet answered. Both readings are what a bank that has
-    not met a crowd looks like — the instrument is working, the population has not
-    arrived. The evenness distribution below fills in as questions cross the floor.</div>`
+    no question has been answered yet.</b> ${int(sc.questionsTracked)} questions are
+    tracked and ${int(sc.unserved)} have never been served. That is what a bank
+    that has not met a crowd looks like — the instrument is working, the population
+    has not arrived. The evenness distribution below fills in as answers land.</div>`
     : ""}
 
   <h3>Evenness — "splits, not landslides", as a distribution</h3>

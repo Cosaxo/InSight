@@ -96,8 +96,50 @@ What is true now: the flags collection, the queue, the verdict log and
 both callables exist and are deployed (D22); the client can read, post,
 delete and flag circle takes, and `LiveTakesPanel` draws all of it
 including the report control, mounted on the reveal in `LdReveal`
-(D78 part 1 + amendment). The world-feed takes remain demo-only and
-`!S.live`-gated, which is D1 working rather than a gap.
+(D78 part 1 + amendment) **and, since D83, on the live world card and the
+live daily behind the post-vote toggle described above**
+(`world-feed.jsx:2232`, `gid="world"`).
+
+*This paragraph ended "The world-feed takes remain demo-only and
+`!S.live`-gated, which is D1 working rather than a gap" until 2026-08-26.
+That was true before D83 and false after it — pre-D83 residue that survived
+the same edit which added the D83 paragraph forty lines above, so the file
+asserted both. ORIENTATION lists this document as `tree`, i.e. a
+description of the app as it exists, which is exactly the promise a
+self-contradiction breaks. No gate could see it: `check:figures` covers
+quoted counts, `check:policy-claims` covers `web/privacy.html` alone, and
+`check:docs` holds the ORIENTATION row rather than a file's internals.*
+
+## Reading the queue and answering it
+
+`npm run mod:queue` — the reviewer's instrument, added 2026-08-26. Before
+it, the two callables had been deployed and enforcing since D22 with **no
+caller anywhere in the tree except `firestore-tests/e2e-moderation.mjs`**,
+so a maintainer holding MOD_UIDS had no screen, no script and no workflow:
+the substrate was live and the review half was a test harness.
+
+```bash
+npm run mod:queue                              # read it
+npm run mod:queue -- --keep <takeId>
+npm run mod:queue -- --escalate <takeId>
+npm run mod:queue -- --remove <takeId> --line H3
+```
+
+**One verdict per invocation, deliberately.** `MOD_RUN_CAP` bounds a run's
+blast radius on the server and the caller keeps the matching shape — there
+is no bulk mode and no "remove everything over N flags", because a tool
+that can clear the queue in one command is a tool that eventually will, and
+confinement is the whole of D22's design. The `runId` is generated per
+invocation rather than accepted as a flag: one somebody can choose is one
+somebody can reuse.
+
+Credentials are `scripts/operator-call.mjs`'s, with one catch worth knowing
+before an incident: **the uid must be in `MOD_UIDS`, which is a different
+list from `SEED_ADMIN_UIDS`.** Being able to seed content does not make you
+a moderator, and the CLI says so when the callable refuses. Those two lists
+are meant to be disjoint and today hold the same uid —
+`operatorModeratorOverlap()` in `functions/src/ops.ts` reports it on every
+production cold start, and runbook 5.7 is the one-variable fix.
 
 ## The policy — permissive by default, with named hard lines
 

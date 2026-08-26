@@ -45,6 +45,10 @@ on:
         type: string
         required: false
         default: ""
+      allow_empty:
+        description: "Apply a scan that matched NO answers over an aggregate that has some. Read the refusal first."
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -111,6 +115,7 @@ jobs:
           ARGS="--qid $QID"
           [ -n "$EXCLUDE" ] && ARGS="$ARGS --exclude $EXCLUDE"
           [ "${{ inputs.apply }}" = "true" ] && ARGS="$ARGS --apply"
+          [ "${{ inputs.allow_empty }}" = "true" ] && ARGS="$ARGS --allow-empty"
           # 2>&1 because die() writes to stderr — without it a failure shows
           # an empty block in the summary and the reader has to open the log.
           node scripts/rebuild-aggregate.mjs $ARGS 2>&1 | tee "$RUNNER_TEMP/rebuild.log"
@@ -158,6 +163,12 @@ jobs:
             echo "published aggregate already matches the answers. **Anything else is a"
             echo "real finding, not a tool bug:** it means the trigger and the answers"
             echo "disagree, which the incremental fold has no other way of telling anyone."
+            echo ""
+            echo "\`nothing to compare\` is NOT that green. It means the scan matched no"
+            echo "answers and the aggregate is empty too — consistent, but nothing was"
+            echo "verified. If you expected answers for this question, look at the query"
+            echo "(a composite index still building after a deploy, a qid that does not"
+            echo "match what the answers carry) rather than at the fold."
             echo ""
             echo "A \`cappedDims\` line means that dimension is at the bucket cap, where"
             echo "the fold is order-dependent (D290) — counts and total stay exact, but the"

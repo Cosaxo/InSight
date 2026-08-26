@@ -20,7 +20,7 @@
 // can reach.
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { assertOperator, seedAdmins } from "./ops";
+import { assertOperator, seedAdmins, operatorModeratorOverlap } from "./ops";
 import { assertModerator } from "./moderation";
 import type { CallableRequest } from "firebase-functions/v2/https";
 
@@ -139,6 +139,44 @@ describe("the two allowlists are separate instruments", () => {
     expect(codeOf(() => assertModerator(as("u_op")))).toBe("permission-denied");
     expect(() => assertModerator(as("u_mod"))).not.toThrow();
     expect(codeOf(() => assertOperator(as("u_mod")))).toBe("permission-denied");
+  });
+
+  it("REPORTS an overlap rather than pretending the separation is deployed", () => {
+    // The half the test above cannot see. It asserts two variables are read
+    // independently, which is true of a config where both hold the same
+    // uid — and that is production's config today (deploy run 32883038909).
+    // A green "the two allowlists are separate instruments" in front of one
+    // shared credential is the wiring passing for the deployment.
+    process.env.SEED_ADMIN_UIDS = "u_both,u_op";
+    process.env.MOD_UIDS = "u_both,u_mod";
+    expect(operatorModeratorOverlap()).toEqual(["u_both"]);
+
+    // …and it stays silent once 5.7 is done, which is what makes it usable
+    // as a signal rather than as noise somebody learns to scroll past.
+    process.env.SEED_ADMIN_UIDS = "u_op";
+    process.env.MOD_UIDS = "u_mod";
+    expect(operatorModeratorOverlap()).toEqual([]);
+  });
+
+  it("does not invent an overlap out of two empty lists", () => {
+    // Both unset is the fail-safe state (every gate denies everyone), not
+    // an overlap — and a warning that fires on every non-prod deploy is a
+    // warning people learn to scroll past.
+    //
+    // WHERE THE SAFETY ACTUALLY COMES FROM, because the obvious answer is
+    // wrong: `"".split(",")` yields `[""]`, so it looks like the
+    // `.filter(Boolean)` on the MOD_UIDS side is what stops the empty
+    // string being reported as a shared uid. It is not — verified by
+    // removing it, which changes nothing. The intersection iterates
+    // `seedAdmins()`, which filters already, so `""` is never a candidate
+    // to match. The mods-side filter is belt-and-braces; the one that
+    // load-bears is in `seedAdmins`, and the test below is what holds it.
+    // (Written the other way round first, and the mutation said so.)
+    delete process.env.SEED_ADMIN_UIDS;
+    delete process.env.MOD_UIDS;
+    expect(operatorModeratorOverlap()).toEqual([]);
+    process.env.SEED_ADMIN_UIDS = "u_op";
+    expect(operatorModeratorOverlap()).toEqual([]);
   });
 
   it("seedAdmins parses the operator list the way the gate consumes it", () => {

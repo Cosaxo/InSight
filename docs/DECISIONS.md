@@ -29783,6 +29783,29 @@ never where it came from, so the matrix is not derivable from the answers
 and is carried forward instead. That is one field, stated at three sites,
 rather than two thirds of the system.
 
+> **Corrected 2026-08-26 (D294's audit).** "The whole list" was true of the
+> three QUESTION aggregates the replay tool rebuilds, and false of the
+> record's own list of projections at the top of D290, which also names the
+> Patterns fit and the engagement digest. Neither is replayable from the
+> log:
+>
+> - **`v2_patterns/loadings`** (`functions/src/patterns.ts`) is an
+>   incremental online fold that reads YESTERDAY's `v2_agg_events` ledger
+>   and carries the prior model forward. The ledger has no anchors and
+>   expires at `LEDGER_RETENTION_DAYS` (90). Deliberate — the header says
+>   why: it keeps a read and a write off the trigger's hot path.
+> - **`v2_engagement_daily`** (D268) reads the same TTL'd ledger, and
+>   `runAttentionFold` folds device-written `v2_attention` shards into the
+>   day document and then DELETES them — which is ATTENTION.md §6's privacy
+>   promise, not an oversight. Once a shard is folded its raw contribution
+>   is gone.
+>
+> So the honest statement is narrower than D290's closing sentence: **every
+> aggregate derived from the ANSWERS is a rebuildable projection, and
+> `edits` is the whole list of exceptions within that set.** The two
+> ledger-derived projections are outside it by construction, and each has a
+> reason recorded at its own site. Both are recoverable only forward, by
+> waiting for the next run.
 ## D293 · A moderation verdict's ID is not neutral, and the privacy page says it is
 
 **2026-08-26.** **Status:** binding as a RECORD OF A LIMIT; the repair is
@@ -29999,3 +30022,482 @@ wants the Firebase secrets, and `check:store-copy` is the manual
 pre-submission gate with its one known placeholder. Unit 2066, scripts 408,
 functions 359, rules 143, and all three e2e suites — 146 assertions against
 real emulated functions — green.
+
+## D295 · What the first production run of the repair tool cost, and the data-loss path it exposed
+
+**2026-08-25.** D290's `rebuildAggregateV2` merged, and the runbook's 5.10
+said to dry-run it once against production before anyone needed it during
+an incident. That was the right instruction and this is what performing it
+found: **three defects, none of them in the fold.** Two were in how the
+tool reports failure, and one was a path by which a repair tool could
+destroy the thing it repairs.
+
+### It failed twice before it passed, and neither failure was the tool
+
+**Dispatched five seconds after the merge**, while the backend deploy was
+still shipping the function. `cloudfunctions.net` returned a 404 HTML page.
+`operator-call.mjs` called `res.json()` on it, so what the operator read
+was:
+
+```
+Unexpected token '<', "\n<html><hea"... is not valid JSON
+```
+
+which names neither the status, nor the URL, nor the function — and reads
+like a bug in the caller rather than a deploy that had not finished.
+
+**Dispatched again after the deploy completed**, and got `INTERNAL
+INTERNAL`. The collection-group index the scan orders by (`qid` +
+`answeredAt`) ships in `firestore.indexes.json` and is created by that same
+deploy — but a freshly created index is not queryable until it finishes
+**BUILDING**. The third dispatch, 2.5 minutes later and byte-identical,
+succeeded. Nothing changed but time.
+
+The `fn-log` fallback the workflow carries for exactly this case reported
+nothing, correctly and uselessly: it ran 10ms after the failure, and Cloud
+Logging had not ingested the entry yet.
+
+### The general fault: a callable that throws a non-HttpsError says nothing
+
+Firebase discards the detail of anything that is not an `HttpsError` before
+the response leaves the server. `runRebuild` was called without a
+try/catch, so every failure inside it — a building index, a rules change, a
+malformed document — reached the operator as the five-letter string
+`INTERNAL`, pointing at a Cloud Run log that, in the minute after a
+failure, does not exist yet.
+
+That is a bad failure mode for any callable and the wrong one entirely for
+this one, whose two callers are a verification and an incident. It now
+catches, logs, and rethrows as an `HttpsError` carrying the underlying
+reason, with the index case named because it is the one thing about this
+tool that is not in the deployed code. Safe to return the detail here
+specifically because `assertOperator` has already run.
+
+### The real finding: a right fold of nothing
+
+The successful run reported:
+
+```
+scanned 0  folded 0  skipped 0  excluded 0
+drift: none — the published aggregate already matches the answers.
+```
+
+Both lines are true. Together they are a lie of the kind this repo keeps
+naming — **a check that passes because it never ran.** The scan found
+nothing for `daily-000` and agreed with an empty aggregate; nothing was
+verified, and the workflow's own summary was busy telling the reader that
+`drift: none` means the question is healthy.
+
+> **Corrected 2026-08-25, same day (D296).** This paragraph originally read
+> "`answersCounted` is 0 in the pulse trail, so the project genuinely holds
+> no answers." **That is false, and the reason it is false is a bug D296
+> found:** production held 104 aggregate documents and 108 answers at the
+> moment of this dry run. `answersCounted` reads 0 because the scorecard
+> gates on `agg.tooSmall === false`, a field D98 stopped writing — so every
+> real aggregate reads as unscored. `daily-000` really does have no answers,
+> which is why the run scanned 0; the project-wide claim was quoting a
+> broken instrument. Exactly the error this record is about, committed in
+> the record about it.
+
+Follow it one step further and it stops being a reporting problem. The
+concurrency guard added at D290 compares `updateTime` and catches an
+aggregate written **during** the scan. It cannot catch the quieter case:
+nobody wrote, and the scan simply returned nothing. Then the stamps match,
+the guard passes, and a whole-document `set` puts `total: 0` over a
+document holding real votes.
+
+**A scan returns nothing far more often because the query did not work than
+because a question's answers are gone.** An index still building — which
+had just happened, twice — a qid that does not match what the answers
+carry, a rules change. All of them are indistinguishable from the truth
+from inside the function. So the refusal is on the comparison rather than
+on the scan: **no answers found, but something published, and `apply` on →
+refuse.**
+
+It is a refusal with an escape hatch rather than a veto, because a
+question's answers really can go away — an erasure sweep, a retraction —
+and repairing exactly that is what D28 built this tool for. What it must
+not have is a silent path. `allowEmpty` is that hatch, and it has to be
+typed.
+
+### Proven by removing it
+
+The e2e's new 7i writes a question with a published aggregate of 7 and no
+answers, then asserts the dry run reports `emptyScan`, that `--apply` is
+refused with `failed-precondition`, that the document survives, and that
+`allowEmpty` then applies deliberately. Stubbing the guard to `if (false)`
+fails it with `an empty scan OVERWROTE a published aggregate` — measured,
+not assumed.
+
+`operator-call.mjs` got its first test at the same time (9 cases, 5 of
+which fail against the pre-fix code reproducing the exact production error
+text). It had shipped without one, on the grounds that the two callers
+predating it both worked — which was true of the happy path and of nothing
+else.
+
+### A fourth thing, found while writing this up
+
+`docs/DEPLOYMENT.md`'s D28 runbook — the one somebody follows during the
+incident this tool exists for — still ended with **"No correction script
+ships in this repo."** D290 shipped one, wired it to a workflow button,
+gave it an e2e step literally labelled `D28/D290: excluding one uid
+subtracts exactly its answer`, and never went back for that sentence. It
+is D183 again: the app changed and the document that promises what the app
+does did not. Corrected, with the tool's three limits stated at the same
+site (attribution is still manual, `edits` is carried not recomputed, dry
+by default) so the correction cannot read as more than it is.
+
+### What is verified now, and what is not
+
+The plumbing: the call reaches the function, the scan runs, the fold runs,
+the comparison runs, against production. The fold over real answers: still
+only against emulated functions (7h, 7i, 9e) — not because production has
+nothing to fold (D296: it has 104 questions with answers) but because the
+qid this run was pointed at, `daily-000`, is not one of them. Runbook 5.10
+stays **open**, and D296 names three qids that would actually exercise it.
+
+## D296 · The scorecard has been reading production through a retired predicate, and every number downstream inherited the zero
+
+**2026-08-25.** An audit of what is missing from the target architecture
+found something that is not missing at all. **Production holds 104
+questions with answers and 108 answers.** Every instrument in this
+repository has been reporting zero.
+
+### The bug is one expression
+
+`scripts/question-scorecard.mjs` decided whether an aggregate document was
+readable with:
+
+```js
+agg && agg.tooSmall === false
+```
+
+That was correct while a k-anonymity floor existed. The trigger stamped
+`tooSmall`, and a floored question published a document whose counts were
+not usable — so a fail-closed test was the right shape.
+
+**D98 removed the floor and stopped writing the field** (2026-08-11).
+`undefined === false` is `false`, so from that day every aggregate document
+in production read as *below floor*. Not an error, not a warning: a clean,
+confident zero, at eight call sites.
+
+D98 swept the CLIENT's copy of the same predicate in the same commit —
+`src/v2/data/deck.ts:289-292` still carries the note that a client reading
+the flag "would blank every count in the app". The script's copy was
+missed, and nothing failed, because `question-scorecard.mjs` had no test.
+
+### What it cost
+
+`content/scorecard.json` → `coverage.scored` has been `0` in every refresh
+since. Downstream, in order: `pulse-collect.mjs` sums those zeros into
+`totalAnswers`; `pulse.mjs` renames it `answersCounted`; `pulse-collect.mjs`
+derives `population.state` from it; the question farm's evenness, leaders,
+laggards and retirement lanes all gate on `signal === "scored"`, which no
+row could be. `pulse-render.mjs`'s empty state told the reader that
+questions were "served but not yet answered" — of 104 questions that had
+been answered.
+
+And it propagated into the record. `answersCounted: 0` is cited as evidence
+the project holds no answers at DECISIONS.md:9236, :10041, :12976, :26660,
+:27533 and :29302 — and, most sharply, in **D295, written today, in the
+paragraph about checks that pass because they never ran.** That citation is
+corrected in place above. The older records are left as written: they are
+dated statements of what was believed, and several were true when made —
+the project genuinely held no answers before 2026-08-11. What changed is
+that the instrument stopped being able to tell the difference.
+
+### Measured, not inferred
+
+Read live from `prvfire33` on 2026-08-25 by the same public path
+`scorecard --fetch` uses — anonymous sign-in, then the aggregates D98 made
+world-readable. 104 documents in `v2_question_aggs`. Sorted by `total`
+descending: `daily-019` at 5, and every one of the remaining 103 at exactly
+1. `tooSmall` **absent from all 104**.
+
+`v2_question_aggs` is `allow write: if false` and the trigger writes it only
+when folding an answer, so a document's existence *is* the signal — which is
+what the fix says.
+
+### The fix, and where it lives
+
+`isScoredAgg(agg)` in `scripts/scorecard-metrics.mjs` — the pure module that
+already has a test file — used at all eight sites. It is `!!agg`, with the
+reasoning above written at its definition rather than at the call sites, for
+the reason `pure.ts` gives about `breakdownFor`: three copies is how they
+drift, and this bug is what that drift looks like when one copy is left
+behind.
+
+The `below-floor` signal is removed rather than left unreachable, and with
+it the three `belowFloor` coverage counts, `pulse-collect`'s field and
+`pulse-render`'s prose. A permanently-zero number that a renderer explains
+in words is how a retired concept survives its own retirement.
+
+### Proven by putting the old predicate back
+
+Three tests in `scorecard-metrics.test.mjs`, over document literals
+transcribed from the live read. Restoring `agg && agg.tooSmall === false`
+fails all three. The tests also pin the legacy case: a pre-D98 document that
+still carries `tooSmall: true` counts, because it was published — the flag is
+data the reader no longer interprets, not a verdict it must obey.
+
+### What is now newly possible
+
+Runbook 5.10 — dry-running the replay tool against a question with real
+answers — has a target: `daily-019` (5 answers), or `feed-f03` for the rank
+arm. It was never blocked on a population. It was blocked on being able to
+see one.
+
+The next `npm run scorecard -- --fetch` will move `scored` from 0 to
+something real, and the pulse trail's `answersCounted` with it. That refresh
+is the owner's to run; this commit only makes the reader honest.
+
+## D297 · Doing the things that could be done, and the four latent faults that surfaced on the way
+
+**2026-08-26.** D296 made the instruments honest. This is what became
+possible once they were, and what broke when the data they had never seen
+finally arrived.
+
+### Runbook 5.10 is closed, and this time it means something
+
+`daily-019`, `apply` off, Actions run 6:
+
+```
+scanned 5   rebuilt total 5   counts {"0":5}
+            published total 5  counts {"0":5}
+drift: none
+```
+
+The scan pulled five real answers out of `v2_users/{uid}/answers`, folded
+them, and reproduced what the trigger had accumulated — **the property the
+whole of D290 rests on, checked against production rather than an
+emulator.** The 2026-08-25 attempt scanned zero and agreed with nothing
+(D295); this one is the first non-vacuous run, and it was one qid away the
+entire time.
+
+### The scorecard now reads production, and production has a shape
+
+First `--fetch` since the fix: `scored` 0 → **20**, learn 0 → **19**,
+summed answers 0 → **24** on the tracked bank.
+
+It also wrote the first `monitoring/engagement.json`, which answered a
+question nothing in the tree could: **`digestEngagementV2` has been
+running.** Eight consecutive day documents, 2026-08-18 to 08-25, three
+carrying real activity — 6 actives / 10 votes on the 20th, 1 / 4 on the
+22nd, 1 / 35 on the 24th. `pulse.test.mjs` had been asserting the opposite
+("the digest has not deployed"), correctly, and had written down the
+condition for flipping itself. It flipped.
+
+One thing to look at rather than to conclude: `foldedAt` is null on all
+eight. That is the attention fold's mark, and this is not the document it
+marks, so it is a lead and not a verdict.
+
+### Four faults nothing could have found without the data
+
+Each of these had been in the tree for weeks, harmless, waiting for a file
+or a number that had never existed.
+
+1. **The pulse rendered an alert policy named `undefined`.** Its policy
+   scanner took every `.json` in `monitoring/` except two named
+   exceptions. `engagement.json` became a third kind of file and therefore
+   a phantom alert. **`check:monitoring` had the same denylist** and
+   demanded a runbook of the engagement trail. Both now recognise a policy
+   by SHAPE — `displayName` plus a `conditions` array, which every Cloud
+   Monitoring policy carries. A denylist that must be edited whenever
+   somebody adds a file will be forgotten, and it starts lying at exactly
+   the moment somebody is adding a file.
+2. **`docs/MODERATION.md` asserted both sides of one fact.** D83 mounted
+   world takes behind a post-vote toggle on the live world card and the
+   live daily; forty lines below, pre-D83 residue still said "the
+   world-feed takes remain demo-only and `!S.live`-gated, which is D1
+   working rather than a gap". `world-feed.jsx:2232` settles it. The file
+   is listed in ORIENTATION as `tree` — a description of the app as it
+   exists — which is precisely the promise a self-contradiction breaks.
+3. **`firestore.rules` still named the duel fold as a second occupant of
+   `v2_aggs_private`,** which D290's first amendment had already collapsed
+   ("v2_aggs_private now means exactly one thing"). Two of three
+   descriptions were updated then and this one was not. Behaviour was never
+   affected — the path is `allow read, write: if false` either way.
+4. **D290's "and now this is the whole list"** was true of the three
+   question aggregates the replay tool rebuilds and false of D290's own
+   list of projections, which also names the Patterns fit and the
+   engagement digest. Neither is replayable: both read the 90-day-TTL
+   `v2_agg_events` ledger, which carries no anchors, and the attention fold
+   deletes its shards by design (ATTENTION.md §6's privacy promise). The
+   honest statement is narrower: **every aggregate derived from the ANSWERS
+   is rebuildable, and `edits` is the whole list of exceptions within that
+   set.**
+
+### The moderation queue has a reviewer for the first time
+
+`fetchModQueue` and `submitModVerdict` have been deployed and enforcing
+since D22 with **no caller anywhere in the tree except
+`firestore-tests/e2e-moderation.mjs`**. The substrate was live; the review
+half was a test harness. A maintainer holding MOD_UIDS had no screen, no
+script and no workflow.
+
+`npm run mod:queue` is that instrument, on `operator-call.mjs` like the
+others. **One verdict per invocation** — `MOD_RUN_CAP` bounds a run's blast
+radius server-side and the caller keeps the matching shape. No bulk mode,
+because a tool that can clear the queue in one command is a tool that
+eventually will, and confinement is the whole of D22. The `runId` is
+generated rather than accepted as a flag: one somebody can choose is one
+somebody can reuse.
+
+Fourteen tests against a stub, including that a removal without a policy
+line is refused **before** the round trip, and that a verdict invocation
+never reads the queue at all — so there is nothing for it to iterate. That
+last one was written first as a grep over the script's own source and
+passed vacuously, then failed once the regex was written with `s` and
+matched the READ path's loop. A source-shape test cannot tell two loops
+apart; a call count can.
+
+### Least privilege is nominal, and now it says so
+
+`ops.test.ts` asserts the two allowlists are separate instruments and
+passes, because it tests the MECHANISM: two variables, read independently.
+That is true of a configuration where both hold the same uid — which is
+production's, read out of the deploy log.
+
+`operatorModeratorOverlap()` reports the intersection, and warns once per
+production cold start while it is non-empty. Not a refusal: refusing would
+take moderation offline to punish a misconfiguration, which is worse than
+the misconfiguration. Runbook 5.7 is the one-variable fix, and the warning
+stops the moment it lands.
+
+### Two runbook gaps that nothing was counting
+
+- **5.1 named one of three collection groups that stamp `expireAt`.** The
+  missing two are `v2_users/{uid}/engagement/{yyyy-mm-dd}` — which
+  `web/privacy.html` promises in so many words, "each note deletes itself
+  90 days after its day" — and `v2_ratelimits`. Stamping the field does
+  nothing without a per-collection-group policy somebody enables. The
+  erasure half of that promise holds regardless (phase 1b's recursive
+  delete, asserted in `e2e-delete-account.mjs`); it is the ROLLING-WINDOW
+  half that was a console toggle no runbook named.
+- **5.9b, new:** the nine D13 v1 functions in `us-central1`.
+  `docs/DEPLOYMENT.md` has had the command since D13 and never had a
+  checkbox, so the ordered list that holds status was not holding this one.
+  Three of the nine are scheduled and still firing nightly against empty
+  collections — billed work producing output nobody reads, and silent,
+  because nothing downstream changes when they run.
+
+### And a stale figure with an argument resting on it
+
+`docs/SCALE-PLAN.md` said "All 82 in `content/feed-questions.json` carry
+`core: true`" against a file holding **130**, of which **50 declare
+`core: false`**. The count was wrong and the universal was wrong, and the
+second one mattered: SCALE-PLAN's whole subject is what an unbounded feed
+costs, and a reader told the tail was empty would be planning against a
+state that ended. Both figures, and `content/README.md`'s, are
+`check:figures` entries now — mutation-tested against the exact stale
+numbers that were sitting in the tree.
+
+## D298 · The review of D296/D297 found a bug D296 had created, and five things that were true of the stub instead of the server
+
+**2026-08-26.** A 20-agent adversarial review of the day's three commits
+raised 16 findings; 11 survived refutation. One is a fabricated statistic
+that shipped in a committed artifact, and it is the same class of error the
+day started with.
+
+### D296 made a null measurable, and three means counted it as unanimity
+
+Sixteen feed questions — 11 `dial`, 3 `field`, 2 `path` — declare neither
+`options` nor `items`. The scorecard computes `n = 0` for them,
+`optionShares` returns null, and `evenness` is null however many people
+answer. **Those rows were invisible to every rollup for the wrong reason:**
+the retired `tooSmall` predicate marked them below-floor along with
+everything else. D296 fixed the predicate and they arrived — into
+
+```js
+t.evenSum += r.evenness ?? 0;   // ×3: topics, types, rollupProduction
+```
+
+which turns *not measurable* into *perfectly unanimous*, and divides by a
+denominator that counted it. The artifact D297 committed says how it reads:
+`types.feed.dial {scored: 7, avgEvenness: 0}` — seven rows, not one of
+them measured. `types.feed.path` and three topic cells the same. A dial
+whose crowd is perfectly uniform scored the same 0 as one where everybody
+picked the same number.
+
+**The repo had already ruled on this and the ruling was not applied here.**
+`bucketEvenness` skips non-numeric evenness, pinned by a test whose comment
+is the whole argument in one line: *"scoring it as a landslide would invent
+a landslide that nobody voted in."* The buckets obeyed it; the three means
+did not. `feed-budget.mjs` had meanwhile flipped from `blind` to `signal`
+and started printing "read evenness per topic before allocating" — pointing
+the feed lane at the fabricated cells.
+
+`isMeasured(row)` now separates the two questions. **A row is `scored` when
+somebody answered it and `measured` when the split can be computed**; the
+mean's denominator is the second. A cell where nothing was measurable
+reports `null`, which the reader already renders as "no reading yet".
+Regenerated: `dial — (7)` where it said `dial 0 (7)`.
+
+### The shape filter pre-excluded exactly what the gate exists to catch
+
+D297 replaced `check:monitoring`'s denylist with "displayName is a string
+AND conditions is an array". Three of that gate's own rules exist to catch a
+policy missing `displayName`, `conditions` or `documentation.content` — so
+the filter silently excluded the malformed file instead of reporting it,
+and the gate would have gone green on the fault it was written for.
+
+Now **named-or-shaped**: a file is a candidate if `apply-monitoring` lists
+it *or* it carries either half of the shape. Shape alone is self-defeating,
+name alone misses a stray policy nobody wired up (rule 1's subject), and a
+denylist starts lying the moment somebody adds a file. Verified by deleting
+`displayName` from a real policy and watching the gate say so.
+
+Both scans also parsed every `.json` in `monitoring/` unguarded — including
+`pulse.json`, which is machine-written and gitignored, so it is the file
+there most likely to be caught half-written. An interrupted `npm run pulse`
+made the next one throw a syntax error naming a position and no file. Both
+guarded.
+
+### Five things that were true of the stub and not of the server
+
+- **`mod-queue`'s MOD_UIDS hint could not fire.** It tested
+  `/permission-denied/`; the wire carries
+  `{status: "PERMISSION_DENIED", message: "moderator-only"}`. **And its
+  test proved the stub**: the fixture used `message: "permission-denied"`,
+  a string the server never sends, so it carried both spellings and the
+  assertion held whichever one the script matched on — the only thing the
+  behaviour turns on. Fixture corrected to the real shape; it now fails
+  against the old regex.
+- **A verdict flag with no value degraded to a queue read and exited 0.**
+  `flag()` returned null both for absent and for present-with-nothing-after,
+  so `mod-queue --keep` printed the queue, recorded nothing, and exited
+  like a success.
+- **`--remove --line H3`** — the documented form with the id dropped, one
+  token off a paste — took `"--line"` as the takeId. Every check passed:
+  a non-empty string under 128 chars is a valid takeId to `modVerdictError`,
+  so a removal would be recorded against a take that does not exist.
+  Presence and value are now different questions, and a value beginning
+  `--` is a missing value.
+- **The D178 avatar comment named a hazard the server cannot produce.**
+  It said the queue omits `text` for an avatar and that printing it would
+  show `undefined`. It does not omit it — `runBuildModQueue` writes
+  `text: ""` explicitly. The branch is right; the reason was wrong, and the
+  test's fixture carried the invented `null`.
+- **`replay.ts` listed "a rules change" as a cause of an empty scan.**
+  `runRebuild` scans through the Admin SDK, which bypasses security rules
+  entirely. During an incident that sends an operator to read
+  `firestore.rules` for nothing.
+
+### And a not.toContain that could no longer fail
+
+`pulse.test.mjs` asserted the absence of "nothing has cleared the floor
+yet" — a sentence D296 rewrote in the same commit. An assertion against a
+string the code cannot emit passes for the wrong reason, which is the
+thing D296 is about. Tracked to the current wording, with the old one kept
+beside it.
+
+### What the review says about the day
+
+Five findings were refuted, and the refutations are worth as much as the
+confirmations: the catalog arm's refusal reads the right document, the
+`--allow-empty` flag name is consistent, and "50 of 130 is half the feed"
+was overstatement rather than error. What survived is one real
+regression, one gate that had stopped being a gate, and five claims that
+were true of a fixture. **Every one of those five would have been found by
+asking "does the server actually send this?" rather than "does the test
+pass?"** — and the tests passed.

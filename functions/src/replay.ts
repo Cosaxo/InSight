@@ -424,6 +424,14 @@ export interface RebuildReport {
   published: { total: number; counts: Record<string, number> } | null;
   drift: { total: number; counts: Record<string, number> };
   carriedEdits: boolean;
+  /** The scan matched no answers at all. Reported rather than left for the
+   *  reader to infer from `scanned`, because a zero scan against an absent
+   *  aggregate produces a drift of nothing — and "no drift" is the one
+   *  sentence this tool exists to say. A caller that prints it without
+   *  checking this flag reports a question as verified when the tool looked
+   *  at nothing. Found on the first production dry run (2026-08-25), where
+   *  the project genuinely held zero answers. */
+  emptyScan: boolean;
 }
 
 /** Which fold an answer to this question goes through. Decided by the
@@ -482,7 +490,7 @@ export function armFor(questionType: unknown): ReplayArm {
 
 export async function runRebuild(
   qid: string,
-  opts: { apply: boolean; exclude: ReadonlySet<string> },
+  opts: { apply: boolean; exclude: ReadonlySet<string>; allowEmpty?: boolean },
 ): Promise<RebuildReport> {
   const db = firestore();
   const pubRef = db.collection("v2_question_aggs").doc(qid);
@@ -591,6 +599,40 @@ export async function runRebuild(
   }
 
   if (opts.apply) {
+    // REFUSE TO ZERO A LIVE AGGREGATE FROM AN EMPTY SCAN. The stamp guard
+    // below catches a write that lands DURING the scan; this catches the
+    // opposite and quieter case, where nothing wrote and the scan simply
+    // returned nothing. Then the stamps match, the guard passes, and
+    // `set({ total: 0 })` replaces a document holding real votes.
+    //
+    // The scan is the part of this tool that can fail without saying so: a
+    // composite index still BUILDING after a deploy, or a qid that does not
+    // match what the answers carry. Either reads as "this question has no
+    // answers", which is indistinguishable from the truth until you compare
+    // it with what is published.
+    //
+    // NOT a rules change, which this listed until 2026-08-26 — and during
+    // an incident that would send an operator to read firestore.rules for
+    // nothing. `runRebuild` scans through the Admin SDK, which bypasses
+    // security rules entirely; no edit to that file can change what this
+    // query returns.
+    //
+    // A question really can go from answered to unanswered — an erasure
+    // sweep, a retraction — and that is precisely the D28 repair this tool
+    // exists for, so this refusal has an escape hatch rather than being a
+    // veto. What it does not have is a silent path.
+    if (scanned === 0 && beforeTotal > 0 && !opts.allowEmpty) {
+      throw new HttpsError(
+        "failed-precondition",
+        `${qid}: the scan matched no answers, but the published aggregate holds `
+          + `${beforeTotal} — refusing to overwrite it with an empty fold.\n`
+          + "A scan that returns nothing is far more often a query that did not "
+          + "work (an index still building after a deploy, a qid that does not "
+          + "match the answers) than a question whose answers are genuinely "
+          + "gone. Run without --apply first and read `scanned`.\n"
+          + "If the answers really are gone, pass allowEmpty to say so deliberately.",
+      );
+    }
     const now = await accRef.get();
     const nowStamp = docStamp(now);
     if (beforeStamp === undefined || nowStamp === undefined) {
@@ -668,6 +710,7 @@ export async function runRebuild(
     published: before.exists ? { total: beforeTotal, counts: publishedCounts } : null,
     drift: { total: total - beforeTotal, counts: drift },
     carriedEdits: edits !== undefined,
+    emptyScan: scanned === 0,
   };
 }
 
@@ -678,5 +721,47 @@ export const rebuildAggregateV2 = onCall({ region: REGION }, async (request: Cal
   const apply = request.data?.apply === true;
   const raw = Array.isArray(request.data?.exclude) ? request.data.exclude : [];
   const exclude = new Set<string>(raw.filter((u: unknown): u is string => typeof u === "string" && !!u));
-  return runRebuild(qid, { apply, exclude });
+  const allowEmpty = request.data?.allowEmpty === true;
+
+  // WHY THIS WRAPPER. Firebase discards the detail of anything that is not
+  // an HttpsError before the response leaves the server, so a throw from
+  // inside runRebuild reaches the operator as the string "INTERNAL" and
+  // nothing else. That is a bad failure mode for any callable and the wrong
+  // one entirely for this callable: its two callers are a one-time
+  // verification and an INCIDENT, and during an incident the operator is
+  // reading a job summary, not a Cloud Run log — which, in the minute after
+  // the failure, has not been ingested yet anyway.
+  //
+  // Found the hard way. The first production dry run (2026-08-25) answered
+  // `INTERNAL INTERNAL`, and the log the message points at was empty because
+  // the fallback step ran 10ms later.
+  //
+  // Returning the underlying reason is safe here specifically because
+  // assertOperator has already run: the only caller who can see this is an
+  // operator, which is not true of the callables that deliberately say
+  // little.
+  try {
+    return await runRebuild(qid, { apply, exclude, allowEmpty });
+  } catch (err) {
+    if (err instanceof HttpsError) throw err;
+    const reason = err instanceof Error ? err.message : String(err);
+    logger.error(`[replay] ${qid} failed`, err);
+    // A query against a composite index that does not exist yet — or that
+    // exists and is still BUILDING after a deploy — is the failure this tool
+    // is most likely to hit, because it is the one thing about it that is not
+    // in the deployed code. Firestore's own message carries the console link
+    // that fixes it, so pass it through rather than summarising it away.
+    const indexish = /index/i.test(reason);
+    throw new HttpsError(
+      "internal",
+      `rebuild of ${qid} failed: ${reason}`
+      + (indexish
+        ? "\n\nThis reads like the collection-group index over answers"
+        + " (qid + answeredAt). A freshly deployed index is not queryable"
+        + " until it finishes BUILDING, which for this collection takes"
+        + " minutes rather than seconds — check its state in the Firestore"
+        + " console before treating this as a code fault."
+        : ""),
+    );
+  }
 });

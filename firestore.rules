@@ -1066,8 +1066,13 @@ service cloud.firestore {
     // its idempotency ledger. Closed to clients because nothing needs it,
     // not because it hides anything.
     //
-    // What is left in v2_aggs_private is the CATALOG accumulator (and the
-    // duel fold's own). It used to also hold a byte-identical copy of every
+    // What is left in v2_aggs_private is the CATALOG accumulator, and
+    // nothing else — the duel fold's own copy was named here until
+    // 2026-08-26, and D290's first amendment had already collapsed it
+    // ("v2_aggs_private now means exactly one thing"). Two of the three
+    // descriptions were updated at the time and this one was not; rules
+    // BEHAVIOUR was never affected, since the path is `allow read, write:
+    // if false` either way. It used to also hold a byte-identical copy of every
     // vote, edit and rank aggregate — dead weight once D98 removed the
     // floor those copies existed to sit above — and that copy is gone: the
     // published document above is the accumulator on those paths now, which

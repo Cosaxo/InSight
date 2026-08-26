@@ -72,7 +72,7 @@
 //                      auth user (rules require sign-in to read the
 //                      public mirror; no answers are written, so it never
 //                      touches aggregates or the D28 ledger).
-//   --input <file>     read a JSON dump { qid: {counts,total,tooSmall} }
+//   --input <file>     read a JSON dump { qid: {counts,total} }
 //                      (operator export, or a test fixture).
 //   (no args)          re-print the summary from the committed
 //                      content/scorecard.json — the farm's read path.
@@ -83,7 +83,7 @@ import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   splitQualityOf, rollupProduction, creditShares,
-  attentionFromTrail, ATTENTION_WARNING,
+  attentionFromTrail, ATTENTION_WARNING, isScoredAgg, isMeasured,
 } from "./scorecard-metrics.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -231,8 +231,8 @@ function score(aggs) {
     const n = q.options ? q.options.length : q.type === "rating" ? 10 : 5;
     const agg = aggs[qid];
     const served = idx < daysElapsed;
-    const total = agg && agg.tooSmall === false ? Number(agg.total || 0) : 0;
-    const sh = agg && agg.tooSmall === false ? optionShares(agg.counts || {}, n) : null;
+    const total = isScoredAgg(agg) ? Number(agg.total || 0) : 0;
+    const sh = isScoredAgg(agg) ? optionShares(agg.counts || {}, n) : null;
     rows.push({
       qid,
       surface: "daily",
@@ -248,7 +248,7 @@ function score(aggs) {
       total,
       evenness: sh ? splitQualityOf(q.type, sh, n) : null,
       optionShares: sh ? sh.map(round3) : null,
-      signal: agg ? (agg.tooSmall === false ? "scored" : "below-floor") : served ? "no-answers" : "unserved",
+      signal: isScoredAgg(agg) ? "scored" : served ? "no-answers" : "unserved",
     });
   });
   feed.questions.forEach((q) => {
@@ -256,8 +256,8 @@ function score(aggs) {
     const qid = `feed-${q.id}`;
     const n = q.options ? q.options.length : (q.items || []).length;
     const agg = aggs[qid];
-    const total = agg && agg.tooSmall === false ? Number(agg.total || 0) : 0;
-    const sh = agg && agg.tooSmall === false ? optionShares(agg.counts || {}, n) : null;
+    const total = isScoredAgg(agg) ? Number(agg.total || 0) : 0;
+    const sh = isScoredAgg(agg) ? optionShares(agg.counts || {}, n) : null;
     rows.push({
       qid,
       surface: "feed",
@@ -279,7 +279,7 @@ function score(aggs) {
       total,
       evenness: sh ? splitQualityOf(q.type, sh, n) : null,
       optionShares: sh ? sh.map(round3) : null,
-      signal: agg ? (agg.tooSmall === false ? "scored" : "below-floor") : "no-answers",
+      signal: isScoredAgg(agg) ? "scored" : "no-answers",
     });
   });
 
@@ -322,20 +322,23 @@ function score(aggs) {
     if (r.sponsored) continue;
     for (const { topic, share } of creditShares(r.topics ?? [r.topic])) {
       const t = (topics[topic] ||= {
-        questions: 0, scored: 0, answers: 0, evenSum: 0, strong: 0, landslides: 0,
+        questions: 0, scored: 0, answers: 0, evenSum: 0, measured: 0, strong: 0, landslides: 0,
       });
       t.questions++;
       if (r.signal === "scored") {
         t.scored++;
         t.answers += r.total * share;
-        t.evenSum += r.evenness ?? 0;
+        // `measured`, not `scored`, is the mean's denominator — see
+        // isMeasured in scorecard-metrics.mjs. A dial has no options, so
+        // its evenness is null however many people answered it.
+        if (isMeasured(r)) { t.evenSum += r.evenness; t.measured++; }
         if (r.grade === "strong") t.strong++;
         if (r.grade === "landslide") t.landslides++;
       }
     }
   }
   for (const t of Object.values(topics)) {
-    t.avgEvenness = t.scored ? +(t.evenSum / t.scored).toFixed(3) : null;
+    t.avgEvenness = t.measured ? +(t.evenSum / t.measured).toFixed(3) : null;
     // Credited answers are fractional by construction (a 2/3 share of 31
     // answers); one decimal keeps the committed artifact readable without
     // hiding that they are shares rather than raw counts.
@@ -347,19 +350,19 @@ function score(aggs) {
   // for the same reason grades are: daily and feed totals never compare.
   const types = { daily: {}, feed: {} };
   for (const r of rows) {
-    const t = (types[r.surface][r.type] ||= { questions: 0, scored: 0, answers: 0, evenSum: 0, strong: 0, landslides: 0 });
+    const t = (types[r.surface][r.type] ||= { questions: 0, scored: 0, answers: 0, evenSum: 0, measured: 0, strong: 0, landslides: 0 });
     t.questions++;
     if (r.signal === "scored") {
       t.scored++;
       t.answers += r.total;
-      t.evenSum += r.evenness ?? 0;
+      if (isMeasured(r)) { t.evenSum += r.evenness; t.measured++; }
       if (r.grade === "strong") t.strong++;
       if (r.grade === "landslide") t.landslides++;
     }
   }
   for (const surf of Object.values(types)) {
     for (const t of Object.values(surf)) {
-      t.avgEvenness = t.scored ? +(t.evenSum / t.scored).toFixed(3) : null;
+      t.avgEvenness = t.measured ? +(t.evenSum / t.measured).toFixed(3) : null;
       delete t.evenSum;
     }
   }
@@ -399,7 +402,7 @@ function score(aggs) {
     const qid = `learn-${card.id}`; // the client's answer key (live.ts)
     const n = card.a.length;
     const agg = aggs[qid];
-    const isScored = agg && agg.tooSmall === false;
+    const isScored = isScoredAgg(agg);
     const sh = isScored ? optionShares(agg.counts || {}, n) : null;
     const total = isScored ? Number(agg.total || 0) : 0;
     const measuredP = sh ? sh[card.c] : null;
@@ -417,7 +420,7 @@ function score(aggs) {
       // is wrong; a fully-correct crowd says nothing about `t`.
       trapShare: wrongShare ? round3(sh[card.t] / wrongShare) : null,
       wrongCount: wrongShare === null ? 0 : Math.round(total * wrongShare),
-      signal: agg ? (isScored ? "scored" : "below-floor") : "no-answers",
+      signal: isScored ? "scored" : "no-answers",
     });
   });
   const learnFields = {};
@@ -460,7 +463,7 @@ function score(aggs) {
     const qid = `duel-${docId}`;
     const n = (q.options || []).length;
     const agg = aggs[qid];
-    const isScored = agg && agg.tooSmall === false;
+    const isScored = isScoredAgg(agg);
     const sh = isScored && n >= 2 ? optionShares(agg.counts || {}, n) : null;
     const guessTotal = isScored ? Number(agg.guessTotal || 0) : 0;
     duelRows.push({
@@ -472,15 +475,15 @@ function score(aggs) {
       total: isScored ? Number(agg.total || 0) : 0,
       // Duel options are unordered — the categorical bar, or null for
       // pick questions (whose per-option counts are deliberately never
-      // aggregated) and below-floor rows.
+      // aggregated) and unanswered rows.
       evenness: sh ? splitQualityOf("choice", sh, n) : null,
       guessTotal,
       guessMatches: isScored ? Number(agg.guessMatches || 0) : 0,
       guessMatchRate:
         guessTotal > 0 ? round3(Number(agg.guessMatches || 0) / guessTotal) : null,
       chance: n >= 2 ? round3(1 / n) : null,
-      signal: agg
-        ? (isScored ? "scored" : "below-floor")
+      signal: isScoredAgg(agg)
+        ? "scored"
         : q.active === false ? "unserved" : "no-answers",
     });
   };
@@ -509,6 +512,10 @@ function score(aggs) {
   }
 
   const scored = rows.filter((r) => r.signal === "scored");
+  // `?? 0` is right HERE and wrong in a mean (isMeasured, and the three
+  // rollups above). This is a ranking of best splits: a row with no
+  // measurable split sorts to the bottom, which is what it deserves. The
+  // same expression in an average invents a landslide instead.
   const byScore = scored
     .slice()
     .sort((a, b) => (b.evenness ?? 0) * b.total - (a.evenness ?? 0) * a.total);
@@ -518,7 +525,10 @@ function score(aggs) {
     coverage: {
       questions: rows.length,
       scored: scored.length,
-      belowFloor: rows.filter((r) => r.signal === "below-floor").length,
+      // No `belowFloor`. D98 removed the floor; a row is scored when its
+      // aggregate document exists (isScoredAgg), so the count could only be
+      // 0 forever — and a permanently-zero number that a renderer explains
+      // in prose is how a retired concept survives its own retirement.
       unserved: rows.filter((r) => r.signal === "unserved").length,
     },
     topics,
@@ -544,7 +554,6 @@ function score(aggs) {
       coverage: {
         cards: learnRows.length,
         scored: learnScored.length,
-        belowFloor: learnRows.filter((r) => r.signal === "below-floor").length,
       },
       fields: learnFields,
       // Advisory for the learn lane's PR bodies — like retireProposals,
@@ -558,7 +567,6 @@ function score(aggs) {
       coverage: {
         questions: duelRows.length,
         scored: duelScored.length,
-        belowFloor: duelRows.filter((r) => r.signal === "below-floor").length,
         unserved: duelRows.filter((r) => r.signal === "unserved").length,
       },
       modes: duelModes,
@@ -576,8 +584,8 @@ function score(aggs) {
 function summarize(card) {
   const c = card.coverage;
   console.log(
-    `scorecard: ${c.scored}/${c.questions} scored (${c.belowFloor} below floor, ` +
-      `${c.unserved} unserved) · generated ${card.generatedAt}`,
+    `scorecard: ${c.scored}/${c.questions} scored (${c.unserved} unserved) ` +
+      `· generated ${card.generatedAt}`,
   );
   if (card.attention) {
     const rated = (card.perQuestion || []).filter((q) => q.attnPass != null);

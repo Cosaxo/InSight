@@ -6,7 +6,7 @@
 import { describe, it, expect } from "vitest";
 import {
   evennessOf, ordinalSplit, splitQualityOf, rollupProduction, creditShares, HOME_SHARES,
-  attentionFromTrail, ATTENTION_WARNING,
+  attentionFromTrail, ATTENTION_WARNING, isScoredAgg, isMeasured,
 } from "./scorecard-metrics.mjs";
 
 describe("categorical evenness (unchanged bar)", () => {
@@ -140,7 +140,7 @@ describe("production rollup (D97)", () => {
     expect(out.byVintage["editorial:prototype"].questions).toBe(2);
   });
 
-  it("keeps unserved and below-floor rows out of the scored figures but in the counts", () => {
+  it("keeps unserved rows out of the scored figures but in the counts", () => {
     const out = rollupProduction(
       [row("daily-000", { served: false, signal: "unserved", total: 0, evenness: null })],
       prov,
@@ -197,5 +197,82 @@ describe("attentionFromTrail (R4/D271)", () => {
   it("the warning names the discipline, because the dashboard doubles the temptation", () => {
     expect(ATTENTION_WARNING).toMatch(/skip is not dislike/);
     expect(ATTENTION_WARNING).toMatch(/D33/);
+  });
+});
+
+describe("isScoredAgg — the predicate that reads a production aggregate", () => {
+  // THE SHAPES ARE REAL. Read live from prvfire33's v2_question_aggs on
+  // 2026-08-25 (anonymous sign-in, the public read D98 opened): 104
+  // documents, every one of them `{counts|pos, total, by}` with NO
+  // `tooSmall` field. These four literals are transcribed from that read.
+  const voteAgg = { counts: { 0: 3, 1: 2 }, total: 5, by: { ageBand: {} } };
+  const rankAgg = { pos: [3, 1, 2], total: 1 };
+  const single = { counts: { 0: 1 }, total: 1, by: {} };
+
+  it("scores a post-D98 document, which carries no tooSmall at all", () => {
+    // The whole bug in one assertion. The retired predicate was
+    // `agg.tooSmall === false`, and `undefined === false` is false — so
+    // this document, and all 104 like it in production, read as unscored.
+    expect("tooSmall" in voteAgg).toBe(false);
+    expect(isScoredAgg(voteAgg)).toBe(true);
+    expect(isScoredAgg(rankAgg)).toBe(true);
+    expect(isScoredAgg(single)).toBe(true);
+  });
+
+  it("refuses only ABSENCE — a question nobody has answered has no document", () => {
+    // v2_question_aggs is `allow write: if false`; the trigger is its only
+    // writer and it writes on an answer. So absence is the one honest
+    // negative, and there is no floor above it.
+    expect(isScoredAgg(undefined)).toBe(false);
+    expect(isScoredAgg(null)).toBe(false);
+  });
+
+  it("does not resurrect the floor if a legacy document still carries the flag", () => {
+    // Pre-D98 documents may still exist for questions retired before the
+    // sweep. They were published, so they count; the flag is data the
+    // reader no longer interprets rather than a verdict it must obey.
+    expect(isScoredAgg({ counts: { 0: 4 }, total: 4, tooSmall: false })).toBe(true);
+    expect(isScoredAgg({ counts: {}, total: 0, tooSmall: true })).toBe(true);
+  });
+});
+
+describe("isMeasured — a scored row is not automatically a measurable one", () => {
+  // Sixteen feed questions (11 dial, 3 field, 2 path) declare neither
+  // `options` nor `items`. The scorecard computes n = 0 for them,
+  // optionShares returns null, and evenness is null however many people
+  // answered. They were invisible to the rollups for the wrong reason until
+  // D296 — the retired tooSmall predicate marked every aggregate
+  // below-floor — and arrived the moment that was fixed.
+  const measurable = { signal: "scored", total: 40, evenness: 0.82, qid: "feed-f57", surface: "feed", type: "vote", topic: "music", topics: ["music"] };
+  const dial = { signal: "scored", total: 40, evenness: null, qid: "feed-dl5", surface: "feed", type: "dial", topic: "event", topics: ["event"] };
+
+  it("separates 'somebody answered it' from 'the split can be computed'", () => {
+    expect(isMeasured(measurable)).toBe(true);
+    expect(isMeasured(dial)).toBe(false);
+    expect(isMeasured({ evenness: 0 })).toBe(true);   // a real unanimous split
+    expect(isMeasured({ evenness: undefined })).toBe(false);
+    expect(isMeasured(undefined)).toBe(false);
+  });
+
+  it("keeps an unmeasurable row out of the MEAN while keeping it in `scored`", () => {
+    const prov = { feed: { f57: { source: "farm", batch: "b1" }, dl5: { source: "farm", batch: "b1" } } };
+    const out = rollupProduction([measurable, dial], prov);
+    // Both answered, so both are scored…
+    expect(out.bySource.farm.scored).toBe(2);
+    // …but the average is the one row that HAS a split, not that row
+    // halved by a null the fold counted as unanimity.
+    expect(out.bySource.farm.avgEvenness).toBeCloseTo(0.82, 3);
+  });
+
+  it("reports null rather than 0 for a cell where NOTHING was measurable", () => {
+    // The shape the first artifact published with the bug:
+    // `types.feed.dial {scored: 7, avgEvenness: 0}` over seven dials. A
+    // dial whose crowd is perfectly uniform scored the same 0 as one where
+    // everybody picked the same number — and the reader already renders a
+    // null average as "no reading yet".
+    const prov = { feed: { dl5: { source: "farm", batch: "b1" }, dl6: { source: "farm", batch: "b1" } } };
+    const out = rollupProduction([dial, { ...dial, qid: "feed-dl6" }], prov);
+    expect(out.bySource.farm.scored).toBe(2);
+    expect(out.bySource.farm.avgEvenness).toBeNull();
   });
 });
