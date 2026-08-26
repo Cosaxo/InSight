@@ -24,6 +24,11 @@ name: Observe production
 
 on:
   workflow_dispatch:
+    inputs:
+      functions:
+        description: "Also list every deployed function with its trigger, generation and last deploy date"
+        type: boolean
+        default: false
   schedule:
     # Daily, after the nightly functions have run and their logs have
     # settled. 06:11 UTC is deliberately off the hour: the scheduled folds
@@ -55,7 +60,14 @@ jobs:
         # REFUSED reading on purpose — a missing role is the answer, not a
         # failure — and only a broken credential or a broken script is an
         # error. tee so the summary can quote it verbatim.
-        run: node scripts/observe.mjs 2>&1 | tee "$RUNNER_TEMP/observe.txt"
+        # `functions` is type: boolean, so the only values that can reach the
+        # shell are true and false — the same argument rebuild-aggregate.yml
+        # makes at its own interpolation, stated here rather than left to be
+        # inferred from the absence of an env indirection.
+        run: |
+          ARGS=""
+          [ "${{ inputs.functions }}" = "true" ] && ARGS="--functions"
+          node scripts/observe.mjs $ARGS 2>&1 | tee "$RUNNER_TEMP/observe.txt"
 
       - name: Summary
         if: always()
