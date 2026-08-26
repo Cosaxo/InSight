@@ -150,10 +150,11 @@ describe("the quota instrument (lsSet)", () => {
     // The degradation is unchanged: a device that cannot persist still
     // answers questions this session.
     expect(LIVE.ready).toBe(true);
-    // Boot writes at least the bank cache, the answers cache and the feed
-    // mirror, and every one of them failed — the counter is the running
+    // The fat caches live in IndexedDB since D303, so what boot still
+    // writes to localStorage is the small keys — the feed mirror at
+    // least — and every such write failed. The counter is the running
     // measure of how much this device is losing.
-    expect(LIVE.stats.cacheWriteFailures).toBeGreaterThanOrEqual(2);
+    expect(LIVE.stats.cacheWriteFailures).toBeGreaterThanOrEqual(1);
     // …but the REPORT is one per session, or a quota'd device becomes a
     // firehose aimed at the error budget.
     expect(quotaReports()).toHaveLength(1);
