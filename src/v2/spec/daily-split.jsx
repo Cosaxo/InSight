@@ -590,6 +590,9 @@ class DailySplit extends React.Component {
     const PINK = 'var(--c-around)', VIOLET = 'var(--c-today)', TEAL = 'var(--c-likeness)';
     return [
       { id: 's1', cat: 'culture', region: 'Taste', regionHue: 40, regionBase: 1, text: 'Pineapple belongs on pizza.',
+        // D302: the demo daily carries a background where its live twin
+        // does, so the About sheet's paragraph arm is visible in mock mode
+        bg: 'Hawaiian pizza — ham and pineapple — was invented in 1962 by Sam Panopoulos, a Greek-born cook in Chatham, Ontario, Canada, and named after the brand of canned pineapple he used.',
         options: [ { id: 'yes', label: 'Absolutely', count: 5642, color: PINK }, { id: 'no', label: 'Never', count: 6210, color: VIOLET } ],
         comments: [
           { name: 'Tom K.', init: 'TK', opt: 'no', time: '2h', ups: 214, text: 'I refuse to negotiate with fruit.' },
@@ -601,6 +604,7 @@ class DailySplit extends React.Component {
         ],
         friends: [ { name: 'Alex', init: 'A', opt: 'yes' }, { name: 'Mia', init: 'M', opt: 'yes' }, { name: 'Jordi', init: 'J', opt: 'no' }, { name: 'Sara', init: 'S', opt: 'no' }, { name: 'Noah', init: 'N', opt: 'yes' }, { name: 'Elif', init: 'E', opt: 'no' } ] },
       { id: 's5', cat: 'dilemma', text: 'A runaway trolley: pull the lever so one dies instead of five?',
+        bg: 'The trolley problem was posed by philosopher Philippa Foot in 1967; Judith Jarvis Thomson later named it and added the famous variants. It tests whether letting harm happen differs from causing it.',
         options: [ { id: 'pull', label: 'Pull the lever', count: 8213, color: PINK }, { id: 'dont', label: 'Don\u2019t touch it', count: 3391, color: VIOLET } ],
         comments: [
           { name: 'Ingrid M.', init: 'IM', opt: 'pull', time: '3h', ups: 342, text: 'Five families grieving versus one. It\u2019s math, and I hate that it\u2019s math.' },
@@ -611,6 +615,7 @@ class DailySplit extends React.Component {
         ],
         friends: [ { name: 'Alex', init: 'A', opt: 'pull' }, { name: 'Mia', init: 'M', opt: 'pull' }, { name: 'Jordi', init: 'J', opt: 'dont' }, { name: 'Sara', init: 'S', opt: 'pull' }, { name: 'Noah', init: 'N', opt: 'dont' }, { name: 'Elif', init: 'E', opt: 'pull' } ] },
       { id: 's6', cat: 'event', text: 'Mars rock lands on Earth this year. Worth the billions?',
+        bg: 'No Mars sample has ever reached Earth. NASA’s Perseverance rover has been caching rock since 2021 for a return mission whose design and cost are still being reworked.',
         options: [ { id: 'worth', label: 'Worth every cent', count: 5107, color: PINK }, { id: 'spend', label: 'Spend it down here', count: 3860, color: VIOLET } ],
         comments: [
           { name: 'Nadia H.', init: 'NH', opt: 'worth', time: '4h', ups: 233, text: 'We picked up a piece of another planet. Sit with that for a second.' },
@@ -907,6 +912,9 @@ class DailySplit extends React.Component {
     // zero on a live surface, which D1 forbids, contradicting the card
     // behind it. The feed's twin has always guarded the same row with
     // `if (n)`; the daily's is the outlier.
+    // D281's promise, kept here too: a card with facts behind it must not
+    // wear the label of one without.
+    const ctxLabel = S.bg ? 'What you need to know' : 'About this question';
     const ctxRows = [['Asked in', catLabel || 'Today']];
     if (total >= 1) {
       ctxRows.push(['Answers', total >= 1000 ? (total / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : String(total)]);
@@ -917,15 +925,21 @@ class DailySplit extends React.Component {
     // the toast could name different places for the same answer — and on a
     // live daily both said 'Interests' regardless of subject.
     ctxRows.push(['On your map', this.mapBranch(S)]);
-    const ctxBody = h('div', { style: { padding: '2px 0 14px', display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: 14, rowGap: 9, alignItems: 'baseline' } },
-      ctxRows
-        .map(([k, v]) => h(F, { key: k },
-          h('span', { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', whiteSpace: 'nowrap' } }, k),
-          h('span', { style: { fontSize: 13.5, fontWeight: 700, color: INK } }, v))));
+    // The background paragraph — D281 gave the feed's `i` this slot, D302
+    // gives the daily's the same one: facts and the subject's who/what,
+    // never the arguments. Same shape as world-feed's renderContext, down
+    // to the hairline over the rows, so the two sheets read as one thing.
+    const ctxBody = h('div', { style: { padding: '2px 0 14px', display: 'flex', flexDirection: 'column', gap: 14 } },
+      S.bg ? h('p', { style: { margin: 0, fontSize: 15, fontWeight: 500, lineHeight: 1.55, color: INK, textWrap: 'pretty' } }, S.bg) : null,
+      h('div', { style: { display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: 14, rowGap: 9, alignItems: 'baseline', borderTop: S.bg ? '0.5px solid var(--rule)' : 'none', paddingTop: S.bg ? 14 : 0 } },
+        ctxRows
+          .map(([k, v]) => h(F, { key: k },
+            h('span', { style: { fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)', whiteSpace: 'nowrap' } }, k),
+            h('span', { style: { fontSize: 13.5, fontWeight: 700, color: INK } }, v)))));
     const sheetNode = ((isCtx || (voted && st.tab)) && sheetHost) ? ReactDOM.createPortal(
-      h(Sheet, { onClose: closeSheet, closing: this.state.sheetClosing, label: isCtx ? 'About this question' : isComments ? 'Comments' : 'Who voted' },
+      h(Sheet, { onClose: closeSheet, closing: this.state.sheetClosing, label: isCtx ? ctxLabel : isComments ? 'Comments' : 'Who voted' },
           h('div', { style: { padding: '10px 18px 8px', display: 'flex', alignItems: 'baseline', gap: 10 } },
-            h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 15, flexShrink: 0 } }, isCtx ? 'About this question' : isComments ? 'Comments' : 'Who voted'),
+            h('span', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: 15, flexShrink: 0 } }, isCtx ? ctxLabel : isComments ? 'Comments' : 'Who voted'),
             h('span', { style: { fontWeight: 600, fontSize: 12, color: 'var(--ink-3)', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' } }, S.text),
             h('button', { className: 'tap44', onClick: closeSheet, 'aria-label': 'Close', style: { border: 'none', background: 'var(--surface-2)', width: 26, height: 26, borderRadius: '50%', cursor: 'pointer', fontSize: 13, fontWeight: 800, color: 'var(--ink-2)', flexShrink: 0, WebkitAppearance: 'none' } }, '\u2715')),
           h('div', { className: 'wf-sheet-body' }, isCtx ? ctxBody : isComments ? commentsBody : statsBody)), sheetHost) : null;
@@ -943,7 +957,7 @@ class DailySplit extends React.Component {
           h('span', { className: 'kicker', style: { marginBottom: 0 } }, (S.dayLabel || dayNames[wIdx]) + (catLabel ? ' \u00b7 ' + catLabel : ''))),
         wIdx !== 0 && h('button', { onClick: () => this.jumpTo(0), style: { border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: 12, color: 'var(--ink-2)', WebkitAppearance: 'none', whiteSpace: 'nowrap' } }, '\u2039 back to today'),
         h('span', { style: { flex: 1 } }),
-        h('button', { className: 'press tap44', onClick: () => { clearTimeout(this._sheetT); this.setState({ tab: 'ctx', sheetClosing: false }); }, 'aria-label': 'About this question', style: { flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: '0.5px solid var(--rule)', background: 'transparent', color: 'var(--ink-3)', fontFamily: BRIC, fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } }, 'i'),
+        h('button', { className: 'press tap44', onClick: () => { clearTimeout(this._sheetT); this.setState({ tab: 'ctx', sheetClosing: false }); }, 'aria-label': ctxLabel, style: { flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: S.bg ? '0.5px solid color-mix(in oklch, var(--ink) 26%, var(--rule))' : '0.5px solid var(--rule)', background: 'transparent', color: S.bg ? 'var(--ink-2)' : 'var(--ink-3)', fontFamily: BRIC, fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } }, 'i'),
         window.PassiveTag ? h(window.PassiveTag, { q: S, answered: voted }) : null),
       chipRow,
       h('div', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: hier ? 37 : 31, lineHeight: 1.06, letterSpacing: hier ? -1.1 : -0.8, textWrap: 'balance' } }, S.text),

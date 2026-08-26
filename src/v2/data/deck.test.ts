@@ -143,6 +143,14 @@ describe("buildS", () => {
     });
   });
 
+  it("carries the background paragraph when the doc has one (D302)", () => {
+    // The field was seeded (D281) and the feed read it while this deck
+    // dropped it — so the daily's About sheet could never lead with it.
+    const q = qd("q1", { bg: "Background the sheet leads with." });
+    const s = buildS(q, 0, { agg: undefined, mine: undefined, pending: false }, WED);
+    expect(s.bg).toBe("Background the sheet leads with.");
+  });
+
   it("carries the bank's subject path and type when the doc has them", () => {
     // The other half of the case above: a doc seeded since D100. Asserted
     // separately because `toEqual` treats an absent key and an undefined

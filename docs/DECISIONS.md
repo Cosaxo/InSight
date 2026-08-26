@@ -30712,3 +30712,58 @@ optionIdx — D52's frozen option sets, D86's one edit shape and the
 aggregate's dense cells all hold exactly as they were. This is a
 presentation decision about surfaces, which is why it could ship without
 touching functions/ at all.
+
+## D302 · Context reaches the daily's ⓘ, and the banks get their first subject-context pass
+
+**Decided:** 2026-08-26 · **Status:** binding. The same owner review as
+D300/D301: "a question like Mozart or Beethoven should have context about
+them in the info box — in general more context on most questions."
+
+### 1 · The slot existed and the daily could not reach it
+
+D281 gave every feed card the `i` whose sheet leads with a background
+paragraph, seeded on the doc (`bg`, in SEEDED_FIELDS) and read by
+`buildFeedGlobals`. The daily had the same button and the same sheet —
+and could never show a paragraph, for a D296-class reason: the field was
+seeded and the feed read it, while `buildS` (the daily deck) dropped it
+on the floor. Nothing was red; the sheet simply always opened on its
+three rows.
+
+`buildS` now carries `bg`, the daily's sheet leads with the paragraph
+over a hairline when one exists, and the button keeps D281's promise on
+this surface too: it promotes itself to "What you need to know" so a card
+with facts behind it does not wear the label of one without. The demo
+deck's literals carry three backgrounds so mock mode shows the same
+thing.
+
+### 2 · The rule widens: subject context is context
+
+The bg rule was "only for questions that cannot be answered honestly
+without a fact". The owner's ask adds the other legitimate kind: a named
+subject the reader may be meeting for the first time — who Mozart was,
+what a trolley problem is. The rule in world-subtopics.js now says both,
+with the same bounds (facts and definitions, never arguments, ~40 words;
+`check:quality` holds 90–320 chars, refuses questions-as-context and the
+unambiguous argue-forms).
+
+### 3 · The first pass: 51 questions, and where the texts live
+
+44 feed + 7 daily questions now carry `bg` (the `now` channel's six
+already did): 19 lifted verbatim from `WORLD_BG` for bank questions that
+had been resolving them by id collision — the fact now rides the seeded
+doc instead of a client map — and 32 written new, mostly the named-people
+and named-thing cards (Mozart/Beethoven included) plus the dials whose
+scale benefits from a baseline fact. The daily got only the handful with
+a named subject: most daily questions ask about the answerer, and a
+context sheet for "How optimistic are you" would be padding.
+
+`WORLD_BG` stays, scoped to the demo pool, with a comment saying the bank
+copy is the product's. The wire cost of the pass is +8.8 KiB on the
+cold-boot bank fetch (COSTS.md figure moved 181.5 → 190.3 KiB).
+
+### 4 · Open, deliberately
+
+The remaining ~470 seeded questions without context mostly need none —
+but the reviewing lanes (QUESTION-FARM) may keep extending the set under
+§2's widened rule, one vintage at a time, and the length cap is the thing
+to hold: a sheet is context, not an article.

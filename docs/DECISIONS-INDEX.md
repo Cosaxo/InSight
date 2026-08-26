@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 308 lines instead of
-30,715. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 309 lines instead of
+30,770. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -299,7 +299,7 @@ detect it.
 | **D278** | [The City constellation asks for its city, instead of filtering for it](DECISIONS.md#d278--the-city-constellation-asks-for-its-city-instead-of-filtering-for-it) | — | 27980 |
 | **D279** | [There were always five test runners, and the table said four](DECISIONS.md#d279--there-were-always-five-test-runners-and-the-table-said-four) | D284 | 28089 |
 | **D280** | [The feed's test cards came back demo, and the seam was a cast](DECISIONS.md#d280--the-feeds-test-cards-came-back-demo-and-the-seam-was-a-cast) | D294 (+2) | 28192 |
-| **D281** | [The `i` had a background slot, and it was empty in every live build](DECISIONS.md#d281--the-i-had-a-background-slot-and-it-was-empty-in-every-live-build) | — | 28340 |
+| **D281** | [The `i` had a background slot, and it was empty in every live build](DECISIONS.md#d281--the-i-had-a-background-slot-and-it-was-empty-in-every-live-build) | D302 | 28340 |
 | **D282** | [The topics door stops moving you, when it does not have to](DECISIONS.md#d282--the-topics-door-stops-moving-you-when-it-does-not-have-to) | — | 28455 |
 | **D283** | [Every field is followed, and the follow list gets a way out](DECISIONS.md#d283--every-field-is-followed-and-the-follow-list-gets-a-way-out) | — | 28575 |
 | **D284** | [The learn bank leaves the JavaScript](DECISIONS.md#d284--the-learn-bank-leaves-the-javascript) | — | 28679 |
@@ -316,9 +316,10 @@ detect it.
 | **D293** | [A moderation verdict's ID is not neutral, and the privacy page says it is](DECISIONS.md#d293--a-moderation-verdicts-id-is-not-neutral-and-the-privacy-page-says-it-is) | D299 | 29833 |
 | **D294** | [A deep clean, priced: what moved, what did not, and the eight rules that hold it](DECISIONS.md#d294--a-deep-clean-priced-what-moved-what-did-not-and-the-eight-rules-that-hold-it) | D299 | 29887 |
 | **D295** | [What the first production run of the repair tool cost, and the data-loss path it exposed](DECISIONS.md#d295--what-the-first-production-run-of-the-repair-tool-cost-and-the-data-loss-path-it-exposed) | D299 (+2) | 30050 |
-| **D296** | [The scorecard has been reading production through a retired predicate, and every number downstream inherited the zero](DECISIONS.md#d296--the-scorecard-has-been-reading-production-through-a-retired-predicate-and-every-number-downstream-inherited-the-zero) | D299 (+2) | 30183 |
+| **D296** | [The scorecard has been reading production through a retired predicate, and every number downstream inherited the zero](DECISIONS.md#d296--the-scorecard-has-been-reading-production-through-a-retired-predicate-and-every-number-downstream-inherited-the-zero) | D302 (+3) | 30183 |
 | **D297** | [Doing the things that could be done, and the four latent faults that surfaced on the way](DECISIONS.md#d297--doing-the-things-that-could-be-done-and-the-four-latent-faults-that-surfaced-on-the-way) | D299 (+1) | 30278 |
 | **D298** | [The review of D296/D297 found a bug D296 had created, and five things that were true of the stub instead of the server](DECISIONS.md#d298--the-review-of-d296d297-found-a-bug-d296-had-created-and-five-things-that-were-true-of-the-stub-instead-of-the-server) | D299 | 30419 |
 | **D299** | [Decision numbers get a gate, because three renumbers in two days is a process and not an accident](DECISIONS.md#d299--decision-numbers-get-a-gate-because-three-renumbers-in-two-days-is-a-process-and-not-an-accident) | — | 30529 |
-| **D300** | [The breakdown gets its scale back: every canonical bucket, in vocabulary order, on top of the cohort reading](DECISIONS.md#d300--the-breakdown-gets-its-scale-back-every-canonical-bucket-in-vocabulary-order-on-top-of-the-cohort-reading) | D301 | 30597 |
-| **D301** | [A rating is one figure, not ten rows: the scale row, the ridge, and the mean](DECISIONS.md#d301--a-rating-is-one-figure-not-ten-rows-the-scale-row-the-ridge-and-the-mean) | — | 30663 |
+| **D300** | [The breakdown gets its scale back: every canonical bucket, in vocabulary order, on top of the cohort reading](DECISIONS.md#d300--the-breakdown-gets-its-scale-back-every-canonical-bucket-in-vocabulary-order-on-top-of-the-cohort-reading) | D302 (+1) | 30597 |
+| **D301** | [A rating is one figure, not ten rows: the scale row, the ridge, and the mean](DECISIONS.md#d301--a-rating-is-one-figure-not-ten-rows-the-scale-row-the-ridge-and-the-mean) | D302 | 30663 |
+| **D302** | [Context reaches the daily's ⓘ, and the banks get their first subject-context pass](DECISIONS.md#d302--context-reaches-the-dailys--and-the-banks-get-their-first-subject-context-pass) | — | 30716 |
