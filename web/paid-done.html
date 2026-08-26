@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InSight — payment received</title>
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="/favicon.svg" />
+  <!--
+    Stripe Checkout's success_url (paid.ts createPaidCheckoutV2, D304).
+    The buyer lands here in the system browser after paying for a
+    question; the app itself learns about the payment from the webhook,
+    never from this page — so the only job here is to say what happened
+    and send them back. Keep it spare, like home.html: this is a
+    landing, not marketing.
+  -->
+  <style>
+    :root {
+      --paper: #f7f1e8;
+      --ink: #2a2419;
+      --ink-2: #4d4538;
+      --ink-3: #7d705a;
+      --rule: #cfc6b3;
+      --accent: oklch(0.55 0.13 38);
+      --serif: "Fraunces", Georgia, serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0 auto;
+      padding: 64px 20px 80px;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--serif);
+      font-size: 16px;
+      line-height: 1.6;
+      max-width: 640px;
+    }
+    h1 { font-size: 34px; letter-spacing: -0.02em; margin: 0 0 6px; font-weight: 600; }
+    p { margin: 14px 0; color: var(--ink-2); }
+    .foot { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--rule); font-size: 14px; color: var(--ink-3); }
+  </style>
+</head>
+<body>
+  <h1>Paid — your question is going live.</h1>
+  <p>
+    It starts serving tomorrow and runs its full window from there. You
+    can close this page and go back to the app: your ask now shows
+    <strong>live</strong>, and everything it collects lands in
+    <strong>Asked&nbsp;by&nbsp;you</strong> — the same public numbers
+    every voter reads, as it says on the card.
+  </p>
+  <p>
+    If the window ends before your answer cap is reached, the unserved
+    part refunds to your card automatically at close.
+  </p>
+  <p class="foot">
+    InSight · <a href="/privacy.html">privacy</a> · <a href="/terms.html">terms</a>
+  </p>
+</body>
+</html>

@@ -585,9 +585,11 @@ export const createPaidCheckoutV2 = onCall(
         },
       }],
       // The web pages exist for exactly this hop (commerce stays on the
-      // web side): a static thank-you and a static back-to-the-app page.
-      success_url: "https://insight-app.no/paid-done.html",
-      cancel_url: "https://insight-app.no/paid-cancel.html",
+      // web side): web/paid-done.html and web/paid-cancel.html on the
+      // hosting origin home.html already serves. The app never learns of
+      // the payment from these pages — the webhook is the truth.
+      success_url: "https://prvfire33.web.app/paid-done.html",
+      cancel_url: "https://prvfire33.web.app/paid-cancel.html",
     });
     await snap.ref.update({
       stripe: { sessionId: session.id, at: Timestamp.now() },
