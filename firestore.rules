@@ -996,6 +996,41 @@ service cloud.firestore {
         && resource.data.surface in ["daily", "feed", "test", "learn", "pulse", "call"];
     }
 
+    // ─── the other two collection-group readers ───────────────────────
+    //
+    // A COLLECTION-GROUP QUERY IS BOUND ONLY BY A RECURSIVE-WILDCARD
+    // MATCH. The path grants further down — `v2_users/{uid}/following`
+    // and `v2_groups/{gid}/invites` — bind their own `{uid}`/`{gid}`, so
+    // they say nothing about a query issued across the group, exactly as
+    // the `insight_inbound_impressions` case in firestore-tests spells
+    // out. Both collections had an open path grant, a deployed
+    // COLLECTION_GROUP index, a client query and no rule that could
+    // admit it, so both queries were refused for every user, always. Each
+    // client catches the refusal, so the symptom was a screen that worked
+    // and was empty: no Circle member ever showed as mutual, and no
+    // invitation ever arrived.
+    //
+    // The `to` field is what makes each grant provable. A collection-group
+    // read must carry a matching `where("to","==",…)` or Firestore refuses
+    // the whole query rather than filtering it (D65's measured lesson) —
+    // which is exactly the property wanted here: these are two lookups of
+    // YOUR OWN inbound rows, never a licence to enumerate the follow graph
+    // or everyone's mail. Both fields are pinned equal to their document
+    // id (`following` by its create rule, `invites` by being server-written
+    // under `allow write: if false`), so neither can point somewhere its id
+    // does not.
+    //
+    // Read only, and deliberately: the writes stay on the path-bound rules
+    // where authorship is fenced.
+    match /{path=**}/following/{targetUid} {
+      allow read: if request.auth != null
+        && resource.data.to == request.auth.uid;
+    }
+    match /{path=**}/invites/{invitedUid} {
+      allow read: if request.auth != null
+        && resource.data.to == request.auth.uid;
+    }
+
     // App/content metadata — contentRev (bank cache invalidation),
     // latestBuild/minBuild (update prompts). Operator/seed-written.
     match /v2_meta/{docId} {

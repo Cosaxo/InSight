@@ -33,6 +33,8 @@ import {
   getDocs,
   query,
   where,
+  orderBy,
+  limit,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -1434,6 +1436,35 @@ describe("v2 follow graph (D101 — Circle)", () => {
     await assertSucceeds(getDoc(followRef(STRANGER, OWNER, STRANGER)));
   });
 
+  it("answers the followers direction AS A COLLECTION-GROUP QUERY", async () => {
+    // The case above pins the PATH read and says the mutual flag "depends
+    // on it". It does not: a collection-group query is bound only by a
+    // recursive-wildcard match, exactly as this file's own
+    // `insight_inbound_impressions` case spells out ("they fail because no
+    // match block binds a collection-group scope"). So the path grant was
+    // open, the COLLECTION_GROUP index for `following.to` was deployed,
+    // circle.ts issued the query — and the rules refused it, every time,
+    // for every user. loadCircle catches the refusal and hands back an
+    // empty set, so every Circle member rendered as not-mutual forever.
+    //
+    // This is the query circle.ts actually sends, filter included: the
+    // `to` clause is what makes the grant provable, so a query without it
+    // must still be refused.
+    await assertSucceeds(setDoc(followRef(STRANGER, STRANGER, OWNER), {
+      at: serverTimestamp(), to: OWNER,
+    }));
+    await assertSucceeds(getDocs(query(
+      collectionGroup(asUser(OWNER), "following"),
+      where("to", "==", OWNER),
+    )));
+    // Not a licence to enumerate the whole follow graph.
+    await assertFails(getDocs(collectionGroup(asUser(OWNER), "following")));
+    await assertFails(getDocs(query(
+      collectionGroup(asUser(OWNER), "following"),
+      where("to", "==", STRANGER),
+    )));
+  });
+
   it("refuses a `to` that disagrees with the document id", async () => {
     // The field exists so deleteAccount can find inbound follows with a
     // collection-group query (a query cannot filter on a document id). An
@@ -2730,6 +2761,31 @@ describe("circle invitations (D122)", () => {
     // the invite code), and an invitee is by definition not a member yet —
     // which is why the circle's name is denormalised onto this doc.
     await assertSucceeds(getDoc(doc(asUser(FRIEND), "v2_groups", GID, "invites", FRIEND)));
+  });
+
+  it("the invitee finds it AS A COLLECTION-GROUP QUERY — the only way they can", async () => {
+    // An invitee never learns the group id from anywhere else: the group
+    // document is member-gated and they are not a member yet. The one way
+    // in is socialFetch.ts's collection-group query on `to`, and that is
+    // bound by a recursive-wildcard match, not by the path grant above —
+    // so the path grant was open, the COLLECTION_GROUP index for
+    // `invites.to` was deployed, the client issued the query, and the
+    // rules refused it. live.ts swallows the refusal, so the invitations
+    // list was permanently empty and D122's way into a circle led nowhere.
+    await seedInvite();
+    await assertSucceeds(getDocs(query(
+      collectionGroup(asUser(FRIEND), "invites"),
+      where("to", "==", FRIEND),
+      orderBy("at", "desc"),
+      limit(20),
+    )));
+    // And nobody else's: the filter is the grant, so a stranger asking for
+    // the invitee's mail is refused, as is asking for everyone's.
+    await assertFails(getDocs(query(
+      collectionGroup(asUser(STRANGER), "invites"),
+      where("to", "==", FRIEND),
+    )));
+    await assertFails(getDocs(collectionGroup(asUser(FRIEND), "invites")));
   });
 
   it("even a member cannot read it — the read arm for that cost a billed get()", async () => {
