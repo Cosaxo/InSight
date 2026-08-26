@@ -1116,9 +1116,61 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
   // canonTopN's lossy projection, so a rebuild that wrote only the public
   // document would leave the next answer folding from something it cannot
   // fold from — which is why the private doc survived D290's collapse.
+  const privBefore = (await adminDb.doc(`v2_aggs_private/${PK_ID}`).get()).data();
   const c = await noop("catalog", PK_ID, ["total", "top", "rest", "by"]);
   if (c.dry.arm !== "catalog") fail(`catalog question routed to the ${c.dry.arm} arm`);
   ok("D290: catalog board rebuilds to itself — top, rest and the segment board unchanged");
+
+  // …and the private accumulator, which the paragraph above names and
+  // nothing here checked. It is the half a client cannot read, so only an
+  // admin handle can see it — and it is the half that goes wrong.
+  //
+  // This arm writes TWO documents where every other writes one, and it
+  // wrote them as two separate awaits while the TRIGGER writes the pair
+  // inside a transaction. A fold landing between them — or a process
+  // dying between them, which a function timeout is — left the
+  // accumulator holding a vote the board did not show. On a quiet or
+  // retired catalogue nothing may answer again to repair it. One batch
+  // now; what proves it is the pair agreeing after an --apply.
+  const privAfter = (await adminDb.doc(`v2_aggs_private/${PK_ID}`).get()).data();
+  if (!privBefore || !privAfter)
+    fail("the private catalog accumulator is missing — the rebuild dropped it or it never existed");
+  if (privAfter.total !== privBefore.total || JSON.stringify(privAfter.ent) !== JSON.stringify(privBefore.ent))
+    fail("--apply moved the private accumulator on a no-op rebuild: "
+      + JSON.stringify(privBefore) + " → " + JSON.stringify(privAfter));
+  const pubAfter = (await getDoc(doc(db, "v2_question_aggs", PK_ID))).data();
+  if (pubAfter.total !== privAfter.total)
+    fail(`the rebuild left the pair disagreeing: board total ${pubAfter.total}, accumulator ${privAfter.total}`);
+  for (const [k, v] of Object.entries(pubAfter.top || {})) {
+    if ((privAfter.ent || {})[k] !== v)
+      fail(`board entry ${k}=${v} is not in the accumulator: ` + JSON.stringify(privAfter.ent));
+  }
+  ok("D290: the catalog arm writes both documents as one commit — board and accumulator agree");
+
+  // D292's refusal, APPLIED. `replay.test.ts` pins the predicate in
+  // isolation, so deleting the four lines in runRebuild that consult it
+  // left every suite green — the guard was exported, tested and never
+  // asked. It is the guard against a rebuild MINTING a public aggregate
+  // out of sealed duel votes, and against reporting health for a pulse,
+  // whose aggregates are keyed per day and which this tool cannot address.
+  //
+  // Asserted through the real callable, on a real bank question, because
+  // that is the half the unit test cannot reach.
+  for (const [qid, what] of [["group-gu0", "a sealed duel"], ["pulse-pace", "a per-day pulse"]]) {
+    let refused = null;
+    try {
+      await httpsCallable(fns, "rebuildAggregateV2")({ qid });
+    } catch (err) {
+      refused = String(err && err.message ? err.message : err);
+    }
+    if (!refused) fail(`the rebuild tool reported on ${what} (${qid}) instead of refusing it`);
+    // The refusal has to NAME the question and give a reason — a bare
+    // "failed-precondition" tells an operator nothing about which of the
+    // two unaddressable shapes they hit.
+    if (!refused.includes(qid) || refused.length < qid.length + 30)
+      fail(`${qid} was refused without saying why: ${refused}`);
+  }
+  ok("D292: the rebuild tool refuses a sealed duel and a per-day pulse, through the callable");
 }
 
 // 10 · Near presence (D84 / D174 / D176 / D177): the write path through

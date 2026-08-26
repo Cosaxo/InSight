@@ -196,7 +196,14 @@ service cloud.firestore {
         && request.resource.data.platform in ["ios", "android", "web"]
         && request.resource.data.sampled == true
         && request.resource.data.rate is number
-        && request.resource.data.rate > 0
+        // FLOOR, not just a ceiling. The fold weighs each shard by
+        // 1 / rate, so `rate > 0` alone let one create add ~1e12 devices
+        // — and ~1e12 to any question's seen/answered counts — to the
+        // world-readable engagement day document, from one free
+        // anonymous account. 0.001 is MIN_SHARD_RATE in
+        // functions/src/engagement.ts, which clamps again on the read;
+        // this is the honest fence at the door.
+        && request.resource.data.rate >= 0.001
         && request.resource.data.rate <= 1
         && request.resource.data.s is map
         && request.resource.data.s.keys().hasOnly([
@@ -280,9 +287,22 @@ service cloud.firestore {
         // `handle` in its key set, and hasOnly would refuse it. Leaving it
         // off would mean claiming a handle silently froze your display
         // name forever — the kind of failure that ships green.
-        && (!("handle" in request.resource.data)
-          || (resource != null
-            && request.resource.data.handle == resource.data.get("handle", null)))
+        //
+        // ABSENCE IS NOT A FREE PASS. This read `!("handle" in …) || …`,
+        // so a NON-merge write that simply omitted the field was legal —
+        // every remaining key is on the allowlist, and dropping a handle
+        // looked like never having had one. claimHandleV2's entire
+        // claim-once check is reading this field back, so after the drop
+        // it minted a second handle while the first registry row still
+        // pointed here: one account could hoard names out of a registry
+        // with no rate limit, no rename and no reclaim path (D190), each
+        // one gone from the pool for good, with the profile advertising
+        // only the last. Absence is legal only while there is nothing to
+        // remove.
+        && (("handle" in request.resource.data)
+          ? (resource != null
+            && request.resource.data.handle == resource.data.get("handle", null))
+          : (resource == null || resource.data.get("handle", null) == null))
         // testResults.logic is the VERIFIED logic score, written only by
         // logicSubmitV2 (admin SDK bypasses rules) after server-side
         // scoring — a client-writable copy would be a forgeable one (D57).
@@ -996,6 +1016,41 @@ service cloud.firestore {
         && resource.data.surface in ["daily", "feed", "test", "learn", "pulse", "call"];
     }
 
+    // ─── the other two collection-group readers ───────────────────────
+    //
+    // A COLLECTION-GROUP QUERY IS BOUND ONLY BY A RECURSIVE-WILDCARD
+    // MATCH. The path grants further down — `v2_users/{uid}/following`
+    // and `v2_groups/{gid}/invites` — bind their own `{uid}`/`{gid}`, so
+    // they say nothing about a query issued across the group, exactly as
+    // the `insight_inbound_impressions` case in firestore-tests spells
+    // out. Both collections had an open path grant, a deployed
+    // COLLECTION_GROUP index, a client query and no rule that could
+    // admit it, so both queries were refused for every user, always. Each
+    // client catches the refusal, so the symptom was a screen that worked
+    // and was empty: no Circle member ever showed as mutual, and no
+    // invitation ever arrived.
+    //
+    // The `to` field is what makes each grant provable. A collection-group
+    // read must carry a matching `where("to","==",…)` or Firestore refuses
+    // the whole query rather than filtering it (D65's measured lesson) —
+    // which is exactly the property wanted here: these are two lookups of
+    // YOUR OWN inbound rows, never a licence to enumerate the follow graph
+    // or everyone's mail. Both fields are pinned equal to their document
+    // id (`following` by its create rule, `invites` by being server-written
+    // under `allow write: if false`), so neither can point somewhere its id
+    // does not.
+    //
+    // Read only, and deliberately: the writes stay on the path-bound rules
+    // where authorship is fenced.
+    match /{path=**}/following/{targetUid} {
+      allow read: if request.auth != null
+        && resource.data.to == request.auth.uid;
+    }
+    match /{path=**}/invites/{invitedUid} {
+      allow read: if request.auth != null
+        && resource.data.to == request.auth.uid;
+    }
+
     // App/content metadata — contentRev (bank cache invalidation),
     // latestBuild/minBuild (update prompts). Operator/seed-written.
     match /v2_meta/{docId} {
@@ -1206,9 +1261,13 @@ service cloud.firestore {
         // presents `handle` in its key set. Leave it off the allowlist
         // and claiming a handle would silently freeze your name in the
         // directory forever — a failure that ships green.
-        && (!("handle" in request.resource.data)
-          || (resource != null
-            && request.resource.data.handle == resource.data.get("handle", null)));
+        // …and absence is legal only while there is nothing to remove,
+        // for the reason spelled out on v2_users above: a non-merge write
+        // that omits the field was a legal way to drop it.
+        && (("handle" in request.resource.data)
+          ? (resource != null
+            && request.resource.data.handle == resource.data.get("handle", null))
+          : (resource == null || resource.data.get("handle", null) == null));
       // deleteAccount (admin SDK) owns removal — phase 3d. This row is a
       // top-level document keyed by uid, so phase 1b's recursiveDelete of
       // v2_users/{uid} does not reach it, the same trap the handle
@@ -1336,9 +1395,30 @@ service cloud.firestore {
       // No edit path: an edited take invalidates the flags cast on what it
       // used to say. Delete-and-repost restarts the flag count honestly.
       allow update: if false;
-      // Your speech stays yours to withdraw.
+      // Your speech stays yours to withdraw — until a moderator has acted
+      // on it.
+      //
+      // `hidden == false` is the clause the avatar arm below already
+      // carries, for the reason recorded there: on a hidden document the
+      // update AND the delete are both the way back. It was never applied
+      // to the substrate that shape was borrowed from, and on a WORLD take
+      // the gap is a straight bypass — the id is deterministic
+      // (`{qid}_{uid}`, pinned above), so an author could delete a removed
+      // take and re-create it at the SAME id with the same words and
+      // `hidden: false`. clearFlagsFor has already wiped the flags by
+      // then, so it does not re-enter the queue until somebody reports it
+      // afresh. World scope is ENFORCING, not advisory.
+      //
+      // It also keeps the record. `hiddenMeta` lives on this document, so
+      // deleting it destroys the audit trail MODERATION.md says a
+      // maintainer can reverse a removal from.
+      //
+      // What it does NOT block: erasure. deleteAccount runs on the admin
+      // SDK, which rules do not bind — a departing account still takes its
+      // hidden takes with it.
       allow delete: if request.auth != null
-        && resource.data.authorUid == request.auth.uid;
+        && resource.data.authorUid == request.auth.uid
+        && resource.data.hidden == false;
     }
 
     // ── The profile photo's document (D178) ────────────────────────

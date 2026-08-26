@@ -14,7 +14,7 @@
 // parser was not; moving one read below one nested block would have
 // dropped both names from rule 2 with nothing failing.
 import { describe, it, expect } from "vitest";
-import { classifyReads, inventoryRows, SAYS_PUBLIC, SAYS_NOBODY } from "./check-data-inventory.mjs";
+import { classifyReads, inventoryRows, widestRead, SAYS_PUBLIC, SAYS_NOBODY } from "./check-data-inventory.mjs";
 
 const NESTED = `
 rules_version = '2';
@@ -110,5 +110,41 @@ describe("inventoryRows", () => {
     // agreement.
     expect(SAYS_NOBODY.test("any signed-in user")).toBe(false);
     expect(SAYS_PUBLIC.test("nobody (server only)")).toBe(false);
+  });
+});
+
+// The audience a row is held to, when a collection carries more than one
+// `allow read`. Rule 2's failure mode is silence, so the case that matters
+// is the one that took a row OUT of the checked set: a narrow
+// collection-group arm added beside an open path arm, which widened
+// nothing and made {PUBLIC, OTHER} stop being "exactly one classification".
+describe("widestRead", () => {
+  const set = (...c) => new Set(c);
+
+  it("reads a lone classification as itself", () => {
+    expect(widestRead(set("PUBLIC"))).toBe("PUBLIC");
+    expect(widestRead(set("NOBODY"))).toBe("NOBODY");
+    expect(widestRead(set("OTHER"))).toBe("OTHER");
+  });
+
+  it("keeps a row public when a NARROWER arm is added beside an open one", () => {
+    // The follow graph and circle invitations, 2026-08-26: a
+    // `{path=**}` read arm gated on `to == request.auth.uid` beside a path
+    // arm open to any signed-in user. The collection did not become less
+    // readable, so the row must still be held to "any signed-in user".
+    expect(widestRead(set("PUBLIC", "OTHER"))).toBe("PUBLIC");
+    expect(widestRead(set("PUBLIC", "NOBODY"))).toBe("PUBLIC");
+    expect(widestRead(set("PUBLIC", "NOBODY", "OTHER"))).toBe("PUBLIC");
+  });
+
+  it("will not call a collection unreadable while one arm is conditional", () => {
+    // `if false` beside a conditional arm means SOMEBODY can read it, so
+    // holding the row to "nobody" would prove a claim that is false.
+    expect(widestRead(set("NOBODY", "OTHER"))).toBe("OTHER");
+  });
+
+  it("declines a collection with no read rule at all", () => {
+    expect(widestRead(new Set())).toBe("OTHER");
+    expect(widestRead(undefined)).toBe("OTHER");
   });
 });

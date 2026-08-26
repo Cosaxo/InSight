@@ -76,6 +76,36 @@ describe("LEARN_SPLIT source seam (D32, as D149 left it)", () => {
     expect(split).toEqual([67, 33, 0, 0]);
   });
 
+  it("never prints a smaller count at a larger percentage", () => {
+    // The rule here used to floor each share and hand the leftover points
+    // out round-robin FROM INDEX 0 — the extra points went to whichever
+    // options came first rather than to the ones closest to their next
+    // whole point. [203, 368, 305, 369] came out [17, 30, 24, 29], so 368
+    // people read as 30% beside 369 people at 29%, next to the true counts
+    // on the same row. Same defect the daily split carried until
+    // 2026-08-25; same fix, the one rounding rule in data/pct.ts.
+    W.LIVE = {
+      enabled: true,
+      learnAgg: () => ({
+        tooSmall: false, total: 1245,
+        counts: { "0": 203, "1": 368, "2": 305, "3": 369 },
+      }),
+    };
+    const split = LEARN_SPLIT(card)!;
+    expect(split.reduce((a, b) => a + b, 0)).toBe(100);
+    // The option with the most answers must carry the largest share, and
+    // no pair may be inverted.
+    expect(split[3]).toBeGreaterThanOrEqual(split[1]);
+    const counts = [203, 368, 305, 369];
+    for (let i = 0; i < counts.length; i++) {
+      for (let j = 0; j < counts.length; j++) {
+        if (counts[i] > counts[j]) {
+          expect(split[i], `${counts[i]} drawn below ${counts[j]}`).toBeGreaterThanOrEqual(split[j]);
+        }
+      }
+    }
+  });
+
   it("live and cold: nothing, never the authored estimate (D149)", () => {
     // The three ways a live card can have no measurement. Each used to
     // hand back `card.p` shaped like crowd data; each now hands back
