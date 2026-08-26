@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 302 lines instead of
-30,161. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 303 lines instead of
+30,271. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -195,7 +195,7 @@ detect it.
 | **D175** | [Near asks for a precise fix, so its radius can be honest](DECISIONS.md#d175--near-asks-for-a-precise-fix-so-its-radius-can-be-honest) | D279 (+7) | 17245 |
 | **D176** | [Near becomes a room, and the phone says what it is](DECISIONS.md#d176--near-becomes-a-room-and-the-phone-says-what-it-is) | D177 | 17335 |
 | **D177** | [Near becomes a room you can read, and asking requires standing in it](DECISIONS.md#d177--near-becomes-a-room-you-can-read-and-asking-requires-standing-in-it) | D202 (+4) | 17465 |
-| **D178** | [The app gets a face, and it is reported like anything else somebody says](DECISIONS.md#d178--the-app-gets-a-face-and-it-is-reported-like-anything-else-somebody-says) | D261 (+5) | 17613 |
+| **D178** | [The app gets a face, and it is reported like anything else somebody says](DECISIONS.md#d178--the-app-gets-a-face-and-it-is-reported-like-anything-else-somebody-says) | D296 (+6) | 17613 |
 | **D179** | [The rules deploy on merge and the app does not, so `until` is optional for one release](DECISIONS.md#d179--the-rules-deploy-on-merge-and-the-app-does-not-so-until-is-optional-for-one-release) | D279 (+5) | 17746 |
 | **D180** | [Build 18's pre-flight: the record was written and the number was not](DECISIONS.md#d180--build-18s-pre-flight-the-record-was-written-and-the-number-was-not) | D273 (+3) | 17834 |
 | **D181** | [Near's field drew the city it is not about](DECISIONS.md#d181--nears-field-drew-the-city-it-is-not-about) | D184 (+1) | 18064 |
@@ -314,5 +314,6 @@ detect it.
 | **D291** | [The alerting refusal said less than it was read as saying, and its arithmetic was off by 4×](DECISIONS.md#d291--the-alerting-refusal-said-less-than-it-was-read-as-saying-and-its-arithmetic-was-off-by-4) | D292 | 29547 |
 | **D292** | [A read-only observer, on WIF rather than a second key](DECISIONS.md#d292--a-read-only-observer-on-wif-rather-than-a-second-key) | — | 29621 |
 | **D293** | [What the first production run of the repair tool cost, and the data-loss path it exposed](DECISIONS.md#d293--what-the-first-production-run-of-the-repair-tool-cost-and-the-data-loss-path-it-exposed) | D295 (+1) | 29793 |
-| **D294** | [The scorecard has been reading production through a retired predicate, and every number downstream inherited the zero](DECISIONS.md#d294--the-scorecard-has-been-reading-production-through-a-retired-predicate-and-every-number-downstream-inherited-the-zero) | D295 | 29926 |
-| **D295** | [Doing the things that could be done, and the four latent faults that surfaced on the way](DECISIONS.md#d295--doing-the-things-that-could-be-done-and-the-four-latent-faults-that-surfaced-on-the-way) | — | 30021 |
+| **D294** | [The scorecard has been reading production through a retired predicate, and every number downstream inherited the zero](DECISIONS.md#d294--the-scorecard-has-been-reading-production-through-a-retired-predicate-and-every-number-downstream-inherited-the-zero) | D296 (+1) | 29926 |
+| **D295** | [Doing the things that could be done, and the four latent faults that surfaced on the way](DECISIONS.md#d295--doing-the-things-that-could-be-done-and-the-four-latent-faults-that-surfaced-on-the-way) | D296 | 30021 |
+| **D296** | [The review of D294/D295 found a bug D294 had created, and five things that were true of the stub instead of the server](DECISIONS.md#d296--the-review-of-d294d295-found-a-bug-d294-had-created-and-five-things-that-were-true-of-the-stub-instead-of-the-server) | — | 30162 |

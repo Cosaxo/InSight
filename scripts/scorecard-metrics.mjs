@@ -85,6 +85,32 @@ const clamp01 = (v) => Math.max(0, Math.min(1, v));
  *  drift looks like when one copy is left behind. */
 export const isScoredAgg = (agg) => !!agg;
 
+/** Does this row contribute to an evenness MEAN?
+ *
+ *  Not the same question as `isScoredAgg`. A row is scored when somebody
+ *  answered it; it is MEASURED when the split can be computed at all — and
+ *  sixteen feed questions (11 dial, 3 field, 2 path) declare neither
+ *  `options` nor `items`, so `n` is 0, `optionShares` returns null and
+ *  `evenness` is null however many people answered.
+ *
+ *  Those rows used to be invisible here for the wrong reason: the retired
+ *  `tooSmall` predicate marked every aggregate below-floor, so nothing
+ *  reached a rollup at all. D294 fixed the predicate and they arrived —
+ *  into `t.evenSum += r.evenness ?? 0`, which turns "not measurable" into a
+ *  perfect landslide and divides by a denominator that counted it.
+ *
+ *  The first artifact published with that bug says how bad it reads:
+ *  `types.feed.dial {scored: 7, avgEvenness: 0}`, over seven rows not one
+ *  of which was measured. A dial whose crowd is perfectly uniform scores
+ *  the same 0 as one where everybody picked the same number.
+ *
+ *  THE REPO HAD ALREADY RULED ON THIS. `bucketEvenness`
+ *  (pulse-collect.mjs) skips non-numeric evenness, and the test pinning it
+ *  says why in one line: "scoring it as a landslide would invent a
+ *  landslide that nobody voted in". The three means did not obey the rule
+ *  the buckets did. */
+export const isMeasured = (row) => typeof row?.evenness === "number";
+
 export const HOME_SHARES = 2;
 
 export function creditShares(topics) {
@@ -140,14 +166,15 @@ export function rollupProduction(rows, prov) {
   const byVintage = {};
   const bump = (map, key, r) => {
     const t = (map[key] ||= {
-      questions: 0, served: 0, scored: 0, answers: 0, evenSum: 0, strong: 0, landslides: 0,
+      questions: 0, served: 0, scored: 0, answers: 0, evenSum: 0, measured: 0, strong: 0, landslides: 0,
     });
     t.questions++;
     if (r.served) t.served++;
     if (r.signal === "scored") {
       t.scored++;
       t.answers += r.total;
-      t.evenSum += r.evenness ?? 0;
+      // `measured`, not `scored`, is the mean's denominator — see isMeasured.
+      if (isMeasured(r)) { t.evenSum += r.evenness; t.measured++; }
       if (r.grade === "strong") t.strong++;
       if (r.grade === "landslide") t.landslides++;
     }
@@ -162,7 +189,11 @@ export function rollupProduction(rows, prov) {
   }
   const finish = (map) => {
     for (const t of Object.values(map)) {
-      t.avgEvenness = t.scored ? +(t.evenSum / t.scored).toFixed(3) : null;
+      // null when nothing was MEASURED, even if rows were scored — the
+      // reader already renders a null average as "no reading yet", which is
+      // the truth about a cell of dials. Reporting 0 there says the crowd
+      // agreed unanimously.
+      t.avgEvenness = t.measured ? +(t.evenSum / t.measured).toFixed(3) : null;
       delete t.evenSum;
     }
     return map;

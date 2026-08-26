@@ -50,19 +50,47 @@ import { operatorContext, callOperator } from "./operator-call.mjs";
 const POLICY_LINES = ["H1", "H2", "H3", "H4", "H5"];
 
 const argv = process.argv.slice(2);
+
+// PRESENCE AND VALUE ARE DIFFERENT QUESTIONS, and conflating them here was
+// a real bug: `flag()` returned null both when a flag was absent and when
+// it was present with nothing after it, so `node scripts/mod-queue.mjs
+// --keep` (an id lost off the end of a line, a wrapper passing an empty
+// variable) printed the QUEUE and exited 0. The take stayed flagged, no
+// verdict was recorded, and the exit status was the same as success.
+const has = (name) => argv.includes(`--${name}`);
 const flag = (name) => {
   const i = argv.indexOf(`--${name}`);
-  return i >= 0 && i + 1 < argv.length ? argv[i + 1] : null;
+  if (i < 0) return null;
+  const next = argv[i + 1];
+  // A value that is itself an option is a missing value. Without this,
+  // `--remove --line H3` — the documented form with the id dropped, one
+  // token off a paste — takes "--line" as the takeId, and every check
+  // downstream passes: it is a non-empty string under 128 chars, so the
+  // server's modVerdictError accepts it and a removal is recorded against
+  // a take that does not exist.
+  if (next === undefined || next.startsWith("--")) return undefined;
+  return next;
 };
 
-const verdicts = ["remove", "keep", "escalate"].filter((v) => flag(v) !== null);
+const verdicts = ["remove", "keep", "escalate"].filter(has);
 if (verdicts.length > 1) {
   console.error(`mod-queue: pick one verdict, not ${verdicts.length} (${verdicts.join(", ")}).`);
   process.exit(1);
 }
 const verdictKind = verdicts[0] || null;
 const takeId = verdictKind ? flag(verdictKind) : null;
-const policyLine = flag("line");
+if (verdictKind && !takeId) {
+  console.error(
+    `mod-queue: --${verdictKind} needs a takeId.\n`
+    + "    Read the queue first (no arguments) and copy one.",
+  );
+  process.exit(1);
+}
+const policyLine = has("line") ? flag("line") : null;
+if (has("line") && !policyLine) {
+  console.error("mod-queue: --line needs a policy line (H1..H5).");
+  process.exit(1);
+}
 
 // Validated here as well as on the server, because the round trip costs a
 // token mint and the error it returns is the same sentence.
@@ -94,7 +122,15 @@ const call = async (name, data) => {
     return await callOperator(ctx, name, data);
   } catch (err) {
     console.error(err.message);
-    if (/permission-denied/.test(err.message)) {
+    // MATCHED AGAINST WHAT THE SERVER ACTUALLY SENDS. This tested
+    // /permission-denied/ and never fired: the wire carries
+    // `{status: "PERMISSION_DENIED", message: "moderator-only"}` (the
+    // HttpsError code is upper-snake by the time it is serialised, and
+    // moderation.ts:95 chose the message), so callOperator's line reads
+    // "submitModVerdict failed (403): PERMISSION_DENIED moderator-only" —
+    // no lowercase-hyphen spelling anywhere in it. The hint that exists to
+    // explain the single most likely refusal was unreachable.
+    if (/permission[_-]denied|moderator-only/i.test(err.message)) {
       console.error(
         "    permission-denied here means the uid is not in MOD_UIDS — which is\n"
         + "    a DIFFERENT list from SEED_ADMIN_UIDS by design (D22). Being able to\n"
@@ -125,9 +161,14 @@ if (!verdictKind) {
     ].filter(Boolean);
     console.log(`  ${it.takeId}`);
     console.log(`    ${marks.join(" · ")}`);
-    // D178: an avatar's content is an image, so the queue hands over a
-    // token and a bucket instead of text. Printing "undefined" for those
-    // would read as a broken entry.
+    // D178: an avatar's content IS the image, so what a reviewer needs is
+    // the token and bucket to fetch it. The server sends `text: ""` on
+    // those entries deliberately (moderation.ts:334, "No text to copy") —
+    // so printing the text field would render an avatar as a take with an
+    // empty body, which reads as a corrupt row rather than as an image.
+    // (This comment said the field was ABSENT and that printing it would
+    // show "undefined". It is not absent; the branch is right for the
+    // reason above, not that one.)
     console.log(`    ${it.kind === "take" ? JSON.stringify(it.text) : `[${it.kind}] token ${it.token ?? "?"} in ${it.bucket ?? "?"}`}`);
   }
   if (items.length) {

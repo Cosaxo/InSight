@@ -704,7 +704,19 @@ export function collectInstrumentation() {
   const policyFiles = readdirSync(join(ROOT, "monitoring"))
     .filter((f) => f.endsWith(".json"))
     .filter((f) => {
-      const p = readJson(`monitoring/${f}`);
+      // try/catch because this now parses EVERY .json in the directory,
+      // and one of them is monitoring/pulse.json — machine-written by
+      // scripts/pulse.mjs and gitignored, so the file here most likely to
+      // be caught half-written by an interrupted run. Without the guard an
+      // interrupted `npm run pulse` makes the NEXT `npm run pulse` throw a
+      // JSON syntax error naming a position and no file.
+      //
+      // Shape alone is the right test here, unlike in check-monitoring:
+      // the gate is what must CATCH a policy missing displayName, so it
+      // deliberately admits malformed ones. This only draws a table, and a
+      // row it cannot name is a row headed `undefined`.
+      let p;
+      try { p = readJson(`monitoring/${f}`); } catch { return false; }
       return typeof p.displayName === "string" && Array.isArray(p.conditions);
     });
   const policies = policyFiles.map((f) => {

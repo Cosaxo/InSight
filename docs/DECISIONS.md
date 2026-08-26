@@ -30158,3 +30158,113 @@ costs, and a reader told the tail was empty would be planning against a
 state that ended. Both figures, and `content/README.md`'s, are
 `check:figures` entries now — mutation-tested against the exact stale
 numbers that were sitting in the tree.
+
+## D296 · The review of D294/D295 found a bug D294 had created, and five things that were true of the stub instead of the server
+
+**2026-08-26.** A 20-agent adversarial review of the day's three commits
+raised 16 findings; 11 survived refutation. One is a fabricated statistic
+that shipped in a committed artifact, and it is the same class of error the
+day started with.
+
+### D294 made a null measurable, and three means counted it as unanimity
+
+Sixteen feed questions — 11 `dial`, 3 `field`, 2 `path` — declare neither
+`options` nor `items`. The scorecard computes `n = 0` for them,
+`optionShares` returns null, and `evenness` is null however many people
+answer. **Those rows were invisible to every rollup for the wrong reason:**
+the retired `tooSmall` predicate marked them below-floor along with
+everything else. D294 fixed the predicate and they arrived — into
+
+```js
+t.evenSum += r.evenness ?? 0;   // ×3: topics, types, rollupProduction
+```
+
+which turns *not measurable* into *perfectly unanimous*, and divides by a
+denominator that counted it. The artifact D295 committed says how it reads:
+`types.feed.dial {scored: 7, avgEvenness: 0}` — seven rows, not one of
+them measured. `types.feed.path` and three topic cells the same. A dial
+whose crowd is perfectly uniform scored the same 0 as one where everybody
+picked the same number.
+
+**The repo had already ruled on this and the ruling was not applied here.**
+`bucketEvenness` skips non-numeric evenness, pinned by a test whose comment
+is the whole argument in one line: *"scoring it as a landslide would invent
+a landslide that nobody voted in."* The buckets obeyed it; the three means
+did not. `feed-budget.mjs` had meanwhile flipped from `blind` to `signal`
+and started printing "read evenness per topic before allocating" — pointing
+the feed lane at the fabricated cells.
+
+`isMeasured(row)` now separates the two questions. **A row is `scored` when
+somebody answered it and `measured` when the split can be computed**; the
+mean's denominator is the second. A cell where nothing was measurable
+reports `null`, which the reader already renders as "no reading yet".
+Regenerated: `dial — (7)` where it said `dial 0 (7)`.
+
+### The shape filter pre-excluded exactly what the gate exists to catch
+
+D295 replaced `check:monitoring`'s denylist with "displayName is a string
+AND conditions is an array". Three of that gate's own rules exist to catch a
+policy missing `displayName`, `conditions` or `documentation.content` — so
+the filter silently excluded the malformed file instead of reporting it,
+and the gate would have gone green on the fault it was written for.
+
+Now **named-or-shaped**: a file is a candidate if `apply-monitoring` lists
+it *or* it carries either half of the shape. Shape alone is self-defeating,
+name alone misses a stray policy nobody wired up (rule 1's subject), and a
+denylist starts lying the moment somebody adds a file. Verified by deleting
+`displayName` from a real policy and watching the gate say so.
+
+Both scans also parsed every `.json` in `monitoring/` unguarded — including
+`pulse.json`, which is machine-written and gitignored, so it is the file
+there most likely to be caught half-written. An interrupted `npm run pulse`
+made the next one throw a syntax error naming a position and no file. Both
+guarded.
+
+### Five things that were true of the stub and not of the server
+
+- **`mod-queue`'s MOD_UIDS hint could not fire.** It tested
+  `/permission-denied/`; the wire carries
+  `{status: "PERMISSION_DENIED", message: "moderator-only"}`. **And its
+  test proved the stub**: the fixture used `message: "permission-denied"`,
+  a string the server never sends, so it carried both spellings and the
+  assertion held whichever one the script matched on — the only thing the
+  behaviour turns on. Fixture corrected to the real shape; it now fails
+  against the old regex.
+- **A verdict flag with no value degraded to a queue read and exited 0.**
+  `flag()` returned null both for absent and for present-with-nothing-after,
+  so `mod-queue --keep` printed the queue, recorded nothing, and exited
+  like a success.
+- **`--remove --line H3`** — the documented form with the id dropped, one
+  token off a paste — took `"--line"` as the takeId. Every check passed:
+  a non-empty string under 128 chars is a valid takeId to `modVerdictError`,
+  so a removal would be recorded against a take that does not exist.
+  Presence and value are now different questions, and a value beginning
+  `--` is a missing value.
+- **The D178 avatar comment named a hazard the server cannot produce.**
+  It said the queue omits `text` for an avatar and that printing it would
+  show `undefined`. It does not omit it — `runBuildModQueue` writes
+  `text: ""` explicitly. The branch is right; the reason was wrong, and the
+  test's fixture carried the invented `null`.
+- **`replay.ts` listed "a rules change" as a cause of an empty scan.**
+  `runRebuild` scans through the Admin SDK, which bypasses security rules
+  entirely. During an incident that sends an operator to read
+  `firestore.rules` for nothing.
+
+### And a not.toContain that could no longer fail
+
+`pulse.test.mjs` asserted the absence of "nothing has cleared the floor
+yet" — a sentence D294 rewrote in the same commit. An assertion against a
+string the code cannot emit passes for the wrong reason, which is the
+thing D294 is about. Tracked to the current wording, with the old one kept
+beside it.
+
+### What the review says about the day
+
+Five findings were refuted, and the refutations are worth as much as the
+confirmations: the catalog arm's refusal reads the right document, the
+`--allow-empty` flag name is consistent, and "50 of 130 is half the feed"
+was overstatement rather than error. What survived is one real
+regression, one gate that had stopped being a gate, and five claims that
+were true of a fixture. **Every one of those five would have been found by
+asking "does the server actually send this?" rather than "does the test
+pass?"** — and the tests passed.

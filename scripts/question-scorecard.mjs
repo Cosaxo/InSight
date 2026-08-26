@@ -83,7 +83,7 @@ import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   splitQualityOf, rollupProduction, creditShares,
-  attentionFromTrail, ATTENTION_WARNING, isScoredAgg,
+  attentionFromTrail, ATTENTION_WARNING, isScoredAgg, isMeasured,
 } from "./scorecard-metrics.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -322,20 +322,23 @@ function score(aggs) {
     if (r.sponsored) continue;
     for (const { topic, share } of creditShares(r.topics ?? [r.topic])) {
       const t = (topics[topic] ||= {
-        questions: 0, scored: 0, answers: 0, evenSum: 0, strong: 0, landslides: 0,
+        questions: 0, scored: 0, answers: 0, evenSum: 0, measured: 0, strong: 0, landslides: 0,
       });
       t.questions++;
       if (r.signal === "scored") {
         t.scored++;
         t.answers += r.total * share;
-        t.evenSum += r.evenness ?? 0;
+        // `measured`, not `scored`, is the mean's denominator — see
+        // isMeasured in scorecard-metrics.mjs. A dial has no options, so
+        // its evenness is null however many people answered it.
+        if (isMeasured(r)) { t.evenSum += r.evenness; t.measured++; }
         if (r.grade === "strong") t.strong++;
         if (r.grade === "landslide") t.landslides++;
       }
     }
   }
   for (const t of Object.values(topics)) {
-    t.avgEvenness = t.scored ? +(t.evenSum / t.scored).toFixed(3) : null;
+    t.avgEvenness = t.measured ? +(t.evenSum / t.measured).toFixed(3) : null;
     // Credited answers are fractional by construction (a 2/3 share of 31
     // answers); one decimal keeps the committed artifact readable without
     // hiding that they are shares rather than raw counts.
@@ -347,19 +350,19 @@ function score(aggs) {
   // for the same reason grades are: daily and feed totals never compare.
   const types = { daily: {}, feed: {} };
   for (const r of rows) {
-    const t = (types[r.surface][r.type] ||= { questions: 0, scored: 0, answers: 0, evenSum: 0, strong: 0, landslides: 0 });
+    const t = (types[r.surface][r.type] ||= { questions: 0, scored: 0, answers: 0, evenSum: 0, measured: 0, strong: 0, landslides: 0 });
     t.questions++;
     if (r.signal === "scored") {
       t.scored++;
       t.answers += r.total;
-      t.evenSum += r.evenness ?? 0;
+      if (isMeasured(r)) { t.evenSum += r.evenness; t.measured++; }
       if (r.grade === "strong") t.strong++;
       if (r.grade === "landslide") t.landslides++;
     }
   }
   for (const surf of Object.values(types)) {
     for (const t of Object.values(surf)) {
-      t.avgEvenness = t.scored ? +(t.evenSum / t.scored).toFixed(3) : null;
+      t.avgEvenness = t.measured ? +(t.evenSum / t.measured).toFixed(3) : null;
       delete t.evenSum;
     }
   }
@@ -509,6 +512,10 @@ function score(aggs) {
   }
 
   const scored = rows.filter((r) => r.signal === "scored");
+  // `?? 0` is right HERE and wrong in a mean (isMeasured, and the three
+  // rollups above). This is a ranking of best splits: a row with no
+  // measurable split sorts to the bottom, which is what it deserves. The
+  // same expression in an average invents a landslide instead.
   const byScore = scored
     .slice()
     .sort((a, b) => (b.evenness ?? 0) * b.total - (a.evenness ?? 0) * a.total);

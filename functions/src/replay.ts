@@ -561,10 +561,16 @@ export async function runRebuild(
     // `set({ total: 0 })` replaces a document holding real votes.
     //
     // The scan is the part of this tool that can fail without saying so: a
-    // composite index still BUILDING after a deploy, a qid that does not
-    // match what the answers carry, a rules change. Every one of those
-    // reads as "this question has no answers", which is indistinguishable
-    // from the truth until you compare it with what is published.
+    // composite index still BUILDING after a deploy, or a qid that does not
+    // match what the answers carry. Either reads as "this question has no
+    // answers", which is indistinguishable from the truth until you compare
+    // it with what is published.
+    //
+    // NOT a rules change, which this listed until 2026-08-26 — and during
+    // an incident that would send an operator to read firestore.rules for
+    // nothing. `runRebuild` scans through the Admin SDK, which bypasses
+    // security rules entirely; no edit to that file can change what this
+    // query returns.
     //
     // A question really can go from answered to unanswered — an erasure
     // sweep, a retraction — and that is precisely the D28 repair this tool

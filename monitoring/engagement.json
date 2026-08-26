@@ -2,20 +2,14 @@
   "fetchedOn": "2026-08-26",
   "days": [
     {
-      "day": "2026-08-18",
-      "firstTime": 0,
-      "actives": 0,
       "bySurface": {},
-      "votes": 0,
-      "foldedAt": null,
-      "streaksBroken": 0,
-      "events": 0,
+      "actives": 0,
       "returned": {
-        "d1": {
-          "of": null,
-          "returned": 0
-        },
         "d7": {
+          "returned": 0,
+          "of": null
+        },
+        "d1": {
           "returned": 0,
           "of": null
         },
@@ -23,64 +17,69 @@
           "returned": 0,
           "of": null
         }
-      }
+      },
+      "firstTime": 0,
+      "events": 0,
+      "streaksBroken": 0,
+      "foldedAt": null,
+      "day": "2026-08-18",
+      "votes": 0
     },
     {
-      "streaksBroken": 0,
-      "actives": 0,
-      "day": "2026-08-19",
-      "votes": 0,
+      "bySurface": {},
       "foldedAt": null,
+      "actives": 0,
+      "streaksBroken": 0,
+      "firstTime": 0,
+      "events": 0,
       "returned": {
-        "d30": {
-          "returned": 0,
-          "of": null
-        },
         "d1": {
           "returned": 0,
           "of": 0
         },
         "d7": {
-          "of": null,
-          "returned": 0
-        }
-      },
-      "firstTime": 0,
-      "events": 0,
-      "bySurface": {}
-    },
-    {
-      "day": "2026-08-20",
-      "returned": {
-        "d7": {
           "returned": 0,
           "of": null
-        },
-        "d1": {
-          "of": 0,
-          "returned": 0
         },
         "d30": {
           "of": null,
           "returned": 0
         }
       },
-      "bySurface": {
-        "test": 2,
-        "daily": 5,
-        "feed": 3
-      },
-      "streaksBroken": 0,
-      "votes": 10,
-      "events": 10,
-      "foldedAt": null,
-      "actives": 6,
-      "firstTime": 6
+      "votes": 0,
+      "day": "2026-08-19"
     },
     {
-      "actives": 0,
-      "day": "2026-08-21",
+      "streaksBroken": 0,
+      "actives": 6,
+      "returned": {
+        "d1": {
+          "returned": 0,
+          "of": 0
+        },
+        "d30": {
+          "of": null,
+          "returned": 0
+        },
+        "d7": {
+          "returned": 0,
+          "of": null
+        }
+      },
+      "events": 10,
+      "votes": 10,
+      "bySurface": {
+        "daily": 5,
+        "test": 2,
+        "feed": 3
+      },
       "foldedAt": null,
+      "firstTime": 6,
+      "day": "2026-08-20"
+    },
+    {
+      "streaksBroken": 0,
+      "firstTime": 0,
       "returned": {
         "d30": {
           "returned": 0,
@@ -95,114 +94,115 @@
           "of": null
         }
       },
-      "votes": 0,
       "bySurface": {},
-      "firstTime": 0,
       "events": 0,
-      "streaksBroken": 0
+      "votes": 0,
+      "actives": 0,
+      "foldedAt": null,
+      "day": "2026-08-21"
     },
     {
-      "votes": 4,
-      "day": "2026-08-22",
-      "firstTime": 0,
-      "actives": 1,
-      "bySurface": {
-        "test": 2,
-        "feed": 2
-      },
-      "events": 4,
-      "streaksBroken": 0,
-      "foldedAt": null,
       "returned": {
-        "d30": {
-          "returned": 0,
-          "of": null
-        },
-        "d7": {
-          "returned": 0,
-          "of": null
-        },
         "d1": {
           "returned": 0,
           "of": 0
+        },
+        "d30": {
+          "of": null,
+          "returned": 0
+        },
+        "d7": {
+          "of": null,
+          "returned": 0
         }
-      }
+      },
+      "votes": 4,
+      "bySurface": {
+        "feed": 2,
+        "test": 2
+      },
+      "foldedAt": null,
+      "events": 4,
+      "actives": 1,
+      "streaksBroken": 0,
+      "day": "2026-08-22",
+      "firstTime": 0
     },
     {
-      "streaksBroken": 0,
-      "actives": 0,
       "day": "2026-08-23",
       "foldedAt": null,
-      "returned": {
-        "d1": {
-          "of": 0,
-          "returned": 0
-        },
-        "d30": {
-          "of": null,
-          "returned": 0
-        },
-        "d7": {
-          "of": null,
-          "returned": 0
-        }
-      },
-      "bySurface": {},
-      "events": 0,
-      "firstTime": 0,
-      "votes": 0
-    },
-    {
-      "actives": 1,
-      "foldedAt": null,
-      "firstTime": 0,
-      "returned": {
-        "d1": {
-          "of": 0,
-          "returned": 0
-        },
-        "d30": {
-          "returned": 0,
-          "of": null
-        },
-        "d7": {
-          "returned": 0,
-          "of": null
-        }
-      },
-      "events": 35,
-      "bySurface": {
-        "test": 9,
-        "feed": 17,
-        "learn": 9
-      },
-      "day": "2026-08-24",
       "streaksBroken": 0,
-      "votes": 35
-    },
-    {
-      "actives": 0,
-      "events": 0,
-      "bySurface": {},
+      "votes": 0,
       "returned": {
-        "d30": {
-          "of": null,
+        "d1": {
+          "of": 0,
           "returned": 0
         },
         "d7": {
+          "returned": 0,
+          "of": null
+        },
+        "d30": {
+          "of": null,
+          "returned": 0
+        }
+      },
+      "firstTime": 0,
+      "bySurface": {},
+      "events": 0,
+      "actives": 0
+    },
+    {
+      "day": "2026-08-24",
+      "events": 35,
+      "returned": {
+        "d7": {
+          "of": null,
+          "returned": 0
+        },
+        "d30": {
+          "returned": 0,
+          "of": null
+        },
+        "d1": {
           "returned": 0,
           "of": 0
+        }
+      },
+      "votes": 35,
+      "actives": 1,
+      "bySurface": {
+        "learn": 9,
+        "feed": 17,
+        "test": 9
+      },
+      "streaksBroken": 0,
+      "firstTime": 0,
+      "foldedAt": null
+    },
+    {
+      "day": "2026-08-25",
+      "streaksBroken": 0,
+      "returned": {
+        "d30": {
+          "of": null,
+          "returned": 0
         },
         "d1": {
           "of": 0,
           "returned": 0
+        },
+        "d7": {
+          "of": 0,
+          "returned": 0
         }
       },
-      "day": "2026-08-25",
+      "actives": 0,
       "firstTime": 0,
+      "votes": 0,
+      "events": 0,
       "foldedAt": null,
-      "streaksBroken": 0,
-      "votes": 0
+      "bySurface": {}
     }
   ]
 }

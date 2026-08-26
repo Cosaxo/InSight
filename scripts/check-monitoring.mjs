@@ -58,31 +58,47 @@ const read = (rel) => readFileSync(join(root, rel), "utf8");
 const problems = [];
 const fail = (msg) => problems.push(msg);
 
-// ── what is on disk ─────────────────────────────────────────────────
-// A policy is recognised by its SHAPE — displayName plus a conditions
-// array, which every Cloud Monitoring alert policy carries — rather than
-// by not being on a list of known non-policies.
-//
-// It was that list until 2026-08-26 (pulse.json, rates.json), and the list
-// was already one short: the first `scorecard --fetch` to write
-// monitoring/engagement.json made this gate demand a runbook of the
-// engagement trail, and made the pulse render it as an alert row named
-// `undefined`. Neither is a hard failure to diagnose, but both are failures
-// that arrive when somebody adds a file — which is the worst moment for a
-// gate to start lying, and a denylist guarantees it happens again. Same
-// filter the pulse collector makes, for the same reason.
-const isPolicy = (f) => {
-  if (!f.endsWith(".json")) return false;
-  const p = JSON.parse(read(`monitoring/${f}`));
-  return typeof p.displayName === "string" && Array.isArray(p.conditions);
-};
-const onDisk = readdirSync(join(root, "monitoring")).filter(isPolicy).sort();
-
 // ── what apply-monitoring says it will create ───────────────────────
+// Read BEFORE the disk scan, because it is half of what decides which
+// files on disk are policies at all.
 const applySrc = read("scripts/apply-monitoring.mjs");
 
 const listedPolicies = [...applySrc.matchAll(/"(monitoring\/[\w.-]+\.json)"/g)].map((m) => m[1]);
 const metricNames = [...applySrc.matchAll(/name:\s*"([\w]+)"/g)].map((m) => m[1]);
+
+// ── what is on disk ─────────────────────────────────────────────────
+// A file is a POLICY CANDIDATE if apply-monitoring names it, OR if it
+// carries the shape of one (displayName plus a conditions array, which
+// every Cloud Monitoring alert policy has). The union matters, and getting
+// it wrong is how this gate stops being a gate:
+//
+//   - SHAPE ALONE is self-defeating. Three of the rules below exist to
+//     catch a policy missing `displayName`, `conditions` or
+//     `documentation.content` — so filtering on the first two means the
+//     malformed file is silently excluded instead of reported, and the
+//     gate goes green on exactly the fault it was written for. That is
+//     what this filter did between two commits on 2026-08-26.
+//   - NAME ALONE misses a stray policy nobody wired into apply-monitoring,
+//     which is rule 1's whole subject.
+//   - A DENYLIST of non-policies (what this was before, pulse.json and
+//     rates.json) was already one short: the first `scorecard --fetch` to
+//     write monitoring/engagement.json made this gate demand a runbook of
+//     the engagement trail. A list that must be edited whenever somebody
+//     adds a file starts lying at the moment somebody is adding a file.
+//
+// So: named-or-shaped in, everything else out. engagement.json is neither.
+const looksLikePolicy = (f) => {
+  if (!f.endsWith(".json")) return false;
+  if (listedPolicies.includes(`monitoring/${f}`)) return true;
+  let p;
+  // A half-written artifact is not a policy, and must not take the gate
+  // down either — monitoring/pulse.json is machine-written and gitignored,
+  // so it is the file here most likely to be caught mid-write.
+  try { p = JSON.parse(read(`monitoring/${f}`)); } catch { return false; }
+  return typeof p.displayName === "string" || Array.isArray(p.conditions);
+};
+const onDisk = readdirSync(join(root, "monitoring")).filter(looksLikePolicy).sort();
+
 const metricFilters = Object.fromEntries(
   [...applySrc.matchAll(/name:\s*"([\w]+)",[\s\S]{0,400}?filter:\s*(['"])([\s\S]*?)\2/g)]
     .map((m) => [m[1], m[3]]),

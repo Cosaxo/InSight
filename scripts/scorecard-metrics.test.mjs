@@ -6,7 +6,7 @@
 import { describe, it, expect } from "vitest";
 import {
   evennessOf, ordinalSplit, splitQualityOf, rollupProduction, creditShares, HOME_SHARES,
-  attentionFromTrail, ATTENTION_WARNING, isScoredAgg,
+  attentionFromTrail, ATTENTION_WARNING, isScoredAgg, isMeasured,
 } from "./scorecard-metrics.mjs";
 
 describe("categorical evenness (unchanged bar)", () => {
@@ -233,5 +233,46 @@ describe("isScoredAgg — the predicate that reads a production aggregate", () =
     // reader no longer interprets rather than a verdict it must obey.
     expect(isScoredAgg({ counts: { 0: 4 }, total: 4, tooSmall: false })).toBe(true);
     expect(isScoredAgg({ counts: {}, total: 0, tooSmall: true })).toBe(true);
+  });
+});
+
+describe("isMeasured — a scored row is not automatically a measurable one", () => {
+  // Sixteen feed questions (11 dial, 3 field, 2 path) declare neither
+  // `options` nor `items`. The scorecard computes n = 0 for them,
+  // optionShares returns null, and evenness is null however many people
+  // answered. They were invisible to the rollups for the wrong reason until
+  // D294 — the retired tooSmall predicate marked every aggregate
+  // below-floor — and arrived the moment that was fixed.
+  const measurable = { signal: "scored", total: 40, evenness: 0.82, qid: "feed-f57", surface: "feed", type: "vote", topic: "music", topics: ["music"] };
+  const dial = { signal: "scored", total: 40, evenness: null, qid: "feed-dl5", surface: "feed", type: "dial", topic: "event", topics: ["event"] };
+
+  it("separates 'somebody answered it' from 'the split can be computed'", () => {
+    expect(isMeasured(measurable)).toBe(true);
+    expect(isMeasured(dial)).toBe(false);
+    expect(isMeasured({ evenness: 0 })).toBe(true);   // a real unanimous split
+    expect(isMeasured({ evenness: undefined })).toBe(false);
+    expect(isMeasured(undefined)).toBe(false);
+  });
+
+  it("keeps an unmeasurable row out of the MEAN while keeping it in `scored`", () => {
+    const prov = { feed: { f57: { source: "farm", batch: "b1" }, dl5: { source: "farm", batch: "b1" } } };
+    const out = rollupProduction([measurable, dial], prov);
+    // Both answered, so both are scored…
+    expect(out.bySource.farm.scored).toBe(2);
+    // …but the average is the one row that HAS a split, not that row
+    // halved by a null the fold counted as unanimity.
+    expect(out.bySource.farm.avgEvenness).toBeCloseTo(0.82, 3);
+  });
+
+  it("reports null rather than 0 for a cell where NOTHING was measurable", () => {
+    // The shape the first artifact published with the bug:
+    // `types.feed.dial {scored: 7, avgEvenness: 0}` over seven dials. A
+    // dial whose crowd is perfectly uniform scored the same 0 as one where
+    // everybody picked the same number — and the reader already renders a
+    // null average as "no reading yet".
+    const prov = { feed: { dl5: { source: "farm", batch: "b1" }, dl6: { source: "farm", batch: "b1" } } };
+    const out = rollupProduction([dial, { ...dial, qid: "feed-dl6" }], prov);
+    expect(out.bySource.farm.scored).toBe(2);
+    expect(out.bySource.farm.avgEvenness).toBeNull();
   });
 });

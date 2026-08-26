@@ -68,7 +68,8 @@ beforeEach(() => {
     items: [
       { takeId: "t_abc", kind: "take", text: "a flagged sentence", flags: 4, escalated: false, escalations: 0 },
       { takeId: "t_esc", kind: "take", text: "a deferred one", flags: 9, escalated: true, escalations: 2 },
-      { takeId: "t_av", kind: "avatar", token: "tok1", bucket: "b1", text: null, flags: 3, escalated: false, escalations: 0 },
+      // text: "" — what runBuildModQueue actually writes for an avatar
+      { takeId: "t_av", kind: "avatar", token: "tok1", bucket: "b1", text: "", flags: 3, escalated: false, escalations: 0 },
     ],
   };
 });
@@ -110,12 +111,15 @@ describe("reading the queue", () => {
     expect(stdout).toContain("deferred 2x before");
   });
 
-  it("renders an avatar entry as a token and bucket, never as `undefined`", async () => {
-    // D178 — for an avatar the content is an image, so the queue hands over
-    // what is needed to fetch one and no text. Printing the text field
-    // regardless would show `undefined` and read as a corrupt entry.
+  it("renders an avatar entry as a token and bucket, not as an empty take", async () => {
+    // D178 — the content IS the image, and the server sends `text: ""` on
+    // those entries (moderation.ts:334). So the failure this guards is not
+    // an `undefined`: it is an avatar rendered as a take with an empty
+    // body, which reads as a corrupt row. Asserted as the presence of what
+    // a reviewer needs AND the absence of the empty-quote rendering.
     const { stdout } = await modq();
     expect(stdout).toContain("[avatar] token tok1 in b1");
+    expect(stdout).not.toContain('""');
     expect(stdout).not.toContain("undefined");
   });
 
@@ -181,9 +185,20 @@ describe("submitting a verdict", () => {
   });
 
   it("explains permission-denied as the MOD_UIDS list, not the operator one", async () => {
+    // THE FIXTURE IS THE SERVER'S ACTUAL WIRE SHAPE, and that is the whole
+    // point of this case. It read `message: "permission-denied"` first — a
+    // string moderation.ts never sends — so the fixture carried BOTH
+    // spellings and the assertion held whichever one the script matched
+    // on, which is the only thing the behaviour turns on. The test
+    // certified a hint that could not fire in production.
+    //
+    // The real refusal is HttpsError("permission-denied", "moderator-only")
+    // at functions/src/moderation.ts:95, serialised upper-snake.
     verdictStatus = 403;
-    verdictResponse = { error: { status: "PERMISSION_DENIED", message: "permission-denied" } };
-    expect(await fails(["--keep", "t_abc"])).toMatch(/not in MOD_UIDS/);
+    verdictResponse = { error: { status: "PERMISSION_DENIED", message: "moderator-only" } };
+    const msg = await fails(["--keep", "t_abc"]);
+    expect(msg).toContain("moderator-only");
+    expect(msg).toMatch(/not in MOD_UIDS/);
   });
 });
 
