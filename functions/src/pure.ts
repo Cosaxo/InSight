@@ -1776,6 +1776,73 @@ export const ROOM_MIN_TYPED = 8;
  */
 export const ROOM_SAMPLE_CAP = 60;
 
+/**
+ * How many presence docs one fold may SCAN before it samples.
+ *
+ * THE BUG THIS EXISTS FOR is the one roomMixFor's own note warned about
+ * and then walked into: "Firestore orders a query with no explicit
+ * `orderBy` by document id… Key presence by something ordered (a cell
+ * prefix, a timestamp) and this stops being true silently." The query
+ * carries `where("until", ">", now)`, and an inequality IS an ordering —
+ * Firestore sorts by that field first — so the limit took the N
+ * SOONEST-EXPIRING presences, not a sample. Probed on the emulator (360
+ * docs over nine cells, `until` spread 5–179 minutes out): the sixty
+ * returned were exactly the sixty smallest, topping out at 33 minutes
+ * against a population reaching 179. At a festival — the case this
+ * feature exists for — that is a reading of the people about to leave,
+ * presented as the room.
+ *
+ * So the fold scans wider and samples from what it scanned. Five times
+ * the mix's sample and twelve times the roster's, which moves the point
+ * where the bias returns from 60 and 24 to 300, and costs presence reads
+ * only: these documents are one per person, and the roster's expensive
+ * half — every sampled person's answers — still folds over
+ * ROOM_PEOPLE_CAP people.
+ *
+ * IT DOES NOT ABOLISH THE BIAS, and the no-silent-caps rule means saying
+ * so: above 300 present phones in one 3x3 block the scan is still the
+ * soonest-expiring 300, and the sample is drawn from those. What the
+ * reading already declares is `capped`, which stays exactly as true.
+ */
+export const ROOM_SCAN_CAP = 300;
+
+/**
+ * A deterministic uniform sample of `n` from `items`.
+ *
+ * Seeded rather than `Math.random()` so a fold is testable and so two
+ * calls inside one beat window agree — the cached document is what a
+ * second caller reads, but a cache miss that races must not produce a
+ * visibly different room.
+ *
+ * Partial Fisher-Yates: only the first `n` positions have to be settled,
+ * so this is O(n) rather than O(items). Returns a copy, never the input.
+ */
+export function sampleN<T>(items: readonly T[], n: number, seed: string): T[] {
+  if (n <= 0 || !items.length) return [];
+  if (items.length <= n) return items.slice();
+  // FNV-1a over the seed, then xorshift32. Neither is cryptographic and
+  // neither needs to be: nobody bets on this, and the property wanted is
+  // "uncorrelated with expiry time", which any decent mixer gives.
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  let state = (h >>> 0) || 1;
+  const rnd = () => {
+    state ^= state << 13; state >>>= 0;
+    state ^= state >>> 17;
+    state ^= state << 5; state >>>= 0;
+    return state / 4294967296;
+  };
+  const out = items.slice();
+  for (let i = 0; i < n; i++) {
+    const j = i + Math.floor(rnd() * (out.length - i));
+    const t = out[i]; out[i] = out[j]; out[j] = t;
+  }
+  return out.slice(0, n);
+}
+
 export interface RoomMix {
   /** Type names, most common first, at most three. No shares, ever. */
   top: string[];

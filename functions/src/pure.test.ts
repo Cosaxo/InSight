@@ -49,6 +49,9 @@ import {
   votesMatchingQid,
   ROOM_MIN_TYPED,
   ROOM_SAMPLE_CAP,
+  ROOM_SCAN_CAP,
+  ROOM_PEOPLE_CAP,
+  sampleN,
   ROOM_QUESTION_CAP,
   roomQids,
   tallyPicks,
@@ -1745,6 +1748,66 @@ describe("normalizeHandle", () => {
 // The fold behind "mostly Hosts and Explorers". What it must NOT do is
 // most of the value: no shares, a floor, and an order that does not
 // flicker — each of those is a differencing defence, not a style choice.
+// The sample the room fold draws before it ranks anything (2026-08-26).
+//
+// It exists because the query it replaced was not a sample: the `until`
+// inequality is Firestore's sort order, so the limit took the N phones
+// closest to leaving. Probed on the emulator — 360 presences with `until`
+// spread 5-179 minutes out, the sixty returned were exactly the sixty
+// smallest, topping out at 33 against a population reaching 179.
+describe("sampleN", () => {
+  const items = Array.from({ length: 300 }, (_, i) => i);
+
+  it("takes exactly n, all from the input, none twice", () => {
+    const out = sampleN(items, 60, "cell:1");
+    expect(out).toHaveLength(60);
+    expect(new Set(out).size).toBe(60);
+    for (const v of out) expect(items).toContain(v);
+  });
+
+  it("returns everything, unchanged, when the input is not bigger than n", () => {
+    expect(sampleN([1, 2, 3], 60, "s")).toEqual([1, 2, 3]);
+    expect(sampleN([], 60, "s")).toEqual([]);
+    expect(sampleN(items, 0, "s")).toEqual([]);
+  });
+
+  it("never hands back the caller's array", () => {
+    const small = [1, 2, 3];
+    expect(sampleN(small, 60, "s")).not.toBe(small);
+  });
+
+  it("is stable for one seed and moves for another — the beat window is the seed", () => {
+    expect(sampleN(items, 24, "c:100")).toEqual(sampleN(items, 24, "c:100"));
+    expect(sampleN(items, 24, "c:100")).not.toEqual(sampleN(items, 24, "c:101"));
+  });
+
+  it("is UNCORRELATED WITH POSITION, which is the whole point", () => {
+    // The defect it replaces returned a prefix of the population ordered
+    // by expiry. If this sampler favoured the front of its input the same
+    // way, nothing would have changed: the scan is still expiry-ordered,
+    // and the sample is what has to break that.
+    //
+    // 400 seeds x 24 of 300. A front-loaded sampler puts the mean index
+    // near 12; an even one puts it near 150 and reaches the tail.
+    let sum = 0, k = 0, maxSeen = 0;
+    for (let s = 0; s < 400; s++) {
+      for (const v of sampleN(items, 24, "seed" + s)) { sum += v; k++; maxSeen = Math.max(maxSeen, v); }
+    }
+    const mean = sum / k;
+    expect(mean).toBeGreaterThan(130);
+    expect(mean).toBeLessThan(170);
+    // and the last element of the population is reachable at all
+    expect(maxSeen).toBe(items.length - 1);
+  });
+
+  it("scans wider than it samples, both callers", () => {
+    // The scan cap is what moves the point where the expiry bias returns.
+    // Equal caps would be the old behaviour with extra steps.
+    expect(ROOM_SCAN_CAP).toBeGreaterThan(ROOM_SAMPLE_CAP);
+    expect(ROOM_SCAN_CAP).toBeGreaterThan(ROOM_PEOPLE_CAP);
+  });
+});
+
 describe("roomMix", () => {
   const many = (name: string, k: number) => Array.from({ length: k }, () => name);
 
