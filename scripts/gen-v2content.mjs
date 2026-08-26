@@ -262,7 +262,7 @@ export function buildEntries(content = loadContent()) {
       // place carries no key, and Scores draws only what names its stop.
       ...(q.rates ? { rates: String(q.rates) } : {}),
       // The background the card's ⓘ opens (D281), emitted here since
-      // D310: the feed builder below carried this exact line and this one
+      // D311: the feed builder below carried this exact line and this one
       // did not, so the union-level seed-fields check stayed green while
       // the daily's context texts never left the repo — the production
       // seed's own `written` count was the first thing to disagree. The

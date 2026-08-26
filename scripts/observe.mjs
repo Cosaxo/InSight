@@ -46,6 +46,11 @@ const AS_JSON = argv.includes("--json");
 // safe to delete, which needs the trigger, the schedule and whether it has
 // run — facts that live only in the deployment, never in this repo.
 const DETAIL = argv.includes("--functions");
+// Which monitored resource each log-based metric will actually be written
+// against. Off by default: it costs one Logging read per metric and the
+// answer only changes when a function moves generation. On when somebody
+// is writing or repairing a policy FILTER, which is what needs it.
+const METRICS = argv.includes("--metrics");
 const PROJECT = process.env.FIREBASE_PROJECT_ID || "prvfire33";
 
 // ABOVE the REGION block on purpose: `die`'s only remaining call site is
@@ -75,9 +80,15 @@ const token = await accessToken(sa, "observe");
 
 /** One probe. Never throws: a refusal is a RESULT, because the point of the
  *  run is to learn which readings are available and which need a role. */
-async function probe(name, url, role, pick) {
+async function probe(name, url, role, pick, init = {}) {
   try {
-    const res = await fetch(url, { headers: { authorization: `Bearer ${token}` } });
+    const res = await fetch(url, {
+      ...init,
+      headers: {
+        authorization: `Bearer ${token}`,
+        ...(init.body ? { "content-type": "application/json" } : {}),
+      },
+    });
     const text = await res.text();
     let body;
     try { body = JSON.parse(text); } catch { body = null; }
@@ -95,6 +106,67 @@ async function probe(name, url, role, pick) {
   } catch (err) {
     return { name, status: "error", why: "the request itself failed", message: String(err).slice(0, 140) };
   }
+}
+
+// WHAT RESOURCE THE METRICS' SERIES WILL CARRY, measured rather than
+// reasoned. On 2026-08-26 the first `--apply` run created the channel, all
+// five metrics and one policy, then took a 400 from Cloud Monitoring:
+//
+//   condition_threshold.filter had an invalid value of
+//   metric.type="logging.googleapis.com/user/agg_contention": must specify
+//   a restriction on "resource.type"
+//
+// Five committed policies read a log-based user metric with no
+// `resource.type` in the filter. Adding one is the fix, and adding the
+// WRONG one is worse than the 400: a policy naming a resource type its
+// series never carries is accepted, enabled, listed and permanently green,
+// and cannot fire. The 400 at least says so out loud.
+//
+// A log-based metric inherits the monitored resource of the log entries it
+// counts, so the only authority on the right value is an entry. This reads
+// one per metric, using apply-monitoring's own log filter — parsed out of
+// its source the way check-monitoring parses the same lists, because a
+// second copy of them is how they drift.
+//
+// It answers a second question for free, and that one is check:monitoring
+// rule 4's: that rule proves STATICALLY that some function emits
+// `metric: "X"`, and cannot say whether it has ever run. `entries: 0` here
+// is that gap, measured.
+const metricFilters = (() => {
+  const src = readFileSync(join(root, "scripts/apply-monitoring.mjs"), "utf8");
+  return [...src.matchAll(/name:\s*"([\w]+)",[\s\S]{0,400}?filter:\s*(['"])([\s\S]*?)\2/g)]
+    .map((m) => ({ metric: m[1], filter: m[3] }));
+})();
+
+async function metricResources() {
+  const readings = await Promise.all(metricFilters.map(async ({ metric, filter }) => {
+    const r = await probe(
+      `metric:${metric}`,
+      api("logging.googleapis.com", "/v2/entries:list"),
+      "roles/logging.viewer",
+      (b) => {
+        const e = (b.entries || [])[0];
+        if (!e) return { entries: 0, resourceType: null, note: "no entry in the window — nothing has emitted it yet" };
+        return {
+          entries: 1,
+          resourceType: e.resource?.type || null,
+          resourceLabels: e.resource?.labels || {},
+          at: e.timestamp || null,
+        };
+      },
+      {
+        method: "POST",
+        body: JSON.stringify({
+          resourceNames: [`projects/${PROJECT}`],
+          filter,
+          orderBy: "timestamp desc",
+          pageSize: 1,
+        }),
+      },
+    );
+    return { metric, ...r };
+  }));
+  return readings;
 }
 
 // The eight policies this repo commits, so "armed" can be answered by NAME
@@ -202,12 +274,15 @@ const results = await Promise.all([
   ),
 ]);
 
+const metricReadings = METRICS ? await metricResources() : null;
+
 const out = {
   project: PROJECT,
   // No Date.now() in the payload beyond this: the caller stamps the day.
   readings: Object.fromEntries(results.map((r) => [r.name, r])),
   reachable: results.filter((r) => r.status === "ok").map((r) => r.name),
   blocked: results.filter((r) => r.status !== "ok").map((r) => ({ name: r.name, why: r.why, http: r.http })),
+  ...(metricReadings ? { metricResources: metricReadings } : {}),
 };
 
 if (AS_JSON) {
@@ -250,6 +325,32 @@ if (AS_JSON) {
       console.log(`  ✓ billing        enabled=${r.enabled} account=${r.account ?? "-"}`);
     }
   }
+  if (metricReadings) {
+    console.log("\n  What each log-based metric's series will be written against:");
+    for (const m of metricReadings) {
+      if (m.status !== "ok") {
+        console.log(`    ✗ ${m.metric.padEnd(20)} ${m.status} (${m.http ?? "-"}) — ${m.why}`);
+        continue;
+      }
+      if (!m.entries) {
+        console.log(`    · ${m.metric.padEnd(20)} no entry yet — ${m.note}`);
+        continue;
+      }
+      const labels = Object.entries(m.resourceLabels || {})
+        .filter(([k]) => k !== "project_id")
+        .map(([k, v]) => `${k}=${v}`).join(" ");
+      console.log(`    ✓ ${m.metric.padEnd(20)} resource.type="${m.resourceType}"  ${labels}`);
+    }
+    console.log("");
+    console.log("      A policy filtering on one of these metrics MUST restrict resource.type");
+    console.log("      — Cloud Monitoring rejects the create otherwise (400) — and must use the");
+    console.log("      value above. A policy naming a type its series never carries is accepted,");
+    console.log("      enabled and permanently green, which is worse than the 400.");
+    console.log("");
+    console.log("      `no entry yet` is check:monitoring rule 4's blind spot, measured: that");
+    console.log("      rule proves a function CONTAINS the emit line, never that it has run.");
+  }
+
   if (out.blocked.length) {
     console.log("\n  Blocked readings are a ROLE on the deploy service account, not a code change.");
     console.log("  Each line above names the exact one. D292's separate observer identity is the");

@@ -304,6 +304,85 @@ describe("the pair card", () => {
   });
 });
 
+describe("the working (2026-08-26)", () => {
+  const overlap = (n: number, split: (i: number) => [number, number]) => {
+    voters.fetchVoterPicks.mockImplementation(async (_db: unknown, qid: string) =>
+      Array.from({ length: n }, (_, i) => ({
+        uid: `u${i}`,
+        optionIdx: qid === "qa" ? split(i)[0] : split(i)[1],
+      })));
+  };
+  const gradeQb = () => {
+    live.myVotes.mockReturnValue({ qa: "qa:0" });
+    const sealed = PATTERNS.seal("qb")!;
+    live.myVotes.mockReturnValue({ qa: "qa:0", qb: `qb:${sealed.pred}` });
+    return PATTERNS.grade("qb")!;
+  };
+
+  it("rebuilds the graded call as rows: the evidence answer, its tell, its basis", async () => {
+    publishFixture();
+    await ensureLive();
+    // 15 people on each qa side, each side sticking together on qb — so
+    // the viewer's side (qa:0) clears the 12-in-both-samples floor and
+    // the tell points at the call
+    overlap(30, (i) => (i < 15 ? [0, 0] : [1, 1]));
+    const rec = gradeQb();
+    const w = (await PATTERNS.working("qb"))!;
+    expect(w.hadEv).toBe(true);
+    expect(w.rows).toHaveLength(1);
+    expect(w.rows[0]).toMatchObject({ evId: "qa", side: 0, n: 15 });
+    expect(w.rows[0].share).toBeGreaterThanOrEqual(0.54); // points at the call, or it is not a row
+    expect(w.rows[0].share).toBeCloseTo(1, 5);
+    expect(rec.ev).toContain("qa");
+  });
+
+  it("a call carried by nothing says so — hadEv false, no rows", async () => {
+    publishFixture();
+    await ensureLive();
+    // no other answers: the seal falls back to the crowd's own lean and
+    // the grade names no evidence
+    const sealed = PATTERNS.seal("qb")!;
+    live.myVotes.mockReturnValue({ qb: `qb:${sealed.pred}` });
+    PATTERNS.grade("qb");
+    const w = (await PATTERNS.working("qb"))!;
+    expect(w).toEqual({ rows: [], hadEv: false });
+  });
+
+  it("evidence below the 12-in-both-samples floor is thinness, not a bar", async () => {
+    publishFixture();
+    await ensureLive();
+    // only 8 people on the viewer's qa side — the tell refuses (D146),
+    // so the row is absent while hadEv stays true: the UI's two empty
+    // states must stay distinguishable
+    overlap(16, (i) => (i < 8 ? [0, 0] : [1, 1]));
+    gradeQb();
+    const w = (await PATTERNS.working("qb"))!;
+    expect(w.hadEv).toBe(true);
+    expect(w.rows).toHaveLength(0);
+  });
+
+  it("is bounded like the tell it rides — one picks fetch per question, cached", async () => {
+    publishFixture();
+    await ensureLive();
+    overlap(30, (i) => (i < 15 ? [0, 0] : [1, 1]));
+    gradeQb();
+    await PATTERNS.working("qb");
+    expect(voters.fetchVoterPicks).toHaveBeenCalledTimes(2); // qb + qa
+    expect(voters.fetchVoters).not.toHaveBeenCalled(); // picks only, never profiles
+    await PATTERNS.working("qb");
+    expect(voters.fetchVoterPicks).toHaveBeenCalledTimes(2); // the session caches held
+  });
+
+  it("refuses an ungraded or unknown record", async () => {
+    publishFixture();
+    live.myVotes.mockReturnValue({ qa: "qa:0" });
+    await ensureLive();
+    PATTERNS.seal("qb"); // sealed, never graded
+    expect(await PATTERNS.working("qb")).toBeNull();
+    expect(await PATTERNS.working("ghost")).toBeNull();
+  });
+});
+
 describe("the purge", () => {
   it("drops the log and the loadings without writing the key back", async () => {
     publishFixture();

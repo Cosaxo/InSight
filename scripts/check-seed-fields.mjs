@@ -177,7 +177,7 @@ missing(
   "that mirror is what the no-op case asserts against, so without it every doc carrying the field reports as a phantom rewrite",
 );
 
-// ── the same disagreement, one level down: PER SURFACE (D310) ────────
+// ── the same disagreement, one level down: PER SURFACE (D311) ────────
 //
 // The union above answers "is `bg` transported at all", and the answer
 // stayed yes while the DAILY builder dropped it: the feed's emit covered
