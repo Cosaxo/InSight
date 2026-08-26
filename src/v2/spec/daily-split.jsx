@@ -380,6 +380,23 @@ class DailySplit extends React.Component {
       const q = DAILYQ.questions.find(x => x.prompt === s.prompt);
       if (q) return DAILYQ.categoryPath(q)[0];
     }
+    // THE LIVE ARM, and it has to come before the two demo maps below.
+    // A live daily carries its subject in `branch` (D100) — one of the
+    // fourteen CAT_META keys the Map is drawn from, so it is always a real
+    // branch and never needs translating. The demo deck literal in this
+    // file carries `region`/`cat` instead, and NOTHING writes either onto a
+    // live question: `buildS` (data/deck.ts) emits no `region` at all, and
+    // sets `cat: q.topic` — which the generator fills with the TONE for the
+    // daily surface (`topic: q.tone`, gen-v2content.mjs), so it is
+    // "light"/"deep"/"blend" and matches no key in `byCat` either.
+    //
+    // So before this arm existed, all three lines below missed on every
+    // live daily and the `|| 'Interests'` fired for all 130 of them. That
+    // is not a vague catch-all: 'Interests' is one of the fourteen, home to
+    // 8 bank questions, so the toast named a real branch the answer was not
+    // filed under — for the other 122. Silent, plausible, and wrong, which
+    // is the same shape as D296's retired predicate.
+    if (S.branch) return S.branch;
     const byRegion = { Taste: 'Food', Work: 'Mind', Society: 'Values' };
     const byCat = { dilemma: 'Morals', event: 'Mind', people: 'Values', bigq: 'Values' };
     return (S.region && byRegion[S.region]) || byCat[S.cat] || 'Interests';
@@ -726,7 +743,12 @@ class DailySplit extends React.Component {
         })) : null;
 
     // one quiet meta line above the question: day · topic — nothing else competes
-    const catLabel = (WORLD_TOPICS_V2.find(c => c.id === S.cat) || {}).label;
+    // `S.cat` is a WORLD_TOPICS id on the demo deck and the question's TONE
+    // on a live one ("light"/"deep"/"blend"), which matches no topic — so
+    // this was undefined for every live daily and the row below degraded to
+    // "Asked in · Today". `branch` is the live subject and is what the row
+    // is asking for.
+    const catLabel = (WORLD_TOPICS_V2.find(c => c.id === S.cat) || {}).label || S.branch;
 
     // ── the feed: answer today's question, then the feed starts ──
     const feedEnabled = this.props.feed !== false && window.WorldFeed && (!(window.LIVE && window.LIVE.enabled) || window.LIVE.feedReady); // live feed (Phase 4) or the demo feed offline
@@ -864,7 +886,12 @@ class DailySplit extends React.Component {
     if (total >= 1) {
       ctxRows.push(['Answers', total >= 1000 ? (total / 1000).toFixed(1).replace(/\.0$/, '') + 'K' : String(total)]);
     }
-    ctxRows.push(['On your map', S.region || 'Interests']);
+    // Through mapBranch, not off `S.region` raw. The translator is right
+    // here in this file and line ~970's toast already uses it; this row
+    // bypassed it and read a field only the demo deck has, so the sheet and
+    // the toast could name different places for the same answer — and on a
+    // live daily both said 'Interests' regardless of subject.
+    ctxRows.push(['On your map', this.mapBranch(S)]);
     const ctxBody = h('div', { style: { padding: '2px 0 14px', display: 'grid', gridTemplateColumns: 'auto 1fr', columnGap: 14, rowGap: 9, alignItems: 'baseline' } },
       ctxRows
         .map(([k, v]) => h(F, { key: k },

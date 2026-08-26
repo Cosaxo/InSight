@@ -784,6 +784,46 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expectNoBoundary("live feed, no background");
   });
 
+  // THE VALUE, not just the label. The two assertions above have been green
+  // this whole time and say only that a row headed "On your map" exists —
+  // which stayed true while the value beside it was the constant
+  // "Interests" for every live daily, whatever the subject.
+  //
+  // Why it was constant: the row read `S.region`, and `buildS` emits no
+  // `region` at all on a live question — it is a field of the DEMO deck
+  // literal in daily-split.jsx and of nothing else. `|| 'Interests'` then
+  // fired for all 130 daily questions. 'Interests' is not a vague
+  // catch-all either: it is one of the fourteen CAT_META branches, home to
+  // 8 of the bank's questions, so the sheet named a real branch the answer
+  // was not filed under.
+  //
+  // Same class as D296's `agg.tooSmall === false` — a reader testing a
+  // field the live writer stopped producing (or never produced), failing
+  // quietly into a plausible constant.
+  it("names the branch the answer is actually filed under, not a constant", async () => {
+    localStorage.clear();
+    const expectNoBoundary = mountLive();
+    await growFeed();
+    fireEvent.click(screen.queryAllByRole("button", { name: /About this question/i })[0]);
+
+    // nextElementSibling, not parentElement. The rows are flat key/value
+    // spans in one grid, so a row's `parentElement` is the WHOLE sheet body
+    // — written that way first, and the mutation run showed it: the failure
+    // quoted "Asked inCultureAnswers25On your mapInterests", i.e. both
+    // assertions were really asking "does the sheet contain Mind
+    // anywhere". That still caught this bug and would miss the value
+    // landing in the wrong row, which is the next mistake along.
+    const valueOf = (label) =>
+      screen.getByText(new RegExp(`^${label}$`)).nextElementSibling?.textContent || "";
+
+    // The fixture's daily-000 carries branch "Mind" (live-fixture.ts).
+    // Asserted as the REAL value rather than "not Interests", so a future
+    // fixture change fails loudly instead of passing vacuously.
+    const onMap = valueOf("On your map");
+    expect(onMap, `"On your map" said "${onMap}"`).toBe("Mind");
+    expectNoBoundary("live daily, About sheet branch");
+  });
+
   // D284 — the learn bank left the JavaScript, and this is what proves the
   // live path picked it up.
   //
