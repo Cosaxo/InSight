@@ -61,6 +61,17 @@ describe("the field at rest", () => {
   });
 });
 
+describe("the beacon (2026-08-26)", () => {
+  it("is a tap target of its own — the map's one instruction opens the pick", () => {
+    const { container } = render(<PatternsMap items={ITEMS} version={1} topic="all" />);
+    const g = screen.getByText("answer next").closest("g")!;
+    fireEvent.click(g.querySelector("circle")!); // the invisible hit circle
+    expect(screen.getByText("Q qc")).toBeTruthy(); // the open question's card
+    expect(screen.getByText("qc-yes")).toBeTruthy(); // with its options offered
+    expect(container.querySelector(".qm-pulse")).toBeNull(); // and the beacon rests while selected
+  });
+});
+
 describe("a selection", () => {
   it("reads the question's own links out loud and says when you broke one", async () => {
     const { container } = render(<PatternsMap items={ITEMS} version={1} topic="all" />);
