@@ -35,6 +35,10 @@ const stores = vi.hoisted(() => ({
   artists: [
     { key: 1299, name: "Nina Simone" },
   ],
+  athletes: [
+    { key: 615, name: "Lionel Messi" },
+    { key: 11459, name: "Serena Williams" },
+  ],
   emoji: [
     { key: 128293, name: "🔥 fire" },
   ],
@@ -69,6 +73,7 @@ vi.mock("../data/pokedex", () => ({
 vi.mock("../data/catalogs", () => ({
   FILMS: catalogStore(() => stores.films),
   ARTISTS: catalogStore(() => stores.artists),
+  ATHLETES: catalogStore(() => stores.athletes),
   EMOJI: catalogStore(() => stores.emoji),
   COUNTRIES: catalogStore(() => stores.countries),
   DOGS: catalogStore(() => stores.dogs),
@@ -137,6 +142,14 @@ describe("PickSearch · each domain searches its own catalogue", () => {
     type("Nina");
     await waitFor(() => expect(screen.getAllByRole("option").length).toBeGreaterThan(0));
     expect(screen.getAllByRole("option")[0].textContent).toMatch(/Nina Simone/);
+  });
+
+  it("offers athletes for the athletes domain, keyed by QID (D308)", async () => {
+    const { onPick } = mount("athletes");
+    type("serena");
+    await choose(/Serena Williams/);
+    // The QID key, like every QID domain — never the name.
+    expect(onPick).toHaveBeenCalledWith(11459);
   });
 
   it("falls back to pokemon for an unknown domain rather than rendering empty", () => {

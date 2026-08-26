@@ -31034,6 +31034,7 @@ instead of being found by whoever reads carefully enough.
 `check:monitoring` held the *lists* equal to the directory the whole time.
 Nothing held the *prose* to the lists. The blockquote stopped quoting counts
 altogether, because a sentence that does not state a count cannot drift.
+
 **Amendment (same day) — the first production dry run, and exactly what it
 settles.** `Arm monitoring` dispatched against `prvfire33` from `main`
 (run 1, 18:15 UTC), `apply` off. It **succeeded, and no role was missing**:
@@ -31108,4 +31109,332 @@ this amendment corrects said the environment "carries no protection rules
 today". D87 is about a REVIEWER requirement. A deployment branch policy is a
 different rule, it is on, and no document here mentioned it. Whether the
 reviewer half is also on remains unestablished — no run has ever waited.
+## D304 · The breakdown gets its scale back: every canonical bucket, in vocabulary order, on top of the cohort reading
 
+**Decided:** 2026-08-26 · **Status:** binding. The owner's review with the
+current standalone beside the app: "the data breakdown shows only the
+current traits of the person that voted, in a very unorderly manner — it
+should show all categories like this." Approved with the full plan of the
+same review; this record is the breakdown half.
+
+### 1 · What the cohort-first sheet looked like at a young population
+
+D125 flipped the who-voted sheet the right way round — pick a cohort, and
+everything below is that cohort's reading of the question — and D149/D227
+built on that axis. All of it holds. What D125 did not anticipate is what
+its landing looks like with a handful of voters: `mixFor` sorts buckets by
+size and drops empties, and the dim chips filtered to published cells, so
+the sheet's whole offer was two chips in popularity order. A reader could
+not see the scale their cohort sits on, and a band nobody had answered
+from was indistinguishable from a band that does not exist — which since
+D98 are different facts, and the difference is publishable.
+
+The prototype never had the problem, because its demo sheet kept the
+all-rows shape: every group of the cut, one stacked bar each, the
+published split as the header bar. That is the shape the owner pointed
+at.
+
+### 2 · The rows return on top of D125, not instead of it
+
+A dim now lands on its whole scale at once, and the D125 reading is one
+tap in: a row expands into exactly the cohort body the sheet has drawn
+since D125 — option rows, then the divergence line — scoped to that row.
+Continuum forms (`renderBody`, D114) keep the chip flow unchanged: a
+dial's track has nothing honest to draw over a scale of zeros.
+
+The frame is the VOCABULARY, not the data:
+
+- `vocabMix` (data/cohort.ts) walks the canonical vocabulary in its own
+  order and lets the data fill it in — dense zero cells for buckets
+  nobody answered from, drawn greyed with their 0, because an exact zero
+  is the fact D98 bought. `mixFor` keeps its biggest-first contract for
+  the People lens; the two folds answer different questions.
+- The vocabulary source is `profile-vitals.js` via `ui/cohortVocab.ts` —
+  the module `check:anchors` already holds equal to the trigger's
+  `BREAKDOWN_DIM_VOCAB`. A third hand-typed copy would be the drift that
+  gate exists to stop.
+- Opt-outs and catch-alls ('Prefer not to say', 'Other') join the scale
+  only once somebody has picked them: a permanent zero row for declining
+  to answer reads as an ask. A bucket the vocabulary no longer knows is
+  appended rather than hidden — answers folded under an old spelling are
+  still answers.
+- Closed-vocabulary dims are ALWAYS offered now; a dim nobody has shared
+  renders as its scale at zero with a line saying so. Open vocabularies
+  (city, country) still need a published cell — there is no canonical
+  list of every city to draw at zero — and they draw observed buckets
+  only, biggest first.
+
+### 3 · What this deliberately does not touch
+
+The owner's reference sheet also cuts by Job (Sector / Stage / Setup),
+education facets (Studied / Trade / …) and all four tests. None of those
+is a rendering gap: `profession` is free text and deliberately not a dim
+(D8), the education facets are profile fields the app does not collect,
+and test results are aggregated per cohort by nothing. The sample-based
+Type and Logic cuts (D146, D227) remain the honest stand-ins. Structured
+job/education anchors would be a profile + vocabulary + trigger change on
+D8's turf and are recorded as open, not begun.
+
+## D305 · A rating is one figure, not ten rows: the scale row, the ridge, and the mean
+
+**Decided:** 2026-08-26 · **Status:** binding. The same owner review as
+D304: "questions with a lot of options still use a bit too much space
+when showing all their options — for example when rating things out of
+10, so all options can't fit on one page."
+
+### 1 · Where the ten rows were
+
+Everywhere the scale went. A `rating` becomes options `"1"…"10"` at the
+bank boundary (daily-questions.js), and every surface downstream drew
+those ten options with the machinery built for CHOICES: the daily's ask
+was ten stacked 56px buttons (taller than a phone screen before the
+question could be answered), the result ten flex tiles inside
+`sdSplitStageH(10)` = 653px, and the who-voted sheet ten `LbOptionRows`
+per cohort. Each was correct for a categorical question and each was
+noise here, because a scale's reading is a POSITION plus a spread — one
+figure — and the Map's card has known that since its `mmt-ridge`
+existed: "rating → too many rows; show the group's full spread as a
+small ridge" (map-bottom-card.jsx).
+
+### 2 · One figure, three surfaces, one component
+
+- `ui/RatingRidge.tsx` is the mmt-ridge shape in component form: every
+  step drawn whether or not anyone chose it, your column marked, the
+  crowd's peak named only when it is not yours. The daily's result and
+  the breakdown sheet both draw it; the Map keeps its own (same shape,
+  its own chrome).
+- The daily's ask is a single row of ten steps on a ramp of the topic's
+  hue — a ramp, not the option-colour rotation, because distinct hues
+  read as categories and a scale is not categories. Same tap, same vote
+  path, same stored optionIdx: `castVote` is the one vote path both ask
+  shapes share now, extracted so two copies cannot drift (D86's edit
+  routing rides along unchanged).
+- The breakdown sheet takes `kind`: with `kind="rating"` every body
+  that would draw option rows draws the mean and the ridge
+  (`LbRatingBody`), D304's cohort rows fill to each cohort's MEAN with
+  the seam at everyone's, and the divergence sentence compares means —
+  "more likely to say 7" is a true sentence about a histogram bucket
+  and a useless one about a scale. The mean is `meanScore`
+  (data/cohort.ts), the same fold the Scores lens reads, so no two
+  surfaces can disagree about what a cohort averages.
+- The consequence beat is skipped for ratings: it animates SIDES, and
+  ten steps of one scale are not sides.
+
+### 3 · What did not change
+
+The bank, the wire, and the answer. A rating is still ten options and an
+optionIdx — D52's frozen option sets, D86's one edit shape and the
+aggregate's dense cells all hold exactly as they were. This is a
+presentation decision about surfaces, which is why it could ship without
+touching functions/ at all.
+
+## D306 · Context reaches the daily's ⓘ, and the banks get their first subject-context pass
+
+**Decided:** 2026-08-26 · **Status:** binding. The same owner review as
+D304/D305: "a question like Mozart or Beethoven should have context about
+them in the info box — in general more context on most questions."
+
+### 1 · The slot existed and the daily could not reach it
+
+D281 gave every feed card the `i` whose sheet leads with a background
+paragraph, seeded on the doc (`bg`, in SEEDED_FIELDS) and read by
+`buildFeedGlobals`. The daily had the same button and the same sheet —
+and could never show a paragraph, for a D296-class reason: the field was
+seeded and the feed read it, while `buildS` (the daily deck) dropped it
+on the floor. Nothing was red; the sheet simply always opened on its
+three rows.
+
+`buildS` now carries `bg`, the daily's sheet leads with the paragraph
+over a hairline when one exists, and the button keeps D281's promise on
+this surface too: it promotes itself to "What you need to know" so a card
+with facts behind it does not wear the label of one without. The demo
+deck's literals carry three backgrounds so mock mode shows the same
+thing.
+
+### 2 · The rule widens: subject context is context
+
+The bg rule was "only for questions that cannot be answered honestly
+without a fact". The owner's ask adds the other legitimate kind: a named
+subject the reader may be meeting for the first time — who Mozart was,
+what a trolley problem is. The rule in world-subtopics.js now says both,
+with the same bounds (facts and definitions, never arguments, ~40 words;
+`check:quality` holds 90–320 chars, refuses questions-as-context and the
+unambiguous argue-forms).
+
+### 3 · The first pass: 51 questions, and where the texts live
+
+44 feed + 7 daily questions now carry `bg` (the `now` channel's six
+already did): 19 lifted verbatim from `WORLD_BG` for bank questions that
+had been resolving them by id collision — the fact now rides the seeded
+doc instead of a client map — and 32 written new, mostly the named-people
+and named-thing cards (Mozart/Beethoven included) plus the dials whose
+scale benefits from a baseline fact. The daily got only the handful with
+a named subject: most daily questions ask about the answerer, and a
+context sheet for "How optimistic are you" would be padding.
+
+`WORLD_BG` stays, scoped to the demo pool, with a comment saying the bank
+copy is the product's. The wire cost of the pass is +8.8 KiB on the
+cold-boot bank fetch (COSTS.md figure moved 181.5 → 190.3 KiB).
+
+### 4 · Open, deliberately
+
+The remaining ~470 seeded questions without context mostly need none —
+but the reviewing lanes (QUESTION-FARM) may keep extending the set under
+§2's widened rule, one vintage at a time, and the length cap is the thing
+to hold: a sheet is context, not an article.
+
+## D307 · The scorecard learns to ask: unanswered place questions surface on the Scores lens
+
+**Decided:** 2026-08-26 · **Status:** binding. The same owner review as
+D304–D306: "I have not seen the score questions connected to city,
+country or earth."
+
+### 1 · Why nobody had seen them
+
+All 24 `rates:` questions live in the daily bank (D187), and the daily
+serves one question a day — so a place question surfaced about once in
+five days, and only as that day's blind card. Nothing else could ask
+one: the Scores lens reads `aggregated()`, which carries only questions
+somebody has already answered, so at a young population the scorecard
+was empty AND unfillable — the lens that exists to show the scores had
+no path to the questions that produce them.
+
+### 2 · The ask rows, and what they deliberately reuse
+
+`LIVE.placeAsks(scope)` walks the BANK (the device already holds it
+whole — the cold-boot fetch) for active ratings that rate the scope and
+carry no vote from this account. The Scores lens renders them under its
+scored rows — and inside its empty state, so "nobody has scored X yet"
+sits above the way to change it — as D305's one-tap scale row, capped at
+three visible with the rest counted.
+
+The vote goes through `vote()`, the one path every answer takes: same
+anchors snapshot, same D205 city gate (`answerAnchors(q.rates)`), same
+ledger. The daily card shows the question as answered when its rotation
+day arrives, because both read the same vote map.
+
+Blindness holds: the ask row shows no split. The facet scores above it
+are the PLACE's published averages, visible to every visitor of the lens
+whether or not they answer — the ask beside them leaks nothing the card
+did not already say, and the question's own split stays behind the
+answer like everywhere else.
+
+### 3 · The seam that stays honest
+
+A fresh vote leaves the ask list immediately (optimistic, like the
+card's own tap) but reaches the scored rows only when the trigger folds
+and the aggregate top-up lands — the same eventual consistency every
+surface already carries. `placeAsks` joined `LIVE_MEMBERS`, so the
+contract pin and the mount fixture both know it.
+
+## D308 · The athletes catalogue, its review file, and the pick card's browse tiles
+
+**Decided:** 2026-08-26 · **Status:** binding. The same owner review as
+D304–D307: the reference sheet's "The greatest athlete who ever lived ·
+Search 640 athletes" card, tiles included — a domain, a question and a
+presentation none of which existed.
+
+### 1 · The catalogue, and the disease it caught immediately
+
+`public/athletes.txt`: 640 sitelink-ranked humans, QID-keyed, built by a
+new `athletes` arm of `scripts/build-catalog.mjs`. Two mechanical
+lessons the build surfaced, both now in the builder's comments:
+
+- **The single-query shape does not exist for this domain.** The
+  person-side occupation closure (`wdt:P106/wdt:P279* athlete`) times
+  the endpoint out with or without the label service — probed twice —
+  so the builder stages it: the closure first (917 occupations), then
+  candidates per occupation chunk, ranked locally, labelled in chunks.
+  `spec.fetch` is the builder's new arm for a domain that gathers its
+  own rows; everything downstream (same-name dedupe, the top cut, the
+  format checks) treats them identically.
+- **D266's artists disease, confirmed one domain over.** The unrefined
+  ranking led with George W. Bush, with Albert Camus (goalkeeper) and
+  Niels Bohr (footballer) in the top ten — sitelinks rank the person,
+  P106 only asks whether they ever played. Same cure: at least a third
+  of an entry's occupations athletic. And the same residue: the ratio
+  dropped Serena Williams (2/7) and Pelé (2/7) while keeping Ursula von
+  der Leyen (1/3 — physician, politician, equestrian). So the D267
+  machinery arrived WITH the catalogue: `content/athlete-review.json`,
+  same parse, same applyReview, same both-directions hold in
+  `check:catalogs` (now a loop over both review/catalogue pairs). First
+  ruling: 20 admits, 1 reject, every entry auditable by name.
+- A third, smaller one: Wikidata is migrating same-everywhere names onto
+  one `mul` label and deleting the per-language copies — a raw
+  `LANG="en"` filter silently dropped Messi, the most-linked footballer
+  on earth. The label fetch reads `en` and `mul`, `en` winning.
+
+Deities carry athletic occupations too (Apollo ranked 15th before the
+`P31 Q5` constraint), and 640 rather than TOP_N matches the owner's
+sheet — the tail past it is single-league fame that "Not listed" absorbs
+honestly.
+
+### 2 · The wiring, all of it the existing rails
+
+`ATHLETE_KEYS` in the generated key sets; `athletes: { keys }` in the
+trigger's CATALOG_DOMAINS; an `ATHLETES` store in `data/catalogs.ts`
+(export-only, like COUNTRIES); the PickSearch domain ("Search 640
+athletes…"); the pickStore arm and noun; `CATALOG_FILES` so promote
+recognises the domain; and `pick-pk28` — the owner's prompt, promoted
+editorial — with a demo crowd in the archive. 688 seeded questions now.
+
+### 3 · The browse tiles
+
+The pick ask was a search field alone: the catalogue was invisible until
+you already knew what to type. `ui/PickTiles.tsx` draws the catalogue's
+HEAD as tappable tiles over the search — the popularity head the file
+already ships, so browsing costs no read and invents no ranking — and a
+tap is exactly the search's pick. Entries with no visual of their own
+wear a generated face (dots, stripes, rings, a split — deterministic
+from the key, so a tile keeps its face across sessions); emoji draw the
+character itself and colours their own hue, though today the row is
+offered ONLY for the sitelink-ranked domains (films, artists, athletes):
+the alphabetical catalogues' head is not a fame ranking, and offering it
+as one would be the D1 shape of misleading. The row owns its horizontal
+motion (`.h-scroll`), or dragging through it would slide the daily's
+mode axis.
+
+## D309 · A lane batch on the budget's own allocation, and why the interleave cadences stand
+
+**Decided:** 2026-08-26 · **Status:** binding. The last item of the
+owner's 2026-08-26 review: "there seem to be fewer kinds of questions
+than I would like showing up in the app — it's mostly tests and learn."
+
+### 1 · The mechanism, named before the fix
+
+The feed is not tilted by its cadences. `interleaveFeed` weaves one test
+card per four world cards and one lens card per nine, with knowledge at
+the reader's own Learn cadence (`LEARN_FEED.every()`) — a fresh account
+sees mostly world questions. What the owner is feeling is the OTHER end:
+answered world cards leave the fresh feed (the D-partition behind the
+Answered expander), the world bank is finite, and the test/learn streams
+are deep — 160 test items and 146 learn cards against what was 142 feed
+questions. Deplete the world half and the side streams are what remain.
+That is the depletion SCALE-PLAN §1 names, and the cure is production,
+not cadence: retuning TEST_EVERY to starve tests would slow the four
+instruments every Mirror surface feeds on, to mask a content shortage.
+The cadences stand; the engagement rungs (D270–D272) are what would
+justify touching them, with numbers instead of a feeling.
+
+### 2 · The batch, exactly as the lane's budget allocated it
+
+`npm run feed:budget` granted 6 — one each into people, music, movies,
+bigq, culture and event, thinnest-first — and this batch wrote exactly
+that, leaning continuum where the topic allowed because the owner's
+review asked for more of those forms: `dl14` (music, "How old were you
+when your taste in music settled?", 10–40 yrs) and `fd4` (bigq, "Human
+nature — place it", selfish↔kind × fixed↔changeable), each written twice
+per the lane's rule (content copy + demo-pool twin with its own
+texture); votes into people, movies, culture; and the event slot's
+artefacts-return question with a `bg` under D306's rule. All tail
+(`core: false`, D161), all with farm provenance, batch 2026-08-26.
+694 seeded questions now; the bank's wire size moves to 192.3 KiB.
+
+### 3 · What this deliberately is not
+
+A one-off cannot outrun depletion — the scheduled lanes are the engine
+(D145's budget fires twice weekly), and this batch is one turn of the
+same crank taken now because the review asked now. The daily's variety
+is its own instrument: one question a day is the design, and the ask
+rows D307 added are how the rotation's thin forms reach a reader who
+wants them sooner.

@@ -40,6 +40,10 @@ export interface LiveQuestion {
   // that rates no place, and for any doc seeded before D187.
   tag?: string;
   rates?: string;
+  // The card's background paragraph (D281). Carried since D306 so the
+  // daily's About sheet can lead with it the way the feed's does — the
+  // field was seeded and the feed read it, while this deck dropped it.
+  bg?: string;
   // Whether a COHORT reading may fold this question (D161) — resolved by
   // isCore() at build time rather than carried raw, because the raw flag
   // is feed-only and every other surface is core by construction. A view
@@ -409,6 +413,7 @@ export function buildS(
     comments: [],
     friends: [],
     live: true,
+    bg: q.bg,
     noCountsYet: !hasPublishedCounts(ctx.agg),
     test: q.test,
     coreCorpus: isCore(q),

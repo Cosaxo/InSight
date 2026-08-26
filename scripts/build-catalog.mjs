@@ -6,6 +6,7 @@
 //
 //   node scripts/build-catalog.mjs films
 //   node scripts/build-catalog.mjs artists
+//   node scripts/build-catalog.mjs athletes
 //
 // AN OPERATOR STEP, NOT A CI STEP. This fetches from Wikidata's public
 // SPARQL endpoint (CC0 data), which sandboxed CI runners and remote dev
@@ -99,7 +100,167 @@ ORDER BY DESC(?links) LIMIT 2000`,
     label: (b) => b.itemLabel.value,
     refine: refineArtists,
   },
+  athletes: {
+    out: "athletes.txt",
+    what: "athletes",
+    // 640 rather than TOP_N, matching the owner's 2026-08-26 reference
+    // sheet ("Search 640 athletes") — and the tail past ~640 is
+    // single-country league fame, which a worldwide favourite question
+    // reaches through "Not listed" honestly enough.
+    top: 640,
+    // No single query: the person-side closure (?item wdt:P106/wdt:P279*
+    // athlete) times the endpoint out with or without the label service —
+    // probed twice, 2026-08-26 — so the closure is fetched FIRST (917
+    // occupations, instant) and candidates are gathered per occupation
+    // chunk, ranked locally, labelled in chunks.
+    //
+    // THE ARTISTS' DISEASE, CONFIRMED HERE TOO. The first unrefined run
+    // ranked George W. Bush first, with Albert Camus (goalkeeper), Niels
+    // Bohr (footballer) and Henry Ford in the top ten — sitelinks rank
+    // the person, P106 only asks whether they ever played (D266's exact
+    // measurement, one domain over). So the same cure: at least a third
+    // of an entry's occupations athletic, checked against the closure the
+    // gatherer already fetched. No review file yet — the ratio's output
+    // reads clean for sport in a way music's did not (a footballer's
+    // P106 rarely lists five other trades), and the artists' review lane
+    // is the precedent to copy the day a wrongly-dropped legend surfaces.
+    fetch: fetchAthletes,
+  },
 };
+
+// The athletes domain's gatherer — see the spec's comment for why it is
+// staged. Shapes its rows exactly as the single-query path does, so the
+// same-name dedupe, the top cut and the format checks below apply
+// unchanged.
+async function fetchAthletes() {
+  const occs = (await sparql("SELECT DISTINCT ?occ WHERE { ?occ wdt:P279* wd:Q2066131 }"))
+    .map((b) => qidNum(b.occ.value))
+    .filter(Boolean);
+  const athleticOcc = new Set(occs);
+  console.log(`build-catalog: athlete occupation closure holds ${occs.length} occupations`);
+  const byKey = new Map();
+  for (let i = 0; i < occs.length; i += 90) {
+    const values = occs.slice(i, i + 90).map((k) => `wd:Q${k}`).join(" ");
+    // P31 Q5 is load-bearing: deities carry athletic occupations too, and
+    // the first run without it ranked Apollo 15th and Artemis 25th.
+    const page = await sparql(
+      `SELECT DISTINCT ?item ?links WHERE { VALUES ?occ { ${values} } ?item wdt:P106 ?occ ; wdt:P31 wd:Q5 ; wikibase:sitelinks ?links . FILTER(?links >= 45) }`,
+    );
+    for (const b of page) {
+      const key = qidNum(b.item.value);
+      if (key == null || key === 0) continue;
+      const links = Number(b.links.value) || 0;
+      const prev = byKey.get(key);
+      if (!prev || links > prev.links) byKey.set(key, { key, links });
+    }
+  }
+  // The ratio rule (the artists' cure, D266/D267): fetch each candidate's
+  // FULL occupation set and keep the ones at least a third athletic. Run
+  // over a deep head so the cut to `top` still bites on curated rows.
+  const ranked = [...byKey.values()]
+    .sort((a, b) => b.links - a.links || a.key - b.key)
+    .slice(0, 2000);
+  const occOf = new Map();
+  for (let i = 0; i < ranked.length; i += 150) {
+    const values = ranked.slice(i, i + 150).map((r) => `wd:Q${r.key}`).join(" ");
+    for (const b of await sparql(
+      `SELECT ?item ?occ WHERE { VALUES ?item { ${values} } ?item wdt:P106 ?occ }`,
+    )) {
+      const k = qidNum(b.item.value);
+      if (!occOf.has(k)) occOf.set(k, new Set());
+      occOf.get(k).add(qidNum(b.occ.value));
+    }
+  }
+  const annotated = ranked.map((r) => {
+    const all = occOf.get(r.key) || new Set();
+    const athletic = [...all].filter((o) => athleticOcc.has(o)).length;
+    return { ...r, athletic, occTotal: all.size, keep: all.size > 0 && athletic / all.size >= 1 / 3 };
+  });
+
+  // Names for the head of ALL candidates — kept AND dropped — plus any
+  // qid the review file mentions: an admitted row needs its label, and
+  // the review list has to show the drops by name or ruling on them is
+  // guessing.
+  //
+  // "mul" beside "en", and "en" wins: Wikidata has been migrating items
+  // whose name is spelled the same everywhere onto one multilingual
+  // label and DELETING the per-language copies — Q615 (Messi) carries
+  // only `mul` today, which is how a plain LANG="en" filter silently
+  // dropped the most-linked footballer on earth while keeping Cristiano.
+  // The label SERVICE falls back to mul by itself; raw rdfs:label does
+  // not, so the fallback is spelled out here.
+  const reviewRaw = JSON.parse(readFileSync(join(root, "content", "athlete-review.json"), "utf8"));
+  const review = parseReview(reviewRaw);
+  if (review.errors.length) {
+    console.error(`build-catalog: content/athlete-review.json has ${review.errors.length} problem(s)`);
+    for (const e of review.errors) console.error(`  - ${e}`);
+    process.exit(1);
+  }
+  const reviewQids = new Set([...review.reject.keys(), ...review.admit.keys()]);
+  const toName = annotated.filter((r, i) => i < 1200 || reviewQids.has(r.key));
+  const names = new Map();
+  for (let i = 0; i < toName.length; i += 150) {
+    const values = toName.slice(i, i + 150).map((r) => `wd:Q${r.key}`).join(" ");
+    for (const b of await sparql(
+      `SELECT ?item ?label (LANG(?label) AS ?lang) WHERE { VALUES ?item { ${values} } ?item rdfs:label ?label . FILTER(LANG(?label) IN ("en", "mul")) }`,
+    )) {
+      const k = qidNum(b.item.value);
+      const isEn = b.lang && b.lang.value === "en";
+      if (isEn || !names.has(k)) names.set(k, b.label.value);
+    }
+  }
+  const named = annotated
+    .map((r) => ({ ...r, name: (names.get(r.key) || "").trim() }))
+    // No English label, or a label that is just the QID: not offerable —
+    // the single-query path's rule, applied here since it never sees these.
+    .filter((r) => r.name && !new RegExp(`^Q${r.key}( |$)`).test(r.name));
+
+  if (REVIEW_LIST) {
+    const shown = named.slice(0, REVIEW_LIST);
+    console.log(
+      `# athletes candidates 1..${shown.length} of ${named.length}, popularity order.\n` +
+        `# KEEP/DROP is the mechanical rule (>= 1/3 of occupations athletic).\n` +
+        `# Rule on the ones it got wrong in content/athlete-review.json:\n` +
+        `#   a DROP that is famous FOR sport -> admit   (no reason needed)\n` +
+        `#   a KEEP that is not              -> reject  (needs a why)\n` +
+        `# Format: verdict<TAB>qid<TAB>athletic/total<TAB>sitelinks<TAB>name`,
+    );
+    for (const r of shown) {
+      console.log(`${r.keep ? "KEEP" : "DROP"}\t${r.key}\t${r.athletic}/${r.occTotal}\t${r.links}\t${r.name}`);
+    }
+    process.exit(0);
+  }
+
+  const kept = named.filter((r) => r.keep);
+  console.log(
+    `build-catalog: curation rule kept ${kept.length} of ${named.length} named candidates ` +
+      `(${named.length - kept.length} dropped as famous-but-not-for-sport)`,
+  );
+
+  const out = applyReview(kept, named, review);
+  if (out.rejected.length || out.admitted.length) {
+    console.log(
+      `build-catalog: review applied — ${out.rejected.length} rejected, ${out.admitted.length} admitted` +
+        (out.admitted.length ? ` (${out.admitted.map((e) => e.name).join(", ")})` : ""),
+    );
+  }
+  for (const e of out.redundant) {
+    console.warn(
+      `build-catalog: content/athlete-review.json ${e.side === "admit" ? "admits" : "rejects"} ` +
+        `${e.name} (Q${e.qid}), but the rule already agrees — the entry is doing nothing`,
+    );
+  }
+  if (out.stale.length) {
+    console.error(
+      `build-catalog: ${out.stale.length} entr${out.stale.length === 1 ? "y" : "ies"} in ` +
+        `content/athlete-review.json name candidates this run did not return:`,
+    );
+    for (const e of out.stale) console.error(`  - ${e.side}: ${e.name} (Q${e.qid})`);
+    console.error("  Wikidata changed under the file. Re-run --review-list and re-rule these.");
+    process.exit(1);
+  }
+  return out.rows;
+}
 
 // The artists domain's membership rule. SPARQL cannot express it — it is a
 // ratio over a subclass closure, and the closure is what makes "composer"
@@ -217,7 +378,7 @@ if (!spec) {
 // content/artist-review.json is reading rather than guessing.
 const reviewFlag = process.argv.indexOf("--review-list");
 const REVIEW_LIST = reviewFlag === -1 ? 0 : Number(process.argv[reviewFlag + 1]) || 300;
-if (REVIEW_LIST && !spec.refine) {
+if (REVIEW_LIST && !spec.refine && !spec.fetch) {
   console.error(`build-catalog: --review-list is only meaningful for a domain with a curation rule (${domain} has none)`);
   process.exit(1);
 }
@@ -269,21 +430,30 @@ const chunked = async (keys, build) => {
   return out;
 };
 
-const bindings = await sparql(spec.query);
+// A domain either answers to one query (films, artists) or gathers its
+// own rows in stages (athletes) — both hand the pipeline below the same
+// {key, name, links} shape, so dedupe, the top cut and the format checks
+// treat them identically.
+let rows;
+if (spec.fetch) {
+  rows = await spec.fetch();
+} else {
+  const bindings = await sparql(spec.query);
 
-// QID-dedupe first (GROUP BY should already guarantee it), then rank.
-const byKey = new Map();
-for (const b of bindings) {
-  const key = qidNum(b.item.value);
-  if (key == null || key === 0) continue;
-  const links = Number(b.links.value) || 0;
-  const name = spec.label(b).trim();
-  // A label that is just the QID means "no English label" — not offerable.
-  if (!name || new RegExp(`^Q${key}( |$)`).test(name)) continue;
-  const prev = byKey.get(key);
-  if (!prev || links > prev.links) byKey.set(key, { key, name, links });
+  // QID-dedupe first (GROUP BY should already guarantee it), then rank.
+  const byKey = new Map();
+  for (const b of bindings) {
+    const key = qidNum(b.item.value);
+    if (key == null || key === 0) continue;
+    const links = Number(b.links.value) || 0;
+    const name = spec.label(b).trim();
+    // A label that is just the QID means "no English label" — not offerable.
+    if (!name || new RegExp(`^Q${key}( |$)`).test(name)) continue;
+    const prev = byKey.get(key);
+    if (!prev || links > prev.links) byKey.set(key, { key, name, links });
+  }
+  rows = [...byKey.values()].sort((a, b) => b.links - a.links || a.key - b.key);
 }
-let rows = [...byKey.values()].sort((a, b) => b.links - a.links || a.key - b.key);
 
 // A domain whose query cannot express its own membership rule refines the
 // candidates here, before same-name dedupe and the top-N cut — the cut has
@@ -313,7 +483,7 @@ if (dropped.length) {
   );
 }
 
-rows = rows.slice(0, TOP_N);
+rows = rows.slice(0, spec.top || TOP_N);
 
 // Format corruption is a hard failure, never a filter (build-cities.mjs).
 const malformed = rows.filter(
