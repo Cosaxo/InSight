@@ -15,6 +15,11 @@
 // instead of dating it, which is the opposite of what this repo wants.
 import { describe, it, expect } from "vitest";
 import { scan, scanText, RETIRED } from "./check-public-copy.mjs";
+import { readdirSync } from "node:fs";
+import { resolve, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 describe("the claims that were actually live", () => {
   // Verbatim, from git history at the commit this gate was added.
@@ -103,6 +108,26 @@ describe("the live corpus", () => {
     expect(labels).toMatch(/web\/home\.html/);
     expect(labels).toMatch(/web\/terms\.html/);
     expect(labels).toMatch(/LivePrivacyPanel\.tsx/);
+  });
+
+  it("reads EVERY page in web/, not a hand-kept four", () => {
+    // The list was hand-kept, with a comment promising that adding a page
+    // means adding a line — and the note beside `join.html` claimed it
+    // "was the one page in web/ this list did not name" on a day when
+    // three others already existed. Two of those are where a buyer lands
+    // straight out of Stripe Checkout, carrying both classes this gate
+    // reads: a who-can-see-what claim and a contract claim.
+    //
+    // So the property is the DIRECTORY, not a number: whatever is served
+    // is scanned.
+    const onDisk = readdirSync(join(repoRoot, "web"))
+      .filter((f) => f.endsWith(".html"))
+      .sort();
+    expect(onDisk.length, "web/ has no pages — this case is measuring nothing").toBeGreaterThan(3);
+    const labels = scan().surfaces.map((s) => s.label).join("\n");
+    for (const f of onDisk) {
+      expect(labels, `web/${f} is served and this gate never reads it`).toContain(`web/${f}`);
+    }
   });
 
   it("skips the $-prefixed operator annotations in listing.json", () => {
