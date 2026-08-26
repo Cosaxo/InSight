@@ -1,27 +1,35 @@
 {
   "version": 1,
   "axiom": "pattern",
-  "updated": "2026-08-25",
+  "updated": "2026-08-26",
   "nodes": [
     {
       "id": "pat-1",
-      "claim": "The perfect pattern engine is a learned representation over raw answer/event sequences — the LLM-shaped move — with classical factors kept as the auditable layer.",
-      "status": "conjecture",
-      "detail": "Factorization (the current K-dim fit) sees co-occurrence; a sequence model sees order, context and drift, and the recent wave of foundation-model results on biological patterns (the owner's reference) suggests the same architecture family extracts structure from behavioral sequences. The perfect engine is two-layer: a learned representation for power, distilled into low-dimensional auditable factors for everything user-facing — because a reading a person cannot recompute is a reading the product cannot honestly show. Scout task: survey behavioral-sequence foundation models and the bio-LLM results with citations; this node does not rise without them.",
-      "sources": [],
-      "edges": [{ "to": "pat-2", "type": "depends" }, { "to": "gen-5", "type": "supports" }],
+      "claim": "The perfect pattern engine is a learned representation over raw answer/event sequences — the LLM-shaped move — earned above a data-volume crossover it must prove against its own classical factor layer, which is kept permanently as the auditable layer.",
+      "status": "cited",
+      "detail": "The scout (2026-08-26) grounds both halves, and the adversarial pass forced the condition INTO the claim string — the unconditional form is not what the evidence licenses. For the learned layer: in exactly this domain — user action streams — reformulating recommendation as generative sequential transduction beats the factorization/feature stack at industrial scale, with power-law returns to compute across three orders of magnitude (Zhai et al., HSTU, ICML 2024; abstract-grade figures: up to 65.8% NDCG over baselines, +12.4% online A/B, 1.5T parameters deployed); an independent academic study finds LLM-style scaling laws do transfer to sequential recommendation and pay precisely on the hard regimes — cold start, robustness, long-term preference (Zhang et al., RecSys 2024); and sequence models are proven production user-representations (Kang & McAuley 2018; Pancha et al., PinnerFormer, KDD 2022, whose dense all-action loss significantly reduces the gap between nightly-batch and real-time embeddings — directly the shape InSight's nightly fit would take). For the architecture-family transfer the seed leaned on: the strongest verified case is ESM-2 (Lin et al., Science 2023, citation fetched from the authors' own repo: a masked-LM over amino-acid sequences folds proteins atomically with no alignments, monotone in scale — CASP14 55.4/52.5/51.3 at 15B/3B/700M, repo-table-grade from the authors' fetched README). But the bio evidence also draws the boundary: transcriptome foundation models — where the sequence is a noisy, sparsely-sampled readout of state rather than the causal substrate — repeatedly lose to trivial baselines zero-shot (Kedzierska et al., Genome Biology 2025) and show NO data-scaling law (DenAdel et al., Nature Methods 2026: 400 pretrained models across 6,400 experiments, performance plateaus at a fraction of current corpus sizes; the 2024 bioRxiv preprint of the same study reported 375 models/3,750 experiments — the figure circulating on its preprint-hosting pages). So the licence is conditional: the LLM-shaped move is licensed for behavioral streams by the behavioral-stream evidence itself (HSTU's domain IS action sequences), not by analogy to biology — all of that evidence is industrial-scale, so the crossover clause in the claim is load-bearing, with pat-6 carrying the crossover and pat-7 the audit layer's own standards. Verification grade: journal pages were egress-blocked from this environment; sources are corroborated across independent bibliographic indexes (DBLP, ACM DL, PMLR, Semantic Scholar, publisher/lab pages) and, where possible, authors' own fetched repository citation blocks (ESM-2, Geneformer, scGPT); the Kedzierska and DenAdel abstracts were fetched via Microsoft Research publication pages, which for DenAdel host the PREPRINT — its published-version figures above are index-grade. Quoted figures are abstract/snippet/repo-table-grade as labeled.",
+      "sources": [
+        "Zhai et al., 'Actions Speak Louder than Words: Trillion-Parameter Sequential Transducers for Generative Recommendations', ICML 2024, PMLR v235 (zhai24a); arXiv:2402.17152",
+        "Zhang, Hou, Lu, Chen, Zhao, Wen, 'Scaling Law of Large Sequential Recommendation Models', RecSys 2024, DOI 10.1145/3640457.3688129",
+        "Kang & McAuley, 'Self-Attentive Sequential Recommendation', IEEE ICDM 2018 (SASRec)",
+        "Pancha, Zhai, Leskovec, Rosenberg, 'PinnerFormer: Sequence Modeling for User Representation at Pinterest', KDD 2022, DOI 10.1145/3534678.3539156",
+        "Lin et al., 'Evolutionary-scale prediction of atomic-level protein structure with a language model', Science 379(6637):1123–1130 (2023), DOI 10.1126/science.ade2574 (citation fetched from authors' repo bibtex)",
+        "Kedzierska, Crawford, Amini, Lu, 'Zero-shot evaluation reveals limitations of single-cell foundation models', Genome Biology 26:101 (2025), DOI 10.1186/s13059-025-03574-x (abstract fetched via Microsoft Research publication page)",
+        "DenAdel et al., 'Evaluating the role of pretraining dataset size and diversity on single-cell foundation model performance', Nature Methods 23:1447–1457 (2026), DOI 10.1038/s41592-026-03120-y (preprint: bioRxiv 10.1101/2024.12.13.628448; the fetched MSR publication page hosts the preprint)"
+      ],
+      "edges": [{ "to": "pat-2", "type": "depends" }, { "to": "gen-5", "type": "refines" }],
       "created": "2026-08-25",
-      "updated": "2026-08-25"
+      "updated": "2026-08-26"
     },
     {
       "id": "pat-2",
       "claim": "An auditable layer is permanent: every published pattern must be recomputable by a reader from public numbers.",
       "status": "argued",
-      "detail": "Whatever the engine (pat-1), the published artifact stays factor-shaped: vectors with n, reproducible from published aggregates, stable under re-runs (deterministic seeds). This is not conservatism about methods — it is the product's honesty contract extended to methodology: a black-box coupling is an assertion, and the app does not assert what cannot be recomputed. The perfect system therefore treats distillation quality (how much of the learned layer survives into the auditable one) as a first-class metric.",
+      "detail": "Whatever the engine (pat-1), the published artifact stays factor-shaped: vectors with n, reproducible from published aggregates, stable under re-runs (deterministic seeds). This is not conservatism about methods — it is the product's honesty contract extended to methodology: a black-box coupling is an assertion, and the app does not assert what cannot be recomputed. The perfect system therefore treats distillation quality (how much of the learned layer survives into the auditable one) as a first-class metric. Product note (verified in code 2026-08-26): the shipped fit already keeps this contract exactly — functions/src/patternsFit.ts is a K=8 streaming factorization with qid-hash-seeded deterministic vectors, published per-question with its basis n, refit reproducibly from its own log. pat-7 now carries the external evidence that the distillation half of this claim is the genuinely open problem.",
       "sources": [],
       "edges": [],
       "created": "2026-08-25",
-      "updated": "2026-08-25"
+      "updated": "2026-08-26"
     },
     {
       "id": "pat-3",
@@ -52,6 +60,47 @@
       "edges": [{ "to": "pat-2", "type": "supports" }, { "to": "que-1", "type": "supports" }],
       "created": "2026-08-25",
       "updated": "2026-08-25"
+    },
+    {
+      "id": "pat-6",
+      "claim": "Below a data-volume crossover the tuned classical baseline beats the learned sequence model — so engine choice is a measurement, and the perfect engine proves its choice against its own factor layer, out of sample, continuously.",
+      "status": "cited",
+      "detail": "The negative results are as replicated as the positive ones, across two fields. Recommendation: the TOIS 2021 extension found 12 of 26 neural recommenders reproducible, 11 of the 12 beaten by conceptually simpler tuned methods, and with properly tuned linear/MF baselines only one remained clearly better, on one dataset (Ferrari Dacrema et al., TOIS 2021 — abstract-grade counts; the RecSys 2019 Best Long Paper original reported 18 papers / 7 reproducible / 6 outperformed). The mechanism is inductive bias once both sides are properly tuned: a tuned dot product substantially beats a learned MLP similarity, because a universal approximator must spend data LEARNING the prior the factor model gets for free (Rendle et al., RecSys 2020 — tuning is load-bearing in their result). The adjacent tabular domain gives the sharpest threshold: tree models still beat deep learning at ~10K samples, attributed to inductive bias under an explicitly budgeted hyperparameter search (Grinsztajn et al., NeurIPS 2022). And the pro-sequence academic literature itself partly measures compute, not architecture: published BERT4Rec/SASRec comparisons are mutually inconsistent, and the original BERT4Rec results reproduce only with up to 30x the default training budget (Petrov & Macdonald, RecSys 2022). Biology replays the same law where the sequence is a state readout — the evidence here is transcriptomic, note, not genotype-to-trait, so gen-5's own scout question (trait-scale delivery vs a polygenic-score baseline) remains open: L1 logistic regression shows no significant difference from scBERT on cell-type annotation even with small training data (Boiarsky et al., Nat Mach Intell 2024); deep perturbation predictors fail to beat 'add the two single effects' (Ahlmann-Eltze et al., Nature Methods 2025); and pretraining performance plateaus at a fraction of current corpus sizes — no scaling law (DenAdel et al., Nature Methods 2026: 400 models, 6,400 experiments). Consequence: pat-1's learned layer is earned above a crossover whose location is an empirical fact about the data, not a belief about architecture — the perfect engine locates it by standing one-step-ahead comparison against its own auditable factor layer (prequential held-out log-loss; REQUESTS row 2026-08-26 asks the product to publish exactly this). At InSight's current scale — a K=8 streaming factorization whose tab gates on 24 questions fitted at a basis of 8, plus 8 of the viewer's own answers — the factor layer is the presumptive engine until the comparison is run: no cited source measures anything at this regime, in either direction, which is exactly why the standing comparison is the claim. Verification grade as pat-1: multi-index corroboration, journal pages egress-blocked, figures abstract/snippet-grade.",
+      "sources": [
+        "Ferrari Dacrema, Cremonesi, Jannach, 'Are We Really Making Much Progress? A Worrying Analysis of Recent Neural Recommendation Approaches', RecSys 2019, DOI 10.1145/3298689.3347058",
+        "Ferrari Dacrema, Boglio, Cremonesi, Jannach, 'A Troubling Analysis of Reproducibility and Progress in Recommender Systems Research', ACM TOIS 39(2), article 20 (2021), DOI 10.1145/3434185",
+        "Rendle, Krichene, Zhang, Anderson, 'Neural Collaborative Filtering vs. Matrix Factorization Revisited', RecSys 2020, DOI 10.1145/3383313.3412488",
+        "Grinsztajn, Oyallon, Varoquaux, 'Why do tree-based models still outperform deep learning on tabular data?', NeurIPS 2022 Datasets & Benchmarks, arXiv:2207.08815 (title string varies by venue copy — 'typical tabular data' in some proceedings renderings)",
+        "Petrov & Macdonald, 'A Systematic Review and Replicability Study of BERT4Rec for Sequential Recommendation', RecSys 2022, DOI 10.1145/3523227.3548487",
+        "Boiarsky, Singh, Buendia, Amini, Getz, Sontag, 'Deeper evaluation of a single-cell foundation model', Nature Machine Intelligence 6:1443–1446 (2024), DOI 10.1038/s42256-024-00949-w (Matters Arising on scBERT; NMI published the original authors' reply, DOI 10.1038/s42256-024-00948-x)",
+        "Ahlmann-Eltze, Huber, Anders, 'Deep-learning-based gene perturbation effect prediction does not yet outperform simple linear baselines', Nature Methods 22:1657–1661 (2025), DOI 10.1038/s41592-025-02772-6 (DOI fetched from authors' repo, which carries the preprint-titled citation)",
+        "DenAdel et al., 'Evaluating the role of pretraining dataset size and diversity on single-cell foundation model performance', Nature Methods 23:1447–1457 (2026), DOI 10.1038/s41592-026-03120-y"
+      ],
+      "edges": [{ "to": "pat-1", "type": "refines" }, { "to": "pat-2", "type": "supports" }, { "to": "gen-5", "type": "refines" }],
+      "created": "2026-08-26",
+      "updated": "2026-08-26"
+    },
+    {
+      "id": "pat-7",
+      "claim": "Distillation from learned representation to auditable factors is demonstrated technology whose faithfulness is unsolved — the perfect audit layer is a psychometric instrument with measured faithfulness, not an explanation extracted after the fact.",
+      "status": "cited",
+      "detail": "The channel exists at every scale tried: a teacher network distills into a soft decision tree that generalizes better than the same tree trained on raw data (Frosst & Hinton 2017, 96.76% MNIST vs 94.45% for the same tree trained on true targets, snippet-grade); concept bottleneck models carry near-parity task accuracy while supporting test-time intervention on a named concept (Koh et al., ICML 2020); sparse autoencoders decompose a production LLM's representations into features that are individually interpretable and causally steerable — clamping one feature rewrites the model's self-concept (Bricken et al. 2023; Templeton et al. 2024; independently Cunningham et al., ICLR 2024). But every documented failure mode attacks faithfulness, not capability, and they are the exact failure modes an InSight audit layer would inherit: concept leakage — learned concepts smuggle information beyond their definitions, natural mitigations do not fully work (Mahinpei et al. 2021); ungrounded concepts — the layer says 'beak colour' while the model used something else (Margeloiu et al. 2021); a measured tradeoff where making the label head stronger corrupts concept accuracy and intervenability (Havasi et al., NeurIPS 2022); dictionary pathology — the number of factors is chosen, not identified (feature splitting across a 512→131k width sweep, Bricken et al.; ~65% dead features at 34M scale, Templeton et al., snippet-grade), and SAE probes underperform plain logistic regression across 113 tasks in each regime on the mean across datasets (Kantamneni et al., ICML 2025); with Makelov et al. (arXiv:2405.08366) an early principled faithfulness evaluation — benchmarking learned dictionaries against supervised ground truth and finding legibility outruns causal control there too. Two consequences for the perfect engine. First, pat-2's 'distillation quality as a first-class metric' is the underserved gap, not a nicety — Templeton et al. themselves name the absence of rigorous faithfulness evaluation as a limitation; a program that PUBLISHES its distilled layer must hold it to a higher bar than the interpretability literature currently clears. Second, that bar already exists: psychometric factor/IRT models ship calibration, invariance testing, and inspectable item parameters as a mature apparatus (Embretson & Reise 2000) — the perfect audit layer is built as an IRT-grade instrument the learned layer must agree with out of sample, not as a post-hoc explanation of the learned layer. Verification grade as pat-1; three flags kept honest: the Mahinpei soft-vs-hard-leakage direction is unresolved (not claimed here), Scaling Monosemanticity is cited by its canonical web URL not its purported arXiv mirror, and Makelov's venue year is unresolved (cited by arXiv id).",
+      "sources": [
+        "Frosst & Hinton, 'Distilling a Neural Network Into a Soft Decision Tree', arXiv:1711.09784 (2017); CEx workshop, AI*IA 2017",
+        "Koh, Nguyen, Tang, Mussmann, Pierson, Kim, Liang, 'Concept Bottleneck Models', ICML 2020, PMLR 119:5338–5348",
+        "Mahinpei, Clark, Lage, Doshi-Velez, Pan, 'Promises and Pitfalls of Black-Box Concept Learning Models', arXiv:2106.13314 (2021)",
+        "Margeloiu, Ashman, Bhatt, Chen, Jamnik, Weller, 'Do Concept Bottleneck Models Learn as Intended?', arXiv:2105.04289 (2021), ICLR 2021 Workshop on Responsible AI",
+        "Havasi, Parbhoo, Doshi-Velez, 'Addressing Leakage in Concept Bottleneck Models', NeurIPS 2022",
+        "Bricken et al., 'Towards Monosemanticity: Decomposing Language Models With Dictionary Learning', Transformer Circuits Thread 2023, transformer-circuits.pub/2023/monosemantic-features",
+        "Templeton et al., 'Scaling Monosemanticity: Extracting Interpretable Features from Claude 3 Sonnet', Transformer Circuits Thread 2024, transformer-circuits.pub/2024/scaling-monosemanticity",
+        "Cunningham, Ewart, Riggs, Huben, Sharkey, 'Sparse Autoencoders Find Highly Interpretable Features in Language Models', ICLR 2024, arXiv:2309.08600",
+        "Kantamneni, Engels, Rajamanoharan, Tegmark, Nanda, 'Are Sparse Autoencoders Useful? A Case Study in Sparse Probing', ICML 2025, arXiv:2502.16681",
+        "Makelov, Lange, Nanda, 'Towards Principled Evaluations of Sparse Autoencoders for Interpretability and Control', arXiv:2405.08366",
+        "Embretson & Reise, 'Item Response Theory for Psychologists', Lawrence Erlbaum Associates, 2000, ISBN 978-0-8058-2818-4, OCLC 47009906, DOI 10.4324/9781410605269"
+      ],
+      "edges": [{ "to": "pat-2", "type": "supports" }, { "to": "pat-1", "type": "refines" }],
+      "created": "2026-08-26",
+      "updated": "2026-08-26"
     }
   ]
 }
