@@ -32459,3 +32459,47 @@ What phase 2 would be, so the next reader knows where the line is: the
 pass/defer/read signals joining the fold — a real upload of behaviour,
 licensed only by its own record, the pinned page sentence retired in
 the same commit, and the store forms re-derived again.
+
+**Amendment (same day, fourth) — the third round, and what the sweep that
+was meant to prevent it actually got wrong.** With the filters and the rate
+limit fixed, the run created two more policies and stopped on a third
+defect:
+
+```
+creating policy "fitPatternsV2 has gone quiet" failed (400): Request was
+missing field alert_policy.documentation.mime_type: non-empty content
+requires non-empty MIME type and vice versa.
+```
+
+Three of the eight carried `documentation.content` with no `mimeType`
+while the other five set `text/markdown`. Fixed, and held by **rule 8**.
+
+**The sweep found it and filed it as harmless.** It is in that pass's own
+output, at `accepted-but-wrong`: *"omission is accepted, the field is
+optional."* Two things went wrong and only one is about the API.
+
+The first is ordinary: a severity misjudged. The second is mine. That
+finding sat past a **cap of eight** I put on the confirmation phase, so no
+skeptic ever looked at it — the cap existed to bound cost, and it bounded
+the wrong end, keeping the confirmations cheap while leaving the tail
+unexamined. The seven that WERE confirmed were seven instances of one
+defect. A cap that de-duplicated first would have spent its budget on eight
+distinct fields instead of one field eight times.
+
+**What the round-by-round record now shows**, which is the argument for
+building the gate rather than fixing the file:
+
+| round | defect | policies past it |
+| --- | --- | --- |
+| 2 | `metric.type` filter with no `resource.type` | 1 |
+| 5 | `notificationRateLimit` on a non-LogMatch policy | 1 |
+| 6 | `documentation.content` with no `mimeType` | 3 |
+
+Each was present from the day those files were written. Each passed every
+gate in this repo. None was findable by reading the schema — the first is
+documented but only in the filter field's prose, the second in one
+sentence about a different field, the third in an error message. The
+instrument that found all three was **a POST to the real API**, which is
+the same lesson as D303's own: the thing that could not run was the thing
+that knew.
+

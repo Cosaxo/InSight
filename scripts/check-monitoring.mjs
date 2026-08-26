@@ -45,6 +45,19 @@
 //      `metric.type=…` filter. Rule 3 proves the metric a condition names
 //      exists; only this proves the filter is one the API will accept.
 //
+//   8. `documentation.content` and `documentation.mimeType` are present
+//      together or not at all. The API: "non-empty content requires
+//      non-empty MIME type and vice versa" — a 400, not a default. Three of
+//      the eight carried content with no mimeType while the other five set
+//      `text/markdown`, and every rule above passed over them, because rule
+//      3's shape check asks whether the runbook EXISTS.
+//
+//      Found by the validation sweep that was supposed to end these, and
+//      filed as harmless — "omission is accepted, the field is optional".
+//      It is not, and production said so on the next run. Worth keeping as
+//      the reason this is a gate rather than a note: a sweep can misjudge a
+//      severity, and a gate only has to notice the field is missing.
+//
 //   6. `alertStrategy.notificationRateLimit` appears ONLY on a policy whose
 //      condition is `conditionMatchedLog`. The v3 discovery document says
 //      of it: "Required for log-based alerting policies, i.e. policies with
@@ -210,6 +223,21 @@ for (const f of onDisk) {
         + "    For a logging.googleapis.com/user/* metric the right value is the resource of\n"
         + "    the LOG ENTRIES it counts — `npm run observe -- --metrics` measures it.");
     }
+  }
+}
+
+// ── rule 8: documentation is a PAIR ────────────────────────────────
+for (const f of onDisk) {
+  let policy;
+  try { policy = JSON.parse(read(`monitoring/${f}`)); } catch { continue; }
+  const doc = policy.documentation ?? {};
+  const hasContent = typeof doc.content === "string" && doc.content.length > 0;
+  const hasMime = typeof doc.mimeType === "string" && doc.mimeType.length > 0;
+  if (hasContent !== hasMime) {
+    fail(`monitoring/${f}: documentation has ${hasContent ? "content but no mimeType" : "mimeType but no content"}.\n`
+      + "    The API refuses the create: \"non-empty content requires non-empty MIME type\n"
+      + "    and vice versa\". It is not defaulted. Every other policy here uses\n"
+      + "    \"mimeType\": \"text/markdown\".");
   }
 }
 
