@@ -170,7 +170,11 @@ import { roundRobinBy } from "./feed-interleave";
 import { publishTestFeed } from "./testFeed";
 // The Learn engine's cards. Published by name for testFeed's reason, and
 // because the bundle stopped carrying the bank at D284.
-import { publishLearnBank, type LearnCard } from "./learnBank";
+import { publishLearnBank, publishLearnTotals, type LearnCard } from "./learnBank";
+// Which learn cards a device actually fetches (D306): pages against the
+// published order instead of the whole surface at boot. Pure arithmetic
+// there; the I/O lives in topUpLearnBank below.
+import { followedFields, learnHistoryIds, topUpLearn, type LearnOrderDoc } from "./learnPager";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
 // this module passes its store state in.
 import {
@@ -1078,6 +1082,40 @@ function computeDeck(): void {
   state.deckIds = computeDeckIds(state.questions.map((q) => q.id), today);
 }
 
+// The boot's cache payload, kept after hydrate returns so the learn pager
+// (D306) can append the pages it fetches and persist through the same
+// bankPut the boot used. Null until a hydrate has run.
+let bankPayload: {
+  rev: number;
+  cursor: number;
+  questions: Array<QuestionDoc & { id: string }>;
+} | null = null;
+
+// The bank's learn slice in the ENGINE's vocabulary (D284):
+// `learn-cell1`/`prompt`/`options`/`topic` become `cell1`/`q`/`a`/`f`.
+// One translation for the boot publish and the pager's re-publish — two
+// spellings are real, and the translation belongs at one end rather than
+// at nine call sites. A doc with no `c` is unanswerable rather than thin
+// and is dropped, never defaulted: `c ?? 0` would mark option one correct
+// on every pre-D284 card and teach the wrong answer, silently, on the one
+// surface whose promise is that there is a right one.
+function toLearnCards(rows: Array<QuestionDoc & { id: string }>): LearnCard[] {
+  return rows.flatMap((q): LearnCard[] => {
+    if (typeof q.c !== "number" || typeof q.t !== "number") return [];
+    return [{
+      id: q.id.startsWith("learn-") ? q.id.slice(6) : q.id,
+      f: q.topic || "",
+      q: q.prompt,
+      a: q.options,
+      c: q.c,
+      t: q.t,
+      p: typeof q.p === "number" ? q.p : 50,
+      k: q.k || "",
+      ...(q.w ? { w: q.w } : {}),
+    }];
+  });
+}
+
 async function hydrate(): Promise<void> {
   const db = await getDb();
 
@@ -1125,7 +1163,7 @@ async function hydrate(): Promise<void> {
     /* meta is best-effort — absence just means no caching/update info */
   }
 
-  // ── question bank: localStorage cache keyed by contentRev ──
+  // ── question bank: cached (bankStore, D304) and keyed by contentRev ──
   // The bank is static content; a boot should cost 1 meta read, not
   // ~190 bank reads. Single-field query (no composite index).
   interface BankEntry extends QuestionDoc {
@@ -1154,19 +1192,23 @@ async function hydrate(): Promise<void> {
   // advancing (a bug), and BOTH are reported rather than truncated
   // quietly.
   const BANK_MAX_PAGES = 100;
-  // EVERY surface splitBanks can return, and that is the invariant rather
-  // than a list to extend by habit — this constant decides what the bank
-  // IS, and a lane missing here is a lane whose questions do not exist as
-  // far as the live app is concerned. `pulse` and `call` were absent from
-  // the day this fetch was written: splitBanks routed both, the seed
-  // shipped both (5 + 3 documents), the rules admitted both, and neither
-  // ever reached a device — LIVE.pulseQs() and LIVE.callQs() returned []
-  // for every live user while the demo build drew them from its own
-  // fixtures, which is why nothing looked broken anywhere it was looked
-  // at. Pinned in bank-cache.test.ts, on the query as well as the output.
+  // Every surface splitBanks can return EXCEPT learn, and each half of
+  // that sentence is load-bearing. The except is D306: learn PAGES
+  // against the published order (v2_rank/learn, D305) instead of
+  // shipping whole at boot — a learn doc still reaches state.learnBank,
+  // from the cache (everything this device was ever handed) and from
+  // topUpLearnBank's per-field pages, and the delta below keeps cached
+  // learn docs fresh BY ID. The rest is the pulse/call lesson: this
+  // constant decides what the boot fetch IS, and a surface missing by
+  // accident is a surface whose questions do not exist as far as the
+  // live app is concerned — `pulse` and `call` were absent from the day
+  // this fetch was written, and neither ever reached a device while
+  // everything looked green. Pinned in bank-cache.test.ts on the query
+  // as well as the output, in BOTH directions now: pulse/call in, learn
+  // out-but-served.
   //
   // Firestore's `in` takes up to 30 values, so the ceiling is not near.
-  const BANK_SURFACES = ["daily", "feed", "test", "group", "duo", "learn", "pulse", "call"];
+  const BANK_SURFACES = ["daily", "feed", "test", "group", "duo", "pulse", "call"];
   let all: BankEntry[] | null = null;
   // The store is bankStore.ts (IndexedDB) since D304; it reads the old
   // localStorage payload once as a migration source, so an updating device
@@ -1188,6 +1230,11 @@ async function hydrate(): Promise<void> {
   // it would leave a plain {seconds,nanoseconds} object on the cache path
   // and a real Timestamp on the network path — the kind of difference that
   // only shows up in whichever branch nobody tested.
+  // Unfiltered on purpose since D306 — the two fetch paths keep different
+  // rows. The full fetch keeps the boot surfaces (its query asked for
+  // exactly those anyway); the delta ALSO keeps a row this device already
+  // holds, whatever its surface, because that is an edit to a paged learn
+  // card arriving. Each call site filters.
   const rowsOf = (snap: Awaited<ReturnType<typeof getDocs>>): BankEntry[] =>
     snap.docs
       .map((d) => {
@@ -1197,8 +1244,7 @@ async function hydrate(): Promise<void> {
         const row = d.data() as QuestionDoc & { updatedAt?: unknown };
         delete row.updatedAt;
         return { id: d.id, ...row };
-      })
-      .filter((q) => BANK_SURFACES.includes(q.surface));
+      });
   const cursorOf = (snap: Awaited<ReturnType<typeof getDocs>>): number =>
     snap.docs.reduce((mx, d) => {
       const u = d.get("updatedAt");
@@ -1232,7 +1278,14 @@ async function hydrate(): Promise<void> {
         all = null;
       } else {
         const byId = new Map(all.map((q) => [q.id, q]));
-        for (const row of rowsOf(dsnap)) byId.set(row.id, row);
+        // A boot surface merges as before; a row outside them merges only
+        // if this device already holds it — an edit to a paged learn card.
+        // A NEW learn doc this device never paged is dropped on purpose:
+        // which learn cards a device holds is the pager's decision (D306),
+        // not the delta's.
+        for (const row of rowsOf(dsnap)) {
+          if (BANK_SURFACES.includes(row.surface) || byId.has(row.id)) byId.set(row.id, row);
+        }
         all = [...byId.values()];
         cursor = Math.max(cursor, cursorOf(dsnap));
         if (dsnap.size) state.stats.bankSource = "delta";
@@ -1277,7 +1330,7 @@ async function hydrate(): Promise<void> {
           limit(BANK_PAGE),
         ),
       );
-      rows.push(...rowsOf(page));
+      rows.push(...rowsOf(page).filter((q) => BANK_SURFACES.includes(q.surface)));
       maxCursor = Math.max(maxCursor, cursorOf(page));
       pages += 1;
       if (page.size < BANK_PAGE) break;
@@ -1298,8 +1351,11 @@ async function hydrate(): Promise<void> {
   }
   // Best-effort by bankPut's own contract; awaited so the write has
   // settled before `ready` flips and a test (or a fast tab close) can
-  // observe a boot whose cache write is still in flight.
-  await bankPut({ rev: contentRev, cursor, questions: all });
+  // observe a boot whose cache write is still in flight. Held at module
+  // scope afterwards so the learn pager (D306) can append the pages it
+  // fetches and persist the same payload.
+  bankPayload = { rev: contentRev, cursor, questions: all };
+  await bankPut(bankPayload);
   const sorted = all.slice().sort((a, b) => (a.seq || 0) - (b.seq || 0));
   // `until` is the current-events serving window (docs/NEXT-FUNCTIONALITY
   // §1): a feed entry past its UTC day stops being OFFERED — the answers
@@ -1343,45 +1399,20 @@ async function hydrate(): Promise<void> {
   state.feedBank = banks.feed;
   state.duelBank = banks.duel;
   state.learnBank = banks.learn;
-  // The Learn bank (D284). Published HERE, beside the split, and not in
-  // buildFeedGlobals: that function opens `if (!state.feedBank.length)
-  // return`, so a bank with learn cards and no feed questions would have
-  // served none of them — Learn does not depend on the feed existing and
-  // must not start doing so. Caught by vote.test.ts's first learn case,
-  // which is exactly the bank that shape describes.
+  // The Learn bank (D284, paged at D306). Published HERE, beside the
+  // split, and not in buildFeedGlobals: that function opens `if
+  // (!state.feedBank.length) return`, so a bank with learn cards and no
+  // feed questions would have served none of them — Learn does not depend
+  // on the feed existing and must not start doing so. Caught by
+  // vote.test.ts's first learn case, which is exactly the bank that shape
+  // describes.
   //
-  // Translated from the bank's vocabulary into the
-  // engine's — `learn-cell1`/`prompt`/`options`/`topic` become
-  // `cell1`/`q`/`a`/`f` — because the two spellings are real and the
-  // translation belongs at one end rather than at nine call sites.
-  //
-  // Costs no read: `state.learnBank` is the slice `splitBanks` already cut
-  // out of the bank `hydrate()` fetched. What it replaces is the whole of
-  // `content/learn-questions.json` being compiled into the app.
-  //
-  // A doc seeded before D284 carries no `c`, and a card with no correct
-  // answer is unanswerable rather than merely thin — so those are dropped
-  // rather than defaulted. On a bank seeded before the change that empties
-  // Learn until the next seed run, which is the honest failure: the
-  // alternative is `c ?? 0`, which would mark option one correct on every
-  // card in the bank and teach the wrong answer, silently, on a surface
-  // whose entire promise is that there is a right one.
-  publishLearnBank(
-    state.learnBank.flatMap((q): LearnCard[] => {
-      if (typeof q.c !== "number" || typeof q.t !== "number") return [];
-      return [{
-        id: q.id.startsWith("learn-") ? q.id.slice(6) : q.id,
-        f: q.topic || "",
-        q: q.prompt,
-        a: q.options,
-        c: q.c,
-        t: q.t,
-        p: typeof q.p === "number" ? q.p : 50,
-        k: q.k || "",
-        ...(q.w ? { w: q.w } : {}),
-      }];
-    }),
-  );
+  // Since D306 this slice is the CACHE's learn cards — everything this
+  // device was ever handed — not the whole surface; topUpLearnBank
+  // (kicked at the end of hydrate) pages fresh cards in against the
+  // published order and re-publishes. Publishing the cached slice first
+  // means a returning device's Learn works before any network answers.
+  publishLearnBank(toLearnCards(state.learnBank));
 
   state.callBank = banks.call;
   state.pulseBank = banks.pulse;
@@ -1666,6 +1697,71 @@ async function hydrate(): Promise<void> {
   }
 
   buildFeedGlobals();
+
+  // Learn's pages (D306), deliberately not awaited: two more round trips
+  // that Learn needs and first paint does not. Failure costs a session's
+  // fresh cards, never the boot — the engine serves the cached slice
+  // published above until the top-up lands. Handed hydrate's own db
+  // rather than calling getDb() again: the members are already bound,
+  // and a second concurrent bind buys nothing.
+  void topUpLearnBank(db);
+}
+
+// One boot's learn top-up (D306): read the published order (D305), fetch
+// the first page per followed field that this device does not already
+// hold, plus any card the device has HISTORY with that fell out of the
+// cache — a rev bump refetches the boot surfaces and drops paged learn
+// docs, and a mastered card missing from the pool is a fact missing from
+// the map. Fetched rows join state.learnBank, the engine's pool, and the
+// persisted cache, so the next boot starts from them.
+async function topUpLearnBank(
+  db: Awaited<ReturnType<typeof getDb>>,
+): Promise<void> {
+  try {
+    const io = {
+      order: async (): Promise<LearnOrderDoc | null> => {
+        const snap = await getDoc(doc(db, "v2_rank", "learn"));
+        return snap.exists() ? (snap.data() as LearnOrderDoc) : null;
+      },
+      fetchByIds: async (qids: string[]): Promise<Array<QuestionDoc & { id: string }>> => {
+        const out: Array<QuestionDoc & { id: string }> = [];
+        for (let i = 0; i < qids.length; i += 30) {
+          const chunk = qids.slice(i, i + 30);
+          const snap = await getDocs(
+            query(collection(db, "v2_questions"), where(documentId(), "in", chunk)),
+          );
+          for (const d of snap.docs) {
+            const row = d.data() as QuestionDoc & { updatedAt?: unknown };
+            delete row.updatedAt;
+            // The order excludes killed cards nightly, but a card killed
+            // TODAY can still be in it — same active rule as the bank.
+            if (row.surface === "learn" && row.active !== false) {
+              out.push({ id: d.id, ...row });
+            }
+          }
+        }
+        return out;
+      },
+    };
+    const cached = new Set(state.learnBank.map((q) => q.id));
+    const { rows, totals } = await topUpLearn(io, cached, followedFields(), learnHistoryIds());
+    publishLearnTotals(totals);
+    if (!rows.length) return;
+    const byId = new Map(state.learnBank.map((q) => [q.id, q]));
+    for (const row of rows) byId.set(row.id, row);
+    state.learnBank = [...byId.values()];
+    publishLearnBank(toLearnCards(state.learnBank));
+    if (bankPayload) {
+      const cacheById = new Map(bankPayload.questions.map((q) => [q.id, q]));
+      for (const row of rows) cacheById.set(row.id, row);
+      bankPayload.questions = [...cacheById.values()];
+      await bankPut(bankPayload);
+    }
+  } catch (err) {
+    // A failed top-up must not cost the session: the engine keeps serving
+    // the cached slice, and the next boot retries.
+    reportError(err, { where: "hydrate.learnPages" });
+  }
 }
 
 // Counts shown by the feed exclude the viewer's own vote (wfPcts adds

@@ -1,6 +1,8 @@
 # Bank delivery — three ceilings, in the order they bite
 
-**Status: mixed — §2 is BUILT (D284, 2026-08-24); §3 and §4 are plan.** Written 2026-08-24 on the
+**Status: mostly built — §2 BUILT (D284, 2026-08-24); §3 BUILT (D304,
+2026-08-26); §4 half-built (learn converted at D306, the feed still
+ships whole).** Written 2026-08-24 on the
 owner's direction after D283: the question banks should grow by an order
 of magnitude, and *"it's a good thing they don't run out"* is the product
 argument that outranks any figure on this page. Nothing here refuses
@@ -253,6 +255,11 @@ current design exists, and each one converts a local fold into either a
 server query or a published aggregate. That is real design work with
 real cost changes, and **it is not needed for volume** — phases 1 and 2
 take the practical ceiling past anything the lanes can write for years.
+
+**Learn converted 2026-08-26 (D306)**: out of the boot fetch, paged
+against D305's published order, history healed by id, the sheet's
+counts published rather than counted off the page. The feed still
+ships whole; its conversion is the remaining half of this section.
 
 The one thing worth doing early is **not making it worse**: a new surface
 that folds over the whole bank at render time is another consumer to

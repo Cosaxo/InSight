@@ -31086,3 +31086,61 @@ Measured: 384 functions tests (rank.test.ts at 7, new), 150 rules tests
 (one new — the count that moved five prose figures, all corrected by
 check:figures' own fix lines), deploy-targets, fn-runtime, appcheck and
 data-inventory green.
+
+## D306 · Learn leaves the boot fetch: the first paged surface
+
+**2026-08-26.** D302 phases 2–3 for the first surface, as-built. A
+device is no longer handed every learn card: `BANK_SURFACES` dropped
+`learn`, and `topUpLearnBank` — kicked at the end of hydrate, never
+awaited, handed hydrate's own `db` — pages cards in against the D305
+order: one read of `v2_rank/learn`, then the first `LEARN_PAGE` (24)
+per followed field that the cache does not hold, fetched by id in
+30-chunks. The arithmetic is pure (`learnPager.ts`, its own suite);
+the seen-set is the CACHE — a card this device was ever handed is in
+bankStore, so "first N not cached" is "next N never met here" with no
+profile and no upload. D303 phase 1's boundary holds by construction:
+the only thing the server could see is which ids a device fetched.
+
+Three obligations beyond the happy path, each pinned:
+
+- **History heals by id, order or no order.** A contentRev bump
+  refetches only the boot surfaces, so paged learn docs fall out of the
+  cache — and a mastered card missing from the pool is a fact missing
+  from the map (`mastered()` reads the pool's index). The pager
+  re-fetches every card `insight.learn.v3` has history with, across
+  all fields, before any page, and works with no order doc published —
+  which is every project the fold has not run on.
+- **The delta keeps paged cards fresh.** The boot delta merges a row
+  outside the boot surfaces only when the device already holds it — an
+  edit to a paged learn card arrives; a NEW learn doc is dropped there
+  on purpose, because which cards a device holds is the pager's
+  decision, not the delta's.
+- **The sheet's denominator is the bank's, not the page's.**
+  `publishLearnTotals` carries per-field counts off the order doc and
+  the engine's `total()`/`stats()` prefer them — a pool claiming the
+  page size would be D283's under-count report again, rebuilt.
+
+Recorded limits, not oversights: the top-up runs per boot, not per
+serve — a session that outruns a 24-per-field page falls back to the
+engine's own slow/warm fillers until the next boot, and the mid-session
+seam waits for a measured session that actually needs it. A card killed
+after the nightly fold can serve for up to a day; `active: false` still
+kills it from the pool on the next boot.
+
+One harness find worth keeping: the first wiring had the pager call
+`getDb()` concurrently with `hydrateSocial()`'s, and vitest's mocked
+dynamic `import("firebase/firestore")` LOST that race — the fourth
+resolution handed the REAL SDK into a fully mocked suite, fourteen
+tests red with a `collection()` error no changed line explained. The
+fix is also the better design (hydrate hands the pager its `db`; the
+members were already bound), but the mechanism — two concurrent
+dynamic imports of a mocked specifier resolving differently — is worth
+this paragraph the next time a mocked suite fails where no edit points.
+
+Measured: 2099 unit tests (bank-cache at 16, learn-pager at 8, vote at
+84 — its learn cases now ride the history-heal path end to end), tsc,
+eslint, check:globals (the 238 baseline unchanged: the new seams are
+imports), and the shipping bundle at 2097 KB against 2440.
+
+What remains of D302: the feed tail (phase 3) and demotion's remaining
+signals (phase 4). The feed still ships whole at boot.

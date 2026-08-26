@@ -48,6 +48,9 @@ const h = vi.hoisted(() => ({
   // Simulates a cursor that never advances — the one way the paging loop
   // could spin forever. The guard's job is to report and stop.
   stuckCursor: false,
+  // The published serving order (D305) the learn pager reads. Null =
+  // no fold has run, which is every pre-D305 test's world.
+  rankOrder: null as null | { topics: Record<string, { qids: string[]; total: number }> },
 }));
 
 vi.mock("../../lib/firebase", () => ({
@@ -102,12 +105,26 @@ vi.mock("firebase/firestore", () => {
     documentId: () => ({ kind: "documentId" }),
     serverTimestamp: () => ({ __kind: "serverTimestamp" }),
     Timestamp: { fromMillis: (ms: number) => ({ ms, toMillis: () => ms }) },
-    getDoc: () =>
-      Promise.resolve({ exists: () => false, get: () => undefined, data: () => ({}) }),
+    getDoc: (ref: { path?: string }) => {
+      if (ref?.path === "v2_rank/learn" && h.rankOrder) {
+        const order = h.rankOrder;
+        return Promise.resolve({ exists: () => true, get: () => undefined, data: () => ({ ...order }) });
+      }
+      return Promise.resolve({ exists: () => false, get: () => undefined, data: () => ({}) });
+    },
     getDocs: (q: { path?: string; cons?: Constraint[] }) => {
       if (q?.path !== "v2_questions") return Promise.resolve(snapOf([]));
       const cons = q.cons || [];
       h.bankQueries.push({ path: q.path, cons });
+      // The pager's fetch-by-id (D306): where(documentId(), "in", [...]).
+      const byId = cons.find(
+        (c) => c.kind === "where" && typeof c.field === "object"
+          && (c.field as unknown as Constraint).kind === "documentId",
+      );
+      if (byId) {
+        const ids = byId.value as string[];
+        return Promise.resolve(snapOf(h.bankDocs.filter((d) => ids.includes(d.id))));
+      }
       const lim = (cons.find((c) => c.kind === "limit")?.value as number) ?? Infinity;
       const delta = cons.find((c) => c.kind === "where" && c.field === "updatedAt");
       if (!delta) {
@@ -211,6 +228,7 @@ beforeEach(() => {
   h.bankQueries.length = 0;
   h.deltaError = null;
   h.stuckCursor = false;
+  h.rankOrder = null;
   h.bankDocs = [q("q_1", 1000), q("q_2", 1000)];
   storage = new MemoryStorage();
   vi.stubGlobal("localStorage", storage);
@@ -433,7 +451,7 @@ describe("question-bank cache", () => {
   // delta cases are: a surface dropped by the server-side `in` and a
   // surface dropped by the client-side filter look identical from the
   // bank, and only one of them costs a read.
-  it("fetches every surface splitBanks can return, pulse and call included", async () => {
+  it("fetches every boot surface, pulse and call included — and learn deliberately not", async () => {
     h.bankDocs = [
       q("q_1", 1000),
       q("pulse-pace", 1000, {
@@ -444,11 +462,75 @@ describe("question-bank cache", () => {
     ];
     const LIVE = await bootLive();
     const asked = (h.bankQueries[0].cons.find((c) => c.field === "surface")?.value || []) as string[];
-    for (const s of ["daily", "feed", "test", "group", "duo", "learn", "pulse", "call"]) {
+    for (const s of ["daily", "feed", "test", "group", "duo", "pulse", "call"]) {
       expect(asked, `the bank query does not ask for ${s}`).toContain(s);
     }
+    // Learn PAGES against the published order since D306 — the boot
+    // query carrying it again would silently re-inflate the install
+    // fetch the paging exists to remove. Its reach guarantee moved to
+    // the pager cases below.
+    expect(asked, "learn is back in the boot fetch").not.toContain("learn");
     expect(LIVE.pulseQs().map((x) => x.id)).toEqual(["pulse-pace"]);
     expect(LIVE.callQs().map((x) => x.id)).toEqual(["call-c01"]);
+  });
+
+  // ── learn pages against the published order (D306) ─────────────────
+  //
+  // Learn's reach guarantee lives HERE now, not in the surface list: a
+  // device meets learn cards through the pager — first page per followed
+  // field of v2_rank/learn's order, minus what the cache already holds,
+  // plus any card the device has history with. Asserted through the
+  // engine-facing pool (learnCards) and the persisted cache, because
+  // those are the two places a missing card actually hurts: a session
+  // with nothing to serve, and a map that forgets a fact.
+  const learnDoc = (id: string, field: string) =>
+    q(id, 1000, {
+      surface: "learn", type: "choice", topic: field,
+      options: ["A", "B", "C", "D"], c: 0, t: 2, p: 60, k: `Fact ${id}`,
+    });
+
+  it("pages learn in from the published order, publishes the pool, persists the page", async () => {
+    h.bankDocs = [
+      q("q_1", 1000),
+      learnDoc("learn-cell1", "cell"),
+      learnDoc("learn-cell2", "cell"),
+      learnDoc("learn-sol1", "solar"),
+    ];
+    h.rankOrder = {
+      topics: {
+        cell: { qids: ["learn-cell2", "learn-cell1"], total: 9 },
+        solar: { qids: ["learn-sol1"], total: 4 },
+      },
+    };
+    await bootLive();
+    const { learnCards, learnFieldTotal } = await import("./learnBank");
+    await vi.waitFor(() => {
+      expect(learnCards([]).map((c) => c.id).sort()).toEqual(["cell1", "cell2", "sol1"]);
+    });
+    // The sheet's denominator is the BANK's count off the order doc, not
+    // the fetched page — the page-size lie is the D283 report again.
+    expect(learnFieldTotal("cell")).toBe(2);
+    // Persisted: the next boot serves these from the cache, no re-fetch.
+    await vi.waitFor(async () => {
+      expect((await readCache())!.questions.map((x) => x.id)).toContain("learn-cell1");
+    });
+  });
+
+  it("heals a history card back into the pool even with no order published", async () => {
+    // The mastery map says this device knows cell9; the cache lost it (a
+    // contentRev bump refetches only the boot surfaces). No order doc —
+    // the heal is by id and must not wait for a fold that may never have
+    // run on a small project.
+    storage.setItem("insight.learn.v3", JSON.stringify({
+      c: { cell9: { s: "known", k: 3, seen: 1, miss: 0, pos: 0, at: 1 } },
+      lvl: {}, pos: 1, order: ["cell9"],
+    }));
+    h.bankDocs = [q("q_1", 1000), learnDoc("learn-cell9", "cell")];
+    await bootLive();
+    const { learnCards } = await import("./learnBank");
+    await vi.waitFor(() => {
+      expect(learnCards([]).map((c) => c.id)).toContain("cell9");
+    });
   });
 
   // ── the current-events serving window (D231) ─────────────────────

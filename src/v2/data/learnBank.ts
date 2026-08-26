@@ -59,6 +59,13 @@ export interface LearnCard {
 // demo build never calls the publisher, so the sample the caller passes is
 // what it gets, and there is no build flag to keep in step.
 let livePool: LearnCard[] | null = null;
+// Per-field bank totals from the published order (D306). Needed because
+// the pool is a PAGE since learn left the boot fetch: `pool.length` is
+// what the device holds, not what the bank has, and the topic sheet's
+// "N questions" claiming the page size is exactly the under-count D283
+// was reported as. Null in a demo build and before the order doc loads —
+// the engine falls back to counting its pool, which is then the truth.
+let liveTotals: Record<string, number> | null = null;
 const listeners = new Set<() => void>();
 
 /**
@@ -93,9 +100,22 @@ export function subscribeLearnBank(f: () => void): () => void {
   return () => { listeners.delete(f); };
 }
 
+/** The bank's per-field card counts, from the published order (D306).
+ * Published beside the pool by the pager; null where no order has
+ * loaded, and the caller counts its pool instead. */
+export function publishLearnTotals(totals: Record<string, number>): void {
+  liveTotals = totals;
+  notify();
+}
+
+export function learnFieldTotal(fieldId: string): number | null {
+  return liveTotals ? (liveTotals[fieldId] ?? 0) : null;
+}
+
 /** Drop back to the demo sample. Only the test fixtures need this. */
 export function resetLearnBank(): void {
   livePool = null;
+  liveTotals = null;
   notify();
 }
 
