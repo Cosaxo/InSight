@@ -1,4 +1,4 @@
-// cacheStore.ts — the hand-rolled caches' IndexedDB home (D311,
+// cacheStore.ts — the hand-rolled caches' IndexedDB home (D312,
 // docs/ANSWER-SCALE.md §2.2 with docs/BANK-DELIVERY.md §3).
 //
 // WHY THIS EXISTS. live.ts used to keep its three fat caches — the

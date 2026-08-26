@@ -1,6 +1,6 @@
 # Bank delivery — three ceilings, in the order they bite
 
-**Status: mixed — §2 is BUILT (D284, 2026-08-24) and §3 is BUILT (D311,
+**Status: mixed — §2 is BUILT (D284, 2026-08-24) and §3 is BUILT (D312,
 2026-08-26, via [`ANSWER-SCALE.md`](ANSWER-SCALE.md) §2.2 — the bank rode
 the answer caches' move); §4 is plan.** Written 2026-08-24 on the
 owner's direction after D283: the question banks should grow by an order
@@ -172,7 +172,7 @@ the cap raising. `duel-questions.json` at 24 KiB — the last bank still
 compiled in whole, on a weekly lane at 14.6 KiB, and crossing it is the
 signal to give it learn's treatment.
 
-## 3 · Ceiling 2 — the bank cache is in the small box · **BUILT (D311)**
+## 3 · Ceiling 2 — the bank cache is in the small box · **BUILT (D312)**
 
 > Landed 2026-08-26 inside ANSWER-SCALE §2.2's pass — that page found
 > the ANSWER-side caches racing the bank for the same quota, so the box
@@ -270,7 +270,7 @@ convert later, and a published count is usually as good.
    defect itself: point `learn-data.js` back at the full bank and the
    gate reports it.
 2. ~~**Ceiling 2, when the bank passes ~2,000 documents**~~ — **Done,
-   D311**, ahead of the trigger: ANSWER-SCALE §2 found the answer-side
+   D312**, ahead of the trigger: ANSWER-SCALE §2 found the answer-side
    caches racing the bank for the same quota, and the owner's direction
    to build that plan opened the box once for all of them.
 3. **Ceiling 3, when a real product need asks for it** — an interest

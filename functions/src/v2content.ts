@@ -56,6 +56,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "branch": "Sport",
   "sub": "Football",
   "tag": "The GOAT",
+  "bg": "Lionel Messi and Cristiano Ronaldo defined two decades of football between them: eight and five Ballons d'Or, over 800 career goals each, a World Cup for Messi in 2022 and five Champions League titles for Ronaldo.",
   "axis": null,
   "test": null
  },
@@ -74,6 +75,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "branch": "Film",
   "sub": "Directors",
   "tag": "Director duel",
+  "bg": "Quentin Tarantino writes talk-heavy, violent genre films — Pulp Fiction, Kill Bill, Once Upon a Time in Hollywood. Wes Anderson builds symmetrical pastel worlds with deadpan ensembles — The Grand Budapest Hotel, Moonrise Kingdom.",
   "axis": null,
   "test": null
  },
@@ -92,6 +94,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "branch": "Food",
   "sub": "Debates",
   "tag": "Pineapple",
+  "bg": "Hawaiian pizza — ham and pineapple — was invented in 1962 by Sam Panopoulos, a Greek-born cook in Chatham, Ontario, Canada, and named after the brand of canned pineapple he used.",
   "axis": null,
   "test": null
  },
@@ -358,6 +361,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "branch": "Mind",
   "sub": "Technology",
   "tag": "AI",
+  "bg": "Artificial intelligence covers systems that learn patterns from data rather than following hand-written rules — the approach behind today's chatbots, translators and image generators.",
   "axis": null,
   "test": null
  },
@@ -378,6 +382,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "branch": "Mind",
   "sub": "Civilisation",
   "tag": "Best invention",
+  "bg": "Writing first appeared in Mesopotamia around 5,000 years ago. Vaccination, anaesthesia and antibiotics each cut death rates within a generation. The internet connected most of humanity inside thirty years.",
   "axis": null,
   "test": null
  },
@@ -1510,6 +1515,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "branch": "Body",
   "sub": "Heat or cold",
   "tag": "Heat or cold",
+  "bg": "Sauna heat and cold-water immersion both trigger short, sharp stress responses the body adapts to. Finland counts about three million saunas for 5.6 million people; ice swimming is its winter twin.",
   "axis": null,
   "test": null
  },
@@ -2487,6 +2493,7 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "branch": "Film",
   "sub": "The classics",
   "tag": "Black and white",
+  "bg": "The first films were black and white by necessity — colour arrived commercially in the 1930s and became standard only in the 1960s. Directors still choose monochrome deliberately, from Schindler's List to Roma.",
   "axis": null,
   "test": null
  },

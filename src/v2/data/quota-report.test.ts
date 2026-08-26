@@ -150,7 +150,7 @@ describe("the quota instrument (lsSet)", () => {
     // The degradation is unchanged: a device that cannot persist still
     // answers questions this session.
     expect(LIVE.ready).toBe(true);
-    // The fat caches live in IndexedDB since D311, so what boot still
+    // The fat caches live in IndexedDB since D312, so what boot still
     // writes to localStorage is the small keys — the feed mirror at
     // least — and every such write failed. The counter is the running
     // measure of how much this device is losing.

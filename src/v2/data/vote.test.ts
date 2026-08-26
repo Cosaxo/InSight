@@ -13,7 +13,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-// The answers and aggregate caches live in IndexedDB since D311
+// The answers and aggregate caches live in IndexedDB since D312
 // (docs/ANSWER-SCALE.md §2.2) — fake-indexeddb is the spec implementation
 // these cases persist into, and IDBDatabase's prototype is where a write
 // TRANSACTION can be counted, which is the only honest way left to assert
@@ -345,7 +345,7 @@ const listeners: {
 // keeps one slot per type (the wake tests fire "the" handler), but
 // several stores register for insight:local-purge and a real window
 // dispatches to all of them; a last-wins stub silently dropped
-// cacheStore's purge clear (D311) under whichever store registered later.
+// cacheStore's purge clear (D312) under whichever store registered later.
 const windowListenerList: Array<[string, () => void]> = [];
 
 // Events live.ts dispatches on the stubbed window (insight:local-purge),
@@ -357,7 +357,7 @@ const WF_LS = "insight.feedVotes.v1";
 
 // The answers cache's IndexedDB shape, read and seeded through cacheStore
 // itself so the assertions below keep the old blob's vocabulary
-// ({uid, votes, maxTs}) while the storage is rows + a meta row (D311).
+// ({uid, votes, maxTs}) while the storage is rows + a meta row (D312).
 // Dynamic imports, because vi.resetModules gives each boot a fresh module
 // instance and the helper must talk to the one the booted live.ts uses.
 const readAnsCache = async () => {
@@ -423,7 +423,7 @@ beforeEach(() => {
   storage = new MemoryStorage();
   vi.stubGlobal("localStorage", storage);
   // A fresh IndexedDB per test: the answers and aggregate caches live
-  // there since D311, and a shared factory would leak one test's rows
+  // there since D312, and a shared factory would leak one test's rows
   // into the next the way a shared MemoryStorage would.
   vi.stubGlobal("indexedDB", new IDBFactory());
   // initLive attaches `online` / `visibilitychange` handlers for the
@@ -437,7 +437,7 @@ beforeEach(() => {
   vi.stubGlobal("window", {
     // Faithful to a real window: dispatch INVOKES every registered
     // listener, because cacheStore's purge clear rides exactly this path
-    // (D311) and a stub that only records the type would leave the
+    // (D312) and a stub that only records the type would leave the
     // IndexedDB stores full through every purge case below.
     dispatchEvent: (e: Event) => {
       dispatched.push(e?.type);
@@ -862,14 +862,14 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(dispatched).toContain("insight:local-purge");
   });
 
-  // ── the coalesced agg cache (D64, rows since D311) ──────────────────
+  // ── the coalesced agg cache (D64, rows since D312) ──────────────────
   //
   // saveAggCache used to run JSON.stringify over the WHOLE aggs map
   // synchronously inside the agg snapshot handler, and that handler fires
   // once per publish on a globally-shared question — COSTS.md finding 2's
   // own fan-out numbers make that ~0.7 full serialisations/sec at 50k DAU
   // and ~6.9/sec at 500k, on the main thread. It is coalesced (D64) and
-  // per-row in IndexedDB now (D311), which keeps the same three ways to
+  // per-row in IndexedDB now (D312), which keeps the same three ways to
   // be wrong: a write that never lands, a write that lands after the
   // purge, and a write lost to a backgrounded WebView. One case each —
   // asserted on the store's CONTENTS plus a count of readwrite
@@ -930,7 +930,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     // account's data survives, NOT that the store never fills again — and
     // the coalescing is what makes it worth re-pinning here: between the
     // snapshot and the purge there is now a write in flight that there
-    // never used to be. Since D311 the cancel is load-bearing where it
+    // never used to be. Since D312 the cancel is load-bearing where it
     // used to be hygiene: cancelAggCache clears the DIRTY SET as well as
     // the timer, and without that the new session's first flush would
     // carry the old ids (they point at an emptied map, so they would
@@ -2039,7 +2039,7 @@ describe("LIVE.deleteAccount — the on-device half of erasure", () => {
   it("terminates the client and clears the IndexedDB cache, in that order", async () => {
     const LIVE = await bootLive();
     await captureCallable();
-    // Both boxes hold traces: a legacy localStorage blob and the D311
+    // Both boxes hold traces: a legacy localStorage blob and the D312
     // cache store's rows. Erasure has to reach each.
     localStorage.setItem(ANS_LS, JSON.stringify({ day: 1, votes: { q_1: "0" } }));
     LIVE.vote("q_1", "0");
@@ -2056,7 +2056,7 @@ describe("LIVE.deleteAccount — the on-device half of erasure", () => {
     expect(localStorage.getItem(ANS_LS)).toBeNull();
     // …and the hand-rolled cache store is emptied too — AWAITED by
     // deleteAccount, not left to the purge event, because the privacy
-    // page's claim is about the device, not about a dispatch (D311).
+    // page's claim is about the device, not about a dispatch (D312).
     expect((await readAnsCache()).votes).toEqual({});
   });
 

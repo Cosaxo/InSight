@@ -23,7 +23,7 @@
 // exemption list is documentation, and a stale entry (file stops matching
 // the predicate) fails too, so the list cannot outlive its subjects.
 //
-// SECOND PREDICATE since D311: a file that OPENS IndexedDB itself
+// SECOND PREDICATE since D312: a file that OPENS IndexedDB itself
 // (`indexedDB.open`) is a store persisting app state in a box the
 // localStorage sweep cannot reach, so it owes the same listener. Today
 // that is data/cacheStore.ts, whose listener clears its stores — the
@@ -55,7 +55,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const EXEMPT = {
   "src/v2/data/live.ts":
     "the dispatcher itself — the fat caches moved to data/cacheStore.ts "
-    + "(D311), which listens; what still writes localStorage here is "
+    + "(D312), which listens; what still writes localStorage here is "
     + "uid-scoped (the profile cache stamps its owner) or public/mirror "
     + "state that uidChanged() rebuilds before the purge runs",
   "src/v2/data/deviceBind.ts":
