@@ -167,13 +167,23 @@ ordered list. Open, in its order:
   `BANK_FAIL` in `scripts/question-quality.mjs` — crossing the browser
   quota silently disables caching forever.
   [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) 1.2.
+- **The answer-state caches share that quota and have no gate** (planned
+  2026-08-26): `insight.aggsCache.v1` and the two vote mirrors grow with
+  every question *answered*, so an engaged device can fill the origin
+  quota while the bank's own budget stays green — and a full origin
+  silently stops **every** `insight.*` store persisting at once. First
+  step is an instrument (report the swallowed quota failure), then the
+  caches ride the IndexedDB move above in the same pass.
+  [`ANSWER-SCALE.md`](ANSWER-SCALE.md) §2.
 - **Cost-model measurement debt** (decided; needs a week of real usage):
   measure the guessed inputs in `scripts/cost-arith.mjs` — bgCycles,
   onlineMin, the three D98 open rates — and re-run the write-contention
   versus read-crossover tie. [`COSTS.md`](COSTS.md) § the walls.
 - **Recorded, deliberately not built** (D7 discipline — build on
   evidence, not in advance): sharding the shared daily aggregate counter
-  (the first wall); the who-voted page-two cursor; incremental
+  (the first wall — the 2026-08-03 record's design predates D98 and is
+  re-derived buildable in [`ANSWER-SCALE.md`](ANSWER-SCALE.md) §4); the
+  who-voted page-two cursor; incremental
   `setFollowing`; the presence cache-miss threshold and the coarser room
   cache key; an avatar-overwrite rate limit; the CDN question; the
   graded breaker `mode` field, which needs an owner decision about what
