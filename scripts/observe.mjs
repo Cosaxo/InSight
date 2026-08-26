@@ -38,6 +38,11 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const argv = process.argv.slice(2);
 const AS_JSON = argv.includes("--json");
+// Per-function detail. Off by default because the normal reading is a
+// count and a stray list; on when somebody is deciding whether a stray is
+// safe to delete, which needs the trigger, the schedule and whether it has
+// run — facts that live only in the deployment, never in this repo.
+const DETAIL = argv.includes("--functions");
 const PROJECT = process.env.FIREBASE_PROJECT_ID || "prvfire33";
 
 // READ, not retyped (D201/D200) — the same scan operator-call.mjs makes, and
@@ -177,7 +182,31 @@ const results = await Promise.all([
       const strays = Object.fromEntries(
         Object.entries(byRegion).filter(([r]) => r !== REGION).map(([r, n]) => [r, n]),
       );
+      // Kept whole so --functions can describe a stray without a second
+      // call. An eventTrigger with a pubsub topic named `firebase-schedule-*`
+      // IS a scheduled function — the v2 API models schedules that way, so
+      // "does this bill me every night" is answerable without the source.
+      const detail = fns.map((f) => {
+        const ev = f.eventTrigger || {};
+        const topic = ev.pubsubTopic || "";
+        const scheduled = /firebase-schedule/.test(topic);
+        return {
+          name: f.name.split("/").pop(),
+          region: f.name.split("/")[3],
+          state: f.state || "?",
+          env: f.environment || "?",          // GEN_1 or GEN_2
+          entryPoint: f.buildConfig?.entryPoint || null,
+          runtime: f.buildConfig?.runtime || null,
+          updateTime: f.updateTime || null,
+          trigger: scheduled ? "schedule"
+            : ev.eventType ? ev.eventType
+              : f.serviceConfig?.uri ? "https"
+                : "?",
+          eventFilters: (ev.eventFilters || []).map((x) => `${x.attribute}=${x.value}`),
+        };
+      });
       return {
+        detail,
         count: fns.length,
         byRegion: Object.fromEntries(Object.entries(byRegion).map(([r, n]) => [r, n.length])),
         canonicalRegion: REGION,
@@ -226,6 +255,17 @@ if (AS_JSON) {
           console.log(`        ${region} (${names.length}): ${names.join(", ")}`);
         }
         console.log("      (runbook 5.9b / D13 — dropping a name from --only never deleted these)");
+      }
+      if (DETAIL) {
+        console.log("");
+        for (const d of r.detail.sort((a, b) => (a.region + a.name).localeCompare(b.region + b.name))) {
+          const stray = d.region !== r.canonicalRegion ? " *" : "  ";
+          console.log(`     ${stray}${d.region.padEnd(15)} ${d.name.padEnd(34)} ${String(d.env).padEnd(6)} ${d.state.padEnd(8)} ${d.trigger}`);
+          if (d.eventFilters.length) console.log(`        on ${d.eventFilters.join(" ")}`);
+          console.log(`        entry ${d.entryPoint ?? "?"} · ${d.runtime ?? "?"} · last deployed ${d.updateTime ?? "?"}`);
+        }
+        console.log("\n      * = outside the canonical region. `schedule` means it fires on a");
+        console.log("        timer and bills for it; an event type means it fires on a write.");
       }
     } else if (r.name === "billing") {
       console.log(`  ✓ billing        enabled=${r.enabled} account=${r.account ?? "-"}`);
