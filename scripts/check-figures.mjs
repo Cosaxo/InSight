@@ -311,7 +311,7 @@ const appCheckExemptions = (() => {
 // Jobs carrying `environment: production`, counted from the workflow files
 // rather than from the sentence that describes them. DEPLOYMENT.md said "two
 // jobs, and only two — verified rather than assumed" for as long as there
-// were four: rebuild-aggregate.yml joined at D290, monitoring.yml at D302,
+// were four: rebuild-aggregate.yml joined at D290, monitoring.yml at D303,
 // and a claim that advertises its own verification is exactly the one nobody
 // re-checks. Counted on the YAML key at job indent, not on the string, so the
 // prose inside a workflow comment cannot inflate it.
@@ -473,7 +473,7 @@ const FIGURES = [
   {
     file: "docs/MONITORING.md",
     what: "alert policies in the instruments table",
-    // The copy D302's own sweep MISSED while claiming to have found them
+    // The copy D303's own sweep MISSED while claiming to have found them
     // all — byte-identical before and after that commit, at seven against a
     // tree of eight. Gated now for the reason the sweep exists.
     re: /\| `monitoring\/\*\.json` \| (\w+) alert policies/,
@@ -483,11 +483,11 @@ const FIGURES = [
   {
     file: "docs/COSTS.md",
     what: "alert policies in monitoring/",
-    // One of three copies that were actually wrong when D302 swept for them
+    // One of three copies that were actually wrong when D303 swept for them
     // — it said four. The others were DEPLOYMENT.md's heading and its
-    // blockquote. (D302 first claimed five; the runbook's "eight" was right
+    // blockquote. (D303 first claimed five; the runbook's "eight" was right
     // and priced against a retired premise, and apply-monitoring's header
-    // had already been fixed at D291. See D302's own correction.)
+    // had already been fixed at D291. See D303's own correction.)
     re: /`monitoring\/` holds\s+(\w+) policies/,
     actual: NUMBER_WORDS[monitoringPolicies] || String(monitoringPolicies),
     fix: (n) => `"\`monitoring/\` holds ${n} policies"`,

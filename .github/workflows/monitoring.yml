@@ -1,4 +1,4 @@
-# Arm the alert policies (D302), from the credential that is already here.
+# Arm the alert policies (D303), from the credential that is already here.
 #
 # WHY THIS EXISTS. `scripts/apply-monitoring.mjs` has been able to create
 # the notification channel, the five log-based metrics and the eight

@@ -1363,7 +1363,7 @@ That is a tester-count problem, not a workflow problem.
       metrics (D300). The tool was written, tested, documented and
       unrunnable, which is the same failure D300 named one instrument
       earlier: a tool that runs beats a better-provisioned tool that does
-      not. D302 moved it onto the REST APIs, over the credential four
+      not. D303 moved it onto the REST APIs, over the credential four
       workflows already use.
 
       **What the old refusal said, and which half of it survived.** This
@@ -1391,7 +1391,7 @@ That is a tester-count problem, not a workflow problem.
       "two policies" (4x off), and `apply-monitoring.mjs`'s header said
       three policies and two metrics. `DEPLOYMENT.md § Alerting`'s heading,
       `COSTS.md`'s sentence and `MONITORING.md`'s instruments row are held
-      to the same lists now (D302), for the same reason: the heading read
+      to the same lists now (D303), for the same reason: the heading read
       "three alerts, deliberately" for as long as there were eight, and
       `MONITORING.md` said seven through a sweep that claimed to have found
       every copy.

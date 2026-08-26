@@ -35,7 +35,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // The JWT-bearer dance, the cloud-platform scope and the stub seam all live
-// in one place now that apply-monitoring is the third caller (D302).
+// in one place now that apply-monitoring is the third caller (D303).
 import { api, serviceAccount, accessToken } from "./google-api.mjs";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");

@@ -23,7 +23,7 @@
 //
 // So the transport is now the one observe.mjs proved reachable: sign a JWT
 // with FIREBASE_SERVICE_ACCOUNT, trade it for an OAuth token, POST to the
-// Monitoring and Logging APIs (D302). No gcloud, no interactive login, and
+// Monitoring and Logging APIs (D303). No gcloud, no interactive login, and
 // it runs from `.github/workflows/monitoring.yml` behind the production
 // environment gate. This is D300's finding applied a second time: a tool
 // that runs beats a better-provisioned tool that does not.

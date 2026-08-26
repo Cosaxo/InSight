@@ -153,7 +153,7 @@ seed instruction two separate times.
 **What the environment gates.** Four jobs — verified rather than assumed,
 by grepping `environment: production` across every workflow. It said "two
 jobs, and only two" for as long as there were four: `rebuild-aggregate.yml`
-joined at D290 and `monitoring.yml` at D302, and neither author re-read a
+joined at D290 and `monitoring.yml` at D303, and neither author re-read a
 sentence in a different document that had counted them.
 
 | Workflow | Job | What a gate would hold |
@@ -656,7 +656,7 @@ for ~7 days.
 > script shelled out to an interactively-authenticated CLI nobody had logged
 > in with, so it never ran — and on 2026-08-26 the observer found zero
 > policies and zero metrics in the project, two days after the script was
-> written to create every one of them (D300, D302). The manual steps below
+> written to create every one of them (D300, D303). The manual steps below
 > stay written out because the reason each object exists is the useful part,
 > but they are no longer the way to do it: `gcloud alpha monitoring` needs
 > the same login, and the same nobody has it.

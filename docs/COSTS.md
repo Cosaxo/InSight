@@ -906,7 +906,7 @@ POST time by the **Arm monitoring** workflow (`npm run monitoring:apply --
 nobody, which is the same false comfort every other gate in this repo
 exists to prevent, and the same shape as the known limit already recorded
 against the absence alert. Not console-only any more, and not done either:
-on 2026-08-26 the project held none of them (D300, D302).
+on 2026-08-26 the project held none of them (D300, D303).
 
 **What was built here instead of a cap.**
 `monitoring/firestore-read-runaway.json` is the detection-latency half:
