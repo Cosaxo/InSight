@@ -30864,8 +30864,11 @@ the tree already practices:
   pass/defer/read signals already on the device. This record is the
   product need that build was waiting for.
 
-If the owner ever wants the server half personal, that is a reversal of
-D163 to record on its own — not a reading of this one.
+The owner, told exactly this, answered the same day that the app
+*"should absolutely track what you personally like — if not, it does not
+work"* — and that reversal is its own record, as this paragraph asked:
+**D303**. The two adopt independently: D302 alone is the paged bank with
+on-device taste; with D303, the fetch itself becomes personal.
 
 ### What "filtered out by the algorithm" changes, exactly
 
@@ -30917,3 +30920,78 @@ conversion is its own reviewed change.
 4. **Demotion in the order.** The scorecard's signals feed the nightly
    fold; retire proposals keep proposing deletion, and the order stops
    waiting for them.
+
+## D303 · The taste model moves to the server, because selection cannot be personal from inside a page
+
+**Status:** Proposed · **Requested:** 2026-08-26, owner, on being told
+D302 keeps the server's half of the order global: *"this app should
+absolutely track what you personally like — if not, it does not work."*
+This reverses the row D163 narrowed — **server-side per-user content
+selection**, refused there outright, is what this record builds. D163
+named its own crossing "a considered position being crossed, not an
+oversight"; so is this one, and it is the owner crossing it.
+
+### Why the device model is not enough, said honestly
+
+D302 pages the bank: the server chooses what a device is handed, and the
+device re-orders what arrived. Under a global published order everyone
+is handed the same popular head, so a device model can only sort the
+window it was given — and at the bank sizes D302 exists for, the
+choosing IS the personalization. The owner's sentence is the
+architectural fact: a taste model that never leaves the phone cannot
+reach into the fetch.
+
+### What survives D163, because it was never about the bytes' address
+
+- **Shown and editable, with a reset.** "A Mirror that secretly models
+  you is a contradiction in terms" does not move to the server with the
+  model — it binds harder there.
+- **The daily stays global** — cohort comparison is meaningless if
+  different people got different questions — **and the Mirror folds
+  core only** (D161). Personal selection is the tail's and learn's.
+- **Ad targeting stays refused.** The profile exists to pick questions
+  and for nothing else; D164's revenue paths do not gain an input.
+
+### What is actually new, named plainly
+
+D98 published what people ANSWERED, never what they looked at. Answers
+are already server-side and public, so a taste model derived from them
+adds no exposure — the new artifact is the profile document itself. The
+genuinely new CLASS of data is behaviour — shown, passed, deferred —
+which today never leaves the device (`insight.feedPass.v1` and kin), and
+D163's skip/pass sentence ("a pass stays local-only, the server never
+receives it") is the exact line that moves if phase 2 is built. So the
+build phases by exposure, not by effort:
+
+1. **Profile from answers.** The server derives per-user topic interest
+   from the answers it already holds, and selection reads it. No new
+   signal leaves the device.
+2. **Behaviour uploads, only if 1 ranks poorly.** Pass/defer/read
+   events join the profile. This is the full reversal, and adopting
+   this record does not license it — it graduates on its own evidence,
+   as its own amendment here.
+
+### The checklist adoption signs up for
+
+The D98 discipline, pointed at this: if the app tracks what you like,
+something has to make every promise about that true, and a test has to
+prove it.
+
+- A per-user profile document, **owner-and-server readable, never
+  public** — D98's presence deny is the precedent: it published what
+  people answered, not where they stand, and this document is eyes,
+  not answers.
+- `docs/data-inventory.md` gains the row (`check:data-inventory`) and
+  the store privacy label moves with it (`check:labels`) — D163's "no
+  store form moves" was load-bearing and this record un-says it.
+- `web/privacy.html` says it and `check:policy-claims` proves it; the
+  purge sweeps it and the erasure e2e shows the sweep.
+- `MONITORING.md`'s refused row is re-drawn, dated: what remains
+  refused is ad targeting and any use of the profile beyond selection.
+
+### What it does not change
+
+D302's nightly fold stays the ranking's spine — global signal orders the
+bank; the profile chooses which of it a device is offered. Core density,
+the daily's one-question ritual, and every deny in `firestore.rules`
+stand.
