@@ -35,7 +35,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 // jsdom, and the v15 revision roughly doubled the spec layer's feed weight —
 // the slowest cases sat at ~4.8s before it and tip over under suite load.
 vi.setConfig({ testTimeout: 15000 });
-import { BG_TEXT, FEED_OPTIONS, LEARN_CARD_PROMPT, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, TEST_ITEM_OPTIONS, TEST_ITEM_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
+import { BG_TEXT, FEED_OPTIONS, FEED_PROMPT, LEARN_CARD_PROMPT, PATH_TITLE, PICK_PROMPT, RANK_PROMPT, TEST_ITEM_OPTIONS, TEST_ITEM_PROMPT, fixtureSurfaceMismatch, installLive } from "./live-fixture";
 import NAV from "../data/nav";
 import { PATTERNS_EARNED_KEY, PATTERNS_MIN_BASIS, PATTERNS_MIN_MINE, PATTERNS_MIN_POOL } from "../data/patternsReady";
 import { awaitText, growFeed, openHeaderOverlay, settleBeat, swipeDaily } from "./mount-app";
@@ -1435,6 +1435,37 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     expect(screen.queryByText("read the room")).toBeNull();
     expect(screen.queryByText(/Slices of everyone who answered/)).toBeNull();
     expectNoBoundary("live feed, reading game below the gate");
+  });
+
+  // The feed's ⓘ against the card it opens from. 08d48e5b fixed the
+  // DAILY's sheet and its message said the feed's twin was already right;
+  // that was true of the zero-guard half and not of the off-by-one.
+  it("the feed's info sheet prints the same total as the card above it", async () => {
+    // The feed persists its votes to localStorage and this suite does not
+    // clear it between cases, so an earlier case has already answered this
+    // card by the time this one runs — it parks behind the Answered
+    // expander and the option button is gone. Passes alone, fails in the
+    // file; cleared here rather than in a shared beforeEach so the
+    // neighbouring cases keep the state they were written against.
+    localStorage.clear();
+    const expectNoBoundary = mountLive({});
+    await awaitText(/Fixture feed card/);
+    // Answer it here rather than seeding the vote: an already-answered
+    // card parks behind the Answered expander, and the disagreement is
+    // about the card you are looking at right after you vote.
+    fireEvent.click(screen.getByText(FEED_OPTIONS[0]));
+    await awaitText(/ votes/);
+    const shown = /(\d[\d.K]*) votes/.exec(document.body.textContent);
+    expect(shown, "the card is not printing a vote count — fixture changed").toBeTruthy();
+    // [0] is the daily's, above the feed; [1] is the first feed card's —
+    // the one just answered.
+    fireEvent.click(screen.getAllByRole("button", { name: /About this question/i })[1]);
+    expectNoBoundary("live feed, ctx sheet");
+    expect(screen.getByText("Answers"), "the feed's info sheet did not open").toBeTruthy();
+    expect(
+      document.body.textContent,
+      `the card says ${shown[1]} votes and its own info sheet disagrees`,
+    ).toMatch(new RegExp("Answers\\s*" + shown[1].replace(".", "\\.")));
   });
 
   // D197: an ad is not a sponsored question. It rides the same single paid
