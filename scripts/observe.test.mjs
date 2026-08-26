@@ -60,7 +60,7 @@ beforeEach(() => {
 
 const observe = async (args = []) => {
   const { stdout } = await run("node", [SCRIPT, ...args], {
-    env: { ...process.env, FIREBASE_SERVICE_ACCOUNT: SA, FIREBASE_PROJECT_ID: "prvfire33", OBSERVE_BASE: base },
+    env: { ...process.env, FIREBASE_SERVICE_ACCOUNT: SA, FIREBASE_PROJECT_ID: "prvfire33", GOOGLE_API_BASE: base },
   });
   return stdout;
 };
@@ -125,6 +125,28 @@ describe("the alert reading, which runbook 5.5 exists for", () => {
     const j = await asJson();
     expect(j.readings.alertPolicies.armed).toBe(true);
     expect(j.readings.alertPolicies.missing).toEqual([]);
+  });
+
+  it("counts a DISABLED policy as disabled", async () => {
+    // `enabled` is a bare boolean in the v3 JSON representation, not a
+    // protobuf wrapper. Read as `p.enabled?.value !== false` it was
+    // `(false)?.value` -> undefined -> `undefined !== false` -> true, so
+    // enabledCount could only ever equal liveCount and a policy somebody had
+    // switched off in the console still read as armed cover.
+    reply["monitoring.googleapis.com"] = {
+      status: 200,
+      body: {
+        alertPolicies: [
+          { displayName: "on", enabled: true },
+          { displayName: "off", enabled: false },
+          // The API omits the field when it is true, so absent must count.
+          { displayName: "absent" },
+        ],
+      },
+    };
+    const j = await asJson();
+    expect(j.readings.alertPolicies.liveCount).toBe(3);
+    expect(j.readings.alertPolicies.enabledCount).toBe(2);
   });
 });
 

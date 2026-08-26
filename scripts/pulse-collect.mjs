@@ -731,9 +731,10 @@ export function collectInstrumentation() {
           ? `threshold on ${cond.conditionThreshold.filter?.match(/user\/([\w-]+)/)?.[1] || "a metric"}`
           : "unknown",
       enabled: p.enabled === true,
-      // The honest bit. These are committed JSON; nothing in
-      // .github/workflows applies them, so a policy exists in the repo
-      // whether or not it exists in Cloud Monitoring.
+      // The honest bit. These are committed JSON; nothing applies them
+      // AUTOMATICALLY — monitoring.yml is workflow_dispatch only, with
+      // `apply` off by default and never on the deploy path — so a policy
+      // exists in the repo whether or not it exists in Cloud Monitoring.
       appliedByCi: false,
     };
   });
@@ -770,11 +771,13 @@ export function collectInstrumentation() {
     alertedCount: watchedNames.size,
     logMetrics,
     policies,
-    note: "Alert policies are committed JSON, applied by `npm run monitoring:apply` "
-      + "(idempotent, dry-run by default) rather than by any workflow — deliberately, "
-      + "since a pipeline that can rewrite a policy can delete one silently. So a "
-      + "policy listed here is a policy in the REPO, not necessarily one live in Cloud "
-      + "Monitoring: the repo cannot know which, and this column never claims to.",
+    note: "Alert policies are committed JSON, put live by dispatching the Arm "
+      + "monitoring workflow or by `npm run monitoring:apply` (idempotent, dry-run "
+      + "by default). Never on the deploy path — deliberately, since a pipeline "
+      + "that can rewrite a policy can delete one silently in a deploy that was "
+      + "about something else. So a policy listed here is a policy in the REPO, not "
+      + "necessarily one live in Cloud Monitoring: this column reads the tree and "
+      + "never claims otherwise. `npm run observe` is what reads the project.",
   };
 }
 
