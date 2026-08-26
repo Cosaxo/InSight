@@ -167,8 +167,16 @@ function SgMine({ s, SG, onResend }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, borderTop: '0.5px solid color-mix(in oklch, var(--rule), transparent 25%)', paddingTop: 10 }}>
           <span style={{ fontFamily: 'var(--sans)', fontSize: 12.5, fontWeight: 600, color: 'var(--ink-2)', lineHeight: 1.5, textWrap: 'pretty' }}>
             {s.kind === 'ad'
-              ? 'Approved at ' + fmt(s.quote.flatEur) + ' flat — it runs ' + s.quote.windowDays + ' days from your scope\'s first open ad day after you pay.'
-              : 'Approved at ' + fmt(s.quote.ratePerAnswer) + ' per answer, capped at ' + fmt(s.quote.capEur) + ' — it runs ' + s.quote.windowDays + ' days from the day after you pay, and the unserved part refunds at close.'}
+              /* `fmtExact` on THIS booking's locked quote, for the reason
+                 the button below it carries: these are the figures that
+                 will be charged, not rate-card shapes. Leaving them on
+                 `fmt` was worse than the bug it half-fixed — the sentence
+                 said "Approved at €290 flat" directly above "Pay €288 →",
+                 two prices for one purchase, a finger apart. The rate
+                 card in the composer keeps `fmt`, which is what it is
+                 for; a quote already struck is not a rate card. */
+              ? 'Approved at ' + fmtExact(s.quote.flatEur) + ' flat — it runs ' + s.quote.windowDays + ' days from your scope\'s first open ad day after you pay.'
+              : 'Approved at ' + fmtExact(s.quote.ratePerAnswer) + ' per answer, capped at ' + fmtExact(s.quote.capEur) + ' — it runs ' + s.quote.windowDays + ' days from the day after you pay, and the unserved part refunds at close.'}
           </span>
           <button className="press" onClick={pay} disabled={payBusy} style={{ alignSelf: 'flex-start', padding: '9px 15px', borderRadius: 999, cursor: payBusy ? 'default' : 'pointer', WebkitAppearance: 'none', border: 'none', background: 'var(--ink)', color: 'var(--surface)', fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 800 }}>
             {/* `fmtExact`, not `fmt`: this control charges the figure it
