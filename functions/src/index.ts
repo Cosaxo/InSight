@@ -209,6 +209,10 @@ export const deleteAccount = onCall(
       // Paid purchase records swept by phase 4e (PAID-PLAN §7, D288 §3) —
       // the buyer's contract ledger, keyed by uid.
       purchases: 0,
+      // Paid AD documents taken with them (phase 4e). Not uid-keyed and
+      // not reachable by any query from here — the purchase row is the
+      // only pointer at one, which is why they go in the same phase.
+      paidAds: 0,
       // Paid-question bookings swept by phase 4f (paid.ts, D313) — the
       // pre-payment half of a sale, keyed by uid.
       paidBookings: 0,
@@ -858,6 +862,30 @@ export const deleteAccount = onCall(
     //     does — the purchase ROW still goes, and the next pricing.json
     //     rebuild folds a ledger that no longer names this account.
     try {
+      // THE AD FIRST, BECAUSE THE ROW IS THE ONLY POINTER AT IT.
+      //
+      // A bought ad (D315) lives in `v2_ads/paidad-{bid}` and is deleted
+      // by exactly one thing: `closePaidCampaignsV2`, which reads `adId`
+      // off the RUNNING PURCHASE ROW. `runSeedAds` was taught to skip
+      // `paidad-` ids, so nothing else touches it. Delete the row first
+      // and the ad becomes immortal — in a collection whose committed
+      // half is empty, so every production ad is one of these, and which
+      // every session downloads whole under an unordered cap. That is the
+      // accumulation the closer's own delete comment says it exists to
+      // prevent, reached by the one path the closer cannot cover: the
+      // buyer erasing their account mid-campaign.
+      //
+      // Read before the sweep rather than deleting from the snapshot:
+      // deleteQueryDocs owns the paging, and a purchase list is bounded by
+      // what one account bought.
+      const bought = await db.collection("v2_purchases").where("uid", "==", uid).get();
+      const adIds = bought.docs
+        .map((d) => String(d.get("adId") ?? ""))
+        .filter((id) => id.length > 0);
+      for (const adId of adIds) {
+        await db.collection("v2_ads").doc(adId).delete();
+      }
+      counts.paidAds = adIds.length;
       counts.purchases = await deleteQueryDocs(
         db.collection("v2_purchases").where("uid", "==", uid),
       );
