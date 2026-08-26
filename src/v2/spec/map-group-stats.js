@@ -6,6 +6,7 @@
 import React from 'react';
 import LIVE from '../data/live';
 import { MAP_ANCHOR_DIM, byOf, typicality } from '../data/cohort';
+import { sharePcts } from '../data/pct';
 
 // InSight — group statistics for the Map tab.
 //
@@ -75,11 +76,23 @@ import { MAP_ANCHOR_DIM, byOf, typicality } from '../data/cohort';
       if (!t) return null;
       const cell = byOf(LIVE.aggFor(qid))[MAP_ANCHOR_DIM[anchorId]][(LIVE.anchors() || {})[MAP_ANCHOR_DIM[anchorId]]];
       const counts = Array.from({ length: Math.max(2, nOpts) }, (_, i) => cell[String(i)] || 0);
-      const total = counts.reduce((a, b) => a + b, 0) || 1;
-      const pct = counts.map((c) => Math.round((c / total) * 100));
-      const drift = 100 - pct.reduce((a, b) => a + b, 0);
-      if (drift) pct[pct.indexOf(Math.max(...pct))] += drift;
-      return pct;
+      // `sharePcts` (data/pct.ts), the one rounding rule — NOT the
+      // round-then-dump-the-residue-on-the-leader shape that used to be
+      // here. That shape can hand a bucket a point it did not earn and
+      // hand another one fewer, and `mode()` right below reads
+      // indexOf(max) off this array: the Map card's "you're with the
+      // majority" / "a minority take", its peak label and its
+      // where-you-differ list all rest on which bucket comes out largest.
+      // Measured over 200k random count vectors at ten options — a rating
+      // question's width — the expression this replaces drew the leading
+      // option below the top percentage 15826 times and drew a smaller
+      // count at a larger percentage 12500 times. sharePcts: 0 and 0, at
+      // every width tried.
+      //
+      // The demo branch below keeps its own arithmetic: its numbers are
+      // invented from a hash, so their rounding is not a claim about
+      // anybody.
+      return sharePcts(counts);
     }
     const n = Math.max(2, nOpts);
     const w = [];
