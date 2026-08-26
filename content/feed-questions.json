@@ -2821,6 +2821,103 @@
           "count": 2400
         }
       ]
+    },
+    {
+      "id": "f103",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "Whose diary would you rather read?",
+      "options": [
+        {
+          "label": "Someone famous",
+          "count": 3100
+        },
+        {
+          "label": "A stranger your age",
+          "count": 2600
+        }
+      ]
+    },
+    {
+      "id": "dl14",
+      "core": false,
+      "cat": "music",
+      "type": "dial",
+      "prompt": "How old were you when your taste in music settled?",
+      "lo": 10,
+      "hi": 40,
+      "unit": "yrs"
+    },
+    {
+      "id": "f104",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "Watching a film in pieces over a week?",
+      "options": [
+        {
+          "label": "Fine",
+          "count": 3900
+        },
+        {
+          "label": "One sitting or nothing",
+          "count": 4600
+        }
+      ]
+    },
+    {
+      "id": "fd4",
+      "core": false,
+      "cat": "bigq",
+      "also": [
+        "dilemma"
+      ],
+      "type": "field",
+      "prompt": "Human nature — place it",
+      "ax": [
+        "selfish",
+        "kind"
+      ],
+      "ay": [
+        "fixed",
+        "changeable"
+      ]
+    },
+    {
+      "id": "f105",
+      "core": false,
+      "cat": "culture",
+      "type": "vote",
+      "prompt": "Lending a favourite book?",
+      "options": [
+        {
+          "label": "Gladly",
+          "count": 4400
+        },
+        {
+          "label": "Never the good ones",
+          "count": 3800
+        }
+      ]
+    },
+    {
+      "id": "f106",
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "prompt": "Artefacts taken long ago, sitting in faraway museums?",
+      "options": [
+        {
+          "label": "Return them",
+          "count": 5200
+        },
+        {
+          "label": "Keep them on show",
+          "count": 3600
+        }
+      ],
+      "bg": "Museums have begun returning contested holdings — Germany sent Benin Bronzes back to Nigeria in 2022, and talks over the Parthenon Marbles continue. The universal-museum position holds that one collection shows objects to more of the world."
     }
   ]
 }

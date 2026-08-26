@@ -5591,6 +5591,131 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "feed-f103",
+  "surface": "feed",
+  "seq": 142,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Whose diary would you rather read?",
+  "options": [
+   "Someone famous",
+   "A stranger your age"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl14",
+  "surface": "feed",
+  "seq": 143,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How old were you when your taste in music settled?",
+  "options": [
+   "10–13 yrs",
+   "13–15 yrs",
+   "15–18 yrs",
+   "18–20 yrs",
+   "20–23 yrs",
+   "23–25 yrs",
+   "25–28 yrs",
+   "28–30 yrs",
+   "30–33 yrs",
+   "33–35 yrs",
+   "35–38 yrs",
+   "38–40 yrs"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "lo": 10,
+  "hi": 40,
+  "unit": "yrs"
+ },
+ {
+  "id": "feed-f104",
+  "surface": "feed",
+  "seq": 144,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Watching a film in pieces over a week?",
+  "options": [
+   "Fine",
+   "One sitting or nothing"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-fd4",
+  "surface": "feed",
+  "seq": 145,
+  "type": "field",
+  "domain": null,
+  "prompt": "Human nature — place it",
+  "options": [
+   "selfish · changeable",
+   "lean selfish · changeable",
+   "lean kind · changeable",
+   "kind · changeable",
+   "selfish · middle",
+   "lean selfish · middle",
+   "lean kind · middle",
+   "kind · middle",
+   "selfish · fixed",
+   "lean selfish · fixed",
+   "lean kind · fixed",
+   "kind · fixed"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "also": [
+   "dilemma"
+  ],
+  "ax": [
+   "selfish",
+   "kind"
+  ],
+  "ay": [
+   "fixed",
+   "changeable"
+  ]
+ },
+ {
+  "id": "feed-f105",
+  "surface": "feed",
+  "seq": 146,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Lending a favourite book?",
+  "options": [
+   "Gladly",
+   "Never the good ones"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f106",
+  "surface": "feed",
+  "seq": 147,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Artefacts taken long ago, sitting in faraway museums?",
+  "options": [
+   "Return them",
+   "Keep them on show"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "bg": "Museums have begun returning contested holdings — Germany sent Benin Bronzes back to Nigeria in 2022, and talks over the Parthenon Marbles continue. The universal-museum position holds that one collection shows objects to more of the world."
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,

@@ -30878,3 +30878,48 @@ the alphabetical catalogues' head is not a fame ranking, and offering it
 as one would be the D1 shape of misleading. The row owns its horizontal
 motion (`.h-scroll`), or dragging through it would slide the daily's
 mode axis.
+
+## D305 · A lane batch on the budget's own allocation, and why the interleave cadences stand
+
+**Decided:** 2026-08-26 · **Status:** binding. The last item of the
+owner's 2026-08-26 review: "there seem to be fewer kinds of questions
+than I would like showing up in the app — it's mostly tests and learn."
+
+### 1 · The mechanism, named before the fix
+
+The feed is not tilted by its cadences. `interleaveFeed` weaves one test
+card per four world cards and one lens card per nine, with knowledge at
+the reader's own Learn cadence (`LEARN_FEED.every()`) — a fresh account
+sees mostly world questions. What the owner is feeling is the OTHER end:
+answered world cards leave the fresh feed (the D-partition behind the
+Answered expander), the world bank is finite, and the test/learn streams
+are deep — 160 test items and 146 learn cards against what was 142 feed
+questions. Deplete the world half and the side streams are what remain.
+That is the depletion SCALE-PLAN §1 names, and the cure is production,
+not cadence: retuning TEST_EVERY to starve tests would slow the four
+instruments every Mirror surface feeds on, to mask a content shortage.
+The cadences stand; the engagement rungs (D270–D272) are what would
+justify touching them, with numbers instead of a feeling.
+
+### 2 · The batch, exactly as the lane's budget allocated it
+
+`npm run feed:budget` granted 6 — one each into people, music, movies,
+bigq, culture and event, thinnest-first — and this batch wrote exactly
+that, leaning continuum where the topic allowed because the owner's
+review asked for more of those forms: `dl14` (music, "How old were you
+when your taste in music settled?", 10–40 yrs) and `fd4` (bigq, "Human
+nature — place it", selfish↔kind × fixed↔changeable), each written twice
+per the lane's rule (content copy + demo-pool twin with its own
+texture); votes into people, movies, culture; and the event slot's
+artefacts-return question with a `bg` under D302's rule. All tail
+(`core: false`, D161), all with farm provenance, batch 2026-08-26.
+694 seeded questions now; the bank's wire size moves to 192.3 KiB.
+
+### 3 · What this deliberately is not
+
+A one-off cannot outrun depletion — the scheduled lanes are the engine
+(D145's budget fires twice weekly), and this batch is one turn of the
+same crank taken now because the review asked now. The daily's variety
+is its own instrument: one question a day is the design, and the ask
+rows D303 added are how the rotation's thin forms reach a reader who
+wants them sooner.
