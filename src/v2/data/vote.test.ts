@@ -94,6 +94,12 @@ const h = vi.hoisted(() => ({
   // this shape — "still connecting" with no error — and nothing exercised
   // it, so the label that describes it was unpinned.
   hangSignIn: false,
+  // The engagement seams the answer paths stamp on the SERVER ACK
+  // (R2/D270, R4/D271). Recorded rather than counted: the qid and the
+  // surface are the whole point — a stamp under the wrong key joins
+  // nothing, and the tally's real functions are no-ops until arm(), so
+  // calling through to them would prove nothing here.
+  engagementCalls: [] as Array<{ fn: string; args: unknown[] }>,
 }));
 
 vi.mock("../../lib/firebase", () => {
@@ -138,6 +144,18 @@ vi.mock("../../lib/sentry", () => ({
 vi.mock("./push", () => ({
   registerPush: () => Promise.resolve(),
 }));
+
+// Everything else passes through to the real module — only the two seams
+// are observed, because their contract with live.ts is WHICH key gets
+// stamped, and that is invisible from the tally's own tests.
+vi.mock("./engagement", async (importActual) => {
+  const actual = await importActual<typeof import("./engagement")>();
+  return {
+    ...actual,
+    noteAnswer: (...args: unknown[]) => { h.engagementCalls.push({ fn: "noteAnswer", args }); },
+    noteQid: (...args: unknown[]) => { h.engagementCalls.push({ fn: "noteQid", args }); },
+  };
+});
 
 vi.mock("firebase/functions", () => ({
   getFunctions: vi.fn(),
@@ -348,6 +366,7 @@ beforeEach(() => {
   h.aggFailIds.length = 0;
   h.voterDocs = {};
   h.voterQueries.length = 0;
+  h.engagementCalls.length = 0;
   h.bankDocs = [
     {
       id: "q_1",
@@ -1307,6 +1326,39 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
       expect(h.setDocCalls.length).toBe(before);
     });
 
+    it("stamps the attention seams on the ack, under the feed card's own id", async () => {
+      // The gap this closes: the world feed stamps `s` for every card that
+      // scrolls into view, pick cards included, so the seen denominator
+      // counted these questions while nothing ever incremented the
+      // answered numerator. A catalog pick read as a question people look
+      // at and never answer — the signal QUESTION-FARM uses to propose
+      // retiring one.
+      h.bankDocs.push(PICK_BANK);
+      const LIVE = await bootLive();
+      const d = deferred();
+      h.setDocImpl = () => d.promise;
+      LIVE.votePick("pick-pk04", 128514);
+      await flush();
+      expect(h.engagementCalls, "stamped before the server acked the write").toEqual([]);
+      d.resolve();
+      await flush();
+      expect(h.engagementCalls).toEqual([
+        { fn: "noteAnswer", args: ["feed"] },
+        // The FEED CARD's id, which is what the observer stamps `s` under —
+        // a numerator under any other key joins no denominator.
+        { fn: "noteQid", args: ["pick-pk04", "a"] },
+      ]);
+    });
+
+    it("stamps nothing when the write is refused", async () => {
+      h.bankDocs.push(PICK_BANK);
+      const LIVE = await bootLive();
+      h.setDocImpl = () => Promise.reject(new Error("PERMISSION_DENIED"));
+      LIVE.votePick("pick-pk04", 7);
+      await flush();
+      expect(h.engagementCalls).toEqual([]);
+    });
+
     it("editVote refuses to move a pick — create-only has no edit arm (D14)", async () => {
       h.bankDocs.push(PICK_BANK);
       const LIVE = await bootLive();
@@ -1503,6 +1555,34 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
       LIVE.voteRank("feed-f03", [0, 1, 2, 4]); // out of range
       await flush();
       expect(h.setDocCalls.length).toBe(before);
+    });
+
+    it("stamps the attention seams on the ack, under the feed card's own id", async () => {
+      // Same gap as votePick's: a rank card is a feed card, so the
+      // observer stamps `s` when it scrolls into view and nothing was
+      // stamping `a` when it was answered.
+      h.bankDocs.push(RANK_BANK);
+      const LIVE = await bootLive();
+      const d = deferred();
+      h.setDocImpl = () => d.promise;
+      LIVE.voteRank("feed-f03", [2, 0, 1, 3]);
+      await flush();
+      expect(h.engagementCalls, "stamped before the server acked the write").toEqual([]);
+      d.resolve();
+      await flush();
+      expect(h.engagementCalls).toEqual([
+        { fn: "noteAnswer", args: ["feed"] },
+        { fn: "noteQid", args: ["feed-f03", "a"] },
+      ]);
+    });
+
+    it("stamps nothing when the write is refused", async () => {
+      h.bankDocs.push(RANK_BANK);
+      const LIVE = await bootLive();
+      h.setDocImpl = () => Promise.reject(new Error("PERMISSION_DENIED"));
+      LIVE.voteRank("feed-f03", [0, 1, 2, 3]);
+      await flush();
+      expect(h.engagementCalls).toEqual([]);
     });
 
     it("editVote refuses to move a ranking — create-only has no edit arm (D233)", async () => {
