@@ -48,8 +48,16 @@ const LiveBreakdownPanel = React.lazy(() => import('../ui/LiveBreakdownPanel.tsx
 // reason (D156) — see the mode switch near the bottom of render().
 const LiveDuelPanel = React.lazy(() => import('../ui/LiveDuelPanel.tsx'));
 import ReactDOM from 'react-dom';
-import { IS_TESTS, IS_TEST_RESULTS, persistTestResult } from './test-definitions.js';
-import { PASSIVE } from './passive-progress.js';
+// This file bound IS_TESTS, IS_TEST_RESULTS, persistTestResult and PASSIVE
+// and referenced none of them — residue of the `else { window.IS_TEST_RESULTS
+// = … }` branch that converting test-definitions.js made unreachable
+// (src/v2/README.md). Both statements are gone rather than kept as
+// side-effect imports: TRACED, not assumed, because the first instinct was
+// to keep the edges for load order and that instinct was wrong. Neither
+// module waits on this file — spec-index.js reaches archetype-data.js at
+// line 9, which imports test-definitions.js, and type-marks.jsx and
+// result-card.jsx at 69 and 71, which import passive-progress.js, all long
+// before daily-split.jsx at 140.
 import NAV from '../data/nav';
 
 // daily-split.jsx — SPLIT: the daily tab. Three modes — World (vote blind,

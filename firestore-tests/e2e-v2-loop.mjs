@@ -28,6 +28,7 @@ import { BREAKDOWN_DIMS, BREAKDOWN_DIM_VOCAB } from "../functions/lib/pure.js";
 // The report builder (PAID-PLAN §9.2): §7g drives it through THIS
 // harness's signed-in client, so the deployed rules referee every read.
 import { REPORT_READ_SET, buildReportData, makeReader, renderReportHtml } from "../scripts/report-lib.mjs";
+import { expectCode, expectDenied, fail, ok } from "./e2e-lib.mjs";
 
 // The named database (D165). The backend writes to FIRESTORE_DB_ID, so a
 // harness on `(default)` reads an empty database and reports a phantom
@@ -43,22 +44,6 @@ const fns = getFunctions(app, FUNCTIONS_REGION); connectFunctionsEmulator(fns, "
 adminInit({ projectId: "demo-insight" });
 const adminDb = adminFirestore(E2E_DB_ID);
 
-const fail = (msg) => { console.error("✗ " + msg); process.exit(1); };
-const ok = (msg) => console.log("✓ " + msg);
-
-// A bare `try { …; fail() } catch { ok() }` passes on ANY error — a typo, a
-// dropped connection, an emulator that never came up. For a SECURITY
-// assertion that is worse than no test, because it still counts toward the
-// green tally that gates the deploy. Demand the specific denial.
-const expectDenied = async (label, op) => {
-  try {
-    await op();
-  } catch (e) {
-    if (e?.code === "permission-denied") return ok(label);
-    return fail(`${label} — expected permission-denied, got ${e?.code || e}`);
-  }
-  fail(`${label} — the operation was ALLOWED`);
-};
 
 // 1 · anonymous-first auth (D3)
 const cred = await signInAnonymously(auth);
@@ -1357,16 +1342,6 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
 // rules.test.ts proves clients cannot write around it.
 {
   // The moderation e2e's discipline: demand the SPECIFIC refusal.
-  const expectCode = async (label, code, op) => {
-    try {
-      await op();
-    } catch (e) {
-      if (e?.code === code) return ok(label);
-      return fail(`${label} — expected ${code}, got ${e?.code || e}`);
-    }
-    fail(`${label} — the operation was ALLOWED`);
-  };
-
   const sub = await httpsCallable(fns, "suggestQuestionV2")({
     prompt: "Window seat or aisle seat?", type: "binary",
     options: ["Window", "Aisle"], topic: "travel", cadenceHint: "once", credit: true,
@@ -1440,16 +1415,6 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
 // path that can move a handle is claimHandleV2 — and the only way to prove
 // what it does is to call it.
 {
-  const expectCode = async (label, code, op) => {
-    try {
-      await op();
-    } catch (e) {
-      if (e?.code === code) return ok(label);
-      return fail(`${label} — expected ${code}, got ${e?.code || e}`);
-    }
-    fail(`${label} — the operation was ALLOWED`);
-  };
-
   const first = await httpsCallable(fns, "claimHandleV2")({ handle: "Olaf_T" });
   if (first.data?.handle !== "olaf_t") fail("claimHandleV2 did not fold the handle: " + JSON.stringify(first.data));
   const reg = await getDoc(doc(db, "v2_handles", "olaf_t"));
@@ -1491,16 +1456,6 @@ const RQ_ID = "feed-f03";  // "Pure athleticism — rank them", 4 items
 // regresses, inviting somebody starts throwing in exactly the
 // environments where nobody is watching it.
 {
-  const expectCode = async (label, code, op) => {
-    try {
-      await op();
-    } catch (e) {
-      if (e?.code === code) return ok(label);
-      return fail(`${label} — expected ${code}, got ${e?.code || e}`);
-    }
-    fail(`${label} — the operation was ALLOWED`);
-  };
-
   const made = await httpsCallable(fns, "createGroupV2")({ name: "The Picked", mode: "group" });
   const igid = made.data?.gid;
   if (!igid) fail("createGroupV2 for the invite case: " + JSON.stringify(made.data));

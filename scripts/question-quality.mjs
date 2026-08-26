@@ -361,7 +361,7 @@ function learnLevelBounds() {
 
 // ── hard rule 6's tripwire ──
 // A hand-kept watchlist, deliberately small: country names, demonyms, and
-// big cities — NOT the 10,929-place city catalogue, whose names collide
+// big cities — NOT the ~11k-place city catalogue, whose names collide
 // with ordinary English ("Nice", "Split", "Of") and would make the gate
 // dishonest. A hit needs BOTH a watched place and a civic cue in the same
 // question's text: "Mountains or sea?" and an Italian-cuisine option are

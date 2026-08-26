@@ -17,11 +17,22 @@
 //     though they were in use, which is how 28 KB of unreferenced
 //     framework code rode along unnoticed.
 //
-//     @sentry/react stays in package.json on purpose: it satisfies
-//     @sentry/capacitor's framework peer alongside angular and vue, and
-//     dropping it trades 0 shipped bytes for an install warning. It is
-//     no longer imported, so rolldown leaves it out of the bundle —
-//     which is the whole win.
+//     @sentry/react is gone from package.json too. It stayed there after
+//     the swap on the reasoning that it satisfied @sentry/capacitor's
+//     framework peer and dropping it would trade 0 shipped bytes for an
+//     install warning — and that was wrong: the SDK marks all three
+//     framework peers OPTIONAL (`peerDependenciesMeta` in
+//     @sentry/capacitor's package.json, angular and vue alongside react),
+//     so npm never warned, and nothing in its build resolves the package.
+//     Measured, because the obvious claim would also be wrong: dropping the
+//     DECLARATION does not drop the INSTALL. npm installs optional peers,
+//     so the package is still in node_modules and still in the lockfile —
+//     now marked `"optional": true, "peer": true` and pinned by
+//     @sentry/capacitor's own exact range rather than by us. What the
+//     removal buys is that package.json stops declaring something this app
+//     does not use, and dependabot stops carrying an ignore rule for it.
+//     Nothing else. If the shipped bundle ever needs to change, it is
+//     rolldown that decides, and it already leaves the package out.
 //
 // The SDKs are imported DYNAMICALLY: the ~100 KB of Sentry JS stays
 // out of the main bundle and off the first-paint path, loading async

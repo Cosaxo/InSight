@@ -21,7 +21,7 @@
 import React from 'react';
 
 
-// tweaks-panel.jsx
+// TweaksPanel.jsx
 //
 // The six names app-shell renders are named exports (D39, "convert on
 // touch"); the window bag below stays for the rest of the control set,

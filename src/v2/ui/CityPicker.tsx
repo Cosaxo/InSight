@@ -1,7 +1,7 @@
 // CityPicker — the profile's city field (D9).
 //
 // Replaces two free-text inputs ("Country", "City") with one search over a
-// fixed catalogue of 10,929 real places. The value it produces is the
+// fixed catalogue of ~11k real places. The value it produces is the
 // canonical anchor key `"Oslo, NO"`, which is also the breakdown bucket
 // key, so a cohort is one place spelled one way instead of one bucket per
 // spelling.

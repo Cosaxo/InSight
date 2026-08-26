@@ -5082,7 +5082,7 @@ function resetForNewUid(uid: string): void {
 // called notify() — re-rendering with the PREVIOUS account's Big Five,
 // attachment and politics scores still on screen. Around twenty spec
 // modules read those results at render time (profile-general.jsx,
-// profile-test-viz.jsx, compare-breakdown.jsx, …), so the wrong person's
+// result-card.jsx, compare-breakdown.jsx, …), so the wrong person's
 // results were up until the new uid's hydrate reached this line — and two
 // paths mean it might not: the unguarded getDocs in hydrate can reject
 // outright, and refreshInFlight can hand back the OLD run's promise so

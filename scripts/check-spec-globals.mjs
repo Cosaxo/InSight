@@ -20,6 +20,15 @@
 //   5. the mirror of rule 1: a publication nothing reads. That is what a
 //      half-finished conversion leaves behind, and 17 of them had piled
 //      up by D137 because no rule was asking and rule 4 counts reads.
+//   8. an import binding a spec module never uses. `no-unused-vars` is
+//      off for this layer and rightly so, but its reason is about
+//      DECLARATIONS: an import cannot be a publication. 33 dead React
+//      imports and six named bindings were behind that off.
+//   7. a spec module whose components nothing can REACH — neither
+//      exported nor published, so no import and no JSX tag can resolve
+//      them. Rule 5 asks whether a publication has a reader; this asks
+//      whether there is a publication at all. Two files sat inert from
+//      the port until it was added.
 //
 // Rules 1-3 keep the convention SURVIVABLE and rule 5 keeps it HONEST —
 // what is on the bridge is what is still crossing it. Rule 4 is the one
@@ -270,6 +279,124 @@ for (const name of [...defined].sort()) {
       + "\n    publisher's value a named home the importers call, or delete"
       + "\n    the assignment if the export is already the whole wiring.",
     );
+  }
+}
+
+// ── 7. a spec module nothing can reach ──────────────────────────
+//
+// THE RULE BEFORE RULE 5. Rule 5 asks whether a published name has a
+// reader. This asks the question underneath it: is the module on the
+// bridge at all? A spec module has exactly two ways out — an `export`,
+// or an assignment to `window`/`globalThis` that a bare JSX tag can
+// resolve at render time. A file that does neither and still defines
+// components is a file no screen can render, and every other gate is
+// green on it: it parses, it lints, tsc never sees it, spec-index.js
+// imports it so rule 2 is satisfied, and it publishes nothing so rules
+// 1, 3, 5 and 6 have no name to hold.
+//
+// It was not hypothetical. `spec/test-viz.jsx` and
+// `spec/profile-test-viz.jsx` came across in the port and were never
+// wired — five components, 325 lines, unreachable from the first
+// commit. The cost was not bytes (rolldown tree-shakes them; measured
+// at 0 KB of the eager graph either way) but belief: VISION-2026-08-24
+// §6 row 3 recorded a colour change to one of them as BUILT, applied at
+// D287 against a screen that does not exist. Both files are gone; the
+// app's saved-result surface is `spec/result-card.jsx` with
+// `spec/result-rose.jsx`'s rose.
+//
+// SCOPE, narrow on purpose. Only files that DEFINE A COMPONENT — a
+// capitalised function or arrow binding — are candidates. The spec layer
+// is full of legitimate side-effect modules that export nothing and
+// publish nothing because their whole job is a listener attached at
+// import time (`sheet-drag.js`, `scroll-memory.js`, `edge-fade.js`,
+// `sheet-escape.js`, `subnav-thumb.js` — five of them today). Those
+// define no components, so they are not candidates, and the rule needs
+// no allowlist to leave them alone.
+//
+// If this fires, the answer is almost never a new exemption. See
+// RUNTIME_ALLOWLIST's own note in spec-globals.mjs: a name parked as
+// known-dead is how dead code starts looking like a feature flag.
+{
+  const COMPONENT_RE =
+    /^(?:function\s+([A-Z][\w$]*)|const\s+([A-Z][\w$]*)\s*=\s*(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>)/gm;
+  for (const file of readdirSync(specDir).sort()) {
+    if (!/\.(js|jsx)$/.test(file)) continue;
+    const src = stripComments(readFileSync(join(specDir, file), "utf8"));
+    if (/^\s*export\s/m.test(src)) continue;
+    if (/(?:globalThis|window)\.[A-Za-z_$][\w$]*\s*=[^=]/.test(src)) continue;
+    if (/Object\.assign\(\s*(?:globalThis|window)\s*,/.test(src)) continue;
+    if (/\(\s*(?:globalThis|window)\s+as\s+[^)]*\)\.[A-Za-z_$][\w$]*\s*=[^=]/.test(src)) continue;
+    COMPONENT_RE.lastIndex = 0;
+    const components = [...src.matchAll(COMPONENT_RE)].map((m) => m[1] || m[2]);
+    if (!components.length) continue;
+    failed = true;
+    console.error(
+      `✗ src/v2/spec/${file} defines ${components.join(", ")} and neither exports`
+      + "\n    nor publishes anything, so nothing can render them: an import has no"
+      + "\n    binding to take and a JSX tag has no global to resolve. Either wire it"
+      + "\n    (export it, or publish it the way its neighbours do) or delete it."
+      + "\n    A side-effect module is exempt by defining no component, not by an"
+      + "\n    allowlist entry.",
+    );
+  }
+}
+
+// ── 8. an import binding nothing in the file uses ───────────────
+//
+// THE HALF `no-unused-vars` CANNOT DO. eslint.config.js turns that rule OFF
+// for the spec layer, and the reason it gives is correct: a module here
+// "exports" by defining a global the linter never sees consumed, so every
+// top-level declaration reads as unused. But that argument is about
+// DECLARATIONS. An import binding cannot be a publication — it is a name
+// this file asked another module for — so "declared and never mentioned"
+// is unambiguous for imports and only for imports.
+//
+// The blind spot was real: 33 files carried `import React from 'react'`
+// with no `React.` anywhere (the automatic JSX runtime has needed no such
+// import since the port), and six named bindings across two files were
+// imported and never referenced. Nothing could see any of it — tsc does not
+// read .jsx here, eslint was told not to, and rules 1-3 above look for
+// references, not for their absence.
+//
+// THE FIX IS NOT ALWAYS DELETION, which is why this reports the binding and
+// not the line. spec-index.js's order is semantic, and a file's own import
+// can pull a module in EARLIER than spec-index reaches it — daily-split.jsx
+// does exactly that for test-definitions.js and passive-progress.js, nine
+// entries ahead. There the answer is a side-effect import: drop the binding,
+// keep the edge.
+{
+  // The comma after the default binding is OPTIONAL, and leaving it required
+  // was a hole in this rule's first version: `import PLACES from '…'` — a
+  // bare default with no clause after it — matched the pattern with both
+  // groups empty, so the rule read the line, found no names, and passed.
+  // Found by an adversarial re-check of the rule itself, on a live instance.
+  const IMPORT_RE =
+    /^import\s+(?:([A-Za-z_$][\w$]*)\s*,?\s*)?(?:\{([^}]*)\})?\s*from\s*['"][^'"]+['"];?$/gm;
+  for (const file of readdirSync(specDir).sort()) {
+    if (!/\.(js|jsx)$/.test(file)) continue;
+    const src = stripComments(readFileSync(join(specDir, file), "utf8"));
+    IMPORT_RE.lastIndex = 0;
+    for (const m of src.matchAll(IMPORT_RE)) {
+      const names = [];
+      if (m[1]) names.push(m[1]);
+      if (m[2]) {
+        for (const part of m[2].split(",")) {
+          const name = part.trim().replace(/^type\s+/, "").split(/\s+as\s+/).pop().trim();
+          if (name) names.push(name);
+        }
+      }
+      const body = src.replace(m[0], "");
+      for (const name of names) {
+        if (new RegExp(`\\b${name.replace(/\$/g, "\\$")}\\b`).test(body)) continue;
+        failed = true;
+        console.error(
+          `✗ src/v2/spec/${file} imports ${name} and never uses it.`
+          + "\n    Delete the binding. If the IMPORT is what pulls that module in"
+          + "\n    ahead of spec-index.js's own line for it, keep the edge as a"
+          + "\n    side-effect import (`import './x.js';`) — the order is semantic.",
+        );
+      }
+    }
   }
 }
 

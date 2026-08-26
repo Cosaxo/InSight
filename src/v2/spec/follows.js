@@ -3,7 +3,6 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import React from 'react';
 
 // follows.js — friendships (mutual). Your friends ARE your circle: they feed the
 // 1v1s, the groups, and the circle populations. Adding someone sends a request;

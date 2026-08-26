@@ -19877,7 +19877,7 @@ so the rules and e2e suites were not run.
 
 **2026-08-17.** **Status:** binding. Owner's ask: *"let's start building
 the remaining parts like the predicts."* Foresight **CALL, tier A** — the
-half of [D126](#d126) that was designed at [D127](#d127) and never built —
+half of [D126](#d126--foresight--the-read-half-on-a-truth-that-now-exists) that was designed at [D127](#d127--a-machine-may-propose-an-outcome-never-be-the-reason-one-is-believed) and never built —
 is live end to end: a bank surface, a rules arm, a scheduled resolver, a
 feed card, and a gate that refuses a call the grader cannot run.
 
@@ -19908,7 +19908,7 @@ Three things make that a property rather than a promise:
 
 The module is byte-identical across both trees (`src/v2/data/callRubric.ts`
 · `functions/src/callRubric.ts`), held equal by `npm run check:calls` — the
-[D57](#d57) logic-generator arrangement, for a sharper reason: a drifted
+[D57](#d57--verified-logic-attempts-d31s-deferral-reversed--the-server-holds-the-key) logic-generator arrangement, for a sharper reason: a drifted
 copy would not merely mis-grade, it would make the app contradict itself on
 screen.
 
@@ -29782,6 +29782,7 @@ what they leave behind.
 never where it came from, so the matrix is not derivable from the answers
 and is carried forward instead. That is one field, stated at three sites,
 rather than two thirds of the system.
+
 ## D293 · A moderation verdict's ID is not neutral, and the privacy page says it is
 
 **2026-08-26.** **Status:** binding as a RECORD OF A LIMIT; the repair is
@@ -29835,3 +29836,166 @@ Not chosen here. Both are the owner's, and picking one unattended — on
 the page that is the app's single disclosure — is the failure D183 was
 written to stop. The retention itself is unchanged and still deliberate;
 what changed on 2026-08-26 is that the tree now describes it accurately.
+
+## D294 · A deep clean, priced: what moved, what did not, and the eight rules that hold it
+
+**2026-08-25.** **Status:** binding. Requested directly: *"Do a deep clean
+and structuring of this project."*
+
+Every finding below was reproduced before it was acted on, and every one
+that could recur is now held by a gate rather than by intention — which is
+this repo's own answer and the reason it had so little to find.
+
+### The defect the clean was worth doing for
+
+`data/pulse.ts` read `window.IS_DATA` as a TypeScript cast. `sample-data.js`
+came off the global bridge long ago and assigns nothing to `window`, so the
+name resolved to `undefined` on every demo build and the pulse card's city
+and country scopes drew "Your city" and "Your country" instead of Oslo and
+Norway. Two lines up, the same file read `window.IS_PULSE_HISTORY` — a
+prototype tweak knob whose panel v28 §5 dismantled into shipped defaults, so
+three of its four seeded histories were unreachable and nothing had ever
+written the name.
+
+Nothing could see either. **D280 taught `spec-globals.mjs` to see a cast
+WRITE and stopped there.** The READ side is the half rule 1 needs, and it
+stayed blind. `CAST_REF_RE` closes it: re-injecting the old line now fails
+`check:globals` by name.
+
+### The structural question, answered with the arithmetic
+
+`scripts/` is 105 flat files, `docs/` is 43, `src/v2/spec/` is 92. **None of
+them moves**, and the numbers are why rather than taste:
+
+| Directory | Path references in the tree | …of which in `DECISIONS.md` |
+| --- | --- | --- |
+| `scripts/` | 546 across 216 files | 69 |
+| `docs/` | 719 | 141 |
+
+Two hundred and ten historical citations are the argument. This file is
+append-only and its arithmetic is deliberately a snapshot; a rename either
+falsifies every one of them or forces rewriting the record to satisfy a
+reorganisation. Both directories already carry a naming convention that
+sorts them (`check-*`, `build-*`, `gen-*`, `cost-*`), and what was actually
+missing was not folders but currency — so the effort went to the map.
+
+The one cheap move if flatness ever does bite is `scripts/README.md`, which
+`check:docs` rule 3 would then pull into ORIENTATION automatically, at zero
+risk to any path.
+
+### What was deleted, and what deleting it revealed
+
+`spec/test-viz.jsx` and `spec/profile-test-viz.jsx` — five components, 325
+lines — defined nothing they exported and published nothing to `window`, so
+no import could bind them and no JSX tag could resolve them. Inert since the
+port. **The cost was not bytes**: measured at 0 KB of the eager graph either
+way, because rolldown already tree-shakes them. It was belief —
+`VISION-2026-08-24.md` §6 row 3 recorded a colour change to one of them as
+BUILT, applied at D287 against a screen that does not exist. The app's
+saved-result surface is `spec/result-card.jsx` with `result-rose.jsx`'s rose,
+reading `testNorm()`; the deleted pair read `testAvg()`, a back-compat shim
+whose only two callers they were. Shim gone, its seven assertions kept
+against `testNorm().avg`.
+
+Also gone: `FIRESTORE_REGIONAL` (read by nothing — `cost-arith.mjs`
+re-derives its own because it cannot import TypeScript), 33 `import React`
+statements the automatic JSX runtime has not needed since the port, six
+unused named bindings, twelve dead load-order guards on ESM imports (D108's
+pattern), two duplicated test cases in `indexes.test.ts` including two copies
+of the duplicate-key guard itself, four copies of `stripComments`, two of
+`utcDay`, three suites' worth of copy-pasted e2e assertion helpers, and the
+D121 test overlay's CSS residue — that last one worth 1 KB of the
+blocking-CSS ceiling, which had 5 KB of headroom.
+
+`@sentry/react` left `package.json` too, and the measurement is the point:
+**dropping the declaration does not drop the install.** npm installs optional
+peers, so it is still in `node_modules` and still in the lockfile, now marked
+`optional`/`peer`. What the removal buys is that the manifest stops declaring
+something the app does not import. The comment that had justified keeping it
+claimed npm would warn; `@sentry/capacitor` marks all three framework peers
+optional, so it never did.
+
+### The eight rules
+
+Five gates gained a rule, and each closes a class rather than an instance:
+
+1. **`check:globals` cast reads** — the mirror of D280, above.
+2. **`check:globals` rule 7, unreachable modules** — a spec module that
+   defines a component and neither exports nor publishes it. No allowlist
+   needed: the five real side-effect modules define no component.
+3. **`check:globals` rule 8, unused imports** — `no-unused-vars` is off for
+   this layer and its reason is right, but that reason is about
+   DECLARATIONS. An import cannot be a publication.
+4. **`check:docs` rule 8, every directory** — ORIENTATION's opening line has
+   always promised "every document, every gate, every directory". Rules 2-4
+   held the first two; the third was a convention and had drifted to four,
+   including `android/` and `ios/`, the entire native half.
+5. **`check:docs` rule 9, decision anchors** — this repo renumbers records
+   on merge, which rewrites the heading and leaves every link pointing
+   nowhere. Eight were broken.
+6. **`check:docs` rule 6, widened to every map** — CLAUDE.md, README.md and
+   all six READMEs, not ORIENTATION alone.
+7. **`check:docs` rule 2, widened to the root** — `SECURITY.md` is a live
+   policy `web/privacy.html` names to a user by filename, and no gate could
+   see a document outside `docs/`.
+8. **`check:versions` iOS vacuity floor** — both scans pushed a problem only
+   from inside the loop, so zero matches meant a pass. Reproduced: quote both
+   values the way Xcode legitimately writes build settings and the gate
+   printed "versions OK … across package.json, Android and iOS" having read
+   neither key. **D275's shape, on the release path.**
+
+Plus three `check:figures` entries. The worst figure found: CLAUDE.md said
+**seven** modules are off the shared-global bridge. The tree has **32** — an
+understatement of 25, in the paragraph directly above the one warning that a
+hand-maintained figure is the documentation error this repo keeps
+re-committing.
+
+### Measured and NOT built, so the next pass does not re-derive it
+
+A gate over file references in **code comments**, which is where most of the
+wrong pointers lived. 87 filename tokens in comments do not resolve. Nineteen
+were real and are fixed; **68 are legitimate**, across six classes: port
+provenance headers CLAUDE.md explicitly sanctions (29), gitignored derived
+output (9), past-tense records of deleted files (11), files outside the
+tracked tree (8), a catalogue that deliberately does not exist yet (3), and
+pattern fragments like `*.test.jsx` (8). A gate that is 80% allowlist is one
+this repo's own guidance says stops being read, so the reference scan stays a
+tool rather than a rule.
+
+Two smaller declines, for the same reason the directories do not move:
+`scripts/report.test.mjs` is the only test in `scripts/` whose basename has
+no subject file (its subject is `report-lib.mjs`), and renaming it would
+falsify a `DECISIONS.md` citation to buy alphabetical tidiness.
+`ui/patterns.css` carries eleven selectors that style markup the tab does not
+render — kept, because that file's whole contract is being diffable against
+the prototype it was ported from, and its header now says so instead of only
+saying "verbatim".
+
+### Two things this pass got wrong, and how
+
+Recorded because the house rule is *verify rather than assume, and say which
+it was* — and because both were caught by an adversarial re-check of the
+findings rather than by any gate:
+
+- **The daily-split edges.** Four unused bindings there were first replaced
+  with side-effect imports, on the reasoning that daily-split.jsx loads
+  before `test-definitions.js` and `passive-progress.js` in spec-index's
+  order and deleting the lines would move both evaluations later. Tracing
+  the graph instead of reasoning about the list: `archetype-data.js` (line
+  9) imports test-definitions.js, and `type-marks.jsx` and `result-card.jsx`
+  (69, 71) import passive-progress.js — all long before daily-split at 140.
+  The edges preserved nothing. Deleted outright.
+- **Rule 8's own hole.** Its first version required a comma after a default
+  binding, so `import PLACES from '…'` matched the pattern with no names
+  captured and passed. `profile-general.jsx` was carrying exactly that — an
+  import whose last reader went with the D39 conversion the comment above it
+  records. A new rule is not evidence that it fires; the probe is.
+
+### What held
+
+Thirty-nine gates pass. The three that do not are the three that did not
+before this work: `check:bundle` wants `VITE_V2_LIVE`, `check:web-firebase`
+wants the Firebase secrets, and `check:store-copy` is the manual
+pre-submission gate with its one known placeholder. Unit 2066, scripts 408,
+functions 359, rules 143, and all three e2e suites — 146 assertions against
+real emulated functions — green.

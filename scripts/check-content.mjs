@@ -295,7 +295,11 @@ for (const q of entries) {
     if (q.surface !== "feed") errors.push(`${q.id}: catalog type outside the feed surface`);
     if (q.options.length !== 0) errors.push(`${q.id}: a catalog question carries no options — the catalogue is its answer space`);
     const file = CATALOG_FILES[q.domain];
-    if (!file) errors.push(`${q.id}: domain ${JSON.stringify(q.domain)} is not a known catalogue domain (CATALOG_DOMAINS, functions/src/v2.ts)`);
+    // Names CATALOG_FILES, which is the map this line actually reads. It
+    // named CATALOG_DOMAINS in functions/src/v2.ts — the trigger's own map,
+    // which this scan never opens — so a domain missing from ONE of the two
+    // sent the reader to the other.
+    if (!file) errors.push(`${q.id}: domain ${JSON.stringify(q.domain)} is not a known catalogue domain (CATALOG_FILES, scripts/gen-v2content.mjs; the trigger's half is CATALOG_DOMAINS in functions/src/v2.ts)`);
     else if (!existsSync(join(root, "public", file))) {
       errors.push(`${q.id}: domain ${q.domain} has no committed catalogue (public/${file}) — the picker would open into its error state`);
     }

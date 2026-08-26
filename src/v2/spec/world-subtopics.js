@@ -3,7 +3,6 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import React from 'react';
 // The pool's own live/demo guard, defined once there — see demoPoolOpen.
 import { demoPoolOpen } from './world-feed-data.js';
 

@@ -37,8 +37,8 @@ import PulseTrends from '../ui/PulseTrends';
 // ring of profile anchors (age · work · study · the test results). Tap an
 // anchor to see how often you answer like people who share that trait; tap an
 // answer to see how any of those groups answered it. Group stats live in
-// map-group-stats.js; the branch list in map-lens.js; the layout engine in
-// map-tab-layout.js; the chip row in map-tab-chips.jsx.
+// map-group-stats.js; the branch list in map-branches.js; the layout engine
+// in map-layout.js; the chip row in map-chiprow.jsx.
 const { mtSlug, mtHash, mtTopCat, mtClusterLayout, MT_ZLAB } = MapTabLayout;
 
 // ── the v28 leaf cards (§5, D207) ────────────────────────────────────────

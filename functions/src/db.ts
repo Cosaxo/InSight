@@ -42,16 +42,21 @@ export const FIRESTORE_DB_ID = process.env.FIRESTORE_DB_ID || "insight";
  * console every morning, and no gate could see it because the region was a
  * model INPUT rather than a quoted figure.
  *
- * A single region halves every Firestore line (docs/COSTS.md), so the
- * split below is the whole reason this constant is a string rather than a
- * boolean: multi-region locations are the two bare names, and every real
- * region has a `-` in it. Change this one string on a migration and the
- * cost model, the pulse and the docs all move with it.
+ * A single region halves every Firestore line (docs/COSTS.md), and that is
+ * the whole reason this constant is a string rather than a boolean:
+ * multi-region locations are the two bare names, every real region has a
+ * `-` in it, so the string carries both facts and a boolean would carry
+ * one. Change this one string on a migration and the cost model, the pulse
+ * and the docs all move with it.
+ *
+ * The `-` test itself lives in `scripts/cost-arith.mjs` (`REGIONAL`), which
+ * reads this line out of this file by regex because it cannot import a
+ * TypeScript module. A `FIRESTORE_REGIONAL` boolean sat here too until it
+ * was found to have no reader at all: the functions never needed it — the
+ * region a function RUNS in is `setGlobalOptions`, deliberately not this —
+ * and the one consumer that wanted it could not reach it anyway.
  */
 export const FIRESTORE_LOCATION = "europe-west1";
-
-/** True when FIRESTORE_LOCATION is a single region rather than a multi-region. */
-export const FIRESTORE_REGIONAL = FIRESTORE_LOCATION.includes("-");
 
 /** The one Firestore handle every function uses. */
 export function db(): Firestore {

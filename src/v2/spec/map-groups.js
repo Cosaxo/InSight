@@ -3,7 +3,6 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import React from 'react';
 
 // map-groups.js — the over-categories. Seventeen branches radiating from You at
 // one level meant nothing had rank and every label fought its neighbour. So the

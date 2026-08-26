@@ -3,7 +3,6 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import React from 'react';
 
 // learn-bits.jsx — the two small pieces the feed's knowledge cards share.
 // The streak is a count, so it is drawn, not written; friends who have met a

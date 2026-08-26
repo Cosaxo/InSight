@@ -3,7 +3,6 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
-import React from 'react';
 
 // world-feed-report.js — reporting a take. The reason list is short on purpose:
 // a long list is a form, and nobody fills in a form about a stranger. One tap

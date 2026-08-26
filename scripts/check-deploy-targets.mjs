@@ -1,7 +1,9 @@
 // Does every exported Cloud Function appear in the deploy workflow's
 // --only list?
 //
-// That list names 17 functions by hand. A function added to
+// That list names every deployed function by hand — no count here on
+// purpose, because the list grows and a number written beside it goes
+// stale the same way the list itself would. A function added to
 // functions/src/index.ts but not to the string is built, passes every
 // test, goes green — and is never deployed. Same silent shape as
 // storage.rules being configured and deployed by nothing.

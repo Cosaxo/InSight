@@ -158,9 +158,10 @@ function LlEmpty({ children }: { children: React.ReactNode }) {
 //     veterans"). Nothing publishes a join date, and a made-up tenure
 //     split is exactly the furniture D1 exists to keep off a live screen.
 //   - Its shared-interest chips ("pottery · fermentation · Murakami").
-//     Stated interests are LOCAL and the viewer's own (data/interests.ts,
-//     D128) — the Mirror is named in that module as a surface that may not
-//     read them, and another person's are not readable at all. The chips
+//     Stated interests do not exist: D173 deleted the levers outright
+//     (reversing D128), so there is nothing to draw rather than something
+//     withheld — the algorithm owns "how much", not a per-topic control.
+//     The chips
 //     here are their frozen ANSWER anchors, which are public (D98) and are
 //     the same source the cohort above them is folded from.
 //   - An exact median age. The anchor is a BAND, so the median is a band,

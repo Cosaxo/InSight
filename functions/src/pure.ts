@@ -103,6 +103,28 @@ export function utcDayKey(offsetDays = 0, nowMs: number = Date.now()): string {
   return d.toISOString().slice(0, 10);
 }
 
+/**
+ * A UTC day key `offsetDays` from `nowMs`, as `YYYY-MM-DD`.
+ *
+ * The nightly folds' signature — the clock first, the offset second — and
+ * deliberately not `utcDayKey` above, which takes them the other way round
+ * and defaults the clock. Both are correct and both are called; what was
+ * wrong is that this one existed TWICE, byte-identical, in engagement.ts and
+ * patterns.ts, two nightly functions whose day keys have to agree with each
+ * other and with the documents the other one wrote.
+ *
+ * It floors to midnight before adding, where `utcDayKey` adds milliseconds
+ * and slices the ISO string. In UTC the two agree — there is no offset to
+ * shift under them — so this is a style difference, not a second answer.
+ */
+const pad = (n: number) => String(n).padStart(2, "0");
+export function utcDay(nowMs: number, offsetDays: number): string {
+  const d = new Date(nowMs);
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() + offsetDays);
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
+}
+
 export function prevDayKey(dayKey: string): string {
   const d = new Date(dayKey + "T00:00:00Z");
   return new Date(d.getTime() - 86400000).toISOString().slice(0, 10);
@@ -521,7 +543,7 @@ export function publishableDuelAgg(state: DuelAggState): Record<string, unknown>
 //
 //    `city` was excluded for that same reason until D9 replaced the profile's
 //    free-text city and country boxes with a picker over a fixed catalogue of
-//    10,929 places. Its values are now drawn from a closed vocabulary
+//    ~11k places. Its values are now drawn from a closed vocabulary
 //    ("Oslo, NO"), every one of them verified at build time to fit
 //    BREAKDOWN_MAX_LABEL and to survive breakdownBucket — see
 //    scripts/check-cities.mjs. The bucket cap still applies and matters more
@@ -612,7 +634,7 @@ export const BREAKDOWN_MAX_LABEL = 40;
 // sub-floor bucket, not the dimension". That was wrong in the same way the
 // city note was right: 24 of them cost the dimension.
 //
-// CITY AND COUNTRY CANNOT BE CLOSED THAT WAY — 10,929 places and ~249
+// CITY AND COUNTRY CANNOT BE CLOSED THAT WAY — ~11k places and ~249
 // countries against 24 slots — so membership would still leave them
 // exhaustible with real values. Their shapes stay, and the cap itself
 // changed instead: see the eviction rule in foldAnchors.
@@ -706,7 +728,7 @@ export function breakdownBucket(value: unknown, dim?: BreakdownDim): string | nu
 // and that is what made the dimension attackable: a bucket below the floor
 // is suppressed from every publish, so it occupies a slot while showing
 // nobody anything. 24 of those arriving early blanked `city` permanently,
-// and no vocabulary can prevent it there because the catalogue is 10,929
+// and no vocabulary can prevent it there because the catalogue is ~11k
 // places against 24 slots — the attacker only needs real city names.
 //
 // So a sub-floor bucket is evictable and a publishable one is not. The

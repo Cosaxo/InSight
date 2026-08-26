@@ -255,7 +255,7 @@ bridged; a thin day keeps its count and is listed, not positioned; a day
 the pulse was not scheduled is absent too; no smoothing anywhere. v28 adds
 the fourth clause; the other three are already pinned in `data/pulse.ts`.
 
-**BUILT at [D203](DECISIONS.md#d200--five-pulses-each-with-its-own-rhythm).**
+**BUILT at [D203](DECISIONS.md#d203--five-pulses-each-with-its-own-rhythm).**
 Three things this section did not anticipate, all recorded there: the
 roster made the reads *cheaper* rather than five times dearer (the card
 needs today, not the window — a naive ×5 would have been 105 ids over a
@@ -444,7 +444,7 @@ was — it refused this exact reading for these exact instruments, named
 widening was "one parameter" away before declining it anyway. Clearing D8
 and shipping would have been clearing a constraint nobody was blocked on.
 
-The owner reversed D157 §4 ([D202](DECISIONS.md#d199--the-type-mix-reads-every-instrument-and-d157-4-is-reversed)),
+The owner reversed D157 §4 ([D202](DECISIONS.md#d202--the-type-mix-reads-every-instrument-and-d157-4-is-reversed)),
 which is a decision this file could recommend but not take. What shipped
 with it, none of which was in this section's plan:
 
@@ -711,7 +711,7 @@ Named so the rule is not read as sweeping them in:
 
 ## 14 · Roles — the item this plan never had a section for
 
-**BUILT ([D204](DECISIONS.md#d201--your-role-is-a-test-result-and-the-dimension-without-data-is-not-shipped).)**
+**BUILT ([D204](DECISIONS.md#d204--your-role-is-a-test-result-and-the-dimension-without-data-is-not-shipped).)**
 
 `role-data.js` and `roles-panel.jsx` are new to the 2026-08-19 prototype.
 The August-15 build had no such module, which is why every other section

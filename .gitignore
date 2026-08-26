@@ -47,7 +47,6 @@ ios/App/Podfile.lock
 ios/App/build/
 ios/DerivedData/
 ios/build/
-ios/.gradle/
 xcuserdata/
 *.xcuserstate
 
