@@ -137,6 +137,12 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
       // how typical your answer is among everyone — drives layout + dot style
       const nOpt = Math.max(2, q.options ? q.options.length : 10);
       const gd = window.MapStats ? window.MapStats.dist(q.id, 'all', nOpt, idx) : null;
+      // The residue, and it is a real absence rather than the old one: a
+      // question NOBODY has answered yet has no typicality to read, so the
+      // dot takes the neutral radius and is not called rare. What changed
+      // is that this is now the empty-question case only — it used to be
+      // every question on every live build, because MapStats refused
+      // 'all' outright.
       const typ = gd ? gd[idx] / 100 : 0.5;
       const maj = gd ? gd.indexOf(Math.max(...gd)) === idx : true;
       let parent = meta.catId;

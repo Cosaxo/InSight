@@ -2010,6 +2010,34 @@ describe("live mode never inherits the sample persona (D55)", () => {
   };
   const AGE_ANCHOR = [{ id: "age", label: "Age", hue: 265, value: "age 30-39" }];
 
+  // The OTHER half of the same gate. `age` refuses because the viewer's
+  // age band cannot answer for a cohort that has not answered; 'all' is
+  // not a cohort at all — it is everyone, and the question's own published
+  // counts are exactly that.
+  //
+  // It used to fall through to the anchor lookup, find no 'all' in
+  // MAP_ANCHOR_DIM and return null, and the Map's constellation builder
+  // substituted `typ = 0.5` and `maj = true` for EVERY answer. So on a
+  // live build every dot sat at the same radius from you and the "rare
+  // take" mark could never render for anybody — the fabrication D72's null
+  // exists to prevent, done by the consumer instead of the source.
+  it("answers for EVERYONE from the published counts, and still refuses a cohort", () => {
+    live = installLive();
+    // The fixture publishes counts { 0: 12, 1: 8, 2: 5 } — 25 answers.
+    const all = window.MapStats.dist("daily-000", "all", 3, 0);
+    expect(all, "'all' still refuses — every Map dot is fabricated").not.toBeNull();
+    expect(all.reduce((a, b) => a + b, 0)).toBe(100);
+    // Real, and in the counts' own order: 12 > 8 > 5.
+    expect(all[0]).toBeGreaterThan(all[1]);
+    expect(all[1]).toBeGreaterThan(all[2]);
+    // The mode reads off the same array, so it is real too.
+    expect(window.MapStats.mode("daily-000", "all", 3, 0)).toBe(0);
+    // …and the cohort anchor still refuses, which is the half that must
+    // not have been widened by this.
+    expect(window.MapStats.dist("daily-000", "age", 3, 0), "the cohort gate was widened too")
+      .toBeNull();
+  });
+
   it("draws no group split on a Map answer in live mode", () => {
     live = installLive();
     expect(window.MapStats.dist("daily-000", "age", 3, 0), "MapStats still fabricates")

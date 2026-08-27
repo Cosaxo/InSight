@@ -72,6 +72,29 @@ import { sharePcts } from '../data/pct';
   // answer matches YOURS roughly 60% of the time — agreement, not an echo.
   function dist(qid, anchorId, nOpts, myIdx) {
     if (refuses()) {
+      // 'all' is EVERYONE, which is not a cohort and needs no anchor — the
+      // question's own published counts. It was falling through to
+      // liveTypicality, which looks the anchor up in MAP_ANCHOR_DIM, does
+      // not find 'all' there, and returns null. The Map's own caller then
+      // substituted `typ = 0.5` and `maj = true` for every answer, so on a
+      // live build every dot sat at the same radius and the "rare take"
+      // mark could never render for anybody — D72 chose null precisely so
+      // a consumer that forgets the check fails instead of fabricating,
+      // and this consumer forgot.
+      //
+      // Nothing had to be computed for it: `counts` is the ungated total
+      // the feed card already draws, on the same aggregate this function
+      // already reads. Null when nobody has answered, because "how typical
+      // is your answer among everyone" has no value before anyone else
+      // has one.
+      if (anchorId === 'all') {
+        const agg = LIVE.aggFor(qid) || {};
+        const raw = agg.counts || null;
+        if (!raw) return null;
+        const counts = Array.from({ length: Math.max(2, nOpts) }, (_, i) => raw[String(i)] || 0);
+        if (!counts.reduce((a, b) => a + b, 0)) return null;
+        return sharePcts(counts);
+      }
       // Live: the published cell, as percentages. Same shape the hash
       // returned, so every call site is unchanged.
       const t = liveTypicality(qid, anchorId, nOpts, myIdx);
