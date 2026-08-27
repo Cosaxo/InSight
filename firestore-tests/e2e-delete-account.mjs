@@ -311,6 +311,23 @@ await adb.doc(`v2_purchases/${OTHER}_e2e`).set({
   state: "running", reports: [], at: new Date(),
 });
 
+// The two bought QUESTIONS the purchase rows above point at. A bought
+// question survives erasure as content, deliberately — but it carries the
+// buyer's DISPLAY NAME and their audience dims, in a document any signed-in
+// user can read and nothing ever deletes, and after erasure no pointer to it
+// exists at all. OTHER's is the control: this must empty one byline, not
+// every sponsor block in the bank.
+await adb.doc("v2_questions/pd_e2e").set({
+  surface: "feed", seq: 9001, type: "binary", prompt: "Should night buses run later?",
+  options: ["Yes", "No"], paid: true, from: "2026-08-24", until: "2026-09-21",
+  sponsor: { buyer: "Erasable Person", audience: { city: "Oslo, NO", ageBand: "25-34" } },
+});
+await adb.doc("v2_questions/pd_e2e_other").set({
+  surface: "feed", seq: 9002, type: "binary", prompt: "Should ferries run later?",
+  options: ["Yes", "No"], paid: true, from: "2026-08-24", until: "2026-09-21",
+  sponsor: { buyer: "Someone Else", audience: { city: "Bergen, NO" } },
+});
+
 // A bought AD and its purchase row (D315). The ad document is NOT uid-keyed
 // and no query from the sweep can find one: the row's `adId` is the only
 // pointer at it, and the only thing that ever deletes an ad is the closer,
@@ -595,6 +612,27 @@ for (const [path, label] of [
 if ((await myLedgerEntries()).length !== 0)
   fail("agg-ledger entries for the deleted uid survive the sweep");
 ok("every owned document, subcollection and cross-user reference is gone");
+
+// The bought question SURVIVES — that decision is not being reversed — but
+// the byline on it does not. The purchase row is the only pointer at the
+// question, so this has to happen in the same phase that reads the row, and
+// it has to happen BEFORE the row goes.
+{
+  const mine = await adb.doc("v2_questions/pd_e2e").get();
+  if (!mine.exists) fail("the bought question was deleted — it survives as content");
+  const sp = mine.get("sponsor") || {};
+  if (sp.buyer !== undefined)
+    fail(`an erased buyer's name survives on their bought question: ${sp.buyer}`);
+  if (sp.audience !== undefined)
+    fail("an erased buyer's audience dims survive on their bought question");
+  if (mine.get("prompt") !== "Should night buses run later?")
+    fail("the question's own content was damaged by the byline strip");
+  // The control — one byline, not every sponsor block in the bank.
+  const theirs = await adb.doc("v2_questions/pd_e2e_other").get();
+  if (theirs.get("sponsor")?.buyer !== "Someone Else")
+    fail("somebody else's sponsor byline was stripped too");
+  ok("the bought question keeps its content and loses its erased buyer's byline");
+}
 
 // THE BYTES, not only the document (D178). The photo is the app's first
 // object in Storage and the first thing erasure has ever had to reach

@@ -213,6 +213,13 @@ export const deleteAccount = onCall(
       // not reachable by any query from here — the purchase row is the
       // only pointer at one, which is why they go in the same phase.
       paidAds: 0,
+      // Bought QUESTIONS whose byline was emptied (phase 4e). The question
+      // survives as content deliberately; the buyer's display name and
+      // audience dims on it do not, and the purchase row is the only
+      // pointer that can find one. Reported because a zero on an account
+      // that bought a question is the signal that the pointer was gone
+      // before this ran.
+      paidQuestionBylines: 0,
       // Paid-question bookings swept by phase 4f (paid.ts, D313) — the
       // pre-payment half of a sale, keyed by uid.
       paidBookings: 0,
@@ -906,6 +913,46 @@ export const deleteAccount = onCall(
         await db.collection("v2_ads").doc(adId).delete();
       }
       counts.paidAds = adIds.length;
+      // …AND THE BYLINE OFF THE BOUGHT QUESTION, for the same reason one
+      // line up: the row is the only pointer at it.
+      //
+      // The question itself survives — that is the decision this phase's
+      // header records, and it is not being reversed here. But a bought
+      // question carries `sponsor.buyer` (the buyer's DISPLAY NAME, read
+      // off their profile at booking) and `sponsor.audience` (their dims;
+      // for a city-scoped ask that is the city set on their profile), in
+      // a document any signed-in user can read and nothing ever deletes.
+      // After erasure no pointer to it exists at all, so it is permanent
+      // and unreachable.
+      //
+      // The asymmetry was the tell: the paid AD is deleted here, while
+      // the paid QUESTION — the one actually carrying the person's name —
+      // was not. The header says a bought question survives "the way a
+      // promoted suggestion does", and a promoted suggestion is content
+      // carrying a vintage, never a byline. This makes that true.
+      //
+      // `sponsor` itself stays (the PAID band renders from its presence),
+      // emptied rather than removed. A booking that never went live has
+      // no question document, so a missing one is nothing to strip rather
+      // than a failure — anything else and one abandoned booking would
+      // make the account undeletable.
+      const boughtQids = bought.docs
+        .map((d) => String(d.get("qid") ?? ""))
+        .filter((id) => id.length > 0);
+      let stripped = 0;
+      for (const qid of boughtQids) {
+        try {
+          await db.collection("v2_questions").doc(qid).update({
+            "sponsor.buyer": FieldValue.delete(),
+            "sponsor.audience": FieldValue.delete(),
+          });
+          stripped += 1;
+        } catch (err) {
+          // NOT_FOUND (5) is the abandoned-booking case above.
+          if ((err as { code?: number }).code !== 5) throw err;
+        }
+      }
+      counts.paidQuestionBylines = stripped;
       counts.purchases = await deleteQueryDocs(
         db.collection("v2_purchases").where("uid", "==", uid),
       );
