@@ -225,6 +225,27 @@ export const OPTION_COLORS = [
   "var(--c-people)",
 ];
 
+// The FEED SURFACE HAS TWO ID LANES, and one of them does not say "feed".
+//
+// `gen-v2content.mjs` mints a feed question as `feed-<id>` and a catalogue
+// pick as `pick-<id>`, and picks share the feed surface deliberately — they
+// run their own seq lane from PICK_SEQ_BASE so a feed append cannot
+// renumber the whole pick bank. So "is this id on the feed?" is a
+// two-prefix question, and the single-prefix version of it silently
+// excludes every catalogue pick.
+//
+// Named here rather than inlined at the one call site because the fact is
+// about the CONTENT, not about that caller, and the next caller will
+// reach for `startsWith("feed-")` exactly as the last one did.
+// scripts/feed-lanes.test.mjs holds this list to the generator's own
+// output, so a third lane fails there instead of shipping quietly.
+export const FEED_ID_LANES = ["feed-", "pick-"] as const;
+
+/** Whether a question id belongs to the feed surface, both lanes. */
+export function isFeedQid(id: string): boolean {
+  return FEED_ID_LANES.some((p) => id.startsWith(p));
+}
+
 export const DECK_DAYS = 7; // today + the recent past, like the demo pager
 export const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 

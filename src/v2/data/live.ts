@@ -192,6 +192,7 @@ import {
   duelQFor as duelQForPure,
   hasPublishedCounts,
   isCore,
+  isFeedQid,
   rankCrowdFor,
   CANON_BOARD_N,
   splitBanks,
@@ -2055,10 +2056,17 @@ async function topUpBankPages(db: Awaited<ReturnType<typeof getDb>>): Promise<vo
   }
 
   try {
-    // The feed's history is its answers: every voted feed- qid must
+    // The feed's history is its answers: every voted feed qid must
     // resolve to a document whatever page it was on. Core needs no heal
     // — it ships whole at boot by definition.
-    const answered = Object.keys(state.votes).filter((id) => id.startsWith("feed-"));
+    //
+    // BOTH LANES (isFeedQid, deck.ts). This read `startsWith("feed-")`,
+    // which is the feed's own lane and not the surface: a catalogue pick
+    // ships as `pick-<id>` on the SAME surface, so all 24 of them were
+    // excluded from the heal. A pick you answered that had since rotated
+    // off your cached pages was never fetched back, so the one place your
+    // own answer has to resolve to a question could not resolve it.
+    const answered = Object.keys(state.votes).filter(isFeedQid);
     // The person's own interest profile (D317 phase 1, D322) — the one
     // document in the system only its owner may read, and the pager is
     // the one thing that reads it: topics this person actually answers
