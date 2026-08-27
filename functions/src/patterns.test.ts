@@ -18,7 +18,17 @@ vi.mock("firebase-functions", () => ({
 import { PATTERNS_QIDS, firestorePatternsStore, runPatternsFit, utcDay, type PatternsLedgerEntry, type PatternsStore } from "./patterns";
 import { V2_QUESTIONS } from "./v2content";
 import type { Firestore } from "firebase-admin/firestore";
-import { PATTERNS_MIN_BASIS, emptyModel, type PatternsModel, type PatternsUserState } from "./patternsFit";
+import {
+  PATTERNS_MIN_BASIS,
+  PATTERNS_QUALITY_FLOOR,
+  PATTERNS_QUALITY_NOTE,
+  emptyModel,
+  prequentialBits,
+  type PatternsDisplacement,
+  type PatternsModel,
+  type PatternsQuality,
+  type PatternsUserState,
+} from "./patternsFit";
 
 const NOW = Date.UTC(2026, 7, 19, 3, 0, 0); // the 02:37 schedule's morning
 
@@ -27,12 +37,20 @@ function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
     model: (PatternsModel & { lastDay?: string }) | null;
     users: Map<string, PatternsUserState>;
     putModelCalls: number;
-  } = { model: null, users: new Map(), putModelCalls: 0 };
+    quality: PatternsQuality | null;
+    displacement: PatternsDisplacement | null;
+  } = { model: null, users: new Map(), putModelCalls: 0, quality: null, displacement: null };
   const store: PatternsStore = {
     async ledgerDay(day) { return ledger[day] ?? []; },
-    async getModel() { return state.model; },
-    async putModel(model, lastDay, folded) {
+    // the real store hands the series back off the published doc — the
+    // memory one hands back what the last putModel published
+    async getModel() {
+      return state.model ? { ...state.model, series: state.quality?.series ?? [] } : null;
+    },
+    async putModel(model, lastDay, folded, quality, displacement) {
       state.model = { ...model, lastDay };
+      state.quality = quality;
+      state.displacement = displacement;
       state.putModelCalls++;
       void folded;
     },
@@ -184,6 +202,111 @@ describe("idempotence and catch-up", () => {
   });
 });
 
+// ── the fit's own scorecard (D325) ────────────────────────────────────
+//
+// The two bridge-approved instruments, at the run level: the prequential
+// score is computed ON the fold (one step ahead, the model as it stood),
+// and the displacement compares publish to publish. Both ride putModel;
+// neither adds a read or a write.
+describe("the scorecard the run publishes", () => {
+  it("scores the day one step ahead and publishes pooled bits with the day's basis", async () => {
+    const { store, state } = memoryStore({
+      [yesterday]: [
+        { uid: "u1", qid: CORE_A, optionIdx: 0 },
+        { uid: "u2", qid: CORE_A, optionIdx: 0 },
+      ],
+    });
+    const r = await runPatternsFit(store, NOW);
+    const q = state.quality;
+    expect(q?.day).toBe(yesterday);
+    expect(q?.n).toBe(2);
+    // u1 folds first (uid order): a never-seen question against a zero
+    // vector is a coin — exactly 1 bit. u2 then faces a marginal of +1
+    // and agrees with it: the Oracle link's own clamp price.
+    const expected = (1 + prequentialBits(1, 1)) / 2;
+    expect(q?.bits).toBeCloseTo(expected, 3);
+    expect(r.bits).toBe(q?.bits);
+    expect(q?.note).toBe(PATTERNS_QUALITY_NOTE);
+  });
+
+  it("keeps an n:0 row for an empty day rather than skipping the date", async () => {
+    const { store, state } = memoryStore({
+      [yesterday]: [{ uid: "u1", qid: CORE_A, optionIdx: 0 }],
+    });
+    await runPatternsFit(store, NOW);
+    // a fresh model asks the whole bounded window; six of the seven days
+    // held nothing and the series says so out loud
+    const series = state.quality?.series ?? [];
+    expect(series).toHaveLength(7);
+    expect(series[series.length - 1]).toEqual({ day: yesterday, n: 1, bits: 1 });
+    expect(series.filter((row) => row.n === 0)).toHaveLength(6);
+  });
+
+  it("appends to the published series across runs instead of restarting it", async () => {
+    const today = utcDay(NOW, 0);
+    const ledger = {
+      [yesterday]: [{ uid: "u1", qid: CORE_A, optionIdx: 0 }],
+      [today]: [{ uid: "u2", qid: CORE_A, optionIdx: 1 }],
+    };
+    const { store, state } = memoryStore(ledger);
+    await runPatternsFit(store, NOW);
+    const tomorrow = NOW + 24 * 3600 * 1000;
+    await runPatternsFit(store, tomorrow);
+    const series = state.quality?.series ?? [];
+    expect(series).toHaveLength(8); // 7 from the first window + 1 owed day
+    expect(series[series.length - 1]?.day).toBe(today);
+  });
+
+  it("publishes a question's own day only at the floor, pooled always (the verdict's condition)", async () => {
+    const crowd = Array.from({ length: PATTERNS_QUALITY_FLOOR }, (_, i) => ({
+      uid: `u${i}`,
+      qid: CORE_A,
+      optionIdx: (i % 2) as 0 | 1,
+    }));
+    const { store, state } = memoryStore({
+      [yesterday]: [...crowd, { uid: "u0", qid: CORE_B, optionIdx: 0 }],
+    });
+    await runPatternsFit(store, NOW);
+    const q = state.quality;
+    // CORE_B's one answer IS one person's surprisal — pooled only
+    expect(q?.n).toBe(PATTERNS_QUALITY_FLOOR + 1);
+    expect(Object.keys(q?.perQ ?? {})).toEqual([CORE_A]);
+    expect(q?.perQ[CORE_A]?.n).toBe(PATTERNS_QUALITY_FLOOR);
+    expect(q?.floor).toBe(PATTERNS_QUALITY_FLOOR);
+  });
+
+  it("measures displacement publish-to-publish, in loading space, unaligned", async () => {
+    const today = utcDay(NOW, 0);
+    const ledger = {
+      [yesterday]: [
+        { uid: "u1", qid: CORE_A, optionIdx: 0 },
+        { uid: "u2", qid: CORE_A, optionIdx: 1 },
+        { uid: "u1", qid: CORE_B, optionIdx: 0 },
+      ],
+      [today]: [{ uid: "u3", qid: CORE_A, optionIdx: 1 }],
+    };
+    const { store, state } = memoryStore(ledger);
+    await runPatternsFit(store, NOW);
+    // the first publish has nothing behind it to compare against
+    expect(state.displacement).toMatchObject({ space: "loading", n: 0, moved: 0 });
+
+    // Day 2's answerer carries a real vector — a fresh user's θ is all
+    // zeros, and e·θ is the only term that moves a loading beyond the
+    // 4 dp the publication keeps, so a cold crowd would (correctly)
+    // measure as "nothing moved".
+    state.users.set("u3", { v: [1, 0, 0, 0, 0, 0, 0, 0], n: 5 });
+    await runPatternsFit(store, NOW + 24 * 3600 * 1000);
+    const d = state.displacement;
+    // both previously published questions are compared; only the one the
+    // new day folded moved (CORE_B saw no answer, so it sat still)
+    expect(d?.n).toBe(2);
+    expect(d?.moved).toBe(1);
+    expect(Object.keys(d?.perQ ?? {})).toEqual([CORE_A]);
+    expect(d?.max).toBe(d?.perQ[CORE_A]);
+    expect(d?.p50).toBe(0); // the median question did not move
+  });
+});
+
 // ── the mount signal (D265) ───────────────────────────────────────────
 //
 // The publication half, which the injected store above deliberately
@@ -227,17 +350,36 @@ describe("what the fit publishes for the tab's gate", () => {
     return model;
   };
 
+  // the scorecard fixtures putModel now carries (D325) — what the run
+  // computed; this block only cares WHERE they land
+  const QUALITY: PatternsQuality = {
+    day: "2026-08-22",
+    n: 12,
+    bits: 0.91,
+    perQ: {},
+    floor: PATTERNS_QUALITY_FLOOR,
+    series: [{ day: "2026-08-22", n: 12, bits: 0.91 }],
+    note: PATTERNS_QUALITY_NOTE,
+  };
+  const DISPLACEMENT: PatternsDisplacement = {
+    space: "loading", n: 0, moved: 0, mean: 0, p50: 0, p90: 0, max: 0, perQ: {},
+  };
+
   it("writes the drawable count and its floor onto the meta doc, merged", async () => {
     const { db, writes } = fakeDb();
     // three published questions, two of them at the floor or better
     const model = modelWith({ a: PATTERNS_MIN_BASIS, b: PATTERNS_MIN_BASIS + 40, c: 1 });
-    await firestorePatternsStore(asDb(db)).putModel(model, "2026-08-22", 12);
+    await firestorePatternsStore(asDb(db)).putModel(model, "2026-08-22", 12, QUALITY, DISPLACEMENT);
 
     expect(writes.map((w) => w.path)).toEqual(["v2_patterns/loadings", "v2_meta/app"]);
     const loadings = writes[0];
     // every vector still publishes, floor or no floor — the basis rides
     // with each one and the readers refuse per question
     expect(Object.keys(loadings.data.q as Record<string, unknown>)).toEqual(["a", "b", "c"]);
+    // the scorecard rides the SAME write (D325): no extra doc, no extra
+    // read for whoever comes to draw it
+    expect(loadings.data.quality).toEqual(QUALITY);
+    expect(loadings.data.displacement).toEqual(DISPLACEMENT);
 
     const meta = writes[1];
     expect(meta.data).toEqual({ patternsPool: 2, patternsBasis: PATTERNS_MIN_BASIS });
@@ -248,7 +390,7 @@ describe("what the fit publishes for the tab's gate", () => {
 
   it("publishes a zero rather than nothing when no question is drawable yet", async () => {
     const { db, writes } = fakeDb();
-    await firestorePatternsStore(asDb(db)).putModel(modelWith({ a: 1, b: 2 }), "2026-08-22", 2);
+    await firestorePatternsStore(asDb(db)).putModel(modelWith({ a: 1, b: 2 }), "2026-08-22", 2, QUALITY, DISPLACEMENT);
     // A field that stops being written is a field the client keeps
     // reading at its last value — so early nights say 0 out loud.
     expect(writes[1].data).toEqual({ patternsPool: 0, patternsBasis: PATTERNS_MIN_BASIS });
