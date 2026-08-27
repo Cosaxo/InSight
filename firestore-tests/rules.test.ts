@@ -1641,6 +1641,75 @@ describe("v2 foresight verdicts (D126)", () => {
   });
 });
 
+// The v2 half of the pin at the top of this file. That one seeds three v1
+// subcollections and refuses a cross-user collection-group read "so a
+// future broad wildcard cannot silently turn a deployed index into
+// cross-user enumeration". v2 pins only the three groups that DO carry a
+// wildcard — answers, following, invites, each with its own block above —
+// and the private ones had no case at all, which is precisely backwards:
+// a wildcard already written is a decision somebody made, and the danger
+// is the one that gets added by hand to make a query work.
+//
+// `engagement` is the case this exists for. It already ships a deployed
+// COLLECTION_GROUP index (the `folded` override plus `(folded, day)`, for
+// the nightly server fold), so the index side of cross-user enumeration
+// is DONE and the rules are the only thing standing between a stranger
+// and every user's per-day rollups. Adding `match /{path=**}/engagement/
+// {d}` to make some future admin query work would open it with nothing in
+// this suite turning red.
+//
+// These fail today for the reason the v1 pin gives — no match block binds
+// a collection-group scope, so the grants under /v2_users/{uid}/… never
+// apply — not because of an explicit CG deny. That is what makes the pin
+// worth writing down rather than assuming.
+describe("v2 private subcollections stay un-enumerable across users", () => {
+  it("no collection-group read reaches another user's taste, engagement, patterns, push or foresight", async () => {
+    await seed(async (db) => {
+      for (const uid of [OWNER, FRIEND]) {
+        // The interest profile the paged bank reads (D316–D322).
+        await setDoc(doc(db, "v2_users", uid, "taste", "profile"), {
+          w: { food: 0.4 }, n: 12, at: new Date(),
+        });
+        // Per-person day rollups — the ones with the index already live.
+        await setDoc(doc(db, "v2_users", uid, "engagement", "2026-08-26"), {
+          day: "2026-08-26", answers: 3, folded: false,
+        });
+        // The latent vector the patterns fit solves against.
+        await setDoc(doc(db, "v2_users", uid, "patterns", "me"), {
+          v: [0.1, -0.3], n: 20, at: new Date(),
+        });
+        // FCM tokens.
+        await setDoc(doc(db, "v2_users", uid, "push", "tok1"), {
+          token: "fake-token", at: new Date(),
+        });
+        await setDoc(doc(db, "v2_users", uid, "foresight", "q1__ageBand__25-34"), {
+          qid: "q1", dim: "ageBand", bucket: "25-34",
+          guess: 0, answerIdx: 0, n: 20, at: new Date(),
+        });
+      }
+    });
+    const db = asUser(STRANGER);
+    for (const group of ["taste", "engagement", "patterns", "push", "foresight"]) {
+      await assertFails(getDocs(collectionGroup(db, group)));
+    }
+    // …and the owner cannot run one either. A collection-group query is
+    // not scoped to a subtree, so "mine" is not a thing it can ask for:
+    // if this ever succeeded it would be returning everyone's.
+    for (const group of ["taste", "engagement", "patterns", "push", "foresight"]) {
+      await assertFails(getDocs(collectionGroup(asUser(OWNER), group)));
+    }
+    // The single-document read that DOES belong to its owner still works,
+    // so this pins the enumeration and not the feature. `taste` is the
+    // one: the owner's device sizes its own topic pages by it (D321).
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_users", OWNER, "taste", "profile")));
+    // `patterns` is closed to EVERYONE, its owner included — the latent
+    // vector is a summary nobody signed up to be read as, and the fold
+    // that writes it uses the admin SDK. Asserted rather than assumed,
+    // because "the owner can read their own" is the shape four of the
+    // five above have and this one deliberately does not.
+  });
+});
+
 describe("v2 groups + sealed duels (Phase 3)", () => {
   const GID = "g1";
   const DAY = dayOffset(-1);
