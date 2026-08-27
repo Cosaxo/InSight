@@ -32503,3 +32503,118 @@ instrument that found all three was **a POST to the real API**, which is
 the same lesson as D303's own: the thing that could not run was the thing
 that knew.
 
+
+## D323 · The 2026-08-27 night audit, reviewed — 21 fixes kept, five limits recorded
+
+**2026-08-27.** **Status:** binding as a RECORD OF FIVE LIMITS. The
+twenty-one fixes on `night-20260827` are kept as written; nothing was
+reverted and nothing amended. What this record adds is the half the
+night left in code comments only — five things it deliberately did NOT
+close, four of them on the paid path, where the residue is money or a
+promise to a buyer rather than a stale document.
+
+This is the D293 shape one night on: the audit was right to stop where
+it stopped, and CLAUDE.md's rule is that a deferral is recorded with its
+arithmetic. A known limit is survivable; a surprise is not. None of
+these five is reachable by any gate in this repo, which is exactly why
+they are written here.
+
+### What was verified before keeping it
+
+Every gate that guards a PR, green on the merge: `tsc -b`, eslint,
+`test:unit` (2180), `functions` (437), `test:scripts` (521),
+`test:rules` (157, Java 21), all three e2e suites against the real
+emulated functions, and every `check:*` except the two that need
+production secrets (`check:web-firebase`, `check:store-copy` — both
+fail identically on main, and both are release-path gates, not PR ones).
+`check:bundle` passes on a SHIPPING build.
+
+One guard was checked by undoing it rather than by reading it: reverting
+the one-word `lead` argument in `live.ts` turns all twenty of
+`bank-cache.test.ts` red. The fake Firestore now enforces the ordering
+rule the backend does, so the class that shipped last night — a live
+build serving the mock deck on every cold boot — cannot ship silently
+again.
+
+Two of the twenty-one fix defects the same night introduced (`d91bdd24`
+over `a7f1b94a`, `5b13087f` over `69cfda83`). That is the audit working,
+not the audit failing, and it is why the branch is reviewed as a whole
+rather than commit by commit.
+
+### The five limits
+
+**1. The erasure/fold race is narrowed, not closed** (`7bc72f71`).
+`deleteAccount` now takes the agg-events ledger FIRST (phase 1a, was
+4c) and sweeps `v2_users/{uid}` AGAIN after the last phase (4z). A
+nightly fold that starts after 1a finds nothing; one that commits
+between 1b and 4z is caught by the sweep. **What is still open:** a fold
+that read the ledger before 1a and commits after 4z leaves a per-uid
+document nothing will ever remove — the auth user is gone, so
+`deleteAccount` can never run for that uid again, and the interest
+profile has no expiry. `docs/data-inventory.md` promises the opposite in
+as many words. Closing it needs a tombstone the three folds consult, and
+a tombstone is a uid-keyed record that OUTLIVES the account — a decision
+about what survives erasure, which is the owner's to make, not a patch.
+The window is now sub-second-to-minutes against a nightly job, where it
+used to be the whole length of the call.
+
+**2. A foresight slot can still be minted from an invented triple**
+(`edcb16e4`). The read id is now bound to its payload
+(`qid__dim__bucket`, `readId()`'s shape verbatim), so a slice cannot be
+re-rolled at a fresh id until the guess is right — that was the hole
+worth closing, and it is closed. **What is still open:** nothing checks
+that the slice EXISTS, so an invented triple mints an empty slot.
+Closing it costs a billed `get()` on a path with no live surface (D136
+took the lens off the Mirror; the engine stands unplaced) and buys
+nothing but a number on the inventor's own screen.
+
+**3. A buyer charged twice is recorded and alarmed, and not refunded**
+(`0fbebca7`). Two Checkout sessions can complete for one booking — the
+cancel page invites the buyer to press Pay again. The second delivery
+now appends to `duplicatePayments` and emits `paid_duplicate_payment` at
+error, so "recorded nowhere" stops being true. **What is still open:**
+no money moves. A refund issued from a webhook retry path is its own
+hazard, and moving money is the operator's call. A double-charged buyer
+is therefore made VISIBLE, not made whole, and the closer's refund
+arithmetic does not reach the second intent. `createPaidCheckoutV2` now
+expires the prior session best-effort, which makes the case rarer
+without making it impossible: Stripe refuses to expire a session that
+already completed, which is precisely the racing case.
+
+**4. A booking past the review ceiling has nothing to tell its buyer**
+(`76e3cef2`). `MAX_REVIEW_ATTEMPTS = 6` — three hours at the sweep's
+half-hour cadence — stops an unreviewable booking costing a billed model
+call every thirty minutes forever and holding one of fifty oldest-first
+slots for good. The sweep pages (`SWEEP_PAGE` 50 × `SWEEP_MAX_PAGES` 5 =
+250) so skipping a stalled booking does not simply move the starvation
+one page along. **What is still open:** past the ceiling the booking
+stays in `review` and the operator gets `paid_review_stalled`. The
+constant deliberately does not decide the booking — declining a buyer
+because our reviewer broke would be a verdict about them for a fault of
+ours — so what the buyer is TOLD past this point is undecided, and today
+they are told nothing.
+
+**5. A delayed payment that fails leaves an approved, unpaid booking**
+(`24f9fafc`). The webhook now takes three events rather than one:
+`completed` goes live only when `payment_status` says paid,
+`async_payment_succeeded` is when a delayed method (SEPA, bank transfer
+— dynamic methods apply, the session names no
+`payment_method_types`) actually clears, and `async_payment_failed` is
+logged at error rather than swallowed. This closes the real hole: a
+29-day window could serve in full against a debit that never cleared.
+**What is still open:** `async_payment_failed` has nothing to revoke —
+the guard is why — so the booking sits `approved` and unpaid until an
+operator looks. `docs/DEPLOYMENT.md` names all three events to
+subscribe; a deployment that subscribes only the first re-opens the hole
+silently, and no gate here can see the Stripe dashboard.
+
+### The one thing the night changed that is not a fix
+
+`check:public-copy` stopped keeping a hand list of pages and reads
+`web/` instead (`313e2064`). Surfaces went from 32 to 35 — the three it
+had never read are where a buyer lands straight out of Stripe Checkout,
+carrying both classes that gate exists for. `EXEMPT_PAGES` is empty and
+an exemption needs a written reason. This is the D106 remedy actually
+built: the previous comment promised that adding a page means adding one
+line, and the note beside the newest entry was already false the day it
+was written.

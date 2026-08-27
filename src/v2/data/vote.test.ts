@@ -211,14 +211,61 @@ vi.mock("firebase/firestore", () => {
     getDocs: (q: { path?: string; parts?: Array<{ __kind: string; value?: unknown }> }) => {
       // Lets a test simulate a network failure mid-hydrate.
       if (h.getDocsImpl) return Promise.reject(h.getDocsImpl());
-      if (q?.path === "v2_questions") return Promise.resolve(snapOf(h.bankDocs));
+      if (q?.path === "v2_questions") {
+        // THE BOOT IS THREE QUERIES since D321/D313 — the boot surfaces,
+        // `feed && core`, and the bought questions (`paid == true` with
+        // the window open). This stub deliberately serves the whole bank
+        // to the first two, which is why every feed fixture below reaches
+        // the deck without saying `core`; making it faithful is a bigger
+        // change than it looks and is on the night list.
+        //
+        // The PAID query is filtered, because it is the one this file
+        // would otherwise break: unfiltered it hands back the whole bank
+        // a third time, and hydrate concatenates the copies — which is
+        // how the patterns-gate count read three where the fixture holds
+        // one, with the duplication invisible while there were two.
+        const wheres = (q.parts || []).filter(
+          (pt) => (pt as { __kind: string }).__kind === "where",
+        ) as unknown as Array<{ field: string; value: unknown }>;
+        const paid = wheres.find((w) => w.field === "paid");
+        if (!paid) return Promise.resolve(snapOf(h.bankDocs));
+        const floor = String(wheres.find((w) => w.field === "until")?.value ?? "");
+        return Promise.resolve(snapOf(h.bankDocs.filter((d) =>
+          d.data.paid === paid.value
+          // Firestore drops a document that lacks the field an inequality
+          // names — which is what keeps the seeded bank out of this query.
+          && typeof d.data.until === "string" && (d.data.until as string) >= floor)));
+      }
       // The my-answers pull (and, on a warm boot, the D86 edit-cursor
       // query on the same path — fold() is idempotent over the repeat).
       if (q?.path === "v2_users/uid_test/answers") {
-        if (!h.answerPageSize) return Promise.resolve(snapOf(h.answerDocs));
+        // THE WARM BOOT IS TWO DELTAS on this path — `answeredAt >` and
+        // `editedAt >` — and this stub used to serve the whole fixture to
+        // both, so the two cursors were indistinguishable from here. That
+        // is precisely what the watermark case below has to tell apart,
+        // and a stub that ignores the filter cannot: it would pass on a
+        // pair of queries that in production return different documents.
+        //
+        // Applied only when a fixture carries the field, so every existing
+        // case — none of which stamps one — is served exactly as before.
+        const wheres = (q.parts || []).filter(
+          (pt) => (pt as { __kind: string }).__kind === "where",
+        ) as unknown as Array<{ field: string; value: unknown }>;
+        const ineq = wheres.find((w) => w.field === "answeredAt" || w.field === "editedAt");
+        const since = (ineq?.value as { ms?: number } | undefined)?.ms;
+        const filtered = ineq && typeof since === "number"
+          // Firestore drops a document that lacks the field an inequality
+          // names, which is what keeps an unedited answer out of the edit
+          // delta — so the stub has to drop it too.
+          ? h.answerDocs.filter((d) => {
+            const v = (d.data as Record<string, unknown>)[ineq.field] as { toMillis?: () => number } | undefined;
+            return v && typeof v.toMillis === "function" && v.toMillis() > since;
+          })
+          : h.answerDocs;
+        if (!h.answerPageSize) return Promise.resolve(snapOf(filtered));
         const start = h.answerServed;
         h.answerServed += h.answerPageSize;
-        return Promise.resolve(snapOf(h.answerDocs.slice(start, start + h.answerPageSize)));
+        return Promise.resolve(snapOf(filtered.slice(start, start + h.answerPageSize)));
       }
       // main's version, kept whole: it records the id list and returns only
       // the matching documents, which the learn-split cases below assert on.
@@ -2445,5 +2492,89 @@ describe("hydrate pages the viewer's own answers", () => {
     // descending single read discarded.
     const last = `q_${String(TOTAL - 1).padStart(5, "0")}`;
     expect(LIVE.myVotes()[last], `${last} is on the final page`).toBeDefined();
+  });
+});
+
+// The two warm-boot deltas, and the watermark one of them may not move.
+//
+// An edit changes `optionIdx` and stamps `editedAt`; it does NOT move
+// `answeredAt`, which is frozen because the cohort snapshot rides on it.
+// So a warm boot runs two queries — `answeredAt >` for new answers,
+// `editedAt >` for edits — with a cursor each.
+//
+// Both cursors were raised by BOTH pages. The answered page returns the
+// docs whose answeredAt moved, and their editedAt can be far newer than
+// edits on other docs it never looked at — so it lifted the edit cursor
+// past those edits and they were never fetched. The cursor is then
+// persisted, so it is not a boot's bad luck: that device shows the
+// pre-edit option for good.
+//
+// The comment at the edit query reasons carefully about the mirror-image
+// hazard (folding editedAt into the ANSWER cursor) and missed this one.
+describe("hydrate's edit-delta watermark", () => {
+  const stamp = (ms: number) => ({ toMillis: () => ms });
+
+  it("fetches an edit older than an edit on a newly-created answer", async () => {
+    // The sequence, in the order it happens on device A:
+    //   09:00 answer N created
+    //   10:00 answer O edited      ← device B must see this
+    //   10:05 answer N edited
+    // Device B's stored cursors are from 08:00.
+    h.answerDocs.push(
+      {
+        id: "q_new",
+        data: {
+          qid: "q_new", surface: "daily", optionIdx: 1,
+          answeredAt: stamp(9_00), editedAt: stamp(10_05),
+        },
+      },
+      {
+        id: "q_old",
+        data: {
+          qid: "q_old", surface: "daily", optionIdx: 1,
+          answeredAt: stamp(1_00), editedAt: stamp(10_00),
+        },
+      },
+    );
+    await seedAnsCache({
+      uid: "uid_test",
+      // The stale option for the edited answer, and nothing for the new
+      // one — exactly what a device that last synced at 08:00 holds.
+      votes: { q_old: "0" },
+      maxTs: 8_00, maxEditTs: 8_00,
+    });
+
+    const LIVE = await bootLive();
+
+    expect(
+      LIVE.myVotes().q_new,
+      "the new answer never arrived — the answered delta is broken, not the edit one",
+    ).toBe("1");
+    expect(
+      LIVE.myVotes().q_old,
+      "the edit was leapt over: the answered delta lifted the EDIT cursor past it, "
+        + "so this device keeps the pre-edit option forever",
+    ).toBe("1");
+  });
+
+  it("persists a cursor no higher than what the edit page accounted for", async () => {
+    // The other half of the same rule. A cursor raised from documents the
+    // edit query never returned is a cursor that will skip whatever falls
+    // between them on the NEXT boot, which is how one bad boot becomes a
+    // permanent hole.
+    h.answerDocs.push({
+      id: "q_new",
+      data: {
+        qid: "q_new", surface: "daily", optionIdx: 1,
+        answeredAt: stamp(9_00), editedAt: stamp(10_05),
+      },
+    });
+    await seedAnsCache({ uid: "uid_test", votes: {}, maxTs: 8_00, maxEditTs: 8_00 });
+    await bootLive();
+    const meta = await readAnsCache();
+    expect(
+      meta?.maxEditTs,
+      "the edit cursor was raised to an edit no edit query returned",
+    ).toBeLessThanOrEqual(10_05);
   });
 });

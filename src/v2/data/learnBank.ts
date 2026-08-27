@@ -102,9 +102,23 @@ export function subscribeLearnBank(f: () => void): () => void {
 
 /** The bank's per-field card counts, from the published order (D320).
  * Published beside the pool by the pager; null where no order has
- * loaded, and the caller counts its pool instead. */
-export function publishLearnTotals(totals: Record<string, number>): void {
-  liveTotals = totals;
+ * loaded, and the caller counts its pool instead.
+ *
+ * AN EMPTY MAP IS NO ORDER, NOT A BANK OF NOTHING. `pageTotals` builds
+ * its map from the order's topics and returns `{}` when there is no order
+ * at all, and the pager publishes unconditionally — so on any deployment
+ * where the nightly fold has not run yet (a fresh project, the first
+ * night after a deploy, a failed fold) this was handed `{}`. `{}` is
+ * truthy, so `learnFieldTotal` returned 0 for every field, and the
+ * caller's `?? pool.length` fallback never fired because `0 ?? x` is 0.
+ * Every Learn field sheet read "0 cards" while cards were being served —
+ * a zero standing in for "no data", which is what D1 refuses.
+ *
+ * The distinction is not lost by collapsing them: a published order with
+ * no topics serves no cards either, so counting the pool is the right
+ * answer for both. */
+export function publishLearnTotals(totals: Record<string, number> | null): void {
+  liveTotals = totals && Object.keys(totals).length ? totals : null;
   notify();
 }
 

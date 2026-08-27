@@ -288,12 +288,22 @@ None are committed files:
 | `ANTHROPIC_API_KEY` *(secret)* | `functions/src/paid.ts` | The Claude API key the automated paid-question review calls (`claude-opus-5` against `REVIEW_GUIDELINES`). Unset ⇒ reviews decide on the deterministic gates alone, logged as `paid_review_gates_only` — fail-open ONLY past the gates, and the deploy warning names it. |
 
 **Stripe webhook, one-time setup (D313):** in the Stripe dashboard add a
-webhook endpoint for the event `checkout.session.completed`, pointed at
+webhook endpoint for **three** events — `checkout.session.completed`,
+`checkout.session.async_payment_succeeded` and
+`checkout.session.async_payment_failed` — pointed at
 `stripeWebhookV2`'s HTTPS URL (printed by the deploy;
 `https://stripewebhookv2-<hash>-ew.a.run.app` shape, or
 `gcloud functions describe stripeWebhookV2 --gen2 --region europe-west1
 --format="value(serviceConfig.uri)"`), then store its signing secret as
 `STRIPE_WEBHOOK_SECRET` and re-run the deploy so the dotenv carries it.
+
+The last two matter because the checkout is created without
+`payment_method_types`, so Stripe's dynamic methods apply — and EUR's
+delayed ones (SEPA Direct Debit, bank transfer) deliver
+`checkout.session.completed` with `payment_status: "unpaid"` and settle
+hours or days later. The handler goes live only on a completion that says
+paid, so subscribing to `completed` alone would leave every delayed-method
+buyer stuck at approved, having paid.
 Deliberately the dotenv mechanism, not `defineSecret()` — a Secret
 Manager entry that does not exist makes `firebase deploy` refuse, and
 the paid loop must never be able to block an emergency rules fix.

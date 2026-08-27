@@ -51,26 +51,36 @@
 // on whether a rules deploy is safe, and stale marketing copy must never
 // be able to block an emergency one (CLAUDE.md).
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-// The enumerated surfaces. Adding a user-facing page means adding it
-// here; that one line is the whole remedy D106 asked for.
-const HTML_FILES = [
-  "web/privacy.html",
-  "web/home.html",
-  // The invite-link fallback, and on desktop the landing page. Hosted at
-  // /join/** (firebase.json's own rewrite and its own CSP header), and its
-  // lead sentence is a who-can-see-what claim — "answers sealed until
-  // tomorrow, then revealed with names, only to the people in it" — which is
-  // exactly the class this gate reads for. It was the one page in web/ this
-  // list did not name.
-  "web/join.html",
-  "web/terms.html",
-];
+// EVERY page in web/, read from the directory.
+//
+// This was a hand-kept list of four, with a comment promising that adding
+// a user-facing page means adding one line here — "that one line is the
+// whole remedy D106 asked for". A hand list is not a remedy, it is the
+// thing that goes stale, and it did: the note beside `join.html` said it
+// "was the one page in web/ this list did not name", which was false the
+// day it was written. `paid-done.html` and `paid-cancel.html` had landed
+// the same day, and `paid-done-ad.html` followed — the pages a buyer
+// lands on straight out of Stripe Checkout, carrying both classes this
+// gate reads: a who-can-see-what claim ("the same public numbers every
+// voter reads") and a contract claim ("the unserved part refunds to your
+// card automatically at close").
+//
+// Every file in web/ is served (firebase.json publishes the directory),
+// so every file in web/ is a surface. A page that genuinely should be
+// exempt goes in EXEMPT_PAGES with its reason, which is a line somebody
+// has to write on purpose rather than one they can forget.
+const EXEMPT_PAGES = {};
+const HTML_FILES = readdirSync(join(root, "web"))
+  .filter((f) => f.endsWith(".html"))
+  .filter((f) => !(f in EXEMPT_PAGES))
+  .sort()
+  .map((f) => `web/${f}`);
 const TSX_FILES = [
   "src/v2/ui/LivePrivacyPanel.tsx",
 ];

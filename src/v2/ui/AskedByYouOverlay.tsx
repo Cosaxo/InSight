@@ -20,7 +20,12 @@
 import React from "react";
 import LIVE from "../data/live";
 import { loadMine, mine, subscribePurchases, type Purchase } from "../data/purchases";
-import { fmt, subscribeCur } from "../data/pricing";
+// `fmtExact`, not `fmt`: every euro figure on this card is one this
+// account was actually charged — the cap it paid up front, the rate its
+// contract locked, an ad's flat price — and `fmt` rounds above a hundred
+// to the nearest ten, which is a rate card's shape and a lie about a
+// receipt. scripts/quote-copy.test.mjs pins the rule.
+import { fmtExact, subscribeCur } from "../data/pricing";
 import { askWindow } from "../data/askWindow";
 // The switch lives in its own module since phase 4: the ask-a-question
 // door (a different lazy chunk) renders it too, and CurSwitch.tsx's
@@ -126,13 +131,13 @@ function PurchaseCard({ p }: { p: Purchase }): React.ReactElement {
       )}
       <div style={{ marginTop: 12, display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8 }}>
         <span style={K}>budget — answers against the cap</span>
-        <span style={{ fontFamily: SANS, fontSize: 10.5, fontWeight: 700, color: "var(--ink-2)", fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{fmt(spentEur)} of {fmt(p.budget.capEur)} cap</span>
+        <span style={{ fontFamily: SANS, fontSize: 10.5, fontWeight: 700, color: "var(--ink-2)", fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{fmtExact(spentEur)} of {fmtExact(p.budget.capEur)} cap</span>
       </div>
       <div style={{ marginTop: 6, height: 8, borderRadius: 999, background: "var(--surface-3)", overflow: "hidden" }}>
         <span style={{ display: "block", width: `${pct}%`, height: "100%", borderRadius: 999, background: "var(--accent)" }}></span>
       </div>
       <div style={{ marginTop: 5, fontFamily: SANS, fontSize: 11.5, fontWeight: 650, color: "var(--ink-2)", fontVariantNumeric: "tabular-nums" }}>
-        <span style={{ fontWeight: 800, color: "var(--ink)" }}>{fmtN(total)}</span> of {fmtN(p.budget.cap)} budget · {pct}% — bills per answer at {fmt(p.budget.ratePerAnswer)}, stops at the cap
+        <span style={{ fontWeight: 800, color: "var(--ink)" }}>{fmtN(total)}</span> of {fmtN(p.budget.cap)} budget · {pct}% — bills per answer at {fmtExact(p.budget.ratePerAnswer)}, stops at the cap
       </div>
       <div style={{ marginTop: 11, display: "flex", alignItems: "center", gap: 10 }}>
         <span aria-hidden="true" style={{ flex: 1, height: 2, borderRadius: 99, background: "var(--surface-3)", position: "relative", overflow: "hidden" }}>
@@ -174,7 +179,7 @@ function AdPurchaseCard({ p }: { p: Purchase }): React.ReactElement {
       </div>
       <div style={{ marginTop: 11, display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8 }}>
         <span style={K}>flat window — no meter</span>
-        <span style={{ fontFamily: SANS, fontSize: 10.5, fontWeight: 700, color: "var(--ink-2)", fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{fmt(p.priceEur)} · runs {p.win.start} → {p.win.until}</span>
+        <span style={{ fontFamily: SANS, fontSize: 10.5, fontWeight: 700, color: "var(--ink-2)", fontVariantNumeric: "tabular-nums", flexShrink: 0 }}>{fmtExact(p.priceEur)} · runs {p.win.start} → {p.win.until}</span>
       </div>
       <div style={{ marginTop: 6, fontFamily: SANS, fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.45 }}>
         An ad collects nothing — no answers, no clicks, no tracking. It runs, that is all.

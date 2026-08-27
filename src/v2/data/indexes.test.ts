@@ -120,6 +120,30 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
     )).toBe(true);
   });
 
+  it("live.ts's bought-question boot query has its (paid, until) composite", () => {
+    // D313's questions are written into the bank at runtime, so no
+    // published order can carry them (rankBankV2 builds from the compiled
+    // bank) and the two other boot queries do not reach them — they are
+    // not a boot surface and they are not core. The third boot query is
+    // their whole route to a device, and it pairs an equality with an
+    // inequality, which needs a composite.
+    //
+    // Missing, this fails FAILED_PRECONDITION in production and NOWHERE
+    // else: the emulator creates composites on demand, so the unit suite,
+    // the rules tests and the e2e all pass without it — and the symptom
+    // is the one this index exists to end, a paid question reaching
+    // nobody.
+    const hit = cfg.indexes.find((ix) =>
+      ix.collectionGroup === "v2_questions"
+      && ix.queryScope === "COLLECTION"
+      && JSON.stringify(ix.fields) === JSON.stringify([
+        { fieldPath: "paid", order: "ASCENDING" },
+        { fieldPath: "until", order: "ASCENDING" },
+      ]),
+    );
+    expect(hit, "the v2_questions (paid, until) composite is missing or reshaped — bought questions reach nobody").toBeDefined();
+  });
+
   it("engagement.ts rollupPage: the (folded, day) collection-group composite exists", () => {
     // rollupPage orders by `day` so the nightly queue is FIFO. Without an
     // orderBy Firestore falls back to `__name__`, which for this group is

@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 330 lines instead of
-32,506. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 331 lines instead of
+32,621. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -123,7 +123,7 @@ detect it.
 | **D103** | [Four device readings: a retired test, a rail, the topics D96 left dark, and one notch paid for twice](DECISIONS.md#d103--four-device-readings-a-retired-test-a-rail-the-topics-d96-left-dark-and-one-notch-paid-for-twice) | D156 (+3) | 9717 |
 | **D104** | [Test users: a second real account, and what it is allowed to fake](DECISIONS.md#d104--test-users-a-second-real-account-and-what-it-is-allowed-to-fake) | — | 9817 |
 | **D105** | [One text field owns the app's scale: every input defers to --field-size](DECISIONS.md#d105--one-text-field-owns-the-apps-scale-every-input-defers-to---field-size) | D113 | 9922 |
-| **D106** | [The retired privacy model is swept out of the documentation, starting with the two pages users actually read](DECISIONS.md#d106--the-retired-privacy-model-is-swept-out-of-the-documentation-starting-with-the-two-pages-users-actually-read) | D262 (+6) | 10002 |
+| **D106** | [The retired privacy model is swept out of the documentation, starting with the two pages users actually read](DECISIONS.md#d106--the-retired-privacy-model-is-swept-out-of-the-documentation-starting-with-the-two-pages-users-actually-read) | D323 (+7) | 10002 |
 | **D107** | [A purpose string for the authorisation this app never asks for](DECISIONS.md#d107--a-purpose-string-for-the-authorisation-this-app-never-asks-for) | D199 | 10106 |
 | **D108** | [Two providers leave the bridge, and the mount suite stops being one file](DECISIONS.md#d108--two-providers-leave-the-bridge-and-the-mount-suite-stops-being-one-file) | D294 (+7) | 10234 |
 | **D109** | [LEARN leaves the bridge, and takes the load-order bug with it](DECISIONS.md#d109--learn-leaves-the-bridge-and-takes-the-load-order-bug-with-it) | D110 | 10375 |
@@ -153,7 +153,7 @@ detect it.
 | **D133** | [One card said "our estimate" in the feed and stated a measurement two taps away](DECISIONS.md#d133--one-card-said-our-estimate-in-the-feed-and-stated-a-measurement-two-taps-away) | D142 | 13068 |
 | **D134** | [The test track gets a wall; the public build does not](DECISIONS.md#d134--the-test-track-gets-a-wall-the-public-build-does-not) | D219 (+4) | 13154 |
 | **D135** | [The field is what a stop opens on, and Near cannot be built as asked](DECISIONS.md#d135--the-field-is-what-a-stop-opens-on-and-near-cannot-be-built-as-asked) | D142 (+1) | 13261 |
-| **D136** | [The Mirror stop loses two tabs; Crossroads and a feed window arrive](DECISIONS.md#d136--the-mirror-stop-loses-two-tabs-crossroads-and-a-feed-window-arrive) | D213 (+9) | 13485 |
+| **D136** | [The Mirror stop loses two tabs; Crossroads and a feed window arrive](DECISIONS.md#d136--the-mirror-stop-loses-two-tabs-crossroads-and-a-feed-window-arrive) | D323 (+10) | 13485 |
 | **D137** | [The bridge kept the names nobody was crossing on](DECISIONS.md#d137--the-bridge-kept-the-names-nobody-was-crossing-on) | D285 (+5) | 13717 |
 | **D138** | [The suggestion board gets a server: a budgeted door, an author-only read, and the same human gate](DECISIONS.md#d138--the-suggestion-board-gets-a-server-a-budgeted-door-an-author-only-read-and-the-same-human-gate) | D288 (+6) | 13896 |
 | **D139** | [The daily pulse: one question asked every day, folded per day by the trigger that did not change](DECISIONS.md#d139--the-daily-pulse-one-question-asked-every-day-folded-per-day-by-the-trigger-that-did-not-change) | D220 (+6) | 13977 |
@@ -313,7 +313,7 @@ detect it.
 |  | ↳ *amendment 2026-08-25* — [The other two fold arms, so the thesis stops being one third true](DECISIONS.md#d290-amendment-2026-08-25--the-other-two-fold-arms-so-the-thesis-stops-being-one-third-true) | — | 29746 |
 | **D291** | [The alerting refusal said less than it was read as saying, and its arithmetic was off by 4×](DECISIONS.md#d291--the-alerting-refusal-said-less-than-it-was-read-as-saying-and-its-arithmetic-was-off-by-4) | D303 (+1) | 29587 |
 | **D292** | [A read-only observer, on WIF rather than a second key](DECISIONS.md#d292--a-read-only-observer-on-wif-rather-than-a-second-key) | D303 (+2) | 29661 |
-| **D293** | [A moderation verdict's ID is not neutral, and the privacy page says it is](DECISIONS.md#d293--a-moderation-verdicts-id-is-not-neutral-and-the-privacy-page-says-it-is) | D299 | 29833 |
+| **D293** | [A moderation verdict's ID is not neutral, and the privacy page says it is](DECISIONS.md#d293--a-moderation-verdicts-id-is-not-neutral-and-the-privacy-page-says-it-is) | D323 (+1) | 29833 |
 | **D294** | [A deep clean, priced: what moved, what did not, and the eight rules that hold it](DECISIONS.md#d294--a-deep-clean-priced-what-moved-what-did-not-and-the-eight-rules-that-hold-it) | D299 | 29887 |
 | **D295** | [What the first production run of the repair tool cost, and the data-loss path it exposed](DECISIONS.md#d295--what-the-first-production-run-of-the-repair-tool-cost-and-the-data-loss-path-it-exposed) | D299 (+2) | 30050 |
 | **D296** | [The scorecard has been reading production through a retired predicate, and every number downstream inherited the zero](DECISIONS.md#d296--the-scorecard-has-been-reading-production-through-a-retired-predicate-and-every-number-downstream-inherited-the-zero) | D306 (+4) | 30183 |
@@ -344,3 +344,4 @@ detect it.
 | **D320** | [Learn leaves the boot fetch: the first paged surface](DECISIONS.md#d320--learn-leaves-the-boot-fetch-the-first-paged-surface) | D321 | 32290 |
 | **D321** | [The feed tail leaves the boot fetch, and the whole-bank install is over](DECISIONS.md#d321--the-feed-tail-leaves-the-boot-fetch-and-the-whole-bank-install-is-over) | — | 32348 |
 | **D322** | [The profile is real: feed answers counted by topic, and pages sized by them](DECISIONS.md#d322--the-profile-is-real-feed-answers-counted-by-topic-and-pages-sized-by-them) | — | 32397 |
+| **D323** | [The 2026-08-27 night audit, reviewed — 21 fixes kept, five limits recorded](DECISIONS.md#d323--the-2026-08-27-night-audit-reviewed--21-fixes-kept-five-limits-recorded) | — | 32507 |
