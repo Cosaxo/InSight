@@ -321,6 +321,11 @@
     },
     {
       "collectionGroup": "answers",
+      "fieldPath": "anchors.age",
+      "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
       "fieldPath": "anchors.gender",
       "indexes": []
     },
