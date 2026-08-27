@@ -31,6 +31,7 @@
 // same argument D160 made for drawing an empty field.
 import React from "react";
 import LIVE from "../data/live";
+import { BUDGET_PAUSED_BODY, BUDGET_PAUSED_HEAD } from "../data/budgetMode";
 // The rings-and-you drawing every other stop shows when it is empty (D172).
 import EmptyField from "./EmptyField";
 import MirrorLensTabs from "./MirrorLensTabs";
@@ -110,6 +111,12 @@ function LiveCircleBody() {
 
   if (loading && !members) {
     return <ClNote title="Loading your circle…">Reading their answers.</ClNote>;
+  }
+  // Paused before failed (D327): with the breaker on, loadCircle refused
+  // rather than tried, and "couldn't load / it retries" would promise a
+  // retry that will keep refusing.
+  if (!members && LIVE.budgetPaused) {
+    return <ClNote title={BUDGET_PAUSED_HEAD}>{BUDGET_PAUSED_BODY}</ClNote>;
   }
   if (!members) {
     // null after a settled load means the read failed — not that the

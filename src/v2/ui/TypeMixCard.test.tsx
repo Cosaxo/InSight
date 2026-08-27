@@ -28,6 +28,10 @@ vi.mock("../data/live", () => ({
     anchors: () => ({ city: "Oslo, NO", country: "NO" }),
     kindredPeople: () => PEOPLE,
     myTestResults: () => ({}),
+    // A getter so the D327 case can flip it after the factory has run —
+    // the closure reads the module-level flag at render time, the PEOPLE
+    // pattern one line up.
+    get budgetPaused() { return PAUSED; },
   },
 }));
 
@@ -44,8 +48,10 @@ const person = (uid: string, results: Record<string, Record<string, number>>) =>
 const BIG5 = { O: 72, C: 55, E: 15, A: 58, N: 50 };
 const POL = { econ: 30, auth: 40, foreign: 60, env: 70, tech: 55, estab: 45 };
 let PEOPLE: ReturnType<typeof person>[] = [];
+let PAUSED = false;
 
 beforeEach(() => {
+  PAUSED = false;
   PEOPLE = [
     ...Array.from({ length: 6 }, (_, i) => person(`b${i}`, { big5: BIG5 })),
     person("p0", { big5: BIG5, political: POL }),
@@ -126,5 +132,17 @@ describe("what each instrument is allowed to say", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Politics" }));
     expect(screen.getByText("counts, not shares")).toBeTruthy();
     expect(document.body.textContent).not.toMatch(/\d+\s*%/);
+  });
+
+  it("drops the who-voted instruction under the read breaker (D327)", () => {
+    // With the sample paused at zero, "open a who-voted sheet and this
+    // fills in" is an instruction that does nothing — the sheet's own
+    // fetch refuses. The HEAD alone, not the full sentence: this card
+    // only renders under Kindred, which already carries the why.
+    PEOPLE = [];
+    PAUSED = true;
+    render(<TypeMixCard scope="city" />);
+    expect(screen.getByText("Paused for now")).toBeTruthy();
+    expect(screen.queryByText(/who-voted sheet and this fills in/i)).toBeNull();
   });
 });

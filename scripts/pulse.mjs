@@ -72,6 +72,11 @@ function trailRow(p) {
     burnUsd5k: p.money.breakEven[2].burnUsd,
     burnUsd50k: p.money.breakEven[3].burnUsd,
     revenueUsd: p.money.revenueUsdPerMonth,
+    // The guard's two figures worth trending (D327): what we measure the
+    // population at, and what that costs net of revenue. Null until the
+    // engagement trail exists — a gap, never a zero.
+    measuredActives: p.guard.measuredActives ?? null,
+    netBurnUsd: p.guard.netBurnUsd ?? null,
     functionsAlerted: p.instrumentation.alertedCount,
     functionCount: p.instrumentation.functionCount,
     scorecardAgeDays: p.pipeline.scorecard.ageDays ?? null,
@@ -144,14 +149,40 @@ function check(pulse) {
     );
   }
 
+  // The usage-vs-revenue guard (D327). "over" alone trips — unarmed and
+  // unmeasured are questions the OK line carries, not conditions to page
+  // about every morning pre-launch.
+  const g = pulse.guard;
+  if (g.state === "over") {
+    problems.push(
+      `the bill is outrunning revenue: modelled burn $${g.burnUsd}/mo at the measured\n`
+      + `    ${g.measuredActives} actives (${g.measuredOn}) against $${g.revenueUsd}/mo recorded revenue —\n`
+      + `    net $${g.netBurnUsd}/mo, over the $${g.allowanceUsd} allowance (monitoring/rates.json guard).\n`
+      + "    Three levers, in the order to reach for them (D327):\n"
+      + "      1. price or record real revenue in monitoring/rates.json — if users arrived,\n"
+      + "         this is the good version of this alert;\n"
+      + "      2. pull the read breaker: npm run budget:mode -- --level 1 (sheds the D98\n"
+      + "         social reads, ~80% of the modelled bill, honestly labelled in the app);\n"
+      + "      3. raise the allowance deliberately, in the same commit that says why.\n"
+      + "    And check the Cloud Billing budget/console — this figure is a model, and the\n"
+      + "    model's own record is that its errors are missing terms (docs/COSTS.md).",
+    );
+  }
+
   if (problems.length) {
     console.error("\npulse --check: conditions that need an operator, not a commit:\n");
     for (const p of problems) console.error(`  ${p}\n`);
     return 1;
   }
+  const guardLine = pulse.guard.state === "ok"
+    ? `net burn $${pulse.guard.netBurnUsd}/mo at ${pulse.guard.measuredActives} measured actives (allowance $${pulse.guard.allowanceUsd})`
+    : pulse.guard.state === "unmeasured"
+      ? "guard unmeasured (no committed engagement trail yet — `npm run scorecard -- --fetch` arms it)"
+      : "guard unarmed (no maxNetBurnUsdPerMonth in monitoring/rates.json)";
   console.log(
     `pulse --check OK — deck runway ${deck.runwayDays} days, `
-    + `scorecard ${scorecard.present ? scorecard.staleness : "absent (pre-launch)"}.`,
+    + `scorecard ${scorecard.present ? scorecard.staleness : "absent (pre-launch)"}, `
+    + `${guardLine}.`,
   );
   return 0;
 }

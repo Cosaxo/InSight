@@ -35,6 +35,7 @@
 // the People lens's loadKindred.
 import React from "react";
 import LIVE from "../data/live";
+import { BUDGET_PAUSED_BODY } from "../data/budgetMode";
 import PLACES from "../data/places";
 import {
   angleHash,
@@ -437,11 +438,16 @@ function CityField({ myParsed }: {
   const pickedP = shown.find((p) => p.uid === picked) || null;
 
   if (!shown.length) {
+    // Paused before empty (D327): with the breaker on, the kindred pool
+    // was never fetched, and "Nobody from {city} yet" would be a claim
+    // about a crowd nothing looked at.
     return (
       <SfEmptyField caption={<>{cityName}</>}>
         {loading
           ? <>Matching…</>
-          : <>Nobody from {cityName} yet — fills in as the city answers.</>}
+          : LIVE.budgetPaused
+            ? <>{BUDGET_PAUSED_BODY}</>
+            : <>Nobody from {cityName} yet — fills in as the city answers.</>}
       </SfEmptyField>
     );
   }

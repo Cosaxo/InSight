@@ -32928,3 +32928,118 @@ constraint. If the closing flow's battery keeps coming back green with
 nothing to say, the cadence dial turns the same way it does everywhere
 else in this program: shrink or retire the flow, and this record is
 where that reversal belongs.
+
+## D327 · The read breaker is built, and the pulse guards usage against revenue
+
+**2026-08-27.** **Status:** binding. The owner's ask, verbatim in spirit:
+create a lever or monitoring so Firebase usage does not get too high
+compared to revenue. That sentence is the decision COSTS.md's graded-
+breaker paragraph said it was waiting for ("recorded with its arithmetic
+so it can be built in an hour when that decision is made"), so both
+halves land together: the lever an operator pulls, and the watch that
+says when to pull it.
+
+### 1 · The lever — `budgetMode` on `v2_meta/app`
+
+One field on the document `hydrate()` already reads once per boot, so the
+lever itself costs no read (D265's shape). `npm run budget:mode -- --level 1`
+sets it (admin SDK — the rules keep `v2_meta` at `write: if false`, and
+both other writers of that document merge, so the field survives the seed
+and the nightly fit); `--level 0` releases; `--status` reads it back.
+
+**Level 1 pauses the D98 social fetches** — named who-voted, Kindred (both
+pools, the city-scoped D278 one included), Circle, takes — by refusing in
+the five loaders (`live.ts`), which leaves every cache ABSENT: the
+loadVoters rule, "we chose not to ask" is a kind of "could not ask", never
+"nobody answered". That is the `social` column of the cost model, **~354
+of ~440 reads per user per day at 5,000 DAU** (`npm run costs`), the
+largest line in the bill and the only one a flag can shed without touching
+the answering loop. Votes, the daily, the feed, aggregates, the Mirror's
+published-aggregate folds and every write keep working.
+
+**Every gated surface says so.** One sentence
+(`BUDGET_PAUSED_BODY`, src/v2/data/budgetMode.ts) rendered by the paused
+branches of the who-voted sheet's Friends/Type/Logic cuts, the takes
+panel (composer stays — writes still work and echo locally), the People
+lens's Kindred, the Circle stop, the Patterns People lens, the city
+field's people row, and the two type-mix readers (the card under Kindred
+carries the short head only — the full clause one card up already says
+why, and a clause restating the clause above it is COPY.md's deletion).
+A panel rendering "nobody answered yet" about a crowd it chose not to
+fetch would be the UI-claim-without-truth failure CLAUDE.md names, and it
+is the reason COSTS.md deferred this build to an owner decision in the
+first place.
+
+**Two deliberate deviations from the COSTS.md sketch.** The similarity
+agg sweep (`loadSimilarity`) is NOT gated, though the sketch's list said
+"similarity": measured against the tree it is ~110 published-aggregate
+reads once per session against social's ~354 per user per day, and
+gating it would blank the fields, Scores and Compare — three more
+surfaces claiming emptiness about a crowd that exists — for a rounding
+error. And level 2 ("the deck's snapshot listeners" in the sketch) is
+RESERVED, not built: the sketch predates D129, the listeners are gone,
+and the poll + re-attach terms it would now govern are 3 + 28 flat
+reads/user/day — a switch that changes what a user sees in exchange for
+nothing the bill can notice. The operator script refuses `--level 2`
+with this reasoning; if a flat term grows a DAU slope back, building it
+gets its own record.
+
+**Propagation is per-boot, accepted.** The field rides the one meta read;
+running sessions keep their mode until restart, so the curve shears over
+hours. A cost lever needs to hold by tomorrow morning, not by the next
+frame — the instant kill for hostile traffic remains App Check
+enforcement (console, only if soaked in advance), and the last resort
+remains detaching billing, which is an outage. This lever is the step
+between: no deploy, no outage, reversible. **Fail-open:** an absent or
+malformed field reads level 0 — a device that cannot read the mode is a
+device whose reads are already modelled, and the misspelled-field failure
+must not be "every device pauses".
+
+### 2 · The watch — pulse compares the bill to revenue at the MEASURED size
+
+`monitoring/rates.json` gains `guard.maxNetBurnUsdPerMonth` (50), and the
+pulse gains the verdict: **modelled infra cost at the measured actives**
+(max of the latest digest day and the 7-day mean, from the committed
+`monitoring/engagement.json` — D268's trail, the first time this repo can
+price the population it actually has) **plus fixed costs, net of the rate
+card's recorded revenue**. Over the allowance, `pulse --check` goes red —
+and that check already runs daily and on every push to main
+(`.github/workflows/pulse.yml`), emailing the owner, so the guard needed
+no new channel. Under it, the OK line and the money panel's banner carry
+the number anyway; unarmed (no allowance) and unmeasured (no committed
+trail) report as questions rather than paging.
+
+$50 is COSTS.md's own budget arithmetic reused, not a new estimate:
+launch sizes model at ~$0–2 infra plus ~$28 fixed, so red means traction
+arrived (go price a path — the good version of the alert) or a term is
+wrong. The red message names the levers in order: record real revenue,
+pull `budget:mode --level 1`, or raise the allowance in a commit that
+says why. The guard is a MODEL at a measured size, not an invoice — this
+file's cost model has been corrected four times for missing terms, every
+one of which a guard like this would have inherited — so the record is
+explicit that it complements, and does not replace, the outcome-side
+controls below.
+
+### 3 · What stays console-side, named rather than built
+
+The **Cloud Billing budget** is still the cheapest control on any page
+and still does not exist in this repo's power to create — the `gcloud`
+one-liner in COSTS.md stands, and the guard's note tells the operator to
+keep the two numbers in step. A **budget → Pub/Sub → function that flips
+`budgetMode` automatically** is the natural next joint and is deliberately
+not built: it needs the budget to exist first, a topic, and a deployed
+function on the `check:appcheck`/`check:deploy-targets`/`check:fn-runtime`
+paths — an evening's work whose shape is now one field-write, recorded
+here so it is built against this record and not re-designed. **App Check
+enforcement** (SHIP-CHECKLIST step 4) keeps its standing as the actual
+kill switch and is unchanged by any of this.
+
+### 4 · Held by
+
+`vote.test.ts` (the gate issues zero queries and leaves caches absent,
+the getter, fail-open on the absent field), `takes.test.ts` (the query is
+never built), seven panel suites (each paused surface says the sentence
+and drops the claim it replaces), `pulse.test.mjs` (the verdict's states
+and arithmetic, pure and against the tree). The figures quoted here are
+the model's output at this commit, snapshots by this file's own rule —
+`npm run costs` and `npm run pulse` print the live ones.

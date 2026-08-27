@@ -27,6 +27,7 @@ const LIVE = vi.hoisted(() => ({
   loadCircle: async () => {},
   circle: () => [] as Array<Record<string, unknown>> | null,
   circleLoading: () => false as boolean,
+  budgetPaused: false as boolean,
   aggregated: () => [] as Array<Record<string, unknown>>,
   aggFor: () => null,
   myVotes: () => ({}) as Record<string, string>,
@@ -49,6 +50,7 @@ const { IS_TESTS } = await import("../spec/test-definitions.js");
 beforeEach(() => {
   LIVE.circle = () => [];
   LIVE.circleLoading = () => false;
+  LIVE.budgetPaused = false;
   LIVE.testFeedItems = () => [];
   LIVE.myTestResults = () => ({});
 });
@@ -89,6 +91,19 @@ describe("LiveCircleBody · an empty circle is a field, not a paragraph", () => 
     LIVE.circleLoading = () => true;
     render(<LiveCircleBody />);
     expect(screen.getByText(/Loading your circle/i)).toBeTruthy();
+    expect(screen.queryByText(/Couldn’t load/i)).toBeNull();
+  });
+
+  it("says PAUSED under the read breaker, never 'couldn't load' (D327)", () => {
+    // Same null circle as the failed arm — the breaker refused the fetch
+    // rather than losing it, and the stop must say which happened:
+    // "couldn't load / it retries" promises a retry that will keep
+    // refusing until the operator releases the mode.
+    LIVE.circle = () => null;
+    LIVE.budgetPaused = true;
+    render(<LiveCircleBody />);
+    expect(screen.getByText(/Paused for now/i)).toBeTruthy();
+    expect(screen.getByText(/costs in check/i)).toBeTruthy();
     expect(screen.queryByText(/Couldn’t load/i)).toBeNull();
   });
 });

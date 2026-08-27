@@ -24,6 +24,7 @@
 // in every population.
 import React from "react";
 import LIVE from "../data/live";
+import { BUDGET_PAUSED_BODY, BUDGET_PAUSED_HEAD } from "../data/budgetMode";
 import type { PoolItem } from "../data/patterns";
 import {
   countryOf,
@@ -146,6 +147,11 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
   // the first placeable friend (PEOPLE_MIN_CROWD_CIRCLE's comment).
   const minCrowd = pop === "circle" ? PEOPLE_MIN_CROWD_CIRCLE : PEOPLE_MIN_CROWD;
   if (field.placed.length < minCrowd) {
+    // Paused before thin (D327): the voter lists this lens folds were
+    // refused, so "crowd too thin" would describe a crowd nothing read.
+    if (LIVE.budgetPaused) {
+      return <Empty head={BUDGET_PAUSED_HEAD} line={BUDGET_PAUSED_BODY} />;
+    }
     // Loading and thin render differently on purpose: "could not say yet"
     // is not "there is nobody" (the absent-vs-empty rule, loadVoters' own).
     if (fetchSet.some((qid) => LIVE.votersLoading(qid)) || (pop === "circle" && LIVE.followsLoading())) {

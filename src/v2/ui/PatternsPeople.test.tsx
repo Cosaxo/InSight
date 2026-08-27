@@ -16,6 +16,7 @@ import type { PeopleRow } from "../data/peopleMap";
 
 const LIVE = vi.hoisted(() => ({
   enabled: true,
+  budgetPaused: false as boolean,
   subscribe: () => () => {},
   loadVoters: vi.fn(() => Promise.resolve()),
   voters: (): PeopleRow[] | null => [],
@@ -60,6 +61,7 @@ const noop = () => {};
 beforeEach(() => {
   LIVE.voters = () => CROWD;
   LIVE.votersLoading = () => false;
+  LIVE.budgetPaused = false;
   LIVE.loadVoters = vi.fn(() => Promise.resolve());
   LIVE.follows = () => [];
   LIVE.followsLoading = () => false;
@@ -89,6 +91,17 @@ describe("the thin and loading states", () => {
     LIVE.votersLoading = () => true;
     render(<PatternsPeople items={ITEMS} version={1} onOracle={noop} />);
     expect(screen.getByText("Reading the crowd…")).toBeTruthy();
+    expect(screen.queryByText("Crowd too thin")).toBeNull();
+  });
+
+  it("says PAUSED under the read breaker, never that the crowd is thin (D327)", () => {
+    // The lists were refused, not read — "Crowd too thin" would be a
+    // claim about a crowd nothing looked at.
+    LIVE.voters = () => null;
+    LIVE.budgetPaused = true;
+    render(<PatternsPeople items={ITEMS} version={1} onOracle={noop} />);
+    expect(screen.getByText("Paused for now")).toBeTruthy();
+    expect(screen.getByText(/costs in check/i)).toBeTruthy();
     expect(screen.queryByText("Crowd too thin")).toBeNull();
   });
 });

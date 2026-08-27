@@ -855,7 +855,14 @@ Firestore — the only hard stop is a budget → Pub/Sub → function that
 detaches the billing account, which takes the app down with it. That is a
 real option and a deliberate one, not a default: for an app whose worst
 modelled month at launch size is $2, an outage is the more expensive
-failure. Recorded as available, not built (D7).
+failure. Recorded as available, not built (D7). Since D327 the same wire
+has a softer target worth building first: the budget's Pub/Sub
+notification flipping `budgetMode` (the read breaker below) instead of
+detaching billing — recorded there, an evening's work once the budget
+itself exists. And the repo side no longer waits for the invoice to ask
+the question: the pulse's usage-vs-revenue guard
+(`monitoring/rates.json`, the same $50) reds the daily run when the
+modelled bill at the *measured* actives outruns recorded revenue.
 
 **2 · App Check enforcement on the Firestore API.** SHIP-CHECKLIST's App
 Check step 4, not yet flipped. The callables enforce attestation in
@@ -941,29 +948,31 @@ work has to be done in advance for the lever to exist at all.
 That reframes App Check step 4. It is filed as hardening, and it is really
 the incident-response plan: it is simultaneously the thing that prevents
 the cheap version of the attack and the thing you reach for when something
-else goes wrong. Nothing else on this page can be pulled at 3am — a rules
-deploy takes minutes and still bills its own reads, `APPCHECK_ENFORCE` only
-governs callables (and only in the loosening direction), and detaching the
-billing account takes the app down.
+else goes wrong. One other lever on this page can now be pulled at 3am —
+the read breaker below, one command and no deploy, though it shears over
+hours rather than minutes because it propagates per boot. Nothing else can:
+a rules deploy takes minutes and still bills its own reads,
+`APPCHECK_ENFORCE` only governs callables (and only in the loosening
+direction), and detaching the billing account takes the app down.
 
-**The graded breaker, designed and deliberately not built.** The natural
-complement is a `mode` field on `v2_meta/app` — a document `hydrate()`
-already reads once per boot, so it costs nothing to add — with the client
-skipping the discretionary reads when it is set: the D98 social surfaces
-(who-voted, Kindred, Circle, takes, similarity) at one level, the deck's
-snapshot listeners at the next. That is 354 of 441 reads/user/day at 5,000
-DAU for the first level and most of the rest for the second, and unlike
-App Check it degrades the app for *everyone* rather than only for
-unattested callers.
-
-It is not built here because it is not really a cost question. Every level
-of it changes what a user sees, and this repo's rule is that a UI claim
-needs something making it true — a Mirror stop that silently renders "could
-not ask" because an operator flipped a flag is the same class of failure as
-a privacy label with no rule behind it. The honest version needs a decision
-about what a degraded app *says*, and that is the owner's call rather than
-a cost pass's. Recorded with its arithmetic so it can be built in an hour
-when that decision is made.
+**The graded breaker — BUILT at level 1 (D327, 2026-08-27).** The owner's
+ask arrived ("a lever so usage does not outrun revenue"), which was the
+decision this paragraph was waiting on. `budgetMode` on `v2_meta/app` — the
+document `hydrate()` already reads once per boot, so the lever costs no
+read of its own — set by `npm run budget:mode -- --level 1` and released
+with `--level 0`. Level 1 pauses the D98 social fetches (named who-voted,
+Kindred, Circle, takes): the `social` column, ~354 of ~440 reads/user/day
+at 5,000 DAU, with the answering loop, the aggregates and the Mirror's
+folds untouched. Every gated surface says it is paused
+(`src/v2/data/budgetMode.ts` holds the one sentence), because the honest
+version needed a decision about what a degraded app *says* — that was the
+owner's call this build waited for, and the paused copy is now pinned by
+the panel suites. Two deviations from the sketch this paragraph used to
+carry, with the arithmetic in D327: the similarity agg sweep stays on
+(~110 reads once per session against social's ~354 per day — gating it
+would blank three more lenses for a rounding error), and the second level
+is reserved rather than built (the sketch's "deck listeners" predate D129;
+what that level would govern today is 3 + 28 flat reads/user/day).
 
 **Where the free tiers end**, since "still free" is the cheapest possible
 guardrail and worth knowing precisely: reads leave the 50 k/day free tier

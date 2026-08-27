@@ -33,6 +33,7 @@ import type { Voter } from "../data/voters";
 
 const LIVE = vi.hoisted(() => ({
   enabled: true,
+  budgetPaused: false as boolean,
   aggFor: (qid: string) => {
     void qid;
     return null as { counts?: Record<string, number>; total?: number; by?: unknown } | null;
@@ -85,6 +86,7 @@ const v = (over: Partial<Voter> = {}): Voter => ({
 
 beforeEach(() => {
   LIVE.enabled = true;
+  LIVE.budgetPaused = false;
   LIVE.aggFor = () => AGG;
   LIVE.anchors = () => ({});
   LIVE.voters = () => [];
@@ -596,6 +598,22 @@ describe("LiveBreakdownPanel · the type cut", () => {
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
     fireEvent.click(chip("Type"));
     expect(screen.getByText(/Reading who answered/)).toBeTruthy();
+  });
+
+  it("says PAUSED under the read breaker instead of 'Reading…' forever (D327)", () => {
+    // The roster fetch was refused, so the read the sentence describes is
+    // not happening — on the Type cut, the Logic cut and the Friends cut
+    // alike, all three of which wait on the same voter list.
+    LIVE.budgetPaused = true;
+    LIVE.voterScores = () => null;
+    LIVE.voters = () => null;
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    fireEvent.click(chip("Type"));
+    expect(screen.getByText(/costs in check/i)).toBeTruthy();
+    expect(screen.queryByText(/Reading who answered/)).toBeNull();
+    fireEvent.click(chip("Friends"));
+    expect(screen.getByText(/costs in check/i)).toBeTruthy();
+    expect(screen.queryByText(/Could not load how your friends answered/)).toBeNull();
   });
 
   it("distinguishes 'nobody has a result' from 'still loading'", () => {

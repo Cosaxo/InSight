@@ -10,8 +10,19 @@
     "many of these covers the bill' — that is the decision this file exists",
     "for, and a price here is a hypothesis, not a commitment.",
     "",
+    "guard.maxNetBurnUsdPerMonth is the usage-vs-revenue tolerance (D327):",
+    "pulse --check goes red when the modelled bill at the MEASURED actives",
+    "exceeds recorded revenue by more than this. Raise it deliberately when a",
+    "bigger burn is a choice; delete it and the guard reports unarmed.",
+    "",
     "Nothing reads this at runtime. It is an operator input to a local script."
   ],
+
+  "guard": {
+    "maxNetBurnUsdPerMonth": 50,
+    "note": "How much a month may cost NET of revenue before the daily pulse run goes red. $50 is docs/COSTS.md's own budget arithmetic — launch sizes model at ~$0-2 infra plus ~$28 fixed, so red means 'traction arrived, or something is wrong', both of which are an operator's morning. Keep it in step with the Cloud Billing budget when that is retuned.",
+    "source": "docs/COSTS.md 'The controls that are not in this repository'; docs/DECISIONS.md D327"
+  },
 
   "fixed": [
     {
@@ -67,5 +78,5 @@
     }
   ],
 
-  "constraint": "Users never pay, with money or with their identity, and the sold split is the same honest floored number every user sees for free. There is no premium data tier to model: a paying city's window is the public k-floored aggregate, enforced by firestore.rules rather than by contract (docs/MONETIZATION.md)."
+  "constraint": "Users never pay, with money or with their identity, and the sold split is the same honest exact number every user sees for free (D98 removed the floor this sentence used to cite). There is no premium data tier to model: a paying city's window is the public aggregate, enforced by firestore.rules rather than by contract (docs/MONETIZATION.md)."
 }

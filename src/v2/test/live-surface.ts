@@ -103,6 +103,11 @@ export const LIVE_MEMBERS = [
   // iPhone has no console to ask — the first device this app ran on
   // failed exactly there.
   "bootError",
+  // The read breaker (D327): true while v2_meta/app.budgetMode pauses the
+  // D98 social loaders above (loadVoters, loadKindred, loadCircle, takes).
+  // The gated panels' paused branches read it, so a crowd that was
+  // withheld is never rendered as one that is absent.
+  "budgetPaused",
   "confirmedVotes", "dailyBank", "deck",
   "deleteAccount", "demoInProd", "displayName", "handle",
   // D86: the one repeatable answer write — moves an existing daily/feed/

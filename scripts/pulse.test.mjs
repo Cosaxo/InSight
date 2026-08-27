@@ -25,7 +25,7 @@ import { execFileSync } from "node:child_process";
 
 import {
   collect, collectArchive, bucketEvenness, addressablePlaces, isoDay, ROOT,
-  collectEngagement, engagementFromDays,
+  collectEngagement, engagementFromDays, guardVerdict,
 } from "./pulse-collect.mjs";
 import { renderPulse } from "./pulse-render.mjs";
 import { PEN_TARGET } from "./farm-budget.mjs";
@@ -536,6 +536,28 @@ describe("the pulse artifact", () => {
     for (const b of p.money.breakEven) expect(b.burnUsd).toBeGreaterThanOrEqual(p.money.fixedUsdPerMonth);
   });
 
+  it("guards usage against revenue at the MEASURED size, not a scenario (D327)", () => {
+    // Whatever the committed engagement trail holds, the guard must agree
+    // with the rate card and the model about its own arithmetic — the
+    // committed tree carries an allowance, so unarmed here means the read
+    // of rates.json broke, not that the owner unarmed it.
+    const rates = JSON.parse(read("monitoring/rates.json"));
+    expect(p.guard.allowanceUsd).toBe(rates.guard.maxNetBurnUsdPerMonth);
+    if (p.guard.state === "unmeasured") {
+      // No committed engagement day yet — the honest pre-launch answer.
+      expect(p.guard.measuredActives).toBeUndefined();
+    } else {
+      expect(["ok", "over"]).toContain(p.guard.state);
+      // net = burn − revenue, and burn covers at least the fixed line.
+      expect(p.guard.netBurnUsd).toBe(
+        Math.round((p.guard.burnUsd - p.guard.revenueUsd) * 100) / 100);
+      expect(p.guard.burnUsd).toBeGreaterThanOrEqual(p.money.fixedUsdPerMonth);
+      // The measured size is the engagement trail's, never a scenario's.
+      expect(p.guard.measuredActives).toBe(Math.max(
+        p.engagement.latest?.actives ?? 0, Math.ceil(p.engagement.weekMeanActives ?? 0)));
+    }
+  });
+
   it("counts every deployed function and marks which are alerted", () => {
     const { functions, functionCount, alertedCount } = p.instrumentation;
     expect(functionCount).toBe(functions.length);
@@ -588,6 +610,32 @@ describe("the pulse artifact", () => {
       expect(x.record).toBeTruthy();
       expect(x.why).toBeTruthy();
     }
+  });
+});
+
+describe("the guard's verdict (D327), pure", () => {
+  // The arithmetic without a tree — the engagementFromDays pattern. The
+  // states matter as much as the numbers: unarmed and unmeasured are
+  // QUESTIONS the console reports, and only "over" may page.
+  it("trips only past the allowance, on burn NET of revenue", () => {
+    const base = { allowanceUsd: 50, measuredActives: 800 };
+    expect(guardVerdict({ ...base, burnUsd: 78, revenueUsd: 0 }).state).toBe("over");
+    expect(guardVerdict({ ...base, burnUsd: 78, revenueUsd: 30 }).state).toBe("ok");
+    // Exactly at the allowance is inside it — the budget's own 100% rule
+    // fires separately; this one is for the overshoot.
+    expect(guardVerdict({ ...base, burnUsd: 50, revenueUsd: 0 }).state).toBe("ok");
+    expect(guardVerdict({ ...base, burnUsd: 120, revenueUsd: 100 }).netBurnUsd).toBe(20);
+  });
+
+  it("answers 'unarmed' with no allowance and 'unmeasured' with no population", () => {
+    expect(guardVerdict({ allowanceUsd: null, measuredActives: 5, burnUsd: 1, revenueUsd: 0 }).state)
+      .toBe("unarmed");
+    expect(guardVerdict({ allowanceUsd: 50, measuredActives: null, burnUsd: 0, revenueUsd: 0 }).state)
+      .toBe("unmeasured");
+    // Zero actives is a MEASURED zero — a real digest day — and must
+    // evaluate rather than read as absent (the trail's gap-vs-zero rule).
+    expect(guardVerdict({ allowanceUsd: 50, measuredActives: 0, burnUsd: 28, revenueUsd: 0 }).state)
+      .toBe("ok");
   });
 });
 

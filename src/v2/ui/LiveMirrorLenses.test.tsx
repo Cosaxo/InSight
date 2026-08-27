@@ -37,6 +37,7 @@ const LIVE = vi.hoisted(() => ({
   flagAvatar: async () => {},
   flaggedAvatar: () => false,
   enabled: true,
+  budgetPaused: false as boolean,
   subscribe: () => () => {},
   loadKindred: vi.fn(async () => {}),
   kindredLoading: () => false as boolean,
@@ -121,6 +122,7 @@ const kin = (over: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
   LIVE.enabled = true;
+  LIVE.budgetPaused = false;
   LIVE.loadKindred = vi.fn(async () => {});
   LIVE.kindredPeople = () => [];
   LIVE.kindredLoading = () => false;
@@ -155,6 +157,15 @@ describe("the lens bodies · cost", () => {
     LIVE.enabled = false;
     const { container } = mount("people");
     expect(container.textContent).toBe("");
+  });
+
+  it("Kindred says PAUSED under the read breaker, not 'fills in as you answer' (D327)", () => {
+    // The refused fetch cannot fill anything in, however much is answered
+    // — the promise would be false the moment it rendered.
+    LIVE.budgetPaused = true;
+    mount("people");
+    expect(screen.getByText(/costs in check/i)).toBeTruthy();
+    expect(screen.queryByText(/Fills in as you answer more/i)).toBeNull();
   });
 });
 
