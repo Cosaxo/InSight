@@ -683,7 +683,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     saveDisplayName: async () => {},
     saveAnchors: () => {},
     saveTestResult: () => {},
-    // D320. Defaults to CONSENTED in the fixture, deliberately: every
+    // D331. Defaults to CONSENTED in the fixture, deliberately: every
     // mount test that draws a political surface should exercise the path
     // that publishes, and the refusal path has its own cases in
     // political-consent.test.ts. A fixture defaulting to off would make

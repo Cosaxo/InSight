@@ -1,4 +1,4 @@
-// The political consent predicates (D320).
+// The political consent predicates (D331).
 //
 // WHAT THESE HOLD, and it is one property stated four ways: the political
 // coordinate is published ONLY on a live, current, un-withdrawn yes.

@@ -164,7 +164,7 @@ export const LIVE_MEMBERS = [
   // own pool because an ad takes no answer and folds into no aggregate;
   // null while unread, an array once known.
   "feedAds", "loadAds",
-  // The political consent pair (D320). `politicalConsented` is the account
+  // The political consent pair (D331). `politicalConsented` is the account
   // row's read and `setPoliticalConsent` is the only writer — listed here
   // because a toggle that silently lost its writer would leave the compass
   // published with a switch that says otherwise, which is the failure the

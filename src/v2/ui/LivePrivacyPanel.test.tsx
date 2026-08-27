@@ -46,7 +46,7 @@ const LIVE = vi.hoisted(() => ({
   handle: "",
   deleteAccount: async () => {},
   saveDisplayName: async () => {},
-  // D320 — the compass row. Consented by default here so the row's ON
+  // D331 — the compass row. Consented by default here so the row's ON
   // copy is what the existing cases render past; the OFF copy and the
   // withdrawal write have their own cases below.
   politicalConsented: vi.fn(() => true),
@@ -284,7 +284,7 @@ describe("LivePrivacyPanel · no Sign-in row, no Crash-reports toggle", () => {
   });
 });
 
-// The political compass row (D320).
+// The political compass row (D331).
 //
 // WHY IT IS TESTED HERE AT ALL, given that vote.test.ts already pins the
 // gate and politicalConsent.test.ts the predicate: this row is the only

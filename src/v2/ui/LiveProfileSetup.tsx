@@ -135,7 +135,7 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
   // it is a pure fold over eight <select>s.
   const anchors: Record<string, string> = anchorsFrom(v);
   // The DERIVED keys do not count. `country` comes from the city,
-  // `age`/`ageBand` both come from the birthday, and `jobField` (D317)
+  // `age`/`ageBand` both come from the birthday, and `jobField` (D328)
   // comes from the profession pick — counting them would tell the reader
   // they have filled in fields they were never shown. Ten anchor keys,
   // seven questions: the birthday is three controls feeding two of them,
@@ -143,7 +143,7 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
   //
   // A DERIVED key is not an exception to this list, it is the rule for
   // every fold `anchorsFrom` performs — so a new one belongs here in the
-  // same change that adds it. The counter is what tells on you: D317 read
+  // same change that adds it. The counter is what tells on you: D328 read
   // "Save 1 of 8" over seven questions until this line moved.
   const DERIVED = ["country", "age", "jobField"];
   const asked = Object.entries(anchors).filter(([k]) => !DERIVED.includes(k));
@@ -166,7 +166,7 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
   // name it saved on the first.
   const written = React.useRef({ anchors: false, name: "" });
 
-  // D320 — the political consent, asked here for D151's own reason: an
+  // D331 — the political consent, asked here for D151's own reason: an
   // answer cannot be re-filed, and a coordinate published before anyone
   // agreed to it cannot be un-published from the copies people took.
   //

@@ -70,8 +70,8 @@ export const DIM_LABEL: Record<string, string> = {
 export const MAP_ANCHOR_DIM: Record<string, CohortDim> = {
   age: "ageBand",
   edu: "education",
-  // D317. `job` reads the profession's derived FIELD, not the pick — the
-  // same indirection `age` takes through `ageBand`. Before D317 this
+  // D328. `job` reads the profession's derived FIELD, not the pick — the
+  // same indirection `age` takes through `ageBand`. Before D328 this
   // anchor returned null, on a reason ("free text") that had stopped being
   // true: the profile has offered a 31-option select for a long time, and
   // what actually blocked the dim was that 31 is longer than

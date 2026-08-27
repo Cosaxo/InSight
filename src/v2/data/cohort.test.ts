@@ -299,7 +299,7 @@ describe("MAP_ANCHOR_DIM", () => {
     // results with no cohort aggregate anywhere. A key appearing here for
     // one of those would make MapStats fabricate again.
     //
-    // `job` was in that list until D317, on the reason "profession is free
+    // `job` was in that list until D328, on the reason "profession is free
     // text" — which had stopped being true long before: the profile offers
     // a 31-option select. What actually blocked it was that 31 is longer
     // than BREAKDOWN_MAX_BUCKETS, so the pick cannot be a dimension; it

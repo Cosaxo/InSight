@@ -24,7 +24,7 @@ import { sharePcts } from '../data/pct';
 //
 // D98 published the per-anchor breakdown exactly, so `age` and `edu` now
 // have an arithmetic answer and take it (see data/cohort.ts, typicality).
-// `job` joined them at D317 — through the profession's derived FIELD, the
+// `job` joined them at D328 — through the profession's derived FIELD, the
 // indirection `age` already takes through `ageBand`. The reason it had
 // refused ("free text") had quietly stopped being true: the profile has
 // offered a 31-option select for a long time, and the real blocker was
@@ -35,7 +35,7 @@ import { sharePcts } from '../data/pct';
 //               are test RESULTS. No cohort aggregate exists for them at
 //               all, so "how did similar personalities answer" has no
 //               source rather than a withheld one. (Six until D103
-//               retired `cognitive`, five until D317 — each time one fewer
+//               retired `cognitive`, five until D328 — each time one fewer
 //               refusal, not one more thing withheld.)
 // A live build therefore still gets null from those, through the same
 // fail-loud path — the demo keeps the hash, because in a demo the hash

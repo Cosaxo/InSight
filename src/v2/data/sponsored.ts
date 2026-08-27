@@ -72,7 +72,7 @@ export type SponsoredQ = QuestionDoc & { id: string; sponsor?: Sponsor };
  * vocabulary is `AUDIENCE_DIMS` (functions/src/paid.ts) — a SUBSET of the
  * published breakdown dims, which is to say cohorts a user can already see
  * themselves counted in. The politics result is excluded by not being an
- * anchor at all (Art. 9); `jobField`, a breakdown dim since D317, is
+ * anchor at all (Art. 9); `jobField`, a breakdown dim since D328, is
  * excluded by that list naming its seven rather than deriving them.
  */
 export function matches(sponsor: Sponsor | undefined, anchors: Readonly<Record<string, string>>): boolean {

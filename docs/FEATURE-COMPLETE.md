@@ -298,7 +298,7 @@ includes flipping them, and each has its own runbook.
   LAUNCH-RUNBOOK.md each carry that correction; this row did not, so it
   survived as an instruction to reinstate the exact limit D98 was written
   to delete. Struck rather than deleted, per D106's rule that a reversal
-  must stay visible. D316.
+  must stay visible. D327.
 - **Moderation advisory mode** (D22): `MOD_ADVISORY` flips on a cited
   track record.
 - **App Check on the data plane**: register, soak to near-100% verified,

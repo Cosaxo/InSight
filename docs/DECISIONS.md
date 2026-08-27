@@ -31925,7 +31925,7 @@ actually live. Demand honesty: ad campaigns fold into the slot-day
 arithmetic `build-pricing.mjs` prices (same inventory, same idx) and
 stay out of the answer estimates (nothing to estimate).
 
-## D316 · The console kept selling the floor: twelve captions that outlived the arithmetic
+## D327 · The console kept selling the floor: twelve captions that outlived the arithmetic
 
 **2026-08-27.** **Status:** binding. Found by auditing the tree for
 self-imposed limits at the owner's ask — "what limits has this app set,
@@ -32025,12 +32025,12 @@ sentence:
    wall has no detector. An operator step with credentials, not a code
    change.
 
-## D317 · Profession becomes a dim, through a field — and the reason it was not one had stopped being true
+## D328 · Profession becomes a dim, through a field — and the reason it was not one had stopped being true
 
 **2026-08-27.** **Status:** binding. **Owner's call**, in those words:
 *"proffesion should be a dim but not be free text insted a expansive
 list of options."* Follow-on to D8, and the second half of the same
-audit that produced D316.
+audit that produced D327.
 
 ### The premise, corrected first
 
@@ -32135,7 +32135,7 @@ write ceiling is untouched, because the slices ride the transaction
 value at 36), `test:scripts` (495), `tsc -b`, eslint, `check:anchors`,
 `check:data-inventory`, `check:docs`, `check:figures`, `check:globals`.
 
-## D318 · Three of D269's seven refusals are lifted, and the bundle becomes a list
+## D329 · Three of D269's seven refusals are lifted, and the bundle becomes a list
 
 **2026-08-27.** **Status:** binding. **Owner's call**, on reading D269's
 ceiling: *"i think this can be removed dont understand why it is here."*
@@ -32149,7 +32149,7 @@ nothing to do with each other — one is GDPR, one is the Mirror's
 arithmetic, one is a hosting bill, and three were preferences. A reader
 meeting that as a single line cannot tell which is which, so the whole
 row reads as taste and gets challenged whole. It is the same failure
-D316 swept in the other direction: a claim whose reason has quietly
+D327 swept in the other direction: a claim whose reason has quietly
 stopped matching it.
 
 ### Lifted, each on its own reason
@@ -32221,11 +32221,11 @@ practice, so the description stays true and `check:policy-claims` stays
 green. The day an SDK actually ships, that page moves first, by its own
 sentence.
 
-## D319 · The political consent is asked at the start, on D151's screen, and it is an ask rather than a wall
+## D330 · The political consent is asked at the start, on D151's screen, and it is an ask rather than a wall
 
 **2026-08-27.** **Status:** binding as a decision, **not built**. **Owner's
 call**: *"it should just be a consent from the start of the app cause its a
-core functionality."* Follow-on to D8's Art. 9 exclusion and D318's split
+core functionality."* Follow-on to D8's Art. 9 exclusion and D329's split
 of D269.
 
 ### The owner is right, and the repo already argued it
@@ -32278,7 +32278,7 @@ basis: nobody manifestly makes public a coordinate they have never seen.
 **So the gate is both halves, and both are refusals to COMPUTE rather than
 to show:** without consent the political cards are not dealt, and
 `testResults.political` is not written. Hiding a value that exists is the
-D316 failure — a surface saying something the server does not do.
+D327 failure — a surface saying something the server does not do.
 
 ### The shape
 
@@ -32339,12 +32339,12 @@ lawyer's and one of them is urgent:
   daily card at all. It is not a control, and the page must stop offering
   it as one; retire the sentence with a `check:public-copy` RETIRED row.
 
-## D320 · The political compass waits for a yes, and the toggle governs whether it is COMPUTED
+## D331 · The political compass waits for a yes, and the toggle governs whether it is COMPUTED
 
 **2026-08-27.** **Status:** binding, **built**. **Owner's call**, reporting
 a legal answer obtained outside this repo: *"the answer was that it was
 fine legally as long as there is a toggle on political test to not show
-it."* Builds D319's design; supersedes its "not built" status and drops
+it."* Builds D330's design; supersedes its "not built" status and drops
 two of its three lawyer blockers as answered by the owner.
 
 ### The one engineering decision the instruction leaves open
@@ -32354,7 +32354,7 @@ toggle it cannot be implemented honestly: `testResults.political` is
 written to `v2_users/{uid}`, which every signed-in user may read since
 D98. Hiding it on the owner's own screen would leave the coordinate
 world-readable behind a switch reading off — a surface saying something
-the server does not do, which is exactly D316, and not the control anyone
+the server does not do, which is exactly D327, and not the control anyone
 asking for a toggle means.
 
 **So the toggle governs whether the coordinate is COMPUTED AND PUBLISHED.**
@@ -32363,7 +32363,7 @@ The gate is a `continue` inside the fold, not a branch in a renderer.
 ### What actually gets gated, and it is the small half that is visible
 
 Ten of the 278 live-bank questions carry the political marker; those cards
-are ordinary public answers and D320 does not touch them. The half that
+are ordinary public answers and D331 does not touch them. The half that
 needed the control is derived and invisible: `syncPassiveResults`
 (`data/live.ts`) folds ordinary feed answers into `testResults.political`
 and publishes a six-axis coordinate, and `MIN_AXIS_ITEMS = 2` over six
@@ -32377,7 +32377,7 @@ ask rather than shrinking it.
 
 - `data/politicalConsent.ts` — the record (`{ v, at, off? }`) and four
   pure predicates. `off` is present-or-absent rather than a boolean, the
-  absence shape D258 and D317 were both bitten by. A withdrawal KEEPS the
+  absence shape D258 and D328 were both bitten by. A withdrawal KEEPS the
   row: Art. 7(1) wants the controller able to show consent was obtained
   and when it ended, and deleting it would destroy the evidence that the
   withdrawal was honoured.
@@ -32403,7 +32403,7 @@ ask rather than shrinking it.
   confirmation in front of a harmless action teaches people to tap through
   the one in front of a harmful one.
 - **`anon` is off the rules allowlist.** It had sat there since the v2
-  profile with no writer, no reader, no validation and no test — and D319
+  profile with no writer, no reader, no validation and no test — and D330
   was drafted on the belief that it worked. A dead allowlist entry that
   reads like a feature is worse than no field.
 
@@ -32431,14 +32431,14 @@ reason is worse than no test, because it is counted.
 
 ### What this does NOT settle
 
-The owner's answer covers the toggle. **One question from D319 stands and
+The owner's answer covers the toggle. **One question from D330 stands and
 is unchanged**: `scripts/report-lib.mjs` already sells political axis-band
 cuts (D254), and data gathered before any consent existed does not carry
 into a commercial product on the strength of a consent given later. That
 is about data already held, not about anything built here, and it wants an
 answer before the next report ships.
 
-The **under-16 floor** D319 proposed is NOT built. The app is rated 12+/13+
+The **under-16 floor** D330 proposed is NOT built. The app is rated 12+/13+
 and `ageBand`'s first bucket is "Under 18"; the owner's answer did not
 address age, and building a floor nobody asked for would be a product
 decision taken by a gate. Recorded as open rather than silently dropped.

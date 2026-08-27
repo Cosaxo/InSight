@@ -1,4 +1,4 @@
-// The political consent record (D320), and the one predicate everything
+// The political consent record (D331), and the one predicate everything
 // else asks.
 //
 // WHAT THIS GATES, AND IT IS NOT THE CARDS. The visible half of "politics
@@ -13,7 +13,7 @@
 //
 // So the toggle governs whether that coordinate is COMPUTED AND
 // PUBLISHED, never whether it is drawn. A switch that hid a value still
-// sitting world-readable on the profile would be the D316 failure exactly
+// sitting world-readable on the profile would be the D327 failure exactly
 // — a surface saying something the server does not do — and it would also
 // not be the thing the owner's legal answer asked for, which is a control
 // over the result being out there rather than over the viewer's own sight
@@ -40,7 +40,7 @@ export interface PoliticalConsent {
    * A boolean would mean every document written before the field existed
    * carries neither `true` nor `false`, and a `where("off","==",false)`
    * filter drops all of them — the absence-shaped bug this repo has now
-   * shipped twice (D258's missing surfaces, D317's missing index
+   * shipped twice (D258's missing surfaces, D328's missing index
    * exemption). Absence here means one thing only: never withdrawn.
    */
   off?: number;

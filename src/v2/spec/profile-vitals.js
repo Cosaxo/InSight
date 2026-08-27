@@ -44,7 +44,7 @@ export function calcAge(y, mName, d) {
   if (m) { const cm = now.getMonth() + 1; if (cm < m || (cm === m && now.getDate() < Number(d || 0))) a--; }
   return String(a);
 }
-// What a person PICKS. Free to grow: since D317 the breakdown buckets on
+// What a person PICKS. Free to grow: since D328 the breakdown buckets on
 // the derived field below rather than on this list, so adding a title here
 // costs nothing in the aggregate — which is the whole reason the list may
 // finally become expansive. It is the string a screen naming a PERSON
@@ -59,7 +59,7 @@ export function calcAge(y, mName, d) {
 // bug, still shipped). It maps to `Self-employed` below instead of being
 // respelled, because the pick is the user's word and the bucket is ours.
 export const JOB_OPTS = ['Arts & culture', 'Design & creative', 'Media & publishing', 'Writing & journalism', 'Education & research', 'Science', 'Software & IT', 'Tech & engineering', 'Engineering', 'Architecture', 'Healthcare', 'Mental health & care', 'Business & finance', 'Marketing & advertising', 'Sales', 'Consulting', 'Law & government', 'Public sector & nonprofit', 'Trades & crafts', 'Construction', 'Manufacturing', 'Agriculture & environment', 'Transport & logistics', 'Service & hospitality', 'Retail', 'Entrepreneur / self-employed', 'Student', 'Homemaker', 'Between jobs', 'Retired', 'Other'];
-// What the AGGREGATE buckets on (D317) — the `ageBand` half of D155's pair,
+// What the AGGREGATE buckets on (D328) — the `ageBand` half of D155's pair,
 // pointed at work. Twenty, deliberately four short of
 // BREAKDOWN_MAX_BUCKETS: a vocabulary shorter than the cap is what makes a
 // dimension unexhaustible, because there are fewer legal buckets than

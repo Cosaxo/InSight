@@ -348,7 +348,7 @@ an emergency rules fix.
 - **`window.MapStats` is real for three anchors and refuses for four, and
   the split is structural.** `age` and `edu` are breakdown dims, so since
   D99 `dist`/`mode` compute from the published cells. `job` joined them
-  at **D317**, through the profession's derived `jobField` — the pick is
+  at **D328**, through the profession's derived `jobField` — the pick is
   a 31-option list and growing, which is longer than
   `BREAKDOWN_MAX_BUCKETS`, so the dim is a closed field of 20 derived
   from it (the `age`/`ageBand` pair, one anchor over). Its stated reason

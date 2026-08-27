@@ -279,7 +279,7 @@ vi.mock("firebase/firestore", () => {
     // same kind of pin as the "window.LIVE public surface" case below —
     // adding a Firestore call to the store now forces this list to move.
     deleteDoc: () => Promise.resolve(),
-    // D320: setPoliticalConsent removes the published compass with the
+    // D331: setPoliticalConsent removes the published compass with the
     // consent record, in one merge — a sentinel here, asserted in
     // political-consent.test.ts rather than in these boot fixtures.
     deleteField: () => "__delete__",
@@ -1711,7 +1711,7 @@ describe("window.LIVE public surface", () => {
   const EXPECTED_SOCIAL = LIVE_SOCIAL_MEMBERS;
   const EXPECTED_NEAR = LIVE_NEAR_MEMBERS;
 
-  // ── the political consent gate (D320) ──────────────────────────
+  // ── the political consent gate (D331) ──────────────────────────
   //
   // WHY HERE AND NOT ONLY IN politicalConsent.test.ts. That file holds the
   // PREDICATE and cannot see whether anything calls it. The gate lives

@@ -350,7 +350,7 @@ describe("v2 profile", () => {
     await assertSucceeds(setDoc(mine, {
       displayName: "Mira",
       anchors: { city: "Oslo", country: "Norway" },
-      // `anon: true` stood here until D320 took the key off the allowlist.
+      // `anon: true` stood here until D331 took the key off the allowlist.
       // It had no writer and no reader in the whole tree, and this line was
       // the only thing in the repo that made it look load-bearing.
       consent: { political: { v: 1, at: 1730000000000 } },
@@ -491,7 +491,7 @@ describe("v2 profile", () => {
         city: "Oslo", country: "Norway", ageBand: "25-34", age: "29",
         gender: "Woman", profession: "Software & IT", education: "Bachelor's",
         relationship: "Partnered", heightBand: "170-179 cm",
-        // D317 — the pick's derived bucket, sent beside it, never instead.
+        // D328 — the pick's derived bucket, sent beside it, never instead.
         jobField: "Software & IT",
       },
     }));
@@ -509,7 +509,7 @@ describe("v2 profile", () => {
     await assertFails(setDoc(mine, { anchors: { ageBand: 25 } }));
   });
 
-  // The political consent record (D320), and the key that left with it.
+  // The political consent record (D331), and the key that left with it.
   it("accepts a consent record, refuses a malformed one, and `anon` is gone", async () => {
     const mine = doc(asUser(OWNER), "v2_users", OWNER);
     await assertSucceeds(setDoc(mine, { consent: { political: { v: 1, at: 1730000000000 } } }));
@@ -527,7 +527,7 @@ describe("v2 profile", () => {
     await assertFails(setDoc(mine, { consent: { politics: { v: 1, at: 1 } } }));
     // `anon` sat on this allowlist since the v2 profile was written, with
     // no writer and no reader — the D258/D280 shape, and it read like an
-    // anonymity toggle that has never existed. D320 took it off, and a
+    // anonymity toggle that has never existed. D331 took it off, and a
     // write carrying it must now be refused rather than quietly stored.
     await assertFails(setDoc(mine, { anon: true }));
   });

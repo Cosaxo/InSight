@@ -136,7 +136,7 @@ const PAIRS = [
   { dim: "education", client: clientVocab("EDU_OPTS"), where: "EDU_OPTS" },
   { dim: "relationship", client: clientVocab("REL_OPTS"), where: "REL_OPTS" },
   { dim: "heightBand", client: clientVocab("HEIGHT_OPTS"), where: "HEIGHT_OPTS" },
-  // D317. The client list here is JOB_FIELDS — the derived bucket
+  // D328. The client list here is JOB_FIELDS — the derived bucket
   // vocabulary — and NOT JOB_OPTS, which is the pick and is deliberately
   // longer than the cap. Pairing the wrong one would fail rule 2 and be
   // right to: a 31-value dimension is exhaustible.
@@ -198,14 +198,14 @@ for (const p of PAIRS) {
 
 // 4b · every profession a user can PICK maps to a field the server knows.
 //
-// D317's pair has a failure mode the vocabulary rules above cannot see:
+// D328's pair has a failure mode the vocabulary rules above cannot see:
 // JOB_OPTS and JOB_FIELDS are both individually valid while an entry in
 // the first maps to nothing, or to a string absent from the second. Either
 // way that person's answers fold into no jobField bucket — the silent
 // non-counting this whole file exists to refuse, one level further out.
 //
 // `jobFieldOf` returns '' for an unmapped pick ON PURPOSE (a profile
-// written before D317 holds a string nothing claims to have grouped), so
+// written before D328 holds a string nothing claims to have grouped), so
 // the miss cannot be caught at runtime either. It has to be caught here.
 function clientMap(name) {
   const at = profile.indexOf(`${name} = {`);
@@ -365,7 +365,7 @@ if (!ruleCaps.size) {
 // D64 storage-cost regression the checklist exists to not forget)" into a
 // new-dim CHECKLIST.
 //
-// D317 added `jobField` and skipped that line. Nothing caught it: the
+// D328 added `jobField` and skipped that line. Nothing caught it: the
 // exemption is absence-shaped — a missing row is a silently BILLED index,
 // never an error — and no test, gate or type reads this file. A checklist
 // item that has now been forgotten once is a gate's job, so this is the

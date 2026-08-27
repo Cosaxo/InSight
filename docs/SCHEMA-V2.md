@@ -164,7 +164,7 @@ v2_aggs_private/{qid}              the CATALOG fold's accumulator (no readers).
                                    buckets/dim. `city` is a dim since D9
                                    (a closed catalogue); `profession` is
                                    not and cannot be — the pick list is
-                                   longer than the cap — so D317 buckets
+                                   longer than the cap — so D328 buckets
                                    its derived `jobField` instead.
 v2_agg_events/{eventId}            trigger ledger (opaque), four jobs (D28, D268)
   { qid, uid, optionIdx?, at,      dedup: at-least-once delivery can't

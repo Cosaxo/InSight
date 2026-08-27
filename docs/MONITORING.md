@@ -175,11 +175,11 @@ consoles, which are not in this repo and never will be.
 
 | Refused | Record |
 | --- | --- |
-| Per-user funnels, session analytics, engagement scoring | **Reversed rung by rung, knowingly, and this row is now the record of the ceiling rather than the refusal**: D268 (server-side derivation), D270 (anonymous device tallies), D271 (per-question counts, aggregate-only), D272 (the uid-keyed day rollup — session analytics per person, scoped: no question id by rules-enforced construction, readable by nobody including the owner, 90-day TTL, erased with the account). What still binds is **D269 as D318 narrowed it**: no raw event streams, no per-target reads, no slicing by a TEST RESULT, no sealed-duel or pre-post content, no coordinates below the presence cell, no pulse cadence, and the daily and the Mirror never adapt |
-| ~~Retention or engagement sliced by anchor~~ | **Lifted, D318.** It was an analytics preference and said so; the owner dropped it. Art. 9 is a different claim and stays below |
-| Anything sliced by the **politics test result** | D8; GDPR Art. 9. Not lifted by D318 and not lift-able by preference |
-| ~~Third-party analytics SDKs~~ | **Lifted, D318** — the refusal, not the paperwork. Shipping one still moves the store forms, `data-inventory.md` and an EEA consent flow together |
-| ~~Hesitation and per-option deliberation timing~~ | **Lifted in one shape, D318**: measured on the device, published only as bucketed counts in the anonymous attention shard (D270/D271). Raw per-event upload is still refused above |
+| Per-user funnels, session analytics, engagement scoring | **Reversed rung by rung, knowingly, and this row is now the record of the ceiling rather than the refusal**: D268 (server-side derivation), D270 (anonymous device tallies), D271 (per-question counts, aggregate-only), D272 (the uid-keyed day rollup — session analytics per person, scoped: no question id by rules-enforced construction, readable by nobody including the owner, 90-day TTL, erased with the account). What still binds is **D269 as D329 narrowed it**: no raw event streams, no per-target reads, no slicing by a TEST RESULT, no sealed-duel or pre-post content, no coordinates below the presence cell, no pulse cadence, and the daily and the Mirror never adapt |
+| ~~Retention or engagement sliced by anchor~~ | **Lifted, D329.** It was an analytics preference and said so; the owner dropped it. Art. 9 is a different claim and stays below |
+| Anything sliced by the **politics test result** | D8; GDPR Art. 9. Not lifted by D329 and not lift-able by preference |
+| ~~Third-party analytics SDKs~~ | **Lifted, D329** — the refusal, not the paperwork. Shipping one still moves the store forms, `data-inventory.md` and an EEA consent flow together |
+| ~~Hesitation and per-option deliberation timing~~ | **Lifted in one shape, D329**: measured on the device, published only as bucketed counts in the anonymous attention shard (D270/D271). Raw per-event upload is still refused above |
 | **Server-side** per-user content selection, ad targeting profiles | MONETIZATION.md, "Ruled out by standing posture"; narrowed by D163 — see below |
 
 **The anchor row is struck, and how it died is the useful part.** It once
@@ -189,7 +189,7 @@ went false in both halves, and the row was rewritten to stand on a
 different footing — *"this is an analytics decision, not a privacy one"*,
 held deliberately rather than as a side effect. That was honest, and it is
 also what made it removable: a preference is exactly the kind of line an
-owner may drop without breaking anything, and at **D318** the owner did.
+owner may drop without breaking anything, and at **D329** the owner did.
 Nothing technical ever stopped the slice — the anchors are public and the
 fold is a query away.
 

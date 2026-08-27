@@ -19,7 +19,7 @@ export const DIM_VOCAB: Partial<Record<string, readonly string[]>> = {
   education: EDU_OPTS as readonly string[],
   relationship: REL_OPTS as readonly string[],
   heightBand: HEIGHT_OPTS as readonly string[],
-  // D317. JOB_FIELDS, not JOB_OPTS: the row draws the buckets the
+  // D328. JOB_FIELDS, not JOB_OPTS: the row draws the buckets the
   // aggregate can hold, and the pick list is neither closed to the server
   // nor short enough to be one.
   jobField: JOB_FIELDS as readonly string[],

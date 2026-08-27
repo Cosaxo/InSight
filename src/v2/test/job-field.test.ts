@@ -1,4 +1,4 @@
-// The profession → jobField derivation (D317).
+// The profession → jobField derivation (D328).
 //
 // WHY THIS EXISTS, given that check:anchors already holds JOB_FIELDS equal
 // to BREAKDOWN_DIM_VOCAB and proves every JOB_OPTS entry maps into it.
@@ -30,7 +30,7 @@ describe("jobFieldOf", () => {
   });
 
   it("returns '' for a value it does not claim to have grouped", () => {
-    // NOT "Other". A profile written before D317 holds a string this map
+    // NOT "Other". A profile written before D328 holds a string this map
     // never saw — the seeded persona's "Editor · independent press" is a
     // real one in the tree — and filing it under Other would report a
     // cohort membership nobody chose. '' folds to no bucket, which is what

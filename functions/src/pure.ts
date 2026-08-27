@@ -598,7 +598,7 @@ export const BREAKDOWN_DIMS = [
   "education",
   "relationship",
   "heightBand",
-  // D317. NOT `profession`: the pick is a list of 31 and growing, which is
+  // D328. NOT `profession`: the pick is a list of 31 and growing, which is
   // longer than the cap and therefore exhaustible. This is its derived
   // FIELD (20 values), the same pair `ageBand` makes with `age`.
   "jobField",
@@ -607,7 +607,7 @@ export type BreakdownDim = (typeof BREAKDOWN_DIMS)[number];
 
 // Per-dimension distinct-value cap. 8 dims x 24 buckets x up to 20 options is
 // ~3.8k integers worst case — tens of KB against Firestore's 1 MiB limit,
-// with room for the plain counts alongside. D317 added the eighth and did
+// with room for the plain counts alongside. D328 added the eighth and did
 // not move this number: the cap is what bounds the document, so a new dim
 // costs one dimension's worth and nothing more.
 export const BREAKDOWN_MAX_BUCKETS = 24;
@@ -683,7 +683,7 @@ export const BREAKDOWN_DIM_VOCAB: Partial<Record<BreakdownDim, readonly string[]
     "Under 160 cm", "160-169 cm", "170-179 cm", "180-189 cm",
     "190 cm or taller", "Prefer not to say",
   ],
-  // D317: derived from the profession pick, never typed — JOB_FIELDS in
+  // D328: derived from the profession pick, never typed — JOB_FIELDS in
   // src/v2/spec/profile-vitals.js, held equal by check:anchors, which also
   // proves every JOB_OPTS entry maps into this list. Twenty against a cap
   // of 24: the headroom is deliberate, so the list can grow before the

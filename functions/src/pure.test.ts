@@ -428,7 +428,7 @@ describe("per-anchor breakdowns", () => {
     foldAnchors(by, anchors({
       city: "Oslo, NO", profession: "Carpenter", jobField: "Trades, construction & manufacturing",
     }), 1);
-    // `profession` must never mint a key, and since D317 the reason is no
+    // `profession` must never mint a key, and since D328 the reason is no
     // longer "it is free text" — the profile has offered a <select> for a
     // long time. It is that the pick list is LONGER than
     // BREAKDOWN_MAX_BUCKETS, so it is exhaustible; `jobField` is the
@@ -480,7 +480,7 @@ describe("per-anchor breakdowns", () => {
     expect(breakdownBucket("Women", "gender")).toBeNull();
     expect(breakdownBucket("Doctorate", "education")).toBe("Doctorate");
     expect(breakdownBucket("PhD", "education")).toBeNull();
-    // D317. The near-miss that matters here is a value from the PICK list:
+    // D328. The near-miss that matters here is a value from the PICK list:
     // "Retail" is a real thing a user selects, and it is not a bucket —
     // it maps to "Service & hospitality" on the device before the anchor
     // is written. A jobField carrying a pick means the derivation was

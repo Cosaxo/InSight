@@ -254,7 +254,7 @@ service cloud.firestore {
         && isOptionalShortString(anchors.get("age", null), 3)
         && isOptionalShortString(anchors.get("gender", null), 40)
         && isOptionalShortString(anchors.get("profession", null), 80)
-        // The breakdown bucket for the profession above (D317), derived
+        // The breakdown bucket for the profession above (D328), derived
         // client-side from a closed list of 20. Same pairing as age/ageBand:
         // the pick names a PERSON and is free to grow past the bucket cap,
         // the field is what the aggregate slices on and cannot. A length is
@@ -284,17 +284,17 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow create, update: if request.auth != null && request.auth.uid == uid
         && request.resource.data.keys().hasOnly([
-          // `anon` left this list at D320. It had sat here since the v2
+          // `anon` left this list at D331. It had sat here since the v2
           // profile was written, with NO writer, NO reader, no validation
           // and no test — the D258/D280 shape, a key the rules admit that
           // reaches nobody. It read like an anonymity toggle and there has
-          // never been one, which is worse than no field: D319 was drafted
+          // never been one, which is worse than no field: D330 was drafted
           // on the belief that it worked. A dead allowlist entry is not
           // free, it is a promise the tree cannot keep.
           "displayName", "anchors", "consent", "createdAt", "updatedAt",
           "testResults", "handle",
         ])
-        // The consent record (D320) — today only `political`, keyed so the
+        // The consent record (D331) — today only `political`, keyed so the
         // next special-category ask is a sibling rather than a rename.
         //
         // The rule holds the SHAPE and nothing else, which is all a rule

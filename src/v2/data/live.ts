@@ -297,7 +297,7 @@ const state = {
     // reading a second document — and so a later profile edit cannot
     // retroactively rewrite which cohort a past answer counted in.
     anchors: {} as Record<string, string>,
-    // The political consent record (D320). Held on the profile object
+    // The political consent record (D331). Held on the profile object
     // because that is where it lives on the server — one document, one
     // read, and every predicate in politicalConsent.ts takes the profile.
     consent: {} as { political?: unknown },
@@ -4012,7 +4012,7 @@ const LIVE = {
     return mayPublishPolitical(state.profile);
   },
   /**
-   * Set — or withdraw — the political consent (D320).
+   * Set — or withdraw — the political consent (D331).
    *
    * TWO WRITES, AND THE SECOND IS THE POINT. Recording the decision is the
    * easy half; turning it OFF has to also delete the coordinate already
@@ -4115,11 +4115,11 @@ const LIVE = {
       for (const kind of CORE_TEST_KINDS) {
         const def = defs[kind];
         if (!def) continue;
-        // D320. The political coordinate is COMPUTED only with consent —
+        // D331. The political coordinate is COMPUTED only with consent —
         // not computed and hidden. `passiveResult` writes to a profile any
         // signed-in user can read, so a fold that ran and a screen that
         // declined to draw it would publish the thing anyway, which is the
-        // D316 failure and is not what a toggle means.
+        // D327 failure and is not what a toggle means.
         //
         // The default is off (politicalConsent.ts), so this also closes
         // the window between install and the ask: an account that has not

@@ -61,7 +61,7 @@ function LivePrivacyPanel() {
   const [confirmDel, setConfirmDel] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
   const [photoMsg, setPhotoMsg] = React.useState<string | null>(null);
-  // D320. Local mirror of the stored consent so the row flips on the tap
+  // D331. Local mirror of the stored consent so the row flips on the tap
   // rather than on the next boot; LIVE holds the truth and a failed write
   // is corrected by the next hydrate rather than by an optimistic lie.
   //
@@ -274,14 +274,14 @@ function LivePrivacyPanel() {
       )}
 
       {/* THE POLITICAL COMPASS, AND WHY IT IS A ROW RATHER THAN A SETTING
-          (D320). The app folds ordinary feed answers into a six-axis
+          (D331). The app folds ordinary feed answers into a six-axis
           political coordinate and writes it to a profile any signed-in
           user can read — about a dozen cards is enough, with no act by the
           reader. That is an inference this app computes and publishes, so
           it gets a control, and the control governs whether it is COMPUTED,
           never whether it is drawn. A switch that only hid it would leave
           the coordinate world-readable behind a screen claiming otherwise:
-          the D316 failure, and not what a toggle means to anyone.
+          the D327 failure, and not what a toggle means to anyone.
 
           Directly above Delete everything because they are the same kind
           of row — the two places this panel lets you take something back —

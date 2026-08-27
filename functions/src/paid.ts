@@ -107,7 +107,7 @@ export const PAID_TOPICS = new Set([
  * (D98/D228), matched against the same anchor keys the answers carry. The
  * politics result is excluded by not being an anchor at all (Art. 9).
  *
- * `jobField` IS a breakdown dim since D317 and is deliberately NOT here,
+ * `jobField` IS a breakdown dim since D328 and is deliberately NOT here,
  * which is why this list is enumerated rather than derived from
  * BREAKDOWN_DIMS — a derived list would have widened ad targeting as a
  * side effect of a Mirror change, and buying the attention of people by
