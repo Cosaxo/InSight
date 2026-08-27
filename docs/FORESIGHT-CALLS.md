@@ -362,5 +362,7 @@ Routine turn. No per-answer server work — scoring is a client-side join
   interesting design work and it is entirely unblocked.
 - **Crowd-relative scoring.** "You called it and 82% didn't" is a strong
   reading and needs the same collection-group query D126 defers.
-- **The Map's Foresight branch.** Still unbuilt for both halves; D126 §
-  "Also not built" has the reason.
+- ~~**The Map's Foresight branch.**~~ Built at D207 (amended), after this
+  row was written: `g-fore` folds the READ log and the tier-A calls
+  inside the lazy map chunk (`data/mapTrees.ts`), calls sealed until an
+  outcome publishes. D126's reason held until the eager door opened.

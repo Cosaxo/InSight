@@ -32,12 +32,13 @@ rather than remembered:
 
 ## Phase 0 — the records that gate everything
 
-- [x] **0.1 [owner] Adopt R1 and R5** — **R1 DONE 2026-08-23**: adopted
-      by the owner in those words, recorded as **D268**. R5 is drafted as
-      **D269, Status: Proposed** rather than binding — the adoption named
-      R1 alone, and the D28 lesson is that this file does not mark a
-      record binding ahead of the owner's word. Until adopted, its
-      refusals bind through the documents that already record them. ·
+- [x] **0.1 [owner] Adopt R1 and R5** — **both DONE 2026-08-23**: R1
+      adopted by the owner in those words, recorded as **D268**; **R5
+      (D269) went binding the same day** on the owner's "i adopt R5", as
+      2.8's note below records. This cell first held R5 at *Proposed*
+      because the adoption message named R1 alone, and the D28 lesson —
+      this file does not mark a record binding ahead of the owner's word
+      — is why the word is quoted now that it exists. ·
       **Gate:** `check:docs` (green, index regenerated). · **Size:** S.
 
 - [x] **0.2 [owner] Resolve the one open toggle — DONE 2026-08-23,
