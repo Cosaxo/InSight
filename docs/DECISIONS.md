@@ -32825,3 +32825,37 @@ silently skipped the file (this session's own search did, which is how
 it surfaced). The byte is now the six-character escape sequence —
 backslash, u, four zeros — the identical string at runtime, in a
 greppable source file.
+
+## D326 · The app icon gets on a gate's path: a hash lock, not a re-render
+
+**2026-08-27.** Closes the limit D324 recorded the day before: the
+launcher icons reach the binaries from `Assets.xcassets/` and the
+Android mipmaps — paths no gate read — written only by
+`scripts/gen-icons.mjs`, which had no `package.json` entry and no
+workflow. Build 26 shipped the iris because a human ran the script and
+committed the PNGs, "and nothing in this repo could tell the difference
+if they had not."
+
+**The shape, and why it is not regenerate-and-compare.** The builder
+renders its masters through Chromium, and a re-render is not byte-stable
+across Chromium versions — a compare gate would flake on antialiasing
+while the mark stood still. Instead every real run of `gen-icons.mjs`
+now writes `design/icon/icons.lock.json` — sha256 of the mark, of the
+builder itself, and of all 16 outputs — and `check:icons` (ci) holds the
+tree to it, plus the INK coupling the builder's comment only stated:
+`ic_launcher_background.xml`'s colour must equal the ink the legacy
+icons bake in, or Android ships two different grounds by OS version.
+The comparison is pure and pinned in `check-icons.test.mjs`, vacuity
+included: a lock that stops covering the iOS marketing icon fails even
+with every hash green.
+
+**The first lock is `--relock`, deliberately.** The mode adopts the
+committed outputs without rendering, and exists for exactly this
+moment: build 26's icon was already pinned to D302's commit by D324's
+own audit, and re-rendering here would swap delivered bytes for a
+different Chromium's near-identical render — a change nobody asked for.
+`--relock` asserts nothing about the mark matching the pixels; it
+asserts the tree's own state, so every FUTURE change to mark, builder
+or output trips the gate until a real run. The gate cannot verify the
+2026-08-27 icons match the 2026-08-27 mark; D324's audit is what says
+that, and this record inherits rather than re-proves it.

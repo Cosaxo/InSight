@@ -1,0 +1,24 @@
+{
+  "//": "Written by scripts/gen-icons.mjs; npm run check:icons holds the committed icons to it. Do not hand-edit.",
+  "source": "dcb7b41e54061cdb25732495ead90118c879ba3a957d27e0d2e72bfcf05aa865",
+  "script": "65475bbaaf4c85b3594a361609fffd9b8ab84e7805b2dc1d2390737a16852826",
+  "ink": "#1d1914",
+  "outputs": {
+    "android/app/src/main/res/mipmap-mdpi/ic_launcher.png": "b04bf36d44889b4ed02c2096d16a2b1770e4126213228e94686555e403d276a3",
+    "android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png": "b04bf36d44889b4ed02c2096d16a2b1770e4126213228e94686555e403d276a3",
+    "android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png": "c396cae5a2f30e4dae96852174f5bffa6df735a3dbfb474a684e8b03a6199fbb",
+    "android/app/src/main/res/mipmap-hdpi/ic_launcher.png": "539d128ee1458f082b3a0bf405cc4f40a9d85831112e9092b2ee52edee9a8fdf",
+    "android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png": "539d128ee1458f082b3a0bf405cc4f40a9d85831112e9092b2ee52edee9a8fdf",
+    "android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png": "dabc775c258dc36e758b930e50aec1d5574a6d05c7764cdf9dc678f0d6372083",
+    "android/app/src/main/res/mipmap-xhdpi/ic_launcher.png": "c9bb82fa1532a2475b451c2281f83d5b9bdb62e51b8ad00b0e47864ce1ebdff8",
+    "android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png": "c9bb82fa1532a2475b451c2281f83d5b9bdb62e51b8ad00b0e47864ce1ebdff8",
+    "android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png": "e36e274d0566fda669e01bc33d57baedd7aa0bd1127548fa5b9d9c04d073505b",
+    "android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png": "7a236956e230e7d796227ad11c3b1af15a222400a4ff8b7f8ee0a0481e2fe31e",
+    "android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png": "7a236956e230e7d796227ad11c3b1af15a222400a4ff8b7f8ee0a0481e2fe31e",
+    "android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png": "2816390bcdd1308d4806fb4b92e9dbc22e2fd6a37ea64fd163962936e1bf8cfd",
+    "android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png": "01f449f8c006fd27ff9f07a66da1db9af3ee10a955fddab3e4a0f90cdceab11c",
+    "android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png": "01f449f8c006fd27ff9f07a66da1db9af3ee10a955fddab3e4a0f90cdceab11c",
+    "android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png": "0db146f4bbcae392164f6948637f6b4611977df86c6b13913ab50b39652df1e2",
+    "ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png": "d1e6ca6ceac97d2b689368294095a2fb70fd0dcb8bfe3d180f474b747eca8c28"
+  }
+}

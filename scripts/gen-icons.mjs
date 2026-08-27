@@ -34,6 +34,7 @@
 //     written as RGB with no alpha channel at all.
 
 import { execFileSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync, rmSync, existsSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -48,6 +49,65 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // stopped matching it at D302, deliberately.)
 const INK = "#1d1914";
 const MASTER = 1024;
+
+// ── the lock, and the outputs it covers ──────────────────────────────
+// D324 found the app icon on no gate's path: this script is the only
+// writer of every launcher icon, it had no package.json entry, and no
+// workflow invoked it — so a stale or hand-touched icon would ship with
+// every gate green. The lock is the fix that works without Chromium in
+// CI (a re-render is not byte-stable across Chromium versions): each run
+// records the hash of the mark, of this script, and of every file it
+// wrote, and `check:icons` holds the committed tree to it.
+//
+// Android density buckets: legacy square/round px, then adaptive
+// foreground px. (Declared here rather than at the write loop because
+// the lock needs the output list before anything renders.)
+const ANDROID = [
+  ["mdpi", 48, 108],
+  ["hdpi", 72, 162],
+  ["xhdpi", 96, 216],
+  ["xxhdpi", 144, 324],
+  ["xxxhdpi", 192, 432],
+];
+const OUTPUTS = [
+  ...ANDROID.flatMap(([bucket]) => [
+    `android/app/src/main/res/mipmap-${bucket}/ic_launcher.png`,
+    `android/app/src/main/res/mipmap-${bucket}/ic_launcher_round.png`,
+    `android/app/src/main/res/mipmap-${bucket}/ic_launcher_foreground.png`,
+  ]),
+  "ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png",
+];
+const LOCK = join(root, "design/icon/icons.lock.json");
+
+function sha256(path) {
+  return createHash("sha256").update(readFileSync(path)).digest("hex");
+}
+
+function writeLock() {
+  const lock = {
+    "//": "Written by scripts/gen-icons.mjs; npm run check:icons holds the committed icons to it. Do not hand-edit.",
+    source: sha256(join(root, "design/icon/mark.svg")),
+    script: sha256(fileURLToPath(import.meta.url)),
+    ink: INK,
+    outputs: Object.fromEntries(OUTPUTS.map((p) => [p, sha256(join(root, p))])),
+  };
+  writeFileSync(LOCK, JSON.stringify(lock, null, 2) + "\n");
+}
+
+// --relock adopts the COMMITTED outputs as they stand, no Chromium and
+// no re-render. It exists for exactly one shape of moment: outputs whose
+// provenance was verified some other way (build 26's icon was pinned to
+// D302's commit by D324's own audit) predate the lock, and re-rendering
+// here would swap shipped bytes for a different Chromium's near-identical
+// render — a change nobody asked for on files already delivered. It does
+// NOT verify the icons match the mark; it asserts they are what the tree
+// holds today, so every FUTURE change to mark, script or output trips
+// the gate until a real run.
+if (process.argv.includes("--relock")) {
+  writeLock();
+  console.log(`gen-icons: relocked ${OUTPUTS.length} committed icons into design/icon/icons.lock.json — no render`);
+  process.exit(0);
+}
 
 const CHROME = process.env.CHROME || [
   "/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
@@ -244,15 +304,6 @@ assertNotBlank(opaque, "opaque");
 assertNotBlank(alpha, "alpha");
 
 // ── write every target ───────────────────────────────────────────────
-// Android density buckets: legacy square/round px, then adaptive foreground px.
-const ANDROID = [
-  ["mdpi", 48, 108],
-  ["hdpi", 72, 162],
-  ["xhdpi", 96, 216],
-  ["xxhdpi", 144, 324],
-  ["xxxhdpi", 192, 432],
-];
-
 let n = 0;
 for (const [bucket, legacy, fg] of ANDROID) {
   const dir = join(root, "android/app/src/main/res", `mipmap-${bucket}`);
@@ -270,4 +321,5 @@ writePng(
 n += 1;
 
 rmSync(work, { recursive: true, force: true });
-console.log(`gen-icons: wrote ${n} icons from design/icon/mark.svg`);
+writeLock();
+console.log(`gen-icons: wrote ${n} icons from design/icon/mark.svg, and the lock check:icons reads`);

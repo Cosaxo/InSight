@@ -238,6 +238,14 @@ jobs:
       # names, reported by email after the upload transferred and the build
       # number was spent. Same side of the line as the two above.
       - run: npm run check:ios-location
+      # The launcher icons against the lock gen-icons.mjs writes. D324
+      # found the icon on no gate's path — it reaches the binary from
+      # Assets.xcassets/, which cap sync does not write and neither
+      # release gate reads. Hash-lock rather than re-render: a Chromium
+      # re-render is not byte-stable, and the failure this catches (a
+      # changed mark with stale committed icons, or a hand-touched PNG)
+      # is a hash question, not a pixel one.
+      - run: npm run check:icons
 
   typecheck-build:
     runs-on: ubuntu-latest

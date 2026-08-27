@@ -71,6 +71,7 @@
     "check:ios-spm": "node scripts/check-ios-spm.mjs",
     "check:ios-facebook": "node scripts/check-ios-facebook.mjs",
     "check:ios-location": "node scripts/check-ios-location.mjs",
+    "check:icons": "node scripts/check-icons.mjs",
     "postinstall": "node scripts/strip-facebook-sdk.mjs",
     "build:cities": "node scripts/build-cities.mjs",
     "check:deploy-targets": "node scripts/check-deploy-targets.mjs",
