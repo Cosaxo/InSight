@@ -1408,7 +1408,17 @@ async function hydrate(): Promise<void> {
     // "fewer rows came back than I asked for" is the only signal that
     // means the end, and any count-based check would reintroduce it.
     let maxCursor = 0;
-    const fetchPaged = async (wheres: unknown[]): Promise<BankEntry[]> => {
+    // `lead` is the inequality's field, and it is not optional decoration:
+    // Firestore REJECTS a query whose first ordering is not the field it
+    // ranges over, and `orderBy(documentId())` alone makes `__name__` the
+    // first ordering. The rejection is `invalid-argument: order by clause
+    // cannot contain more fields after the key` — thrown at getDocs, not
+    // at query(), so nothing catches it in this block and nothing sees it
+    // in a test whose Firestore is a fake. The composite the ranged query
+    // needs is declared `(paid, until)`, which implicitly ends `__name__`
+    // ASC: the pair below is exactly what that index serves, so the cursor
+    // stays a total order and startAfter still cannot skip or repeat.
+    const fetchPaged = async (wheres: unknown[], lead?: string): Promise<BankEntry[]> => {
       const out: BankEntry[] = [];
       // The page's last DocumentSnapshot, handed straight to startAfter.
       let after: unknown = null;
@@ -1418,6 +1428,7 @@ async function hydrate(): Promise<void> {
           query(
             collection(db, "v2_questions"),
             ...(wheres as never[]),
+            ...(lead ? [orderBy(lead)] : []),
             orderBy(documentId()),
             ...(after ? [startAfter(after)] : []),
             limit(BANK_PAGE),
@@ -1470,7 +1481,7 @@ async function hydrate(): Promise<void> {
     const paidRows = (await fetchPaged([
       where("paid", "==", true),
       where("until", ">=", utcDayKey(0)),
-    ])).filter((q) => q.surface === "feed");
+    ], "until")).filter((q) => q.surface === "feed");
     all = [...bootRows, ...coreRows, ...paidRows];
     cursor = maxCursor;
     state.stats.bankSource = "network";

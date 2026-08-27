@@ -30,7 +30,7 @@ interface FakeDoc {
 }
 interface Constraint {
   kind: string;
-  field?: string;
+  field?: unknown;
   op?: string;
   value?: unknown;
 }
@@ -103,7 +103,7 @@ vi.mock("firebase/firestore", () => {
       cons,
     }),
     where: (field: string, op: string, value: unknown) => ({ kind: "where", field, op, value }),
-    orderBy: () => ({ kind: "orderBy" }),
+    orderBy: (field: unknown) => ({ kind: "orderBy", field }),
     limit: (n: number) => ({ kind: "limit", value: n }),
     startAfter: (cur: unknown) => ({ kind: "startAfter", value: cur }),
     documentId: () => ({ kind: "documentId" }),
@@ -125,6 +125,27 @@ vi.mock("firebase/firestore", () => {
       if (q?.path !== "v2_questions") return Promise.resolve(snapOf([]));
       const cons = q.cons || [];
       h.bankQueries.push({ path: q.path, cons });
+      // Firestore's ordering rule, enforced because the fake is the only
+      // Firestore these tests ever see. If a query names an inequality AND
+      // states an explicit ordering, the FIRST ordering must be the field
+      // it ranges over — an implicit one (no orderBy at all, as the delta
+      // query does) is fine, a `__name__`-first one is not. The real
+      // backend rejects the violation at getDocs with this exact message,
+      // which means a fake that shrugs lets a query ship that throws on
+      // every device and is caught by nothing: the boot's paged fetch is
+      // outside every try in hydrate(), so the throw strands the app on
+      // "loading questions" for good. That shipped.
+      const ineq = cons.find(
+        (c) => c.kind === "where" && typeof c.field === "string"
+          && [">", ">=", "<", "<="].includes(c.op as string),
+      );
+      const firstOrder = cons.find((c) => c.kind === "orderBy");
+      if (ineq && firstOrder && firstOrder.field !== ineq.field) {
+        return Promise.reject(Object.assign(
+          new Error("order by clause cannot contain more fields after the key"),
+          { code: "invalid-argument" },
+        ));
+      }
       // The pagers' fetch-by-id (D320/D321): where(documentId(), "in", ids).
       const byId = cons.find(
         (c) => c.kind === "where" && typeof c.field === "object"
