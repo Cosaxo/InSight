@@ -32338,3 +32338,114 @@ lawyer's and one of them is urgent:
   `localStorage` list swept by the purge, and it is not available on the
   daily card at all. It is not a control, and the page must stop offering
   it as one; retire the sentence with a `check:public-copy` RETIRED row.
+
+## D320 · The political compass waits for a yes, and the toggle governs whether it is COMPUTED
+
+**2026-08-27.** **Status:** binding, **built**. **Owner's call**, reporting
+a legal answer obtained outside this repo: *"the answer was that it was
+fine legally as long as there is a toggle on political test to not show
+it."* Builds D319's design; supersedes its "not built" status and drops
+two of its three lawyer blockers as answered by the owner.
+
+### The one engineering decision the instruction leaves open
+
+The advice says a toggle "to not show it". Taken literally as a DISPLAY
+toggle it cannot be implemented honestly: `testResults.political` is
+written to `v2_users/{uid}`, which every signed-in user may read since
+D98. Hiding it on the owner's own screen would leave the coordinate
+world-readable behind a switch reading off — a surface saying something
+the server does not do, which is exactly D316, and not the control anyone
+asking for a toggle means.
+
+**So the toggle governs whether the coordinate is COMPUTED AND PUBLISHED.**
+The gate is a `continue` inside the fold, not a branch in a renderer.
+
+### What actually gets gated, and it is the small half that is visible
+
+Ten of the 278 live-bank questions carry the political marker; those cards
+are ordinary public answers and D320 does not touch them. The half that
+needed the control is derived and invisible: `syncPassiveResults`
+(`data/live.ts`) folds ordinary feed answers into `testResults.political`
+and publishes a six-axis coordinate, and `MIN_AXIS_ITEMS = 2` over six
+axes means roughly a dozen feed cards produce a published political
+position, with no act by the user and no screen that ever said so.
+
+**The default is OFF**, which closes the window between install and the
+ask rather than shrinking it.
+
+### As built
+
+- `data/politicalConsent.ts` — the record (`{ v, at, off? }`) and four
+  pure predicates. `off` is present-or-absent rather than a boolean, the
+  absence shape D258 and D317 were both bitten by. A withdrawal KEEPS the
+  row: Art. 7(1) wants the controller able to show consent was obtained
+  and when it ended, and deleting it would destroy the evidence that the
+  withdrawal was honoured.
+- **`v` versions the ASK.** Reword what is being agreed to, bump it, and
+  everyone at the old version is asked again while publishing stops in the
+  meantime. A record from a NEWER build still publishes — refusing there
+  would blank the compass of everyone mid-rollout.
+- `LIVE.setPoliticalConsent(on)` — one `setDoc(merge)` carrying the record
+  AND, when off, `deleteField()` on the coordinate. One write, so a
+  partial failure cannot leave the state that says private over data still
+  published.
+- **The ask is on `LiveProfileSetup` (D151's screen), recorded on the
+  TAP.** A consent is its own act, not a field on a form: someone who taps
+  "Not these" and then "Skip for now" has decided, and losing that to a
+  dismissed screen re-asks them tomorrow, which is how a refusal becomes a
+  nag. It is outside the anchor grid and outside `filled` — counting a
+  consent in "Save N of 7" would file it as a demographic.
+- **Two buttons of equal weight**, neither the page's filled primary. A
+  coloured yes beside a grey no is a nudge, and a nudged consent is not
+  freely given — it would cost the app the thing the ask exists to obtain.
+- The account row carries the same two-tap arm-then-fire shape as *Delete
+  everything*, because it deletes something. Turning it ON is one tap: a
+  confirmation in front of a harmless action teaches people to tap through
+  the one in front of a harmful one.
+- **`anon` is off the rules allowlist.** It had sat there since the v2
+  profile with no writer, no reader, no validation and no test — and D319
+  was drafted on the belief that it worked. A dead allowlist entry that
+  reads like a feature is worse than no field.
+
+### The test that was wrong three times, and what fixed it
+
+The wiring cases in `vote.test.ts` passed with the gate DELETED, through
+three drafts:
+
+1. invented prompts — `testItemMeta` joins by prompt against a 5-option
+   scale, so they folded to nothing;
+2. two real prompts on one axis — `passiveResult` refuses an instrument
+   whose axes are not ALL behind `MIN_AXIS_ITEMS`, so still nothing;
+3. all twelve, but asserted at boot — the answers have not landed when
+   hydrate's fold runs, so the absence was about ORDERING, not consent.
+
+What closed it is **a positive control**: a case asserting the coordinate
+IS written for a consented account. An absence proves a gate only if the
+thing could have been produced, and without that control the whole block
+was four assertions that the harness cannot fold a political result. Now
+verified both ways — three cases fail with the gate removed, six pass with
+it.
+
+That is the D296 lesson in its own shape: a test that passes for the wrong
+reason is worse than no test, because it is counted.
+
+### What this does NOT settle
+
+The owner's answer covers the toggle. **One question from D319 stands and
+is unchanged**: `scripts/report-lib.mjs` already sells political axis-band
+cuts (D254), and data gathered before any consent existed does not carry
+into a commercial product on the strength of a consent given later. That
+is about data already held, not about anything built here, and it wants an
+answer before the next report ships.
+
+The **under-16 floor** D319 proposed is NOT built. The app is rated 12+/13+
+and `ageBand`'s first bucket is "Under 18"; the owner's answer did not
+address age, and building a floor nobody asked for would be a product
+decision taken by a gate. Recorded as open rather than silently dropped.
+
+**Green:** `test:unit` (2172), functions (419), `test:rules` (153, with
+the consent shape and the `anon` refusal), `test:scripts`, `tsc -b`,
+eslint, `check:anchors`, `check:appcheck`, `check:data-inventory`,
+`check:docs`, `check:figures`, `check:globals`, `check:labels`,
+`check:policy-claims` (four new rows, one per promise on the page),
+`check:public-copy`, `check:purge`, `check:store-forms`.

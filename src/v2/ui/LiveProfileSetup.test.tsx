@@ -33,6 +33,10 @@ const LIVE = vi.hoisted(() => ({
   displayName: "",
   handle: "",
   saveDisplayName: vi.fn(async (n: string) => { void n; }),
+  // D320 — the political consent pair. Defaults to NOT consented, which
+  // is the state a first-run screen is actually in.
+  politicalConsented: vi.fn(() => false),
+  setPoliticalConsent: vi.fn(async (on: boolean) => { void on; }),
   social: { claimHandle: vi.fn(async (h: string) => ({ handle: h })) },
   subscribe: () => () => {},
 }));
@@ -54,6 +58,8 @@ beforeEach(() => {
   LIVE.displayName = "Tester";
   LIVE.saveAnchors.mockClear();
   LIVE.saveDisplayName.mockClear();
+  LIVE.setPoliticalConsent.mockClear();
+  LIVE.politicalConsented.mockReturnValue(false);
   LIVE.social.claimHandle.mockClear();
   onDone.mockClear();
 });

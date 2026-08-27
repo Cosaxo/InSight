@@ -350,7 +350,10 @@ describe("v2 profile", () => {
     await assertSucceeds(setDoc(mine, {
       displayName: "Mira",
       anchors: { city: "Oslo", country: "Norway" },
-      anon: true,
+      // `anon: true` stood here until D320 took the key off the allowlist.
+      // It had no writer and no reader in the whole tree, and this line was
+      // the only thing in the repo that made it look load-bearing.
+      consent: { political: { v: 1, at: 1730000000000 } },
     }));
     await assertSucceeds(getDoc(mine));
     // D98: a stranger READS the profile — that is how a uid on an answer
@@ -504,6 +507,29 @@ describe("v2 profile", () => {
     await assertFails(setDoc(mine, { anchors: { jobField: "x".repeat(41) } }));
     // and a non-string value is not a short string
     await assertFails(setDoc(mine, { anchors: { ageBand: 25 } }));
+  });
+
+  // The political consent record (D320), and the key that left with it.
+  it("accepts a consent record, refuses a malformed one, and `anon` is gone", async () => {
+    const mine = doc(asUser(OWNER), "v2_users", OWNER);
+    await assertSucceeds(setDoc(mine, { consent: { political: { v: 1, at: 1730000000000 } } }));
+    await assertSucceeds(setDoc(mine, {
+      consent: { political: { v: 1, at: 1730000000000, off: 1730000001000 } },
+    }));
+    // Shape only — a rule cannot decide whether a consent was freely
+    // given, and the control that matters is that the coordinate is never
+    // COMPUTED without it (data/live.ts). What a rule CAN hold is that the
+    // record is readable arithmetic rather than whatever a caller sent.
+    await assertFails(setDoc(mine, { consent: { political: { v: "1", at: 1 } } }));
+    await assertFails(setDoc(mine, { consent: { political: { v: 1 } } }));
+    await assertFails(setDoc(mine, { consent: { political: { v: 1, at: 1, off: true } } }));
+    await assertFails(setDoc(mine, { consent: { political: { v: 1, at: 1, why: "x" } } }));
+    await assertFails(setDoc(mine, { consent: { politics: { v: 1, at: 1 } } }));
+    // `anon` sat on this allowlist since the v2 profile was written, with
+    // no writer and no reader — the D258/D280 shape, and it read like an
+    // anonymity toggle that has never existed. D320 took it off, and a
+    // write carrying it must now be refused rather than quietly stored.
+    await assertFails(setDoc(mine, { anon: true }));
   });
 
   // D155 added `age` beside `ageBand` — the exact number, for the screens

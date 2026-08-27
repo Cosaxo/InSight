@@ -61,6 +61,17 @@ function LivePrivacyPanel() {
   const [confirmDel, setConfirmDel] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
   const [photoMsg, setPhotoMsg] = React.useState<string | null>(null);
+  // D320. Local mirror of the stored consent so the row flips on the tap
+  // rather than on the next boot; LIVE holds the truth and a failed write
+  // is corrected by the next hydrate rather than by an optimistic lie.
+  //
+  // UP HERE WITH THE OTHER HOOKS, not down beside the handler that uses
+  // it: `if (!LIVE.enabled) return null` sits between, and a useState
+  // after an early return is called on some renders and not others —
+  // which eslint's rules-of-hooks caught, and which would have desynced
+  // every state in this component the first time a demo build mounted it.
+  const [pol, setPol] = React.useState(() => LIVE.politicalConsented());
+  const [confirmPol, setConfirmPol] = React.useState(false);
   // whether this account holds any purchase — decides the room's door row
   // below (one session-cached mine-only query; empty for almost everyone)
   React.useEffect(() => {
@@ -96,6 +107,12 @@ function LivePrivacyPanel() {
       await LIVE.saveDisplayName(n);
       setSaved(true); setTimeout(() => setSaved(false), 1800);
     } catch (e) { setErr(String((e instanceof Error && e.message) || e)); }
+    setBusy(false);
+  };
+  const setPolitical = async (on: boolean) => {
+    setBusy(true); setErr(null); setConfirmPol(false);
+    try { await LIVE.setPoliticalConsent(on); setPol(on); }
+    catch (e) { setErr(String((e instanceof Error && e.message) || e)); }
     setBusy(false);
   };
   const nuke = async () => {
@@ -254,6 +271,39 @@ function LivePrivacyPanel() {
           sub="Your paid questions and their reports — live public numbers, nothing private.">
           {btn("Open →", () => NAV.openAskedByYou())}
         </LpRow>
+      )}
+
+      {/* THE POLITICAL COMPASS, AND WHY IT IS A ROW RATHER THAN A SETTING
+          (D320). The app folds ordinary feed answers into a six-axis
+          political coordinate and writes it to a profile any signed-in
+          user can read — about a dozen cards is enough, with no act by the
+          reader. That is an inference this app computes and publishes, so
+          it gets a control, and the control governs whether it is COMPUTED,
+          never whether it is drawn. A switch that only hid it would leave
+          the coordinate world-readable behind a screen claiming otherwise:
+          the D316 failure, and not what a toggle means to anyone.
+
+          Directly above Delete everything because they are the same kind
+          of row — the two places this panel lets you take something back —
+          and this is the smaller one, so it goes first. */}
+      <LpRow title="Political compass"
+        sub={pol
+          ? "Built from your answers and shown on your profile. Anyone signed in can read it."
+          : "Off. Your answers still count; no political profile is built from them."}>
+        {confirmPol ? (
+          <div style={{ display: "flex", gap: 6 }}>
+            {btn("Cancel", () => setConfirmPol(false))}
+            {btn("Yes, turn off", () => void setPolitical(false), true)}
+          </div>
+        ) : pol
+          ? btn("Turn off…", () => setConfirmPol(true))
+          : btn("Turn on", () => void setPolitical(true))}
+      </LpRow>
+      {confirmPol && (
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", margin: "-4px 0 10px" }}>
+          This deletes the compass from your profile now. Copies anyone
+          already made are beyond us.
+        </div>
       )}
 
       <LpRow title="Delete everything"

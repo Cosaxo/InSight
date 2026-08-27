@@ -79,6 +79,10 @@ vi.mock("firebase/firestore", () => {
     setDoc: () => Promise.resolve(),
     updateDoc: () => Promise.resolve(),
     deleteDoc: () => Promise.resolve(),
+    // D320: setPoliticalConsent removes the published compass with the
+    // consent record, in one merge — a sentinel here, asserted in
+    // political-consent.test.ts rather than in these boot fixtures.
+    deleteField: () => "__delete__",
     terminate: () => Promise.resolve(),
     clearIndexedDbPersistence: () => Promise.resolve(),
   };

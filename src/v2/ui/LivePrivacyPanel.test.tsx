@@ -22,7 +22,7 @@
 // or what the release build already settled at the door.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 // The claim list the CI gate reads, shared rather than re-typed (D183):
 // a second copy of these patterns is a second thing to forget to update.
 // @ts-expect-error TS7016 — plain .mjs gate script, no types
@@ -46,6 +46,11 @@ const LIVE = vi.hoisted(() => ({
   handle: "",
   deleteAccount: async () => {},
   saveDisplayName: async () => {},
+  // D320 — the compass row. Consented by default here so the row's ON
+  // copy is what the existing cases render past; the OFF copy and the
+  // withdrawal write have their own cases below.
+  politicalConsented: vi.fn(() => true),
+  setPoliticalConsent: vi.fn(async (on: boolean) => { void on; }),
   subscribe: () => () => {},
 }));
 vi.mock("../data/live", () => ({ default: LIVE, localName: () => "" }));
@@ -276,5 +281,46 @@ describe("LivePrivacyPanel · no Sign-in row, no Crash-reports toggle", () => {
     expect(screen.queryByRole("button", { name: /Link Google|Linked/ })).toBeNull();
     expect(screen.queryByText("Crash reports")).toBeNull();
     expect(screen.queryByRole("button", { name: /^(On|Off) ?✓?$/ })).toBeNull();
+  });
+});
+
+// The political compass row (D320).
+//
+// WHY IT IS TESTED HERE AT ALL, given that vote.test.ts already pins the
+// gate and politicalConsent.test.ts the predicate: this row is the only
+// place a user is ever told the compass exists, and it makes a claim about
+// what turning it off DOES. A row whose button stopped calling the writer
+// would leave a switch that reads "off" over a coordinate still published
+// — the failure the whole record is about, wearing a working UI.
+describe("LivePrivacyPanel · the political compass row", () => {
+  it("says it is on, and does not withdraw on the first tap", () => {
+    LIVE.politicalConsented.mockReturnValue(true);
+    render(<LivePrivacyPanel />);
+    expect(screen.getByText("Political compass")).toBeTruthy();
+    expect(screen.getByText(/Anyone signed in can read it/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Turn off…" }));
+    // Armed, not fired — the same two-tap shape Delete everything uses,
+    // and for the same reason: this one deletes something.
+    expect(LIVE.setPoliticalConsent).not.toHaveBeenCalled();
+    expect(screen.getByText(/Copies anyone\s+already made are beyond us/)).toBeTruthy();
+  });
+
+  it("withdraws on the confirm tap", async () => {
+    LIVE.politicalConsented.mockReturnValue(true);
+    render(<LivePrivacyPanel />);
+    fireEvent.click(screen.getByRole("button", { name: "Turn off…" }));
+    fireEvent.click(screen.getByRole("button", { name: "Yes, turn off" }));
+    await waitFor(() => expect(LIVE.setPoliticalConsent).toHaveBeenCalledWith(false));
+  });
+
+  it("offers a one-tap turn-on when it is off, and says answers still count", () => {
+    // No confirm step in this direction: turning it ON destroys nothing,
+    // and a confirmation dialogue in front of a harmless action teaches
+    // people to tap through the one in front of a harmful one.
+    LIVE.politicalConsented.mockReturnValue(false);
+    render(<LivePrivacyPanel />);
+    expect(screen.getByText(/Your answers still count/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Turn on" }));
+    expect(LIVE.setPoliticalConsent).toHaveBeenCalledWith(true);
   });
 });

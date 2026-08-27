@@ -166,6 +166,23 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
   // name it saved on the first.
   const written = React.useRef({ anchors: false, name: "" });
 
+  // D320 — the political consent, asked here for D151's own reason: an
+  // answer cannot be re-filed, and a coordinate published before anyone
+  // agreed to it cannot be un-published from the copies people took.
+  //
+  // RECORDED ON THE TAP, not on Save. A consent is its own act rather than
+  // a field on a form: someone who taps "Not these" and then "Skip for
+  // now" has decided, and losing that to a dismissed screen would re-ask
+  // them tomorrow — which is how a refusal quietly becomes a nag. null is
+  // "not answered yet", and the default while it is null is OFF.
+  const [pol, setPol] = React.useState<boolean | null>(
+    () => (LIVE.politicalConsented() ? true : null),
+  );
+  const answerPolitical = (on: boolean) => {
+    setPol(on);
+    void LIVE.setPoliticalConsent(on).catch(() => { /* next boot re-reads the truth */ });
+  };
+
   async function finish(save: boolean) {
     if (busy) return;
     setBusy(true);
@@ -331,6 +348,44 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
           <PsField id="ps-heightBand" title="Height">
             <PsSelect id="ps-heightBand" value={v.heightBand || ""} onChange={(x) => set("heightBand", x)} options={HEIGHT_OPTS} placeholder="—" />
           </PsField>
+        </div>
+
+        {/* NOT ONE OF THE SEVEN, and deliberately outside the grid and
+            outside `filled`. The anchors are facts about you that the
+            aggregate slices by; this is permission for the app to derive
+            and publish something it computes. Counting it in "Save N of 7"
+            would file a consent as a demographic.
+
+            TWO BUTTONS OF EQUAL WEIGHT — same size, same border, neither
+            in the accent colour and neither the page's filled primary. A
+            coloured yes beside a grey no is a nudge, and a nudged consent
+            is not freely given, which would cost the app the very thing
+            the ask exists to obtain. This is the one control on this
+            screen that must not look persuasive. */}
+        <div style={{ marginTop: 26, paddingTop: 18, borderTop: "1px solid var(--line)" }}>
+          <div style={{ fontFamily: "var(--sans)", fontWeight: 800, fontSize: 14.5, color: "var(--ink)" }}>
+            The politics questions
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink-2)", marginTop: 6, lineHeight: 1.5 }}>
+            Political opinion is special-category data, so it is a separate
+            choice. Say yes and your answers to those cards build a
+            six-axis compass on your profile, which anyone signed in can
+            read — like every other answer here. Say no and no political
+            profile is built. You can change it later in your account.
+          </div>
+          <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+            {([[false, "Not these"], [true, "Yes, build it"]] as const).map(([on, label]) => (
+              <button key={label} className="press" onClick={() => answerPolitical(on)} disabled={busy}
+                style={{
+                  flex: 1, borderRadius: 999, padding: "11px 0", cursor: "pointer",
+                  fontFamily: "var(--sans)", fontWeight: 800, fontSize: 13.5,
+                  WebkitAppearance: "none",
+                  border: `1.5px solid ${pol === on ? "var(--ink)" : "var(--line)"}`,
+                  background: pol === on ? "var(--surface-2)" : "transparent",
+                  color: pol === on ? "var(--ink)" : "var(--ink-2)",
+                }}>{label}</button>
+            ))}
+          </div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 22 }}>
