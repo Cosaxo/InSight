@@ -189,12 +189,23 @@ jobs:
       # Non-interactive WITHOUT --force logs the would-be deletions and
       # continues, which is the direction this has to fail in. Enforced by
       # `npm run check:deploy-targets`.
+      #
+      # The NON-sub-target form on purpose: firebase.json's `firestore` key
+      # is the multi-database ARRAY since D165, and under that config the
+      # sub-target spelling `--only "firestore:rules,firestore:indexes"` is
+      # firebase-tools#10447's silently-does-nothing shape — exit 0,
+      # "Deploy complete!", nothing deployed. `--only "firestore"` deploys
+      # every configured database's rules and indexes. The pinned
+      # firebase-tools carries the upstream fix; the form and its gate arm
+      # exist because the failure mode is silence and the subject is the
+      # rules file (FIRESTORE-REGION.md § The two silent failures). Also
+      # enforced by `npm run check:deploy-targets`.
       - name: Deploy rules + indexes
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa-key.json
         run: >
           npx firebase deploy --project prvfire33 --non-interactive
-          --only "firestore:rules,firestore:indexes"
+          --only "firestore"
 
       # --force is required for non-interactive deploys of retry-enabled
       # triggers (docs/DEPLOYMENT.md) — and now reaches nothing but functions.

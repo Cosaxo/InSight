@@ -823,7 +823,10 @@ did not wait.
 
 - **From GitHub:** Actions -> "Deploy Firebase backend" -> "Run workflow"
   (or open a past run -> "Re-run all jobs").
-- **Locally:** `firebase deploy --project prvfire33 --only "firestore:rules,functions"`
+- **Locally:** `firebase deploy --project prvfire33 --only "firestore,functions"`
+  — the bare `firestore` product, not `firestore:rules`: under the
+  multi-database config the sub-target form can silently deploy nothing
+  (`FIRESTORE-REGION.md` § The two silent failures).
 
 ## Rotating / updating the credential
 

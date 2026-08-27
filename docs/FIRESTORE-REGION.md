@@ -216,6 +216,13 @@ That gate already exists for exactly this shape of failure — its own header
 says *"Same silent shape as storage.rules being configured and deployed by
 nothing."*
 
+**Delivered 2026-08-27**, twelve days after step 4 shipped without it: the
+arm is in the gate (`firestoreFormProblems`), the workflow moved to the
+non-sub-target form `--only "firestore"`, and
+`check-deploy-targets.test.mjs` pins the exact spelling that was live
+wrong — saved in the interim only by the lockfile happening to hold a
+fixed firebase-tools, which is the reliance this section forbids.
+
 ### The trigger's database option
 
 `onDocumentCreated` and `onDocumentUpdated` bind to the `(default)`
