@@ -17,9 +17,13 @@ import {
   paidAdPurchaseDoc,
   PAID_OPTIONS_MAX,
   PAID_PROMPT_MAX,
+  MAX_REVIEW_ATTEMPTS,
   RATING,
   REVIEW_GUIDELINES,
+  SWEEP_MAX_PAGES,
+  SWEEP_PAGE,
   WINDOW_DAYS,
+  runReviewSweep,
   paidPurchaseDoc,
   paidQuestionDoc,
   parseVerdict,
@@ -433,5 +437,80 @@ describe("REVIEW_GUIDELINES — the ad clause", () => {
   it("gates an ad with no words in it", () => {
     expect(reviewGates({ ...AD, headline: "!!", body: "…" })).toMatch(/write it out/);
     expect(reviewGates(AD)).toBeNull();
+  });
+});
+
+// The retry queue, and what happens to a booking no automatic reviewer
+// will ever settle.
+//
+// A verdict that does not parse throws — deliberately, so a truncated
+// answer never decides a booking — and the sweep retried the hold every
+// thirty minutes. Forever: `reviewAttempts` was incremented and read by
+// nothing. Each attempt is a billed model call, and because the sweep's
+// `createdAt <` inequality forces oldest-first order, an unsettleable
+// booking held one of fifty slots for good. Fifty of them — ten free
+// accounts at the 5/day budget — starved the queue outright, so a booking
+// held behind a REAL outage would never be retried at all.
+describe("runReviewSweep", () => {
+  const store = (rows) => {
+    const state = { reviewed: [], pages: [] };
+    return {
+      state,
+      store: {
+        async heldPage(after, limit) {
+          const from = after ? rows.findIndex((r) => r.id === after) + 1 : 0;
+          const page = rows.slice(from, from + limit);
+          state.pages.push({ after, size: page.length });
+          return page;
+        },
+        async review(bid) { state.reviewed.push(bid); },
+      },
+    };
+  };
+  const held = (n, attempts) =>
+    Array.from({ length: n }, (_, i) => ({ id: `b${String(i).padStart(4, "0")}`, attempts }));
+
+  it("retries a booking under the ceiling", async () => {
+    const { store: st, state } = store(held(3, 0));
+    const res = await runReviewSweep(st);
+    expect(res).toMatchObject({ scanned: 3, retried: 3, stalled: 0 });
+    expect(state.reviewed).toEqual(["b0000", "b0001", "b0002"]);
+  });
+
+  it("stops calling for one past the ceiling, and says how many", async () => {
+    const { store: st, state } = store([
+      { id: "stuck", attempts: MAX_REVIEW_ATTEMPTS },
+      { id: "fresh", attempts: 1 },
+    ]);
+    const res = await runReviewSweep(st);
+    expect(res).toMatchObject({ retried: 1, stalled: 1 });
+    expect(state.reviewed, "a booking past the ceiling was called for again").toEqual(["fresh"]);
+  });
+
+  it("PAGES PAST a full page of stalled bookings to reach a live one", async () => {
+    // The starvation itself. One whole page of unsettleable bookings, all
+    // older than the one that needs retrying — which is exactly the order
+    // the query returns them in.
+    const rows = [...held(SWEEP_PAGE, MAX_REVIEW_ATTEMPTS), { id: "zz_real", attempts: 0 }];
+    const { store: st, state } = store(rows);
+    const res = await runReviewSweep(st);
+    expect(state.reviewed, "a real hold behind a page of stalled ones was never retried")
+      .toEqual(["zz_real"]);
+    expect(res).toMatchObject({ retried: 1, stalled: SWEEP_PAGE });
+    // …and it walked, rather than asking for one bigger page.
+    expect(state.pages.length).toBeGreaterThan(1);
+    expect(state.pages[1].after).toBe(`b${String(SWEEP_PAGE - 1).padStart(4, "0")}`);
+  });
+
+  it("is bounded — a scheduled job may not loop forever", async () => {
+    const rows = held(SWEEP_PAGE * (SWEEP_MAX_PAGES + 3), MAX_REVIEW_ATTEMPTS);
+    const res = await runReviewSweep(store(rows).store);
+    expect(res.scanned).toBe(SWEEP_PAGE * SWEEP_MAX_PAGES);
+  });
+
+  it("stops on a short page rather than asking for an empty one", async () => {
+    const { store: st, state } = store(held(3, 0));
+    await runReviewSweep(st);
+    expect(state.pages.length).toBe(1);
   });
 });
