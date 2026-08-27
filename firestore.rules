@@ -562,7 +562,30 @@ service cloud.firestore {
           // -1 is a clock expiry, which scores as a miss. Anything below
           // that is a client inventing a sentinel of its own.
           && request.resource.data.guess is int
-          && request.resource.data.guess >= -1;
+          && request.resource.data.guess >= -1
+          // …and the id IS the slice, which is what makes the paragraph
+          // above true rather than merely intended. Create-only stops a
+          // verdict being rewritten; it does not stop the same slice being
+          // read again at a DIFFERENT id, and until this clause the id was
+          // client-chosen and never compared to the payload it names. So
+          // "one attempt per slice" was a description of what the client
+          // happened to do, and a client is not a rule.
+          //
+          // The shape is `readId()` in data/foresight.ts verbatim — the
+          // one thing that has ever written here — so this refuses nothing
+          // the app does. It is the world-take bound (`qid + "_" + uid`)
+          // one collection over, and for the same reason: when a document
+          // is one-per-something, the id has to BE that something.
+          //
+          // Residue, recorded rather than closed: an invented qid/dim/
+          // bucket triple still mints a fresh slot, because nothing here
+          // checks that the slice exists. Closing that means a get() on
+          // the question — a billed read on a path with no live surface
+          // (D136 took the lens off the Mirror; the engine stands
+          // unplaced), and the score buys nothing but a number on your own
+          // screen. The re-roll was the hole worth closing.
+          && readId == request.resource.data.qid + "__"
+               + request.resource.data.dim + "__" + request.resource.data.bucket;
         allow update, delete: if false;
       }
 
@@ -1413,7 +1436,29 @@ service cloud.firestore {
           ? (request.resource.data.qid is string
             && request.resource.data.qid.size() >= 1
             && request.resource.data.qid.size() <= 120
-            && takeId == request.resource.data.qid + "_" + request.auth.uid)
+            && takeId == request.resource.data.qid + "_" + request.auth.uid
+            // The same operational kill switch the answer paths honour
+            // seven times over, and for a stronger reason here. Pulling a
+            // question stops it being answered; it does not stop the
+            // PUBLIC THREAD it started, and the thread is where the harm
+            // in a harmful question actually gets said. A world take is
+            // per-question by construction — the world list queries
+            // `gid == "world" && qid == …` — so closing the question
+            // closes exactly one thread and nothing else.
+            //
+            // Not extended to the circle branch below, and that is not an
+            // oversight: a circle's list queries `gid` alone, so its
+            // thread is per-GROUP and a take's qid is metadata on it.
+            // There is no per-question circle thread to close.
+            //
+            // A missing question denies too — get() on an absent document
+            // is null and `.data` on null fails the rule. That closes the
+            // invented-qid hole as a side effect: the id bound above makes
+            // takes one-per-person-per-qid, but nothing made a qid name a
+            // question, so any string minted a fresh empty thread that no
+            // surface could ever list.
+            && get(/databases/$(database)/documents/v2_questions/$(request.resource.data.qid))
+                 .data.get("active", true) == true)
           : (request.resource.data.gid is string
             && request.auth.uid in
               get(/databases/$(database)/documents/v2_groups/$(request.resource.data.gid)).data.memberUids

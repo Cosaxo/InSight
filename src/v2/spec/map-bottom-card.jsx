@@ -168,7 +168,10 @@ function MTAnswerBody({ node, anchors, activeA, onFilter }) {
 function MTAnswerCard({ node, cat, anchors, activeA, onFilter }) {
   return (
     <div style={{ '--hue': cat ? cat.hue : 282 }}>
-      <div className="mmt-kicker"><span className="mmt-dot"></span>{cat ? cat.label : 'answer'} · {node.note}</div>
+      {/* The separator goes with the date. `note` is null on a live build
+          — the demo calendar's label is not the day this account answered
+          — and "Values · " with nothing after it reads as a bug. */}
+      <div className="mmt-kicker"><span className="mmt-dot"></span>{cat ? cat.label : 'answer'}{node.note ? ' · ' + node.note : ''}</div>
       <MTAnswerBody node={node} anchors={anchors} activeA={activeA} onFilter={onFilter}></MTAnswerBody>
     </div>
   );

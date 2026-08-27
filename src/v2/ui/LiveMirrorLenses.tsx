@@ -51,6 +51,7 @@ import {
   COHORT_DIMS, DIM_LABEL, divergenceFor, meanScore, mixFor, pctFor,
   type Score,
 } from "../data/cohort";
+import { sharePcts } from "../data/pct";
 // D125: these two lenses printed the raw bucket KEY, so a country row read
 // "NO" and a city row "Oslo, NO". One resolver, shared with the feed's
 // breakdown sheet, so the same cohort is named the same everywhere.
@@ -225,6 +226,15 @@ function WhosHere({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) 
 
   const genderRows = Object.keys(gender).map((b) => ({ b, n: gender[b] })).sort((x, y) => y.n - x.n);
   const genderTotal = genderRows.reduce((a, r) => a + r.n, 0);
+  // `sharePcts` (data/pct.ts), the one rounding rule, because this bar is
+  // a 100%-STACKED one: the same number is the segment's width and the
+  // label printed inside it, so a set that does not sum to 100 is visible
+  // as well as wrong. Rounding each bucket on its own summed to 99 or 101
+  // on about a fifth of real mixes, and `[1, 1, 1]` drew three segments
+  // all labelled 33% with a one-percent gap at the end of the track —
+  // the container clips and paints no background, so the card showed
+  // through it.
+  const genderPcts = sharePcts(genderRows.map((r) => r.n));
 
   if (!ageTotal && !genderTotal) {
     return <LlEmpty>No ages or genders here yet.</LlEmpty>;
@@ -303,7 +313,7 @@ function WhosHere({ qs, shortName }: { qs: LensQuestion[]; shortName: string }) 
           <PlKicker>Gender</PlKicker>
           <div style={{ display: "flex", height: 26, borderRadius: 7, overflow: "hidden", marginTop: 8 }}>
             {genderRows.map((r, i) => {
-              const pct = Math.round((r.n / genderTotal) * 100);
+              const pct = genderPcts[i];
               return (
                 <span key={r.b} title={`${r.b} · ${pct}%`} style={{
                   width: `${pct}%`, display: "flex", alignItems: "center", justifyContent: "center",
