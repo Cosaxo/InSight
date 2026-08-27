@@ -1,20 +1,24 @@
-// Unit tests for the taste fold (taste.ts, D317 phase 1 / D322).
+// Unit tests for the taste fold (taste.ts, D317 phase 1 / D322, doors at
+// D325).
 //
 // Injected store, hand-built topic map — the patterns.test.ts shape —
 // because the fold's promises are about COUNTING, and counting bugs are
 // silent: a profile that over- or under-counts still renders, still
 // pages, and only shows as a feed that leans slightly wrong. Each
-// promise is one case: feed answers count by topic, one per person per
-// question per day, other surfaces never enter, the catch-up window
+// promise is one case: feed answers credit their topics (a doored
+// question in the demand rollup's conserved shares), one act per person
+// per question per day, other surfaces never enter, the catch-up window
 // bounds the scan, and the cursor makes a retry a no-op.
 
 import { describe, expect, it } from "vitest";
-import { runTasteFold, type TasteProfile, type TasteStore } from "./taste";
+import { creditShares, runTasteFold, type TasteProfile, type TasteStore } from "./taste";
 
-const TOPICS = new Map([
-  ["feed-f1", "food"],
-  ["feed-f2", "food"],
-  ["feed-s1", "sport"],
+const TOPICS = new Map<string, readonly string[]>([
+  ["feed-f1", ["food"]],
+  ["feed-f2", ["food"]],
+  ["feed-s1", ["sport"]],
+  // A doored question (D206): home first, then the door.
+  ["feed-d1", ["food", "tech"]],
 ]);
 
 // 2026-08-26 12:00 UTC — "yesterday" is 2026-08-25.
@@ -149,5 +153,65 @@ describe("runTasteFold", () => {
     expect(summary).toEqual({ days: 0, counted: 0, people: 0 });
     expect(store.askedDays).toEqual([]);
     expect(store.profiles.size).toBe(0);
+  });
+
+  it("credits a doored question across home ∪ door in the demand rollup's shares (D325)", async () => {
+    const store = fakeStore({
+      lastDay: "2026-08-24",
+      ledger: { "2026-08-25": [{ uid: "a", qid: "feed-d1" }] },
+    });
+    const summary = await runTasteFold(store, NOW, TOPICS);
+    const p = store.profiles.get("a") as TasteProfile;
+    expect(p.t.food).toBeCloseTo(2 / 3, 10);
+    expect(p.t.tech).toBeCloseTo(1 / 3, 10);
+    // One answer is one act of interest however many topics carry it:
+    // n stays the integer answer count, and the credit sums back to it.
+    expect(p.n).toBe(1);
+    expect(summary.counted).toBe(1);
+  });
+
+  it("CONSERVATION: summing credit recovers the answer count across a mixed day", async () => {
+    // The taste-side statement of scorecard-metrics' property — a door
+    // redistributes interest, never mints it, or page sizing would lean
+    // toward whatever the generator tagged broadly.
+    const store = fakeStore({
+      lastDay: "2026-08-24",
+      ledger: {
+        "2026-08-25": [
+          { uid: "a", qid: "feed-f1" },
+          { uid: "a", qid: "feed-d1" },
+          { uid: "a", qid: "feed-s1" },
+        ],
+      },
+    });
+    await runTasteFold(store, NOW, TOPICS);
+    const p = store.profiles.get("a") as TasteProfile;
+    expect(p.n).toBe(3);
+    expect(Object.values(p.t).reduce((s, v) => s + v, 0)).toBeCloseTo(3, 10);
+  });
+});
+
+describe("creditShares — the scorecard's ratio, pinned to the same values", () => {
+  // These pin the SAME numbers scorecard-metrics.test.mjs pins for its
+  // own copy: TAGS-PLAN §4's "one ratio used everywhere so nobody tunes
+  // them apart by accident", held across two packages that cannot import
+  // each other. Drifting either copy means editing both suites, and this
+  // comment is what asks why.
+  it("a doorless question credits its home in full", () => {
+    expect(creditShares(["sport"])).toEqual([{ topic: "sport", share: 1 }]);
+  });
+
+  it("holds the home:door ratio at 2:1, conserved", () => {
+    const [home, door] = creditShares(["sport", "tech"]);
+    expect(home.share).toBeCloseTo(2 / 3, 12);
+    expect(door.share).toBeCloseTo(1 / 3, 12);
+    expect(home.share / door.share).toBeCloseTo(2, 10);
+  });
+
+  it("sums to exactly one at every door count", () => {
+    for (const topics of [["a"], ["a", "b"], ["a", "b", "c"]]) {
+      const sum = creditShares(topics).reduce((s, c) => s + c.share, 0);
+      expect(sum).toBeCloseTo(1, 12);
+    }
   });
 });

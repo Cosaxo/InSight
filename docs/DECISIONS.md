@@ -32770,3 +32770,58 @@ that once refused run 5's own build). None of them reads
 `AppIcon-512@2x.png`, so the limit above is unchanged by a successful
 delivery: build 26 carries the iris to TestFlight, and it does so on a
 human's hand-run script rather than on anything this repo can check.
+
+## D325 · The taste fold reads doors: interest credit is conserved across a question's topics
+
+**2026-08-27.** TAGS-PLAN §4 as-built — the contract D206 wrote "so the
+field is not re-litigated when the on-device model lands", landed in the
+model that actually arrived (D317/D322 built it server-side; §4's
+arithmetic was never device-specific). One fold change, its paperwork,
+and one repair found on the way.
+
+**The change.** `runTasteFold` credited each counted answer to ONE
+topic — the home `cat`, doors invisible — so a person reaching a topic
+only through `also` doors could never cross `TASTE_TOPIC_MIN` however
+much they answered into it. It now credits `cat ∪ also` in the same
+conserved shares the demand rollup uses (home 2, each door 1,
+normalized): `creditShares` in `taste.ts` mirrors
+`scorecard-metrics.mjs`'s copy, and both suites pin the same share
+values, because §4's "one ratio used everywhere so nobody tunes them
+apart by accident" now spans two packages that cannot import each
+other. `n` stays the integer count of answers and summing `t` recovers
+it — tag credit redistributes interest, never mints it, the same
+property D206 proved for demand, pinned again here. The reader
+(`pageSizesByInterest`) needed nothing: `>=` reads fractional credit as
+it read counts, and a doors-only topic can now cross it — §4's stated
+point ("a model with a few dozen topic weights learns faster when
+questions overlap topics"). Stored values round to 3 decimals at the
+store, because the doc is owner-readable and 0.6666666666666666 is not
+a number a person should meet in their own profile; the fold's
+arithmetic stays exact and the re-read drift bound is 0.0005 per topic
+per night.
+
+**Why this is its own record and not a rider on D322.** D322 pinned the
+profile's arithmetic into `web/privacy.html` (`check:policy-claims`),
+and door credit changes what that sentence must describe. The page now
+says it, in the same commit: "A question that belongs to two topics
+counts toward both, split so the total stays your answer count." The
+claims gate holds the sentence the code makes true — the D183
+discipline, applied to the reason TAGS-PLAN §4's note said this
+graduates with a record.
+
+**What does not change.** Phase 2 (behaviour) stays unadopted — this
+reads the same answers phase 1 read, arranged over the doors they
+already carry. Feed only, the daily untouched, the Mirror untouched;
+the profile's rules, inventory row and store label are unchanged (same
+document, same single reader). The demand rollup is untouched too: it
+already credited doors, which is where the ratio came from.
+
+**The repair.** The fold's within-day dedupe key joined uid and qid
+with a RAW NUL byte in the source. Correct at runtime — no uid or qid
+can contain it — and invisible in the worst way: grep and ripgrep
+classified `taste.ts` as a binary file and matched NOTHING in it, so
+every search, scanner-shaped gate and future migration sweep would have
+silently skipped the file (this session's own search did, which is how
+it surfaced). The byte is now the six-character escape sequence —
+backslash, u, four zeros — the identical string at runtime, in a
+greppable source file.

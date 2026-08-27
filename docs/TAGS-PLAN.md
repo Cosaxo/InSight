@@ -1,12 +1,11 @@
 # Tags — several doors to one question, and demand that cannot be bought
 
-**Status: BUILT 2026-08-19, recorded as
+**Status: BUILT — §1–§3 and §5–§6 recorded as
 [D206](DECISIONS.md#d206--a-question-carries-several-doors-and-demand-credit-is-conserved)
-— except §4, whose reading now has a model to land in: D317/D322
-(2026-08-26) built the taste model server-side, reversing D163's address
-while keeping its invariants. Landing the door-read there is its own
-decision, not a rider — D322 pinned the profile's arithmetic into
-`web/privacy.html`, and door-credit changes that arithmetic (§4's note).** Requested 2026-08-19: *multiple tags on questions, and
+(2026-08-19); §4's door-read at D325 (2026-08-27), landed in the server
+taste model D317/D322 built rather than D163's device model the section
+was written against — the arithmetic was never device-specific, and the
+privacy page's sentence moved in the same commit (§4's note).** Requested 2026-08-19: *multiple tags on questions, and
 question production based on what tags are most popular*; built the same
 day on the owner's "build it", in §6's order. The reasoning below is kept
 as written — it is why the code has the shape it has — and every figure
@@ -222,17 +221,16 @@ Downstream of the same arithmetic:
 
 ## 4 · The interest model reads doors — D163's contract, written before tier 2 exists
 
-> **2026-08-27: the model arrived, server-side.** D317 moved it (the
-> invariants below survive the address change — D317 says they "bind
-> harder" there) and D322 built its phase 1: `functions/src/taste.ts`
-> counts feed answers by topic and `bankPager.pageSizesByInterest` sizes
-> pages by them. This contract now has its landing place — the
-> share-weighted mean belongs in that fold and its reader — and building
-> it is its own record (§6 step 6's pattern), not a rider: D322 pinned
-> the profile's arithmetic into `web/privacy.html` and
-> `check:policy-claims`, and door-credit changes what those sentences
-> state. The veto clause needs no server half — the client filter
-> already vetoes across `cat` ∪ `also` (§3).
+> **2026-08-27: built (D325).** The model arrived server-side — D317
+> moved it (the invariants below survive the address change; D317 says
+> they "bind harder" there), D322 built its phase 1, and D325 landed
+> this contract in that fold: `creditShares` in `functions/src/taste.ts`
+> mirrors the demand rollup's copy in `scorecard-metrics.mjs`, both
+> suites pin the same share values (the "one ratio used everywhere"
+> sentence, held across two packages that cannot import each other), and
+> `web/privacy.html`'s profile sentence moved in the same commit, per
+> the D183 discipline. The veto clause needed no server half — the
+> client filter already vetoes across `cat` ∪ `also` (§3).
 
 Specified then so the field is not re-litigated when the model
 lands:
