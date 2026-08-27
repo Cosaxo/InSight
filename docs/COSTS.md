@@ -841,7 +841,12 @@ drift apart. What the script cannot grant itself is the one permission
 budgets need: `roles/billing.costsManager` on the **billing account** (a
 project role cannot satisfy it — budgets are a billing-account resource),
 granted to the deploy service account, whose email the refusal prints.
-That grant is the remaining five minutes.
+That grant is the remaining five minutes — confirmed real against
+production on 2026-08-27, when the first live run got exactly that 403.
+The same run found and closed a precondition this page did not know: the
+Billing Budgets **API** was disabled on the project, a refusal the
+script's own credential can fix (its `Editor` covers the enable — done)
+and which the 403 branch now tells apart from this grant (D327 §3).
 
 The by-hand alternative, unchanged except for one correction: the filter
 takes the project **number**, not the id — `projects/prvfire33` matches

@@ -196,6 +196,20 @@ describe("apply-budget", () => {
     expect(err).toMatch(/deploy@prvfire33\.iam\.gserviceaccount\.com/);
   });
 
+  it("a disabled-API 403 points at the API, not at the grant", async () => {
+    // The first live run's actual first refusal (2026-08-27): Google gates
+    // the Budgets API on the caller's project, and the canned grant fix for
+    // it is a wrong turn — that role is a billing-account grant the API
+    // being off says nothing about, and the API enable needs no human.
+    reply[key("GET", BUDGETS)] = {
+      status: 403,
+      body: { error: { message: "Cloud Billing Budget API has not been used in project 123456789012 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/billingbudgets.googleapis.com/overview?project=123456789012 then retry." } },
+    };
+    const err = await applyFails();
+    expect(err).toMatch(/enable billingbudgets\.googleapis\.com on project prvfire33/);
+    expect(err).not.toMatch(/costsManager/);
+  });
+
   it("says plainly when the project has no billing to watch", async () => {
     reply[key("GET", INFO)] = { status: 200, body: { billingEnabled: false } };
     const err = await applyFails();

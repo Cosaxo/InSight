@@ -149,10 +149,24 @@ const listed = [];
   for (let page = 0; page < 5; page++) {
     const r = await googleFetch(url, token);
     if (!r.ok) {
+      // Two different 403s land here, and the first live run (2026-08-27)
+      // hit both in order. SERVICE_DISABLED — the Billing Budgets API off
+      // on the PROJECT (Google gates it on the caller's quota project even
+      // though the resource is the billing account) — is self-serviceable:
+      // the deploy account's own Editor role can enable it, verified live.
+      // Only the plain permission 403 is the human grant. Printing the
+      // grant for the disabled-API case sent the operator toward a console
+      // errand that would not have fixed anything.
+      const apiOff = r.status === 403 && /not been used|disabled/i.test(r.message);
       die(`listing budgets on ${BA} returned ${r.status}: ${r.message}\n`
-        + `    fix: grant roles/billing.costsManager on the BILLING ACCOUNT ${BA}\n`
-        + `    to ${sa.client_email} — a role on the project cannot satisfy this;\n`
-        + "    budgets live on the billing account (docs/COSTS.md, control 1; D327).");
+        + (apiOff
+          ? `    fix: enable billingbudgets.googleapis.com on project ${PROJECT} — Google's message\n`
+            + "    above carries the console link, or POST serviceusage's :enable for it with this\n"
+            + "    same credential (its Editor role suffices), then re-run. The grant below may\n"
+            + "    still be missing behind this; the re-run will say."
+          : `    fix: grant roles/billing.costsManager on the BILLING ACCOUNT ${BA}\n`
+            + `    to ${sa.client_email} — a role on the project cannot satisfy this;\n`
+            + "    budgets live on the billing account (docs/COSTS.md, control 1; D327)."));
     }
     listed.push(...(r.body.budgets || []));
     if (!r.body.nextPageToken) break;

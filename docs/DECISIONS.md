@@ -33044,6 +33044,20 @@ account and the email verbatim. This session held no Google credential
 real run is the owner's dispatch, or a future session's once the secret
 reaches the Claude environment.
 
+**The first live run happened later the same day** (the secret reached
+the Claude environment), and it found one term this record did not
+carry: the **Billing Budgets API was disabled on the project**, so the
+listing 403'd before the grant could even be tested — and the script
+printed its canned costsManager fix for it, a wrong turn, since that
+403's remedy is an API enable the deploy credential's own `Editor` can
+POST for itself (done, verified live; Google gates the API on the
+caller's quota project even though budgets live on the billing account).
+The 403 branch now tells the two refusals apart, held by
+`apply-budget.test.mjs`. The re-run then produced the clean permission
+403 naming the role, the account and the email — so the one human grant
+is confirmed real against production, and is now the only thing between
+the dry run and "would create".
+
 A **budget → Pub/Sub → function that flips `budgetMode` automatically**
 is the natural next joint and is deliberately not built: it needs the
 budget to exist first, a topic, and a deployed function on the
