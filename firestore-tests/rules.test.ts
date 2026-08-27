@@ -1594,6 +1594,35 @@ describe("v2 foresight verdicts (D126)", () => {
     await assertFails(deleteDoc(fRef(OWNER, OWNER)));
   });
 
+  // Create-only stops a verdict being REWRITTEN. It never stopped the same
+  // slice being read again at a DIFFERENT id — and until the id was bound
+  // to its payload, "one attempt per slice" was a description of what the
+  // client happened to do rather than a rule. The test that named the
+  // invariant only ever re-used one id, so it passed while the invariant
+  // did not exist: the shape where a test would still pass if the rule it
+  // claims to pin were deleted.
+  it("the id IS the slice: the same read cannot be re-rolled at another id", async () => {
+    await assertSucceeds(setDoc(fRef(OWNER, OWNER), verdict({ guess: 1 })));
+    // A second verdict for the SAME slice, minted at an id of the client's
+    // choosing. Each of these used to succeed, so a player could guess
+    // until they were right and keep the one that was.
+    await assertFails(setDoc(
+      fRef(OWNER, OWNER, "re-roll-2"), verdict({ guess: 0 })));
+    await assertFails(setDoc(
+      fRef(OWNER, OWNER, "q1__ageBand__25-34__again"), verdict({ guess: 0 })));
+    await assertFails(setDoc(
+      fRef(OWNER, OWNER, "total_nonsense"), verdict({ guess: 0 })));
+    // An id that names a DIFFERENT slice than the payload is refused too —
+    // the same hole wearing a plausible id.
+    await assertFails(setDoc(
+      fRef(OWNER, OWNER, "q1__ageBand__35-44"), verdict({ guess: 0 })));
+    // A genuinely different slice, at its own id, still lands. The bound
+    // is on the pairing, not on how many slices you may read.
+    await assertSucceeds(setDoc(
+      fRef(OWNER, OWNER, "q1__ageBand__35-44"),
+      verdict({ bucket: "35-44", guess: 0 })));
+  });
+
   it("is world-readable — the basis is published beside the claim", async () => {
     await assertSucceeds(setDoc(fRef(OWNER, OWNER), verdict()));
     await assertSucceeds(getDoc(fRef(STRANGER, OWNER)));

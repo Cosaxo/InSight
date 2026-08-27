@@ -562,7 +562,30 @@ service cloud.firestore {
           // -1 is a clock expiry, which scores as a miss. Anything below
           // that is a client inventing a sentinel of its own.
           && request.resource.data.guess is int
-          && request.resource.data.guess >= -1;
+          && request.resource.data.guess >= -1
+          // …and the id IS the slice, which is what makes the paragraph
+          // above true rather than merely intended. Create-only stops a
+          // verdict being rewritten; it does not stop the same slice being
+          // read again at a DIFFERENT id, and until this clause the id was
+          // client-chosen and never compared to the payload it names. So
+          // "one attempt per slice" was a description of what the client
+          // happened to do, and a client is not a rule.
+          //
+          // The shape is `readId()` in data/foresight.ts verbatim — the
+          // one thing that has ever written here — so this refuses nothing
+          // the app does. It is the world-take bound (`qid + "_" + uid`)
+          // one collection over, and for the same reason: when a document
+          // is one-per-something, the id has to BE that something.
+          //
+          // Residue, recorded rather than closed: an invented qid/dim/
+          // bucket triple still mints a fresh slot, because nothing here
+          // checks that the slice exists. Closing that means a get() on
+          // the question — a billed read on a path with no live surface
+          // (D136 took the lens off the Mirror; the engine stands
+          // unplaced), and the score buys nothing but a number on your own
+          // screen. The re-roll was the hole worth closing.
+          && readId == request.resource.data.qid + "__"
+               + request.resource.data.dim + "__" + request.resource.data.bucket;
         allow update, delete: if false;
       }
 
