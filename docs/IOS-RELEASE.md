@@ -594,6 +594,35 @@ anything, and a break would have failed the job with no number spent.
 bundle** — which is the half D229 could not say, because it was reading a
 run where the unrehearsed change was behavioural rather than content.
 
+**Build 26's pre-flight found nothing to do, and found a surface no gate
+on this path reads** (D324, 2026-08-27). Run 42 was still the highest run
+— nothing dispatched for three days — its step 17 still `success`, and
+`appBuild` at run 42's own `head_sha` `01d5570` still 25 against a tree at
+26. So *run as-is*, and no number moved. Fourth pre-flight to come out
+that way after D153, D158 and D191, and it is build 25's bump (D274, read
+off step 17 while the step list was on screen) that made it come out that
+way.
+
+**What it found instead is that the app icon is in neither half of the
+pair the last two releases settled.** D229 and D274 read: *a dry run
+derisks the signing; the gates on the release path derisk the bundle.*
+Both of those gates read `dist/` — `check:web-firebase` asks whether the
+JavaScript saw the config, `check:bundle` weighs the JavaScript `cap sync`
+is about to copy into the shell. `AppIcon-512@2x.png` reaches the binary
+from `ios/App/App/Assets.xcassets/` instead, which `cap sync` does not
+write and neither gate reads; `scripts/gen-icons.mjs` is the only thing
+that writes it, and it has no `package.json` entry and no workflow.
+Build 26 is the first build to carry the iris (D302), and it carries it
+because somebody ran that script by hand — verified for this build
+(`f819cc6` touched the file, tree clean at `ac9072f`) and unanswerable in
+general. D324 has why it is recorded rather than closed: the honest gate
+re-renders and compares, PNG rasterisation is not byte-reproducible across
+Chromium versions, and a flaky red on this path costs ~150 minutes of
+macOS quota.
+
+193 commits rode in that gap — the widest between two builds so far,
+against two days for 24 → 25 and sixteen hours for 22 → 23.
+
 
 **Build 16's pre-flight found nothing to do either, which is the first
 time that has happened twice running** (D158, 2026-08-15). Run 21 was
