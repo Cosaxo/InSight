@@ -69,10 +69,11 @@ export type SponsoredQ = QuestionDoc & { id: string; sponsor?: Sponsor };
  *
  * An untagged question matches everyone. A tagged one matches only an
  * exact bucket equality — no ranges, no "near", no inference. The whole
- * vocabulary is the published breakdown dims, which is to say the cohorts
- * a user can already see themselves counted in; profession (never a dim,
- * D8) and the politics result (Art. 9) are excluded by that fact alone
- * rather than by a rule of their own.
+ * vocabulary is `AUDIENCE_DIMS` (functions/src/paid.ts) — a SUBSET of the
+ * published breakdown dims, which is to say cohorts a user can already see
+ * themselves counted in. The politics result is excluded by not being an
+ * anchor at all (Art. 9); `jobField`, a breakdown dim since D317, is
+ * excluded by that list naming its seven rather than deriving them.
  */
 export function matches(sponsor: Sponsor | undefined, anchors: Readonly<Record<string, string>>): boolean {
   const tag = sponsor?.audience;

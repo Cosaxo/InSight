@@ -32024,3 +32024,113 @@ sentence:
    live), and it is the recorded precondition for sharding — D7's first
    wall has no detector. An operator step with credentials, not a code
    change.
+
+## D317 · Profession becomes a dim, through a field — and the reason it was not one had stopped being true
+
+**2026-08-27.** **Status:** binding. **Owner's call**, in those words:
+*"proffesion should be a dim but not be free text insted a expansive
+list of options."* Follow-on to D8, and the second half of the same
+audit that produced D316.
+
+### The premise, corrected first
+
+D8 excluded `profession` from `BREAKDOWN_DIMS` because it was **free
+text up to 80 chars**, so "every distinct spelling would mint a
+permanent key". That was true when it was written and has not been true
+for a long time: the profile has offered `JOB_OPTS`, a **31-option
+`<select>`**, and `ui/LiveProfileSetup.tsx` asks it with the same list.
+
+Three live comments still stated the retired reason — `data/cohort.ts`,
+`spec/map-group-stats.js`, `data/sponsored.ts` — and so did a test
+fixture's note in `functions/src/pure.test.ts`. The owner's instruction
+was to replace free text with a list. **The list was already there.**
+
+**What actually blocked the dim is arithmetic**, and it is the rule
+`check:anchors` states in capitals: a closed vocabulary makes a
+dimension unexhaustible only when it is **SHORTER than
+`BREAKDOWN_MAX_BUCKETS`**, because then there are fewer legal buckets
+than slots. 31 > 24. A 31-value dimension can be filled by a caller
+sending *legal* values, which is the property closing a vocabulary was
+supposed to buy.
+
+And one of the 31 could never have been a bucket at all:
+`Entrepreneur / self-employed` carries a slash, which is in
+`breakdownBucket`'s rejected character class — the `Vocational / trade`
+bug (D97-era, closed by `check:anchors` rule 3) sitting unfired in a
+second list, because that list was never paired.
+
+### The decision
+
+**The pick and the bucket become two anchors**, which is exactly the
+pair `age` and `ageBand` already are, and for the identical reason —
+the rules comment on `age` has said it since D155: *"~80 distinct
+values would blow BREAKDOWN_MAX_BUCKETS on its own, which is why the
+band exists and stays."*
+
+| | what it is | is it a dim |
+| --- | --- | --- |
+| `profession` | what a person PICKS, `JOB_OPTS`. What a screen naming a **person** prints — "Ceramicist, 29" | no, and cannot be |
+| `jobField` | the derived bucket, `JOB_FIELDS` — **20 values** | **yes** |
+
+**This is what makes the list expansive rather than what limits it.**
+Today the pick list is capped at 31 by the very cap this removes: a
+32nd option is free now, and a 300th, because the aggregate never sees
+the pick. The follow-on the owner's word points at — a genuinely large
+catalogue behind a search picker, `check:cities`' shape — is now a
+content job with no schema in its way. It is **not** built here.
+
+Twenty, against a cap of 24. The four spare slots are deliberate: the
+unexhaustibility argument has to survive the list growing, and a
+vocabulary that reached the cap would lapse silently while every other
+rule still passed.
+
+### Where the seam is held
+
+- `check:anchors` gains the pair (`jobField` ↔ `JOB_FIELDS`) and **four
+  new rules the vocabulary checks could not see**: every `JOB_OPTS`
+  entry maps somewhere; every mapping targets a declared field; no
+  mapping is orphaned; no field is unreachable. The gate's own rule 5
+  would have caught a vocabulary added without a pair, so the two halves
+  now defend each other. Verified to bite by deleting one mapping.
+- `test/job-field.test.ts` holds the **wiring**, which is source the
+  gate cannot read: that `anchorsFrom` actually calls the derivation,
+  and that no pick can reach the aggregate as its own bucket. A profile
+  emitting `profession` and no `jobField` is the D258/D285 silence —
+  the answer writes, the dimension never fills, nothing goes red.
+- `jobFieldOf` returns `''`, **not `'Other'`**, for a value it does not
+  claim to have grouped. A profile written before today holds a string
+  nobody mapped (the seeded persona's *"Editor · independent press"* is
+  one in the tree); filing it under Other would report a cohort
+  membership nobody chose. Old answers keep their frozen anchors and
+  fold into no `jobField` bucket, which is what "not measured" looks
+  like everywhere else here.
+
+### Two consequences, stated rather than discovered later
+
+1. **Ad targeting does NOT widen.** `AUDIENCE_DIMS`
+   (`functions/src/paid.ts`) enumerates its seven rather than deriving
+   them from `BREAKDOWN_DIMS`, so `jobField` is a Mirror dim and not a
+   purchasable audience. That was luck, not design, and it is now
+   written down as design: buying the attention of people by their
+   occupation is a different product from showing how occupations
+   split, and it is a decision to take on its own evidence, not a side
+   effect of this one.
+2. **The setup screen's counter is the thing that tells on a new
+   derived key.** `LiveProfileSetup` reads "Save N of 7" over seven
+   questions, and read "1 of 8" the moment `anchorsFrom` grew a key —
+   caught by that file's own test, whose comment had predicted exactly
+   this ("counting them would tell the reader they have filled in
+   fields they were never shown"). `DERIVED` now names three.
+
+### The document does not grow
+
+Eight dims × 24 buckets × 20 options ≈ 3.8k integers worst case, against
+Firestore's 1 MiB. The **cap** is what bounds the document, so a new
+dimension costs one dimension's worth and nothing more — D7's per-question
+write ceiling is untouched, because the slices ride the transaction
+`v2_aggs_private/{qid}` already performs.
+
+**Green at commit:** `test:unit` (2153), functions (419), `test:rules`
+(152, with a new case pinning the 40-char cap and the longest real
+value at 36), `test:scripts` (495), `tsc -b`, eslint, `check:anchors`,
+`check:data-inventory`, `check:docs`, `check:figures`, `check:globals`.

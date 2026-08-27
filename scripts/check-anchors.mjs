@@ -136,6 +136,11 @@ const PAIRS = [
   { dim: "education", client: clientVocab("EDU_OPTS"), where: "EDU_OPTS" },
   { dim: "relationship", client: clientVocab("REL_OPTS"), where: "REL_OPTS" },
   { dim: "heightBand", client: clientVocab("HEIGHT_OPTS"), where: "HEIGHT_OPTS" },
+  // D317. The client list here is JOB_FIELDS — the derived bucket
+  // vocabulary — and NOT JOB_OPTS, which is the pick and is deliberately
+  // longer than the cap. Pairing the wrong one would fail rule 2 and be
+  // right to: a 31-value dimension is exhaustible.
+  { dim: "jobField", client: clientVocab("JOB_FIELDS"), where: "JOB_FIELDS" },
 ];
 
 for (const p of PAIRS) {
@@ -189,6 +194,74 @@ for (const p of PAIRS) {
   // the two lists were merged by hand.
   const dupes = server.filter((v, i) => server.indexOf(v) !== i);
   if (dupes.length) errors.push(`${p.dim}: duplicate values ${JSON.stringify([...new Set(dupes)])}.`);
+}
+
+// 4b · every profession a user can PICK maps to a field the server knows.
+//
+// D317's pair has a failure mode the vocabulary rules above cannot see:
+// JOB_OPTS and JOB_FIELDS are both individually valid while an entry in
+// the first maps to nothing, or to a string absent from the second. Either
+// way that person's answers fold into no jobField bucket — the silent
+// non-counting this whole file exists to refuse, one level further out.
+//
+// `jobFieldOf` returns '' for an unmapped pick ON PURPOSE (a profile
+// written before D317 holds a string nothing claims to have grouped), so
+// the miss cannot be caught at runtime either. It has to be caught here.
+function clientMap(name) {
+  const at = profile.indexOf(`${name} = {`);
+  if (at === -1) {
+    errors.push(`${PROFILE}: no ${name}.`);
+    return null;
+  }
+  const close = profile.indexOf("\n};", at);
+  const body = profile.slice(at, close);
+  const out = new Map();
+  for (const m of body.matchAll(/'((?:[^'\\]|\\.)*)'\s*:\s*'((?:[^'\\]|\\.)*)'/g)) {
+    out.set(m[1].replace(/\\'/g, "'"), m[2].replace(/\\'/g, "'"));
+  }
+  if (!out.size) {
+    errors.push(`${PROFILE}: ${name} parsed as EMPTY, which cannot be right.`);
+    return null;
+  }
+  return out;
+}
+
+const jobOpts = clientVocab("JOB_OPTS");
+const jobFields = clientVocab("JOB_FIELDS");
+const jobFieldOf = clientMap("JOB_FIELD_OF");
+if (jobOpts && jobFields && jobFieldOf) {
+  const unmapped = jobOpts.filter((o) => !jobFieldOf.has(o));
+  if (unmapped.length) {
+    errors.push(
+      `JOB_FIELD_OF does not map ${JSON.stringify(unmapped)}.\n`
+      + "    Those picks fold into no jobField bucket — the answer writes\n"
+      + "    and the breakdown never counts it.",
+    );
+  }
+  const strays = [...new Set(jobFieldOf.values())].filter((f) => !jobFields.includes(f));
+  if (strays.length) {
+    errors.push(
+      `JOB_FIELD_OF points at ${JSON.stringify(strays)}, absent from JOB_FIELDS.\n`
+      + "    breakdownBucket checks membership, so those fold into nothing.",
+    );
+  }
+  const orphanKeys = [...jobFieldOf.keys()].filter((k) => !jobOpts.includes(k));
+  if (orphanKeys.length) {
+    errors.push(
+      `JOB_FIELD_OF maps ${JSON.stringify(orphanKeys)}, which JOB_OPTS does not offer.\n`
+      + "    Dead weight, and a sign the two lists were edited apart.",
+    );
+  }
+  // Not an error, but the reason the pick list may grow at all: if it ever
+  // becomes shorter than the cap somebody will be tempted to make it the
+  // dimension, and the headroom argument needs to survive that.
+  const unusedFields = jobFields.filter((f) => ![...jobFieldOf.values()].includes(f));
+  if (unusedFields.length) {
+    errors.push(
+      `JOB_FIELDS declares ${JSON.stringify(unusedFields)}, which no pick maps to.\n`
+      + "    A bucket nobody can land in is a cell that never fills.",
+    );
+  }
 }
 
 // 5 · the dimensions pure.ts declares closed are exactly the ones checked

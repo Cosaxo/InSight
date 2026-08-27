@@ -37,7 +37,7 @@ export interface Bucket {
 /** The dims a cohort can be cut by — BREAKDOWN_DIMS, client-side copy. */
 export const COHORT_DIMS = [
   "ageBand", "gender", "city", "country", "education", "relationship",
-  "heightBand",
+  "heightBand", "jobField",
 ] as const;
 export type CohortDim = (typeof COHORT_DIMS)[number];
 
@@ -50,15 +50,16 @@ export const DIM_LABEL: Record<string, string> = {
   education: "Education",
   relationship: "Relationship",
   heightBand: "Height",
+  // "Work", not "Profession": the bucket is the field somebody works in,
+  // and the profile's own card calls the question Work. The specific pick
+  // ("Design & creative") is `profession`, which no chip row cuts by.
+  jobField: "Work",
 };
 
-// The Map's anchor ring speaks its own ids. Two of them are breakdown
+// The Map's anchor ring speaks its own ids. Three of them are breakdown
 // dims and can therefore be answered with real numbers; the rest cannot,
 // and the absence is structural rather than pending:
 //
-//   job   is `profession`, deliberately NOT a breakdown dim (D8) — it is
-//         free text, so every distinct spelling would mint a bucket key
-//         forever.
 //   big5, political, values, attachment
 //         are test RESULTS. Nothing aggregates them per cohort, so
 //         "how did similar personalities answer" has no source at all.
@@ -69,6 +70,13 @@ export const DIM_LABEL: Record<string, string> = {
 export const MAP_ANCHOR_DIM: Record<string, CohortDim> = {
   age: "ageBand",
   edu: "education",
+  // D317. `job` reads the profession's derived FIELD, not the pick — the
+  // same indirection `age` takes through `ageBand`. Before D317 this
+  // anchor returned null, on a reason ("free text") that had stopped being
+  // true: the profile has offered a 31-option select for a long time, and
+  // what actually blocked the dim was that 31 is longer than
+  // BREAKDOWN_MAX_BUCKETS.
+  job: "jobField",
 };
 
 /** Dense per-option counts for one (dim, bucket), or null if the cell is absent. */

@@ -103,9 +103,16 @@ export const PAID_TOPICS = new Set([
   "sport", "food", "movies", "music", "tech", "culture", "dilemma", "event", "people", "bigq",
 ]);
 
-/** The audience vocabulary: the published breakdown dims (D98/D228),
- * matched against the same anchor keys the answers carry. Profession and
- * the politics result are excluded by the vocabulary itself (D8/Art. 9). */
+/** The audience vocabulary: a subset of the published breakdown dims
+ * (D98/D228), matched against the same anchor keys the answers carry. The
+ * politics result is excluded by not being an anchor at all (Art. 9).
+ *
+ * `jobField` IS a breakdown dim since D317 and is deliberately NOT here,
+ * which is why this list is enumerated rather than derived from
+ * BREAKDOWN_DIMS — a derived list would have widened ad targeting as a
+ * side effect of a Mirror change, and buying the attention of people by
+ * their occupation is a different product from showing how occupations
+ * split. Adding it is a recorded decision, not an edit. */
 export const AUDIENCE_DIMS = new Set([
   "ageBand", "gender", "city", "country", "education", "relationship", "heightBand",
 ]);

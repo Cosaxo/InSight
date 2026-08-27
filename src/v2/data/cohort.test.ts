@@ -6,9 +6,9 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  agreement, agreementOf, byOf, cellFor, divergence, divergenceFor, divisiveness, headlineFor,
-  likenessRate, MAP_ANCHOR_DIM, meanScore, mixFor, pctFor, sliceSplit, standingIn, typicality,
-  vocabMix,
+  agreement, agreementOf, byOf, cellFor, COHORT_DIMS, divergence, divergenceFor, divisiveness,
+  headlineFor, likenessRate, MAP_ANCHOR_DIM, meanScore, mixFor, pctFor, sliceSplit, standingIn,
+  typicality, vocabMix,
 } from "./cohort";
 
 // Two age bands and two genders over a 2-option question. Overall 12/8.
@@ -294,14 +294,23 @@ describe("typicality — the Map's headline claim", () => {
 });
 
 describe("MAP_ANCHOR_DIM", () => {
-  it("maps exactly the two anchors that ARE breakdown dims", () => {
-    // The other six cannot be answered at all: `job` is profession, kept
-    // out of the dims on purpose (D8), and the five test anchors are
+  it("maps exactly the three anchors that ARE breakdown dims", () => {
+    // The other four cannot be answered at all: the test anchors are
     // results with no cohort aggregate anywhere. A key appearing here for
     // one of those would make MapStats fabricate again.
-    expect(Object.keys(MAP_ANCHOR_DIM).sort()).toEqual(["age", "edu"]);
-    expect(MAP_ANCHOR_DIM.job).toBeUndefined();
+    //
+    // `job` was in that list until D317, on the reason "profession is free
+    // text" — which had stopped being true long before: the profile offers
+    // a 31-option select. What actually blocked it was that 31 is longer
+    // than BREAKDOWN_MAX_BUCKETS, so the pick cannot be a dimension; it
+    // now reads the derived `jobField`, the indirection `age` already
+    // takes through `ageBand`.
+    expect(Object.keys(MAP_ANCHOR_DIM).sort()).toEqual(["age", "edu", "job"]);
+    expect(MAP_ANCHOR_DIM.job).toBe("jobField");
     expect(MAP_ANCHOR_DIM.big5).toBeUndefined();
+    // The pick itself must never become a dim — that is the whole reason
+    // the indirection exists, and a regression would look like this line.
+    expect(COHORT_DIMS as readonly string[]).not.toContain("profession");
   });
 });
 

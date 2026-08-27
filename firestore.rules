@@ -239,7 +239,7 @@ service cloud.firestore {
       return anchors is map
         && anchors.keys().hasOnly([
           "city", "country", "ageBand", "age", "gender",
-          "profession", "education", "relationship", "heightBand",
+          "profession", "jobField", "education", "relationship", "heightBand",
         ])
         && isOptionalShortString(anchors.get("city", null), 80)
         && isOptionalShortString(anchors.get("country", null), 80)
@@ -254,6 +254,13 @@ service cloud.firestore {
         && isOptionalShortString(anchors.get("age", null), 3)
         && isOptionalShortString(anchors.get("gender", null), 40)
         && isOptionalShortString(anchors.get("profession", null), 80)
+        // The breakdown bucket for the profession above (D317), derived
+        // client-side from a closed list of 20. Same pairing as age/ageBand:
+        // the pick names a PERSON and is free to grow past the bucket cap,
+        // the field is what the aggregate slices on and cannot. A length is
+        // all a rule can hold — BREAKDOWN_DIM_VOCAB is the real enforcement,
+        // and check:anchors holds it equal to the client's list.
+        && isOptionalShortString(anchors.get("jobField", null), 40)
         && isOptionalShortString(anchors.get("education", null), 80)
         && isOptionalShortString(anchors.get("relationship", null), 40)
         && isOptionalShortString(anchors.get("heightBand", null), 20);

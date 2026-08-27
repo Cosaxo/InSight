@@ -514,7 +514,7 @@ export const TAKE_MAX_CHARS = 280;
 // ruleset can be diffed against each other by eye.
 const ANCHOR_FIELDS: Record<string, number> = {
   city: 80, country: 80, ageBand: 20, age: 3, gender: 40,
-  profession: 80, education: 80, relationship: 40, heightBand: 20,
+  profession: 80, jobField: 40, education: 80, relationship: 40, heightBand: 20,
 };
 
 // The snapshot written onto an answer. A copy, so a later profile edit

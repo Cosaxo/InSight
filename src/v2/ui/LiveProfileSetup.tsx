@@ -134,12 +134,18 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
   // restating the mapping. Recomputed per render rather than tracked:
   // it is a pure fold over eight <select>s.
   const anchors: Record<string, string> = anchorsFrom(v);
-  // The DERIVED keys do not count. `country` comes from the city and
-  // `age`/`ageBand` both come from the birthday — counting them would tell
-  // the reader they have filled in fields they were never shown. Nine
-  // anchor keys, seven questions, and the birthday is three controls
-  // feeding two of them.
-  const DERIVED = ["country", "age"];
+  // The DERIVED keys do not count. `country` comes from the city,
+  // `age`/`ageBand` both come from the birthday, and `jobField` (D317)
+  // comes from the profession pick — counting them would tell the reader
+  // they have filled in fields they were never shown. Ten anchor keys,
+  // seven questions: the birthday is three controls feeding two of them,
+  // and two more keys are folds of a single answer.
+  //
+  // A DERIVED key is not an exception to this list, it is the rule for
+  // every fold `anchorsFrom` performs — so a new one belongs here in the
+  // same change that adds it. The counter is what tells on you: D317 read
+  // "Save 1 of 8" over seven questions until this line moved.
+  const DERIVED = ["country", "age", "jobField"];
   const asked = Object.entries(anchors).filter(([k]) => !DERIVED.includes(k));
   const filled = asked.filter(([, val]) => !!val).length;
 

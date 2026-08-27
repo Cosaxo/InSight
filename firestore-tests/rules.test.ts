@@ -488,12 +488,20 @@ describe("v2 profile", () => {
         city: "Oslo", country: "Norway", ageBand: "25-34", age: "29",
         gender: "Woman", profession: "Software & IT", education: "Bachelor's",
         relationship: "Partnered", heightBand: "170-179 cm",
+        // D317 — the pick's derived bucket, sent beside it, never instead.
+        jobField: "Software & IT",
       },
     }));
     // per-field length caps (isValidV2Anchors): ageBand 20, gender 40, city 80
     await assertFails(setDoc(mine, { anchors: { ageBand: "x".repeat(21) } }));
     await assertFails(setDoc(mine, { anchors: { gender: "x".repeat(41) } }));
     await assertFails(setDoc(mine, { anchors: { city: "x".repeat(81) } }));
+    // jobField 40 — the longest field today is 36 chars, so the cap has
+    // room for a rename and none for a smuggled sentence.
+    await assertSucceeds(setDoc(mine, {
+      anchors: { jobField: "Trades, construction & manufacturing" },
+    }));
+    await assertFails(setDoc(mine, { anchors: { jobField: "x".repeat(41) } }));
     // and a non-string value is not a short string
     await assertFails(setDoc(mine, { anchors: { ageBand: 25 } }));
   });
