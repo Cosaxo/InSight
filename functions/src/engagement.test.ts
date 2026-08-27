@@ -250,7 +250,8 @@ describe("day arithmetic", () => {
 
 // ── the attention fold (R2/D270) ────────────────────────────────────────
 import {
-  BUCKET_MIDPOINTS, MIN_SHARD_RATE, SHARD_FOLD_CAP, foldShards, runAttentionFold,
+  BUCKET_MIDPOINTS, MIN_SHARD_RATE, QIDS_PER_DAY_CAP, QID_KEY_MAX, SHARD_FOLD_CAP,
+  foldShards, runAttentionFold,
   type AttentionShardDoc, type AttentionStore, type AttnDelta,
 } from "./engagement";
 
@@ -310,6 +311,60 @@ describe("foldShards", () => {
     expect(d.s.opens).toBeUndefined(); // negative → 0
     expect(d.s.errors).toBeUndefined(); // non-number → 0
     expect(out.has("not-a-day")).toBe(false);
+  });
+
+  // The two KEY fences. The rules bound `qids` to 120 entries and cannot
+  // go further — rules cannot iterate a map — so a key's length and the
+  // union across shards were the fold's to bound, and it bounded neither.
+  // Every client-chosen key became a field name on the shared,
+  // world-readable day document: seven rules-legal shards of 119
+  // 1200-character keys push it past Firestore's 1 MiB entity limit, and
+  // then the day can never be written again, the shards are never
+  // deleted, and the rollup fold behind the awaited attention fold stops
+  // running too. One free account, seven writes, manual recovery only.
+  it("refuses a qid key too long to be a question id, and counts it as overflow", () => {
+    const q = (qids: Record<string, unknown>): AttentionShardDoc =>
+      ({ id: "a", day: "2026-08-22", rate: 1, s: {}, qids } as AttentionShardDoc);
+    const long = "x".repeat(QID_KEY_MAX + 1);
+    const out = foldShards([q({ "feed-f01": { s: 2 }, [long]: { s: 2 } })]);
+    const d = out.get("2026-08-22")!;
+    expect(Object.keys(d.q)).toEqual(["feed-f01"]);
+    // Reported, not silently dropped — the same cell the client's own cap
+    // spills into.
+    expect(d.qOther).toBe(1);
+    // A key exactly at the bound is a legal id and is kept.
+    const ok = foldShards([q({ ["y".repeat(QID_KEY_MAX)]: { s: 2 } })]);
+    expect(Object.keys(ok.get("2026-08-22")!.q)).toHaveLength(1);
+  });
+
+  it("caps the day's distinct qids and spills the rest, once per shard", () => {
+    const many: Record<string, unknown> = {};
+    for (let i = 0; i < QIDS_PER_DAY_CAP + 50; i++) many[`feed-${i}`] = { s: 2 };
+    const out = foldShards([
+      { id: "a", day: "2026-08-22", rate: 1, s: {}, qids: many } as AttentionShardDoc,
+    ]);
+    const d = out.get("2026-08-22")!;
+    expect(Object.keys(d.q)).toHaveLength(QIDS_PER_DAY_CAP);
+    // ONE device read "…and more", not fifty. Overflow counts per shard,
+    // like the client's `_other` cell, or qOther would report a crowd
+    // that does not exist.
+    expect(d.qOther).toBe(1);
+  });
+
+  it("a qid already in the map keeps counting past the cap", () => {
+    // Truncating a question halfway through a day would be worse than
+    // either fence: its reach would be a fraction of its real one and
+    // nothing would say so.
+    const first: Record<string, unknown> = {};
+    for (let i = 0; i < QIDS_PER_DAY_CAP; i++) first[`feed-${i}`] = { s: 2 };
+    const out = foldShards([
+      { id: "a", day: "2026-08-22", rate: 1, s: {}, qids: first } as AttentionShardDoc,
+      { id: "b", day: "2026-08-22", rate: 1, s: {}, qids: { "feed-0": { s: 2 }, "feed-new": { s: 2 } } } as AttentionShardDoc,
+    ]);
+    const d = out.get("2026-08-22")!;
+    expect(d.q["feed-0"].s!.reach).toBe(2);
+    expect(d.q["feed-new"]).toBeUndefined();
+    expect(d.qOther).toBe(1);
   });
 
   it("scales a sampled shard by 1/rate", () => {

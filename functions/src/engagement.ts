@@ -593,6 +593,49 @@ const round2 = (n: number) => Math.round(n * 100) / 100;
  */
 export const MIN_SHARD_RATE = 0.001;
 
+/**
+ * The reader's two fences on the per-question map's KEYS (D271).
+ *
+ * The rules bound `qids` to a map of at most 120 entries and deliberately
+ * stop there: rules cannot iterate a map, so they can pin neither a key's
+ * length nor the union across shards. The fold could, and did not — it
+ * turned every client-chosen key straight into a field name on the
+ * shared, world-readable `v2_engagement_daily/{day}` document.
+ *
+ * That is a hard outage, not a cost. Seven rules-legal shards carrying
+ * 119 keys of 1200 characters each push the day document past Firestore's
+ * 1 MiB entity limit; after that the day can NEVER be written again, the
+ * offending shards are never deleted so they return on every page
+ * forever, and because `runAttentionFold` is awaited unguarded, the
+ * rollup fold and the heartbeat behind it stop running too. One free
+ * anonymous account, seven writes, and nothing recovers without a manual
+ * delete. Measured on the emulator against the real rules and the real
+ * fold, before and after this fence.
+ *
+ * The same file already makes this argument for the other client-chosen
+ * value in the same document (MIN_SHARD_RATE, one shelf up), and
+ * `pure.ts` makes it for the analogous anchor-derived keys. `attn.q` was
+ * the one aggregate map with no fence on the reader.
+ *
+ * QID_KEY_MAX: the longest id the bank actually ships is 18 characters
+ * (`test-attachment-00`); a bought question is `paidq-` plus a booking id,
+ * ~43. 64 is generous headroom and still refuses a key that cannot be a
+ * question id.
+ *
+ * QIDS_PER_DAY_CAP: the binding limit is not bytes but INDEX ENTRIES —
+ * `v2_engagement_daily` carries no field exemptions, so every leaf is
+ * indexed ascending AND descending. One qid holds up to 4 kinds × 2
+ * numbers = 8 leaves = 16 entries, against Firestore's 40,000 per
+ * document, so 2,500 qids is the ceiling and 1,500 is the fence. At 64
+ * characters that is also ~225 KB, comfortably inside 1 MiB. The bank is
+ * 710 questions today, so the bank can double before this truncates
+ * anything real — and when it does, it truncates into `qOther`, the
+ * "…and more" cell the client's own cap already spills into, so the
+ * reading stays reported rather than silently dropped.
+ */
+export const QID_KEY_MAX = 64;
+export const QIDS_PER_DAY_CAP = 1500;
+
 /** Pure: fold shards (all of one day, or several) into per-day deltas.
  * The rules pin the key vocabulary but deliberately not the values
  * (rules cannot iterate a map) — so the clamps live HERE, on the only
@@ -636,10 +679,32 @@ export function foldShards(shards: AttentionShardDoc[]): Map<string, AttnDelta> 
     const q = shard.qids && typeof shard.qids === "object"
       ? (shard.qids as Record<string, unknown>)
       : {};
+    // Overflow is counted ONCE per shard, like the client's own `_other`
+    // cell: a shard that overran the cap is one device reading "…and
+    // more", not one per key it brought.
+    let spilled = false;
+    const spill = () => {
+      if (spilled) return;
+      spilled = true;
+      delta!.qOther = round2(delta!.qOther + weight);
+    };
     for (const [qid, kindsRaw] of Object.entries(q)) {
       if (!kindsRaw || typeof kindsRaw !== "object") continue;
       if (qid === "_other") {
-        delta.qOther = round2(delta.qOther + weight);
+        spill();
+        continue;
+      }
+      // The two fences (QID_KEY_MAX / QIDS_PER_DAY_CAP above). A key too
+      // long to be a question id is refused outright; a NEW key past the
+      // day's cap spills, while one already in the map keeps counting —
+      // truncating a question halfway through a day would be worse than
+      // either outcome.
+      if (qid.length > QID_KEY_MAX) {
+        spill();
+        continue;
+      }
+      if (!delta.q[qid] && Object.keys(delta.q).length >= QIDS_PER_DAY_CAP) {
+        spill();
         continue;
       }
       for (const [kind, raw] of Object.entries(kindsRaw as Record<string, unknown>)) {
