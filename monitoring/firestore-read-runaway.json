@@ -18,16 +18,15 @@
             "alignmentPeriod": "60s",
             "perSeriesAligner": "ALIGN_RATE",
             "crossSeriesReducer": "REDUCE_SUM",
-            "groupByFields": ["resource.label.database_id"]
+            "groupByFields": [
+              "resource.label.database_id"
+            ]
           }
         ]
       }
     }
   ],
   "alertStrategy": {
-    "notificationRateLimit": {
-      "period": "3600s"
-    },
     "autoClose": "604800s"
   },
   "enabled": true,

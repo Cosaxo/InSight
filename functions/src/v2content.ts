@@ -5723,6 +5723,111 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "bg": "Museums have begun returning contested holdings — Germany sent Benin Bronzes back to Nigeria in 2022, and talks over the Parthenon Marbles continue. The universal-museum position holds that one collection shows objects to more of the world."
  },
  {
+  "id": "feed-f107",
+  "surface": "feed",
+  "seq": 148,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A new statue for your town square: an artist, a scientist, an athlete, or nobody?",
+  "options": [
+   "An artist",
+   "A scientist",
+   "An athlete",
+   "Nobody — no more statues"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f108",
+  "surface": "feed",
+  "seq": 149,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Live album, or studio album?",
+  "options": [
+   "Live",
+   "Studio"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl15",
+  "surface": "feed",
+  "seq": 150,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Meals cooked from scratch in a week?",
+  "options": [
+   "0–1 meals",
+   "1–2 meals",
+   "2–4 meals",
+   "4–5 meals",
+   "5–6 meals",
+   "6–7 meals",
+   "7–8 meals",
+   "8–9 meals",
+   "9–11 meals",
+   "11–12 meals",
+   "12–13 meals",
+   "13–14 meals"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 14,
+  "unit": "meals"
+ },
+ {
+  "id": "feed-f109",
+  "surface": "feed",
+  "seq": 151,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Cinema snacks: essential, or a racket?",
+  "options": [
+   "Essential",
+   "A racket"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f110",
+  "surface": "feed",
+  "seq": 152,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your team is losing badly. Stay to the end, or beat the traffic?",
+  "options": [
+   "Stay to the end",
+   "Beat the traffic"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f111",
+  "surface": "feed",
+  "seq": 153,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Voice messages: a gift, or a burden?",
+  "options": [
+   "A gift",
+   "A burden"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,
@@ -13279,6 +13384,224 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "p": 55,
   "k": "Denim: de Nîmes",
   "w": "Serge de Nîmes. Italy is the half-knowledge trap: that city named the jeans — Genoa — not the cloth."
+ },
+ {
+  "id": "learn-sol9",
+  "surface": "learn",
+  "seq": 146,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which planet has the most moons?",
+  "options": [
+   "Jupiter",
+   "Saturn",
+   "Neptune",
+   "Uranus"
+  ],
+  "topic": "solar",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 38,
+  "k": "Saturn: most moons",
+  "w": "Saturn passed Jupiter in 2023 — well over a hundred confirmed, many just a few kilometres across."
+ },
+ {
+  "id": "learn-sol10",
+  "surface": "learn",
+  "seq": 147,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Great Red Spot is…",
+  "options": [
+   "A storm on Jupiter",
+   "A Martian volcano",
+   "A sunspot",
+   "A crater on Mercury"
+  ],
+  "topic": "solar",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 62,
+  "k": "Red Spot: Jupiter's storm",
+  "w": "A storm wider than Earth that has been blowing for at least 200 years."
+ },
+ {
+  "id": "learn-sol11",
+  "surface": "learn",
+  "seq": 148,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Sunlight reaches Earth in about…",
+  "options": [
+   "8 seconds",
+   "8 minutes",
+   "8 hours",
+   "No time at all"
+  ],
+  "topic": "solar",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 3,
+  "p": 55,
+  "k": "Sunlight: eight minutes old"
+ },
+ {
+  "id": "learn-sol12",
+  "surface": "learn",
+  "seq": 149,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which planet spins on its side?",
+  "options": [
+   "Uranus",
+   "Mercury",
+   "Saturn",
+   "Venus"
+  ],
+  "topic": "solar",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 3,
+  "p": 45,
+  "k": "Uranus rolls on its side",
+  "w": "Tilted about 98° — likely knocked over by an ancient collision. Venus is the backwards one, not the sideways one."
+ },
+ {
+  "id": "learn-sol13",
+  "surface": "learn",
+  "seq": 150,
+  "type": "choice",
+  "domain": null,
+  "prompt": "How much of the solar system's mass is the Sun?",
+  "options": [
+   "About half",
+   "About 75%",
+   "More than 99%",
+   "About 90%"
+  ],
+  "topic": "solar",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 34,
+  "k": "The Sun is nearly everything",
+  "w": "99.8% — Jupiter takes most of the rest, and every other body shares the crumbs."
+ },
+ {
+  "id": "learn-str9",
+  "surface": "learn",
+  "seq": 151,
+  "type": "choice",
+  "domain": null,
+  "prompt": "When you look at a distant star, you see it…",
+  "options": [
+   "As it is now",
+   "As it was long ago",
+   "Slightly blurred",
+   "Slightly magnified"
+  ],
+  "topic": "stars",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 58,
+  "k": "Starlight is old light",
+  "w": "The light left years — sometimes millennia — ago. Some of those stars no longer exist."
+ },
+ {
+  "id": "learn-str10",
+  "surface": "learn",
+  "seq": 152,
+  "type": "choice",
+  "domain": null,
+  "prompt": "What is the Sun mostly made of?",
+  "options": [
+   "Oxygen",
+   "Iron",
+   "Molten rock",
+   "Hydrogen"
+  ],
+  "topic": "stars",
+  "axis": null,
+  "test": null,
+  "c": 3,
+  "t": 2,
+  "p": 63,
+  "k": "The Sun: mostly hydrogen"
+ },
+ {
+  "id": "learn-str11",
+  "surface": "learn",
+  "seq": 153,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The brightest star in our night sky is…",
+  "options": [
+   "The North Star",
+   "Sirius",
+   "Venus",
+   "Betelgeuse"
+  ],
+  "topic": "stars",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 40,
+  "k": "Sirius outshines Polaris",
+  "w": "Polaris is famous for holding still, not for brightness — it ranks about 48th. Venus is brighter, but it is a planet."
+ },
+ {
+  "id": "learn-str12",
+  "surface": "learn",
+  "seq": 154,
+  "type": "choice",
+  "domain": null,
+  "prompt": "How many stars can you see at once with the naked eye, from a truly dark place?",
+  "options": [
+   "A few hundred",
+   "A few thousand",
+   "About a million",
+   "Billions"
+  ],
+  "topic": "stars",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 3,
+  "p": 36,
+  "k": "Naked eye: a few thousand",
+  "w": "Around 2,500 at once — the Milky Way's glow is the rest, unresolved."
+ },
+ {
+  "id": "learn-str13",
+  "surface": "learn",
+  "seq": 155,
+  "type": "choice",
+  "domain": null,
+  "prompt": "What keeps the Sun shining?",
+  "options": [
+   "Nuclear fusion",
+   "Burning fuel",
+   "Gravity alone",
+   "Electricity"
+  ],
+  "topic": "stars",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 60,
+  "k": "The Sun runs on fusion",
+  "w": "Hydrogen fusing into helium in the core — not combustion; there is nothing up there to burn."
  },
  {
   "id": "pulse-pace",

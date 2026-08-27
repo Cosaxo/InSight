@@ -135,6 +135,14 @@ await adb.doc(`v2_users/${uid}/foresight/daily-000__ageBand__25-34`).set({
 // the subtree wipe" a tested claim rather than an assumed one (the
 // foresight row's reasoning, one collection over). The OTHER control
 // below proves the wipe is the account's, not the collection's.
+// The interest profile (D317/D322): under the account's own subtree, so
+// phase 1b's recursive delete is what takes it — seeded so "covered by
+// the subtree wipe" is a tested claim, the foresight row's reasoning.
+// The privacy page promises this deletion by name, which is one more
+// reason it may not be assumed.
+await adb.doc(`v2_users/${uid}/taste/profile`).set({
+  t: { food: 3, sport: 1 }, n: 4, at: new Date(),
+});
 await adb.doc(`v2_users/${uid}/engagement/_state`).set({
   firstDay: "2026-08-01", lastDay: "2026-08-22", activeDays: 9, streak: 2, fg7: [2, 3, 2],
 });
@@ -303,6 +311,32 @@ await adb.doc(`v2_purchases/${OTHER}_e2e`).set({
   state: "running", reports: [], at: new Date(),
 });
 
+// A bought AD and its purchase row (D315). The ad document is NOT uid-keyed
+// and no query from the sweep can find one: the row's `adId` is the only
+// pointer at it, and the only thing that ever deletes an ad is the closer,
+// which reads that pointer off the RUNNING row. Delete the row first and the
+// ad is immortal — in a collection whose committed half is empty, so every
+// production ad is one of these, and which every session downloads whole.
+// OTHER's pair is the control: this must take one ad, not the collection.
+await adb.doc(`v2_purchases/${uid}_ad`).set({
+  uid, kind: "ad", adId: `paidad-${uid}_ad`, scope: "city", place: "Oslo",
+  dims: ["city:Oslo"], window: { start: "2026-08-24", until: "2026-09-21" },
+  state: "running", reports: [], at: new Date(),
+});
+await adb.doc(`v2_ads/paidad-${uid}_ad`).set({
+  sponsor: "E2E Transit", body: "Night buses now run until three.",
+  from: "2026-08-24", until: "2026-09-21", tags: ["city:Oslo"],
+});
+await adb.doc(`v2_purchases/${OTHER}_ad`).set({
+  uid: OTHER, kind: "ad", adId: `paidad-${OTHER}_ad`, scope: "world", place: null,
+  dims: [], window: { start: "2026-08-24", until: "2026-09-21" },
+  state: "running", reports: [], at: new Date(),
+});
+await adb.doc(`v2_ads/paidad-${OTHER}_ad`).set({
+  sponsor: "Someone Else", body: "Not this account's campaign.",
+  from: "2026-08-24", until: "2026-09-21", tags: [],
+});
+
 // paid-question bookings (paid.ts, D313): the pre-payment half of a sale —
 // free text and a verdict under a uid, phase 4f. OTHER's row is the
 // control again; the budget ledger rides the same sweep as suggest_.
@@ -424,6 +458,7 @@ for (const [path, label] of [
   [`v2_groups/${SHARED}`, "shared group"],
   [`v2_groups/${LEFT}`, "the group they will leave"],
   [`v2_groups/${LEFT}/reveals/${DAY}`, "that group's reveal"],
+  [`v2_ads/paidad-${uid}_ad`, "their bought ad — the wipe assertion is vacuous without it"],
   [`v2_takes/${MY_TAKE}`, "their take"],
   [`v2_flags/${MY_TAKE}_${uid}`, "their flag on their own take"],
   [`v2_flags/${MY_TAKE}_${OTHER}`, "somebody else's flag ON their take"],
@@ -529,6 +564,7 @@ for (const [path, label] of [
   [`v2_flags/av_${uid}_${OTHER}`, "somebody else's flag on their FACE"],
   [`v2_users/${uid}/following/${OTHER}`, "the account's own follow"],
   [`v2_users/${uid}/foresight/daily-000__ageBand__25-34`, "a foresight verdict"],
+  [`v2_users/${uid}/taste/profile`, "their interest profile (D317/D322) — the page promises this by name"],
   [`v2_users/${uid}/engagement/_state`, "the digest's bookkeeping pair (D268)"],
   [`v2_users/${uid}/engagement/2026-08-22`, "a person-channel day rollup (D272)"],
   [`v2_users/${OTHER}/following/${uid}`, "someone else's follow OF this account"],
@@ -541,6 +577,8 @@ for (const [path, label] of [
   [`v2_mod_queue/${MY_TAKE}`, "the queue's copy of their take"],
   [`v2_suggestions/${uid}_e2e`, "their question suggestion (phase 4d)"],
   [`v2_purchases/${uid}_e2e`, "their purchase record (phase 4e)"],
+  [`v2_purchases/${uid}_ad`, "their AD purchase record (phase 4e)"],
+  [`v2_ads/paidad-${uid}_ad`, "the ad that row was the only pointer at (phase 4e)"],
   [`v2_paid_bookings/${uid}_e2e`, "their paid-question booking (phase 4f)"],
   [`v2_ratelimits/suggest_${uid}`, "their suggestion budget ledger"],
   [`v2_ratelimits/paidbook_${uid}`, "their booking budget ledger"],
@@ -592,6 +630,9 @@ ok("someone else's question suggestion survives");
 if (!(await exists(`v2_purchases/${OTHER}_e2e`)))
   fail("someone else's purchase record was deleted — phase 4e matched more than the uid");
 ok("someone else's purchase record survives (D288 §3)");
+if (!(await exists(`v2_ads/paidad-${OTHER}_ad`)))
+  fail("someone else's paid ad was deleted — phase 4e took the collection, not the account's ads");
+ok("someone else's paid ad survives (D315)");
 if (!(await exists(`v2_paid_bookings/${OTHER}_e2e`)))
   fail("someone else's paid booking was deleted — phase 4f matched more than the uid");
 ok("someone else's paid-question booking survives (D313)");

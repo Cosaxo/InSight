@@ -31540,6 +31540,76 @@ coupling ratchet unmoved at its baseline. The plan file's §0 table now
 carries each item's as-built state; §1 and §2 still say "owner decision
 first", because they still are.
 
+**Amendment (same day, third) — every remaining body defect, found in one
+pass instead of one per production run.** The `resource.type` fix worked
+and the next POST died on a different field. Two runs, two defects, one
+each, at a merge and a dispatch apiece — so all eight bodies went through
+a validation pass against the live v3 discovery document rather than
+waiting for the API to reveal the third.
+
+**`notificationRateLimit` was on seven of eight, and is legal on one.** The
+discovery document is explicit: *"Required for log-based alerting policies,
+i.e. policies with a LogMatch condition. This limit is not implemented for
+alerting policies that do not have a LogMatch condition."* The trap is the
+phrase **log-based**. Six of these threshold or watch a
+`logging.googleapis.com/user/*` metric, which makes the METRIC log-based
+and the POLICY not: the API classifies by condition type. Only
+`onV2AnswerCreated-errors.json` has a `conditionMatchedLog`, and it is the
+only policy this API has ever accepted from this repo. Removed from the
+other seven; `autoClose` carries no such restriction and stays.
+
+**And an absence condition cannot watch a daily job at all.** Cloud
+Monitoring caps `conditionAbsent.duration` at **23h30m (84600s)**. That
+ceiling is in neither the discovery document nor `alert.proto` — both state
+only a 120s minimum — which is why an earlier review refuted it *from the
+schema's silence* and was wrong. Silence is not permission. Six independent
+public repositories record the limit, several as live-verified, one quoting
+the refusal verbatim.
+
+The arithmetic that follows is the actual finding:
+
+| job | cron | healthy gap | longest legal window |
+| --- | --- | --- | --- |
+| `digestEngagementV2` | 02:23 daily | 86400s | 84600s |
+| `fitPatternsV2` | 02:37 daily | 86400s | 84600s |
+| `ledgerVelocityScan` | 03:47 daily | 86400s | 84600s |
+| `scheduledDuelReveals` | every 120 min | 7200s | 84600s |
+
+For the three nightly jobs the healthy gap is **longer than any window the
+API will accept**, so every legal absence policy goes true for the ~30
+minutes before each morning's run. Lowering 108000s to 84600s would not
+have fixed them; it would have produced three alerts that page daily, which
+`DEPLOYMENT.md § Alerting` opens by refusing — *"an alert nobody acts on
+trains people to ignore the channel"*.
+
+So the shape changed rather than the number. The three are now trailing-24h
+**thresholds**: `ALIGN_SUM` over an 86400s alignment period (the alerting
+maximum is 90000s), `COMPARISON_LT 1`, held for an hour. A healthy day sums
+to 1 and never goes true; a missed run sums to 0.
+`evaluationMissingData: EVALUATION_MISSING_DATA_ACTIVE` keeps the half a
+plain threshold loses — a series that stops emitting *entirely*, because
+the function was deleted or the trigger dropped, evaluates nothing and
+would stay green forever, which is the exact hole the absence condition
+existed to close. It requires a duration of at least 60s, which is why the
+hour is not zero.
+
+`scheduledDuelReveals` stays an absence condition and is untouched: two
+hourly, 21600s window, three times the healthy gap and well under the
+ceiling. The shape was never wrong — the cadence is.
+
+**Rules 6 and 7** hold both in `check:monitoring`, mutation-verified. Rule 7
+holds the API limit and says in its own failure text that it cannot hold
+the design consequence, because a gate cannot know a watched job's cron.
+
+**What this says about the earlier refutation, which is the part worth
+keeping.** The 23h30m claim was raised, and killed, by a verifier that did
+exactly what it was asked: it went to the authoritative schema, found only
+a minimum documented, and refuted a claim that could not be sourced. That
+is the right procedure and it produced a wrong answer, because the
+constraint is server-side validation that never reached the schema. The
+correction did not come from better reading. It came from **running the
+thing** — and then from six strangers who had run it before.
+
 ## D311 · The daily builder dropped `bg`, the seed's own written-count told on it, and the seed-fields gate learns surfaces
 
 **Decided:** 2026-08-26 · **Status:** binding. Found minutes after the
@@ -31925,6 +31995,939 @@ actually live. Demand honesty: ad campaigns fold into the slot-day
 arithmetic `build-pricing.mjs` prices (same inventory, same idx) and
 stay out of the answer estimates (nothing to estimate).
 
+
+## D316 · Serving becomes selection: pages instead of the whole bank, and the order inherits the caps' job
+
+**Status:** binding — adopted 2026-08-26, owner: *"we should build the
+real fixes now."* · **Requested:** 2026-08-26, owner: *"don't fetch
+every question every time — there should be lazy loading and algorithms
+deciding what questions to show … like learn, no need to limit that in
+any meaningful capacity, facts are facts, and if you create what turns
+out to be bad questions they should just eventually be filtered out by
+the algorithm. One does not need to answer every question, like one does
+not need to watch every YouTube video."*
+
+**What is recorded here.** The direction, its boundary against the
+decisions already binding, the arithmetic that shapes the build, and the
+phases — so that adopting it is a status flip rather than a design
+session. Nothing is built from this record while it says Proposed
+(D82's shape).
+
+### What it decides, in three sentences
+
+The bank stops being something every device holds and becomes something
+a device **pages through**: a server-published order says what a fresh
+screen offers, the device fetches what it actually reaches, and the
+cache keeps what it has seen — this is the "real product need" that
+[`BANK-DELIVERY.md`](BANK-DELIVERY.md) §5 step 3 was waiting to be
+named. Production volume stops being sized to consumption — learn
+first, the feed tail behind it — because runway stops costing every
+device once nobody is handed the whole bank. Performance quality moves
+from pre-emptive caps to the serving order: a question that measures
+badly sinks in the published ranking instead of waiting for a human to
+read a retire proposal — demotion is the order's, deletion stays a
+lane's PR, `active: false` stays the kill switch.
+
+### The boundary it does not cross
+
+D163 stands: **server-side per-user selection stays refused**. The
+YouTube outcome does not need the YouTube profile, and the split is one
+the tree already practices:
+
+- **The server's half is global.** A scheduled function folds the same
+  public aggregates the scorecard already reads — volume, evenness,
+  D271 attention — into a published per-topic order, the
+  `fitPatternsV2` shape: one nightly fold, small published docs
+  (`v2_meta/app` and `v2_patterns/loadings` are the precedents). It
+  knows what the crowd did with a question; it never learns what a
+  person was shown.
+- **The device's half is personal.** D163's interest model (binding,
+  not built) orders *within* the pages the device fetched, off the
+  pass/defer/read signals already on the device. This record is the
+  product need that build was waiting for.
+
+The owner, told exactly this, answered the same day that the app
+*"should absolutely track what you personally like — if not, it does not
+work"* — and that reversal is its own record, as this paragraph asked:
+**D317**. The two adopt independently: D316 alone is the paged bank with
+on-device taste; with D317, the fetch itself becomes personal.
+
+### What "filtered out by the algorithm" changes, exactly
+
+The signals exist and are advisory: `retireProposals`, `deadDuels`,
+`weakTraps` are cited in PR bodies for a human to act on (D33, D40).
+Adoption graduates the SIGNALS into the published order — continuous,
+reversible demotion — while retirement (removing a question) keeps its
+lane and its deliberateness. The per-card FORM gates do not move:
+`check:quality`'s rules are what make a card an InSight card, none of
+them is a volume cap, and BANK-DELIVERY §6's sentence — the bar does
+not move with the volume — binds here too.
+
+### The corpus stays bounded, and that is not a contradiction
+
+"One does not need to answer every question" is already the tail's
+contract: **core** (D161) is the bounded half the Mirror folds and the
+patterns fit solves over, and it stays bounded because its value is
+density. What unbounds is the tail and learn — learn first, because it
+is outside the corpus entirely (a learn card joins no cohort fold), its
+bank already left the bundle (D284), and its shortage is the one the
+owner keeps meeting (D283, and again today).
+
+### The arithmetic that shapes the build
+
+Today the whole-bank fetch is ~671 docs / ~185 KiB, once per install
+plus deltas — nearly free, which is why `costs:scale` bills 513 and
+100,000 docs identically. A naive recommender inverts that: per-request
+ranking bills per impression. The repo-shaped answer is the nightly-fit
+pattern above — O(one scheduled fold) per night plus O(pages actually
+read) per device, instead of O(bank) per device. What assumes
+whole-bank today is BANK-DELIVERY §4's census: the daily deck
+(positional, one a day — stays), the feed pool and weave, the topic
+sheet's counts (published instead), search, and the test/Mirror joins
+(core-only, so they never page — the corpus is the bounded half). Each
+conversion is its own reviewed change.
+
+### Phases (each graduates on build; none starts while Proposed)
+
+1. **BANK-DELIVERY §3** — the bank cache to IndexedDB. Three call
+   sites; takes the practical ceiling past 10,000 docs before any
+   architecture moves. That figure is the interim's headroom, not a
+   target: the owner's direction (restated 2026-08-26: *"there should
+   be no question limit"*) is that after phase 3 bank size is
+   unbounded BY DESIGN — no device ever holds the catalogue, so no
+   number anywhere says how big it may be. `BANK_WARN`/`BANK_FAIL`
+   guard the whole-bank interim and retire or re-point with it
+   (§3's own rule for gates that caught something).
+2. **Learn pages.** A published learn order plus fetch-on-reach; then
+   the lane's pace unbinds from consumption — `FIELD_TARGET` stays a
+   shape goal (D283), cadence and `RUN_CAP` become throughput questions
+   answered by the writing bar rather than the read path.
+3. **Feed tail pages.** A published per-topic order for the tail;
+   D163's device model orders within fetched pages. Core keeps shipping
+   whole.
+4. **Demotion in the order.** The scorecard's signals feed the nightly
+   fold; retire proposals keep proposing deletion, and the order stops
+   waiting for them.
+
+## D317 · The taste model moves to the server, because selection cannot be personal from inside a page
+
+**Status:** binding — adopted 2026-08-26 with D316, owner: *"we should
+build the real fixes now."* · **Requested:** 2026-08-26, owner, on being told
+D316 keeps the server's half of the order global: *"this app should
+absolutely track what you personally like — if not, it does not work."*
+This reverses the row D163 narrowed — **server-side per-user content
+selection**, refused there outright, is what this record builds. D163
+named its own crossing "a considered position being crossed, not an
+oversight"; so is this one, and it is the owner crossing it.
+
+### Why the device model is not enough, said honestly
+
+D316 pages the bank: the server chooses what a device is handed, and the
+device re-orders what arrived. Under a global published order everyone
+is handed the same popular head, so a device model can only sort the
+window it was given — and at the bank sizes D316 exists for, the
+choosing IS the personalization. The owner's sentence is the
+architectural fact: a taste model that never leaves the phone cannot
+reach into the fetch.
+
+### What survives D163, because it was never about the bytes' address
+
+- **Shown and editable, with a reset.** "A Mirror that secretly models
+  you is a contradiction in terms" does not move to the server with the
+  model — it binds harder there.
+- **The daily stays global** — cohort comparison is meaningless if
+  different people got different questions — **and the Mirror folds
+  core only** (D161). Personal selection is the tail's and learn's.
+- **Ad targeting stays refused.** The profile exists to pick questions
+  and for nothing else; D164's revenue paths do not gain an input.
+
+### What is actually new, named plainly
+
+D98 published what people ANSWERED, never what they looked at. Answers
+are already server-side and public, so a taste model derived from them
+adds no exposure — the new artifact is the profile document itself. The
+genuinely new CLASS of data is behaviour — shown, passed, deferred —
+which today never leaves the device (`insight.feedPass.v1` and kin), and
+D163's skip/pass sentence ("a pass stays local-only, the server never
+receives it") is the exact line that moves if phase 2 is built. So the
+build phases by exposure, not by effort:
+
+1. **Profile from answers.** The server derives per-user topic interest
+   from the answers it already holds, and selection reads it. No new
+   signal leaves the device.
+2. **Behaviour uploads, only if 1 ranks poorly.** Pass/defer/read
+   events join the profile. This is the full reversal, and adopting
+   this record does not license it — it graduates on its own evidence,
+   as its own amendment here.
+
+### The checklist adoption signs up for
+
+The D98 discipline, pointed at this: if the app tracks what you like,
+something has to make every promise about that true, and a test has to
+prove it.
+
+- A per-user profile document, **owner-and-server readable, never
+  public** — D98's presence deny is the precedent: it published what
+  people answered, not where they stand, and this document is eyes,
+  not answers.
+- `docs/data-inventory.md` gains the row (`check:data-inventory`) and
+  the store privacy label moves with it (`docs/STORE-FORMS.md` +
+  `design/store/app-privacy.json`, held equal by `check:store-forms` —
+  this line first named `check:labels`, which is the a11y gate; D322
+  caught it at build time) — D163's "no store form moves" was
+  load-bearing and this record un-says it.
+- `web/privacy.html` says it and `check:policy-claims` proves it; the
+  purge sweeps it and the erasure e2e shows the sweep.
+- `MONITORING.md`'s refused row is re-drawn, dated: what remains
+  refused is ad targeting and any use of the profile beyond selection.
+
+### What it does not change
+
+D316's nightly fold stays the ranking's spine — global signal orders the
+bank; the profile chooses which of it a device is offered. Core density,
+the daily's one-question ritual, and every deny in `firestore.rules`
+stand.
+
+## D318 · The bank cache leaves the small box
+
+**2026-08-26.** D316 phase 1, BANK-DELIVERY §3 as-built, the day the
+plan was adopted. `src/v2/data/bankStore.ts` now holds the question-bank
+cache in IndexedDB (`insight-bank`, one store, one row); live.ts's three
+localStorage sites became a get/put pair with the contract the old code
+had — any storage failure reads as "no cache" and the boot refetches —
+minus the failure that contract existed to survive: the ~5 MB origin
+quota the bank was certain to grow into, whose crossing would have
+silently stopped caching and made every boot a full fetch forever.
+
+What §3 predicted held: the cursor, the delta query and splitBanks are
+untouched, and the store being async cost nothing because hydrate
+already was. Two things beyond the plan's sketch:
+
+- **Migration is conditional on the new store working.** bankGet
+  consumes the legacy `insight.bankCache.v2` payload — returned for the
+  boot, so an updating device pays a delta rather than a refetch, then
+  removed, freeing the box — but ONLY when IndexedDB opened and was
+  simply empty. Where IndexedDB itself fails, the legacy copy is read
+  and LEFT: a device whose new store never works keeps a
+  stale-but-delta-able cache, which beats a full fetch every boot.
+  Pinned in bank-cache.test.ts; the migration case asserts all three
+  halves — delta not refetch, key freed, store filled.
+- **The tripwires re-pointed, not retired** (§3's own rule for a gate
+  that once caught something). `BANK_WARN`/`BANK_FAIL` keep their
+  counts and change their subject: the whole-bank fetch every fresh
+  install still pays (§4's ceiling) until D316's paged read path lands.
+  The messages now say to build the pages, not to move the cache;
+  cost-scale, feed-budget and learn-budget's prose moved with them.
+
+Measured, not assumed: tsc, eslint, 2089 unit tests (bank-cache at 14,
+one new), 468 script tests, check:quality, check:globals, and the
+shipping bundle at 2096 KB against the 2440 ceiling — bankStore adds one
+small module to the entry graph and no shipped dependency
+(fake-indexeddb is dev-only, the tests' IDB implementation).
+
+## D318 amendment (2026-08-26) · The merge converged on D312's store, the same day
+
+Main built the same move in parallel: D312 (ANSWER-SCALE §2.2) opened
+one IndexedDB database for the bank, aggregate and answers caches —
+rows per question, crash-ordered meta, purge listeners, the superset of
+what this record's `bankStore.ts` did for the bank alone. Two stores
+for one purpose is the D197 shape, so the merge kept D312's
+`cacheStore.ts` and deleted `bankStore.ts` the day it was born. What
+this record argued survives entirely — the quota ceiling is gone, the
+migration is conditional on the new store working (D312 orders the
+legacy key's removal after the rows commit, the same property), and the
+tripwires re-pointed — it is only the module that lost the race. The
+pagers (D320/D321) persist their pages through cacheStore rows, with no
+meta write: a page must not advance the delta cursor past edits it
+never fetched.
+
+## D319 · The serving order publishes nightly
+
+**2026-08-26.** D316's spine, as-built: `functions/src/rank.ts`, the
+fitPatternsV2 shape one job over — a pure fold behind an injected store,
+scheduled 3:07 UTC (after the fit at 2:37, before the velocity scan at
+3:47), publishing one world-readable document per ranked surface onto
+`v2_rank/{feed,learn}`. Rules, a rules test and the data-inventory row
+all carry the v2_patterns posture: readable by any signed-in user,
+written by nobody — a client-writable order would make what everyone is
+served forgeable in one request.
+
+**The order, v1: per topic, volume descending, ties by seq — and
+landslides sink.** At `RANK_DEAD_MIN` (20) answers with a leading option
+at `RANK_DEAD_SHARE` (90%), a question has stopped asking anything and
+serves last in its topic. That is D316 phase 4's first signal live in
+the order — the scorecard's own retire-proposal predicate, kept
+numerically equal so the two cannot drift — and the owner's "bad
+questions filtered out by the algorithm" in its first real form:
+demotion continuous and reversible, deletion still a lane's PR,
+`active: false` still the kill switch.
+
+**The boundary holds by shape, not by promise.** The fold's inputs are
+the compiled seed (PATTERNS_QIDS's own source) and the public
+aggregates; no uid can enter it, so the published order is the crowd's
+and D163/D317's line — the server half of selection is global — is
+structural. The daily is not ranked (positional by design, D316);
+test/duel/pulse/call are bounded rosters (D213's census) a device still
+takes whole.
+
+**Cost:** O(bank) aggregate reads per night (getAll, 300-chunks) plus
+two writes; a device pays one read per order doc it actually uses. At
+10,000 feed questions the doc is ~150 KB against Firestore's 1 MiB
+limit; the graduation when a surface approaches it is one doc per
+topic, and the module says so where the next author will look.
+
+**What reads it: nothing yet, deliberately.** The client half — the
+paged fetch against this order — is the next change. Publishing first
+means the order is real, measured and inspectable in production before
+any device depends on it, and a bad ranking costs nothing while nothing
+reads it.
+
+Measured: 384 functions tests (rank.test.ts at 7, new), 150 rules tests
+(one new — the count that moved five prose figures, all corrected by
+check:figures' own fix lines), deploy-targets, fn-runtime, appcheck and
+data-inventory green.
+
+## D320 · Learn leaves the boot fetch: the first paged surface
+
+**2026-08-26.** D316 phases 2–3 for the first surface, as-built. A
+device is no longer handed every learn card: `BANK_SURFACES` dropped
+`learn`, and `topUpLearnBank` — kicked at the end of hydrate, never
+awaited, handed hydrate's own `db` — pages cards in against the D319
+order: one read of `v2_rank/learn`, then the first `LEARN_PAGE` (24)
+per followed field that the cache does not hold, fetched by id in
+30-chunks. The arithmetic is pure (`learnPager.ts`, its own suite);
+the seen-set is the CACHE — a card this device was ever handed is in
+bankStore, so "first N not cached" is "next N never met here" with no
+profile and no upload. D317 phase 1's boundary holds by construction:
+the only thing the server could see is which ids a device fetched.
+
+Three obligations beyond the happy path, each pinned:
+
+- **History heals by id, order or no order.** A contentRev bump
+  refetches only the boot surfaces, so paged learn docs fall out of the
+  cache — and a mastered card missing from the pool is a fact missing
+  from the map (`mastered()` reads the pool's index). The pager
+  re-fetches every card `insight.learn.v3` has history with, across
+  all fields, before any page, and works with no order doc published —
+  which is every project the fold has not run on.
+- **The delta keeps paged cards fresh.** The boot delta merges a row
+  outside the boot surfaces only when the device already holds it — an
+  edit to a paged learn card arrives; a NEW learn doc is dropped there
+  on purpose, because which cards a device holds is the pager's
+  decision, not the delta's.
+- **The sheet's denominator is the bank's, not the page's.**
+  `publishLearnTotals` carries per-field counts off the order doc and
+  the engine's `total()`/`stats()` prefer them — a pool claiming the
+  page size would be D283's under-count report again, rebuilt.
+
+Recorded limits, not oversights: the top-up runs per boot, not per
+serve — a session that outruns a 24-per-field page falls back to the
+engine's own slow/warm fillers until the next boot, and the mid-session
+seam waits for a measured session that actually needs it. A card killed
+after the nightly fold can serve for up to a day; `active: false` still
+kills it from the pool on the next boot.
+
+One harness find worth keeping: the first wiring had the pager call
+`getDb()` concurrently with `hydrateSocial()`'s, and vitest's mocked
+dynamic `import("firebase/firestore")` LOST that race — the fourth
+resolution handed the REAL SDK into a fully mocked suite, fourteen
+tests red with a `collection()` error no changed line explained. The
+fix is also the better design (hydrate hands the pager its `db`; the
+members were already bound), but the mechanism — two concurrent
+dynamic imports of a mocked specifier resolving differently — is worth
+this paragraph the next time a mocked suite fails where no edit points.
+
+Measured: 2099 unit tests (bank-cache at 16, learn-pager at 8, vote at
+84 — its learn cases now ride the history-heal path end to end), tsc,
+eslint, check:globals (the 238 baseline unchanged: the new seams are
+imports), and the shipping bundle at 2097 KB against 2440.
+
+What remains of D316: the feed tail (phase 3) and demotion's remaining
+signals (phase 4). The feed still ships whole at boot.
+
+## D321 · The feed tail leaves the boot fetch, and the whole-bank install is over
+
+**2026-08-26.** D316 phase 3 as-built, learn's shape (D320) applied to
+the feed with one structural difference: **core ships whole, always.**
+The boot fetch became two queries — the boot surfaces' `in`, then
+`surface == "feed" AND core == true` — because the corpus the Mirror
+folds (D161) is valuable BECAUSE every device holds all of it, and
+Firestore cannot say "these surfaces, or feed where core" in one query.
+The tail pages behind `v2_rank/feed` (D319) at `FEED_PAGE` (12) per
+topic per boot: today's bank holds about that many per topic in total,
+so the paged feed reproduces the whole-bank feed exactly until the
+lanes outgrow it — which is the point where paging starts paying.
+
+The pager GENERALIZED (learnPager.ts → bankPager.ts, pageNeedList and
+topUpPages with a per-surface page size) rather than duplicated. The
+feed's history heal is its ANSWERS: every voted `feed-` qid must
+resolve to a document whatever page it was on, or the Mirror holds a
+vote it cannot name. Arrival rules split by destination: the CACHE
+takes every fetched row (the archive keeps expired docs — the n_closed
+rule), the serving pool only the servable — which moved the `now`
+lane's window test to page arrival, where that rule now lives for
+everything the boot no longer carries. The delta grew the matching
+keep: a NEW core feed question merges (a promotion must reach every
+device), a new tail or learn doc is dropped (the pager's decision), an
+edit to anything held merges by id.
+
+Recorded limits, each with its fix named: the topic sheet's per-topic
+counts still count the POOL — at today's bank nothing changes, and when
+the tail outgrows a page the published order's totals are the fix
+(publishLearnTotals' shape), with D283's under-count report as the
+failure it prevents. Search still searches what the device holds; full-
+bank search is a published slice or a server query, later. Both are
+BANK-DELIVERY §4 census rows, now half-converted.
+
+Measured: 2100 unit tests — bank-cache at 17 (the two-query boot with
+the core constraint asserted field by field, tail paging through the
+order, the answered heal, and the window rule at arrival), vote.test's
+84 untouched (its blanket mock feeds fixtures through the core query,
+which is the constraint mirror doing its job) — lint, check:globals
+baseline unchanged, shipping bundle 2098 KB against 2440.
+
+**With D318–D321 the install stops scaling with the bank**: a fresh
+device fetches the boot surfaces, the core corpus, and a page per
+topic — O(core + pages), never O(bank) — and "there should be no
+question limit" (D316's adoption) is now a property of the read path
+rather than an aspiration of the plan. D316's remaining piece is phase
+4's remaining signals (attention and evenness joining volume in the
+nightly fold).
+
+## D322 · The profile is real: feed answers counted by topic, and pages sized by them
+
+**2026-08-26.** D317 phase 1 as-built, the same day the reversal was
+recorded and adopted. Three parts and the checklist, each with its gate.
+
+**The fold** (`functions/src/taste.ts`, `fitTasteV2`, nightly 3:27 UTC —
+after the rank fold, before the velocity scan): this person's FEED
+answers counted by topic from the agg-events ledger, through the one-day
+reader the patterns fit now shares (`ledger.ts`, extracted here for
+D197's one-copy reason). One count per (person, question) per day — the
+D86 edit rule at heuristic strength, recorded rather than silently
+wrong. Cursor on `v2_meta/app` (`tasteLastDay`, the D265
+no-new-collection argument), 7-day catch-up, idempotent on retry. Feed
+only in v1: learn interest is the follow list the user already
+controls, and the daily has no selection to personalize.
+
+**The document** (`v2_users/{uid}/taste/profile` — `{t, n, at}`):
+owner-readable, client-unwritable, never listable. Owner-readable is
+D163's "shown" carried over the reversal; NOT public is the
+patterns-state argument with one reader added — what a person ANSWERED
+is the product (D98), what the system concluded they are INTO is a
+summary nobody signed up to be read as by strangers. The write deny is
+forward-looking: a self-writable profile would let a device forge its
+own fetch weighting — harmless today, a sponsored-targeting hole the
+day audiences exist.
+
+**The one reader** (`bankPager.pageSizesByInterest`, wired into the
+feed top-up): topics with `TASTE_TOPIC_MIN` (3) or more answers page at
+`FEED_PAGE`; the rest at max(4, a third of it) — never zero, D96's
+every-topic-on posture, and a cold topic must stay discoverable or the
+profile could never change. Below `TASTE_MIN_TOTAL` (10) answers the
+profile shapes nothing: a new device's feed is byte-identical to the
+pre-profile feed. A failed profile read costs personalization for one
+session, never the pages.
+
+**The checklist, shipped with it rather than after.** The rules block
+and its test (owner reads, stranger never, nobody writes);
+`docs/data-inventory.md`'s row; `web/privacy.html` states the
+arithmetic and `check:policy-claims` pins three sentences — including
+the PHASE-2 TRIPWIRE: "what you merely scrolled past or skipped stays
+on your device and is not collected" is now a pinned claim, so building
+phase 2 must retire that row in the same commit as the record that
+licenses it. The store label moved: User Content gains Product
+Personalisation (`STORE-FORMS.md` + `app-privacy.json`, held equal by
+`check:store-forms` — also where D317's checklist's `check:labels`
+misnomer surfaced; corrected in place). `MONITORING.md`'s refused row
+re-drawn, dated, with the crossed position kept above it — including
+the new duty the architecture no longer enforces: the console COULD
+now show what people are into and must not. And the erasure e2e seeds
+and asserts the profile's sweep, run green against the real emulated
+`deleteAccount`, so the page's "deleting your account deletes it" is a
+tested sentence.
+
+Measured: 390 functions tests (taste at 6, new; patterns' 11 unmoved
+across the ledger extraction), 2104 unit tests (bank-pager at 11;
+bank-cache at 18 — a profiled device pages its answered topic at 12 and
+a cold one at 4, end to end through a booted live.ts reading its own
+profile), 151 rules tests, the erasure e2e, and every drift gate:
+store-forms, policy-claims, data-inventory, deploy-targets, fn-runtime,
+appcheck, figures, globals (238 unchanged), bundle 2098 KB / 2440.
+
+What phase 2 would be, so the next reader knows where the line is: the
+pass/defer/read signals joining the fold — a real upload of behaviour,
+licensed only by its own record, the pinned page sentence retired in
+the same commit, and the store forms re-derived again.
+
+**Amendment (same day, fourth) — the third round, and what the sweep that
+was meant to prevent it actually got wrong.** With the filters and the rate
+limit fixed, the run created two more policies and stopped on a third
+defect:
+
+```
+creating policy "fitPatternsV2 has gone quiet" failed (400): Request was
+missing field alert_policy.documentation.mime_type: non-empty content
+requires non-empty MIME type and vice versa.
+```
+
+Three of the eight carried `documentation.content` with no `mimeType`
+while the other five set `text/markdown`. Fixed, and held by **rule 8**.
+
+**The sweep found it and filed it as harmless.** It is in that pass's own
+output, at `accepted-but-wrong`: *"omission is accepted, the field is
+optional."* Two things went wrong and only one is about the API.
+
+The first is ordinary: a severity misjudged. The second is mine. That
+finding sat past a **cap of eight** I put on the confirmation phase, so no
+skeptic ever looked at it — the cap existed to bound cost, and it bounded
+the wrong end, keeping the confirmations cheap while leaving the tail
+unexamined. The seven that WERE confirmed were seven instances of one
+defect. A cap that de-duplicated first would have spent its budget on eight
+distinct fields instead of one field eight times.
+
+**What the round-by-round record now shows**, which is the argument for
+building the gate rather than fixing the file:
+
+| round | defect | policies past it |
+| --- | --- | --- |
+| 2 | `metric.type` filter with no `resource.type` | 1 |
+| 5 | `notificationRateLimit` on a non-LogMatch policy | 1 |
+| 6 | `documentation.content` with no `mimeType` | 3 |
+
+Each was present from the day those files were written. Each passed every
+gate in this repo. None was findable by reading the schema — the first is
+documented but only in the filter field's prose, the second in one
+sentence about a different field, the third in an error message. The
+instrument that found all three was **a POST to the real API**, which is
+the same lesson as D303's own: the thing that could not run was the thing
+that knew.
+
+
+## D323 · The 2026-08-27 night audit, reviewed — 21 fixes kept, five limits recorded
+
+**2026-08-27.** **Status:** binding as a RECORD OF FIVE LIMITS. The
+twenty-one fixes on `night-20260827` are kept as written; nothing was
+reverted and nothing amended. What this record adds is the half the
+night left in code comments only — five things it deliberately did NOT
+close, four of them on the paid path, where the residue is money or a
+promise to a buyer rather than a stale document.
+
+This is the D293 shape one night on: the audit was right to stop where
+it stopped, and CLAUDE.md's rule is that a deferral is recorded with its
+arithmetic. A known limit is survivable; a surprise is not. None of
+these five is reachable by any gate in this repo, which is exactly why
+they are written here.
+
+### What was verified before keeping it
+
+Every gate that guards a PR, green on the merge: `tsc -b`, eslint,
+`test:unit` (2180), `functions` (437), `test:scripts` (521),
+`test:rules` (157, Java 21), all three e2e suites against the real
+emulated functions, and every `check:*` except the two that need
+production secrets (`check:web-firebase`, `check:store-copy` — both
+fail identically on main, and both are release-path gates, not PR ones).
+`check:bundle` passes on a SHIPPING build.
+
+One guard was checked by undoing it rather than by reading it: reverting
+the one-word `lead` argument in `live.ts` turns all twenty of
+`bank-cache.test.ts` red. The fake Firestore now enforces the ordering
+rule the backend does, so the class that shipped last night — a live
+build serving the mock deck on every cold boot — cannot ship silently
+again.
+
+Two of the twenty-one fix defects the same night introduced (`d91bdd24`
+over `a7f1b94a`, `5b13087f` over `69cfda83`). That is the audit working,
+not the audit failing, and it is why the branch is reviewed as a whole
+rather than commit by commit.
+
+### The five limits
+
+**1. The erasure/fold race is narrowed, not closed** (`7bc72f71`).
+`deleteAccount` now takes the agg-events ledger FIRST (phase 1a, was
+4c) and sweeps `v2_users/{uid}` AGAIN after the last phase (4z). A
+nightly fold that starts after 1a finds nothing; one that commits
+between 1b and 4z is caught by the sweep. **What is still open:** a fold
+that read the ledger before 1a and commits after 4z leaves a per-uid
+document nothing will ever remove — the auth user is gone, so
+`deleteAccount` can never run for that uid again, and the interest
+profile has no expiry. `docs/data-inventory.md` promises the opposite in
+as many words. Closing it needs a tombstone the three folds consult, and
+a tombstone is a uid-keyed record that OUTLIVES the account — a decision
+about what survives erasure, which is the owner's to make, not a patch.
+The window is now sub-second-to-minutes against a nightly job, where it
+used to be the whole length of the call.
+
+**2. A foresight slot can still be minted from an invented triple**
+(`edcb16e4`). The read id is now bound to its payload
+(`qid__dim__bucket`, `readId()`'s shape verbatim), so a slice cannot be
+re-rolled at a fresh id until the guess is right — that was the hole
+worth closing, and it is closed. **What is still open:** nothing checks
+that the slice EXISTS, so an invented triple mints an empty slot.
+Closing it costs a billed `get()` on a path with no live surface (D136
+took the lens off the Mirror; the engine stands unplaced) and buys
+nothing but a number on the inventor's own screen.
+
+**3. A buyer charged twice is recorded and alarmed, and not refunded**
+(`0fbebca7`). Two Checkout sessions can complete for one booking — the
+cancel page invites the buyer to press Pay again. The second delivery
+now appends to `duplicatePayments` and emits `paid_duplicate_payment` at
+error, so "recorded nowhere" stops being true. **What is still open:**
+no money moves. A refund issued from a webhook retry path is its own
+hazard, and moving money is the operator's call. A double-charged buyer
+is therefore made VISIBLE, not made whole, and the closer's refund
+arithmetic does not reach the second intent. `createPaidCheckoutV2` now
+expires the prior session best-effort, which makes the case rarer
+without making it impossible: Stripe refuses to expire a session that
+already completed, which is precisely the racing case.
+
+**4. A booking past the review ceiling has nothing to tell its buyer**
+(`76e3cef2`). `MAX_REVIEW_ATTEMPTS = 6` — three hours at the sweep's
+half-hour cadence — stops an unreviewable booking costing a billed model
+call every thirty minutes forever and holding one of fifty oldest-first
+slots for good. The sweep pages (`SWEEP_PAGE` 50 × `SWEEP_MAX_PAGES` 5 =
+250) so skipping a stalled booking does not simply move the starvation
+one page along. **What is still open:** past the ceiling the booking
+stays in `review` and the operator gets `paid_review_stalled`. The
+constant deliberately does not decide the booking — declining a buyer
+because our reviewer broke would be a verdict about them for a fault of
+ours — so what the buyer is TOLD past this point is undecided, and today
+they are told nothing.
+
+**5. A delayed payment that fails leaves an approved, unpaid booking**
+(`24f9fafc`). The webhook now takes three events rather than one:
+`completed` goes live only when `payment_status` says paid,
+`async_payment_succeeded` is when a delayed method (SEPA, bank transfer
+— dynamic methods apply, the session names no
+`payment_method_types`) actually clears, and `async_payment_failed` is
+logged at error rather than swallowed. This closes the real hole: a
+29-day window could serve in full against a debit that never cleared.
+**What is still open:** `async_payment_failed` has nothing to revoke —
+the guard is why — so the booking sits `approved` and unpaid until an
+operator looks. `docs/DEPLOYMENT.md` names all three events to
+subscribe; a deployment that subscribes only the first re-opens the hole
+silently, and no gate here can see the Stripe dashboard.
+
+### The one thing the night changed that is not a fix
+
+`check:public-copy` stopped keeping a hand list of pages and reads
+`web/` instead (`313e2064`). Surfaces went from 32 to 35 — the three it
+had never read are where a buyer lands straight out of Stripe Checkout,
+carrying both classes that gate exists for. `EXEMPT_PAGES` is empty and
+an exemption needs a written reason. This is the D106 remedy actually
+built: the previous comment promised that adding a page means adding one
+line, and the note beside the newest entry was already false the day it
+was written.
+
+## D324 · Build 26's pre-flight: run as-is, and the one surface no release gate can see
+
+**2026-08-27.** **Status:** binding as a PRE-FLIGHT RECORD and ONE LIMIT.
+No number moved and no code changed. What this adds is the limit the
+comparison turned up on the way, which is the shape D191 established: a
+pre-flight that finds nothing to do is the moment to ask what the gates
+are not reading.
+
+### The comparison, made against the run list
+
+D158's rule, because a doc cannot see App Store Connect:
+
+- Run 42 (`32716503010`, 2026-08-24T10:23:03Z) is still the highest run
+  in `ios-release.yml`'s list — 42 of 42, nothing dispatched in three
+  days.
+- Its step 17, `Upload to App Store Connect`, is **`success`**
+  (10:28:28Z → 10:29:42Z, 1m 14s of transfer). Build 25 is spent.
+- `appBuild` at run 42's **own `head_sha`** — `01d5570`, D159's rule
+  rather than the commit anyone merged — is **25**.
+- The tree at `ac9072f` reads **26**.
+
+26 > 25, so the answer is **run as-is** and no number moves. Fourth
+pre-flight to come out that way (D153, D158, D191, this one), and build
+25's bump is the one that made it: D274 read it off step 17 while the
+step list was on screen. Seven bumps have held (20, 21, 22, 28, 33, 36,
+42) against seven skipped (18, 19, 24, 26, 31, 38, 40).
+
+D198 and D273 are unchanged by this and worth restating, because this
+record is exactly the kind that has been read as a guarantee before: **a
+verdict has a shelf life of exactly one dispatch, and a bump has a shelf
+life of exactly one upload.** "No number moved" is a report about a
+comparison made at `ac9072f` on 2026-08-27, never a statement about the
+tree afterwards.
+
+### The gap this release carries
+
+193 commits since build 25, over three days — the widest gap between two
+iOS builds so far (24 → 25 was two days; 22 → 23 was sixteen hours). It
+holds the bank unbounding and paged serving (D316–D322), the paid
+question and ad loops (D313–D315), the 2026-08-27 night audit's
+twenty-one fixes (D323), and the iris mark (D302).
+
+**Read that number as D302, not as D300.** The commit that carries the
+identity (`f819cc6`) names it "D300" in its subject line, which was true
+when it was written and stopped being true at D299's renumber — D300 is
+now *The first look at production*. A commit message cannot be corrected
+after the fact and D299's gate reads `docs/`, so `git log` will keep
+saying D300 here. The docs are right.
+
+### The limit: the app icon is on no gate's path
+
+Build 26 is the first iOS build to carry the iris, and the icon is the
+one part of it that nothing in this tree measures.
+
+Both release-path gates read `dist/`. `check:web-firebase` asks whether
+the JavaScript saw the Firebase config; `check:bundle` weighs the
+JavaScript about to be copied into the shell. `cap sync` then copies
+`dist/` into `ios/App/App/public/`. But `AppIcon-512@2x.png` does not
+travel that way — it reaches the binary from
+`ios/App/App/Assets.xcassets/`, which `cap sync` does not write and
+neither gate reads. `scripts/gen-icons.mjs` is the only thing that writes
+it, it has **no `package.json` entry**, and no workflow invokes it.
+
+So build 26 ships the iris because a human ran the script by hand and
+committed the PNG, and **nothing in this repo could tell the difference
+if they had not.** For this build it is verified rather than assumed:
+`f819cc6` touched
+`ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png` and
+the working tree is clean at `ac9072f`, so the committed icon is D302's.
+The general case has no such answer.
+
+**Why this is recorded and not closed.** The honest gate is
+re-render-and-compare against `design/icon/mark.svg`, and PNG
+rasterisation is not byte-reproducible across Chromium versions — that
+is a flaky gate, placed on the one path where a false red costs ~150
+minutes of macOS quota at 10x. A perceptual-hash comparison would not be
+flaky in the same way, but it is a new dependency and a threshold nobody
+has calibrated, which is more than a release pre-flight should decide.
+CLAUDE.md's rule is that a deferral is recorded with its arithmetic.
+
+It is also a third category next to the pair D229 and D274 settled. Those
+read: *a dry run derisks the signing; the gates on the release path derisk
+the bundle.* The icon is in neither half — not signing, not bundle — and
+that is why two releases' worth of reasoning about what a dry run proves
+never reached it.
+
+### What was verified before calling the tree ready
+
+Green at `ac9072f`: `tsc -b`, eslint (`--max-warnings 0`), `test:unit`
+(2180), `functions` (437), `test:scripts` (521), `test:rules` (157, Java
+21), `test:e2e` against the real emulated functions, and every `check:*`
+gate. `check:store-copy` fails bare on D42's parked Play fingerprint and
+passes under `--ios`, which is the flag the release path uses.
+
+The release-path build was rehearsed in its own shape —
+`CAPACITOR_BUILD=1 VITE_V2_LIVE=true`, live Firebase values, `dist/`
+asserted rather than the environment:
+
+| Measure | Build 26 | Ceiling |
+| --- | --- | --- |
+| total JS | 2144 KB | 2440 KB |
+| eager graph | 767 KB | 880 KB |
+| blocking CSS | 68 KB | 74 KB |
+| total CSS | 86 KB | 88 KB |
+| fonts | 64 KB | 96 KB |
+
+D191's second variable held: built without a DSN the same tree comes out
+2045 KB with the Sentry group shaken out, and `check:bundle` withholds
+the total ceiling rather than passing it — 767 KB eager either way, since
+Sentry is not in that graph.
+
+The backend is not this workflow's to ship and was checked anyway:
+`firebase-deploy` run 140 deployed `8b88066`, which is `ac9072f`'s parent
+but for one pulse trail row, so the client at build 26 meets a backend
+carrying D316–D323.
+
+### The dispatches, and the bump
+
+Same session, same day, so this is D324 rather than a record after it.
+
+**Runs 43 and 44 delivered build 26, and the bump landed off step 17's
+conclusion.** Run 43 (`33070525476`, 12:08:58Z) step 17 `skipped` — the
+dry run, 6m 12s; run 44 (`33071251527`, 12:18:34Z) step 17 `success`,
+12:25:22Z → 12:27:13Z, 1m 51s of transfer. `UPLOAD SUCCEEDED with no
+errors`, delivery UUID `b1562663-98fe-4166-8aae-863bbcc5241d`, 6,128,733
+bytes against build 25's 6,039,930. Ninth pair of this shape after 15/16,
+23/24, 25/26, 27/28, 32/33, 37/38, 39/40 and 41/42.
+
+`appBuild` went 26 → 27 read off step 17 rather than recalled. **Eight
+that held** (20, 21, 22, 28, 33, 36, 42, 44) against seven skipped (18,
+19, 24, 26, 31, 38, 40).
+
+**D159's trap did not fire.** Both runs archived `ac9072f`; `main` was
+checked between the dispatches and had not moved, and the D324 record
+itself was deliberately left unmerged on its branch so that merging it
+could not become the commit in the gap. Second release since run 21 where
+the dry run and the upload name one tree, after build 24's runs 39/40 —
+and the first where that was arranged rather than lucky. So what run 43
+proved was proved on exactly the bundle run 44 shipped, which is the
+thing D229 could not say about build 23.
+
+**What the two runs prove, and the one thing they still do not.** Every
+gate on the path came back green on build 26's own tree: step 5
+(placeholders, public copy, version lockstep), step 6 (the live build,
+`check:web-firebase` and `check:bundle` against the real secrets), step
+13 (the archive carries the Firebase config and the APNs entitlement) and
+step 15 (the exported `.ipa` is **production**-signed for APNs — the gate
+that once refused run 5's own build). None of them reads
+`AppIcon-512@2x.png`, so the limit above is unchanged by a successful
+delivery: build 26 carries the iris to TestFlight, and it does so on a
+human's hand-run script rather than on anything this repo can check.
+
+## D325 · The bridge's first crossing: the fit publishes its own scorecard
+
+**2026-08-27.** The owner carried the axiom-theory bridge's two
+worth-building verdicts (`bridge/VERDICTS.md` on the `axiom-theory`
+orphan branch, both ruled 2026-08-26) into the tree, per the crossing
+protocol `docs/AXIOM-THEORY.md` records: a person carries; the governed
+process disposes. This is that record. Both instruments ride the
+nightly fit and its existing publish — zero extra Firestore reads, zero
+extra writes, no client change (the client reads only `k` and `q` off
+the loadings doc), no rules change (the doc was already world-readable,
+written by nobody).
+
+**The prequential score** (`quality` on `v2_patterns/loadings`). As the
+fit folds a day's ledger it now scores each observation one step ahead
+— the model as it stood *before* that answer arrived: yesterday's
+marginal, unstepped vectors — through the device Oracle's own link and
+clamps (`patternsMap.ts`), so the number and the Oracle meter speak one
+currency in surprisal bits. Prequential-ONLINE, as the verdict words
+it: the person-vector updates within the day as the fold proceeds. The
+tally is a pure observer — the determinism test pins the model
+bit-for-bit with and without it. Published: the newest day's pooled
+mean with its basis, a pooled per-day `series` (bounded, below), the
+day's per-question means **floored**, and the `note` clause the verdict
+requires: this measures the FIT, not the Oracle's separate ridge solve.
+
+**The floor, which the verdict made a condition and left this process
+to price.** A per-question daily mean at n = 1 IS that person's
+surprisal — the one number on this doc not recomputable from public
+data, because it reads θ·L, a projection of the private vector under
+the `v2_users/{uid}/patterns` deny. `PATTERNS_QUALITY_FLOOR = 8`: the
+repo's standing believable-basis figure (D265's `PATTERNS_MIN_BASIS`,
+the Oracle's own refusal line), the same question one level over.
+Below it a day's answers reach the pooled number and nothing else.
+Not a D98 reversal: answers stay public and exact from the first vote;
+what is floored is a derived per-person quantity, which D98 never
+published.
+
+**The displacement summary** (`displacement` on the same doc). How far
+each fitted question's published loading moved between the previous
+publish and this one — plain L2 in **loading space** over the 4 dp
+published vectors, compared publish-to-publish off the model the fit
+had already read, with NO rotation alignment: the verdict's own
+correction, read from the shipped code — the fit is one persistent
+model folded forward, so a Procrustes step would subtract real
+movement from the very number being measured. `space: "loading"` is
+stated on the doc because drawn-plane displacement is a different
+number (the client's spring pass and declutter are nonlinear); that
+half stays unbuilt — the layout runs on the device, and porting it
+into the fit to measure it is more product than the verdict asked for.
+Summary stats run over every question present in both publishes, zeros
+included (the teleport a returning reader experiences is a property of
+the whole map); `perQ` lists only the movers.
+
+**The arithmetic.** Series: ≤ 90 rows (`PATTERNS_QUALITY_DAYS`, the
+agg-events ledger's own TTL — the series never remembers longer than
+the log it scores) × ~40 bytes ≈ 4 KB ceiling. Displacement: one 4 dp
+float per *moved* question plus seven summary fields — bounded by the
+core corpus (D161), which is the bank's bounded half. Both ride a doc
+measured at ~11 KB that is read once per session by the Patterns tab
+and once per night by the fit itself; `docs/COSTS.md`'s Patterns row
+(op counts) is unchanged. Compute: the fold already computed θ·L per
+observation; the score reuses it.
+
+**What this buys, per the verdicts.** The engine crossover (pat-6)
+becomes measurable — any candidate engine is judged against the same
+prequential log; the portfolio metric (cen-2) gets the baseline term
+it is defined against; per-question drift becomes detectable (pat-5);
+and map-3's stability thesis gets the number that decides whether
+anchoring work is ever worth proposing. Nothing draws these fields yet;
+they are instruments, and building a reader for them is its own
+proposal.
+
+Measured before the push: 452 functions tests (patterns at 16, fit at
+17 — the scorecard's eleven new), `tsc` clean in `functions/`, and the
+client suites untouched by construction.
+
+## D326 · The genetic axiom's ambition widens, and the night shift gets a closing hour
+
+**2026-08-27.** **Status:** binding — two owner calls made in one
+sitting, both account-side first and recorded here because nothing else
+in this tree holds them. The night shift in particular has no product
+document at all: its brief lives in its Routine, and until now its only
+traces on `main` were `.gitignore`'s comment and the morning-review
+records (D286's limit, D293's limit, D323).
+
+### 1 · The genetic lane explores more than aging
+
+The genetic lane's biology-ambition half read "what this data could
+contribute to areas like aging research". The owner widened it: not
+only advancing aging research, but **equally genetic engineering and
+the general understanding of genetics**. Landed where the axiom
+actually lives — `CHARTER.md` §2 on the `axiom-theory` branch, commit
+`1c22994` — with §9's boundary sentence widened in the same commit so
+the whole ambition sits under the same bound, not just the corner that
+was named first: literature-grounded hypothesis work over consented,
+aggregated data, written as research directions with citations, never
+as procedures; no medical advice, no self-experimentation or
+intervention protocols. A wider ambition with the boundary left
+pointing at "the aging ambition" would have been the widening done
+badly.
+
+The lane's Routine prompt summary initially kept the old sentence,
+because prompt edits on a Routine that fires into another session (the
+dispatcher's) are refused by the tooling — tolerable by the charter's
+own design (it outranks the prompt and is re-read every run), but
+drift all the same. At the owner's go-ahead the same day, the Routine
+was recreated the way the night shift's was (§2, create before delete)
+with the widened summary: `trig_01Vx4tmhq3EVwySCjSESjrrW`, same
+schedule, same dispatcher binding, same tool grants. The charter's §10
+table moved first (`19c5667`), per its own rule; the retired id was
+`trig_01TcrGm7c7cEsCR1TVg5d8V4`.
+
+### 2 · The night shift ends at 08:00 with a verified branch, not at 07:00 with a stopped one
+
+The shift ran four audit flows at 21:00/23:00/01:00/03:00 UTC, 95
+minutes each, so the last rollup waited before 07:00 Oslo. The owner
+gave it the hour to 08:00. The arithmetic: a fifth firing at 05:00 UTC
+is 07:00 in Oslo (CEST), and a **50-minute budget** — not the audit
+flows' 95 — is what keeps its summary waiting before 08:00 local.
+
+What fills the hour is deliberately NOT a fifth audit flow. Three
+reviewed nights say more raw fixes is not where the marginal value is:
+23 fixes kept and one refused (D286), 31 kept (D293's morning), 21 kept
+with none reverted (D323) — about 75 of 76 landed fixes survived
+review. What the reviews HAVE had to catch is the night's blind spot
+about its own work: two of D323's twenty-one fixes closed defects the
+same night's earlier commits introduced, visible only when the branch
+is read as a whole; and on 2026-08-25 two rules commits landed without
+the e2e suites and left the branch red on the deploy path for two
+hours. So the fifth firing is a **closing flow**: no new audit fan-out;
+a throwaway merge of current `origin/main` to report conflicts (aborted,
+never pushed — the owner merges); the full battery the morning review
+would otherwise run first (both typechecks and lints, all five runners
+including rules and the three e2e suites, every gate that runs without
+production secrets); an adversarial re-review of the whole night diff
+as one unit; fixes only for what that proves broken, none begun past
+minute 35; and the definitive morning summary topped by a verdict line
+— green-and-mergeable, or exactly what is red and why. A check that did
+not run is named as unrun, never claimed (D1 reaches summaries).
+
+Mechanics, for the record: the same prompt-edit refusal as §1 applies
+to the night worker's Routine, and there the brief IS the contract — so
+the Routine was recreated, create before delete so a failed create
+could not dark the night. The five-flow Routine is
+`trig_01WdCLF7zBNjqFmTVk15rWhE`, bound to the same persistent worker
+session, which is what keeps the owner's standing push authorization —
+a human turn in that session's history — exactly as effective as
+before; the brief's authorization paragraph is carried verbatim. The
+retired four-flow Routine (`trig_01AqBssRL8Pna435hwuBSNb7`, created
+2026-08-24, last fired 2026-08-27 03:08 UTC) took its run history with
+it; the nights it ran are the three review records above. Cost: one
+more ultracode flow per night at roughly half an audit flow's length,
+under the owner's standing call that token cost is not this loop's
+constraint. If the closing flow's battery keeps coming back green with
+nothing to say, the cadence dial turns the same way it does everywhere
+else in this program: shrink or retire the flow, and this record is
+where that reversal belongs.
 ## D327 · The console kept selling the floor: twelve captions that outlived the arithmetic
 
 **2026-08-27.** **Status:** binding. Found by auditing the tree for

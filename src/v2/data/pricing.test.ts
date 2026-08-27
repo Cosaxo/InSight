@@ -6,7 +6,7 @@
 // convenience, an unknown currency falls back to the contract's own EUR,
 // and the preference dies with the account like every insight.* key.
 import { beforeEach, describe, expect, it } from "vitest";
-import { PRICING, cur, demandWord, fmt, rate, setCur } from "./pricing";
+import { PRICING, adFlat, cur, demandWord, fmt, fmtExact, rate, setCur } from "./pricing";
 
 beforeEach(() => {
   localStorage.clear();
@@ -43,6 +43,40 @@ describe("formatting", () => {
     expect(fmt(6400)).toBe("€6 400");
     expect(fmt(191)).toBe("€190");
     expect(fmt(0.16)).toBe("€0.16");
+  });
+
+  it("has an EXACT form, for the control that charges the figure", () => {
+    // `fmt`'s rounding is right for a price list and a lie on a Pay
+    // button: Stripe charges Math.round(eur × 100) cents in EUR, so an
+    // ad's flat €288 printed "Pay €290", and at other legal index values
+    // the error runs the other way — €323.20 printed as €320, a buyer
+    // charged MORE than the control they pressed.
+    expect(fmt(288)).toBe("€290");
+    expect(fmtExact(288)).toBe("€288");
+    expect(fmtExact(323.2)).toBe("€323.20");
+    expect(fmtExact(6400)).toBe("€6 400");
+    expect(fmtExact(0.16)).toBe("€0.16");
+    // Exact means exact to the cent Stripe takes, rounding the same way.
+    expect(fmtExact(19.005)).toBe("€19.01");
+  });
+
+  it("prints EUR on the exact form whatever currency is chosen", () => {
+    // The charge is in euro however the rest of the sheet is displayed,
+    // so converting here would put an approximation on the one number
+    // that is not one.
+    setCur("NOK");
+    expect(fmt(288)).toMatch(/^≈/);
+    expect(fmtExact(288)).toBe("€288");
+  });
+
+  it("today's committed ad price is a figure `fmt` would move", () => {
+    // Not a number this file owns (check:pricing referees the card) — it
+    // is why the case above is not hypothetical: the shipped flat price
+    // is exactly the shape the rounding distorts.
+    const flat = adFlat("city");
+    expect(flat).toBeGreaterThan(100);
+    expect(fmtExact(flat), "the committed ad price no longer needs the exact form")
+      .not.toBe(fmt(flat));
   });
 
   it("refuses an unknown currency and stays on EUR", () => {

@@ -59,6 +59,13 @@ export interface LearnCard {
 // demo build never calls the publisher, so the sample the caller passes is
 // what it gets, and there is no build flag to keep in step.
 let livePool: LearnCard[] | null = null;
+// Per-field bank totals from the published order (D320). Needed because
+// the pool is a PAGE since learn left the boot fetch: `pool.length` is
+// what the device holds, not what the bank has, and the topic sheet's
+// "N questions" claiming the page size is exactly the under-count D283
+// was reported as. Null in a demo build and before the order doc loads —
+// the engine falls back to counting its pool, which is then the truth.
+let liveTotals: Record<string, number> | null = null;
 const listeners = new Set<() => void>();
 
 /**
@@ -93,9 +100,36 @@ export function subscribeLearnBank(f: () => void): () => void {
   return () => { listeners.delete(f); };
 }
 
+/** The bank's per-field card counts, from the published order (D320).
+ * Published beside the pool by the pager; null where no order has
+ * loaded, and the caller counts its pool instead.
+ *
+ * AN EMPTY MAP IS NO ORDER, NOT A BANK OF NOTHING. `pageTotals` builds
+ * its map from the order's topics and returns `{}` when there is no order
+ * at all, and the pager publishes unconditionally — so on any deployment
+ * where the nightly fold has not run yet (a fresh project, the first
+ * night after a deploy, a failed fold) this was handed `{}`. `{}` is
+ * truthy, so `learnFieldTotal` returned 0 for every field, and the
+ * caller's `?? pool.length` fallback never fired because `0 ?? x` is 0.
+ * Every Learn field sheet read "0 cards" while cards were being served —
+ * a zero standing in for "no data", which is what D1 refuses.
+ *
+ * The distinction is not lost by collapsing them: a published order with
+ * no topics serves no cards either, so counting the pool is the right
+ * answer for both. */
+export function publishLearnTotals(totals: Record<string, number> | null): void {
+  liveTotals = totals && Object.keys(totals).length ? totals : null;
+  notify();
+}
+
+export function learnFieldTotal(fieldId: string): number | null {
+  return liveTotals ? (liveTotals[fieldId] ?? 0) : null;
+}
+
 /** Drop back to the demo sample. Only the test fixtures need this. */
 export function resetLearnBank(): void {
   livePool = null;
+  liveTotals = null;
   notify();
 }
 

@@ -211,14 +211,61 @@ vi.mock("firebase/firestore", () => {
     getDocs: (q: { path?: string; parts?: Array<{ __kind: string; value?: unknown }> }) => {
       // Lets a test simulate a network failure mid-hydrate.
       if (h.getDocsImpl) return Promise.reject(h.getDocsImpl());
-      if (q?.path === "v2_questions") return Promise.resolve(snapOf(h.bankDocs));
+      if (q?.path === "v2_questions") {
+        // THE BOOT IS THREE QUERIES since D321/D313 — the boot surfaces,
+        // `feed && core`, and the bought questions (`paid == true` with
+        // the window open). This stub deliberately serves the whole bank
+        // to the first two, which is why every feed fixture below reaches
+        // the deck without saying `core`; making it faithful is a bigger
+        // change than it looks and is on the night list.
+        //
+        // The PAID query is filtered, because it is the one this file
+        // would otherwise break: unfiltered it hands back the whole bank
+        // a third time, and hydrate concatenates the copies — which is
+        // how the patterns-gate count read three where the fixture holds
+        // one, with the duplication invisible while there were two.
+        const wheres = (q.parts || []).filter(
+          (pt) => (pt as { __kind: string }).__kind === "where",
+        ) as unknown as Array<{ field: string; value: unknown }>;
+        const paid = wheres.find((w) => w.field === "paid");
+        if (!paid) return Promise.resolve(snapOf(h.bankDocs));
+        const floor = String(wheres.find((w) => w.field === "until")?.value ?? "");
+        return Promise.resolve(snapOf(h.bankDocs.filter((d) =>
+          d.data.paid === paid.value
+          // Firestore drops a document that lacks the field an inequality
+          // names — which is what keeps the seeded bank out of this query.
+          && typeof d.data.until === "string" && (d.data.until as string) >= floor)));
+      }
       // The my-answers pull (and, on a warm boot, the D86 edit-cursor
       // query on the same path — fold() is idempotent over the repeat).
       if (q?.path === "v2_users/uid_test/answers") {
-        if (!h.answerPageSize) return Promise.resolve(snapOf(h.answerDocs));
+        // THE WARM BOOT IS TWO DELTAS on this path — `answeredAt >` and
+        // `editedAt >` — and this stub used to serve the whole fixture to
+        // both, so the two cursors were indistinguishable from here. That
+        // is precisely what the watermark case below has to tell apart,
+        // and a stub that ignores the filter cannot: it would pass on a
+        // pair of queries that in production return different documents.
+        //
+        // Applied only when a fixture carries the field, so every existing
+        // case — none of which stamps one — is served exactly as before.
+        const wheres = (q.parts || []).filter(
+          (pt) => (pt as { __kind: string }).__kind === "where",
+        ) as unknown as Array<{ field: string; value: unknown }>;
+        const ineq = wheres.find((w) => w.field === "answeredAt" || w.field === "editedAt");
+        const since = (ineq?.value as { ms?: number } | undefined)?.ms;
+        const filtered = ineq && typeof since === "number"
+          // Firestore drops a document that lacks the field an inequality
+          // names, which is what keeps an unedited answer out of the edit
+          // delta — so the stub has to drop it too.
+          ? h.answerDocs.filter((d) => {
+            const v = (d.data as Record<string, unknown>)[ineq.field] as { toMillis?: () => number } | undefined;
+            return v && typeof v.toMillis === "function" && v.toMillis() > since;
+          })
+          : h.answerDocs;
+        if (!h.answerPageSize) return Promise.resolve(snapOf(filtered));
         const start = h.answerServed;
         h.answerServed += h.answerPageSize;
-        return Promise.resolve(snapOf(h.answerDocs.slice(start, start + h.answerPageSize)));
+        return Promise.resolve(snapOf(filtered.slice(start, start + h.answerPageSize)));
       }
       // main's version, kept whole: it records the id list and returns only
       // the matching documents, which the learn-split cases below assert on.
@@ -1201,9 +1248,22 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
   // is real work rather than a pass-through — the bank speaks
   // `learn-cell1`/`prompt`/`options`/`topic` and the engine speaks
   // `cell1`/`q`/`a`/`f` — so it is asserted field by field.
+  // Learn left the boot fetch at D320 — a live device meets cards through
+  // the pager (order pages + history heal). These cases ride the HISTORY
+  // path: seeding `insight.learn.v3` with the card marks it as one this
+  // device has answered, so the pager fetches it by id with no order doc
+  // published — which is also exactly the no-fold world a fresh project
+  // is in. The publication under test is unchanged; only the road in is.
+  const seedLearnHistory = (...cardIds: string[]) => {
+    const c: Record<string, unknown> = {};
+    for (const id of cardIds) c[id] = { s: "known", k: 3, seen: 1, miss: 0, pos: 0, at: 1 };
+    storage.setItem("insight.learn.v3", JSON.stringify({ c, lvl: {}, pos: 1, order: [] }));
+  };
+
   it("publishes the bank's learn cards in the engine's own vocabulary", async () => {
     const { learnCards, resetLearnBank } = await import("./learnBank");
     resetLearnBank();
+    seedLearnHistory("cell1");
     h.bankDocs.push({
       id: "learn-cell1",
       data: {
@@ -1216,7 +1276,12 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     });
     await bootLive();
     // A sentinel sample, so "fell through to the caller's array" and
-    // "published nothing" cannot pass as each other.
+    // "published nothing" cannot pass as each other. Waited for: the
+    // pager is deliberately not part of boot (D320), so the page lands
+    // just after ready.
+    await vi.waitFor(() => {
+      expect(learnCards([{ id: "sample1", f: "cell", q: "s", a: ["a"], c: 0, t: 0, p: 50, k: "s" }])).toHaveLength(1);
+    });
     const cards = learnCards([{ id: "sample1", f: "cell", q: "s", a: ["a"], c: 0, t: 0, p: 50, k: "s" }]);
     expect(cards).toHaveLength(1);
     expect(cards[0]).toEqual({
@@ -1245,15 +1310,32 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     // wrong answer, silently, on the one surface whose whole promise is
     // that there is a right one. An empty Learn until the next seed run is
     // the honest failure.
-    h.bankDocs.push({
-      id: "learn-old1",
-      data: {
-        surface: "learn", seq: 0, type: "choice", topic: "cell", test: null, active: true,
-        prompt: "A card from before the change", options: ["A", "B", "C", "D"],
+    // The keyed sibling is the positive signal: when IT has landed, the
+    // pager pass is complete, so old1's absence is the drop and not a
+    // page that never arrived — without it this case passes on an empty
+    // bank, which proves nothing.
+    seedLearnHistory("old1", "cell1");
+    h.bankDocs.push(
+      {
+        id: "learn-old1",
+        data: {
+          surface: "learn", seq: 0, type: "choice", topic: "cell", test: null, active: true,
+          prompt: "A card from before the change", options: ["A", "B", "C", "D"],
+        },
       },
-    });
+      {
+        id: "learn-cell1",
+        data: {
+          surface: "learn", seq: 1, type: "choice", topic: "cell", test: null, active: true,
+          prompt: "A keyed card", options: ["A", "B", "C", "D"], c: 0, t: 1, p: 50, k: "Keyed",
+        },
+      },
+    );
     await bootLive();
-    expect(learnCards([{ id: "sample1", f: "cell", q: "s", a: ["a"], c: 0, t: 0, p: 50, k: "s" }])).toEqual([]);
+    await vi.waitFor(() => {
+      expect(learnCards([]).map((c) => c.id)).toContain("cell1");
+    });
+    expect(learnCards([]).map((c) => c.id)).not.toContain("old1");
     resetLearnBank();
   });
 
@@ -2105,17 +2187,40 @@ describe("LIVE.learnMine — the answer the trigger has not folded yet", () => {
     data: {
       surface: "learn", seq: 1, type: "choice", prompt: "Learn cell1",
       options: ["A", "B", "C", "D"], topic: null, test: null, active: true,
+      // Keyed since D320: cardLanded() watches the engine pool, and the
+      // publication drops an unkeyed card — the answer-key fields are
+      // load-bearing for the fixture reaching it, not for these cases.
+      c: 0, t: 1, p: 50, k: "Learn cell1",
     },
   };
   const aggPath = "v2_question_aggs/learn-cell1";
+  // Learn pages since D320: the card reaches state.learnBank through the
+  // pager's history heal, just after ready — so each case seeds the
+  // history and waits for the card before answering it, the same order a
+  // real session imposes (the engine only serves cards already in the
+  // pool, so learnAnswer cannot fire before the card exists).
+  const seedLearnMineHistory = () => {
+    storage.setItem("insight.learn.v3", JSON.stringify({
+      c: { cell1: { s: "learning", k: 1, seen: 1, miss: 0, pos: 0, at: 1 } },
+      lvl: {}, pos: 1, order: [],
+    }));
+  };
+  const cardLanded = async () => {
+    const { learnCards } = await import("./learnBank");
+    await vi.waitFor(() => {
+      expect(learnCards([]).map((c) => c.id)).toContain("cell1");
+    });
+  };
 
   it("marks the answer pending when the re-read does not contain it", async () => {
+    seedLearnMineHistory();
     h.bankDocs.push(CARD);
     // One stranger's answer on option 1, and the trigger has not run for
     // ours. This is the overwhelmingly common case: a Firestore trigger
     // cannot fold and commit inside one client round-trip.
     h.getDocImpl = (path) => (path === aggPath ? { total: 1, counts: { "1": 1 } } : null);
     const LIVE = await bootLive();
+    await cardLanded();
     LIVE.learnAnswer("cell1", 0);
     await vi.waitFor(() => {
       expect(LIVE.learnMine("cell1")).toEqual({ idx: 0, folded: false });
@@ -2123,11 +2228,13 @@ describe("LIVE.learnMine — the answer the trigger has not folded yet", () => {
   });
 
   it("marks it folded when the trigger won the race", async () => {
+    seedLearnMineHistory();
     h.bankDocs.push(CARD);
     // The count on OUR option went up between the cached copy and the
     // re-read, so the published document already has us.
     h.getDocImpl = (path) => (path === aggPath ? { total: 2, counts: { "0": 1, "1": 1 } } : null);
     const LIVE = await bootLive();
+    await cardLanded();
     await LIVE.loadLearnAggs(["cell1"]);
     LIVE.learnAnswer("cell1", 0);
     await vi.waitFor(() => {
@@ -2140,10 +2247,12 @@ describe("LIVE.learnMine — the answer the trigger has not folded yet", () => {
     // the count moved without us in it. Erring toward "folded" undercounts
     // by one against a document that is right; erring the other way
     // double-counts the reader, which is what the fix exists to prevent.
+    seedLearnMineHistory();
     h.bankDocs.push(CARD);
     h.aggDocs = [{ id: "learn-cell1", data: { total: 1, counts: { "0": 1 } } }];
     h.getDocImpl = (path) => (path === aggPath ? { total: 2, counts: { "0": 2 } } : null);
     const LIVE = await bootLive();
+    await cardLanded();
     await LIVE.loadLearnAggs(["cell1"]);
     LIVE.learnAnswer("cell1", 0);
     await vi.waitFor(() => {
@@ -2159,9 +2268,11 @@ describe("LIVE.learnMine — the answer the trigger has not folded yet", () => {
   it("records nothing when the write itself failed", async () => {
     // A refused write leaves no answer on the server, so adding one to the
     // reveal would be inventing a person.
+    seedLearnMineHistory();
     h.bankDocs.push(CARD);
     h.setDocImpl = () => Promise.reject(new Error("permission-denied"));
     const LIVE = await bootLive();
+    await cardLanded();
     LIVE.learnAnswer("cell1", 0);
     await vi.waitFor(() => {
       expect(h.reportError).toHaveBeenCalled();
@@ -2534,5 +2645,89 @@ describe("hydrate pages the viewer's own answers", () => {
     // descending single read discarded.
     const last = `q_${String(TOTAL - 1).padStart(5, "0")}`;
     expect(LIVE.myVotes()[last], `${last} is on the final page`).toBeDefined();
+  });
+});
+
+// The two warm-boot deltas, and the watermark one of them may not move.
+//
+// An edit changes `optionIdx` and stamps `editedAt`; it does NOT move
+// `answeredAt`, which is frozen because the cohort snapshot rides on it.
+// So a warm boot runs two queries — `answeredAt >` for new answers,
+// `editedAt >` for edits — with a cursor each.
+//
+// Both cursors were raised by BOTH pages. The answered page returns the
+// docs whose answeredAt moved, and their editedAt can be far newer than
+// edits on other docs it never looked at — so it lifted the edit cursor
+// past those edits and they were never fetched. The cursor is then
+// persisted, so it is not a boot's bad luck: that device shows the
+// pre-edit option for good.
+//
+// The comment at the edit query reasons carefully about the mirror-image
+// hazard (folding editedAt into the ANSWER cursor) and missed this one.
+describe("hydrate's edit-delta watermark", () => {
+  const stamp = (ms: number) => ({ toMillis: () => ms });
+
+  it("fetches an edit older than an edit on a newly-created answer", async () => {
+    // The sequence, in the order it happens on device A:
+    //   09:00 answer N created
+    //   10:00 answer O edited      ← device B must see this
+    //   10:05 answer N edited
+    // Device B's stored cursors are from 08:00.
+    h.answerDocs.push(
+      {
+        id: "q_new",
+        data: {
+          qid: "q_new", surface: "daily", optionIdx: 1,
+          answeredAt: stamp(9_00), editedAt: stamp(10_05),
+        },
+      },
+      {
+        id: "q_old",
+        data: {
+          qid: "q_old", surface: "daily", optionIdx: 1,
+          answeredAt: stamp(1_00), editedAt: stamp(10_00),
+        },
+      },
+    );
+    await seedAnsCache({
+      uid: "uid_test",
+      // The stale option for the edited answer, and nothing for the new
+      // one — exactly what a device that last synced at 08:00 holds.
+      votes: { q_old: "0" },
+      maxTs: 8_00, maxEditTs: 8_00,
+    });
+
+    const LIVE = await bootLive();
+
+    expect(
+      LIVE.myVotes().q_new,
+      "the new answer never arrived — the answered delta is broken, not the edit one",
+    ).toBe("1");
+    expect(
+      LIVE.myVotes().q_old,
+      "the edit was leapt over: the answered delta lifted the EDIT cursor past it, "
+        + "so this device keeps the pre-edit option forever",
+    ).toBe("1");
+  });
+
+  it("persists a cursor no higher than what the edit page accounted for", async () => {
+    // The other half of the same rule. A cursor raised from documents the
+    // edit query never returned is a cursor that will skip whatever falls
+    // between them on the NEXT boot, which is how one bad boot becomes a
+    // permanent hole.
+    h.answerDocs.push({
+      id: "q_new",
+      data: {
+        qid: "q_new", surface: "daily", optionIdx: 1,
+        answeredAt: stamp(9_00), editedAt: stamp(10_05),
+      },
+    });
+    await seedAnsCache({ uid: "uid_test", votes: {}, maxTs: 8_00, maxEditTs: 8_00 });
+    await bootLive();
+    const meta = await readAnsCache();
+    expect(
+      meta?.maxEditTs,
+      "the edit cursor was raised to an edit no edit query returned",
+    ).toBeLessThanOrEqual(10_05);
   });
 });

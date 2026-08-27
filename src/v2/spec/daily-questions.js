@@ -534,6 +534,31 @@ export let DAILYQ;
       let top = 0; for (let i = 1; i < d.length; i++) if (d[i] > d[top]) top = i;
       return { big: d[top] + '%', unit: '', sub: q.options[top] };
     },
+    /**
+     * The date to print beside an answer — and NULL once the answers are
+     * real ones.
+     *
+     * `dateLabel` and `idx` come off this module's own demo calendar,
+     * whose clock is the constant `TODAY` above: a fixed morning in May
+     * 2026, with each question dated one day earlier than the last.
+     * `liveSync` below fills in the user's REAL Firestore votes by prompt
+     * match and touches neither field, so on a live build the Map's
+     * answer card was captioning a vote cast this morning "Values · 27
+     * May", and every date on the map sat in May 2026 or earlier.
+     *
+     * A synthetic date presented as the day you answered is the shape D1
+     * refuses; absence is the honest reading until an answer carries its
+     * own timestamp (the answers cache stores `[qid, value]` and no
+     * `answeredAt`, so that is a cache-shape change, not a caption fix).
+     * The kicker drops the separator with it.
+     */
+    dateOf(q) { return liveHydrated ? null : q.dateLabel; },
+    /**
+     * Whether `idx` still means "days ago". False once live, for the same
+     * reason: in a live build it is the demo bank's fixed position, which
+     * is not the order this account answered in.
+     */
+    datesAreReal() { return !liveHydrated; },
     // "you vs them" line; returns null if user hasn't answered
     youVsThem(q, audId) {
       const mine = myAnswer(q);
@@ -561,9 +586,17 @@ export let DAILYQ;
   // WORLD distribution is replaced with the real k-floored aggregate.
   // Other audiences keep their synthetic dists until they have real
   // data sources; `liveWorld` marks the swapped ones.
+  // Set the first time live hydration actually runs. What it says is
+  // narrow and exact: the answers on this store are now the account's own,
+  // so the demo calendar's `dateLabel`/`idx` no longer describe them. Read
+  // through `dateOf`/`datesAreReal` above rather than by a second
+  // `window.LIVE` read — D39's meter counts those and only moves down.
+  let liveHydrated = false;
+
   function liveSync() {
     const L = window.LIVE;
     if (!L || !L.enabled || !L.ready || !L.dailyBank) return;
+    liveHydrated = true;
     const votes = (L.confirmedVotes ? L.confirmedVotes() : (L.myVotes && L.myVotes())) || {};
     const byPrompt = {};
     const demoPrompts = new Set(QUESTIONS.map((q) => q.prompt));

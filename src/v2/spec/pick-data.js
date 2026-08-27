@@ -630,6 +630,27 @@ export let PICK_QS;
       209518: 3,    // Wayne Gretzky — below the floor
       0: 10,        // Not listed — the local-hero vote, among others
     },
+    // daily catalog-question run, 2026-08-27 — the third colours canon is
+    // association, not preference: pk24's board belongs to blue, this one
+    // to yellow, because "which do you like" and "which one FEELS like a
+    // good day" are different questions wearing the same palette.
+    pk29: {
+      16776961: 28, // yellow — the crayon consensus
+      16753921: 18, // orange
+      8900332: 15,  // skyblue
+      16761036: 13, // pink
+      16766721: 12, // gold
+      32769: 11,    // green
+      4251857: 9,   // turquoise
+      15132411: 8,  // lavender
+      16744273: 7,  // coral
+      16777216: 6,  // white
+      16711681: 5,  // red — clears the floor but not the top 10; folds
+      16416883: 5,  // salmon — same
+      16738741: 4,  // hotpink — below the floor
+      129: 2,       // navy — below the floor
+      0: 10,        // Not listed — happiness is apparently also black
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -965,6 +986,17 @@ export let PICK_QS;
         Men: { 36107: 9, 615: 8, 41421: 7, 11571: 6, 12897: 5 },
       },
     },
+    pk29: {
+      ageBand: {
+        // yellow holds every cohort; the young board runs pink and lavender
+        '18-24': { 16761036: 8, 16776961: 7, 15132411: 6, 8900332: 5, 4251857: 4 },
+        '25-34': { 16776961: 8, 16753921: 6, 32769: 6, 16766721: 5, 8900332: 4 },
+      },
+      gender: {
+        Women: { 16776961: 8, 16761036: 7, 15132411: 6, 16744273: 5, 8900332: 4 },
+        Men: { 16776961: 9, 16753921: 7, 32769: 6, 8900332: 5, 16766721: 4 },
+      },
+    },
   };
 
   const api = {
@@ -1127,7 +1159,8 @@ export let PICK_QS;
     { id: 'pk25', cat: 'fav', type: 'pick', domain: 'colors', prompt: 'The colour you’d paint your front door?', n: 163 },
     { id: 'pk26', cat: 'fav', type: 'pick', domain: 'films', prompt: 'Your favourite film?', n: 161 },
     { id: 'pk27', cat: 'fav', type: 'pick', domain: 'films', prompt: 'The film you’ve rewatched the most?', n: 158 },
-    { id: 'pk28', cat: 'fav', type: 'pick', domain: 'athletes', prompt: 'The greatest athlete who ever lived?', n: 160 },
+    { id: 'pk28', cat: 'fav', type: 'pick', domain: 'athletes', prompt: 'The greatest athlete who ever lived?', n: 168 },
+    { id: 'pk29', cat: 'fav', type: 'pick', domain: 'colors', prompt: 'What colour is happiness?', n: 153 },
   ];
   window.PICK_QS = PICK_QS;
 })();

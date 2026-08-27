@@ -188,6 +188,7 @@ window.WORLD_FEED_QS = [
   // 2026-08-26 lane batch (D309) \u2014 the two continuum twins; copy matches
   // content/feed-questions.json exactly, texture is this demo pool's own
   { id: 'dl14', cat: 'music', type: 'dial', prompt: 'How old were you when your taste in music settled?', lo: 10, hi: 40, unit: 'yrs', med: 17, n: 3400, dist: [4, 10, 18, 20, 15, 10, 7, 5, 4, 3, 2, 2] },
+  { id: 'dl15', cat: 'food', type: 'dial', prompt: 'Meals cooked from scratch in a week?', lo: 0, hi: 14, unit: 'meals', med: 4, n: 4000, dist: [10, 12, 14, 15, 13, 11, 8, 6, 4, 3, 2, 2] },
   { id: 'fd4', cat: 'bigq', type: 'field', prompt: 'Human nature \u2014 place it', ax: ['selfish', 'kind'], ay: ['fixed', 'changeable'], n: 4700, cloud: [[70, 30, 11, 15], [28, 68, 9, 14], [50, 48, 5, 12]] },
 
   // ── scene questions ── asked inside one scene; counts are community-scale

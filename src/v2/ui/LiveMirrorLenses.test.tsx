@@ -164,6 +164,37 @@ describe("People", () => {
   // drawn as cards rather than listed as names. The claims below are the
   // ones that survived the redraw plus the ones it added.
 
+  it("draws a gender split that adds up to a hundred", () => {
+    // The bar is 100%-STACKED: the same number is each segment's width
+    // and the label printed inside it, so a set that does not sum to 100
+    // is visible as a gap at the end of the track — the container clips
+    // and paints no background, so the card shows through it.
+    //
+    // Rounding each bucket on its own does not sum. Three equal buckets
+    // is the plainest case: 33 + 33 + 33 = 99. `sharePcts` (data/pct.ts)
+    // is this app's one rounding rule and it is a largest-remainder one,
+    // which sums by construction.
+    const thirds = {
+      ...Q,
+      by: {
+        ...Q.by,
+        gender: {
+          Woman: { "0": 1, "1": 0 },
+          Man: { "0": 1, "1": 0 },
+          "Non-binary": { "0": 1, "1": 0 },
+        },
+      },
+    };
+    mount("people", [thirds]);
+    const printed = screen.getAllByTitle(/·\s*\d+%$/)
+      .map((el) => Number(/(\d+)%$/.exec(el.getAttribute("title") || "")?.[1] ?? 0));
+    expect(printed.length, "the gender bar drew no segments — the fixture missed it").toBe(3);
+    expect(
+      printed.reduce((a, b) => a + b, 0),
+      `a 100%-stacked bar drew ${printed.join(" + ")} — the track has a gap in it`,
+    ).toBe(100);
+  });
+
   it("shows the population's own shape, and counts it in answers", () => {
     mount("people");
     expect(screen.getByText(/who.s here/i)).toBeTruthy();

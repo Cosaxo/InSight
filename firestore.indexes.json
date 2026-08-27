@@ -1,6 +1,20 @@
 {
   "indexes": [
     {
+      "collectionGroup": "v2_questions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "paid",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "until",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "v2_paid_bookings",
       "queryScope": "COLLECTION",
       "fields": [

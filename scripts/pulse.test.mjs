@@ -322,7 +322,30 @@ describe("cost-arith reads its constants from source, not from memory", () => {
       // duelIndexSpace() already read — so this is the D224 shape exactly:
       // the site count moves, the billed cost does not, and RULE_READS.duel
       // stays 3.
-    ).toEqual({ gets: 32, exists: 3 });
+      //
+      // 32 → 33 gets: the world TAKE create gained the operational kill
+      // switch — one get() on /v2_questions/{qid}, so a pulled question
+      // stops accepting posts to its public thread the way it already
+      // stopped accepting answers.
+      //
+      // THIS ONE IS NOT THE D139/D194 SHAPE, and saying so is the point of
+      // the entry. Every bump above moved a SITE count onto a document the
+      // same evaluation already read, so the billed cost did not move. The
+      // world take branch read NO document before this: a world take create
+      // billed 0 rule reads and now bills 1. That is a real new cost, and
+      // it is the first one this tripwire has recorded.
+      //
+      // RULE_READS is still unchanged, and for the D98/D178 reason rather
+      // than a dedup argument: it charges the ANSWER-create paths, and
+      // posting a take is not one. The model carries no takes-volume term
+      // to hang the read on either — so rather than invent a rate, the
+      // arithmetic is recorded here: the bound is one read per world take
+      // WRITTEN (not read, not listed), and the rules cap that at one take
+      // per person per question. A user who posts on every question in the
+      // bank all month bills fewer rule reads than a single day of their
+      // own answering. If takes ever grow a volume story worth modelling,
+      // add the term from a measured post rate — not from this note.
+    ).toEqual({ gets: 33, exists: 3 });
   });
 
   it("the answer trigger's transaction still issues the reads the model charges", () => {

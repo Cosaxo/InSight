@@ -726,6 +726,21 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(setDoc(doc(asUser(OWNER), "v2_patterns", "loadings-2"), { k: 8 }));
   });
 
+  it("the published serving order (D316) reads like an aggregate and writes like one — nobody", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_rank", "feed"), {
+        day: "2026-08-26",
+        topics: { food: { qids: ["feed-f10"], total: 7 } },
+      });
+    });
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_rank", "feed")));
+    // A client-writable order would make what everyone is served forgeable
+    // in one request — the v2_patterns argument, one shelf down.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_rank", "feed"), { topics: {} }));
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_rank", "feed"), { day: "2026-08-27" }));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_rank", "learn"), { topics: {} }));
+  });
+
   it("a person's Patterns state is readable and writable by NOBODY — the owner included", async () => {
     await seed(async (db) => {
       await setDoc(doc(db, "v2_users", OWNER, "patterns", "state"), { v: [0.2], n: 4 });
@@ -735,6 +750,24 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "patterns", "state")));
     await assertFails(getDoc(doc(asUser(OWNER), "v2_users", OWNER, "patterns", "state")));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "patterns", "state"), { v: [1], n: 1 }));
+  });
+
+  it("the interest profile is the owner's to read, a stranger's to never see, and nobody's to write (D317/D322)", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_users", OWNER, "taste", "profile"), { t: { food: 3 }, n: 3 });
+    });
+    // Shown to its subject is D163's floor, carried over the reversal —
+    // the owner read is the grant that makes "the app models you" a
+    // sentence the app can show rather than one it hopes nobody asks.
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_users", OWNER, "taste", "profile")));
+    // NOT public, unlike the answers it derives from (D98): what you
+    // answered is the product; what the system concluded you are INTO is
+    // a summary nobody signed up to be read as by strangers.
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "taste", "profile")));
+    // Client write closed: a self-writable profile would let a device
+    // forge its own fetch weighting.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "taste", "profile"), { t: { food: 99 }, n: 99 }));
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_users", OWNER, "taste", "profile"), { n: 99 }));
   });
 
   it("the engagement day docs read like an aggregate and write like one — nobody (R1/D268)", async () => {
@@ -1595,6 +1628,35 @@ describe("v2 foresight verdicts (D126)", () => {
     await assertFails(deleteDoc(fRef(OWNER, OWNER)));
   });
 
+  // Create-only stops a verdict being REWRITTEN. It never stopped the same
+  // slice being read again at a DIFFERENT id — and until the id was bound
+  // to its payload, "one attempt per slice" was a description of what the
+  // client happened to do rather than a rule. The test that named the
+  // invariant only ever re-used one id, so it passed while the invariant
+  // did not exist: the shape where a test would still pass if the rule it
+  // claims to pin were deleted.
+  it("the id IS the slice: the same read cannot be re-rolled at another id", async () => {
+    await assertSucceeds(setDoc(fRef(OWNER, OWNER), verdict({ guess: 1 })));
+    // A second verdict for the SAME slice, minted at an id of the client's
+    // choosing. Each of these used to succeed, so a player could guess
+    // until they were right and keep the one that was.
+    await assertFails(setDoc(
+      fRef(OWNER, OWNER, "re-roll-2"), verdict({ guess: 0 })));
+    await assertFails(setDoc(
+      fRef(OWNER, OWNER, "q1__ageBand__25-34__again"), verdict({ guess: 0 })));
+    await assertFails(setDoc(
+      fRef(OWNER, OWNER, "total_nonsense"), verdict({ guess: 0 })));
+    // An id that names a DIFFERENT slice than the payload is refused too —
+    // the same hole wearing a plausible id.
+    await assertFails(setDoc(
+      fRef(OWNER, OWNER, "q1__ageBand__35-44"), verdict({ guess: 0 })));
+    // A genuinely different slice, at its own id, still lands. The bound
+    // is on the pairing, not on how many slices you may read.
+    await assertSucceeds(setDoc(
+      fRef(OWNER, OWNER, "q1__ageBand__35-44"),
+      verdict({ bucket: "35-44", guess: 0 })));
+  });
+
   it("is world-readable — the basis is published beside the claim", async () => {
     await assertSucceeds(setDoc(fRef(OWNER, OWNER), verdict()));
     await assertSucceeds(getDoc(fRef(STRANGER, OWNER)));
@@ -1610,6 +1672,75 @@ describe("v2 foresight verdicts (D126)", () => {
     await assertFails(setDoc(fRef(OWNER, OWNER), verdict({ guess: -2 })));
     await assertFails(setDoc(fRef(OWNER, OWNER), verdict({ answerIdx: -1 })));
     await assertFails(setDoc(fRef(OWNER, OWNER), verdict({ n: "many" })));
+  });
+});
+
+// The v2 half of the pin at the top of this file. That one seeds three v1
+// subcollections and refuses a cross-user collection-group read "so a
+// future broad wildcard cannot silently turn a deployed index into
+// cross-user enumeration". v2 pins only the three groups that DO carry a
+// wildcard — answers, following, invites, each with its own block above —
+// and the private ones had no case at all, which is precisely backwards:
+// a wildcard already written is a decision somebody made, and the danger
+// is the one that gets added by hand to make a query work.
+//
+// `engagement` is the case this exists for. It already ships a deployed
+// COLLECTION_GROUP index (the `folded` override plus `(folded, day)`, for
+// the nightly server fold), so the index side of cross-user enumeration
+// is DONE and the rules are the only thing standing between a stranger
+// and every user's per-day rollups. Adding `match /{path=**}/engagement/
+// {d}` to make some future admin query work would open it with nothing in
+// this suite turning red.
+//
+// These fail today for the reason the v1 pin gives — no match block binds
+// a collection-group scope, so the grants under /v2_users/{uid}/… never
+// apply — not because of an explicit CG deny. That is what makes the pin
+// worth writing down rather than assuming.
+describe("v2 private subcollections stay un-enumerable across users", () => {
+  it("no collection-group read reaches another user's taste, engagement, patterns, push or foresight", async () => {
+    await seed(async (db) => {
+      for (const uid of [OWNER, FRIEND]) {
+        // The interest profile the paged bank reads (D316–D322).
+        await setDoc(doc(db, "v2_users", uid, "taste", "profile"), {
+          w: { food: 0.4 }, n: 12, at: new Date(),
+        });
+        // Per-person day rollups — the ones with the index already live.
+        await setDoc(doc(db, "v2_users", uid, "engagement", "2026-08-26"), {
+          day: "2026-08-26", answers: 3, folded: false,
+        });
+        // The latent vector the patterns fit solves against.
+        await setDoc(doc(db, "v2_users", uid, "patterns", "me"), {
+          v: [0.1, -0.3], n: 20, at: new Date(),
+        });
+        // FCM tokens.
+        await setDoc(doc(db, "v2_users", uid, "push", "tok1"), {
+          token: "fake-token", at: new Date(),
+        });
+        await setDoc(doc(db, "v2_users", uid, "foresight", "q1__ageBand__25-34"), {
+          qid: "q1", dim: "ageBand", bucket: "25-34",
+          guess: 0, answerIdx: 0, n: 20, at: new Date(),
+        });
+      }
+    });
+    const db = asUser(STRANGER);
+    for (const group of ["taste", "engagement", "patterns", "push", "foresight"]) {
+      await assertFails(getDocs(collectionGroup(db, group)));
+    }
+    // …and the owner cannot run one either. A collection-group query is
+    // not scoped to a subtree, so "mine" is not a thing it can ask for:
+    // if this ever succeeded it would be returning everyone's.
+    for (const group of ["taste", "engagement", "patterns", "push", "foresight"]) {
+      await assertFails(getDocs(collectionGroup(asUser(OWNER), group)));
+    }
+    // The single-document read that DOES belong to its owner still works,
+    // so this pins the enumeration and not the feature. `taste` is the
+    // one: the owner's device sizes its own topic pages by it (D321).
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_users", OWNER, "taste", "profile")));
+    // `patterns` is closed to EVERYONE, its owner included — the latent
+    // vector is a summary nobody signed up to be read as, and the fold
+    // that writes it uses the admin SDK. Asserted rather than assumed,
+    // because "the owner can read their own" is the shape four of the
+    // five above have and this one deliberately does not.
   });
 });
 
@@ -2303,8 +2434,21 @@ describe("world takes (D83 — anonymous, one per person per question)", () => {
     createdAt: serverTimestamp(), hidden: false, ...over,
   });
   const wid = (uid: string, qid = QID) => `${qid}_${uid}`;
+  // Every world take now needs its question to exist and be active — the
+  // thread hangs on a question, and a question that has been pulled has no
+  // thread. Seeded per test rather than once, because the global
+  // beforeEach clears Firestore between them.
+  const seedQ = (qids: string[] = [QID]) => seed(async (db) => {
+    for (const q of qids) {
+      await setDoc(doc(db, "v2_questions", q), {
+        surface: "daily", seq: 0, type: "binary",
+        prompt: "Pineapple?", options: ["Yes", "No"], active: true,
+      });
+    }
+  });
 
   it("any signed-in user posts under qid_uid and any other reads it", async () => {
+    await seedQ();
     await assertSucceeds(setDoc(
       doc(asUser(OWNER), "v2_takes", wid(OWNER)), wtake(OWNER)));
     // A STRANGER — no shared circle anywhere — reads it. That is the
@@ -2316,6 +2460,7 @@ describe("world takes (D83 — anonymous, one per person per question)", () => {
   });
 
   it("the id is the one-take bound: wrong id refused, repost refused, delete-and-repost allowed", async () => {
+    await seedQ();
     const ref = doc(asUser(OWNER), "v2_takes", wid(OWNER));
     await assertSucceeds(setDoc(ref, wtake(OWNER)));
     // A second post lands on the same id — an update, denied like every
@@ -2360,6 +2505,12 @@ describe("world takes (D83 — anonymous, one per person per question)", () => {
   });
 
   it("shape holds at world scale: qid required and bounded, author is the signer", async () => {
+    const longQ = "q".repeat(121);
+    // Both questions exist and are active, so each refusal below has
+    // exactly ONE cause. Without the long one seeded, the length bound
+    // and the kill switch would refuse the same write and the assertion
+    // would stop saying which.
+    await seedQ([QID, longQ]);
     // No qid: a world take with no question would be unreachable by any
     // surface — and unqueryable by the per-question index.
     await assertFails(setDoc(doc(asUser(OWNER), "v2_takes", `undefined_${OWNER}`), {
@@ -2367,7 +2518,6 @@ describe("world takes (D83 — anonymous, one per person per question)", () => {
       createdAt: serverTimestamp(), hidden: false,
     }));
     // qid over the id-length bound.
-    const longQ = "q".repeat(121);
     await assertFails(setDoc(
       doc(asUser(OWNER), "v2_takes", wid(OWNER, longQ)), wtake(OWNER, { qid: longQ })));
     // Authored as someone else.
@@ -2379,6 +2529,47 @@ describe("world takes (D83 — anonymous, one per person per question)", () => {
       doc(asUser(OWNER), "v2_takes", wid(OWNER)), wtake(OWNER, { hidden: true })));
   });
 
+  // The kill switch, which the answer paths honour seven times over and
+  // the public thread did not honour at all. Pulling a question stopped it
+  // being ANSWERED and left the conversation it started open for new
+  // posts — which is backwards: the harm in a harmful question is mostly
+  // what gets said underneath it.
+  it("a pulled question closes its world thread, and an invented qid has none", async () => {
+    await seedQ();
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "pulled-1"), {
+        surface: "daily", seq: 1, type: "binary",
+        prompt: "Over the line?", options: ["Yes", "No"], active: false,
+      });
+    });
+    // The live question still takes a take — the switch is the only thing
+    // that changed, so this is what proves it is a switch and not a wall.
+    await assertSucceeds(setDoc(
+      doc(asUser(OWNER), "v2_takes", wid(OWNER)), wtake(OWNER)));
+    // The pulled one does not.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_takes", wid(OWNER, "pulled-1")),
+      wtake(OWNER, { qid: "pulled-1" })));
+    // Nor does a qid naming no question at all. The id bound made takes
+    // one-per-person-per-qid but never made a qid name a question, so any
+    // string used to mint a fresh empty thread — one per invented qid, per
+    // account, listed by no surface and reachable by nobody.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_takes", wid(OWNER, "no-such-question")),
+      wtake(OWNER, { qid: "no-such-question" })));
+    // Reading is untouched in both directions: takes already posted under
+    // a question stay readable after it is pulled. Closing a thread is not
+    // erasing it, and the appeal path runs on what was said.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_takes", wid(FRIEND, "pulled-1")), {
+        gid: "world", authorUid: FRIEND, qid: "pulled-1", text: "said before",
+        createdAt: new Date(), hidden: false,
+      });
+    });
+    await assertSucceeds(getDoc(
+      doc(asUser(STRANGER), "v2_takes", wid(FRIEND, "pulled-1"))));
+  });
+
   // Circle takes and world takes share ONE collection, and the id bound
   // used to live on the world branch alone. So a circle member could post
   // a circle take AT SOMEBODY ELSE'S world id: update is denied and delete
@@ -2387,6 +2578,7 @@ describe("world takes (D83 — anonymous, one per person per question)", () => {
   // and nothing to rate-limit it (any free account can make a group and be
   // a member of it).
   it("a circle take cannot squat the id a world take must occupy", async () => {
+    await seedQ();
     await seed(async (db) => {
       await setDoc(doc(db, "v2_groups", "gsquat"), {
         name: "Squat", mode: "group", memberUids: [OWNER],

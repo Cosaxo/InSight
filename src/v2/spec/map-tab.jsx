@@ -150,7 +150,15 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
       }
       out.push({
         id: 'dq-' + q.id, parentId: parent, qid: q.id, top: path[0], daily: true,
-        label: prompt + ' → ' + ans, tag: q.tag || prompt, ans, prompt, note: q.dateLabel, age: q.idx,
+        // `D.dateOf`, not `q.dateLabel`: the label is the demo calendar's
+        // and says nothing about when THIS account answered, so it is null
+        // on a live build (daily-questions.js has the argument). `today`
+        // rides along for the same reason — the is-today ring is a claim
+        // about a day, and `idx === 0` is the demo bank's position, not
+        // this morning.
+        label: prompt + ' → ' + ans, tag: q.tag || prompt, ans, prompt,
+        note: D.dateOf ? D.dateOf(q) : q.dateLabel,
+        age: q.idx, today: (D.datesAreReal ? D.datesAreReal() : true) && q.idx === 0,
         qtype: q.type, opts: q.options || null, aidx: idx, typ, maj,
       });
     });
@@ -1050,7 +1058,7 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
                 key={n.id}
                 className={'mmt-node mmt-dotnode' + (n.sub ? ' is-leaf' : '') + (n.person ? ' is-person' : '') + (sel === n.id ? ' is-sel' : '')
                   + (showLab ? ' is-showlab' : '') + (dim ? ' is-dim' : '') + (off ? ' is-off' : '') + (labL ? ' is-labL' : '')
-                  + (fresh ? ' is-fresh' : '') + (n.daily && !n.learn && !n.maj ? ' is-rare' : '') + (n.learn && !n.sub ? ' is-known' : '') + (n.daily && n.age === 0 ? ' is-today' : '')}
+                  + (fresh ? ' is-fresh' : '') + (n.daily && !n.learn && !n.maj ? ' is-rare' : '') + (n.learn && !n.sub ? ' is-known' : '') + (n.daily && n.today ? ' is-today' : '')}
                 style={{
                   '--hue': cat ? cat.hue : 250,
                   width: sz, height: sz,

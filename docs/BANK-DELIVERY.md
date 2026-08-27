@@ -1,8 +1,10 @@
 # Bank delivery — three ceilings, in the order they bite
 
-**Status: mixed — §2 is BUILT (D284, 2026-08-24) and §3 is BUILT (D312,
-2026-08-26, via [`ANSWER-SCALE.md`](ANSWER-SCALE.md) §2.2 — the bank rode
-the answer caches' move); §4 is plan.** Written 2026-08-24 on the
+**Status: built — §2 (D284, 2026-08-24); §3 (D312, 2026-08-26, via
+[`ANSWER-SCALE.md`](ANSWER-SCALE.md) §2.2 — the bank rode the answer
+caches' move; the parallel D318 build converged on it in the merge); §4
+(learn at D320, the feed tail at D321, both 2026-08-26; core ships
+whole by design — D161, not a remainder).** Written 2026-08-24 on the
 owner's direction after D283: the question banks should grow by an order
 of magnitude, and *"it's a good thing they don't run out"* is the product
 argument that outranks any figure on this page. Nothing here refuses
@@ -181,7 +183,9 @@ signal to give it learn's treatment.
 > shape untouched, the legacy key retired after its rows commit, and
 > `BANK_WARN`/`BANK_FAIL` re-pointed a third time at §4's
 > whole-bank-in-memory ceiling. What follows is the reasoning as it
-> stood, and it held.
+> stood, and it held. (The same day's paged-read-path branch built the
+> same move independently as `bankStore.ts` — D318 — and the merge
+> converged on this store; the D318 amendment records the collision.)
 
 `live.ts` caches the whole bank in `localStorage` under
 `insight.bankCache.v2`. The quota is ~5 MB per origin, shared with ~29
@@ -255,6 +259,14 @@ server query or a published aggregate. That is real design work with
 real cost changes, and **it is not needed for volume** — phases 1 and 2
 take the practical ceiling past anything the lanes can write for years.
 
+**Learn converted 2026-08-26 (D320), the feed tail the same day
+(D321)**: both out of the boot fetch, paged against D319's published
+orders, history healed by id (learn's mastery map; the feed's answers).
+Core ships whole by design — the corpus's value is that every device
+holds it (D161). Of the census above, the topic counts and search still
+read the device's pool; their conversions are recorded in D321 with the
+fixes named.
+
 The one thing worth doing early is **not making it worse**: a new surface
 that folds over the whole bank at render time is another consumer to
 convert later, and a published count is usually as good.
@@ -272,10 +284,19 @@ convert later, and a published count is usually as good.
 2. ~~**Ceiling 2, when the bank passes ~2,000 documents**~~ — **Done,
    D312**, ahead of the trigger: ANSWER-SCALE §2 found the answer-side
    caches racing the bank for the same quota, and the owner's direction
-   to build that plan opened the box once for all of them.
-3. **Ceiling 3, when a real product need asks for it** — an interest
-   model that selects server-side (D163), or a bank large enough that a
-   first install feels slow. Not before.
+   to build that plan opened the box once for all of them. (D318 built
+   the same move in parallel on the paged-read-path branch; the merge
+   converged on D312's store.)
+3. ~~**Ceiling 3, when a real product need asks for it**~~ **Done —
+   D319 (the published order), D320 (learn) and D321 (the feed tail),
+   all 2026-08-26.** The install stops scaling with the bank: boot
+   surfaces + core + a page per topic, O(core + pages) per device. The
+   need was named 2026-08-26: the owner directed serving-by-selection —
+   lazy pages, a published order, quality filtered by signal rather
+   than prevented by cap — recorded as D316, adopted the same day
+   ("build the real fixes now"). What §4 still holds is the in-memory
+   walk: a device reads every cached row into memory each boot, and
+   that design is what `BANK_WARN`/`BANK_FAIL` now watch.
 
 Steps 1 and 2 are independent and can land in either order. Step 3
 depends on neither.

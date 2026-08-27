@@ -81,6 +81,17 @@ export const CLAIMS = [
     /count of people by type, on any of the four[\s\S]{0,600}?not only the Big\s+Five/i],
   ["D202 · and that count is people, not a grouping of answers",
     /count of <em>people<\/em>, not a grouping of anyone/i],
+  ["D322 · the interest profile is counted from feed answers, and the page says the arithmetic",
+    /count which topics your feed answers fall into/i],
+  ["D322 · the profile is owner-only and never an ad input",
+    /interest profile[\s\S]{0,600}?never used for advertising/i],
+  // The phase-2 tripwire (D317): folding behaviour in is a FUTURE
+  // decision, and this sentence is the promise that it has not happened
+  // yet. Building phase 2 must retire this row in the same commit, with
+  // the record that licenses it — exactly the visit this gate exists to
+  // force.
+  ["D317 · behaviour stays on the device — the profile is answers only",
+    /scrolled past or skipped stays on your device and is not\s+collected/i],
   ["D288 · a bought question's contract record is buyer-only, and the buyer gets no private cut",
     /record of the contract[\s\S]{0,200}?only you can read it[\s\S]{0,200}?no private cut/i],
   ["D5 · duel picks stay sealed until the next day's reveal",

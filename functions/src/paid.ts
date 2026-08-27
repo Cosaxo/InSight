@@ -528,10 +528,50 @@ function bookingPayloadOf(snap: FirebaseFirestore.DocumentSnapshot): PaidBooking
  * transaction re-reads status and only ever moves "review" → verdict, so
  * the trigger and the sweep can race without a double transition.
  */
+/**
+ * How many times a held booking is re-reviewed before the sweep gives up
+ * on reviewing it automatically.
+ *
+ * WHY A CEILING AT ALL. A verdict that does not parse is thrown as if it
+ * were an outage — deliberately, so a truncated answer never decides a
+ * booking — but a prompt that reliably produces unusable output is not an
+ * outage, it is a permanent condition. Without a ceiling that booking was
+ * re-reviewed every thirty minutes forever, each attempt a billed model
+ * call, and — because the sweep's `createdAt <` inequality forces
+ * oldest-first order — it held one of fifty slots for good. Fifty such
+ * bookings, which ten free accounts can create in a day at the 5/day
+ * budget, starved the retry queue outright: a booking held behind a REAL
+ * outage would then never be retried at all.
+ *
+ * Six is three hours at the sweep's half-hour cadence, which is longer
+ * than any Anthropic incident this app has seen and far short of a bill
+ * anybody would notice. Past it the booking stops being called for and
+ * starts being ALARMED for, which is the honest reading: no automatic
+ * reviewer is going to settle it.
+ *
+ * What it deliberately does NOT do is decide the booking. Declining a
+ * buyer because our reviewer broke would be a verdict about them for a
+ * fault of ours. The booking stays in review, the operator gets a metric
+ * and a query, and what the buyer should be TOLD past this point is a
+ * product decision this constant does not make.
+ */
+export const MAX_REVIEW_ATTEMPTS = 6;
+
 async function reviewBooking(db: Firestore, bid: string): Promise<void> {
   const ref = db.collection("v2_paid_bookings").doc(bid);
   const snap = await ref.get();
   if (!snap.exists || snap.get("status") !== "review") return;
+  // The ceiling, checked before the model is called rather than after:
+  // the whole cost of an unreviewable booking is the call.
+  const attempts = Number(snap.get("reviewAttempts") ?? 0);
+  if (attempts >= MAX_REVIEW_ATTEMPTS) {
+    logger.error(`[paid] review STALLED for ${bid} after ${attempts} attempts — no automatic verdict is coming`, {
+      metric: "paid_review_stalled",
+      bid,
+      attempts,
+    });
+    return;
+  }
   const payload = bookingPayloadOf(snap);
   const buyerName = (snap.get("buyerName") as string | null) ?? null;
   let verdict: ReviewVerdict;
@@ -652,23 +692,81 @@ export const onPaidBookingCreated = onDocumentCreated(
  * a booking the trigger's attempt could not settle (API outage, unparsed
  * verdict, a crash between write and review). Every 30 minutes, again —
  * a held booking is never dropped and never defaulted. */
+/** One page of held bookings, oldest first, and the retry itself. */
+export interface ReviewSweepStore {
+  heldPage(after: string | null, limit: number): Promise<Array<{ id: string; attempts: number }>>;
+  review(bid: string): Promise<void>;
+}
+
+export const SWEEP_PAGE = 50;
+/** A loop bound, not a policy: 250 held bookings in one run is already an
+ * incident, and an unbounded `while` in a scheduled job is worse. */
+export const SWEEP_MAX_PAGES = 5;
+
+/**
+ * Retry every held booking that has not exhausted its attempts.
+ *
+ * PAGES, because it used to take one page of fifty and stop. The query's
+ * `createdAt <` inequality forces oldest-first order, so a booking that
+ * can never be settled sat at the front of that page for good and the
+ * fifty slots were permanently spent on bookings the ceiling above now
+ * declines to call for. Skipping them without paging past them would only
+ * move the starvation one step: the page would still be fifty documents,
+ * just fifty it does nothing with.
+ */
+export async function runReviewSweep(
+  store: ReviewSweepStore,
+  maxAttempts = MAX_REVIEW_ATTEMPTS,
+): Promise<{ scanned: number; retried: number; stalled: number }> {
+  let after: string | null = null;
+  let scanned = 0;
+  let retried = 0;
+  let stalled = 0;
+  for (let page = 0; page < SWEEP_MAX_PAGES; page++) {
+    const rows = await store.heldPage(after, SWEEP_PAGE);
+    if (!rows.length) break;
+    scanned += rows.length;
+    after = rows[rows.length - 1].id;
+    for (const row of rows) {
+      if (row.attempts >= maxAttempts) { stalled++; continue; }
+      await store.review(row.id);
+      retried++;
+    }
+    if (rows.length < SWEEP_PAGE) break;
+  }
+  return { scanned, retried, stalled };
+}
+
 export const sweepPaidReviewsV2 = onSchedule(
   { schedule: "every 30 minutes", region: REGION },
   async () => {
     const db = firestore();
     const cutoff = Timestamp.fromMillis(Date.now() - 10 * 60 * 1000);
-    const stuck = await db.collection("v2_paid_bookings")
+    const base = db.collection("v2_paid_bookings")
       .where("status", "==", "review")
-      .where("createdAt", "<", cutoff)
-      .limit(50)
-      .get();
-    for (const doc of stuck.docs) {
-      await reviewBooking(db, doc.id);
-    }
-    if (stuck.size) {
-      logger.info(`[paid] review sweep retried ${stuck.size} held booking(s)`, {
+      .where("createdAt", "<", cutoff);
+    const res = await runReviewSweep({
+      async heldPage(after, limit) {
+        let q = base.limit(limit);
+        if (after) {
+          const cur = await db.collection("v2_paid_bookings").doc(after).get();
+          if (cur.exists) q = base.startAfter(cur).limit(limit);
+        }
+        const snap = await q.get();
+        return snap.docs.map((d) => ({ id: d.id, attempts: Number(d.get("reviewAttempts") ?? 0) }));
+      },
+      review: (bid) => reviewBooking(db, bid),
+    });
+    if (res.scanned) {
+      logger.info(`[paid] review sweep retried ${res.retried} of ${res.scanned} held booking(s)`, {
         metric: "paid_review_sweep",
-        count: stuck.size,
+        ...res,
+      });
+    }
+    if (res.stalled) {
+      logger.error(`[paid] ${res.stalled} booking(s) past the review ceiling — no automatic verdict is coming`, {
+        metric: "paid_review_stalled_total",
+        stalled: res.stalled,
       });
     }
   },
@@ -709,6 +807,30 @@ export const createPaidCheckoutV2 = onCall(
     const amountEur = isAd ? quote.flatEur : quote.capEur;
     const { default: Stripe } = await import("stripe");
     const stripe = new Stripe(key);
+    // ONE PAYABLE SESSION AT A TIME. Every call here used to mint a fresh
+    // Checkout session and overwrite the stored id without touching the
+    // old one, which stays payable for Stripe's default day — and
+    // web/paid-cancel.html actively tells the buyer that pressing Pay
+    // again "opens a fresh payment page". Two open sessions is two ways
+    // to be charged for one question.
+    //
+    // Expiring is best-effort by construction: Stripe refuses to expire a
+    // session that is already complete or expired, and a session that
+    // completed while this ran is exactly the case goLive's duplicate
+    // guard exists for. A failure here must not stop the buyer paying, so
+    // it is logged and the new session is minted regardless.
+    const priorSession = (snap.get("stripe") as { sessionId?: string } | undefined)?.sessionId;
+    if (priorSession) {
+      try {
+        await stripe.checkout.sessions.expire(priorSession);
+      } catch (err) {
+        logger.info(`[paid] could not expire the prior session for ${bid}`, {
+          metric: "paid_session_expire_skipped",
+          bid,
+          message: String((err as Error)?.message ?? err),
+        });
+      }
+    }
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       client_reference_id: bid,
@@ -734,10 +856,21 @@ export const createPaidCheckoutV2 = onCall(
         },
       }],
       // The web pages exist for exactly this hop (commerce stays on the
-      // web side): web/paid-done.html and web/paid-cancel.html on the
+      // web side): web/paid-done*.html and web/paid-cancel.html on the
       // hosting origin home.html already serves. The app never learns of
       // the payment from these pages — the webhook is the truth.
-      success_url: "https://prvfire33.web.app/paid-done.html",
+      //
+      // ONE PAGE PER PRODUCT. Both kinds used to land on the question's
+      // page, which tells the buyer their QUESTION is going live, that it
+      // starts serving TOMORROW, that everything it collects lands in
+      // Asked by you, and that the unserved part REFUNDS automatically at
+      // close. For an ad all four are false — it queues behind the ad
+      // running in its scope, it asks nothing, and it has no refund path
+      // (D315) — so an advertiser was promised a refund in writing, at
+      // the moment of payment, that nothing in this file will ever issue.
+      success_url: isAd
+        ? "https://prvfire33.web.app/paid-done-ad.html"
+        : "https://prvfire33.web.app/paid-done.html",
       cancel_url: "https://prvfire33.web.app/paid-cancel.html",
     });
     await snap.ref.update({
@@ -862,6 +995,26 @@ export function paidQuestionDoc(
 ): Record<string, unknown> {
   return {
     surface: "feed",
+    // THE MARKER THE BOOT FETCH NEEDS, and the reason it exists rather
+    // than being inferred.
+    //
+    // D316/D321 narrowed what a device fetches whole: the boot surfaces,
+    // plus `surface == "feed" && core == true`. Everything else on the
+    // feed pages behind the order `rankBankV2` publishes — and that order
+    // is built from the COMPILED bank (`V2_QUESTIONS`), which a question
+    // written here at runtime can never be in. Both halves landed the same
+    // day as this file, in that sequence, so a bought question went into
+    // `v2_questions` and was fetched by nobody: the buyer paid, the
+    // aggregate stayed at zero, and the closer refunded the whole cap 29
+    // days later.
+    //
+    // `core` would be the wrong fix — core is the Mirror's corpus (D161),
+    // which a paid question must not join. This says what is actually
+    // true: a runtime question no compiled order carries, which therefore
+    // ships whole for the length of its window. Paired with `until` in the
+    // client's query, so the set is the campaigns RUNNING, not every one
+    // ever bought.
+    paid: true,
     seq,
     type: b.type,
     domain: null,
@@ -924,7 +1077,36 @@ export async function goLive(db: Firestore, bid: string, paymentIntentId: string
       return false;
     }
     // Stripe delivers at-least-once; "live" means an earlier delivery won.
-    if (snap.get("status") === "live") return true;
+    //
+    // A REPLAY AND A SECOND PAYMENT ARE NOT THE SAME THING, and this
+    // returned true for both. Nothing stops two Checkout sessions
+    // existing for one booking — the cancel page invites the buyer to
+    // press Pay again, which mints one — and if both complete, the second
+    // delivery landed here, answered 200, minted nothing and recorded
+    // nothing. A buyer charged twice for one question, with the second
+    // charge existing nowhere in this app: not on the booking, not in the
+    // purchase row, and therefore not reachable by the closer's refund.
+    //
+    // The intent id is what tells them apart: a replay carries the SAME
+    // one, a second payment a different one. There is no refund here on
+    // purpose — moving money is the operator's call, and a refund issued
+    // from a webhook retry path is its own hazard — but it is written
+    // down and alarmed, so "recorded nowhere" stops being true.
+    if (snap.get("status") === "live") {
+      const first = (snap.get("stripePaymentIntent") as string | null) ?? null;
+      if (paymentIntentId && first && paymentIntentId !== first) {
+        tx.update(bookingRef, {
+          duplicatePayments: FieldValue.arrayUnion(paymentIntentId),
+        });
+        logger.error(`[paid] SECOND payment for ${bid} — the buyer was charged twice`, {
+          metric: "paid_duplicate_payment",
+          bid,
+          firstIntent: first,
+          duplicateIntent: paymentIntentId,
+        });
+      }
+      return true;
+    }
     if (snap.get("status") !== "approved") {
       logger.warn(`[paid] webhook for ${bid} in status ${snap.get("status")} — ignored`);
       return false;
@@ -1022,7 +1204,35 @@ export const stripeWebhookV2 = onRequest(
       res.status(400).send("bad signature");
       return;
     }
-    if (event.type !== "checkout.session.completed") {
+    // THREE EVENTS, because "the checkout completed" is not "the money
+    // arrived" for every payment method.
+    //
+    // The session is created without `payment_method_types`, so Stripe's
+    // dynamic methods apply — and for EUR that can include the
+    // delayed-notification ones (SEPA Direct Debit, bank transfer). Those
+    // deliver `checkout.session.completed` with `payment_status: "unpaid"`
+    // and settle hours or days later. This endpoint took `completed` as
+    // payment received, so a 29-day window could serve in full against a
+    // debit that never cleared, and the failure event was answered
+    // "ignored".
+    //
+    // So: `completed` goes live only when it says paid;
+    // `async_payment_succeeded` is when a delayed method actually clears,
+    // and without it the guard alone would mean those buyers never went
+    // live at all; `async_payment_failed` has nothing to revoke — the
+    // guard is why — but it is logged loudly rather than swallowed,
+    // because a buyer sitting on an approved booking that will never pay
+    // itself is an operator's problem, not noise.
+    //
+    // docs/DEPLOYMENT.md lists the events to subscribe to; all three are
+    // named there now.
+    const KIND = {
+      "checkout.session.completed": "completed",
+      "checkout.session.async_payment_succeeded": "async_ok",
+      "checkout.session.async_payment_failed": "async_fail",
+    } as const;
+    const kind = KIND[event.type as keyof typeof KIND];
+    if (!kind) {
       // Everything else is noise at this endpoint; 200 stops the retries.
       res.status(200).send("ignored");
       return;
@@ -1032,6 +1242,24 @@ export const stripeWebhookV2 = onRequest(
     if (!bid) {
       logger.warn("[paid] completed session without a booking reference");
       res.status(200).send("no reference");
+      return;
+    }
+    if (kind === "async_fail") {
+      logger.error(`[paid] delayed payment FAILED for ${bid} — the booking stays approved and unpaid`, {
+        metric: "paid_async_failed",
+        bid,
+      });
+      res.status(200).send("async failed");
+      return;
+    }
+    if (session.payment_status !== "paid") {
+      // Not an error: this is the ordinary first half of a delayed
+      // method, and `async_payment_succeeded` is what finishes it.
+      logger.info(`[paid] session for ${bid} completed unpaid (${String(session.payment_status)}) — waiting to settle`, {
+        metric: "paid_awaiting_settlement",
+        bid,
+      });
+      res.status(200).send("not paid yet");
       return;
     }
     const paymentIntentId = typeof session.payment_intent === "string" ? session.payment_intent : null;

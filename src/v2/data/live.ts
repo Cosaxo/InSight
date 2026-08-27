@@ -103,6 +103,8 @@ import { reportError, setSentryUser } from "../../lib/sentry";
 // The fat caches' IndexedDB home (D312, docs/ANSWER-SCALE.md §2.2). Small
 // and dependency-free, so a static import here costs the entry chunk a few
 // hundred bytes — nothing like the SDK-import trap the note above is about.
+// (This branch's D318 built the same move as a single-blob bankStore.ts in
+// parallel; the merge converged on this store — see the D318 amendment.)
 import * as cacheStore from "./cacheStore";
 // No imports of its own, so reading it here closes no cycle back through
 // data/cityAnchor — which imports this module.
@@ -171,7 +173,15 @@ import { roundRobinBy } from "./feed-interleave";
 import { publishTestFeed } from "./testFeed";
 // The Learn engine's cards. Published by name for testFeed's reason, and
 // because the bundle stopped carrying the bank at D284.
-import { publishLearnBank, type LearnCard } from "./learnBank";
+import { publishLearnBank, publishLearnTotals, type LearnCard } from "./learnBank";
+// Which paged cards a device actually fetches (learn at D320, the feed
+// tail at D321): pages against the published order instead of the whole
+// surface at boot. Pure arithmetic there; the I/O lives in the top-ups
+// below.
+import {
+  FEED_PAGE, LEARN_PAGE, followedFields, learnHistoryIds, pageSizesByInterest,
+  topUpPages, type PageOrderDoc,
+} from "./bankPager";
 // Pure deck-shaping logic lives in ./deck (unit-testable, no firebase);
 // this module passes its store state in.
 import {
@@ -1142,6 +1152,38 @@ function computeDeck(): void {
   state.deckIds = computeDeckIds(state.questions.map((q) => q.id), today);
 }
 
+// The cached bank's ids, kept after hydrate returns so the pagers
+// (D320/D321) know what this device already holds. Ids rather than a
+// payload since the merge with D312: the rows themselves live in
+// cacheStore and the pagers append there directly. Null until a hydrate
+// has run.
+let bankIds: Set<string> | null = null;
+
+// The bank's learn slice in the ENGINE's vocabulary (D284):
+// `learn-cell1`/`prompt`/`options`/`topic` become `cell1`/`q`/`a`/`f`.
+// One translation for the boot publish and the pager's re-publish — two
+// spellings are real, and the translation belongs at one end rather than
+// at nine call sites. A doc with no `c` is unanswerable rather than thin
+// and is dropped, never defaulted: `c ?? 0` would mark option one correct
+// on every pre-D284 card and teach the wrong answer, silently, on the one
+// surface whose promise is that there is a right one.
+function toLearnCards(rows: Array<QuestionDoc & { id: string }>): LearnCard[] {
+  return rows.flatMap((q): LearnCard[] => {
+    if (typeof q.c !== "number" || typeof q.t !== "number") return [];
+    return [{
+      id: q.id.startsWith("learn-") ? q.id.slice(6) : q.id,
+      f: q.topic || "",
+      q: q.prompt,
+      a: q.options,
+      c: q.c,
+      t: q.t,
+      p: typeof q.p === "number" ? q.p : 50,
+      k: q.k || "",
+      ...(q.w ? { w: q.w } : {}),
+    }];
+  });
+}
+
 async function hydrate(): Promise<void> {
   const db = await getDb();
 
@@ -1189,7 +1231,7 @@ async function hydrate(): Promise<void> {
     /* meta is best-effort — absence just means no caching/update info */
   }
 
-  // ── question bank: localStorage cache keyed by contentRev ──
+  // ── question bank: cached (cacheStore rows, D312/D318) keyed by contentRev ──
   // The bank is static content; a boot should cost 1 meta read, not
   // ~190 bank reads. Single-field query (no composite index).
   interface BankEntry extends QuestionDoc {
@@ -1218,19 +1260,25 @@ async function hydrate(): Promise<void> {
   // advancing (a bug), and BOTH are reported rather than truncated
   // quietly.
   const BANK_MAX_PAGES = 100;
-  // EVERY surface splitBanks can return, and that is the invariant rather
-  // than a list to extend by habit — this constant decides what the bank
-  // IS, and a lane missing here is a lane whose questions do not exist as
-  // far as the live app is concerned. `pulse` and `call` were absent from
-  // the day this fetch was written: splitBanks routed both, the seed
-  // shipped both (5 + 3 documents), the rules admitted both, and neither
-  // ever reached a device — LIVE.pulseQs() and LIVE.callQs() returned []
-  // for every live user while the demo build drew them from its own
-  // fixtures, which is why nothing looked broken anywhere it was looked
-  // at. Pinned in bank-cache.test.ts, on the query as well as the output.
+  // Every surface splitBanks can return EXCEPT the two paged ones, and
+  // each half of that sentence is load-bearing. The excepts are D320 and
+  // D321: learn and the feed's TAIL page against the published order
+  // (v2_rank/{learn,feed}, D319) instead of shipping whole at boot — the
+  // feed's CORE still ships whole via its own query below (the corpus
+  // the Mirror folds, D161), and a paged doc still reaches its bank
+  // slice, from the cache (everything this device was ever handed) and
+  // from the top-ups' pages, with the delta below keeping cached paged
+  // docs fresh BY ID. The rest is the pulse/call lesson: this constant
+  // decides what the boot fetch IS, and a surface missing by accident is
+  // a surface whose questions do not exist as far as the live app is
+  // concerned — `pulse` and `call` were absent from the day this fetch
+  // was written, and neither ever reached a device while everything
+  // looked green. Pinned in bank-cache.test.ts on the query as well as
+  // the output, in BOTH directions now: pulse/call in, learn and the
+  // tail out-but-served.
   //
   // Firestore's `in` takes up to 30 values, so the ceiling is not near.
-  const BANK_SURFACES = ["daily", "feed", "test", "group", "duo", "learn", "pulse", "call"];
+  const BANK_SURFACES = ["daily", "test", "group", "duo", "pulse", "call"];
   let all: BankEntry[] | null = null;
   // The localStorage era's key — read once as a migration source (D312)
   // and removed after the rows land in IndexedDB, so an upgrading device
@@ -1271,6 +1319,11 @@ async function hydrate(): Promise<void> {
   // it would leave a plain {seconds,nanoseconds} object on the cache path
   // and a real Timestamp on the network path — the kind of difference that
   // only shows up in whichever branch nobody tested.
+  // Unfiltered on purpose since D320 — the two fetch paths keep different
+  // rows. The full fetch keeps the boot surfaces (its query asked for
+  // exactly those anyway); the delta ALSO keeps a row this device already
+  // holds, whatever its surface, because that is an edit to a paged learn
+  // card arriving. Each call site filters.
   const rowsOf = (snap: Awaited<ReturnType<typeof getDocs>>): BankEntry[] =>
     snap.docs
       .map((d) => {
@@ -1280,8 +1333,7 @@ async function hydrate(): Promise<void> {
         const row = d.data() as QuestionDoc & { updatedAt?: unknown };
         delete row.updatedAt;
         return { id: d.id, ...row };
-      })
-      .filter((q) => BANK_SURFACES.includes(q.surface));
+      });
   const cursorOf = (snap: Awaited<ReturnType<typeof getDocs>>): number =>
     snap.docs.reduce((mx, d) => {
       const u = d.get("updatedAt");
@@ -1314,8 +1366,25 @@ async function hydrate(): Promise<void> {
         // full fetch rather than silently serving a truncated bank.
         all = null;
       } else {
-        deltaRows = rowsOf(dsnap);
         const byId = new Map(all.map((q) => [q.id, q]));
+        // A boot surface merges as before, and so does a CORE feed row —
+        // a freshly promoted core question must reach every device, since
+        // core ships whole (D321). A row outside both merges only if this
+        // device already holds it — an edit to a paged card arriving. A
+        // NEW paged doc (learn, or a tail question) is dropped on
+        // purpose: which paged cards a device holds is the pager's
+        // decision (D320/D321), not the delta's. deltaRows is the KEPT
+        // set, because it is also what the idb write-back below persists.
+        deltaRows = rowsOf(dsnap).filter(
+          (row) =>
+            BANK_SURFACES.includes(row.surface)
+            || (row.surface === "feed" && row.core === true)
+            // A bought question arriving mid-session is the same case as a
+            // freshly promoted core one: it has to reach the device, and
+            // no pager will ever offer it (see the third boot query).
+            || (row.surface === "feed" && row.paid === true)
+            || byId.has(row.id),
+        );
         for (const row of deltaRows) byId.set(row.id, row);
         all = [...byId.values()];
         cursor = Math.max(cursor, cursorOf(dsnap));
@@ -1346,37 +1415,82 @@ async function hydrate(): Promise<void> {
     // bug being designed out is a full page read as a complete result, so
     // "fewer rows came back than I asked for" is the only signal that
     // means the end, and any count-based check would reintroduce it.
-    const rows: BankEntry[] = [];
-    // The page's last DocumentSnapshot, handed straight back to startAfter.
-    let after: unknown = null;
-    let pages = 0;
     let maxCursor = 0;
-    for (;;) {
-      const page = await getDocs(
-        query(
-          collection(db, "v2_questions"),
-          where("surface", "in", BANK_SURFACES),
-          orderBy(documentId()),
-          ...(after ? [startAfter(after)] : []),
-          limit(BANK_PAGE),
-        ),
-      );
-      rows.push(...rowsOf(page));
-      maxCursor = Math.max(maxCursor, cursorOf(page));
-      pages += 1;
-      if (page.size < BANK_PAGE) break;
-      if (pages >= BANK_MAX_PAGES) {
-        // Loud, because this is the exact shape of the failure the paging
-        // replaced. Serving what we have is still better than serving
-        // nothing — but it must never be indistinguishable from success.
-        reportError(new Error(
-          `bank paging hit BANK_MAX_PAGES (${BANK_MAX_PAGES} x ${BANK_PAGE}) — truncated at ${rows.length} questions`,
-        ), { where: "hydrate.bankPaging" });
-        break;
+    // `lead` is the inequality's field, and it is not optional decoration:
+    // Firestore REJECTS a query whose first ordering is not the field it
+    // ranges over, and `orderBy(documentId())` alone makes `__name__` the
+    // first ordering. The rejection is `invalid-argument: order by clause
+    // cannot contain more fields after the key` — thrown at getDocs, not
+    // at query(), so nothing catches it in this block and nothing sees it
+    // in a test whose Firestore is a fake. The composite the ranged query
+    // needs is declared `(paid, until)`, which implicitly ends `__name__`
+    // ASC: the pair below is exactly what that index serves, so the cursor
+    // stays a total order and startAfter still cannot skip or repeat.
+    const fetchPaged = async (wheres: unknown[], lead?: string): Promise<BankEntry[]> => {
+      const out: BankEntry[] = [];
+      // The page's last DocumentSnapshot, handed straight to startAfter.
+      let after: unknown = null;
+      let pages = 0;
+      for (;;) {
+        const page = await getDocs(
+          query(
+            collection(db, "v2_questions"),
+            ...(wheres as never[]),
+            ...(lead ? [orderBy(lead)] : []),
+            orderBy(documentId()),
+            ...(after ? [startAfter(after)] : []),
+            limit(BANK_PAGE),
+          ),
+        );
+        out.push(...rowsOf(page));
+        maxCursor = Math.max(maxCursor, cursorOf(page));
+        pages += 1;
+        if (page.size < BANK_PAGE) break;
+        if (pages >= BANK_MAX_PAGES) {
+          // Loud, because this is the exact shape of the failure the
+          // paging replaced. Serving what we have is still better than
+          // serving nothing — but it must never be indistinguishable
+          // from success.
+          reportError(new Error(
+            `bank paging hit BANK_MAX_PAGES (${BANK_MAX_PAGES} x ${BANK_PAGE}) — truncated at ${out.length} questions`,
+          ), { where: "hydrate.bankPaging" });
+          break;
+        }
+        after = page.docs[page.docs.length - 1];
       }
-      after = page.docs[page.docs.length - 1];
-    }
-    all = rows;
+      return out;
+    };
+    // Two queries because Firestore cannot say "these surfaces, OR feed
+    // where core" in one: the boot surfaces whole, then the feed's CORE
+    // (D321) — the corpus the Mirror folds (D161) ships to every device
+    // always, while the tail pages behind the published order like learn
+    // does. Each query's rows are filtered by its own constraint's
+    // client-side mirror, the pulse/call lesson.
+    const bootRows = (await fetchPaged([where("surface", "in", BANK_SURFACES)]))
+      .filter((q) => BANK_SURFACES.includes(q.surface));
+    const coreRows = (await fetchPaged([where("surface", "==", "feed"), where("core", "==", true)]))
+      .filter((q) => q.surface === "feed");
+    // …and a third, for the questions no published order can carry.
+    //
+    // A BOUGHT question (D313) is written into `v2_questions` by the
+    // paying webhook at runtime, while `rankBankV2` builds the feed's
+    // order from the COMPILED bank — so a paid question is in no order,
+    // and the two queries above do not reach it either: it is not a boot
+    // surface, and it is not core (core is the Mirror's corpus, D161,
+    // which a bought question must not join). D313 and D316/D321 landed
+    // the same day in that sequence, and between them a buyer paid, the
+    // question was fetched by nobody, its aggregate stayed at zero, and
+    // the closer refunded the cap 29 days later.
+    //
+    // Bought reach ships WHOLE, like core, for exactly as long as it was
+    // bought for — which is why the window is in the query rather than
+    // left to `fresh()`: the set is the campaigns running today, not every
+    // one ever sold.
+    const paidRows = (await fetchPaged([
+      where("paid", "==", true),
+      where("until", ">=", utcDayKey(0)),
+    ], "until")).filter((q) => q.surface === "feed");
+    all = [...bootRows, ...coreRows, ...paidRows];
     cursor = maxCursor;
     state.stats.bankSource = "network";
     // Whatever the cache held (a delta can overflow into this path from an
@@ -1404,6 +1518,11 @@ async function hydrate(): Promise<void> {
       /* best-effort */
     }
   }
+  // The pager's seen-set (D320/D321): ids only, at module scope, so the
+  // top-ups know what this device already holds — including killed and
+  // expired rows the serving filters drop, which must never be
+  // re-fetched every boot.
+  bankIds = new Set(all.map((q) => q.id));
   const sorted = all.slice().sort((a, b) => (a.seq || 0) - (b.seq || 0));
   // `until` is the current-events serving window (docs/NEXT-FUNCTIONALITY
   // §1): a feed entry past its UTC day stops being OFFERED — the answers
@@ -1447,45 +1566,20 @@ async function hydrate(): Promise<void> {
   state.feedBank = banks.feed;
   state.duelBank = banks.duel;
   state.learnBank = banks.learn;
-  // The Learn bank (D284). Published HERE, beside the split, and not in
-  // buildFeedGlobals: that function opens `if (!state.feedBank.length)
-  // return`, so a bank with learn cards and no feed questions would have
-  // served none of them — Learn does not depend on the feed existing and
-  // must not start doing so. Caught by vote.test.ts's first learn case,
-  // which is exactly the bank that shape describes.
+  // The Learn bank (D284, paged at D320). Published HERE, beside the
+  // split, and not in buildFeedGlobals: that function opens `if
+  // (!state.feedBank.length) return`, so a bank with learn cards and no
+  // feed questions would have served none of them — Learn does not depend
+  // on the feed existing and must not start doing so. Caught by
+  // vote.test.ts's first learn case, which is exactly the bank that shape
+  // describes.
   //
-  // Translated from the bank's vocabulary into the
-  // engine's — `learn-cell1`/`prompt`/`options`/`topic` become
-  // `cell1`/`q`/`a`/`f` — because the two spellings are real and the
-  // translation belongs at one end rather than at nine call sites.
-  //
-  // Costs no read: `state.learnBank` is the slice `splitBanks` already cut
-  // out of the bank `hydrate()` fetched. What it replaces is the whole of
-  // `content/learn-questions.json` being compiled into the app.
-  //
-  // A doc seeded before D284 carries no `c`, and a card with no correct
-  // answer is unanswerable rather than merely thin — so those are dropped
-  // rather than defaulted. On a bank seeded before the change that empties
-  // Learn until the next seed run, which is the honest failure: the
-  // alternative is `c ?? 0`, which would mark option one correct on every
-  // card in the bank and teach the wrong answer, silently, on a surface
-  // whose entire promise is that there is a right one.
-  publishLearnBank(
-    state.learnBank.flatMap((q): LearnCard[] => {
-      if (typeof q.c !== "number" || typeof q.t !== "number") return [];
-      return [{
-        id: q.id.startsWith("learn-") ? q.id.slice(6) : q.id,
-        f: q.topic || "",
-        q: q.prompt,
-        a: q.options,
-        c: q.c,
-        t: q.t,
-        p: typeof q.p === "number" ? q.p : 50,
-        k: q.k || "",
-        ...(q.w ? { w: q.w } : {}),
-      }];
-    }),
-  );
+  // Since D320 this slice is the CACHE's learn cards — everything this
+  // device was ever handed — not the whole surface; topUpLearnBank
+  // (kicked at the end of hydrate) pages fresh cards in against the
+  // published order and re-publishes. Publishing the cached slice first
+  // means a returning device's Learn works before any network answers.
+  publishLearnBank(toLearnCards(state.learnBank));
 
   state.callBank = banks.call;
   state.pulseBank = banks.pulse;
@@ -1541,7 +1635,7 @@ async function hydrate(): Promise<void> {
     // What this boot's queries handed back, in the cache's own string
     // form — the write-back below is sized by this, not by the archive.
     const fetchedRows: Array<[string, string]> = [];
-    const fold = (d: { id: string; get: (f: string) => unknown }) => {
+    const fold = (d: { id: string; get: (f: string) => unknown }, raiseEdit = true) => {
       // Catalog answers carry `entity` and rank answers carry `order` —
       // never `optionIdx` (D14/D233). All three join the same map in
       // string form (the entity's digits; the order joined with commas) —
@@ -1563,8 +1657,27 @@ async function hydrate(): Promise<void> {
       }
       const at = d.get("answeredAt") as { toMillis?: () => number } | undefined;
       if (at && typeof at.toMillis === "function") maxTs = Math.max(maxTs, at.toMillis());
-      const et = d.get("editedAt") as { toMillis?: () => number } | undefined;
-      if (et && typeof et.toMillis === "function") maxEditTs = Math.max(maxEditTs, et.toMillis());
+      // THE EDIT WATERMARK IS NOT RAISED BY EVERY PAGE, and which pages
+      // may raise it is the whole correctness of the second delta below.
+      //
+      // A page raises it only if that page is a complete account of the
+      // edits in the range it covers. The cold pull is (it reads every
+      // doc). The edit delta is (it asks for exactly this field). The
+      // ANSWERED delta is not: it returns the docs whose answeredAt moved,
+      // and their editedAt can be far newer than edits on OTHER docs it
+      // never looked at.
+      //
+      // Raising from it therefore skipped real edits. Create N at 09:00,
+      // edit old answer O at 10:00, edit N at 10:05: a second device's
+      // answered delta returns N, lifts this to 10:05, and the edit query
+      // below then asks for `> 10:05` — O's edit is never fetched, 10:05
+      // is persisted, and O shows its pre-edit option on that device
+      // forever. The paragraph at the edit query reasons carefully about
+      // the mirror-image hazard and missed this direction.
+      if (raiseEdit) {
+        const et = d.get("editedAt") as { toMillis?: () => number } | undefined;
+        if (et && typeof et.toMillis === "function") maxEditTs = Math.max(maxEditTs, et.toMillis());
+      }
     };
     // Deliberately UNGUARDED, unlike the reads below. Answers are not
     // decoration: proceeding with a partial vote set makes the app offer
@@ -1603,7 +1716,8 @@ async function hydrate(): Promise<void> {
         where("answeredAt", ">", Timestamp.fromMillis(maxTs)),
         limit(400),
       ));
-      asnap.docs.forEach(fold);
+      // …but NOT the edit watermark: see `raiseEdit` in fold above.
+      asnap.docs.forEach((d) => fold(d, false));
       fetched = asnap.size;
     } else {
       const ANS_PAGE = 1000;
@@ -1619,7 +1733,7 @@ async function hydrate(): Promise<void> {
           ...(after ? [startAfter(after)] : []),
           limit(ANS_PAGE),
         ));
-        page.docs.forEach(fold);
+        page.docs.forEach((d) => fold(d));
         fetched += page.size;
         pages += 1;
         if (page.size < ANS_PAGE) break;
@@ -1641,7 +1755,16 @@ async function hydrate(): Promise<void> {
     // query to hear about it. The watermarks stay per-field on purpose —
     // folding editedAt into maxTs would let an edit's timestamp leap past
     // a concurrent create the answeredAt query has not read yet, and that
-    // answer would then never be fetched. Warm boots only: the cold-cache
+    // answer would then never be fetched.
+    //
+    // AND THE SAME HAZARD RUNS THE OTHER WAY, which the paragraph above
+    // missed: the answered delta above used to raise THIS watermark too,
+    // from the editedAt of whatever docs it happened to return — so an
+    // edit on a doc it did not return could be leapt over and lost for
+    // good. `raiseEdit` in fold is that fix; only a page that accounts
+    // for every edit in its range may move this number.
+    //
+    // Warm boots only: the cold-cache
     // full pull above already reads every doc's current optionIdx (and
     // seeds this cursor through fold()).
     if (maxTs > 0) {
@@ -1651,7 +1774,7 @@ async function hydrate(): Promise<void> {
         limit(400),
       ));
       state.stats.answersFetched += esnap.size;
-      esnap.docs.forEach(fold);
+      esnap.docs.forEach((d) => fold(d));
     }
     const ansMeta: Array<[string, unknown]> = [["answers", { uid: uidA, maxTs, maxEditTs }]];
     if (answersFrom === "idb") {
@@ -1838,6 +1961,145 @@ async function hydrate(): Promise<void> {
   }
 
   buildFeedGlobals();
+
+  // The pages (learn D320, feed tail D321), deliberately not awaited: a
+  // few more round trips the surfaces need and first paint does not.
+  // Failure costs a session's fresh cards, never the boot — everything
+  // serves the cached slices published above until the top-ups land.
+  // Handed hydrate's own db rather than calling getDb() again: the
+  // members are already bound, and a second concurrent bind buys
+  // nothing (and lost a mocked-import race once — D320).
+  void topUpBankPages(db);
+}
+
+// The cache's ids — the pager's seen-set. From the raw cache, NOT the
+// active-filtered bank slices: a killed or expired card is still cached
+// (the archive rule), and a seen-set that forgot it would re-fetch it
+// every boot forever.
+function cachedBankIds(): Set<string> {
+  return new Set(bankIds ?? []);
+}
+
+// The serving filter, hydrate's own rule at page-arrival time: alive and
+// inside the from/until window today. Paged rows join the CACHE
+// unfiltered (the archive keeps expired docs — the n_closed rule) and
+// the serving pool filtered.
+function servableNow(q: QuestionDoc): boolean {
+  const today = utcDayKey(0);
+  return q.active !== false && (!q.until || q.until >= today) && (!q.from || q.from <= today);
+}
+
+// One boot's top-ups (D320/D321): per paged surface, read the published
+// order (D319), fetch the first page per field/topic this device does
+// not already hold, plus any card the device has HISTORY with that fell
+// out of the cache — a rev bump refetches only the boot surfaces, and a
+// mastered card missing from the learn pool is a fact missing from the
+// map, an answered tail question missing from the cache is an answer
+// the Mirror cannot name. Fetched rows join their bank slice and the
+// persisted cache, so the next boot starts from them.
+async function topUpBankPages(db: Awaited<ReturnType<typeof getDb>>): Promise<void> {
+  const orderOf = async (surface: string): Promise<PageOrderDoc | null> => {
+    const snap = await getDoc(doc(db, "v2_rank", surface));
+    return snap.exists() ? (snap.data() as PageOrderDoc) : null;
+  };
+  const fetchByIds = async (
+    surface: string,
+    qids: string[],
+  ): Promise<Array<QuestionDoc & { id: string }>> => {
+    const out: Array<QuestionDoc & { id: string }> = [];
+    for (let i = 0; i < qids.length; i += 30) {
+      const chunk = qids.slice(i, i + 30);
+      const snap = await getDocs(
+        query(collection(db, "v2_questions"), where(documentId(), "in", chunk)),
+      );
+      for (const d of snap.docs) {
+        const row = d.data() as QuestionDoc & { updatedAt?: unknown };
+        delete row.updatedAt;
+        if (row.surface === surface) out.push({ id: d.id, ...row });
+      }
+    }
+    return out;
+  };
+  const persist = async (rows: Array<QuestionDoc & { id: string }>): Promise<void> => {
+    if (!rows.length) return;
+    // Rows into the same store the boot reads (D312's cacheStore), NO
+    // meta: the cursor must not advance for a page — a paged row's
+    // updatedAt can be newer than an unfetched edit on another surface,
+    // and a cursor past that edit would seal it out of every delta.
+    await cacheStore.write("bank", rows.map((r) => [r.id, r] as [string, unknown]));
+    for (const row of rows) bankIds?.add(row.id);
+  };
+
+  // Each surface fails alone: a bad learn order must not cost the feed
+  // its pages, or the other way around. The next boot retries either.
+  try {
+    const { rows, totals } = await topUpPages(
+      { order: () => orderOf("learn"), fetchByIds: (qids) => fetchByIds("learn", qids) },
+      cachedBankIds(),
+      followedFields(),
+      learnHistoryIds(),
+      LEARN_PAGE,
+    );
+    publishLearnTotals(totals);
+    if (rows.length) {
+      const byId = new Map(state.learnBank.map((q) => [q.id, q]));
+      // The engine's pool takes only the servable (a card killed after
+      // the nightly fold can still be in the order); the cache takes all.
+      for (const row of rows) if (servableNow(row)) byId.set(row.id, row);
+      state.learnBank = [...byId.values()];
+      publishLearnBank(toLearnCards(state.learnBank));
+      await persist(rows);
+    }
+  } catch (err) {
+    reportError(err, { where: "hydrate.learnPages" });
+  }
+
+  try {
+    // The feed's history is its answers: every voted feed- qid must
+    // resolve to a document whatever page it was on. Core needs no heal
+    // — it ships whole at boot by definition.
+    const answered = Object.keys(state.votes).filter((id) => id.startsWith("feed-"));
+    // The person's own interest profile (D317 phase 1, D322) — the one
+    // document in the system only its owner may read, and the pager is
+    // the one thing that reads it: topics this person actually answers
+    // get the full page, the rest a smaller one, never zero (the
+    // arithmetic and its floors live in bankPager.pageSizesByInterest).
+    // Absent — a new account, a fresh project, the fold not yet run —
+    // every topic gets the flat page, which is exactly the pre-profile
+    // feed.
+    const profile = await (async () => {
+      try {
+        if (!state.uid) return null;
+        const snap = await getDoc(doc(db, "v2_users", state.uid, "taste", "profile"));
+        return snap.exists()
+          ? (snap.data() as { t?: Record<string, number>; n?: number })
+          : null;
+      } catch {
+        // A failed profile read costs personalization for a session,
+        // never the pages themselves.
+        return null;
+      }
+    })();
+    const { rows } = await topUpPages(
+      { order: () => orderOf("feed"), fetchByIds: (qids) => fetchByIds("feed", qids) },
+      cachedBankIds(),
+      null,
+      answered,
+      pageSizesByInterest(profile, FEED_PAGE),
+    );
+    if (rows.length) {
+      const byId = new Map(state.feedBank.map((q) => [q.id, q]));
+      for (const row of rows) if (servableNow(row)) byId.set(row.id, row);
+      state.feedBank = [...byId.values()].sort((a, b) => (a.seq || 0) - (b.seq || 0));
+      // The pool changed, so the feed's view of it rebuilds — the same
+      // call every vote already makes.
+      buildFeedGlobals();
+      await persist(rows);
+      notify();
+    }
+  } catch (err) {
+    reportError(err, { where: "hydrate.feedPages" });
+  }
 }
 
 // Counts shown by the feed exclude the viewer's own vote (wfPcts adds

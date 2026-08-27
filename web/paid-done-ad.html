@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>InSight — payment received</title>
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="/favicon.svg" />
+  <!--
+    Stripe Checkout's success_url for an AD (paid.ts
+    createPaidCheckoutV2, D313/D315).
+
+    A SEPARATE PAGE, because one page cannot tell a buyer the truth about
+    two products. Both kinds used to land on paid-done.html, which says
+    "your QUESTION is going live", "it starts serving TOMORROW",
+    "everything it collects lands in Asked by you", and "the unserved
+    part REFUNDS to your card automatically at close". For an ad all four
+    are false: an ad queues behind whatever ad is running in its scope
+    (adStartDay), so its first day can be weeks out; an ad collects
+    nothing, because it asks nothing; and an ad has no refund path at all
+    — the flat price buys the window and the window runs (D315).
+
+    A buyer was told in writing, at the moment of payment, that they were
+    owed an automatic refund the system will never issue.
+
+    The app learns about the payment from the webhook, never from this
+    page — so the only job here is to say what happened and send them
+    back. Keep it spare, like home.html: this is a landing, not
+    marketing.
+  -->
+  <style>
+    :root {
+      --paper: #f7f1e8;
+      --ink: #2a2419;
+      --ink-2: #4d4538;
+      --ink-3: #7d705a;
+      --rule: #cfc6b3;
+      --accent: oklch(0.55 0.13 38);
+      --serif: "Fraunces", Georgia, serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0 auto;
+      padding: 64px 20px 80px;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--serif);
+      font-size: 16px;
+      line-height: 1.6;
+      max-width: 640px;
+    }
+    h1 { font-size: 34px; letter-spacing: -0.02em; margin: 0 0 6px; font-weight: 600; }
+    p { margin: 14px 0; color: var(--ink-2); }
+    .foot { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--rule); font-size: 14px; color: var(--ink-3); }
+  </style>
+</head>
+<body>
+  <h1>Paid — your ad is booked.</h1>
+  <p>
+    One advertiser runs at a time in a scope, so yours starts on the first
+    day the one ahead of it finishes — and then runs its full window from
+    there, uninterrupted. You can close this page and go back to the app:
+    <strong>Asked&nbsp;by&nbsp;you</strong> shows the dates it will run.
+  </p>
+  <p>
+    An ad asks nothing, so there are no answers to report and no cap to
+    fall short of. The flat price buys the window; there is no refund at
+    close.
+  </p>
+  <p class="foot">
+    InSight · <a href="/privacy.html">privacy</a> · <a href="/terms.html">terms</a>
+  </p>
+</body>
+</html>
