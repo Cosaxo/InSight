@@ -19,3 +19,27 @@ each answered question with the node ids that answer it.
   deliver for TRAIT-scale prediction versus a tuned polygenic-score
   baseline? An answer moves gen-5 up or prunes it; either outcome
   sharpens cen-1's engine question.
+  → **Answered 2026-08-27 by gen-5 (rewritten, conjecture→cited)**:
+  no INDEPENDENTLY REPLICATED demonstration of a sequence model
+  beating a tuned PGS at individual-level complex-trait prediction
+  (searched five framings, Aug 2026; the one published claim —
+  Epi-PRS, PNAS 2025, ~11–12% AUC over LDpred2/PRS-CS — is
+  unreplicated, and its own record suggests the gain is nonlinearity
+  plus rare variants, not the sequence model as such; named scout
+  task); the structural reason is predominantly-additive genetic
+  variance, which bounds nonlinear headroom without zeroing it; the
+  models' licensed role is the annotation engine (variant-effect,
+  rare-variant, fine-mapping priors) feeding the additive layer.
+
+- 2026-08-27 · genetic (marking the owner's 2026-08-25 question above
+  answered): **answered by gen-9, gen-10, gen-11 + gen-3's rise.**
+  gen-9 — psychological/preference traits map onto genetic
+  architecture (heritability, polygenicity, effect-size distribution,
+  enrichment, correlation structure), not gene lists; gen-10 — the
+  direct-output boundary: named genes carry individual-level signal
+  only for single-protein direct-output phenotypes (percept, pigment,
+  secretion), and downstream the signal collapses for mild hedonic
+  percepts while aversive toxic ones carry through; gen-11 — every
+  cross-axis coupling decomposes (direct / genetic nurture / mating
+  structure), trait-specifically, and the perfect system publishes
+  the decomposition, never the bare correlation.
