@@ -309,6 +309,11 @@
       "collectionGroup": "answers",
       "fieldPath": "anchors.heightBand",
       "indexes": []
+    },
+    {
+      "collectionGroup": "answers",
+      "fieldPath": "anchors.jobField",
+      "indexes": []
     }
   ]
 }

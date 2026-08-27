@@ -354,6 +354,57 @@ if (!ruleCaps.size) {
   }
 }
 
+// ── rule 7 · every breakdown dim has its index exemption ────────
+//
+// WHY THIS IS HERE AND NOT A PARAGRAPH. D64 measured it: Firestore indexes
+// every scalar leaf ASC and DESC by default, INCLUDING each map subfield,
+// so an un-exempted anchor key costs two index entries on every answer ever
+// written — for a field no query in this repo filters on. D64 cut `answers`
+// from 22 index entries per write to 2 by exempting them one path at a
+// time, and D140 then wrote "the anchors.heightBand index exemption (the
+// D64 storage-cost regression the checklist exists to not forget)" into a
+// new-dim CHECKLIST.
+//
+// D317 added `jobField` and skipped that line. Nothing caught it: the
+// exemption is absence-shaped — a missing row is a silently BILLED index,
+// never an error — and no test, gate or type reads this file. A checklist
+// item that has now been forgotten once is a gate's job, so this is the
+// paragraph converted.
+//
+// Read off BREAKDOWN_DIMS rather than a second list, because a hand-kept
+// copy is the drift every other rule in this file exists to prevent.
+const INDEXES = "firestore.indexes.json";
+try {
+  const dimsBlock = pure.slice(
+    pure.indexOf("BREAKDOWN_DIMS = ["),
+    pure.indexOf("] as const;", pure.indexOf("BREAKDOWN_DIMS = [")),
+  );
+  const dims = [...dimsBlock.matchAll(/"(\w+)"/g)].map((m) => m[1]);
+  const idx = JSON.parse(readFileSync(resolve(root, INDEXES), "utf8"));
+  const exempt = new Set(
+    (idx.fieldOverrides || [])
+      .filter((f) => f.collectionGroup === "answers"
+        && Array.isArray(f.indexes) && f.indexes.length === 0)
+      .map((f) => f.fieldPath),
+  );
+  if (!dims.length) {
+    errors.push(`${PURE}: BREAKDOWN_DIMS parsed as EMPTY, which cannot be right.`);
+  }
+  for (const dim of dims) {
+    if (!exempt.has(`anchors.${dim}`)) {
+      errors.push(
+        `${INDEXES}: no single-field exemption for "anchors.${dim}".\n`
+        + "    Every breakdown dim is written onto every answer and queried by\n"
+        + "    nothing, so without a `\"indexes\": []` override Firestore keeps two\n"
+        + "    index entries per answer for it — D64's storage-cost regression,\n"
+        + "    which is billed silently and never raises anything.",
+      );
+    }
+  }
+} catch (e) {
+  errors.push(`${INDEXES}: could not be read or parsed — ${e.message}`);
+}
+
 if (errors.length) {
   console.error("\ncheck-anchors FAILED:\n");
   for (const e of errors) console.error(`  ${e}\n`);
@@ -364,5 +415,6 @@ const sizes = PAIRS.map((p) => `${p.dim} ${serverVocab(p.dim).length}`).join(", 
 console.log(
   `check:anchors OK — ${PAIRS.length} closed vocabularies match the profile's `
   + `<select>s (${sizes}), all under BREAKDOWN_MAX_BUCKETS=${MAX_BUCKETS}; `
-  + `${ruleCaps.size} length caps agree between ${RULES} and ${LIVE}`,
+  + `${ruleCaps.size} length caps agree between ${RULES} and ${LIVE}; `
+  + `every breakdown dim carries its ${INDEXES} exemption`,
 );
