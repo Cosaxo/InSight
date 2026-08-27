@@ -1,17 +1,17 @@
 {
   "version": 1,
   "axiom": "body",
-  "updated": "2026-08-25",
+  "updated": "2026-08-27",
   "nodes": [
     {
       "id": "bod-1",
       "claim": "The perfect body axiom is one measurement timeline fusing sensors, self-report and derived clinical values — not a set of disconnected trackers.",
-      "status": "conjecture",
-      "detail": "Sleep, heart data, activity, nutrition, and clinic-derived values (a resting HR from a physical, a scan-derived measure) are one body described by channels of different noise and cadence. The perfect axiom models them jointly on a person's timeline, so a coupling question ('do short sleepers answer risk differently') is asked of the fused state, not of one channel. To argue this node: show a concrete case where fusion changes a conclusion single channels get wrong.",
+      "status": "argued",
+      "detail": "Sleep, heart data, activity, nutrition, and clinic-derived values are one body described by channels of different noise and cadence; the perfect axiom models them jointly on a person's timeline. The concrete case the seed asked for now exists, from bod-3's evidence: perceived and device-measured sleep dissociate, and each channel carries predictive signal the other lacks — subjective reports track emotional state, objective measures predict cognition and cardiometabolic risk. A subjective-only axiom therefore mislabels mood as sleep; an objective-only axiom silently discards the channel that carries the affect coupling. Only joint modeling of both channels can attribute a night's signal to the right construct, which is fusion changing a conclusion, not just improving precision. And the discrepancy term itself exists only in the joint representation — it is not computable in either channel alone — which is what makes this fusion rather than parallel tracking. Rises to cited when a study directly demonstrating a fusion-vs-single-channel attribution reversal is in hand; the current argument composes bod-3's cited findings rather than citing one directly.",
       "sources": [],
       "edges": [{ "to": "bod-3", "type": "depends" }],
       "created": "2026-08-25",
-      "updated": "2026-08-25"
+      "updated": "2026-08-27"
     },
     {
       "id": "bod-2",
@@ -25,13 +25,17 @@
     },
     {
       "id": "bod-3",
-      "claim": "Self-report is a sensor with a knowable bias model, not a channel to discard when hardware arrives.",
-      "status": "argued",
-      "detail": "'How did you sleep?' and the watch's sleep stages disagree in structured, studiable ways — and the disagreement is itself signal (perceived vs measured sleep dissociates, and the perception half predicts different things). The perfect axiom keeps both channels and models the bias explicitly, rather than treating hardware as truth and reports as noise. Scout task: ground the perceived-vs-measured sleep literature with citations to raise this.",
-      "sources": [],
+      "claim": "Self-report is a sensor with a knowable bias model, not a channel to discard when hardware arrives — and the two channels predict different things, so the perfect axiom routes them, not ranks them.",
+      "status": "cited",
+      "detail": "The dissociation is real and large: in 1,483 older adults with home polysomnography, multivariable models over PSG, clinical and demographic measures explained only 11–17% of the variance in next-morning subjective sleep quality (Kaplan 2017). And it is structured, channel-specific prediction rather than one channel being noise: in 83 adults over 7-day actigraphy, objective measures predicted executive-function and memory performance in the upper and lower sleep quartiles while subjective reports did not — and subjective reports, not objective measures, were strongly predicted by emotional state (Sci Rep 2024). On the physiological side the weight inverts: in 255 adults with insomnia disorder, objectively short (<6 h) but not subjectively short sleep carried a 3.59× risk of reporting hypertension (Bathgate 2016); the same objective-not-subjective pattern reappears for incident hypertension in the Sleep Heart Health Study (J Clin Sleep Med, 10.5664/jcsm.10570) and incident cardio/cerebrovascular disease (10.5664/jcsm.11046). So the perfect axiom keeps both channels and ROUTES them: the perception channel feeds affect/wellbeing couplings, the measured channel feeds cognition and physiology couplings, and the discrepancy between them is itself a modeled quantity (its magnitude plausibly tracks distress — the sleep-misperception literature supports this, but it is not established by the three sources here). Caveats held honestly: PSG-comparison designs cannot separate perception from retrospective-reporting bias; a multiday study (Sci Rep 2024, 10.1038/s41598-024-56668-0) finds objective quality does predict subjective ratings, suggesting part of Kaplan's null is a single-night artifact; and consumer wearables' staging error (vs PSG) inflates apparent dissociation. Verification depth: sources corroborated against the public search index (titles, PMIDs/DOIs and findings cross-checked across independent queries); full texts were unreachable from this run's container (scholarly hosts egress-blocked), so claims are abstract-level.",
+      "sources": [
+        "Kaplan KA, Hirshman J, Hernandez B, Stefanick ML, Hoffman AR, Redline S, et al. (2017). When a gold standard isn't so golden: Lack of prediction of subjective sleep quality from sleep polysomnography. Biological Psychology 123:37–46. PMID 27889439",
+        "Characterising the inconsistency between perceived and actual sleep and its impact upon cognition and mood (2024). Scientific Reports 14:29342. DOI 10.1038/s41598-024-80683-w. PMID 39592657",
+        "Bathgate CJ, Edinger JD, Wyatt JK, Krystal AD (2016). Objective but Not Subjective Short Sleep Duration Associated with Increased Risk for Hypertension in Individuals with Insomnia. Sleep 39(5):1037–1045. PMID 26951399"
+      ],
       "edges": [{ "to": "bod-1", "type": "supports" }],
       "created": "2026-08-25",
-      "updated": "2026-08-25"
+      "updated": "2026-08-27"
     },
     {
       "id": "bod-4",
@@ -46,12 +50,68 @@
     {
       "id": "bod-5",
       "claim": "Within-person change beats between-person level for most body→mind couplings.",
-      "status": "conjecture",
-      "detail": "Whether YOUR short-sleep weeks shift YOUR answers is a stronger, less confounded question than whether short sleepers differ from long sleepers. The perfect axiom is longitudinal-first: its unit is the person-period, not the person. If this holds, it re-ranks what is worth collecting (streaks and transitions over snapshots) and hands pat-3 its best causal lever.",
-      "sources": [],
+      "status": "cited",
+      "detail": "Now quantitatively grounded, and it answers central's 2026-08-26 portfolio question. The direct within-vs-between comparison exists for sleep→self-control: meta-analytically, within-individual r = .35 [.24, .45] for sleep quality and r = .20 [.09, .31] for duration — both LARGER than the corresponding between-individual estimates (.26 and .14) (Guarana 2021). That is this node's claim measured — with the honest caveat that the within- and between-individual confidence intervals overlap substantially, so the ordering is a consistent point-estimate direction rather than a statistically separated difference. Scope caveat: the direct within-vs-between comparison exists for sleep couplings only; extension to other body→mind channels is projection, not measurement — the claim's 'most' is the theory's bet, not yet the literature's finding. The best-evidenced single coupling by volume is prior-night sleep → next-day affect: a meta-analysis of 118 intensive-longitudinal (diary/EMA) studies finds small-to-moderate within-person correlations — better-than-usual subjective sleep quality and longer-than-usual sleep predicting improved next-day affect — with the reverse direction weaker and absent for total sleep time (Bourke 2026). A well-powered single anchor: in 1,982 adults over 8 daily interviews, nights of shorter-than-own-usual sleep predicted blunted positive-affect responses to both stressors and positive events, with no evidence for the reverse direction (Sin 2020). What is NOT the anchor: acute sleep loss → risk-taking, whose direction is unstable across sex, framing and protocol in the recent synthesis literature — central should not hang cen-2 on risk specifically. Caveats: within-person effects are consistently stronger for self-reported than actigraphic sleep, so part of the coupling is appraisal rather than physiology — which is not a defeater here, because bod-3's channel routing makes the perception channel a legitimate sensor; and the experimental (causal) leg is mostly acute total deprivation rather than naturalistic night-to-night variation. Verification depth as bod-3: search-index corroborated, abstract-level, full texts egress-blocked this run.",
+      "sources": [
+        "Guarana CL, Ryu JW, O'Boyle EH Jr, Lee J, Barnes CM (2021). Sleep and self-control: A systematic review and meta-analysis. Sleep Medicine Reviews 59:101514. PMID 34157493",
+        "Bourke M, et al. (2026). Sleep well, feel well and vice versa? A meta-analysis of daily bidirectional within-person associations between sleep and affect. Sleep Medicine Reviews 86:102232. PMID 41570755",
+        "Sin NL, Wen JH, Klaiber P, Buxton OM, Almeida DM (2020). Sleep duration and affective reactivity to stressors and positive events in daily life. Health Psychology 39(12):1078–1088. PMID 32897097"
+      ],
       "edges": [{ "to": "pat-3", "type": "supports" }],
       "created": "2026-08-25",
-      "updated": "2026-08-25"
+      "updated": "2026-08-27"
+    },
+    {
+      "id": "bod-6",
+      "claim": "Trait↔body cross-connections run through regulatory-system parameters — autonomic, immune, endocrine, metabolic — not through anatomy, and their honest between-person effect sizes are small.",
+      "status": "cited",
+      "detail": "The owner's cross-connection question (2026-08-25), first half of the answer. The couplings that replicate between traits the other axioms measure and the body are all regulatory parameters, not anatomical features. Autonomic: heart rate variability (indices pooled across computation methods) ↔ top-down self-regulation (executive function, emotion regulation, effortful control) across 123 studies, N=14,347 — significant and SMALL, r ≈ .09 (Holzman & Bridgett 2017); the sibling meta-analysis on HRV↔self-control finds a small effect with significant publication bias that goes non-significant after bias adjustment (Zahn 2016) — so r ≈ .09 is an upper bound, not a point estimate. Immune: higher conscientiousness → lower C-reactive protein across three national samples (N=26,305) plus meta-analysis (N=34,067), lowest-conscientiousness quartile carrying up to 50% higher risk of clinically elevated CRP (≥3 mg/L); openness weakly negative; neuroticism, extraversion, agreeableness null (Luchetti 2014). Depression↔inflammation shows moderate case-control elevations of CRP and IL-6 with REDUCED variability in patients for CRP — a right-shift of the whole distribution rather than an inflamed subgroup, which is exactly how a continuous regulatory parameter, not a discrete lesion, behaves (Osimo 2020). Two consequences for the perfect axiom. First, the cross-connection layer is a STATE-PARAMETER INTERFACE — a small vector of regulatory set-points and reactivities per person-period — not a body map. Anatomical couplings are not absent but are weaker in matched currency: ENIGMA-MDD finds hippocampal volume reduction in depression at Cohen's d = -0.14 (1,728 patients vs 7,199 controls; d = -0.17 for recurrent MDD) against Osimo's CRP elevation at g = 0.71 in the same case-control currency — a roughly fivefold gap — and a systematic review and meta-analysis of Big Five traits against structural MRI ('Nothing to see here', Personality Neuroscience) finds no reliable trait-level structural differences at all. Anatomy is the substrate; the regulatory parameters carry the signal. Second, effect-size currency is part of the connection: case-control group differences (moderate) and trait-level per-SD correlations (small) are different quantities, and publishing one as the other would overstate the axis severalfold — every published coupling declares its currency. Because the between-person couplings are this small, the cross-axis power that remains lives within-person, which is why this node depends on bod-5. Mirrors gen-9: architecture, not gene lists; systems, not organs. Verification depth as bod-3.",
+      "sources": [
+        "Holzman JB, Bridgett DJ (2017). Heart rate variability indices as bio-markers of top-down self-regulatory mechanisms: A meta-analytic review. Neuroscience & Biobehavioral Reviews 74:233–255. PMID 28057463",
+        "Zahn D, Adams J, Krohn J, Wenzel M, Mann CG, Gomille LK, et al. (2016). Heart rate variability and self-control — A meta-analysis. Biological Psychology 115:9–26. PMID 26747415",
+        "Luchetti M, Barkley JM, Stephan Y, Terracciano A, Sutin AR (2014). Five-factor model personality traits and inflammatory markers: New data and a meta-analysis. Psychoneuroendocrinology 50:181–193. PMID 25233337",
+        "Osimo EF, Pillinger T, Rodriguez IM, Khandaker GM, Pariante CM, Howes OD (2020). Inflammatory markers in depression: A meta-analysis of mean differences and variability in 5,166 patients and 5,083 controls. Brain, Behavior, and Immunity 87:901–909. DOI 10.1016/j.bbi.2020.02.010",
+        "Schmaal L, et al. Subcortical brain alterations in major depressive disorder: findings from the ENIGMA Major Depressive Disorder working group. Molecular Psychiatry (2016). DOI 10.1038/mp.2015.69",
+        "Nothing to see here: No structural brain differences as a function of the Big Five personality traits from a systematic review and meta-analysis. Personality Neuroscience (Cambridge University Press)"
+      ],
+      "edges": [
+        { "to": "bod-5", "type": "depends" },
+        { "to": "gen-9", "type": "supports" },
+        { "to": "cen-2", "type": "supports" }
+      ],
+      "created": "2026-08-27",
+      "updated": "2026-08-27"
+    },
+    {
+      "id": "bod-7",
+      "claim": "A trait–body channel exists only as far as its body-side instrument's construct validity — where the instrument collapses, the perfect axiom declares the channel unmeasured rather than small.",
+      "status": "cited",
+      "detail": "The owner's cross-connection question, second half — the boundary. Cardiac interoception is the cautionary case: the field's founding instrument, the heartbeat counting task, produces scores contaminated by time-estimation ability and prior beliefs about one's own heart rate, with systematic undercounting driving 'accuracy' (Zamariola 2018; Desmedt and colleagues' follow-ups conclude the scores are largely a reflection of subjective beliefs about heart rate); the critique is itself contested in a published comment-and-response exchange (Zimprich, Nusser & Pollatos 2020; a second commentary by Ainley et al. 2020 and a reply from the original authors, PMID 32061686, complete the exchange), so the demolition is not settled either — but a 133-study meta-analysis (N=11,524) from the same Louvain research group as the original critique (independence duly noted) finds heartbeat-counting performance carries little relation to the mental-health outcomes the theory predicted (null for trait anxiety, depression and alexithymia), and a separate meta-analysis finds the two putative measures of the same construct — counting vs discrimination accuracy — share only a small (if significant) relation (Hickman et al. 2020). When that happens, 'interoceptive accuracy ↔ emotion' is not a small coupling — it is an unmeasured channel, because the body-side number is not measuring the channel. The general law the perfect axiom takes from this: instrument reliability mechanically caps every observable trait–body correlation (attenuation), so bod-6's 'small' is partly an artifact ceiling, and the honest cross-connection publishes each channel's instrument reliability and validity status WITH its couplings — three states: measured (validated instrument), attenuated (valid but noisy, correctable), unmeasured (construct validity failed). This is the body-side twin of que-2's claim that a question is an instrument with estimable parameters. Verification depth as bod-3.",
+      "sources": [
+        "Zamariola G, Maurage P, Luminet O, Corneille O (2018). Interoceptive accuracy scores from the heartbeat counting task are problematic: Evidence from simple bivariate correlations. Biological Psychology 137:12–17",
+        "Zimprich D, Nusser L, Pollatos O (2020). Are interoceptive accuracy scores from the heartbeat counting task problematic? A comment on Zamariola et al. (2018). Biological Psychology 152:107868. PMID 32097681",
+        "How Does Heartbeat Counting Task Performance Relate to Theoretically-Relevant Mental Health Outcomes? A Meta-Analysis (2022). Collabra: Psychology 8(1):33271",
+        "Hickman L, Seyedsalehi A, Cook JL, Bird G, Murphy J (2020). The relationship between heartbeat counting and heartbeat discrimination: A meta-analysis. Biological Psychology 156:107949"
+      ],
+      "edges": [
+        { "to": "bod-6", "type": "refines" },
+        { "to": "que-2", "type": "supports" }
+      ],
+      "created": "2026-08-27",
+      "updated": "2026-08-27"
+    },
+    {
+      "id": "bod-8",
+      "claim": "Every trait–body coupling is a composite of direct regulatory paths, behavior-mediated paths and reverse causation, and the perfect cross-connection publishes the decomposition with the coupling.",
+      "status": "argued",
+      "detail": "The owner's cross-connection question, third piece — the body-side twin of gen-11's composite gene–trait coupling. The evidence behind bod-6's couplings does not say which way they run or through what: conscientiousness→CRP plausibly runs partly through health behavior (a physical-activity mediation literature exists — lead: 'Physical activity mediates the association between personality and biomarkers of inflammation', PMID 29796267); Mendelian-randomization results on inflammation→depression are marker-inconsistent, with IL-6 signaling implicated for some symptom dimensions (notably suicidality) while CRP's associations do not replicate across markers, samples and MR estimators (leads: Kappelmann et al. 2020, JAMA Psychiatry; an MR in the HUNT cohort, Psychological Medicine); and bod-5's sleep→affect coupling is consistently stronger for self-reported than actigraphic sleep, mixing an appraisal path into the physiological one. So a bare correlation published as a body↔trait connection is a composite pretending to be a mechanism. The perfect cross-connection publishes, with every coupling: its effect-size currency (bod-6), its instrument status (bod-7), and its decomposition status — which of direct / behavior-mediated / reverse / confounded has been excluded, and by what design (within-person change, MR, experiment). Held at argued deliberately: the MR literature is unsettled and this run's container could not open the primary papers — the named leads stay in detail, not in sources, until re-verified (§4: when in doubt, the status stays down).",
+      "sources": [],
+      "edges": [
+        { "to": "bod-6", "type": "refines" },
+        { "to": "gen-11", "type": "supports" }
+      ],
+      "created": "2026-08-27",
+      "updated": "2026-08-27"
     }
   ]
 }
