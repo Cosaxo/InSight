@@ -1,27 +1,33 @@
 {
   "version": 1,
   "axiom": "tests",
-  "updated": "2026-08-25",
+  "updated": "2026-08-27",
   "nodes": [
     {
       "id": "tst-1",
       "claim": "The perfect test axiom is one joint latent model over all instruments — the four core tests, the nine lenses and logic — not a shelf of separate scores.",
       "status": "conjecture",
-      "detail": "Instruments correlate; scoring them separately throws that structure away and double-counts shared variance when other axioms consume them. The perfect axiom fits one latent trait space in which each instrument's dimensions are loadings, cross-instrument links (openness↔politics class) are geometry rather than authored lists, and a new lens is a new set of loadings, not a new silo. To argue: show a concrete consumer (central's combination, the map) that gets a different answer from the joint model than from the shelf.",
+      "detail": "Instruments correlate; scoring them separately throws that structure away and double-counts shared variance when other axioms consume them. The perfect axiom fits one latent trait space in which each instrument's dimensions are loadings, cross-instrument links (openness↔politics class) are geometry rather than authored lists, and a new lens is a new set of loadings, not a new silo. To argue: show a concrete consumer (central's combination, the map) that gets a different answer from the joint model than from the shelf. tst-6 now bounds what 'one' means here: one model between persons, hierarchical within.",
       "sources": [],
       "edges": [{ "to": "cen-1", "type": "supports" }, { "to": "pat-2", "type": "depends" }],
       "created": "2026-08-25",
-      "updated": "2026-08-25"
+      "updated": "2026-08-27"
     },
     {
       "id": "tst-2",
-      "claim": "Passive administration — instruments filled by ordinary answering — is the perfect administration, not a budget compromise.",
-      "status": "argued",
-      "detail": "A sit-down test measures the person in test-taking mode; items encountered as ordinary daily questions measure the person being themselves, across moods and months. Reliability per item may be lower; validity per battery is plausibly higher, and the longitudinal spread is itself data (tst-4). InSight's D121 (instruments fill only from the feed) is the shadow. Open question: which claims here are supported by existing ambulatory-assessment literature — scout and cite.",
-      "sources": [],
-      "edges": [{ "to": "tst-1", "type": "supports" }],
+      "claim": "Passive administration — instruments filled by ordinary answering in the flow of life, on state-worded items — is a measurement-theoretically distinct administration, not a budget compromise: in-the-moment items minimize the recall bias global self-report carries, their aggregates are trait-stable, and the within-person spread they alone can see is a stable individual difference.",
+      "status": "cited",
+      "detail": "Raised argued→cited 2026-08-27; the seed's scout task — which of these claims the ambulatory-assessment literature supports — is answered, and the answer both grounds the node and adds a condition the seed missed. The cited premises: (i) global retrospective self-report is limited by recall bias, and collecting reports on current behavior and experience in the moment, in the person's natural environment, minimizes it while maximizing ecological validity — the defining rationale of ecological momentary assessment and ambulatory assessment (Shiffman–Stone–Hufford 2008; Trull & Ebner-Priemer 2013). (ii) Any single occasion is a poor measure of anything trait-like, and stability arrives through aggregation: averaging over increasing numbers of events raises stability coefficients to high levels across objective behavior, self-ratings and others' ratings (Epstein 1979). (iii) Momentary states vary so widely that the typical person routinely manifests nearly all levels of all traits in ordinary weeks, yet each person's density distribution of states is stable — its central tendency almost perfectly, and its variability, skew and kurtosis as stable individual differences in their own right (Fleeson 2001); and global Big Five scores predict the CENTRE of those distributions well, while their associations with variability, skew and kurtosis largely vanish once the mean and squared mean are controlled, the maximum excepted (Fleeson & Gallagher 2009) — which is exactly why the spread is not recoverable from a sit-down score. THE CONDITION (this run's adversarial pass, made load-bearing rather than hedged): the EMA advantage attaches to the item's REFERENT, not to the answering context. The sources' mechanism is momentary state reports; a global dispositional item ('I keep appointments and rarely run late') answered in a feed is still a global retrospective self-report — it inherits none of (i), and its repeats measure retest variance on a disposition rating rather than (iii)'s state distribution. InSight's current instrument items are global-dispositional (content/tests.json), so D121's passive fold is the delivery half of the perfect form's shadow only; the perfect form re-words instrument items from global-dispositional to momentary-state and lets aggregation (ii) rebuild the trait from states. What stays ARGUED rather than cited, plainly: any superiority claim. None of these sources runs the head-to-head — an EMA-aggregated battery against a single-sitting battery on criterion validity — and the counter-evidence sits inside this very source list: Fleeson & Gallagher show a single-sitting Big Five already predicts the distribution's centre well, so passive administration's incremental value is concentrated in the spread and the trajectory (tst-4), not the mean — which is where a superiority claim must eventually be tested. Per-item reliability in the wild is LOWER (Epstein's curve read from the other end), so the design owes the aggregation it depends on; 'test-taking mode' as a validity threat is likewise still argument here — que-2's response-process frame is where it becomes estimable, and re-served items owe que-2's calibration for retest effects. Verification note: publisher full-text egress-blocked from this container; sources corroborated at search-index/metadata level against at least two independent records each (the questions/body lanes' precedent), and independently re-verified by this run's adversarial pass.",
+      "sources": [
+        "Shiffman S, Stone AA, Hufford MR (2008). Ecological momentary assessment. Annual Review of Clinical Psychology 4:1–32. DOI 10.1146/annurev.clinpsy.3.022806.091415",
+        "Trull TJ, Ebner-Priemer U (2013). Ambulatory assessment. Annual Review of Clinical Psychology 9:151–176. DOI 10.1146/annurev-clinpsy-050212-185510",
+        "Epstein S (1979). The stability of behavior: I. On predicting most of the people much of the time. Journal of Personality and Social Psychology 37(7):1097–1126. DOI 10.1037/0022-3514.37.7.1097",
+        "Fleeson W (2001). Toward a structure- and process-integrated view of personality: Traits as density distributions of states. Journal of Personality and Social Psychology 80(6):1011–1027. DOI 10.1037/0022-3514.80.6.1011",
+        "Fleeson W, Gallagher P (2009). The implications of Big Five standing for the distribution of trait manifestation in behavior: Fifteen experience-sampling studies and a meta-analysis. Journal of Personality and Social Psychology 97(6):1097–1114. DOI 10.1037/a0016786"
+      ],
+      "edges": [{ "to": "tst-1", "type": "supports" }, { "to": "tst-4", "type": "supports" }],
       "created": "2026-08-25",
-      "updated": "2026-08-25"
+      "updated": "2026-08-27"
     },
     {
       "id": "tst-3",
@@ -52,6 +58,45 @@
       "edges": [{ "to": "tst-1", "type": "depends" }],
       "created": "2026-08-25",
       "updated": "2026-08-25"
+    },
+    {
+      "id": "tst-6",
+      "claim": "The tests space embeds in the combination space rather than being identical to it; what identity holds, holds at the level of the latent model, never a published score table; and the joint model is hierarchical — between-person structure does not carry within-person couplings, so cen-1's one coordinate system is two linked geometries.",
+      "status": "argued",
+      "detail": "Answers central's 2026-08-26 question (this lane's QUESTIONS.md) — cen-1 assumed the instrument space and the cross-axiom combination space are one object and invited a counterargument; the answer is a partial fork in three parts, ordered from what survives to what does not. It stands on tst-7's grounded facts and is held at ARGUED per the questions lane's que-5/que-6 precedent: the facts are cited, but their composition into an architecture claim is this lane's own argument, and §4 says the status stays down. (1) EMBEDDING, NOT EXHAUSTION. One instrument-grade model can carry the four instruments, the nine lenses and logic — mixed multidimensional models with a link function per item family over one shared person space are standard machinery, and tst-3's two families are exactly a per-family link choice (que-2's Birnbaum/Samejima frame, widened). But what the test items span is a SUBSPACE of the combination space: other axioms measure dimensions on which every test item loads near zero (bod-6's regulatory-system parameters; cen-3's chronotype candidates), and those coordinates are identified by THOSE axioms' measurement models, not by the instrument. Identifying the combination space with the tests audit layer strictly would either project such dimensions onto instrument-space — loss wearing measurement's clothes — or append coordinates the instrument never identifies, at which point the object is cen-1's joint model rather than the tests instrument. An embedding is precisely not an identity: the tests space is a sub-coordinate-system of the joint space, and que-5 makes the same point from the bank's side. (2) MODEL, NOT SCORE TABLE. Where identity holds, it holds at the level of the latent model, never of a published table of person point-scores: tst-7's second fact (factor-score indeterminacy; the plausible-values remedy) means couplings must be computed through the joint model, never as correlations between columns of point scores — otherwise pat-5's honesty failures are baked into the publication format itself, and pat-2's recompute contract reproduces the artifact faithfully: recomputability guarantees only faithful reproduction of whatever the published form contains. The §9 boundary settles the publication form: what is published is the model plus POPULATION-LEVEL sufficient statistics that reproduce the couplings with their uncertainty (e.g. moment matrices over plausible-value draws, aggregated), never per-person latent draws — §9 forecloses person-level publication of latent estimates, and pat-2's reader-recomputability is satisfied by the aggregate form. (3) THE FORK — BETWEEN IS NOT WITHIN. cen-1 plus pat-3 together imply that within-person couplings (bod-5's frame; tst-4's trajectories) are geometry in the same shared space, and that is the part that does not survive tst-7's first fact: between-person structure generalizes within persons only under rarely-met ergodicity conditions, and within-person variance runs two to four times larger than group-level estimates even where central tendencies show some agreement — means may travel between the two levels; spreads and structure do not. So an audit layer fitted on between-person covariance cannot double as the coordinate system for within-person change: 'has your openness moved' answered by tracking a between-person coordinate silently assumes the cross-level loading invariance that must instead be tested. What this forks in cen-1 is the singular: 'one joint person-model … one published coordinate system' is really TWO linked published geometries — a between-person coordinate system (cen-1's audit layer, intact) and within-person state spaces with their own estimated loadings, joined in one hierarchical model — or it claims ergodicity without saying so. Hence both edges to cen-1: refines for the whole, contradicts scoped to that one component, so the optimizer's health summary surfaces the open fork. To measured: fit within-person loadings on InSight's own repeated measurements and test them against the published between-person loadings — which requires repeated instrument measurements that current serving policy does not produce (D5 is one-answer-per-item; D86 edits overwrite): this run's second REQUESTS row names era-scoped re-serving as the bridge decision that would create the data, and the pulse roster as the only shipped surface with true repeats today.",
+      "sources": [],
+      "edges": [
+        { "to": "cen-1", "type": "refines" },
+        { "to": "cen-1", "type": "contradicts" },
+        { "to": "tst-1", "type": "refines" },
+        { "to": "tst-3", "type": "depends" },
+        { "to": "tst-7", "type": "depends" },
+        { "to": "tst-4", "type": "supports" },
+        { "to": "pat-3", "type": "supports" },
+        { "to": "pat-2", "type": "refines" },
+        { "to": "pat-5", "type": "supports" },
+        { "to": "que-5", "type": "supports" }
+      ],
+      "created": "2026-08-27",
+      "updated": "2026-08-27"
+    },
+    {
+      "id": "tst-7",
+      "claim": "Two grounded facts bound any joint person-model: between-person structure generalizes to within-person structure only under rarely-met ergodicity conditions, and person-level latent scores are indeterminate estimates that secondary analysis cannot consume directly — plausible values are the remedy.",
+      "status": "cited",
+      "detail": "Added 2026-08-27 as the grounded scaffolding under tst-6, per the questions lane's que-5/que-6 precedent (the architecture conclusion stays argued; the facts it composes are cited). FACT ONE — LEVELS. Results from inter-individual variation generalize to intra-individual variation only under strict ergodicity conditions rarely met by real psychological processes (Molenaar 2004); empirically, across six repeated-measures datasets, within-person variance was two to four times larger than the group-level estimate even where central tendencies showed some agreement (Fisher–Medaglia–Jeronimus 2018) — means may agree across levels while spreads diverge. The modeling form: multilevel covariance structure analysis decomposes covariance into within- and between-cluster structure and models them separately (Muthén 1994) — with occasions-nested-in-persons as the nesting this lane needs, a case the framework covers though the paper's own illustration is group-clustered data — and within-person and between-person effects are distinct estimands a longitudinal model must disaggregate (Curran & Bauer 2011). FACT TWO — SCORES. Factor scores are indeterminate — the common-factor model does not fix them uniquely, scoring methods genuinely differ, and unexamined score estimates carried into later analyses are the named hazard (Grice 2001); population statistics over latent variables are exactly where standard secondary-analysis procedures on point estimates stop applying, and the plausible-values remedy — multiple imputation of the latent variable, with variance terms carrying both sampling and latency uncertainty — is the basis of NAEP-style practice (Mislevy 1991; Mislevy–Beaton–Kaplan–Sheehan 1992). Verification note: publisher full-text egress-blocked from this container; every source corroborated at search-index/metadata level against at least two independent records (the questions/body lanes' precedent), mapped claims kept to what those records carry, and the full set independently re-verified by this run's adversarial pass (12/12 across the run exact; zero invented).",
+      "sources": [
+        "Molenaar PCM (2004). A Manifesto on Psychology as Idiographic Science: Bringing the Person Back Into Scientific Psychology, This Time Forever. Measurement: Interdisciplinary Research and Perspectives 2(4):201–218. DOI 10.1207/s15366359mea0204_1",
+        "Fisher AJ, Medaglia JD, Jeronimus BF (2018). Lack of group-to-individual generalizability is a threat to human subjects research. PNAS 115(27):E6106–E6115. DOI 10.1073/pnas.1711978115",
+        "Muthén BO (1994). Multilevel covariance structure analysis. Sociological Methods & Research 22(3):376–398. DOI 10.1177/0049124194022003006",
+        "Grice JW (2001). Computing and evaluating factor scores. Psychological Methods 6(4):430–450. DOI 10.1037/1082-989X.6.4.430",
+        "Mislevy RJ (1991). Randomization-based inference about latent variables from complex samples. Psychometrika 56(2):177–196. DOI 10.1007/BF02294457",
+        "Mislevy RJ, Beaton AE, Kaplan B, Sheehan KM (1992). Estimating population characteristics from sparse matrix samples of item responses. Journal of Educational Measurement 29(2):133–161. DOI 10.1111/j.1745-3984.1992.tb00371.x",
+        "Curran PJ, Bauer DJ (2011). The disaggregation of within-person and between-person effects in longitudinal models of change. Annual Review of Psychology 62:583–619. DOI 10.1146/annurev.psych.093008.100356"
+      ],
+      "edges": [{ "to": "tst-6", "type": "supports" }, { "to": "bod-5", "type": "supports" }],
+      "created": "2026-08-27",
+      "updated": "2026-08-27"
     }
   ]
 }
