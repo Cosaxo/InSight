@@ -33020,17 +33020,36 @@ one of which a guard like this would have inherited — so the record is
 explicit that it complements, and does not replace, the outcome-side
 controls below.
 
-### 3 · What stays console-side, named rather than built
+### 3 · What stays console-side — narrowed the same day to one grant
 
-The **Cloud Billing budget** is still the cheapest control on any page
-and still does not exist in this repo's power to create — the `gcloud`
-one-liner in COSTS.md stands, and the guard's note tells the operator to
-keep the two numbers in step. A **budget → Pub/Sub → function that flips
-`budgetMode` automatically** is the natural next joint and is deliberately
-not built: it needs the budget to exist first, a topic, and a deployed
-function on the `check:appcheck`/`check:deploy-targets`/`check:fn-runtime`
-paths — an evening's work whose shape is now one field-write, recorded
-here so it is built against this record and not re-designed. **App Check
+The **Cloud Billing budget** was "still does not exist in this repo's
+power to create" for the first hours of this record, and the owner's
+follow-up ("can't you fix that or I give you access") closed most of the
+gap the way D303 closed monitoring's: `scripts/apply-budget.mjs`
+(`npm run budget:apply`, or the **Arm budget** workflow so no terminal is
+needed) creates or retunes the budget over the REST Billing Budgets API
+with the deploy credential — dry-run by default, idempotent by display
+name, the figure read from `monitoring/rates.json`'s guard so the two
+thresholds cannot drift, thresholds at 50/90/100/150%, and the project
+filter built from the RESOLVED project number, because the API matches
+`projects/{number}` and a budget filtered to a non-matching string
+tracks $0 forever and never fires (the COSTS.md one-liner carried the id
+form; corrected there). What remains genuinely human is **one grant the
+script cannot make for itself**: `roles/billing.costsManager` on the
+**billing account** to the deploy service account — budgets are a
+billing-account resource, so the project `Editor` that carries every
+other script says nothing here, and the 403 branch prints the role, the
+account and the email verbatim. This session held no Google credential
+(`FIREBASE_SERVICE_ACCOUNT` unset — checked, not assumed), so the first
+real run is the owner's dispatch, or a future session's once the secret
+reaches the Claude environment.
+
+A **budget → Pub/Sub → function that flips `budgetMode` automatically**
+is the natural next joint and is deliberately not built: it needs the
+budget to exist first, a topic, and a deployed function on the
+`check:appcheck`/`check:deploy-targets`/`check:fn-runtime` paths — an
+evening's work whose shape is now one field-write, recorded here so it
+is built against this record and not re-designed. **App Check
 enforcement** (SHIP-CHECKLIST step 4) keeps its standing as the actual
 kill switch and is unchanged by any of this.
 

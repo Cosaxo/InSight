@@ -1,0 +1,107 @@
+# Arm the Cloud Billing budget (D327), from the credential that is already
+# here.
+#
+# WHY THIS EXISTS. docs/COSTS.md has called the budget the cheapest control
+# on its page since 2026-08-01, and on 2026-08-27 it still did not exist —
+# the D303 pattern again: the documented path was a gcloud one-liner behind
+# a login nobody had, and a control that needs a tool nobody is logged into
+# is a control that stays undone. `scripts/apply-budget.mjs` is the same
+# remedy apply-monitoring got: the REST API over FIREBASE_SERVICE_ACCOUNT,
+# dispatched from here so the owner never needs a terminal.
+#
+# THE ONE GRANT THIS CANNOT MAKE FOR ITSELF. Budgets live on the BILLING
+# ACCOUNT, not the project, so the deploy account's `Editor` role says
+# nothing here. If the run fails naming `roles/billing.costsManager`, that
+# is the five minutes that remain human: Console → Billing → Account
+# management → grant that role on the billing account to the service
+# account email the failure line prints. Then re-dispatch.
+#
+# GATED like Arm monitoring, and for the same reason: this CREATES, so it
+# carries `environment: production` — which (measured at D303's workflow)
+# also means it dispatches only from `main`. Not on the deploy path, and it
+# must not become so: a pipeline that can retune a budget can silently
+# retune it out of the way in a deploy that was about something else, and
+# the blast radius is "the invoice is the first notice again".
+
+name: Arm budget
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: "CREATE or retune the budget. Off = report what exists and what would change, touching nothing."
+        type: boolean
+        default: false
+      amount:
+        description: "Monthly figure (integer, billing-account currency). Empty = monitoring/rates.json guard.maxNetBurnUsdPerMonth — the same number the pulse guard reds on."
+        type: string
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+# Two concurrent runs would each see the budget missing and each create one
+# — and two budgets both named InSight double-email forever. Not
+# `cancel-in-progress`, the arm-monitoring reasoning: a killed half-run is
+# worse than a waited-for whole one.
+concurrency:
+  group: arm-budget
+  cancel-in-progress: false
+
+jobs:
+  arm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 22
+
+      - name: Arm
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_PROJECT_ID: prvfire33
+          AMOUNT: ${{ inputs.amount }}
+        run: |
+          # pipefail, for the reason seed-content.yml records: `cmd | tee`
+          # reports TEE's status, so without it a FAILED run is a green job.
+          set -o pipefail
+          # AMOUNT is free text and travels through the environment, never
+          # through expression syntax (the arm-monitoring rule); the script
+          # itself refuses anything that is not a positive integer. `apply`
+          # IS interpolated, safely: type boolean, so only true/false reach
+          # here.
+          ARGS=()
+          [ -n "$AMOUNT" ] && ARGS+=(--amount "$AMOUNT")
+          [ "${{ inputs.apply }}" = "true" ] && ARGS+=(--apply)
+          node scripts/apply-budget.mjs "${ARGS[@]}" 2>&1 | tee "$RUNNER_TEMP/budget.txt"
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Arming the billing budget"
+            echo ""
+            echo '```'
+            cat "$RUNNER_TEMP/budget.txt" 2>/dev/null || echo "(the script did not run — see the step log)"
+            echo '```'
+            echo ""
+            echo "#### Reading it"
+            echo ""
+            echo "\`+ … would create\` / \`~ … would retune\` is a DRY RUN. Nothing was"
+            echo "changed. Re-dispatch with \`apply\` on to do it."
+            echo ""
+            echo "A failure naming \`roles/billing.costsManager\` is the one human step:"
+            echo "grant that role **on the billing account** (not the project) to the"
+            echo "service-account email the line prints, then re-dispatch. Project roles"
+            echo "cannot satisfy it — budgets are a billing-account resource."
+            echo ""
+            echo "A budget notifies; it does not cap (docs/COSTS.md). Its emails go to"
+            echo "the billing account's admins and users — owning the account is the"
+            echo "wiring. The pulse guard stays the early, model-side warning; this is"
+            echo "the invoice-side backstop, and the two read the same figure from"
+            echo "\`monitoring/rates.json\`."
+          } >> "$GITHUB_STEP_SUMMARY"

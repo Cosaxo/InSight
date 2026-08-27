@@ -827,18 +827,35 @@ repository**. No check, test or workflow can see any of them, which is
 D117's checkbox problem pointed at money rather than at deploys. So they
 are written down here, with the arithmetic that says why each one matters.
 
-**1 · A Cloud Billing budget. This does not exist, and it is the cheapest
-thing on this page.** Every other control below is a judgement call; this
-one is five minutes and an email address, and without it the first notice
-of any of the failures this document imagines is an invoice up to thirty
-days later.
+**1 · A Cloud Billing budget. Still the cheapest thing on this page —
+and since D327 the create is one dispatch, with one grant left human.**
+Without it the first notice of any of the failures this document imagines
+is an invoice up to thirty days later. It sat undone for four weeks for
+the D303 reason: the documented path was the gcloud one-liner below,
+behind a login nobody had. `npm run budget:apply` (or the **Arm budget**
+workflow, dispatched from the Actions tab) now creates or retunes it over
+the same REST credential every other operator script uses — dry-run by
+default, idempotent by name, reading its figure from
+`monitoring/rates.json`'s guard so the budget and the pulse guard cannot
+drift apart. What the script cannot grant itself is the one permission
+budgets need: `roles/billing.costsManager` on the **billing account** (a
+project role cannot satisfy it — budgets are a billing-account resource),
+granted to the deploy service account, whose email the refusal prints.
+That grant is the remaining five minutes.
+
+The by-hand alternative, unchanged except for one correction: the filter
+takes the project **number**, not the id — `projects/prvfire33` matches
+nothing, and a budget filtered to nothing tracks $0 forever and never
+fires, which is this page's silent-checkbox failure on the control meant
+to be the backstop. (The script resolves the number itself; that latent
+miss is why it exists rather than a copy of this command.)
 
 ```
 gcloud billing budgets create \
   --billing-account=<ACCOUNT_ID> \
   --display-name="InSight" \
   --budget-amount=50USD \
-  --filter-projects=projects/prvfire33 \
+  --filter-projects=projects/<PROJECT_NUMBER> \
   --threshold-rule=percent=0.5 \
   --threshold-rule=percent=0.9 \
   --threshold-rule=percent=1.0 \

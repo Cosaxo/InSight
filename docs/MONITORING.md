@@ -133,7 +133,11 @@ dashboard hoping to be opened; the message names the levers in order
 (record revenue, pull `npm run budget:mode -- --level 1`, or raise the
 allowance in a commit that says why). It is a model at a measured size,
 never an invoice — the Cloud Billing budget stays the outcome-side
-control, and COSTS.md's controls section still owns that list.
+control, and COSTS.md's controls section still owns that list. Arming
+that budget is one command too since the same record: `npm run
+budget:apply` (or the **Arm budget** workflow) creates it from the
+guard's own figure, and its refusal names the one billing-account role
+that remains a human grant.
 
 The inputs live in `monitoring/rates.json`, because they are the only
 numbers in the whole console that are neither derivable from the repo nor

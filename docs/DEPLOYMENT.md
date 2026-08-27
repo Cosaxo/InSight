@@ -150,11 +150,14 @@ made twice and done never, which is the failure
 `.github/workflows/seed-content.yml`'s header records happening to the
 seed instruction two separate times.
 
-**What the environment gates.** Four jobs — verified rather than assumed,
+**What the environment gates.** Five jobs — verified rather than assumed,
 by grepping `environment: production` across every workflow. It said "two
 jobs, and only two" for as long as there were four: `rebuild-aggregate.yml`
 joined at D290 and `monitoring.yml` at D303, and neither author re-read a
-sentence in a different document that had counted them.
+sentence in a different document that had counted them. (`budget.yml`
+joined at D327, and this sentence moved in the same commit because
+`check:figures` now holds the count — the gate that grew out of exactly
+this paragraph's history.)
 
 | Workflow | Job | What a gate would hold |
 | --- | --- | --- |
@@ -162,6 +165,7 @@ sentence in a different document that had counted them.
 | `seed-content.yml` | `seed` | `seedContentV2` writing `v2_questions` |
 | `rebuild-aggregate.yml` | `rebuild` | `rebuildAggregateV2` overwriting a published aggregate |
 | `monitoring.yml` | `arm` | creating the notification channel, log-based metrics and alert policies |
+| `budget.yml` | `arm` | creating or retuning the Cloud Billing budget |
 
 `ios-release.yml` uses a different environment and is unaffected.
 
