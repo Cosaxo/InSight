@@ -5723,6 +5723,111 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "bg": "Museums have begun returning contested holdings — Germany sent Benin Bronzes back to Nigeria in 2022, and talks over the Parthenon Marbles continue. The universal-museum position holds that one collection shows objects to more of the world."
  },
  {
+  "id": "feed-f107",
+  "surface": "feed",
+  "seq": 148,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A new statue for your town square: an artist, a scientist, an athlete, or nobody?",
+  "options": [
+   "An artist",
+   "A scientist",
+   "An athlete",
+   "Nobody — no more statues"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f108",
+  "surface": "feed",
+  "seq": 149,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Live album, or studio album?",
+  "options": [
+   "Live",
+   "Studio"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl15",
+  "surface": "feed",
+  "seq": 150,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Meals cooked from scratch in a week?",
+  "options": [
+   "0–1 meals",
+   "1–2 meals",
+   "2–4 meals",
+   "4–5 meals",
+   "5–6 meals",
+   "6–7 meals",
+   "7–8 meals",
+   "8–9 meals",
+   "9–11 meals",
+   "11–12 meals",
+   "12–13 meals",
+   "13–14 meals"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 14,
+  "unit": "meals"
+ },
+ {
+  "id": "feed-f109",
+  "surface": "feed",
+  "seq": 151,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Cinema snacks: essential, or a racket?",
+  "options": [
+   "Essential",
+   "A racket"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f110",
+  "surface": "feed",
+  "seq": 152,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your team is losing badly. Stay to the end, or beat the traffic?",
+  "options": [
+   "Stay to the end",
+   "Beat the traffic"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f111",
+  "surface": "feed",
+  "seq": 153,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Voice messages: a gift, or a burden?",
+  "options": [
+   "A gift",
+   "A burden"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,
