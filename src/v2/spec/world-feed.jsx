@@ -641,8 +641,12 @@ class WorldFeed extends React.Component {
     // No crowd on a selfOnly card means no majority to be with.
     if (q.options && typeof val === 'number' && !selfOnly) {
       const counts = q.options.map((o) => o.count);
-      const { p } = wfPcts(counts, val);
-      FEEDREAD.log(id, { maj: p[val] === Math.max(...p) });
+      // COUNTS, not percentages. This one is written into a permanent
+      // per-device log that feeds the Mirror's sparse gate and its
+      // with-the-crowd rate, so a wrong reading here is recorded rather
+      // than merely drawn.
+      const { c } = wfPcts(counts, val);
+      FEEDREAD.log(id, { maj: c[val] === Math.max(...c) });
     }
     // the ripple — where this vote landed on your Mirror. Deliberately on
     // ~45% of answers, chosen by a hash of the id so it is stable per
@@ -1942,7 +1946,7 @@ class WorldFeed extends React.Component {
   // the floor (see renderVote), so every option can carry its own number.
   renderVoteTiles(q, T, big) {
     const mine = this.state.votes[q.id];
-    const { p, total } = wfPcts(q.options.map((o) => o.count), mine);
+    const { p, c, total } = wfPcts(q.options.map((o) => o.count), mine);
     const maxP = Math.max(...p);
     const fresh = this._fresh === q.id;
     const n = q.options.length;
@@ -1991,7 +1995,7 @@ class WorldFeed extends React.Component {
             );
           })}
         </div>
-        {!this.footInstead(q) && this.renderMeta(q, T, big, total, p, mine)}
+        {!this.footInstead(q) && this.renderMeta(q, T, big, total, c, mine)}
       </div>
     );
   }
@@ -2035,12 +2039,17 @@ class WorldFeed extends React.Component {
 
   // one quiet line: the scale of the vote, where you sit, and — briefly — where
   // the answer landed on your Mirror
-  renderMeta(q, T, big, total, p, mine) {
-    const maxP = Math.max(...p);
+  // `c` is the COUNT vector (with the viewer's own +1), not the drawn
+  // percentages. The sentence below claims which side won, and that is a
+  // question about counts: two different counts can round to the same
+  // integer, so reading it off the percentages told a voter whose option
+  // had strictly fewer votes that they were "with the majority".
+  renderMeta(q, T, big, total, c, mine) {
+    const maxN = Math.max(...c);
     const rip = this.state.ripple === q.id ? (WF_BRANCH[q.cat] || 'Interests') : null;
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 18 }}>
-        <span style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>{this.state.editHold === q.id ? 'One change a minute — try again shortly.' : wfFmt(total) + (total === 1 ? ' vote' : ' votes') + (p[mine] === maxP ? ' · with the majority' : ' · you picked the underdog')}</span>
+        <span style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>{this.state.editHold === q.id ? 'One change a minute — try again shortly.' : wfFmt(total) + (total === 1 ? ' vote' : ' votes') + (c[mine] === maxN ? ' · with the majority' : ' · you picked the underdog')}</span>
         {rip && <button onClick={() => NAV.goTab('mirror')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3.2s ease forwards' }}>added to {rip}<span aria-hidden="true">→</span></button>}
       </div>
     );

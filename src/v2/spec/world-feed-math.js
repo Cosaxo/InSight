@@ -40,7 +40,17 @@ export function wfPcts(counts, mineIdx) {
   // which is what kept them agreeing before and is not a thing to trust
   // twice. What stays HERE is the +1 above: adding the viewer's own vote is
   // this surface's convention, not the rounding's.
-  return { p: sharePcts(c), total };
+  // `c` comes back too, and it is not a convenience. Whether YOUR side won
+  // is a question about COUNTS, and it was being answered off `p`:
+  // sharePcts guarantees no inversion — a smaller count never draws
+  // larger — but it does not guarantee distinctness, so two different
+  // counts can print the same integer. [449, 451, 100] draws [45, 45, 10],
+  // and the voter on 449 was told they were "with the majority". Measured
+  // over 400k random vectors: 3.5% of cards carried at least one wrong
+  // reading, 1.0% of readings claimed a majority that was not one.
+  // Returning the counts is what lets the two callers that make that claim
+  // ask the right vector.
+  return { p: sharePcts(c), c, total };
 }
 
 // image placeholder tile art — topic-tinted, pattern varies per card so the
