@@ -175,23 +175,29 @@ consoles, which are not in this repo and never will be.
 
 | Refused | Record |
 | --- | --- |
-| Per-user funnels, session analytics, engagement scoring | **Reversed rung by rung, knowingly, and this row is now the record of the ceiling rather than the refusal**: D268 (server-side derivation), D270 (anonymous device tallies), D271 (per-question counts, aggregate-only), D272 (the uid-keyed day rollup — session analytics per person, scoped: no question id by rules-enforced construction, readable by nobody including the owner, 90-day TTL, erased with the account). What still binds is **D269**: no event streams, no third-party analytics, no per-target reads, no hesitation timing, no anchor or Art. 9 slicing, and the daily and the Mirror never adapt |
-| Retention or engagement sliced by anchor | D8 — the anchors exist; nothing suppresses them since D98 |
-| Anything sliced by political result | D8; GDPR Art. 9 |
-| Skip / pass / hesitation rates | QUESTION-FARM.md, "Deliberately out of scope" |
+| Per-user funnels, session analytics, engagement scoring | **Reversed rung by rung, knowingly, and this row is now the record of the ceiling rather than the refusal**: D268 (server-side derivation), D270 (anonymous device tallies), D271 (per-question counts, aggregate-only), D272 (the uid-keyed day rollup — session analytics per person, scoped: no question id by rules-enforced construction, readable by nobody including the owner, 90-day TTL, erased with the account). What still binds is **D269 as D329 narrowed it**: no raw event streams, no per-target reads, no slicing by a TEST RESULT, no sealed-duel or pre-post content, no coordinates below the presence cell, no pulse cadence, and the daily and the Mirror never adapt |
+| ~~Retention or engagement sliced by anchor~~ | **Lifted, D329.** It was an analytics preference and said so; the owner dropped it. Art. 9 is a different claim and stays below |
+| Anything sliced by the **politics test result** | D8; GDPR Art. 9. Not lifted by D329 and not lift-able by preference |
+| ~~Third-party analytics SDKs~~ | **Lifted, D329** — the refusal, not the paperwork. Shipping one still moves the store forms, `data-inventory.md` and an EEA consent flow together |
+| ~~Hesitation and per-option deliberation timing~~ | **Lifted in one shape, D329**: measured on the device, published only as bucketed counts in the anonymous attention shard (D270/D271). Raw per-event upload is still refused above |
 | **Server-side** per-user content selection, ad targeting profiles | MONETIZATION.md, "Ruled out by standing posture"; narrowed by D163, crossed knowingly at D317 (built D322) — see below |
 
-The second row used to read: "the same suppression that stops a paying city
-identifying a person stops the owner doing it." D98 deleted the suppression,
-so that sentence is now false in both halves, and the row survives for a
-different reason worth stating plainly. Nothing technical stops the owner
-slicing retention by anchor any more — the anchors are public and the fold
-is a query away. What stops it is that **this is an analytics decision, not
-a privacy one**: per-user funnels and engagement scoring are refused
-because they build the behavioural model MONETIZATION.md's standing posture
-rules out, and that refusal has to hold on its own now that no floor is
-carrying it. A guarantee that only survived because a side effect enforced
-it was never a decision; this row is the decision, taken deliberately.
+**The anchor row is struck, and how it died is the useful part.** It once
+read: "the same suppression that stops a paying city identifying a person
+stops the owner doing it." D98 deleted the suppression, so that sentence
+went false in both halves, and the row was rewritten to stand on a
+different footing — *"this is an analytics decision, not a privacy one"*,
+held deliberately rather than as a side effect. That was honest, and it is
+also what made it removable: a preference is exactly the kind of line an
+owner may drop without breaking anything, and at **D329** the owner did.
+Nothing technical ever stopped the slice — the anchors are public and the
+fold is a query away.
+
+**Art. 9 did not move with it**, and the two were bundled in one sentence
+for long enough to read as one rule. Slicing by the politics test result
+needs explicit consent under GDPR Article 9 (D8); no amount of owner
+preference reaches it, and `BREAKDOWN_DIMS` still contains no test result
+of any kind.
 
 **The last row was narrowed on 2026-08-15 (D163), and the word doing the
 work is "server-side".** The owner has decided the app should learn what a person

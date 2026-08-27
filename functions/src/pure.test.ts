@@ -425,15 +425,23 @@ describe("per-anchor breakdowns", () => {
 
   it("folds the closed-vocabulary anchors, and ignores junk buckets", () => {
     const by = {};
-    foldAnchors(by, anchors({ city: "Oslo, NO", profession: "Carpenter" }), 1);
-    // `profession` is still free text up to 80 chars and must never mint a
-    // key. `city` may, since D9 — it comes from a fixed catalogue whose
-    // every entry check-cities.mjs verifies against these same rules.
-    expect(Object.keys(by).sort()).toEqual(["ageBand", "city", "country", "gender"]);
+    foldAnchors(by, anchors({
+      city: "Oslo, NO", profession: "Carpenter", jobField: "Trades, construction & manufacturing",
+    }), 1);
+    // `profession` must never mint a key, and since D328 the reason is no
+    // longer "it is free text" — the profile has offered a <select> for a
+    // long time. It is that the pick list is LONGER than
+    // BREAKDOWN_MAX_BUCKETS, so it is exhaustible; `jobField` is the
+    // derived 20-value bucket that is not, and it is the one that folds.
+    // `city` may mint a key too, since D9 — it comes from a fixed
+    // catalogue whose every entry check-cities.mjs verifies against these
+    // same rules.
+    expect(Object.keys(by).sort()).toEqual(["ageBand", "city", "country", "gender", "jobField"]);
     expect(by).toMatchObject({
       ageBand: { "25-34": { "1": 1 } },
       city: { "Oslo, NO": { "1": 1 } },
       country: { NO: { "1": 1 } },
+      jobField: { "Trades, construction & manufacturing": { "1": 1 } },
     });
 
     // empty, over-long and field-path-hostile values are skipped, not stored
@@ -472,10 +480,23 @@ describe("per-anchor breakdowns", () => {
     expect(breakdownBucket("Women", "gender")).toBeNull();
     expect(breakdownBucket("Doctorate", "education")).toBe("Doctorate");
     expect(breakdownBucket("PhD", "education")).toBeNull();
+    // D328. The near-miss that matters here is a value from the PICK list:
+    // "Retail" is a real thing a user selects, and it is not a bucket —
+    // it maps to "Service & hospitality" on the device before the anchor
+    // is written. A jobField carrying a pick means the derivation was
+    // skipped, and it must fold into nothing rather than mint a 21st
+    // bucket the server never agreed to.
+    expect(breakdownBucket("Service & hospitality", "jobField")).toBe("Service & hospitality");
+    expect(breakdownBucket("Retail", "jobField")).toBeNull();
+    // …including the one pick that could never have been a bucket anyway:
+    // the slash is in the rejected character class (the `Vocational /
+    // trade` bug), which is why it maps to "Self-employed" rather than
+    // being respelled.
+    expect(breakdownBucket("Entrepreneur / self-employed", "jobField")).toBeNull();
   });
 
   it("refuses bucket labels that are keys on Object.prototype", () => {
-    // Four of the six dimensions have no closed vocabulary, and
+    // Two of the eight dimensions have no closed vocabulary, and
     // firestore.rules can only bound an anchor's LENGTH — verified against
     // the real ruleset in the emulator, where an anonymous account creates
     // an answer carrying `anchors: { gender: "__proto__" }` and is allowed.

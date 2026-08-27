@@ -81,7 +81,7 @@ vi.mock("firebase/firestore", () => ({
   // member missing from this mock throws before any case runs. Kept as one
   // block so the next member added to the store lands here in one edit.
   clearIndexedDbPersistence: () => {}, collection: () => {},
-  collectionGroup: () => {}, deleteDoc: () => {}, doc: () => {},
+  collectionGroup: () => {}, deleteDoc: () => {}, deleteField: () => {}, doc: () => {},
   documentId: () => {}, getDoc: () => {}, getDocs: () => {}, limit: () => {},
   onSnapshot: () => {}, orderBy: () => {}, query: () => {}, startAfter: () => {},
   serverTimestamp: () => {}, setDoc: () => {}, terminate: () => {},

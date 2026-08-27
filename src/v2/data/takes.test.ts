@@ -132,6 +132,10 @@ vi.mock("firebase/firestore", () => {
       h.setDocCalls.push({ path: target.path, data });
       return h.setDocImpl ? h.setDocImpl() : Promise.resolve();
     },
+    // D331 — the fsApi surface is destructured whole at boot, so a member
+    // missing here fails every test in the file at getDb rather than at
+    // the call. Sentinel: nothing in takes writes one.
+    deleteField: () => "__delete__",
     deleteDoc: (target: { path: string }) => {
       h.deleteCalls.push(target.path);
       return Promise.resolve();

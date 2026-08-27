@@ -32928,3 +32928,527 @@ constraint. If the closing flow's battery keeps coming back green with
 nothing to say, the cadence dial turns the same way it does everywhere
 else in this program: shrink or retire the flow, and this record is
 where that reversal belongs.
+## D327 · The console kept selling the floor: twelve captions that outlived the arithmetic
+
+**2026-08-27.** **Status:** binding. Found by auditing the tree for
+self-imposed limits at the owner's ask — "what limits has this app set,
+that has been one of the biggest cause of issues" — which is the D98
+question pointed at the present tense rather than at the record.
+
+### The mechanism, for the third time
+
+D296 named this class exactly: `agg.tooSmall === false` survived in
+`question-scorecard.mjs` after D98 stopped writing the field, and
+`undefined === false` reported a confident zero over 108 real answers
+for fifteen days. D296 fixed **the predicate**. It did not sweep **the
+captions**, and there were eleven of them, in two files nothing was
+watching:
+
+| Where | What it said | What is true |
+| --- | --- | --- |
+| `pulse-render.mjs` × 7 | "cleared the k-floor of 5" · "a floor — under-floor questions publish nothing" · "No answers have cleared the k-floor" · "the k-floored public mirror" (×3) · "cards have cleared the floor" | `isScoredAgg = (agg) => !!agg`. There is no floor; a question is scored when somebody answered it |
+| `pulse-collect.mjs` × 3 | the population panel's source string, its metric name and the comment above them | same |
+| `monitoring/rates.json` × 2 | **"a paying city's window is the public k-floored aggregate, enforced by firestore.rules rather than by contract"** | `docs/MONETIZATION.md` retired that pitch in terms: *"any commercial framing that still leans on it is false"* — what bounds a buyer now is **scope**, not arithmetic |
+
+The last row is the one that matters. Nine of the eleven were an owner
+misreading his own instrument; that one was the console restating a
+**sales argument** the canonical document had already deleted, beside a
+`firestore.rules` citation that no longer enforces it.
+
+### Why nothing caught them, and why that is structural
+
+`check:public-copy` is precisely the gate for a surface claiming
+something the server does not do — and its own scope note explains why
+it could not fire here: it covers *"only files whose audience is a user
+or a store reviewer"*, and it deliberately excludes source comments as
+recorded debt. The pulse console's audience is the **owner**. That is a
+third audience the file list never had, so its rendered strings had no
+reader at all, and they outlived the thing they describe by sixteen
+days.
+
+**The comments are still not swept, on purpose.** `check-public-copy.mjs`
+already ruled on that — stale `k-floored` comments "are debt rather than
+a claim to anyone, and sweeping them is a separate job". Only rendered
+output moved here.
+
+### The gate
+
+`scripts/pulse.test.mjs` renders the whole console and asserts six
+retired phrases appear nowhere in the HTML — on the **output**, not the
+source, so a caption reintroduced in a panel this file has no other case
+for still fails. Both banner branches are rendered (`totalAnswers` > 0
+and 0), because the population panel emits one or the other and the
+pre-launch branch is where "No answers have cleared the k-floor" lived.
+Verified to bite: restoring the tile caption fails both cases.
+
+One counter-assertion ships with it. The population figures **are**
+floors — an unanswered question has no aggregate document, so every
+number there understates — and that sentence has to survive a sweep
+aimed at the k-floor. The case pins it, because trading a false claim
+for a missing one is the D183 failure in the other direction.
+
+**The word is not banned.** `pulse-render.mjs:243` says *"the k-floor
+this used to wait out is gone — D98"*, which is the caption doing its
+job; the gate matches claim shapes, not the bare term.
+
+### The twelfth, and it is a document
+
+`docs/FEATURE-COMPLETE.md` §5 listed **"The k-floor restore (D81): the
+paused constants back to five … at launch traction"** among the flips
+that are "built, tested and deliberately off". D98 removed the floor
+outright; `docs/data-inventory.md` has said so in those words since
+("D81's pause was superseded rather than resumed"), and `MONETIZATION.md`
+and `LAUNCH-RUNBOOK.md` each carry an explicit correction. That row did
+not, so the one page compiled to answer *"what is left to do"* carried
+an instruction to reinstate the exact limit D98 was written to delete.
+Struck rather than deleted (D106: a reversal stays visible).
+
+### What this does not do
+
+Three findings from the same audit are recorded here and **not** built,
+because each is a decision or an operator step rather than a stale
+sentence:
+
+1. **Sixteen readiness floors, no union.** `PATTERNS_MIN_POOL` (24×8),
+   `READ_MIN_POOL` (12), `NORM_MIN_PEOPLE` (12), `PEOPLE_MIN_CROWD` (8),
+   `LOGIC_NORMS_MIN_N` (100) and eleven more each gate a surface, each
+   argues honestly that it is a *meaning* floor and not D98's, and no
+   script reads any of them. At the committed scorecard's 24 answers
+   over 20 questions every one is shut, and Patterns is arithmetically
+   unreachable (24 questions × 8 answers ≥ 192). The fix is one
+   readiness reading — which surfaces are open, and what each is waiting
+   for — in `patternsReady.ts`'s shape, one level up. Not built here: it
+   is a feature, not a correction.
+2. **Two answer counts disagree 4×.** D296 read production directly on
+   08-25 and found 108 answers over 104 questions; `content/scorecard.json`
+   generated 08-26 reports 24 over 20. After D296 that is not a gap to
+   assume away, and it needs a production read this branch does not have.
+3. **The contention alert is still unarmed** (D300: 0 of 8 policies
+   live), and it is the recorded precondition for sharding — D7's first
+   wall has no detector. An operator step with credentials, not a code
+   change.
+
+## D328 · Profession becomes a dim, through a field — and the reason it was not one had stopped being true
+
+**2026-08-27.** **Status:** binding. **Owner's call**, in those words:
+*"proffesion should be a dim but not be free text insted a expansive
+list of options."* Follow-on to D8, and the second half of the same
+audit that produced D327.
+
+### The premise, corrected first
+
+D8 excluded `profession` from `BREAKDOWN_DIMS` because it was **free
+text up to 80 chars**, so "every distinct spelling would mint a
+permanent key". That was true when it was written and has not been true
+for a long time: the profile has offered `JOB_OPTS`, a **31-option
+`<select>`**, and `ui/LiveProfileSetup.tsx` asks it with the same list.
+
+Three live comments still stated the retired reason — `data/cohort.ts`,
+`spec/map-group-stats.js`, `data/sponsored.ts` — and so did a test
+fixture's note in `functions/src/pure.test.ts`. The owner's instruction
+was to replace free text with a list. **The list was already there.**
+
+**What actually blocked the dim is arithmetic**, and it is the rule
+`check:anchors` states in capitals: a closed vocabulary makes a
+dimension unexhaustible only when it is **SHORTER than
+`BREAKDOWN_MAX_BUCKETS`**, because then there are fewer legal buckets
+than slots. 31 > 24. A 31-value dimension can be filled by a caller
+sending *legal* values, which is the property closing a vocabulary was
+supposed to buy.
+
+And one of the 31 could never have been a bucket at all:
+`Entrepreneur / self-employed` carries a slash, which is in
+`breakdownBucket`'s rejected character class — the `Vocational / trade`
+bug (D97-era, closed by `check:anchors` rule 3) sitting unfired in a
+second list, because that list was never paired.
+
+### The decision
+
+**The pick and the bucket become two anchors**, which is exactly the
+pair `age` and `ageBand` already are, and for the identical reason —
+the rules comment on `age` has said it since D155: *"~80 distinct
+values would blow BREAKDOWN_MAX_BUCKETS on its own, which is why the
+band exists and stays."*
+
+| | what it is | is it a dim |
+| --- | --- | --- |
+| `profession` | what a person PICKS, `JOB_OPTS`. What a screen naming a **person** prints — "Ceramicist, 29" | no, and cannot be |
+| `jobField` | the derived bucket, `JOB_FIELDS` — **20 values** | **yes** |
+
+**This is what makes the list expansive rather than what limits it.**
+Today the pick list is capped at 31 by the very cap this removes: a
+32nd option is free now, and a 300th, because the aggregate never sees
+the pick. The follow-on the owner's word points at — a genuinely large
+catalogue behind a search picker, `check:cities`' shape — is now a
+content job with no schema in its way. It is **not** built here.
+
+Twenty, against a cap of 24. The four spare slots are deliberate: the
+unexhaustibility argument has to survive the list growing, and a
+vocabulary that reached the cap would lapse silently while every other
+rule still passed.
+
+### Where the seam is held
+
+- `check:anchors` gains the pair (`jobField` ↔ `JOB_FIELDS`) and **four
+  new rules the vocabulary checks could not see**: every `JOB_OPTS`
+  entry maps somewhere; every mapping targets a declared field; no
+  mapping is orphaned; no field is unreachable. The gate's own rule 5
+  would have caught a vocabulary added without a pair, so the two halves
+  now defend each other. Verified to bite by deleting one mapping.
+- `test/job-field.test.ts` holds the **wiring**, which is source the
+  gate cannot read: that `anchorsFrom` actually calls the derivation,
+  and that no pick can reach the aggregate as its own bucket. A profile
+  emitting `profession` and no `jobField` is the D258/D285 silence —
+  the answer writes, the dimension never fills, nothing goes red.
+- `jobFieldOf` returns `''`, **not `'Other'`**, for a value it does not
+  claim to have grouped. A profile written before today holds a string
+  nobody mapped (the seeded persona's *"Editor · independent press"* is
+  one in the tree); filing it under Other would report a cohort
+  membership nobody chose. Old answers keep their frozen anchors and
+  fold into no `jobField` bucket, which is what "not measured" looks
+  like everywhere else here.
+
+### Two consequences, stated rather than discovered later
+
+1. **Ad targeting does NOT widen.** `AUDIENCE_DIMS`
+   (`functions/src/paid.ts`) enumerates its seven rather than deriving
+   them from `BREAKDOWN_DIMS`, so `jobField` is a Mirror dim and not a
+   purchasable audience. That was luck, not design, and it is now
+   written down as design: buying the attention of people by their
+   occupation is a different product from showing how occupations
+   split, and it is a decision to take on its own evidence, not a side
+   effect of this one.
+2. **The setup screen's counter is the thing that tells on a new
+   derived key.** `LiveProfileSetup` reads "Save N of 7" over seven
+   questions, and read "1 of 8" the moment `anchorsFrom` grew a key —
+   caught by that file's own test, whose comment had predicted exactly
+   this ("counting them would tell the reader they have filled in
+   fields they were never shown"). `DERIVED` now names three.
+
+### The document does not grow
+
+Eight dims × 24 buckets × 20 options ≈ 3.8k integers worst case, against
+Firestore's 1 MiB. The **cap** is what bounds the document, so a new
+dimension costs one dimension's worth and nothing more — D7's per-question
+write ceiling is untouched, because the slices ride the transaction
+`v2_aggs_private/{qid}` already performs.
+
+**Green at commit:** `test:unit` (2153), functions (419), `test:rules`
+(152, with a new case pinning the 40-char cap and the longest real
+value at 36), `test:scripts` (495), `tsc -b`, eslint, `check:anchors`,
+`check:data-inventory`, `check:docs`, `check:figures`, `check:globals`.
+
+## D329 · Three of D269's seven refusals are lifted, and the bundle becomes a list
+
+**2026-08-27.** **Status:** binding. **Owner's call**, on reading D269's
+ceiling: *"i think this can be removed dont understand why it is here."*
+Three of the seven are dropped; four stand; the row stops being one
+sentence.
+
+### Why it read as arbitrary, which is the finding under the decision
+
+D269 recorded **seven refusals in one bullet** whose justifications have
+nothing to do with each other — one is GDPR, one is the Mirror's
+arithmetic, one is a hosting bill, and three were preferences. A reader
+meeting that as a single line cannot tell which is which, so the whole
+row reads as taste and gets challenged whole. It is the same failure
+D327 swept in the other direction: a claim whose reason has quietly
+stopped matching it.
+
+### Lifted, each on its own reason
+
+- **Third-party analytics SDKs.** D269's argument was provability —
+  outside `deleteAccount`, outside the emulator suites, outside
+  `firestore.rules`. That still describes an SDK accurately; what
+  changed is what breaking it *costs*. **D314 retired the no-tracking
+  promise** eight days ago, so the refusal no longer stands on a public
+  pledge. Lifting it ships nothing: an SDK still moves the App Store
+  nutrition label, Play Data Safety (`check:store-forms`),
+  `data-inventory.md`'s "not collected", an EEA consent flow and ATT on
+  iOS — together, in one change, as D314 said. **The paperwork is the
+  real gate and it is untouched.** Sentry stays what it is
+  (crash-scoped, D76/D211).
+- **Engagement sliced by anchor.** `MONITORING.md` had already conceded
+  this one in writing: *"this is an analytics decision, not a privacy
+  one"*, held deliberately once D98 removed the floor that used to
+  enforce it. A preference stated as a preference is exactly what an
+  owner may drop, and nothing technical ever stopped the query.
+- **Hesitation and per-option deliberation timing, in ONE shape.**
+  Measured on the device, published only as **bucketed counts inside the
+  anonymous attention shard** — the rung-1 mechanism D270 built and D271
+  already used to narrow the skip/pass refusal on identical terms. This
+  is an application of the ceiling, not a hole in it: **raw per-event
+  upload stays refused**, and no timing is ever written on an answer.
+
+### Standing, and why each is not a preference
+
+- **Per-target reads** (who viewed whom) — the flag-authorship deny's
+  anti-retaliation reasoning applied to viewing.
+- **Raw event streams** — two orders of magnitude more writes than the
+  app. A bill, not a value, and it stands on D7's arithmetic alone.
+- **Sealed duels before reveal; keystrokes, drafts, free text before
+  posting; coordinates below the presence cell** — game integrity and
+  physical safety, the one thing D98 explicitly kept.
+- **Slicing by any TEST RESULT** — GDPR Art. 9 for the politics result
+  (D8: *"it needs explicit consent, not a silent anchor inferred from a
+  test result"*). **This did not move with the anchor row**, and the two
+  sat in one sentence long enough to read as one rule. `BREAKDOWN_DIMS`
+  contains no test result of any kind and this does not change that.
+  Owner preference does not reach a consent requirement.
+- **The daily and the Mirror never adapting to any of it** — the
+  load-bearing one, and it is not a privacy rule at all. If people were
+  served different questions, "70% chose X" would describe the people
+  shown the question rather than the population
+  (`SCALE-PLAN.md` §1's sample-bias argument, D128/D163's invariant).
+  Removing it would not unlock a feature; it would make every number in
+  the Mirror indefensible.
+
+### What this record does not do
+
+**Nothing is built.** This lifts three refusals and ships no SDK, no
+anchor-sliced report and no timing. Each is now an ordinary product
+decision with a cost, rather than a line that has to be reversed first —
+the D163 posture ("binding, not built").
+
+**D269 is not edited.** Its text stands as recorded; this narrows it,
+the way D163 narrowed `MONITORING.md`'s row and named itself a partial
+reversal for doing so. The live documents move:
+`MONITORING.md` § Off the table, `ENGAGEMENT-PLAN.md` §4.4 and §8,
+`ATTENTION.md`'s refusal table.
+
+**`web/privacy.html` does not move, and that is a check rather than an
+omission.** The page DESCRIBES today — "no advertising identifiers and
+no third-party analytics SDK" — under D314's forward clause, *"If any of
+that changes, this page changes first."* Lifting the refusal changes no
+practice, so the description stays true and `check:policy-claims` stays
+green. The day an SDK actually ships, that page moves first, by its own
+sentence.
+
+## D330 · The political consent is asked at the start, on D151's screen, and it is an ask rather than a wall
+
+**2026-08-27.** **Status:** binding as a decision, **not built**. **Owner's
+call**: *"it should just be a consent from the start of the app cause its a
+core functionality."* Follow-on to D8's Art. 9 exclusion and D329's split
+of D269.
+
+### The owner is right, and the repo already argued it
+
+D151 put the anchors on a start-of-app screen for a mechanism reason, not
+a convenience one: *"an answer cannot be re-filed."* An anchor missing at
+vote time is missing from that answer forever, so asking late produces a
+first week that contributes to nothing.
+
+**Consent has the identical shape one field over.** An answer given
+without consent cannot be retroactively consented into a published slice,
+and an answer given under consent has to be removable when the consent
+ends. Asking at the first political card would leave every account with a
+mid-flow interruption and a decision taken in one tap while reaching for
+something else. So it goes where D151's questions go — asked once, at the
+top, where answering costs a minute and not answering costs nothing yet.
+
+### The one constraint, and D151 states it in the app's own words
+
+**"It is an ask, not a wall."** Here that is not only the house posture
+(D3's anonymous-first, "never a wall") — it is the condition that makes
+the consent valid at all. GDPR Art. 7(4) says consent is not freely given
+where access to the service is conditioned on processing that is not
+necessary to provide it. **A consent you cannot decline is not consent**,
+and a wall would therefore destroy the very thing this record is trying to
+obtain.
+
+**"Core functionality" does not force a wall, and the arithmetic says so:
+10 of the 278 questions in the live bank carry the political marker.** The
+daily, the feed, the Mirror's seven stops, duels, Circle and Patterns all
+work untouched without them. So declining leaves a working app — which is
+precisely what makes accepting free. The owner's instinct and the legal
+test agree; what they require is that the **no** branch be real rather
+than nominal.
+
+### What the consent actually covers, which is not the cards
+
+The cards are the visible half and the smaller one. `syncPassiveResults`
+(`src/v2/data/live.ts`) folds ordinary feed answers into
+`testResults.political` and writes a six-axis political coordinate onto
+the **world-readable** profile, automatically. `MIN_AXIS_ITEMS = 2` over
+six axes means roughly a dozen feed cards produce a published political
+position, with no act by the user and no screen that says so.
+
+That is an **inference this app computes and publishes**, and it is the
+thing consent has to cover. It is also why Art. 9(2)(e) — data
+"manifestly made public by the data subject" — is not available as a
+basis: nobody manifestly makes public a coordinate they have never seen.
+
+**So the gate is both halves, and both are refusals to COMPUTE rather than
+to show:** without consent the political cards are not dealt, and
+`testResults.political` is not written. Hiding a value that exists is the
+D327 failure — a surface saying something the server does not do.
+
+### The shape
+
+- **Where:** `ui/LiveProfileSetup.tsx`, as its own item after the anchors.
+  It inherits D151's four rules unchanged — does not block, does not ask
+  twice, no free text, no vocabulary of its own.
+- **The pitch is the mechanism, not a benefit** (D151's rule): what the
+  answers become and who can read them, never "personalise your
+  experience", which would be a lie here exactly as it was there.
+- **Two buttons of equal weight** — same size, same border, neither in the
+  accent colour. A green primary beside a grey link is a nudge, and a
+  nudged consent is not freely given. This is a `check:a11y`-adjacent
+  claim about hierarchy and wants its own assertion.
+- **Storage:** `v2_users/{uid}.consent.political = { v, at, off? }` on the
+  profile document `hydrate()` already fetches, so it costs **zero extra
+  reads**. `v` versions the ASK — reword it materially, bump it, everyone
+  at the old version is asked again. `off` is present-or-absent rather
+  than a boolean, because a boolean filter drops every document that lacks
+  the field. The record survives withdrawal: Art. 7(1) wants you able to
+  show consent was obtained and when it ended.
+- **Not offered below 16**, and the cards are not dealt. Self-declared,
+  unverified, and the page says so.
+- **Withdrawal**, which is the part that is assumed impossible and is not:
+  `rebuildAggregateV2` (`functions/src/replay.ts`) already rebuilds a
+  published aggregate from the answers with a uid `exclude` set. Withdrawal
+  is delete the answers, delete the compass, queue the political qids, drain
+  nightly. The machinery exists; it needs a queue and a schedule.
+
+### Not built, and the three things that gate it
+
+This records the decision and the design. Nothing ships here, in the D163
+posture (binding, not built), because three questions are genuinely a
+lawyer's and one of them is urgent:
+
+1. **The paid report already sells political axis-band cuts** (D254,
+   `scripts/report-lib.mjs`). Data gathered before any consent existed
+   cannot simply carry into a commercial product on the strength of a
+   consent given later. **This is the most urgent of the three and it is
+   about data already held**, not about anything built here.
+2. **Whether the political answers already collected are lawful** under
+   D98's public-answers posture, pre-consent. That decides whether what is
+   already in production can stay.
+3. **The age floor per market** — 13 in Norway, 15 in France, 16 in
+   Germany and Ireland. A single global 16 is the safe intersection at a
+   product cost; whether to take that cost is a decision, not a lookup.
+
+### Two things to fix in the same change, whenever it comes
+
+- **`anon` is dead schema.** It sits on `firestore.rules`' write allowlist
+  for `v2_users` with no writer, no reader, no validation and no test — the
+  D258/D280 shape, a field the rules admit that reaches nobody. It reads
+  like an anonymity toggle and there is no anonymity toggle. Take the key
+  off the allowlist rather than leaving something that looks like a
+  feature.
+- **`web/privacy.html` currently offers a feed pass as a privacy control**
+  — *"If you would rather that were not public, skip them."* A pass is a
+  `localStorage` list swept by the purge, and it is not available on the
+  daily card at all. It is not a control, and the page must stop offering
+  it as one; retire the sentence with a `check:public-copy` RETIRED row.
+
+## D331 · The political compass waits for a yes, and the toggle governs whether it is COMPUTED
+
+**2026-08-27.** **Status:** binding, **built**. **Owner's call**, reporting
+a legal answer obtained outside this repo: *"the answer was that it was
+fine legally as long as there is a toggle on political test to not show
+it."* Builds D330's design; supersedes its "not built" status and drops
+two of its three lawyer blockers as answered by the owner.
+
+### The one engineering decision the instruction leaves open
+
+The advice says a toggle "to not show it". Taken literally as a DISPLAY
+toggle it cannot be implemented honestly: `testResults.political` is
+written to `v2_users/{uid}`, which every signed-in user may read since
+D98. Hiding it on the owner's own screen would leave the coordinate
+world-readable behind a switch reading off — a surface saying something
+the server does not do, which is exactly D327, and not the control anyone
+asking for a toggle means.
+
+**So the toggle governs whether the coordinate is COMPUTED AND PUBLISHED.**
+The gate is a `continue` inside the fold, not a branch in a renderer.
+
+### What actually gets gated, and it is the small half that is visible
+
+Ten of the 278 live-bank questions carry the political marker; those cards
+are ordinary public answers and D331 does not touch them. The half that
+needed the control is derived and invisible: `syncPassiveResults`
+(`data/live.ts`) folds ordinary feed answers into `testResults.political`
+and publishes a six-axis coordinate, and `MIN_AXIS_ITEMS = 2` over six
+axes means roughly a dozen feed cards produce a published political
+position, with no act by the user and no screen that ever said so.
+
+**The default is OFF**, which closes the window between install and the
+ask rather than shrinking it.
+
+### As built
+
+- `data/politicalConsent.ts` — the record (`{ v, at, off? }`) and four
+  pure predicates. `off` is present-or-absent rather than a boolean, the
+  absence shape D258 and D328 were both bitten by. A withdrawal KEEPS the
+  row: Art. 7(1) wants the controller able to show consent was obtained
+  and when it ended, and deleting it would destroy the evidence that the
+  withdrawal was honoured.
+- **`v` versions the ASK.** Reword what is being agreed to, bump it, and
+  everyone at the old version is asked again while publishing stops in the
+  meantime. A record from a NEWER build still publishes — refusing there
+  would blank the compass of everyone mid-rollout.
+- `LIVE.setPoliticalConsent(on)` — one `setDoc(merge)` carrying the record
+  AND, when off, `deleteField()` on the coordinate. One write, so a
+  partial failure cannot leave the state that says private over data still
+  published.
+- **The ask is on `LiveProfileSetup` (D151's screen), recorded on the
+  TAP.** A consent is its own act, not a field on a form: someone who taps
+  "Not these" and then "Skip for now" has decided, and losing that to a
+  dismissed screen re-asks them tomorrow, which is how a refusal becomes a
+  nag. It is outside the anchor grid and outside `filled` — counting a
+  consent in "Save N of 7" would file it as a demographic.
+- **Two buttons of equal weight**, neither the page's filled primary. A
+  coloured yes beside a grey no is a nudge, and a nudged consent is not
+  freely given — it would cost the app the thing the ask exists to obtain.
+- The account row carries the same two-tap arm-then-fire shape as *Delete
+  everything*, because it deletes something. Turning it ON is one tap: a
+  confirmation in front of a harmless action teaches people to tap through
+  the one in front of a harmful one.
+- **`anon` is off the rules allowlist.** It had sat there since the v2
+  profile with no writer, no reader, no validation and no test — and D330
+  was drafted on the belief that it worked. A dead allowlist entry that
+  reads like a feature is worse than no field.
+
+### The test that was wrong three times, and what fixed it
+
+The wiring cases in `vote.test.ts` passed with the gate DELETED, through
+three drafts:
+
+1. invented prompts — `testItemMeta` joins by prompt against a 5-option
+   scale, so they folded to nothing;
+2. two real prompts on one axis — `passiveResult` refuses an instrument
+   whose axes are not ALL behind `MIN_AXIS_ITEMS`, so still nothing;
+3. all twelve, but asserted at boot — the answers have not landed when
+   hydrate's fold runs, so the absence was about ORDERING, not consent.
+
+What closed it is **a positive control**: a case asserting the coordinate
+IS written for a consented account. An absence proves a gate only if the
+thing could have been produced, and without that control the whole block
+was four assertions that the harness cannot fold a political result. Now
+verified both ways — three cases fail with the gate removed, six pass with
+it.
+
+That is the D296 lesson in its own shape: a test that passes for the wrong
+reason is worse than no test, because it is counted.
+
+### What this does NOT settle
+
+The owner's answer covers the toggle. **One question from D330 stands and
+is unchanged**: `scripts/report-lib.mjs` already sells political axis-band
+cuts (D254), and data gathered before any consent existed does not carry
+into a commercial product on the strength of a consent given later. That
+is about data already held, not about anything built here, and it wants an
+answer before the next report ships.
+
+The **under-16 floor** D330 proposed is NOT built. The app is rated 12+/13+
+and `ageBand`'s first bucket is "Under 18"; the owner's answer did not
+address age, and building a floor nobody asked for would be a product
+decision taken by a gate. Recorded as open rather than silently dropped.
+
+**Green:** `test:unit` (2172), functions (419), `test:rules` (153, with
+the consent shape and the `anon` refusal), `test:scripts`, `tsc -b`,
+eslint, `check:anchors`, `check:appcheck`, `check:data-inventory`,
+`check:docs`, `check:figures`, `check:globals`, `check:labels`,
+`check:policy-claims` (four new rows, one per promise on the page),
+`check:public-copy`, `check:purge`, `check:store-forms`.

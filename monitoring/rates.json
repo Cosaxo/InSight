@@ -43,7 +43,7 @@
       "assumedUsdPerUnit": 0,
       "assumedUnits": 0,
       "source": "docs/MONETIZATION.md path 1",
-      "note": "A place-scoped question is an ordinary question with an ordinary aggregate — no code is needed to serve the first buyer. What the buyer gets is the public k-floored aggregate and nothing else."
+      "note": "A place-scoped question is an ordinary question with an ordinary aggregate — no code is needed to serve the first buyer. What the buyer gets is the public aggregate and nothing else."
     },
     {
       "id": "sponsored",
@@ -67,5 +67,5 @@
     }
   ],
 
-  "constraint": "Users never pay, with money or with their identity, and the sold split is the same honest floored number every user sees for free. There is no premium data tier to model: a paying city's window is the public k-floored aggregate, enforced by firestore.rules rather than by contract (docs/MONETIZATION.md)."
+  "constraint": "Users never pay, with money or with their identity, and the sold split is the same number every user sees for free. There is no premium data tier to model: a paying city's window is the public aggregate. D98 removed the floor, so what bounds a buyer is SCOPE and not arithmetic — the window is a convenience over data the buyer could read themselves, and any pitch offering more is a new decision (docs/MONETIZATION.md)."
 }
