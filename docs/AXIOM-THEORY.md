@@ -73,6 +73,14 @@ No theory lane implements its own request; no Routine from that branch
 opens PRs or touches `main`. The theory layer proposes; this repo
 disposes.
 
+**Crossings so far:** the two 2026-08-26 worth-building verdicts — the
+pattern lane's standing prequential benchmark and the map lane's
+inter-fit displacement summary — crossed at
+[D325](DECISIONS.md#d325--the-bridges-first-crossing-the-fit-publishes-its-own-scorecard)
+(2026-08-27): the nightly fit publishes both on `v2_patterns/loadings`,
+with the verdicts' conditions (the per-question floor; no rotation
+alignment; the fit-not-Oracle note) carried into the record.
+
 ## The account-side inventory (product-side copy)
 
 All nine fire a **fresh session per run** on model `claude-fable-5`

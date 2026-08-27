@@ -43,14 +43,21 @@ import { readLedgerDay } from "./ledger";
 import {
   PATTERNS_K,
   PATTERNS_MIN_BASIS,
+  emptyDayScore,
   emptyModel,
   emptyUser,
   encodeAnswer,
   foldUserDay,
   publishableLoadings,
+  publishableQuality,
+  displacementSummary,
   readyPool,
+  type PatternsDayScore,
+  type PatternsDisplacement,
   type PatternsModel,
   type PatternsObservation,
+  type PatternsQuality,
+  type PatternsQualityDay,
   type PatternsUserState,
 } from "./patternsFit";
 
@@ -82,8 +89,16 @@ export interface PatternsLedgerEntry {
 export interface PatternsStore {
   /** The ledger entries for one UTC day, oldest first. */
   ledgerDay(dayKey: string): Promise<PatternsLedgerEntry[]>;
-  getModel(): Promise<(PatternsModel & { lastDay?: string }) | null>;
-  putModel(model: PatternsModel, lastDay: string, folded: number): Promise<void>;
+  /** The model, plus the published quality series (D325) so the fit can
+   * append to it rather than restart it every night. */
+  getModel(): Promise<(PatternsModel & { lastDay?: string; series?: PatternsQualityDay[] }) | null>;
+  putModel(
+    model: PatternsModel,
+    lastDay: string,
+    folded: number,
+    quality: PatternsQuality,
+    displacement: PatternsDisplacement,
+  ): Promise<void>;
   getUsers(uids: string[]): Promise<Map<string, PatternsUserState>>;
   putUsers(states: Map<string, PatternsUserState>): Promise<void>;
 }
@@ -103,11 +118,19 @@ export async function runPatternsFit(
   store: PatternsStore,
   nowMs: number,
   eligible: ReadonlySet<string> = PATTERNS_QIDS,
-): Promise<{ days: number; folded: number; users: number; questions: number }> {
+): Promise<{ days: number; folded: number; users: number; questions: number; bits: number }> {
   const yesterday = utcDay(nowMs, -1);
   const floor = utcDay(nowMs, -PATTERNS_CATCHUP_DAYS);
   const model = (await store.getModel()) ?? { ...emptyModel(PATTERNS_K), lastDay: "" };
   const lastDay = model.lastDay ?? "";
+  // The published series this run appends to, and the loadings as the
+  // last run PUBLISHED them (getModel reads the doc, so these are the
+  // 4 dp vectors a returning reader was actually shown) — copied before
+  // the fold mutates them, so the displacement summary (D325) compares
+  // publish to publish with zero extra reads.
+  const priorSeries = model.series ?? [];
+  const prevPub: Record<string, number[]> = {};
+  for (const [qid, L] of Object.entries(model.q)) prevPub[qid] = [...L.v];
 
   // the days still owed, oldest first, bounded by the catch-up window
   const days: string[] = [];
@@ -116,12 +139,18 @@ export async function runPatternsFit(
     if (day > lastDay && day >= floor) days.push(day);
   }
   if (!days.length || yesterday <= lastDay) {
-    return { days: 0, folded: 0, users: 0, questions: Object.keys(model.q).length };
+    return { days: 0, folded: 0, users: 0, questions: Object.keys(model.q).length, bits: 0 };
   }
 
   let folded = 0;
   const touched = new Set<string>();
+  // One tally per owed day (D325) — a day with nothing eligible keeps
+  // its n: 0 row, so the series says "no answers" out loud rather than
+  // skipping the date (the putModel zero-rather-than-nothing idiom).
+  const scored: { day: string; score: PatternsDayScore }[] = [];
   for (const day of days) {
+    const score = emptyDayScore();
+    scored.push({ day, score });
     const entries = (await store.ledgerDay(day)).filter(
       (e) => eligible.has(e.qid) && (e.optionIdx === 0 || e.optionIdx === 1),
     );
@@ -159,15 +188,17 @@ export async function runPatternsFit(
       const obs: PatternsObservation[] = [...seen.entries()].map(([qid, x]) => ({ qid, x }));
       obs.sort((a, b) => (a.qid < b.qid ? -1 : 1));
       const user = states.get(uid) ?? emptyUser(model.k);
-      foldUserDay(model, user, obs);
+      foldUserDay(model, user, obs, score);
       states.set(uid, user);
       touched.add(uid);
       folded += obs.length;
     }
     await store.putUsers(states);
   }
-  await store.putModel(model, yesterday, folded);
-  return { days: days.length, folded, users: touched.size, questions: Object.keys(model.q).length };
+  const quality = publishableQuality(scored, priorSeries);
+  const displacement = displacementSummary(prevPub, model);
+  await store.putModel(model, yesterday, folded, quality, displacement);
+  return { days: days.length, folded, users: touched.size, questions: Object.keys(model.q).length, bits: quality.bits };
 }
 
 /** The Firestore store. State lives in two places, each chosen for its
@@ -192,9 +223,10 @@ export function firestorePatternsStore(db: Firestore): PatternsStore {
         k: (snap.get("k") as number) ?? PATTERNS_K,
         q: (snap.get("q") as PatternsModel["q"]) ?? {},
         lastDay: (snap.get("lastDay") as string) ?? "",
+        series: (snap.get("quality") as PatternsQuality | undefined)?.series ?? [],
       };
     },
-    async putModel(model, lastDay, folded) {
+    async putModel(model, lastDay, folded, quality, displacement) {
       // publishableLoadings rounds to 4 dp — the next run refits from the
       // rounded values, a perturbation orders of magnitude under the
       // step size, and the doc stays small enough to read in one go
@@ -209,6 +241,17 @@ export function firestorePatternsStore(db: Firestore): PatternsStore {
         folded,
         at: FieldValue.serverTimestamp(),
         q,
+        // ── the fit's own scorecard (D325) ─────────────────────────
+        //
+        // Both ride the loadings doc and its one nightly write: the
+        // prequential score (pooled daily series plus the floored
+        // per-question day — patternsFit.PATTERNS_QUALITY_FLOOR has the
+        // floor's why) and the publish-to-publish loading-space
+        // displacement. Zero extra reads, zero extra writes; the client
+        // reads only `k` and `q` and ignores both until something is
+        // built to draw them.
+        quality,
+        displacement,
       });
       // ── the mount signal (D265) ──────────────────────────────────
       //

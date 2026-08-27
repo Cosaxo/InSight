@@ -108,16 +108,58 @@ export function emptyUser(k: number = PATTERNS_K): PatternsUserState {
   return { v: Array.from({ length: k }, () => 0), n: 0 };
 }
 
+// ── the fit's own scorecard (D325) ───────────────────────────────────
+//
+// The standing prequential benchmark the theory layer asked for and the
+// bridge ruled worth-building (axiom-theory bridge/VERDICTS.md,
+// 2026-08-26; adopted at D325): before each observation folds, the model
+// as it stands guesses it, and the surprisal is the fit's own predictive
+// power on record — the number any candidate engine must beat on the
+// same log, and the baseline the portfolio metric is defined against.
+// Prequential-ONLINE: the person's vector updates within the day as the
+// fold proceeds, so each guess is the current model's, exactly as the
+// request words it. It scores THE FIT, not the device Oracle — that
+// solves its own ridge over the published loadings and keeps its own
+// meter; the published doc says so in a `note` field so nobody reads
+// one number as the other.
+
+/** One day's tally: pooled and per-question totals (divide by n for the
+ * mean). Accumulated by foldUserDay when the caller passes one in. */
+export interface PatternsDayScore {
+  n: number;
+  bits: number;
+  perQ: Record<string, { n: number; bits: number }>;
+}
+
+export const emptyDayScore = (): PatternsDayScore => ({ n: 0, bits: 0, perQ: {} });
+
+/** The Oracle's own link and clamps (patternsMap.ts oracleGuess /
+ * surprisalBits), mirrored on purpose: expected encoded answer x̂ read
+ * as P(option 0) = (1 + x̂)/2, clamped to [0.05, 0.95], surprisal in
+ * bits. Same currency as the Oracle meter, so the two numbers compare —
+ * while measuring different models (the note above). */
+export function prequentialBits(xhat: number, x: number): number {
+  const p0 = Math.max(0.05, Math.min(0.95, (1 + xhat) / 2));
+  const p = x === 1 ? p0 : 1 - p0;
+  return -Math.log2(Math.max(1e-6, p));
+}
+
 /**
  * Fold one person's day of observations into the model and their own
  * state. Mutates and returns both (the pure.ts fold convention, so the
  * sweep can keep everything in one pass). Observations are folded in the
  * caller's order; the sweep sorts by qid so a re-run reproduces the run.
+ *
+ * `score`, when passed, is a pure observer (D325): it accumulates each
+ * observation's one-step-ahead surprisal and must never change what the
+ * fold computes — the determinism test pins the model bit-for-bit with
+ * and without it.
  */
 export function foldUserDay(
   model: PatternsModel,
   user: PatternsUserState,
   obs: readonly PatternsObservation[],
+  score?: PatternsDayScore,
 ): { model: PatternsModel; user: PatternsUserState } {
   const k = model.k;
   for (const o of obs) {
@@ -126,6 +168,22 @@ export function foldUserDay(
       L = { v: seedLoading(o.qid, k), n: 0, sum: 0 };
       model.q[o.qid] = L;
     }
+    // θ·L before anything moves — the SGD error below reuses it (the
+    // counters don't touch the vectors, so the value is identical), and
+    // the prequential guess must read the model as it stood BEFORE this
+    // answer arrived: yesterday's marginal, unstepped vectors. One
+    // step ahead or it isn't held out.
+    let dot = 0;
+    for (let i = 0; i < k; i++) dot += user.v[i] * L.v[i];
+    if (score) {
+      const mPrev = L.n > 0 ? L.sum / L.n : 0;
+      const bits = prequentialBits(mPrev + dot, o.x);
+      score.n += 1;
+      score.bits += bits;
+      const t = (score.perQ[o.qid] ??= { n: 0, bits: 0 });
+      t.n += 1;
+      t.bits += bits;
+    }
     // marginal first, then centre — the mean INCLUDES this answer, so a
     // question's very first answer carries no signal beyond existing
     // (r = 0), which is right: one vote says nothing about co-variation.
@@ -133,8 +191,6 @@ export function foldUserDay(
     L.sum += o.x;
     const m = L.sum / L.n;
     const r = o.x - m;
-    let dot = 0;
-    for (let i = 0; i < k; i++) dot += user.v[i] * L.v[i];
     const e = r - dot;
     const eq = patternsEtaQ(L.n);
     for (let i = 0; i < k; i++) {
@@ -208,4 +264,155 @@ export function publishableLoadings(
     out[qid] = { v: L.v.map((x) => Math.round(x * 10000) / 10000), n: L.n };
   }
   return out;
+}
+
+const round4 = (x: number): number => Math.round(x * 10000) / 10000;
+
+/**
+ * The per-question floor on the published daily score (D325 — the
+ * bridge verdict's own condition, not a deferral). Pooled bits publish
+ * from the first observation like every aggregate (D98); a QUESTION's
+ * daily mean publishes only from this many observations, because at
+ * n = 1 the "mean" IS one person's surprisal — and surprisal is the one
+ * number on this doc that cannot be recomputed from public data: it
+ * reads θ·L, a projection of a vector nobody may read (the
+ * v2_users/{uid}/patterns deny). Below the floor a day's answers still
+ * count toward the pooled number and toward nothing else.
+ *
+ * 8 because it is the repo's standing believable-basis figure
+ * (PATTERNS_MIN_BASIS, D265), the same question one level over: a daily
+ * mean over fewer people than a loading needs to be drawable is not yet
+ * a reading of the question.
+ */
+export const PATTERNS_QUALITY_FLOOR = 8;
+
+/** How many pooled day-rows the published series keeps. 90 — the
+ * agg-events ledger's own TTL (D28): the series never remembers longer
+ * than the log it scores, and the doc stays bounded by construction
+ * (~40 bytes a row, ≤ ~4 KB total). */
+export const PATTERNS_QUALITY_DAYS = 90;
+
+/** The clause the bridge verdict requires the publication itself to
+ * carry, so the number cannot be read as the Oracle's. */
+export const PATTERNS_QUALITY_NOTE =
+  "prequential-online log-loss of the nightly fit itself, scored one step" +
+  " ahead as each day folds; the device Oracle's ridge solve is a separate" +
+  " model with its own meter";
+
+export interface PatternsQualityDay {
+  day: string;
+  /** Observations scored that day — the row's basis; 0 says "no eligible
+   * answers" out loud rather than going silent. */
+  n: number;
+  /** Mean surprisal bits per observation (0 when n is 0 — refuse on n,
+   * the app's own idiom). */
+  bits: number;
+}
+
+export interface PatternsQuality {
+  /** The newest day this run scored — the headline row's basis. */
+  day: string;
+  n: number;
+  bits: number;
+  /** Daily per-question means, floored (PATTERNS_QUALITY_FLOOR) — the
+   * floor rides along so the reader knows what absence means. */
+  perQ: Record<string, { n: number; bits: number }>;
+  floor: number;
+  /** Pooled rows, oldest first, bounded to PATTERNS_QUALITY_DAYS. */
+  series: PatternsQualityDay[];
+  note: string;
+}
+
+/**
+ * Assemble the published quality block from this run's day tallies and
+ * the series the doc already carries. `scored` must be non-empty and in
+ * fold order, oldest first (runPatternsFit returns before publishing
+ * when no day is owed).
+ */
+export function publishableQuality(
+  scored: readonly { day: string; score: PatternsDayScore }[],
+  priorSeries: readonly PatternsQualityDay[],
+  floor: number = PATTERNS_QUALITY_FLOOR,
+): PatternsQuality {
+  const rows = scored.map(({ day, score }) => ({
+    day,
+    n: score.n,
+    bits: score.n > 0 ? round4(score.bits / score.n) : 0,
+  }));
+  const series = [...priorSeries, ...rows].slice(-PATTERNS_QUALITY_DAYS);
+  const head = rows[rows.length - 1];
+  const headScore = scored[scored.length - 1].score;
+  const perQ: PatternsQuality["perQ"] = {};
+  for (const [qid, t] of Object.entries(headScore.perQ)) {
+    if (t.n >= floor) perQ[qid] = { n: t.n, bits: round4(t.bits / t.n) };
+  }
+  return { day: head.day, n: head.n, bits: head.bits, perQ, floor, series, note: PATTERNS_QUALITY_NOTE };
+}
+
+/**
+ * How far each question's published loading moved between the previous
+ * publish and this one (D325 — the map lane's request, corrected by its
+ * verdict): plain L2 in LOADING space over the published (4 dp) vectors,
+ * with NO rotation alignment — the fit is one persistent model folded
+ * forward, consecutive publishes share one continuous basis, and a
+ * Procrustes step would subtract real movement from the very number
+ * being measured. `space` states the frame because drawn-plane
+ * displacement is a different number (the client's spring pass and
+ * declutter are nonlinear) and this summary deliberately is not it.
+ *
+ * Summary statistics run over EVERY question present in both publishes,
+ * zeros included — the teleport a returning reader experiences is a
+ * property of the whole map, not of the questions that moved — while
+ * `perQ` lists only the movers, so the doc doesn't carry a page of
+ * zeros. Nearest-rank percentiles: exact, deterministic, no
+ * interpolation to argue about.
+ */
+export interface PatternsDisplacement {
+  space: "loading";
+  /** Questions present in both publishes — the summary's basis. */
+  n: number;
+  /** Of them, how many moved at the publication's own 4 dp precision. */
+  moved: number;
+  mean: number;
+  p50: number;
+  p90: number;
+  max: number;
+  /** The movers only: qid → L2 displacement, 4 dp. */
+  perQ: Record<string, number>;
+}
+
+export function displacementSummary(
+  prev: Record<string, readonly number[]>,
+  model: PatternsModel,
+): PatternsDisplacement {
+  const pub = publishableLoadings(model);
+  const ds: number[] = [];
+  const perQ: Record<string, number> = {};
+  for (const [qid, prevV] of Object.entries(prev)) {
+    const cur = pub[qid];
+    if (!cur) continue; // the model only grows today; belt for a retired qid
+    let s = 0;
+    for (let i = 0; i < cur.v.length; i++) {
+      // both sides at publication precision, so an untouched question is
+      // exactly zero rather than rounding noise
+      const d = cur.v[i] - round4(prevV[i] ?? 0);
+      s += d * d;
+    }
+    const dist = round4(Math.sqrt(s));
+    ds.push(dist);
+    if (dist > 0) perQ[qid] = dist;
+  }
+  ds.sort((a, b) => a - b);
+  const rank = (q: number): number => (ds.length ? ds[Math.min(ds.length - 1, Math.max(0, Math.ceil(q * ds.length) - 1))] : 0);
+  const mean = ds.length ? round4(ds.reduce((a, b) => a + b, 0) / ds.length) : 0;
+  return {
+    space: "loading",
+    n: ds.length,
+    moved: Object.keys(perQ).length,
+    mean,
+    p50: rank(0.5),
+    p90: rank(0.9),
+    max: ds.length ? ds[ds.length - 1] : 0,
+    perQ,
+  };
 }
