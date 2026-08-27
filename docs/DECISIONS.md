@@ -32644,14 +32644,16 @@ intervention protocols. A wider ambition with the boundary left
 pointing at "the aging ambition" would have been the widening done
 badly.
 
-One piece of drift is accepted rather than hidden: the lane's Routine
-prompt still summarizes the old sentence, because prompt edits on a
-Routine that fires into another session (the dispatcher's) are refused
-by the tooling. The charter absorbed exactly this case by design — the
-prompt says in as many words that the charter outranks it and is
-re-read every run — so the widening is effective from the lane's next
-firing. Refreshing the summary text is one edit in the claude.ai
-Routines UI whenever the owner cares to.
+The lane's Routine prompt summary initially kept the old sentence,
+because prompt edits on a Routine that fires into another session (the
+dispatcher's) are refused by the tooling — tolerable by the charter's
+own design (it outranks the prompt and is re-read every run), but
+drift all the same. At the owner's go-ahead the same day, the Routine
+was recreated the way the night shift's was (§2, create before delete)
+with the widened summary: `trig_01Vx4tmhq3EVwySCjSESjrrW`, same
+schedule, same dispatcher binding, same tool grants. The charter's §10
+table moved first (`19c5667`), per its own rule; the retired id was
+`trig_01TcrGm7c7cEsCR1TVg5d8V4`.
 
 ### 2 · The night shift ends at 08:00 with a verified branch, not at 07:00 with a stopped one
 
