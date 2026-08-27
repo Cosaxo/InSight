@@ -2,9 +2,11 @@
 // script survives; THIS file is the live source now, hand-edits and all).
 //
 // CONVERTED off the shared-global bridge (D39): `PASSIVE` is a named export
-// and this file publishes nothing to globalThis. `window.LIVE` stays a
-// global read — data/live.ts's published surface, which is the convention
-// working as intended.
+// and this file publishes nothing to globalThis. The `window.LIVE` read
+// stayed for a while as data/live.ts's published surface — the convention
+// as it stood at D39. live.ts has since grown a default export that the
+// ui/ panels import by name, so the read is an import too (2026-08-27) and
+// the file's last cross-module global reference is gone.
 //
 // This module was the real half of src/v2/README.md's cycle warning, and it
 // was a multi-writer artifact rather than a dependency: its one reference
@@ -13,6 +15,7 @@
 // not loaded. Importing the name from its real owner removed the edge, and
 // converting test-definitions.js made that fallback dead code, so it went too.
 import { IS_TESTS, IS_TEST_RESULTS, TEST_HUE } from './test-definitions.js';
+import LIVE from '../data/live';
 
 // passive-progress.js — progress for the five core tests. Only a test's OWN
 // questions count: they surface as marked cards in the World feed (TEST_FEED_QS)
@@ -39,7 +42,9 @@ export const PASSIVE = (function () {
   // live mode starts every test at its real zero — the stagger exists
   // only so the demo shows all progress states at once
   const SEED = new Proxy(DEMO_SEED, {
-    get(t, k) { return (window.LIVE && window.LIVE.enabled) ? 0 : t[k]; },
+    // `.enabled` is the data condition; the `window.LIVE &&` half was a
+    // load-order guard, dead under an import.
+    get(t, k) { return LIVE.enabled ? 0 : t[k]; },
   });
   let st = load();
   const subs = [];

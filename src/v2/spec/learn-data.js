@@ -12,9 +12,12 @@
 // line above that one — reorder those two and the card bank is silently
 // empty, with no error anywhere. That ordering is now a module-graph
 // guarantee, which is the same fragility the `daily-questions.js` conversion
-// removed for `map-branches.js`. `window.LIVE` in learnMeasured() stays: it
-// is read at CALL time, and it is what the LIVE conversion will take.
+// removed for `map-branches.js`. The `window.LIVE` read this header held
+// open "for the LIVE conversion to take" is taken (2026-08-27): `liveStore`
+// returns the imported binding — the same object, since live.ts assigns
+// `window.LIVE` once from the binding it exports.
 import { sharePcts } from '../data/pct';
+import LIVE from '../data/live';
 // The DEMO SAMPLE, not the bank (D284). This import used to be
 // `learn-questions.json` — the whole thing — so every learn card was
 // compiled into the app and `check:bundle` was about thirty-nine cards from
@@ -142,12 +145,11 @@ export function LEARN_ORDER(card) {
 // this" is a fact and "62%" of an unstated denominator is halfway back to
 // the estimate. The demo build keeps the authored model: there the
 // fabricated crowd IS the content, and there is no aggregate to replace it.
-// The store, read at CALL time. ONE reference site on purpose: this is the
-// file's only shared-global coupling (see the header), so the two readers
-// below go through this rather than each reaching for the name — which is
-// what keeps check:globals rule 4 flat across D149, and leaves exactly one
-// line for the LIVE conversion to take.
-const liveStore = () => window.LIVE;
+// The store, read at CALL time through ONE site on purpose: the two readers
+// below go through this rather than each holding the binding — which kept
+// check:globals rule 4 flat across D149 and made this one line the whole of
+// the file's exit from the coupling map when the conversion came.
+const liveStore = () => LIVE;
 function learnLive() {
   const L = liveStore();
   return !!(L && L.enabled);

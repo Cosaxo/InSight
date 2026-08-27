@@ -20,7 +20,7 @@
 // LEARN_COUNTS is the other half: the reveal shows HOW MANY people picked
 // each option, so the raw counts are carried rather than recovered from a
 // percentage.
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 // Named imports from an untyped .js spec module (D109) — the suppressions are
@@ -34,9 +34,20 @@ interface LearnCard {
   p: number;
   a: string[];
 }
-// `W` survives for `LIVE` alone: learnMeasured() reads it off window at CALL
-// time, which is the seam these cases drive.
-const W = window as unknown as { LIVE?: unknown };
+// learnMeasured() reads the IMPORTED binding since learn-data's 2026-08-27
+// conversion — the seam these cases drive is the module mock below, the
+// same injection the ui/ panel suites use. `W.LIVE = {…}` keeps its shape
+// at every site: the setter swaps the mock's state wholesale (undefined
+// restores demo mode, where `enabled` is absent), so the cases read
+// exactly as they did when window was the seam.
+const LIVE = vi.hoisted(() => ({}) as Record<string, unknown>);
+vi.mock("../data/live", () => ({ default: LIVE }));
+const W = {
+  set LIVE(v: unknown) {
+    for (const k of Object.keys(LIVE)) delete LIVE[k];
+    if (v && typeof v === "object") Object.assign(LIVE, v);
+  },
+};
 
 const card = (LEARN_CARDS as LearnCard[])[0]; // cell1 — correct index 0, 4 options
 
@@ -50,7 +61,7 @@ const LEARN_COUNTS: (c: LearnCard) => { counts: number[]; total: number } | null
 const ALL_CARDS = LEARN_CARDS as LearnCard[];
 
 afterEach(() => {
-  delete W.LIVE;
+  W.LIVE = undefined;
 });
 
 describe("LEARN_SPLIT source seam (D32, as D149 left it)", () => {

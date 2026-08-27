@@ -9,25 +9,29 @@
 // of. Two rules over one cell, one tap apart — verbatim the failure
 // pct.ts's header exists to prevent — and they disagree on about one in
 // eleven cells at three to five options, always by a point.
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { feedInsight } from "../spec/feed-read.js";
 import { sharePcts } from "../data/pct";
 
 // A live vote question and the aggregate the store would hand back for
-// it. `feedInsight` reads `window.LIVE.aggFor`, not the card, so the stub
-// is the aggregate — the shape `agg.by` publishes.
+// it. `feedInsight` reads `LIVE.aggFor` — the imported binding, since
+// feed-read's 2026-08-27 conversion — not the card, so the stub is the
+// aggregate, injected through the module mock the panel suites use.
+const LIVE = vi.hoisted(() => ({}));
+vi.mock("../data/live", () => ({ default: LIVE }));
+
 const q = (counts, cellCounts) => {
   const question = {
     id: "feed-x", live: true, type: "vote",
     options: counts.map((c, i) => ({ id: String(i), label: `Opt ${i}`, count: c })),
   };
-  window.LIVE = {
+  Object.assign(LIVE, {
     enabled: true,
     aggFor: () => ({
       counts: Object.fromEntries(counts.map((c, i) => [String(i), c])),
       by: { ageBand: { "25-34": Object.fromEntries(cellCounts.map((c, i) => [String(i), c])) } },
     }),
-  };
+  });
   return question;
 };
 

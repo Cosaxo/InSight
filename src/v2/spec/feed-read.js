@@ -1,9 +1,14 @@
 // Ported from design/InSight_standalone_13.html (feed-read.js). THIS file is
 // the live source now, hand-edits and all.
-// Cross-module references resolve through the shared global scope and
-// spec-index.js load order is semantic — scripts/check-spec-globals.mjs
-// guards the wiring in CI.
+// OFF THE SHARED-GLOBAL MAP (2026-08-27): both of this file's cross-module
+// reads — window.LIVE and window.PLACES — became the imports below. Both
+// providers assign their global once from the same binding they export
+// (live.ts:  `window.LIVE = LIVE`), so either route reaches the same
+// object and no reader can be left holding a stale one — the D249/rule-6
+// failure this class of conversion has to check for first.
 import { sharePcts } from '../data/pct';
+import LIVE from '../data/live';
+import PLACES from '../data/places';
 
 // feed-read.js — the feed's memory.
 //
@@ -90,8 +95,10 @@ export let feedInsight;
   // question below the floor, a breakdown with nothing surprising in it.
   feedInsight = function feedInsightImpl(q) {
     if (!q || !q.live || !q.options || q.options.length < 2) return null;
-    const L = window.LIVE;
-    const agg = L && L.enabled && L.aggFor ? L.aggFor(q.id) : null;
+    // `LIVE.enabled` is the data condition and stays; the old `L &&` and
+    // `L.aggFor` existence tests were load-order guards on the global,
+    // dead under an import (aggFor is unconditionally on the literal).
+    const agg = LIVE.enabled ? LIVE.aggFor(q.id) : null;
     const by = agg && agg.by;
     if (!by) return null;
 
@@ -139,12 +146,9 @@ export let feedInsight;
     // City and country are stored canonically ("Oslo, NO", "NO") so one
     // cohort is one key worldwide; they read as names only after PLACES
     // turns them back (D9).
-    const P = window.PLACES;
     let label = best.group;
-    if (P) {
-      if (best.dim === 'country') label = P.countryName(best.group);
-      else if (best.dim === 'city') { const pl = P.parse(best.group); if (pl) label = pl.name; }
-    }
+    if (best.dim === 'country') label = PLACES.countryName(best.group);
+    else if (best.dim === 'city') { const pl = PLACES.parse(best.group); if (pl) label = pl.name; }
     return {
       kind: best.kind, group: label, sideIdx: best.sideIdx, dim: best.dim,
       // Rounded once, at the end, and only for the cell that won.

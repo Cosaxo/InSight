@@ -447,11 +447,13 @@ const COUPLING_BASELINE = {
   "src/v2/spec/daily-split.jsx": 29,
   "src/v2/spec/demographics.jsx": 3,
   "src/v2/spec/duo-daily.jsx": 7,
-  "src/v2/spec/feed-read.js": 2,
+  // feed-read.js, learn-data.js and passive-progress.js left the map
+  // 2026-08-27: their only cross-module reads were LIVE/PLACES, which
+  // data/live.ts and data/places.ts export from the same binding they
+  // publish, so the imports reach the identical object.
   "src/v2/spec/group-mirror.jsx": 11,
   "src/v2/spec/group-role-map.jsx": 2,
   "src/v2/spec/learn-bits.jsx": 1,
-  "src/v2/spec/learn-data.js": 1,
   "src/v2/spec/learn-progress.js": 4,
   "src/v2/spec/learn-social.js": 4,
   "src/v2/spec/lens-cards.jsx": 3,
@@ -460,7 +462,6 @@ const COUPLING_BASELINE = {
   "src/v2/spec/map-tab.jsx": 18,
   "src/v2/spec/mirror-field-pops.jsx": 23,
   "src/v2/spec/mirror-tab.jsx": 6,
-  "src/v2/spec/passive-progress.js": 2,
   "src/v2/spec/person-mindmap.jsx": 4,
   "src/v2/spec/person-overlay.jsx": 2,
   "src/v2/spec/profile-general.jsx": 13,
