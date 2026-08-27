@@ -4262,9 +4262,31 @@ const LIVE = {
         const db = await getDb();
         const uid = state.uid;
         if (!uid) return;
-        // merge:false on the nested map would drop the other profile
-        // fields, so the anchors map is replaced wholesale under a merge.
-        await setDoc(doc(db, "v2_users", uid), { anchors: clean }, { merge: true });
+        // `mergeFields`, NOT `merge: true`, and the difference is the
+        // whole reason the persona-residue heal exists twice.
+        //
+        // `merge: true` DEEP-MERGES a nested map: a key absent from
+        // `clean` is left standing on the server. So this write could add
+        // an anchor and change one, and could never REMOVE one — while the
+        // comment that used to sit here said the map was "replaced
+        // wholesale". Its one caller that removes keys is hydrate's
+        // persona-residue heal, which believed its repair was durable; the
+        // fabricated `profession` and `education` a pre-fix build wrote
+        // stayed on the world-readable profile permanently, and the heal
+        // re-fired on every cold boot forever without converging.
+        //
+        // `mergeFields: ["anchors"]` replaces the named field entirely and
+        // leaves every other profile field alone — which is what the old
+        // comment described and the old call did not do. It still upserts,
+        // so a first save on a profile document that does not exist yet
+        // behaves as before. Verified against the emulator both ways;
+        // firestore-tests/rules.test.ts holds the semantics so a future
+        // "simplification" back to merge:true cannot pass.
+        //
+        // (setPoliticalConsent, a few lines down, already knew: it uses
+        // deleteField() precisely because a merge cannot take something
+        // away.)
+        await setDoc(doc(db, "v2_users", uid), { anchors: clean }, { mergeFields: ["anchors"] });
       } catch (err) {
         reportError(err, { where: "saveAnchors" });
       }
