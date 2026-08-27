@@ -2326,6 +2326,164 @@
       "p": 55,
       "k": "Denim: de Nîmes",
       "w": "Serge de Nîmes. Italy is the half-knowledge trap: that city named the jeans — Genoa — not the cloth."
+    },
+    {
+      "id": "sol9",
+      "f": "solar",
+      "q": "Which planet has the most moons?",
+      "a": [
+        "Jupiter",
+        "Saturn",
+        "Neptune",
+        "Uranus"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 38,
+      "k": "Saturn: most moons",
+      "w": "Saturn passed Jupiter in 2023 — well over a hundred confirmed, many just a few kilometres across."
+    },
+    {
+      "id": "sol10",
+      "f": "solar",
+      "q": "The Great Red Spot is…",
+      "a": [
+        "A storm on Jupiter",
+        "A Martian volcano",
+        "A sunspot",
+        "A crater on Mercury"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 62,
+      "k": "Red Spot: Jupiter's storm",
+      "w": "A storm wider than Earth that has been blowing for at least 200 years."
+    },
+    {
+      "id": "sol11",
+      "f": "solar",
+      "q": "Sunlight reaches Earth in about…",
+      "a": [
+        "8 seconds",
+        "8 minutes",
+        "8 hours",
+        "No time at all"
+      ],
+      "c": 1,
+      "t": 3,
+      "p": 55,
+      "k": "Sunlight: eight minutes old"
+    },
+    {
+      "id": "sol12",
+      "f": "solar",
+      "q": "Which planet spins on its side?",
+      "a": [
+        "Uranus",
+        "Mercury",
+        "Saturn",
+        "Venus"
+      ],
+      "c": 0,
+      "t": 3,
+      "p": 45,
+      "k": "Uranus rolls on its side",
+      "w": "Tilted about 98° — likely knocked over by an ancient collision. Venus is the backwards one, not the sideways one."
+    },
+    {
+      "id": "sol13",
+      "f": "solar",
+      "q": "How much of the solar system's mass is the Sun?",
+      "a": [
+        "About half",
+        "About 75%",
+        "More than 99%",
+        "About 90%"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 34,
+      "k": "The Sun is nearly everything",
+      "w": "99.8% — Jupiter takes most of the rest, and every other body shares the crumbs."
+    },
+    {
+      "id": "str9",
+      "f": "stars",
+      "q": "When you look at a distant star, you see it…",
+      "a": [
+        "As it is now",
+        "As it was long ago",
+        "Slightly blurred",
+        "Slightly magnified"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 58,
+      "k": "Starlight is old light",
+      "w": "The light left years — sometimes millennia — ago. Some of those stars no longer exist."
+    },
+    {
+      "id": "str10",
+      "f": "stars",
+      "q": "What is the Sun mostly made of?",
+      "a": [
+        "Oxygen",
+        "Iron",
+        "Molten rock",
+        "Hydrogen"
+      ],
+      "c": 3,
+      "t": 2,
+      "p": 63,
+      "k": "The Sun: mostly hydrogen"
+    },
+    {
+      "id": "str11",
+      "f": "stars",
+      "q": "The brightest star in our night sky is…",
+      "a": [
+        "The North Star",
+        "Sirius",
+        "Venus",
+        "Betelgeuse"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 40,
+      "k": "Sirius outshines Polaris",
+      "w": "Polaris is famous for holding still, not for brightness — it ranks about 48th. Venus is brighter, but it is a planet."
+    },
+    {
+      "id": "str12",
+      "f": "stars",
+      "q": "How many stars can you see at once with the naked eye, from a truly dark place?",
+      "a": [
+        "A few hundred",
+        "A few thousand",
+        "About a million",
+        "Billions"
+      ],
+      "c": 1,
+      "t": 3,
+      "p": 36,
+      "k": "Naked eye: a few thousand",
+      "w": "Around 2,500 at once — the Milky Way's glow is the rest, unresolved."
+    },
+    {
+      "id": "str13",
+      "f": "stars",
+      "q": "What keeps the Sun shining?",
+      "a": [
+        "Nuclear fusion",
+        "Burning fuel",
+        "Gravity alone",
+        "Electricity"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 60,
+      "k": "The Sun runs on fusion",
+      "w": "Hydrogen fusing into helium in the core — not combustion; there is nothing up there to burn."
     }
   ]
 }
