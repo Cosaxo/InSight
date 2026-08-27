@@ -1616,7 +1616,7 @@ async function hydrate(): Promise<void> {
     // What this boot's queries handed back, in the cache's own string
     // form — the write-back below is sized by this, not by the archive.
     const fetchedRows: Array<[string, string]> = [];
-    const fold = (d: { id: string; get: (f: string) => unknown }) => {
+    const fold = (d: { id: string; get: (f: string) => unknown }, raiseEdit = true) => {
       // Catalog answers carry `entity` and rank answers carry `order` —
       // never `optionIdx` (D14/D233). All three join the same map in
       // string form (the entity's digits; the order joined with commas) —
@@ -1638,8 +1638,27 @@ async function hydrate(): Promise<void> {
       }
       const at = d.get("answeredAt") as { toMillis?: () => number } | undefined;
       if (at && typeof at.toMillis === "function") maxTs = Math.max(maxTs, at.toMillis());
-      const et = d.get("editedAt") as { toMillis?: () => number } | undefined;
-      if (et && typeof et.toMillis === "function") maxEditTs = Math.max(maxEditTs, et.toMillis());
+      // THE EDIT WATERMARK IS NOT RAISED BY EVERY PAGE, and which pages
+      // may raise it is the whole correctness of the second delta below.
+      //
+      // A page raises it only if that page is a complete account of the
+      // edits in the range it covers. The cold pull is (it reads every
+      // doc). The edit delta is (it asks for exactly this field). The
+      // ANSWERED delta is not: it returns the docs whose answeredAt moved,
+      // and their editedAt can be far newer than edits on OTHER docs it
+      // never looked at.
+      //
+      // Raising from it therefore skipped real edits. Create N at 09:00,
+      // edit old answer O at 10:00, edit N at 10:05: a second device's
+      // answered delta returns N, lifts this to 10:05, and the edit query
+      // below then asks for `> 10:05` — O's edit is never fetched, 10:05
+      // is persisted, and O shows its pre-edit option on that device
+      // forever. The paragraph at the edit query reasons carefully about
+      // the mirror-image hazard and missed this direction.
+      if (raiseEdit) {
+        const et = d.get("editedAt") as { toMillis?: () => number } | undefined;
+        if (et && typeof et.toMillis === "function") maxEditTs = Math.max(maxEditTs, et.toMillis());
+      }
     };
     // Deliberately UNGUARDED, unlike the reads below. Answers are not
     // decoration: proceeding with a partial vote set makes the app offer
@@ -1678,7 +1697,8 @@ async function hydrate(): Promise<void> {
         where("answeredAt", ">", Timestamp.fromMillis(maxTs)),
         limit(400),
       ));
-      asnap.docs.forEach(fold);
+      // …but NOT the edit watermark: see `raiseEdit` in fold above.
+      asnap.docs.forEach((d) => fold(d, false));
       fetched = asnap.size;
     } else {
       const ANS_PAGE = 1000;
@@ -1694,7 +1714,7 @@ async function hydrate(): Promise<void> {
           ...(after ? [startAfter(after)] : []),
           limit(ANS_PAGE),
         ));
-        page.docs.forEach(fold);
+        page.docs.forEach((d) => fold(d));
         fetched += page.size;
         pages += 1;
         if (page.size < ANS_PAGE) break;
@@ -1716,7 +1736,16 @@ async function hydrate(): Promise<void> {
     // query to hear about it. The watermarks stay per-field on purpose —
     // folding editedAt into maxTs would let an edit's timestamp leap past
     // a concurrent create the answeredAt query has not read yet, and that
-    // answer would then never be fetched. Warm boots only: the cold-cache
+    // answer would then never be fetched.
+    //
+    // AND THE SAME HAZARD RUNS THE OTHER WAY, which the paragraph above
+    // missed: the answered delta above used to raise THIS watermark too,
+    // from the editedAt of whatever docs it happened to return — so an
+    // edit on a doc it did not return could be leapt over and lost for
+    // good. `raiseEdit` in fold is that fix; only a page that accounts
+    // for every edit in its range may move this number.
+    //
+    // Warm boots only: the cold-cache
     // full pull above already reads every doc's current optionIdx (and
     // seeds this cursor through fold()).
     if (maxTs > 0) {
@@ -1726,7 +1755,7 @@ async function hydrate(): Promise<void> {
         limit(400),
       ));
       state.stats.answersFetched += esnap.size;
-      esnap.docs.forEach(fold);
+      esnap.docs.forEach((d) => fold(d));
     }
     const ansMeta: Array<[string, unknown]> = [["answers", { uid: uidA, maxTs, maxEditTs }]];
     if (answersFrom === "idb") {
