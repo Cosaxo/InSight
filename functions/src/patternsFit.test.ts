@@ -1,4 +1,4 @@
-// The fit's contract, pinned three ways:
+// The fit's contract, pinned four ways:
 //
 //   1. DETERMINISM — the same log reproduces the same model bit for bit.
 //      The seed is a hash of the qid and the clock never enters, so a
@@ -11,16 +11,26 @@
 //   3. HONESTY MECHANICS — a question's first answer carries no signal
 //      (r = 0 by construction), the basis count n rides every published
 //      loading, and the marginal is the fit's own running mean.
+//   4. THE SCORECARD (D325) — the prequential score is one step ahead
+//      (the model as it stood before each observation), a pure observer
+//      of the fold, floored per question in what it publishes; the
+//      displacement summary is publish-to-publish, unaligned, and exact.
 import { describe, expect, it } from "vitest";
 import {
   PATTERNS_K,
   PATTERNS_MIN_BASIS,
+  PATTERNS_QUALITY_DAYS,
+  PATTERNS_QUALITY_FLOOR,
+  displacementSummary,
+  emptyDayScore,
   emptyModel,
   emptyUser,
   encodeAnswer,
   foldUserDay,
   loadingCosine,
+  prequentialBits,
   publishableLoadings,
+  publishableQuality,
   readyPool,
   seedLoading,
   type PatternsModel,
@@ -66,14 +76,14 @@ function syntheticDays(people: number, days: number) {
   return { qs, byDay };
 }
 
-function runFit(people: number, days: number): PatternsModel {
+function runFit(people: number, days: number, score?: ReturnType<typeof emptyDayScore>): PatternsModel {
   const { byDay } = syntheticDays(people, days);
   const model = emptyModel();
   const users = new Map<number, ReturnType<typeof emptyUser>>();
   for (const day of byDay) {
     for (const { uid, obs } of day) {
       const u = users.get(uid) ?? emptyUser();
-      foldUserDay(model, u, obs);
+      foldUserDay(model, u, obs, score);
       users.set(uid, u);
     }
   }
@@ -164,5 +174,128 @@ describe("honesty mechanics", () => {
     // One short of the floor is not drawable, at any floor.
     expect(readyPool(model, PATTERNS_MIN_BASIS + 1)).toBe(0);
     expect(readyPool(model, 1)).toBe(2);
+  });
+});
+
+// ── the scorecard (D325) ──────────────────────────────────────────────
+describe("the prequential score", () => {
+  it("a never-seen question against a fresh person is a coin — exactly one bit", () => {
+    const model = emptyModel();
+    const score = emptyDayScore();
+    foldUserDay(model, emptyUser(), [{ qid: "q-new", x: 1 }], score);
+    expect(score).toEqual({ n: 1, bits: 1, perQ: { "q-new": { n: 1, bits: 1 } } });
+  });
+
+  it("reads the marginal one step ahead: with the crowd is cheap, against it is dear", () => {
+    const model = emptyModel();
+    // five people take option 0 — the marginal goes to +1 while the
+    // loading stays near its seed (a zero θ moves nothing but damping)
+    for (let i = 0; i < 5; i++) foldUserDay(model, emptyUser(), [{ qid: "q", x: 1 }]);
+    const withCrowd = emptyDayScore();
+    foldUserDay(model, emptyUser(), [{ qid: "q", x: 1 }], withCrowd);
+    const against = emptyDayScore();
+    foldUserDay(model, emptyUser(), [{ qid: "q", x: -1 }], against);
+    expect(withCrowd.bits).toBeLessThan(1);
+    expect(against.bits).toBeGreaterThan(1);
+    // …and the clamp bounds what one observation can claim, either way
+    expect(against.bits).toBeCloseTo(-Math.log2(0.05), 9);
+  });
+
+  it("mirrors the Oracle's link and clamps", () => {
+    expect(prequentialBits(0, 1)).toBe(1);
+    expect(prequentialBits(0, -1)).toBe(1);
+    expect(prequentialBits(1, 1)).toBeCloseTo(-Math.log2(0.95), 12);
+    expect(prequentialBits(1, -1)).toBeCloseTo(-Math.log2(0.05), 12);
+    expect(prequentialBits(99, -1)).toBe(prequentialBits(1.1, -1));
+  });
+
+  it("is a pure observer — the model comes out bit for bit the same", () => {
+    const plain = runFit(30, 10);
+    const observed = runFit(30, 10, emptyDayScore());
+    expect(JSON.stringify(observed)).toBe(JSON.stringify(plain));
+  });
+
+  it("splits the pooled tally per question without losing a bit", () => {
+    const score = emptyDayScore();
+    runFit(30, 10, score);
+    const perQ = Object.values(score.perQ);
+    expect(perQ.reduce((a, t) => a + t.n, 0)).toBe(score.n);
+    expect(perQ.reduce((a, t) => a + t.bits, 0)).toBeCloseTo(score.bits, 9);
+  });
+});
+
+describe("what the quality block publishes", () => {
+  it("floors the per-question day, pools everything, and bounds the series", () => {
+    const day = emptyDayScore();
+    for (let i = 0; i < PATTERNS_QUALITY_FLOOR; i++) {
+      day.n += 1;
+      day.bits += 1;
+      const t = (day.perQ["q-big"] ??= { n: 0, bits: 0 });
+      t.n += 1;
+      t.bits += 1;
+    }
+    // one answer on q-small: ITS mean is one person's surprisal, so it
+    // reaches the pooled number and nothing else (the verdict's floor)
+    day.n += 1;
+    day.bits += 4;
+    day.perQ["q-small"] = { n: 1, bits: 4 };
+    const prior = Array.from({ length: PATTERNS_QUALITY_DAYS }, (_, i) => ({ day: `d${i}`, n: 1, bits: 1 }));
+    const q = publishableQuality([{ day: "2026-08-26", score: day }], prior);
+    expect(Object.keys(q.perQ)).toEqual(["q-big"]);
+    expect(q.perQ["q-big"]).toEqual({ n: PATTERNS_QUALITY_FLOOR, bits: 1 });
+    expect(q.floor).toBe(PATTERNS_QUALITY_FLOOR);
+    expect(q.day).toBe("2026-08-26");
+    expect(q.n).toBe(PATTERNS_QUALITY_FLOOR + 1);
+    expect(q.bits).toBeCloseTo((PATTERNS_QUALITY_FLOOR + 4) / (PATTERNS_QUALITY_FLOOR + 1), 3);
+    // the series holds its bound: the oldest row fell off the front
+    expect(q.series).toHaveLength(PATTERNS_QUALITY_DAYS);
+    expect(q.series[0]?.day).toBe("d1");
+    expect(q.series[q.series.length - 1]?.day).toBe("2026-08-26");
+  });
+
+  it("a day with nothing eligible publishes its zero out loud", () => {
+    const q = publishableQuality([{ day: "2026-08-25", score: emptyDayScore() }], []);
+    expect(q.series).toEqual([{ day: "2026-08-25", n: 0, bits: 0 }]);
+    expect(q.n).toBe(0);
+    expect(q.perQ).toEqual({});
+  });
+});
+
+describe("the displacement summary", () => {
+  it("measures publish-to-publish movement exactly, movers only in perQ, zeros in the stats", () => {
+    const model: PatternsModel = {
+      k: 2,
+      q: {
+        "q-moved": { v: [0.34, 0], n: 5, sum: 1 },
+        "q-still": { v: [0.1, 0.2], n: 5, sum: 1 },
+        "q-new": { v: [1, 1], n: 1, sum: 1 },
+      },
+    };
+    const d = displacementSummary({ "q-moved": [0.3, 0.03], "q-still": [0.1, 0.2] }, model);
+    expect(d.space).toBe("loading");
+    // q-new has no previous publish to compare against; the two that do
+    // are both counted, the untouched one as a zero the stats keep
+    expect(d.n).toBe(2);
+    expect(d.moved).toBe(1);
+    expect(d.perQ).toEqual({ "q-moved": 0.05 }); // √(0.04² + 0.03²), no alignment
+    expect(d.max).toBe(0.05);
+    expect(d.mean).toBe(0.025);
+    expect(d.p50).toBe(0); // nearest rank: the median question sat still
+    expect(d.p90).toBe(0.05);
+  });
+
+  it("a nudge under the publication's own precision is not a move", () => {
+    const model: PatternsModel = { k: 1, q: { q1: { v: [0.10004], n: 3, sum: 1 } } };
+    const d = displacementSummary({ q1: [0.1] }, model);
+    // 0.10004 publishes as 0.1000 — a returning reader sees no change
+    expect(d.moved).toBe(0);
+    expect(d.max).toBe(0);
+    expect(d.n).toBe(1);
+  });
+
+  it("the first publish has no basis to compare, and says so", () => {
+    expect(displacementSummary({}, emptyModel())).toEqual({
+      space: "loading", n: 0, moved: 0, mean: 0, p50: 0, p90: 0, max: 0, perQ: {},
+    });
   });
 });

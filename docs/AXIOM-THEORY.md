@@ -21,7 +21,7 @@ better understand, and get deeper data about, each other (the owner,
 in every lane (charter §1), with genetic and body explicitly charged
 with theorizing how the other axes' traits map onto genes and onto the
 body's parts and systems. The genetic lane also carries a biology
-ambition, widened by the owner 2026-08-27 (D325): not only what the
+ambition, widened by the owner 2026-08-27 (D326): not only what the
 data could contribute to advancing aging research, but equally to
 genetic engineering and to the general understanding of genetics —
 charter §9 bounds how and widened with it: literature-grounded
@@ -78,6 +78,14 @@ ever cite it. The one legitimate crossing:
 No theory lane implements its own request; no Routine from that branch
 opens PRs or touches `main`. The theory layer proposes; this repo
 disposes.
+
+**Crossings so far:** the two 2026-08-26 worth-building verdicts — the
+pattern lane's standing prequential benchmark and the map lane's
+inter-fit displacement summary — crossed at
+[D325](DECISIONS.md#d325--the-bridges-first-crossing-the-fit-publishes-its-own-scorecard)
+(2026-08-27): the nightly fit publishes both on `v2_patterns/loadings`,
+with the verdicts' conditions (the per-question floor; no rotation
+alignment; the fit-not-Oracle note) carried into the record.
 
 ## The account-side inventory (product-side copy)
 

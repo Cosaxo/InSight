@@ -32771,7 +32771,83 @@ that once refused run 5's own build). None of them reads
 delivery: build 26 carries the iris to TestFlight, and it does so on a
 human's hand-run script rather than on anything this repo can check.
 
-## D325 · The genetic axiom's ambition widens, and the night shift gets a closing hour
+## D325 · The bridge's first crossing: the fit publishes its own scorecard
+
+**2026-08-27.** The owner carried the axiom-theory bridge's two
+worth-building verdicts (`bridge/VERDICTS.md` on the `axiom-theory`
+orphan branch, both ruled 2026-08-26) into the tree, per the crossing
+protocol `docs/AXIOM-THEORY.md` records: a person carries; the governed
+process disposes. This is that record. Both instruments ride the
+nightly fit and its existing publish — zero extra Firestore reads, zero
+extra writes, no client change (the client reads only `k` and `q` off
+the loadings doc), no rules change (the doc was already world-readable,
+written by nobody).
+
+**The prequential score** (`quality` on `v2_patterns/loadings`). As the
+fit folds a day's ledger it now scores each observation one step ahead
+— the model as it stood *before* that answer arrived: yesterday's
+marginal, unstepped vectors — through the device Oracle's own link and
+clamps (`patternsMap.ts`), so the number and the Oracle meter speak one
+currency in surprisal bits. Prequential-ONLINE, as the verdict words
+it: the person-vector updates within the day as the fold proceeds. The
+tally is a pure observer — the determinism test pins the model
+bit-for-bit with and without it. Published: the newest day's pooled
+mean with its basis, a pooled per-day `series` (bounded, below), the
+day's per-question means **floored**, and the `note` clause the verdict
+requires: this measures the FIT, not the Oracle's separate ridge solve.
+
+**The floor, which the verdict made a condition and left this process
+to price.** A per-question daily mean at n = 1 IS that person's
+surprisal — the one number on this doc not recomputable from public
+data, because it reads θ·L, a projection of the private vector under
+the `v2_users/{uid}/patterns` deny. `PATTERNS_QUALITY_FLOOR = 8`: the
+repo's standing believable-basis figure (D265's `PATTERNS_MIN_BASIS`,
+the Oracle's own refusal line), the same question one level over.
+Below it a day's answers reach the pooled number and nothing else.
+Not a D98 reversal: answers stay public and exact from the first vote;
+what is floored is a derived per-person quantity, which D98 never
+published.
+
+**The displacement summary** (`displacement` on the same doc). How far
+each fitted question's published loading moved between the previous
+publish and this one — plain L2 in **loading space** over the 4 dp
+published vectors, compared publish-to-publish off the model the fit
+had already read, with NO rotation alignment: the verdict's own
+correction, read from the shipped code — the fit is one persistent
+model folded forward, so a Procrustes step would subtract real
+movement from the very number being measured. `space: "loading"` is
+stated on the doc because drawn-plane displacement is a different
+number (the client's spring pass and declutter are nonlinear); that
+half stays unbuilt — the layout runs on the device, and porting it
+into the fit to measure it is more product than the verdict asked for.
+Summary stats run over every question present in both publishes, zeros
+included (the teleport a returning reader experiences is a property of
+the whole map); `perQ` lists only the movers.
+
+**The arithmetic.** Series: ≤ 90 rows (`PATTERNS_QUALITY_DAYS`, the
+agg-events ledger's own TTL — the series never remembers longer than
+the log it scores) × ~40 bytes ≈ 4 KB ceiling. Displacement: one 4 dp
+float per *moved* question plus seven summary fields — bounded by the
+core corpus (D161), which is the bank's bounded half. Both ride a doc
+measured at ~11 KB that is read once per session by the Patterns tab
+and once per night by the fit itself; `docs/COSTS.md`'s Patterns row
+(op counts) is unchanged. Compute: the fold already computed θ·L per
+observation; the score reuses it.
+
+**What this buys, per the verdicts.** The engine crossover (pat-6)
+becomes measurable — any candidate engine is judged against the same
+prequential log; the portfolio metric (cen-2) gets the baseline term
+it is defined against; per-question drift becomes detectable (pat-5);
+and map-3's stability thesis gets the number that decides whether
+anchoring work is ever worth proposing. Nothing draws these fields yet;
+they are instruments, and building a reader for them is its own
+proposal.
+
+Measured before the push: 452 functions tests (patterns at 16, fit at
+17 — the scorecard's eleven new), `tsc` clean in `functions/`, and the
+client suites untouched by construction.
+
+## D326 · The genetic axiom's ambition widens, and the night shift gets a closing hour
 
 **2026-08-27.** **Status:** binding — two owner calls made in one
 sitting, both account-side first and recorded here because nothing else
