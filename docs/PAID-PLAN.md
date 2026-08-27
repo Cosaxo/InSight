@@ -326,6 +326,15 @@ everything around the buyer:
   `check:content` refusing a sponsored window longer than a year from
   its start — which means sponsored entries gain an explicit start day
   beside `until`, set at seed time. One field, one gate rule.
+  **Built 2026-08-27, split by the gates' own division of labor**: the
+  start-day requirement landed in `check:content`'s sponsor block as
+  this bullet named, but the length cap landed in `check:quality`
+  (`SPONSOR_WINDOW_MAX_DAYS = 366`, tested) — check-content's own window
+  comment reserves "how long it runs" for that gate, and the
+  current-events 3–21 band there had to be scoped past sponsored slots
+  anyway, or it would refuse the door's own 29-day window. The
+  self-serve path never reaches either bound (`paid.ts` fixes
+  `WINDOW_DAYS` at 29); both arms are for the operator-authored row.
 - **Over-time paid questions ride the pulse machinery** — built at
   D139, designed for exactly this in `NEXT-FUNCTIONALITY.md` §2:
   per-day composite answers, per-day agg docs, the velocity bound's

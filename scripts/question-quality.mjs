@@ -132,6 +132,13 @@ export const NOW_TOPIC = "now";
 export const WINDOW_MIN_DAYS = 3;
 export const WINDOW_MAX_DAYS = 21;
 export const WINDOW_SHORT_DAYS = 7;
+// PAID-PLAN §8's one-year line, held here beside the band it overrides:
+// a sponsored slot's length is a paid TERM, not a currency claim, so the
+// 3-21 "stops being current" band does not apply to it — it would refuse
+// the door's own 29-day slot. The self-serve path cannot even reach this
+// bound (functions/src/paid.ts fixes WINDOW_DAYS at 29); this cap is for
+// the operator-authored row.
+export const SPONSOR_WINDOW_MAX_DAYS = 366;
 
 /** Days served, both ends inclusive. Null unless both ends are real day keys. */
 export function windowDays(from, until) {
@@ -858,7 +865,13 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
       err("window", `a window belongs to the ${NOW_TOPIC} topic or a sponsored slot — an ordinary card that quietly expires is stock a reader cannot account for`);
     }
     const days = windowDays(q.from, q.until);
-    if (days !== null && (days < WINDOW_MIN_DAYS || days > WINDOW_MAX_DAYS)) {
+    if (days !== null && q.sponsor) {
+      // The paid year, not the currency band — see SPONSOR_WINDOW_MAX_DAYS
+      // for why the two bounds are different claims (PAID-PLAN §8).
+      if (days > SPONSOR_WINDOW_MAX_DAYS) {
+        err("window", `the sponsored window runs ${days} days — a paid question runs at most ${SPONSOR_WINDOW_MAX_DAYS} (PAID-PLAN §8)`);
+      }
+    } else if (days !== null && (days < WINDOW_MIN_DAYS || days > WINDOW_MAX_DAYS)) {
       err("window", `the window runs ${days} day${days === 1 ? "" : "s"} (${WINDOW_MIN_DAYS}-${WINDOW_MAX_DAYS}) — shorter polls whoever opened the app that day, longer stops being current`);
     }
     if (q.cat === NOW_TOPIC) {

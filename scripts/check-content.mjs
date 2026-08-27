@@ -202,6 +202,15 @@ for (const q of entries) {
     if (typeof q.until !== "string") {
       errors.push(`${q.id}: a sponsored question carries \`until\` — a paid slot is a window, and an open-ended one is inventory nobody sold`);
     }
+    // PAID-PLAN §8's other half: the one-year line needs a start day to
+    // measure from — `until` alone dates nothing when the open is
+    // whenever the seed happened to run, which is not a term anyone
+    // bought. The length itself is check:quality's (the window comment
+    // above draws that division), which holds sponsored windows to §8's
+    // 366 instead of the current-events band.
+    if (typeof q.from !== "string") {
+      errors.push(`${q.id}: a sponsored question carries \`from\` beside \`until\` — without a start day the window has no length to hold to PAID-PLAN §8's year`);
+    }
     // docs/SCALE-PLAN.md §5: sponsored content lives in the TAIL. A paid
     // question inside the Mirror's corpus makes the honest aggregate a
     // paid-for sample, which is the one asset MONETIZATION.md names.

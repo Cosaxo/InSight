@@ -474,6 +474,17 @@ describe("the current-events window", () => {
     expect(win(nowQ({ cat: "event", sponsor: { buyer: "Ruter" } }))).toEqual([]);
   });
 
+  it("holds a sponsored window to the paid year, not the currency band (PAID-PLAN §8)", () => {
+    const spon = (until) => nowQ({ cat: "event", sponsor: { buyer: "Ruter" }, until });
+    // The door's own 29-day slot and a season both pass — "stops being
+    // current" is a claim about news, not about a paid term…
+    expect(win(spon("2026-09-20"))).toEqual([]);
+    expect(win(spon("2027-06-01"))).toEqual([]);
+    // …and the year is still a wall, so "for as long as you like" is not
+    // a thing the seed path can quietly sell.
+    expect(win(spon("2027-09-30")).length).toBe(1);
+  });
+
   it("points a prediction at the CALL door", () => {
     const call = (prompt) => checkQuestion(nowQ({ prompt }), "feed", corpus).errs.some((e) => e.rule === "call-shape");
     expect(call("Will the talks restart?")).toBe(true);
