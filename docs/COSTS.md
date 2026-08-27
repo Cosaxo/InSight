@@ -822,31 +822,39 @@ is that a fifth one exists and the model is not the thing that will catch
 it. What catches it is a control that fires on the *outcome* rather than on
 the forecast.
 
-There are four such controls, and **not one of them is observable from this
-repository**. No check, test or workflow can see any of them, which is
-D117's checkbox problem pointed at money rather than at deploys. So they
-are written down here, with the arithmetic that says why each one matters.
+There are four such controls, and when this section was written **not one
+of them was observable from this repository** — no check, test or workflow
+could see any of them, D117's checkbox problem pointed at money rather
+than at deploys. Two have since come into reach: the budget (1) answers to
+`budget:apply`'s dry run and the policies (4) to `npm run observe` (D303);
+enforcement (2) and the auth billing mode (3) remain console-only. All
+four stay written down here, with the arithmetic that says why each one
+matters.
 
-**1 · A Cloud Billing budget. Still the cheapest thing on this page —
-and since D327 the create is one dispatch, with one grant left human.**
-Without it the first notice of any of the failures this document imagines
-is an invoice up to thirty days later. It sat undone for four weeks for
-the D303 reason: the documented path was the gcloud one-liner below,
-behind a login nobody had. `npm run budget:apply` (or the **Arm budget**
-workflow, dispatched from the Actions tab) now creates or retunes it over
-the same REST credential every other operator script uses — dry-run by
-default, idempotent by name, reading its figure from
-`monitoring/rates.json`'s guard so the budget and the pulse guard cannot
-drift apart. What the script cannot grant itself is the one permission
-budgets need: `roles/billing.costsManager` on the **billing account** (a
-project role cannot satisfy it — budgets are a billing-account resource),
-granted to the deploy service account, whose email the refusal prints.
-That grant is the remaining five minutes — confirmed real against
-production on 2026-08-27, when the first live run got exactly that 403.
-The same run found and closed a precondition this page did not know: the
-Billing Budgets **API** was disabled on the project, a refusal the
-script's own credential can fix (its `Editor` covers the enable — done)
-and which the 403 branch now tells apart from this grant (D327 §3).
+**1 · A Cloud Billing budget — EXISTS, since 2026-08-27.** "InSight",
+**500 NOK/month** (the billing account bills in kroner; 500 NOK is this
+page's $50 at ~10 NOK/USD, the same threshold in the account's own
+money), thresholds at 50/90/100/150%, filtered to the resolved project
+number. Without it the first notice of any of the failures this document
+imagines was an invoice up to thirty days later. It sat undone for four
+weeks for the D303 reason: the documented path was the gcloud one-liner
+below, behind a login nobody had. `npm run budget:apply` (or the **Arm
+budget** workflow, dispatched from the Actions tab) creates or retunes it
+over the same REST credential every other operator script uses — dry-run
+by default, idempotent by name, reading its figure from
+`monitoring/rates.json`'s guard (`guard.budget` for the account-currency
+figure the budget holds, beside the USD tolerance the pulse reds on) so
+the budget and the pulse guard cannot drift apart. The one permission the
+script could not grant itself — `roles/billing.costsManager` on the
+**billing account** (a project role cannot satisfy it — budgets are a
+billing-account resource), granted to the deploy service account, whose
+email the refusal prints — was the five human minutes, spent 2026-08-27.
+The first live run also found and closed a precondition this page did not
+know: the Billing Budgets **API** was disabled on the project, a refusal
+the script's own credential can fix (its `Editor` covers the enable —
+done) and which the 403 branch now tells apart from the grant (D327 §3).
+The dry run is the standing check, and against production it says
+"exists and matches".
 
 The by-hand alternative, unchanged except for one correction: the filter
 takes the project **number**, not the id — `projects/prvfire33` matches
@@ -870,7 +878,9 @@ gcloud billing budgets create \
 $50 is chosen against the table above, not by feel: the launch sizes model
 at $0–$2/month and 5,000 DAU at $46, so $50 is "traction arrived, or
 something is wrong", and the 150% rule still fires while the number is two
-figures. Raise it when a row of the table becomes real, not before.
+figures. Raise it when a row of the table becomes real, not before. (What
+the budget actually holds is the 500 NOK `guard.budget` records — the same
+threshold in the money the account bills, not a raise.)
 
 **A budget notifies; it does not cap.** There is no spend limit for
 Firestore — the only hard stop is a budget → Pub/Sub → function that

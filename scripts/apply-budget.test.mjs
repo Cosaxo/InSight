@@ -37,11 +37,15 @@ const { privateKey } = generateKeyPairSync("rsa", {
 });
 const SA = JSON.stringify({ private_key: privateKey, client_email: "deploy@prvfire33.iam.gserviceaccount.com" });
 
-// The tree's own figure, read the way the script reads it — retyping 50
-// here would let the two drift, which is the exact failure the shared
-// source exists to prevent.
-const GUARD_AMOUNT = JSON.parse(readFileSync(join(root, "monitoring/rates.json"), "utf8"))
-  .guard.maxNetBurnUsdPerMonth;
+// The tree's own figures, read the way the script reads them — retyping
+// 500 here would let the two drift, which is the exact failure the shared
+// source exists to prevent. budget.amount (the account-currency figure,
+// NOK since the first live apply) wins over the USD tolerance, mirroring
+// the script's precedence; removing guard.budget flips both back to the
+// USD forms, and these assertions will say so.
+const GUARD = JSON.parse(readFileSync(join(root, "monitoring/rates.json"), "utf8")).guard;
+const GUARD_AMOUNT = GUARD.budget?.amount ?? GUARD.maxNetBurnUsdPerMonth;
+const GUARD_CURRENCY = GUARD.budget?.currency ?? "USD";
 
 const NUMBER = "123456789012";
 const BA = "billingAccounts/AAAAAA-BBBBBB-CCCCCC";
@@ -86,7 +90,7 @@ const listedBudget = (over = {}) => ({
   name: `${BA}/budgets/b1`,
   displayName: "InSight",
   budgetFilter: { projects: [`projects/${NUMBER}`] },
-  amount: { specifiedAmount: { currencyCode: "USD", units: String(GUARD_AMOUNT) } },
+  amount: { specifiedAmount: { currencyCode: GUARD_CURRENCY, units: String(GUARD_AMOUNT) } },
   thresholdRules: [0.5, 0.9, 1.0, 1.5].map((p) => ({ thresholdPercent: p })),
   ...over,
 });
@@ -100,7 +104,7 @@ beforeEach(() => {
     [key("GET", BUDGETS)]: { status: 200, body: { budgets: [] } },
     [key("POST", BUDGETS)]: {
       status: 200,
-      body: { name: `${BA}/budgets/b1`, amount: { specifiedAmount: { currencyCode: "USD", units: String(GUARD_AMOUNT) } } },
+      body: { name: `${BA}/budgets/b1`, amount: { specifiedAmount: { currencyCode: GUARD_CURRENCY, units: String(GUARD_AMOUNT) } } },
     },
   };
 });
@@ -144,15 +148,27 @@ describe("apply-budget", () => {
     expect(post.body.thresholdRules.map((t) => t.thresholdPercent)).toEqual([0.5, 0.9, 1.0, 1.5]);
   });
 
-  it("warns when the account bills in another currency", async () => {
-    // 50 NOK standing in for $50 is the trap for exactly this project's
-    // owner; the create must say it, not just succeed.
+  it("the recorded currency comes back as confirmation, not a warning", async () => {
+    // The first live apply recorded the account's NOK in guard.budget; a
+    // warning that fires on the expected currency every run stops being
+    // read, which un-arms it for the day the currency actually changes.
+    const out = await apply(["--apply"]);
+    expect(out).toMatch(new RegExp(`\\(${GUARD_CURRENCY}, as recorded\\)`));
+    expect(out).not.toMatch(/WARNING/);
+  });
+
+  it("warns when the account bills in a currency the guard does not record", async () => {
+    // The original trap, keyed to the record now that one exists: an
+    // unexpected currency is AMOUNT of the wrong money standing in for
+    // the figure the guard means. EUR mismatches whether the tree records
+    // NOK (today) or the record is removed (declared falls back to USD).
     reply[key("POST", BUDGETS)] = {
       status: 200,
-      body: { name: `${BA}/budgets/b1`, amount: { specifiedAmount: { currencyCode: "NOK", units: String(GUARD_AMOUNT) } } },
+      body: { name: `${BA}/budgets/b1`, amount: { specifiedAmount: { currencyCode: "EUR", units: String(GUARD_AMOUNT) } } },
     };
     const out = await apply(["--apply"]);
-    expect(out).toMatch(/NOK — WARNING/);
+    expect(out).toMatch(new RegExp(`EUR — WARNING: the guard records ${GUARD_CURRENCY}`));
+    expect(out).toMatch(/record it in/);
   });
 
   it("is idempotent: a matching budget means zero writes, --apply or not", async () => {

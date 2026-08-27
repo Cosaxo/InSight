@@ -50,11 +50,15 @@
 // apply-monitoring posture.
 //
 // CURRENCY. The API refuses a currency that is not the billing account's,
-// so none is sent and the account's own is what the figure means. The
-// guard's arithmetic is USD; if the account bills in something else the
-// created budget says so in the output and the WARNING below says to
-// re-run with --amount sized for that currency. Erring unhandled would be
-// a 50 NOK budget (~$4.6) silently standing in for a $50 one.
+// so none is sent and the account's own is what the figure means — which
+// the first live apply (2026-08-27) proved matters: this account bills in
+// NOK, so the guard's USD 50 would have stood up a 50 NOK (~$4.6) budget.
+// The figure the budget holds therefore lives in rates.json as
+// guard.budget ({amount, currency} — 500 NOK ~= the guard's $50), this
+// script prefers it, and the output WARNs exactly when the currency the
+// API returns is not the one the guard records — an expected NOK is
+// confirmation, not noise, and a warning printed every run stops being
+// read.
 //
 // Env: FIREBASE_SERVICE_ACCOUNT (the deploy service-account JSON, contents).
 // Node stdlib only, like every other script here that a human runs against
@@ -75,11 +79,21 @@ const PROJECT = argOf("--project") || process.env.FIREBASE_PROJECT_ID || "prvfir
 const NAME = argOf("--name") || "InSight";
 const die = (m) => { console.error(`apply-budget: ${m}`); process.exit(1); };
 
-// The figure: --amount, else the guard's own number. One source (D327's
-// "keep the two in step" made structural) — a budget retuned without the
-// guard, or the reverse, is two thresholds telling two stories about one
-// bill. Integer, because the API's units field is the integer part and a
-// budget with nanos is precision the control does not have.
+// The guard, read once: the figure, and the currency the budget is
+// recorded to bill in.
+const GUARD = JSON.parse(readFileSync(join(root, "monitoring/rates.json"), "utf8")).guard ?? {};
+
+// The figure: --amount, else guard.budget.amount — the ACCOUNT-currency
+// figure, recorded since the first live apply found the account bills in
+// NOK — else the USD tolerance itself. One source (D327's "keep the two
+// in step" made structural) — a budget retuned without the guard, or the
+// reverse, is two thresholds telling two stories about one bill. The
+// units field is in the account's currency, so preferring the USD number
+// on a NOK account would demand a retune from the real 500 back to 50 on
+// every standing dry run — an instruction whose obedient reader shrinks
+// the backstop tenfold. Integer, because the API's units field is the
+// integer part and a budget with nanos is precision the control does not
+// have.
 const AMOUNT = (() => {
   const flag = argOf("--amount");
   if (flag != null) {
@@ -87,10 +101,9 @@ const AMOUNT = (() => {
     if (!Number.isInteger(n) || n <= 0) die("--amount must be a positive integer");
     return n;
   }
-  const rates = JSON.parse(readFileSync(join(root, "monitoring/rates.json"), "utf8"));
-  const n = rates.guard?.maxNetBurnUsdPerMonth;
+  const n = GUARD.budget?.amount ?? GUARD.maxNetBurnUsdPerMonth;
   if (!Number.isInteger(n) || n <= 0) {
-    die("monitoring/rates.json guard.maxNetBurnUsdPerMonth is not a positive integer — set it, or pass --amount");
+    die("monitoring/rates.json guard has no positive-integer figure (budget.amount or maxNetBurnUsdPerMonth) — set one, or pass --amount");
   }
   return n;
 })();
@@ -191,14 +204,21 @@ const sameThresholds = (b) => {
 const describe = `"${NAME}": ${AMOUNT}/month on projects/${projectNumber} (${PROJECT}), `
   + `emails at ${THRESHOLDS.map((p) => `${p * 100}%`).join(" / ")} to the billing account's admins and users`;
 
-/** The non-USD trap, said out loud wherever the currency comes back. */
+/** The wrong-currency trap, said out loud wherever the currency comes
+ *  back. The comparison is against the currency the guard RECORDS
+ *  (guard.budget.currency; USD — the arithmetic's own — when none is), so
+ *  the warning fires exactly when reality diverges from the record: an
+ *  expected NOK is confirmation, an unexpected one is 500 of the wrong
+ *  money standing in for the figure the guard means. */
+const DECLARED_CURRENCY = GUARD.budget?.currency ?? "USD";
 const currencyNote = (b) => {
   const cur = b?.amount?.specifiedAmount?.currencyCode;
   if (!cur) return "";
-  return cur === "USD"
-    ? ` (USD)`
-    : ` (${cur} — WARNING: the guard's arithmetic is USD; if ${AMOUNT} ${cur} is not the`
-      + ` intended figure, re-run with --amount sized for ${cur})`;
+  return cur === DECLARED_CURRENCY
+    ? ` (${cur}${GUARD.budget?.currency ? ", as recorded" : ""})`
+    : ` (${cur} — WARNING: the guard records ${DECLARED_CURRENCY}; if ${AMOUNT} ${cur} is not the`
+      + ` intended figure, re-run with --amount sized for ${cur}, and record it in`
+      + ` monitoring/rates.json guard.budget)`;
 };
 
 if (!existing) {

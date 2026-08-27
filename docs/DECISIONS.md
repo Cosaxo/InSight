@@ -33058,6 +33058,24 @@ The 403 branch now tells the two refusals apart, held by
 is confirmed real against production, and is now the only thing between
 the dry run and "would create".
 
+**The grant was made the same day, and the budget stands.** "InSight",
+**500/month NOK** on the resolved project number, thresholds at
+50/90/100/150% — the account bills in kroner, which the create's own
+output was first to say (the currency WARNING doing its job), and 500
+NOK is the guard's $50 at ~10 NOK/USD, not a second opinion. That
+discovery cost one more piece of structure: the API's units are in the
+ACCOUNT'S currency, so an applier reading `maxNetBurnUsdPerMonth`
+directly would have stood up a 50 NOK (~$4.6) budget — and once the real
+one existed at 500, its standing dry run would have demanded a retune
+back to 50 forever, an instruction whose obedient reader shrinks the
+backstop tenfold. `guard.budget` in monitoring/rates.json now records
+the account-currency figure and its currency; the applier prefers it,
+and the currency note warns exactly when the API's answer diverges from
+the record — an expected NOK is confirmation, because a warning printed
+every run stops being read. Held by apply-budget.test.mjs. Control 1 is
+closed: created 2026-08-27, and the dry run against production says
+"exists and matches".
+
 A **budget → Pub/Sub → function that flips `budgetMode` automatically**
 is the natural next joint and is deliberately not built: it needs the
 budget to exist first, a topic, and a deployed function on the
