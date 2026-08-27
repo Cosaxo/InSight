@@ -32134,3 +32134,89 @@ write ceiling is untouched, because the slices ride the transaction
 (152, with a new case pinning the 40-char cap and the longest real
 value at 36), `test:scripts` (495), `tsc -b`, eslint, `check:anchors`,
 `check:data-inventory`, `check:docs`, `check:figures`, `check:globals`.
+
+## D318 · Three of D269's seven refusals are lifted, and the bundle becomes a list
+
+**2026-08-27.** **Status:** binding. **Owner's call**, on reading D269's
+ceiling: *"i think this can be removed dont understand why it is here."*
+Three of the seven are dropped; four stand; the row stops being one
+sentence.
+
+### Why it read as arbitrary, which is the finding under the decision
+
+D269 recorded **seven refusals in one bullet** whose justifications have
+nothing to do with each other — one is GDPR, one is the Mirror's
+arithmetic, one is a hosting bill, and three were preferences. A reader
+meeting that as a single line cannot tell which is which, so the whole
+row reads as taste and gets challenged whole. It is the same failure
+D316 swept in the other direction: a claim whose reason has quietly
+stopped matching it.
+
+### Lifted, each on its own reason
+
+- **Third-party analytics SDKs.** D269's argument was provability —
+  outside `deleteAccount`, outside the emulator suites, outside
+  `firestore.rules`. That still describes an SDK accurately; what
+  changed is what breaking it *costs*. **D314 retired the no-tracking
+  promise** eight days ago, so the refusal no longer stands on a public
+  pledge. Lifting it ships nothing: an SDK still moves the App Store
+  nutrition label, Play Data Safety (`check:store-forms`),
+  `data-inventory.md`'s "not collected", an EEA consent flow and ATT on
+  iOS — together, in one change, as D314 said. **The paperwork is the
+  real gate and it is untouched.** Sentry stays what it is
+  (crash-scoped, D76/D211).
+- **Engagement sliced by anchor.** `MONITORING.md` had already conceded
+  this one in writing: *"this is an analytics decision, not a privacy
+  one"*, held deliberately once D98 removed the floor that used to
+  enforce it. A preference stated as a preference is exactly what an
+  owner may drop, and nothing technical ever stopped the query.
+- **Hesitation and per-option deliberation timing, in ONE shape.**
+  Measured on the device, published only as **bucketed counts inside the
+  anonymous attention shard** — the rung-1 mechanism D270 built and D271
+  already used to narrow the skip/pass refusal on identical terms. This
+  is an application of the ceiling, not a hole in it: **raw per-event
+  upload stays refused**, and no timing is ever written on an answer.
+
+### Standing, and why each is not a preference
+
+- **Per-target reads** (who viewed whom) — the flag-authorship deny's
+  anti-retaliation reasoning applied to viewing.
+- **Raw event streams** — two orders of magnitude more writes than the
+  app. A bill, not a value, and it stands on D7's arithmetic alone.
+- **Sealed duels before reveal; keystrokes, drafts, free text before
+  posting; coordinates below the presence cell** — game integrity and
+  physical safety, the one thing D98 explicitly kept.
+- **Slicing by any TEST RESULT** — GDPR Art. 9 for the politics result
+  (D8: *"it needs explicit consent, not a silent anchor inferred from a
+  test result"*). **This did not move with the anchor row**, and the two
+  sat in one sentence long enough to read as one rule. `BREAKDOWN_DIMS`
+  contains no test result of any kind and this does not change that.
+  Owner preference does not reach a consent requirement.
+- **The daily and the Mirror never adapting to any of it** — the
+  load-bearing one, and it is not a privacy rule at all. If people were
+  served different questions, "70% chose X" would describe the people
+  shown the question rather than the population
+  (`SCALE-PLAN.md` §1's sample-bias argument, D128/D163's invariant).
+  Removing it would not unlock a feature; it would make every number in
+  the Mirror indefensible.
+
+### What this record does not do
+
+**Nothing is built.** This lifts three refusals and ships no SDK, no
+anchor-sliced report and no timing. Each is now an ordinary product
+decision with a cost, rather than a line that has to be reversed first —
+the D163 posture ("binding, not built").
+
+**D269 is not edited.** Its text stands as recorded; this narrows it,
+the way D163 narrowed `MONITORING.md`'s row and named itself a partial
+reversal for doing so. The live documents move:
+`MONITORING.md` § Off the table, `ENGAGEMENT-PLAN.md` §4.4 and §8,
+`ATTENTION.md`'s refusal table.
+
+**`web/privacy.html` does not move, and that is a check rather than an
+omission.** The page DESCRIBES today — "no advertising identifiers and
+no third-party analytics SDK" — under D314's forward clause, *"If any of
+that changes, this page changes first."* Lifting the refusal changes no
+practice, so the description stays true and `check:policy-claims` stays
+green. The day an SDK actually ships, that page moves first, by its own
+sentence.
