@@ -3,6 +3,7 @@
 // Cross-module references resolve through the shared global scope and
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
+import { sharePcts } from '../data/pct';
 
 // feed-read.js — the feed's memory.
 //
@@ -107,7 +108,8 @@ export let feedInsight;
         const cell = buckets[bucket];
         const n = Object.keys(cell).reduce((a, k) => a + cell[k], 0);
         if (!n) continue;
-        const pct = q.options.map((_, i) => ((cell[String(i)] || 0) / n) * 100);
+        const cellCounts = q.options.map((_, i) => cell[String(i)] || 0);
+        const pct = cellCounts.map((c) => (c / n) * 100);
         const win = pct.indexOf(Math.max(...pct));
         // a flip — this cohort's winner is not the room's — outranks a lean,
         // however wide the lean is: "X flips to Y" is the more surprising fact
@@ -116,7 +118,20 @@ export let feedInsight;
         if (!flip && gap < MIN_GAP) continue;
         const score = (flip ? 1000 : 0) + gap;
         if (!best || score > best.score) {
-          best = { score, dim, group: bucket, kind: flip ? 'flip' : 'lean', sideIdx: win, pct: Math.round(pct[win]) };
+          // The COUNTS ride along, not a rounded share. The share this
+          // line prints has to be the one the breakdown sheet prints for
+          // the same cell, and the sheet rounds with `sharePcts`
+          // (data/pct.ts) — the largest-remainder rule this app has one
+          // of. `Math.round` per option is the rule that was replaced,
+          // and the two disagree on about one in eleven cells at three to
+          // five options, always by a point: the card said "25–34 flips
+          // it to Agree · 57%" and the sheet it opens said 56%.
+          //
+          // The float `pct` above still does the RANKING. That is D277's
+          // distinction and it is the right way round here too: a sort
+          // key wants precision, a printed number wants the app's one
+          // rounding rule.
+          best = { score, dim, group: bucket, kind: flip ? 'flip' : 'lean', sideIdx: win, counts: cellCounts };
         }
       }
     }
@@ -130,7 +145,11 @@ export let feedInsight;
       if (best.dim === 'country') label = P.countryName(best.group);
       else if (best.dim === 'city') { const pl = P.parse(best.group); if (pl) label = pl.name; }
     }
-    return { kind: best.kind, group: label, sideIdx: best.sideIdx, pct: best.pct, dim: best.dim };
+    return {
+      kind: best.kind, group: label, sideIdx: best.sideIdx, dim: best.dim,
+      // Rounded once, at the end, and only for the cell that won.
+      pct: sharePcts(best.counts)[best.sideIdx],
+    };
   };
 })();
 window.FEEDREAD = FEEDREAD;
