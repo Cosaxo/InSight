@@ -32618,3 +32618,155 @@ an exemption needs a written reason. This is the D106 remedy actually
 built: the previous comment promised that adding a page means adding one
 line, and the note beside the newest entry was already false the day it
 was written.
+
+## D324 · Build 26's pre-flight: run as-is, and the one surface no release gate can see
+
+**2026-08-27.** **Status:** binding as a PRE-FLIGHT RECORD and ONE LIMIT.
+No number moved and no code changed. What this adds is the limit the
+comparison turned up on the way, which is the shape D191 established: a
+pre-flight that finds nothing to do is the moment to ask what the gates
+are not reading.
+
+### The comparison, made against the run list
+
+D158's rule, because a doc cannot see App Store Connect:
+
+- Run 42 (`32716503010`, 2026-08-24T10:23:03Z) is still the highest run
+  in `ios-release.yml`'s list — 42 of 42, nothing dispatched in three
+  days.
+- Its step 17, `Upload to App Store Connect`, is **`success`**
+  (10:28:28Z → 10:29:42Z, 1m 14s of transfer). Build 25 is spent.
+- `appBuild` at run 42's **own `head_sha`** — `01d5570`, D159's rule
+  rather than the commit anyone merged — is **25**.
+- The tree at `ac9072f` reads **26**.
+
+26 > 25, so the answer is **run as-is** and no number moves. Fourth
+pre-flight to come out that way (D153, D158, D191, this one), and build
+25's bump is the one that made it: D274 read it off step 17 while the
+step list was on screen. Seven bumps have held (20, 21, 22, 28, 33, 36,
+42) against seven skipped (18, 19, 24, 26, 31, 38, 40).
+
+D198 and D273 are unchanged by this and worth restating, because this
+record is exactly the kind that has been read as a guarantee before: **a
+verdict has a shelf life of exactly one dispatch, and a bump has a shelf
+life of exactly one upload.** "No number moved" is a report about a
+comparison made at `ac9072f` on 2026-08-27, never a statement about the
+tree afterwards.
+
+### The gap this release carries
+
+193 commits since build 25, over three days — the widest gap between two
+iOS builds so far (24 → 25 was two days; 22 → 23 was sixteen hours). It
+holds the bank unbounding and paged serving (D316–D322), the paid
+question and ad loops (D313–D315), the 2026-08-27 night audit's
+twenty-one fixes (D323), and the iris mark (D302).
+
+**Read that number as D302, not as D300.** The commit that carries the
+identity (`f819cc6`) names it "D300" in its subject line, which was true
+when it was written and stopped being true at D299's renumber — D300 is
+now *The first look at production*. A commit message cannot be corrected
+after the fact and D299's gate reads `docs/`, so `git log` will keep
+saying D300 here. The docs are right.
+
+### The limit: the app icon is on no gate's path
+
+Build 26 is the first iOS build to carry the iris, and the icon is the
+one part of it that nothing in this tree measures.
+
+Both release-path gates read `dist/`. `check:web-firebase` asks whether
+the JavaScript saw the Firebase config; `check:bundle` weighs the
+JavaScript about to be copied into the shell. `cap sync` then copies
+`dist/` into `ios/App/App/public/`. But `AppIcon-512@2x.png` does not
+travel that way — it reaches the binary from
+`ios/App/App/Assets.xcassets/`, which `cap sync` does not write and
+neither gate reads. `scripts/gen-icons.mjs` is the only thing that writes
+it, it has **no `package.json` entry**, and no workflow invokes it.
+
+So build 26 ships the iris because a human ran the script by hand and
+committed the PNG, and **nothing in this repo could tell the difference
+if they had not.** For this build it is verified rather than assumed:
+`f819cc6` touched
+`ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png` and
+the working tree is clean at `ac9072f`, so the committed icon is D302's.
+The general case has no such answer.
+
+**Why this is recorded and not closed.** The honest gate is
+re-render-and-compare against `design/icon/mark.svg`, and PNG
+rasterisation is not byte-reproducible across Chromium versions — that
+is a flaky gate, placed on the one path where a false red costs ~150
+minutes of macOS quota at 10x. A perceptual-hash comparison would not be
+flaky in the same way, but it is a new dependency and a threshold nobody
+has calibrated, which is more than a release pre-flight should decide.
+CLAUDE.md's rule is that a deferral is recorded with its arithmetic.
+
+It is also a third category next to the pair D229 and D274 settled. Those
+read: *a dry run derisks the signing; the gates on the release path derisk
+the bundle.* The icon is in neither half — not signing, not bundle — and
+that is why two releases' worth of reasoning about what a dry run proves
+never reached it.
+
+### What was verified before calling the tree ready
+
+Green at `ac9072f`: `tsc -b`, eslint (`--max-warnings 0`), `test:unit`
+(2180), `functions` (437), `test:scripts` (521), `test:rules` (157, Java
+21), `test:e2e` against the real emulated functions, and every `check:*`
+gate. `check:store-copy` fails bare on D42's parked Play fingerprint and
+passes under `--ios`, which is the flag the release path uses.
+
+The release-path build was rehearsed in its own shape —
+`CAPACITOR_BUILD=1 VITE_V2_LIVE=true`, live Firebase values, `dist/`
+asserted rather than the environment:
+
+| Measure | Build 26 | Ceiling |
+| --- | --- | --- |
+| total JS | 2144 KB | 2440 KB |
+| eager graph | 767 KB | 880 KB |
+| blocking CSS | 68 KB | 74 KB |
+| total CSS | 86 KB | 88 KB |
+| fonts | 64 KB | 96 KB |
+
+D191's second variable held: built without a DSN the same tree comes out
+2045 KB with the Sentry group shaken out, and `check:bundle` withholds
+the total ceiling rather than passing it — 767 KB eager either way, since
+Sentry is not in that graph.
+
+The backend is not this workflow's to ship and was checked anyway:
+`firebase-deploy` run 140 deployed `8b88066`, which is `ac9072f`'s parent
+but for one pulse trail row, so the client at build 26 meets a backend
+carrying D316–D323.
+
+### The dispatches, and the bump
+
+Same session, same day, so this is D324 rather than a record after it.
+
+**Runs 43 and 44 delivered build 26, and the bump landed off step 17's
+conclusion.** Run 43 (`33070525476`, 12:08:58Z) step 17 `skipped` — the
+dry run, 6m 12s; run 44 (`33071251527`, 12:18:34Z) step 17 `success`,
+12:25:22Z → 12:27:13Z, 1m 51s of transfer. `UPLOAD SUCCEEDED with no
+errors`, delivery UUID `b1562663-98fe-4166-8aae-863bbcc5241d`, 6,128,733
+bytes against build 25's 6,039,930. Ninth pair of this shape after 15/16,
+23/24, 25/26, 27/28, 32/33, 37/38, 39/40 and 41/42.
+
+`appBuild` went 26 → 27 read off step 17 rather than recalled. **Eight
+that held** (20, 21, 22, 28, 33, 36, 42, 44) against seven skipped (18,
+19, 24, 26, 31, 38, 40).
+
+**D159's trap did not fire.** Both runs archived `ac9072f`; `main` was
+checked between the dispatches and had not moved, and the D324 record
+itself was deliberately left unmerged on its branch so that merging it
+could not become the commit in the gap. Second release since run 21 where
+the dry run and the upload name one tree, after build 24's runs 39/40 —
+and the first where that was arranged rather than lucky. So what run 43
+proved was proved on exactly the bundle run 44 shipped, which is the
+thing D229 could not say about build 23.
+
+**What the two runs prove, and the one thing they still do not.** Every
+gate on the path came back green on build 26's own tree: step 5
+(placeholders, public copy, version lockstep), step 6 (the live build,
+`check:web-firebase` and `check:bundle` against the real secrets), step
+13 (the archive carries the Firebase config and the APNs entitlement) and
+step 15 (the exported `.ipa` is **production**-signed for APNs — the gate
+that once refused run 5's own build). None of them reads
+`AppIcon-512@2x.png`, so the limit above is unchanged by a successful
+delivery: build 26 carries the iris to TestFlight, and it does so on a
+human's hand-run script rather than on anything this repo can check.
