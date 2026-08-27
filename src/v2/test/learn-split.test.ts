@@ -45,6 +45,12 @@ vi.mock("../data/live", () => ({ default: LIVE }));
 const W = {
   set LIVE(v: unknown) {
     for (const k of Object.keys(LIVE)) delete LIVE[k];
+    // The real literal defines every member unconditionally (the surface
+    // test pins it) — which is exactly why learn-data may skip
+    // member-existence checks — so the mock holds the same contract: the
+    // members these cases exercise exist even when a case injects only
+    // one of them.
+    Object.assign(LIVE, { learnAgg: () => null, learnMine: () => null });
     if (v && typeof v === "object") Object.assign(LIVE, v);
   },
 };

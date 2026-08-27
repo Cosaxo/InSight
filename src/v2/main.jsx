@@ -9,9 +9,12 @@ import { loadWorldFeed, loadMapTab, loadOverlays } from './spec-index.js';
 import { initLive } from './data/live';
 // side effect: publishes window.registerBackHandler for the shell
 import './data/back';
-// side effect: publishes globalThis.PLACES for the profile's city picker.
-// Import only — the ~269 KB catalogue itself is fetched lazily on first
-// open, so this costs nothing on a cold start.
+// Eager on purpose: the place index must be importable before first paint
+// (feed-read and the profile both read it), stated here rather than left
+// to whichever consumer happens to import it first. The publication this
+// line once existed for is gone (the last window.PLACES reader converted
+// 2026-08-27); the ~269 KB catalogue itself is still fetched lazily on
+// first open, so this costs nothing on a cold start.
 import './data/places';
 import { reportError, sentryInit } from '../lib/sentry';
 import { initDeepLinks } from './data/links';

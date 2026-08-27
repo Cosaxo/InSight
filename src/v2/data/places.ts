@@ -347,15 +347,12 @@ export function nearestPlace(
   return { place: best, km };
 }
 
-// Published for the spec layer, which resolves cross-module references by
-// name at render time (see src/v2/README.md). The shared scanner
-// (scripts/spec-globals.mjs) recognises `globalThis.X =` and `window.X =`
-// alike; a cast would be invisible to it, so neither form uses one.
-//
-// `globalThis` rather than live.ts's `window`, for one reason: everything
-// above this line is pure and worth unit-testing, and `window` does not
-// exist in the unit runner. live.ts pays for that with a stubGlobal dance
-// in vote.test.ts; there is no reason to repeat it for a parser.
+// No global publication any more: the last window.PLACES reader
+// (feed-read.js) converted to this default import on 2026-08-27, and a
+// publication nobody reads is the residue class D137's sweep exists for.
+// check:globals rule 5 could not have flagged it — the rule is
+// deliberately over-generous and comment mentions keep a dead line green
+// (CLAUDE.md § rule 5) — so it goes with the reader instead.
 const PLACES = {
   load: loadPlaces,
   peek: peekPlaces,
@@ -369,16 +366,5 @@ const PLACES = {
   countryName,
 };
 
-declare global {
-  interface Window {
-    PLACES?: typeof PLACES;
-  }
-}
-
-// Object.assign rather than `globalThis.PLACES = PLACES`: the latter needs
-// an index signature on typeof globalThis that a `declare global` interface
-// on Window does not provide (TS7017). Same form the ui/ panels use, and
-// the scanner matches it.
-Object.assign(globalThis, { PLACES });
 
 export default PLACES;

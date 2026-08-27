@@ -151,8 +151,9 @@ export function LEARN_ORDER(card) {
 // the file's exit from the coupling map when the conversion came.
 const liveStore = () => LIVE;
 function learnLive() {
-  const L = liveStore();
-  return !!(L && L.enabled);
+  // `.enabled` is the data condition; the old `L &&` was a load-order
+  // guard, dead under an import (the conversion sweep, D108's rule).
+  return !!liveStore().enabled;
 }
 /**
  * The real per-option counts, or null when nothing has been measured.
@@ -178,10 +179,15 @@ function learnLive() {
  */
 export function LEARN_COUNTS(card) {
   const L = liveStore();
-  if (!(L && L.enabled && L.learnAgg)) return null;
+  // Only `.enabled` is a condition. The `L &&` and the learnAgg/learnMine
+  // existence tests died with the conversion: members the LIVE literal
+  // defines unconditionally (pinned by the surface test), so checking for
+  // them read as if the store could still be absent — the guard shape
+  // D108 warns grows back.
+  if (!L.enabled) return null;
   const agg = L.learnAgg(card.id);
   if (!agg || !agg.counts) return null;
-  const mine = L.learnMine ? L.learnMine(card.id) : null;
+  const mine = L.learnMine(card.id);
   const pending = mine && !mine.folded ? mine.idx : -1;
   const n = card.a.length;
   const counts = [];
