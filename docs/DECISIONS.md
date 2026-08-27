@@ -32220,3 +32220,121 @@ that changes, this page changes first."* Lifting the refusal changes no
 practice, so the description stays true and `check:policy-claims` stays
 green. The day an SDK actually ships, that page moves first, by its own
 sentence.
+
+## D319 · The political consent is asked at the start, on D151's screen, and it is an ask rather than a wall
+
+**2026-08-27.** **Status:** binding as a decision, **not built**. **Owner's
+call**: *"it should just be a consent from the start of the app cause its a
+core functionality."* Follow-on to D8's Art. 9 exclusion and D318's split
+of D269.
+
+### The owner is right, and the repo already argued it
+
+D151 put the anchors on a start-of-app screen for a mechanism reason, not
+a convenience one: *"an answer cannot be re-filed."* An anchor missing at
+vote time is missing from that answer forever, so asking late produces a
+first week that contributes to nothing.
+
+**Consent has the identical shape one field over.** An answer given
+without consent cannot be retroactively consented into a published slice,
+and an answer given under consent has to be removable when the consent
+ends. Asking at the first political card would leave every account with a
+mid-flow interruption and a decision taken in one tap while reaching for
+something else. So it goes where D151's questions go — asked once, at the
+top, where answering costs a minute and not answering costs nothing yet.
+
+### The one constraint, and D151 states it in the app's own words
+
+**"It is an ask, not a wall."** Here that is not only the house posture
+(D3's anonymous-first, "never a wall") — it is the condition that makes
+the consent valid at all. GDPR Art. 7(4) says consent is not freely given
+where access to the service is conditioned on processing that is not
+necessary to provide it. **A consent you cannot decline is not consent**,
+and a wall would therefore destroy the very thing this record is trying to
+obtain.
+
+**"Core functionality" does not force a wall, and the arithmetic says so:
+10 of the 278 questions in the live bank carry the political marker.** The
+daily, the feed, the Mirror's seven stops, duels, Circle and Patterns all
+work untouched without them. So declining leaves a working app — which is
+precisely what makes accepting free. The owner's instinct and the legal
+test agree; what they require is that the **no** branch be real rather
+than nominal.
+
+### What the consent actually covers, which is not the cards
+
+The cards are the visible half and the smaller one. `syncPassiveResults`
+(`src/v2/data/live.ts`) folds ordinary feed answers into
+`testResults.political` and writes a six-axis political coordinate onto
+the **world-readable** profile, automatically. `MIN_AXIS_ITEMS = 2` over
+six axes means roughly a dozen feed cards produce a published political
+position, with no act by the user and no screen that says so.
+
+That is an **inference this app computes and publishes**, and it is the
+thing consent has to cover. It is also why Art. 9(2)(e) — data
+"manifestly made public by the data subject" — is not available as a
+basis: nobody manifestly makes public a coordinate they have never seen.
+
+**So the gate is both halves, and both are refusals to COMPUTE rather than
+to show:** without consent the political cards are not dealt, and
+`testResults.political` is not written. Hiding a value that exists is the
+D316 failure — a surface saying something the server does not do.
+
+### The shape
+
+- **Where:** `ui/LiveProfileSetup.tsx`, as its own item after the anchors.
+  It inherits D151's four rules unchanged — does not block, does not ask
+  twice, no free text, no vocabulary of its own.
+- **The pitch is the mechanism, not a benefit** (D151's rule): what the
+  answers become and who can read them, never "personalise your
+  experience", which would be a lie here exactly as it was there.
+- **Two buttons of equal weight** — same size, same border, neither in the
+  accent colour. A green primary beside a grey link is a nudge, and a
+  nudged consent is not freely given. This is a `check:a11y`-adjacent
+  claim about hierarchy and wants its own assertion.
+- **Storage:** `v2_users/{uid}.consent.political = { v, at, off? }` on the
+  profile document `hydrate()` already fetches, so it costs **zero extra
+  reads**. `v` versions the ASK — reword it materially, bump it, everyone
+  at the old version is asked again. `off` is present-or-absent rather
+  than a boolean, because a boolean filter drops every document that lacks
+  the field. The record survives withdrawal: Art. 7(1) wants you able to
+  show consent was obtained and when it ended.
+- **Not offered below 16**, and the cards are not dealt. Self-declared,
+  unverified, and the page says so.
+- **Withdrawal**, which is the part that is assumed impossible and is not:
+  `rebuildAggregateV2` (`functions/src/replay.ts`) already rebuilds a
+  published aggregate from the answers with a uid `exclude` set. Withdrawal
+  is delete the answers, delete the compass, queue the political qids, drain
+  nightly. The machinery exists; it needs a queue and a schedule.
+
+### Not built, and the three things that gate it
+
+This records the decision and the design. Nothing ships here, in the D163
+posture (binding, not built), because three questions are genuinely a
+lawyer's and one of them is urgent:
+
+1. **The paid report already sells political axis-band cuts** (D254,
+   `scripts/report-lib.mjs`). Data gathered before any consent existed
+   cannot simply carry into a commercial product on the strength of a
+   consent given later. **This is the most urgent of the three and it is
+   about data already held**, not about anything built here.
+2. **Whether the political answers already collected are lawful** under
+   D98's public-answers posture, pre-consent. That decides whether what is
+   already in production can stay.
+3. **The age floor per market** — 13 in Norway, 15 in France, 16 in
+   Germany and Ireland. A single global 16 is the safe intersection at a
+   product cost; whether to take that cost is a decision, not a lookup.
+
+### Two things to fix in the same change, whenever it comes
+
+- **`anon` is dead schema.** It sits on `firestore.rules`' write allowlist
+  for `v2_users` with no writer, no reader, no validation and no test — the
+  D258/D280 shape, a field the rules admit that reaches nobody. It reads
+  like an anonymity toggle and there is no anonymity toggle. Take the key
+  off the allowlist rather than leaving something that looks like a
+  feature.
+- **`web/privacy.html` currently offers a feed pass as a privacy control**
+  — *"If you would rather that were not public, skip them."* A pass is a
+  `localStorage` list swept by the purge, and it is not available on the
+  daily card at all. It is not a control, and the page must stop offering
+  it as one; retire the sentence with a `check:public-copy` RETIRED row.
