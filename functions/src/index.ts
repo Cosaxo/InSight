@@ -242,10 +242,46 @@ export const deleteAccount = onCall(
       failed.push("ownSubtree");
     }
 
+    // 1a. THE AGG-EVENTS LEDGER, AND IT RUNS FIRST NOW — it used to be
+    //     phase 4c, a dozen phases after the subtree wipe below.
+    //
+    //     The nightly folds (the interest profile, the patterns state,
+    //     the engagement rollup) READ this ledger and WRITE per-uid
+    //     documents under `v2_users/{uid}` from what they find. A fold
+    //     that started while this call was in flight therefore saw the
+    //     erased account's rows and wrote its profile back UNDER a
+    //     subtree that had just been deleted — and nothing could remove
+    //     it afterwards, because the auth user is gone and deleteAccount
+    //     can never run for that uid again. docs/data-inventory.md
+    //     promises the opposite in as many words ("erased with the
+    //     account by deleteAccount's recursive delete — no new arm").
+    //
+    //     Taking the ledger first means a fold that starts at any point
+    //     after this line finds nothing for this uid and writes nothing.
+    //     What it does not cover is a fold that READ the ledger before
+    //     this line and commits after the sweep at the end of this
+    //     function; that residue is named there.
+    //
+    //     What the ledger IS, unchanged by the move: server-only, but
+    //     each entry says this account answered this question at this
+    //     time, which is exactly the attribution D28 added it for.
+    //     Erasure takes the attribution with the account; the tallies it
+    //     fed stay (1b below).
+    //
+    //     An answer still in flight through Eventarc when this runs can
+    //     land its entry AFTER the sweep — bounded residue, gone at TTL,
+    //     recorded in D28 rather than chased with a second pass.
+    try {
+      await deleteQueryDocs(db.collection("v2_agg_events").where("uid", "==", uid));
+    } catch (err) {
+      logger.error("[deleteAccount] agg-event ledger wipe failed:", err);
+      failed.push("aggEvents");
+    }
+
     // 1b. Wipe the v2 subtree (profile + answers). Aggregate counts the
     // user contributed stay — anonymous tallies. The one place
     // that CAN attribute a count to this uid is the agg-events ledger
-    // (D28), and phase 4c deletes it, so the tallies are anonymous again
+    // (D28), taken by phase 1a above, so the tallies are anonymous again
     // the moment this call returns.
     try {
       await db.recursiveDelete(db.collection("v2_users").doc(uid));
@@ -823,22 +859,6 @@ export const deleteAccount = onCall(
       failed.push("ratelimits");
     }
 
-    // 4c. The aggregate event ledger's entries for this uid. Same
-    //     reasoning as 4b — server-only, but each entry says this account
-    //     answered this question at this time, which is exactly the
-    //     attribution D28 added it for. Erasure takes the attribution
-    //     with the account; the tallies it fed stay (1b).
-    //
-    //     An answer still in flight through Eventarc when this runs can
-    //     land its entry AFTER the sweep — bounded residue, gone at TTL,
-    //     recorded in D28 rather than chased with a second pass.
-    try {
-      await deleteQueryDocs(db.collection("v2_agg_events").where("uid", "==", uid));
-    } catch (err) {
-      logger.error("[deleteAccount] agg-event ledger wipe failed:", err);
-      failed.push("aggEvents");
-    }
-
     // 4d. This account's question suggestions (docs/NEXT-FUNCTIONALITY.md
     //     §6). The author is the only client who can read them, but each
     //     row carries the uid and free text — erasure covers them the way
@@ -907,6 +927,32 @@ export const deleteAccount = onCall(
     } catch (err) {
       logger.error("[deleteAccount] paid-booking wipe failed:", err);
       failed.push("paidBookings");
+    }
+
+    // 4z. SWEEP THE SUBTREE AGAIN, because the phases above take time and
+    //     a nightly fold can commit inside it.
+    //
+    //     Phase 1a removes what those folds read, so a fold starting
+    //     after it writes nothing — but one already mid-run has its rows
+    //     in hand, and a per-uid document it commits between 1b and here
+    //     would otherwise be permanent: the auth user is about to go, and
+    //     this function can never run for that uid again.
+    //
+    //     Ordinarily this deletes nothing and costs one empty recursive
+    //     delete. The failure it exists for is rare and silent, which is
+    //     the combination that earns a cheap second pass.
+    //
+    //     STILL NOT AIRTIGHT, and saying so is the point: a fold that
+    //     read the ledger before 1a and commits after this line leaves a
+    //     document nothing will remove. Closing that needs a tombstone
+    //     the folds consult — which is a uid-keyed record that outlives
+    //     the account, so it is a decision rather than a patch. On the
+    //     night list.
+    try {
+      await db.recursiveDelete(db.collection("v2_users").doc(uid));
+    } catch (err) {
+      logger.error("[deleteAccount] closing v2 subtree sweep failed:", err);
+      failed.push("v2SubtreeSweep");
     }
 
     // 5. Any wipe failure above must abort BEFORE the auth delete:
