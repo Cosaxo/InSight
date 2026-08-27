@@ -3,10 +3,14 @@ rules_version = '2';
 // Firebase Storage rules — owner-only writes, and since D178 one path a
 // signed-in user may READ: avatars/{uid}, the profile photo.
 //
-// Two paths are named. `avatars/{uid}` is live (D178). The other,
-// users/{uid}/dailyPhotos/, is a RETIRED v1 surface (daily-report photo
-// backup, removed in D4) kept read/delete-only until the bucket is
-// confirmed empty. Everything else is denied by default.
+// One path is named. `avatars/{uid}` is live (D178); everything else is
+// denied by default. A second block — users/{uid}/dailyPhotos/, the
+// RETIRED v1 daily-report backup (removed in D4) — sat here read/delete-only
+// until the bucket was confirmed empty, because deleteAccount never reached
+// this path and revoking access to objects that still existed would have
+// opened an erasure gap. On 2026-08-27 the bucket was emptied first (117
+// legacy objects, none of them under dailyPhotos/) and the grant removed
+// second, in that order on purpose (runbook 5.4, D327).
 //
 // D98's note on this file used to say "a photo is not an answer, the path
 // is dead, and nothing on the Mirror reads it." Two thirds of that stopped
@@ -58,43 +62,14 @@ service firebase.storage {
         );
     }
 
-    match /users/{uid}/dailyPhotos/{filename} {
-      // Owner-only READ and DELETE. Uploads are closed — see below.
-      //
-      // App Check (when enabled at the bucket level via the Firebase
-      // console) further restricts requests to attested clients.
-      allow read, delete: if request.auth != null
-        && request.auth.uid == uid;
-
-      // NO create/update, and the asymmetry is the point.
-      //
-      // The grant on this path is a legacy one: D4 removed the daily-report
-      // photo backup and nothing in the app has touched Storage since —
-      // `getStorage` and `firebase/storage` appear nowhere in src/ or
-      // functions/src, only a `storageBucket` config field. So every byte
-      // this path could accept is a byte no feature asked for.
-      //
-      // What it WAS accepting: any signed-in account, and the app is
-      // anonymous-first (D3), so that is any account at all — 8 MB per
-      // object with `{filename}` unbounded, meaning unbounded object count,
-      // unbounded stored bytes and unbounded egress reading them back.
-      // docs/COSTS.md bills Storage at "$0 (bucket unused)", which was true
-      // of the app's behaviour and not of the rule's.
-      //
-      // WHY NOT A FLAT DENY, which is the obvious version of this fix.
-      // Because the grant is deliberate and the reason is recorded in
-      // firestore-tests/storage.rules.test.ts: deleteAccount does not touch
-      // Storage, so revoking access to objects that still exist would open
-      // an erasure gap rather than close a hole. That argument is about
-      // READ and DELETE — a v1 user reaching their own leftover photo to
-      // remove it — and it says nothing about accepting new bytes. Splitting
-      // the verb keeps the erasure property exactly as it was and closes the
-      // only unbounded-egress surface in the project.
-      //
-      // The 8 MB and image/* checks are gone with the write grant they
-      // guarded. They were a bound on a runaway client, not a bound on the
-      // number of objects, which is the term that actually had no ceiling.
-    }
+    // users/{uid}/dailyPhotos/ carried a read/delete grant here until
+    // 2026-08-27. It is gone because its precondition finally held: the
+    // grant existed so a v1 user could reach a leftover photo to remove it
+    // (deleteAccount never touched this path), and on the day the bucket
+    // was measured it held zero objects under this path — the 117 that DID
+    // exist sat under users/{uid}/uploads/ and /daily_snaps/, paths no rule
+    // has granted since the port, and were deleted before this edit. An
+    // access grant whose objects cannot exist is only a surface (D327).
 
     // Everything else: explicitly denied. Adds an extra line of
     // defence beyond Storage's default-deny in case a future

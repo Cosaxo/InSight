@@ -631,6 +631,14 @@ anything a user does.
   between "infrastructure is free below 5k DAU" being true and being
   approximately true.
 
+  **ANSWERED 2026-08-27 (D327): Firebase Authentication, the free
+  edition.** Read off the API rather than the console: the Identity
+  Toolkit admin config for `prvfire33` reports `subtype: FIREBASE_AUTH`,
+  and `identityplatform.googleapis.com` is not activated on the project
+  (Service Usage refuses to even describe it, which is how a
+  never-activated marketplace service answers). Anonymous-first costs $0
+  at any MAU until someone deliberately upgrades, and nothing here has.
+
 - **Release versioning:** bump `appBuild` in package.json each store
   release; set `latestBuild` (soft banner) and, only when an old client
   would misbehave, `minBuild` (hard gate) plus `updateUrl` on the
