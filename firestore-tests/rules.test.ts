@@ -2302,8 +2302,21 @@ describe("world takes (D83 — anonymous, one per person per question)", () => {
     createdAt: serverTimestamp(), hidden: false, ...over,
   });
   const wid = (uid: string, qid = QID) => `${qid}_${uid}`;
+  // Every world take now needs its question to exist and be active — the
+  // thread hangs on a question, and a question that has been pulled has no
+  // thread. Seeded per test rather than once, because the global
+  // beforeEach clears Firestore between them.
+  const seedQ = (qids: string[] = [QID]) => seed(async (db) => {
+    for (const q of qids) {
+      await setDoc(doc(db, "v2_questions", q), {
+        surface: "daily", seq: 0, type: "binary",
+        prompt: "Pineapple?", options: ["Yes", "No"], active: true,
+      });
+    }
+  });
 
   it("any signed-in user posts under qid_uid and any other reads it", async () => {
+    await seedQ();
     await assertSucceeds(setDoc(
       doc(asUser(OWNER), "v2_takes", wid(OWNER)), wtake(OWNER)));
     // A STRANGER — no shared circle anywhere — reads it. That is the
@@ -2315,6 +2328,7 @@ describe("world takes (D83 — anonymous, one per person per question)", () => {
   });
 
   it("the id is the one-take bound: wrong id refused, repost refused, delete-and-repost allowed", async () => {
+    await seedQ();
     const ref = doc(asUser(OWNER), "v2_takes", wid(OWNER));
     await assertSucceeds(setDoc(ref, wtake(OWNER)));
     // A second post lands on the same id — an update, denied like every
@@ -2359,6 +2373,12 @@ describe("world takes (D83 — anonymous, one per person per question)", () => {
   });
 
   it("shape holds at world scale: qid required and bounded, author is the signer", async () => {
+    const longQ = "q".repeat(121);
+    // Both questions exist and are active, so each refusal below has
+    // exactly ONE cause. Without the long one seeded, the length bound
+    // and the kill switch would refuse the same write and the assertion
+    // would stop saying which.
+    await seedQ([QID, longQ]);
     // No qid: a world take with no question would be unreachable by any
     // surface — and unqueryable by the per-question index.
     await assertFails(setDoc(doc(asUser(OWNER), "v2_takes", `undefined_${OWNER}`), {
@@ -2366,7 +2386,6 @@ describe("world takes (D83 — anonymous, one per person per question)", () => {
       createdAt: serverTimestamp(), hidden: false,
     }));
     // qid over the id-length bound.
-    const longQ = "q".repeat(121);
     await assertFails(setDoc(
       doc(asUser(OWNER), "v2_takes", wid(OWNER, longQ)), wtake(OWNER, { qid: longQ })));
     // Authored as someone else.
@@ -2378,6 +2397,47 @@ describe("world takes (D83 — anonymous, one per person per question)", () => {
       doc(asUser(OWNER), "v2_takes", wid(OWNER)), wtake(OWNER, { hidden: true })));
   });
 
+  // The kill switch, which the answer paths honour seven times over and
+  // the public thread did not honour at all. Pulling a question stopped it
+  // being ANSWERED and left the conversation it started open for new
+  // posts — which is backwards: the harm in a harmful question is mostly
+  // what gets said underneath it.
+  it("a pulled question closes its world thread, and an invented qid has none", async () => {
+    await seedQ();
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "pulled-1"), {
+        surface: "daily", seq: 1, type: "binary",
+        prompt: "Over the line?", options: ["Yes", "No"], active: false,
+      });
+    });
+    // The live question still takes a take — the switch is the only thing
+    // that changed, so this is what proves it is a switch and not a wall.
+    await assertSucceeds(setDoc(
+      doc(asUser(OWNER), "v2_takes", wid(OWNER)), wtake(OWNER)));
+    // The pulled one does not.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_takes", wid(OWNER, "pulled-1")),
+      wtake(OWNER, { qid: "pulled-1" })));
+    // Nor does a qid naming no question at all. The id bound made takes
+    // one-per-person-per-qid but never made a qid name a question, so any
+    // string used to mint a fresh empty thread — one per invented qid, per
+    // account, listed by no surface and reachable by nobody.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_takes", wid(OWNER, "no-such-question")),
+      wtake(OWNER, { qid: "no-such-question" })));
+    // Reading is untouched in both directions: takes already posted under
+    // a question stay readable after it is pulled. Closing a thread is not
+    // erasing it, and the appeal path runs on what was said.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_takes", wid(FRIEND, "pulled-1")), {
+        gid: "world", authorUid: FRIEND, qid: "pulled-1", text: "said before",
+        createdAt: new Date(), hidden: false,
+      });
+    });
+    await assertSucceeds(getDoc(
+      doc(asUser(STRANGER), "v2_takes", wid(FRIEND, "pulled-1"))));
+  });
+
   // Circle takes and world takes share ONE collection, and the id bound
   // used to live on the world branch alone. So a circle member could post
   // a circle take AT SOMEBODY ELSE'S world id: update is denied and delete
@@ -2386,6 +2446,7 @@ describe("world takes (D83 — anonymous, one per person per question)", () => {
   // and nothing to rate-limit it (any free account can make a group and be
   // a member of it).
   it("a circle take cannot squat the id a world take must occupy", async () => {
+    await seedQ();
     await seed(async (db) => {
       await setDoc(doc(db, "v2_groups", "gsquat"), {
         name: "Squat", mode: "group", memberUids: [OWNER],
