@@ -2918,6 +2918,109 @@
         }
       ],
       "bg": "Museums have begun returning contested holdings — Germany sent Benin Bronzes back to Nigeria in 2022, and talks over the Parthenon Marbles continue. The universal-museum position holds that one collection shows objects to more of the world."
+    },
+    {
+      "id": "f107",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "A new statue for your town square: an artist, a scientist, an athlete, or nobody?",
+      "options": [
+        {
+          "label": "An artist",
+          "count": 1800
+        },
+        {
+          "label": "A scientist",
+          "count": 2200
+        },
+        {
+          "label": "An athlete",
+          "count": 1100
+        },
+        {
+          "label": "Nobody — no more statues",
+          "count": 1400
+        }
+      ]
+    },
+    {
+      "id": "f108",
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "Live album, or studio album?",
+      "options": [
+        {
+          "label": "Live",
+          "count": 2300
+        },
+        {
+          "label": "Studio",
+          "count": 3100
+        }
+      ]
+    },
+    {
+      "id": "dl15",
+      "core": false,
+      "cat": "food",
+      "type": "dial",
+      "prompt": "Meals cooked from scratch in a week?",
+      "lo": 0,
+      "hi": 14,
+      "unit": "meals"
+    },
+    {
+      "id": "f109",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "Cinema snacks: essential, or a racket?",
+      "options": [
+        {
+          "label": "Essential",
+          "count": 2900
+        },
+        {
+          "label": "A racket",
+          "count": 2600
+        }
+      ]
+    },
+    {
+      "id": "f110",
+      "core": false,
+      "cat": "sport",
+      "type": "vote",
+      "prompt": "Your team is losing badly. Stay to the end, or beat the traffic?",
+      "options": [
+        {
+          "label": "Stay to the end",
+          "count": 3300
+        },
+        {
+          "label": "Beat the traffic",
+          "count": 2100
+        }
+      ]
+    },
+    {
+      "id": "f111",
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "Voice messages: a gift, or a burden?",
+      "options": [
+        {
+          "label": "A gift",
+          "count": 2200
+        },
+        {
+          "label": "A burden",
+          "count": 2900
+        }
+      ]
     }
   ]
 }

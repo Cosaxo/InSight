@@ -1658,6 +1658,54 @@
         "by": "ai",
         "audited": false
       }
+    },
+    "f107": {
+      "source": "farm",
+      "batch": "2026-08-27",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f108": {
+      "source": "farm",
+      "batch": "2026-08-27",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "dl15": {
+      "source": "farm",
+      "batch": "2026-08-27",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f109": {
+      "source": "farm",
+      "batch": "2026-08-27",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f110": {
+      "source": "farm",
+      "batch": "2026-08-27",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
+    },
+    "f111": {
+      "source": "farm",
+      "batch": "2026-08-27",
+      "review": {
+        "by": "ai",
+        "audited": false
+      }
     }
   },
   "pick": {
