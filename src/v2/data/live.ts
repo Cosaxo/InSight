@@ -4417,7 +4417,53 @@ const LIVE = {
         // the window between install and the ask: an account that has not
         // answered yet publishes no political position rather than a
         // smaller one.
-        if (kind === POLITICAL_RESULT_KEY && !mayPublishPolitical(state.profile)) continue;
+        if (kind === POLITICAL_RESULT_KEY && !mayPublishPolitical(state.profile)) {
+          // …and REMOVE what a pre-gate build already published.
+          //
+          // Skipping the fold stops a new coordinate being computed. It
+          // does nothing about the one that is already sitting on the
+          // world-readable profile: `testResults.political` has published
+          // since D277, D331 added the gate, and consent defaults to OFF —
+          // so on upgrade every existing account read "Off. Your answers
+          // still count; no political profile is built from them" on the
+          // account row while its six-axis coordinate was still there, and
+          // still joined by voters.ts's parseTestResults.
+          //
+          // Nothing else could take it away. The only deleter is
+          // setPoliticalConsent(false), and the panel renders its "Turn
+          // off" control ONLY when consent is already on — so the sole
+          // route to removing the coordinate was to consent to it first.
+          //
+          // This is the failure the paragraph above names in its own
+          // words: "a fold that ran and a screen that declined to draw it
+          // would publish the thing anyway". The fold ran before the gate
+          // existed, which is the same state by a different route.
+          //
+          // Guarded on the key actually being present, so a boot with
+          // nothing to remove costs no write — this runs on every hydrate.
+          if (state.profile.testResults[POLITICAL_RESULT_KEY]) {
+            delete state.profile.testResults[POLITICAL_RESULT_KEY];
+            wrote = true;
+            void (async () => {
+              try {
+                const db = await getDb();
+                const uid = state.uid;
+                if (!uid) return;
+                await setDoc(
+                  doc(db, "v2_users", uid),
+                  { testResults: { [POLITICAL_RESULT_KEY]: deleteField() } },
+                  { merge: true },
+                );
+              } catch (err) {
+                // The local delete stands either way, so the screen never
+                // shows a coordinate this account has not consented to.
+                // The next boot retries; the server is re-read then.
+                reportError(err, { where: "syncPassiveResults.politicalPurge" });
+              }
+            })();
+          }
+          continue;
+        }
         const stored = state.profile.testResults[kind] as { passive?: boolean } | undefined;
         if (stored && !stored.passive) continue;
         const next = passiveResult(

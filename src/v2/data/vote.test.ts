@@ -1929,6 +1929,63 @@ describe("window.LIVE public surface", () => {
       expect(data.testResults.political).toBe("__delete__");
     });
 
+    it("purges a compass a pre-gate build already published, with no consent on file", async () => {
+      // THE UPGRADE CASE, and the one the gate alone does not cover.
+      // `testResults.political` has published since D277; D331 added the
+      // gate; consent defaults to OFF. So every account that used the app
+      // before the gate landed had a six-axis coordinate sitting on a
+      // world-readable profile while the account row read "Off. Your
+      // answers still count; no political profile is built from them."
+      //
+      // Skipping the fold does not remove it, and nothing else did: the
+      // only deleter is setPoliticalConsent(false), and the panel offers
+      // "Turn off" only when consent is already ON — so the sole route to
+      // removing the coordinate was to consent to it first.
+      seedPolitical();
+      h.getDocImpl = (path: string) => (path === "v2_users/uid_test"
+        ? { testResults: { political: { dims: [{ id: "econ", label: "Economy", value: 0.4 }] } } }
+        : null);
+      const LIVE = await bootLive();
+      await flush();
+      h.setDocCalls.length = 0;
+      (LIVE as unknown as { syncPassiveResults: () => void }).syncPassiveResults();
+      await flush();
+      const call = h.setDocCalls.find((c) => c.path === "v2_users/uid_test");
+      expect(call, "the stored compass was left on the profile — the gate "
+        + "stops a NEW one being computed and says nothing about the one "
+        + "already published").toBeTruthy();
+      const data = call!.data as Record<string, Record<string, unknown>>;
+      expect(data.testResults.political).toBe("__delete__");
+      // …and no real coordinate is written back in the same breath.
+      // `politicalWrites()` matches on truthiness and the delete sentinel
+      // is a truthy string, so this asks the sharper question: is any
+      // write carrying an actual result object?
+      const real = politicalWrites().filter((c) => {
+        const d = c.data as Record<string, Record<string, unknown>>;
+        return d.testResults.political !== "__delete__";
+      });
+      expect(real).toHaveLength(0);
+    });
+
+    it("purging costs no write when there is nothing to purge", async () => {
+      // This runs on every hydrate, so an account that never had a
+      // coordinate must not buy a profile write on every boot forever —
+      // which is the shape of the persona-residue heal this same night
+      // found looping.
+      seedPolitical();
+      h.getDocImpl = (path: string) => (path === "v2_users/uid_test" ? {} : null);
+      const LIVE = await bootLive();
+      await flush();
+      h.setDocCalls.length = 0;
+      (LIVE as unknown as { syncPassiveResults: () => void }).syncPassiveResults();
+      await flush();
+      const deletes = h.setDocCalls.filter((c) => {
+        const d = c.data as Record<string, Record<string, unknown>>;
+        return c.path === "v2_users/uid_test" && d.testResults?.political === "__delete__";
+      });
+      expect(deletes).toHaveLength(0);
+    });
+
     it("setPoliticalConsent(true) records it and deletes nothing", async () => {
       h.getDocImpl = (path: string) => (path === "v2_users/uid_test" ? {} : null);
       const LIVE = await bootLive();
