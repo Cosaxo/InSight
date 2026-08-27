@@ -31924,3 +31924,103 @@ empty until one exists; its status note now says where self-serve ads
 actually live. Demand honesty: ad campaigns fold into the slot-day
 arithmetic `build-pricing.mjs` prices (same inventory, same idx) and
 stay out of the answer estimates (nothing to estimate).
+
+## D316 · The console kept selling the floor: twelve captions that outlived the arithmetic
+
+**2026-08-27.** **Status:** binding. Found by auditing the tree for
+self-imposed limits at the owner's ask — "what limits has this app set,
+that has been one of the biggest cause of issues" — which is the D98
+question pointed at the present tense rather than at the record.
+
+### The mechanism, for the third time
+
+D296 named this class exactly: `agg.tooSmall === false` survived in
+`question-scorecard.mjs` after D98 stopped writing the field, and
+`undefined === false` reported a confident zero over 108 real answers
+for fifteen days. D296 fixed **the predicate**. It did not sweep **the
+captions**, and there were eleven of them, in two files nothing was
+watching:
+
+| Where | What it said | What is true |
+| --- | --- | --- |
+| `pulse-render.mjs` × 7 | "cleared the k-floor of 5" · "a floor — under-floor questions publish nothing" · "No answers have cleared the k-floor" · "the k-floored public mirror" (×3) · "cards have cleared the floor" | `isScoredAgg = (agg) => !!agg`. There is no floor; a question is scored when somebody answered it |
+| `pulse-collect.mjs` × 3 | the population panel's source string, its metric name and the comment above them | same |
+| `monitoring/rates.json` × 2 | **"a paying city's window is the public k-floored aggregate, enforced by firestore.rules rather than by contract"** | `docs/MONETIZATION.md` retired that pitch in terms: *"any commercial framing that still leans on it is false"* — what bounds a buyer now is **scope**, not arithmetic |
+
+The last row is the one that matters. Nine of the eleven were an owner
+misreading his own instrument; that one was the console restating a
+**sales argument** the canonical document had already deleted, beside a
+`firestore.rules` citation that no longer enforces it.
+
+### Why nothing caught them, and why that is structural
+
+`check:public-copy` is precisely the gate for a surface claiming
+something the server does not do — and its own scope note explains why
+it could not fire here: it covers *"only files whose audience is a user
+or a store reviewer"*, and it deliberately excludes source comments as
+recorded debt. The pulse console's audience is the **owner**. That is a
+third audience the file list never had, so its rendered strings had no
+reader at all, and they outlived the thing they describe by sixteen
+days.
+
+**The comments are still not swept, on purpose.** `check-public-copy.mjs`
+already ruled on that — stale `k-floored` comments "are debt rather than
+a claim to anyone, and sweeping them is a separate job". Only rendered
+output moved here.
+
+### The gate
+
+`scripts/pulse.test.mjs` renders the whole console and asserts six
+retired phrases appear nowhere in the HTML — on the **output**, not the
+source, so a caption reintroduced in a panel this file has no other case
+for still fails. Both banner branches are rendered (`totalAnswers` > 0
+and 0), because the population panel emits one or the other and the
+pre-launch branch is where "No answers have cleared the k-floor" lived.
+Verified to bite: restoring the tile caption fails both cases.
+
+One counter-assertion ships with it. The population figures **are**
+floors — an unanswered question has no aggregate document, so every
+number there understates — and that sentence has to survive a sweep
+aimed at the k-floor. The case pins it, because trading a false claim
+for a missing one is the D183 failure in the other direction.
+
+**The word is not banned.** `pulse-render.mjs:243` says *"the k-floor
+this used to wait out is gone — D98"*, which is the caption doing its
+job; the gate matches claim shapes, not the bare term.
+
+### The twelfth, and it is a document
+
+`docs/FEATURE-COMPLETE.md` §5 listed **"The k-floor restore (D81): the
+paused constants back to five … at launch traction"** among the flips
+that are "built, tested and deliberately off". D98 removed the floor
+outright; `docs/data-inventory.md` has said so in those words since
+("D81's pause was superseded rather than resumed"), and `MONETIZATION.md`
+and `LAUNCH-RUNBOOK.md` each carry an explicit correction. That row did
+not, so the one page compiled to answer *"what is left to do"* carried
+an instruction to reinstate the exact limit D98 was written to delete.
+Struck rather than deleted (D106: a reversal stays visible).
+
+### What this does not do
+
+Three findings from the same audit are recorded here and **not** built,
+because each is a decision or an operator step rather than a stale
+sentence:
+
+1. **Sixteen readiness floors, no union.** `PATTERNS_MIN_POOL` (24×8),
+   `READ_MIN_POOL` (12), `NORM_MIN_PEOPLE` (12), `PEOPLE_MIN_CROWD` (8),
+   `LOGIC_NORMS_MIN_N` (100) and eleven more each gate a surface, each
+   argues honestly that it is a *meaning* floor and not D98's, and no
+   script reads any of them. At the committed scorecard's 24 answers
+   over 20 questions every one is shut, and Patterns is arithmetically
+   unreachable (24 questions × 8 answers ≥ 192). The fix is one
+   readiness reading — which surfaces are open, and what each is waiting
+   for — in `patternsReady.ts`'s shape, one level up. Not built here: it
+   is a feature, not a correction.
+2. **Two answer counts disagree 4×.** D296 read production directly on
+   08-25 and found 108 answers over 104 questions; `content/scorecard.json`
+   generated 08-26 reports 24 over 20. After D296 that is not a gap to
+   assume away, and it needs a production read this branch does not have.
+3. **The contention alert is still unarmed** (D300: 0 of 8 policies
+   live), and it is the recorded precondition for sharding — D7's first
+   wall has no detector. An operator step with credentials, not a code
+   change.

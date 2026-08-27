@@ -745,6 +745,79 @@ describe("the rendered page", () => {
   });
 });
 
+describe("the console does not claim a floor D98 deleted", () => {
+  // WHY THIS EXISTS. D98 removed the k-anonymity floor outright on
+  // 2026-08-11 — no AGG_MIN_N, no PUBLISH_EVERY, no complementary
+  // suppression, no `tooSmall`. The ARITHMETIC followed a day later in
+  // the client and, at D296, in the scorecard. The CAPTIONS did not: nine
+  // rendered strings across pulse-render and pulse-collect went on telling
+  // the reader that questions had "cleared the k-floor of 5" and that
+  // "under-floor questions publish nothing", beside numbers computed by
+  // `isScoredAgg = (agg) => !!agg`, which floors nothing.
+  //
+  // Nothing could catch them. check:public-copy is the gate for a surface
+  // saying what the server does not do, and its scope note is explicit
+  // that it covers "only files whose audience is a user or a store
+  // reviewer" — this console's audience is the owner, so it sits outside
+  // by design, and source comments are excluded there as recorded debt.
+  // That leaves the rendered strings with no reader at all, which is how
+  // they outlived the thing they describe by fifteen days.
+  //
+  // The assertion is on the RENDERED HTML rather than on the source, so a
+  // caption reintroduced anywhere in the console fails here — including in
+  // a panel this file has no other case for. Comments are untouched on
+  // purpose: they are debt, not a claim to anyone (check-public-copy.mjs
+  // says so), and scanning them would bury this signal in them.
+  //
+  // The one legitimate use of the word is a caption that says the floor is
+  // GONE ("the k-floor this used to wait out is gone — D98"), so the
+  // vocabulary is matched as the CLAIM shapes rather than as the bare
+  // word.
+  const RETIRED = [
+    "cleared the k-floor",
+    "cleared the floor",
+    "k-floored",
+    "under-floor",
+    "below the k-floor",
+    "tooSmall",
+  ];
+
+  // Both banner branches: the population panel says one thing at
+  // totalAnswers > 0 and another at 0, and only one of them renders per
+  // call. The pre-launch branch is the one that carried "No answers have
+  // cleared the k-floor", so rendering only the committed state would
+  // have missed it.
+  const states = () => {
+    const live = collect();
+    const zeroed = {
+      ...live,
+      pipeline: {
+        ...live.pipeline,
+        scorecard: { ...live.pipeline.scorecard, totalAnswers: 0, scoredQuestions: 0 },
+      },
+    };
+    return [["live", live], ["pre-launch", zeroed]];
+  };
+
+  for (const [label, fixture] of states()) {
+    it(`renders no retired floor vocabulary — ${label}`, () => {
+      const html = renderPulse(fixture, []);
+      for (const phrase of RETIRED) {
+        expect(html).not.toContain(phrase);
+      }
+    });
+  }
+
+  it("still describes the population panel's floors, which are a different claim", () => {
+    // Guard against over-correcting. The numbers here really are floors —
+    // an unanswered question has no aggregate document, so every figure
+    // understates — and that sentence must survive a sweep aimed at the
+    // k-floor. Deleting it would trade a false claim for a missing one.
+    const html = renderPulse(collect(), []);
+    expect(html).toContain("a floor");
+  });
+});
+
 describe("the engagement panel (R1/D268)", () => {
   // FLIPPED 2026-08-26, exactly as the case it replaces said to. It read:
   //

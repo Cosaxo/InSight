@@ -289,9 +289,16 @@ includes flipping them, and each has its own runbook.
   both platforms, the console setup, the staging probe, `minBuild`
   raised first, then the two 24-hour rates, then the one-word rules
   flip. [`DEVICE-BIND.md`](DEVICE-BIND.md).
-- **The k-floor restore** (D81): the paused constants back to five,
-  server and client copies in one commit, at launch traction; the
-  choreography is already pinned by tests.
+- ~~**The k-floor restore**~~ (D81) — **struck: there is nothing to
+  restore.** This row said the paused constants go back to five at launch
+  traction. **D98 removed the floor outright** on 2026-08-11, not
+  temporarily: `AGG_MIN_N`, `PUBLISH_EVERY`, complementary suppression and
+  `tooSmall` are gone, and `docs/data-inventory.md` says so in those words
+  ("D81's pause was superseded rather than resumed"). MONETIZATION.md and
+  LAUNCH-RUNBOOK.md each carry that correction; this row did not, so it
+  survived as an instruction to reinstate the exact limit D98 was written
+  to delete. Struck rather than deleted, per D106's rule that a reversal
+  must stay visible. D316.
 - **Moderation advisory mode** (D22): `MOD_ADVISORY` flips on a cited
   track record.
 - **App Check on the data plane**: register, soak to near-100% verified,
