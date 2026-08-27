@@ -53,7 +53,7 @@ explicitly not the constraint; quality is).
 
 | Lane | Workspace | Scope |
 | --- | --- | --- |
-| Genetic | `theory/genetic/` | The perfect genetic axiom: what a genome can honestly say about a person's traits, how it should enter, be held, be scored, be combined; the cross-connection half (§1): how traits the other axioms measure map onto specific genes and genetic architecture — and the biology-ambition half: what this data could contribute to areas like aging research |
+| Genetic | `theory/genetic/` | The perfect genetic axiom: what a genome can honestly say about a person's traits, how it should enter, be held, be scored, be combined; the cross-connection half (§1): how traits the other axioms measure map onto specific genes and genetic architecture — and the biology-ambition half, widened by the owner 2026-08-27: what this data could contribute not only to advancing aging research but equally to genetic engineering and to the general understanding of genetics (§9 bounds how, and widened with it) |
 | Body | `theory/body/` | The perfect body axiom: sensors, self-report, derived clinical values — one coherent measurement theory of the body over time; and the cross-connection half (§1): how traits the other axioms measure map onto parts and systems of the body |
 | Questions | `theory/questions/` | The perfect question axiom: the ideal bank, selection, and measurement theory of asking people things |
 | Tests | `theory/tests/` | The perfect test axiom: logic, the four instruments and the nine lenses as one measurement system |
@@ -196,10 +196,12 @@ perfect *including* being lawful and consensual — a theory that needs
 unconsented data or unlawful processing is a worse theory stated
 honestly, not a bolder one. Concretely: privacy, consent and
 special-category law are design axioms here, not limitations;
-**no medical advice and no self-experimentation protocols**, ever —
-the aging ambition is literature-grounded hypothesis work over
-consented, aggregated data, written as research directions with
-citations; factual claims carry sources or stay below `cited`; and
+**no medical advice and no self-experimentation or intervention
+protocols**, ever — the biology ambition (aging research, genetic
+engineering and the general understanding of genetics alike, since the
+owner's 2026-08-27 widening) is literature-grounded hypothesis work
+over consented, aggregated data, written as research directions with
+citations, never as procedures; factual claims carry sources or stay below `cited`; and
 fabricating a source, a number, or a result is the unrecoverable sin
 (§4). InSight's D1 — no fake anything — reaches this branch in full.
 
