@@ -32618,3 +32618,83 @@ an exemption needs a written reason. This is the D106 remedy actually
 built: the previous comment promised that adding a page means adding one
 line, and the note beside the newest entry was already false the day it
 was written.
+
+## D324 · The genetic axiom's ambition widens, and the night shift gets a closing hour
+
+**2026-08-27.** **Status:** binding — two owner calls made in one
+sitting, both account-side first and recorded here because nothing else
+in this tree holds them. The night shift in particular has no product
+document at all: its brief lives in its Routine, and until now its only
+traces on `main` were `.gitignore`'s comment and the morning-review
+records (D286's limit, D293's limit, D323).
+
+### 1 · The genetic lane explores more than aging
+
+The genetic lane's biology-ambition half read "what this data could
+contribute to areas like aging research". The owner widened it: not
+only advancing aging research, but **equally genetic engineering and
+the general understanding of genetics**. Landed where the axiom
+actually lives — `CHARTER.md` §2 on the `axiom-theory` branch, commit
+`1c22994` — with §9's boundary sentence widened in the same commit so
+the whole ambition sits under the same bound, not just the corner that
+was named first: literature-grounded hypothesis work over consented,
+aggregated data, written as research directions with citations, never
+as procedures; no medical advice, no self-experimentation or
+intervention protocols. A wider ambition with the boundary left
+pointing at "the aging ambition" would have been the widening done
+badly.
+
+One piece of drift is accepted rather than hidden: the lane's Routine
+prompt still summarizes the old sentence, because prompt edits on a
+Routine that fires into another session (the dispatcher's) are refused
+by the tooling. The charter absorbed exactly this case by design — the
+prompt says in as many words that the charter outranks it and is
+re-read every run — so the widening is effective from the lane's next
+firing. Refreshing the summary text is one edit in the claude.ai
+Routines UI whenever the owner cares to.
+
+### 2 · The night shift ends at 08:00 with a verified branch, not at 07:00 with a stopped one
+
+The shift ran four audit flows at 21:00/23:00/01:00/03:00 UTC, 95
+minutes each, so the last rollup waited before 07:00 Oslo. The owner
+gave it the hour to 08:00. The arithmetic: a fifth firing at 05:00 UTC
+is 07:00 in Oslo (CEST), and a **50-minute budget** — not the audit
+flows' 95 — is what keeps its summary waiting before 08:00 local.
+
+What fills the hour is deliberately NOT a fifth audit flow. Three
+reviewed nights say more raw fixes is not where the marginal value is:
+23 fixes kept and one refused (D286), 31 kept (D293's morning), 21 kept
+with none reverted (D323) — about 75 of 76 landed fixes survived
+review. What the reviews HAVE had to catch is the night's blind spot
+about its own work: two of D323's twenty-one fixes closed defects the
+same night's earlier commits introduced, visible only when the branch
+is read as a whole; and on 2026-08-25 two rules commits landed without
+the e2e suites and left the branch red on the deploy path for two
+hours. So the fifth firing is a **closing flow**: no new audit fan-out;
+a throwaway merge of current `origin/main` to report conflicts (aborted,
+never pushed — the owner merges); the full battery the morning review
+would otherwise run first (both typechecks and lints, all five runners
+including rules and the three e2e suites, every gate that runs without
+production secrets); an adversarial re-review of the whole night diff
+as one unit; fixes only for what that proves broken, none begun past
+minute 35; and the definitive morning summary topped by a verdict line
+— green-and-mergeable, or exactly what is red and why. A check that did
+not run is named as unrun, never claimed (D1 reaches summaries).
+
+Mechanics, for the record: the same prompt-edit refusal as §1 applies
+to the night worker's Routine, and there the brief IS the contract — so
+the Routine was recreated, create before delete so a failed create
+could not dark the night. The five-flow Routine is
+`trig_01WdCLF7zBNjqFmTVk15rWhE`, bound to the same persistent worker
+session, which is what keeps the owner's standing push authorization —
+a human turn in that session's history — exactly as effective as
+before; the brief's authorization paragraph is carried verbatim. The
+retired four-flow Routine (`trig_01AqBssRL8Pna435hwuBSNb7`, created
+2026-08-24, last fired 2026-08-27 03:08 UTC) took its run history with
+it; the nights it ran are the three review records above. Cost: one
+more ultracode flow per night at roughly half an audit flow's length,
+under the owner's standing call that token cost is not this loop's
+constraint. If the closing flow's battery keeps coming back green with
+nothing to say, the cadence dial turns the same way it does everywhere
+else in this program: shrink or retire the flow, and this record is
+where that reversal belongs.

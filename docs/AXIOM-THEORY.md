@@ -20,7 +20,13 @@ better understand, and get deeper data about, each other (the owner,
 2026-08-25) — so cross-axis connection is first-class subject matter
 in every lane (charter §1), with genetic and body explicitly charged
 with theorizing how the other axes' traits map onto genes and onto the
-body's parts and systems. Sharper still (the owner, 2026-08-26): each
+body's parts and systems. The genetic lane also carries a biology
+ambition, widened by the owner 2026-08-27 (D324): not only what the
+data could contribute to advancing aging research, but equally to
+genetic engineering and to the general understanding of genetics —
+charter §9 bounds how and widened with it: literature-grounded
+research directions over consented, aggregated data, never
+procedures. Sharper still (the owner, 2026-08-26): each
 axiom's purpose, or at least its main one, is to create data and
 data-connections as powerful and useful as possible — or to make
 another axiom's data stronger and more useful. Each lane improves one theory every other
