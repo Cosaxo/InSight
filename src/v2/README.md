@@ -206,13 +206,14 @@ debt** — 31 was an understatement, and every remaining conversion should be
 expected to raise this number before it lowers it.
 
 They are **deferred, not judged correct**. They are React Compiler
-findings — `exhaustive-deps`, `refs`, `purity`,
-`preserve-manual-memoization` — in JSX ported verbatim from the frozen
-prototype. Changing effect re-run timing blind is a worse trade than
-recording the debt. The exception is `react-hooks/purity` in
-`person-mindmap.jsx`, which is a false positive with a specific note at
-each site: those are `performance.now()` calls inside pointer and rAF
-handlers, not render.
+findings — today all `exhaustive-deps` and `refs` — in JSX ported
+verbatim from the frozen prototype. Changing effect re-run timing blind
+is a worse trade than recording the debt. (An earlier version of this
+paragraph kept a `react-hooks/purity` exception alive for
+`person-mindmap.jsx`; re-verified 2026-08-27, no `purity` suppression
+exists anywhere in the layer — that file's four are ordinary
+`exhaustive-deps` lines. The breakdown by rule is exactly what
+`check:a11y` does NOT hold, which is how the sentence went stale.)
 
 Do not reintroduce a file-level disable to quiet a new finding; that is
 the failure mode this section exists to prevent.

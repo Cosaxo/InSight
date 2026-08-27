@@ -27,12 +27,13 @@ today and which are still the prototype's furniture.
 > correctly and claimed wrongly. So the corpus splits:
 > [`SCALE-PLAN.md`](SCALE-PLAN.md) §1 defines a **core** served to
 > everyone that these stops may fold, and a personalized **tail** they
-> must not. Feed questions already declare `core`
-> (`content/feed-questions.json`, gated by `check:quality`); the fold
-> below does not read the flag yet, and lands with the first tail
-> content. Every other surface here is core by construction. Nothing on
-> this page changes today — read this before pointing a stop at a wider
-> corpus.
+> must not. Feed questions declare `core`
+> (`content/feed-questions.json`, gated by `check:quality`), and the
+> fold reads it: `deck.ts` resolves `coreCorpus` per surface — feed
+> questions count only when they say so, every other surface is core by
+> construction — and `LiveCohortBody` folds `coreCorpus` rows only,
+> with the tail-question case pinned in its suite. Read this before
+> pointing a stop at a wider corpus.
 >
 > The read path exists as of the same change: `data/voters.ts` does the
 > collection-group query on `answers` plus batched uid→name resolution,

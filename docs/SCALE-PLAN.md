@@ -271,37 +271,44 @@ a truncated corpus with nothing failing anywhere. `BANK_PAGE = 1000` is a
 page size now, `BANK_MAX_PAGES` bounds the loop, and tripping it reports
 rather than truncating. `bank-cache.test.ts` asserts completeness.
 
-**What trips next is the localStorage bank cache, and it is silent in the
-same way.** `question-quality.mjs`'s `BANK_WARN`/`BANK_FAIL` were
-re-pointed at that budget when pagination landed, and they are stated in
-MB for it: **6,000 docs ≈ 1.6 MB, 10,000 ≈ 2.7 MB**, against a ~5 MB
-origin quota shared with ~29 other `insight.*` keys. The failure mode is
-the one this whole section is about — `live.ts` caches the whole bank in
-`insight.bankCache.v2` and **swallows a quota failure**, so crossing the
-budget breaks nothing visibly: it stops caching, and every boot pays a
-full bank fetch forever, with no symptom anywhere.
+**What tripped second was the localStorage bank cache, and it was silent
+in the same way — until it moved (D312, converging with D318's parallel
+build, 2026-08-26).** `question-quality.mjs`'s `BANK_WARN`/`BANK_FAIL`
+had been re-pointed at that budget when pagination landed, stated in MB
+for it against the ~5 MB origin quota shared with the other `insight.*`
+keys. The failure mode was the one this whole section is about —
+`live.ts` cached the whole bank in `insight.bankCache.v2` and
+**swallowed a quota failure**, so crossing the budget would have broken
+nothing visibly: stop caching, and every boot pays a full bank fetch
+forever, with no symptom anywhere. The caches are IndexedDB rows in
+`data/cacheStore.ts` now, the quota instrument shipped first so a
+swallowed write counts and reports, and the two gates were re-pointed a
+third time — at the boot-time in-memory walk
+[`BANK-DELIVERY.md`](BANK-DELIVERY.md) §4 holds open.
 
 That is also the line at which §2's own cost table stops being true. The
 identical rows above hold *because* the bank is a one-time install cost
 absorbed by that cache; lose it and bank size starts billing per boot per
 user, which is precisely the regression the table says to watch for.
 
-**The remedy is named at the call site: move the cache to IndexedDB
-before promoting past the budget** — and it is smaller than it sounds,
-because `persistentLocalCache()` already puts Firestore's own document
-cache there. [`BANK-DELIVERY.md`](BANK-DELIVERY.md) is the plan, and it
-carries a finding this section did not have: the cache is the SECOND
-ceiling, not the first. The learn bank is compiled into the JS bundle,
-`check:bundle` has about 39 cards of headroom, and that one is weeks
-away rather than years.**
+**The remedy was the one named at the call site — move the cache to
+IndexedDB before promoting past the budget — and it happened before any
+promotion needed it** (D312). [`BANK-DELIVERY.md`](BANK-DELIVERY.md) was
+the plan, and it carried a finding this section did not have: the cache
+was the SECOND ceiling, not the first. The learn bank was compiled into
+the JS bundle with about 39 cards of headroom, and that one bit first —
+D284 cut the bundle to a fixed sample slice, and D320/D321 then took
+learn and the feed tail out of the boot fetch entirely.
 
-Both are smaller pieces of work than §1's core/tail split and unrelated
-to it — those are about what a device can hold, this one about what a
-cohort reading may honestly fold.
+Both were smaller pieces of work than §1's core/tail split and unrelated
+to it — those are about what a device can hold, §1 about what a cohort
+reading may honestly fold.
 
-**Order: the bundle, then the cache, then accelerate.** The cache leaves
-~5,300 questions of headroom, which is years at the lanes' combined
-pace; the bundle leaves about a fortnight.
+**The order ran: the bundle (D284), then the cache (D312), then the
+serving itself (D316–D321, pages instead of the whole bank).** What
+still stands on this side is §4 of
+[`BANK-DELIVERY.md`](BANK-DELIVERY.md) — the boot-time in-memory walk,
+watched by `BANK_WARN`/`BANK_FAIL`.
 
 **Point volume at the surface that can retire.** Feed questions carry
 `active: false` (D52's shape, honoured by `deck.ts`; six duplicates

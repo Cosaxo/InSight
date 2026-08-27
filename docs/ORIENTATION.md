@@ -114,7 +114,7 @@ directions.
 | [`STORE-FORMS.md`](STORE-FORMS.md) | Apple's privacy and age-rating questionnaires, answered field by field | tree |
 | [`SCALE-PLAN.md`](SCALE-PLAN.md) | What an unbounded feed costs, what trips first, and the core/tail split it forces. §1's classification is built; the rest is not | mixed |
 | [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) | The same work as an ordered build list — open steps only | plan |
-| [`BANK-DELIVERY.md`](BANK-DELIVERY.md) | How many questions a device can be handed: the bundle, the cache store, the whole-bank fetch — three ceilings, measured, in the order they bite. §2 built at D284, §3 at D312; §4 remains | mixed |
+| [`BANK-DELIVERY.md`](BANK-DELIVERY.md) | How many questions a device can be handed: the bundle, the cache store, the whole-bank fetch — three ceilings, measured, in the order they bite. All three built (D284 · D312 · D320/D321); what §4 still holds is the boot-time in-memory walk, watched by `BANK_WARN`/`BANK_FAIL` | mixed |
 | [`ANSWER-SCALE.md`](ANSWER-SCALE.md) | The answers-side twin: the client caches that grow with every answered question (instrumented and moved to IndexedDB at D312), a life's archive on one device, and the daily's write wall with its post-D98 sharding shape re-derived, shelved on the alert | mixed |
 | [`FEATURE-COMPLETE.md`](FEATURE-COMPLETE.md) | Everything open between here and feature-complete — algorithms, question production, scale work, flips — one line each, pointing at the file that owns it | plan |
 | [`COST-REDUCTION.md`](COST-REDUCTION.md) | Getting the bill down. The big one was built at D129; the rest is analysis | mixed |
@@ -127,10 +127,10 @@ directions.
 | [`AXES-PLAN.md`](AXES-PLAN.md) | The owner's axis frame: every source the app measures as one family, the genetic and body axes it does not have yet, and where their doors go. Nothing new is built | plan |
 | [`AXES-RUNBOOK.md`](AXES-RUNBOOK.md) | The axes work as an ordered build list run by scheduled routines — the lanes, their canonical prompts, the learning loop, and the gate each step must pass. The lanes are live (D289); every build step is still open | mixed |
 | [`AXIOM-THEORY.md`](AXIOM-THEORY.md) | The theory layer above the axes: eight recurring lanes on an orphan branch writing each source's perfect form and their combination, and the bridge that is their only path into the product. Live since 2026-08-25 | tree |
-| [`ATTENTION.md`](ATTENTION.md) | "Does anyone like this, and what is this person into." No code exists | plan |
+| [`ATTENTION.md`](ATTENTION.md) | "Does anyone like this, and what is this person into." Each tier has since landed through its own record (D128/D173 · D317/D322 · D270); kept for the cost rule and the signal table | plan |
 | [`ENGAGEMENT-PLAN.md`](ENGAGEMENT-PLAN.md) | The 2026-08-23 ask — measure what engages and what bores — against the standing analytics refusals: the two-channel design and the record each rung reverses. The adoptable ladder is built — rung 0 at D268, rung 1 at D270, its per-question map at D271, rung 2 at D272; what stays plan is what the plan refuses, §4.3's event-stream rung and everything §4.4 keeps out | mixed |
 | [`ENGAGEMENT-RUNBOOK.md`](ENGAGEMENT-RUNBOOK.md) | The same work as an ordered build list — phases per rung, sizes, and the gate that proves each step | plan |
-| [`TAGS-PLAN.md`](TAGS-PLAN.md) | Questions carry several topics through one `also` field, and the demand lanes read them without becoming buyable or gameable. Built at D206; §4's tier-2 reading waits on D163 | mixed |
+| [`TAGS-PLAN.md`](TAGS-PLAN.md) | Questions carry several topics through one `also` field, and the demand lanes read them without becoming buyable or gameable. Built at D206; §4's door-read now has its model (D317/D322, server-side) and awaits its own record | mixed |
 | [`FORESIGHT-CALLS.md`](FORESIGHT-CALLS.md) | The half of Foresight that asserts a fact. Tier A built and retired in service (D194→D196); tier B is the live question | mixed |
 | [`EVENT-DISCUSSIONS.md`](EVENT-DISCUSSIONS.md) | Recent events as feed cards, each with a discussion window. The rework of the parked prediction slot; no code exists | plan |
 | [`MONETIZATION.md`](MONETIZATION.md) | The revenue paths in one place. Path 2's machinery is built and unsold (D195); the rest is still plan | mixed |

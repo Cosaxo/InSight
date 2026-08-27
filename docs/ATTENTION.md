@@ -1,8 +1,9 @@
 # Attention — does anyone like this, and what is this person into
 
-**Status: plan only. No code exists.** Requested 2026-08-13. Read it as a
-proposal, with what it reverses named at the top and the failure modes
-named at the bottom.
+**Status: plan only.** Requested 2026-08-13. Read it as a proposal, with
+what it reverses named at the top and the failure modes named at the
+bottom — and read the three notes below first: each tier has since landed
+somewhere, through its own record.
 
 > **Superseded in two places by [`SCALE-PLAN.md`](SCALE-PLAN.md)
 > (2026-08-15).** That document takes an infinite feed as a given, which
@@ -18,6 +19,18 @@ named at the bottom.
 > anonymous daily rollup, per-day random ids, fold-and-delete, bucketed
 > counts) carries forward as that plan's rung 1; tiers 1–2 here, and the
 > records they became (D128, D163), are untouched by it.
+
+> **Overtaken on the model's home (2026-08-26).** Tier 1 became D128 and
+> was retired at D173 — the algorithm owns "how much"; the per-topic
+> mute survives. Tier 2 was taken as D163 and then reversed on address:
+> D317 moved the model to the server (under D316's paged serving, "a
+> taste model that never leaves the phone cannot reach into the fetch")
+> and D322 built its phase 1 — feed answers counted by topic, nothing
+> behavioural. §3's signal table is exactly what D317's phase 2 would
+> adopt, and that phase graduates on its own evidence, as its own
+> amendment. Tier 3 shipped as rung 1 (D270). The shown-and-editable
+> requirement survives the move — D317: it "binds harder" server-side.
+> What stays live here is the cost rule and the signal table.
 
 Two asks, and they look like one feature but are not:
 

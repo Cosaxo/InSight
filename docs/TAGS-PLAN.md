@@ -2,8 +2,11 @@
 
 **Status: BUILT 2026-08-19, recorded as
 [D206](DECISIONS.md#d206--a-question-carries-several-doors-and-demand-credit-is-conserved)
-— except §4, whose tier-2 reading has no tier 2 to land in yet (D163 is
-still a plan).** Requested 2026-08-19: *multiple tags on questions, and
+— except §4, whose reading now has a model to land in: D317/D322
+(2026-08-26) built the taste model server-side, reversing D163's address
+while keeping its invariants. Landing the door-read there is its own
+decision, not a rider — D322 pinned the profile's arithmetic into
+`web/privacy.html`, and door-credit changes that arithmetic (§4's note).** Requested 2026-08-19: *multiple tags on questions, and
 question production based on what tags are most popular*; built the same
 day on the owner's "build it", in §6's order. The reasoning below is kept
 as written — it is why the code has the shape it has — and every figure
@@ -47,7 +50,7 @@ tags") could be read as reversing any of them:**
 
 | Kept | Why |
 | --- | --- |
-| Popularity means **published answer counts**, nothing else | Passes, skips and dwell are local-only by standing decision (`MONITORING.md` § Off the table, re-affirmed post-D98; D163 keeps the interest model on-device). A tag's popularity is the answers its questions collected — the same public number everyone reads. |
+| Popularity means **published answer counts**, nothing else | Passes, skips and dwell are local-only by standing decision (`MONITORING.md` § Off the table, re-affirmed post-D98; the taste model moved server-side at D317 but still reads only answers — behaviour uploads are its unadopted phase 2). A tag's popularity is the answers its questions collected — the same public number everyone reads. |
 | **Popularity × depth**, never raw popularity | Total answers per day is conserved regardless of bank size (`SCALE-PLAN.md` §1). Raw popularity compounds: a popular topic gets more content, collects more of the fixed budget, looks more popular. Depth (least-answered ÷ most-answered) is what lets a small devoted topic earn content; the coverage floor is what lets a new topic exist at all. B's formula stays; A makes its inputs truer. |
 | The Map files an answer at **one path, forever** | "Miscategorisation lands on a branch forever" is already in `SCALE-PLAN.md`'s failure table. Placement stays singular; only *matching* becomes plural. |
 | The vocabulary is **closed** | Farm hard rule 3; growth stays the deliberate human act in `QUESTION-FARM.md` § When no category fits. Free-form tags at farm volume are a vocabulary explosion and a semantic-dupe generator. |
@@ -219,7 +222,19 @@ Downstream of the same arithmetic:
 
 ## 4 · The interest model reads doors — D163's contract, written before tier 2 exists
 
-Specified now so the field is not re-litigated when the on-device model
+> **2026-08-27: the model arrived, server-side.** D317 moved it (the
+> invariants below survive the address change — D317 says they "bind
+> harder" there) and D322 built its phase 1: `functions/src/taste.ts`
+> counts feed answers by topic and `bankPager.pageSizesByInterest` sizes
+> pages by them. This contract now has its landing place — the
+> share-weighted mean belongs in that fold and its reader — and building
+> it is its own record (§6 step 6's pattern), not a rider: D322 pinned
+> the profile's arithmetic into `web/privacy.html` and
+> `check:policy-claims`, and door-credit changes what those sentences
+> state. The veto clause needs no server half — the client filter
+> already vetoes across `cat` ∪ `also` (§3).
+
+Specified then so the field is not re-litigated when the model
 lands:
 
 - Weights stay per-topic. A card's affinity is the share-weighted mean

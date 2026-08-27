@@ -1,7 +1,8 @@
 # Feature-complete — the open work, in one place
 
 **Status: plan notes — an index, not an authority.** Compiled 2026-08-19
-from the plan and mixed documents plus the gates' own live output. Every
+from the plan and mixed documents plus the gates' own live output; rows
+re-verified against the tree 2026-08-27 (through D324). Every
 row cites the file that is canonical for it; if this page and that file
 disagree, the file is right and this page is stale. Nothing here adopts
 anything — a row marked *proposed* binds nothing until the owner records
@@ -45,15 +46,18 @@ enough to draw.
   (`patterns.test.ts` pins it the way `surface` pins the duel seal),
   graded in surprisal bits through the ordinary vote path.
   [`VISION-V28.md`](VISION-V28.md) §2.
-- **The on-device interest model** (decided, D163 — binding, not built,
-  and load-bearing since D173: the tail cannot ship without it):
-  per-topic weights from signals the device already stores
-  (`insight.feedPass.v1`, defer, readRoom, votes), ordering the **tail
-  only**, shown to the user and editable with a reset, never leaving the
-  device — plus the test that the daily's selection and the Mirror never
-  read it, or the constraint rots.
-  [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) Phase 5,
-  [`ATTENTION.md`](ATTENTION.md) §3.
+- **The interest model** — reframed by D317/D322 (2026-08-26), which
+  this entry predated: server-side per-user selection, refused by D163,
+  was crossed by the owner, because under D316's paged serving a taste
+  model that never leaves the phone cannot reach into the fetch. Phase 1
+  is **built**: `functions/src/taste.ts` counts a person's feed answers
+  by topic, nightly, and `bankPager.pageSizesByInterest` sizes their
+  feed pages by them. D163's invariants survive the address change (feed
+  only, never the daily, never the Mirror; shown and editable — D317
+  says they "bind harder" server-side), and the behaviour signals (pass,
+  defer, read) remain device-only: D317 phase 2 graduates on its own
+  evidence, as its own amendment.
+  [`ATTENTION.md`](ATTENTION.md) §3; D317, D322.
 - ~~**Trait web / "what moves together"**~~ — **done 2026-08-19**
   (`data/traitLinks.ts` + `ui/TraitWebCard.tsx`, lazy on the profile's
   General panel): the eleven authored cross-test threads checked against
@@ -89,10 +93,11 @@ the live figures: `node scripts/farm-budget.mjs`,
   promotion carries a weekly floor (D30) and a catch-up target while the
   pen has stock (D97). [`QUESTION-FARM.md`](QUESTION-FARM.md).
 - **Level the feed bank**: every topic short of `TOPIC_TARGET`
-  (`scripts/feed-budget.mjs`) needs servable questions — vote, dial,
-  field and path count; rank and duel do not (D12). The lane is
-  scheduled (D145); its output to date is nil — every feed provenance
-  row still reads editorial.
+  (`scripts/feed-budget.mjs`) needs servable questions — vote, rank,
+  dial, field and path count (rank joined at D233); duel does not
+  (D12). The lane is scheduled (D145) and producing since D212 — the
+  scorecard's `production.bySource` is the live provenance split; run
+  the budget scripts for the day's figures.
 - **Fill the learn fields**: every field short of `FIELD_TARGET`
   (`scripts/learn-budget.mjs`), with the minimum-chunk and spread rules
   (D115).
@@ -102,11 +107,14 @@ the live figures: `node scripts/farm-budget.mjs`,
   work in §3 below. Volume points at the feed surface only: daily
   questions cannot retire (D97's open gap).
   [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) Phase 4.
-- **Review at volume** (decided, D162 — half blocked): batch approval —
-  human on the merge, not the reading — is buildable now and is what
-  unblocks raising the farm budget; the sampled-audit rate is a starting
-  figure, not a measured one. [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md)
-  Phase 3–4.
+- **Review at volume** — taken further than this entry planned: D212
+  (2026-08-19) removed the human from the merge for question content —
+  the lanes merge their own PRs on green gates, promotion runs at a
+  fixed pace, and the 1-in-20 audit became a standing retrospective
+  `check:quality` warning (currently accruing — run the gate). The
+  two-gate property survives: a scheduled job never holds write access
+  to production content. [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md)
+  Phase 3–4; D212.
 - **The catalog lane's blocked half** (decided, D14/D15 — narrowed at
   D232, again at D266, 2026-08-23): the pick surface is LIVE for every
   committed domain (23 cards, `content/pick-questions.json` — the
@@ -149,13 +157,14 @@ the live figures: `node scripts/farm-budget.mjs`,
 D161–D164 are the frame; [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) is the
 ordered list. Open, in its order:
 
-- **The core/tail enforcement half** (decided, D161 — lands with the
-  first tail content, not before): write the filter placement down per
-  call site (cohort folds read core only; a person's own answers are
-  always all of them), extend the fold filter beyond `LiveCohortBody` to
-  the similarity fields and Kindred, and add the test that a non-core
-  aggregate never reaches a Mirror stop. `LiveCircleBody` stays
-  unfiltered on purpose. Never ship the interest model before this.
+- ~~**The core/tail enforcement half**~~ — **done** (the filter landed
+  with the tail content, as D161 sequenced): the placement is written
+  down per call site (`SCALE-PLAN.md` §1), `deck.ts` resolves
+  `coreCorpus` per surface, `LiveCohortBody` folds core rows only with
+  the tail-question case pinned in its suite, and the similarity fields
+  and Kindred were measured as bounded by construction (they fold
+  `LIVE.testFeedItems()`), so a filter there would be a no-op wearing a
+  safeguard's name. `LiveCircleBody` stays unfiltered on purpose.
   [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) 2.1, [`MIRROR.md`](MIRROR.md)
   preamble.
 - **The core-size ratio gate** (decided, blocked on population): core
@@ -189,8 +198,8 @@ ordered list. Open, in its order:
   seven modules left the eager list for `loadMapTab()` the same day
   (eager 890 → 849 KB, `MAX_EAGER_KB` 920 → 860). The three parked
   features — Crossroads' `mapTree`, the Foresight map branch, the pulse
-  branch — now grow inside the lazy map chunk; building them is the next
-  item. [`VISION-V28.md`](VISION-V28.md) §5.
+  branch — now grow inside the lazy map chunk, and landed there the same
+  day (§4 item 5, D207 amended). [`VISION-V28.md`](VISION-V28.md) §5.
 - **The bridge migration** (ratchet, D39): `check:globals` rule 4 only
   moves down; the v28 tweak teardown is the next large lump of it, and
   `passive-progress.js` / `test-definitions.js` still want to become
@@ -262,10 +271,13 @@ Beyond v28, still open on the Mirror ([`MIRROR.md`](MIRROR.md)):
   next home. The READ game gates itself on pool size and ships when real
   data satisfies it (D196); real-event calls stay parked as a new rubric
   `kind` on the surviving substrate.
-- **The suggestion board's community half** — still *Preview · sample
-  suggestions*; belongs to the suggestions work (D138), not to v28.
-- **Rank questions** — out of the live feed until answers can carry an
-  order (D12).
+- ~~**The suggestion board's community half**~~ — closed **by deletion**
+  at D288 §1: the board became the paid door ("Ask a question"),
+  self-serve since D313. Reviving a community board would be a new
+  decision, not this row.
+- ~~**Rank questions**~~ — back in the live feed since D233: answers
+  carry an order, and `feed-budget.mjs` counts rank servable
+  ([`RANK-CATALOG-LIVE.md`](RANK-CATALOG-LIVE.md)).
 - **The romantic duel deck** — seeded `active: false` until its client
   ships (D40).
 
@@ -289,18 +301,21 @@ includes flipping them, and each has its own runbook.
   both platforms, the console setup, the staging probe, `minBuild`
   raised first, then the two 24-hour rates, then the one-word rules
   flip. [`DEVICE-BIND.md`](DEVICE-BIND.md).
-- **The k-floor restore** (D81): the paused constants back to five,
-  server and client copies in one commit, at launch traction; the
-  choreography is already pinned by tests.
+- ~~**The k-floor restore** (D81)~~ — **superseded by D98**, which
+  predates this page: the floor is retired, not paused ("moot — the
+  floor is gone rather than paused", D98's reversal table), so there is
+  nothing to flip. The row was stale when compiled.
 - **Moderation advisory mode** (D22): `MOD_ADVISORY` flips on a cited
   track record.
 - **App Check on the data plane**: register, soak to near-100% verified,
   then enforce Firestore and Storage — the only lever against the
   unmetered read path, and it cannot be armed during an incident.
   [`COSTS.md`](COSTS.md) § controls.
-- **The europe-west1 functions deploy** (D201): deploy, confirm the old
-  region is empty — while both exist every answer folds twice — then the
-  client build that calls it.
+- **The europe-west1 functions deploy** (D201) — the deploy and the
+  client build landed (every live function serves from europe-west1);
+  what stays open is the old regions' teardown, which is
+  [`LAUNCH-RUNBOOK.md`](LAUNCH-RUNBOOK.md) 5.9's list — the twelve
+  old-project us-central1 functions, `onUserDeleted` first, on its own.
 - **Production environment protection and the two loosened controls**
   (D87/D117), with the notification mechanism D117 names as the open
   half.
