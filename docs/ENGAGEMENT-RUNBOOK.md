@@ -394,10 +394,21 @@ Gated on R3. Everything here extends phase 2's module and fold.
 - [ ] **4.1 Pulse engagement charts** — self-contained, stdlib-only,
       the console's own palette discipline (labels on segments, table
       beside every chart). · **Gate:** `test:scripts`. · **Size:** M.
+      *(State 2026-08-27: panel 4b in `pulse-render.mjs` already draws
+      the digest trail; what this box still wants is chart treatment
+      beyond the sparkline — worth doing when the figures have signal
+      to show, since every reading is zero until real users.)*
 - [ ] **4.2 Trail curation** — keep the handful of figures worth
       trending (DAU, D7, one-and-done, Mirror reach, top/bottom
       conversion), resist the rest; a trail that carries everything is
       a second copy of the artifact nobody can read. · **Size:** S.
+      *(State 2026-08-27: two of the five ride
+      `monitoring/pulse-trail.jsonl` already — `dau` and `retD7`,
+      null-as-gap. One-and-done, Mirror reach and top/bottom conversion
+      have no committed source until the rung 1–2 writers ship with a
+      release (3.9's open half); adding their columns now would be
+      permanent nulls — the second-copy noise this box exists to
+      resist. Blocked on data, not on code.)*
 
 ## The dependency order, in one line
 
