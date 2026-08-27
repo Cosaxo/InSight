@@ -32734,3 +32734,39 @@ The backend is not this workflow's to ship and was checked anyway:
 `firebase-deploy` run 140 deployed `8b88066`, which is `ac9072f`'s parent
 but for one pulse trail row, so the client at build 26 meets a backend
 carrying D316–D323.
+
+### The dispatches, and the bump
+
+Same session, same day, so this is D324 rather than a record after it.
+
+**Runs 43 and 44 delivered build 26, and the bump landed off step 17's
+conclusion.** Run 43 (`33070525476`, 12:08:58Z) step 17 `skipped` — the
+dry run, 6m 12s; run 44 (`33071251527`, 12:18:34Z) step 17 `success`,
+12:25:22Z → 12:27:13Z, 1m 51s of transfer. `UPLOAD SUCCEEDED with no
+errors`, delivery UUID `b1562663-98fe-4166-8aae-863bbcc5241d`, 6,128,733
+bytes against build 25's 6,039,930. Ninth pair of this shape after 15/16,
+23/24, 25/26, 27/28, 32/33, 37/38, 39/40 and 41/42.
+
+`appBuild` went 26 → 27 read off step 17 rather than recalled. **Eight
+that held** (20, 21, 22, 28, 33, 36, 42, 44) against seven skipped (18,
+19, 24, 26, 31, 38, 40).
+
+**D159's trap did not fire.** Both runs archived `ac9072f`; `main` was
+checked between the dispatches and had not moved, and the D324 record
+itself was deliberately left unmerged on its branch so that merging it
+could not become the commit in the gap. Second release since run 21 where
+the dry run and the upload name one tree, after build 24's runs 39/40 —
+and the first where that was arranged rather than lucky. So what run 43
+proved was proved on exactly the bundle run 44 shipped, which is the
+thing D229 could not say about build 23.
+
+**What the two runs prove, and the one thing they still do not.** Every
+gate on the path came back green on build 26's own tree: step 5
+(placeholders, public copy, version lockstep), step 6 (the live build,
+`check:web-firebase` and `check:bundle` against the real secrets), step
+13 (the archive carries the Firebase config and the APNs entitlement) and
+step 15 (the exported `.ipa` is **production**-signed for APNs — the gate
+that once refused run 5's own build). None of them reads
+`AppIcon-512@2x.png`, so the limit above is unchanged by a successful
+delivery: build 26 carries the iris to TestFlight, and it does so on a
+human's hand-run script rather than on anything this repo can check.

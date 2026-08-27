@@ -623,6 +623,25 @@ macOS quota.
 193 commits rode in that gap — the widest between two builds so far,
 against two days for 24 → 25 and sixteen hours for 22 → 23.
 
+**Runs 43 and 44 then delivered build 26, and the bump landed off step
+17's conclusion** (D324, 2026-08-27). Run 43 (`33070525476`, 12:08:58Z)
+step 17 `skipped` — the dry run, 6m 12s; run 44 (`33071251527`,
+12:18:34Z) `success`, 12:25:22Z → 12:27:13Z, 1m 51s of transfer.
+`UPLOAD SUCCEEDED with no errors`, delivery UUID
+`b1562663-98fe-4166-8aae-863bbcc5241d`, 6,128,733 bytes. Ninth pair of
+this shape. `appBuild` went 26 → 27 read off step 17 rather than
+recalled — **eight that held** (20, 21, 22, 28, 33, 36, 42, 44) against
+seven skipped (18, 19, 24, 26, 31, 38, 40).
+
+**D159's trap did not fire, and this time that was arranged rather than
+lucky.** Both runs archived `ac9072f`: `main` was read between the
+dispatches and had not moved, and the pre-flight record was deliberately
+left unmerged on its own branch so that merging it could not become the
+commit in the gap. That is the second release since run 21 where the dry
+run and the upload name one tree, and the first where the gap was closed
+on purpose — so what run 43 proved was proved on exactly the bundle run
+44 shipped, which is what D229 could not say about build 23.
+
 
 **Build 16's pre-flight found nothing to do either, which is the first
 time that has happened twice running** (D158, 2026-08-15). Run 21 was
