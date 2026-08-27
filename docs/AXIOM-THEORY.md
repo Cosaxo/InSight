@@ -21,7 +21,7 @@ better understand, and get deeper data about, each other (the owner,
 in every lane (charter §1), with genetic and body explicitly charged
 with theorizing how the other axes' traits map onto genes and onto the
 body's parts and systems. The genetic lane also carries a biology
-ambition, widened by the owner 2026-08-27 (D324): not only what the
+ambition, widened by the owner 2026-08-27 (D325): not only what the
 data could contribute to advancing aging research, but equally to
 genetic engineering and to the general understanding of genetics —
 charter §9 bounds how and widened with it: literature-grounded
