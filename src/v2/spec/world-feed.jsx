@@ -395,7 +395,10 @@ class WorldFeed extends React.Component {
             const local = votes[id];
             if (q && q.type === 'dial') {
               if (typeof local === 'number' && local >= q.lo && local <= q.hi && this.dialBucket(q, local) === n) continue;
-              votes[id] = this.dialBucketMid(q, n); changed = true;
+              // Shown, not mid: this value is persisted and read back as a
+              // raw drag on the next boot, so it has to be one the card can
+              // print without leaving its own bucket.
+              votes[id] = this.dialBucketShown(q, n); changed = true;
             } else if (q && q.type === 'field') {
               if (local && typeof local === 'object' && this.fieldCell(local.x, local.y) === n) continue;
               votes[id] = this.fieldCellMid(n); changed = true;
@@ -782,6 +785,36 @@ class WorldFeed extends React.Component {
   // reason D52 froze option sets.
   dialBucket(q, val) { return Math.max(0, Math.min(11, Math.floor(((val - q.lo) / (q.hi - q.lo)) * 12))); }
   dialBucketMid(q, i) { return q.lo + ((i + 0.5) / 12) * (q.hi - q.lo); }
+  // The value to hand out AS YOUR ANSWER for a bucket — which is not the
+  // midpoint, because `dialFmt` rounds to an integer and the midpoint
+  // does not survive it.
+  //
+  // When (hi-lo)/12 is a whole number every midpoint ends in .5, and
+  // half-up rounding lands on the TOP EDGE of its own bucket, which
+  // re-buckets one higher. On the 0-12 h dial you answer 3 h; a device
+  // that did not do the drag has only the bucket, reads the midpoint 3.5,
+  // prints "4 h", and the surprise line quotes 4 back at you. 11 of that
+  // dial's 12 buckets did this; 22 bucket-readings across the four dials
+  // whose step is a whole unit.
+  //
+  // So: the integer nearest the midpoint that STAYS IN THE BUCKET. Tried
+  // round, then floor, then ceil — floor alone is not safe, because on a
+  // dial whose step is under 1 the floor can fall out of the bucket
+  // downward.
+  //
+  // KNOWN LIMIT, deliberately not closed here. On a dial finer than one
+  // unit per bucket (1-4 hrs, step 0.25) most buckets contain NO integer
+  // at all, so no integer display can be inside them and this returns the
+  // midpoint, exactly as before. That is a different defect — the
+  // display's resolution is coarser than the dial's — and closing it means
+  // teaching `dialFmt` decimals, which it uses for end labels, medians,
+  // averages and gaps on every dial card. It is on the night list.
+  dialBucketShown(q, i) {
+    const mid = this.dialBucketMid(q, i);
+    const cands = [Math.round(mid), Math.floor(mid), Math.ceil(mid)];
+    for (const c of cands) if (this.dialBucket(q, c) === i) return c;
+    return mid;
+  }
   fieldCell(x, y) { return Math.min(2, Math.floor(y / (100 / 3))) * 4 + Math.min(3, Math.floor(x / 25)); }
   fieldCellMid(i) { return { x: ((i % 4) + 0.5) * 25, y: (Math.floor(i / 4) + 0.5) * (100 / 3) }; }
 
@@ -803,7 +836,7 @@ class WorldFeed extends React.Component {
     const stale = q.live && typeof v === 'number' && (v < q.lo || v > q.hi);
     if ((v != null && !stale) || !q.live || !LIVE.myVotes) return v;
     const b = LIVE.myVotes()[q.id];
-    return b == null ? v : this.dialBucketMid(q, Number(b));
+    return b == null ? v : this.dialBucketShown(q, Number(b));
   }
   fieldVal(q) {
     const v = this.state.votes[q.id];
@@ -869,7 +902,7 @@ class WorldFeed extends React.Component {
       const prior = LIVE.myVotes ? LIVE.myVotes()[q.id] : null;
       if (prior == null) { if (LIVE.vote) LIVE.vote(q.id, String(idx)); }
       else if (Number(prior) !== idx && !(LIVE.editVote && LIVE.editVote(q.id, String(idx)))) {
-        val = this.dialBucketMid(q, Number(prior));
+        val = this.dialBucketShown(q, Number(prior));
       }
     }
     this._fresh = q.id;
