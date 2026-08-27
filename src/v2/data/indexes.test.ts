@@ -201,6 +201,73 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
     ).toBe(true);
   });
 
+  // deleteAccount's cross-user sweeps, as ONE case, because they share one
+  // failure and it is the worst one in this file.
+  //
+  // Phases 3–4 of deleteAccount reach documents that live under OTHER
+  // people's subtrees — an invitation this account sent sits in a
+  // stranger's inbox and carries this account's display name — so each is
+  // a collection-group query filtered on a uid field, with no ordering.
+  // A collection-group query needs its single-field index declared
+  // EXPLICITLY: automatic indexing is collection-scope only, so the
+  // absence of a line here is FAILED_PRECONDITION on that sweep.
+  //
+  // And a sweep that throws is not a partial erasure. Every failure is
+  // pushed onto `failed[]`, and a non-empty `failed[]` throws BEFORE
+  // getAuth().deleteUser — deliberately, so nothing is orphaned behind a
+  // deleted auth user. The consequence is that ONE missing line here means
+  // NOBODY CAN DELETE THEIR ACCOUNT, ever, and the message they get is
+  // "nothing was lost, please retry" on every attempt.
+  //
+  // `invites` was the line that was missing. The file declared the two
+  // composites `(to, at DESC)` and `(from, at DESC)` — added for the
+  // client's inbox, which orders by `at` — and a commit message reasoned
+  // that a composite covers the filter-only query "as a prefix". A
+  // composite ending `at DESC` carries an implicit trailing `__name__
+  // DESC`, and a filter-only query's implicit ordering is `__name__ ASC`,
+  // so the prefix argument is at best unproven. It cannot be settled from
+  // here — this file's header says why: the emulator does not enforce
+  // index configuration, so every local suite is green either way, and
+  // only production can answer it.
+  //
+  // The fix does not need the answer. Declaring the two single-field
+  // overrides makes the query served whichever way the composite question
+  // resolves, matches what every OTHER sweep in this list already has, and
+  // costs one index entry per invite on a collection that holds unanswered
+  // invitations. Cheap to add, and the thing it insures against is total.
+  it("deleteAccount's cross-user sweeps each have their collection-group index", () => {
+    const sweeps: Array<[string, string, "order" | "arrayConfig", string]> = [
+      // functions/src/index.ts phase 3c — both directions of a circle
+      // invitation (D122).
+      ["invites", "to", "order", "ASCENDING"],
+      ["invites", "from", "order", "ASCENDING"],
+      // phase 3b — inbound follows sitting in other people's circles.
+      // Also pinned above for circle.ts's own read; kept here because the
+      // reason differs and either one going missing is this failure.
+      ["following", "to", "order", "ASCENDING"],
+      // phase 4 — v1 relations pointing back at this uid.
+      ["relations", "linkedUid", "order", "ASCENDING"],
+      // phase 3a — v1 impressions this account sent.
+      ["insight_inbound_impressions", "senderUid", "order", "ASCENDING"],
+      // phase 2 — reveal documents this account is a member of.
+      ["reveals", "members", "arrayConfig", "CONTAINS"],
+    ];
+    for (const [group, field, kind, want] of sweeps) {
+      const o = override(group, field);
+      expect(
+        o,
+        `${group}.${field} has no fieldOverride at all — deleteAccount's `
+        + `sweep over it throws FAILED_PRECONDITION in production, and a `
+        + `failed sweep aborts before the auth delete, so NO account can `
+        + `be deleted until it is restored.`,
+      ).toBeDefined();
+      expect(
+        o!.indexes.some((i) => i.queryScope === "COLLECTION_GROUP" && i[kind] === want),
+        `${group}.${field} has no COLLECTION_GROUP ${want} index`,
+      ).toBe(true);
+    }
+  });
+
   it("the file declares each top-level key exactly once", () => {
     // NOT a style rule. `JSON.parse` — and firebase-tools with it — keeps
     // the LAST occurrence of a repeated key and discards the rest without

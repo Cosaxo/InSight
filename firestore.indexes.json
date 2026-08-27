@@ -235,6 +235,26 @@
       ]
     },
     {
+      "collectionGroup": "invites",
+      "fieldPath": "to",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
+      "collectionGroup": "invites",
+      "fieldPath": "from",
+      "indexes": [
+        {
+          "queryScope": "COLLECTION_GROUP",
+          "order": "ASCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "reveals",
       "fieldPath": "members",
       "indexes": [
