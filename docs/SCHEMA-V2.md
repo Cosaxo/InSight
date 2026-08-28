@@ -116,9 +116,17 @@ v2_users/{uid}/answers/{qid}
     validates the ELEMENTS (a permutation of 0..n-1, validRankOrder) and
     a malformed order never aggregates. No optionIdx alongside — a
     synthetic index would leak an order into option-shaped folds.
+    Anonymous answers (D327) store `surface: "daily-anon"` /
+    `"feed-anon"` — ONE surface value chosen at vote time, on those two
+    surfaces only (the rules' `worldBaseOf()` maps the variant to its
+    base for the question-surface equality). Same shape otherwise, same
+    fold into the same public aggregate by qid; the variant's whole
+    effect is that it sits outside both cross-user read arms' surface
+    lists below, so no other user ever receives the document.
 create: owner, validated (question must exist; optionIdx < options.size())
 update: owner, ONE shape (D86) — optionIdx moves (+ editedAt ==
-request.time), on surfaces daily|feed|test only, bounded by the
+request.time), on surfaces daily|feed|test (and the two -anon variants)
+only, bounded by the
 question's options, once per 60 s per answer. Everything else is frozen:
 anchors and answeredAt (the cohort stamp, D8), learn (D32's
 first-attempt measurement), duels (the seal), catalog answers (no canon
@@ -131,7 +139,10 @@ and the client-writable surface does not widen
 delete: nobody
 read: any signed-in user, EXCEPT duel answers (surface group/duo), which
 stay sealed until their reveal — a `surface` value test on the read rule.
-Game timing, not privacy. Cross-user reads go through the collection-group
+Game timing, not privacy. Anonymous answers (D327) are the one
+privacy exception: their surfaces are absent from both read arms'
+lists, so only the owner reads them. Cross-user reads go through the
+collection-group
 grant `match /{path=**}/answers/{aid}` and must carry a matching
 `where("surface","in",[…])` or Firestore refuses the query wholesale (D65)
 
@@ -698,7 +709,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 157 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 160 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

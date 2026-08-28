@@ -657,11 +657,22 @@ service cloud.firestore {
         // is a plain world answer, and THIS create-only path is what makes
         // the crowd stat a people-rate — the scheduler's spaced retries
         // have nothing they are allowed to write.
+        // D327: an anonymous answer is the same world answer under a
+        // surface value OUTSIDE the read arms' public lists — that one
+        // value is the whole feature. Chosen at vote time, feed and the
+        // daily only (never duels — identity is the game there; never
+        // learn/test — first-attempt measurement and instrument inputs
+        // stay named). The base mapping below is what the question-surface
+        // equality compares against, so an anon answer still only lands on
+        // its own question's bank.
+        function worldBaseOf(s) {
+          return s == "daily-anon" ? "daily" : (s == "feed-anon" ? "feed" : s);
+        }
         function isWorldAnswer() {
           return request.resource.data.keys().hasOnly([
               "qid", "surface", "optionIdx", "answeredAt", "anchors",
             ])
-            && request.resource.data.surface in ["daily", "feed", "test", "learn"]
+            && request.resource.data.surface in ["daily", "feed", "test", "learn", "daily-anon", "feed-anon"]
             && request.resource.data.qid == aid
             && request.resource.data.optionIdx
               < get(/databases/$(database)/documents/v2_questions/$(aid)).data.options.size()
@@ -701,9 +712,11 @@ service cloud.firestore {
             // than permanently bricked, and under equality that means
             // answerable as "daily" specifically. The membership check on
             // the ANSWER's own surface (above) is what still bounds the
-            // pair to the four world names.
+            // pair to the admitted names — and the anon variants compare
+            // through their base (D327), so "feed-anon" answers a feed
+            // question and nothing else.
             && get(/databases/$(database)/documents/v2_questions/$(aid))
-                 .data.get("surface", "daily") == request.resource.data.surface;
+                 .data.get("surface", "daily") == worldBaseOf(request.resource.data.surface);
         }
 
         // Catalog answers (docs/CATALOG-QUESTIONS.md): one pick from a
@@ -1028,7 +1041,10 @@ service cloud.firestore {
         // ceiling indefinitely. Creates never needed this — create-only
         // made them once per (user, question) by construction.
         allow update: if request.auth != null && request.auth.uid == uid
-          && resource.data.surface in ["daily", "feed", "test"]
+          // The anon variants edit like their bases (D327): an edit moves
+          // which option you hold, and an anonymous answer never had a
+          // name to protect from moving it.
+          && resource.data.surface in ["daily", "feed", "test", "daily-anon", "feed-anon"]
           && resource.data.optionIdx is int
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["optionIdx", "editedAt"])
           && request.resource.data.optionIdx is int

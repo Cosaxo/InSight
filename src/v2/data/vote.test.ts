@@ -409,18 +409,21 @@ const WF_LS = "insight.feedVotes.v1";
 // instance and the helper must talk to the one the booted live.ts uses.
 const readAnsCache = async () => {
   const cs = await import("./cacheStore");
-  const meta = await cs.readMeta<{ uid: string; maxTs: number; maxEditTs: number }>("answers");
+  const meta = await cs.readMeta<{ uid: string; maxTs: number; maxEditTs: number; anon?: string[] }>("answers");
   const rows = await cs.readAll<string>("answers");
   return { ...(meta || {}), votes: Object.fromEntries(rows) } as {
-    uid?: string; maxTs?: number; maxEditTs?: number; votes: Record<string, string>;
+    uid?: string; maxTs?: number; maxEditTs?: number; anon?: string[]; votes: Record<string, string>;
   };
 };
 const seedAnsCache = async (p: {
-  uid: string; votes: Record<string, string>; maxTs: number; maxEditTs?: number;
+  uid: string; votes: Record<string, string>; maxTs: number; maxEditTs?: number; anon?: string[];
 }) => {
   const cs = await import("./cacheStore");
   await cs.write("answers", Object.entries(p.votes), {
-    meta: [["answers", { uid: p.uid, maxTs: p.maxTs, maxEditTs: p.maxEditTs || 0 }]],
+    meta: [["answers", {
+      uid: p.uid, maxTs: p.maxTs, maxEditTs: p.maxEditTs || 0,
+      ...(p.anon ? { anon: p.anon } : {}),
+    }]],
   });
 };
 const readAggCache = async () => {
@@ -1765,6 +1768,122 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     // The counts the failed poll could not refresh are still the ones the
     // last good poll left.
     expect(LIVE.deck()[0]).toMatchObject({ id: before.id });
+  });
+});
+
+// ── anonymous answers (D327) ────────────────────────────────────────
+//
+// The toggle is ONE surface value: `daily-anon`/`feed-anon` on the answer
+// doc, outside the read arms' public lists, so a stranger's reader never
+// receives the doc at all (that half is pinned in firestore-tests). What
+// the client owes on top is smaller and easy to lose silently: the vote
+// carries the variant, the store remembers WHICH answers were anonymous
+// (across boots — warm through the cache meta, cold from the doc
+// surfaces), and the tally counts by BASE so a separate "-anon" bucket
+// never publishes how often the toggle is used.
+describe("anonymous answers (D327)", () => {
+  it("vote(…, { anon: true }) writes the -anon variant, marks the store, and counts by base", async () => {
+    const LIVE = await bootLive();
+    LIVE.vote("q_1", "1", { anon: true });
+    await flush();
+    const call = h.setDocCalls.find((c) => c.path === "v2_users/uid_test/answers/q_1");
+    expect(call).toBeDefined();
+    expect(call!.data.surface).toBe("daily-anon");
+    expect(call!.data.optionIdx).toBe(1);
+    expect(LIVE.isAnonAnswer("q_1")).toBe(true);
+    expect(LIVE.myVotes()).toMatchObject({ q_1: "1" }); // your own view is unchanged
+    // The tally stamps the BASE surface — a "daily-anon" key would
+    // fragment the counts and quietly publish the toggle's usage.
+    expect(h.engagementCalls).toContainEqual({ fn: "noteAnswer", args: ["daily"] });
+    expect(h.engagementCalls.some((c) => String(c.args[0]).includes("anon"))).toBe(false);
+  });
+
+  it("a feed toggle writes feed-anon; an untoggled vote stays on its base surface", async () => {
+    h.bankDocs.push({
+      id: "q_f",
+      data: { surface: "feed", seq: 2, type: "vote", prompt: "Feed q",
+        options: ["A", "B"], topic: "culture", test: null, active: true, core: true },
+    });
+    const LIVE = await bootLive();
+    LIVE.vote("q_f", "0", { anon: true });
+    LIVE.vote("q_1", "0"); // no opts — the default is, and must stay, public
+    await flush();
+    const byPath = Object.fromEntries(h.setDocCalls.map((c) => [c.path, c.data]));
+    expect(byPath["v2_users/uid_test/answers/q_f"]?.surface).toBe("feed-anon");
+    expect(byPath["v2_users/uid_test/answers/q_1"]?.surface).toBe("daily");
+    expect(LIVE.isAnonAnswer("q_f")).toBe(true);
+    expect(LIVE.isAnonAnswer("q_1")).toBe(false);
+  });
+
+  it("persists the mark into the answers-cache meta on the ack", async () => {
+    const LIVE = await bootLive();
+    LIVE.vote("q_1", "1", { anon: true });
+    await flush();
+    await flush(); // cacheAnonMark is its own best-effort write after the ack
+    const cached = await readAnsCache();
+    expect(cached.votes).toMatchObject({ q_1: "1" });
+    expect(cached.anon).toContain("q_1");
+  });
+
+  it("a warm boot rehydrates the marks from the cache meta without refetching", async () => {
+    await seedAnsCache({
+      uid: "uid_test",
+      votes: { q_1: "1" },
+      maxTs: 5,
+      anon: ["q_1"],
+    });
+    const LIVE = await bootLive();
+    expect(LIVE.myVotes()).toMatchObject({ q_1: "1" });
+    expect(LIVE.isAnonAnswer("q_1")).toBe(true);
+  });
+
+  it("a cold pull rebuilds the marks from the doc surfaces themselves", async () => {
+    // No cache seeded — the fresh-device boot. The doc's surface is the
+    // truth about anonymity, so the set survives reinstall with no meta.
+    h.answerDocs.push({
+      id: "q_1",
+      data: { qid: "q_1", surface: "daily-anon", optionIdx: 1,
+        answeredAt: { toMillis: () => 5 } },
+    });
+    const LIVE = await bootLive();
+    expect(LIVE.myVotes()).toMatchObject({ q_1: "1" });
+    expect(LIVE.isAnonAnswer("q_1")).toBe(true);
+  });
+
+  it("a uid change clears the previous account's marks", async () => {
+    const LIVE = await bootLive();
+    LIVE.vote("q_1", "1", { anon: true });
+    await flush();
+    expect(LIVE.isAnonAnswer("q_1")).toBe(true);
+    expect(h.authCb).toBeTypeOf("function");
+    h.authCb!({ uid: "someone_else" });
+    await flush();
+    expect(LIVE.isAnonAnswer("q_1")).toBe(false);
+    // …and stays cleared once the switch's refresh settles. The first
+    // version of this case asserted only the line above and flaked: the
+    // ack's cacheAnonMark could straddle the purge, RESURRECT the meta
+    // row the purge had removed, and the refresh (whose mocked sign-in
+    // hands back the same uid — a same-account re-auth) then re-imported
+    // the previous session's mark from it. The owner recheck inside
+    // cacheAnonMark is the fix; waiting the refresh out is what makes
+    // this case observe it deterministically instead of by race.
+    await vi.waitFor(() => {
+      expect(LIVE.ready).toBe(true);
+    });
+    await flush();
+    expect(LIVE.isAnonAnswer("q_1")).toBe(false);
+  });
+
+  it("D86: an edit moves the option and never touches the surface — the mark stands", async () => {
+    const LIVE = await bootLive();
+    LIVE.vote("q_1", "1", { anon: true });
+    await flush();
+    expect(LIVE.editVote("q_1", "0")).toBe(true);
+    await flush();
+    const call = h.updateDocCalls.find((c) => c.path === "v2_users/uid_test/answers/q_1");
+    expect(call).toBeDefined();
+    expect(Object.keys(call!.data).sort()).toEqual(["editedAt", "optionIdx"]);
+    expect(LIVE.isAnonAnswer("q_1")).toBe(true); // anonymity is set at vote time, not edit time
   });
 });
 

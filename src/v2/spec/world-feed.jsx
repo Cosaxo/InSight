@@ -293,8 +293,19 @@ const wfFrAv = (f, D, k) => (
 );
 const wfFrNone = (txt) => <div style={{ fontFamily: 'var(--sans)', fontSize: 13, fontWeight: 600, color: 'var(--ink-3)', textAlign: 'center', padding: '18px 0' }}>{txt}</div>;
 
+// The incognito glasses (D327) — the anonymous-answer toggle's glyph,
+// stroke-only like every other inline icon here.
+const wfAnonIco = (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M4 14 5.8 6.5h1.7M20 14 18.2 6.5h-1.7"></path>
+    <circle cx="7.2" cy="15.5" r="3.1"></circle>
+    <circle cx="16.8" cy="15.5" r="3.1"></circle>
+    <path d="M10.3 14.9c1-.8 2.4-.8 3.4 0"></path>
+  </svg>
+);
+
 class WorldFeed extends React.Component {
-  state = { votes: wfLoad(), knowRes: {}, pickQ: {}, pending: {}, open: {}, panels: {}, dims: {}, cutAxis: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, reportFor: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), deferred: wfLoadMap(WF_DEFER_LS), ripple: null, liveTakesOpen: {}, editFor: {}, editHold: null, doneOpen: false, shown: WF_PAGE };
+  state = { votes: wfLoad(), knowRes: {}, pickQ: {}, pending: {}, open: {}, panels: {}, dims: {}, cutAxis: {}, boosts: {}, vh: 0, beat: null, sheet: null, sideFilter: null, reportFor: null, replyTo: null, replies: wfLoadReplies(), myTakes: wfLoadTakes(), minds: {}, ctrIdx: {}, takeSort: 'mind', whyFor: null, headHide: false, sort: 'hot', passed: wfLoadMap(WF_PASS_LS), deferred: wfLoadMap(WF_DEFER_LS), ripple: null, liveTakesOpen: {}, editFor: {}, editHold: null, doneOpen: false, shown: WF_PAGE, anonFor: {} };
 
   // Feature flags, carried over from the prototype so each idea can be
   // switched off from the host without editing this file. Default ON; the
@@ -621,7 +632,9 @@ class WorldFeed extends React.Component {
         }
         if (refused) val = Number(prior);
       } else {
-        L.vote(id, String(val));
+        // D327: the armed toggle rides the create only — an edit moves the
+        // option and never the surface, so anonymity is decided at vote time.
+        L.vote(id, String(val), this.state.anonFor[id] ? { anon: true } : undefined);
       }
     }
     PASSIVE.record(q); // no-op unless this is a test's own question (q.test)
@@ -671,6 +684,18 @@ class WorldFeed extends React.Component {
       return { votes, beat, ripple: rip || s.ripple, whyFor: askWhy, editFor };
     });
     if (this.props.onVote && !refused) this.props.onVote(q, val);
+  }
+
+  // D327: arm (or disarm) the anonymous toggle for one card's NEXT vote.
+  // Local state, per card, never on by default — the owner's exact terms —
+  // and read at the create only: an edit never moves an answer's surface.
+  toggleAnon(id) {
+    HAPTIC.tick();
+    this.setState((s) => {
+      const anonFor = { ...s.anonFor };
+      if (anonFor[id]) delete anonFor[id]; else anonFor[id] = true;
+      return { anonFor };
+    });
   }
 
   // A refused edit (D86's one-change-a-minute cooldown) says why on the
@@ -867,7 +892,7 @@ class WorldFeed extends React.Component {
     if (q.live) {
       const idx = this.dialBucket(q, val);
       const prior = LIVE.myVotes ? LIVE.myVotes()[q.id] : null;
-      if (prior == null) { if (LIVE.vote) LIVE.vote(q.id, String(idx)); }
+      if (prior == null) { if (LIVE.vote) LIVE.vote(q.id, String(idx), this.state.anonFor[q.id] ? { anon: true } : undefined); }
       else if (Number(prior) !== idx && !(LIVE.editVote && LIVE.editVote(q.id, String(idx)))) {
         val = this.dialBucketMid(q, Number(prior));
       }
@@ -990,7 +1015,7 @@ class WorldFeed extends React.Component {
     if (q.live) {
       const idx = this.fieldCell(x, y);
       const prior = LIVE.myVotes ? LIVE.myVotes()[q.id] : null;
-      if (prior == null) { if (LIVE.vote) LIVE.vote(q.id, String(idx)); }
+      if (prior == null) { if (LIVE.vote) LIVE.vote(q.id, String(idx), this.state.anonFor[q.id] ? { anon: true } : undefined); }
       else if (Number(prior) !== idx && !(LIVE.editVote && LIVE.editVote(q.id, String(idx)))) {
         const m = this.fieldCellMid(Number(prior));
         x = m.x; y = m.y;
@@ -3732,6 +3757,17 @@ class WorldFeed extends React.Component {
     const answered = this.answered(q);
     const open = !!this.state.open[q.id];
     const collapsed = compact && !open;
+    // D327: the anonymous toggle appears only where the write path honours
+    // it — a live daily/feed optionIdx answer. Test cards fold into your
+    // own results and lens cards into your profile; neither surface admits
+    // the variant, so offering the control there would be a promise the
+    // store silently ignores. Bare `LIVE` under the q.live guard, the
+    // idiom this file's vote sites already use — q.live is only ever set
+    // by the store that publishes the global, so the name resolves.
+    const anonable = q.live && !q.test && !q.lens
+      && (q.type === 'vote' || q.type === 'dial' || q.type === 'field')
+      && !!LIVE.isAnonAnswer;
+    const anonOn = anonable && (answered ? LIVE.isAnonAnswer(q.id) : !!this.state.anonFor[q.id]);
     const kicker = (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
         {/* A sponsored card wears the disclosure INSTEAD of its topic chip
@@ -3747,6 +3783,21 @@ class WorldFeed extends React.Component {
           <button className="press tap44" onClick={(e) => { e.stopPropagation(); clearTimeout(this._sheetT); this.setState({ sheet: { panel: 'bg', q, T } }); }} aria-label="What you need to know" style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: '0.5px solid color-mix(in oklch, var(--ink) 26%, var(--rule))', background: 'transparent', color: 'var(--ink-2)', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 }}>i</button>
         ) : (
           <button className="press tap44" onClick={(e) => { e.stopPropagation(); clearTimeout(this._sheetT); this.setState({ sheet: { panel: 'bg', q, T } }); }} aria-label="About this question" style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: '0.5px solid var(--rule)', background: 'transparent', color: 'var(--ink-3)', fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 }}>i</button>
+        )}
+        {/* D327: before answering, the toggle arms the next vote; after an
+            anonymous answer it stays as the quiet stamp that this one is
+            yours alone. After a public answer it is gone — the default is
+            the default, not a state to display. */}
+        {anonable && !answered && (
+          <button className="press tap44" onClick={(e) => { e.stopPropagation(); this.toggleAnon(q.id); }}
+            aria-pressed={anonOn}
+            aria-label={anonOn ? 'Answering anonymously — tap to answer publicly' : 'Answer anonymously'}
+            title={anonOn ? 'answering anonymously' : 'answer anonymously'}
+            style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: '0.5px solid ' + (anonOn ? 'transparent' : 'var(--rule)'), background: anonOn ? 'var(--ink)' : 'transparent', color: anonOn ? 'var(--surface)' : 'var(--ink-3)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', WebkitAppearance: 'none', padding: 0 }}>{wfAnonIco}</button>
+        )}
+        {anonable && answered && anonOn && (
+          <span role="img" aria-label="Answered anonymously" title="answered anonymously"
+            style={{ flexShrink: 0, width: 20, height: 20, borderRadius: '50%', background: 'var(--ink)', color: 'var(--surface)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{wfAnonIco}</span>
         )}
         {/* A real deadline outranks the decorative one — never both (D231). */}
         {win ? this.renderWindow(T, win) : (F.closing && this.renderClock(T))}

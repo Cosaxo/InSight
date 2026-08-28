@@ -49,6 +49,10 @@ export interface AnswerRow {
   type?: string;
   /** The viewer's own pick, -1 when they have not answered. */
   mine: number;
+  /** D327: the viewer answered this one anonymously. Their own view only —
+   *  a stranger's reader never receives the answer, so the flag exists to
+   *  SAY that here, not to hide anything. */
+  anon?: boolean;
 }
 
 const AR_RULE = "0.5px solid var(--rule)";
@@ -234,6 +238,20 @@ function ArRow({ row, open, onToggle, whom }: {
           <div style={{ flex: 1, minWidth: 44 }}><ArStack pct={pct} mine={row.mine} /></div>
           {mineLabel && (
             <span style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: 5, fontFamily: "var(--sans)", fontSize: 11, fontWeight: 600, color: "var(--ink-2)", maxWidth: "32%" }}>
+              {/* D327's stamp: this answer is in every count and in no list.
+                  The glyph is the feed toggle's, so the mark reads as the
+                  same fact in both places. */}
+              {row.anon && (
+                <span role="img" aria-label="Answered anonymously — never shown when others read your answers" title="answered anonymously"
+                  style={{ flexShrink: 0, display: "inline-flex", color: "var(--ink-3)" }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M4 14 5.8 6.5h1.7M20 14 18.2 6.5h-1.7"></path>
+                    <circle cx="7.2" cy="15.5" r="3.1"></circle>
+                    <circle cx="16.8" cy="15.5" r="3.1"></circle>
+                    <path d="M10.3 14.9c1-.8 2.4-.8 3.4 0"></path>
+                  </svg>
+                </span>
+              )}
               <span style={{ width: 11, height: 11, borderRadius: "50%", background: "var(--accent)", display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><span style={{ width: 4, height: 4, borderRadius: "50%", background: "var(--surface)" }}></span></span>
               <span style={{ whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{mineLabel}</span>
             </span>

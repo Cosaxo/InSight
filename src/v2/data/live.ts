@@ -273,6 +273,13 @@ const state = {
   deckIds: [] as string[],
   aggs: {} as Record<string, AggDoc>,
   votes: {} as Record<string, string>, // qid -> option id ("0","1",…)
+  // Which of the viewer's OWN answers were cast anonymously (D327) — the
+  // Mirror's stamp reads it, nothing else does. Rebuilt from answer docs
+  // on a cold pull (the doc's surface is the truth), carried across warm
+  // boots inside the answers cache's meta row (old cached rows hold only
+  // the vote value, so the set cannot be re-derived from them), cleared
+  // with the vote map on reset and purge.
+  anonAnswers: new Set<string>(),
   // Optimistic-vote tracking, split in two because the flags clear at
   // different moments (conflating them let a stranger's vote folding
   // into the agg mid-flight "confirm" a write the server had not yet
@@ -640,6 +647,35 @@ function cacheVote(aid: string, stored: number | string): void {
   if (torndown) return;
   if (!state.uid || state.uid !== answersCacheOwner) return;
   void cacheStore.write("answers", [[aid, String(stored)]]);
+}
+
+// The anon mark's durable half (D327): the cached vote value carries no
+// surface, so the set persists inside the answers meta row — read back
+// where the rows are, swept by the same purge, stamped by the same uid.
+// Read-modify-write is NOT as safe as cacheVote's blind write, and the
+// difference is the await in the middle: an in-process uid change can
+// land between the ack and this write, and a stale writeMeta issued
+// after the purge RESURRECTS the meta row the purge just removed — with
+// the previous account's mark in it, over a row set the purge emptied.
+// Caught by vote.test.ts's uid-change case, intermittently, before the
+// owner recheck below existed. So the call-time owner is captured and
+// re-checked after the read; resetForNewUid nulls answersCacheOwner
+// synchronously, which is what the recheck observes.
+function cacheAnonMark(aid: string): void {
+  if (torndown) return;
+  const owner = state.uid;
+  if (!owner || owner !== answersCacheOwner) return;
+  void (async () => {
+    try {
+      const meta = await cacheStore.readMeta<{ uid: string; maxTs: number; maxEditTs: number; anon?: string[] }>("answers");
+      if (!meta || meta.uid !== owner || answersCacheOwner !== owner) return;
+      const anon = new Set(meta.anon ?? []);
+      anon.add(aid);
+      await cacheStore.writeMeta("answers", { ...meta, anon: [...anon].sort() });
+    } catch {
+      /* best-effort — the doc's surface re-derives it on the next cold pull */
+    }
+  })();
 }
 
 // ── the profile cache, on disk (D129) ────────────────────────────
@@ -1604,12 +1640,15 @@ async function hydrate(): Promise<void> {
     // complete one).
     let answersFrom: "idb" | null = null;
     try {
-      const ansMeta = await cacheStore.readMeta<{ uid: string; maxTs: number; maxEditTs: number }>("answers");
+      const ansMeta = await cacheStore.readMeta<{ uid: string; maxTs: number; maxEditTs: number; anon?: string[] }>("answers");
       if (ansMeta && ansMeta.uid === uidA) {
         const rows = await cacheStore.readAll<string>("answers");
         rows.forEach((v, k) => {
           state.votes[k] = v;
         });
+        // The anon set rides the meta row (D327): the cached vote value
+        // carries no surface, so this is the only warm-boot source.
+        for (const k of ansMeta.anon ?? []) state.anonAnswers.add(k);
         maxTs = Number(ansMeta.maxTs || 0);
         maxEditTs = Number(ansMeta.maxEditTs || 0);
         answersFrom = "idb";
@@ -1647,6 +1686,11 @@ async function hydrate(): Promise<void> {
         state.votes[d.id] = val;
         fetchedRows.push([d.id, val]);
       }
+      // The doc's surface is the truth about anonymity (D327) — collect
+      // it here so a cold pull rebuilds the whole set and a delta page
+      // adds what another device cast.
+      const sf = d.get("surface");
+      if (typeof sf === "string" && sf.endsWith("-anon")) state.anonAnswers.add(d.id);
       const at = d.get("answeredAt") as { toMillis?: () => number } | undefined;
       if (at && typeof at.toMillis === "function") maxTs = Math.max(maxTs, at.toMillis());
       // THE EDIT WATERMARK IS NOT RAISED BY EVERY PAGE, and which pages
@@ -1768,7 +1812,7 @@ async function hydrate(): Promise<void> {
       state.stats.answersFetched += esnap.size;
       esnap.docs.forEach((d) => fold(d));
     }
-    const ansMeta: Array<[string, unknown]> = [["answers", { uid: uidA, maxTs, maxEditTs }]];
+    const ansMeta: Array<[string, unknown]> = [["answers", { uid: uidA, maxTs, maxEditTs, anon: [...state.anonAnswers].sort() }]];
     if (answersFrom === "idb") {
       // The warm boot: at most the two bounded delta pages moved, so the
       // write is those rows plus the cursors — never the archive.
@@ -4926,6 +4970,14 @@ const LIVE = {
     });
     return out;
   },
+  // D327: did THIS device's owner answer qid anonymously? Only the
+  // owner's own view asks — a stranger's reader never sees the answer at
+  // all, so this is for the Mirror's "hidden from others" stamp, not a
+  // gate. Set on the vote ack, rebuilt from doc surfaces on a cold pull,
+  // carried in the answers cache meta across warm boots.
+  isAnonAnswer(qid: string): boolean {
+    return state.anonAnswers.has(qid);
+  },
   // ── feed ads (D197) ─────────────────────────────────────────────
   //
   // NOT sponsored questions. An ad takes no answer and folds into no
@@ -5093,7 +5145,7 @@ const LIVE = {
       options: Array.isArray(q.options) ? q.options.map(String) : [],
     }));
   },
-  vote(qid: string, optionId: string): void {
+  vote(qid: string, optionId: string, opts?: { anon?: boolean }): void {
     if (state.votes[qid]) return; // one answer per question, mirroring rules
     const optionIdx = Number(optionId);
     if (!Number.isInteger(optionIdx) || optionIdx < 0) return;
@@ -5113,9 +5165,17 @@ const LIVE = {
           // world shape), so it has to be findable here or the write would
           // claim `surface: "daily"` and rules would refuse it.
           state.callBank.find((x) => x.id === qid);
+        const base = q?.surface ?? "daily";
+        // D327: anonymity is ONE surface value, chosen at vote time, on
+        // the two surfaces the record admits — the anon variant is
+        // outside the read arms' public lists, so every cross-user
+        // reader excludes the answer without another line anywhere. The
+        // count is untouched: the trigger folds the variant into the
+        // same aggregate by qid.
+        const anon = !!opts?.anon && (base === "daily" || base === "feed");
         await setDoc(doc(db, "v2_users", uid, "answers", qid), {
           qid,
-          surface: q?.surface ?? "daily",
+          surface: anon ? `${base}-anon` : base,
           optionIdx,
           answeredAt: serverTimestamp(),
           // `q.rates` is why this is the one anchor site that passes an
@@ -5123,6 +5183,10 @@ const LIVE = {
           // city cell from someone the device has never placed there.
           anchors: answerAnchors(q?.rates),
         });
+        if (anon) {
+          state.anonAnswers.add(qid);
+          cacheAnonMark(qid);
+        }
         // Server ack: the write is durable, so the vote may now enter
         // confirmedVotes(). Mirror it into the answers cache only NOW —
         // hydrate() treats insight.answersCache.v1 as a mirror of
@@ -5135,16 +5199,18 @@ const LIVE = {
         cacheVote(qid, optionIdx);
         // Counted on the ACK, not the tap: a refused create rolls the
         // optimistic state back below, and the tally should agree with
-        // the server about what was answered (R2/D270).
-        engagement.noteAnswer(q?.surface ?? "daily");
+        // the server about what was answered (R2/D270). By BASE surface
+        // on purpose: the tally is an anonymous rollup either way, and a
+        // separate "-anon" bucket would fragment the surface counts while
+        // quietly publishing how often the toggle is used per day.
+        engagement.noteAnswer(base);
         // …and the per-question map (R4/D271), for the feed-rendered
         // surfaces only: the seen denominator comes from feed cards, so
         // the answered numerator matches its population. The daily is
         // not a feed card, duels never ride this path, and a pulse
         // answers through votePulse — none of them belongs here.
         {
-          const s = q?.surface ?? "daily";
-          if (s === "feed" || s === "test" || s === "learn" || s === "call") {
+          if (base === "feed" || base === "test" || base === "learn" || base === "call") {
             engagement.noteQid(qid, "a");
           }
         }
@@ -5417,6 +5483,7 @@ function resetForNewUid(uid: string): void {
   state.groupsUnsub = null;
   state.revealUnsubs = {};
   state.votes = {};
+  state.anonAnswers = new Set();
   state.inflight = {};
   state.unaggregated = {};
   state.editedAt = {};

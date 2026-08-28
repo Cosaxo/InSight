@@ -283,6 +283,7 @@ export interface LiveHandle {
 export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   const tooSmall = !!opts.tooSmall;
   const votes: Record<string, string> = {};
+  const anonVotes = new Set<string>(); // D327: qids voted with { anon: true }
   const listeners = new Set<() => void>();
   const deck = [
     {
@@ -662,11 +663,15 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // fixture took a question OBJECT: the surface pin cannot catch that,
     // because it compares key names and not signatures, so the tests would
     // have recorded votes under `undefined` and still passed.
-    vote: (qid: string, optionId: string) => {
+    vote: (qid: string, optionId: string, voteOpts?: { anon?: boolean }) => {
       if (votes[qid]) return;              // one answer per question, as rules enforce
       votes[qid] = optionId;
+      if (voteOpts?.anon) anonVotes.add(qid);
       listeners.forEach((fn) => fn());
     },
+    // D327: the fixture honours the toggle the same way the store does —
+    // marked on the vote that carried it, read back by the Mirror's stamp.
+    isAnonAnswer: (qid: string) => anonVotes.has(qid),
     // D86 edit path, same contract as the real store: false when there is
     // nothing to move, so tests can drive both branches of an affordance.
     editVote: (qid: string, optionId: string) => {

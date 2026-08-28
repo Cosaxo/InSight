@@ -68,6 +68,16 @@ export const CLAIMS = [
     /no minimum, no delay/i],
   ["D98 · a blank display name hides the name, not the answers",
     /hides the\s+name, not the answers/i],
+  // D327 is one disclosure in two halves, the D268 pair's shape: one row
+  // pins that anonymity never bends a count (the tally stays exact and
+  // the answer is in it), the other pins the read boundary (nobody but
+  // the author can open the answer or find it in a list). Either half
+  // vanishing leaves the page describing a different toggle than the one
+  // shipping — more private than it is, or less.
+  ["D327 · an anonymous answer is in every public tally, exactly",
+    /anonymous\s+answer still adds one to every public tally/i],
+  ["D327 · and it can be read by nobody but its author, in no list",
+    /read by\s+nobody but you[\s\S]{0,120}?who-voted list/i],
   ["D146 · answers can be grouped by the Big Five type, retroactively",
     /grouped by it[\s\S]{0,400}?before you had a type at all/i],
   // The D146 row beside this one — "politics/values/social results are

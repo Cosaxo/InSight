@@ -55,6 +55,10 @@ const LIVE = vi.hoisted(() => ({
   // the lenses have their own suite; what these cases care about is that
   // the panel still renders its answer rows around them.
   myVotes: () => ({} as Record<string, string>),
+  // D327: the rows ask which of the viewer's answers were anonymous, to
+  // wear the stamp. Default none; the stamp case flips it per qid (the
+  // explicit boolean stops tsc narrowing the member to `() => false`).
+  isAnonAnswer: (qid: string): boolean => { void qid; return false; },
   // The Scores lens's ask rows (D307) — empty here so the stop cases stay
   // about the stop; the ask arm has its own cases in the lens suite.
   placeAsks: () => [] as Array<{ id: string; text: string; optionCount: number }>,
@@ -155,6 +159,8 @@ describe("LiveCohortBody · cohort readings fold the core corpus only (D161)", (
 beforeEach(() => {
   LIVE.enabled = true;
   LIVE.myCity = "Oslo, NO";
+  // The stamp case flips this per qid; every other case wants none.
+  LIVE.isAnonAnswer = () => false;
   LIVE.aggregated = () => [Q("q1", "First question"), Q("q2", "Second question")];
   LIVE.aggFor = () => null;
   LIVE.near.supported = () => true;
@@ -546,6 +552,22 @@ describe("LiveCohortBody · the Answers lens can be narrowed and re-ordered", ()
     fireEvent.click(screen.getByRole("button", { name: /Dead heat/ }));
     expect(screen.getByText(/you have not answered this one/i)).toBeTruthy();
     expect(screen.queryByText(/are with you/i)).toBeNull();
+  });
+
+  it("stamps an anonymous answer on the viewer's own row, and only there (D327)", () => {
+    // The stamp is the whole client-side promise surface: the answer is in
+    // every count (nothing about the row's numbers changes) and in no list,
+    // and the viewer's own Mirror is the one place that SAYS so.
+    LIVE.isAnonAnswer = (qid: string) => qid === "q1";
+    mountAnswers("city");
+    expect(screen.getByLabelText(/answered anonymously/i)).toBeTruthy();
+    // On the q1 row (the viewer's own vote), not sprayed across the list.
+    expect(screen.getAllByLabelText(/answered anonymously/i)).toHaveLength(1);
+    // The counts are untouched — the stamped row still reads its cell.
+    LIVE.isAnonAnswer = () => false;
+    cleanup();
+    mountAnswers("city");
+    expect(screen.queryByLabelText(/answered anonymously/i)).toBeNull();
   });
 
   it("hides the controls when there is nothing to narrow", () => {

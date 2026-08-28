@@ -88,7 +88,9 @@ enforces is the opposite of what it used to (decision **D98**):
   one person's answers link to everyone else's is the entire product.
   Writes stay yours alone: one create per question, and the option can be
   moved afterwards (D86) while the cohort snapshot and answer time
-  cannot.
+  cannot. The one exception is yours to arm (decision **D327**): a
+  per-question anonymous toggle, never on by default — the answer counts
+  in every tally exactly and is readable by nobody but you.
 - **Counts are exact, from the first answer.** No k-anonymity floor, no
   publish cadence, no suppressed cells, no `tooSmall`. In a small cohort
   a count of 1 is visibly one person's answer.
@@ -103,10 +105,12 @@ enforces is the opposite of what it used to (decision **D98**):
   progress in live mode (decision D1). Passive tests start at zero. Where
   a live surface shows nothing, it is because the data is absent — never
   because it is withheld.
-- **Three things are still closed, none of them answers.** The unscored
-  logic answer key (anti-cheat), who flagged a comment
+- **Three structural denies remain, none of them about answers.** The
+  unscored logic answer key (anti-cheat), who flagged a comment
   (anti-retaliation), and the ~200 m presence cell (physical safety: the
-  app publishes what you answered, not where you are standing).
+  app publishes what you answered, not where you are standing). The
+  anonymous-answer deny above is different in kind — user-armed, per
+  question, never the default.
 - **Anonymous-first.** The app works instantly with no sign-in; Google is
   an *upgrade* via account linking that keeps your uid and history
   (decision D3). Deletion wipes everything, cross-references included.
@@ -149,7 +153,7 @@ src/lib/           firebase init + anonymous-first auth + emulator wiring
 functions/src/     v2.ts (seed + aggregates) · v2social.ts (groups, duos,
                    reveals, push) · index.ts (account deletion)
 firestore.rules    the access model (public answers, exact aggs,
-                   member-only groups, sealed duels) — 157 emulator tests
+                   member-only groups, sealed duels) — 160 emulator tests
 firestore.rules.v1-archive  the retired v1 client rules (D4) — reference,
                    NOT deployed
 monitoring/        Cloud Monitoring policies, put live by
@@ -180,7 +184,7 @@ Local:
 - `npm run test:unit` — client store, pure deck logic, and the spec-layer
   mount tests (vitest + jsdom, no emulator).
 - `npm run test --prefix functions` — the aggregate fold, reveal and streak math.
-- `npm run test:rules` — 157 security-rules tests (Firestore + Storage)
+- `npm run test:rules` — 160 security-rules tests (Firestore + Storage)
   against the emulator. `npm run check:figures` holds this number and the
   one in the repo map above equal to the suites, because both said 40 for
   long enough to be quoted twice.

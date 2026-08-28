@@ -1004,6 +1004,89 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     }));
   });
 
+  it("D327: an anonymous answer writes, counts, and never reaches a stranger", async () => {
+    // The whole feature is ONE surface value outside the read arms'
+    // public lists. Create must accept it; both read grants must not.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "anon-d"), {
+        surface: "daily", seq: 0, type: "binary",
+        prompt: "?", options: ["a", "b"], active: true,
+      });
+      await setDoc(doc(db, "v2_questions", "anon-f"), {
+        surface: "feed", seq: 0, type: "vote",
+        prompt: "?", options: ["a", "b"], active: true,
+      });
+    });
+    const dref = doc(asUser(OWNER), "v2_users", OWNER, "answers", "anon-d");
+    const fref = doc(asUser(OWNER), "v2_users", OWNER, "answers", "anon-f");
+    await assertSucceeds(setDoc(dref, {
+      qid: "anon-d", surface: "daily-anon", optionIdx: 1,
+      answeredAt: serverTimestamp(), anchors: {},
+    }));
+    await assertSucceeds(setDoc(fref, {
+      qid: "anon-f", surface: "feed-anon", optionIdx: 0,
+      answeredAt: serverTimestamp(), anchors: {},
+    }));
+    // The owner still reads their own — the Mirror's stamp depends on it.
+    await assertSucceeds(getDoc(doc(asUser(OWNER), "v2_users", OWNER, "answers", "anon-d")));
+    // A stranger cannot read the doc by id…
+    await assertFails(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "answers", "anon-d")));
+    // …and cannot ASK for anon surfaces: a list query naming them is
+    // refused wholesale (D65's value-test shape doing its job), while the
+    // standing public-list query still works and simply cannot contain
+    // them.
+    await assertFails(getDocs(query(
+      collection(asUser(STRANGER), "v2_users", OWNER, "answers"),
+      where("surface", "in", ["daily-anon", "feed-anon"]))));
+    await assertFails(getDocs(query(
+      collectionGroup(asUser(STRANGER), "answers"),
+      where("qid", "==", "anon-d"),
+      where("surface", "in", ["daily", "daily-anon"]))));
+    const pub = await assertSucceeds(getDocs(query(
+      collection(asUser(STRANGER), "v2_users", OWNER, "answers"),
+      where("surface", "in", ["daily", "feed", "test", "learn"]))));
+    expect((pub as { size: number }).size).toBe(0);
+  });
+
+  it("D327: the anon surface still answers only its OWN question's bank", async () => {
+    // worldBaseOf feeds the same equality every named answer passes
+    // through — "feed-anon" against a daily question is the mislabel
+    // refusal again, one value over.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "anon-d2"), {
+        surface: "daily", seq: 1, type: "binary",
+        prompt: "?", options: ["a", "b"], active: true,
+      });
+    });
+    const ref2 = doc(asUser(OWNER), "v2_users", OWNER, "answers", "anon-d2");
+    await assertFails(setDoc(ref2, {
+      qid: "anon-d2", surface: "feed-anon", optionIdx: 0,
+      answeredAt: serverTimestamp(), anchors: {},
+    }));
+    // …and the world list admits no anon variant for the surfaces the
+    // record excludes: learn is first-attempt measurement, test items are
+    // instrument inputs.
+    await assertFails(setDoc(ref2, {
+      qid: "anon-d2", surface: "learn-anon", optionIdx: 0,
+      answeredAt: serverTimestamp(), anchors: {},
+    }));
+  });
+
+  it("D327: an anonymous answer edits like its base — the opinion moves, no name appears", async () => {
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "anon-e"), {
+        surface: "daily", seq: 2, type: "binary",
+        prompt: "?", options: ["a", "b"], active: true,
+      });
+    });
+    const eref = doc(asUser(OWNER), "v2_users", OWNER, "answers", "anon-e");
+    await assertSucceeds(setDoc(eref, {
+      qid: "anon-e", surface: "daily-anon", optionIdx: 1,
+      answeredAt: serverTimestamp(), anchors: {},
+    }));
+    await assertSucceeds(updateDoc(eref, { optionIdx: 0, editedAt: serverTimestamp() }));
+  });
+
   it("D86 reaches only opinion surfaces: learn and duel answers stay frozen", async () => {
     // learn: first-attempt-only IS the measurement (D32) — "not knowledge,
     // obviously", in the owner's own words.

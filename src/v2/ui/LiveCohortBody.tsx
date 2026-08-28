@@ -323,6 +323,10 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
       // not care what kind of question it is.
       type: q.type,
       mine: mine == null ? -1 : Number(mine),
+      // D327: the row wears the stamp when this answer went in anonymously.
+      // In every count above, in no voter list — the flag is how the
+      // viewer's own row SAYS that, not a gate on anything.
+      anon: mine != null && LIVE.isAnonAnswer(q.id),
     });
   }
 

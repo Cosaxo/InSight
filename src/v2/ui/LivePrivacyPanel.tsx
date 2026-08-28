@@ -226,8 +226,15 @@ function LivePrivacyPanel() {
           exists to prevent, and no link is a substitute for it. */}
       <div style={{ padding: "11px 0", borderBottom: LP_LINE }}>
         <div style={{ fontSize: 12.5, fontWeight: 500, color: "var(--ink-2)", lineHeight: 1.6 }}>
+          {/* The blunt sentence stays blunt; D327 adds the one exception
+              and states it as tightly as the rule. "Nothing you answer
+              here is private" was true until the toggle existed and would
+              be a false absolute now — the same failure in the opposite
+              direction as the pre-D98 copy. */}
           <strong style={{ fontWeight: 800 }}>Your answers are public</strong>, under your display
-          name, with the profile facts you have filled in. Nothing you answer here is private.
+          name, with the profile facts you have filled in. The one exception is the glasses
+          toggle on a question: an anonymous answer joins every count and is readable by
+          nobody but you.
         </div>
         {/* Until now these pages shipped inside the bundle and were linked
             from nowhere — reachable only by knowing the filename. Both

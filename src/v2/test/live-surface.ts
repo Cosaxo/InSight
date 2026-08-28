@@ -109,6 +109,10 @@ export const LIVE_MEMBERS = [
   // test answer to a different option. Returns false without writing when
   // there is nothing to move or the 60s cooldown holds.
   "editVote",
+  // D327: whether the viewer answered qid anonymously. Owner's-own-view
+  // only — a stranger's reader never receives the answer, so nothing
+  // cross-user ever needs to ask.
+  "isAnonAnswer",
   "enabled", "feedReady",
   // `learnAgg` is a read-through cache whose first call for a card always
   // returns null, and its only caller runs at the instant of the tap — so

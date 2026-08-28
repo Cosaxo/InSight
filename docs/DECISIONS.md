@@ -32927,6 +32927,60 @@ is one the People lens, compare and the voter lists cannot draw.
 (no result privacy) · refuse. A part-adoption should say which
 sentence of the panel copy it licenses.
 
+**As built (2026-08-28, the adoption's same sitting).** Rules first,
+exactly the shape above, nothing invented in the build:
+
+- **Rules:** `worldBaseOf(s)` maps `daily-anon`→`daily`,
+  `feed-anon`→`feed` for the question-surface equality;
+  `isWorldAnswer`'s create list and the D86 edit arm's surface list gain
+  the two variants. **Both cross-user read arms are byte-for-byte
+  unchanged** — the variants are simply not in their lists, which is the
+  whole mechanism. Three rules tests pin it (create+count both variants,
+  base equality holds — `feed-anon` on a daily question refused,
+  `learn-anon` refused — owner reads, stranger doc-read/list/
+  collection-group all refused, D86 edit works on an anon answer): 160
+  rules tests.
+- **Trigger:** `onV2AnswerUpdated`'s surface gate admits the variants
+  (the create fold was already surface-agnostic past the duel branch,
+  verified at source; `replay.ts` scans by qid with no per-answer
+  surface filter, so rebuilds keep anon answers — verified at source).
+- **Store:** `vote(qid, optionId, { anon })` writes
+  `surface: base+"-anon"` on daily/feed bases only; `state.anonAnswers`
+  (a Set) is the memory — rebuilt from doc surfaces on a cold pull,
+  carried in the answers-cache meta row (`anon: string[]`) across warm
+  boots, cleared by `resetForNewUid`. `LIVE.isAnonAnswer(qid)` is the
+  one new member (pinned in `test/live-surface.ts`). Engagement counts
+  by BASE surface on purpose — a `-anon` tally bucket would publish the
+  toggle's usage rate. **One real bug found and fixed in the build:**
+  `cacheAnonMark`'s read-modify-write could straddle an in-process uid
+  change and resurrect the answers meta row AFTER the purge removed it —
+  caught by the uid-change unit test flaking under load, fixed with a
+  call-time-owner recheck after the await, and the test now waits the
+  refresh out so it observes the fix deterministically.
+- **UI:** the incognito-glasses toggle (20 px, `.tap44`) in the feed
+  card kicker (`world-feed.jsx` — vote/dial/field types, live non-test
+  non-lens cards only) and the daily kicker (`daily-split.jsx`), armed
+  per card, never default-on, cleared visual state after a public
+  answer; after an anonymous answer the glyph stays as the stamp. The
+  Mirror's Answers rows wear the same glyph beside your pick
+  (`LiveAnswerRows.tsx`, fed by `LiveCohortBody`), aria-labelled
+  "answered anonymously — never shown when others read your answers".
+- **Paperwork, same commit as the rules, as this record demanded:** the
+  account panel's blunt sentence gains its one qualifier ("The one
+  exception is the glasses toggle…"); `web/privacy.html` says the long
+  version (short-version paragraph, the stored-answers bullet, the
+  counts section, its own who-can-read row); two `check:policy-claims`
+  rows pin the two halves (in every tally exactly / readable by nobody
+  but its author, in no list); `check:public-copy` passes over the new
+  copy; `docs/data-inventory.md`'s answers row and SCHEMA-V2's answer
+  doc + read sections say the variant; README and CLAUDE.md's denies
+  paragraphs gain the user-armed exception. No new localStorage key
+  exists (the mark rides the IndexedDB answers meta, already
+  purge-swept), so `check:purge` needed nothing.
+- **Not built, because the record scopes them out:** anonymize-later
+  (a second update shape), anon on rank/pick/duel/learn/test surfaces,
+  and the result-privacy half (still Proposed above).
+
 ## D328 · Subscription pricing: a split across seats, not a per-buyer price — drafted for adoption
 
 **Drafted:** 2026-08-27 · **Status:** Proposed — binds nothing until

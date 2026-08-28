@@ -128,6 +128,10 @@ class DailySplit extends React.Component {
     idx: 0, idxG: 0,
     votes: (window.LIVE && window.LIVE.enabled ? window.LIVE.myVotes() : {}), tab: null, filter: 'all', dim: 'friends', dimAxis: null, ups: {}, mine: {}, draft: '', dreplies: this.loadDailyReplies(), replyTo: null,
     mapToast: null, pressing: false, editHold: null,
+    // D327: which daily has the anonymous toggle armed for its NEXT vote.
+    // Per-id map (the week pager shows seven), never on by default —
+    // the owner's exact terms — and read at the create only.
+    anonFor: {},
     // Which daily has its D86 re-pick open — id, not boolean, the same
     // shape and the same reason as `liveTakes` below. The reconcile in
     // componentDidMount skips it: opening the re-pick DELETES the local
@@ -390,7 +394,9 @@ class DailySplit extends React.Component {
     const L = S.live ? window.LIVE : null;
     if (L) {
       const prior = (L.myVotes && L.myVotes()[S.id]) || null;
-      if (prior == null) L.vote(S.id, next);
+      // D327: the armed toggle rides the create only — an edit moves the
+      // option and never the surface, so anonymity is decided at vote time.
+      if (prior == null) L.vote(S.id, next, this.state.anonFor[S.id] ? { anon: true } : undefined);
       else if (prior === next) moved = false; // re-picked the standing vote: nothing to say
       else if (!(L.editVote && L.editVote(S.id, next))) { next = prior; moved = false; this.holdNote(S.id); }
     }
@@ -958,6 +964,25 @@ class DailySplit extends React.Component {
         wIdx !== 0 && h('button', { onClick: () => this.jumpTo(0), style: { border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: 12, color: 'var(--ink-2)', WebkitAppearance: 'none', whiteSpace: 'nowrap' } }, '\u2039 back to today'),
         h('span', { style: { flex: 1 } }),
         h('button', { className: 'press tap44', onClick: () => { clearTimeout(this._sheetT); this.setState({ tab: 'ctx', sheetClosing: false }); }, 'aria-label': ctxLabel, style: { flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: S.bg ? '0.5px solid color-mix(in oklch, var(--ink) 26%, var(--rule))' : '0.5px solid var(--rule)', background: 'transparent', color: S.bg ? 'var(--ink-2)' : 'var(--ink-3)', fontFamily: BRIC, fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } }, 'i'),
+        // D327: before answering, the incognito glasses arm the next vote
+        // to write anonymously; after an anonymous answer they stay as the
+        // quiet stamp that this one is yours alone. After a public answer
+        // there is nothing — the default is the default, not a state.
+        // Bare `LIVE` under the S.live guard (world-feed's vote-site
+        // idiom): S.live is only ever set by the store that publishes the
+        // global, so the name resolves wherever this can evaluate.
+        (S.live && LIVE.isAnonAnswer && !voted) ? h('button', {
+          className: 'press tap44',
+          onClick: () => this.setState((s) => { const anonFor = { ...s.anonFor }; if (anonFor[S.id]) delete anonFor[S.id]; else anonFor[S.id] = true; return { anonFor }; }),
+          'aria-pressed': !!st.anonFor[S.id],
+          'aria-label': st.anonFor[S.id] ? 'Answering anonymously — tap to answer publicly' : 'Answer anonymously',
+          title: st.anonFor[S.id] ? 'answering anonymously' : 'answer anonymously',
+          style: { flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: '0.5px solid ' + (st.anonFor[S.id] ? 'transparent' : 'var(--rule)'), background: st.anonFor[S.id] ? 'var(--ink)' : 'transparent', color: st.anonFor[S.id] ? 'var(--surface)' : 'var(--ink-3)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', WebkitAppearance: 'none', padding: 0 },
+        }, svgI('<path d="M4 14 5.8 6.5h1.7M20 14 18.2 6.5h-1.7"></path><circle cx="7.2" cy="15.5" r="3.1"></circle><circle cx="16.8" cy="15.5" r="3.1"></circle><path d="M10.3 14.9c1-.8 2.4-.8 3.4 0"></path>', 13)) : null,
+        (S.live && LIVE.isAnonAnswer && voted && LIVE.isAnonAnswer(S.id)) ? h('span', {
+          role: 'img', 'aria-label': 'Answered anonymously', title: 'answered anonymously',
+          style: { flexShrink: 0, width: 20, height: 20, borderRadius: '50%', background: 'var(--ink)', color: 'var(--surface)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' },
+        }, svgI('<path d="M4 14 5.8 6.5h1.7M20 14 18.2 6.5h-1.7"></path><circle cx="7.2" cy="15.5" r="3.1"></circle><circle cx="16.8" cy="15.5" r="3.1"></circle><path d="M10.3 14.9c1-.8 2.4-.8 3.4 0"></path>', 13)) : null,
         window.PassiveTag ? h(window.PassiveTag, { q: S, answered: voted }) : null),
       chipRow,
       h('div', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: hier ? 37 : 31, lineHeight: 1.06, letterSpacing: hier ? -1.1 : -0.8, textWrap: 'balance' } }, S.text),

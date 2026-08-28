@@ -917,7 +917,11 @@ export const onV2AnswerUpdated = onDocumentUpdated(
     // the create trigger's shape checks rather than trusting rules alone,
     // because the emulator suites write with rules disabled.
     const surface = after.get("surface");
-    if (surface !== "daily" && surface !== "feed" && surface !== "test") return;
+    // The anon variants (D327) edit like their bases: same -old/+new
+    // delta into the same aggregate, or an anonymous editor's counts go
+    // quietly stale.
+    if (surface !== "daily" && surface !== "feed" && surface !== "test"
+      && surface !== "daily-anon" && surface !== "feed-anon") return;
     const fromIdx = before.get("optionIdx");
     const toIdx = after.get("optionIdx");
     if (typeof fromIdx !== "number" || typeof toIdx !== "number") return;

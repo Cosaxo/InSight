@@ -97,12 +97,20 @@ script before editing the page: three of its claims were already stale
 when D183 opened it, because D174, D175 and D177 each updated the app and
 not the policy.
 
-Three denies remain, none about answers, each labelled at its own path in
+Three structural denies remain, none about answers, each labelled at its
+own path in
 `firestore.rules`: the unscored logic answer key (anti-cheat), flag
 authorship (anti-retaliation) and the presence cell (physical safety —
 D98 published what people answered, not where their phone is standing).
 Duel answers stay sealed until the next-day reveal, enforced as a
-`surface` test: that is game timing, not privacy.
+`surface` test: that is game timing, not privacy. One USER-ARMED deny
+exists since D327 (2026-08-28, owner's call): a per-question anonymous
+toggle, never on by default, writing `surface: "daily-anon"/"feed-anon"`
+— outside both cross-user read arms' surface lists, so only the owner
+reads the doc, while the count folds into the same public aggregate
+exactly. It is one surface value, not a flag: widening a read list or
+adding an `anon` field are the rejected shapes, and the reasoning is in
+the record.
 
 Binding decisions live in [`docs/DECISIONS.md`](docs/DECISIONS.md) (D1–D7)
 and stay binding until an explicitly recorded reversal.

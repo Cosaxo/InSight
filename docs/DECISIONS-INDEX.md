@@ -3,7 +3,7 @@
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
 "which decision governs this" is 337 lines instead of
-33,059. Do not hand-edit; `npm run check:docs` fails when this
+33,113. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -349,5 +349,5 @@ detect it.
 | **D325** | [The taste fold reads doors: interest credit is conserved across a question's topics](DECISIONS.md#d325--the-taste-fold-reads-doors-interest-credit-is-conserved-across-a-questions-topics) | — | 32774 |
 | **D326** | [The app icon gets on a gate's path: a hash lock, not a re-render](DECISIONS.md#d326--the-app-icon-gets-on-a-gates-path-a-hash-lock-not-a-re-render) | — | 32829 |
 | **D327** | [Anonymous answers and private results — drafted for adoption](DECISIONS.md#d327--anonymous-answers-and-private-results--drafted-for-adoption) | — | 32863 |
-| **D328** | [Subscription pricing: a split across seats, not a per-buyer price — drafted for adoption](DECISIONS.md#d328--subscription-pricing-a-split-across-seats-not-a-per-buyer-price--drafted-for-adoption) | — | 32930 |
-| **D329** | [Trait axes on the Map: Phase 1 as-built, and what takes a row back off](DECISIONS.md#d329--trait-axes-on-the-map-phase-1-as-built-and-what-takes-a-row-back-off) | — | 32978 |
+| **D328** | [Subscription pricing: a split across seats, not a per-buyer price — drafted for adoption](DECISIONS.md#d328--subscription-pricing-a-split-across-seats-not-a-per-buyer-price--drafted-for-adoption) | — | 32984 |
+| **D329** | [Trait axes on the Map: Phase 1 as-built, and what takes a row back off](DECISIONS.md#d329--trait-axes-on-the-map-phase-1-as-built-and-what-takes-a-row-back-off) | — | 33032 |
