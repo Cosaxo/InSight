@@ -360,6 +360,76 @@ describe("foldShards", () => {
     expect(d.qOther).toBe(1);
   });
 
+  it("caps the DAY DOCUMENT, not each chunk the fold happens to slice", async () => {
+    // The blind spot every other fence case shares: they call foldShards
+    // once. runAttentionFold slices the day into SHARD_CHUNK-sized calls
+    // and applyAttention MERGES each one into the same day document, so a
+    // cap counted off one call's own map admits a fresh QIDS_PER_DAY_CAP
+    // per chunk. Measured on the shipped shape before this was threaded:
+    // 900 rules-legal shards → 4,500 distinct qids on one day document,
+    // ~72,000 index entries against the 40,000 that arithmetic exists to
+    // stay under, and the permanent outage the fence was written to stop.
+    const day = "2026-08-22";
+    // Three chunks' worth, each shard carrying rules-legal (≤120) distinct
+    // keys that are all new — 107,100 candidates for 1,500 places.
+    const shards: AttentionShardDoc[] = [];
+    for (let s = 0; s < SHARD_CHUNK * 3; s++) {
+      const qids: Record<string, unknown> = {};
+      for (let k = 0; k < 119; k++) qids[`feed-${s}-${k}`] = { s: 2 };
+      shards.push({ id: `sh${s}`, day, rate: 1, s: {}, qids } as AttentionShardDoc);
+    }
+    const { store, state } = attnStore(shards);
+    await runAttentionFold(store);
+
+    // More than one chunk actually ran, or this case proves nothing.
+    expect(state.applied.length).toBeGreaterThan(1);
+    const onDoc = new Set<string>();
+    for (const a of state.applied) for (const qid of Object.keys(a.delta.q)) onDoc.add(qid);
+    expect(onDoc.size).toBe(QIDS_PER_DAY_CAP);
+    // And the ceiling the constant is derived from is the one that holds:
+    // 16 index entries per qid against Firestore's 40,000 per document.
+    expect(onDoc.size * 16).toBeLessThan(40_000);
+  });
+
+  it("spends the day's budget once, then still counts what it already admitted", async () => {
+    // The ledger's other half, and both directions in one case. After an
+    // earlier chunk has spent the budget, a later chunk must still COUNT a
+    // qid already on the document (or a full day would truncate a question
+    // halfway through it) while SPILLING a fresh one (or the document grows
+    // by a whole cap per chunk, which is the case above).
+    //
+    // Only the spill half discriminates against the shipped code: a
+    // per-call cap sees an empty map every chunk, so it admits both. The
+    // counting half is the guard on this fix's own failure mode — a ledger
+    // that spilled what it had already admitted would pass the case above
+    // and be worse than the bug.
+    const day = "2026-08-22";
+    const shards: AttentionShardDoc[] = [];
+    // Chunk 1: exactly the cap, spread over a full chunk of shards.
+    for (let s = 0; s < SHARD_CHUNK; s++) {
+      const qids: Record<string, unknown> = {};
+      for (let k = 0; k < 5; k++) qids[`feed-${s * 5 + k}`] = { s: 2 };
+      shards.push({ id: `sh${s}`, day, rate: 1, s: {}, qids } as AttentionShardDoc);
+    }
+    // Chunk 2: one shard, one qid already admitted and one that is not.
+    shards.push({
+      id: "late", day, rate: 1, s: {},
+      qids: { "feed-0": { s: 2 }, "feed-brand-new": { s: 2 } },
+    } as AttentionShardDoc);
+
+    const { store, state } = attnStore(shards);
+    await runAttentionFold(store);
+    expect(state.applied.length).toBe(2); // two chunks, or this proves nothing
+    const late = state.applied[1];
+    expect(Object.keys(late.delta.q)).toEqual(["feed-0"]); // counted
+    expect(late.delta.q["feed-0"].s!.reach).toBe(1);
+    expect(late.delta.qOther).toBe(1); // and the new one spilled, reported
+
+    const onDoc = new Set<string>();
+    for (const a of state.applied) for (const qid of Object.keys(a.delta.q)) onDoc.add(qid);
+    expect(onDoc.size).toBe(QIDS_PER_DAY_CAP);
+  });
+
   it("a qid already in the map keeps counting past the cap", () => {
     // Truncating a question halfway through a day would be worse than
     // either fence: its reach would be a fraction of its real one and

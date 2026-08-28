@@ -62,10 +62,6 @@ export interface LedgerRow {
   atMs: number;
 }
 
-// UTC calendar day, "YYYY-MM-DD" — the ledger's `at` is server commit
-// time, so bucketing must be UTC or the per-day baselines drift with
-// whoever deployed last.
-
 // The impossible-volume ceiling. Answers are create-only with doc id ==
 // qid and deleteAccount sweeps the ledger with the account, so one uid
 // can NEVER honestly exceed one ledger entry per aggregate-feeding bank
@@ -260,6 +256,10 @@ export function foldInto(acc: WindowFold, rows: LedgerRow[]): WindowFold {
       acc.perUid.set(r.uid, times);
     }
     times.push(r.atMs);
+    // UTC calendar day, "YYYY-MM-DD" — the ledger's `at` is server commit
+    // time, so bucketing must be UTC or the per-day baselines drift with
+    // whoever deployed last. (The reasoning outlived the local
+    // `utcDayKey` it used to sit above; pure.ts owns the arithmetic now.)
     const day = utcDayKeyOf(r.atMs);
     const forDay = acc.perDayQid[day] || (acc.perDayQid[day] = {});
     forDay[r.qid] = (forDay[r.qid] || 0) + 1;

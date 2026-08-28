@@ -632,9 +632,35 @@ export const MIN_SHARD_RATE = 0.001;
  * anything real — and when it does, it truncates into `qOther`, the
  * "…and more" cell the client's own cap already spills into, so the
  * reading stays reported rather than silently dropped.
+ *
+ * THE CAP IS PER PASS, NOT PER CALL, and that distinction is the whole
+ * fence. `foldShards` is called once per SHARD_CHUNK (300 shards) and
+ * `applyAttention` merges each call's keys into the SAME day document
+ * with FieldValue.increment — so a cap counted off one call's own map
+ * admits 1,500 fresh keys per chunk and the document accumulates every
+ * one of them. Measured on the shipped shape: 900 rules-legal shards
+ * folded to 4,500 distinct qids on one day document, ~72,000 index
+ * entries, against the 40,000 this arithmetic exists to stay under. So
+ * the admitted keys are carried across chunks in a ledger `runAttentionFold`
+ * owns for the pass (`AdmittedQids`), and the budget is that ledger's
+ * size. A Set also replaces an `Object.keys(...).length` scan per new
+ * key: at the fold cap that scan measured 279 s against 2.4 s, inside a
+ * 480 s function, which is the same outage by a slower road.
+ *
+ * RESIDUE, stated rather than glossed: the ledger is per PASS. A day
+ * document that is folded across several nights can still accumulate
+ * 1,500 keys a night, because nothing here reads back what the document
+ * already carries. Closing that costs one read per day per pass and a
+ * decision about what a full day does with the rest; it is recorded in
+ * DECISIONS.md rather than taken here.
  */
 export const QID_KEY_MAX = 64;
 export const QIDS_PER_DAY_CAP = 1500;
+
+/** day → the qids admitted onto that day's document so far in this pass.
+ * Owned by `runAttentionFold` so the cap above spans the chunks it folds
+ * in; a standalone `foldShards` call gets a fresh one and is unchanged. */
+export type AdmittedQids = Map<string, Set<string>>;
 
 /** Pure: fold shards (all of one day, or several) into per-day deltas.
  * The rules pin the key vocabulary but deliberately not the values
@@ -643,7 +669,13 @@ export const QIDS_PER_DAY_CAP = 1500;
 const clampBucket = (raw: unknown): number =>
   typeof raw === "number" && Number.isFinite(raw) ? Math.min(4, Math.max(0, Math.trunc(raw))) : 0;
 
-export function foldShards(shards: AttentionShardDoc[]): Map<string, AttnDelta> {
+export function foldShards(
+  shards: AttentionShardDoc[],
+  // The pass-wide admitted-qid ledger. Defaulted so every existing caller
+  // and every direct test keeps counting against its own call, and only
+  // `runAttentionFold` — the one caller that chunks — threads a shared one.
+  admitted: AdmittedQids = new Map(),
+): Map<string, AttnDelta> {
   const out = new Map<string, AttnDelta>();
   for (const shard of shards) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(shard.day)) continue;
@@ -688,6 +720,17 @@ export function foldShards(shards: AttentionShardDoc[]): Map<string, AttnDelta> 
       spilled = true;
       delta!.qOther = round2(delta!.qOther + weight);
     };
+    // The day's budget, carried across chunks. Membership decides NEW, so
+    // a qid admitted in an earlier chunk of this pass keeps counting here
+    // even though this call's own `delta.q` starts empty — which is what
+    // the day document actually holds. A Set also answers "is this key
+    // already admitted" without inheriting `constructor` and friends off
+    // Object.prototype the way `!delta.q[qid]` did.
+    let adm = admitted.get(shard.day);
+    if (!adm) {
+      adm = new Set<string>();
+      admitted.set(shard.day, adm);
+    }
     for (const [qid, kindsRaw] of Object.entries(q)) {
       if (!kindsRaw || typeof kindsRaw !== "object") continue;
       if (qid === "_other") {
@@ -696,14 +739,14 @@ export function foldShards(shards: AttentionShardDoc[]): Map<string, AttnDelta> 
       }
       // The two fences (QID_KEY_MAX / QIDS_PER_DAY_CAP above). A key too
       // long to be a question id is refused outright; a NEW key past the
-      // day's cap spills, while one already in the map keeps counting —
+      // day's cap spills, while one already admitted keeps counting —
       // truncating a question halfway through a day would be worse than
       // either outcome.
       if (qid.length > QID_KEY_MAX) {
         spill();
         continue;
       }
-      if (!delta.q[qid] && Object.keys(delta.q).length >= QIDS_PER_DAY_CAP) {
+      if (!adm.has(qid) && adm.size >= QIDS_PER_DAY_CAP) {
         spill();
         continue;
       }
@@ -711,7 +754,10 @@ export function foldShards(shards: AttentionShardDoc[]): Map<string, AttnDelta> 
         if (kind !== "s" && kind !== "a" && kind !== "p" && kind !== "d") continue;
         const bucket = clampBucket(raw);
         if (bucket <= 0) continue;
-        const kinds = delta.q[qid] || (delta.q[qid] = {});
+        // Admitted at CREATION, not at the check: a qid whose every kind
+        // is invalid never lands on the document, so it must not spend
+        // budget either.
+        const kinds = delta.q[qid] || (adm.add(qid), (delta.q[qid] = {}));
         const c = kinds[kind] || (kinds[kind] = { reach: 0, est: 0 });
         c.reach = round2(c.reach + weight);
         c.est = round2(c.est + BUCKET_MIDPOINTS[bucket] * weight);
@@ -733,6 +779,11 @@ export async function runAttentionFold(
   // page of them ends the loop.
   const skipped = new Set<string>();
   const days = new Set<string>();
+  // QIDS_PER_DAY_CAP is a bound on the DAY DOCUMENT, and this pass folds
+  // it in chunks of SHARD_CHUNK that each merge into it. Counted per call
+  // the cap admits a fresh 1,500 keys per chunk; the ledger is what makes
+  // it mean what its arithmetic says. See the constant's header.
+  const admitted: AdmittedQids = new Map();
 
   for (;;) {
     const seen = folded + skipped.size;
@@ -756,7 +807,7 @@ export async function runAttentionFold(
       }
       for (let i = 0; i < shards.length; i += SHARD_CHUNK) {
         const chunk = shards.slice(i, i + SHARD_CHUNK);
-        const delta = foldShards(chunk).get(day);
+        const delta = foldShards(chunk, admitted).get(day);
         if (delta) await store.applyAttention(day, delta, chunk.map((s) => s.id));
         folded += chunk.length;
       }

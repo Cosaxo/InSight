@@ -33452,3 +33452,150 @@ eslint, `check:anchors`, `check:appcheck`, `check:data-inventory`,
 `check:docs`, `check:figures`, `check:globals`, `check:labels`,
 `check:policy-claims` (four new rows, one per promise on the page),
 `check:public-copy`, `check:purge`, `check:store-forms`.
+
+## D332 · The 2026-08-28 night audit, reviewed — 32 fixes kept, one amended, four limits recorded
+
+**2026-08-28.** **Status:** binding as a RECORD OF ONE AMENDMENT AND
+FOUR LIMITS. Thirty-two commits landed on `night-20260828`; thirty-one
+are kept exactly as written. One is amended rather than reverted,
+because its direction was right and its arithmetic did not survive
+contact with the only caller that exercises it.
+
+This is the D286 / D293 / D323 shape a fourth time, and the first of the
+four to change a night's code. The running tally the closing flow was
+given (D326 §2) is now about 107 of 108 landed fixes surviving review,
+with one amended.
+
+### What was verified before keeping it
+
+Every gate that guards a PR, green on the merge and again after the
+amendment: `tsc -b`, eslint, `test:unit` (2234), `functions` (476, up
+from the night's 474 by the two cases below), `test:scripts` (541),
+`test:rules` (159, Java 21), and all three e2e suites against the real
+emulated functions — required, because the amendment touches
+`functions/src`. Thirty-six of the thirty-nine `check:*` gates pass.
+`check:bundle` passes on a SHIPPING build (`VITE_V2_LIVE=true`), with
+its TOTAL ungraded because no `VITE_SENTRY_DSN` was set, exactly as
+D323 recorded; the eager graph and per-chunk ceilings were graded and
+hold at 768 KB against 880.
+
+The three that do not pass are named as unrun rather than claimed (D1):
+`check:web-firebase` and `check:store-copy` need production secrets and
+fail identically on `origin/main` — `assetlinks.json` still carries
+`REPLACE_WITH_PLAY_SIGNING_SHA256`, untouched by this branch — and both
+are release-path gates, not PR ones. `check:bundle`'s total is the
+third, above.
+
+Two of the night's own commits fix defects the same night introduced
+(`cc809d41` over `dc099bd7`, and `0d2a51c8` over both `0ee60983` and
+`741a32d0`, which it found inert in production). That is the branch
+being read as a whole working, and it is the third consecutive night it
+has paid for itself.
+
+### The amendment: the qid fence bounded the chunk, not the document
+
+`fa21fa01` fences the client-chosen keys of the attention fold, and its
+reasoning is right: seven rules-legal shards could push
+`v2_engagement_daily/{day}` past Firestore's limits, after which the day
+can never be written again and the rollup fold and heartbeat behind the
+awaited attention fold stop with it. `QIDS_PER_DAY_CAP = 1500` is
+derived in the commit from the real ceiling — 16 index entries per qid
+against Firestore's 40,000 per document, so 2,500 qids is the wall.
+
+The cap was counted off `foldShards`'s own map. `foldShards` is called
+once per `SHARD_CHUNK` (300 shards) and `applyAttention` merges each
+call's keys into the SAME day document with `FieldValue.increment`, so
+the cap admitted a fresh 1,500 keys per chunk and the document
+accumulated every one of them. **Measured on the shipped shape before
+touching it: 900 rules-legal shards folded to 4,500 distinct qids on one
+day document — about 72,000 index entries, against the 40,000 the
+arithmetic exists to stay under.** At the fold cap it is ~100,000. The
+fence raised the cost of the outage from ~21 shards to ~600 and did not
+close it.
+
+Nothing could see it, and the reason is a fifth instance of the class
+this night named four times in its own commit messages — a stand-in
+cheaper than the thing it stood for. Here the stand-in was the CALL
+SHAPE: all three fence cases call `foldShards` once, and the chunk
+boundary only exists inside `runAttentionFold`. Every one of them passes
+on the broken code.
+
+The amendment keeps the constant and its arithmetic and moves the
+counting into a ledger `runAttentionFold` owns for the pass, threaded
+through every `foldShards` call it makes. A standalone `foldShards` call
+gets a fresh ledger and is unchanged, so the night's three cases still
+mean what they meant. Two new cases go through the chunking caller: one
+pins the day document at the cap, one pins that a qid already admitted
+keeps counting in a later chunk while a new one spills. Proved both
+ways — undoing the threading turns exactly those two red, the first with
+`expected 4500 to be 1500`.
+
+A Set also replaces an `Object.keys(delta.q).length` scan that ran per
+new key. **Measured: 279 s against 2.4 s at the fold cap**, inside a
+480 s `LIGHT_UNBOUNDED` timeout — the same outage by a slower road, and
+recurring nightly, since unfolded shards are not deleted. That half was
+free with the fix rather than a second change.
+
+One incidental repair, from `b99a6368`: moving `utcDayKey` out of
+`velocity.ts` left the comment that explained it — why the ledger must
+bucket in UTC — sitting above an unrelated block, describing a function
+that is no longer there. The reasoning is still true, so it moved to the
+call site rather than being deleted.
+
+### The four limits
+
+**1. The qid ledger is per PASS, not per document.** The amendment above
+bounds one nightly run. It does not read back what the day document
+already carries, so a day folded across several nights can still take
+1,500 new keys a night. Closing it costs one read per day per pass — a
+new `AttentionStore` method, its Firestore implementation and every fake
+in that suite — and a decision this record does not make: what a day
+that is genuinely full does with the rest, given that `qOther` is a
+count of devices and not of questions. The residue is a slow drip
+against a fold whose `capped` flag already warns, where the shipped
+state was a single free account reaching the wall in one night.
+
+**2. A qid named `constructor` still loses its counts.** `delta.q[qid]
+|| (delta.q[qid] = {})` reads through `Object.prototype`, so a
+client-chosen key that names an inherited member resolves truthy and the
+counters land on a builtin instead of the map. Pre-existing, not the
+night's, and NOT closed by the amendment — which does remove its
+fence-bypassing half, since the budget is now a `Set` and a `Set` has no
+inherited keys. The dangerous case is unreachable: Firestore refuses any
+field name matching `__.*__`, so `__proto__` cannot be written. What is
+left is dropped data for a handful of magic names and a stray property
+on `Object`. The obvious fix — a null-prototype map — is not obviously
+safe, because the admin SDK's serializer tests for a plain object, so it
+is a change that needs its own verification rather than a line here.
+
+**3. Sub-unit dials still print outside their bucket** (`e1bdb7e9`,
+recorded in its own code comment and repeated here because a code
+comment is not this file). The dial fix takes the integer nearest the
+midpoint that stays inside the bucket, which closed the 0–12 h dial from
+11 misreporting buckets to 0. On the three dials whose step is under one
+unit (0.25, 0.75, 0.83) most buckets contain no integer at all, so no
+integer display can sit inside them and the midpoint stands, unchanged
+at 8, 2 and 1 buckets. The stored value is correct; only the print is
+lossy. Closing it means teaching `dialFmt` decimals, which it also uses
+for end labels, medians, averages and gaps on every dial card.
+
+**4. Two majority readings are still drawn off percentages**
+(`427fa818` names three sites left alone, of which one is honest). The
+winning bar's heavier font is presentation and a tied-top bar emphasised
+twice is true. The other two are claims: the consequence beat was moved
+onto counts by `06845db2`, but the Map's group bars ask a source that
+only ever returns a distribution, so fixing that one means changing what
+that source hands back. `9ee1c768` and `cc809d41` moved `MapStats.mode`
+and the constellation's rare-take mark onto counts; the bar-derived
+fallback beneath them is what remains.
+
+### One figure corrected, for whoever reads the two side by side
+
+`427fa818`'s message states the majority-verdict error rate as 3.07% of
+cards and 0.91% of readings; the comment it landed in `world-feed-math.js`
+says 3.5% and 1.0%. Re-measured over 400,000 random 2–5 option vectors
+with counts 0–299, twice on different seeds: **3.50% / 1.03%**, and
+96.5% of the wrong readings claim a majority that is not one. The CODE
+is right and needs no change — the commit message is the stale copy, and
+a commit message cannot be edited. The direction the night claimed, that
+the error almost only ever flatters, is confirmed.

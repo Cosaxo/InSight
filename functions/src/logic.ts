@@ -88,7 +88,6 @@ export const logicPctileFor = (frac: number, items: number): number => {
 };
 export const logicPctile = (frac: number): number => logicPctileFor(frac, 12);
 
-
 // ── the attempt doc (v2_logic_attempts/{uid} — one per account) ──
 export interface LogicAttempt {
   seed: number;
