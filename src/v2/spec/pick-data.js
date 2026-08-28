@@ -651,6 +651,28 @@ export let PICK_QS;
       129: 2,       // navy — below the floor
       0: 10,        // Not listed — happiness is apparently also black
     },
+    // daily catalog-question run, 2026-08-28 — spectacle is the second
+    // athletes canon, and it is not greatness: pk28's board is a career
+    // ledger, this one is a ticket stub. Ali tops that board and does not
+    // chart here — the prime you'd pay to SEE skews to the visually
+    // electric, which is why Bolt's nine seconds lead it.
+    pk30: {
+      1189: 24,     // Usain Bolt — nine seconds, worth the ticket
+      39444: 18,    // Ronaldinho — joy itself
+      41421: 16,    // Michael Jordan
+      615: 15,      // Lionel Messi
+      79031: 13,    // Mike Tyson — prime terror
+      1426: 11,     // Roger Federer
+      7520267: 10,  // Simone Biles — does things nobody else can
+      1835: 8,      // Zinedine Zidane
+      39562: 7,     // Michael Phelps
+      352159: 6,    // Stephen Curry
+      11571: 5,     // Cristiano Ronaldo — clears the floor, not the top 10; folds
+      11459: 5,     // Serena Williams — same
+      21621995: 4,  // Kylian Mbappé — below the floor
+      169452: 3,    // Shaquille O'Neal — below the floor
+      0: 12,        // Not listed — the local-legend and Ali-in-'74 vote
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -997,6 +1019,18 @@ export let PICK_QS;
         Men: { 16776961: 9, 16753921: 7, 32769: 6, 8900332: 5, 16766721: 4 },
       },
     },
+    pk30: {
+      ageBand: {
+        // the youth cell pays for what it grew up streaming; the older
+        // cell for what it remembers live
+        '18-24': { 352159: 8, 7520267: 7, 1189: 6, 615: 5, 39444: 4 },
+        '25-34': { 39444: 8, 1189: 7, 41421: 6, 1835: 5, 1426: 4 },
+      },
+      gender: {
+        Women: { 7520267: 8, 1189: 7, 1426: 6, 39444: 5, 615: 4 },
+        Men: { 1189: 8, 39444: 7, 41421: 7, 79031: 6, 615: 5 },
+      },
+    },
   };
 
   const api = {
@@ -1161,6 +1195,7 @@ export let PICK_QS;
     { id: 'pk27', cat: 'fav', type: 'pick', domain: 'films', prompt: 'The film you’ve rewatched the most?', n: 158 },
     { id: 'pk28', cat: 'fav', type: 'pick', domain: 'athletes', prompt: 'The greatest athlete who ever lived?', n: 168 },
     { id: 'pk29', cat: 'fav', type: 'pick', domain: 'colors', prompt: 'What colour is happiness?', n: 153 },
+    { id: 'pk30', cat: 'fav', type: 'pick', domain: 'athletes', prompt: 'The athlete you’d pay to watch in their prime?', n: 157 },
   ];
   window.PICK_QS = PICK_QS;
 })();
