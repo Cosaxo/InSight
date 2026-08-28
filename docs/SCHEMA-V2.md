@@ -305,6 +305,35 @@ read: signed-in · write: NOBODY — written once per night by fitPatternsV2
 device derives everything else: sim(i,j) is a cosine over two vectors,
 position seeds from the first two components, hub-ness is the norm.
 
+v2_question_traits/{qid}           the trait cube (D330)
+  at, total                        server clock, and the answers folded —
+                                   which every dim's buckets sum to,
+                                   because absence is a bucket
+                                   (`untested`) rather than a skip. That
+                                   identity is what lets the sheet draw
+                                   the published census as its header bar
+  by {dim: {bucket: {opt: n}}}     EXACTLY `v2_question_aggs.by`'s shape,
+                                   so the client folds it through
+                                   data/cohort.ts unchanged. 27 dims: one
+                                   per instrument keyed on the matched
+                                   archetype's NAME (big5, political,
+                                   values, attachment), 22 axis dims
+                                   `{kind}_{axis}` keyed b0..b4 on D254's
+                                   centred cut points, and `logic` keyed
+                                   by quarter (D227's bands)
+read: signed-in · write: NOBODY — rebuilt WHOLE each night by foldTraitsV2
+(admin SDK), which joins each user's CURRENT testResults to every core
+answer they have ever given. A rebuild rather than an accumulation is the
+design, not an implementation detail: it is what makes the reading
+retroactive (an answer given before you were typed joins its cohort the
+next morning), what moves all of a person's answers in one night when
+their type changes, and what makes a deleted account leave the cube with
+no erasure phase of its own. Nothing per-person is written anywhere — the
+sweep computes each account's buckets in memory and discards them. CORE
+only (SCALE-PLAN §1), so a tail question has no document and the sheet
+offers no instrument chips at all. Whole-document set, never a merge: a
+bucket that emptied since last night has to disappear.
+
 v2_users/{uid}/patterns/state      the fit's per-person carry (v28 §2)
   v: number[k], n, at              the latent vector the nightly fold
                                    carries this person's PUBLIC answers

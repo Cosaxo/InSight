@@ -19,9 +19,10 @@
 // Reads the same two authored modules the generator reads, so the client
 // cannot drift from the generated server copy without the gate seeing it.
 // @ts-expect-error TS7016 — untyped spec module (the LiveSimilarityField pattern)
-import { IS_ARCHETYPES, IS_RULE_ADJ } from "../spec/archetype-data.js";
+import { IS_ARCHETYPES, IS_RULE_ADJ, IS_matchArchetype, RULE_REAL, RULE_STRONG } from "../spec/archetype-data.js";
 // @ts-expect-error TS7016 — untyped spec module
-import { IS_TESTS } from "../spec/test-definitions.js";
+import { IS_TESTS, IS_TEST_AVG } from "../spec/test-definitions.js";
+import { parseLogicPct, parseTestResults } from "./similarity";
 
 /** The four instruments, persisted keys, in the order the sheet shows. */
 export const TRAIT_KINDS = ["big5", "political", "values", "attachment"] as const;
@@ -135,6 +136,59 @@ export function traitBucketLabel(dim: string, bucket: string): string {
   const i = Number(bucket.slice(1));
   const labels = axisBandLabels(poles[0], poles[1]);
   return labels[i] ?? bucket;
+}
+
+/**
+ * The VIEWER's own bucket on every dim, so the sheet can outline their
+ * row — dim → bucket, `untested` where they have no reading.
+ *
+ * Computed here on the device from the person's CURRENT results, using
+ * the app's own matcher, and deliberately not read out of the cube: the
+ * cube is last night's, and someone who took a run of test cards this
+ * morning should see themselves marked in the row they are in NOW even
+ * though their answers have not moved yet. That is a ≤24 h, ≤1-answer
+ * disagreement between the outline and the count, priced in D330 — the
+ * alternative (have the device move its own ±1 into the fresh row) would
+ * put the sheet at odds with the published cell and with the sold report
+ * over the same number, which is the D290 projection rule inverted.
+ */
+export function myTraitBuckets(rawTestResults: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  const parsed = parseTestResults(rawTestResults, TRAIT_KINDS);
+  for (const kind of TRAIT_KINDS) {
+    const axes = parsed?.[kind];
+    const dims = axes ? Object.keys(axes).map((id) => ({ id, value: axes[id] })) : null;
+    const hit = dims && dims.length ? IS_matchArchetype(kind, dims) : null;
+    out[kind] = hit ? hit.list[hit.idx].name : UNTESTED;
+    const avg = (IS_TEST_AVG as Record<string, Record<string, number>>)[kind] || {};
+    for (const a of AXES[kind]?.dims ?? []) {
+      const v = axes?.[a.id];
+      out[axisDim(kind, a.id)] = typeof v === "number"
+        ? `b${axisBandIndex(v, avg[a.id])}`
+        : UNTESTED;
+    }
+  }
+  const pct = parseLogicPct(rawTestResults);
+  out[LOGIC_DIM] = pct == null
+    ? UNTESTED
+    : pct >= 75 ? "top" : pct >= 50 ? "upper" : pct >= 25 ? "lower" : "bottom";
+  return out;
+}
+
+/**
+ * D254's band index — `functions/src/traitsFit.axisBandIndex`'s twin and
+ * `scripts/report-lib.axisBandIndex`'s, all three centred on the authored
+ * baseline rather than the midpoint. Three copies exist because three
+ * runtimes need it and none can import the others; the golden fixture in
+ * `traitsContent.ts` is what holds the server's equal to the client's,
+ * and `scripts/report.test.mjs` holds the report's.
+ */
+export function axisBandIndex(value: number, avg: number | undefined): number {
+  const dev = value - (typeof avg === "number" ? avg : 50);
+  const mag = Math.abs(dev);
+  if (mag >= RULE_STRONG) return dev < 0 ? 0 : 4;
+  if (mag >= RULE_REAL) return dev < 0 ? 1 : 3;
+  return 2;
 }
 
 /** The chip label for a dim. */

@@ -71,10 +71,9 @@ import {
 } from "../data/cohort";
 import { DIM_VOCAB } from "./cohortVocab";
 import RatingRidge from "./RatingRidge";
-import { typeDivergence, typeSplitFor, type TypeSplitRow } from "../data/typeSplit";
-import { logicDivergence, logicSplitFor, type LogicSplitRow } from "../data/logicSplit";
-import { parseLogicPct } from "../data/similarity";
-import { myType } from "../data/typeMix";
+import {
+  LOGIC_DIM, TRAIT_GROUPS, myTraitBuckets, traitBucketLabel, traitBuckets, traitDimLabel,
+} from "../data/traitDims";
 // The app's one option-colour function, so a friend's side chip wears the
 // same hue the takes list gives that side.
 // @ts-expect-error TS7016 — untyped spec module (the LiveSimilarityField pattern)
@@ -89,21 +88,29 @@ function sideFill(i: number, n: number): string {
 /** The Friends cut's key — not a published dim, so it cannot collide. */
 const FRIENDS = "friends";
 
-// The type cut's sentinel, kept out of COHORT_DIMS on purpose.
+// THE TYPE AND LOGIC SENTINELS ARE GONE (D330), and what replaced them is
+// the point of that record.
 //
-// Every other value `dim` can take names a published breakdown cell —
-// exact, folded server-side from the frozen anchors snapshot. This one
-// names a fold the CLIENT runs over the session's voter cache, and the
-// two are different kinds of number (a census against a bounded sample).
-// A key that could be mistaken for a dim is how they would end up sharing
-// a code path and then a caption.
-const TYPE_PICK = "__type";
-
-// The Logic cut's sentinel (D227) — the type cut's twin: a client fold
-// over the session's bounded voter sample, kept out of COHORT_DIMS for
-// the same census-vs-sample reason. The fold and its bands live in
-// data/logicSplit.ts; this file only picks and draws.
-const LOGIC_PICK = "__logic";
+// `TYPE_PICK = "__type"` and `LOGIC_PICK = "__logic"` were kept out of
+// COHORT_DIMS on purpose, because they named a fold the CLIENT ran over
+// the session's ≤200-voter cache while every other chip named a published
+// cell — "a census against a bounded sample", and a key that could be
+// mistaken for a dim is how the two would have ended up sharing a code
+// path and then a caption.
+//
+// They are now published cells like the rest. The nightly sweep writes a
+// cube keyed on each instrument's matched type, each instrument's axis
+// bands and the logic band, shaped exactly like `agg.by`, so a trait dim
+// IS a dim here: same `vocabMix`, same `LbCohortRows`, same
+// `divergenceFor`, same everything. The sample's own arithmetic trap goes
+// with it — a type's share can be subtracted from the published split
+// again, because both are now counts of the same population.
+//
+// One thing the sample could do that the census cannot: draw on a
+// question with no cube. That is deliberate. A tail question is outside
+// the Mirror's corpus (SCALE-PLAN §1) and gets no instrument chips at
+// all — the absence of data as the absence of the control, no flag and
+// no empty state, which is the D265 gate posture.
 
 /** The cohort a body is being drawn for. `dim` empty means everyone. */
 export interface CohortPick {
@@ -246,7 +253,7 @@ function LbRatingBody({ counts, mine }: { counts: number[]; mine: number }) {
 // once somebody has picked them. The thin vertical seam on each row marks
 // where EVERYONE landed on the first option, so a row's lean reads
 // against the crowd without a glance back up.
-function LbCohortRows({ dim, buckets, options, overall, myBucket, openBucket, onRow, renderDetail, kind }: {
+function LbCohortRows({ dim, buckets, options, overall, myBucket, openBucket, onRow, renderDetail, kind, labelOf }: {
   dim: string;
   buckets: Bucket[];
   options: string[];
@@ -259,6 +266,10 @@ function LbCohortRows({ dim, buckets, options, overall, myBucket, openBucket, on
   renderDetail: (b: Bucket) => React.ReactNode;
   /** The question's bank type — a rating's rows read as averages (D305). */
   kind?: string;
+  /** What to call a bucket. Defaults to the anchor vocabularies'
+   *  `bucketLabel`; a trait dim (D330) passes its own, because a band key
+   *  is an index (`b0`) and an archetype key is already its name. */
+  labelOf?: (dim: string, bucket: string) => string;
 }) {
   const overallPct = pctFor(overall);
   // A rating's row is a POSITION, not a split: ten stacked segments per
@@ -313,7 +324,7 @@ function LbCohortRows({ dim, buckets, options, overall, myBucket, openBucket, on
         )}
       </div>
       {buckets.map((b) => {
-        const label = bucketLabel(dim, b.bucket);
+        const label = (labelOf ?? bucketLabel)(dim, b.bucket);
         const you = b.bucket === myBucket;
         // The 0 is printed rather than the row dropped: an exact zero is
         // the fact D98 bought, and a scale with silent gaps is the
@@ -537,18 +548,14 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
   // would keep whatever split it was opened with.
   const [, bump] = React.useReducer((n: number) => n + 1, 0);
   React.useEffect(() => LIVE.subscribe(bump), []);
-  const typeOpen = dim === TYPE_PICK;
-  const logicOpen = dim === LOGIC_PICK;
+  // The trait cube (D330), fetched on OPEN rather than on a chip's tap —
+  // whether the instrument chips exist at all is what this document
+  // answers, so it has to be in hand before the row renders. One getDoc,
+  // session-cached, against the up-to-200 profile reads the sampled cut
+  // it replaces paid for a worse number. Above the early return with the
+  // other hooks: order has to be identical on every render.
+  React.useEffect(() => { if (qid) void LIVE.loadTraits(qid); }, [qid]);
   const friendsOpen = dim === FRIENDS;
-  // The type and logic cuts fold the roster's cache — but their empty
-  // states render INSTEAD of the roster, so on a question whose voters
-  // have not been fetched the cut would wait forever on a component that
-  // is not mounted. Asked for here as well; the store de-dupes, so the
-  // common case (roster already mounted, fetch already in flight) costs
-  // nothing.
-  React.useEffect(() => {
-    if ((typeOpen || logicOpen) && qid) void LIVE.loadVoters(qid);
-  }, [typeOpen, logicOpen, qid]);
 
   if (!LIVE.enabled || !qid) return null;
 
@@ -572,45 +579,55 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
   const dims = renderBody
     ? publishedDims
     : COHORT_DIMS.filter((d) => DIM_VOCAB[d] || publishedDims.includes(d));
-  const openDim = (typeOpen || friendsOpen || logicOpen)
+
+  // ── the trait cube (D330) ──
+  //
+  // One published document per core question, body shaped exactly like
+  // `by`, so from here down a trait dim is an ordinary dim. Fetched on
+  // open rather than on the chip's tap, because whether the chips exist
+  // AT ALL is what the document answers — and it is one getDoc against
+  // the up-to-200 profile reads the sampled cut it replaces paid for a
+  // worse number.
+  const traitBy = LIVE.traitsFor(qid);
+  // Only instruments the cube actually carries, and only on the option-bar
+  // body: a dial's track draws a POSITION and has nothing honest to draw
+  // over a trait scale, the same refusal `renderBody` already makes of the
+  // published dims.
+  const traitGroups = (!renderBody && traitBy)
+    ? TRAIT_GROUPS.filter((g) => traitBy[g.typeDim] || g.axisDims.some((a) => traitBy[a.dim]))
+    : [];
+  const hasLogicCut = !renderBody && !!traitBy?.[LOGIC_DIM];
+  const traitDims = new Set<string>();
+  for (const g of traitGroups) {
+    traitDims.add(g.typeDim);
+    for (const a of g.axisDims) traitDims.add(a.dim);
+  }
+  if (hasLogicCut) traitDims.add(LOGIC_DIM);
+  /** The trait dim currently open, or "". */
+  const openTrait = !friendsOpen && traitDims.has(dim) ? dim : "";
+  /** Which instrument's second chip row is showing. */
+  const openGroup = openTrait ? traitGroups.find(
+    (g) => g.typeDim === openTrait || g.axisDims.some((a) => a.dim === openTrait),
+  ) ?? null : null;
+
+  const openDim = friendsOpen
     ? ""
-    : (dims.includes(dim as (typeof COHORT_DIMS)[number]) ? dim : "");
-
-  // The type cut, folded from the session's own voter cache rather than
-  // read from a published cell — so it is the one cut here that can be
-  // null while a fetch is in flight, and the one that reads everyone's
-  // CURRENT type against answers they gave at any time (data/typeSplit.ts).
-  // The roster below owns the fetch; this is arithmetic on its cache.
-  const scored = typeOpen || logicOpen ? LIVE.voterScores(qid) : null;
-  const split = typeOpen && scored ? typeSplitFor(scored, n, myType()) : null;
-  // Ranked first, then the thin ones — `typeSplitFor` has already refused
-  // to rank the latter, and concatenating keeps that order on the chips.
-  const typeRows: TypeSplitRow[] = split ? [...split.ranked, ...split.thin] : [];
-  const openType = typeRows.some((r) => r.type === bucket)
-    ? bucket
-    : (typeRows[0]?.type || "");
-  const typeRow = typeRows.find((r) => r.type === openType) || null;
-
-  // The Logic cut (D227) — the same sample, banded by verified percentile
-  // instead of typed. Scale order rather than popularity order, because a
-  // score scale re-sorted by n stops reading as a scale.
-  const lsplit = logicOpen && scored
-    ? logicSplitFor(scored, n, parseLogicPct(LIVE.myTestResults()))
-    : null;
-  const logicRows: LogicSplitRow[] = lsplit ? [...lsplit.ranked, ...lsplit.thin] : [];
-  const openBand = logicRows.some((r) => r.band === bucket)
-    ? bucket
-    : (logicRows[0]?.band || "");
-  const logicRow = logicRows.find((r) => r.band === openBand) || null;
+    : openTrait || (dims.includes(dim as (typeof COHORT_DIMS)[number]) ? dim : "");
+  /** Cells come from the cube for a trait dim and from the aggregate for
+   *  an anchor dim — one lookup, so nothing below has to know which. */
+  const cellsBy: ByMap | undefined = openTrait ? (traitBy ?? undefined) : by;
 
   // The rows view (D304) reads the whole scale — canonical order, zeros
   // included — while the continuum chips keep observed cells only, in the
   // same canonical order. city/country have no vocabulary, so both fall
   // back to the observed mix.
   const rowsView = !!openDim && !renderBody;
-  const vocab = openDim ? DIM_VOCAB[openDim] : undefined;
+  // A trait dim's vocabulary is its own closed list (every archetype, the
+  // five bands, `untested`), which is why the rows view works on it
+  // unchanged: the scale is knowable without asking what was observed.
+  const vocab = openTrait ? traitBuckets(openTrait) : (openDim ? DIM_VOCAB[openDim] : undefined);
   const allBuckets = openDim
-    ? (vocab ? vocabMix(by, openDim, n, vocab) : mixFor(by, openDim, n))
+    ? (vocab ? vocabMix(cellsBy, openDim, n, vocab) : mixFor(cellsBy, openDim, n))
     : [];
   const buckets = renderBody ? allBuckets.filter((b) => b.n > 0) : allBuckets;
   const dimN = buckets.reduce((a, b) => a + b.n, 0);
@@ -622,23 +639,26 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
     : (buckets.some((b) => b.bucket === bucket) ? bucket : (buckets[0]?.bucket || ""));
 
   const counts = openDim && openBucket
-    ? (cellFor(by, openDim, openBucket, n) || [])
+    ? (cellFor(cellsBy, openDim, openBucket, n) || [])
     : overall;
   const cohortN = counts.reduce((a, b) => a + b, 0);
-  const pick: CohortPick = typeOpen
-    ? { dim: TYPE_PICK, bucket: openType, label: openType || "Types", n: typeRow?.n ?? 0 }
-    : logicOpen
-      ? { dim: LOGIC_PICK, bucket: openBand, label: logicRow?.label || "Logic", n: logicRow?.n ?? 0 }
-      : rowsView
+  const pick: CohortPick = rowsView
         // The rows view is the DIM's reading, whichever row is expanded —
         // the expanded region names its own cohort. Its count is the
         // answers that carry this anchor, which can honestly run under
         // the card's total: an answer with no age set is in no band.
-        ? { dim: openDim, bucket: openBucket, label: DIM_LABEL[openDim] || openDim, n: dimN }
+        ? {
+          dim: openDim,
+          bucket: openBucket,
+          label: openTrait ? traitDimLabel(openTrait) : (DIM_LABEL[openDim] || openDim),
+          n: dimN,
+        }
         : {
           dim: openDim,
           bucket: openDim ? openBucket : "",
-          label: openDim ? bucketLabel(openDim, openBucket) : "Everyone",
+          label: openDim
+            ? (openTrait ? traitBucketLabel(openTrait, openBucket) : bucketLabel(openDim, openBucket))
+            : "Everyone",
           n: cohortN,
         };
 
@@ -647,6 +667,12 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
   // than off their answer — this marks who the READER is, while every
   // number on the screen comes from the frozen snapshots (D8).
   const myAnchors = LIVE.anchors();
+  // …and the trait half of the same thing, computed on the device from
+  // the viewer's CURRENT results. See myTraitBuckets: deliberately not
+  // read out of the cube, because the cube is last night's and a person
+  // who re-typed themselves this morning should find themselves in the
+  // row they are in now.
+  const myTraits = openTrait ? myTraitBuckets(LIVE.myTestResults()) : {};
 
   // Nothing to slice: no cohort chip, no split, no header claiming a count
   // of zero. The roster alone, because it is the only part of this sheet
@@ -682,67 +708,51 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
             people rather than a percentage, and it is the one a reader
             wants first. */}
         <LbChip on={friendsOpen} onTap={() => { setDim(FRIENDS); setBucket(""); }}>Friends</LbChip>
-        <LbChip on={!openDim && !typeOpen && !logicOpen && !friendsOpen} onTap={() => { setDim(""); setBucket(""); }}>Everyone</LbChip>
+        <LbChip on={!openDim && !friendsOpen} onTap={() => { setDim(""); setBucket(""); }}>Everyone</LbChip>
         {dims.map((d) => (
           <LbChip key={d} on={openDim === d} onTap={() => { setDim(d); setBucket(""); }}>
             {DIM_LABEL[d]}
           </LbChip>
         ))}
-        {/* Last, and after the published dims rather than sorted among
-            them: the chips to their left open exact cells, these two open
-            a sample. The order is the only cue available before the tap;
-            the basis line under the bars is the one after it. */}
-        <LbChip on={typeOpen} onTap={() => { setDim(TYPE_PICK); setBucket(""); }}>Type</LbChip>
-        <LbChip on={logicOpen} onTap={() => { setDim(LOGIC_PICK); setBucket(""); }}>Logic</LbChip>
+        {/* The instruments, after the anchor dims rather than sorted among
+            them (D330). They are exact cells like everything to their left
+            now — the ordering is no longer census-vs-sample, it is what a
+            person entered about themselves against what the app worked out
+            about them. Tapping one opens its own second row. */}
+        {traitGroups.map((g) => (
+          <LbChip
+            key={g.kind}
+            on={openGroup?.kind === g.kind}
+            onTap={() => { setDim(g.typeDim); setBucket(""); }}
+          >{g.label}</LbChip>
+        ))}
+        {hasLogicCut && (
+          <LbChip on={openTrait === LOGIC_DIM} onTap={() => { setDim(LOGIC_DIM); setBucket(""); }}>Logic</LbChip>
+        )}
       </div>
 
+      {/* An instrument's own row: its overall Type, then one chip per axis.
+          Type leads because it is the reading a person recognises — they
+          have a type on their result card, they do not have an "Openness
+          band" — and the axes behind it are the finer cut for a reader who
+          wants one. */}
+      {openGroup && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <LbChip
+            on={openTrait === openGroup.typeDim}
+            onTap={() => { setDim(openGroup.typeDim); setBucket(""); }}
+          >Type</LbChip>
+          {openGroup.axisDims.filter((a) => traitDims.has(a.dim)).map((a) => (
+            <LbChip
+              key={a.dim}
+              on={openTrait === a.dim}
+              onTap={() => { setDim(a.dim); setBucket(""); }}
+            >{a.label}</LbChip>
+          ))}
+        </div>
+      )}
+
       {friendsOpen && <LbFriends qid={qid} options={options} mine={mine} />}
-
-      {typeOpen && (
-        split === null
-          // The cohort cuts are arithmetic on a document the card already
-          // holds; this one waits on the roster's fetch. Distinguished
-          // from "nobody is typed" because they are different facts and
-          // the second one is permanent.
-          ? <LbNote>Reading who answered…</LbNote>
-          : !typeRows.length
-            ? (
-              <LbNote>
-                None of the {split.sampleN.toLocaleString()} answers here carries a Big Five yet —
-                it fills in as people answer test cards.
-              </LbNote>
-            )
-            : (
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {typeRows.map((r) => (
-                  <LbChip key={r.type} on={openType === r.type} onTap={() => setBucket(r.type)}>
-                    {r.type} · {r.n}{split.mine === r.type ? " · you" : ""}
-                  </LbChip>
-                ))}
-              </div>
-            )
-      )}
-
-      {logicOpen && (
-        lsplit === null
-          ? <LbNote>Reading who answered…</LbNote>
-          : !logicRows.length
-            ? (
-              <LbNote>
-                None of the {lsplit.sampleN.toLocaleString()} answers here carries a verified
-                logic score yet — it fills in as people take the logic test.
-              </LbNote>
-            )
-            : (
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {logicRows.map((r) => (
-                  <LbChip key={r.band} on={openBand === r.band} onTap={() => setBucket(r.band)}>
-                    {r.label} · {r.n}{lsplit.mine === r.band ? " · you" : ""}
-                  </LbChip>
-                ))}
-              </div>
-            )
-      )}
 
       {!!openDim && renderBody && (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -760,9 +770,9 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
       {/* Named above the body rather than left implicit. Every number
           under this line is one cohort's, and a reader who arrived by
           tapping a chip two scrolls ago has to be able to see whose.
-          Suppressed while the type cut has nothing to head — its two
-          empty states say more than "Types · 0 answers" would. */}
-      {!friendsOpen && (!typeOpen || !!typeRow) && (!logicOpen || !!logicRow) && (
+          A trait dim heads it like any other now (D330) — there is no
+          sampled empty state left to suppress it for. */}
+      {!friendsOpen && (
         <div style={{ display: "flex", alignItems: "baseline", gap: 8, borderBottom: LB_LINE, paddingBottom: 6 }}>
           <span style={{ flex: 1, fontFamily: "var(--sans)", fontWeight: 800, fontSize: 13.5, color: "var(--ink)" }}>
             {pick.label}
@@ -773,51 +783,15 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
         </div>
       )}
 
-      {friendsOpen ? null : typeOpen ? (
-        !typeRow ? null : !typeRow.n ? (
-          <LbNote>Nobody of this type has answered this yet.</LbNote>
-        ) : (
-          // Shares only once the typed sample can carry them; counts and a
-          // plain sentence below it otherwise. A custom renderBody is NOT
-          // offered the type cut: the dial and the field fold a continuum
-          // out of exact published cells, and handing them a bounded
-          // sample would put a sampled position on a track that reads as
-          // the population's.
-          rating
-            ? <LbRatingBody counts={typeRow.counts} mine={mine} />
-            : <LbOptionRows
-              options={options}
-              counts={typeRow.counts}
-              mine={mine}
-              mode={split && split.enough ? "pct" : "count"}
-            />
-        )
-      ) : logicOpen ? (
-        !logicRow ? null : !logicRow.n ? (
-          <LbNote>Nobody in this band has answered this yet.</LbNote>
-        ) : (
-          // The type cut's shares rule, unchanged: percentages only once
-          // the scored sample can carry them, counts and the basis line
-          // otherwise. No renderBody here for the type cut's own reason —
-          // a sampled position must not draw on a track that reads as the
-          // population's.
-          rating
-            ? <LbRatingBody counts={logicRow.counts} mine={mine} />
-            : <LbOptionRows
-              options={options}
-              counts={logicRow.counts}
-              mine={mine}
-              mode={lsplit && lsplit.enough ? "pct" : "count"}
-            />
-        )
-      ) : rowsView ? (
+      {friendsOpen ? null : rowsView ? (
         <>
           <LbCohortRows
             dim={openDim}
             buckets={buckets}
             options={options}
             overall={overall}
-            myBucket={myAnchors[openDim] || ""}
+            myBucket={openTrait ? (myTraits[openTrait] || "") : (myAnchors[openDim] || "")}
+            labelOf={openTrait ? traitBucketLabel : undefined}
             openBucket={openBucket}
             onRow={setBucket}
             kind={kind}
@@ -828,9 +802,11 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
               // A rating compares MEANS instead (D305): "more likely to
               // say 7" is a true sentence about a histogram bucket and a
               // useless one about a scale.
-              const d = rating ? null : divergenceFor(by, openDim, b.bucket, overall, n);
+              const d = rating ? null : divergenceFor(cellsBy, openDim, b.bucket, overall, n);
               const basePct = pctFor(overall);
-              const label = bucketLabel(openDim, b.bucket);
+              const label = openTrait
+                ? traitBucketLabel(openTrait, b.bucket)
+                : bucketLabel(openDim, b.bucket);
               const bMean = rating ? meanScore(b.counts) : null;
               const oMean = rating ? meanScore(overall) : null;
               const meanGap = bMean && oMean ? bMean.mean - oMean.mean : 0;
@@ -888,67 +864,30 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
             : <LbOptionRows options={options} counts={counts} mine={mine} />
       )}
 
-      {/* THE BASIS, stated every time the type cut is open.
-          Every other cut on this sheet is a census — every answer, exact
-          — and this one is the latest voters the session happened to
-          fetch, thinned to those carrying a result. Saying so once under
-          the bars is what keeps a reader from carrying the exactness of
-          the chip to its left across to this one. */}
-      {!friendsOpen && typeOpen && !!split && !!typeRows.length && (
-        <div style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.5, textWrap: "pretty" }}>
-          {(() => {
-            const d = typeRow && split.enough ? typeDivergence(typeRow, split.overall) : null;
-            return (
-              <>
-                {d && (
-                  <>
-                    {typeRow!.type} are <strong style={{ color: "var(--ink-2)" }}>{d.gap} points</strong>
-                    {" "}{d.higher ? "more" : "less"} likely to say {options[d.optionIdx]} than
-                    the typed people here.{" "}
-                  </>
-                )}
-                Of the {split.sampleN.toLocaleString()} answers this session has read,
-                {" "}{split.typedN.toLocaleString()} carry a Big Five.
-                {!split.enough && " Too few for shares, so these are counts."}
-                {" "}Types are read as they stand today, so this counts answers given
-                before they were typed.
-              </>
-            );
-          })()}
-        </div>
-      )}
+      {/* THE BASIS LINE IS GONE, and its absence is the change (D330).
+          It existed to say that this one cut was a sample while every
+          chip to its left was a census — "the latest voters the session
+          happened to fetch, thinned to those carrying a result". The cut
+          is now a census like the rest, computed over every answer, so
+          there is nothing left to warn a reader about and a line saying
+          so would be furniture. What it USED to promise in its last
+          sentence — "types are read as they stand today, so this counts
+          answers given before they were typed" — is still true and is now
+          true of the published cell itself: the nightly sweep rebuilds
+          every cube against tonight's results.
 
-      {/* The Logic cut's basis, on the type cut's template: a sample, not
-          the census, and the bands named for what they are — quarters of
-          the verified test's percentile. The untested are the gap between
-          the two numbers, never a fifth band. */}
-      {!friendsOpen && logicOpen && !!lsplit && !!logicRows.length && (
-        <div style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.5, textWrap: "pretty" }}>
-          {(() => {
-            const d = logicRow && lsplit.enough ? logicDivergence(logicRow, lsplit.overall) : null;
-            return (
-              <>
-                {d && (
-                  <>
-                    The {logicRow!.label.toLowerCase()} are <strong style={{ color: "var(--ink-2)" }}>{d.gap} points</strong>
-                    {" "}{d.higher ? "more" : "less"} likely to say {options[d.optionIdx]} than
-                    the scored people here.{" "}
-                  </>
-                )}
-                Of the {lsplit.sampleN.toLocaleString()} answers this session has read,
-                {" "}{lsplit.scoredN.toLocaleString()} carry a verified logic score —
-                the bands are quarters of its percentile.
-                {!lsplit.enough && " Too few for shares, so these are counts."}
-              </>
-            );
-          })()}
-        </div>
-      )}
+          One residual, priced in D330 rather than drawn: your own row is
+          outlined from the type you have RIGHT NOW while the counts are
+          last night's, so for up to a day after re-typing yourself the
+          outline can sit on a row your own answer has not moved into. A
+          device-side ±1 correction was the obvious fix and is rejected —
+          it would put the sheet at odds with the published cell and with
+          the sold report over the same number. */}
 
-      {/* No roster under a cohort (D149). "Everyone", every demographic
-          cut, D146's type cut and D227's logic cut all answer in
-          percentages; the only cut that names people is Friends, because
-          there "who" IS the question being asked. */}
+      {/* No roster under a cohort (D149). "Everyone", every anchor cut
+          and every trait cut answer in percentages; the only cut that
+          names people is Friends, because there "who" IS the question
+          being asked. */}
     </div>
   );
 }

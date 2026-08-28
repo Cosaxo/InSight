@@ -456,6 +456,18 @@ true historical membership) or deleting them.
 > for as long as it existed: "Norway" / "norway" / "NO" were three
 > sub-floor cohorts. D9 has the arithmetic.
 
+> **Amended by [D330](#d330--a-test-result-becomes-a-cohort-cut--server-side-exact-and-retroactive)
+> (2026-08-28), on the owner's word.** The line "a test result is never a
+> breakdown dim, and no published cell is keyed by one" no longer holds.
+> The server now publishes a per-question cube keyed on each instrument's
+> matched type, its axis bands and the logic band. What survives of this
+> record's clause is the part that was load-bearing rather than the part
+> that was a boundary: a result is still **not** in the anchors snapshot
+> and still **not** in `BREAKDOWN_DIMS`, because D330 rejects the
+> stamp-it-into-anchors shape by name — that shape is forward-only and
+> client-written, and a rebuild is neither. The cube lives in its own
+> collection and is recomputed nightly from the answers.
+
 **Decision.** The aggregation that answers "how did every kind of person
 split?" ships now, dimension-agnostic and with its own k-anonymity floor.
 Whether InSight ever *asks* a user for their age band, gender or country is
@@ -33110,3 +33122,126 @@ the standing the constellation's own distances have.
 the answer trigger, the tab's mount gate, the rules (the loadings doc
 was already world-readable and written by nobody), and the store
 forms — nothing new is collected, one published document gained rows.
+
+## D330 · A test result becomes a cohort cut — server-side, exact, and retroactive
+
+**Decided:** 2026-08-28 · **Status: binding — adopted on the owner's
+word.** Asked directly, twice: D329's confirmation the day before —
+*"one of the core features of the app is to show how diffrent cohorts
+vote on diffrent questions"* — and then the instruction that produced
+this record, that the D8 restriction *"we should fix"*. This is the
+amendment D329's own text said would be needed: it named this exact cut
+as *"amendable as its own decision the day the owner wants the server
+cell"*, and that day is today.
+
+**What D8 forbade, and which half falls.** D8's clause was *a test result
+is never a breakdown dim — not in the anchors snapshot, not in
+`BREAKDOWN_DIMS`, no published cell keyed by one.* The last third falls.
+The first two stand, and not as a technicality: the shape this record
+REJECTS is precisely stamping a type into the answer's anchors snapshot
+at vote time.
+
+**The rejected shape, named so nobody re-proposes it.** `anchors` is
+frozen by D5/D86. A type stamped there is therefore **forward-only**:
+every answer given before the person was typed sits in `untested`
+forever, and an answer given under a type they have since grown out of
+keeps the old one — not a stale cell but a wrong one, getting wronger as
+the app ages. It is also **client-written**, so a scripted caller could
+file its answers under any archetype it liked. And it would grow the
+hottest document in the system — `v2_question_aggs`, rewritten on every
+answer and re-read by every client — by 27 dims, which is the trade the
+catalog branch already refuses for the same reason.
+
+**The decision.** A nightly sweep, `foldTraitsV2`, joins each user's
+CURRENT `testResults` to EVERY core answer they have ever given and
+publishes one document per question, `v2_question_traits/{qid}`, whose
+body is exactly a `by` map — dim → bucket → optionIdx → count. 27 dims,
+186 buckets: four instruments' matched archetypes, 22 axis bands on
+D254's centred cut points, and the logic band. World-readable, written by
+nobody.
+
+**Retroactivity is not a feature here; it is what a rebuild IS.** Tonight's
+run reads tonight's results against every answer ever written, so there is
+no stored history of where an answer used to sit and nothing to migrate.
+Five events are therefore one event with no code path of its own: first
+being typed, a type changing, a result being cleared, the matcher being
+retuned, and an account being deleted. All heal in one night. The last is
+worth naming twice — **unlike `v2_question_aggs` beside it, this cube
+forgets a deleted account**, because it is rebuilt from answers phase 1b
+has already removed. No erasure code, no new phase.
+
+**Why it beats the device fold it replaces.** `data/typeSplit.ts` (D146)
+chose a client-side join for exactly the retroactivity reason above, and
+was right to reject the stamp — but treated the device as the only
+alternative. It reads at most `VOTER_FETCH_CAP` = 200 sampled voters,
+thinned again to those carrying a result, withholds shares under a floor
+of 60, and covers the Big Five alone. Its own header states the cost
+plainly. What it missed is that **the answers are the log (D290)** and a
+cohort cube is a projection you can rebuild from them — which buys
+exactness and retroactivity at once, and happens to be cheaper on the
+device: one `getDoc` where the sample paid up to 200 profile reads for a
+worse number. The sampled cut's arithmetic trap goes with it: a type's
+share can be subtracted from the published split again, because both are
+now counts of the same population, so the sheet's header bar is the
+census the card already showed.
+
+**Nothing per-person is written anywhere.** The sweep computes each
+account's buckets in memory and discards them; the only documents it
+writes are the per-question cubes. That is a build requirement with a test
+behind it — the recording fake's write log — and not a claim. If a future
+feature wants "which type is this person" server-side, that is its own
+decision with its own record.
+
+**The privacy price, stated rather than argued away.** Nothing here is new
+information: answers are public (D98) and `testResults` has been readable
+across users since D112, so any signed-in client could compute every cell
+today by paging the collection — which is exactly what the device fold
+does. What changes is that **derivable becomes published**: one `getDoc`,
+exact, permanent, for every core question, including cells keyed on an
+Art. 9 inference. That is a change in processing and not merely in
+convenience, and this record does not pretend otherwise. **No floor is
+added**, consistent with D98 and D18. The asymmetry a reader is owed: a
+trait bucket is an *inference*, so unlike a city or an age band a person
+cannot see which bucket they are in from their profile and cannot leave
+it by editing a field. The refusal lever is the one already on the shelf
+— **D327's result-privacy half, still Proposed**: a private result is
+absent from the projection others read, which under this design puts that
+person's answers in `untested` with no new code at all. Until it is
+adopted the page's opt-out is the D202 bullet's: a result you have not
+given cannot be used to group you.
+
+**Two costs, bounded and recorded rather than engineered around.** Up to
+24 hours of staleness after a type change — the same latency as every
+other nightly fold in the app. And within that window the viewer's own
+row is outlined from the type they hold RIGHT NOW while the counts are
+last night's, so the outline can sit on a row their own answer has not
+moved into yet: at most one answer, at most a day. **The rejected fix**
+is a device-side ±1 into the fresh row; it would put the sheet at odds
+with the published cell and with the sold report over the same number,
+which is the D290 projection rule inverted.
+
+**What holds it.** `check:traits` (deploy path) — the generated
+vocabulary is a fresh generation of the client's own matcher, every
+bucket is closed and legal, and both sides order the instruments alike.
+`traitsFit.test.ts` replays 40 golden profiles typed by the CLIENT
+matcher through the SERVER one, which is the only thing that can see two
+matchers in two runtimes disagreeing. Four `check:policy-claims` rows
+pin the disclosure, the third of them (no stored label) pinning the
+custody property so a future change that starts persisting one has to
+visit that file.
+
+**What this does not touch:** the answer trigger and the answer document
+(unchanged, both), `BREAKDOWN_DIMS`, the anchors snapshot, the aggregate's
+hot write path, the store forms (nothing new is collected), and the
+Mirror's own lenses. Tail questions get no cube — SCALE-PLAN §1's rule is
+what keeps the sweep bounded against an unbounded feed — and the sheet
+renders that as no instrument chips at all, data-driven, no flag.
+
+**Recorded limits.** The Map's anchor ring is not wired (`MapStats` still
+returns null for the four test anchors; the cube is a second document and
+the Map would need the loader — a follow-up, and the stale comments are
+corrected regardless). The sharded sweep is priced, not built. And
+`data/typeSplit.ts` / `data/logicSplit.ts` are now dead code kept for one
+commit: their deletion touches `scripts/report.test.mjs`' band pin and the
+`voterScores` member, and doing it in the same change as the feature would
+have mixed a cleanup into a build.

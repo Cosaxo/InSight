@@ -53,19 +53,27 @@ export const DIM_LABEL: Record<string, string> = {
 };
 
 // The Map's anchor ring speaks its own ids. Two of them are breakdown
-// dims and can therefore be answered with real numbers; the rest cannot,
-// and the absence is structural rather than pending:
+// dims and can therefore be answered from the aggregate; of the rest, one
+// absence is structural and four are now PENDING rather than permanent:
 //
 //   job   is `profession`, deliberately NOT a breakdown dim (D8) — it is
 //         free text, so every distinct spelling would mint a bucket key
-//         forever.
+//         forever. This one is still structural.
 //   big5, political, values, attachment
-//         are test RESULTS. Nothing aggregates them per cohort, so
-//         "how did similar personalities answer" has no source at all.
+//         are test RESULTS, and until D330 the sentence here read
+//         "nothing aggregates them per cohort, so 'how did similar
+//         personalities answer' has no source at all." That is no longer
+//         true: the nightly sweep publishes exactly that, per question,
+//         in `v2_question_traits` (data/traitDims.ts, LIVE.traitsFor).
+//         They are absent from THIS map because the source is a different
+//         document than `agg.by` — the Map would need its own loader —
+//         not because the reading does not exist. A follow-up, named in
+//         D330's recorded limits.
 //         (`cognitive` sat in this list until D103 retired the test.)
 //
 // A map from anchor to dim is the honest way to say that: an anchor
-// missing from this object is one no amount of reading can answer.
+// missing from this object cannot be answered from the AGGREGATE, which
+// since D330 is a narrower claim than "cannot be answered".
 export const MAP_ANCHOR_DIM: Record<string, CohortDim> = {
   age: "ageBand",
   edu: "education",

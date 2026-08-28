@@ -80,6 +80,25 @@ export const CLAIMS = [
     /read by\s+nobody but you[\s\S]{0,120}?who-voted list/i],
   ["D146 · answers can be grouped by the Big Five type, retroactively",
     /grouped by it[\s\S]{0,400}?before you had a type at all/i],
+  // D330 is one disclosure in four parts, the D268/D270 pair's shape one
+  // feature wider, because the widening it discloses has four separable
+  // halves and any of them vanishing would leave the page describing a
+  // different feature than the one shipping: WHAT is grouped (all four
+  // instruments, types AND axis bands, where it was the Big Five alone),
+  // that it is now a CENSUS rather than the device's sample, that no type
+  // label is stored anywhere, and — the sentence D44 was about — that
+  // political answers are grouped by the political profile the app infers
+  // from them. The third is the one that matters most structurally: it
+  // pins the custody property, so a future change that starts persisting
+  // a per-person type has to visit this file.
+  ["D330 · answers are grouped by every test's matched type AND its axis bands",
+    /matched type and its\s+axis bands[\s\S]{0,160}?political, values and social/i],
+  ["D330 · the grouping is an exact count over every answer, recomputed nightly",
+    /exact count over every answer[\s\S]{0,160}?recomputed each night/i],
+  ["D330 · no type label is stored — it is read fresh from your results",
+    /never stored as a label[\s\S]{0,160}?read fresh/i],
+  ["D330 · political answers are grouped by the political profile the app builds",
+    /grouped by the political\s+profile the app builds from them/i],
   // The D146 row beside this one — "politics/values/social results are
   // NOT used to group answers" — retired at D252: the owner removed the
   // promise (the D225 posture — an unneeded promise is a standing

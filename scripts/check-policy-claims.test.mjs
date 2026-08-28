@@ -23,7 +23,7 @@ describe("check-policy-claims", () => {
     // asserted is that the four disclosures with a decision behind them
     // are each represented, by the label a failure would print.
     const labels = CLAIMS.map(([l]) => l).join("\n");
-    for (const d of ["D9", "D84", "D98", "D146", "D174", "D175", "D177", "D178"]) {
+    for (const d of ["D9", "D84", "D98", "D146", "D174", "D175", "D177", "D178", "D330"]) {
       expect(labels, `no claim traces to ${d}`).toMatch(new RegExp(`\\b${d}\\b`));
     }
   });

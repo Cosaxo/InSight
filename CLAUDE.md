@@ -97,6 +97,27 @@ script before editing the page: three of its claims were already stale
 when D183 opened it, because D174, D175 and D177 each updated the app and
 not the policy.
 
+**A test result is a cohort cut now (D330, 2026-08-28, owner's call).**
+D8's last clause — "no published cell is keyed by a test result" — fell.
+The nightly `foldTraitsV2` publishes one cube per CORE question onto
+`v2_question_traits/{qid}`, keyed on each instrument's matched archetype,
+its axis bands (D254's cut points, the sold report's own) and the logic
+band; the who-voted sheet reads it through `data/cohort.ts` unchanged,
+because the body is exactly a `by` map. **It is a REBUILD, not an
+accumulation, and that is the whole design**: tonight's run joins tonight's
+results to every answer ever given, so the reading is retroactive, a
+changed type moves all of that person's answers in one night, and a
+deleted account leaves the cube by the next morning. The rejected shape —
+stamping a type into the immutable anchors snapshot — is named in the
+record: forward-only and client-written. Nothing per-person is written
+anywhere; the sweep computes buckets in memory and drops them, held by a
+test over the write log. Two copies of the matcher now exist in two
+runtimes, so the server's is GENERATED from the client's
+(`scripts/gen-traits.mjs` → `functions/src/traitsContent.ts`) and
+`check:traits` holds them equal on the deploy path, golden fixture
+included. It replaced `data/typeSplit.ts`'s 200-voter device sample, which
+is dead code pending its own sweep.
+
 Three structural denies remain, none about answers, each labelled at its
 own path in
 `firestore.rules`: the unscored logic answer key (anti-cheat), flag
@@ -354,11 +375,17 @@ an emergency rules fix.
   not theirs: one needs questions that rate a place, the other needs
   "everyone" as a baseline, and a circle of nine has neither.
 - **`window.MapStats` is real for two anchors and refuses for five, and
-  the split is structural.** `age` and `edu` are breakdown dims, so since
+  since D330 four of those five refusals are PENDING rather than
+  structural.** `age` and `edu` are breakdown dims, so since
   D99 `dist`/`mode` compute from the published cells. `job` is
-  profession — deliberately never a dim (D8) — and the four test anchors
-  are results nothing aggregates per cohort, so those return **null**,
-  as does `dimVal` everywhere. Null rather than a gate at each call site
+  profession — deliberately never a dim (D8), and that one stays
+  structural. The four test anchors returned null because nothing
+  aggregated a result per cohort; **D330 reversed that half of D8** — the
+  nightly sweep publishes every instrument's type and axis bands per
+  question onto `v2_question_traits`, which the who-voted sheet reads.
+  They still return **null** here because the source is a SECOND document
+  the Map has no loader for — a follow-up named in D330's limits, not a
+  refusal — as does `dimVal` everywhere. Null rather than a gate at each call site
   (D72), so a consumer that forgets the check fails a test instead of
   quietly fabricating — which is exactly what made the two fixable ones
   findable. `groupLabel` answers in both modes: it is a noun for the

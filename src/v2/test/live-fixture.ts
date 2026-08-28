@@ -49,6 +49,13 @@ type Dict = Record<string, unknown>;
 export interface LiveFixtureOptions {
   /** Cards below the k-floor render no share numeral and no fill (D11). */
   tooSmall?: boolean;
+  /**
+   * qid → published trait cube (D330), as `LIVE.traitsFor` returns it.
+   * Absent means no question has one, which is the honest first-run live
+   * state and the one every mount test wants: the sheet then offers no
+   * instrument chips at all.
+   */
+  traits?: Record<string, Record<string, Record<string, Record<string, number>>>>;
   /** A live build that fell back to mock data — suppresses everything (D11). */
   demoInProd?: boolean;
   /** The viewer's city anchor, "" for a profile that has not picked one. */
@@ -472,6 +479,13 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     follows: () => ["u_other"],
     followsLoading: () => false,
     loadVoters: async () => {},
+    // D330: the fixture publishes no cube, which is a real state the sheet
+    // has to render — a tail question, or a core one nobody has answered
+    // yet. The mount tests therefore see the sheet with NO instrument
+    // chips, which is the correct live-mode first-run shape; a case that
+    // wants the cuts hands its own cube in through `opts.traits`.
+    loadTraits: async () => {},
+    traitsFor: (qid: string) => (opts.traits ?? {})[qid] ?? null,
     voters: () => [
       { uid: "u_fixture", optionIdx: 0, anchors: { ageBand: "25-34", city: "Oslo, NO" }, name: "Tester", isMe: true },
       { uid: "u_other", optionIdx: 1, anchors: {}, name: "", isMe: false },

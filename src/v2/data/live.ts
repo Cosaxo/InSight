@@ -141,7 +141,7 @@ import {
 } from "./avatar";
 // Pure folds over the published breakdown, and the likeness metric behind
 // Kindred. No Firebase in there — this module supplies the documents.
-import { agreement, divisiveness, type Agreement } from "./cohort";
+import { agreement, divisiveness, type Agreement, type ByMap } from "./cohort";
 // The follow graph (D101), TYPE-ONLY at module scope and imported for
 // real inside the two methods that use it.
 //
@@ -353,6 +353,19 @@ const state = {
   // and a card scrolled past must pay for neither.
   voters: {} as Record<string, Voter[]>,
   votersLoading: {} as Record<string, boolean>,
+  // The trait cube (D330) — one published document per core question,
+  // holding that question's split by every test-result cut. Same
+  // fetch-on-demand, hold-for-the-session contract as `voters` above and
+  // for the same reason, except this is ONE document rather than a
+  // collection-group query plus a batched profile read, which is why it
+  // replaced the sampled device-side type fold rather than joining it.
+  // Absent means "not asked or could not ask", `null` means "asked, and
+  // this question has no cube" — a tail question, or one nobody has
+  // answered yet. The sheet renders the two the same way (no instrument
+  // chips at all) but they must not be conflated in the cache, or a
+  // failed read would freeze as "no cube" for the session.
+  traits: {} as Record<string, ByMap | null>,
+  traitsLoading: {} as Record<string, boolean>,
   // uid → display name ("" for an account that has set none). Shared by
   // every question's voter list, because crowds overlap: without this,
   // opening five questions re-reads the same regulars five times.
@@ -3487,6 +3500,47 @@ const LIVE = {
       notify();
     }
   },
+  /**
+   * One question's trait cube (D330) — the who-voted sheet's test-result
+   * cuts, exact and server-computed.
+   *
+   * ONE getDoc, session-cached, on the tap that opens an instrument chip.
+   * That is the whole read: the sampled cut this replaces paid up to
+   * VOTER_FETCH_CAP profile documents per question to reach a worse
+   * answer, so the exact reading is also the cheaper one.
+   *
+   * A missing document is cached as `null` rather than left absent: a
+   * tail question has no cube by design (docs/SCALE-PLAN.md §1) and
+   * re-asking for it on every remount would be a read per open for a
+   * document that will never exist. A FAILED read leaves the key absent
+   * so it retries — the loadVoters distinction, and for the same reason.
+   */
+  async loadTraits(qid: string): Promise<void> {
+    if (!qid || state.traitsLoading[qid] || qid in state.traits) return;
+    state.traitsLoading[qid] = true;
+    try {
+      const db = await getDb();
+      const snap = await getDoc(doc(db, "v2_question_traits", qid));
+      const by = snap.exists() ? (snap.get("by") as ByMap | undefined) : undefined;
+      state.traits[qid] = by && typeof by === "object" ? by : null;
+    } catch (err) {
+      reportError(err, { where: "loadTraits", qid });
+    } finally {
+      state.traitsLoading[qid] = false;
+      notify();
+    }
+  },
+  /**
+   * The cube for a question, or null.
+   *
+   * Null covers both "not fetched" and "no cube exists", which the sheet
+   * renders identically — it offers no instrument chips at all, which is
+   * the D265 gate posture: the absence of data is the absence of the
+   * control, with no flag and no empty state to explain.
+   */
+  traitsFor(qid: string): ByMap | null {
+    return state.traits[qid] ?? null;
+  },
   // uid → display name, from the shared session cache. Synchronous and
   // best-effort: "" means either "no name set" or "not fetched yet", and
   // the caller renders the same fallback for both because from the screen
@@ -5511,6 +5565,13 @@ function resetForNewUid(uid: string): void {
   // session that fetched it.
   state.voters = {};
   state.votersLoading = {};
+  // The trait cube is PUBLIC — the same crowd whoever is signed in, like
+  // the aggregate cache above it — so this is hygiene rather than a leak
+  // fix. It is dropped anyway because the sheet outlines the VIEWER's own
+  // row, and a cube held across a uid change would be read against the
+  // new account's type while the previous account's session fetched it.
+  state.traits = {};
+  state.traitsLoading = {};
   state.names = {};
   // Scores ride the name cache (D112) and carry the same reasoning: other
   // people's data, held to save reads. The logic percentiles (D227) are

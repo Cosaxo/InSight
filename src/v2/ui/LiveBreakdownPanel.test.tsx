@@ -48,12 +48,17 @@ const LIVE = vi.hoisted(() => ({
   loadFollows: vi.fn(async () => {}),
   follows: () => null as string[] | null,
   followsLoading: () => false as boolean,
-  // The type cut (data/typeSplit.ts) and `typeMix.myType`, which reads the
-  // viewer's own result off the store the same way.
-  voterScores: (qid: string) => {
+  // The trait cube (D330) — one published document per core question,
+  // holding every test-result cut. `traitsFor` returning null is the
+  // honest default: most fixtures here are questions with no cube, which
+  // is what a tail question and a first-run live build both look like.
+  loadTraits: vi.fn(async (qid: string) => { void qid; }),
+  traitsFor: (qid: string) => {
     void qid;
-    return null as { uid: string; optionIdx: number; results: unknown }[] | null;
+    return null as Record<string, Record<string, Record<string, number>>> | null;
   },
+  // The viewer's own results, which the sheet types on the device to
+  // outline their row.
   myTestResults: () => ({}) as Record<string, unknown>,
 }));
 vi.mock("../data/live", () => ({ default: LIVE }));
@@ -93,7 +98,8 @@ beforeEach(() => {
   LIVE.follows = () => [];
   LIVE.followsLoading = () => false;
   LIVE.loadFollows = vi.fn(async () => {});
-  LIVE.voterScores = () => null;
+  LIVE.loadTraits = vi.fn(async () => {});
+  LIVE.traitsFor = () => null;
   LIVE.myTestResults = () => ({});
 });
 afterEach(cleanup);
@@ -548,254 +554,141 @@ describe("LiveBreakdownPanel · continuum forms bring their own body", () => {
   });
 });
 
-// ── the type cut ────────────────────────────────────────────────────
+// ── the trait cuts (D330) ───────────────────────────────────────────
 //
-// The one cut on this sheet that is NOT a published cell. It folds the
-// session's cached voter list against those voters' current profile
-// scores (data/typeSplit.ts), which buys the reading the anchors snapshot
-// could never give — a type applies to answers given before the person
-// was typed — at the cost of being a bounded sample sitting beside exact
-// numbers. These cases are about that seam: the cut works, and it never
-// passes itself off as the census next to it.
+// These replaced a CLIENT fold over the session's ≤200-voter cache. The
+// old cases were about a seam that no longer exists — "the cut works, and
+// it never passes itself off as the census next to it" — because the cut
+// IS the census now: one published document per core question, shaped
+// exactly like `agg.by`, so every chip on this sheet reads the same kind
+// of number.
+//
+// What these cases are about instead: the two-level chip row, that the
+// cube's cells actually reach the rows view, and above all that the chips
+// are DATA-DRIVEN — a question with no cube offers no instruments at all,
+// which is what a tail question and a demo build both look like.
 
-/** A voter row carrying a real Big Five, as `LIVE.voterScores` returns
- * them — `logic` rides the same rows since D227, null meaning untested. */
-const scored = (uid: string, optionIdx: number, dims: Record<string, number> | null, logic: number | null = null) => ({
-  uid,
-  optionIdx,
-  results: dims ? { big5: dims } : null,
-  logic,
-});
+/** A cube in the published shape: dim → bucket → optionIdx → count. */
+const CUBE = {
+  big5: {
+    "The Reader": { "0": 6, "1": 2 },
+    "The Planner": { "0": 1, "1": 5 },
+    untested: { "0": 11, "1": 2 },
+  },
+  big5_O: {
+    b0: { "0": 2, "1": 4 },
+    b4: { "0": 5, "1": 1 },
+    untested: { "0": 11, "1": 4 },
+  },
+  logic: {
+    top: { "0": 4, "1": 1 },
+    untested: { "0": 14, "1": 8 },
+  },
+};
 
-const QUIET = { O: 72, C: 55, E: 15, A: 58, N: 50 };
-const LOUD = { O: 60, C: 32, E: 90, A: 58, N: 45 };
-
-/** n typed voters of one profile, all on one option. */
-const scoredMany = (tag: string, optionIdx: number, dims: Record<string, number>, n: number) =>
-  Array.from({ length: n }, (_, i) => scored(`${tag}${i}`, optionIdx, dims));
-
-describe("LiveBreakdownPanel · the type cut", () => {
-  it("offers a Type chip after the published dims", () => {
-    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
-    expect(chip("Type")).toBeTruthy();
-    // Everyone stays the default; adding a cut must not move the landing.
-    expect(chip("Everyone").getAttribute("aria-pressed")).toBe("true");
+describe("LiveBreakdownPanel · the trait cuts (D330)", () => {
+  beforeEach(() => {
+    LIVE.traitsFor = (qid: string) => (qid === "q1" ? CUBE : null);
   });
 
-  it("asks for the voter list when opened, so it cannot wait on a hidden roster", () => {
-    // Both empty states render INSTEAD of the roster, and the roster is
-    // what fetches — so without this the cut would sit on "Reading who
-    // answered…" forever.
+  it("offers one chip per instrument the cube carries, after the anchor dims", () => {
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
-    fireEvent.click(chip("Type"));
-    expect(LIVE.loadVoters).toHaveBeenCalledWith("q1");
-  });
-
-  it("says it is still reading rather than claiming nobody is typed", () => {
-    LIVE.voterScores = () => null;
-    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
-    fireEvent.click(chip("Type"));
-    expect(screen.getByText(/Reading who answered/)).toBeTruthy();
-  });
-
-  it("distinguishes 'nobody has a result' from 'still loading'", () => {
-    LIVE.voterScores = () => [scored("a", 0, null), scored("b", 1, null)];
-    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
-    fireEvent.click(chip("Type"));
-    expect(screen.queryByText(/Reading who answered/)).toBeNull();
-    expect(screen.getByText(/None of the 2 answers here carries a Big Five/)).toBeTruthy();
-  });
-
-  it("redraws the question's own options with that type's numbers", () => {
-    // 60 typed voters, so shares are allowed. Counts are deliberately
-    // UNEQUAL (40 against 20): on a tie the chips fall back to
-    // alphabetical order, which would make "the first chip" depend on
-    // archetype names rather than on the fixture.
-    LIVE.voterScores = () => [
-      ...scoredMany("q", 0, QUIET, 40),
-      ...scoredMany("l", 1, LOUD, 10),
-      ...scoredMany("m", 2, LOUD, 10),
-    ];
-    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
-    fireEvent.click(chip("Type"));
-    // The most numerous type opens by default.
-    expect(chip(/· 40$/).getAttribute("aria-pressed")).toBe("true");
-    expect(pctRow("Beach")).toMatch(/100%/);
-    expect(pctRow("City break")).toMatch(/0%/);
-  });
-
-  it("switching type switches the numbers, on the same options", () => {
-    LIVE.voterScores = () => [
-      ...scoredMany("q", 0, QUIET, 40),
-      ...scoredMany("l", 1, LOUD, 20),
-    ];
-    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
-    fireEvent.click(chip("Type"));
-    expect(pctRow("Beach")).toMatch(/100%/);
-    // Addressed by its count rather than its name: the archetype the
-    // fixture matches is the matcher's business, not this test's.
-    fireEvent.click(chip(/· 20$/));
-    expect(pctRow("City break")).toMatch(/100%/);
-    expect(pctRow("Beach")).toMatch(/0%/);
-  });
-
-  it("states its basis every time, and names both denominators", () => {
-    LIVE.voterScores = () => [
-      ...scoredMany("q", 0, QUIET, 60),
-      ...Array.from({ length: 5 }, (_, i) => scored(`x${i}`, 1, null)),
-    ];
-    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
-    fireEvent.click(chip("Type"));
-    // 65 read, 60 of them typed — the gap is the honesty of the card and
-    // the two numbers are never blurred into one.
-    expect(screen.getByText(/Of the 65 answers this session has read, 60 carry a Big Five/)).toBeTruthy();
-  });
-
-  it("says out loud that it counts answers given before the person was typed", () => {
-    // The property that made this cut worth building instead of the
-    // forward-only breakdown dim. If the UI stops saying it, a reader has
-    // no way to tell this cut from one that started accruing at ship date.
-    LIVE.voterScores = () => scoredMany("q", 0, QUIET, 60);
-    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
-    fireEvent.click(chip("Type"));
-    expect(screen.getByText(/counts answers given before they were typed/)).toBeTruthy();
-  });
-
-  it("shows counts, not shares, when the typed sample is too thin", () => {
-    // 10 typed people cannot carry a percentage: one of them changing
-    // their mind moves it ten points.
-    LIVE.voterScores = () => scoredMany("q", 0, QUIET, 10);
-    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
-    fireEvent.click(chip("Type"));
-    expect(screen.getByText(/Too few for shares, so these are counts/)).toBeTruthy();
-    expect(pctRow("Beach")).toMatch(/10/);
-    expect(pctRow("Beach")).not.toMatch(/%/);
-  });
-
-  it("compares a type against the TYPED sample, not against the published census", () => {
-    // The arithmetic trap. Overall here is 60/30/10 published; the typed
-    // sample is 30 Beach / 30 City break = 50/50. QUIET is 100% Beach, so
-    // the honest gap is 50 points against the typed sample — not 40
-    // against the census, which would fold the sample's own bias into a
-    // number presented as the type's.
-    LIVE.voterScores = () => [
-      ...scoredMany("q", 0, QUIET, 30),
-      ...scoredMany("l", 1, LOUD, 30),
-    ];
-    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
-    fireEvent.click(chip("Type"));
-    expect(screen.getByText(/50 points/)).toBeTruthy();
-    expect(screen.getByText(/than the typed people here/)).toBeTruthy();
-  });
-
-  it("does not hand a bounded sample to a continuum body", () => {
-    // A dial's track reads as the population's position. renderBody is
-    // fed published cells only; the type cut draws the plain rows.
-    LIVE.voterScores = () => scoredMany("q", 0, QUIET, 60);
-    render(
-      <LiveBreakdownPanel
-        qid="q1"
-        options={OPTS}
-        renderBody={(counts, pick) => <div>body for {pick.label} {counts.join("/")}</div>}
-      />,
-    );
-    fireEvent.click(chip("Type"));
-    expect(screen.queryByText(/^body for/)).toBeNull();
-  });
-
-  it("leaves the published cuts exactly as they were", () => {
-    // The regression that matters most: a new chip must not disturb the
-    // census readings beside it.
-    LIVE.voterScores = () => scoredMany("q", 0, QUIET, 60);
-    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
-    fireEvent.click(chip("Type"));
-    fireEvent.click(chip("Age"));
-    fireEvent.click(chip(/^25-34 · 20/));
-    expect(pctRowIn(detail(/^25-34 split$/), "Beach")).toMatch(/75%/);
-    expect(screen.queryByText(/carry a Big Five/)).toBeNull();
-  });
-});
-
-describe("LiveBreakdownPanel · the logic cut (D227)", () => {
-  // A scored voter with no Big Five: the logic cut reads the percentile,
-  // the type cut would call this person untyped — the two cuts thin on
-  // different fields and neither borrows the other's basis.
-  const withPct = (tag: string, optionIdx: number, pct: number | null, n: number) =>
-    Array.from({ length: n }, (_, i) => scored(`${tag}${i}`, optionIdx, null, pct));
-
-  it("offers a Logic chip after the Type chip", () => {
-    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    expect(chip("Big 5")).toBeTruthy();
     expect(chip("Logic")).toBeTruthy();
-    expect(chip("Everyone").getAttribute("aria-pressed")).toBe("true");
+    // Politics/Values/Social are not in this cube, so they are not offered
+    // — the chips follow the data, question by question.
+    expect(screen.queryByRole("button", { name: "Politics" })).toBeNull();
   });
 
-  it("asks for the voter list when opened, like the type cut", () => {
-    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
-    fireEvent.click(chip("Logic"));
-    expect(LIVE.loadVoters).toHaveBeenCalledWith("q1");
+  it("offers NO instrument chips when the question has no cube", () => {
+    // A tail question (outside the Mirror's corpus) and one nobody has
+    // answered look the same here, and both are correct: the absence of
+    // the data is the absence of the control, with no empty state to read.
+    render(<LiveBreakdownPanel qid="q_no_cube" options={OPTS} />);
+    expect(screen.queryByRole("button", { name: "Big 5" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Logic" })).toBeNull();
+    // …and the anchor cuts beside it are untouched.
+    expect(chip("Age")).toBeTruthy();
   });
 
-  it("says it is still reading rather than claiming nobody is scored", () => {
-    LIVE.voterScores = () => null;
+  it("fetches the cube once when the sheet opens, not per chip tap", () => {
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
-    fireEvent.click(chip("Logic"));
-    expect(screen.getByText(/Reading who answered/)).toBeTruthy();
+    expect(LIVE.loadTraits).toHaveBeenCalledWith("q1");
+    const before = (LIVE.loadTraits as ReturnType<typeof vi.fn>).mock.calls.length;
+    fireEvent.click(chip("Big 5"));
+    fireEvent.click(chip("Openness"));
+    expect((LIVE.loadTraits as ReturnType<typeof vi.fn>).mock.calls.length).toBe(before);
   });
 
-  it("distinguishes 'nobody has a verified score' from 'still loading'", () => {
-    LIVE.voterScores = () => [scored("a", 0, QUIET), scored("b", 1, null)];
+  it("opens an instrument onto a second chip row — Type first, then its axes", () => {
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
-    fireEvent.click(chip("Logic"));
-    expect(screen.queryByText(/Reading who answered/)).toBeNull();
-    // A Big Five is not a logic score: both rows are untested here.
-    expect(screen.getByText(/None of the 2 answers here carries a verified\s+logic score/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Type" })).toBeNull();
+    fireEvent.click(chip("Big 5"));
+    expect(chip("Type")).toBeTruthy();
+    expect(chip("Openness")).toBeTruthy();
+    expect(chip("Sensitivity")).toBeTruthy();
   });
 
-  it("draws bands in scale order and shares once the sample is enough", () => {
-    // 60 scored, so shares are allowed. Bottom outnumbers top — a
-    // popularity order would lead with it; the scale must not.
-    LIVE.voterScores = () => [
-      ...withPct("t", 0, 90, 20),
-      ...withPct("b", 1, 5, 40),
-    ];
+  it("draws the type scale as rows, in vocabulary order, zeros included", () => {
+    // D304's rule, now over a trait dim: a reader must be able to see the
+    // whole scale, and a type nobody carries must be distinguishable from
+    // one that does not exist.
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
-    fireEvent.click(chip("Logic"));
-    // Scale order: the top quarter's chip opens by default despite 20 < 40.
-    expect(chip(/^Top quarter · 20/).getAttribute("aria-pressed")).toBe("true");
-    expect(pctRow("Beach")).toMatch(/100%/);
-    fireEvent.click(chip(/^Bottom quarter · 40/));
-    expect(pctRow("City break")).toMatch(/100%/);
-    expect(pctRow("Beach")).toMatch(/0%/);
+    fireEvent.click(chip("Big 5"));
+    expect(screen.getByText("The Reader")).toBeTruthy();
+    expect(screen.getByText("The Planner")).toBeTruthy();
+    // An archetype with no answers still draws.
+    expect(screen.getByText("The Diplomat")).toBeTruthy();
+    expect(screen.getByText("Untested")).toBeTruthy();
   });
 
-  it("states its basis with both denominators, and counts under the floor", () => {
-    LIVE.voterScores = () => [
-      ...withPct("t", 0, 80, 10),
-      ...withPct("n", 1, null, 3),
-    ];
+  it("bands an axis with the app's own words, not b0..b4", () => {
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
-    fireEvent.click(chip("Logic"));
-    expect(screen.getByText(/Of the 13 answers this session has read,\s+10 carry a verified logic score/)).toBeTruthy();
-    expect(screen.getByText(/Too few for shares, so these are counts/)).toBeTruthy();
-    // Counts mode: the bar prints 10, not 100%.
-    expect(pctRow("Beach")).toMatch(/10(?!%)/);
+    fireEvent.click(chip("Big 5"));
+    fireEvent.click(chip("Openness"));
+    // IS_RULE_ADJ.big5.O is ['practical', 'curious'] — the sold report's
+    // own band words, so the two surfaces cannot disagree (D254).
+    expect(screen.getByText("Practical")).toBeTruthy();
+    expect(screen.getByText("Curious")).toBeTruthy();
+    expect(screen.getByText("Between")).toBeTruthy();
+    expect(screen.queryByText("b0")).toBeNull();
   });
 
-  it("marks the viewer's own band off their verified result", () => {
-    LIVE.myTestResults = () => ({ logic: { pctile: 92 } });
-    LIVE.voterScores = () => withPct("t", 0, 85, 12);
+  it("expands a trait row into that cohort's own split of the same options", () => {
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
-    fireEvent.click(chip("Logic"));
-    expect(chip(/^Top quarter · 12 · you/)).toBeTruthy();
+    fireEvent.click(chip("Big 5"));
+    fireEvent.click(screen.getByText("The Reader"));
+    // 6/2 — the cube's cell, not the aggregate's.
+    expect(screen.getByText(/75%/)).toBeTruthy();
+    for (const o of OPTS) expect(screen.getAllByText(o).length).toBeGreaterThan(0);
   });
 
-  it("leaves the published cuts exactly as they were", () => {
-    LIVE.voterScores = () => withPct("t", 0, 85, 60);
+  it("outlines the viewer's own row from their CURRENT result", () => {
+    // Deliberately the device's reading rather than the cube's, because
+    // the cube is last night's: someone who re-typed themselves this
+    // morning finds themselves in the row they are in now (D330 prices
+    // the ≤24 h disagreement).
+    LIVE.myTestResults = () => ({
+      big5: { dims: [{ id: "O", value: 95 }, { id: "C", value: 50 }] },
+    });
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
-    fireEvent.click(chip("Logic"));
+    fireEvent.click(chip("Big 5"));
+    fireEvent.click(chip("Openness"));
+    // O:95 is far above the baseline, so the top band is theirs. The mark
+    // is on the row's accessible name rather than in visible text — the
+    // row's colour carries it on screen (LbCohortRows.rowLabel).
+    expect(screen.getByRole("button", { name: /^Curious · \d+ · you$/ })).toBeTruthy();
+    // …and nobody else's row claims it.
+    expect(screen.queryByRole("button", { name: /^Practical · \d+ · you$/ })).toBeNull();
+  });
+
+  it("leaves the published anchor cuts exactly as they were", () => {
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
     fireEvent.click(chip("Age"));
-    fireEvent.click(chip(/^25-34 · 20/));
-    expect(pctRowIn(detail(/^25-34 split$/), "Beach")).toMatch(/75%/);
-    expect(screen.queryByText(/verified logic score/)).toBeNull();
+    expect(screen.getByText("25-34")).toBeTruthy();
+    // …and switching to an instrument and back does not disturb them.
+    fireEvent.click(chip("Big 5"));
+    fireEvent.click(chip("Age"));
+    expect(screen.getByText("25-34")).toBeTruthy();
   });
 });

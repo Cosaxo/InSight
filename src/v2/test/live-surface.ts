@@ -60,6 +60,12 @@ export const LIVE_MEMBERS = [
   // use — which is what gives it the anonymity deny, the threshold and
   // the verdict log rather than a second set of all three.
   "flagAvatar", "flaggedAvatar",
+  // The trait cube (D330) — the who-voted sheet's test-result cuts, one
+  // published document per core question. `loadTraits` fetches on the tap
+  // that opens an instrument chip; `traitsFor` returns null both for "not
+  // fetched" and for "this question has no cube", which the sheet draws
+  // the same way (no instrument chips at all).
+  "loadTraits", "traitsFor",
   // Kindred (D99) — the People lens's ranking, derived on read from the
   // cached voter lists plus the viewer's own votes.
   "loadKindred", "kindred", "kindredLoading", "kindredDepth",
