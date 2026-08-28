@@ -114,6 +114,14 @@ jobs:
       # slot-exhaustion hole. Node stdlib only.
       - run: npm run check:anchors
 
+      # The trait cube's vocabulary (D330). Here for the check:catalogs
+      # reason rather than the client one: the DEPLOYED nightly sweep types
+      # every account by the generated copy of the client's matcher, so a
+      # stale copy is a backend correctness problem — the cohorts on every
+      # question would be computed by an older set of signatures than the
+      # app shows a person on their own result card. Node stdlib only.
+      - run: npm run check:traits
+
   rules-tests:
     runs-on: ubuntu-latest
     steps:

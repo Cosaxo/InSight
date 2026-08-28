@@ -1024,6 +1024,13 @@ export { resolveCallsV2 } from "./calls";
 // loading vectors from the vote log, core corpus only (D161). The fold
 // that has to exist before the Patterns tab may ship (D167).
 export { fitPatternsV2 } from "./patterns";
+// D330: the nightly trait cube — every core question's split by each
+// instrument's matched type, its axis bands and the logic band, rebuilt
+// whole from the answers so the reading is exact AND retroactive (an
+// answer given before you were typed joins its cohort the next morning).
+// Nothing per-person is written; the buckets are computed and discarded.
+// `rebuildTraitsV2` is the operator's single-question escape hatch.
+export { foldTraitsV2, rebuildTraitsV2 } from "./traits";
 // D316: the nightly published serving order — per-topic question order
 // (volume, landslides sunk) onto v2_rank/{feed,learn}, the spine the
 // paged read path fetches against. Global signal only; no uid enters

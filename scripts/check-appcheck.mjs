@@ -100,6 +100,15 @@ const EXEMPT = {
       + "app can run a repair, and a control that fails when it is most "
       + "needed is not a control; gated on SEED_ADMIN_UIDS",
   },
+  rebuildTraitsV2: {
+    gate: "assertOperator",
+    reason:
+      "operator callable, D330's single-question trait rebuild — the "
+      + "nightly sweep's manual lever, reached from a console when one "
+      + "question's cohort reading has to be corrected without waiting for "
+      + "the schedule; rebuildAggregateV2's caller and rebuildAggregateV2's "
+      + "reason exactly; gated on SEED_ADMIN_UIDS",
+  },
 
   // Moderation instruments (assertModerator, MOD_UIDS). The moderation
   // Routine runs in a dedicated low-privilege environment with no repo

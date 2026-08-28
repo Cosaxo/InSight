@@ -692,6 +692,29 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(setDoc(doc(asUser(OWNER), "v2_patterns", "loadings-2"), { k: 8 }));
   });
 
+  it("D330: the trait cube reads like an aggregate and writes like one — nobody", async () => {
+    // The cube keyed on TEST RESULTS — the D8 line the owner amended. It
+    // is a published aggregate like any other: readable by any signed-in
+    // user (the inputs, answers and testResults, are both public since
+    // D98), and writable by nobody, because a client-writable cube would
+    // make every cohort reading in the app forgeable in one request.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_question_traits", "daily-000"), {
+        at: 1, total: 4,
+        by: {
+          big5: { "The Quiet One": { "0": 2 }, untested: { "1": 2 } },
+          big5_O: { b0: { "0": 2 }, untested: { "1": 2 } },
+        },
+      });
+    });
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_question_traits", "daily-000")));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_question_traits", "daily-000"), { by: {} }));
+    await assertFails(updateDoc(doc(asUser(OWNER), "v2_question_traits", "daily-000"), { total: 99 }));
+    // …including a question that has no cube yet: an absent document is
+    // "no reading yet" (D1), not an invitation to mint one.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_question_traits", "daily-001"), { total: 1 }));
+  });
+
   it("the published serving order (D316) reads like an aggregate and writes like one — nobody", async () => {
     await seed(async (db) => {
       await setDoc(doc(db, "v2_rank", "feed"), {

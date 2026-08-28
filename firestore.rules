@@ -139,6 +139,31 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // The trait cube (D330) — one document per CORE question, holding
+    // that question's split by every test-result cut: each instrument's
+    // matched archetype, each instrument's axis bands, and the verified
+    // logic band. Written only by the nightly foldTraitsV2 (admin SDK),
+    // which joins each user's CURRENT testResults to every answer they
+    // have ever given and rebuilds the cube whole — which is what makes
+    // the reading retroactive (an answer given before you were typed is
+    // in its cohort the next morning) and what makes a deleted account
+    // leave it within a night, with no erasure phase of its own.
+    //
+    // Nothing per-person is in here and nothing per-person is written
+    // anywhere by the sweep: it computes each user's buckets in memory
+    // and discards them (D330's custody rule, held by a test over the
+    // recording fake's write log). The body is exactly a `by` map —
+    // dim → bucket → optionIdx → count — so the client folds it with
+    // cohort.ts unchanged.
+    //
+    // Write is closed for the v2_patterns reason, one shelf down: a
+    // client-writable cube would make every cohort reading forgeable in
+    // one request.
+    match /v2_question_traits/{qid} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
     // The published serving order (D316) — one document per ranked
     // surface (`feed`, `learn`): per-topic question orderings the nightly
     // rankBankV2 (admin SDK) derives from the public aggregates. Global

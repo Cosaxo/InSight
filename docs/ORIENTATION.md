@@ -182,6 +182,7 @@ everything else: the static gates, and where each one runs.
 | `check:seed-fields` | deploy | Every field `gen-v2content` emits is transported by the seed, compared by `SEEDED_FIELDS`, and mirrored in the seed test — or declared untransported with a reason (D285) |
 | `check:anchors` | deploy | The profile's `<select>` vocabularies and the trigger's `BREAKDOWN_DIM_VOCAB` hold the same strings, or a level stops counting silently |
 | `check:catalogs` | deploy | The committed catalogues and the trigger's compiled-in key sets agree exactly, absence included |
+| `check:traits` | deploy | The trait cube's vocabulary (D330) is a fresh generation of the client's own matcher, every bucket is legal and closed, and both sides order the instruments alike — or the sheet and the result card name different types for one person |
 | `check:pokedex` | deploy | The Pokédex catalogue's contiguous keys — stored answers are dex numbers into it, so a gap is an answer resolving to the wrong species |
 | `check:elements` | deploy | The same for the elements catalogue, keyed by atomic number |
 | `check:logic-sync` | deploy | The logic generator's two byte-identical copies (client + functions, D57). Drift means the server scores forms the client never rendered |
