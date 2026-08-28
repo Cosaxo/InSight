@@ -49,6 +49,9 @@ import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { ENFORCE_APP_CHECK, LIGHT_CALLABLE, FUNCTIONS_REGION } from "./ops";
+// The day key, offset in days. Was a byte-identical local copy until the
+// two families of `utcDayKey` were separated — see pure.ts's own comment.
+import { utcDayKey } from "./pure";
 import { db as firestore, FIRESTORE_DB_ID } from "./db";
 import { PRICING_CARD } from "./pricing";
 
@@ -882,12 +885,6 @@ export const createPaidCheckoutV2 = onCall(
 );
 
 // ── going live: the webhook ─────────────────────────────────────────────
-
-/** The UTC day key, offset in days — the same YYYY-MM-DD grain every
- * window in the bank speaks. */
-export function utcDayKey(offsetDays: number, nowMs = Date.now()): string {
-  return new Date(nowMs + offsetDays * 86400000).toISOString().slice(0, 10);
-}
 
 /** Day arithmetic on the same grain: `dayPlus("2026-08-27", 1)` →
  * "2026-08-28". Null-safe against a malformed key (returns the input). */

@@ -25,19 +25,20 @@ import {
   WINDOW_MAX_DAYS,
   mergeDays,
   pruneDays,
-  utcDayKey,
   type DayCounts,
   type LedgerRow,
 } from "./velocity";
+// One name, one meaning: the day-key helpers live in pure.ts now.
+import { utcDayKeyOf } from "./pure";
 import { V2_QUESTIONS } from "./v2content";
 
-describe("utcDayKey", () => {
+describe("utcDayKeyOf", () => {
   it("is the UTC calendar day, zero-padded", () => {
-    expect(utcDayKey(Date.parse("2026-08-06T00:00:01Z"))).toBe("2026-08-06");
-    expect(utcDayKey(Date.parse("2026-08-05T23:59:59Z"))).toBe("2026-08-05");
+    expect(utcDayKeyOf(Date.parse("2026-08-06T00:00:01Z"))).toBe("2026-08-06");
+    expect(utcDayKeyOf(Date.parse("2026-08-05T23:59:59Z"))).toBe("2026-08-05");
     // The trap: a local-time implementation shifts this one across the
     // year boundary in any western timezone.
-    expect(utcDayKey(Date.parse("2027-01-01T00:00:01Z"))).toBe("2027-01-01");
+    expect(utcDayKeyOf(Date.parse("2027-01-01T00:00:01Z"))).toBe("2027-01-01");
   });
 });
 

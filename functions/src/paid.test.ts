@@ -32,10 +32,11 @@ import {
   refundEurFor,
   reviewGates,
   reviewSubject,
-  utcDayKey,
   validatePaidBooking,
   type PaidBookingPayload,
 } from "./paid";
+// One name, one meaning: the day-key helpers live in pure.ts now.
+import { utcDayKey } from "./pure";
 
 const BOOKING: PaidBookingPayload = {
   kind: "question",

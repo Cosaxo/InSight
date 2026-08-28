@@ -37,6 +37,7 @@ import { Timestamp } from "firebase-admin/firestore";
 import { getAuth } from "firebase-admin/auth";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
+import { utcDayKeyOf } from "./pure";
 // ops.ts sets the global runtime options as an import side effect and
 // must be evaluated before any function here is defined — same reason
 // every other function module imports it (check:fn-runtime guards the
@@ -64,14 +65,6 @@ export interface LedgerRow {
 // UTC calendar day, "YYYY-MM-DD" — the ledger's `at` is server commit
 // time, so bucketing must be UTC or the per-day baselines drift with
 // whoever deployed last.
-export function utcDayKey(ms: number): string {
-  const d = new Date(ms);
-  return (
-    `${d.getUTCFullYear()}-` +
-    `${String(d.getUTCMonth() + 1).padStart(2, "0")}-` +
-    `${String(d.getUTCDate()).padStart(2, "0")}`
-  );
-}
 
 // The impossible-volume ceiling. Answers are create-only with doc id ==
 // qid and deleteAccount sweeps the ledger with the account, so one uid
@@ -267,7 +260,7 @@ export function foldInto(acc: WindowFold, rows: LedgerRow[]): WindowFold {
       acc.perUid.set(r.uid, times);
     }
     times.push(r.atMs);
-    const day = utcDayKey(r.atMs);
+    const day = utcDayKeyOf(r.atMs);
     const forDay = acc.perDayQid[day] || (acc.perDayQid[day] = {});
     forDay[r.qid] = (forDay[r.qid] || 0) + 1;
   }
