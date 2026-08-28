@@ -14,6 +14,14 @@
 //      stripping the day suffix, everything unknown as "other", never a
 //      guess.
 import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// ESM: no __dirname. The batch-cap case at the foot of this file reads
+// engagement.ts's own source, because the write sites live inside the
+// Firestore store, behind an interface every case here replaces.
+const here = dirname(fileURLToPath(import.meta.url));
 
 vi.mock("firebase-functions", () => ({
   logger: { info() {}, warn() {}, error() {} },
@@ -251,6 +259,7 @@ describe("day arithmetic", () => {
 // ── the attention fold (R2/D270) ────────────────────────────────────────
 import {
   BUCKET_MIDPOINTS, MIN_SHARD_RATE, QIDS_PER_DAY_CAP, QID_KEY_MAX, SHARD_FOLD_CAP,
+  ROLLUP_CHUNK, SHARD_CHUNK,
   foldShards, runAttentionFold,
   type AttentionShardDoc, type AttentionStore, type AttnDelta,
 } from "./engagement";
@@ -890,5 +899,47 @@ describe("a paged query's projection has to carry the field it orders by", () =>
       projection,
       'ledgerDay orders by "at" but did not project it, so startAfter cannot build a cursor and every day past one page throws',
     ).toContain("at");
+  });
+});
+
+// The 500-op batch cap, held against the two chunk sizes that feed it.
+//
+// Firestore refuses a batch over 500 writes, and a scheduled function
+// that throws at 2am is a silent nightly outage. Both constants carry the
+// arithmetic in a comment; only one of them was defended by anything, and
+// only by accident — raising SHARD_CHUNK is caught by two cases asserting
+// literal chunk SIZES, not the cap, and raising ROLLUP_CHUNK to 400 (801
+// ops) left all 462 tests green.
+describe("the batch arithmetic stays under Firestore's 500-op cap", () => {
+  const CAP = 500;
+
+  it("applyRollups: 1 day-doc set + one mark and one state per row", () => {
+    // `fgWindows.size` equals `rows.length` — one rollup per person per
+    // day — so the batch is exactly 2n + 1.
+    expect(2 * ROLLUP_CHUNK + 1).toBeLessThanOrEqual(CAP);
+  });
+
+  it("the shard fold: 1 day-doc set + one delete per shard", () => {
+    expect(1 * SHARD_CHUNK + 1).toBeLessThanOrEqual(CAP);
+  });
+
+  it("…and the shape those formulas assume has not changed", () => {
+    // An arithmetic pin is only as good as its model of the batch. If a
+    // THIRD write per row is added, `2n + 1` quietly stops being the
+    // count and this file goes on saying the cap is safe. So the write
+    // sites are counted too, off the source.
+    const src = readFileSync(resolve(here, "engagement.ts"), "utf8");
+    const body = src.slice(
+      src.indexOf("async applyRollups("),
+      src.indexOf("await batch.commit();", src.indexOf("async applyRollups(")),
+    );
+    expect(body, "applyRollups moved or was renamed — this case is vacuous").not.toBe("");
+    const writes = [...body.matchAll(/batch\.(set|update|delete|create)\(/g)].map((m) => m[1]);
+    expect(
+      writes,
+      "applyRollups' batch gained or lost a write. The 2n + 1 formula above "
+      + "is now wrong, and it is the only thing keeping this batch under "
+      + "the 500-op cap.",
+    ).toEqual(["set", "update", "set"]);
   });
 });

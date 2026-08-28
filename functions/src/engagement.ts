@@ -503,7 +503,7 @@ export function firestoreEngagementStore(db: Firestore): EngagementStore {
 /** One nightly pass is bounded; leftovers fold the next night, and the
  * heartbeat says when the cap bit (no silent caps). */
 export const SHARD_FOLD_CAP = 20_000;
-const SHARD_CHUNK = 300; // 1 set + ≤300 deletes per batch, under the 500-op limit
+export const SHARD_CHUNK = 300; // 1 set + ≤300 deletes per batch, under the 500-op limit
 
 /** How many shards are held in memory at once.
  *
@@ -841,7 +841,12 @@ export function firestoreAttentionStore(db: Firestore): AttentionStore {
 // bucketed trend, accepted and stated.
 
 export const ROLLUP_FOLD_CAP = 10_000;
-const ROLLUP_CHUNK = 200; // 1 set + ≤200 marks + ≤200 states per batch, under 500
+// 1 day-doc set + ≤200 folded marks + ≤200 _state sets per batch — 401,
+// under Firestore's 500-op limit. `fgWindows.size` equals `rows.length`
+// (one rollup per person per day), so the batch is exactly `2n + 1` and
+// the ceiling is 249. Exported because nothing pinned that arithmetic:
+// raising this to 400 makes it 801 and every test stayed green.
+export const ROLLUP_CHUNK = 200;
 
 export interface RollupRow {
   uid: string;
