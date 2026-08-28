@@ -112,7 +112,7 @@ function LiveCircleBody() {
   if (loading && !members) {
     return <ClNote title="Loading your circle…">Reading their answers.</ClNote>;
   }
-  // Paused before failed (D327): with the breaker on, loadCircle refused
+  // Paused before failed (D332): with the breaker on, loadCircle refused
   // rather than tried, and "couldn't load / it retries" would promise a
   // retry that will keep refusing.
   if (!members && LIVE.budgetPaused) {

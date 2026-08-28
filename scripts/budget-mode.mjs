@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// budget-mode.mjs — pull or release the read breaker (D327).
+// budget-mode.mjs — pull or release the read breaker (D332).
 //
 //   node scripts/budget-mode.mjs --status                 # read the mode
 //   node scripts/budget-mode.mjs --level 1 --reason "read runaway 03:10"
@@ -59,7 +59,7 @@ if (!status && !(level === 0 || level === 1)) {
   // Level 2 (thinning the answering loop's own reads) is reserved in the
   // client module and NOT built — a value the clients would read as "more
   // paused than level 1" without any surface saying so.
-  die(`--level must be 0 or 1 — level 2 is reserved, not built (D327, src/v2/data/budgetMode.ts)`);
+  die(`--level must be 0 or 1 — level 2 is reserved, not built (D332, src/v2/data/budgetMode.ts)`);
 }
 
 initializeApp(emulator ? { projectId } : { credential: applicationDefault(), projectId });

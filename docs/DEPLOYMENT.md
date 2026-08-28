@@ -155,7 +155,7 @@ by grepping `environment: production` across every workflow. It said "two
 jobs, and only two" for as long as there were four: `rebuild-aggregate.yml`
 joined at D290 and `monitoring.yml` at D303, and neither author re-read a
 sentence in a different document that had counted them. (`budget.yml`
-joined at D327, and this sentence moved in the same commit because
+joined at D332, and this sentence moved in the same commit because
 `check:figures` now holds the count — the gate that grew out of exactly
 this paragraph's history.)
 

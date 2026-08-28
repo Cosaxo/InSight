@@ -18,7 +18,7 @@
 // WHAT IT CREATES. One budget named "InSight" on the billing account the
 // project is attached to, filtered to this project, at
 // `guard.maxNetBurnUsdPerMonth` from monitoring/rates.json — the same
-// number the pulse guard reds on (D327), read from the same place so there
+// number the pulse guard reds on (D332), read from the same place so there
 // is exactly one figure to retune — with threshold emails at 50%, 90%,
 // 100% and 150% of it. Recipients are the billing account's admins and
 // users (Google's default; nothing here narrows it), so the owner's inbox
@@ -44,7 +44,7 @@
 // WHAT IT DOES NOT DO. It does not cap anything — a budget notifies
 // (COSTS.md: the only hard stop is detaching billing, which is an outage).
 // It does not wire Pub/Sub: the budget → topic → `budgetMode` auto-flip is
-// D327's recorded next joint, and it starts from the budget this script
+// D332's recorded next joint, and it starts from the budget this script
 // creates. And it is not on any pipeline — a control this load-bearing is
 // dispatched by a person (.github/workflows/budget.yml), the
 // apply-monitoring posture.
@@ -85,7 +85,7 @@ const GUARD = JSON.parse(readFileSync(join(root, "monitoring/rates.json"), "utf8
 
 // The figure: --amount, else guard.budget.amount — the ACCOUNT-currency
 // figure, recorded since the first live apply found the account bills in
-// NOK — else the USD tolerance itself. One source (D327's "keep the two
+// NOK — else the USD tolerance itself. One source (D332's "keep the two
 // in step" made structural) — a budget retuned without the guard, or the
 // reverse, is two thresholds telling two stories about one bill. The
 // units field is in the account's currency, so preferring the USD number
@@ -179,7 +179,7 @@ const listed = [];
             + "    still be missing behind this; the re-run will say."
           : `    fix: grant roles/billing.costsManager on the BILLING ACCOUNT ${BA}\n`
             + `    to ${sa.client_email} — a role on the project cannot satisfy this;\n`
-            + "    budgets live on the billing account (docs/COSTS.md, control 1; D327)."));
+            + "    budgets live on the billing account (docs/COSTS.md, control 1; D332)."));
     }
     listed.push(...(r.body.budgets || []));
     if (!r.body.nextPageToken) break;

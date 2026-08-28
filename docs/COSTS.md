@@ -852,7 +852,7 @@ email the refusal prints — was the five human minutes, spent 2026-08-27.
 The first live run also found and closed a precondition this page did not
 know: the Billing Budgets **API** was disabled on the project, a refusal
 the script's own credential can fix (its `Editor` covers the enable —
-done) and which the 403 branch now tells apart from the grant (D327 §3).
+done) and which the 403 branch now tells apart from the grant (D332 §3).
 The dry run is the standing check, and against production it says
 "exists and matches".
 
@@ -887,7 +887,7 @@ Firestore — the only hard stop is a budget → Pub/Sub → function that
 detaches the billing account, which takes the app down with it. That is a
 real option and a deliberate one, not a default: for an app whose worst
 modelled month at launch size is $2, an outage is the more expensive
-failure. Recorded as available, not built (D7). Since D327 the same wire
+failure. Recorded as available, not built (D7). Since D332 the same wire
 has a softer target worth building first: the budget's Pub/Sub
 notification flipping `budgetMode` (the read breaker below) instead of
 detaching billing — recorded there, an evening's work once the budget
@@ -987,7 +987,7 @@ a rules deploy takes minutes and still bills its own reads,
 `APPCHECK_ENFORCE` only governs callables (and only in the loosening
 direction), and detaching the billing account takes the app down.
 
-**The graded breaker — BUILT at level 1 (D327, 2026-08-27).** The owner's
+**The graded breaker — BUILT at level 1 (D332, 2026-08-27).** The owner's
 ask arrived ("a lever so usage does not outrun revenue"), which was the
 decision this paragraph was waiting on. `budgetMode` on `v2_meta/app` — the
 document `hydrate()` already reads once per boot, so the lever costs no
@@ -1000,7 +1000,7 @@ folds untouched. Every gated surface says it is paused
 version needed a decision about what a degraded app *says* — that was the
 owner's call this build waited for, and the paused copy is now pinned by
 the panel suites. Two deviations from the sketch this paragraph used to
-carry, with the arithmetic in D327: the similarity agg sweep stays on
+carry, with the arithmetic in D332: the similarity agg sweep stays on
 (~110 reads once per session against social's ~354 per day — gating it
 would blank three more lenses for a rounding error), and the second level
 is reserved rather than built (the sketch's "deck listeners" predate D129;

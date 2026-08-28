@@ -72,7 +72,7 @@ function trailRow(p) {
     burnUsd5k: p.money.breakEven[2].burnUsd,
     burnUsd50k: p.money.breakEven[3].burnUsd,
     revenueUsd: p.money.revenueUsdPerMonth,
-    // The guard's two figures worth trending (D327): what we measure the
+    // The guard's two figures worth trending (D332): what we measure the
     // population at, and what that costs net of revenue. Null until the
     // engagement trail exists — a gap, never a zero.
     measuredActives: p.guard.measuredActives ?? null,
@@ -149,7 +149,7 @@ function check(pulse) {
     );
   }
 
-  // The usage-vs-revenue guard (D327). "over" alone trips — unarmed and
+  // The usage-vs-revenue guard (D332). "over" alone trips — unarmed and
   // unmeasured are questions the OK line carries, not conditions to page
   // about every morning pre-launch.
   const g = pulse.guard;
@@ -158,7 +158,7 @@ function check(pulse) {
       `the bill is outrunning revenue: modelled burn $${g.burnUsd}/mo at the measured\n`
       + `    ${g.measuredActives} actives (${g.measuredOn}) against $${g.revenueUsd}/mo recorded revenue —\n`
       + `    net $${g.netBurnUsd}/mo, over the $${g.allowanceUsd} allowance (monitoring/rates.json guard).\n`
-      + "    Three levers, in the order to reach for them (D327):\n"
+      + "    Three levers, in the order to reach for them (D332):\n"
       + "      1. price or record real revenue in monitoring/rates.json — if users arrived,\n"
       + "         this is the good version of this alert;\n"
       + "      2. pull the read breaker: npm run budget:mode -- --level 1 (sheds the D98\n"

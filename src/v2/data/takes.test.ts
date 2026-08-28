@@ -40,7 +40,7 @@ const h = vi.hoisted(() => ({
   deleteCalls: [] as string[],
   takeDocs: [] as FakeSnapshotDoc[],
   // v2_meta/app fields for hydrate's one meta read. Default null keeps
-  // every existing case on the "document does not exist" answer; the D327
+  // every existing case on the "document does not exist" answer; the D332
   // breaker case sets budgetMode through it.
   metaDoc: null as null | Record<string, unknown>,
   // Boot needs a daily bank or LIVE.ready never flips — the takes surface
@@ -138,6 +138,10 @@ vi.mock("firebase/firestore", () => {
       h.setDocCalls.push({ path: target.path, data });
       return h.setDocImpl ? h.setDocImpl() : Promise.resolve();
     },
+    // D331 — the fsApi surface is destructured whole at boot, so a member
+    // missing here fails every test in the file at getDb rather than at
+    // the call. Sentinel: nothing in takes writes one.
+    deleteField: () => "__delete__",
     deleteDoc: (target: { path: string }) => {
       h.deleteCalls.push(target.path);
       return Promise.resolve();
@@ -251,7 +255,7 @@ afterEach(() => {
 // ── the query shape the read rule holds the client to ────────────────
 
 describe("loadTakes query shape (D65)", () => {
-  it("never builds the query under the read breaker (D327)", async () => {
+  it("never builds the query under the read breaker (D332)", async () => {
     // The lever's takes half: with budgetMode >= 1 on v2_meta/app, the
     // load refuses before the query exists — zero reads, and the key
     // stays absent so a later release retries rather than serving a

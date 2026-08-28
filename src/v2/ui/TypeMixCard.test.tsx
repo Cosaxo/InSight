@@ -28,7 +28,7 @@ vi.mock("../data/live", () => ({
     anchors: () => ({ city: "Oslo, NO", country: "NO" }),
     kindredPeople: () => PEOPLE,
     myTestResults: () => ({}),
-    // A getter so the D327 case can flip it after the factory has run —
+    // A getter so the D332 case can flip it after the factory has run —
     // the closure reads the module-level flag at render time, the PEOPLE
     // pattern one line up.
     get budgetPaused() { return PAUSED; },
@@ -134,7 +134,7 @@ describe("what each instrument is allowed to say", () => {
     expect(document.body.textContent).not.toMatch(/\d+\s*%/);
   });
 
-  it("drops the who-voted instruction under the read breaker (D327)", () => {
+  it("drops the who-voted instruction under the read breaker (D332)", () => {
     // With the sample paused at zero, "open a who-voted sheet and this
     // fills in" is an instruction that does nothing — the sheet's own
     // fetch refuses. The HEAD alone, not the full sentence: this card

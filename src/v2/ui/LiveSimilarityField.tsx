@@ -438,7 +438,7 @@ function CityField({ myParsed }: {
   const pickedP = shown.find((p) => p.uid === picked) || null;
 
   if (!shown.length) {
-    // Paused before empty (D327): with the breaker on, the kindred pool
+    // Paused before empty (D332): with the breaker on, the kindred pool
     // was never fetched, and "Nobody from {city} yet" would be a claim
     // about a crowd nothing looked at.
     return (

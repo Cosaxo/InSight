@@ -94,7 +94,7 @@ describe("the thin and loading states", () => {
     expect(screen.queryByText("Crowd too thin")).toBeNull();
   });
 
-  it("says PAUSED under the read breaker, never that the crowd is thin (D327)", () => {
+  it("says PAUSED under the read breaker, never that the crowd is thin (D332)", () => {
     // The lists were refused, not read — "Crowd too thin" would be a
     // claim about a crowd nothing looked at.
     LIVE.voters = () => null;

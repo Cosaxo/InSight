@@ -190,7 +190,7 @@ export function collectMoney(cost) {
   };
 }
 
-// ── 2b · the guard: usage against revenue (D327) ────────────────
+// ── 2b · the guard: usage against revenue (D332) ────────────────
 // The owner's 2026-08-27 ask, monitoring half: say OUT LOUD when the bill
 // is outrunning what the app earns, before an invoice does. The lever half
 // is the read breaker (`npm run budget:mode`, src/v2/data/budgetMode.ts).
@@ -535,7 +535,7 @@ export function collectPopulation(pipeline) {
 
   return {
     state: launched ? "live" : "pre-launch",
-    // Derivable today, from the k-floored public mirror the scorecard
+    // Derivable today, from the public aggregate mirror the scorecard
     // already reads. These are FLOORS on real activity, not measurements —
     // a question with no answers has no aggregate document and contributes
     // nothing, so every number here understates.
@@ -543,11 +543,11 @@ export function collectPopulation(pipeline) {
       {
         metric: "answers counted, all published questions",
         value: launched ? sc.totalAnswers : null,
-        source: "content/scorecard.json ← v2_question_aggs (k-floored)",
+        source: "content/scorecard.json ← v2_question_aggs",
         caveat: "unanswered questions have no aggregate document yet",
       },
       {
-        metric: "questions that have cleared the k-floor",
+        metric: "questions carrying at least one answer",
         value: launched ? sc.scoredQuestions : null,
         source: "content/scorecard.json",
         caveat: "the honest proxy for 'is anyone here' before any analytics exist",

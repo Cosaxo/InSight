@@ -9,7 +9,7 @@
 //   Resource Manager returns, not to the id the operator typed.
 //
 //   THE FIGURE. It must come from monitoring/rates.json's guard — the same
-//   number the pulse reds on (D327) — read off disk here the way the
+//   number the pulse reds on (D332) — read off disk here the way the
 //   script reads it, so a retune of one cannot quietly leave the other.
 //
 //   THE GRANT. Budgets live on the billing account, where the project

@@ -470,7 +470,7 @@ function LiveTakesPanel({ gid, qid, options }: {
       ))}
       {!takes.length && (
         <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>
-          {/* Paused before empty (D327): unloaded is not "nobody wrote".
+          {/* Paused before empty (D332): unloaded is not "nobody wrote".
               The composer stays — writing still works, and your own take
               echoes locally until the next real fetch. */}
           {LIVE.budgetPaused

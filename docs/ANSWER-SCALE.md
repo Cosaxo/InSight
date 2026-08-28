@@ -60,7 +60,7 @@ read, and most of these exist because something already broke once.
 | Piece | Verdict | Why |
 | --- | --- | --- |
 | Read fan-out | **flat in DAU** | D129: the deck is polled (`AGG_POLL_MS`, today only while visible), not streamed. `idle-detach.test.ts` proves no snapshot listener attaches. This was the superlinear term (COSTS.md finding 2) and it is gone |
-| Aggregate document growth | **bounded** | `BREAKDOWN_MAX_BUCKETS` (24) × 7 dims × ≤20 options with eviction (`functions/src/pure.ts`) — its own comment prices the worst case at tens of KB against Firestore's 1 MiB. Catalog `entBy` carries a per-cell cap; a rank aggregate is one array |
+| Aggregate document growth | **bounded** | `BREAKDOWN_MAX_BUCKETS` (24) × 8 dims (7 until D328) × ≤20 options with eviction (`functions/src/pure.ts`) — its own comment prices the worst case at tens of KB against Firestore's 1 MiB. Catalog `entBy` carries a per-cell cap; a rank aggregate is one array |
 | The cold answer pull | **paged, loud** | `ANS_PAGE` 1000 × `ANS_MAX_PAGES` 100 in `live.ts`, terminating on a short page, reporting rather than truncating. The warm path is two cursors (`answeredAt`, `editedAt`) that self-heal across boots |
 | The agg-events ledger | **TTL-bounded** | 90 days (`LEDGER_RETENTION_DAYS`), and both nightly readers page it — the patterns fit in 5,000-doc `select()` pages, the velocity scan per D64 |
 | Duel reveals | **indexed** | `pendingDays` marks let the scan ask "which groups played yesterday" instead of reading every group |

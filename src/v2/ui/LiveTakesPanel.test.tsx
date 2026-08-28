@@ -459,7 +459,7 @@ describe("the side filter", () => {
     expect(screen.getByText("Ninety minutes of flow.")).toBeTruthy();
   });
 
-  it("says PAUSED for an unloaded list under the read breaker (D327)", () => {
+  it("says PAUSED for an unloaded list under the read breaker (D332)", () => {
     // The store's takes never loaded (the breaker refused the query), so
     // the list is empty for a reason that is not "nobody wrote" — and
     // "say the first thing" would present a withheld room as a blank one.

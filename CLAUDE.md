@@ -345,10 +345,15 @@ an emergency rules fix.
   computes and drawn even when the stop is empty. Scores and Explore are
   not theirs: one needs questions that rate a place, the other needs
   "everyone" as a baseline, and a circle of nine has neither.
-- **`window.MapStats` is real for two anchors and refuses for five, and
+- **`window.MapStats` is real for three anchors and refuses for four, and
   the split is structural.** `age` and `edu` are breakdown dims, so since
-  D99 `dist`/`mode` compute from the published cells. `job` is
-  profession — deliberately never a dim (D8) — and the four test anchors
+  D99 `dist`/`mode` compute from the published cells. `job` joined them
+  at **D328**, through the profession's derived `jobField` — the pick is
+  a 31-option list and growing, which is longer than
+  `BREAKDOWN_MAX_BUCKETS`, so the dim is a closed field of 20 derived
+  from it (the `age`/`ageBand` pair, one anchor over). Its stated reason
+  for refusing had been "profession is free text" long after the profile
+  became a `<select>`. The four test anchors
   are results nothing aggregates per cohort, so those return **null**,
   as does `dimVal` everywhere. Null rather than a gate at each call site
   (D72), so a consumer that forgets the check fails a test instead of

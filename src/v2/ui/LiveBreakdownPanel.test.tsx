@@ -600,7 +600,7 @@ describe("LiveBreakdownPanel · the type cut", () => {
     expect(screen.getByText(/Reading who answered/)).toBeTruthy();
   });
 
-  it("says PAUSED under the read breaker instead of 'Reading…' forever (D327)", () => {
+  it("says PAUSED under the read breaker instead of 'Reading…' forever (D332)", () => {
     // The roster fetch was refused, so the read the sentence describes is
     // not happening — on the Type cut, the Logic cut and the Friends cut
     // alike, all three of which wait on the same voter list.

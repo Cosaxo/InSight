@@ -495,7 +495,7 @@ function PeopleLens({ qs, scope, shortName }: {
         {loading && !ranked.length ? (
           <LlEmpty>Matching…</LlEmpty>
         ) : !ranked.length ? (
-          // Paused before empty (D327): "fills in as you answer more" is a
+          // Paused before empty (D332): "fills in as you answer more" is a
           // promise the refused fetch cannot keep.
           <LlEmpty>{LIVE.budgetPaused ? BUDGET_PAUSED_BODY : "Fills in as you answer more."}</LlEmpty>
         ) : (

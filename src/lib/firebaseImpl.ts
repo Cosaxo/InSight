@@ -30,6 +30,7 @@ import {
   collectionGroup,
   connectFirestoreEmulator,
   deleteDoc,
+  deleteField,
   doc,
   documentId,
   getDoc,
@@ -81,8 +82,8 @@ import { FUNCTIONS_REGION } from "./region";
 export const FIRESTORE_DB_ID = import.meta.env.VITE_FIRESTORE_DB_ID || "insight";
 
 export const fsApi = {
-  clearIndexedDbPersistence, collection, collectionGroup, deleteDoc, doc,
-  documentId, getDoc, getDocs, limit, onSnapshot, orderBy, query,
+  clearIndexedDbPersistence, collection, collectionGroup, deleteDoc, deleteField,
+  doc, documentId, getDoc, getDocs, limit, onSnapshot, orderBy, query,
   serverTimestamp, setDoc, startAfter, terminate, Timestamp, updateDoc, where,
 };
 export const fnsApi = { getFunctions, httpsCallable };

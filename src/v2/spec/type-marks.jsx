@@ -173,7 +173,7 @@ export function TypeIndexSheet({ testKey, onClose }) {
                 : shares.sampleN === 0
                   // Same rule as TypeMixCard: the instruction is only
                   // offered while following it works — under the read
-                  // breaker (D327) the sheet's fetch refuses.
+                  // breaker (D332) the sheet's fetch refuses.
                   ? (LIVE.budgetPaused ? BUDGET_PAUSED_BODY : 'Open a question’s who-voted sheet and this fills in.')
                   : `${shares.sampleN} counted so far, none with a result yet.`}
             </div>

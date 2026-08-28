@@ -408,7 +408,7 @@ function panelMoney(p) {
   const g = p.guard;
   const guardBanner = g.state === "over"
     ? `<div class="banner" style="border-left-color:var(--critical)">
-        <div><strong>The bill is outrunning revenue (D327).</strong>
+        <div><strong>The bill is outrunning revenue (D332).</strong>
         Modelled burn ${usd(g.burnUsd)}/mo at the measured ${int(g.measuredActives)} actives
         against ${usd(g.revenueUsd)}/mo recorded — net ${usd(g.netBurnUsd)}/mo, over the
         ${usd(g.allowanceUsd)} allowance. Price a path, pull the read breaker
@@ -504,7 +504,7 @@ function panelPipeline(p, trail) {
     ? scorecardBlock(scorecard)
     : `<div class="empty"><b>No scorecard yet.</b> ${esc(scorecard.note)}<br><br>
         Once it exists, this fills with the draw and evenness distribution across every
-        question that has cleared the k-floor — the farm's only view of what worked, and
+        question that has been answered — the farm's only view of what worked, and
         the only place in this console where real user behaviour appears at all.</div>`;
 
   return `<section class="panel">
@@ -680,8 +680,8 @@ function scorecardBlock(sc) {
 
   return `${tiles([
     { k: "Questions scored", v: int(sc.scoredQuestions),
-      n: `of ${int(sc.questionsTracked)} tracked — cleared the k-floor of 5` },
-    { k: "Answers counted", v: int(sc.totalAnswers), n: "a floor — under-floor questions publish nothing" },
+      n: `of ${int(sc.questionsTracked)} tracked — carrying at least one answer` },
+    { k: "Answers counted", v: int(sc.totalAnswers), n: "a floor — an unanswered question has no aggregate to count" },
     { k: "Never served", v: int(sc.unserved),
       n: "written, but the deck has not reached them yet" },
     { k: "Scorecard age", v: sc.ageDays == null ? "?" : int(sc.ageDays), unit: "days",
@@ -701,7 +701,7 @@ function scorecardBlock(sc) {
     bar. <b>Do not optimise toward the right-hand bars.</b> The farm doc's guardrail
     outranks this chart: if evenness and warmth conflict, warmth wins.
     ${sc.learnCards ? `The learn lane is scored separately —
-      ${int(sc.learnScored)} of ${int(sc.learnCards)} cards have cleared the floor.` : ""}</p>`;
+      ${int(sc.learnScored)} of ${int(sc.learnCards)} cards have been answered.` : ""}</p>`;
 }
 
 // ── panel 4 · population ────────────────────────────────────────
@@ -720,14 +720,14 @@ function panelPopulation(p) {
 
     <div class="banner">
       <div><strong>State: ${esc(pop.state)}.</strong> ${pop.state === "pre-launch"
-        ? "No answers have cleared the k-floor, so every live figure below is null. That is the correct reading of a product that has not launched — not a broken pipeline."
-        : "Live figures come from the k-floored public mirror only."}</div>
+        ? "No answer has landed yet, so every live figure below is null. That is the correct reading of a product that has not launched — not a broken pipeline."
+        : "Live figures come from the public aggregate mirror only."}</div>
     </div>
 
     <div class="split" style="margin-top:18px">
       <div class="col live">
         <h4>Derivable today</h4>
-        <p class="h">From the k-floored public mirror. No credentials beyond the web API key.</p>
+        <p class="h">From the public aggregate mirror. No credentials beyond the web API key.</p>
         ${li(pop.live, (x) => `<li>
           <b>${esc(x.metric)}${x.value == null ? "" : ` — ${int(x.value)}`}</b>
           <code>${esc(x.source)}</code>

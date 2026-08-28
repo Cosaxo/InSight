@@ -254,7 +254,7 @@ service cloud.firestore {
       return anchors is map
         && anchors.keys().hasOnly([
           "city", "country", "ageBand", "age", "gender",
-          "profession", "education", "relationship", "heightBand",
+          "profession", "jobField", "education", "relationship", "heightBand",
         ])
         && isOptionalShortString(anchors.get("city", null), 80)
         && isOptionalShortString(anchors.get("country", null), 80)
@@ -269,6 +269,13 @@ service cloud.firestore {
         && isOptionalShortString(anchors.get("age", null), 3)
         && isOptionalShortString(anchors.get("gender", null), 40)
         && isOptionalShortString(anchors.get("profession", null), 80)
+        // The breakdown bucket for the profession above (D328), derived
+        // client-side from a closed list of 20. Same pairing as age/ageBand:
+        // the pick names a PERSON and is free to grow past the bucket cap,
+        // the field is what the aggregate slices on and cannot. A length is
+        // all a rule can hold — BREAKDOWN_DIM_VOCAB is the real enforcement,
+        // and check:anchors holds it equal to the client's list.
+        && isOptionalShortString(anchors.get("jobField", null), 40)
         && isOptionalShortString(anchors.get("education", null), 80)
         && isOptionalShortString(anchors.get("relationship", null), 40)
         && isOptionalShortString(anchors.get("heightBand", null), 20);
@@ -292,9 +299,37 @@ service cloud.firestore {
       allow read: if request.auth != null;
       allow create, update: if request.auth != null && request.auth.uid == uid
         && request.resource.data.keys().hasOnly([
-          "displayName", "anchors", "anon", "createdAt", "updatedAt",
+          // `anon` left this list at D331. It had sat here since the v2
+          // profile was written, with NO writer, NO reader, no validation
+          // and no test — the D258/D280 shape, a key the rules admit that
+          // reaches nobody. It read like an anonymity toggle and there has
+          // never been one, which is worse than no field: D330 was drafted
+          // on the belief that it worked. A dead allowlist entry is not
+          // free, it is a promise the tree cannot keep.
+          "displayName", "anchors", "consent", "createdAt", "updatedAt",
           "testResults", "handle",
         ])
+        // The consent record (D331) — today only `political`, keyed so the
+        // next special-category ask is a sibling rather than a rename.
+        //
+        // The rule holds the SHAPE and nothing else, which is all a rule
+        // can do: `v`/`at` are numbers and `off` is optional. What it
+        // deliberately does NOT try to enforce is that a client cannot
+        // grant itself consent — it can, because it is the client's own
+        // consent to give and withdraw. The control that matters is that
+        // the coordinate is never COMPUTED without it (data/live.ts), and
+        // that is a client decision about a client-derived value either
+        // way. A rule here would be theatre.
+        && (!("consent" in request.resource.data)
+          || (request.resource.data.consent is map
+            && request.resource.data.consent.keys().hasOnly(["political"])
+            && (!("political" in request.resource.data.consent)
+              || (request.resource.data.consent.political is map
+                && request.resource.data.consent.political.keys().hasOnly(["v", "at", "off"])
+                && request.resource.data.consent.political.v is int
+                && request.resource.data.consent.political.at is int
+                && (!("off" in request.resource.data.consent.political)
+                  || request.resource.data.consent.political.off is int)))))
         // `handle` is on the ALLOWLIST but immutable to the client, the
         // same shape testResults.logic has below and for a related
         // reason: claimHandleV2 (admin SDK) owns it, because the claim is

@@ -38,7 +38,7 @@ This is refused today, deliberately and recently. `docs/MONITORING.md`
 | Refused | Record |
 | --- | --- |
 | Per-user funnels, session analytics, engagement scoring | data-inventory.md |
-| Skip / pass / hesitation rates | QUESTION-FARM.md, "Deliberately out of scope" |
+| Skip / pass / hesitation rates | QUESTION-FARM.md, "Deliberately out of scope" — narrowed at D271 (skip/pass, aggregate-only) and D329 (hesitation, same terms) |
 | Per-user content selection, ad targeting profiles | MONETIZATION.md, "Ruled out by standing posture" |
 
 And `docs/data-inventory.md` — **the audited list the App Store and Play

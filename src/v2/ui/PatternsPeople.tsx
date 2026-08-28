@@ -147,7 +147,7 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
   // the first placeable friend (PEOPLE_MIN_CROWD_CIRCLE's comment).
   const minCrowd = pop === "circle" ? PEOPLE_MIN_CROWD_CIRCLE : PEOPLE_MIN_CROWD;
   if (field.placed.length < minCrowd) {
-    // Paused before thin (D327): the voter lists this lens folds were
+    // Paused before thin (D332): the voter lists this lens folds were
     // refused, so "crowd too thin" would describe a crowd nothing read.
     if (LIVE.budgetPaused) {
       return <Empty head={BUDGET_PAUSED_HEAD} line={BUDGET_PAUSED_BODY} />;

@@ -1,4 +1,4 @@
-// The read breaker (D327) — the lever docs/COSTS.md § "What to actually
+// The read breaker (D332) — the lever docs/COSTS.md § "What to actually
 // do at 3am" designed and deliberately left unbuilt until the owner asked
 // for it. The ask arrived 2026-08-27: keep Firebase usage from outrunning
 // revenue. The watch half of that sentence is the pulse guard

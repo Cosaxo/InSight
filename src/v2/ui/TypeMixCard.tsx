@@ -103,7 +103,7 @@ export default function TypeMixCard({ scope }: { scope: "city" | "country" | "wo
         <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45, textWrap: "pretty" }}>
           {mix.sampleN === 0
             // The instruction is only offered while following it works —
-            // under the breaker (D327) the sheet's fetch refuses, and an
+            // under the breaker (D332) the sheet's fetch refuses, and an
             // instruction that does nothing is worse than saying so. The
             // HEAD alone, not the sentence: this card renders only inside
             // the People lens, where Kindred one card up already carries

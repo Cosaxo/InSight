@@ -159,7 +159,7 @@ describe("the lens bodies · cost", () => {
     expect(container.textContent).toBe("");
   });
 
-  it("Kindred says PAUSED under the read breaker, not 'fills in as you answer' (D327)", () => {
+  it("Kindred says PAUSED under the read breaker, not 'fills in as you answer' (D332)", () => {
     // The refused fetch cannot fill anything in, however much is answered
     // — the promise would be false the moment it rendered.
     LIVE.budgetPaused = true;

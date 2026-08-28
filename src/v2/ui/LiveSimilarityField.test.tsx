@@ -414,7 +414,7 @@ describe("an empty field draws the ring anyway (D160)", () => {
     expect(screen.getByText(/Nobody from Oslo yet/)).toBeTruthy();
   });
 
-  it("says PAUSED, not 'Nobody from Oslo yet', under the read breaker (D327)", () => {
+  it("says PAUSED, not 'Nobody from Oslo yet', under the read breaker (D332)", () => {
     // The kindred pool this row folds was refused, so the city sentence
     // would claim an emptiness nothing measured.
     LIVE.budgetPaused = true;

@@ -123,6 +123,19 @@ export const CLAIMS = [
   // about the shipped app until an SDK actually ships; the day one
   // does, the store forms and this page move together, as a product
   // decision rather than a broken promise.
+  // D331 — four rows, one per promise, because each is separately
+  // breakable and a single regex over the passage would go green while
+  // three of them rotted. The compass is the app's only special-category
+  // inference, so the page carrying these sentences IS the disclosure the
+  // consent rests on.
+  ["D331 · the political compass is off until turned on",
+    /political compass is off until you turn it on/i],
+  ["D331 · nothing political is computed or stored while it is off",
+    /nothing political is[\s\S]{0,20}?computed about you and nothing political is[\s\S]{0,20}?stored/i],
+  ["D331 · turning it off deletes the compass at once",
+    /Turn it off later and the compass is deleted[\s\S]{0,80}?at once/i],
+  ["D331 · and the honest limit on what deletion can reach",
+    /cannot reach is a copy someone[\s\S]{0,60}?Nothing can/i],
   ["D314 · the tracking passage describes today and stays ahead of change",
     /no third-party analytics SDK[\s\S]{0,200}?this\s+page changes first/i],
   ["D226 · a changed answer is counted publicly as a move between options",

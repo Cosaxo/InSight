@@ -94,7 +94,7 @@ describe("LiveCircleBody · an empty circle is a field, not a paragraph", () => 
     expect(screen.queryByText(/Couldn’t load/i)).toBeNull();
   });
 
-  it("says PAUSED under the read breaker, never 'couldn't load' (D327)", () => {
+  it("says PAUSED under the read breaker, never 'couldn't load' (D332)", () => {
     // Same null circle as the failed arm — the breaker refused the fetch
     // rather than losing it, and the stop must say which happened:
     // "couldn't load / it retries" promises a retry that will keep

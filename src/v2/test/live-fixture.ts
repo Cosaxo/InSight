@@ -393,7 +393,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     updateAvailable: false,
     updateRequired: false,
     updateUrl: "",
-    // The read breaker (D327) is off in the fixture — the mount tests walk
+    // The read breaker (D332) is off in the fixture — the mount tests walk
     // the crowd surfaces, not their paused states, which the panel suites
     // pin one by one.
     budgetPaused: false,
@@ -687,6 +687,13 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     saveDisplayName: async () => {},
     saveAnchors: () => {},
     saveTestResult: () => {},
+    // D331. Defaults to CONSENTED in the fixture, deliberately: every
+    // mount test that draws a political surface should exercise the path
+    // that publishes, and the refusal path has its own cases in
+    // political-consent.test.ts. A fixture defaulting to off would make
+    // the compass silently absent everywhere and read as a broken fold.
+    politicalConsented: () => true,
+    setPoliticalConsent: () => Promise.resolve(),
     syncPassiveResults: () => {},
     loadCityKindred: async () => {},
     // Learn (D32): the fixture answers nothing and has no aggregates, so
