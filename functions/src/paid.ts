@@ -674,7 +674,16 @@ export const bookPaidQuestionV2 = onCall(
     let buyerName: string | null = null;
     if (b.kind === "question" && b.wearName) {
       const prof = await db.collection("v2_users").doc(uid).get();
-      const n = prof.exists ? String(prof.get("name") ?? "").trim() : "";
+      // `displayName`, which is the only name a v2_users document can
+      // hold: firestore.rules admits exactly seven keys there and `name`
+      // is not one of them, so this read had been returning undefined
+      // since it was written. Two things were dead behind it — the band
+      // never wore the buyer's name however hard they asked for it, and
+      // the reviewer's rule about slurs or impersonation IN THE BUYER
+      // NAME was judging `null` on every submission. (`name` is a real
+      // field one collection over, on v2_people, which is the likely
+      // origin of the typo.)
+      const n = prof.exists ? String(prof.get("displayName") ?? "").trim() : "";
       buyerName = n ? n.slice(0, 40) : null;
     }
     const ref = db.collection("v2_paid_bookings").doc(`${uid}_${Date.now().toString(36)}`);

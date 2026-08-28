@@ -5,6 +5,9 @@
 // exactly the shape the client's bank fetch and the answer rules expect.
 
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   AD_AUDIENCE_MAX,
   AD_URL_RE,
@@ -63,6 +66,43 @@ const AD: PaidBookingPayload = {
   dims: { city: "Oslo, NO" },
   wearName: true,
 };
+
+describe("the buyer name is read off a field the profile can actually hold", () => {
+  // The defect this pins was invisible in every other way: reading a
+  // field that does not exist returns undefined, so "wear your name"
+  // simply did nothing — no error, no log, and the composer went on
+  // previewing the name to the buyer. It also blinded the reviewer,
+  // whose rule 8 is about slurs and impersonation IN THE BUYER NAME.
+  //
+  // So the assertion is not the string. It reads the field name out of
+  // paid.ts and holds it against the key allowlist in firestore.rules —
+  // the one place that decides what a v2_users document may contain. A
+  // rename on either side reds this.
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+  const paidSrc = readFileSync(resolve(root, "functions/src/paid.ts"), "utf8");
+  const rules = readFileSync(resolve(root, "firestore.rules"), "utf8");
+
+  const allowed = (() => {
+    const block = /match \/v2_users\/\{uid\} \{[\s\S]*?hasOnly\(\[([\s\S]*?)\]\)/.exec(rules);
+    expect(block, "could not find the v2_users key allowlist in firestore.rules").toBeTruthy();
+    return [...block![1].matchAll(/"(\w+)"/g)].map((m) => m[1]);
+  })();
+
+  it("reads a key firestore.rules admits on v2_users", () => {
+    const read = /collection\("v2_users"\)[\s\S]{0,900}?prof\.get\("(\w+)"\)/.exec(paidSrc);
+    expect(read, "could not find the buyer-name profile read in paid.ts").toBeTruthy();
+    expect(allowed).toContain(read![1]);
+  });
+
+  it("and the allowlist is really the profile's, not an empty match", () => {
+    // The vacuity guard: an allowlist this test failed to parse would be
+    // an empty array, and `toContain` on an empty array fails loudly —
+    // but a WRONG block would not. Anchor it on two keys that are the
+    // profile's alone.
+    expect(allowed).toEqual(expect.arrayContaining(["displayName", "anchors", "handle"]));
+    expect(allowed).not.toContain("name");
+  });
+});
 
 describe("a validated booking survives being validated again", () => {
   // NOT a tidiness property. The validator runs TWICE on every booking:
