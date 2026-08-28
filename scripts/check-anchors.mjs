@@ -407,19 +407,35 @@ try {
     profile.indexOf("return {", profile.indexOf("function anchorsFrom")),
     profile.indexOf("\n}", profile.indexOf("function anchorsFrom")),
   );
-  const anchorKeys = [...anchorsBlock.matchAll(/^ {4}(\w+):/gm)].map((m) => m[1]);
+  // `key: value` AND bare `key,` — a SHORTHAND property is still an anchor.
+  // The first cut matched the colon form only, and `city` is written
+  // shorthand, so the rule that was added to stop enumerating the wrong
+  // list went on enumerating nine keys of ten. It cost nothing only
+  // because `city` happens to be a breakdown dim as well, and the other
+  // half of this rule caught it.
+  const anchorKeys = [...anchorsBlock.matchAll(/^ {4}(\w+)\s*[:,]/gm)].map((m) => m[1]);
   if (!dims.length) {
     errors.push(`${PURE}: BREAKDOWN_DIMS parsed as EMPTY, which cannot be right.`);
   }
-  // A parse that finds nothing must be an error, never an empty pass —
-  // this rule's whole failure mode is a check that silently covers less
-  // than it says. The floor is deliberately below the real count so a
-  // legitimate anchor removal does not trip it, and far above zero.
-  if (anchorKeys.length < 8) {
+  // AN EQUALITY, not a floor, for the reason the floor one file over was
+  // converted to a ratchet: a parse that quietly covers less than it says
+  // is this rule's whole failure mode, and slack is invisible. It parsed
+  // NINE of ten and the floor was eight, so the miss sat inside the
+  // allowance the floor granted.
+  //
+  // Adding or removing an anchor is already a several-file change
+  // (profile-vitals, the rules' allowlist, the index exemptions, the
+  // vocabularies); this is one more line, and it is the line that proves
+  // the rest of the rule is still reading the whole list.
+  const ANCHOR_KEYS_EXPECTED = 10;
+  if (anchorKeys.length !== ANCHOR_KEYS_EXPECTED) {
     errors.push(
       `${PROFILE}: anchorsFrom's returned keys parsed as `
-      + `[${anchorKeys.join(", ")}] — too few to be right. The function was `
-      + "reshaped and this rule is now checking almost nothing.",
+      + `[${anchorKeys.join(", ")}] — ${anchorKeys.length}, not `
+      + `${ANCHOR_KEYS_EXPECTED}.\n`
+      + "    If an anchor was added or removed, update ANCHOR_KEYS_EXPECTED in\n"
+      + "    this script in the same commit. If it was not, this rule has\n"
+      + "    stopped reading the whole list and is checking less than it says.",
     );
   }
   for (const key of [...new Set([...dims, ...anchorKeys])]) {
