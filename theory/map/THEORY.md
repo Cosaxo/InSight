@@ -1,7 +1,7 @@
 # The map axiom — current theory
 
-*Regenerated from `graph.json` on 2026-08-26; the graph is the data,
-this page is its readable face. Status counts: 3 cited · 1 argued ·
+*Regenerated from `graph.json` on 2026-08-28; the graph is the data,
+this page is its readable face. Status counts: 4 cited · 1 argued ·
 1 conjecture.*
 
 Display theory: how everything the axioms measure should be drawn,
@@ -11,7 +11,8 @@ the other theories; it never writes them.
 ## The shape of the theory
 
 One geometry, honestly labeled, structurally stable, drawn from public
-numbers. The five claims:
+numbers — and every cross-axis connection drawn with its population,
+its decomposition and its basis. The six claims:
 
 ### map-1 · One geometry at every scale — `conjecture`
 
@@ -69,6 +70,21 @@ budgeted quantity — the display-side analogue of pat-2's auditability
 its author's own statement; cite 2-MAP and the Rauber/Vernier line
 instead.
 
+**Product note (2026-08-28, code-verified first-party).** The shipped
+nightly fit already implements this node's structural half *in loading
+space*: one persistent model folded forward, idempotent, consecutive
+publishes sharing one continuous basis. And this lane's displacement
+request crossed the bridge 2026-08-27 as **D325 — the bridge's first
+crossing**: the fit now publishes a per-publish displacement summary
+(loading-space L2 over the published 4 dp vectors, publish-to-publish,
+deliberately unaligned, `space` stated on the doc). "Published" is
+therefore real; "budgeted" is not yet — nothing consumes the number as
+a threshold — and the drawn plane a reader's spatial memory actually
+attaches to is a nonlinear device-side function of the basis that
+stays unmeasured. Path to `measured`: the numbers live only on the
+Firestore doc; the 2026-08-28 REQUESTS row (committed fit-scorecard
+snapshot) is what would let this node rise on a real distribution.
+
 ### map-4 · Uncertainty is geometry — `cited`, narrowed
 
 The perfect display makes thin data look thin: **outcome** uncertainty,
@@ -100,13 +116,80 @@ structurally tempted toward per-user computation — and a device-drawn
 map from public artifacts stays independently verifiable: anyone can
 recompute the picture from the same numbers.
 
+### map-6 · A drawn connection declares its population, decomposition and basis — `cited`
+
+This lane's answer to the charter's cross-connection mandate, and the
+display-side counterpart of what the siblings have each concluded at
+their own rungs: an honest coupling is published with its
+decomposition (gen-11, bod-8), exchanged as statistics carrying their
+basis (db-6), and split by level because between-person structure does
+not carry within-person structure (tst-6 on tst-7). The drawn
+connection is the last mile — it either preserves those declarations
+into the frame or undoes the axioms' honesty at the moment of reading.
+
+Two cited premises. **The level divergence is well documented — in the
+statistics and methodology literature, not the visualization
+literature** (the node keeps that distinction): ecological and
+individual correlations can reverse in sign (Robinson 1950 — cited for
+aggregate-vs-constituent only); subgroup reversal is common enough in
+psychology to need a practical guide (Kievit et al. 2013); results on
+between-person variation generalize within persons only under rarely
+met ergodicity conditions (Molenaar 2004, theoretical warrant), with
+within-person variance running two to four times the group estimate
+across six repeated-measures samples (Fisher et al. 2018 — carried
+with its published PNAS rebuttal); within- and between-person effects
+are distinct estimands (Curran & Bauer 2011). Scope note: which
+decomposition applies is per-pair — a genotype has no within-person
+half; its declaration is gen-11's direct/nurture/mating split instead.
+**Reading a drawn connection is unreliable in both directions, and
+form modulates it**: aggregating data into larger categories raises
+perceived causality, with text and bar rated most causal in the raw
+comparison (Xiong et al. 2020); yet against a Bayesian benchmark
+people underweight sample size and weigh disconfirming evidence over
+confirming — and no tested design beat plain text contingency tables
+(Kale et al. 2022) — so over-reading is not the only failure and a
+better mark is not automatically a better inference. The fused form
+loses to the plain one (connected scatterplots misread more than line
+graphs while engaging more — Haroz et al. 2016); mix-effects remedies
+build the decomposition into the mark (comet charts — Armstrong &
+Wattenberg 2014, a design paper); and the dual-axis folklore is held
+at its honest weight: most common guideline violation among misleading
+charts in the wild (Lisnic et al. 2023, observational), an active
+peer-reviewed defense exists (Brath et al. 2020/2022), no strong
+controlled two-measure experiment found, and Isenberg et al. 2011 is
+recorded as the trap it is (dual-*scale*, not dual-measure).
+
+What no verified source carries is recorded in-node: nothing shows
+readers map an aggregate display onto themselves, and nothing tests
+whether readers distinguish within- from between-person structure in a
+display at all. That absence is load-bearing: the frame must carry the
+population because reader competence at recovering it has never been
+demonstrated. Design consequences (this lane's own inferences, marked):
+population and basis enter map-2's semantic table as part of a
+channel's one meaning; between-person and within-person couplings take
+*different geometries* — crowd structure as a field over people, your
+own coupling as a trajectory over time — never the same mark shape; an
+undecomposed composite drawn as one clean connector asserts a
+mechanism nobody measured, so the mark carries the decomposition where
+it exists and draws explicitly composite where it does not (map-4's
+thin-data discipline applied to edges); and language is a legitimate
+channel for low-n within-person couplings (Health Mashups' deployed
+precedent), with the tension held openly that text drew the highest
+causality ratings in Xiong's comparison — a sentence can state
+population and basis, which an unlabeled mark cannot, and that is
+where its honesty must come from.
+
 ## Open front
 
-map-1 is the unproved spine: the other four are constraints any
-geometry must satisfy, but the geometry itself — one space, every
-scale, every axiom — is still unspecified. The next runs' work: specify
-it against map-2's channel table, map-3's persistence requirement, and
-map-4's uncertainty encoding, and say what the crowd's thinness looks
-like at world zoom. The lane's first bridge request (inter-fit layout
-displacement) is what would let map-3 rise to `measured` against
-InSight's own published fits.
+map-1 is the unproved spine: the constraints are now five (channel
+semantics, structural stability, outcome uncertainty, device
+drawability, connection declarations), but the geometry itself — one
+space, every scale, every axiom — is still unspecified. The next runs'
+work: specify it against those constraints, and say what the crowd's
+thinness looks like at world zoom. The lane's first bridge request
+crossed as D325 (the displacement instrument now ships); the open
+request is the committed fit-scorecard snapshot that would let map-3
+rise to `measured` on a real displacement distribution. map-6's two
+recorded negatives (no study of readers mapping aggregates onto
+themselves; none on distinguishing the two populations in a display)
+are re-check items for future runs — one lead is parked in-node.
