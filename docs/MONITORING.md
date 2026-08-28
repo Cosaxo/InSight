@@ -120,8 +120,24 @@ Revenue is $0 and the panel says so in the tile rather than in a footnote.
 What it computes instead is the break-even surface: the burn at each size,
 the cost per user per month, and — for each recorded revenue path — how
 many units would cover the whole burn. That question needs no revenue data,
-which is why it is answerable today and why it is the only money question
-worth putting on a screen right now.
+which is why it was answerable from the first day of this console.
+
+Since D332 the panel also answers the question the owner actually asked —
+**is usage outrunning revenue** — and it can, because the engagement trail
+(D268) gave the console a measured population to price. The guard models
+the bill at the measured actives (plus fixed costs), nets the rate card's
+recorded revenue, and goes red past `guard.maxNetBurnUsdPerMonth` in
+`monitoring/rates.json` ($50 — COSTS.md's own budget arithmetic). Red
+rides the pulse workflow's daily `--check`, so it is an email, not a
+dashboard hoping to be opened; the message names the levers in order
+(record revenue, pull `npm run budget:mode -- --level 1`, or raise the
+allowance in a commit that says why). It is a model at a measured size,
+never an invoice — the Cloud Billing budget stays the outcome-side
+control, and COSTS.md's controls section still owns that list. Arming
+that budget is one command too since the same record: `npm run
+budget:apply` (or the **Arm budget** workflow) creates it from the
+guard's own figure, and its refusal names the one billing-account role
+that remains a human grant.
 
 The inputs live in `monitoring/rates.json`, because they are the only
 numbers in the whole console that are neither derivable from the repo nor

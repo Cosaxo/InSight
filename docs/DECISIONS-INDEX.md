@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 339 lines instead of
-33,455. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 340 lines instead of
+33,621. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -115,7 +115,7 @@ detect it.
 | **D95** | [A re-served learn card arrives answerable — the feed's vote mirror no longer outlives the serve](DECISIONS.md#d95--a-re-served-learn-card-arrives-answerable--the-feeds-vote-mirror-no-longer-outlives-the-serve) | D153 | 8881 |
 | **D96** | [A live build advertises no demo communities or empty leaves — and every bank subject runs always-on](DECISIONS.md#d96--a-live-build-advertises-no-demo-communities-or-empty-leaves--and-every-bank-subject-runs-always-on) | D322 (+4) | 8948 |
 | **D97** | [Question production upscales behind a regulator: computed budgets, a mechanical style gate, and measured vintages](DECISIONS.md#d97--question-production-upscales-behind-a-regulator-computed-budgets-a-mechanical-style-gate-and-measured-vintages) | D328 (+12) | 9015 |
-| **D98** | [Answers are public — the privacy model is retired, not paused](DECISIONS.md#d98--answers-are-public--the-privacy-model-is-retired-not-paused) | D331 (+68) | 9129 |
+| **D98** | [Answers are public — the privacy model is retired, not paused](DECISIONS.md#d98--answers-are-public--the-privacy-model-is-retired-not-paused) | D332 (+69) | 9129 |
 | **D99** | [The Mirror's lens row comes back, on data that was already there](DECISIONS.md#d99--the-mirrors-lens-row-comes-back-on-data-that-was-already-there) | D277 (+9) | 9251 |
 | **D100** | [Scores and the Answers lens, on the archive rather than the week](DECISIONS.md#d100--scores-and-the-answers-lens-on-the-archive-rather-than-the-week) | D187 (+4) | 9394 |
 | **D101** | [Circle, on a follow graph that needs no handshake](DECISIONS.md#d101--circle-on-a-follow-graph-that-needs-no-handshake) | D278 (+9) | 9495 |
@@ -146,7 +146,7 @@ detect it.
 | **D126** | [Foresight — the read half, on a truth that now exists](DECISIONS.md#d126--foresight--the-read-half-on-a-truth-that-now-exists) | D196 (+7) | 12299 |
 | **D127** | [A machine may propose an outcome, never be the reason one is believed](DECISIONS.md#d127--a-machine-may-propose-an-outcome-never-be-the-reason-one-is-believed) | D281 (+4) | 12422 |
 | **D128** | [You can say what you want more of; the app does not guess](DECISIONS.md#d128--you-can-say-what-you-want-more-of-the-app-does-not-guess) | D329 (+4) | 12534 |
-| **D129** | [The fan-out is gone: the deck is polled, and the cost curve is flat](DECISIONS.md#d129--the-fan-out-is-gone-the-deck-is-polled-and-the-cost-curve-is-flat) | D290 (+8) | 12605 |
+| **D129** | [The fan-out is gone: the deck is polled, and the cost curve is flat](DECISIONS.md#d129--the-fan-out-is-gone-the-deck-is-polled-and-the-cost-curve-is-flat) | D332 (+9) | 12605 |
 | **D130** | [Build 12's pre-flight: the label was right, the reasoning under it was stale](DECISIONS.md#d130--build-12s-pre-flight-the-label-was-right-the-reasoning-under-it-was-stale) | D257 (+11) | 12736 |
 | **D131** | [The Firestore region is a decision with a deadline, and it is written down before it expires](DECISIONS.md#d131--the-firestore-region-is-a-decision-with-a-deadline-and-it-is-written-down-before-it-expires) | D142 | 12864 |
 | **D132** | [The profile said "0 of 30 answered" to someone who had answered thirty](DECISIONS.md#d132--the-profile-said-0-of-30-answered-to-someone-who-had-answered-thirty) | D142 | 12968 |
@@ -283,10 +283,10 @@ detect it.
 | **D262** | [Four sentences that stopped being true, and two of them are now counted](DECISIONS.md#d262--four-sentences-that-stopped-being-true-and-two-of-them-are-now-counted) | — | 26272 |
 | **D263** | [The room cache is keyed by one cell and folded over nine](DECISIONS.md#d263--the-room-cache-is-keyed-by-one-cell-and-folded-over-nine) | D264 | 26339 |
 | **D264** | [Five the skeptics found, and one of them was two hours old](DECISIONS.md#d264--five-the-skeptics-found-and-one-of-them-was-two-hours-old) | D265 | 26397 |
-| **D265** | [Patterns comes back on the data, not on a flag](DECISIONS.md#d265--patterns-comes-back-on-the-data-not-on-a-flag) | D325 (+3) | 26496 |
+| **D265** | [Patterns comes back on the data, not on a flag](DECISIONS.md#d265--patterns-comes-back-on-the-data-not-on-a-flag) | D332 (+4) | 26496 |
 | **D266** | [The films catalogue ships; artists is refused on its content, not on the network](DECISIONS.md#d266--the-films-catalogue-ships-artists-is-refused-on-its-content-not-on-the-network) | D308 (+1) | 26744 |
 | **D267** | [The artists catalogue gets a rule and a reviewer, because no rule alone finishes](DECISIONS.md#d267--the-artists-catalogue-gets-a-rule-and-a-reviewer-because-no-rule-alone-finishes) | D308 | 26839 |
-| **D268** | [The ledger learns to count people: engagement rung 0](DECISIONS.md#d268--the-ledger-learns-to-count-people-engagement-rung-0) | D290 (+3) | 26926 |
+| **D268** | [The ledger learns to count people: engagement rung 0](DECISIONS.md#d268--the-ledger-learns-to-count-people-engagement-rung-0) | D332 (+4) | 26926 |
 | **D269** | [The ceiling: what stays refused at every engagement rung](DECISIONS.md#d269--the-ceiling-what-stays-refused-at-every-engagement-rung) | D330 (+3) | 27014 |
 | **D270** | [The anonymous channel: engagement rung 1 collects, unlinkably](DECISIONS.md#d270--the-anonymous-channel-engagement-rung-1-collects-unlinkably) | D329 (+4) | 27053 |
 | **D271** | [Per-question attention, aggregate-only — the R4 gate](DECISIONS.md#d271--per-question-attention-aggregate-only--the-r4-gate) | D329 (+1) | 27145 |
@@ -296,7 +296,7 @@ detect it.
 | **D275** | [The private aggregate mirror collapses into the published one](DECISIONS.md#d275--the-private-aggregate-mirror-collapses-into-the-published-one) | D299 (+3) | 27450 |
 | **D276** | [The suite audited itself: what stayed green while being wrong](DECISIONS.md#d276--the-suite-audited-itself-what-stayed-green-while-being-wrong) | D289 (+8) | 27570 |
 | **D277** | [The similarity surfaces were ranking on a tier that could not fire](DECISIONS.md#d277--the-similarity-surfaces-were-ranking-on-a-tier-that-could-not-fire) | D299 (+4) | 27715 |
-| **D278** | [The City constellation asks for its city, instead of filtering for it](DECISIONS.md#d278--the-city-constellation-asks-for-its-city-instead-of-filtering-for-it) | — | 27980 |
+| **D278** | [The City constellation asks for its city, instead of filtering for it](DECISIONS.md#d278--the-city-constellation-asks-for-its-city-instead-of-filtering-for-it) | D332 | 27980 |
 | **D279** | [There were always five test runners, and the table said four](DECISIONS.md#d279--there-were-always-five-test-runners-and-the-table-said-four) | D284 | 28089 |
 | **D280** | [The feed's test cards came back demo, and the seam was a cast](DECISIONS.md#d280--the-feeds-test-cards-came-back-demo-and-the-seam-was-a-cast) | D330 (+3) | 28192 |
 | **D281** | [The `i` had a background slot, and it was empty in every live build](DECISIONS.md#d281--the-i-had-a-background-slot-and-it-was-empty-in-every-live-build) | D311 (+1) | 28340 |
@@ -323,7 +323,7 @@ detect it.
 | **D300** | [The first look at production, and the two things it said that the repo had wrong](DECISIONS.md#d300--the-first-look-at-production-and-the-two-things-it-said-that-the-repo-had-wrong) | D327 (+3) | 30597 |
 | **D301** | [Twenty-one strays, three provenances, and one of them runs on every account deletion](DECISIONS.md#d301--twenty-one-strays-three-provenances-and-one-of-them-runs-on-every-account-deletion) | — | 30691 |
 | **D302** | [The iris mark: the identity stops being a first pass](DECISIONS.md#d302--the-iris-mark-the-identity-stops-being-a-first-pass) | D324 | 30817 |
-| **D303** | [The applier could not apply, for the same reason the observer could not observe](DECISIONS.md#d303--the-applier-could-not-apply-for-the-same-reason-the-observer-could-not-observe) | D322 | 30895 |
+| **D303** | [The applier could not apply, for the same reason the observer could not observe](DECISIONS.md#d303--the-applier-could-not-apply-for-the-same-reason-the-observer-could-not-observe) | D332 (+1) | 30895 |
 | **D304** | [The breakdown gets its scale back: every canonical bucket, in vocabulary order, on top of the cohort reading](DECISIONS.md#d304--the-breakdown-gets-its-scale-back-every-canonical-bucket-in-vocabulary-order-on-top-of-the-cohort-reading) | D308 (+3) | 31112 |
 | **D305** | [A rating is one figure, not ten rows: the scale row, the ridge, and the mean](DECISIONS.md#d305--a-rating-is-one-figure-not-ten-rows-the-scale-row-the-ridge-and-the-mean) | D307 (+1) | 31178 |
 | **D306** | [Context reaches the daily's ⓘ, and the banks get their first subject-context pass](DECISIONS.md#d306--context-reaches-the-dailys--and-the-banks-get-their-first-subject-context-pass) | D311 (+2) | 31231 |
@@ -353,3 +353,4 @@ detect it.
 | **D329** | [Three of D269's seven refusals are lifted, and the bundle becomes a list](DECISIONS.md#d329--three-of-d269s-seven-refusals-are-lifted-and-the-bundle-becomes-a-list) | D330 | 33141 |
 | **D330** | [The political consent is asked at the start, on D151's screen, and it is an ask rather than a wall](DECISIONS.md#d330--the-political-consent-is-asked-at-the-start-on-d151s-screen-and-it-is-an-ask-rather-than-a-wall) | D331 | 33227 |
 | **D331** | [The political compass waits for a yes, and the toggle governs whether it is COMPUTED](DECISIONS.md#d331--the-political-compass-waits-for-a-yes-and-the-toggle-governs-whether-it-is-computed) | — | 33345 |
+| **D332** | [The read breaker is built, and the pulse guards usage against revenue](DECISIONS.md#d332--the-read-breaker-is-built-and-the-pulse-guards-usage-against-revenue) | — | 33456 |

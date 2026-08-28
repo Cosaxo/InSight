@@ -21,6 +21,7 @@
 // carries the argument and what it cost.
 import React from "react";
 import LIVE from "../data/live";
+import { BUDGET_PAUSED_HEAD } from "../data/budgetMode";
 import { myTypeOn, typeMixFor, TYPE_SMALL, TYPE_SYSTEMS, TYPE_TEST, isTypeSystem, type TypeRow } from "../data/typeMix";
 // @ts-expect-error TS7016 — untyped spec module (additive export, D141)
 import { TypeMark } from "../spec/type-marks.jsx";
@@ -101,7 +102,14 @@ export default function TypeMixCard({ scope }: { scope: "city" | "country" | "wo
         {chips}
         <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.45, textWrap: "pretty" }}>
           {mix.sampleN === 0
-            ? "Open a question's who-voted sheet and this fills in."
+            // The instruction is only offered while following it works —
+            // under the breaker (D332) the sheet's fetch refuses, and an
+            // instruction that does nothing is worse than saying so. The
+            // HEAD alone, not the sentence: this card renders only inside
+            // the People lens, where Kindred one card up already carries
+            // the full why, and a clause restating the clause above it is
+            // the deletion COPY.md names.
+            ? (LIVE.budgetPaused ? BUDGET_PAUSED_HEAD : "Open a question's who-voted sheet and this fills in.")
             : mix.sampleN + " sampled here, none typed on this one yet."}
         </span>
       </div>

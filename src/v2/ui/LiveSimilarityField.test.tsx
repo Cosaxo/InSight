@@ -48,6 +48,7 @@ interface RoomRead { people: Array<{ uid: string; type?: string }>; qs: Record<s
 
 const LIVE = vi.hoisted(() => ({
   enabled: true,
+  budgetPaused: false as boolean,
   subscribe: () => () => {},
   loadSimilarity: vi.fn(() => Promise.resolve()),
   // D278: the City stop asks for its own city-scoped pass beside the
@@ -149,6 +150,7 @@ function tightestGap(pts: Array<{ a: number }>): number {
 
 beforeEach(() => {
   LIVE.enabled = true;
+  LIVE.budgetPaused = false;
   LIVE.similarityLoading = () => false;
   LIVE.kindredLoading = () => false;
   LIVE.kindredPeople = () => [];
@@ -410,6 +412,15 @@ describe("an empty field draws the ring anyway (D160)", () => {
     expect(screen.getByText("you")).toBeTruthy();
     expect(nodes(container)).toHaveLength(0);
     expect(screen.getByText(/Nobody from Oslo yet/)).toBeTruthy();
+  });
+
+  it("says PAUSED, not 'Nobody from Oslo yet', under the read breaker (D332)", () => {
+    // The kindred pool this row folds was refused, so the city sentence
+    // would claim an emptiness nothing measured.
+    LIVE.budgetPaused = true;
+    render(<SimilaritySection scope="city" />);
+    expect(screen.getByText(/costs in check/i)).toBeTruthy();
+    expect(screen.queryByText(/Nobody from Oslo yet/)).toBeNull();
   });
 
   it("names nothing to a screen reader while there is nobody on it (D244)", () => {

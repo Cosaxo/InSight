@@ -393,6 +393,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     updateAvailable: false,
     updateRequired: false,
     updateUrl: "",
+    // The read breaker (D332) is off in the fixture — the mount tests walk
+    // the crowd surfaces, not their paused states, which the panel suites
+    // pin one by one.
+    budgetPaused: false,
     stats: { bankSource: "fixture", aggsFetched: 2, answersFetched: 0 },
     social,
     near,

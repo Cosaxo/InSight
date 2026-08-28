@@ -190,6 +190,98 @@ export function collectMoney(cost) {
   };
 }
 
+// ── 2b · the guard: usage against revenue (D332) ────────────────
+// The owner's 2026-08-27 ask, monitoring half: say OUT LOUD when the bill
+// is outrunning what the app earns, before an invoice does. The lever half
+// is the read breaker (`npm run budget:mode`, src/v2/data/budgetMode.ts).
+//
+// The comparison is deliberately modelled-cost-at-MEASURED-size, not the
+// scenario table: the scenarios are fixed hypotheticals, and "are we over"
+// is a question about the population we actually have — which the app can
+// finally answer, because the engagement digest (R1/D268) publishes daily
+// actives and the scorecard fetch commits them here. Revenue stays the
+// rate card's number: recorded prices × recorded units, zero until the
+// owner writes one down, which keeps the guard honest about a revenue
+// that does not exist yet.
+//
+// The allowance is the tolerance, not a target. $50/month is COSTS.md's
+// own budget arithmetic ("traction arrived, or something is wrong"): the
+// modelled bill at launch sizes is ~$0–2 plus ~$28 fixed, so a red guard
+// means either the model's inputs moved (users arrived — go price a
+// path) or a term is missing (the model's own correction record, five
+// times over) — and both are an operator's morning, not a quiet drift.
+//
+// What this deliberately is NOT: a measurement of the invoice. The model
+// has been corrected four times for missing terms, so the guard can be
+// wrong the way the model is wrong — the Cloud Billing budget (COSTS.md,
+// console-side) is the control that fires on the OUTCOME, and this row
+// exists so the repo-side console stops needing to be asked.
+
+/** The pure verdict, tested without a tree. All inputs in USD/month. */
+export function guardVerdict({ allowanceUsd, measuredActives, burnUsd, revenueUsd }) {
+  if (typeof allowanceUsd !== "number") {
+    // No allowance recorded is a question, not a pass — the unpriced-path
+    // rule. The check treats it as unarmed and says how to arm it.
+    return { state: "unarmed" };
+  }
+  if (measuredActives == null) {
+    // No committed engagement trail yet (pre-launch, or the fetch has
+    // never run). Nothing to compare — say so rather than comparing a
+    // scenario and calling it a measurement.
+    return { state: "unmeasured", allowanceUsd };
+  }
+  const netBurnUsd = round2(burnUsd - revenueUsd);
+  return {
+    state: netBurnUsd > allowanceUsd ? "over" : "ok",
+    allowanceUsd,
+    measuredActives,
+    burnUsd: round2(burnUsd),
+    revenueUsd: round2(revenueUsd),
+    netBurnUsd,
+  };
+}
+
+export function collectGuard(regional, money, engagement) {
+  const rates = readJson("monitoring/rates.json");
+  const allowanceUsd = typeof rates.guard?.maxNetBurnUsdPerMonth === "number"
+    ? rates.guard.maxNetBurnUsdPerMonth
+    : null;
+
+  // The measured size: the larger of yesterday's actives and the 7-day
+  // mean, so one quiet day cannot green a guard the week would trip. Null
+  // (never 0) while no digest day exists — absent is not zero, the
+  // engagement panel's own rule.
+  const measured = engagement.present && engagement.days > 0
+    ? Math.max(engagement.latest?.actives ?? 0, Math.ceil(engagement.weekMeanActives ?? 0))
+    : null;
+
+  let burnUsd = null;
+  if (measured != null && allowanceUsd != null) {
+    const { model } = costModel({ regional });
+    // `mature` follows the model's own classification of the scenario
+    // sizes (immature below 5k), so the guard prices a measured 800 DAU
+    // the way the table would price it.
+    const at = model(measured, measured >= 5_000);
+    burnUsd = totalCost(at.cost) + money.fixedUsdPerMonth;
+  }
+
+  const verdict = guardVerdict({
+    allowanceUsd,
+    measuredActives: measured,
+    burnUsd: burnUsd ?? 0,
+    revenueUsd: money.revenueUsdPerMonth,
+  });
+
+  return {
+    ...verdict,
+    measuredOn: engagement.present ? engagement.lastDay ?? null : null,
+    basis: "modelled infra cost at the measured actives (max of latest day and 7-day mean, "
+      + "monitoring/engagement.json) plus fixed costs, against recorded revenue "
+      + "(monitoring/rates.json). A model, not an invoice — the Cloud Billing budget is "
+      + "the outcome-side control (docs/COSTS.md).",
+  };
+}
+
 // ── 3 · the question pipeline ───────────────────────────────────
 // The most live panel: nearly all of it computes from committed files
 // today, pre-launch, with no credentials. It also holds the one number in
@@ -786,16 +878,19 @@ export function collectInstrumentation() {
 export function collect({ regional = REGIONAL } = {}) {
   const cost = collectCost(regional);
   const pipeline = collectPipeline();
+  const money = collectMoney(cost);
+  const engagement = collectEngagement();
   return {
     // Day granularity, not a timestamp: this artifact is committed, and a
     // millisecond in the diff would make every regeneration look like a
     // change to something.
     generatedOn: isoDay(Math.floor(Date.now() / 86400000)),
     cost,
-    money: collectMoney(cost),
+    money,
+    guard: collectGuard(regional, money, engagement),
     pipeline,
     population: collectPopulation(pipeline),
-    engagement: collectEngagement(),
+    engagement,
     instrumentation: collectInstrumentation(),
   };
 }

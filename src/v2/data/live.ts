@@ -203,6 +203,7 @@ import { nearMode, nearOptedIn, nearUntil, setNearMode, type NearMode } from "./
 // The device computes its own archetype name for the presence doc (D176).
 import { myType } from "./typeMix";
 import { patternsEligible, type PatternsSignal } from "./patternsReady";
+import { socialReadsPaused } from "./budgetMode";
 import { locateCell, locateSupported } from "./locate";
 import {
   mayPublishPolitical, politicalConsentRecord, POLITICAL_RESULT_KEY,
@@ -315,7 +316,7 @@ const state = {
   // `patterns*` are written by the nightly fit rather than the seed
   // (functions/src/patterns.ts) — the crowd half of the Patterns tab's
   // mount gate (D265), riding the meta read hydrate already pays.
-  meta: { latestBuild: 0, minBuild: 0, updateUrl: "", patternsPool: 0, patternsBasis: 0 },
+  meta: { latestBuild: 0, minBuild: 0, updateUrl: "", patternsPool: 0, patternsBasis: 0, budgetMode: 0 },
   stats: { bankSource: "none", aggsFetched: 0, answersFetched: 0, callOutcomesFetched: 0, cacheWriteFailures: 0 },
   groups: [] as Array<Record<string, unknown> & { id: string }>,
   duelBank: [] as Array<QuestionDoc & { id: string }>,
@@ -1226,6 +1227,8 @@ async function hydrate(): Promise<void> {
       state.meta.updateUrl = String(meta.get("updateUrl") || "");
       state.meta.patternsPool = Number(meta.get("patternsPool") || 0);
       state.meta.patternsBasis = Number(meta.get("patternsBasis") || 0);
+      // The read breaker (D332) rides the same one read — see budgetMode.ts.
+      state.meta.budgetMode = Number(meta.get("budgetMode") || 0);
     }
   } catch {
     /* meta is best-effort — absence just means no caching/update info */
@@ -2726,6 +2729,9 @@ const SOCIAL = {
     // list reads exactly like a circle that never wrote a take), so a
     // transient failure retries and a real empty result is kept.
     if (key == null || state.takesLoading[key] || state.takes[key]) return;
+    // The read breaker (D332): takes are the fourth D98 surface. Absent,
+    // not empty, for the reason the cache comment above gives.
+    if (socialReadsPaused(state.meta.budgetMode)) return;
     state.takesLoading[key] = true;
     try {
       const db = await getDb();
@@ -3345,6 +3351,12 @@ const LIVE = {
   get updateUrl(): string {
     return state.meta.updateUrl;
   },
+  /** The read breaker (D332): true while `v2_meta/app.budgetMode` holds
+   *  the social reads paused. The panels' paused branches read this so a
+   *  withheld crowd is never rendered as an absent one. */
+  get budgetPaused(): boolean {
+    return socialReadsPaused(state.meta.budgetMode);
+  },
   get latestBuild(): number {
     return state.meta.latestBuild;
   },
@@ -3430,6 +3442,13 @@ const LIVE = {
     // array now means "nobody answered" and is kept, which is what
     // distinguishing those two states was for.
     if (!qid || state.votersLoading[qid] || state.voters[qid]) return;
+    // The read breaker (D332): level 1 pauses exactly this — reading other
+    // users' answer documents on demand. Refused BEFORE the loading flag,
+    // so the panels' loading states stay false and their paused branches
+    // (keyed on LIVE.budgetPaused) are what renders. The key stays absent:
+    // "we chose not to ask" is a kind of "we could not ask", never "nobody
+    // answered".
+    if (socialReadsPaused(state.meta.budgetMode)) return;
     state.votersLoading[qid] = true;
     try {
       const db = await getDb();
@@ -3670,6 +3689,11 @@ const LIVE = {
   // Up to a quarter of the twelve slots bought an empty list.
   async loadKindred(): Promise<void> {
     if (state.kindredLoading) return;
+    // The read breaker (D332). loadVoters refuses on its own below, but
+    // without this the loop would still spin twelve no-op calls and hold
+    // kindredLoading long enough for the lens to say "Matching…" about a
+    // match that is not being attempted.
+    if (socialReadsPaused(state.meta.budgetMode)) return;
     state.kindredLoading = true;
     try {
       const qids = pickKindredQids(state.votes, divisivenessOf, KINDRED_QUESTIONS, storesOptionIdx);
@@ -3774,6 +3798,9 @@ const LIVE = {
     // guarded by a boolean so the pool refetches for the new city instead
     // of serving the old one forever.
     if (state.cityVotersAt === city) return;
+    // The read breaker (D332): the city-scoped half of the same voter
+    // fan-out loadKindred pays, so it pauses with it.
+    if (socialReadsPaused(state.meta.budgetMode)) return;
     state.cityKindredLoading = true;
     notify();
     try {
@@ -3822,6 +3849,10 @@ const LIVE = {
     // state.circle keeps the "who may invalidate this" list to one site.
     if (!this.enabled || !me || state.circleLoading) return;
     if (!force && state.circle) return;
+    // The read breaker (D332): a query per member is the most expensive of
+    // the four gated fetches. `force` does not override — setFollowing's
+    // write still lands, and the refreshed fold waits with the rest.
+    if (socialReadsPaused(state.meta.budgetMode)) return;
     state.circleLoading = true;
     notify();
     try {

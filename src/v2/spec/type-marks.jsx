@@ -10,6 +10,7 @@ import { Sheet } from './primitives.jsx';
 import { IS_ARCHETYPES, IS_matchArchetype } from './archetype-data.js';
 import { IS_TEST_RESULTS } from './test-definitions.js';
 import LIVE from '../data/live';
+import { BUDGET_PAUSED_BODY } from '../data/budgetMode.ts';
 // How common a type actually is, counted (D157) — see TypeIndexSheet.
 import { myTypeOn, typeSharesOn } from '../data/typeMix.ts';
 
@@ -170,7 +171,10 @@ export function TypeIndexSheet({ testKey, onClose }) {
               {!shares
                 ? 'Not counted on this one.'
                 : shares.sampleN === 0
-                  ? 'Open a question’s who-voted sheet and this fills in.'
+                  // Same rule as TypeMixCard: the instruction is only
+                  // offered while following it works — under the read
+                  // breaker (D332) the sheet's fetch refuses.
+                  ? (LIVE.budgetPaused ? BUDGET_PAUSED_BODY : 'Open a question’s who-voted sheet and this fills in.')
                   : `${shares.sampleN} counted so far, none with a result yet.`}
             </div>
           ) : null}

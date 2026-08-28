@@ -63,6 +63,7 @@
 // a dial's track has nothing honest to draw over a scale of zeros.
 import React from "react";
 import LIVE from "../data/live";
+import { BUDGET_PAUSED_BODY } from "../data/budgetMode";
 import { VOTER_FETCH_CAP } from "../data/voters";
 import { bucketLabel } from "./cohortLabels";
 import {
@@ -417,11 +418,16 @@ function LbFriends({ qid, options, mine }: {
   const loading = LIVE.followsLoading() || LIVE.votersLoading(qid);
 
   if (!follows || !voters) {
+    // Paused before failed (D332): with the breaker on, the voter fetch
+    // was refused rather than attempted, and "could not load" would blame
+    // the network for a choice.
     return (
       <LbNote>
         {loading
           ? "Loading how your friends answered…"
-          : "Could not load how your friends answered."}
+          : LIVE.budgetPaused
+            ? BUDGET_PAUSED_BODY
+            : "Could not load how your friends answered."}
       </LbNote>
     );
   }
@@ -703,8 +709,10 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
           // The cohort cuts are arithmetic on a document the card already
           // holds; this one waits on the roster's fetch. Distinguished
           // from "nobody is typed" because they are different facts and
-          // the second one is permanent.
-          ? <LbNote>Reading who answered…</LbNote>
+          // the second one is permanent. Under the breaker (D332) the
+          // fetch was refused, so "Reading…" would describe a read that
+          // is not happening.
+          ? <LbNote>{LIVE.budgetPaused ? BUDGET_PAUSED_BODY : "Reading who answered…"}</LbNote>
           : !typeRows.length
             ? (
               <LbNote>
@@ -725,7 +733,7 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
 
       {logicOpen && (
         lsplit === null
-          ? <LbNote>Reading who answered…</LbNote>
+          ? <LbNote>{LIVE.budgetPaused ? BUDGET_PAUSED_BODY : "Reading who answered…"}</LbNote>
           : !logicRows.length
             ? (
               <LbNote>

@@ -822,23 +822,53 @@ is that a fifth one exists and the model is not the thing that will catch
 it. What catches it is a control that fires on the *outcome* rather than on
 the forecast.
 
-There are four such controls, and **not one of them is observable from this
-repository**. No check, test or workflow can see any of them, which is
-D117's checkbox problem pointed at money rather than at deploys. So they
-are written down here, with the arithmetic that says why each one matters.
+There are four such controls, and when this section was written **not one
+of them was observable from this repository** — no check, test or workflow
+could see any of them, D117's checkbox problem pointed at money rather
+than at deploys. Two have since come into reach: the budget (1) answers to
+`budget:apply`'s dry run and the policies (4) to `npm run observe` (D303);
+enforcement (2) and the auth billing mode (3) remain console-only. All
+four stay written down here, with the arithmetic that says why each one
+matters.
 
-**1 · A Cloud Billing budget. This does not exist, and it is the cheapest
-thing on this page.** Every other control below is a judgement call; this
-one is five minutes and an email address, and without it the first notice
-of any of the failures this document imagines is an invoice up to thirty
-days later.
+**1 · A Cloud Billing budget — EXISTS, since 2026-08-27.** "InSight",
+**500 NOK/month** (the billing account bills in kroner; 500 NOK is this
+page's $50 at ~10 NOK/USD, the same threshold in the account's own
+money), thresholds at 50/90/100/150%, filtered to the resolved project
+number. Without it the first notice of any of the failures this document
+imagines was an invoice up to thirty days later. It sat undone for four
+weeks for the D303 reason: the documented path was the gcloud one-liner
+below, behind a login nobody had. `npm run budget:apply` (or the **Arm
+budget** workflow, dispatched from the Actions tab) creates or retunes it
+over the same REST credential every other operator script uses — dry-run
+by default, idempotent by name, reading its figure from
+`monitoring/rates.json`'s guard (`guard.budget` for the account-currency
+figure the budget holds, beside the USD tolerance the pulse reds on) so
+the budget and the pulse guard cannot drift apart. The one permission the
+script could not grant itself — `roles/billing.costsManager` on the
+**billing account** (a project role cannot satisfy it — budgets are a
+billing-account resource), granted to the deploy service account, whose
+email the refusal prints — was the five human minutes, spent 2026-08-27.
+The first live run also found and closed a precondition this page did not
+know: the Billing Budgets **API** was disabled on the project, a refusal
+the script's own credential can fix (its `Editor` covers the enable —
+done) and which the 403 branch now tells apart from the grant (D332 §3).
+The dry run is the standing check, and against production it says
+"exists and matches".
+
+The by-hand alternative, unchanged except for one correction: the filter
+takes the project **number**, not the id — `projects/prvfire33` matches
+nothing, and a budget filtered to nothing tracks $0 forever and never
+fires, which is this page's silent-checkbox failure on the control meant
+to be the backstop. (The script resolves the number itself; that latent
+miss is why it exists rather than a copy of this command.)
 
 ```
 gcloud billing budgets create \
   --billing-account=<ACCOUNT_ID> \
   --display-name="InSight" \
   --budget-amount=50USD \
-  --filter-projects=projects/prvfire33 \
+  --filter-projects=projects/<PROJECT_NUMBER> \
   --threshold-rule=percent=0.5 \
   --threshold-rule=percent=0.9 \
   --threshold-rule=percent=1.0 \
@@ -848,14 +878,23 @@ gcloud billing budgets create \
 $50 is chosen against the table above, not by feel: the launch sizes model
 at $0–$2/month and 5,000 DAU at $46, so $50 is "traction arrived, or
 something is wrong", and the 150% rule still fires while the number is two
-figures. Raise it when a row of the table becomes real, not before.
+figures. Raise it when a row of the table becomes real, not before. (What
+the budget actually holds is the 500 NOK `guard.budget` records — the same
+threshold in the money the account bills, not a raise.)
 
 **A budget notifies; it does not cap.** There is no spend limit for
 Firestore — the only hard stop is a budget → Pub/Sub → function that
 detaches the billing account, which takes the app down with it. That is a
 real option and a deliberate one, not a default: for an app whose worst
 modelled month at launch size is $2, an outage is the more expensive
-failure. Recorded as available, not built (D7).
+failure. Recorded as available, not built (D7). Since D332 the same wire
+has a softer target worth building first: the budget's Pub/Sub
+notification flipping `budgetMode` (the read breaker below) instead of
+detaching billing — recorded there, an evening's work once the budget
+itself exists. And the repo side no longer waits for the invoice to ask
+the question: the pulse's usage-vs-revenue guard
+(`monitoring/rates.json`, the same $50) reds the daily run when the
+modelled bill at the *measured* actives outruns recorded revenue.
 
 **2 · App Check enforcement on the Firestore API.** SHIP-CHECKLIST's App
 Check step 4, not yet flipped. The callables enforce attestation in
@@ -941,29 +980,31 @@ work has to be done in advance for the lever to exist at all.
 That reframes App Check step 4. It is filed as hardening, and it is really
 the incident-response plan: it is simultaneously the thing that prevents
 the cheap version of the attack and the thing you reach for when something
-else goes wrong. Nothing else on this page can be pulled at 3am — a rules
-deploy takes minutes and still bills its own reads, `APPCHECK_ENFORCE` only
-governs callables (and only in the loosening direction), and detaching the
-billing account takes the app down.
+else goes wrong. One other lever on this page can now be pulled at 3am —
+the read breaker below, one command and no deploy, though it shears over
+hours rather than minutes because it propagates per boot. Nothing else can:
+a rules deploy takes minutes and still bills its own reads,
+`APPCHECK_ENFORCE` only governs callables (and only in the loosening
+direction), and detaching the billing account takes the app down.
 
-**The graded breaker, designed and deliberately not built.** The natural
-complement is a `mode` field on `v2_meta/app` — a document `hydrate()`
-already reads once per boot, so it costs nothing to add — with the client
-skipping the discretionary reads when it is set: the D98 social surfaces
-(who-voted, Kindred, Circle, takes, similarity) at one level, the deck's
-snapshot listeners at the next. That is 354 of 441 reads/user/day at 5,000
-DAU for the first level and most of the rest for the second, and unlike
-App Check it degrades the app for *everyone* rather than only for
-unattested callers.
-
-It is not built here because it is not really a cost question. Every level
-of it changes what a user sees, and this repo's rule is that a UI claim
-needs something making it true — a Mirror stop that silently renders "could
-not ask" because an operator flipped a flag is the same class of failure as
-a privacy label with no rule behind it. The honest version needs a decision
-about what a degraded app *says*, and that is the owner's call rather than
-a cost pass's. Recorded with its arithmetic so it can be built in an hour
-when that decision is made.
+**The graded breaker — BUILT at level 1 (D332, 2026-08-27).** The owner's
+ask arrived ("a lever so usage does not outrun revenue"), which was the
+decision this paragraph was waiting on. `budgetMode` on `v2_meta/app` — the
+document `hydrate()` already reads once per boot, so the lever costs no
+read of its own — set by `npm run budget:mode -- --level 1` and released
+with `--level 0`. Level 1 pauses the D98 social fetches (named who-voted,
+Kindred, Circle, takes): the `social` column, ~354 of ~440 reads/user/day
+at 5,000 DAU, with the answering loop, the aggregates and the Mirror's
+folds untouched. Every gated surface says it is paused
+(`src/v2/data/budgetMode.ts` holds the one sentence), because the honest
+version needed a decision about what a degraded app *says* — that was the
+owner's call this build waited for, and the paused copy is now pinned by
+the panel suites. Two deviations from the sketch this paragraph used to
+carry, with the arithmetic in D332: the similarity agg sweep stays on
+(~110 reads once per session against social's ~354 per day — gating it
+would blank three more lenses for a rounding error), and the second level
+is reserved rather than built (the sketch's "deck listeners" predate D129;
+what that level would govern today is 3 + 28 flat reads/user/day).
 
 **Where the free tiers end**, since "still free" is the cheapest possible
 guardrail and worth knowing precisely: reads leave the 50 k/day free tier

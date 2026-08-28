@@ -586,6 +586,72 @@ describe("patternsSignal (D265): the mount gate's two numbers", () => {
   });
 });
 
+// ── the read breaker (D332) ─────────────────────────────────────────
+//
+// `budgetMode` on v2_meta/app is the graded breaker docs/COSTS.md designed:
+// level 1 pauses the D98 social fetches. These cases are the lever's only
+// executing proof — the panel suites pin what a paused surface SAYS, but
+// only here does a gated loader run against a store that could issue the
+// read, so only here can "paused" be measured as zero queries rather than
+// as a sentence. The absent-field case matters as much as the set one: a
+// meta doc without the field must read as level 0 (the lever fails open),
+// or every device pauses the day the field is misspelled.
+describe("budgetMode (D332): level 1 pauses the social reads", () => {
+  const metaAt = (level: number) => {
+    h.getDocImpl = (path) => (path === "v2_meta/app" ? { budgetMode: level } : null);
+  };
+
+  it("reads the mode off v2_meta/app", async () => {
+    metaAt(1);
+    const LIVE = await bootLive();
+    expect(LIVE.budgetPaused).toBe(true);
+  });
+
+  it("stays unpaused when the field is absent", async () => {
+    h.getDocImpl = (path) => (path === "v2_meta/app" ? { contentRev: null } : null);
+    const LIVE = await bootLive();
+    expect(LIVE.budgetPaused).toBe(false);
+  });
+
+  it("loadVoters issues no query and leaves the key ABSENT, not empty", async () => {
+    metaAt(1);
+    const LIVE = await bootLive();
+    await LIVE.loadVoters("q_1");
+    expect(h.voterQueries).toHaveLength(0);
+    // Absent is "we could not ask" — the sheet's paused branch renders,
+    // never "nobody answered".
+    expect(LIVE.voters("q_1")).toBeNull();
+    expect(LIVE.votersLoading("q_1")).toBe(false);
+  });
+
+  it("loadKindred spins nothing — no queries, no loading flag", async () => {
+    metaAt(1);
+    const LIVE = await bootLive();
+    await LIVE.loadKindred();
+    expect(h.voterQueries).toHaveLength(0);
+    expect(LIVE.kindredLoading()).toBe(false);
+  });
+
+  it("loadCircle leaves the circle null rather than folding an empty one", async () => {
+    metaAt(1);
+    const LIVE = await bootLive();
+    await LIVE.loadCircle();
+    // null is the stop's "could not ask"; [] would be a settled fold —
+    // the two arms LiveCircleBody renders differently, and the gate must
+    // produce the first.
+    expect(LIVE.circle()).toBeNull();
+    expect(LIVE.circleLoading()).toBe(false);
+  });
+
+  it("level 0 keeps the reads working — the contrast that proves the gate gates", async () => {
+    metaAt(0);
+    const LIVE = await bootLive();
+    await LIVE.loadVoters("q_1");
+    expect(h.voterQueries.length).toBeGreaterThan(0);
+    expect(LIVE.voters("q_1")).not.toBeNull();
+  });
+});
+
 describe("vote() optimistic path (inflight vs unaggregated)", () => {
   it("shows a pending vote in myVotes but NOT in confirmedVotes", async () => {
     const LIVE = await bootLive();

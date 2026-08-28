@@ -405,6 +405,31 @@ function panelMoney(p) {
       <td>${path.monthlyUsd > 0 ? usd(path.monthlyUsd) : "—"}</td>
     </tr>`).join("");
 
+  const g = p.guard;
+  const guardBanner = g.state === "over"
+    ? `<div class="banner" style="border-left-color:var(--critical)">
+        <div><strong>The bill is outrunning revenue (D332).</strong>
+        Modelled burn ${usd(g.burnUsd)}/mo at the measured ${int(g.measuredActives)} actives
+        against ${usd(g.revenueUsd)}/mo recorded — net ${usd(g.netBurnUsd)}/mo, over the
+        ${usd(g.allowanceUsd)} allowance. Price a path, pull the read breaker
+        (<code>npm run budget:mode -- --level 1</code>), or raise the allowance in the
+        commit that says why.</div></div>`
+    : g.state === "ok"
+      ? `<div class="banner" style="border-left-color:var(--s3)">
+          <div><strong>Usage vs revenue: inside the allowance.</strong>
+          Net burn ${usd(g.netBurnUsd)}/mo at the measured ${int(g.measuredActives)} actives
+          (${esc(g.measuredOn || "")}), against a ${usd(g.allowanceUsd)}/mo allowance
+          (<code>monitoring/rates.json</code> guard). A model at the measured size, not an
+          invoice — the Cloud Billing budget is the outcome-side control.</div></div>`
+      : `<div class="banner" style="border-left-color:var(--s4)">
+          <div><strong>Usage-vs-revenue guard: ${g.state === "unmeasured" ? "no measured population yet" : "unarmed"}.</strong>
+          ${g.state === "unmeasured"
+            ? `It compares the modelled bill at the MEASURED actives against recorded revenue,
+               and arms itself on the first committed engagement trail
+               (<code>npm run scorecard -- --fetch</code>).`
+            : `Set <code>guard.maxNetBurnUsdPerMonth</code> in <code>monitoring/rates.json</code>
+               to say how much net burn a month is acceptable.`}</div></div>`;
+
   return `<section class="panel">
     <h2>Money — the break-even surface</h2>
     <p class="decision"><b>The decision:</b> what would you have to charge, and to how
@@ -412,6 +437,8 @@ function panelMoney(p) {
       <b>${usd(m.revenueUsdPerMonth)}</b> and this panel does not pretend otherwise —
       what it computes instead is the shape a price would have to have. That question
       needs no revenue data, which is why it is answerable now and the rest is not.</p>
+
+    ${guardBanner}
 
     ${tiles([
       { k: "Fixed cost", v: usd(m.fixedUsdPerMonth), unit: "/mo",
