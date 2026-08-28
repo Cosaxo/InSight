@@ -194,13 +194,27 @@ export function validatePaidBooking(data: unknown): { ok: PaidBookingPayload } |
     }
     options.push(s);
   }
-  if (options.length > PAID_OPTIONS_MAX) return { error: `at most ${PAID_OPTIONS_MAX} options` };
   // The continuum forms carry the app's own scales — an authored option
   // list on a scale question would re-key what every stored optionIdx
   // means, which is the D52 line. Synthesize, never accept.
+  //
+  // THE BOUND APPLIES TO AUTHORED LISTS, NOT SYNTHESIZED ONES, and that
+  // ordering is the whole fix. This validator runs TWICE on a booking:
+  // once on the wire, and again on the STORED payload when reviewGates
+  // re-reads the doc. The bound used to run before the substitution, so
+  // the first pass saw the composer's empty list and passed, the doc was
+  // written with five Likert steps or ten rating steps — and the second
+  // pass then declined the buyer's own booking with "at most 4 options".
+  // Two of the five forms the paid composer offers could not be sold at
+  // all, and the buyer read that sentence as the reason.
+  //
+  // Which makes the property worth stating rather than the line worth
+  // moving: validating an already-validated payload must produce the same
+  // payload. Pinned as exactly that, over every form.
   if (type === "scale") options = [...LIKERT];
   else if (type === "rating") options = [...RATING];
   else if (options.length < 2) return { error: "give people at least two options" };
+  else if (options.length > PAID_OPTIONS_MAX) return { error: `at most ${PAID_OPTIONS_MAX} options` };
   const topicRaw = String(d.topic ?? "").trim().toLowerCase();
   const topic = PAID_TOPICS.has(topicRaw) ? topicRaw : null;
 

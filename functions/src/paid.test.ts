@@ -64,6 +64,66 @@ const AD: PaidBookingPayload = {
   wearName: true,
 };
 
+describe("a validated booking survives being validated again", () => {
+  // NOT a tidiness property. The validator runs TWICE on every booking:
+  // once on the wire in bookPaidQuestionV2, and again inside reviewGates,
+  // which re-reads the STORED doc (`bookingPayloadOf`) before the model
+  // is called. So anything the validator normalizes has to be acceptable
+  // to the validator, or the booking is declined for the shape the
+  // validator itself gave it — and the buyer reads that sentence as the
+  // reason their question was refused.
+  //
+  // It has happened: the option-count bound ran BEFORE the continuum
+  // forms had their scales substituted, so "scale" (5 Likert steps) and
+  // "rating" (10) passed on the wire with the composer's empty list and
+  // were declined on re-read with "at most 4 options". Two of the five
+  // forms the composer offers could not be sold at all.
+  const round = (input: unknown) => {
+    const first = validatePaidBooking(input);
+    expect(first, `first pass rejected: ${JSON.stringify(first)}`).not.toHaveProperty("error");
+    const ok = (first as { ok: PaidBookingPayload }).ok;
+    const second = validatePaidBooking(ok);
+    expect(second, `second pass rejected: ${JSON.stringify(second)}`).not.toHaveProperty("error");
+    return { ok, again: (second as { ok: PaidBookingPayload }).ok };
+  };
+
+  // Every form the paid composer offers, with the wire shape the composer
+  // actually sends: the continuum forms send NO options, because the app
+  // owns their scales.
+  for (const type of ["binary", "choice", "scale", "rating", "dilemma"]) {
+    it(`holds for a ${type} question`, () => {
+      const wire = type === "scale" || type === "rating"
+        ? { ...BOOKING, type, options: [] }
+        : { ...BOOKING, type };
+      const { ok, again } = round(wire);
+      expect(again).toEqual(ok);
+    });
+  }
+
+  it("holds for an ad", () => {
+    const { ok, again } = round(AD);
+    expect(again).toEqual(ok);
+  });
+
+  it("and the gates agree with the validator on the stored payload", () => {
+    // The path that actually declined people: reviewGates runs the
+    // validator first, so a payload the validator rejects is a decline
+    // with the validator's own sentence.
+    for (const type of ["scale", "rating"]) {
+      const first = validatePaidBooking({ ...BOOKING, type, options: [] });
+      const stored = (first as { ok: PaidBookingPayload }).ok;
+      expect(reviewGates(stored), `${type} was declined by its own gates`).toBeNull();
+    }
+  });
+
+  it("still refuses five AUTHORED options", () => {
+    // The bound did not go away — it moved behind the substitution, so it
+    // applies to lists a buyer wrote and not to the ones the app minted.
+    expect(validatePaidBooking({ ...BOOKING, type: "choice", options: ["a", "b", "c", "d", "e"] }))
+      .toHaveProperty("error");
+  });
+});
+
 describe("validatePaidBooking", () => {
   it("accepts the composer's happy path and normalizes it", () => {
     const r = validatePaidBooking({
