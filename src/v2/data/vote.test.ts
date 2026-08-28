@@ -586,6 +586,54 @@ describe("patternsSignal (D265): the mount gate's two numbers", () => {
   });
 });
 
+// ── arming a loader is a state change (the "could not load" frame) ──
+//
+// A loading flag nobody is told about is not a loading state. The panels
+// that own these loaders call them from an effect, which runs AFTER the
+// first paint — so the frame with no data and no flag is already on
+// screen, and without a notify on arm it stays there until the query
+// lands. On the Friends cut that frame reads "Could not load how your
+// friends answered", which is a network-failure claim about a read that
+// is working; on the People lens it reads "Fills in as you answer more."
+//
+// These assert the NOTIFY, not the flag: the flag was always set on arm,
+// and setting it changed nothing anybody could see.
+describe("a loader that starts tells its subscribers it started", () => {
+  const armed = async (start: (l: Awaited<ReturnType<typeof bootLive>>) => void) => {
+    const LIVE = await bootLive();
+    const listener = vi.fn();
+    LIVE.subscribe(listener);
+    start(LIVE);                       // deliberately NOT awaited
+    return { LIVE, calls: listener.mock.calls.length };
+  };
+
+  it("loadVoters", async () => {
+    const { LIVE, calls } = await armed((l) => void l.loadVoters("q_1"));
+    expect(calls).toBeGreaterThan(0);
+    expect(LIVE.votersLoading("q_1")).toBe(true);
+    await flush();
+  });
+
+  it("loadFollows", async () => {
+    const { LIVE, calls } = await armed((l) => void l.loadFollows());
+    expect(calls).toBeGreaterThan(0);
+    expect(LIVE.followsLoading()).toBe(true);
+    await flush();
+  });
+
+  it("loadKindred inherits it from loadVoters, which is the only reason it needs none", () => {
+    // Recorded rather than left implicit: loadKindred's only suspension
+    // point is the loadVoters call in its loop, so the People lens's
+    // re-render comes from there. A notify on its own arm would be
+    // unobservable — measured by adding one and finding no test could
+    // fail without it.
+    const src = readFileSync(resolve(process.cwd(), "src/v2/data/live.ts"), "utf8");
+    const body = /async loadKindred\(\)[\s\S]*?\n {2}\},/.exec(src);
+    expect(body).toBeTruthy();
+    expect(body![0]).toMatch(/await this\.loadVoters\(qid\)/);
+  });
+});
+
 // ── the read breaker (D332) ─────────────────────────────────────────
 //
 // `budgetMode` on v2_meta/app is the graded breaker docs/COSTS.md designed:

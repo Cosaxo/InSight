@@ -3449,7 +3449,16 @@ const LIVE = {
     // "we chose not to ask" is a kind of "we could not ask", never "nobody
     // answered".
     if (socialReadsPaused(state.meta.budgetMode)) return;
+    // ARM AND SAY SO. A loading flag nobody is told about is not a loading
+    // state: the panel that mounts this loader has already painted by the
+    // time its effect runs, so without this notify its FIRST frame — the
+    // one with no data and no flag — stands until the query lands. On the
+    // Friends cut that frame reads "Could not load how your friends
+    // answered", a network-failure claim about a read that is working.
+    // loadCircle and loadCityKindred have always notified here; these
+    // three had not.
     state.votersLoading[qid] = true;
+    notify();
     try {
       const db = await getDb();
       // SORTED HERE, once, rather than on every read. Both keys the
@@ -3694,6 +3703,14 @@ const LIVE = {
     // kindredLoading long enough for the lens to say "Matching…" about a
     // match that is not being attempted.
     if (socialReadsPaused(state.meta.budgetMode)) return;
+    // No notify here, deliberately, and it took removing one to see why:
+    // this body's only suspension point is `await this.loadVoters(qid)` in
+    // the loop below, and loadVoters notifies as it arms. When the loop
+    // has nothing to fetch — no votes, or every list already cached — the
+    // whole body runs to its `finally` synchronously and an arm notify
+    // could never be observed by anyone. So the People lens gets its
+    // re-render from loadVoters, one microtask later, and a line here
+    // would be one no test could hold.
     state.kindredLoading = true;
     try {
       const qids = pickKindredQids(state.votes, divisivenessOf, KINDRED_QUESTIONS, storesOptionIdx);
@@ -3913,6 +3930,7 @@ const LIVE = {
     if (!this.enabled || !me || state.followsLoading) return;
     if (state.follows) return;
     state.followsLoading = true;
+    notify(); // see loadVoters: an unannounced flag paints as a failure
     try {
       const [db, circleMod] = await Promise.all([getDb(), import("./circle")]);
       state.follows = circleMod.capFollows(await circleMod.fetchFollowing(db, me));
