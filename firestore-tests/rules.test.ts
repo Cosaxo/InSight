@@ -601,6 +601,20 @@ describe("the daily pulse (D139): one answer per day, day-keyed like a duel's", 
       doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_${day}`),
       pulseAnswer(day, { qid: BASE }),
     ));
+    // …and the id must be COMPOSED of the two, which the case above does
+    // not reach: it moves qid away from the id, so `qid == aid` refuses it
+    // and the composition clause is never asked. Point them at each other
+    // instead and only the composition clause is left standing.
+    //
+    // What it is holding up: the aggregate trigger folds by DOC ID. An
+    // answer that satisfies every other clause at the id `daily-000` is a
+    // pulse answer — bounded by the pulse template's options, day-keyed,
+    // one per day — folded into the daily question's public aggregate,
+    // once per day, forever.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", "daily-000"),
+      pulseAnswer(day, { qid: "daily-000" }),
+    ));
   });
 
   it("the template answers for the bound, the kill switch, and the surface claim", async () => {
