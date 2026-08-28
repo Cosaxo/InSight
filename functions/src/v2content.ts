@@ -5828,6 +5828,112 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "feed-f112",
+  "surface": "feed",
+  "seq": 154,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Which expedition would you have joined?",
+  "options": [
+   "Shackleton's ice",
+   "Earhart's sky",
+   "Cousteau's sea",
+   "Armstrong's moon"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f113",
+  "surface": "feed",
+  "seq": 155,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A song you love turns up in an ad: ruined, or fair play?",
+  "options": [
+   "Ruined",
+   "Fair play"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f114",
+  "surface": "feed",
+  "seq": 156,
+  "type": "vote",
+  "domain": null,
+  "prompt": "If no one would ever know what you did, would you act differently?",
+  "options": [
+   "Honestly, yes",
+   "No — same me"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f115",
+  "surface": "feed",
+  "seq": 157,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Handwritten letters: bring them back, or let them go?",
+  "options": [
+   "Bring them back",
+   "Let them go"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f116",
+  "surface": "feed",
+  "seq": 158,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Voting at 16: about time, or too young?",
+  "options": [
+   "About time",
+   "Too young"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "political": true
+ },
+ {
+  "id": "feed-dl16",
+  "surface": "feed",
+  "seq": 159,
+  "type": "dial",
+  "domain": null,
+  "prompt": "The ideal dinner hour?",
+  "options": [
+   "17–18 h",
+   "18–18 h",
+   "18–19 h",
+   "19–19 h",
+   "19–20 h",
+   "20–20 h",
+   "20–21 h",
+   "21–21 h",
+   "21–22 h",
+   "22–22 h",
+   "22–23 h",
+   "23–23 h"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null,
+  "lo": 17,
+  "hi": 23,
+  "unit": "h"
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,

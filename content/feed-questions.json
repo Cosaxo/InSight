@@ -3021,6 +3021,110 @@
           "count": 2900
         }
       ]
+    },
+    {
+      "id": "f112",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "Which expedition would you have joined?",
+      "options": [
+        {
+          "label": "Shackleton's ice",
+          "count": 1600
+        },
+        {
+          "label": "Earhart's sky",
+          "count": 1500
+        },
+        {
+          "label": "Cousteau's sea",
+          "count": 1900
+        },
+        {
+          "label": "Armstrong's moon",
+          "count": 2200
+        }
+      ]
+    },
+    {
+      "id": "f113",
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "A song you love turns up in an ad: ruined, or fair play?",
+      "options": [
+        {
+          "label": "Ruined",
+          "count": 2400
+        },
+        {
+          "label": "Fair play",
+          "count": 2700
+        }
+      ]
+    },
+    {
+      "id": "f114",
+      "core": false,
+      "cat": "bigq",
+      "type": "vote",
+      "prompt": "If no one would ever know what you did, would you act differently?",
+      "options": [
+        {
+          "label": "Honestly, yes",
+          "count": 2600
+        },
+        {
+          "label": "No — same me",
+          "count": 2500
+        }
+      ]
+    },
+    {
+      "id": "f115",
+      "core": false,
+      "cat": "culture",
+      "type": "vote",
+      "prompt": "Handwritten letters: bring them back, or let them go?",
+      "options": [
+        {
+          "label": "Bring them back",
+          "count": 3100
+        },
+        {
+          "label": "Let them go",
+          "count": 1900
+        }
+      ]
+    },
+    {
+      "id": "f116",
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "political": true,
+      "prompt": "Voting at 16: about time, or too young?",
+      "options": [
+        {
+          "label": "About time",
+          "count": 2300
+        },
+        {
+          "label": "Too young",
+          "count": 2800
+        }
+      ]
+    },
+    {
+      "id": "dl16",
+      "core": false,
+      "cat": "food",
+      "type": "dial",
+      "prompt": "The ideal dinner hour?",
+      "lo": 17,
+      "hi": 23,
+      "unit": "h"
     }
   ]
 }
