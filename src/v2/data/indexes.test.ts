@@ -168,6 +168,34 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
     expect(hit, "the engagement (folded, day) collection-group composite is missing or reshaped — rollupPage fails FAILED_PRECONDITION in production").toBeDefined();
   });
 
+  it("engagement.ts rollupPage: …and the query still ASKS for that order", () => {
+    // The other end of the same claim. The case above says the index
+    // exists; its own comment calls itself "the only thing standing
+    // between that and a silent nightly outage", and it is not — it reads
+    // the JSON only. Delete the `.orderBy("day")` from the query and the
+    // starvation the comment describes comes straight back while the now
+    // unused index sits in the file and every test stays green.
+    //
+    // Read off the source, the way check-anchors reads BREAKDOWN_DIMS out
+    // of pure.ts: the query is inside `firestoreEngagementStore`, behind
+    // an interface every unit test replaces, so nothing that runs can
+    // reach it. A parse that finds nothing is an error rather than an
+    // empty pass, which is what the first two assertions are for.
+    const src = readFileSync(resolve(__dirname, "../../../functions/src/engagement.ts"), "utf8");
+    const call = src.slice(src.indexOf('db.collectionGroup("engagement")'));
+    expect(call, "rollupPage's collection-group query is gone or renamed — this case is now vacuous").not.toBe("");
+    const query = call.slice(0, call.indexOf(".get()"));
+    expect(query, "the query no longer filters on `folded`").toContain('.where("folded", "==", false)');
+    expect(
+      query,
+      "rollupPage stopped ordering by `day`. Firestore then falls back to "
+      + "`__name__`, which for this group is uid-major, so above the fold "
+      + "cap the same low-sorting accounts are taken every night and the "
+      + "rest die unfolded at the 90-day TTL — with the composite index "
+      + "still declared and nothing red.",
+    ).toContain('.orderBy("day")');
+  });
+
   it("live.ts's own-answer delta cursors: answeredAt and editedAt stay unexempted", () => {
     // hydrate() pages the viewer's own answers with `answeredAt >` and
     // `editedAt >` range filters. Both ride the AUTOMATIC single-field
