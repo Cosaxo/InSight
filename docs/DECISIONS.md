@@ -33240,8 +33240,13 @@ renders that as no instrument chips at all, data-driven, no flag.
 **Recorded limits.** The Map's anchor ring is not wired (`MapStats` still
 returns null for the four test anchors; the cube is a second document and
 the Map would need the loader — a follow-up, and the stale comments are
-corrected regardless). The sharded sweep is priced, not built. And
-`data/typeSplit.ts` / `data/logicSplit.ts` are now dead code kept for one
-commit: their deletion touches `scripts/report.test.mjs`' band pin and the
-`voterScores` member, and doing it in the same change as the feature would
-have mixed a cleanup into a build.
+corrected regardless). The sharded sweep is priced, not built. `data/typeSplit.ts` and
+`data/logicSplit.ts` are DELETED with the sampled cut they served — kept
+for exactly one commit so the feature and the cleanup could be read apart,
+then swept: two chips with one name and two denominators is the confusion
+`typeSplit.ts`'s own header warned about, and leaving the modules standing
+would have left the tree claiming a reading it no longer draws. The
+report's band pin moved one file over to `data/traitDims.ts`, which is the
+client's single source for the quarters now. `LIVE.voterScores` survives
+with no consumer, named as such in the surface pin: it is the parsed-scores
+join any future cross-user surface would reach for.

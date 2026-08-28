@@ -115,8 +115,9 @@ test over the write log. Two copies of the matcher now exist in two
 runtimes, so the server's is GENERATED from the client's
 (`scripts/gen-traits.mjs` → `functions/src/traitsContent.ts`) and
 `check:traits` holds them equal on the deploy path, golden fixture
-included. It replaced `data/typeSplit.ts`'s 200-voter device sample, which
-is dead code pending its own sweep.
+included. It replaced a 200-voter device-side sample, whose two modules
+were deleted in the same change — so there is exactly ONE type reading in
+the app, and it is the exact one.
 
 Three structural denies remain, none about answers, each labelled at its
 own path in

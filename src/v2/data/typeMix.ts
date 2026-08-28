@@ -128,8 +128,9 @@ const typeOfDims = (dims: Dim[] | undefined | null, kind: string = TYPE_TEST): s
  *
  * It is asked the same question about the same person over and over. The
  * People lens types the cached sample; `typeMixFor` types the scoped half
- * of it; `typeSharesOn` types all of it; `typeSplitFor` types every cached
- * voter, up to VOTER_FETCH_CAP, on every render of the breakdown sheet.
+ * of it; `typeSharesOn` types all of it. (A fourth caller, the breakdown
+ * sheet's `typeSplitFor`, typed every cached voter on every render until
+ * D330 moved that reading to the server.)
  * All of them read `state.scores[uid]`, which `voters.resolveNames` parses
  * once and then holds — so the input is a stable object and the answer
  * cannot have changed while it is.

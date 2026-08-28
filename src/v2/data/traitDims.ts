@@ -71,13 +71,29 @@ export const TRAIT_GROUPS: TraitGroup[] = TRAIT_KINDS.map((kind) => ({
 
 /** The verified logic score (D227) — not an instrument, its own chip. */
 export const LOGIC_DIM = "logic";
-export const LOGIC_BUCKETS = ["top", "upper", "lower", "bottom"] as const;
-export const LOGIC_LABEL: Record<string, string> = {
-  top: "Top quarter",
-  upper: "Upper middle",
-  lower: "Lower middle",
-  bottom: "Bottom quarter",
-};
+
+/**
+ * The four quarters, floor-first.
+ *
+ * The CLIENT's single source for them since D330 retired
+ * `data/logicSplit.ts` with the sampled cut it served. Kept in this exact
+ * literal shape (`{ id, label, lo }`) because `scripts/report.test.mjs`
+ * pins the sold report's copy against it by parsing this declaration —
+ * the report runs under plain node and cannot import TypeScript, so a
+ * source pin is the only twin available. The SERVER's copy is
+ * `functions/src/traitsFit.ts`'s, ids and floors only; labels never cross
+ * that boundary because the server writes bucket keys and nothing else.
+ */
+export const LOGIC_BANDS = [
+  { id: "top", label: "Top quarter", lo: 75 },
+  { id: "upper", label: "Upper middle", lo: 50 },
+  { id: "lower", label: "Lower middle", lo: 25 },
+  { id: "bottom", label: "Bottom quarter", lo: 0 },
+] as const;
+export const LOGIC_BUCKETS = LOGIC_BANDS.map((b) => b.id);
+export const LOGIC_LABEL: Record<string, string> = Object.fromEntries(
+  LOGIC_BANDS.map((b) => [b.id, b.label]),
+);
 
 /**
  * All 27 dims in display order — each instrument's type dim followed by
@@ -171,7 +187,7 @@ export function myTraitBuckets(rawTestResults: unknown): Record<string, string> 
   const pct = parseLogicPct(rawTestResults);
   out[LOGIC_DIM] = pct == null
     ? UNTESTED
-    : pct >= 75 ? "top" : pct >= 50 ? "upper" : pct >= 25 ? "lower" : "bottom";
+    : (LOGIC_BANDS.find((b) => pct >= b.lo)?.id ?? "bottom");
   return out;
 }
 

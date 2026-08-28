@@ -4,7 +4,7 @@
 //
 //   1. TWIN PINS. report-lib duplicates three client definitions whose
 //      owning modules cannot load under node (their import chains touch
-//      window/live.ts): voters.ts' surface list, logicSplit.ts' bands,
+//      window/live.ts): voters.ts' surface list, traitDims.ts' bands,
 //      similarity.ts' parseLogicPct. The first two are pinned by reading
 //      the SOURCE (the pulse.test.mjs pattern); the parse is compared
 //      against the real function, imported directly — similarity.ts is
@@ -39,10 +39,15 @@ describe("twin pins — the client sources the builder mirrors", () => {
     expect(WORLD_ANSWER_SURFACES).toEqual(theirs);
   });
 
-  it("LOGIC_BANDS matches logicSplit.ts, ids, labels and floors", () => {
-    const m = srcOf("src/v2/data/logicSplit.ts")
+  // Repointed at D330: `data/logicSplit.ts` was deleted with the sampled
+  // cut it served, and `data/traitDims.ts` is the client's single source
+  // for the quarters now. Same pin, same shape, one file over — the
+  // report still runs under plain node and still cannot import
+  // TypeScript, so a source pin remains the only twin available.
+  it("LOGIC_BANDS matches traitDims.ts, ids, labels and floors", () => {
+    const m = srcOf("src/v2/data/traitDims.ts")
       .match(/export const LOGIC_BANDS = \[([\s\S]*?)\] as const;/);
-    expect(m, "logicSplit.ts no longer defines LOGIC_BANDS where this pin looks").toBeTruthy();
+    expect(m, "traitDims.ts no longer defines LOGIC_BANDS where this pin looks").toBeTruthy();
     const theirs = [...m[1].matchAll(/\{ id: "(\w+)", label: "([^"]+)", lo: (\d+) \}/g)]
       .map((x) => ({ id: x[1], label: x[2], lo: Number(x[3]) }));
     expect(theirs.length).toBe(4);

@@ -161,7 +161,7 @@ function LbOptionRows({ options, counts, mine, mode = "pct" }: {
    * `count` draws the same rows with raw counts and a fill scaled to the
    * biggest column rather than to 100.
    *
-   * For the type cut under its floor (data/typeSplit.ts). A percentage
+   * For a cohort too small to carry shares. A percentage
    * off nine people is a number that moves eleven points when one person
    * changes their mind, and a fill drawn as a share of 100 makes the same
    * claim visually even if the label says "3" — so both move together or

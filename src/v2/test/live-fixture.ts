@@ -495,10 +495,10 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       [{ uid: "u_other", optionIdx: 1, anchors: {}, name: "", isMe: false }],
     ],
     votersLoading: () => false,
-    // The who-voted sheet's type cut (data/typeSplit.ts). Both branches
-    // reachable from one list: `u_fixture` carries a readable Big Five and
-    // types, `u_other` has none and lands in the gap between `sampleN` and
-    // `typedN` that the card's basis line exists to state.
+    // The parsed cross-user scores (D112). The who-voted sheet's type cut
+    // read these until D330 replaced it with the published cube; the
+    // fixture keeps a typed row and an untyped one because the member is
+    // still pinned and a future cross-user surface would want both.
     voterScores: () => [
       { uid: "u_fixture", optionIdx: 0, results: { big5: { O: 72, C: 55, E: 15, A: 58, N: 50 } } },
       { uid: "u_other", optionIdx: 1, results: null },

@@ -45,9 +45,11 @@ export const LIVE_MEMBERS = [
   // not ask" and "nobody answered" must not render the same.
   "loadVoters", "voters", "votersByOption", "votersLoading",
   // The same cached list joined to the parsed cross-user scores D112
-  // already fetched — the input to the who-voted sheet's type cut
-  // (data/typeSplit.ts). Listed here rather than reached for directly:
-  // the pin is what makes a new cross-user surface reviewed.
+  // already fetched. It fed the who-voted sheet's SAMPLED type cut until
+  // D330 published that reading as an exact cube, and has no consumer in
+  // the tree today — kept because it is the parsed-scores join every
+  // future cross-user surface would reach for, and listed here because
+  // the pin is what makes such a surface reviewed.
   "voterScores",
   // The shared uid → name cache the same read fills. `nameFor` is a
   // synchronous best-effort read; `loadNames` is the batched fetch that
