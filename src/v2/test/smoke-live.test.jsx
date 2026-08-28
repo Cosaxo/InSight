@@ -2060,6 +2060,27 @@ describe("live mode never inherits the sample persona (D55)", () => {
     expect(window.MapStats.mode("daily-000", "all", 3, 0)).toBe(1);
   });
 
+  // The Map DOT's own reading of the same tie. `dc099bd7` taught MapStats
+  // to answer 'all', which is what put a real number behind every dot —
+  // and in doing so it brought a line that had been dead to life with the
+  // rounding-tie defect still in it: while 'all' refused, `gd` was always
+  // null there and `maj` was hard-coded true. So the fix activated the
+  // bug, in the block it edited.
+  //
+  // `maj` decides `is-rare` on the dot and "a rare take" in the card, so
+  // on a tie the person who picked the option with MORE votes had their
+  // answer marked as the rare one.
+  it("the Map dot's majority reading follows the votes, not the rounding", () => {
+    live = installLive({ aggCounts: { 0: 449, 1: 451, 2: 100 } });
+    const d = window.MapStats.dist("daily-000", "all", 3, 1);
+    // The rounding tie is really there — otherwise the case proves nothing.
+    expect(d[0], "the fixture no longer produces a rounding tie").toBe(d[1]);
+    // Reading it the way the constellation used to.
+    expect(d.indexOf(Math.max(...d))).toBe(0);
+    // …and the way it reads now: option 1 has 451 votes.
+    expect(window.MapStats.mode("daily-000", "all", 3, 1)).toBe(1);
+  });
+
   it("draws no group split on a Map answer in live mode", () => {
     live = installLive();
     expect(window.MapStats.dist("daily-000", "age", 3, 0), "MapStats still fabricates")

@@ -136,7 +136,10 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
       counts[meta.catId] = (counts[meta.catId] || 0) + 1;
       // how typical your answer is among everyone — drives layout + dot style
       const nOpt = Math.max(2, q.options ? q.options.length : 10);
-      const gd = window.MapStats ? window.MapStats.dist(q.id, 'all', nOpt, idx) : null;
+      // Bound once — the coupling ratchet counts references, and this
+      // block asks MapStats two things.
+      const MS = window.MapStats;
+      const gd = MS ? MS.dist(q.id, 'all', nOpt, idx) : null;
       // The residue, and it is a real absence rather than the old one: a
       // question NOBODY has answered yet has no typicality to read, so the
       // dot takes the neutral radius and is not called rare. What changed
@@ -144,7 +147,16 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
       // every question on every live build, because MapStats refused
       // 'all' outright.
       const typ = gd ? gd[idx] / 100 : 0.5;
-      const maj = gd ? gd.indexOf(Math.max(...gd)) === idx : true;
+      // ASK for the mode. `gd` is rounded, and two different counts can
+      // round to the same integer, so `indexOf(max)` breaks a real tie by
+      // INDEX — and `maj` decides whether this dot is marked a rare take.
+      // While 'all' refused, `gd` was always null here and this line was
+      // dead; teaching MapStats to answer 'all' brought it to life WITH
+      // the tie defect, in the same commit and the same block. MapStats
+      // reads the counts, so it is the one that can answer.
+      const asked = MS ? MS.mode(q.id, 'all', nOpt, idx) : null;
+      const maj = asked != null ? asked === idx
+        : gd ? gd.indexOf(Math.max(...gd)) === idx : true;
       let parent = meta.catId;
       if (path[1]) {
         const key = meta.catId + '|' + path[1];

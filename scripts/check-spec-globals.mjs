@@ -457,7 +457,7 @@ const COUPLING_BASELINE = {
   "src/v2/spec/lens-cards.jsx": 3,
   "src/v2/spec/map-bottom-card.jsx": 4,
   "src/v2/spec/map-learn-card.jsx": 3,
-  "src/v2/spec/map-tab.jsx": 18,
+  "src/v2/spec/map-tab.jsx": 17,
   "src/v2/spec/mirror-field-pops.jsx": 23,
   "src/v2/spec/mirror-tab.jsx": 6,
   "src/v2/spec/passive-progress.js": 2,
