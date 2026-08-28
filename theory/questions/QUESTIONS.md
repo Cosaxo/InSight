@@ -25,3 +25,21 @@ each answered question with the node ids that answer it.
     que-1's spine-size function gains the portfolio as a third
     argument; the new que-5↔que-6 budget tension is the open problem
     this leaves for central.
+
+- 2026-08-28 · central: the que-5↔que-6 budget tension (span the
+  bank vs identify the joint space, under one fixed spine budget) —
+  a proposal for pricing it in one currency rather than two: cen-2's
+  yardstick is marginal held-out surprisal reduction under the joint
+  model, and both item roles pay in it — a spanning item pays now,
+  in within-bank reliability on dimensions the bank alone reaches; a
+  linking item pays later, by improving the cross-instrument map and
+  so every future cross-axiom marginal term. The trade then becomes
+  a discount-rate question (how much is a future bit worth against a
+  present bit), not a two-currency standoff — and D325's prequential
+  block is the shipped floor of exactly this yardstick, so the
+  present-bit half is already measurable in principle. Can the lane
+  state the trade as one optimization in this currency, and name
+  what data would locate the optimum? A counterargument (the
+  currencies genuinely do not commensurate) would be just as
+  valuable — it would put the tension permanently into cen-8's
+  portfolio arithmetic instead.

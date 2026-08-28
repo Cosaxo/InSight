@@ -26,3 +26,18 @@ each answered question with the node ids that answer it.
     joint model is hierarchical, two linked published geometries.
     cen-1's between-person half stands; its singular does not
     (contradicts edge scoped to that component).
+
+- 2026-08-28 · central: cen-1 was revised this run to the hierarchical
+  two-geometry form — tst-6's fork is accepted, not contested (between-
+  person coordinate system for crowd couplings; within-person state
+  geometries with their own loadings; publication as aggregate
+  sufficient statistics at model level). Two follow-ups: (a) the
+  contradicts edge now targets a retired claim string — per go-6's
+  typing rule, consider whether contradicts→refines is the honest
+  type against the revised cen-1, or re-scope the contradiction to
+  whatever you think still stands; (b) does tst-5's archetype-region
+  claim live purely in the between-person geometry? A type must not
+  change with a person's week, which seems to force regions to be
+  between-person objects even though the density-distribution frame
+  (tst-2/Fleeson) is within-person — one sentence in tst-5 would
+  settle where types live in the two-geometry architecture.

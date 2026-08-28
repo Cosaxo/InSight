@@ -1,61 +1,67 @@
 # The central axiom — current theory
 
-*Regenerated from `graph.json` on 2026-08-26 (first scheduled central
-run). The graph is the data; this page is its readable face. Status
-per claim in brackets.*
+*Regenerated from `graph.json` on 2026-08-28. The graph is the data;
+this page is its readable face. Status per claim in brackets.*
 
 Central's subject is the combination: how the axioms join, which
 carry the most value, and which new ones should exist (CHARTER §6).
-Six claims, none yet above `argued` — this lane's evidence so far is
+Eight claims, none yet above `argued` — this lane's evidence is
 synthesis over the sibling graphs, and the next rung (external
-grounding) is named per node below.
+grounding) is named per node below. This run resolved the program's
+first `contradicts` edge (tst-6→cen-1) by accepting the fork.
 
 ## The joint model — how the axioms join
 
-**One joint person-model, published as an auditable coordinate system
-rather than embodied in any single engine (cen-1, argued).** Every
-axiom contributes measurements of the same latent person; couplings
-are the geometry of that shared space. This run specified the model
-family: "one joint person-model" means one published coordinate
-system — factor-shaped, held to the instrument-grade standard pat-7
-grounds, kept recomputable as pat-2 argues (with a code-verified note
-that the shipped fit already keeps that contract). Engines may change
-with scale — pat-6 makes engine choice an empirical measurement, and
-at current scale the presumptive factor engine and the audit layer
-coincide. Each axiom maps in through its own measurement model:
-keyed ability items, self-position items (tst-3's two families),
-banded bio imports (gen-2, gen-8), sensor bands (bod-2) — que-2's
-item-parameter frame widened from questions to everything. Two named
-risks the node carries openly: distillation faithfulness is
-unmeasured technology (pat-7's cited evidence — a learned engine must
-agree with the audit space out of sample, and nobody yet knows how to
-certify that), and the identity of the instrument space with the
-combination space is an assumption the tests lane has been asked to
-attack. The rejected alternative — pairwise correlation tables
-between axiom silos — fails because each pairwise table lives on a
-different intersection population (pat-4), so the collection is
-mutually incoherent, while a joint model with explicit missingness
-consumes ragged pairing natively.
+**One joint hierarchical person-model, published as an auditable
+coordinate system rather than embodied in any single engine (cen-1,
+argued — revised this run).** The 2026-08-26 form claimed ONE
+published coordinate system; the tests lane contradicted the
+singular (tst-6, on tst-7's cited ergodicity and score-indeterminacy
+facts), pattern reached the same fork with independent estimator
+machinery (pat-3, cited: three separately-estimable coupling
+structures, not one), and map carried the display consequence
+(map-6, cited) — three sides of one shared fact base (tst-7). The
+revision accepts the fork:
+a between-person geometry every axiom measures into through its own
+measurement model, plus within-person state geometries with their
+own estimated loadings where occasions exist — linked in one
+hierarchical model, with cross-level invariance tested, never
+assumed. Publication is settled at the model level: aggregate
+sufficient statistics that reproduce couplings with uncertainty,
+never per-person latent draws, and never a table of person scores —
+which is also db-6's join currency, reached from the database side
+(partly by synthesis over central's own cen-6, so it is convergent
+machinery, not independent confirmation). What survives unchanged:
+coordinate-system-not-engine
+(pat-2, pat-7), engine choice as empirical measurement (pat-6, whose
+prequential instrument shipped as D325, the bridge's first
+crossing), and the named faithfulness risk (pat-7).
 
-**The custody law (cen-6, argued — new this run).** Raw stays where
-the person is; what crosses into shared computation is derived and
-carries its basis; what is published is recomputable. Three roles a
-datum can occupy: personal (raw, full-resolution, the person's own
-custody — cen-4's outside-axiom entry generalized), shared
-computation (derived only: banded scores, edge-folded bands,
-values-with-provenance), published (aggregate, reader-recomputable,
-client-drawable — pat-2, map-5). The excluded architecture is pooled
-RAW under operator custody, and the exclusion is carried by the
-custody lanes on their own grounds: unrevocable familial data
-(gen-2), kinship consent (gen-6), re-identification surface at
-near-zero coupling value (bod-2). The law does not forbid shared
-computation over consented streams at native grain (the answer
-stream is public by the product's own consent model) or per-person
-derived state with declared access — "derived, with its basis" is
-the line. Every bridge request must name its tier; a request that
-moves raw across custody is malformed. (This run's adversarial pass
-demolished a stronger "exactly two grains, no third" form; this is
-the survivor.)
+**The custody law (cen-6, argued).** Raw stays where the person is;
+what crosses into shared computation is derived and carries its
+basis; what is published is recomputable. Three roles a datum can
+occupy — personal, shared-computation, published — and the excluded
+architecture is pooled raw under operator custody, carried by the
+custody lanes on their own grounds (gen-2, gen-6, bod-2). Every
+bridge request must name its tier. New this run: the law's external
+grounding now exists lane-side (db-2 cited for custody-as-layout,
+db-7 cited for erasure as a cross-store transaction); this node's
+own rise waits on sources in its own list.
+
+**The honesty grammar (cen-7, argued — new this run).** Every
+published cross-axiom coupling is a declared object: its level, its
+population and basis, its decomposition, its instrument-validity
+status and its sampling design travel with the number. Seven lanes
+carry clauses of this grammar (gen-11, bod-6/7/8, tst-6, pat-3/
+pat-5, db-6/db-8, map-6, que-4) — the subject lanes from their own
+evidence, the reader lanes partly by synthesis (db-6 builds on
+central's own cen-6, so it is not counted as confirmation); the
+composition into one grammar is this lane's contribution. Each
+missing clause has a named cost: a composite
+masquerading as a mechanism, an unmeasured channel masquerading as a
+small coupling, a serving-policy artifact masquerading as a
+population fact, three objects collapsed into one wrong number.
+cen-6 says what may cross; cen-7 says what a crossing means.
 
 **Outside-axiom entries are first-class (cen-4, argued).** A person
 may cross one axiom against the rest without it joining any crowd —
@@ -64,33 +70,35 @@ nothing. An axiom can be valuable at population zero.
 
 ## The portfolio — which axioms carry the most value
 
-**Value is marginal information about the rest (cen-2, argued).**
-Operationalized this run: an axiom's *crowd value* is the drop in
-held-out one-step-ahead predictive log-loss on the other axioms'
-observations when its columns enter the conditioning set — evaluated
-on a common population (the whole answered stream, under the joint
-model's explicit missingness), never on per-pair intersections,
-which would reproduce the incoherence cen-1 rejects. Pairing (pat-4)
-governs the estimate's precision, not its definition: thin pairing
-means wide error bars on value, not zero value. The yardstick is the
-same prequential one pat-6 uses for engine choice, and the standing
-benchmark ruled worth-building this run supplies its baseline term.
-Crowd value is not the whole of value: *personal-lens value* (cen-4)
-exists at population zero, and the portfolio counts both components.
-Current ranking, argued not measured: **questions** dominate — the
-answer stream is the common conditioning set whose removal collapses
-every other axiom's identification, and the phenotype battery is the
-scarce asset whose factory the questions axiom is (gen-3);
-**tests** second, on the two grounds that survive the metric — keyed
-logic items are genuinely new observations (an ability channel the
-opinion stream does not carry), and the instruments are the joint
-space's interpretable coordinates; instrument scores derived from
-already-conditioned answers add roughly zero marginal information by
-construction, so the slot rests on those two grounds and would
-otherwise fall; **body and genetic** today carry mostly personal-lens
-value plus option value on crowd information that rises with pairing.
-Falsifier: if a bio axiom's banded columns fail to reduce answer-side
-surprisal even at grown pairing, the portfolio demotes it.
+**The metric (cen-2, argued — restated this run; ranking fissioned
+to cen-8).** An axiom's crowd value is the drop in held-out
+one-step-ahead predictive log-loss on the other axioms' observations
+when its columns enter the conditioning set — evaluated on a common
+population under explicit missingness, never on per-pair
+intersections. Its personal-lens value exists at population zero but
+is NOT free: pat-8 (cited) makes the budget two-dimensional —
+persons fund crowd value, the person's own occasions fund personal
+value, and N/T compensation fails structurally for person-specific
+estimands. A genotype has no within-person half; body channels
+repeat by nature. The metric's baseline term now ships (D325's
+prequential quality block); its path to `measured` runs through the
+main-readable scorecard snapshot ruled worth-building this run.
+
+**The ranking (cen-8, argued — new this run, fissioned from
+cen-2).** Questions first: the common conditioning set, the
+phenotype-battery factory (gen-3), and now a designable slot —
+que-5 bends the spine toward joint-space identification, and gen-10
+makes genetic tractability a spine-composition property. Tests
+second, on logic's genuinely new ability channel (tst-3) plus the
+instruments as interpretable coordinates — derived instrument scores
+add ~zero marginal bits by construction, so the slot rests on those
+two grounds. Body and genetic are unordered between themselves,
+split on pat-8's two funding dimensions: body is occasions-funded
+(bod-5's within-person sleep couplings; the pulse roster is the
+shipped occasions source), genetic is
+pairing-funded (option value with growing pairing, direct-output
+anchors, constant-column personal conditioning). Each slot carries
+its falsifier in the node.
 
 ## New axioms — which should exist
 
@@ -99,28 +107,30 @@ surprisal even at grown pairing, the portfolio demotes it.
 chronotype, voice, environment and place history, microbiome,
 social-graph texture. Each needs its own mini-argument (what it
 explains that nothing else does, custody class, pairing cost) before
-it firms up; the list is meant to be re-derived as the graphs mature,
-not defended.
+it firms up; the list is meant to be re-derived as the graphs
+mature, not defended.
 
 ## The research ambition
 
 **Contributions to areas like aging run through published,
-provenance-carrying couplings over consented aggregates — and nothing
-else (cen-5, argued).** The combination is a research instrument
-exactly to the extent its outputs are reproducible by outsiders:
-couplings with n, method, sampling model (pat-5), at aggregate grain.
-gen-4 (cited) carries the aging-specific half: behavior×clock crosses
-over the phenotype battery, with the genotype as a weak prior.
+provenance-carrying couplings over consented aggregates — and
+nothing else (cen-5, argued).** The combination is a research
+instrument exactly to the extent its outputs are reproducible by
+outsiders: couplings with n, method, sampling model (pat-5), at
+aggregate grain — which is cen-7's grammar read as a publication
+requirement. gen-4 (cited) carries the aging-specific half.
 
 ## What would move this theory up the ladder
 
-- cen-1 → cited: multi-battery latent variable modeling and IRT
-  linking/equating literature; → measured: the joint model fitted and
-  compared against the score shelf on InSight's own published numbers.
-- cen-2 → cited: marginal-predictive-value and prequential evaluation
-  literature; → measured: the standing benchmark, if built, gives the
-  baseline term.
-- cen-6 → cited: local-first computation and federated-analytics
-  literature (aggregate-only publication), plus grounding for the
-  industry-default claim the node deliberately does not assert.
-- cen-3: waits on residuals existing — which waits on the joint model.
+- cen-1 → cited: multi-battery latent modeling, IRT linking,
+  multilevel SEM; → measured: the between layer fitted against the
+  score shelf on InSight's own published numbers.
+- cen-2 → cited: marginal-predictive-value and prequential
+  evaluation literature; → measured: D325's series read from `main`
+  (the scorecard-snapshot request, ruled worth-building this run).
+- cen-7 → cited: reporting-standards precedent (GRADE, STROBE-class
+  statements) as external grounding for declaration grammars.
+- cen-6 → cited: local-first and federated-analytics literature in
+  this node's own source list (db-2/db-7 ground it lane-side today).
+- cen-3: waits on residuals existing — which waits on the joint
+  model.

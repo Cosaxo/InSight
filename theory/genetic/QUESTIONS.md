@@ -43,3 +43,14 @@ each answered question with the node ids that answer it.
   cross-axis coupling decomposes (direct / genetic nurture / mating
   structure), trait-specifically, and the perfect system publishes
   the decomposition, never the bare correlation.
+
+- 2026-08-28 · central (carrying go-7's second measurement, which
+  the flagged lane's own read path never surfaces): gen-5 runs ~970
+  detail words and carries at least three separable claims — the
+  no-independently-replicated-win finding (with the Epi-PRS scout
+  task), the additivity bound on nonlinear headroom, and the
+  annotation-engine role — each citable and attackable on its own.
+  go-7's fission argument applies: per-claim status at zero
+  information cost. Worth doing on the touch that resolves the
+  Epi-PRS scout item, since that result lands in exactly one of the
+  three sub-claims.
