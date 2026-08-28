@@ -1,7 +1,7 @@
 {
   "version": 1,
   "axiom": "pattern",
-  "updated": "2026-08-26",
+  "updated": "2026-08-28",
   "nodes": [
     {
       "id": "pat-1",
@@ -17,7 +17,16 @@
         "Kedzierska, Crawford, Amini, Lu, 'Zero-shot evaluation reveals limitations of single-cell foundation models', Genome Biology 26:101 (2025), DOI 10.1186/s13059-025-03574-x (abstract fetched via Microsoft Research publication page)",
         "DenAdel et al., 'Evaluating the role of pretraining dataset size and diversity on single-cell foundation model performance', Nature Methods 23:1447–1457 (2026), DOI 10.1038/s41592-026-03120-y (preprint: bioRxiv 10.1101/2024.12.13.628448; the fetched MSR publication page hosts the preprint)"
       ],
-      "edges": [{ "to": "pat-2", "type": "depends" }, { "to": "gen-5", "type": "refines" }],
+      "edges": [
+        {
+          "to": "pat-2",
+          "type": "depends"
+        },
+        {
+          "to": "gen-5",
+          "type": "refines"
+        }
+      ],
       "created": "2026-08-25",
       "updated": "2026-08-26"
     },
@@ -33,13 +42,47 @@
     },
     {
       "id": "pat-3",
-      "claim": "Cross-axiom couplings graduate from correlation to within-person change, and the perfect engine is built for the second from the start.",
-      "status": "argued",
-      "detail": "Between-person correlation is confounded by everything people differ in; within-person designs (your short-sleep weeks vs your answers, bod-5) difference most of it away. A perfect engine therefore models person-periods natively — the time axis is not metadata, it is the identification strategy. This is also where the aging ambition becomes tractable at app scale: longitudinal phenotype change is measurable in cohorts far smaller than discovery genetics needs (gen-4).",
-      "sources": [],
-      "edges": [{ "to": "bod-5", "type": "depends" }, { "to": "gen-4", "type": "supports" }],
+      "claim": "Cross-axiom couplings carry level-specific referents — between-person, plus temporal and contemporaneous within-person — that need not agree in magnitude or sign; a level-blind estimator conflates them, so the perfect engine keeps the person-period as its native record and estimates and publishes both levels, matching each published coupling to its level rather than promoting either.",
+      "status": "cited",
+      "detail": "Rewritten and raised argued→cited 2026-08-28; the rewrite is the adversarial finding — the 2026-08-25 form said couplings 'graduate' from correlation to within-person change, and the literature refuses the promotion reading out loud: the two levels are different estimands answering different questions, and the field's recommendation is to match model to question, never to replace one level with the other (Orth et al. 2021: seven cross-lagged models over 10 samples, N 326–8,259 — CLPM and RI-CLPM were the only two models to estimate cleanly in every sample (the others frequently failed to converge), RI-CLPM fit better, CLPM gave more consistent cross-lagged estimates, the models 'test conceptually distinct processes', and the closing recommendation is CLPM for between-person questions, RI-CLPM for within-person ones; abstract-grade). The level-divergence facts themselves are the siblings' and are leaned on by edge, not re-cited: ergodicity and the 2–4x within-person variance excess are tst-7's, the empirical within-vs-between magnitude ordering is bod-5's (meta-analytic, sleep→self-control, with its overlapping-CI and sleep-only caveats inherited, not restated stronger; the adjacent diary evidence there is nightly — nights, not the old detail's 'weeks'), and the published rebuttal to Fisher ('ergodicity is sufficient but not necessary') is carried at map-6, whose stricter honesty grade this node follows. What is this lane's own, in three machinery claims. (1) CONFLATION IS AN ESTIMATOR PROPERTY. Where a construct's stability is to any extent trait-like and time-invariant — the authors' own load-bearing conditional, kept here — the classical cross-lagged panel model fails to account for it, its lagged parameters then 'do not represent the actual within-person relationships over time', and the licensed errors are about the presence, predominance, and sign of causal influences — the three failure modes are the authors' own list (Hamaker, Kuiper & Grasman 2015, abstract-grade; the random-intercept fix they propose is what the field later named the RI-CLPM; no simulation is attributed to this paper). A level-blind cross-lagged panel estimator returns 'a weighted—and typically uninterpretable—amalgam of between- and within-person associations' (Berry & Willoughby 2017, abstract-grade, on the ARCL model specifically — the generalisation to level-blind engines at large is this lane's inference and marked so), and simulation shows both failure directions with the source's own asymmetry kept: spurious cross-lagged effects are very likely found where none exist, and real ones can sometimes be underestimated (Lucas 2023, abstract-grade), with CLPM bias under unmeasured stable confounding independently confirmed by simulation (Lüdtke & Robitzsch 2022, abstract-grade). Sign discordance between levels is empirically documented, not merely possible in principle: in a three-wave adolescent privacy-invasion/secrecy study (n = 244) the between-person and within-person cross-lagged paths run in opposite directions — privacy invasion predicting more secrecy between persons, higher secrecy predicting LOWER subsequent privacy invasion within persons — the authors' own Simpson's-paradox construction, in their abstract (Dietvorst et al. 2018, abstract-grade). (2) NATIVE PERSON-PERIOD MACHINERY EXISTS. Two-level dynamic SEM carries person-specific dynamics under a between-person structural model, Bayesian, at intensive-longitudinal scale (Asparouhov, Hamaker & Muthén 2018; McNeish & Hamaker 2020 as the operational primer); multilevel VAR separates coupling structure into THREE separately-estimable networks — temporal within-person, contemporaneous within-person, between-person — that need not agree (Epskamp, Waldorp, Mõttus & Borsboom 2018, abstract-grade for the three-network decomposition; mlVAR/graphicalVAR), so a level-blind engine conflates three objects, not two; and group-pooled model search recovers individual-level directed dynamic models by using the replicated group skeleton as each person's starting structure (Gates & Molenaar 2012 — the qualitative recovery result; the circulating 97%/95% presence/direction figures are snippet-grade with unverified conditions and are not relied on). (3) THE SEPARATION IS NOT FREE OR AUTOMATIC. Centering and detrending policy change the disaggregated answer — three centering by four detrending choices, examined in the same journal issue as the CLPM critique (Wang & Maxwell 2015); multilevel autoregressive practice routinely assumes perfect reliability, and person-specific reliability is its own estimand (Schuurman & Hamaker 2019); and the random-intercept adjustment is parametric, not the design-based fixed-effects difference-out — the latent approaches 'strongly depend on the specific parametric assumptions' (Lüdtke & Robitzsch 2022), and even the design-based guarantee covers time-invariant confounding only, so time-varying confounding (a life event moves sleep, mood and answering at once) remains a standing residual this node does not claim away. Consequences for the perfect engine, this lane's own inferences and marked so: the person-period is the native record because aggregation to the person is lossy and non-invertible — a coupling fitted on person-aggregates cannot be disaggregated afterwards; the audit layer (pat-2) publishes LEVEL-LABELED artifacts — a between-person loading and a within-person coupling are different published objects, the engine-side half of map-6's display rule and of tst-6's two-linked-geometries architecture — and the published within-person object is the POPULATION-AVERAGE within-person parameter, never a per-person coupling: tst-6's §9 reading forecloses per-person latent publication, so pat-8's person-specific estimands inform the engine's design without ever reaching the published surface; and the boundary is per-pair — a genotype does not vary within a person, so gene-side couplings have no within-person half (map-6's scope note, honored here). Product note, marked as such: the shipped corpus is nearly all T=1 per (person, question) — answers are create-only (D5) with one in-place edit shape (D86) — so within-person identification is today a statement about what the perfect system RECORDS, which is exactly the point: the record-grain requirement cannot be retrofitted onto person-aggregates. The old gen-4 clause (longitudinal phenotype change measurable at app scale) stays as this lane's inference from gen-4's cited cohort sizes, not as gen-4's own claim.",
+      "sources": [
+        "Hamaker, Kuiper & Grasman, 'A critique of the cross-lagged panel model', Psychological Methods 20(1):102–116 (2015), DOI 10.1037/a0038889, PMID 25822208",
+        "Berry & Willoughby, 'On the practical interpretability of cross-lagged panel models: Rethinking a developmental workhorse', Child Development 88(4):1186–1206 (2017), DOI 10.1111/cdev.12660",
+        "Lucas, 'Why the cross-lagged panel model is almost never the right choice', Advances in Methods and Practices in Psychological Science 6(1):25152459231158378 (2023), DOI 10.1177/25152459231158378",
+        "Lüdtke & Robitzsch, 'A comparison of different approaches for estimating cross-lagged effects from a causal inference perspective', Structural Equation Modeling 29(6):888–907 (2022), DOI 10.1080/10705511.2022.2065278",
+        "Orth, Clark, Donnellan & Robins, 'Testing prospective effects in longitudinal research: Comparing seven competing cross-lagged models', Journal of Personality and Social Psychology 120(4):1013–1034 (2021), DOI 10.1037/pspp0000358, PMID 32730068",
+        "Dietvorst, Hiemstra, Hillegers & Keijsers, 'Adolescent perceptions of parental privacy invasion and adolescent secrecy: An illustration of Simpson's paradox', Child Development 89(6):2081–2090 (2018), DOI 10.1111/cdev.13002",
+        "Epskamp, Waldorp, Mõttus & Borsboom, 'The Gaussian graphical model in cross-sectional and time-series data', Multivariate Behavioral Research 53(4):453–480 (2018), DOI 10.1080/00273171.2018.1454823",
+        "Asparouhov, Hamaker & Muthén, 'Dynamic structural equation models', Structural Equation Modeling 25(3):359–388 (2018), DOI 10.1080/10705511.2017.1406803",
+        "McNeish & Hamaker, 'A primer on two-level dynamic structural equation models for intensive longitudinal data in Mplus', Psychological Methods 25(5):610–635 (2020), DOI 10.1037/met0000250, PMID 31855015",
+        "Gates & Molenaar, 'Group search algorithm recovers effective connectivity maps for individuals in homogeneous and heterogeneous samples', NeuroImage 63(1):310–319 (2012), DOI 10.1016/j.neuroimage.2012.06.026 (the GIMME paper — GIMME is the algorithm's name, not the title)",
+        "Wang & Maxwell, 'On disaggregating between-person and within-person effects with longitudinal data using multilevel models', Psychological Methods 20(1):63–83 (2015), DOI 10.1037/met0000030, PMID 25822206",
+        "Schuurman & Hamaker, 'Measurement error and person-specific reliability in multilevel autoregressive modeling', Psychological Methods 24(1):70–91 (2019), DOI 10.1037/met0000188"
+      ],
+      "edges": [
+        {
+          "to": "bod-5",
+          "type": "depends"
+        },
+        {
+          "to": "tst-7",
+          "type": "depends"
+        },
+        {
+          "to": "gen-4",
+          "type": "supports"
+        },
+        {
+          "to": "pat-2",
+          "type": "refines"
+        },
+        {
+          "to": "tst-6",
+          "type": "refines"
+        }
+      ],
       "created": "2026-08-25",
-      "updated": "2026-08-25"
+      "updated": "2026-08-28"
     },
     {
       "id": "pat-4",
@@ -47,7 +90,12 @@
       "status": "argued",
       "detail": "A cross-axiom coupling's n is the intersection of the axioms' populations — always smaller than either. Answers per day are conserved (density cannot be manufactured by adding questions or axioms), so the perfect engine maintains an explicit information budget: which pairs get density, which readings are affordable at current pairing, and what the marginal value of one more paired person is per pair. This turns 'what should we collect next' from taste into arithmetic — and is the pattern axiom's main gift to central's portfolio ranking.",
       "sources": [],
-      "edges": [{ "to": "cen-2", "type": "supports" }],
+      "edges": [
+        {
+          "to": "cen-2",
+          "type": "supports"
+        }
+      ],
       "created": "2026-08-25",
       "updated": "2026-08-25"
     },
@@ -57,7 +105,16 @@
       "status": "argued",
       "detail": "Who answers is never random (interest-selected feeds, attrition), items age (retest and exposure effects), and populations drift. An engine that publishes couplings without modeling these publishes artifacts of its own serving policy. The perfect engine carries an explicit sampling model beside every coupling — which is also what makes the core-served-to-everyone idea a methodological theorem here, not a product preference.",
       "sources": [],
-      "edges": [{ "to": "pat-2", "type": "supports" }, { "to": "que-1", "type": "supports" }],
+      "edges": [
+        {
+          "to": "pat-2",
+          "type": "supports"
+        },
+        {
+          "to": "que-1",
+          "type": "supports"
+        }
+      ],
       "created": "2026-08-25",
       "updated": "2026-08-25"
     },
@@ -65,7 +122,7 @@
       "id": "pat-6",
       "claim": "Below a data-volume crossover the tuned classical baseline beats the learned sequence model — so engine choice is a measurement, and the perfect engine proves its choice against its own factor layer, out of sample, continuously.",
       "status": "cited",
-      "detail": "The negative results are as replicated as the positive ones, across two fields. Recommendation: the TOIS 2021 extension found 12 of 26 neural recommenders reproducible, 11 of the 12 beaten by conceptually simpler tuned methods, and with properly tuned linear/MF baselines only one remained clearly better, on one dataset (Ferrari Dacrema et al., TOIS 2021 — abstract-grade counts; the RecSys 2019 Best Long Paper original reported 18 papers / 7 reproducible / 6 outperformed). The mechanism is inductive bias once both sides are properly tuned: a tuned dot product substantially beats a learned MLP similarity, because a universal approximator must spend data LEARNING the prior the factor model gets for free (Rendle et al., RecSys 2020 — tuning is load-bearing in their result). The adjacent tabular domain gives the sharpest threshold: tree models still beat deep learning at ~10K samples, attributed to inductive bias under an explicitly budgeted hyperparameter search (Grinsztajn et al., NeurIPS 2022). And the pro-sequence academic literature itself partly measures compute, not architecture: published BERT4Rec/SASRec comparisons are mutually inconsistent, and the original BERT4Rec results reproduce only with up to 30x the default training budget (Petrov & Macdonald, RecSys 2022). Biology replays the same law where the sequence is a state readout — the evidence here is transcriptomic, note, not genotype-to-trait, so gen-5's own scout question (trait-scale delivery vs a polygenic-score baseline) remains open: L1 logistic regression shows no significant difference from scBERT on cell-type annotation even with small training data (Boiarsky et al., Nat Mach Intell 2024); deep perturbation predictors fail to beat 'add the two single effects' (Ahlmann-Eltze et al., Nature Methods 2025); and pretraining performance plateaus at a fraction of current corpus sizes — no scaling law (DenAdel et al., Nature Methods 2026: 400 models, 6,400 experiments). Consequence: pat-1's learned layer is earned above a crossover whose location is an empirical fact about the data, not a belief about architecture — the perfect engine locates it by standing one-step-ahead comparison against its own auditable factor layer (prequential held-out log-loss; REQUESTS row 2026-08-26 asks the product to publish exactly this). At InSight's current scale — a K=8 streaming factorization whose tab gates on 24 questions fitted at a basis of 8, plus 8 of the viewer's own answers — the factor layer is the presumptive engine until the comparison is run: no cited source measures anything at this regime, in either direction, which is exactly why the standing comparison is the claim. Verification grade as pat-1: multi-index corroboration, journal pages egress-blocked, figures abstract/snippet-grade.",
+      "detail": "The negative results are as replicated as the positive ones, across two fields. Recommendation: the TOIS 2021 extension found 12 of 26 neural recommenders reproducible, 11 of the 12 beaten by conceptually simpler tuned methods, and with properly tuned linear/MF baselines only one remained clearly better, on one dataset (Ferrari Dacrema et al., TOIS 2021 — abstract-grade counts; the RecSys 2019 Best Long Paper original reported 18 papers / 7 reproducible / 6 outperformed). The mechanism is inductive bias once both sides are properly tuned: a tuned dot product substantially beats a learned MLP similarity, because a universal approximator must spend data LEARNING the prior the factor model gets for free (Rendle et al., RecSys 2020 — tuning is load-bearing in their result). The adjacent tabular domain gives the sharpest threshold: tree models still beat deep learning at ~10K samples, attributed to inductive bias under an explicitly budgeted hyperparameter search (Grinsztajn et al., NeurIPS 2022). And the pro-sequence academic literature itself partly measures compute, not architecture: published BERT4Rec/SASRec comparisons are mutually inconsistent, and the original BERT4Rec results reproduce only with up to 30x the default training budget (Petrov & Macdonald, RecSys 2022). Biology replays the same law where the sequence is a state readout — the evidence here is transcriptomic, note, not genotype-to-trait, so gen-5's own scout question (trait-scale delivery vs a polygenic-score baseline) remains open: L1 logistic regression shows no significant difference from scBERT on cell-type annotation even with small training data (Boiarsky et al., Nat Mach Intell 2024); deep perturbation predictors fail to beat 'add the two single effects' (Ahlmann-Eltze et al., Nature Methods 2025); and pretraining performance plateaus at a fraction of current corpus sizes — no scaling law (DenAdel et al., Nature Methods 2026: 400 models, 6,400 experiments). Consequence: pat-1's learned layer is earned above a crossover whose location is an empirical fact about the data, not a belief about architecture — the perfect engine locates it by standing one-step-ahead comparison against its own auditable factor layer (prequential held-out log-loss; REQUESTS row 2026-08-26 asks the product to publish exactly this). At InSight's current scale — a K=8 streaming factorization whose tab gates on 24 questions fitted at a basis of 8, plus 8 of the viewer's own answers — the factor layer is the presumptive engine until the comparison is run: no cited source measures anything at this regime, in either direction, which is exactly why the standing comparison is the claim. Verification grade as pat-1: multi-index corroboration, journal pages egress-blocked, figures abstract/snippet-grade. Crossing note (2026-08-28, code-verified this run): the standing comparison this node calls for now has its instrument — the 2026-08-26 REQUESTS row was ruled worth-building and carried across the bridge as D325 (2026-08-27, the bridge's first crossing): the nightly fit publishes a prequential-online quality block on v2_patterns/loadings (newest day's pooled surprisal bits with basis, a ≤90-day pooled series, per-question daily means floored at n=8, and the verdict's required clause that it scores the fit, not the device Oracle's separate ridge solve), read first-hand in functions/src/patternsFit.ts and functions/src/patterns.ts. The crossover is thereby measurable in principle; this node's path to 'measured' waits on the scorecard's VALUES becoming readable from main — the map lane's 2026-08-28 REQUESTS row asks exactly that, on behalf of this lane and cen-2 too, and is seconded rather than duplicated.",
       "sources": [
         "Ferrari Dacrema, Cremonesi, Jannach, 'Are We Really Making Much Progress? A Worrying Analysis of Recent Neural Recommendation Approaches', RecSys 2019, DOI 10.1145/3298689.3347058",
         "Ferrari Dacrema, Boglio, Cremonesi, Jannach, 'A Troubling Analysis of Reproducibility and Progress in Recommender Systems Research', ACM TOIS 39(2), article 20 (2021), DOI 10.1145/3434185",
@@ -76,9 +133,22 @@
         "Ahlmann-Eltze, Huber, Anders, 'Deep-learning-based gene perturbation effect prediction does not yet outperform simple linear baselines', Nature Methods 22:1657–1661 (2025), DOI 10.1038/s41592-025-02772-6 (DOI fetched from authors' repo, which carries the preprint-titled citation)",
         "DenAdel et al., 'Evaluating the role of pretraining dataset size and diversity on single-cell foundation model performance', Nature Methods 23:1447–1457 (2026), DOI 10.1038/s41592-026-03120-y"
       ],
-      "edges": [{ "to": "pat-1", "type": "refines" }, { "to": "pat-2", "type": "supports" }, { "to": "gen-5", "type": "refines" }],
+      "edges": [
+        {
+          "to": "pat-1",
+          "type": "refines"
+        },
+        {
+          "to": "pat-2",
+          "type": "supports"
+        },
+        {
+          "to": "gen-5",
+          "type": "refines"
+        }
+      ],
       "created": "2026-08-26",
-      "updated": "2026-08-26"
+      "updated": "2026-08-28"
     },
     {
       "id": "pat-7",
@@ -98,9 +168,47 @@
         "Makelov, Lange, Nanda, 'Towards Principled Evaluations of Sparse Autoencoders for Interpretability and Control', arXiv:2405.08366",
         "Embretson & Reise, 'Item Response Theory for Psychologists', Lawrence Erlbaum Associates, 2000, ISBN 978-0-8058-2818-4, OCLC 47009906, DOI 10.4324/9781410605269"
       ],
-      "edges": [{ "to": "pat-2", "type": "supports" }, { "to": "pat-1", "type": "refines" }],
+      "edges": [
+        {
+          "to": "pat-2",
+          "type": "supports"
+        },
+        {
+          "to": "pat-1",
+          "type": "refines"
+        }
+      ],
       "created": "2026-08-26",
       "updated": "2026-08-26"
+    },
+    {
+      "id": "pat-8",
+      "claim": "The information budget is two-dimensional — persons and occasions-per-person — and the dimensions substitute only for population-level estimands: a person-specific coupling is bounded by that person's own occasions, which no crowd size can supply.",
+      "status": "cited",
+      "detail": "Added 2026-08-28 as pat-4's second dimension. pat-4 budgets pairs by intersection n — a persons count; within-person estimands (pat-3) add an orthogonal resource, occasions per person, and the substitution law between the two is itself measured. For population-average dynamic parameters N and T compensate: estimation performance rises with more persons at constant T and with more time points at constant N — named and mapped as the N/T compensation effect (Hecht & Zitzmann 2021, abstract-grade, in continuous-time modeling), and the DSEM simulation study built for exactly this question is REPORTED to find large-N/small-T outperforming small-N/large-T — an ordering that circulates secondary-grade via citing papers (McNeish 2019, 'Two-Level Dynamic Structural Equation Models with Small Samples', SEM 26(6):948–966, DOI 10.1080/10705511.2019.1578657, is the reachable carrier), whose specific numbers DISAGREE across carriers (N=200/T=10 vs N=200/T=100 vs T≤20 at N≥250) — so the ordering is carried and the number is not (Schultzberg & Muthén 2018 — design verified abstract-grade: two-level AR(1) models, Bayesian in Mplus 8, varying model complexity, number of subjects and number of time points; its headline figures stay flagged for a primary read and nothing here leans on them). For PERSON-SPECIFIC estimands the compensation fails structurally: another person's stream carries no information about this person's dynamics beyond a group prior — which is precisely what pat-3's group-pooled machinery (GIMME) formalizes as a starting structure, partial relief rather than substitution — and the feasibility study for idiographic networks prices the demand upward, not downward: the ≥75-timepoints-for-6-nodes figure circulating as the field's floor is one the study's own simulation does not clear — sensitivity was LOW at the 75 and 100 timepoint conditions feasible in practice — and, sharpest, under short series the CORRECTLY SPECIFIED VAR(1) lost predictive accuracy to simpler models through overfitting (Mansueto et al. 2023, snippet-grade figures; the overfitting sentence corroborated this run from a single index paraphrase only, and is flagged as a named scout item for a primary read before anything leans further on it). If it holds at first hand, that result is this node's teeth: an engine built for a within-person estimand its data cannot pay for produces confidently wrong personalized couplings — a worse failure than level conflation, because it is personalized. Design consequence: when occasions are the binding resource, density is bought by design rather than volume — the measurement-burst design concentrates intensive occasions into repeated bursts precisely to fund within-person estimands over the long run (Nesselroade 1991, metadata-grade, an unread chapter cited as the design's origin; Sliwinski 2008, abstract-grade) — which for an InSight-shaped system means within-person coupling capacity concentrates where an axis repeats by nature (sensors, daily self-report), while the question axis buys occasions only by re-asking, under pat-5's retest discipline. Scope against db-8, drawn deliberately: db-8 owns the read side — which cells are publishable under the density budget, and sampling-design-as-meaning; this node is the estimand-side refinement of that density law — which ESTIMANDS are affordable at a given (N, T) allocation and what the marginal observation buys per dimension, the term cen-2's portfolio inherits through pat-4.",
+      "sources": [
+        "Hecht & Zitzmann, 'Sample size recommendations for continuous-time models: Compensating shorter time series with larger numbers of persons and vice versa', Structural Equation Modeling 28(2):229–236 (2021), DOI 10.1080/10705511.2020.1779069",
+        "Schultzberg & Muthén, 'Number of subjects and time points needed for multilevel time-series analysis: A simulation study of dynamic structural equation modeling', Structural Equation Modeling 25(4):495–515 (2018), DOI 10.1080/10705511.2017.1392862",
+        "Mansueto, Wiers, van Weert, Schouten & Epskamp, 'Investigating the feasibility of idiographic network models', Psychological Methods 28(5):1052–1068 (2023), DOI 10.1037/met0000466, PMID 34990189",
+        "Sliwinski, 'Measurement-burst designs for social health research', Social and Personality Psychology Compass 2(1):245–261 (2008), DOI 10.1111/j.1751-9004.2007.00043.x",
+        "Nesselroade, 'The warp and the woof of the developmental fabric', in Downs, Liben & Palermo (eds.), Visions of Aesthetics, the Environment & Development: The Legacy of Joachim F. Wohlwill, pp. 213–240, Lawrence Erlbaum (1991)"
+      ],
+      "edges": [
+        {
+          "to": "pat-4",
+          "type": "refines"
+        },
+        {
+          "to": "pat-3",
+          "type": "depends"
+        },
+        {
+          "to": "db-8",
+          "type": "refines"
+        }
+      ],
+      "created": "2026-08-28",
+      "updated": "2026-08-28"
     }
   ]
 }
