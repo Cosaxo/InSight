@@ -32859,3 +32859,107 @@ asserts the tree's own state, so every FUTURE change to mark, builder
 or output trips the gate until a real run. The gate cannot verify the
 2026-08-27 icons match the 2026-08-27 mark; D324's audit is what says
 that, and this record inherits rather than re-proves it.
+
+## D327 · Anonymous answers and private results — drafted for adoption
+
+**Drafted:** 2026-08-27 · **Status:** Proposed — binds nothing until the
+owner adopts it (ORIENTATION §6's rule; D269 is the precedent for a
+record drafted ahead of the word). Source: VISION-2026-08-26 §1, whose
+§9 step 1 asks for exactly this sentence in this file.
+
+**The question, in three parts.** (1) Does a per-answer anonymous
+option exist at all — the first exception to D98 that is ABOUT answers,
+subtracting exactly the linkable data the Mirror draws. (2) On which
+surfaces — the design says the feed card and the daily's world card
+only, and NEVER duels, where identity is the game and the seal is the
+privacy. (3) What may the copy promise — see the result-privacy
+paragraph, which is the weaker half and must be promised as such.
+
+**The shape, if adopted** (named here so the build has no choices left):
+an anonymous answer writes a SURFACE VALUE outside the public list
+(`daily-anon` / `feed-anon`). Every existing reader — named who-voted,
+compare, the person map, "people like you" — excludes it without
+changing a line, because the D65-shaped list filters already name only
+public surfaces; no read-rule edit, no backfill. **The rejected shape,
+named so nobody re-proposes it:** an `anon: true` field with `!= true`
+value tests — a `where("anon","==",false)` filter drops every existing
+answer lacking the field, demanding a backfill or a default written
+forever. The aggregate trigger folds the anon surface exactly like its
+base surface, which is what keeps "your pick still moves the count"
+true; population counts stay exact. Choice at vote time, immutable
+after — D86's one edit shape is untouched, and an anonymize-later path
+is refused here: a mutable privacy field on an immutable answer is a
+second update shape. The owner still reads their own (`uid == uid`),
+which is what draws the Mirror's stamp.
+
+**Result privacy is weaker, and the record says so.** A private test
+result hides the projection, not the inputs — the constituent
+`surface: "test"` answers stay public and a determined reader can
+re-derive the scores. The honest shape is ABSENCE: a private result's
+scores are not written to the profile projection others read, which
+also costs that person their place in strangers' kindred rankings and
+score compares — it has to, or it is not private. The stronger promise
+(test answers gain the anon surface too) is a bigger sentence and is
+NOT part of this record; adopting it later is its own amendment.
+
+**The paperwork is most of the build:** the D183 account panel's
+"Nothing you answer here is private." gains its one qualifier in the
+same commit as the rules; `web/privacy.html` says the long version
+once; both claims get `check:policy-claims` rows; `check:public-copy`
+sweeps the new copy; the prototype's local keys join `check:purge`;
+rules tests run both directions and the erasure e2e leg is unchanged
+(anon answers are still the owner's docs). Build order on adoption is
+VISION-2026-08-26 §9 step 4, rules first; the feature is not shipped
+until the claims gate holds the sentence the panel says.
+
+**Cost:** zero new reads — the surface-value shape rides every existing
+query. The costed item is the decision itself: every anonymous answer
+is one the People lens, compare and the voter lists cannot draw.
+
+**Adoption asks one of:** adopt whole · adopt the answer half only
+(no result privacy) · refuse. A part-adoption should say which
+sentence of the panel copy it licenses.
+
+## D328 · Subscription pricing: a split across seats, not a per-buyer price — drafted for adoption
+
+**Drafted:** 2026-08-27 · **Status:** Proposed — binds nothing until
+the owner adopts it. Source: VISION-2026-08-26 §2.2; PAID-PLAN §5/§6.
+§9 step 1 asks for this sentence before any catalog copy prints a
+price.
+
+**The question:** when a place-score metric takes subscribers, is its
+period price a PER-BUYER price (each subscriber pays the posted line)
+or a SPLIT (the metric's period cost divides evenly across its
+seats)?
+
+**The proposal is the split**, as the 2026-08-26 design derives it: a
+subscription is a forward contract on the same posted market line —
+a panel of answers per period × the line, −20% for the standing
+commitment — and because results are PUBLIC, a per-buyer price is a
+free-rider invitation: the second buyer would pay full price for a
+number the first buyer's money already publishes. Under the split the
+second subscriber halves the bill instead of buying it twice, with a
+€24 seat floor recomputed each period so a crowded metric never sells
+below the floor. Inactive catalog metrics take PLEDGES and go live the
+day pledges cover a period. Lapse keeps §5's standing rule with a seat
+count in front of it: a lapse drops one seat; while others still fund
+the metric the series runs on (the room draws the lapsed buyer's
+post-lapse days in grey); only the last seat's lapse pauses it, and
+history is kept either way.
+
+**What adopting decides NOW is the model and the copy** — the catalog
+sheet prints the split arithmetic, which is why the record precedes
+the build. The MACHINERY (seat membership, per-period splits, pledge
+escrow and its refund story, the billing recompute — all server-side
+records in the `v2_purchases` family) stays demand-gated by PAID-PLAN
+§9's own rule: worth building the day there are two would-be
+subscribers for one metric, and not before. On adoption, PAID-PLAN
+§5/§6/§9 are amended in the same sitting — that file, not the vision
+doc, is where the arithmetic lives.
+
+**The alternative, named:** per-buyer pricing is simpler machinery
+(no seats, no splits, no escrow) and prices the same metric at N× the
+split for N subscribers of a public number — the design's judgement
+is that this either suppresses the second subscriber or invites the
+free ride, and either way misprices a public good. Adopting the
+alternative instead should say which of those two costs it accepts.
