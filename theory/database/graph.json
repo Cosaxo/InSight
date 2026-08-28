@@ -1,7 +1,7 @@
 {
   "version": 1,
   "axiom": "database",
-  "updated": "2026-08-26",
+  "updated": "2026-08-28",
   "nodes": [
     {
       "id": "db-1",
@@ -16,32 +16,69 @@
     {
       "id": "db-2",
       "claim": "Custody is a layout property before it is a policy: the perfect database physically separates custody classes, so a policy error cannot read what the layout never co-located.",
-      "status": "argued",
-      "detail": "World-readable aggregates, owner-readable records and device-only source data live in physically distinct stores with distinct access machinery, and the private-to-public path is a one-way fold. In such a layout a rules bug leaks nothing the layout did not already co-locate — protection by construction rather than by configuration. The genetic theory's custody-minimal claim (gen-2) is this principle applied to one axis; here it is the general storage law.",
-      "sources": [],
+      "status": "cited",
+      "detail": "World-readable aggregates, owner-readable records and device-only source data live in physically distinct stores with distinct access machinery, and the private-to-public path is a one-way fold. In such a layout a rules bug leaks nothing the layout did not already co-locate — protection by construction rather than by configuration. The genetic theory's custody-minimal claim (gen-2) is this principle applied to one axis; here it is the general storage law. Raised to cited 2026-08-28: the principle is shipped practice in clinical research infrastructure, which faces exactly this custody problem at scale. i2b2 (Murphy et al. 2010) builds identity separation into the architecture itself — a distinct Identity Management cell apart from the Data Repository cell, an honest-broker workflow, and configurable obfuscation of result counts — the obfuscation strategy is its own paper, Murphy et al. 2011 [2010 paper abstract-grade; cell architecture practice-grade from the i2b2 community wiki]. The All of Us program holds one corpus as separately versioned, separately gated materializations at different privacy depths — the Registered and Controlled tier CDRs are distinct published artifacts (v7: R2022Q4R9 and C2022Q4R9, separate data dictionaries), differing in date shifting and demographic suppression, so custody is WHICH ARTIFACT you may hold, not which row a rule lets you query [practice/repo-grade: program documentation and data dictionaries; program description in NEJM 2019, abstract-grade]. MIMIC-IV applies an irreversible per-person date shift before anything leaves the source — the custody transition is a lossy transform at a physical boundary, not a permission [abstract-grade; the shift-window figure is snippet-grade]. Product note (docs/data-inventory.md, read this run): the shipped app states the principle in one line at the push-token move — 'a field guarded by a rule is one edit from being readable, a path with no read grant is not' — and its localStorage-only rows (lens results, feed passes and deferrals, per-item timings) are device custody as layout. Environment caveat: publisher pages egress-blocked from this container; sources corroborated at two or more independent index records, grades labeled inline.",
+      "sources": [
+        "Murphy SN, Weber G, Mendis M, Gainer V, Chueh HC, Churchill S, Kohane I (2010). Serving the enterprise and beyond with informatics for integrating biology and the bedside (i2b2). J Am Med Inform Assoc 17(2):124-130. DOI 10.1136/jamia.2009.000893",
+        "Murphy SN, et al. (2011). Strategies for maintaining patient privacy in i2b2. J Am Med Inform Assoc, 2011 [abstract-grade]",
+        "The All of Us Research Program Investigators (2019). The \"All of Us\" Research Program. N Engl J Med 381(7):668-676. DOI 10.1056/NEJMsr1809937; with the program's Registered/Controlled tier CDR v7 data dictionaries (R2022Q4R9 / C2022Q4R9, researchallofus.org user support)",
+        "Johnson AEW, Bulgarelli L, Shen L, et al. (2023). MIMIC-IV, a freely accessible electronic health record dataset. Sci Data 10:1. DOI 10.1038/s41597-022-01899-x"
+      ],
       "edges": [{ "to": "gen-2", "type": "supports" }],
       "created": "2026-08-26",
-      "updated": "2026-08-26"
+      "updated": "2026-08-28"
     },
     {
       "id": "db-3",
-      "claim": "The perfect database is two databases and a bridge: an append-only private ledger of events, folding into exactly-shaped public read models.",
-      "status": "argued",
-      "detail": "Reads and writes want opposite shapes. The write side wants an immutable event ledger — auditable, replayable, erasable per person. The read side wants precomputed, bounded documents shaped exactly like the screens and fits that consume them. The bridge is the deterministic fold that turns one into the other, and it is the single place where custody transitions (db-2) happen. The product already lives a small version of this — write-time folds onto published aggregates — and the perfect form is that pattern made total.",
-      "sources": [],
+      "claim": "The perfect database is two databases and a bridge: an append-only private ledger of events folding deterministically into exactly-shaped public read models, with the bridge as the single place custody transitions happen — and the fold's determinism is a designed property, holding only where its algebra is commutative or arrival order is retained.",
+      "status": "cited",
+      "detail": "Restated and raised 2026-08-28 — the scout run showed the original form ('auditable, replayable, erasable per person' as free properties) understated what each costs, and the adversarial pass then moved the erasure clauses wholly into db-7, which refines this node and carries their evidence. The pedigree and the formal basis: Kreps's state-machine-replication principle — identical deterministic processes given the same inputs in the same order end in the same state — is the formal license for the fold [practice-grade]; Young's event-store formulation ('mathematically equivalent to store the end of the equation or the equation that represents it') and Kleppmann's log-centric architecture (jobs consume the log and build cached views; rebuild by re-consuming) state the two halves, and Kleppmann himself names complete deletion 'surprisingly hard' [Young full-text via a faithful repo reproduction; Kleppmann snippet-grade]. Helland grounds immutability as the distributed-coordination primitive [abstract-grade]. The fold is not free-form: self-maintainable views exist only under tight conditions (the conditions results are Quass, Gupta, Mumick & Widom 1996 and kin; surveyed in Gupta & Mumick 1995), so 'exactly-shaped' is load-bearing — shapes are chosen so the fold needs only the view and the incoming event; DBSP (VLDB 2023, Best Research Paper — award verified across three records) proves automatic incrementalization for full SQL with retraction first-class (Z-sets, negative multiplicities), which is the algebra that lets an erasure propagate into every read model; and differential dataflow (McSherry et al. 2013 — full text; the consolidation passage re-extracted verbatim from the paper's PDF this run: reconstruction cost 'will grow without bound as t increases', updates behind a frontier 'consolidated into the equivalent of a checkpoint', a step the Naiad prototype includes) shows even the ideal incremental system must compact, with the trace-compaction machinery developed further in Shared Arrangements (PVLDB 2020) [abstract-grade]. So the perfect ledger carries a compaction frontier, and the erasure boundary should be that same mechanism rather than a second, contradictory one — subject to db-7's condition that the erasure marker outlive every consumer's rebuild horizon. Two honest limits carried in-node: (1) Fowler's own caveat — read/write splitting is 'risky complexity' for most systems and is orthogonal to event sourcing — so the bundle must earn itself per reader, which db-4's frontier evidence is [snippet-grade]; (2) fold determinism holds only while the fold is commutative or arrival order is retained: the shipped replay (functions/src/replay.ts, code-verified this run) rebuilds every aggregate from append-only per-person answer docs, is exact for rank folds and unsaturated vote folds, but on a dimension at BREAKDOWN_MAX_BUCKETS eviction makes the fold order-dependent — replay yields A correct fold, not THE fold — and the edits matrix is a projection whose source deltas are not retained, so it is carried forward as its own primary fact. A projection is rebuildable, or it is primary; the design must say which, per read model. Erasure's crossing of the bridge is db-7's subject. Environment caveat: most sources corroborated at index/snippet level (egress-blocked container), grades labeled; differential dataflow read at full text.",
+      "sources": [
+        "Kreps J (2013). The Log: What every software engineer should know about real-time data's unifying abstraction. LinkedIn Engineering blog [practice-grade]",
+        "Young G (2010). CQRS Documents. cqrs.files.wordpress.com; read via the faithful reproduction github.com/keyvanakbary/cqrs-documents [practice-grade, full text]",
+        "Helland P (2015). Immutability Changes Everything. CIDR 2015; also ACM Queue 13(9) [abstract-grade]",
+        "Kleppmann M (2015). Turning the database inside-out with Apache Samza. Strange Loop 2014 talk, transcript martin.kleppmann.com 2015-03-04; and Kleppmann M (2017), Designing Data-Intensive Applications, O'Reilly, ch. 11 [practice/snippet-grade]",
+        "Fowler M (2011). CQRS. martinfowler.com/bliki/CQRS.html [practice-grade]",
+        "Gupta A, Mumick IS (1995). Maintenance of Materialized Views: Problems, Techniques, and Applications. IEEE Data Engineering Bulletin 18(2):3-18 [abstract-grade]",
+        "Quass D, Gupta A, Mumick IS, Widom J (1996). Making Views Self-Maintainable for Data Warehousing. PDIS 1996 [abstract-grade]",
+        "McSherry F, Murray DG, Isaacs R, Isard M (2013). Differential dataflow. CIDR 2013 [full text, via the TimelyDataflow/differential-dataflow repository PDF; consolidation passage verified verbatim]",
+        "McSherry F, Lattuada A, Schwarzkopf M, Roscoe T (2020). Shared Arrangements: practical inter-query sharing for streaming dataflows. PVLDB 2020; arXiv:1812.02639 [abstract-grade]",
+        "Budiu M, Chajed T, McSherry F, Ryzhyk L, Tannen V (2023). DBSP: Automatic Incremental View Maintenance for Rich Query Languages. PVLDB 16(7):1601-1614. DOI 10.14778/3587136.3587137 [abstract-grade; VLDB 2023 Best Research Paper, verified]",
+        "Materialize (MaterializeInc/materialize) README [repo-grade: incremental maintenance under arbitrary inserts, updates and deletes, exact consistency]"
+      ],
       "edges": [{ "to": "db-2", "type": "depends" }],
       "created": "2026-08-26",
-      "updated": "2026-08-26"
+      "updated": "2026-08-28"
     },
     {
       "id": "db-4",
-      "claim": "Three readers, three shapes: the device, the population fit, and consented research export cannot be served efficiently by one storage shape.",
-      "status": "conjecture",
-      "detail": "The device wants small, cacheable, per-person documents; the population fit wants columnar matrices over the whole corpus; consented research export wants versioned, de-identified snapshots with provenance. The conjecture: the perfect database maintains all three as materializations of the same ledger (db-3) rather than forcing one shape to serve all readers. Scout task before this rises: survey how production systems split these demands — OLTP/OLAP separation, feature stores, clinical research data warehouses — with real citations.",
-      "sources": [],
+      "claim": "Three readers, three materializations of one ledger — layouts, not systems: no single physical layout is known to serve the device, the population fit and the research export without a measured throughput-and-freshness cost, one system over several derived shapes is the norm, the export differs by transformation and provenance rather than by scan shape, and the count of shapes grows.",
+      "status": "cited",
+      "detail": "Raised from conjecture 2026-08-28 by the survey the seed asked for; the claim is restated to what the evidence supports, in three parts. (1) LAYOUTS, NOT SYSTEMS. The row/column divide is architectural, not schema-deep: a row store cannot capture the columnar advantage without changing both storage layer and executor (Abadi, Madden & Hachem 2008), the line of argument opened by Stonebraker & Çetintemel 2005 and C-Store 2005. And the pair-based HTAP taxonomies classify single SYSTEMS by which PAIR of shapes they maintain (Li & Zhang 2022: four classes, all pairs; Zhang et al. 2024's four storage architectures likewise), while production systems say so plainly: TiDB materializes a columnar replica (TiFlash) from its Raft log; F1 Lightning derives analytical storage from change-data-capture; Oracle's dual-format design keeps the in-memory columnar copy maintained simultaneously, with transactional consistency, against the persisted row-major format; SAP HANA — titled against the column-store myth — still runs per-lifecycle-stage formats (delta row, read-optimized main). One interface, several shapes, is the industry's converged answer. (2) 'CANNOT' WEAKENS TO A MEASURED FRONTIER. Monolithic single-format HTAP exists as a named survey category (Song et al. 2024, facing 'contradictory format demands'), and HyPer served both workloads from one representation plus fork/copy-on-write snapshots at claimed best-of-breed [abstract-grade — though the snapshot is itself a transient second materialization]; Milkai et al. 2022 formalize the real cost as a measurable throughput frontier plus a freshness-versus-isolation trade. So the claim is about cost, not possibility. (3) THE EXPORT IS A DIFFERENT AXIS, AND THE COUNT GROWS. What makes a research export its own materialization is irreversible transformation, freezing, versioning and provenance — MIMIC-IV's per-person date shift, All of Us's tiered CDRs, the FAIR artifact properties — not scan efficiency; Chorus shows interactive privacy can be a query rewrite over the production store, so the export's separateness rests on citability and lossy de-identification, which a rewrite cannot give. And feature-store practice already runs row + column + vector behind one API (Hopsworks 2024; the embedding shift, Orr et al. 2021), so three is today's count, not a law. Prior art and rival, named: OctopusDB (CIDR 2011, vision track) is this exact architecture — storage views in different physical layouts over a logical event log as primary storage — proposed and never productized; BigDAWG answers the same no-one-size premise with federation over heterogeneous engines instead. The ledger-derivation answer fits this system better because its honesty contract requires every published number recomputable (pat-2), which federation does not give. Environment caveat: publisher pages egress-blocked; all sources corroborated at two or more independent index records; C-Store's famous speedup figures are snippet-grade and deliberately not quoted in the claim.",
+      "sources": [
+        "Stonebraker M, Cetintemel U (2005). \"One Size Fits All\": An Idea Whose Time Has Come and Gone. ICDE 2005. DOI 10.1109/ICDE.2005.1",
+        "Stonebraker M, Abadi DJ, Batkin A, et al. (2005). C-Store: A Column-oriented DBMS. VLDB 2005, pp. 553-564",
+        "Abadi DJ, Madden SR, Hachem N (2008). Column-Stores vs. Row-Stores: How Different Are They Really? SIGMOD 2008. DOI 10.1145/1376616.1376712",
+        "Li G, Zhang C (2022). HTAP Databases: What is New and What is Next. SIGMOD 2022 tutorial. DOI 10.1145/3514221.3522565",
+        "Zhang C, Li G, Zhang J, Zhang X, Feng J (2024). HTAP Databases: A Survey. IEEE TKDE. arXiv:2404.15670",
+        "Song H, Zhou W, Cui H, Peng X, Li F (2024). A survey on hybrid transactional and analytical processing. The VLDB Journal 33:1485-1515. DOI 10.1007/s00778-024-00858-9",
+        "Huang D, et al. (2020). TiDB: A Raft-based HTAP Database. PVLDB 13(12):3072-3084. DOI 10.14778/3415478.3415535",
+        "Yang J, Rae I, Xu J, Shute J, et al. (2020). F1 Lightning: HTAP as a Service. PVLDB 13(12):3313-3325. DOI 10.14778/3415478.3415553",
+        "Lahiri T, Chavan S, Colgan M, Das D, et al. (2015). Oracle Database In-Memory: A Dual Format In-Memory Database. ICDE 2015. DOI 10.1109/ICDE.2015.7113373",
+        "Sikka V, Faerber F, Lehner W, Cha SK, Peh T, Bornhoevd C (2012). Efficient Transaction Processing in SAP HANA Database: The End of a Column Store Myth. SIGMOD 2012. DOI 10.1145/2213836.2213946",
+        "Kemper A, Neumann T (2011). HyPer: A hybrid OLTP&OLAP main memory database system based on virtual memory snapshots. ICDE 2011. DOI 10.1109/ICDE.2011.5767867",
+        "Milkai E, Chronis Y, Gaffney KP, Guo Z, Patel JM, Yu X (2022). How Good is My HTAP System? SIGMOD 2022. DOI 10.1145/3514221.3526148",
+        "de la Rua Martinez J, Buso F, Kouzoupis A, et al. (2024). The Hopsworks Feature Store for Machine Learning. SIGMOD 2024 Companion. DOI 10.1145/3626246.3653389",
+        "Orr L, Sanyal A, Ling X, Goel K, Leszczynski M (2021). Managing ML Pipelines: Feature Stores and the Coming Wave of Embedding Ecosystems. PVLDB 14(12):3178-3181. DOI 10.14778/3476311.3476402",
+        "Johnson AEW, et al. (2023). MIMIC-IV. Sci Data 10:1. DOI 10.1038/s41597-022-01899-x; and Johnson AEW, et al. (2016), MIMIC-III, Sci Data 3:160035. DOI 10.1038/sdata.2016.35",
+        "Wilkinson MD, Dumontier M, Aalbersberg IJ, et al. (2016). The FAIR Guiding Principles for scientific data management and stewardship. Sci Data 3:160018. DOI 10.1038/sdata.2016.18",
+        "Johnson N, Near JP, Hellerstein JM, Song D (2020). Chorus: a Programming Framework for Building Scalable Differential Privacy Mechanisms. IEEE EuroS&P 2020. arXiv:1809.07750",
+        "Dittrich J, Jindal A (2011). Towards a One Size Fits All Database Architecture (OctopusDB). CIDR 2011, Outrageous Ideas and Vision track",
+        "Duggan J, Elmore AJ, Stonebraker M, et al. (2015). The BigDAWG Polystore System. ACM SIGMOD Record 44(2):11-16"
+      ],
       "edges": [{ "to": "db-3", "type": "depends" }],
       "created": "2026-08-26",
-      "updated": "2026-08-26"
+      "updated": "2026-08-28"
     },
     {
       "id": "db-5",
@@ -52,6 +89,59 @@
       "edges": [{ "to": "db-3", "type": "refines" }],
       "created": "2026-08-26",
       "updated": "2026-08-26"
+    },
+    {
+      "id": "db-6",
+      "claim": "The join's currency is sufficient statistics carrying their basis, not raw rows: cross-axis connection composes derived quantities that name their n and provenance, which makes the join custody-preserving and recomputable at once.",
+      "status": "argued",
+      "detail": "Added 2026-08-28 by synthesis over the sibling graphs' current runs; no external evidence is claimed — that is the next rung (candidate literature: distributed model fitting and federated aggregation via sufficient statistics). Three lanes converge on the same grain from three directions. Central's custody law (cen-6): what crosses into shared computation is derived and carries its basis. Tests (tst-7, cited): person-level latent scores are indeterminate estimates that secondary analysis cannot consume directly — plausible values are the remedy — so even setting custody aside, a join over raw point estimates is statistically wrong; the join wants statistics with a stated basis and uncertainty, not rows pretending to be measurements. Pattern (pat-2): every published pattern must be recomputable by a reader from public numbers, which is only possible if what crossed into the fold is itself published statistics rather than private rows. So the perfect database's join layer is not a row store with foreign keys; it is a statistics exchange — each axis contributes (statistic, basis n, provenance, version), and joins compose statistics. db-1 said the join is the unit of design; this node says what the join is made of. The OHDSI network is the pattern at civilizational scale — analyses run where the data lives, only aggregates travel (Hripcsak et al. 2016, noted as supporting context, not yet marshalled as this node's evidence). Product note (docs read this run): the shipped system already joins this way where it joins at all — the Mirror's cohort readings fold agg.by cells (counts with their basis), the similarity fields ride published aggregates, and v2_call_outcomes publishes the exact inputs snapshot a grade was computed from so the join stays recomputable (docs/data-inventory.md).",
+      "sources": [],
+      "edges": [
+        { "to": "db-1", "type": "refines" },
+        { "to": "cen-6", "type": "supports" },
+        { "to": "tst-7", "type": "depends" },
+        { "to": "pat-2", "type": "depends" }
+      ],
+      "created": "2026-08-28",
+      "updated": "2026-08-28"
+    },
+    {
+      "id": "db-7",
+      "claim": "Per-person erasure is a transaction across ledger, bridge and read models — and key destruction counts as erasure only conditionally: the honest design keeps personal payloads out of the immutable structure so erasure is ordinary deletion, scopes crypto-shredding to backups and immutable media under verifiably irreversible key destruction, records each erasure as a permanent fact, and lets only anonymous folds survive.",
+      "status": "cited",
+      "detail": "Added 2026-08-28. The write side's canonical answer to deletion was a compensating event (Young, db-3), which is exactly what erasure law does not accept: the GDPR's structural premise is mutability (Finck, EP STOA study 2019), and regulators treat key destruction as erasure only conditionally, never simpliciter — the EDPB's blockchain guidelines (02/2025, v2.0 adopted 2026-07-07; found by this run's adversarial pass after the scout missed them) accept fulfilment of the right to erasure by destruction of a securely managed off-chain decryption key, or deletion of the off-chain component, where on-chain storage is unavoidable; CNIL 2018 holds on-chain erasure 'technically impossible' and says the cryptographic workarounds 'do not, strictly speaking, result in an erasure of the data' while blessing deletion of off-chain-referenced data; the ICO's beyond-use doctrine permits treating undeletable backup data as deleted under four conditions, one of which is permanent deletion as soon as it becomes possible; and the EDPB's coordinated erasure enforcement report (adopted 2026-02-18) names backups and weak anonymisation-as-substitute as the enforcement failure zones [all snippet-grade via multiple independent legal-press and regulator index records]. The reconciliation is layered and each layer is named. (1) FORGETTABLE PAYLOADS, the primary mechanism: personal data lives outside the immutable structure and is referenced from it; erasure is ordinary deletion in a mutable store; the ledger keeps its shape and order, and the fold must treat an absent payload as a first-class case (Verraes 2019 — the shape CNIL independently blesses off-chain). (2) CRYPTO-SHREDDING, scoped to immutable media and backups — the one place key destruction genuinely beats deletion, and exactly where the EDPB found controllers failing — grounded in NIST SP 800-88 Rev. 2's cryptographic erase with its stated prerequisites: no plaintext ever on the medium, verifiable key zeroization [snippet-grade; Rev. 1 was withdrawn 2025-09-26 — cite Rev. 2]. CJEU C-413/23 P's relative-identifiability holding (2025-09-04) helps this leg only if key destruction is architecturally irreversible from the controller's own position [snippet-grade, nine legal-press records]. (3) EXCISION as the escape hatch, with Datomic's refinement: the erasure itself leaves a permanent record — auditability of the FACT of erasure is a different, achievable property than auditability of the erased content, and it is what keeps db-3's 'auditable' true through an erasure rather than in spite of it [practice-grade, vendor docs]. The failure modes are mechanical, not philosophical: crypto-shredding does not reach derived read models computed from plaintext — the read side is where erasure actually fails, per the pattern's own advocate's caveat (Verraes) — so erasure must propagate through the bridge into every read model (DBSP's first-class retractions are the algebra for this, db-3); and log-compaction tombstones expire (Kafka delete.retention.ms, default one day; Apache JIRA KAFKA-7137), after which a rebuild reconstructs the erased person — replayability and erasure conflict at mechanism level unless the erasure marker outlives every consumer's rebuild horizon [practice-grade]. Product note (code and docs read this run): the shipped app is a fourth technique in miniature — person-partitioned sources (per-uid answer docs; deleteAccount erases by partition sweep), a uid-bearing ledger that TTLs at 90 days, anonymous folds surviving deletion, and D293 recording the honest residual (moderation-verdict rows whose ids carry uids). Environment caveat: legal and standards documents were unreachable from this container; every source corroborated at two or more independent index or legal-press records, grades labeled; the peer-reviewed treatment of this tension lives in the blockchain-immutability literature (Politou et al. 2019), not in an event-sourcing literature, which does not exist at peer-reviewed grade.",
+      "sources": [
+        "Verraes M (2019). Eventsourcing Patterns: Crypto-Shredding; and Eventsourcing Patterns: Forgettable Payloads. verraes.net, May 2019 [practice-grade]",
+        "NIST SP 800-88 Revision 2 (2025). Guidelines for Media Sanitization. Published 2025-09-26, superseding Rev. 1 (withdrawn same date) [standards document, snippet-grade]",
+        "CNIL (2018). Blockchain: Solutions for a responsible use of the blockchain in the context of personal data. September 2018 [regulator guidance, snippet-grade via six independent legal-press records]",
+        "EDPB (2026). Coordinated Enforcement Action: Implementation of the right to erasure by controllers (CEF 2025 report), adopted 2026-02-18 [snippet-grade via law-firm summaries]",
+        "Finck M (2019). Blockchain and the General Data Protection Regulation. European Parliament STOA study PE 634.445, July 2019",
+        "CJEU, EDPS v Single Resolution Board, Case C-413/23 P, judgment of 2025-09-04 [snippet-grade via nine legal-press records]",
+        "ICO (UK). Guidance on deleting personal data: the 'beyond use' conditions. ico.org.uk [regulator guidance, snippet-grade]",
+        "Politou E, Casino F, Alepis E, Patsakis C (2019 preprint, arXiv:1907.07099). Blockchain Mutability: Challenges and Proposed Solutions. IEEE Transactions on Emerging Topics in Computing 9(4):1972-1986, 2021",
+        "EDPB (2026). Guidelines 02/2025 on processing of personal data through blockchain technologies, v2.0, adopted 2026-07-07 (v1.0 for public consultation 2025-04-08) [snippet-grade via EDPB pages and multiple legal-press records]",
+        "Datomic documentation: Excision. docs.datomic.com [practice-grade]",
+        "Apache Kafka log compaction semantics (delete.retention.ms) and Apache JIRA KAFKA-7137 [practice-grade]"
+      ],
+      "edges": [
+        { "to": "db-3", "type": "refines" },
+        { "to": "db-2", "type": "supports" }
+      ],
+      "created": "2026-08-28",
+      "updated": "2026-08-28"
+    },
+    {
+      "id": "db-8",
+      "claim": "The read side's publishable grain is bounded by the answer-density budget and the serving policy, not by storage: observations per day are conserved regardless of corpus size, and how its inputs were sampled is part of what a read model means.",
+      "status": "argued",
+      "detail": "Added 2026-08-28. Storage scales with corpus size; evidence does not. Total observations per day equal population times answers-per-person-per-day, conserved no matter how many questions exist — growing the corpus divides a fixed observation budget across more cells, it never creates observations. So the perfect database designs its read models against the density budget: a cell (question x cohort) is published when its sample can carry it, and the system makes an ADMISSION decision — what stays in rotation long enough to become dense — rather than pretending storage capacity is the constraint. The second half is sharper: the serving policy is part of the data-generating process. If a personalization model selects who is served a question, then who answers it is model-selected, and a fold over those answers is arithmetically correct while its population claim is wrong. A read model that does not know its own sampling design cannot say what its numbers mean — so the perfect database records, on every read model, how its inputs were admitted and served, the same requirement central's portfolio metric makes for itself by demanding a common evaluation population (cen-2). Product note (docs/SCALE-PLAN.md §1, read this run): the shipped product reached both halves independently as the core/tail split — the Mirror folds only the core set served to everyone unpersonalized, because density is conserved (cohort cells need months in rotation) and because an interest-selected feed would silently bias the corpus the Mirror reads; the split is enforced at content declaration (core is a declared, gated field) precisely so the read model knows its own sampling design. This is the density law the tail of db-4 implies but does not state: the three materializations share one ledger, and the PUBLISHABLE subset of every materialization is bounded by the same conserved observation budget.",
+      "sources": [],
+      "edges": [
+        { "to": "db-3", "type": "refines" },
+        { "to": "cen-2", "type": "supports" }
+      ],
+      "created": "2026-08-28",
+      "updated": "2026-08-28"
     }
   ]
 }

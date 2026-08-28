@@ -10,3 +10,11 @@ each answered question with the node ids that answer it.
   are the measured sources, each existing to create powerful data and
   connections or to make another axiom's data stronger; the database
   is where all of it lives, joins, and serves that purpose.
+  *(The lane's standing charter question — addressed cumulatively rather
+  than closed. As of 2026-08-28 the graph answers it in eight claims:
+  db-1 the join as the unit of design; db-2 custody as layout (cited);
+  db-3 ledger and deterministic fold (cited); db-4 three readers as
+  materializations of one ledger (cited); db-5 schema evolution
+  first-class; db-6 the join's currency is sufficient statistics with
+  basis; db-7 erasure as a transaction across all three parts (cited);
+  db-8 the read side bounded by density and serving policy.)*
