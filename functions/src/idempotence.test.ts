@@ -1,0 +1,173 @@
+// idempotence.test.ts — the ledger guard, executed rather than described.
+//
+// WHY THIS FILE EXISTS. `onV2AnswerCreated` and `onV2AnswerUpdated` are
+// declared `retry: true`, which is right: a fold that dies must come back.
+// The price is that Eventarc delivers AT LEAST ONCE, so every arm reads a
+// per-event ledger doc first and returns if it is already there. Four
+// `if (seen.exists) return;` lines carry the whole property.
+//
+// All four could be DELETED with the entire suite still green. Nothing
+// executed them: replay.test.ts transcribes the fold and compares
+// accumulation strategies, contention.test.ts stubs runAggTransaction
+// away, and the emulator suites deliver each event once because that is
+// what a healthy emulator does. A second delivery is exactly the thing no
+// test could produce — and a lost guard is not a crash, it is a public
+// vote count that quietly reads one too many, on the retry path that only
+// runs when something already went wrong.
+//
+// WHAT THE FAKE IS AND IS NOT. It stands in for Firestore's PLUMBING —
+// refs, a transaction, getAll, set/update — not for its semantics, and
+// nothing here asserts anything about Firestore. The property under test
+// is this file's own branching: read the ledger, return, or fold and mark.
+// The vacuity guards below are what keep that honest: every arm must count
+// TWICE under two different event ids, or "counted once" would also be
+// what a handler that never ran looks like.
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+type Doc = Record<string, unknown>;
+const store = new Map<string, Doc>();
+
+function ref(path: string) {
+  return { path, id: path.split("/").pop() as string };
+}
+
+const fakeDb = {
+  collection(name: string) {
+    return { doc: (id: string) => ref(`${name}/${id}`) };
+  },
+  async runTransaction(cb: (tx: unknown) => Promise<unknown>) {
+    const snap = (r: { path: string }) => ({
+      exists: store.has(r.path),
+      get: (f: string) => store.get(r.path)?.[f],
+    });
+    const tx = {
+      getAll: async (...refs: { path: string }[]) => refs.map(snap),
+      get: async (r: { path: string }) => snap(r),
+      set: (r: { path: string }, data: Doc, opts?: { merge?: boolean }) => {
+        store.set(r.path, opts?.merge ? { ...(store.get(r.path) || {}), ...data } : data);
+      },
+      update: (r: { path: string }, data: Doc) => {
+        store.set(r.path, { ...(store.get(r.path) || {}), ...data });
+      },
+    };
+    return cb(tx);
+  },
+};
+
+vi.mock("./db", () => ({ db: () => fakeDb, FIRESTORE_DB_ID: "insight" }));
+
+const { onV2AnswerCreated, onV2AnswerUpdated } = await import("./v2");
+
+const QID = "daily-2026-08-24";
+const AGG = `v2_question_aggs/${QID}`;
+const PRIV = `v2_aggs_private/${QID}`;
+
+/** One create delivery. `id` is the Eventarc event id — the ledger key. */
+async function deliver(id: string, data: Doc) {
+  await (onV2AnswerCreated as unknown as { run: (e: unknown) => Promise<void> }).run({
+    id,
+    params: { uid: "u1", qid: QID },
+    data: { exists: true, get: (f: string) => data[f] },
+  });
+}
+
+/** One update delivery: the same answer doc, optionIdx moved. */
+async function deliverEdit(id: string, from: number, to: number) {
+  const doc = (optionIdx: number) => ({
+    exists: true,
+    get: (f: string) => ({ surface: "daily", optionIdx } as Doc)[f],
+  });
+  await (onV2AnswerUpdated as unknown as { run: (e: unknown) => Promise<void> }).run({
+    id,
+    params: { uid: "u1", qid: QID },
+    data: { before: doc(from), after: doc(to) },
+  });
+}
+
+const vote = { surface: "daily", optionIdx: 1, anchors: { ageBand: "25-34", country: "NO" } };
+const rank = { surface: "daily", order: [2, 0, 1], anchors: {} };
+const pick = { surface: "daily", entity: 25, anchors: {} };
+
+beforeEach(() => {
+  store.clear();
+});
+
+describe("a redelivered event folds once (retry: true is at-least-once)", () => {
+  it("the vote arm", async () => {
+    await deliver("evt-1", vote);
+    await deliver("evt-1", vote);
+    expect(store.get(AGG)?.total).toBe(1);
+    expect((store.get(AGG)?.counts as Doc)["1"]).toBe(1);
+  });
+
+  it("the vote arm still counts two DIFFERENT events", async () => {
+    // The vacuity guard. Without it, an arm that returned before doing
+    // anything at all would pass the test above.
+    await deliver("evt-1", vote);
+    await deliver("evt-2", vote);
+    expect(store.get(AGG)?.total).toBe(2);
+  });
+
+  it("the rank arm", async () => {
+    store.set(`v2_questions/${QID}`, { options: ["a", "b", "c"] });
+    await deliver("evt-1", rank);
+    const once = store.get(AGG)?.pos;
+    await deliver("evt-1", rank);
+    expect(store.get(AGG)?.pos).toEqual(once);
+    expect(store.get(AGG)?.total).toBe(1);
+  });
+
+  it("the rank arm still counts two DIFFERENT events", async () => {
+    store.set(`v2_questions/${QID}`, { options: ["a", "b", "c"] });
+    await deliver("evt-1", rank);
+    await deliver("evt-2", rank);
+    expect(store.get(AGG)?.total).toBe(2);
+  });
+
+  it("the catalog arm", async () => {
+    store.set(`v2_questions/${QID}`, { domain: "pokemon" });
+    await deliver("evt-1", pick);
+    await deliver("evt-1", pick);
+    expect(store.get(PRIV)?.total).toBe(1);
+    expect((store.get(PRIV)?.ent as Doc)["25"]).toBe(1);
+  });
+
+  it("the catalog arm still counts two DIFFERENT events", async () => {
+    store.set(`v2_questions/${QID}`, { domain: "pokemon" });
+    await deliver("evt-1", pick);
+    await deliver("evt-2", pick);
+    expect(store.get(PRIV)?.total).toBe(2);
+  });
+
+  it("the edit arm, where a second fold would move the vote twice", async () => {
+    // The one arm where a lost guard does not merely inflate: the edit
+    // moves a vote from one option to another, so folding it twice takes
+    // a second vote off the old option — one it may not have.
+    await deliver("evt-1", vote);
+    await deliver("evt-2", { ...vote, optionIdx: 1 });
+    await deliverEdit("edit-1", 1, 0);
+    await deliverEdit("edit-1", 1, 0);
+    const counts = store.get(AGG)?.counts as Doc;
+    expect(counts["0"]).toBe(1);
+    expect(counts["1"]).toBe(1);
+  });
+
+  it("the edit arm still applies two DIFFERENT events", async () => {
+    await deliver("evt-1", vote);
+    await deliver("evt-2", { ...vote, optionIdx: 1 });
+    await deliverEdit("edit-1", 1, 0);
+    await deliverEdit("edit-2", 1, 0);
+    const counts = store.get(AGG)?.counts as Doc;
+    expect(counts["0"]).toBe(2);
+    // Emptied, not zeroed — retargetCounts deletes a key it takes to zero,
+    // because the create path never mints one (pure.ts).
+    expect(counts["1"]).toBeUndefined();
+  });
+
+  it("marks the ledger in the same transaction as the fold", async () => {
+    // The other half of the property: a fold that lands without its ledger
+    // entry is a fold that will land again on the next delivery.
+    await deliver("evt-1", vote);
+    expect(store.has("v2_agg_events/evt-1")).toBe(true);
+  });
+});
