@@ -15,19 +15,24 @@ vi.mock("firebase-functions", () => ({
   logger: { info() {}, warn() {}, error() {} },
 }));
 
-import { PATTERNS_QIDS, firestorePatternsStore, runPatternsFit, utcDay, type PatternsLedgerEntry, type PatternsStore } from "./patterns";
-import { V2_QUESTIONS } from "./v2content";
+import { AXES_LABELS, PATTERNS_QIDS, firestorePatternsStore, runPatternsFit, utcDay, type PatternsLedgerEntry, type PatternsStore } from "./patterns";
+import { TEST_ITEM_META, V2_QUESTIONS } from "./v2content";
 import type { Firestore } from "firebase-admin/firestore";
 import { PATTERNS_MIN_BASIS, emptyModel, type PatternsModel, type PatternsUserState } from "./patternsFit";
+import { AXES_MIN_N, type PublishedAxes } from "./axesFit";
 
 const NOW = Date.UTC(2026, 7, 19, 3, 0, 0); // the 02:37 schedule's morning
 
-function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
+function memoryStore(
+  ledger: Record<string, PatternsLedgerEntry[]>,
+  testAnswers: Array<{ uid: string; qid: string; optionIdx: number }> = [],
+) {
   const state: {
     model: (PatternsModel & { lastDay?: string }) | null;
     users: Map<string, PatternsUserState>;
     putModelCalls: number;
-  } = { model: null, users: new Map(), putModelCalls: 0 };
+    axesPuts: PublishedAxes[];
+  } = { model: null, users: new Map(), putModelCalls: 0, axesPuts: [] };
   const store: PatternsStore = {
     async ledgerDay(day) { return ledger[day] ?? []; },
     async getModel() { return state.model; },
@@ -42,6 +47,12 @@ function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
       return out;
     },
     async putUsers(states) { for (const [uid, s] of states) state.users.set(uid, s); },
+    async allUserStates() { return new Map(state.users); },
+    async testAnswers() { return testAnswers; },
+    // The RECORDING fake (the D265 pattern): every folding run must call
+    // this, an empty block included, so a fit that quietly stops writing
+    // the axes block fails a test instead of shipping silence.
+    async putAxes(axes) { state.axesPuts.push(axes); },
   };
   return { store, state };
 }
@@ -60,6 +71,84 @@ describe("the eligible set", () => {
     }
     // and the set is non-trivial — a bank change that empties it should fail loudly
     expect(PATTERNS_QIDS.size).toBeGreaterThan(50);
+  });
+
+  it("NO TAUTOLOGY: no instrument item ever enters the latent space (AXES-RUNBOOK 1.1)", () => {
+    // The axes projection is a cross-source reading precisely because the
+    // fit never sees the instruments' own items — if one ever entered
+    // PATTERNS_QIDS, "Openness points this way" would be the fit
+    // rediscovering its own input. Pinned against the compiled meta, so a
+    // bank or eligibility change that breaks the disjointness fails here.
+    expect(TEST_ITEM_META.length).toBeGreaterThan(100);
+    expect(TEST_ITEM_META.some((m) => m.invert)).toBe(true);
+    for (const m of TEST_ITEM_META) {
+      expect(PATTERNS_QIDS.has(m.qid), m.qid).toBe(false);
+    }
+  });
+});
+
+describe("the axes block (AXES-PLAN §2: project, don't refit)", () => {
+  // Two same-axis, non-inverted items from the real compiled meta, so the
+  // fixture moves with the bank the way CORE_A/CORE_B do.
+  const oItems = TEST_ITEM_META.filter(
+    (m) => m.test === "big5" && m.dim === "O" && !m.invert,
+  ).slice(0, 2);
+
+  it("publishes a direction, its basis and its label once enough people are behind it", async () => {
+    const answers: Array<{ uid: string; qid: string; optionIdx: number }> = [];
+    const k = 8;
+    const { store, state } = memoryStore(
+      { [yesterday]: [{ uid: "u0", qid: CORE_A, optionIdx: 0 }] },
+      answers,
+    );
+    // Ten fitted people whose θ[0] and Openness score rise together
+    // LINEARLY (a step against a ramp honestly correlates at ~0.87, which
+    // a first draft of this case learned the hard way) — the axis should
+    // come out pointing along component 0, fit near 1. u0's θ moves a
+    // hair when its ledger row folds; the tolerance absorbs it.
+    for (let i = 0; i < 10; i++) {
+      const uid = `u${i}`;
+      state.users.set(uid, { v: [i, 0, 0, 0, 0, 0, 0, 0].slice(0, k), n: 3 });
+      const idx = Math.min(4, Math.floor(i / 2));
+      for (const m of oItems) answers.push({ uid, qid: m.qid, optionIdx: idx });
+    }
+    const r = await runPatternsFit(store, NOW);
+    expect(state.axesPuts).toHaveLength(1);
+    const axes = state.axesPuts[0];
+    expect(r.axes).toBe(Object.keys(axes).length);
+    const row = axes["big5.O"];
+    expect(row).toBeTruthy();
+    expect(row.n).toBe(10);
+    expect(row.fit).toBeGreaterThan(0.95);
+    expect(Math.abs(row.v[0])).toBeGreaterThan(0.99);
+    expect(row.label).toBe(AXES_LABELS.get("big5.O"));
+  });
+
+  it("publishes an EMPTY block below the population floor — called, never silent", async () => {
+    const answers: Array<{ uid: string; qid: string; optionIdx: number }> = [];
+    const { store, state } = memoryStore(
+      { [yesterday]: [{ uid: "u0", qid: CORE_A, optionIdx: 0 }] },
+      answers,
+    );
+    for (let i = 0; i < AXES_MIN_N - 1; i++) {
+      const uid = `u${i}`;
+      state.users.set(uid, { v: [i, 0, 0, 0, 0, 0, 0, 0], n: 1 });
+      for (const m of oItems) answers.push({ uid, qid: m.qid, optionIdx: i % 5 });
+    }
+    await runPatternsFit(store, NOW);
+    // The write happened (the recording fake is the whole point) and the
+    // block is empty — absent rows, not faked ones (D1).
+    expect(state.axesPuts).toHaveLength(1);
+    expect(Object.keys(state.axesPuts[0])).toEqual([]);
+  });
+
+  it("skips the sweep entirely on a no-op morning — the standing block is still the truth", async () => {
+    const { store, state } = memoryStore({
+      [yesterday]: [{ uid: "u1", qid: CORE_A, optionIdx: 0 }],
+    });
+    await runPatternsFit(store, NOW);
+    await runPatternsFit(store, NOW);
+    expect(state.axesPuts).toHaveLength(1);
   });
 });
 
@@ -252,5 +341,18 @@ describe("what the fit publishes for the tab's gate", () => {
     // A field that stops being written is a field the client keeps
     // reading at its last value — so early nights say 0 out loud.
     expect(writes[1].data).toEqual({ patternsPool: 0, patternsBasis: PATTERNS_MIN_BASIS });
+  });
+
+  it("merges the axes block onto the loadings doc rather than replacing it", async () => {
+    // putModel full-sets the doc and putAxes lands one write later; the
+    // MERGE is what keeps that second write from wiping the loadings it
+    // sits beside.
+    const { db, writes } = fakeDb();
+    const row = { v: [1, 0, 0, 0, 0, 0, 0, 0], n: 9, fit: 0.8, label: "Openness" };
+    await firestorePatternsStore(asDb(db)).putAxes({ "big5.O": row });
+    expect(writes).toHaveLength(1);
+    expect(writes[0].path).toBe("v2_patterns/loadings");
+    expect((writes[0].data.axes as Record<string, unknown>)["big5.O"]).toEqual(row);
+    expect(writes[0].opts).toEqual({ merge: true });
   });
 });

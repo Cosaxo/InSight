@@ -13778,3 +13778,741 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
 // it. Text only, no link, one coarse audience tag matched on the DEVICE.
 export interface V2SeedAd { id: string; seq: number; advertiser: string; headline: string; body: string; until: string; audience?: Record<string, string>; active?: boolean; }
 export const V2_ADS: V2SeedAd[] = [];
+
+// Test scoring metadata (AXES-RUNBOOK 1.1): qid → instrument/dim/invert
+// for the four core instruments' items, plus the axis labels. Compiled
+// here because `invert` is deliberately not a seed field — the scoring
+// direction never becomes a Firestore doc — and the axes fold cannot
+// score without it (44 of 110 items are reversed).
+export interface V2TestItemMeta { qid: string; test: string; dim: string; invert?: boolean; }
+export interface V2TestAxis { key: string; test: string; dim: string; label: string; }
+export const TEST_ITEM_META: V2TestItemMeta[] = [
+ {
+  "qid": "test-big5-00",
+  "test": "big5",
+  "dim": "O"
+ },
+ {
+  "qid": "test-big5-01",
+  "test": "big5",
+  "dim": "O"
+ },
+ {
+  "qid": "test-big5-02",
+  "test": "big5",
+  "dim": "C"
+ },
+ {
+  "qid": "test-big5-03",
+  "test": "big5",
+  "dim": "C"
+ },
+ {
+  "qid": "test-big5-04",
+  "test": "big5",
+  "dim": "E"
+ },
+ {
+  "qid": "test-big5-05",
+  "test": "big5",
+  "dim": "E"
+ },
+ {
+  "qid": "test-big5-06",
+  "test": "big5",
+  "dim": "A"
+ },
+ {
+  "qid": "test-big5-07",
+  "test": "big5",
+  "dim": "A"
+ },
+ {
+  "qid": "test-big5-08",
+  "test": "big5",
+  "dim": "N"
+ },
+ {
+  "qid": "test-big5-09",
+  "test": "big5",
+  "dim": "N"
+ },
+ {
+  "qid": "test-big5-10",
+  "test": "big5",
+  "dim": "O",
+  "invert": true
+ },
+ {
+  "qid": "test-big5-11",
+  "test": "big5",
+  "dim": "C",
+  "invert": true
+ },
+ {
+  "qid": "test-big5-12",
+  "test": "big5",
+  "dim": "E",
+  "invert": true
+ },
+ {
+  "qid": "test-big5-13",
+  "test": "big5",
+  "dim": "A",
+  "invert": true
+ },
+ {
+  "qid": "test-big5-14",
+  "test": "big5",
+  "dim": "N",
+  "invert": true
+ },
+ {
+  "qid": "test-big5-15",
+  "test": "big5",
+  "dim": "O"
+ },
+ {
+  "qid": "test-big5-16",
+  "test": "big5",
+  "dim": "O",
+  "invert": true
+ },
+ {
+  "qid": "test-big5-17",
+  "test": "big5",
+  "dim": "C"
+ },
+ {
+  "qid": "test-big5-18",
+  "test": "big5",
+  "dim": "C",
+  "invert": true
+ },
+ {
+  "qid": "test-big5-19",
+  "test": "big5",
+  "dim": "E"
+ },
+ {
+  "qid": "test-big5-20",
+  "test": "big5",
+  "dim": "E",
+  "invert": true
+ },
+ {
+  "qid": "test-big5-21",
+  "test": "big5",
+  "dim": "A"
+ },
+ {
+  "qid": "test-big5-22",
+  "test": "big5",
+  "dim": "A",
+  "invert": true
+ },
+ {
+  "qid": "test-big5-23",
+  "test": "big5",
+  "dim": "N"
+ },
+ {
+  "qid": "test-big5-24",
+  "test": "big5",
+  "dim": "N",
+  "invert": true
+ },
+ {
+  "qid": "test-political-00",
+  "test": "political",
+  "dim": "econ"
+ },
+ {
+  "qid": "test-political-01",
+  "test": "political",
+  "dim": "econ",
+  "invert": true
+ },
+ {
+  "qid": "test-political-02",
+  "test": "political",
+  "dim": "auth"
+ },
+ {
+  "qid": "test-political-03",
+  "test": "political",
+  "dim": "auth",
+  "invert": true
+ },
+ {
+  "qid": "test-political-04",
+  "test": "political",
+  "dim": "foreign"
+ },
+ {
+  "qid": "test-political-05",
+  "test": "political",
+  "dim": "foreign"
+ },
+ {
+  "qid": "test-political-06",
+  "test": "political",
+  "dim": "env"
+ },
+ {
+  "qid": "test-political-07",
+  "test": "political",
+  "dim": "env"
+ },
+ {
+  "qid": "test-political-08",
+  "test": "political",
+  "dim": "tech"
+ },
+ {
+  "qid": "test-political-09",
+  "test": "political",
+  "dim": "tech",
+  "invert": true
+ },
+ {
+  "qid": "test-political-10",
+  "test": "political",
+  "dim": "estab"
+ },
+ {
+  "qid": "test-political-11",
+  "test": "political",
+  "dim": "estab"
+ },
+ {
+  "qid": "test-political-12",
+  "test": "political",
+  "dim": "econ"
+ },
+ {
+  "qid": "test-political-13",
+  "test": "political",
+  "dim": "auth"
+ },
+ {
+  "qid": "test-political-14",
+  "test": "political",
+  "dim": "foreign",
+  "invert": true
+ },
+ {
+  "qid": "test-political-15",
+  "test": "political",
+  "dim": "env",
+  "invert": true
+ },
+ {
+  "qid": "test-political-16",
+  "test": "political",
+  "dim": "tech"
+ },
+ {
+  "qid": "test-political-17",
+  "test": "political",
+  "dim": "estab",
+  "invert": true
+ },
+ {
+  "qid": "test-political-18",
+  "test": "political",
+  "dim": "econ"
+ },
+ {
+  "qid": "test-political-19",
+  "test": "political",
+  "dim": "econ",
+  "invert": true
+ },
+ {
+  "qid": "test-political-20",
+  "test": "political",
+  "dim": "auth"
+ },
+ {
+  "qid": "test-political-21",
+  "test": "political",
+  "dim": "auth",
+  "invert": true
+ },
+ {
+  "qid": "test-political-22",
+  "test": "political",
+  "dim": "foreign"
+ },
+ {
+  "qid": "test-political-23",
+  "test": "political",
+  "dim": "foreign",
+  "invert": true
+ },
+ {
+  "qid": "test-political-24",
+  "test": "political",
+  "dim": "env"
+ },
+ {
+  "qid": "test-political-25",
+  "test": "political",
+  "dim": "env",
+  "invert": true
+ },
+ {
+  "qid": "test-political-26",
+  "test": "political",
+  "dim": "tech"
+ },
+ {
+  "qid": "test-political-27",
+  "test": "political",
+  "dim": "tech",
+  "invert": true
+ },
+ {
+  "qid": "test-political-28",
+  "test": "political",
+  "dim": "estab"
+ },
+ {
+  "qid": "test-political-29",
+  "test": "political",
+  "dim": "estab",
+  "invert": true
+ },
+ {
+  "qid": "test-values-00",
+  "test": "values",
+  "dim": "future"
+ },
+ {
+  "qid": "test-values-01",
+  "test": "values",
+  "dim": "future"
+ },
+ {
+  "qid": "test-values-02",
+  "test": "values",
+  "dim": "circle",
+  "invert": true
+ },
+ {
+  "qid": "test-values-03",
+  "test": "values",
+  "dim": "circle"
+ },
+ {
+  "qid": "test-values-04",
+  "test": "values",
+  "dim": "hedonism"
+ },
+ {
+  "qid": "test-values-05",
+  "test": "values",
+  "dim": "hedonism",
+  "invert": true
+ },
+ {
+  "qid": "test-values-06",
+  "test": "values",
+  "dim": "meaning"
+ },
+ {
+  "qid": "test-values-07",
+  "test": "values",
+  "dim": "meaning"
+ },
+ {
+  "qid": "test-values-08",
+  "test": "values",
+  "dim": "moral"
+ },
+ {
+  "qid": "test-values-09",
+  "test": "values",
+  "dim": "moral"
+ },
+ {
+  "qid": "test-values-10",
+  "test": "values",
+  "dim": "beauty"
+ },
+ {
+  "qid": "test-values-11",
+  "test": "values",
+  "dim": "beauty"
+ },
+ {
+  "qid": "test-values-12",
+  "test": "values",
+  "dim": "future",
+  "invert": true
+ },
+ {
+  "qid": "test-values-13",
+  "test": "values",
+  "dim": "circle"
+ },
+ {
+  "qid": "test-values-14",
+  "test": "values",
+  "dim": "hedonism"
+ },
+ {
+  "qid": "test-values-15",
+  "test": "values",
+  "dim": "meaning",
+  "invert": true
+ },
+ {
+  "qid": "test-values-16",
+  "test": "values",
+  "dim": "moral",
+  "invert": true
+ },
+ {
+  "qid": "test-values-17",
+  "test": "values",
+  "dim": "beauty",
+  "invert": true
+ },
+ {
+  "qid": "test-values-18",
+  "test": "values",
+  "dim": "future"
+ },
+ {
+  "qid": "test-values-19",
+  "test": "values",
+  "dim": "future",
+  "invert": true
+ },
+ {
+  "qid": "test-values-20",
+  "test": "values",
+  "dim": "circle"
+ },
+ {
+  "qid": "test-values-21",
+  "test": "values",
+  "dim": "circle",
+  "invert": true
+ },
+ {
+  "qid": "test-values-22",
+  "test": "values",
+  "dim": "hedonism"
+ },
+ {
+  "qid": "test-values-23",
+  "test": "values",
+  "dim": "hedonism",
+  "invert": true
+ },
+ {
+  "qid": "test-values-24",
+  "test": "values",
+  "dim": "meaning"
+ },
+ {
+  "qid": "test-values-25",
+  "test": "values",
+  "dim": "meaning",
+  "invert": true
+ },
+ {
+  "qid": "test-values-26",
+  "test": "values",
+  "dim": "moral"
+ },
+ {
+  "qid": "test-values-27",
+  "test": "values",
+  "dim": "moral",
+  "invert": true
+ },
+ {
+  "qid": "test-values-28",
+  "test": "values",
+  "dim": "beauty"
+ },
+ {
+  "qid": "test-values-29",
+  "test": "values",
+  "dim": "beauty",
+  "invert": true
+ },
+ {
+  "qid": "test-attachment-00",
+  "test": "attachment",
+  "dim": "warm"
+ },
+ {
+  "qid": "test-attachment-01",
+  "test": "attachment",
+  "dim": "warm"
+ },
+ {
+  "qid": "test-attachment-02",
+  "test": "attachment",
+  "dim": "loyal"
+ },
+ {
+  "qid": "test-attachment-03",
+  "test": "attachment",
+  "dim": "loyal"
+ },
+ {
+  "qid": "test-attachment-04",
+  "test": "attachment",
+  "dim": "open"
+ },
+ {
+  "qid": "test-attachment-05",
+  "test": "attachment",
+  "dim": "open"
+ },
+ {
+  "qid": "test-attachment-06",
+  "test": "attachment",
+  "dim": "play"
+ },
+ {
+  "qid": "test-attachment-07",
+  "test": "attachment",
+  "dim": "play"
+ },
+ {
+  "qid": "test-attachment-08",
+  "test": "attachment",
+  "dim": "easy"
+ },
+ {
+  "qid": "test-attachment-09",
+  "test": "attachment",
+  "dim": "easy"
+ },
+ {
+  "qid": "test-attachment-10",
+  "test": "attachment",
+  "dim": "warm",
+  "invert": true
+ },
+ {
+  "qid": "test-attachment-11",
+  "test": "attachment",
+  "dim": "loyal",
+  "invert": true
+ },
+ {
+  "qid": "test-attachment-12",
+  "test": "attachment",
+  "dim": "open",
+  "invert": true
+ },
+ {
+  "qid": "test-attachment-13",
+  "test": "attachment",
+  "dim": "play",
+  "invert": true
+ },
+ {
+  "qid": "test-attachment-14",
+  "test": "attachment",
+  "dim": "easy",
+  "invert": true
+ },
+ {
+  "qid": "test-attachment-15",
+  "test": "attachment",
+  "dim": "warm"
+ },
+ {
+  "qid": "test-attachment-16",
+  "test": "attachment",
+  "dim": "warm",
+  "invert": true
+ },
+ {
+  "qid": "test-attachment-17",
+  "test": "attachment",
+  "dim": "loyal"
+ },
+ {
+  "qid": "test-attachment-18",
+  "test": "attachment",
+  "dim": "loyal",
+  "invert": true
+ },
+ {
+  "qid": "test-attachment-19",
+  "test": "attachment",
+  "dim": "open"
+ },
+ {
+  "qid": "test-attachment-20",
+  "test": "attachment",
+  "dim": "open",
+  "invert": true
+ },
+ {
+  "qid": "test-attachment-21",
+  "test": "attachment",
+  "dim": "play"
+ },
+ {
+  "qid": "test-attachment-22",
+  "test": "attachment",
+  "dim": "play",
+  "invert": true
+ },
+ {
+  "qid": "test-attachment-23",
+  "test": "attachment",
+  "dim": "easy"
+ },
+ {
+  "qid": "test-attachment-24",
+  "test": "attachment",
+  "dim": "easy",
+  "invert": true
+ }
+];
+export const TEST_AXES: V2TestAxis[] = [
+ {
+  "key": "big5.O",
+  "test": "big5",
+  "dim": "O",
+  "label": "Openness"
+ },
+ {
+  "key": "big5.C",
+  "test": "big5",
+  "dim": "C",
+  "label": "Conscientiousness"
+ },
+ {
+  "key": "big5.E",
+  "test": "big5",
+  "dim": "E",
+  "label": "Extraversion"
+ },
+ {
+  "key": "big5.A",
+  "test": "big5",
+  "dim": "A",
+  "label": "Agreeableness"
+ },
+ {
+  "key": "big5.N",
+  "test": "big5",
+  "dim": "N",
+  "label": "Sensitivity"
+ },
+ {
+  "key": "political.econ",
+  "test": "political",
+  "dim": "econ",
+  "label": "Economic"
+ },
+ {
+  "key": "political.auth",
+  "test": "political",
+  "dim": "auth",
+  "label": "Authority"
+ },
+ {
+  "key": "political.foreign",
+  "test": "political",
+  "dim": "foreign",
+  "label": "Foreign"
+ },
+ {
+  "key": "political.env",
+  "test": "political",
+  "dim": "env",
+  "label": "Environment"
+ },
+ {
+  "key": "political.tech",
+  "test": "political",
+  "dim": "tech",
+  "label": "Technology"
+ },
+ {
+  "key": "political.estab",
+  "test": "political",
+  "dim": "estab",
+  "label": "Populism"
+ },
+ {
+  "key": "values.future",
+  "test": "values",
+  "dim": "future",
+  "label": "Future"
+ },
+ {
+  "key": "values.circle",
+  "test": "values",
+  "dim": "circle",
+  "label": "Circle"
+ },
+ {
+  "key": "values.hedonism",
+  "test": "values",
+  "dim": "hedonism",
+  "label": "Pleasure"
+ },
+ {
+  "key": "values.meaning",
+  "test": "values",
+  "dim": "meaning",
+  "label": "Meaning"
+ },
+ {
+  "key": "values.moral",
+  "test": "values",
+  "dim": "moral",
+  "label": "Ethics"
+ },
+ {
+  "key": "values.beauty",
+  "test": "values",
+  "dim": "beauty",
+  "label": "Beauty"
+ },
+ {
+  "key": "attachment.warm",
+  "test": "attachment",
+  "dim": "warm",
+  "label": "Warm"
+ },
+ {
+  "key": "attachment.loyal",
+  "test": "attachment",
+  "dim": "loyal",
+  "label": "Loyal"
+ },
+ {
+  "key": "attachment.open",
+  "test": "attachment",
+  "dim": "open",
+  "label": "Open"
+ },
+ {
+  "key": "attachment.play",
+  "test": "attachment",
+  "dim": "play",
+  "label": "Playful"
+ },
+ {
+  "key": "attachment.easy",
+  "test": "attachment",
+  "dim": "easy",
+  "label": "Easygoing"
+ }
+];

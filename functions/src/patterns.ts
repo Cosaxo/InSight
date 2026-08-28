@@ -37,9 +37,10 @@ import type { Firestore } from "firebase-admin/firestore";
 // stay imported for that reason wherever a function is declared, like every
 // other function module imports it (check:fn-runtime guards the outcome).
 import { LIGHT_UNBOUNDED, FUNCTIONS_REGION } from "./ops";
-import { V2_QUESTIONS } from "./v2content";
+import { TEST_AXES, TEST_ITEM_META, V2_QUESTIONS } from "./v2content";
 import { db as firestore } from "./db";
 import { readLedgerDay } from "./ledger";
+import { fitAxes, traitScores, type PublishedAxes } from "./axesFit";
 import {
   PATTERNS_K,
   PATTERNS_MIN_BASIS,
@@ -71,6 +72,12 @@ export const PATTERNS_QIDS: ReadonlySet<string> = new Set(
  * Beyond it, unfolded days stay unfolded and the basis counts say so. */
 export const PATTERNS_CATCHUP_DAYS = 7;
 
+/** key → label for the published axes block, compiled from the same
+ * source the instruments render from (AXES-RUNBOOK 1.1). */
+export const AXES_LABELS: ReadonlyMap<string, string> = new Map(
+  TEST_AXES.map((a) => [a.key, a.label]),
+);
+
 export interface PatternsLedgerEntry {
   uid: string;
   qid: string;
@@ -86,6 +93,17 @@ export interface PatternsStore {
   putModel(model: PatternsModel, lastDay: string, folded: number): Promise<void>;
   getUsers(uids: string[]): Promise<Map<string, PatternsUserState>>;
   putUsers(states: Map<string, PatternsUserState>): Promise<void>;
+  // ── the axes sweep's three (AXES-PLAN §2, AXES-RUNBOOK 1.1–1.2) ──
+  /** Every fitted person's θ — the whole population, uid → state. */
+  allUserStates(): Promise<Map<string, PatternsUserState>>;
+  /** Every public test-surface answer, the sweep's read: uid, qid, and
+   * the vote. One doc per (person, question) by the create-only rule. */
+  testAnswers(): Promise<Array<{ uid: string; qid: string; optionIdx: number }>>;
+  /** Publish the axes block beside the loadings. Called on EVERY folding
+   * run, an empty block included — the recording-fake test pins that, so
+   * a fit that quietly stops writing the block fails a test instead of
+   * shipping silence (the D265 pattern). */
+  putAxes(axes: PublishedAxes): Promise<void>;
 }
 
 // The fold arithmetic lives in pure.ts (ORIENTATION §3). Re-exported
@@ -103,7 +121,7 @@ export async function runPatternsFit(
   store: PatternsStore,
   nowMs: number,
   eligible: ReadonlySet<string> = PATTERNS_QIDS,
-): Promise<{ days: number; folded: number; users: number; questions: number }> {
+): Promise<{ days: number; folded: number; users: number; questions: number; axes: number }> {
   const yesterday = utcDay(nowMs, -1);
   const floor = utcDay(nowMs, -PATTERNS_CATCHUP_DAYS);
   const model = (await store.getModel()) ?? { ...emptyModel(PATTERNS_K), lastDay: "" };
@@ -116,7 +134,9 @@ export async function runPatternsFit(
     if (day > lastDay && day >= floor) days.push(day);
   }
   if (!days.length || yesterday <= lastDay) {
-    return { days: 0, folded: 0, users: 0, questions: Object.keys(model.q).length };
+    // No new folds means no θ moved, so the standing axes block is still
+    // the truth — the sweep is skipped rather than re-run for free.
+    return { days: 0, folded: 0, users: 0, questions: Object.keys(model.q).length, axes: 0 };
   }
 
   let folded = 0;
@@ -167,7 +187,47 @@ export async function runPatternsFit(
     await store.putUsers(states);
   }
   await store.putModel(model, yesterday, folded);
-  return { days: days.length, folded, users: touched.size, questions: Object.keys(model.q).length };
+
+  // ── the axes projection (AXES-PLAN §2: "project, don't refit") ──────
+  //
+  // Runs after the fold so it regresses on tonight's θ, and only on
+  // folding nights — an unchanged population projects to an unchanged
+  // block. The sweep is the plan's own priced shape: one pass over every
+  // fitted person's θ and one over the public test answers, nothing
+  // per-person published (n people enter, one direction per axis leaves).
+  // putModel rewrites the whole loadings doc without the axes field and
+  // putAxes merges it back one write later — a crash in that window
+  // leaves a doc with no block for a night, which the client draws as
+  // nothing (D1), never as stale axes against fresh loadings.
+  const states = await store.allUserStates();
+  const answers = await store.testAnswers();
+  const byUidAnswers = new Map<string, Array<{ qid: string; optionIdx: number }>>();
+  for (const a of answers) {
+    const list = byUidAnswers.get(a.uid) ?? [];
+    list.push({ qid: a.qid, optionIdx: a.optionIdx });
+    byUidAnswers.set(a.uid, list);
+  }
+  const persons: Array<{ theta: readonly number[]; scores: ReadonlyMap<string, number> }> = [];
+  for (const [uid, state] of states) {
+    const mine = byUidAnswers.get(uid);
+    if (!mine || state.n <= 0) continue;
+    const scored = traitScores(mine, TEST_ITEM_META);
+    if (!scored.size) continue;
+    persons.push({
+      theta: state.v,
+      scores: new Map([...scored.entries()].map(([k2, s]) => [k2, s.value])),
+    });
+  }
+  const axes = fitAxes(persons, model.k, AXES_LABELS);
+  await store.putAxes(axes);
+
+  return {
+    days: days.length,
+    folded,
+    users: touched.size,
+    questions: Object.keys(model.q).length,
+    axes: Object.keys(axes).length,
+  };
 }
 
 /** The Firestore store. State lives in two places, each chosen for its
@@ -267,6 +327,48 @@ export function firestorePatternsStore(db: Firestore): PatternsStore {
         }
         await batch.commit();
       }
+    },
+    async allUserStates() {
+      // Every patterns subcollection holds exactly one doc ("state"), so
+      // the collection-group query IS the fitted population. Admin SDK —
+      // the rules' readable-by-nobody deny is for clients; the sweep runs
+      // where the private column lives and publishes only the regression
+      // (AXES-PLAN §2's custody rule).
+      const snap = await db.collectionGroup("patterns").get();
+      const out = new Map<string, PatternsUserState>();
+      for (const d of snap.docs) {
+        const uid = d.ref.parent.parent?.id;
+        if (!uid || d.id !== "state") continue;
+        out.set(uid, {
+          v: (d.get("v") as number[]) ?? [],
+          n: (d.get("n") as number) ?? 0,
+        });
+      }
+      return out;
+    },
+    async testAnswers() {
+      // The value filter mirrors the client rules' shape (voters.ts): one
+      // surface, named. Test answers are public by D98; the sweep reads
+      // qid + vote and the uid the path carries, nothing else.
+      const snap = await db
+        .collectionGroup("answers")
+        .where("surface", "==", "test")
+        .get();
+      const out: Array<{ uid: string; qid: string; optionIdx: number }> = [];
+      for (const d of snap.docs) {
+        const uid = d.ref.parent.parent?.id;
+        const qid = d.get("qid") as string;
+        const optionIdx = d.get("optionIdx");
+        if (!uid || typeof qid !== "string" || typeof optionIdx !== "number") continue;
+        out.push({ uid, qid, optionIdx });
+      }
+      return out;
+    },
+    async putAxes(axes) {
+      await modelRef.set(
+        { axes, axesAt: FieldValue.serverTimestamp() },
+        { merge: true },
+      );
     },
   };
 }

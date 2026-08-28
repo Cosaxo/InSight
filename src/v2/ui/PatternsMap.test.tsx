@@ -12,8 +12,9 @@ import type { PairSay, PoolItem } from "../data/patterns";
 
 const PATTERNS = vi.hoisted(() => ({
   say: vi.fn(async (): Promise<PairSay | null> => null),
+  drawnAxes: vi.fn((): Array<{ key: string; label: string; x: number; y: number; n: number; fit: number }> => []),
 }));
-vi.mock("../data/patterns", () => ({ default: PATTERNS, PATTERNS }));
+vi.mock("../data/patterns", () => ({ default: PATTERNS, PATTERNS, drawnAxes: PATTERNS.drawnAxes }));
 
 const LIVE = vi.hoisted(() => ({ enabled: true, vote: vi.fn() }));
 vi.mock("../data/live", () => ({ default: LIVE, LIVE }));
@@ -46,9 +47,28 @@ const SAY: PairSay = {
 
 beforeEach(() => {
   PATTERNS.say.mockResolvedValue(SAY);
+  PATTERNS.drawnAxes.mockReturnValue([]);
   LIVE.vote = vi.fn();
 });
 afterEach(cleanup);
+
+describe("the trait axes (AXES-RUNBOOK 1.4)", () => {
+  it("draws a published axis as a labelled diameter under the field", () => {
+    PATTERNS.drawnAxes.mockReturnValue([
+      { key: "big5.O", label: "Openness", x: 1, y: 0, n: 12, fit: 0.8 },
+      { key: "big5.C", label: "Conscientiousness", x: 0, y: 1, n: 12, fit: 0.5 },
+    ]);
+    const { container } = render(<PatternsMap items={ITEMS} version={1} topic="all" />);
+    expect(container.querySelectorAll(".qm-axes line").length).toBe(2);
+    expect(screen.getByText("Openness")).toBeTruthy();
+    expect(screen.getByText("Conscientiousness")).toBeTruthy();
+  });
+
+  it("draws NOTHING when no block has published — no teaser, no empty group (D1)", () => {
+    const { container } = render(<PatternsMap items={ITEMS} version={1} topic="all" />);
+    expect(container.querySelector(".qm-axes")).toBeNull();
+  });
+});
 
 describe("the field at rest", () => {
   it("draws every question and leads with the strongest tie, basis stated", async () => {

@@ -116,7 +116,41 @@ export interface Working {
   hadEv: boolean;
 }
 
-interface LoadingsDoc { k: number; q: Record<string, { v: number[]; n: number; sum: number }> }
+interface LoadingsDoc {
+  k: number;
+  q: Record<string, { v: number[]; n: number; sum: number }>;
+  /** The trait-axis projection (AXES-PLAN §2, published by the nightly
+   * fit since AXES-RUNBOOK 1.2): per axis a unit direction in the same
+   * K-space the questions live in, its population, its fit quality and
+   * its label. Absent until the fit publishes it — and absent draws
+   * nothing (D1). */
+  axes?: Record<string, { v: number[]; n: number; fit: number; label: string }>;
+}
+
+/** The client's own opinion of a drawable axis, held here the way the
+ * Oracle holds minBasis: the server publishes every row that clears the
+ * population floor, quality included, and the CLIENT decides what is
+ * worth drawing (AXES-RUNBOOK 1.5 — the trial's honest-failure lever).
+ * 0.25 because below it the axis explains under ~6% of score variance in
+ * the plane — a line that mostly is not there; the D329 record carries
+ * the reasoning and what would move it. */
+export const AXES_DRAW_MIN_FIT = 0.25;
+
+/** …and a second floor for the DRAWN plane: the Map shows components 0–1
+ * only, so an axis pointing mostly out of that plane would render as a
+ * confident line about a lean the picture cannot show. Under this share
+ * of the unit direction in-plane, the axis stays off the drawing. */
+export const AXES_DRAW_MIN_PLANE = 0.3;
+
+export interface DrawnAxis {
+  key: string;
+  label: string;
+  /** Unit direction IN THE DRAWN PLANE (components 0–1, normalised). */
+  x: number;
+  y: number;
+  n: number;
+  fit: number;
+}
 
 let loadings: LoadingsDoc | null = null;
 let loaded = false; // fetched-and-absent is an answer too
@@ -180,7 +214,11 @@ export function ensureLive(force = false): Promise<void> {
       const { doc, getDoc } = await getFirestoreApi();
       const snap = await getDoc(doc(db, "v2_patterns", "loadings"));
       loadings = snap.exists()
-        ? { k: (snap.get("k") as number) ?? 8, q: (snap.get("q") as LoadingsDoc["q"]) ?? {} }
+        ? {
+          k: (snap.get("k") as number) ?? 8,
+          q: (snap.get("q") as LoadingsDoc["q"]) ?? {},
+          axes: sanitizeAxes(snap.get("axes"), (snap.get("k") as number) ?? 8),
+        }
         : null;
       loaded = true;
       notify();
@@ -189,6 +227,45 @@ export function ensureLive(force = false): Promise<void> {
     }
   })();
   return loading;
+}
+
+/** The axes block, read defensively the way parseTestResults reads a
+ * profile: the doc is server-written, but a reader that trusts a shape it
+ * did not check is how a partial write becomes a crash on every device. */
+function sanitizeAxes(raw: unknown, k: number): LoadingsDoc["axes"] {
+  if (!raw || typeof raw !== "object") return undefined;
+  const out: NonNullable<LoadingsDoc["axes"]> = {};
+  for (const [key, row] of Object.entries(raw as Record<string, unknown>)) {
+    if (!row || typeof row !== "object") continue;
+    const r = row as { v?: unknown; n?: unknown; fit?: unknown; label?: unknown };
+    if (!Array.isArray(r.v) || r.v.length !== k || !r.v.every((x) => Number.isFinite(x))) continue;
+    if (typeof r.n !== "number" || typeof r.fit !== "number" || !Number.isFinite(r.fit)) continue;
+    out[key] = { v: r.v as number[], n: r.n, fit: r.fit, label: typeof r.label === "string" && r.label ? r.label : key };
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** The axes worth drawing, strongest first — both floors applied here so
+ * every consumer inherits one opinion of "drawable". Empty when live is
+ * off, the doc is absent, or nothing clears the floors: the Map draws
+ * nothing rather than a teaser (D1, the D265 posture one feature over). */
+export function drawnAxes(): DrawnAxis[] {
+  if (!LIVE.enabled || !loadings?.axes) return [];
+  const out: DrawnAxis[] = [];
+  for (const [key, row] of Object.entries(loadings.axes)) {
+    if (row.fit < AXES_DRAW_MIN_FIT) continue;
+    const planar = Math.hypot(row.v[0] ?? 0, row.v[1] ?? 0);
+    if (planar < AXES_DRAW_MIN_PLANE) continue;
+    out.push({
+      key,
+      label: row.label,
+      x: (row.v[0] ?? 0) / planar,
+      y: (row.v[1] ?? 0) / planar,
+      n: row.n,
+      fit: row.fit,
+    });
+  }
+  return out.sort((a, b) => b.fit - a.fit);
 }
 
 /** The viewer's encoded answer on a question, or null. myVotes carries

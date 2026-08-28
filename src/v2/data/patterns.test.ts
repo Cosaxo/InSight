@@ -34,7 +34,11 @@ vi.mock("./live", () => ({ default: live }));
 // One mutable holder the mocked getDoc reads through, so each test can
 // publish its own loadings doc (or absence) without re-mocking.
 const remote = vi.hoisted(() => ({
-  doc: null as null | { k: number; q: Record<string, { v: number[]; n: number; sum: number }> },
+  doc: null as null | {
+    k: number;
+    q: Record<string, { v: number[]; n: number; sum: number }>;
+    axes?: Record<string, unknown>;
+  },
 }));
 vi.mock("../../lib/firebase", () => ({
   getDb: async () => ({}),
@@ -62,7 +66,7 @@ vi.mock("./voters", () => ({
   VOTER_FETCH_CAP: 200,
 }));
 
-import { PATTERNS, ensureLive } from "./patterns";
+import { AXES_DRAW_MIN_FIT, AXES_DRAW_MIN_PLANE, PATTERNS, drawnAxes, ensureLive } from "./patterns";
 
 const LS = "insight.patterns.oracle.v1";
 const K = 8;
@@ -396,5 +400,49 @@ describe("the purge", () => {
     expect(PATTERNS.hasLoadings()).toBe(false);
     expect(PATTERNS.ready()).toBe(false); // a re-entry refetches honestly
     expect(PATTERNS.meter().records).toHaveLength(0);
+  });
+});
+
+describe("the trait axes block (AXES-RUNBOOK 1.4)", () => {
+  const axisRow = (v: number[], fit: number, label = "Openness") =>
+    ({ v, n: 12, fit, label });
+
+  it("parses a published block and applies both draw floors", async () => {
+    publishFixture();
+    (remote.doc as NonNullable<typeof remote.doc>).axes = {
+      // clean in-plane axis — drawn
+      "big5.O": axisRow(vec(0.8, 0.6), 0.7),
+      // fit under the floor — a line that mostly is not there
+      "big5.C": axisRow(vec(1, 0), AXES_DRAW_MIN_FIT - 0.01, "Conscientiousness"),
+      // points out of the drawn plane — the picture cannot show this lean
+      "big5.E": axisRow(vec(0.01, 0.01, 0.99), 0.9, "Extraversion"),
+      // malformed rows never reach a consumer
+      "bad.len": axisRow([1, 0], 0.9, "short"),
+      "bad.shape": { v: "nope", n: 1, fit: 0.9, label: "x" } as unknown as { v: number[]; n: number; fit: number; label: string },
+    };
+    await ensureLive();
+    const rows = drawnAxes();
+    expect(rows.map((r) => r.key)).toEqual(["big5.O"]);
+    expect(rows[0].label).toBe("Openness");
+    // the drawn direction is the PLANAR normalisation of (0.8, 0.6)
+    expect(rows[0].x).toBeCloseTo(0.8, 5);
+    expect(rows[0].y).toBeCloseTo(0.6, 5);
+    expect(Math.hypot(rows[0].x, rows[0].y)).toBeCloseTo(1, 6);
+    // the plane floor is a real constant, not a leftover
+    expect(AXES_DRAW_MIN_PLANE).toBeGreaterThan(0);
+  });
+
+  it("an absent block draws nothing — no rows, no teaser (D1)", async () => {
+    publishFixture(); // fixture publishes loadings with NO axes field
+    await ensureLive();
+    expect(drawnAxes()).toEqual([]);
+  });
+
+  it("demo mode never draws axes, whatever the doc says", async () => {
+    publishFixture();
+    (remote.doc as NonNullable<typeof remote.doc>).axes = { "big5.O": axisRow(vec(1, 0), 0.9) };
+    await ensureLive();
+    live.enabled = false;
+    expect(drawnAxes()).toEqual([]);
   });
 });

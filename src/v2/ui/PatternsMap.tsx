@@ -23,7 +23,7 @@
 // to state).
 import React from "react";
 import LIVE from "../data/live";
-import PATTERNS, { type PairSay, type PoolItem } from "../data/patterns";
+import PATTERNS, { drawnAxes, type DrawnAxis, type PairSay, type PoolItem } from "../data/patterns";
 import { edgesOf, mapGeometry, nearOf, planeOf, type MapNode } from "../data/patternsMap";
 // @ts-expect-error TS7016 — untyped spec module (named export, D189)
 import { WPAL } from "../spec/world-palette.js";
@@ -71,6 +71,18 @@ export default function PatternsMap({ items, version, topic }: {
     return { U, hub, edges, pts };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- version IS the pool's identity (see above)
   }, [version]);
+
+  // The trait axes (AXES-PLAN §2): directions the nightly fit publishes
+  // beside the loadings, drawn under everything as faint diameters —
+  // "Openness points this way; these questions lean with it." The
+  // direction is exact for the plane's SEED (planeOf takes x/y from
+  // components 0–1); the archipelago passes then nudge positions locally
+  // and the fit() stretch is anisotropic, so the line is a reading aid
+  // for the field, not a ruler over any one dot — the same standing the
+  // constellation's own distances have. Absent block, no lines (D1).
+  const axes = React.useMemo(() => drawnAxes(),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- version bumps when the loadings (axes included) arrive
+    [version]);
 
   const inTopic = (i: number) => topic === "all" || items[i].q.cat === topic;
   const catHue = (i: number) => catHueOf(items[i]?.q.cat);
@@ -156,6 +168,28 @@ export default function PatternsMap({ items, version, topic }: {
         <svg className="qm-svg" viewBox={`0 0 ${W} ${H}`} role="img"
           aria-label="Every question, placed by how much its answer predicts the others"
           onClick={() => { if (sel != null) setSel(null); }}>
+          {axes.length > 0 && (
+            <g className="qm-axes" pointerEvents="none" opacity={sel != null ? 0.25 : 0.55}>
+              {axes.map((a: DrawnAxis) => {
+                const cx = W / 2, cy = H / 2, R = 0.44 * Math.min(W, H);
+                const x2 = cx + a.x * R, y2 = cy + a.y * R;
+                // label at the positive tip, clamped inside the frame
+                const lx = Math.max(30, Math.min(W - 30, cx + a.x * (R + 10)));
+                const ly = Math.max(12, Math.min(H - 6, cy + a.y * (R + 12)));
+                return (
+                  <g key={a.key}>
+                    <line x1={cx - a.x * R} y1={cy - a.y * R} x2={x2} y2={y2}
+                      stroke="var(--ink-3)" strokeWidth="0.8" strokeDasharray="1 5"
+                      strokeLinecap="round" />
+                    <text x={lx} y={ly} textAnchor="middle"
+                      style={{ fontSize: 8.5, fontWeight: 700, letterSpacing: "0.08em", fill: "var(--ink-3)", textTransform: "uppercase" }}>
+                      {a.label}
+                    </text>
+                  </g>
+                );
+              })}
+            </g>
+          )}
           <g>
             {shown.map((l, k) => {
               const a = geo.pts[l.i], b = geo.pts[l.j];

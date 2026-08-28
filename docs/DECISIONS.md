@@ -32963,3 +32963,73 @@ split for N subscribers of a public number — the design's judgement
 is that this either suppresses the second subscriber or invites the
 free ride, and either way misprices a public good. Adopting the
 alternative instead should say which of those two costs it accepts.
+
+## D329 · Trait axes on the Map: Phase 1 as-built, and what takes a row back off
+
+**2026-08-27.** AXES-RUNBOOK Phase 1 (AXES-PLAN §2's "project, don't
+refit"), built in one pass — the fold, the publication, the client
+reading, the paperwork — with **one line deliberately left open: the
+[owner] confirmation** 1.3 names, that beside a server-computed trait
+direction, D8's "a test result is never a breakdown dim, so nothing is
+ever cross-tabbed by it" still says what it means. The build holds the
+sentence literally true — no dim was added, no per-question cell is
+keyed by any result, an axis row is a regression n people enter and one
+direction leaves — and the confirmation that "literally true" is also
+"means what it says" is the owner's, not this record's.
+
+**The build.** The scoring join (`qid → instrument/dim/invert`) is
+compiled by `gen-v2content` into `TEST_ITEM_META`/`TEST_AXES` — the
+seed never carried `invert` because the scoring direction never becomes
+a Firestore doc, and 44 of the instruments' 110 items score backwards
+without it. `axesFit.ts` (pure, the `patternsFit.ts` contract) folds
+each fitted person's axis scores from their public test answers — the
+`similarity.ts` arithmetic server-side, with its own floors mirrored:
+`AXES_MIN_AXIS_ITEMS = 2` (passiveProfile's coin-flip argument) and
+`AXES_MIN_N = 8` (PATTERNS_MIN_BASIS's argument one level up) — then
+regresses each axis on θ across the population: the direction is the
+per-component covariance normalised to unit length, the quality is
+|corr(score, θ·v̂)|. The sweep rides the nightly fit on folding nights
+only (an unchanged population projects to an unchanged block), reads
+every fitted person's private θ and the public test answers in two
+collection-group sweeps (priced into COSTS.md's Patterns row before
+ship), and publishes `axes:` — per axis a unit direction in the fit's
+own K-space, its n, its fit, its label — MERGED onto
+`v2_patterns/loadings`. Nothing per-person leaves the sweep. The
+no-tautology pin holds the reading honest: `PATTERNS_QIDS` admits no
+instrument item, asserted as a test against the compiled meta, so an
+axis that projects is a genuine cross-source agreement, not the fit
+rediscovering its own input. The recording-fake test pins that every
+folding run WRITES the block, an empty one included — a fit that
+quietly stops writing it fails a test instead of shipping silence
+(the D265 pattern).
+
+**What takes a row back off the Map — the 1.5 levers, each with its
+reasoning:**
+
+- **The population floor, server-side** (`AXES_MIN_N = 8`): below it
+  the row is ABSENT from the block, never thin — the same figure and
+  argument as the Oracle's refusal to guess.
+- **The fit floor, client-side** (`AXES_DRAW_MIN_FIT = 0.25`): the
+  server publishes every cleared row, quality included, and the CLIENT
+  decides what is worth drawing — below 0.25 the axis explains under
+  ~6% of score variance along its own direction, a line that mostly is
+  not there. Held in `data/patterns.ts` beside the reasoning; raising
+  it is a client deploy, not a fit change.
+- **The plane floor, client-side** (`AXES_DRAW_MIN_PLANE = 0.3`): the
+  Map draws components 0–1 only, so an axis pointing mostly out of
+  that plane would render as a confident line about a lean the picture
+  cannot show. Under 0.3 of the unit direction in-plane, no line.
+
+Phase 1 can therefore fail honestly, which is the trial's design: if
+trait axes turn out not to project, the blocks publish with low fit
+and the Map simply never draws them — no teaser, no empty state, the
+patternsReady posture one feature over. The drawn line itself carries
+two stated approximations (the comment at the draw site): the plane's
+archipelago passes nudge positions locally and the fit() stretch is
+anisotropic, so an axis is a reading aid for the field, with exactly
+the standing the constellation's own distances have.
+
+**What this does not touch:** the core fit's arithmetic and corpus,
+the answer trigger, the tab's mount gate, the rules (the loadings doc
+was already world-readable and written by nobody), and the store
+forms — nothing new is collected, one published document gained rows.

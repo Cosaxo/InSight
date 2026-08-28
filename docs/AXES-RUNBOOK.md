@@ -296,35 +296,38 @@ Mandatory reporting: the digest IS the report. If you have no GitHub API tools, 
 Public data only; the Map starts drawing the axes. Enters when Phase 0
 is done.
 
-- [ ] **1.1 The server fold.** Per-person trait-axis scores folded from
-      public answers inside the nightly patterns run — a pure module
-      with an injected store (`patternsFit.ts` idiom), the answer
-      trigger untouched. Includes the no-tautology pin: a test that
-      fails if an instrument's own items ever enter `PATTERNS_QIDS`.
+- [x] **1.1 The server fold — DONE 2026-08-27 (D329).** `axesFit.ts`,
+      pure behind the sweep's injected store methods; the trigger
+      untouched; the scoring join compiled by `gen-v2content` (`invert`
+      never became a seed field). The no-tautology pin is in
+      `patterns.test.ts` against the compiled meta.
       · **Gate:** functions suite green, including the new pins.
       · **Size:** M.
-- [ ] **1.2 The publication.** The `axes:` block beside the `q:` rows
-      of `v2_patterns/loadings` — per trait axis a direction vector,
-      its n, its fit quality — tested against a recording fake so a
-      fit that stops writing the block fails a test instead of
-      shipping silence (the D265 pattern). · **Gate:** `patterns.test.ts`
+- [x] **1.2 The publication — DONE 2026-08-27 (D329).** The `axes:`
+      block beside the `q:` rows — per trait axis a unit direction, its
+      n, its fit quality, its label — merged onto the loadings doc and
+      pinned against a recording fake: every folding run writes the
+      block, an empty one included. · **Gate:** `patterns.test.ts`
       extended, functions suite green. · **Size:** S.
-- [ ] **1.3 The paperwork, same PR as 1.1–1.2.** The `docs/COSTS.md`
-      line for the nightly sweep; the data-inventory and privacy-panel
-      wording re-read against the D8 sentence, with the **[owner]**
-      confirmation recorded that "never a breakdown dim, never
-      cross-tabbed by it" still says what it means beside a
-      server-computed direction. · **Gate:** `check:data-inventory`,
-      `check:policy-claims`, `check:docs`. · **Size:** S.
-- [ ] **1.4 The client reading.** `data/patterns.ts` parses the block;
-      the Map draws trait-axis directions; an absent block draws
-      nothing (D1); typed ESM only. · **Gate:** `test:unit` + the
-      smoke suites + `check:globals`. · **Size:** M.
-- [ ] **1.5 The trial, recorded.** The shipping record names what takes
-      an axis row back off the Map — a per-column fit-quality floor
-      with its reasoning, the patternsReady discipline — so Phase 1
-      can fail honestly if trait axes turn out not to project.
-      · **Gate:** the record exists; `check:docs`. · **Size:** S.
+- [x] **1.3 The paperwork — DONE 2026-08-27 (D329), one line open.**
+      The `docs/COSTS.md` Patterns row carries the sweep; the
+      data-inventory loadings row carries the block and the D8
+      re-read. The **[owner]** confirmation itself stands OPEN in
+      D329 — the record flags it rather than assuming it.
+      · **Gate:** `check:data-inventory`, `check:policy-claims`,
+      `check:docs`. · **Size:** S.
+- [x] **1.4 The client reading — DONE 2026-08-27 (D329).**
+      `data/patterns.ts` parses the block defensively and holds the
+      two draw floors; the Map draws the axes as faint labelled
+      diameters under the field; an absent block draws nothing (D1);
+      typed ESM only. · **Gate:** `test:unit` + the smoke suites +
+      `check:globals`. · **Size:** M.
+- [x] **1.5 The trial, recorded — DONE 2026-08-27.** D329 names the
+      three levers that take a row back off the Map (the population
+      floor server-side, the fit and plane floors client-side, each
+      with its reasoning) so Phase 1 can fail honestly if trait axes
+      turn out not to project. · **Gate:** the record exists;
+      `check:docs`. · **Size:** S.
 
 ## Phase 2 — the consented tier, watch first (AXES-PLAN §3)
 

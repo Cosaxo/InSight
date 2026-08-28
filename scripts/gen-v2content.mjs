@@ -710,9 +710,51 @@ const ADS_HEADER =
   "export interface V2SeedAd { id: string; seq: number; advertiser: string; headline: string; body: string; until: string; audience?: Record<string, string>; active?: boolean; }\n" +
   "export const V2_ADS: V2SeedAd[] = ";
 
+// Test scoring metadata (AXES-RUNBOOK 1.1). The compiled bank carries a
+// test item's `axis` but not its `invert` — the seed never needed the
+// scoring direction, so 44 of the instruments' 110 items score BACKWARDS
+// if a server fold reads V2_QUESTIONS alone. The axes fit needs the full
+// join (qid → test/dim/invert), and the one honest home for it is this
+// generator: compiled from content/tests.json, the same source the client
+// instruments render from, held byte-for-byte by check:content like
+// everything else in the file. NOT a per-question seed field on purpose —
+// it never becomes a Firestore doc, so check:seed-fields has nothing to
+// transport (the V2_ADS separate-array precedent).
+export function buildTestMeta(content = loadContent()) {
+  const items = [];
+  const axes = [];
+  for (const [key, t] of Object.entries(content.tests)) {
+    for (const d of t.dims || []) {
+      axes.push({ key: `${key}.${d.id}`, test: key, dim: d.id, label: d.label });
+    }
+    for (const q of t.questions || []) {
+      items.push({
+        qid: `test-${key}-${q.id}`,
+        test: key,
+        dim: q.d,
+        ...(q.invert ? { invert: true } : {}),
+      });
+    }
+  }
+  return { items, axes };
+}
+
+const TEST_META_HEADER =
+  "\n// Test scoring metadata (AXES-RUNBOOK 1.1): qid → instrument/dim/invert\n" +
+  "// for the four core instruments' items, plus the axis labels. Compiled\n" +
+  "// here because `invert` is deliberately not a seed field — the scoring\n" +
+  "// direction never becomes a Firestore doc — and the axes fold cannot\n" +
+  "// score without it (44 of 110 items are reversed).\n" +
+  "export interface V2TestItemMeta { qid: string; test: string; dim: string; invert?: boolean; }\n" +
+  "export interface V2TestAxis { key: string; test: string; dim: string; label: string; }\n";
+
 export function generate(content = loadContent()) {
+  const meta = buildTestMeta(content);
   return HEADER + JSON.stringify(buildEntries(content), null, 1) + ";\n"
-    + ADS_HEADER + JSON.stringify(buildAds(content), null, 1) + ";\n";
+    + ADS_HEADER + JSON.stringify(buildAds(content), null, 1) + ";\n"
+    + TEST_META_HEADER
+    + "export const TEST_ITEM_META: V2TestItemMeta[] = " + JSON.stringify(meta.items, null, 1) + ";\n"
+    + "export const TEST_AXES: V2TestAxis[] = " + JSON.stringify(meta.axes, null, 1) + ";\n";
 }
 
 // CLI — guarded so check-content.mjs can import the builders without
