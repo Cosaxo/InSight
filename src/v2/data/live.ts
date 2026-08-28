@@ -1365,6 +1365,18 @@ async function hydrate(): Promise<void> {
       if (dsnap.size >= BANK_PAGE) {
         // A delta that fills the page is not a delta. Fall through to the
         // full fetch rather than silently serving a truncated bank.
+        //
+        // ADVANCE THE CURSOR ANYWAY, and this is the half that was
+        // missing. The query carries an inequality and no explicit
+        // ordering, so Firestore serves the OLDEST page past the cursor —
+        // these are real `updatedAt` values with nothing skipped over
+        // between them. Leaving the cursor where it was means the next
+        // boot asks the same question, gets the same full page, and falls
+        // through again: a permanent full-bank refetch on every boot,
+        // serving the right bank at full price with nothing to see it.
+        // The delta's own success path already advances past documents it
+        // deliberately drops, for the same reason.
+        cursor = Math.max(cursor, cursorOf(dsnap));
         all = null;
       } else {
         const byId = new Map(all.map((q) => [q.id, q]));
@@ -1492,7 +1504,13 @@ async function hydrate(): Promise<void> {
       where("until", ">=", utcDayKey(0)),
     ], "until")).filter((q) => q.surface === "feed");
     all = [...bootRows, ...coreRows, ...paidRows];
-    cursor = maxCursor;
+    // NEVER LOWER IT. `maxCursor` is the newest `updatedAt` across the
+    // three BOOT queries, and those do not cover the paged surfaces —
+    // `learn` is not a boot surface and a non-core feed row is not in the
+    // core query. So a bank whose newest documents are paged ones has a
+    // boot-only maximum BEHIND the cursor the device already holds, and
+    // assigning it walks the cursor backwards into the loop above.
+    cursor = Math.max(cursor, maxCursor);
     state.stats.bankSource = "network";
     // Whatever the cache held (a delta can overflow into this path from an
     // "idb" load), what stands now is the fetch — rewrite whole below.
