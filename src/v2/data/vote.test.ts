@@ -45,7 +45,15 @@ const h = vi.hoisted(() => ({
   // the reveal has to add it back in. Default null keeps every other case
   // on the "document does not exist" answer they were written against.
   getDocImpl: null as null | ((path: string) => Record<string, unknown> | null),
-  setDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
+  // OPTIONS TOO. The third argument decides whether a write can REMOVE a
+  // field, and dropping it here is why nothing could pin `saveAnchors`
+  // passing `mergeFields` — a fix landed with a comment claiming the
+  // rules suite guarded it, and reverting the fix left every test green.
+  setDocCalls: [] as Array<{
+    path: string;
+    data: Record<string, unknown>;
+    opts?: Record<string, unknown>;
+  }>,
   // the D86 edit path writes through updateDoc, never setDoc
   updateDocImpl: null as null | (() => Promise<void>),
   updateDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
@@ -304,8 +312,12 @@ vi.mock("firebase/firestore", () => {
       h.snapshots.push({ path: target?.path, next, error });
       return vi.fn();
     },
-    setDoc: (target: { path: string }, data: Record<string, unknown>) => {
-      h.setDocCalls.push({ path: target.path, data });
+    setDoc: (
+      target: { path: string },
+      data: Record<string, unknown>,
+      opts?: Record<string, unknown>,
+    ) => {
+      h.setDocCalls.push({ path: target.path, data, opts });
       return h.setDocImpl ? h.setDocImpl() : Promise.resolve();
     },
     updateDoc: (target: { path: string }, data: Record<string, unknown>) => {
@@ -2658,6 +2670,42 @@ describe("loadCityKindred — asking for the city instead of filtering for it", 
     LIVE.saveAnchors({ city: "Bergen, NO" });
     await LIVE.loadCityKindred();
     expect(h.voterQueries.some((w) => w["anchors.city"] === "Bergen, NO")).toBe(true);
+  });
+});
+
+// The WRITE SHAPE `saveAnchors` uses, pinned at the caller.
+//
+// A commit landed the fix for this — `merge: true` deep-merges a nested
+// map, so the anchors write could add and change a key and never REMOVE
+// one, and the persona-residue heal that removes keys therefore never
+// converged — under a comment saying "firestore-tests/rules.test.ts holds
+// the semantics so a future 'simplification' back to merge:true cannot
+// pass." It did not. That case hand-writes its own `setDoc` with
+// `mergeFields` and never calls `saveAnchors`, so it proves what
+// Firestore does and nothing about what this caller asks for: reverting
+// the fix left all 2228 tests green.
+//
+// The reason nothing could pin it is one line up in this file — the
+// harness's `setDoc` dropped its third argument, so the option that
+// decides whether a write can remove a field was invisible to every test.
+describe("saveAnchors asks for a write that can REMOVE an anchor", () => {
+  it("passes mergeFields naming anchors, not a plain merge", async () => {
+    const LIVE = await bootLive();
+    h.setDocCalls.length = 0;
+    LIVE.saveAnchors({ city: "Bergen, NO" });
+    await flush();
+    const call = h.setDocCalls.find((c) => c.path === "v2_users/uid_test");
+    expect(call, "saveAnchors wrote no profile document at all").toBeTruthy();
+    expect(
+      call!.opts,
+      "a plain `{ merge: true }` DEEP-MERGES the anchors map, so a key the "
+      + "caller left out survives on the server and the persona-residue "
+      + "heal re-fires on every boot forever without converging",
+    ).toEqual({ mergeFields: ["anchors"] });
+    // …and it names ONLY anchors: naming more would drop the rest of the
+    // profile, which is the failure the original `merge: true` was there
+    // to avoid.
+    expect(call!.data).toEqual({ anchors: { city: "Bergen, NO" } });
   });
 });
 

@@ -4298,9 +4298,15 @@ const LIVE = {
         // leaves every other profile field alone — which is what the old
         // comment described and the old call did not do. It still upserts,
         // so a first save on a profile document that does not exist yet
-        // behaves as before. Verified against the emulator both ways;
-        // firestore-tests/rules.test.ts holds the semantics so a future
-        // "simplification" back to merge:true cannot pass.
+        // behaves as before. Verified against the emulator both ways.
+        //
+        // TWO GUARDS, because the first one alone was not what its own
+        // commit claimed. firestore-tests/rules.test.ts proves what
+        // FIRESTORE does with each option — it hand-writes the two calls
+        // and reads them back — and says nothing about what this caller
+        // asks for: reverting this line left every test green. The pin
+        // that bites is in data/vote.test.ts, on the options object this
+        // write passes.
         //
         // (setPoliticalConsent, a few lines down, already knew: it uses
         // deleteField() precisely because a merge cannot take something
