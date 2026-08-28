@@ -25,6 +25,11 @@ green tree is the starting state, and §5 is what holds it.
 
 ## 2 · The app in one paragraph
 
+**What it is for:** connecting data and drawing the connections where
+they can be read — one answer against another, you against every
+population you belong to. The mechanism below serves that; `CLAUDE.md`'s
+opening is canonical for it (D334).
+
 There is **one write**. Answering anything — the daily question, a feed
 card, a test item, a Learn card, a duel — appends one answer document
 carrying a *snapshot* of the profile anchors it was written under. A
@@ -41,8 +46,9 @@ of one diagram is how one of them goes wrong. [`SCHEMA-V2.md`](SCHEMA-V2.md)
 is what gets written; [`data-inventory.md`](data-inventory.md) is who may
 read it; [`MIRROR.md`](MIRROR.md) is what it becomes on screen.
 
-Two properties to hold in mind before touching anything, both binding and
-both enforced rather than promised:
+Three properties to hold in mind before touching anything. The first two
+are binding and enforced rather than promised; the third is a rule about
+who decides:
 
 - **Answers are public** (D98). Any signed-in user may read any other
   user's answers and profile; counts are exact from the first answer.
@@ -52,6 +58,11 @@ both enforced rather than promised:
   has to make it true and a test has to prove it.
 - **No fake anything** (D1). Where a live surface shows nothing, the data
   is absent — never withheld, never seeded.
+- **A privacy constraint is an ask, not a stop** (D334). Where a privacy
+  argument is the only thing stopping something, it goes to the owner
+  with the arithmetic rather than being settled in the tree — in either
+  direction. `CLAUDE.md`'s privacy section has the four things that are
+  outside the ask, and what to bring.
 
 ## 3 · Where the code is
 
