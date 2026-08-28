@@ -36,6 +36,7 @@ import { type Transaction } from "firebase-admin/firestore";
 import { randomBytes } from "node:crypto";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
+import { utcDayKeyOf } from "./pure";
 import { ENFORCE_APP_CHECK, LIGHT_CALLABLE, FUNCTIONS_REGION } from "./ops";
 import { generateForm, version as GEN_VERSION, type Cell } from "./logic-gen";
 import { db as firestore } from "./db";
@@ -87,7 +88,6 @@ export const logicPctileFor = (frac: number, items: number): number => {
 };
 export const logicPctile = (frac: number): number => logicPctileFor(frac, 12);
 
-export const utcDayKey = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
 
 // ── the attempt doc (v2_logic_attempts/{uid} — one per account) ──
 export interface LogicAttempt {
@@ -119,7 +119,7 @@ export function canStartLogic(prev: LogicAttempt | null, nowMs: number): StartVe
     ) {
       return { ok: false, code: "cooldown", msg: "verified recently — try again later" };
     }
-    if (prev.dayKey === utcDayKey(nowMs) && prev.startsToday >= LOGIC_MAX_STARTS_PER_DAY) {
+    if (prev.dayKey === utcDayKeyOf(nowMs) && prev.startsToday >= LOGIC_MAX_STARTS_PER_DAY) {
       return { ok: false, code: "rate-limited", msg: "too many starts today" };
     }
   }
@@ -127,7 +127,7 @@ export function canStartLogic(prev: LogicAttempt | null, nowMs: number): StartVe
 }
 
 export function nextStartsToday(prev: LogicAttempt | null, nowMs: number): number {
-  return prev && prev.dayKey === utcDayKey(nowMs) ? prev.startsToday + 1 : 1;
+  return prev && prev.dayKey === utcDayKeyOf(nowMs) ? prev.startsToday + 1 : 1;
 }
 
 // Picks: one per item, -1 = expired/unanswered, else an option index.
@@ -271,7 +271,7 @@ export const logicStartV2 = onCall(
         status: "open",
         startedAtMs: now,
         deadlineMs: now + LOGIC_DEADLINE_MS,
-        dayKey: utcDayKey(now),
+        dayKey: utcDayKeyOf(now),
         startsToday: nextStartsToday(prev, now),
         normsCounted: prev?.normsCounted === true,
       };

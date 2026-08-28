@@ -345,6 +345,52 @@ describe("v2 questions + aggregates", () => {
 });
 
 describe("v2 profile", () => {
+  // NOT a rules case — a FIRESTORE SEMANTICS case, here because this is the
+  // only suite in the repo that runs against a real Firestore and can prove
+  // it. The client's `saveAnchors` (data/live.ts) is the one write in the
+  // app that must be able to REMOVE an anchor, and it could not.
+  //
+  // `merge: true` deep-merges a nested map: a key absent from the payload
+  // is left standing on the server. saveAnchors used it under a comment
+  // saying the map was "replaced wholesale", and its one key-removing
+  // caller is hydrate's persona-residue heal — so a profile a pre-fix build
+  // polluted with the sample persona's job and education kept them on a
+  // WORLD-READABLE document forever, while the heal re-fired on every cold
+  // boot and never converged.
+  //
+  // `mergeFields` replaces the named field and leaves the rest alone. The
+  // case asserts both halves, because a fix that dropped the other profile
+  // fields would be the failure the original comment was guarding against.
+  it("saveAnchors' write shape can REMOVE an anchor and keeps the rest of the profile", async () => {
+    const mine = doc(asUser(OWNER), "v2_users", OWNER);
+    await assertSucceeds(setDoc(mine, {
+      displayName: "Mira",
+      anchors: { city: "Oslo", country: "Norway", profession: "Editor" },
+    }));
+    // What the persona heal asks for: the same map minus one key.
+    await assertSucceeds(setDoc(
+      mine, { anchors: { city: "Oslo", country: "Norway" } }, { mergeFields: ["anchors"] },
+    ));
+    const after = await getDoc(mine);
+    expect(
+      after.data()!.anchors,
+      "the removed anchor survived the write — `merge: true` deep-merges a "
+      + "nested map, so the heal never converges and the residue stays on a "
+      + "world-readable profile",
+    ).toEqual({ city: "Oslo", country: "Norway" });
+    expect(
+      after.data()!.displayName,
+      "the rest of the profile was dropped — mergeFields must name ONLY "
+      + "`anchors`, or this fix trades one bug for a worse one",
+    ).toBe("Mira");
+    // And it upserts: saveAnchors can run before the profile doc exists.
+    const fresh = doc(asUser(FRIEND), "v2_users", FRIEND);
+    await assertSucceeds(setDoc(
+      fresh, { anchors: { city: "Bergen" } }, { mergeFields: ["anchors"] },
+    ));
+    expect((await getDoc(fresh)).data()!.anchors).toEqual({ city: "Bergen" });
+  });
+
   it("world-readable, owner-written, with validated fields", async () => {
     const mine = doc(asUser(OWNER), "v2_users", OWNER);
     await assertSucceeds(setDoc(mine, {

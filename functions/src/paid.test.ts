@@ -12,6 +12,7 @@ import {
   LIKERT,
   adPriceQuote,
   adStartDay,
+  adAudiencesOverlap,
   dayPlus,
   paidAdDoc,
   paidAdPurchaseDoc,
@@ -31,10 +32,11 @@ import {
   refundEurFor,
   reviewGates,
   reviewSubject,
-  utcDayKey,
   validatePaidBooking,
   type PaidBookingPayload,
 } from "./paid";
+// One name, one meaning: the day-key helpers live in pure.ts now.
+import { utcDayKey } from "./pure";
 
 const BOOKING: PaidBookingPayload = {
   kind: "question",
@@ -388,6 +390,77 @@ describe("adStartDay — ads queue, never overlap (D315)", () => {
   it("dayPlus speaks the same grain", () => {
     expect(dayPlus("2026-08-27", WINDOW_DAYS - 1)).toBe("2026-09-24");
     expect(dayPlus("not-a-day", 3)).toBe("not-a-day");
+  });
+});
+
+// The half `adStartDay` cannot see: WHICH running ads it should be handed.
+//
+// The queue exists so a flat-priced ad is not "silently diluted by another
+// ad… getting less for the same money". goLive selected the ads to queue
+// behind with `scope == b.scope`, and scopes are NESTED audiences, not
+// disjoint ones: a world ad matches everybody, and pickPaid gives exactly
+// ONE paid slot a day out of a single pool. So a world ad was invisible to
+// a city booking's queue and then halved it — 29 days bought, about 14
+// served, flat price paid in full.
+describe("adAudiencesOverlap — which ads actually compete for the one daily slot", () => {
+  const world = { scope: "world", place: null };
+  const oslo = { scope: "city", place: "Oslo, NO" };
+  const bergen = { scope: "city", place: "Bergen, NO" };
+  const norway = { scope: "country", place: "NO" };
+  const sweden = { scope: "country", place: "SE" };
+  const stockholm = { scope: "city", place: "Stockholm, SE" };
+
+  it("a world ad meets everyone — the case that was invisible", () => {
+    expect(adAudiencesOverlap(world, oslo)).toBe(true);
+    expect(adAudiencesOverlap(oslo, world)).toBe(true);
+    expect(adAudiencesOverlap(world, norway)).toBe(true);
+    expect(adAudiencesOverlap(world, world)).toBe(true);
+  });
+
+  it("a country ad meets the cities inside it and no others", () => {
+    // Derivable exactly: a city place is "<name>, <CC>" and a country
+    // place is that same ISO code (pure.ts pins both shapes).
+    expect(adAudiencesOverlap(norway, oslo)).toBe(true);
+    expect(adAudiencesOverlap(oslo, norway)).toBe(true);
+    expect(adAudiencesOverlap(norway, stockholm)).toBe(false);
+    expect(adAudiencesOverlap(sweden, stockholm)).toBe(true);
+  });
+
+  it("two different cities do not meet, and neither do two different countries", () => {
+    // The half that must NOT over-queue: making everything overlap would
+    // park a Bergen campaign behind an Oslo one for a month for nothing.
+    expect(adAudiencesOverlap(oslo, bergen)).toBe(false);
+    expect(adAudiencesOverlap(norway, sweden)).toBe(false);
+    expect(adAudiencesOverlap(oslo, oslo)).toBe(true);
+    expect(adAudiencesOverlap(norway, norway)).toBe(true);
+  });
+
+  it("an unrecognised shape counts as overlapping", () => {
+    // The two errors are not equal. Queueing two ads that never meet costs
+    // the second buyer TIME; failing to queue two that do costs them half
+    // of what they paid for, silently. So a missing place, a malformed
+    // city, or a scope this function does not know queues rather than
+    // shares.
+    expect(adAudiencesOverlap({ scope: "city", place: null }, oslo)).toBe(true);
+    expect(adAudiencesOverlap({ scope: "city", place: "Oslo" }, norway)).toBe(true);
+    expect(adAudiencesOverlap({ scope: "", place: null }, oslo)).toBe(true);
+    expect(adAudiencesOverlap({}, {})).toBe(true);
+  });
+
+  it("composed with adStartDay: the world ad now pushes the city booking", () => {
+    const NOW = Date.UTC(2026, 7, 26, 12);
+    const running = [
+      { scope: "world", place: null, window: { until: "2026-09-24" } },
+      { scope: "city", place: "Bergen, NO", window: { until: "2026-10-30" } },
+    ];
+    const mine = oslo;
+    const queued = running
+      .filter((r) => adAudiencesOverlap(mine, r))
+      .map((r) => r.window);
+    // The world ad is queued behind; Bergen's later window is NOT, because
+    // it never meets an Oslo reader.
+    expect(queued).toEqual([{ until: "2026-09-24" }]);
+    expect(adStartDay(queued, NOW)).toBe("2026-09-25");
   });
 });
 

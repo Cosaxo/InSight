@@ -46,6 +46,56 @@ const PROPS = {
 
 afterEach(cleanup);
 
+// The verdict the beat says out loud, which is a claim about VOTES while
+// the number beside it is a percentage.
+//
+// `sharePcts` never inverts two counts but it can round them to the same
+// integer, so deciding "you're with them" off the percentages told a voter
+// with strictly fewer votes that they had won. The line under the card was
+// fixed earlier the same night; a beat still reading percentages would
+// have contradicted the line it is shown two seconds before.
+describe("the consequence beat's verdict", () => {
+  // Options must match the vector's width — the animation lays out one
+  // camp per option and reads `camps[i]`, so a mismatched pair throws
+  // rather than misreporting.
+  const opts = (n) => Array.from({ length: n }, (_, i) => ({
+    label: ["Absolutely", "Never", "Depends"][i] || `Option ${i}`,
+    color: "oklch(0.52 0.14 40)",
+  }));
+  const say = (pcts, counts, mineIdx) => {
+    const { container } = render(
+      <ConsequenceBeat {...PROPS} options={opts(pcts.length)} pcts={pcts}
+        counts={counts} mineIdx={mineIdx} onDone={() => {}} />,
+    );
+    return container.textContent;
+  };
+
+  it("asks the counts, not the drawn percentages", () => {
+    // 449 and 451 both draw 45%. The voter on 449 did not win.
+    expect(say([45, 45, 10], [449, 451, 100], 0)).toContain("you among them");
+    expect(say([45, 45, 10], [449, 451, 100], 1)).toContain("you\u2019re with them");
+  });
+
+  it("still prints the percentage it was given", () => {
+    // The number and the verdict answer different questions, and only the
+    // verdict moved. A beat that started printing counts would be a
+    // different bug.
+    expect(say([45, 45, 10], [449, 451, 100], 0)).toContain("45% chose");
+  });
+
+  it("a real tie in counts is with them, on both sides", () => {
+    expect(say([50, 50], [7, 7], 0)).toContain("you\u2019re with them");
+    expect(say([50, 50], [7, 7], 1)).toContain("you\u2019re with them");
+  });
+
+  it("degrades to the percentages when no counts are passed", () => {
+    // The prop is optional on purpose: a caller without counts must behave
+    // exactly as before rather than throw.
+    expect(say([61, 39], undefined, 0)).toContain("you\u2019re with them");
+    expect(say([61, 39], undefined, 1)).toContain("rare side");
+  });
+});
+
 describe("the consequence beat's skip control", () => {
   it("is a real control: focusable, and named", () => {
     render(<ConsequenceBeat {...PROPS} onDone={() => {}} />);

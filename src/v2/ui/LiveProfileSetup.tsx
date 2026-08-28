@@ -176,7 +176,13 @@ function LiveProfileSetup({ onDone }: { onDone: () => void }) {
   // them tomorrow — which is how a refusal quietly becomes a nag. null is
   // "not answered yet", and the default while it is null is OFF.
   const [pol, setPol] = React.useState<boolean | null>(
-    () => (LIVE.politicalConsented() ? true : null),
+    // Three states, and the middle one used to be missing. Consented is
+    // true; ANSWERED-but-not-consented is a decline, and it must come back
+    // as `false` so the screen shows the button they actually pressed;
+    // only an unanswered ask is null. Seeding from consent alone made a
+    // decline indistinguishable from never having been asked — the exact
+    // re-ask the comment above calls a nag.
+    () => (LIVE.politicalConsented() ? true : LIVE.politicalAnswered() ? false : null),
   );
   const answerPolitical = (on: boolean) => {
     setPol(on);

@@ -14,6 +14,14 @@
 //      stripping the day suffix, everything unknown as "other", never a
 //      guess.
 import { describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+// ESM: no __dirname. The batch-cap case at the foot of this file reads
+// engagement.ts's own source, because the write sites live inside the
+// Firestore store, behind an interface every case here replaces.
+const here = dirname(fileURLToPath(import.meta.url));
 
 vi.mock("firebase-functions", () => ({
   logger: { info() {}, warn() {}, error() {} },
@@ -250,7 +258,9 @@ describe("day arithmetic", () => {
 
 // ── the attention fold (R2/D270) ────────────────────────────────────────
 import {
-  BUCKET_MIDPOINTS, MIN_SHARD_RATE, SHARD_FOLD_CAP, foldShards, runAttentionFold,
+  BUCKET_MIDPOINTS, MIN_SHARD_RATE, QIDS_PER_DAY_CAP, QID_KEY_MAX, SHARD_FOLD_CAP,
+  ROLLUP_CHUNK, SHARD_CHUNK,
+  foldShards, runAttentionFold,
   type AttentionShardDoc, type AttentionStore, type AttnDelta,
 } from "./engagement";
 
@@ -310,6 +320,60 @@ describe("foldShards", () => {
     expect(d.s.opens).toBeUndefined(); // negative → 0
     expect(d.s.errors).toBeUndefined(); // non-number → 0
     expect(out.has("not-a-day")).toBe(false);
+  });
+
+  // The two KEY fences. The rules bound `qids` to 120 entries and cannot
+  // go further — rules cannot iterate a map — so a key's length and the
+  // union across shards were the fold's to bound, and it bounded neither.
+  // Every client-chosen key became a field name on the shared,
+  // world-readable day document: seven rules-legal shards of 119
+  // 1200-character keys push it past Firestore's 1 MiB entity limit, and
+  // then the day can never be written again, the shards are never
+  // deleted, and the rollup fold behind the awaited attention fold stops
+  // running too. One free account, seven writes, manual recovery only.
+  it("refuses a qid key too long to be a question id, and counts it as overflow", () => {
+    const q = (qids: Record<string, unknown>): AttentionShardDoc =>
+      ({ id: "a", day: "2026-08-22", rate: 1, s: {}, qids } as AttentionShardDoc);
+    const long = "x".repeat(QID_KEY_MAX + 1);
+    const out = foldShards([q({ "feed-f01": { s: 2 }, [long]: { s: 2 } })]);
+    const d = out.get("2026-08-22")!;
+    expect(Object.keys(d.q)).toEqual(["feed-f01"]);
+    // Reported, not silently dropped — the same cell the client's own cap
+    // spills into.
+    expect(d.qOther).toBe(1);
+    // A key exactly at the bound is a legal id and is kept.
+    const ok = foldShards([q({ ["y".repeat(QID_KEY_MAX)]: { s: 2 } })]);
+    expect(Object.keys(ok.get("2026-08-22")!.q)).toHaveLength(1);
+  });
+
+  it("caps the day's distinct qids and spills the rest, once per shard", () => {
+    const many: Record<string, unknown> = {};
+    for (let i = 0; i < QIDS_PER_DAY_CAP + 50; i++) many[`feed-${i}`] = { s: 2 };
+    const out = foldShards([
+      { id: "a", day: "2026-08-22", rate: 1, s: {}, qids: many } as AttentionShardDoc,
+    ]);
+    const d = out.get("2026-08-22")!;
+    expect(Object.keys(d.q)).toHaveLength(QIDS_PER_DAY_CAP);
+    // ONE device read "…and more", not fifty. Overflow counts per shard,
+    // like the client's `_other` cell, or qOther would report a crowd
+    // that does not exist.
+    expect(d.qOther).toBe(1);
+  });
+
+  it("a qid already in the map keeps counting past the cap", () => {
+    // Truncating a question halfway through a day would be worse than
+    // either fence: its reach would be a fraction of its real one and
+    // nothing would say so.
+    const first: Record<string, unknown> = {};
+    for (let i = 0; i < QIDS_PER_DAY_CAP; i++) first[`feed-${i}`] = { s: 2 };
+    const out = foldShards([
+      { id: "a", day: "2026-08-22", rate: 1, s: {}, qids: first } as AttentionShardDoc,
+      { id: "b", day: "2026-08-22", rate: 1, s: {}, qids: { "feed-0": { s: 2 }, "feed-new": { s: 2 } } } as AttentionShardDoc,
+    ]);
+    const d = out.get("2026-08-22")!;
+    expect(d.q["feed-0"].s!.reach).toBe(2);
+    expect(d.q["feed-new"]).toBeUndefined();
+    expect(d.qOther).toBe(1);
   });
 
   it("scales a sampled shard by 1/rate", () => {
@@ -835,5 +899,47 @@ describe("a paged query's projection has to carry the field it orders by", () =>
       projection,
       'ledgerDay orders by "at" but did not project it, so startAfter cannot build a cursor and every day past one page throws',
     ).toContain("at");
+  });
+});
+
+// The 500-op batch cap, held against the two chunk sizes that feed it.
+//
+// Firestore refuses a batch over 500 writes, and a scheduled function
+// that throws at 2am is a silent nightly outage. Both constants carry the
+// arithmetic in a comment; only one of them was defended by anything, and
+// only by accident — raising SHARD_CHUNK is caught by two cases asserting
+// literal chunk SIZES, not the cap, and raising ROLLUP_CHUNK to 400 (801
+// ops) left all 462 tests green.
+describe("the batch arithmetic stays under Firestore's 500-op cap", () => {
+  const CAP = 500;
+
+  it("applyRollups: 1 day-doc set + one mark and one state per row", () => {
+    // `fgWindows.size` equals `rows.length` — one rollup per person per
+    // day — so the batch is exactly 2n + 1.
+    expect(2 * ROLLUP_CHUNK + 1).toBeLessThanOrEqual(CAP);
+  });
+
+  it("the shard fold: 1 day-doc set + one delete per shard", () => {
+    expect(1 * SHARD_CHUNK + 1).toBeLessThanOrEqual(CAP);
+  });
+
+  it("…and the shape those formulas assume has not changed", () => {
+    // An arithmetic pin is only as good as its model of the batch. If a
+    // THIRD write per row is added, `2n + 1` quietly stops being the
+    // count and this file goes on saying the cap is safe. So the write
+    // sites are counted too, off the source.
+    const src = readFileSync(resolve(here, "engagement.ts"), "utf8");
+    const body = src.slice(
+      src.indexOf("async applyRollups("),
+      src.indexOf("await batch.commit();", src.indexOf("async applyRollups(")),
+    );
+    expect(body, "applyRollups moved or was renamed — this case is vacuous").not.toBe("");
+    const writes = [...body.matchAll(/batch\.(set|update|delete|create)\(/g)].map((m) => m[1]);
+    expect(
+      writes,
+      "applyRollups' batch gained or lost a write. The 2n + 1 formula above "
+      + "is now wrong, and it is the only thing keeping this batch under "
+      + "the 500-op cap.",
+    ).toEqual(["set", "update", "set"]);
   });
 });

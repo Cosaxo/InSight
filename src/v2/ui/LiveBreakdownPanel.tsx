@@ -834,6 +834,15 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
               const bMean = rating ? meanScore(b.counts) : null;
               const oMean = rating ? meanScore(overall) : null;
               const meanGap = bMean && oMean ? bMean.mean - oMean.mean : 0;
+              // DECIDE ON THE NUMBER THIS PRINTS, not on the one behind
+              // it. The sentence below draws the gap to one decimal and
+              // used to gate on the raw float at `>= 0.1`, so a gap of
+              // 0.06 — which draws as "0.1" — fell into the other arm and
+              // said "land right where everyone lands". Half of every gap
+              // that rounds to a tenth said it, and the reader has no way
+              // to tell those apart from the ones that print 0.1 and are
+              // called a difference.
+              const gapShown = Math.abs(meanGap).toFixed(1);
               return (
                 <>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
@@ -852,10 +861,10 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
                       reader has to interpret. */}
                   <div style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.5, textWrap: "pretty" }}>
                     {rating ? (
-                      bMean && oMean && Math.abs(meanGap) >= 0.1
+                      bMean && oMean && gapShown !== "0.0"
                         ? <>
                           {label} average <strong style={{ color: "var(--ink-2)" }}>{bMean.mean.toFixed(1)}</strong>
-                          {" "}— {Math.abs(meanGap).toFixed(1)} {meanGap > 0 ? "above" : "below"} everyone.
+                          {" "}— {gapShown} {meanGap > 0 ? "above" : "below"} everyone.
                         </>
                         : <>{label} land right where everyone lands.</>
                     ) : d && d.gap > 0

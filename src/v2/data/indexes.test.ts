@@ -168,6 +168,34 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
     expect(hit, "the engagement (folded, day) collection-group composite is missing or reshaped — rollupPage fails FAILED_PRECONDITION in production").toBeDefined();
   });
 
+  it("engagement.ts rollupPage: …and the query still ASKS for that order", () => {
+    // The other end of the same claim. The case above says the index
+    // exists; its own comment calls itself "the only thing standing
+    // between that and a silent nightly outage", and it is not — it reads
+    // the JSON only. Delete the `.orderBy("day")` from the query and the
+    // starvation the comment describes comes straight back while the now
+    // unused index sits in the file and every test stays green.
+    //
+    // Read off the source, the way check-anchors reads BREAKDOWN_DIMS out
+    // of pure.ts: the query is inside `firestoreEngagementStore`, behind
+    // an interface every unit test replaces, so nothing that runs can
+    // reach it. A parse that finds nothing is an error rather than an
+    // empty pass, which is what the first two assertions are for.
+    const src = readFileSync(resolve(__dirname, "../../../functions/src/engagement.ts"), "utf8");
+    const call = src.slice(src.indexOf('db.collectionGroup("engagement")'));
+    expect(call, "rollupPage's collection-group query is gone or renamed — this case is now vacuous").not.toBe("");
+    const query = call.slice(0, call.indexOf(".get()"));
+    expect(query, "the query no longer filters on `folded`").toContain('.where("folded", "==", false)');
+    expect(
+      query,
+      "rollupPage stopped ordering by `day`. Firestore then falls back to "
+      + "`__name__`, which for this group is uid-major, so above the fold "
+      + "cap the same low-sorting accounts are taken every night and the "
+      + "rest die unfolded at the 90-day TTL — with the composite index "
+      + "still declared and nothing red.",
+    ).toContain('.orderBy("day")');
+  });
+
   it("live.ts's own-answer delta cursors: answeredAt and editedAt stay unexempted", () => {
     // hydrate() pages the viewer's own answers with `answeredAt >` and
     // `editedAt >` range filters. Both ride the AUTOMATIC single-field
@@ -199,6 +227,73 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
       o!.indexes.some((i) => i.queryScope === "COLLECTION_GROUP" && i.order === "ASCENDING"),
       "engagement.folded has no COLLECTION_GROUP ascending index",
     ).toBe(true);
+  });
+
+  // deleteAccount's cross-user sweeps, as ONE case, because they share one
+  // failure and it is the worst one in this file.
+  //
+  // Phases 3–4 of deleteAccount reach documents that live under OTHER
+  // people's subtrees — an invitation this account sent sits in a
+  // stranger's inbox and carries this account's display name — so each is
+  // a collection-group query filtered on a uid field, with no ordering.
+  // A collection-group query needs its single-field index declared
+  // EXPLICITLY: automatic indexing is collection-scope only, so the
+  // absence of a line here is FAILED_PRECONDITION on that sweep.
+  //
+  // And a sweep that throws is not a partial erasure. Every failure is
+  // pushed onto `failed[]`, and a non-empty `failed[]` throws BEFORE
+  // getAuth().deleteUser — deliberately, so nothing is orphaned behind a
+  // deleted auth user. The consequence is that ONE missing line here means
+  // NOBODY CAN DELETE THEIR ACCOUNT, ever, and the message they get is
+  // "nothing was lost, please retry" on every attempt.
+  //
+  // `invites` was the line that was missing. The file declared the two
+  // composites `(to, at DESC)` and `(from, at DESC)` — added for the
+  // client's inbox, which orders by `at` — and a commit message reasoned
+  // that a composite covers the filter-only query "as a prefix". A
+  // composite ending `at DESC` carries an implicit trailing `__name__
+  // DESC`, and a filter-only query's implicit ordering is `__name__ ASC`,
+  // so the prefix argument is at best unproven. It cannot be settled from
+  // here — this file's header says why: the emulator does not enforce
+  // index configuration, so every local suite is green either way, and
+  // only production can answer it.
+  //
+  // The fix does not need the answer. Declaring the two single-field
+  // overrides makes the query served whichever way the composite question
+  // resolves, matches what every OTHER sweep in this list already has, and
+  // costs one index entry per invite on a collection that holds unanswered
+  // invitations. Cheap to add, and the thing it insures against is total.
+  it("deleteAccount's cross-user sweeps each have their collection-group index", () => {
+    const sweeps: Array<[string, string, "order" | "arrayConfig", string]> = [
+      // functions/src/index.ts phase 3c — both directions of a circle
+      // invitation (D122).
+      ["invites", "to", "order", "ASCENDING"],
+      ["invites", "from", "order", "ASCENDING"],
+      // phase 3b — inbound follows sitting in other people's circles.
+      // Also pinned above for circle.ts's own read; kept here because the
+      // reason differs and either one going missing is this failure.
+      ["following", "to", "order", "ASCENDING"],
+      // phase 4 — v1 relations pointing back at this uid.
+      ["relations", "linkedUid", "order", "ASCENDING"],
+      // phase 3a — v1 impressions this account sent.
+      ["insight_inbound_impressions", "senderUid", "order", "ASCENDING"],
+      // phase 2 — reveal documents this account is a member of.
+      ["reveals", "members", "arrayConfig", "CONTAINS"],
+    ];
+    for (const [group, field, kind, want] of sweeps) {
+      const o = override(group, field);
+      expect(
+        o,
+        `${group}.${field} has no fieldOverride at all — deleteAccount's `
+        + `sweep over it throws FAILED_PRECONDITION in production, and a `
+        + `failed sweep aborts before the auth delete, so NO account can `
+        + `be deleted until it is restored.`,
+      ).toBeDefined();
+      expect(
+        o!.indexes.some((i) => i.queryScope === "COLLECTION_GROUP" && i[kind] === want),
+        `${group}.${field} has no COLLECTION_GROUP ${want} index`,
+      ).toBe(true);
+    }
   });
 
   it("the file declares each top-level key exactly once", () => {
