@@ -34,7 +34,10 @@ A third script answers a question this page does not: **`npm run
 costs:scale`** prices a *change to the content pipeline* rather than the
 app as built — what an order-of-magnitude increase in question production
 costs, and (the finding) that bank SIZE bills nothing at all, because
-D34's delta paging makes it a one-time install cost.
+D34's delta paging makes it a one-time install cost — and since D318–D321
+that install cost is bounded too: a device is handed the boot surfaces,
+the core corpus and a page per topic, never the bank, so the sentence now
+holds for a second and stronger reason.
 [`docs/SCALE-PLAN.md`](SCALE-PLAN.md) is the plan those numbers were
 computed for. It is deliberately a separate table: mixing a hypothetical
 into the as-built one below is how a prediction gets read as a
@@ -51,8 +54,9 @@ Every constant below is sourced, not assumed:
 | …plus the ledger's death | 1 delete, 90 days later | `LEDGER_RETENTION_DAYS` |
 | One duel answer | 1 client write + 1 `pendingDays` arrayUnion | v2.ts group branch |
 | One trigger invocation | 512 MiB, 1 vCPU, concurrency 20, ~200 ms | `HOT_TRIGGER`, functions/src/ops.ts |
-| One warm boot | ~15 reads (meta, profile, answers query, 7 deck aggregates, groups, 2 group docs, 2 reveals) | `hydrate()`, src/v2/data/live.ts. The deck reads are one batched fetch since D129, not seven listener attachments |
-| One cold boot | **+716 reads** — the whole question bank | `V2_QUESTIONS`, 716 docs / 200.2 KiB of JSON |
+| One warm boot | ~18 reads (meta, profile, answers query, 7 deck aggregates, groups, 2 group docs, 2 reveals, 2 published orders, the taste profile) | `hydrate()`, src/v2/data/live.ts. The deck reads are one batched fetch since D129, not seven listener attachments. The last three are the serving rewrite's: `v2_rank/feed` and `v2_rank/learn` (D319) and `v2_users/{uid}/taste/profile` (D322), paid on every boot whether or not a page follows |
+| One cold boot | **+456 reads** — the boot surfaces and the core corpus, no longer the bank | `V2_QUESTIONS`, 456 docs of 716 / 125.1 KiB of JSON. Two queries since D321 (`BANK_SURFACES`, then `surface == "feed" AND core == true`) plus a third for the paid campaigns running today — core ships whole because the corpus the Mirror folds is valuable only if every device holds all of it (D161), and everything else pages |
+| One cold boot, the pages | 1 read per paged surface for the order, then the first `LEARN_PAGE` (24) fresh cards per learn field and `FEED_PAGE` (12) per feed topic the cache does not already hold | `src/v2/data/bankPager.ts` against `v2_rank/{feed,learn}` (D319–D321). The cache is the seen-set, so a second boot pages nothing. **This has changed the shape and not yet the number**: as of 2026-08-28 the bank holds no more than a page in every learn field and in all but one feed topic, so a first boot pages the whole learn bank and nearly the whole tail, landing a few documents short of the whole-bank fetch it replaced. What it buys is the growth curve — O(core + pages) per install, never O(bank) — which is why D321 calls today the point where paging starts paying rather than where it has paid. The gap widens on its own from here; nothing has to be changed for it to |
 | Agg top-up | ≤120 reads, ≤1 per qid per 6 h | `AGG_ID_CAP`, `AGG_RECHECK_MS` |
 | One world answer, again | +1 **rule** read (the question doc) + 2 **server** reads (ledger event, private agg) | `isWorldAnswer` in firestore.rules; the `runAggTransaction` in v2.ts |
 | One duel answer, again | +3 rule reads (group, reveal, question); the trigger's duel branch reads nothing | `isDuelAnswer`; "one blind write, no read" |
@@ -65,6 +69,7 @@ Every constant below is sourced, not assumed:
 | One buyer's-room open | One `uid ==` list query over `v2_purchases`, sized by the buyer's own contract count — for almost every account that is zero rows, and for a buyer it is a handful | firestore.rules `v2_purchases` (D288 §3, PAID-PLAN §7). Session-cached like every owner list; the public split on each purchase card reads the sponsored question's own agg, which the feed already fetched. The pricing fold costs the SERVER nothing at runtime: `scripts/build-pricing.mjs` is operator-run at contract time, and the door reads the committed `content/pricing.json` |
 | The Patterns fit, nightly | The day's ledger entries re-read as the vote log (the velocity scan's shape, second reader), one private state read+write per active answerer, one model doc read+write per project, one merged write to `v2_meta/app` (the tab's mount gate, D265) | functions/src/patterns.ts (v28 §2, trial D166 §1). Measured BEFORE the fold shipped — the dated note under the scenario table has the movement |
 | The engagement digest, nightly | The day's ledger entries re-read a THIRD time as the activity log, one bookkeeping state read+write per active answerer, one public day doc per project | functions/src/engagement.ts (R1/D268). A separate scan rather than a rider on velocity's, deliberately — its header carries the windowing argument. Measured before the deploy — dated note below |
+| The taste fold, nightly | The day's ledger entries re-read a FOURTH time as the interest log, one profile read+write per person who answered a feed question that day, one merged `tasteLastDay` write per project | functions/src/taste.ts (`fitTasteV2`, 03:27 UTC, D317/D322), through the same one-day reader the Patterns fit uses (`ledger.ts`, extracted so there is one copy). **The only reader here with no term in the model** — see *What is still not in the model* |
 | One attention shard | 1 write the day after (the device's flush), then 1 read + 1 delete the night the fold sweeps it — per SAMPLED device per day, at the client's own `SHARD_SAMPLE_RATE` | src/v2/data/engagement.ts + the fold in functions/src/engagement.ts (R2/D270). The rate is read from source by the model (`ATTN_SAMPLE_RATE`), because it is the designed lever if this term ever matters |
 | One person rollup | 1 write the day after (unsampled — the person channel), then the fold's 1 read + 1 folded-mark write + 1 fg-window read + write on `_state`; the TTL deletes it 90 days on | src/v2/data/engagement.ts + runRollupFold (R3/D272). Not deleted by the fold — the TTL is the deletion, and the flag is what makes the sweep exactly-once |
 | One Circle open | 1 + one query per member: ≤50 members × ≤300 answers, +1 followers query | `FOLLOW_CAP` / `CIRCLE_ANSWER_CAP`, src/v2/data/circle.ts (D101). Also once per session since 2026-08-13, with `setFollowing` the one caller that may force a refetch — it changes the membership the fold is over |
@@ -332,11 +337,29 @@ Per active user per day:
 
 | DAU | boot | agg top-up | reseed delta | poll | re-attach | rule reads | server reads | **D98 surfaces** | total/user |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| 50 | 21 | 42 | 3 | 3 | 28 | 7 | 22 | 71 | 197 |
-| 500 | 21 | 42 | 3 | 3 | 28 | 7 | 22 | 224 | 350 |
-| 5,000 | 21 | 2 | 3 | 3 | 28 | 7 | 22 | **354** | 440 |
-| 50,000 | 21 | 2 | 3 | 3 | 28 | 7 | 22 | 354 | 440 |
-| 500,000 | 21 | 2 | 3 | 3 | 28 | 7 | 22 | 354 | 440 |
+| 50 | 21 | 42 | 3 | 3 | 28 | 7 | 30 | 71 | 205 |
+| 500 | 21 | 42 | 3 | 3 | 28 | 7 | 30 | 224 | 358 |
+| 5,000 | 21 | 2 | 3 | 3 | 28 | 7 | 30 | **354** | 448 |
+| 50,000 | 21 | 2 | 3 | 3 | 28 | 7 | 30 | 354 | 448 |
+| 500,000 | 21 | 2 | 3 | 3 | 28 | 7 | 30 | 354 | 448 |
+
+> **Re-read off the model 2026-08-28.** The `server` column stood at 22
+> and the totals with it — the pre-D268 value. Three changes moved the
+> model since, each with its own dated note further down this page
+> (the engagement digest 22 → 27, the attention shards 27 → 28, the
+> person rollups 28 → 30), and not one of them came back for this
+> table. The scenario table above was re-derived every time, so the two
+> halves of one page disagreed by eight reads per user per day: the D47
+> shape, prose the arithmetic beside it had outrun. `node
+> scripts/cost-model.mjs` prints this table — run it rather than
+> trusting these ten rows.
+>
+> **`boot` (21) is 1.4 boots × the 15 reads the model's own `boot` term
+> lists, and `hydrate()` now issues 18.** The three the term has not
+> heard about are the two published orders and the taste profile
+> (D319/D322), and the paged fetch behind them has no term at all. Both
+> gaps are named under *What is still not in the model*, with their
+> direction: this column reads LOW.
 
 **Every column is now flat in DAU, and that is the headline.** The
 `fanOut` column above is the poll (D129) — three reads a day, because the
@@ -373,13 +396,21 @@ document access at all, so this term scales with *answers*, not opens.
 > evaluator's cache is real — and it is the same cache billing sees. Counted
 > un-deduped the figure would be 14 rather than 6.
 
-**Server reads** (14). Three sources, none of them visible from the client:
+**Server reads** (30). Four sources, none of them visible from the client:
 the aggregate transaction reads two documents per world answer (the ledger
-event for dedup, the private aggregate); the nightly velocity scan (D54)
-reads **every ledger entry written that day**, which is one per world
-answer; and the reveal pipeline reads `(4 + 3m)/m` per member per group-day,
-which is 5 for a duo. The velocity scan alone is the size of the top-up and
-the reseed delta put together, and it was invisible.
+event for dedup, the private aggregate) — 8; the nightly readers of the
+ledger, each re-reading **every entry written that day**, which is one
+per world answer, plus one state document each for the Patterns fit and
+the engagement digest — 14, and that is three readers counted where the
+tree has four, because the taste fold has no term; the two engagement
+folds' own reads, a sampled shard and a rollup pair — 3; and the reveal
+pipeline, `(4 + 3m)/m` per member per group-day, which is 5 for a duo.
+This was **14** when the velocity scan was the only nightly reader, and
+the sentence here called it "the size of the top-up and the reseed delta
+put together, and it was invisible". The lesson held and the number did
+not: three more readers of the same log have arrived since — the
+Patterns fit, the engagement digest, the taste fold — and the log is now
+the largest thing on this line.
 
 **The D98 surfaces** (339 at maturity). Who-voted sheets, Kindred and
 Circle — one mechanism at three surfaces, a client reading other users'
@@ -482,6 +513,15 @@ asset: 369 documents / 80.2 KiB is one gzipped JSON file on Hosting,
 CDN-cached, one conditional GET instead of any billable reads. That
 removes the cold-boot 369 as well as the delta — but the cold boot is
 once per device, so it is now a rounding error. Deferred.
+
+> **What D321 did to the second half of that.** The cold boot is no
+> longer the bank: it is the boot surfaces plus core, and the tail and
+> learn arrive as pages against a published order. A static file would
+> have to serve either the whole bank (undoing the paging) or the pages
+> (which are chosen per device), so this lever is no longer the same
+> lever — re-derive it before quoting the saving, and note that
+> `cost-model.mjs` still prints it as `staticBank`, which zeroes the
+> reseed delta and has never modelled the install at all.
 
 ### Finding 2 — the deck listeners are quadratic in DAU · **FIXED (D129)**
 
@@ -1226,6 +1266,31 @@ Three caveats worth carrying:
 Named, so the next correction starts from a list rather than from a
 surprise:
 
+- **The serving rewrite's client reads (D319–D322), and they read LOW.**
+  Three per boot the `boot` term does not list — `v2_rank/feed`,
+  `v2_rank/learn` and the taste profile — plus the paged fetch itself,
+  which has no term at all: on a first boot that is `LEARN_PAGE` per
+  learn field and `FEED_PAGE` per feed topic, and on every boot after it
+  is whatever the lanes have written since, because the cache is the
+  seen-set. Not folded in yet because the install cost has never been in
+  this model's per-user-day arithmetic (finding 1's whole-bank fetch was
+  charged through the reseed term, not the boot term), and a paging
+  term that is large exactly once per device wants its own shape rather
+  than a division by `B.boots`. Dated 2026-08-28 rather than estimated,
+  because a made-up number here would outlive the gap.
+- **The taste fold (`fitTasteV2`, D317/D322).** The fourth nightly reader
+  of the ledger, and the only one with no constant in
+  `scripts/cost-arith.mjs` — its shape is the Patterns pair's (one paged
+  ledger-day read, one profile read and one write per person who
+  answered a feed question that day), so the term is known and the
+  arithmetic is not, because adding it moves every printed figure on this
+  page and the two have to land together.
+- **`sweepPaidReviewsV2` (D313).** Every 30 minutes, project-wide: one
+  indexed `status == "review" AND createdAt < cutoff` query, paged, and a
+  query matching nothing is still billed one read. So ~48 invocations and
+  a floor of ~48 reads a day whatever the DAU — flat, tiny, and named
+  here because the paid bullet below listed the daily closer and not the
+  half-hourly sweep.
 - **The paid loop's off-Firebase bills (D313; ads D315).** The automated
   review is one `claude-opus-5` call per booking — cents each, billed to
   the Anthropic account, bounded by the 5/day/account booking budget —
@@ -1233,8 +1298,8 @@ surprise:
   nothing on the refunded remainder. Both ride other ledgers than the
   Firebase bill this file models; the Firestore side of the loop (a
   booking doc, a handful of status writes, one purchase, one question
-  or ad doc, the closer's daily bounded scan) is noise against the
-  read-dominated bill.
+  or ad doc, the closer's daily bounded scan and the review sweep above)
+  is noise against the read-dominated bill.
 - **Cloud Logging volume**, estimated in the fixed-cost table above but not
   derived from the actual log statements per invocation.
 - **The catalog trigger's third read**, above — deliberate, it is not live.

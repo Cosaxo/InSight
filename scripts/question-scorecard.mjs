@@ -92,11 +92,6 @@ const OUT = join(root, "content", "scorecard.json");
 // beside the scorecard, read by the pulse console (pulse-collect.mjs).
 const ENGAGEMENT_OUT = join(root, "monitoring", "engagement.json");
 
-const args = process.argv.slice(2);
-const FETCH = args.includes("--fetch");
-const inputIdx = args.indexOf("--input");
-const INPUT = inputIdx >= 0 ? args[inputIdx + 1] : null;
-
 // ── the question banks under evaluation ──
 const daily = JSON.parse(readFileSync(join(root, "content", "daily-questions.json"), "utf8"));
 // The database the public mirror lives in (D165). Hardcoded `(default)`
@@ -224,7 +219,9 @@ const optionShares = (counts, n) => {
 
 const round3 = (v) => +v.toFixed(3);
 
-function score(aggs) {
+// Exported so the fold can be called without a network read — see the CLI
+// guard at the foot of the file for why that matters.
+export function score(aggs) {
   const rows = [];
   daily.forEach((q, idx) => {
     const qid = `daily-${q.id}`;
@@ -252,8 +249,21 @@ function score(aggs) {
     });
   });
   feed.questions.forEach((q) => {
-    if (q.type === "rank") return; // not live-servable (D12)
     const qid = `feed-${q.id}`;
+    // A `q.type === "rank"` skip stood here, citing D12's "not
+    // live-servable". D233 shipped rank on 2026-08-23 and closed D12, and
+    // the skip outlived it — so every rank question, and every answer it
+    // drew, was missing from the artifact the farm's lanes read.
+    //
+    // Rank falls through to the same arithmetic safely, and lands where the
+    // dials already do. Its answer space is `items`, not `options`, and its
+    // aggregate publishes `{ total, pos }` — per-item POSITION SUMS, not
+    // per-option counts (D233; functions/src/v2.ts). So `optionShares` reads
+    // an absent counts map, returns null, and the row is SCORED but not
+    // MEASURED (D298): its draw counts everywhere totals count, and no mean
+    // is handed a split that was never computed. The crowd order lives in
+    // `pos`; what a "split" means on an order is not defined here, and
+    // inventing one would be the fabrication D298 removed.
     const n = q.options ? q.options.length : (q.items || []).length;
     const agg = aggs[qid];
     const total = isScoredAgg(agg) ? Number(agg.total || 0) : 0;
@@ -646,57 +656,76 @@ function summarize(card) {
   }
 }
 
-if (FETCH || INPUT) {
-  let aggs;
-  let live = null;
-  if (INPUT) {
-    aggs = JSON.parse(readFileSync(resolve(INPUT), "utf8"));
-  } else {
-    live = await fetchAggs();
-    aggs = live.aggs;
-  }
-  const card = score(aggs);
-  if (live) {
-    const days = await fetchEngagementDays(live.idToken, live.project);
-    // Day granularity on the stamp, the pulse artifact's reasoning: this
-    // file is committed, and a millisecond would make every refetch look
-    // like a change to something.
-    const trail = { fetchedOn: new Date().toISOString().slice(0, 10), days };
-    writeFileSync(ENGAGEMENT_OUT, JSON.stringify(trail, null, 2) + "\n");
-    console.log(`scorecard: wrote ${ENGAGEMENT_OUT} (${days.length} day(s))`);
-    // R4/D271: the attention columns — the denominator the scorecard
-    // never had. Merged BEFORE the card writes, so the committed artifact
-    // the farm reads carries seen→answer and pass rates beside evenness,
-    // with the D33 warning stored on the card rather than trusted to
-    // whoever renders it.
-    const att = attentionFromTrail(days);
-    if (Object.keys(att.qids).length) {
-      for (const row of card.perQuestion || []) {
-        const a = att.qids[row.qid];
-        if (a) {
-          row.attnSeen = a.seen;
-          row.attnConv = a.conv;
-          row.attnPass = a.passRate;
-        }
-      }
-      card.attention = {
-        daysWithQ: att.daysWithQ,
-        truncatedDevices: att.truncatedDevices,
-        basis: "bucket-midpoint estimates from sampled anonymous shards (D271)",
-        warning: ATTENTION_WARNING,
-      };
+// ── CLI ──
+// Guarded so `score` can be imported and tested — the idiom feed-budget.mjs
+// and duel-budget.mjs already use. For as long as this file existed the fold
+// ran only as a whole program against production, so a predicate inside it
+// could go stale in silence: the rank skip above outlived D12's exclusion by
+// five days and nothing went red, because nothing could call the fold. Same
+// shape as D275's tripwire counting `tx.get(` after the code moved to
+// `tx.getAll(`, and as D296's `tooSmall` read — a check nobody can call is a
+// check that cannot fail.
+const invokedDirectly =
+  process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (invokedDirectly) {
+  const args = process.argv.slice(2);
+  const FETCH = args.includes("--fetch");
+  const inputIdx = args.indexOf("--input");
+  const INPUT = inputIdx >= 0 ? args[inputIdx + 1] : null;
+
+  if (FETCH || INPUT) {
+    let aggs;
+    let live = null;
+    if (INPUT) {
+      aggs = JSON.parse(readFileSync(resolve(INPUT), "utf8"));
+    } else {
+      live = await fetchAggs();
+      aggs = live.aggs;
     }
+    const card = score(aggs);
+    if (live) {
+      const days = await fetchEngagementDays(live.idToken, live.project);
+      // Day granularity on the stamp, the pulse artifact's reasoning: this
+      // file is committed, and a millisecond would make every refetch look
+      // like a change to something.
+      const trail = { fetchedOn: new Date().toISOString().slice(0, 10), days };
+      writeFileSync(ENGAGEMENT_OUT, JSON.stringify(trail, null, 2) + "\n");
+      console.log(`scorecard: wrote ${ENGAGEMENT_OUT} (${days.length} day(s))`);
+      // R4/D271: the attention columns — the denominator the scorecard
+      // never had. Merged BEFORE the card writes, so the committed artifact
+      // the farm reads carries seen→answer and pass rates beside evenness,
+      // with the D33 warning stored on the card rather than trusted to
+      // whoever renders it.
+      const att = attentionFromTrail(days);
+      if (Object.keys(att.qids).length) {
+        for (const row of card.perQuestion || []) {
+          const a = att.qids[row.qid];
+          if (a) {
+            row.attnSeen = a.seen;
+            row.attnConv = a.conv;
+            row.attnPass = a.passRate;
+          }
+        }
+        card.attention = {
+          daysWithQ: att.daysWithQ,
+          truncatedDevices: att.truncatedDevices,
+          basis: "bucket-midpoint estimates from sampled anonymous shards (D271)",
+          warning: ATTENTION_WARNING,
+        };
+      }
+    }
+    writeFileSync(OUT, JSON.stringify(card, null, 2) + "\n");
+    console.log(`scorecard: wrote ${OUT}`);
+    summarize(card);
+  } else {
+    let card;
+    try {
+      card = JSON.parse(readFileSync(OUT, "utf8"));
+    } catch {
+      console.error("scorecard: no committed content/scorecard.json yet — run with --fetch (or --input <dump>)");
+      process.exit(1);
+    }
+    summarize(card);
   }
-  writeFileSync(OUT, JSON.stringify(card, null, 2) + "\n");
-  console.log(`scorecard: wrote ${OUT}`);
-  summarize(card);
-} else {
-  let card;
-  try {
-    card = JSON.parse(readFileSync(OUT, "utf8"));
-  } catch {
-    console.error("scorecard: no committed content/scorecard.json yet — run with --fetch (or --input <dump>)");
-    process.exit(1);
-  }
-  summarize(card);
 }

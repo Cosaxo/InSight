@@ -627,9 +627,13 @@ if (PRIVACY) {
     console.log(`        used for tracking:  ${privacy.tracking.used === false ? "No" : "see the warning above"}`);
   }
 
-  // Only the absences app-privacy.json names individually. The ~22 in
-  // `others` are ones nobody is tempted to tick, and printing them would
-  // bury the three that are genuinely arguable.
+  // Only the absences app-privacy.json names individually. The rest sit
+  // in `others` — ones nobody is tempted to tick, and printing them would
+  // bury the two that are genuinely arguable. The count is derived, never
+  // written down here: it was "the three" until D270/D272 ticked Product
+  // Interaction and left this comment behind, which is the same drift
+  // LAUNCH-RUNBOOK 4.4 committed in prose a human transcribes into a legal
+  // statement (check:figures holds that sentence now).
   const tempting = Object.entries(privacy.notCollected)
     .filter(([k, v]) => !k.startsWith("$") && k !== "others" && typeof v === "string");
   if (tempting.length) {
@@ -637,9 +641,10 @@ if (PRIVACY) {
     for (const [k, why] of tempting) {
       console.log(`    • ${label(k)}`);
       // Whole reason, wrapped — not the first sentence. Truncating there was
-      // tried and lost the point on one of the three: EMAILS_OR_TEXT_MESSAGES
-      // opens "No, AT LAUNCH." and the sentence that matters ("takes are
-      // circle-scoped and have no live surface") is the second one.
+      // tried and lost the point on one of them, and still would: DEVICE_ID
+      // opens with what the DeviceCheck binding receives, and the sentence a
+      // reviewer needs ("the server stores no device identifier") is the
+      // second one.
       let line = "       ";
       for (const word of why.split(/\s+/)) {
         if (line.length + word.length + 1 > 78) { console.log(line); line = "       "; }

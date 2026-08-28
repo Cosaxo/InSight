@@ -1198,8 +1198,9 @@ That is a tester-count problem, not a workflow problem.
       **`check:figures` owns the row count now**, read off
       `app-privacy.json`'s `collected` array, so this sentence is current
       or CI is red. That is 5.6's remedy applied to 4.4 — the same fix,
-      after the same failure, for the reason D39 gives. It holds the
-      *count*; nothing can hold the purposes, so read the printout.
+      after the same failure, for the reason D39 gives. It holds *counts*
+      — this one and the untickable list at the foot of this step;
+      nothing can hold the purposes, so read the printout.
 
       **The engagement ladder's row ships in build 25** (D268–D272), so
       this is build 18's situation again: the label and the binary move
@@ -1212,7 +1213,7 @@ That is a tester-count problem, not a workflow problem.
       `data-inventory.md`, with nothing checking that they do, which is
       exactly how one false claim survived in three documents at once.
 
-      The three that bite, and why each is worth knowing before you
+      The four that bite, and why each is worth knowing before you
       approve: **Tracking = No** (no IDFA, no ATT prompt, no ad SDK — the
       Facebook SDK is stripped at postinstall and asserted by
       `check:ios-facebook`); **Location = Yes on BOTH rows since D175**
@@ -1227,13 +1228,23 @@ That is a tester-count problem, not a workflow problem.
       result is GDPR Art. 9 data — the form asks what you *collect*, not
       what you publish).
 
-      Three look tickable and are not — the printout names them with the
-      reason: **Device ID** (D29 binding holds no identifier server-side),
-      **Product Interaction** (no analytics ship), **Emails or Text
-      Messages** (a take is a post to a circle, not a message to a person,
-      and its content is already declared under *Other User Content* —
-      D79; the reason used to be "no live free-text surface" and D78 part 1
-      ended that).
+      Two look tickable and are not — the printout names them with the
+      reason: **Device ID** (D29 binding holds no identifier server-side)
+      and **Emails or Text Messages** (a take is a post to a circle, not a
+      message to a person, and its content is already declared under
+      *Other User Content* — D79; the reason used to be "no live free-text
+      surface" and D78 part 1 ended that).
+
+      **This said three, and the third was Product Interaction** — the row
+      the same step prints two paragraphs up as *Analytics*, collected
+      since D270 and linked since D272. So the step contradicted itself,
+      and it did so in the direction that gets an app pulled: a human
+      transcribing this paragraph leaves a collected row unticked. Third
+      repeat of D180's failure, and this one made a sentence false rather
+      than short. `check:figures` owns this count too now, derived from
+      the rows `app-privacy.json`'s `notCollected` block names
+      individually — the same set `asc-push --privacy` prints, so the
+      paragraph and the printout cannot disagree again.
 
       *Play's Data Safety form is **[PARKED — D42]**.*
 
@@ -1578,16 +1589,44 @@ That is a tester-count problem, not a workflow problem.
       **What `ext:list` surfaced that the function census could not:**
       four MORE `algolia/firestore-algolia-search` instances —
       `firestore-algolia-search`, `-stream`, `-intrests`, `-courts`,
-      created 2023-09 → 2024-07 — all ACTIVE **with no deployed functions
-      anywhere**, i.e. already in exactly the "installed and broken" state
-      this box warns hand-deleting creates; the old project evidently did
-      it four times. They index nothing (their source collections lived in
-      `(default)`, deleted the same day), cost nothing here, and belong to
-      the old app — left for the owner to uninstall the same way, which is
-      why this box keeps its tick open. The Algolia-side warning below
-      still stands for all five: uninstalling does not delete the Algolia
-      indexes or revoke their API keys, and an Algolia plan may still be
-      billing outside this project.
+      created 2023-09 → 2024-07 — all ACTIVE, and each one **still owns
+      two deployed functions in `europe-west1`**:
+
+      ```
+      ext-firestore-algolia-search-{,stream-,intrests-,courts-}\
+        execute{Index,FullIndex}Operation
+        # eight names, every one state ACTIVE, every one europe-west1
+      ```
+
+      **This said "with no deployed functions anywhere" until 2026-08-28**,
+      and eight is what the Cloud Functions v2 API answers when asked
+      (measured that day against production). The arithmetic closes
+      exactly: the census counts 51, this repository exports 42
+      (`check:deploy-targets`), `processBatch` is the one function outside
+      the canonical region — 42 + 8 + 1. So the four instances are NOT in
+      the "installed and broken" state this box warns hand-deleting
+      creates; they are installed and whole, pointed at collections in a
+      database that no longer exists.
+
+      **Why the census could not see them, which is the part worth
+      keeping.** `scripts/observe.mjs` computes strays by REGION — anything
+      whose region is not `FUNCTIONS_REGION` — and these eight stand in
+      `europe-west1`, the region this runbook treats as ours. A residue
+      check that asks "which functions are somewhere unexpected" cannot
+      find residue standing in the expected place. Same shape as D301's own
+      finding, one axis over: a reader that only asks about the wrongness
+      it expects finds exactly that.
+
+      They still index nothing (their source collections lived in
+      `(default)`, deleted the same day) and nothing invokes them, so the
+      bill is a deployed-and-idle one rather than an invocation one — but
+      "no functions" and "eight idle functions" are different states to
+      hand an owner, and only the second one has anything to delete. Left
+      for the owner to uninstall the same way, which is why this box keeps
+      its tick open. The Algolia-side warning below still stands for all
+      five: uninstalling does not delete the Algolia indexes or revoke
+      their API keys, and an Algolia plan may still be billing outside this
+      project.
 
       Original record: two functions there were
       `ext-firestore-algolia-search-6ct7-*`, installed 2024-06-03, indexing

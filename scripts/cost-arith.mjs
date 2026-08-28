@@ -665,11 +665,29 @@ export function costModel({ regional = REGIONAL, bank = bankDocs() } = {}) {
     // Charged to the project on every answer create, on top of the write.
     const rules =
       B.worldAnswers * RULE_READS.world + B.duelAnswers * RULE_READS.duel;
-    // Reads the SERVER issues: the aggregate transaction, the three
+    // Reads the SERVER issues: the aggregate transaction, the four
     // nightly ledger readers (velocity scan, Patterns fit, engagement
-    // digest — each re-reads the day's entries, the fit and the digest
-    // each adding one state read per active user), and the reveal
-    // pipeline.
+    // digest, taste fold — each re-reads the day's entries; the fit and
+    // the digest each add one state read per active user, the taste fold
+    // one profile read per person who answered A FEED QUESTION), and the
+    // reveal pipeline.
+    //
+    // The taste fold (`fitTasteV2`, D317) is the one with NO TERM below.
+    // "Three" was RIGHT when this comment was written (2026-08-24, D276);
+    // the fold landed two days later (2026-08-26, D316-D322) and nothing
+    // came back for the line. What kept it wrong is that a raw NUL byte in
+    // functions/src/taste.ts made that file binary to grep, so nobody
+    // searching this backend for a ledger reader could see the fourth —
+    // which is exactly the D67 failure an unnamed cost always is. Its
+    // shape is the Patterns pair's, read from its own header: one paged
+    // ledger-day read, plus one read and one write per person who answered
+    // a feed question that day — NOT per active user, because
+    // `FEED_TOPIC_OF` drops every entry that is not a feed qid, so the
+    // daily question nearly everyone answers reaches none of it. The
+    // constant and the term
+    // belong here, but every printed figure moves with them and
+    // docs/COSTS.md quotes those figures — so they land in one change
+    // with the doc, not ahead of it.
     const server =
       B.worldAnswers * TRIGGER_READS.world
       + B.duelAnswers * TRIGGER_READS.duel

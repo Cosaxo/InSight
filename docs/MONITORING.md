@@ -21,7 +21,7 @@ Two instruments, neither of them a view:
 | `npm run costs` | prints the predicted bill at five sizes | anything about what the bill nets against |
 | `npm run scorecard` | scores questions the crowd has answered | anything before launch, and no history — one output path, overwritten |
 | `monitoring/*.json` | eight alert policies, put live by the **Arm monitoring** workflow or `npm run monitoring:apply` | which of the remaining functions has no alert |
-| `npm run check:monitoring` | that each policy's condition resolves to a metric `monitoring:apply` creates, and each metric to a `metric:` field a function emits | whether any of it is live in Cloud Monitoring — `npm run observe` is what answers that (D300) |
+| `npm run check:monitoring` | that each policy's condition resolves to a metric `monitoring:apply` creates, each metric to a `metric:` field a function emits, and — since D334, the other direction — that each `metric:` a function emits has a metric to land in, or is recorded in `UNARMED` with the reason it has none | whether any of it is live in Cloud Monitoring — `npm run observe` is what answers that (D300) |
 
 Between them sat things nobody was computing at all: how many days of
 question runway are left, whether anything is already written and waiting
@@ -268,12 +268,12 @@ listed by hand, so a new function or a new policy appears without anyone
 remembering to add it — that omission being the exact failure this whole
 console reduces.
 
-**2 of 14 deployed functions have an alert policy.** That is a finding, not
-necessarily a bug. The uncovered ones are mostly callables, which fail
+**5 of 42 deployed functions have an alert policy.** That is a finding, not
+necessarily a bug. Many of the uncovered ones are callables, which fail
 loudly to the caller: a user sees an error and there is a person to notice.
-The two that are alerted are alerted precisely because they do *not* do
-that, and they fail silently in opposite ways — which is why the policies
-watching them are different shapes:
+The alerted ones are alerted precisely because they do *not* do that, and
+they fail silently in opposite ways — which is why the policies watching
+them are different shapes:
 
 - `onV2AnswerCreated` runs with `retry:true`, so a crash accumulates for
   ~7 days while the app looks healthy and the Mirror quietly stops moving.
@@ -288,8 +288,20 @@ Coverage here is a judgement, not a percentage to maximise — and the number
 is computed from what each policy WATCHES (its displayName and conditions),
 never from its runbook prose. Reading the whole file counted
 `revealDuelsNowV2` as alerted because the reveal policy's first-response
-step names it, which would have made this read 3 of 14 on the strength of a
-better-written runbook.
+step names it, which would have made this read one higher on the strength
+of a better-written runbook.
+
+**Two functions are uncovered in a way the callable argument does not
+excuse**, and the census could not see either until 2026-08-28 (D334):
+`onV2AnswerUpdated` runs with `retry:true` exactly like `onV2AnswerCreated`
+— it moves the aggregate ledger on D86's edit path — and `stripeWebhookV2`
+is the one HTTP endpoint outside App Check. Neither fails loudly to a
+person. Both are named here rather than fixed, because arming them is an
+operator's call on what pages.
+
+The pair of counts above is held by `check:figures` against
+`monitoring/pulse.json`, so it moves when the tree does. It read **2 of
+14** until D334 — the denominator predated a third of the backend.
 
 Three of the four walls COSTS.md names have no instrument at all. That is
 recorded rather than fixed: two of them bind at sizes this product has not

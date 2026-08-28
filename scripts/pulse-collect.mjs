@@ -11,7 +11,7 @@
 // Node stdlib only, like every deploy-adjacent script here.
 
 import { readFileSync, existsSync, readdirSync } from "node:fs";
-import { resolve, dirname, join } from "node:path";
+import { resolve, dirname, join, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   costModel, authCost, writesPerSec, CONTENTION_DAU, B, SCENARIOS,
@@ -754,17 +754,44 @@ export function collectEngagement() {
 // to add it — the failure mode this whole console exists to reduce.
 
 export function collectInstrumentation() {
-  const fnFiles = readdirSync(join(ROOT, "functions/src"))
+  // RECURSIVE, like check-deploy-targets.mjs and check-figures.mjs: without
+  // it `readdirSync` returns directory ENTRIES, the .ts filter drops them
+  // silently, and a trigger in functions/src/duels/ would be invisible to
+  // the one panel whose job is to say what exists. Latent while
+  // functions/src is flat — which is exactly the shape of the miss
+  // check-deploy-targets' own comment records.
+  const fnFiles = readdirSync(join(ROOT, "functions/src"), { recursive: true })
+    .map((f) => String(f).split(sep).join("/"))
     .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"));
 
   const functions = [];
   for (const f of fnFiles) {
     const src = read(`functions/src/${f}`);
-    // The v2 export surface is what deploys. `export const x = onCall(` /
-    // `onDocumentCreated(` / `onSchedule(` is the whole shape here; a
-    // wrapper form would be missed, which is why the count is reported
-    // beside the file list rather than asserted.
-    for (const m of src.matchAll(/export const (\w+) = (onCall|onDocumentCreated|onSchedule)\b/g)) {
+    // The export surface is what deploys, and the pattern is DELIBERATELY
+    // permissive: any `export const X = onSomething(` counts, not a named
+    // list of three trigger kinds. A closed list is a list somebody must
+    // remember to extend, and the whole point of this panel is that a new
+    // function appears in it without anyone remembering anything — absence
+    // is the failure mode, so an unfamiliar `on…` form must be counted and
+    // shown (with its kind, which reads plainly in the table) rather than
+    // silently dropped.
+    //
+    // Not hypothetical. The list used to be onCall|onDocumentCreated|
+    // onSchedule and it missed two ordinary v2 triggers: `stripeWebhookV2 =
+    // onRequest(` (functions/src/paid.ts — the ONLY unauthenticated public
+    // endpoint, so the last one a monitoring survey should be blind to) and
+    // `onV2AnswerUpdated = onDocumentUpdated(` (functions/src/v2.ts, D86's
+    // edit trigger, which moves the aggregate ledger). 40 of 42 reported as
+    // the whole of it. The comment here used to hedge that "a wrapper form
+    // would be missed, which is why the count is reported beside the file
+    // list rather than asserted" — honest, but overtaken: nothing was
+    // wrapped, the scanner just did not look, and the test asserted the
+    // count against this same regex so it could never say so.
+    //
+    // Anchored at line start with /m, matching check-deploy-targets.mjs and
+    // check-figures.mjs exactly, so all three scanners agree on what an
+    // export is and pulse.test.mjs can cross-check one against another.
+    for (const m of src.matchAll(/^export const (\w+) = (on[A-Z]\w*)\(/gm)) {
       functions.push({ name: m[1], kind: m[2], file: `functions/src/${f}` });
     }
   }

@@ -20,7 +20,10 @@
 // green and is never deployed) and check:appcheck (a callable that serves
 // the internet because one option was omitted).
 //
-// THE FOUR RULES:
+// THE RULES — no count in this heading, deliberately: it said FOUR while
+// listing eight, which is the hand-maintained figure check:figures exists
+// to prevent, one directory over. The header is the specification, so a
+// new rule is written here in the same breath as it is written below.
 //
 //   1. Every policy file on disk is in apply-monitoring's POLICIES list.
 //      A committed policy nobody applies is check:deploy-targets' bug with
@@ -89,6 +92,29 @@
 //      400, because nothing says so. `npm run observe -- --metrics` reads
 //      one real log entry per metric and reports the type it actually
 //      carries; that is the check for the value, and it needs production.
+//
+//   9. Every `metric: "X"` a Cloud Function emits has a log-based metric
+//      that selects on it. This is rule 4's edge walked from the other
+//      end, and until it was written NOTHING walked it that way: rules 1-8
+//      all start from a committed policy, so a line a function writes to a
+//      metric nobody created is invisible here — the emit is in the repo,
+//      the arming is not, and every gate stays green.
+//
+//      D323 §3 records that a buyer charged twice is "recorded AND
+//      alarmed". `paid_duplicate_payment` is emitted at ERROR by paid.ts,
+//      no METRICS entry selects on it, and the only severity>=ERROR policy
+//      in monitoring/ is scoped to onV2AnswerCreated — so the second half
+//      has never been true. That is exactly the shape this direction
+//      exists for: one half written, the other assumed, and each believing
+//      the other was there.
+//
+//      A RATCHET (UNARMED below), because on the day it was written 21 of
+//      the 26 names emitted had nowhere to land, and a cliff that size is
+//      a gate somebody turns off. The live split is in the OK line rather
+//      than quoted here twice. Every entry carries its reason, and only
+//      moves DOWN — a new unarmed emitter fails, an entry whose emitter is
+//      gone fails, and an entry that has since been given a metric fails
+//      asking to be deleted.
 //
 // Plus a shape check: a policy with no conditions, or no runbook, is a page
 // at 3am with nothing to act on.
@@ -279,10 +305,25 @@ for (const f of onDisk) {
 }
 
 // ── rule 4: each metric selects on a field a function emits ──────────
-const fnSrc = readdirSync(join(root, "functions/src"))
+//
+// READ AS UTF-8 THROUGH fs, NOT THROUGH grep, and that is not a style
+// preference — it is rule 9's own failure mode arriving early. On
+// 2026-08-28 functions/src/taste.ts carried a raw NUL byte at line 112 —
+// a deliberate composite-key separator typed as the character instead of
+// as `\x00`, not debris — and grep therefore called the file binary,
+// printed "binary file matches" and reported not one of the names in it,
+// so the first inventory of what this repo emits was one name short and
+// said nothing. That byte is somebody's fix,
+// but the reading outlives it — an inventory a single control character
+// can shorten is an inventory that under-reports in the direction that
+// flatters, and this rule's subject is that a name nobody can see is a
+// name nobody arms. Bytes in, decoded; a control character is then just a
+// character that matches nothing.
+const fnFiles = readdirSync(join(root, "functions/src"))
   .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"))
-  .map((f) => read(`functions/src/${f}`))
-  .join("\n");
+  .sort()
+  .map((f) => [`functions/src/${f}`, read(`functions/src/${f}`)]);
+const fnSrc = fnFiles.map(([, src]) => src).join("\n");
 
 for (const name of metricNames) {
   const filter = metricFilters[name];
@@ -302,16 +343,251 @@ for (const name of metricNames) {
   }
 }
 
+// ── rule 9: each emitted name has a metric to land in ───────────────
+//
+// The same edge as rule 4, from the emitter's end. Both halves have to be
+// checked separately because they fail separately: rule 4 catches a metric
+// wired to a line nobody writes, this catches a line written to a metric
+// nobody created. Neither can see the other's fault.
+// AN INVENTORY IS ONLY AS HONEST AS THE SHAPES IT CAN READ, so this reads
+// the whole VALUE after `metric:` and then insists the value be a shape a
+// name can be counted out of. The first version of this rule matched
+// `metric: "X"` alone and was green while functions/src/paid.ts:612 emitted
+// two names through a ternary — unarmed, unrecorded, and printed nowhere.
+// A rule that misses an emit reports a smaller debt than exists, which is
+// the direction that flatters, and the same failure as the NUL above.
+//
+// So: exactly two shapes are countable, and everything else FAILS asking
+// to be written as one of them. Widening the regex until it matched more
+// was the other road and it is worse — `metric: c === "approve" ? "a" : "b"`
+// has three literals in it and only two are names, so a scanner that takes
+// every quoted word invents a metric called "approve" and then reports it
+// missing forever.
+const EMITS = /\bmetric:\s*/g;
+const ONE = /^"([\w]+)"$/;
+// Anchored at the END so the condition's own literals cannot be captured.
+const TERNARY = /\?\s*"([\w]+)"\s*:\s*"([\w]+)"$/;
+
+/**
+ * The value expression after `metric:` — up to the property's end, which
+ * is a top-level comma, a closing brace, or the line ending. Quotes and
+ * nesting are tracked so a comma inside either does not end it early.
+ */
+function valueAfter(src, from) {
+  let depth = 0, quote = null;
+  for (let i = from; i < src.length; i++) {
+    const c = src[i];
+    if (quote) {
+      if (c === "\\") i++;
+      else if (c === quote) quote = null;
+      continue;
+    }
+    if (c === '"' || c === "'" || c === "`") { quote = c; continue; }
+    if ("([{".includes(c)) depth++;
+    else if (")]}".includes(c)) { if (depth === 0) return src.slice(from, i); depth--; }
+    else if (depth === 0 && (c === "," || c === "\n")) return src.slice(from, i);
+  }
+  return src.slice(from);
+}
+
+/**
+ * name → the files that emit it, from [path, source] pairs.
+ * Sites whose value is neither shape are returned by `opaqueEmits`, which
+ * reads the same files — they are a failure, not a silent skip.
+ */
+export function emittedMetrics(files) {
+  const byName = new Map();
+  const add = (name, file) => {
+    if (!byName.has(name)) byName.set(name, []);
+    if (!byName.get(name).includes(file)) byName.get(name).push(file);
+  };
+  for (const [file, src] of files) {
+    for (const m of src.matchAll(EMITS)) {
+      const value = valueAfter(src, m.index + m[0].length).trim();
+      const one = value.match(ONE);
+      if (one) { add(one[1], file); continue; }
+      const two = value.match(TERNARY);
+      if (two) { add(two[1], file); add(two[2], file); }
+    }
+  }
+  return byName;
+}
+
+/**
+ * The sites this inventory cannot count: a `metric:` whose value is a
+ * variable, a template literal, or a ternary that does not end in two
+ * string literals. Each is a name that never appears in the tree as text,
+ * so no grep, no reviewer and no rule below can find it.
+ */
+export function opaqueEmits(files) {
+  const out = [];
+  for (const [file, src] of files) {
+    for (const m of src.matchAll(EMITS)) {
+      const at = m.index + m[0].length;
+      const value = valueAfter(src, at).trim();
+      if (ONE.test(value) || TERNARY.test(value)) continue;
+      out.push({ file, line: src.slice(0, at).split("\n").length, value });
+    }
+  }
+  return out;
+}
+
+// THE RATCHET. Every name here is emitted by a Cloud Function today and
+// selected on by no log-based metric, so the line reaches Cloud Logging
+// and stops. The reason it is unarmed IS the entry — a bare list of names
+// would record the debt without recording whether anybody had thought
+// about it, and this repo's other baselines (check:a11y's per-file
+// findings, check:panel-suites' OWED) all carry the why.
+//
+// It only moves DOWN. Arming a name means a METRICS entry and a policy in
+// apply-monitoring.mjs, and deleting the line here in the same commit.
+const PAID = "The paid loop ships with no alert policy of any kind, so every paid_* name "
+  + "here goes to Cloud Logging and stops. Arming them is not one metric: it is the "
+  + "operator's call on which are a page and which are a morning read, and on several "
+  + "the residue is money rather than a stale number (D323 §§3-5).";
+
+export const UNARMED = {
+  // ── two nightly heartbeats that are simply owed ────────────────────
+  // Same shape as patterns_fit, velocity_scan and engagement_digest,
+  // which each have a metric and a "has gone quiet" policy. A scheduled
+  // job that stops reports nothing at all: no error, no failed request.
+  bank_rank: "The 03:07 nightly bank rank's heartbeat. Owed a metric and a quiet "
+    + "policy exactly like fitPatternsV2's; nobody wired it.",
+  taste_fold: "The 03:27 nightly taste fold's heartbeat, with one thing to settle "
+    + "before arming it: it is emitted only when the fold MOVED (`summary.days > 0`), "
+    + "so to any policy a quiet day and a dead job are the same signal. Deciding which "
+    + "is which — emit unconditionally, or threshold something else — comes first.",
+
+  // ── deliberate, and documented as such ─────────────────────────────
+  velocity_flag: "DELIBERATE, and the only entry here that is. docs/DEPLOYMENT.md "
+    + "§ \"Correcting aggregates after a fake-account ring\" says it in as many "
+    + "words: deliberately NO alert policy ships for these flags. Each "
+    + "kind carries an honest false positive — a launch spike looks like a birth "
+    + "cluster — so the flags are a daily read during calm and an hourly one during an "
+    + "incident, not a page. The field is named there as what a metric would select on "
+    + "if evidence ever justifies standing eyes.",
+
+  // ── a page that would fire at the person causing it ────────────────
+  agg_rebuild: "Warned once per question that replay.ts rebuilds, and a rebuild is "
+    + "something an operator started (rebuild-aggregate.yml). The alert would page the "
+    + "person doing the repair. What IS worth watching is a rebuild nobody started, "
+    + "and this line carries nothing that separates the two.",
+
+  // ── a designed overflow, self-healing on the first day ─────────────
+  engagement_shard_cap: "The fold hit its cap and the leftovers fold tomorrow — "
+    + "designed behaviour with a designed lever (SHARD_SAMPLE_RATE). One day at the cap "
+    + "is not an incident; several running is, and that is a metric plus a threshold "
+    + "nobody has priced.",
+  engagement_rollup_cap: "Same overflow, rollup side. See engagement_shard_cap.",
+
+  // ── true today, by configuration ───────────────────────────────────
+  operator_moderator_overlap: "Warned once per production cold start while MOD_UIDS "
+    + "and SEED_ADMIN_UIDS intersect, which they DO today — one person holds both, and "
+    + "runbook 5.7 is the one-variable fix. A policy would page continuously for a "
+    + "known configuration. The fix is the arming: the warning stops when it lands.",
+
+  // ── the paid loop: one shared reason, three with a note of their own ─
+  paid_duplicate_payment: `${PAID} This is the one D323 §3 calls "recorded and alarmed"; `
+    + "only the first half is built.",
+  paid_async_failed: `${PAID} Logged at error (D323 §5) so a delayed payment that fails `
+    + "is not swallowed — but swallowed and unwatched differ only in the log.",
+  paid_review_gates_only: `${PAID} The fail-open marker DEPLOYMENT.md names for an `
+    + "ANTHROPIC_API_KEY that is unset: reviews then decide on the deterministic gates "
+    + "alone, and nothing counts how many did.",
+  // The pair the first version of this rule could not see at all: paid.ts
+  // emits them through a ternary, so `metric: "…"` never appears for either
+  // and the inventory printed 24 where the tree emits 26. They are here
+  // because the scanner reads the shape now, not because anything changed
+  // in paid.ts.
+  paid_review_approved: PAID,
+  paid_review_declined: PAID,
+  paid_awaiting_settlement: PAID,
+  paid_campaign_closed: PAID,
+  paid_refund_held: PAID,
+  paid_refund_offapp: PAID,
+  paid_review_held: PAID,
+  paid_review_stalled: PAID,
+  paid_review_stalled_total: PAID,
+  paid_review_sweep: PAID,
+  paid_session_expire_skipped: PAID,
+};
+
+/**
+ * The ratchet in all three directions: a name with nowhere to land and no
+ * recorded reason (`unarmed`), a recorded name nothing emits any more
+ * (`ghosts`), and a recorded name that has since been armed (`armed`).
+ * The last two are the D275 shape — a tripwire that keeps counting after
+ * the code stopped doing the thing reports a debt nobody owes, and the
+ * next real one hides inside the wrong number.
+ */
+export function auditEmitters(emitted, selectedFields, baseline = UNARMED) {
+  const selected = new Set(selectedFields);
+  return {
+    unarmed: [...emitted.keys()].filter((n) => !selected.has(n) && !(n in baseline)).sort(),
+    ghosts: Object.keys(baseline).filter((n) => !emitted.has(n)).sort(),
+    armed: Object.keys(baseline).filter((n) => selected.has(n)).sort(),
+  };
+}
+
+const emitted = emittedMetrics(fnFiles);
+// Before the inventory is trusted, the sites it could not read. This runs
+// first because every count below it is wrong while one of these stands.
+for (const site of opaqueEmits(fnFiles)) {
+  fail(`${site.file}:${site.line} emits a metric this inventory cannot read: metric: ${site.value}\n`
+    + "    The name never appears in the tree as text, so no grep finds it, no reviewer\n"
+    + "    sees it and no rule here can tell whether it is armed. Write it as a literal\n"
+    + "    — `metric: \"name\"`, or a ternary ending in two of them — and it counts.");
+}
+const selectedFields = Object.values(metricFilters)
+  .map((f) => f.match(/jsonPayload\.metric\s*=\s*"([\w]+)"/)?.[1])
+  .filter(Boolean);
+const emitAudit = auditEmitters(emitted, selectedFields);
+
+for (const name of emitAudit.unarmed) {
+  fail(`${(emitted.get(name) || []).join(", ")} emits metric:"${name}", and no log-based metric selects on it.\n`
+    + "    The line reaches Cloud Logging and stops there: no metric, so no policy, so\n"
+    + "    nothing can page on it — and the code reads as if something does.\n"
+    + "    Either add a METRICS entry and the policy that reads it in\n"
+    + "    scripts/apply-monitoring.mjs, or add the name to UNARMED in this file WITH\n"
+    + "    the reason it is not worth arming. The reason is the record; a bare name\n"
+    + "    added to make this pass buys nothing.");
+}
+for (const name of emitAudit.ghosts) {
+  fail(`UNARMED records "${name}", which no function in functions/src emits any more.\n`
+    + "    Delete the entry. A baseline that keeps counting after the code stopped\n"
+    + "    doing the thing reports a debt nobody owes, and the next real one hides\n"
+    + "    inside the wrong number (D275: a read tripwire counting `tx.get(` after the\n"
+    + "    code had moved to `tx.getAll(`, so it counted zero and called it a win).");
+}
+for (const name of emitAudit.armed) {
+  fail(`UNARMED records "${name}", but apply-monitoring.mjs now creates a metric that\n`
+    + "    selects on it. Delete the entry in the same commit that armed it: a ratchet\n"
+    + "    only tightens if the fix takes the line with it, and a stale entry means the\n"
+    + "    next time that name goes unarmed this gate says nothing.");
+}
+
 // ── report ───────────────────────────────────────────────────────────
-if (problems.length) {
+// Guarded, so a test can import the parsers above without the gate running
+// and — on a failure — calling process.exit out from under vitest. Same
+// shape as check-data-inventory.mjs and check-public-copy.mjs.
+const invokedDirectly =
+  process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (invokedDirectly && problems.length) {
   console.error("check-monitoring FAILED\n");
   for (const p of problems) console.error(`  ✗ ${p}\n`);
   process.exit(1);
 }
 
-console.log(
+if (invokedDirectly) console.log(
   `check:monitoring OK — ${onDisk.length} policies, ${metricNames.length} log-based metrics, `
   + "every condition resolves to a metric, every metric to a field a function emits, "
   + "every metric-based filter restricts resource.type, and no policy body carries a "
-  + "field the API refuses for its condition type.",
+  // Counted, not subtracted: `emitted.size - UNARMED` would be the same
+  // number only while the three checks above are green, which is a figure
+  // that reads correctly right up until it matters.
+  + `field the API refuses for its condition type; ${emitted.size} names emitted, `
+  + `${[...emitted.keys()].filter((n) => selectedFields.includes(n)).length} armed `
+  + `and ${Object.keys(UNARMED).length} unarmed with a reason each, none new `
+  + "(this only moves down).",
 );

@@ -635,6 +635,54 @@ describe("asc-push privacy label", () => {
     expect(out).toMatch(/linked to identity: Yes/);
   });
 
+  it("names as untickable exactly the absences the file argues, and never a collected row", async () => {
+    // The other half of the row assertion above, and it exists because the
+    // half nobody pinned is the half that went wrong. LAUNCH-RUNBOOK 4.4's
+    // prose listed **Product Interaction** among the rows to leave unticked
+    // for two builds after D270/D272 ticked it — the under-declaration
+    // direction, in the step whose output is a legal statement, while this
+    // printout had the right answer all along because it derives its list.
+    // check:figures now holds that sentence; this case holds the printout it
+    // is supposed to agree with, so the two cannot drift from opposite ends.
+    //
+    // THE TOMBSTONE IS THE INTERESTING CASE. app-privacy.json keeps
+    // `$PRODUCT_INTERACTION_moved` in `notCollected` on purpose, so a
+    // reviewer diffing two filings sees a decision rather than a
+    // disappearance — and a scan that read every string key would print it
+    // as a row to leave unticked, which is the original bug rebuilt out of
+    // the record of the original bug. `$`-prefixed keys are notes, and the
+    // complement assertion below is what keeps that true.
+    const out = await push(["--privacy"]);
+    const declared = JSON.parse(
+      readFileSync(join(root, "design/store/app-privacy.json"), "utf8"),
+    );
+    const label = (s) => s.toLowerCase().split("_")
+      .map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
+    const want = Object.entries(declared.notCollected)
+      .filter(([k, v]) => !k.startsWith("$") && k !== "others" && typeof v === "string")
+      .map(([k]) => label(k));
+    // The section, not the whole output — a collected row's own bullet
+    // sits above and would satisfy a bare `toContain`.
+    const section = out.slice(out.indexOf("Leave UNTICKED"));
+    expect(section, "the printout dropped the untickable section").toContain("Leave UNTICKED");
+    const printed = [...section.matchAll(/^\s*• (.+)$/gm)]
+      .map((m) => m[1].trim())
+      .filter((s) => !s.includes("›"));
+    expect(printed.sort(), "the untickable list is not the set the file argues")
+      .toEqual([...want].sort());
+    // And no collected row may be one of those BULLETS, whatever the file's
+    // key shapes do next. Against `printed` rather than against the section
+    // text: the reasons are printed whole (deliberately — see the script),
+    // and Emails or Text Messages argues its No by naming *Other User
+    // Content*, which is a collected row. A substring search over the
+    // section therefore fails on a correct printout, which is how the first
+    // version of this assertion failed.
+    for (const row of declared.collected) {
+      expect(printed, `${row.type} is collected and must not be listed as untickable`)
+        .not.toContain(label(row.type));
+    }
+  });
+
   it("warns rather than printing a form that omits the tracking question", async () => {
     // The rows this prints carry no per-row tracking answer, because the
     // file models tracking as uniformly off. Flip that and the form asks

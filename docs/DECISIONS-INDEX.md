@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 341 lines instead of
-33,776. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 342 lines instead of
+33,956. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -26,7 +26,7 @@ detect it.
 | **D9** | [Near is your city — picked from a list, or located on the device](DECISIONS.md#d9--near-is-your-city--picked-from-a-list-or-located-on-the-device) | D192 (+21) | 556 |
 | **D10** | [@capacitor-firebase/app-check is installed under an npm alias](DECISIONS.md#d10--capacitor-firebaseapp-check-is-installed-under-an-npm-alias) | D29 | 815 |
 | **D11** | [The feed's argument surfaces are demo-only, by structure not by flag](DECISIONS.md#d11--the-feeds-argument-surfaces-are-demo-only-by-structure-not-by-flag) | D280 (+4) | 884 |
-| **D12** | [Rank questions are out of the live feed until answers can carry an order](DECISIONS.md#d12--rank-questions-are-out-of-the-live-feed-until-answers-can-carry-an-order) | D233 (+7) | 1053 |
+| **D12** | [Rank questions are out of the live feed until answers can carry an order](DECISIONS.md#d12--rank-questions-are-out-of-the-live-feed-until-answers-can-carry-an-order) | D334 (+8) | 1053 |
 | **D13** | [The v1 compute is deleted, for the reason D4 deleted the v1 rules](DECISIONS.md#d13--the-v1-compute-is-deleted-for-the-reason-d4-deleted-the-v1-rules) | D333 (+6) | 1092 |
 | **D14** | [Catalog answers are keys into a shipped catalogue; the reveal is a canon](DECISIONS.md#d14--catalog-answers-are-keys-into-a-shipped-catalogue-the-reveal-is-a-canon) | D290 (+5) | 1217 |
 | **D15** | [Films/artists catalogues: QID keys, and generation is an operator step](DECISIONS.md#d15--filmsartists-catalogues-qid-keys-and-generation-is-an-operator-step) | D267 (+4) | 1269 |
@@ -90,7 +90,7 @@ detect it.
 | **D70** | [The two duel indexes were bounded twice and diverged, and a reveal folded votes into a question nobody answered](DECISIONS.md#d70--the-two-duel-indexes-were-bounded-twice-and-diverged-and-a-reveal-folded-votes-into-a-question-nobody-answered) | D156 (+3) | 7010 |
 | **D71** | [A reveal now says which question each answer was to, and nothing compares across that line](DECISIONS.md#d71--a-reveal-now-says-which-question-each-answer-was-to-and-nothing-compares-across-that-line) | D156 (+3) | 7103 |
 | **D72** | [Two fabrications that outlived the badge: the Map's group stats and the results card's friends](DECISIONS.md#d72--two-fabrications-that-outlived-the-badge-the-maps-group-stats-and-the-results-cards-friends) | D290 (+12) | 7170 |
-| **D73** | [The privacy label has no endpoint, so the script prints the form instead](DECISIONS.md#d73--the-privacy-label-has-no-endpoint-so-the-script-prints-the-form-instead) | D274 (+11) | 7287 |
+| **D73** | [The privacy label has no endpoint, so the script prints the form instead](DECISIONS.md#d73--the-privacy-label-has-no-endpoint-so-the-script-prints-the-form-instead) | D334 (+12) | 7287 |
 | **D74** | [A tick is a claim, and this one was printed before the write](DECISIONS.md#d74--a-tick-is-a-claim-and-this-one-was-printed-before-the-write) | D208 (+5) | 7355 |
 | **D75** | [Apple's eight new age-rating questions, and the half of the form nothing was checking](DECISIONS.md#d75--apples-eight-new-age-rating-questions-and-the-half-of-the-form-nothing-was-checking) | D116 (+3) | 7414 |
 | **D76** | [Crash reporting flips to opt-out, and the ErrorBoundary reports what it catches](DECISIONS.md#d76--crash-reporting-flips-to-opt-out-and-the-errorboundary-reports-what-it-catches) | D329 (+3) | 7489 |
@@ -103,7 +103,7 @@ detect it.
 | **D83** | [World takes ship — D78 part 2 adopted, anonymous, behind enforcement](DECISIONS.md#d83--world-takes-ship--d78-part-2-adopted-anonymous-behind-enforcement) | D297 (+8) | 8049 |
 | **D84** | [Near by radius ships — presence cells, a count and nothing else](DECISIONS.md#d84--near-by-radius-ships--presence-cells-a-count-and-nothing-else) | D286 (+7) | 8171 |
 | **D85** | [The personality tests go to 5 items per dimension, and `cognitive` gets a question bank](DECISIONS.md#d85--the-personality-tests-go-to-5-items-per-dimension-and-cognitive-gets-a-question-bank) | D103 | 8248 |
-| **D86** | [Answers become editable — D5 amended, not repealed](DECISIONS.md#d86--answers-become-editable--d5-amended-not-repealed) | D322 (+22) | 8349 |
+| **D86** | [Answers become editable — D5 amended, not repealed](DECISIONS.md#d86--answers-become-editable--d5-amended-not-repealed) | D334 (+23) | 8349 |
 | **D87** | [Production writes require an approval; the `production` environment carries protection rules](DECISIONS.md#d87--production-writes-require-an-approval-the-production-environment-carries-protection-rules) | D303 (+5) | 8439 |
 | **D88** | [Seeding chains to the deploy, because the bank it writes is the deployed one](DECISIONS.md#d88--seeding-chains-to-the-deploy-because-the-bank-it-writes-is-the-deployed-one) | — | 8518 |
 | **D89** | [The feed's "knows this best" row is demo furniture — live mode refuses it](DECISIONS.md#d89--the-feeds-knows-this-best-row-is-demo-furniture--live-mode-refuses-it) | D133 (+2) | 8582 |
@@ -123,7 +123,7 @@ detect it.
 | **D103** | [Four device readings: a retired test, a rail, the topics D96 left dark, and one notch paid for twice](DECISIONS.md#d103--four-device-readings-a-retired-test-a-rail-the-topics-d96-left-dark-and-one-notch-paid-for-twice) | D156 (+3) | 9717 |
 | **D104** | [Test users: a second real account, and what it is allowed to fake](DECISIONS.md#d104--test-users-a-second-real-account-and-what-it-is-allowed-to-fake) | — | 9817 |
 | **D105** | [One text field owns the app's scale: every input defers to --field-size](DECISIONS.md#d105--one-text-field-owns-the-apps-scale-every-input-defers-to---field-size) | D113 | 9922 |
-| **D106** | [The retired privacy model is swept out of the documentation, starting with the two pages users actually read](DECISIONS.md#d106--the-retired-privacy-model-is-swept-out-of-the-documentation-starting-with-the-two-pages-users-actually-read) | D327 (+8) | 10002 |
+| **D106** | [The retired privacy model is swept out of the documentation, starting with the two pages users actually read](DECISIONS.md#d106--the-retired-privacy-model-is-swept-out-of-the-documentation-starting-with-the-two-pages-users-actually-read) | D334 (+9) | 10002 |
 | **D107** | [A purpose string for the authorisation this app never asks for](DECISIONS.md#d107--a-purpose-string-for-the-authorisation-this-app-never-asks-for) | D199 | 10106 |
 | **D108** | [Two providers leave the bridge, and the mount suite stops being one file](DECISIONS.md#d108--two-providers-leave-the-bridge-and-the-mount-suite-stops-being-one-file) | D294 (+7) | 10234 |
 | **D109** | [LEARN leaves the bridge, and takes the load-order bug with it](DECISIONS.md#d109--learn-leaves-the-bridge-and-takes-the-load-order-bug-with-it) | D110 | 10375 |
@@ -179,7 +179,7 @@ detect it.
 | **D159** | [Run 22 delivered build 16, and the comparison gains the commit it is made at](DECISIONS.md#d159--run-22-delivered-build-16-and-the-comparison-gains-the-commit-it-is-made-at) | D324 (+9) | 15755 |
 | **D160** | [An empty field is still a field, the row actually snaps, and Near's switch goes in the corner](DECISIONS.md#d160--an-empty-field-is-still-a-field-the-row-actually-snaps-and-nears-switch-goes-in-the-corner) | D190 (+1) | 15827 |
 | **D161** | [The feed goes unbounded, and the Mirror gets a corpus of its own](DECISIONS.md#d161--the-feed-goes-unbounded-and-the-mirror-gets-a-corpus-of-its-own) | D325 (+21) | 15921 |
-| **D162** | [Review at volume: the AI reads, and the human approves and audits](DECISIONS.md#d162--review-at-volume-the-ai-reads-and-the-human-approves-and-audits) | D271 (+3) | 16059 |
+| **D162** | [Review at volume: the AI reads, and the human approves and audits](DECISIONS.md#d162--review-at-volume-the-ai-reads-and-the-human-approves-and-audits) | D334 (+4) | 16059 |
 | **D163** | [The app learns what you are into, and the model never leaves the phone](DECISIONS.md#d163--the-app-learns-what-you-are-into-and-the-model-never-leaves-the-phone) | D330 (+10) | 16112 |
 | **D164** | [The revenue paths, re-derived against an unbounded feed](DECISIONS.md#d164--the-revenue-paths-re-derived-against-an-unbounded-feed) | D317 (+4) | 16168 |
 | **D165** | [The database moves to one EU region, and the old answers are let go](DECISIONS.md#d165--the-database-moves-to-one-eu-region-and-the-old-answers-are-let-go) | D333 (+6) | 16246 |
@@ -197,7 +197,7 @@ detect it.
 | **D177** | [Near becomes a room you can read, and asking requires standing in it](DECISIONS.md#d177--near-becomes-a-room-you-can-read-and-asking-requires-standing-in-it) | D202 (+4) | 17465 |
 | **D178** | [The app gets a face, and it is reported like anything else somebody says](DECISIONS.md#d178--the-app-gets-a-face-and-it-is-reported-like-anything-else-somebody-says) | D333 (+7) | 17613 |
 | **D179** | [The rules deploy on merge and the app does not, so `until` is optional for one release](DECISIONS.md#d179--the-rules-deploy-on-merge-and-the-app-does-not-so-until-is-optional-for-one-release) | D279 (+5) | 17746 |
-| **D180** | [Build 18's pre-flight: the record was written and the number was not](DECISIONS.md#d180--build-18s-pre-flight-the-record-was-written-and-the-number-was-not) | D273 (+3) | 17834 |
+| **D180** | [Build 18's pre-flight: the record was written and the number was not](DECISIONS.md#d180--build-18s-pre-flight-the-record-was-written-and-the-number-was-not) | D334 (+4) | 17834 |
 | **D181** | [Near's field drew the city it is not about](DECISIONS.md#d181--nears-field-drew-the-city-it-is-not-about) | D184 (+1) | 18064 |
 | **D182** | [The copy pass: a visual beats a word, a word beats a sentence](DECISIONS.md#d182--the-copy-pass-a-visual-beats-a-word-a-word-beats-a-sentence) | D211 (+2) | 18151 |
 | **D183** | [The disclosures leave the app, and get a gate on the way out](DECISIONS.md#d183--the-disclosures-leave-the-app-and-get-a-gate-on-the-way-out) | D327 (+9) | 18249 |
@@ -250,7 +250,7 @@ detect it.
 | **D230** | [An instrument's colour is where you stand now, not where you finished](DECISIONS.md#d230--an-instruments-colour-is-where-you-stand-now-not-where-you-finished) | D251 | 23273 |
 | **D231** | [Current events get a lane: a topic that expires, and the questions to fill it](DECISIONS.md#d231--current-events-get-a-lane-a-topic-that-expires-and-the-questions-to-fill-it) | D281 (+3) | 23364 |
 | **D232** | [Catalog questions go live: seventeen picks, promoted through one pen](DECISIONS.md#d232--catalog-questions-go-live-seventeen-picks-promoted-through-one-pen) | D266 (+3) | 23591 |
-| **D233** | [Rank questions live: an answer carries an order, and the exclusion retires](DECISIONS.md#d233--rank-questions-live-an-answer-carries-an-order-and-the-exclusion-retires) | D290 (+3) | 23701 |
+| **D233** | [Rank questions live: an answer carries an order, and the exclusion retires](DECISIONS.md#d233--rank-questions-live-an-answer-carries-an-order-and-the-exclusion-retires) | D334 (+4) | 23701 |
 | **D234** | [The seed transports the doc shape the schema promises](DECISIONS.md#d234--the-seed-transports-the-doc-shape-the-schema-promises) | D311 (+2) | 23797 |
 | **D235** | [No tragedies: this app does not put suffering to a vote](DECISIONS.md#d235--no-tragedies-this-app-does-not-put-suffering-to-a-vote) | D254 (+1) | 23863 |
 | **D236** | [An invitation that notifies: the pick is the delivery](DECISIONS.md#d236--an-invitation-that-notifies-the-pick-is-the-delivery) | D254 (+4) | 23962 |
@@ -283,18 +283,18 @@ detect it.
 | **D262** | [Four sentences that stopped being true, and two of them are now counted](DECISIONS.md#d262--four-sentences-that-stopped-being-true-and-two-of-them-are-now-counted) | — | 26272 |
 | **D263** | [The room cache is keyed by one cell and folded over nine](DECISIONS.md#d263--the-room-cache-is-keyed-by-one-cell-and-folded-over-nine) | D264 | 26339 |
 | **D264** | [Five the skeptics found, and one of them was two hours old](DECISIONS.md#d264--five-the-skeptics-found-and-one-of-them-was-two-hours-old) | D265 | 26397 |
-| **D265** | [Patterns comes back on the data, not on a flag](DECISIONS.md#d265--patterns-comes-back-on-the-data-not-on-a-flag) | D332 (+4) | 26496 |
+| **D265** | [Patterns comes back on the data, not on a flag](DECISIONS.md#d265--patterns-comes-back-on-the-data-not-on-a-flag) | D334 (+5) | 26496 |
 | **D266** | [The films catalogue ships; artists is refused on its content, not on the network](DECISIONS.md#d266--the-films-catalogue-ships-artists-is-refused-on-its-content-not-on-the-network) | D308 (+1) | 26744 |
 | **D267** | [The artists catalogue gets a rule and a reviewer, because no rule alone finishes](DECISIONS.md#d267--the-artists-catalogue-gets-a-rule-and-a-reviewer-because-no-rule-alone-finishes) | D308 | 26839 |
 | **D268** | [The ledger learns to count people: engagement rung 0](DECISIONS.md#d268--the-ledger-learns-to-count-people-engagement-rung-0) | D332 (+4) | 26926 |
 | **D269** | [The ceiling: what stays refused at every engagement rung](DECISIONS.md#d269--the-ceiling-what-stays-refused-at-every-engagement-rung) | D330 (+3) | 27014 |
-| **D270** | [The anonymous channel: engagement rung 1 collects, unlinkably](DECISIONS.md#d270--the-anonymous-channel-engagement-rung-1-collects-unlinkably) | D329 (+4) | 27053 |
+| **D270** | [The anonymous channel: engagement rung 1 collects, unlinkably](DECISIONS.md#d270--the-anonymous-channel-engagement-rung-1-collects-unlinkably) | D334 (+5) | 27053 |
 | **D271** | [Per-question attention, aggregate-only — the R4 gate](DECISIONS.md#d271--per-question-attention-aggregate-only--the-r4-gate) | D329 (+1) | 27145 |
-| **D272** | [The person channel: engagement rung 2, scoped to the bone](DECISIONS.md#d272--the-person-channel-engagement-rung-2-scoped-to-the-bone) | D309 (+2) | 27186 |
-| **D273** | [A bump has a shelf life of exactly one upload, and 4.4 under-declares by two rows](DECISIONS.md#d273--a-bump-has-a-shelf-life-of-exactly-one-upload-and-44-under-declares-by-two-rows) | D324 (+1) | 27257 |
+| **D272** | [The person channel: engagement rung 2, scoped to the bone](DECISIONS.md#d272--the-person-channel-engagement-rung-2-scoped-to-the-bone) | D334 (+3) | 27186 |
+| **D273** | [A bump has a shelf life of exactly one upload, and 4.4 under-declares by two rows](DECISIONS.md#d273--a-bump-has-a-shelf-life-of-exactly-one-upload-and-44-under-declares-by-two-rows) | D334 (+2) | 27257 |
 | **D274** | [Build 25 is delivered, and the bump was the reading of step 17](DECISIONS.md#d274--build-25-is-delivered-and-the-bump-was-the-reading-of-step-17) | D324 | 27379 |
-| **D275** | [The private aggregate mirror collapses into the published one](DECISIONS.md#d275--the-private-aggregate-mirror-collapses-into-the-published-one) | D299 (+3) | 27450 |
-| **D276** | [The suite audited itself: what stayed green while being wrong](DECISIONS.md#d276--the-suite-audited-itself-what-stayed-green-while-being-wrong) | D289 (+8) | 27570 |
+| **D275** | [The private aggregate mirror collapses into the published one](DECISIONS.md#d275--the-private-aggregate-mirror-collapses-into-the-published-one) | D334 (+4) | 27450 |
+| **D276** | [The suite audited itself: what stayed green while being wrong](DECISIONS.md#d276--the-suite-audited-itself-what-stayed-green-while-being-wrong) | D334 (+9) | 27570 |
 | **D277** | [The similarity surfaces were ranking on a tier that could not fire](DECISIONS.md#d277--the-similarity-surfaces-were-ranking-on-a-tier-that-could-not-fire) | D299 (+4) | 27715 |
 | **D278** | [The City constellation asks for its city, instead of filtering for it](DECISIONS.md#d278--the-city-constellation-asks-for-its-city-instead-of-filtering-for-it) | D332 | 27980 |
 | **D279** | [There were always five test runners, and the table said four](DECISIONS.md#d279--there-were-always-five-test-runners-and-the-table-said-four) | D284 | 28089 |
@@ -336,15 +336,15 @@ detect it.
 | **D313** | [The paid question sells itself: automated review, Stripe checkout, and a question that goes live with nobody at the desk](DECISIONS.md#d313--the-paid-question-sells-itself-automated-review-stripe-checkout-and-a-question-that-goes-live-with-nobody-at-the-desk) | D324 (+1) | 31785 |
 | **D314** | [The no-tracking promise retires; the page describes today and stays ahead of change](DECISIONS.md#d314--the-no-tracking-promise-retires-the-page-describes-today-and-stays-ahead-of-change) | D329 (+1) | 31895 |
 | **D315** | [Ads sell themselves too — flat-priced windows through the same loop, and no Google](DECISIONS.md#d315--ads-sell-themselves-too--flat-priced-windows-through-the-same-loop-and-no-google) | D324 | 31932 |
-| **D316** | [Serving becomes selection: pages instead of the whole bank, and the order inherits the caps' job](DECISIONS.md#d316--serving-becomes-selection-pages-instead-of-the-whole-bank-and-the-order-inherits-the-caps-job) | D324 (+5) | 31999 |
+| **D316** | [Serving becomes selection: pages instead of the whole bank, and the order inherits the caps' job](DECISIONS.md#d316--serving-becomes-selection-pages-instead-of-the-whole-bank-and-the-order-inherits-the-caps-job) | D334 (+6) | 31999 |
 | **D317** | [The taste model moves to the server, because selection cannot be personal from inside a page](DECISIONS.md#d317--the-taste-model-moves-to-the-server-because-selection-cannot-be-personal-from-inside-a-page) | D322 (+2) | 32112 |
 | **D318** | [The bank cache leaves the small box](DECISIONS.md#d318--the-bank-cache-leaves-the-small-box) | D321 | 32191 |
 |  | ↳ *amendment 2026-08-26* — [The merge converged on D312's store, the same day](DECISIONS.md#d318-amendment-2026-08-26--the-merge-converged-on-d312s-store-the-same-day) | — | 32228 |
 | **D319** | [The serving order publishes nightly](DECISIONS.md#d319--the-serving-order-publishes-nightly) | D321 (+1) | 32244 |
 | **D320** | [Learn leaves the boot fetch: the first paged surface](DECISIONS.md#d320--learn-leaves-the-boot-fetch-the-first-paged-surface) | D321 | 32290 |
 | **D321** | [The feed tail leaves the boot fetch, and the whole-bank install is over](DECISIONS.md#d321--the-feed-tail-leaves-the-boot-fetch-and-the-whole-bank-install-is-over) | — | 32348 |
-| **D322** | [The profile is real: feed answers counted by topic, and pages sized by them](DECISIONS.md#d322--the-profile-is-real-feed-answers-counted-by-topic-and-pages-sized-by-them) | D324 | 32397 |
-| **D323** | [The 2026-08-27 night audit, reviewed — 21 fixes kept, five limits recorded](DECISIONS.md#d323--the-2026-08-27-night-audit-reviewed--21-fixes-kept-five-limits-recorded) | D326 (+1) | 32507 |
+| **D322** | [The profile is real: feed answers counted by topic, and pages sized by them](DECISIONS.md#d322--the-profile-is-real-feed-answers-counted-by-topic-and-pages-sized-by-them) | D334 (+1) | 32397 |
+| **D323** | [The 2026-08-27 night audit, reviewed — 21 fixes kept, five limits recorded](DECISIONS.md#d323--the-2026-08-27-night-audit-reviewed--21-fixes-kept-five-limits-recorded) | D334 (+2) | 32507 |
 | **D324** | [Build 26's pre-flight: run as-is, and the one surface no release gate can see](DECISIONS.md#d324--build-26s-pre-flight-run-as-is-and-the-one-surface-no-release-gate-can-see) | — | 32622 |
 | **D325** | [The bridge's first crossing: the fit publishes its own scorecard](DECISIONS.md#d325--the-bridges-first-crossing-the-fit-publishes-its-own-scorecard) | — | 32774 |
 | **D326** | [The genetic axiom's ambition widens, and the night shift gets a closing hour](DECISIONS.md#d326--the-genetic-axioms-ambition-widens-and-the-night-shift-gets-a-closing-hour) | — | 32850 |
@@ -354,4 +354,5 @@ detect it.
 | **D330** | [The political consent is asked at the start, on D151's screen, and it is an ask rather than a wall](DECISIONS.md#d330--the-political-consent-is-asked-at-the-start-on-d151s-screen-and-it-is-an-ask-rather-than-a-wall) | D331 | 33227 |
 | **D331** | [The political compass waits for a yes, and the toggle governs whether it is COMPUTED](DECISIONS.md#d331--the-political-compass-waits-for-a-yes-and-the-toggle-governs-whether-it-is-computed) | — | 33345 |
 | **D332** | [The read breaker is built, and the pulse guards usage against revenue](DECISIONS.md#d332--the-read-breaker-is-built-and-the-pulse-guards-usage-against-revenue) | — | 33456 |
-| **D333** | [Phase 5 executed: the strays are gone, the rollback is retired, and two promises got their settings](DECISIONS.md#d333--phase-5-executed-the-strays-are-gone-the-rollback-is-retired-and-two-promises-got-their-settings) | — | 33621 |
+| **D333** | [Phase 5 executed: the strays are gone, the rollback is retired, and two promises got their settings](DECISIONS.md#d333--phase-5-executed-the-strays-are-gone-the-rollback-is-retired-and-two-promises-got-their-settings) | D334 | 33621 |
+| **D334** | [The chain gets its other direction, and four claims that were true when they were written](DECISIONS.md#d334--the-chain-gets-its-other-direction-and-four-claims-that-were-true-when-they-were-written) | — | 33777 |

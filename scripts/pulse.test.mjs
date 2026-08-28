@@ -558,9 +558,46 @@ describe("the pulse artifact", () => {
     }
   });
 
-  it("counts every deployed function and marks which are alerted", () => {
+  it("counts every deployed function, checked against the DEPLOY LIST", () => {
+    // The independent side. This assertion used to be
+    // `expect(functionCount).toBe(functions.length)` — both sides out of
+    // collectInstrumentation's own regex, so it tested the scanner against
+    // itself and could not fail however narrow the scanner got. It did get
+    // narrow: a closed onCall|onDocumentCreated|onSchedule list reported 40
+    // functions against a backend exporting 42, missing stripeWebhookV2
+    // (onRequest — the only unauthenticated public endpoint) and
+    // onV2AnswerUpdated (onDocumentUpdated — D86's edit trigger), and this
+    // test stayed green through the whole of it.
+    //
+    // So the truth comes from somewhere the scanner cannot reach: the
+    // deploy workflow's `--only` string, which is maintained BY HAND and
+    // held to the source by check:deploy-targets (missing => not deployed,
+    // stale => no such export). Between that gate and this one the two
+    // sides are a hand-written list and a directory walk, and a function
+    // has to be absent from both to go unnoticed.
+    //
+    // Read rather than imported: check-deploy-targets.mjs exports nothing
+    // and runs its check — including process.exit(1) — as an import side
+    // effect, which inside vitest would take the whole run down.
+    const only = read(".github/workflows/firebase-deploy.yml")
+      .match(/--only\s+"([^"]*functions:[^"]*)"/);
+    expect(only).toBeTruthy();
+    const deployed = [...only[1].matchAll(/functions:([A-Za-z0-9_]+)/g)].map((m) => m[1]).sort();
+    expect(deployed.length).toBeGreaterThan(0);
+
     const { functions, functionCount, alertedCount } = p.instrumentation;
-    expect(functionCount).toBe(functions.length);
+    // Equal sets, both directions, and named rather than counted — a count
+    // says "41 != 42" and a name says which function the console is blind
+    // to. (If a function is ever deliberately left undeployed via
+    // check-deploy-targets' ALLOW_UNDEPLOYED escape hatch, it belongs in an
+    // exception written down HERE too, not in a loosened comparison.)
+    expect(functions.map((f) => f.name).sort()).toEqual(deployed);
+    expect(functionCount).toBe(deployed.length);
+    // The two the narrow scanner missed, pinned by name: a re-narrowing
+    // fails on the one that matters rather than on arithmetic.
+    expect(functions.find((f) => f.name === "stripeWebhookV2")?.kind).toBe("onRequest");
+    expect(functions.find((f) => f.name === "onV2AnswerUpdated")?.kind).toBe("onDocumentUpdated");
+
     expect(alertedCount).toBe(functions.filter((f) => f.alerted).length);
     // onV2AnswerCreated is the one that fails SILENTLY (retry:true), so it
     // is the one that must never lose its alert.

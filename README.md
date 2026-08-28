@@ -224,8 +224,13 @@ Local:
   policy whose condition reads that metric. Every link fails the same
   silent way: the policy exists, the console is green, and it can never
   fire. It cannot see Cloud Monitoring — policies are applied by hand
-  (D47) — so it checks the half that lives in the repo, and each of its
-  four rules was verified by breaking that link and watching it fail.
+  (D47) — so it checks the half that lives in the repo, and every rule was
+  verified by breaking the link it holds and watching it fail. Since D334
+  it also walks the chain from the **emitter** end: a `metric:` a function
+  writes with no log-based metric to land in is a line that reaches Cloud
+  Logging and stops, and the eight rules that start from a committed policy
+  could not see one. That direction is a ratchet — 21 such names today,
+  each recorded with the reason it is unarmed, and the count only falls.
 - `npm run check:figures` — the counts this file quotes, held equal to the
   suites. It exists because the rules-test figure said 40 in two places
   while the suite ran 44, which was the fourth instance of one error: a

@@ -299,15 +299,30 @@ includes flipping them, and each has its own runbook.
   survived as an instruction to reinstate the exact limit D98 was written
   to delete. Struck rather than deleted, per D106's rule that a reversal
   must stay visible. D327.
-- **Moderation advisory mode** (D22): `MOD_ADVISORY` flips on a cited
-  track record.
+- ~~**Moderation advisory mode**~~ (D22) — **struck: the flip happened
+  before this page was compiled.** `functions/src/moderation.ts` has
+  `export const MOD_ADVISORY = false;` and has had since **D83**
+  (2026-08-10), where the flip was D78's hard prerequisite for takes at
+  world scale — circle-scope trust cannot stand in for enforcement once
+  the audience is everyone. A remove verdict really hides. So this row was
+  nine days stale on the day it was written, and it is the one row in §5
+  whose gate is *a maintainer judgement on the verdict log* rather than a
+  console setting — which is exactly why nothing mechanical noticed.
+  Struck rather than deleted, per D106's rule and D327's example.
 - **App Check on the data plane**: register, soak to near-100% verified,
   then enforce Firestore and Storage — the only lever against the
   unmetered read path, and it cannot be armed during an incident.
   [`COSTS.md`](COSTS.md) § controls.
-- **The europe-west1 functions deploy** (D201): deploy, confirm the old
-  region is empty — while both exist every answer folds twice — then the
-  client build that calls it.
+- ~~**The europe-west1 functions deploy**~~ (D201) — **done, all three
+  parts, 2026-08-27 (D333).** The deploy landed with D165; the client
+  calls it (`src/lib/region.ts` — `FUNCTIONS_REGION = "europe-west1"`);
+  and the last part, *confirm the old region is empty*, is what D333's
+  session finished: `us-central1` now reads **zero functions and zero
+  scheduler jobs**, so the double-fold this row warns about cannot
+  happen. What the census left standing is not this row's: one foreign
+  `processBatch` in `europe-north1` and eight extension functions
+  belonging to the old app, both on LAUNCH-RUNBOOK 5.9c's open tick.
+  Struck rather than deleted, per D106's rule and D327's example.
 - **Production environment protection and the two loosened controls**
   (D87/D117), with the notification mechanism D117 names as the open
   half.

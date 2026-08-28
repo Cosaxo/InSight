@@ -33773,3 +33773,183 @@ billing account for `firebase-adminsdk-qdsv5@prvfire33.iam.gserviceaccount.com`
 — or the owner creates the budget in the console in under a minute:
 Billing → Budgets & alerts → $50, threshold emails only, no programmatic
 action.
+
+## D334 · The chain gets its other direction, and four claims that were true when they were written
+
+**2026-08-28.** A batch of repo-side work with one thing in common: every
+item is a place where the tree and something the tree says about itself had
+come apart, and no gate could see it. Nothing here touches a live service,
+and nothing here is a new feature. Three of the four corrected claims are
+in decision records, so they are corrected HERE rather than edited there
+(D106: a reversal stays visible; ORIENTATION §6: a record's arithmetic is a
+snapshot, deliberately).
+
+### 1 · `check:monitoring` walks the chain from the emitter end
+
+The gate's own header draws the chain as `function emits metric: "X"` → a
+log-based metric selects on X → a policy's condition reads it. Its eight
+rules all start from a **committed policy**, so the reverse edge — a line
+written to a metric nobody created — was structurally invisible. Rule 9 is
+that edge, and it lands as a ratchet (`UNARMED`) rather than a cliff:
+
+| | |
+| --- | --- |
+| `metric:` names emitted by `functions/src/*.ts` | **26** |
+| created by `apply-monitoring.mjs`'s METRICS list | **5** |
+| log-based metrics in production (`npm run observe`) | **5** — agrees |
+| emitted with nowhere to land | **21**, each recorded with its reason |
+
+Twelve of the 21 are the whole `paid_*` vocabulary. It fails in three
+directions, each mutation-verified: a new unarmed emitter, a recorded name
+nothing emits any more (D275's stale-tripwire shape), and a recorded name
+that has since been armed and must come off the list.
+
+**The first version of rule 9 had the fault it was written to catch, and
+review found it.** Its scanner matched `metric: "X"` — a bare literal — and
+`functions/src/paid.ts:612` emits two names through a ternary:
+
+```ts
+metric: verdict.verdict === "approve" ? "paid_review_approved" : "paid_review_declined",
+```
+
+Both names were emitted, unarmed and unrecorded while the gate printed OK,
+and the inventory said **24** where the tree emits 26. The fix is not a
+wider regex: `metric: c === "approve" ? "a" : "b"` holds three string
+literals and only two are names, so a scanner that takes every quoted word
+invents a metric called `approve` and reports it missing forever. Instead
+the gate reads the whole value expression and admits exactly two countable
+shapes — a literal, or a ternary ending in two literals — and **fails** on
+anything else (a template literal, a variable), because a name assembled at
+runtime never appears in the tree as text and no grep, reviewer or rule can
+find it. `opaqueEmits` is that check; `scripts/check-monitoring.test.mjs`
+covers all of it, 17 cases.
+
+**Correction to D323 §3.** That section is headed "A buyer charged twice is
+recorded and alarmed, and not refunded". Only the first half is built:
+`paid_duplicate_payment` is emitted at `functions/src/paid.ts:1102` at
+error, no METRICS entry selects on it, and the only `severity>=ERROR`
+policy in `monitoring/` is scoped to `onV2AnswerCreated`. The alarm has
+never existed. It is recorded in `UNARMED` rather than armed, because which
+paid names are a page and which are a morning read is the operator's call
+and several carry money rather than a stale number.
+
+### 2 · A NUL byte, and the two-day-old comment it kept wrong
+
+`functions/src/taste.ts:112` carried a **raw** NUL as the composite-key
+separator — deliberate as a separator, wrong as a byte. git and grep
+classify the file as binary, so `grep -rn readLedgerDay functions/src/`
+printed "binary file matches" and hid `taste.ts:148` from every search over
+this backend. Written as `\x00` the runtime key is identical and the file
+is text.
+
+The consequence was already shipped: `scripts/cost-arith.mjs` said the
+server issues reads for "the three nightly ledger readers". **That comment
+was RIGHT when it was written** (2026-08-24, D276); `fitTasteV2` landed as
+the fourth two days later (2026-08-26, D316–D322) and nobody came back for
+the line — because nobody searching for a ledger reader could see the
+fourth. The first draft of the fix said the NUL was "how the cost model
+came to say three", which `git blame` refutes; the record and the comment
+now both say the narrower true thing, that the byte is why it stayed wrong.
+
+The same review corrected a population claim copied faithfully from
+`taste.ts`'s own header: the fold reads and writes a profile per person who
+answered **a feed question**, not per active user — `FEED_TOPIC_OF` is
+built from `q.surface === "feed"` and every other qid is dropped, so the
+daily question nearly everyone answers reaches none of it.
+
+**Deferred, with the arithmetic.** The taste term is still absent from the
+model: `grep -n TASTE scripts/cost-arith.mjs` finds nothing. Its shape is
+the Patterns pair transposed — one paged ledger-day read, plus one read and
+one write per feed answerer that day. It is not landed here because every
+printed figure moves with it and `docs/COSTS.md` quotes those figures; the
+constant, the term and the doc land in one change or the page is wrong
+between two commits.
+
+### 3 · Two functions the census could not see
+
+`scripts/pulse-collect.mjs` matched `onCall|onDocumentCreated|onSchedule`.
+The backend also exports `stripeWebhookV2` (`onRequest`, the one HTTP
+endpoint outside App Check) and `onV2AnswerUpdated` (`onDocumentUpdated`,
+D86's edit trigger, `retry: true`). Neither appeared in the census. The
+test asserted the count **against the same scanner**, so it could never
+fail; it now derives the expected set from `check:deploy-targets`' list
+instead. `docs/MONITORING.md` said "2 of 14 deployed functions have an
+alert policy" — a denominator that predated a third of the backend. It is
+**5 of 42**, and both halves are now `check:figures` entries derived from
+`monitoring/pulse.json`, so the prose cannot drift from the console again.
+
+### 4 · A predicate D233 retired, still dropping rows
+
+`scripts/question-scorecard.mjs` skipped every feed question with
+`if (q.type === "rank") return; // not live-servable (D12)`. **D233 retired
+D12 on 2026-08-23**; `feed-budget.mjs`'s `SERVABLE_TYPES` already names
+rank, and `feed-budget.test.mjs` pins it. The scorecard the lanes read for
+signal had been silently short. `score()` was unexported and untested,
+which is why nothing went red — it is exported and pinned now.
+`docs/QUESTION-FARM.md` carried the same retired reason; D233's own
+"held/deferred" list says it chose not to open that document, so this is
+the deferral closing rather than an oversight.
+
+### 5 · "Three look tickable and are not" — it is two
+
+`docs/LAUNCH-RUNBOOK.md` step 4.4 and `scripts/asc-push.mjs` both said
+three, naming Device ID, **Product Interaction** and Emails or Text
+Messages. Product Interaction became a linked Analytics row at D270/D272,
+and the same step said so eleven lines earlier. This is the sentence a
+human transcribes into App Store Connect by hand, because Apple's API has
+no App Privacy resource (D73) — so a wrong count here reaches Apple. The
+word is now derived from `design/store/app-privacy.json` by `check:figures`,
+which is the remedy D273 applied to the row count one sentence over. Third
+repeat of the D180/D273 shape.
+
+### 6 · Correction to D333: the Algolia instances have eight deployed functions
+
+D333 §"What execution found" records the four surviving
+`algolia/firestore-algolia-search` instances as ACTIVE with "none with a
+deployed function anywhere in the census", and `LAUNCH-RUNBOOK.md` 5.9c
+repeats it. Measured 2026-08-28 against the Cloud Functions v2 API: **51
+functions deployed, of which eight are `ext-firestore-algolia-search-*`,
+all state ACTIVE, all in `europe-west1`** —
+`{,stream-,intrests-,courts-}execute{Index,FullIndex}Operation`. The census
+did not lie so much as it was asked the wrong question: `observe.mjs`'s
+stray rule is **region-only**, so it flags the one function outside
+`europe-west1` (`processBatch`) and classifies eight extension functions in
+it as ours. Deleting the instances is unchanged and still the owner's;
+what changes is that they are not inert.
+
+### 7 · The measurement that reorders the rest
+
+Read directly from `prvfire33/insight` while checking the above, and
+recorded because every plan in this repo now depends on it:
+
+| | |
+| --- | --- |
+| answers, all time | **140** |
+| accounts that have answered | **6** |
+| answers written by the largest single account | **135** |
+| `v2_question_aggs` | 136 documents |
+| aggregates at basis ≥ 8 (the Patterns gate needs 24) | **0** |
+| `v2_groups` · `v2_purchases` · `v2_paid_bookings` | 0 · 0 · 0 |
+| `v2_meta/app.patternsPool` | 0 |
+
+Nothing is decided by this here. It is recorded so the next reader does not
+plan against a population that does not exist: the Patterns tab's D265 gate,
+measure-and-retire (D162), the core-size ratio gate, the cost-model
+measurement debt and every "blocked on demand evidence" row in
+`PAID-PLAN.md` are all waiting on the same thing, and it is not code.
+
+### What this batch did not do
+
+- **Arm any of the 21 unarmed metrics.** Each needs a METRICS entry, a
+  policy, and a decision about what pages. `taste_fold` needs one more:
+  it is emitted only when the fold MOVED, so to any policy a quiet day and
+  a dead job are the same signal.
+- **Touch a live service.** The Algolia instances, the missing log-based
+  metrics and the production environment protection are all operator work
+  and all still open.
+- **Write the `now` batch.** Six cards exist, all `from: 2026-08-23`; four
+  are live today and the last expires **2026-09-03**, after which the topic
+  is empty and the chip row draws a channel with nothing behind it. It is
+  the one lane no scheduled run may write (`feed-budget.mjs`), and writing
+  current-events questions from a model's memory rather than from a named
+  published source is precisely what `QUESTION-FARM.md` forbids.

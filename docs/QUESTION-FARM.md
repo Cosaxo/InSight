@@ -952,11 +952,19 @@ Rules, each load-bearing:
   **continuum forms** (`dial` / `field`, live since D114), or a **`path`**
   — the Crossroads branching scenario D136 made live, carrying `title`,
   `intro` and `nodes` whose endings are the answer space (it has no
-  `options`; those labels are synthesized). `rank` is not live-servable
-  (D12) and `duel`-type feed cards are prototype legacy: neither is
-  authorable, and neither counts toward a topic's depth in the budget,
-  because a topic must not read as covered on questions nobody can be
-  served. `check:quality` holds the measured bounds for all four;
+  `options`; those labels are synthesized). `rank` and `duel`-type feed
+  cards stay **unauthorable by this lane**, for two different reasons
+  now. `duel` is prototype legacy nobody can be served, so it does not
+  count toward a topic's depth either. `rank` is the opposite: **D233
+  made it live-servable and closed D12**, an answer carries an order, and
+  a rank card DOES count toward depth — `SERVABLE_TYPES` in
+  `scripts/feed-budget.mjs` is the list, and it names rank. What has not
+  happened is anybody extending this lane's contract to the form, which
+  `check:quality` says in as many words at its own type check ("whether
+  the FARM may author one is the lane contract's question"). So the
+  prohibition outlived its reason: it stands as the contract, not as a
+  fact about the pipeline, and widening it is its own record.
+  `check:quality` holds the measured bounds for all four;
   `check:content` holds the seed shapes. A continuum question is written
   TWICE — the content entry and its demo-pool twin — see § Continuum
   questions; a path is written once, in the content bank, and has craft
@@ -1360,10 +1368,16 @@ bar each entry below has to meet:
 - **Place-rating `rates` dailies** — editorial only (D187): sold
   inventory's free twin, hard rule 6's boundary. A lane writing these
   gives away the paid path.
-- **Feed `rank`** — not live-servable (D12): a rank answer is a
-  permutation and the whole ledger folds `optionIdx`. Making it servable
-  is a client+backend project, deferred, not a writing rule; until then
-  a generated rank card is inventory nobody can be served.
+- **Feed `rank`** — servable since D233, and still not this lane's. This
+  entry read "not live-servable (D12): a rank answer is a permutation and
+  the whole ledger folds `optionIdx`", which was true until **D233 built
+  exactly the client+backend project it called deferred** — an order
+  answer carries no `optionIdx` at all, the eight seeded rank cards are
+  back in the feed, and D12's record closes. The rule survives its
+  reason: the eight are editorial, no run has ever been given craft rules
+  for the form, and `check:quality` deliberately leaves the authoring
+  question to this document. Extending the lane to rank is a decision,
+  not an inference from the pipeline now working.
 - **Feed `duel`-type cards** — prototype legacy, superseded by the real
   duel banks above.
 - **Scene cards (`sNN`)** — scenes are placeholder rooms; their card

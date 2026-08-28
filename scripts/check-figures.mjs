@@ -107,22 +107,53 @@ const surfaces = [...v2content.matchAll(/"surface":\s*"([^"]+)"/g)].map((m) => m
 const seededQuestions = (v2content.match(/"id":\s*"[^"]+"/g) || []).length;
 const dailyQuestions = surfaces.filter((s) => s === "daily").length;
 
-// The bank's wire size, for COSTS.md's cold-boot row. Parsed rather than
-// measured off the file, because the file is TypeScript around the data:
-// its bytes include a type annotation and whatever the generator's
-// formatter did that week, and neither of those ships to a device.
+// The pulse's own function census, read from the committed artifact rather
+// than re-scanned here — a second scanner would be a second thing to drift
+// (D334). pulse-collect.mjs writes both numbers; this only holds the prose
+// that quotes them.
+const pulse = JSON.parse(read("monitoring/pulse.json"));
+const pulseFunctions = pulse.instrumentation.functionCount;
+const pulseAlerted = pulse.instrumentation.alertedCount;
+
+// What a cold boot actually fetches, for COSTS.md's cold-boot row, in
+// documents and in wire size. Parsed rather than measured off the file,
+// because the file is TypeScript around the data: its bytes include a
+// type annotation and whatever the generator's formatter did that week,
+// and neither of those ships to a device.
 //
-// One decimal place, and the gate compares the rounded value — the point is
-// to catch a promotion cycle moving the figure by kilobytes, not to make a
-// whitespace change red the tree.
-const bankKiB = (() => {
+// It was the WHOLE BANK until D321 and this pair read `arr` entire. The
+// boot is two queries now — `BANK_SURFACES`, then feed where `core` — so
+// these read the same two constraints off `live.ts` rather than a list
+// kept here: a surface added to the boot (pulse and call each were once)
+// must move this figure, and a hand-copied array is how it would not.
+// The third boot query, for paid campaigns running today, reaches
+// documents the webhook writes at runtime and the compiled seed has none
+// of, so it contributes zero here and would contribute zero from any
+// static source.
+//
+// One decimal place on the size, and the gate compares the rounded value
+// — the point is to catch a promotion cycle moving the figure by
+// kilobytes, not to make a whitespace change red the tree.
+const bootBankRows = (() => {
+  const m = read("src/v2/data/live.ts").match(/const BANK_SURFACES = \[([^\]]*)\]/);
+  if (!m) {
+    console.error(
+      "check-figures: src/v2/data/live.ts no longer declares BANK_SURFACES as an\n"
+      + "    array literal — fix this scan. A figure gate that cannot find its\n"
+      + "    subject reports zero, and zero here reads as a free boot.",
+    );
+    process.exit(1);
+  }
+  const boot = new Set([...m[1].matchAll(/"([^"]+)"/g)].map((s) => s[1]));
   // scripts/v2content-lib.mjs — one parser, shared with cost-arith and
   // question-quality, because all three had their own copy and all three
   // broke differently when a second export arrived (D197). Its header has
   // the three failure modes.
-  const arr = bankArray(v2content);
-  return Math.round((JSON.stringify(arr).length / 1024) * 10) / 10;
+  return bankArray(v2content)
+    .filter((q) => boot.has(q.surface) || (q.surface === "feed" && q.core === true));
 })();
+const bootBankDocs = bootBankRows.length;
+const bootBankKiB = Math.round((JSON.stringify(bootBankRows).length / 1024) * 10) / 10;
 
 // The Patterns fit's eligible corpus (D265) — two-option daily plus
 // two-option core feed, the rule `PATTERNS_QIDS` compiles from this same
@@ -186,6 +217,12 @@ const learnConst = constFrom("scripts/learn-budget.mjs");
 // not less: a manual quoting a bigger number than the script computes is the
 // one way a run could be told to spread the crowd thinner than the design says.
 const feedConst = constFrom("scripts/feed-budget.mjs");
+// The paged read path's page sizes (D320/D321), quoted by COSTS.md's
+// cold-boot rows. Read from source like every other constant here, because
+// COSTS.md is what a reader consults to answer "what does an install
+// cost", and a page size quoted larger than the code fetches is an
+// over-estimate with nothing to catch it.
+const pagerConst = constFrom("src/v2/data/bankPager.ts");
 // The duel regulator's constants (D213), same reasoning as the other three
 // lanes': the duel section is what a scheduled run obeys.
 const duelConst = constFrom("scripts/duel-budget.mjs");
@@ -224,7 +261,27 @@ const appPkg = JSON.parse(read("package.json"));
 // The count only. The per-row purposes cannot be gated into one sentence —
 // ten rows are App Functionality and one is Analytics — which is why 4.4
 // says to read the printout rather than the paragraph.
-const appPrivacyRows = JSON.parse(read("design/store/app-privacy.json")).collected.length;
+const appPrivacy = JSON.parse(read("design/store/app-privacy.json"));
+const appPrivacyRows = appPrivacy.collected.length;
+
+// And the OTHER count in the same step, gated for the third repeat of the
+// same failure. 4.4 ended "Three look tickable and are not" and named
+// Product Interaction as one of them, while the paragraph two above it in
+// the SAME step already printed that row as Analytics — collected at D270,
+// linked at D272. A human transcribing the step by hand would have left a
+// collected row unticked: the under-declaration direction again, in the
+// one step whose output is a legal statement, and this time the drift made
+// a sentence false rather than merely short.
+//
+// Derived from the rows `notCollected` names INDIVIDUALLY, which is the
+// same filter asc-push.mjs's printout uses (`$`-prefixed keys are notes and
+// tombstones, `others` is the bulk list nobody is tempted to tick). Holding
+// it to that filter rather than to a key count is what makes the prose and
+// the printout one claim: a row that moves into `collected` leaves both at
+// once, and the D270 tombstone stays a tombstone.
+const appPrivacyTempting = Object.entries(appPrivacy.notCollected)
+  .filter(([k, v]) => !k.startsWith("$") && k !== "others" && typeof v === "string")
+  .length;
 
 // How many functions actually ship, counted the way check-deploy-targets
 // counts them — the same directory walk and the same regex, not a hand-kept
@@ -640,6 +697,24 @@ const FIGURES = [
     actual: dailyQuestions,
     fix: (n) => `"The daily World question pool (${n})"`,
   },
+  // The alert-coverage pair. It read "2 of 14" while the tree deployed 42
+  // functions and five carried a policy — a hand-kept ratio whose
+  // denominator predated a third of the backend (D334). Derived from the
+  // pulse's own census so the prose cannot drift from the console again.
+  {
+    file: "docs/MONITORING.md",
+    what: "alert coverage, alerted count (the instrumentation panel)",
+    re: /\*\*(\d+) of \d+ deployed functions have an alert policy\.\*\*/,
+    actual: pulseAlerted,
+    fix: (n) => `"**${n} of ${pulseFunctions} deployed functions have an alert policy.**"`,
+  },
+  {
+    file: "docs/MONITORING.md",
+    what: "alert coverage, deployed count (the instrumentation panel)",
+    re: /\*\*\d+ of (\d+) deployed functions have an alert policy\.\*\*/,
+    actual: pulseFunctions,
+    fix: (n) => `"**${pulseAlerted} of ${n} deployed functions have an alert policy.**"`,
+  },
   {
     file: "docs/LAUNCH-RUNBOOK.md",
     what: "the daily bank and the seeded total (status header)",
@@ -684,21 +759,31 @@ const FIGURES = [
   // repo, and most of them cannot be gated here — a dollar figure is an
   // output of scripts/cost-model.mjs, and re-deriving it in this script
   // would be a second copy of the model, which is the thing cost-arith.mjs
-  // exists to prevent. These two are the INPUTS: they come from the tree
+  // exists to prevent. These are the INPUTS: they come from the tree
   // rather than from the model, they move on their own every promotion
   // cycle, and they are what the cold-boot row is computed from.
+  //
+  // ALL FOUR RE-POINTED, NOT DELETED (D316–D322). The subject retired —
+  // "the whole question bank" is not what a boot fetches any more, the
+  // whole-bank install ended at D321 — and this file's own rule for that
+  // case is to delete the entry rather than restore the sentence. It
+  // applies to a sentence that has been reworded AWAY; here the row is
+  // still there, still quoting a count and a wire size off the same bank,
+  // and only the CONSTRAINT moved. Deleting these would have left the one
+  // number an operator uses to answer "what does an install cost"
+  // ungated in the file with the worst staleness record on this page.
   {
     file: "docs/COSTS.md",
-    what: "the question bank's document count (the cold-boot row)",
-    re: /\*\*\+(\d+) reads\*\* — the whole question bank/,
-    actual: seededQuestions,
-    fix: (n) => `"**+${n} reads** — the whole question bank"`,
+    what: "the cold boot's document count (the cold-boot row)",
+    re: /\*\*\+(\d+) reads\*\* — the boot surfaces/,
+    actual: bootBankDocs,
+    fix: (n) => `"**+${n} reads** — the boot surfaces"`,
   },
   {
     file: "docs/COSTS.md",
-    what: "the question bank's wire size",
+    what: "the cold boot's wire size",
     re: /(\d+\.\d) KiB of JSON/,
-    actual: bankKiB,
+    actual: bootBankKiB,
     // toFixed(1), not the bare number: the pattern above REQUIRES a decimal
     // place, so when the rounded size lands on a whole number (125.0 prints
     // as "125") the advice would otherwise name a sentence this script then
@@ -715,10 +800,36 @@ const FIGURES = [
   // sentence to be noticed.
   {
     file: "docs/COSTS.md",
-    what: "the question bank's document count (the cold-boot row, second half)",
-    re: /`V2_QUESTIONS`, (\d+) docs/,
+    what: "the cold boot's document count (the cold-boot row, second half)",
+    re: /`V2_QUESTIONS`, (\d+) docs of \d+/,
+    actual: bootBankDocs,
+    fix: (n) => `"\`V2_QUESTIONS\`, ${n} docs of ${seededQuestions}"`,
+  },
+  {
+    // …and the denominator beside it, which is the whole bank and now the
+    // ONLY place on this page that says how big it is. The row exists to
+    // be read as a fraction: 456 of 716 is the sentence, and a numerator
+    // gated against a free-floating denominator would let the fraction go
+    // wrong while both halves looked held.
+    file: "docs/COSTS.md",
+    what: "the question bank the cold boot no longer fetches whole",
+    re: /`V2_QUESTIONS`, \d+ docs of (\d+)/,
     actual: seededQuestions,
-    fix: (n) => `"\`V2_QUESTIONS\`, ${n} docs"`,
+    fix: (n) => `"\`V2_QUESTIONS\`, ${bootBankDocs} docs of ${n}"`,
+  },
+  {
+    file: "docs/COSTS.md",
+    what: "the learn page size (the cold-boot pages row)",
+    re: /`LEARN_PAGE` \((\d+)\)/,
+    actual: pagerConst("LEARN_PAGE"),
+    fix: (n) => `"\`LEARN_PAGE\` (${n})"`,
+  },
+  {
+    file: "docs/COSTS.md",
+    what: "the feed page size (the cold-boot pages row)",
+    re: /`FEED_PAGE` \((\d+)\)/,
+    actual: pagerConst("FEED_PAGE"),
+    fix: (n) => `"\`FEED_PAGE\` (${n})"`,
   },
   {
     file: "docs/LAUNCH-RUNBOOK.md",
@@ -726,6 +837,16 @@ const FIGURES = [
     re: /you copy it across: \*\*(\d+) data types\*\*/,
     actual: String(appPrivacyRows),
     fix: (n) => `"you copy it across: **${n} data types**"`,
+  },
+  {
+    file: "docs/LAUNCH-RUNBOOK.md",
+    what: "the untickable rows the printout names (4.4, the nutrition label)",
+    // Capitalised: the figure opens the sentence, like DEPLOYMENT.md's
+    // gated-jobs entry above — hence the line anchor, so a mid-sentence
+    // "these look tickable" elsewhere in the step could not answer for it.
+    re: /^\s+(\w+) look tickable and are not/m,
+    actual: cap(NUMBER_WORDS[appPrivacyTempting] || String(appPrivacyTempting)),
+    fix: (n) => `"${n} look tickable and are not"`,
   },
   {
     file: "docs/LAUNCH-RUNBOOK.md",
