@@ -114,13 +114,17 @@ resolved to a city name on the device and discarded, so what leaves the
 device is a city name. That is still coarse location data. Never tick
 Precise: it is unobtainable by construction, not by policy.
 
-**Sensitive info — read the precondition.** The retired v1
-`insight_discoverable` documents carry a ~5km geohash alongside a Big Five
-vector, political coordinates, age, gender, country and a free-text bio.
-Client access to them is now closed (D4), which is not the same as them
-being gone. **Declare sensitive personal info as "not collected" only
-after the discoverable scrub has actually run** — the honest scope is the
-whole document, not just its location field:
+**Sensitive info — the precondition is MET, measured 2026-08-27 (D333).**
+The scrub's report pass found `insight_discoverable` holding **zero
+documents**, which its own output names as the end state the store
+privacy answers need, and the `(default)` database that contained it was
+deleted the same day — so the v1 special-category data is gone twice
+over. Sensitive personal info answers may now be made from the v2 surface
+alone. The retired v1
+`insight_discoverable` documents carried a ~5km geohash alongside a Big
+Five vector, political coordinates, age, gender, country and a free-text
+bio; client access to them was closed at D4, which is not the same as
+them being gone — hence the scrub, kept below for the record:
 
 ```bash
 node scripts/scrub-v1-discoverable.mjs --project prvfire33          # report
@@ -185,7 +189,10 @@ Three things deliberately survive, and all belong on a store form:
   with the arithmetic as **D293**.
 
 Journal-era (v1) collections (`insight_users/*`, `insight_discoverable`,
-aggregates) are no longer reachable by any client — their rules were
-retired in D4 and archived in `firestore.rules.v1-archive` — but they are
-still written by the v1 Cloud Functions and still wiped by the same
-deletion path.
+aggregates) no longer exist at all as of 2026-08-27 (D333): their rules
+were retired in D4 and archived in `firestore.rules.v1-archive`, the v1
+Cloud Functions that still wrote them were deleted, and the `(default)`
+database that held them was deleted the same day. This paragraph said
+"still written by the v1 Cloud Functions" until then, and that was true —
+D13's stranded schedulers were rewriting three inert aggregate documents
+daily right up to the deletion.

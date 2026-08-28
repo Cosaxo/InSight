@@ -87,6 +87,14 @@ Firebase project `prvfire33`. Routine backend changes need no manual deploy.
 
 ### One-off cleanup still owed in production (D13)
 
+> **PAID 2026-08-27 (D333).** The command below ran as written, all nine
+> confirmed 2nd Gen as they went, and their four Cloud Scheduler jobs went
+> with them — `us-central1` now holds zero functions and zero scheduler
+> jobs, verified by `npm run observe`. The inert `aggregates_*` and
+> `taxonomies` documents they kept rewriting went the same day, with the
+> whole `(default)` database (FIRESTORE-REGION step 5). Kept below as the
+> record of what was owed and why the region in it was right.
+
 Dropping a function from the `--only` list stops **deploying** it; it does
 not **delete** the deployed copy. The nine v1 functions removed in D13 are
 still live in `prvfire33` until someone runs, once:

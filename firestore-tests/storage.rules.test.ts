@@ -7,30 +7,20 @@
 // (owner-only path match, 8MB cap, image content-type) plus the catch-all
 // deny had zero coverage. These pin them.
 //
-// Note on scope: the only path it grants, users/{uid}/dailyPhotos/, backed
-// the v1 daily-report photo backup, a surface removed in D4. The grant is
-// kept rather than reduced to a catch-all deny until the bucket is
-// confirmed empty — revoking access to objects that still exist would
-// create an erasure gap rather than close a hole. See docs/SHIP-CHECKLIST.md.
+// Note on scope: users/{uid}/dailyPhotos/ — the v1 daily-report backup,
+// a surface removed in D4 — carried a read/delete grant here until
+// 2026-08-27. The grant existed for erasure: deleteAccount reaches
+// `avatars/{uid}` and nothing else (D178), so a v1 user's only path to a
+// leftover photo was their own read/delete. On 2026-08-27 the bucket was
+// measured and emptied FIRST (117 legacy objects, none under dailyPhotos/)
+// and the grant removed second — runbook 5.4's order, kept because
+// reversing it converts a dead feature into an erasure gap (D333).
 //
-// That sentence used to end "deleteAccount does not touch Storage", and it
-// stopped being true at D178: the profile photo made erasure reach the
-// bucket for the first time. It reaches `avatars/{uid}` and nothing else,
-// so the argument for keeping THIS path's read and delete grant is
-// unchanged — a v1 leftover here is still a leftover no sweep collects.
-//
-// UPLOADS ARE NOW CLOSED (2026-08-13), and the split is why this file
-// changed shape. The erasure argument above is about READ and DELETE — a
-// v1 user reaching a leftover object to remove it — and says nothing about
-// accepting new bytes. The write half was the project's only unbounded
-// egress surface: any anonymous account (D3 makes those free) could store
-// 8 MB per object with `{filename}` unbounded, so unbounded objects and
-// unbounded bytes to read back, against a docs/COSTS.md line that bills
-// Storage at "$0 (bucket unused)". Nothing in src/ or functions/src
-// imports firebase/storage at all, so no feature loses anything.
-//
-// The two suites below are therefore asymmetric on purpose: reads and
-// deletes keep their positive cases, uploads keep only negative ones.
+// The retired-path suite below therefore asserts total denial now, owner
+// included: with the bucket empty there is no object left for the old
+// grant to be about, and an access grant whose objects cannot exist is
+// only a surface. Uploads were already closed on 2026-08-13 — that half
+// simply extends to read and delete.
 
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
@@ -154,65 +144,36 @@ describe("storage: the profile photo (D178)", () => {
   });
 });
 
-describe("storage: owner-only daily photos", () => {
-  it("the owner reads their own leftover photo", async () => {
-    // Seeded out-of-band now, because the owner can no longer put it there
-    // themselves — which is the whole change. Read still works, so the
-    // erasure path this grant exists for is intact.
+describe("storage: the retired v1 path is fully closed (D333)", () => {
+  it("the owner can no longer read or delete under dailyPhotos", async () => {
+    // The positive halves of these two lived here from 2026-08-13 to
+    // 2026-08-27 as the erasure path for leftover v1 objects. The bucket
+    // was measured empty before the grant came out, so an object for this
+    // read to reach can only be seeded by the test itself.
     await env.withSecurityRulesDisabled(async (ctx) => {
       await uploadBytes(photo(ctx.storage(), OWNER), small(), JPEG);
     });
-    await assertSucceeds(getBytes(photo(asUser(OWNER), OWNER)));
+    await assertFails(getBytes(photo(asUser(OWNER), OWNER)));
+    await assertFails(deleteObject(photo(asUser(OWNER), OWNER)));
   });
 
-  it("nobody else can read, overwrite or delete it", async () => {
+  it("nobody else can either", async () => {
     await env.withSecurityRulesDisabled(async (ctx) => {
       await uploadBytes(photo(ctx.storage(), OWNER), small(), JPEG);
     });
     await assertFails(getBytes(photo(asUser(STRANGER), OWNER)));
-    await assertFails(uploadBytes(photo(asUser(STRANGER), OWNER), small(), JPEG));
     await assertFails(deleteObject(photo(asUser(STRANGER), OWNER)));
     // and the default user — a free anonymous account — is no different
     await assertFails(getBytes(photo(asAnonAuth(), OWNER)));
     await assertFails(getBytes(photo(asSignedOut(), OWNER)));
   });
 
-  it("the owner can delete their own photo", async () => {
-    await env.withSecurityRulesDisabled(async (ctx) => {
-      await uploadBytes(photo(ctx.storage(), OWNER), small(), JPEG);
-    });
-    await assertSucceeds(deleteObject(photo(asUser(OWNER), OWNER)));
-  });
-});
-
-describe("storage: uploads are closed", () => {
-  // These used to assert the 8MB cap and the image/* content-type gate.
-  // Both are gone with the write grant, and asserting them here would now
-  // be asserting a bound on something that cannot happen — so the cases
-  // become "no upload succeeds", which is the stronger claim and the one
-  // the cost argument actually rests on. A valid small JPEG is the case
-  // that matters: if THAT fails, nothing weaker gets through.
-  it("the owner cannot upload, even a valid small image", async () => {
+  it("uploads stay closed, small and valid included", async () => {
+    // Closed since 2026-08-13, when the write grant was the project's only
+    // unbounded-egress surface. A valid small JPEG is the case that
+    // matters: if THAT fails, nothing weaker gets through.
     await assertFails(uploadBytes(photo(asUser(OWNER), OWNER, "ok.jpg"), small(), JPEG));
-  });
-
-  it("the owner cannot overwrite an object that already exists", async () => {
-    // update is the same verb as create here; a rule that closed create and
-    // left update open would leave the bytes-per-object term unbounded even
-    // with the object COUNT fixed.
-    await env.withSecurityRulesDisabled(async (ctx) => {
-      await uploadBytes(photo(ctx.storage(), OWNER), small(), JPEG);
-    });
-    await assertFails(uploadBytes(photo(asUser(OWNER), OWNER), small(), JPEG));
-  });
-
-  it("a free anonymous account cannot upload under its own uid", async () => {
-    // The version that actually costs money: D3 mints one of these on first
-    // open, so "signed in" is not a scarcity of any kind.
     await assertFails(uploadBytes(photo(asAnonAuth("anon2"), "anon2"), small(), JPEG));
-  });
-
-  it("an 8MB-plus upload fails too — now by the grant, not by the cap", async () => {
     const tooBig = new Uint8Array(8 * 1024 * 1024 + 1);
     await assertFails(uploadBytes(photo(asUser(OWNER), OWNER, "big.jpg"), tooBig, JPEG));
   });

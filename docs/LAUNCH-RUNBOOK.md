@@ -140,9 +140,12 @@ arithmetic.
       the page is that it be an answer rather than a default.
 
       **DONE 2026-08-15 (D165): `insight` / `europe-west1` is live** —
-      created, rules + functions deployed, bank seeded and verified. Only
-      the `(default)` deletion remains, and it waits a week on purpose.
-      Original decision note below.
+      created, rules + functions deployed, bank seeded and verified. The
+      `(default)` deletion it left waiting **happened 2026-08-27 (D333)**,
+      twelve days later, after measuring that `insight` serves and that
+      nothing but D13's stranded schedulers had written to `(default)`
+      since the move — so the whole of 0.0 is closed and the project has
+      one database. Original decision note below.
 
       **DECIDED 2026-08-15 (D165): option A — a new regional database in
       the same project, recommended region `europe-west1`.** The existing
@@ -1284,18 +1287,34 @@ That is a tester-count problem, not a workflow problem.
       against all five banks rather than assumed.
 ## Phase 5 — Production hygiene before the app is public
 
-- [ ] **5.1 Enable TTL on all THREE collection groups that stamp
-      `expireAt`** (one-time each):
+- [x] **5.1 Enable TTL on all THREE collection groups that stamp
+      `expireAt` — DONE 2026-08-27 (D333), all three `ACTIVE` on the
+      `insight` database.** Set through the Firestore Admin REST API with
+      the deploy credential and read back the same way:
+      `ttlConfig.state=ACTIVE` for `v2_agg_events`, `engagement` and
+      `v2_ratelimits`. The privacy page's 90-day rolling-window sentence
+      is now held by a real setting.
+
+      **The command below was wrong in one silent way, and it is kept as
+      the record:** it names no `--database`, and gcloud defaults that to
+      `(default)` — which on 2026-08-27 still existed. All three
+      collection groups live in `insight` (`functions/src/db.ts`), so the
+      command as written would have configured TTL on a database none of
+      them are in, reported success, and left all three policies exactly
+      as unverifiable as this step complained. Add
+      `--database=insight` if it is ever re-run:
       ```bash
       for cg in v2_agg_events engagement v2_ratelimits; do
         gcloud firestore fields ttls update expireAt \
-          --collection-group="$cg" --enable-ttl --project=prvfire33
+          --collection-group="$cg" --enable-ttl --project=prvfire33 \
+          --database=insight
       done
       ```
       Stamping `expireAt` does nothing on its own — a TTL policy is a
       per-collection-group setting on the database, and the field is inert
       until somebody turns it on. Nothing in this repository can read
-      whether one is enabled, so all three are unverifiable from here.
+      whether one is enabled, so the verification above lives in D333
+      rather than in a gate.
 
       This step named `v2_agg_events` alone until 2026-08-26, which
       under-counted the console work by two and left out the half with a
@@ -1319,29 +1338,60 @@ That is a tester-count problem, not a workflow problem.
         so the residue is bounded per account rather than per request. Slow
         growth, not runaway, and listed here because the comment asserting
         the sweep should not be the only place it is asserted.
-- [ ] **5.2 Confirm the Authentication billing edition** — 30 seconds in
-      the console, and the largest unknown on the bill. Anonymous-first
+- [x] **5.2 Confirm the Authentication billing edition — ANSWERED
+      2026-08-27 (D333): Firebase Authentication, the free edition.**
+      Read off the API rather than a console: the Identity Toolkit admin
+      config reports `subtype: FIREBASE_AUTH`, and
+      `identityplatform.googleapis.com` is not activated on the project.
+      Recorded next to `SHIP-CHECKLIST §5` as that item asks. 5.12's
+      BigQuery export is what turns this from a checked answer into a
+      standing one. Original stakes: anonymous-first
       means every install becomes an authenticated identity: free forever
       on Firebase Authentication, MAU-priced on Identity Platform. At 1.5M
-      MAU that is $0 vs ~$6,015/month for zero code difference. Cloud
-      Console → Billing → Reports grouped by service is the unambiguous
-      check. Record the answer next to `SHIP-CHECKLIST §5`.
-- [ ] **5.3 Scrub the dead v1 collection:**
+      MAU that is $0 vs ~$6,015/month for zero code difference.
+- [x] **5.3 Scrub the dead v1 collection — RUN 2026-08-27 (D333), and it
+      measured ZERO documents.** The report pass found `insight_discoverable`
+      already empty, so there was nothing to `--apply` to: the exposure this
+      step guards — Big Five, politics, age, bio, display names with no
+      writer and no reader — was already gone, and the script's own text
+      names 0 as the expected end state whose precondition the store
+      privacy answers need. That precondition is met, measured rather than
+      assumed. The same day's `(default)` deletion (step 5 of
+      FIRESTORE-REGION) removed the collection's very container, so the
+      scrub can never be needed again. `SHIP-CHECKLIST § hardening`.
       ```bash
       node scripts/scrub-v1-discoverable.mjs --project prvfire33          # report
       node scripts/scrub-v1-discoverable.mjs --project prvfire33 --apply  # delete
       ```
-      It holds Big Five, politics, age, bio and display names with no
-      writer and no reader. The store privacy answers are gated on this
-      having run. `SHIP-CHECKLIST § hardening`.
-- [ ] **5.4 Storage bucket: check, empty, then lock down.** Firebase
-      Console → Storage. If objects exist under `users/{uid}/dailyPhotos/`,
-      delete them **before** reducing `storage.rules` to a catch-all deny —
-      `deleteAccount` does not touch Storage, so revoking access while
-      objects remain converts a dead feature into an erasure gap. Update
-      `firestore-tests/storage.rules.test.ts` in the same commit.
-- [ ] **5.5 Apply the eight monitoring alerts** (`monitoring/*.json`):
-      dispatch **Arm monitoring** with `apply` off to see what is missing,
+- [x] **5.4 Storage bucket: check, empty, then lock down — DONE
+      2026-08-27 (D333), in that order.** Checked: `prvfire33.appspot.com`
+      held **117 objects, none of them under the path the rules kept
+      open** — 115 under `users/{uid}/uploads/` (6 uids, ~60 MB, the old
+      app's) and 2 under `users/{uid}/daily_snaps/`, newest 2026-02-08;
+      zero under `users/{uid}/dailyPhotos/` and zero under `avatars/`.
+      Those paths were already denied by the catch-all, which means the
+      erasure gap this step exists to avoid ALREADY existed for them —
+      personal photos no owner could reach or remove. Emptied: all 117
+      deleted, bucket read back at 0 objects. Locked down: the
+      `dailyPhotos` read/delete block is out of `storage.rules` (the
+      avatars path stays — it is D178's live feature, not the legacy one),
+      `firestore-tests/storage.rules.test.ts` updated in the same commit,
+      153/153 rules tests green. The rules deploy rides the next pipeline
+      run, as every rules change does. Original ordering rule, still the
+      reason it went this way: delete the objects **before** reducing the
+      rules — `deleteAccount` does not touch this path, so revoking access
+      while objects remain converts a dead feature into an erasure gap.
+- [x] **5.5 Apply the eight monitoring alerts — VERIFIED ARMED AND WIRED
+      2026-08-27 (D333).** Found already applied (the D303 path had run):
+      the dry run reports every object `already exists`, `observe` reads
+      `armed: true`, and — the half a green count cannot see — a direct
+      policy read shows **all eight policies carry the `InSight oncall`
+      email channel**, which points at the owner's address and is enabled.
+      A policy with no channel is enabled, visible, green and pages
+      nobody; that is the state this box existed to rule out, and it is
+      ruled out by reading the channel id off each policy rather than by
+      counting policies. Original instructions kept below.
+      Dispatch **Arm monitoring** with `apply` off to see what is missing,
       then again with it on. It runs behind the `production` environment
       gate on `FIREBASE_SERVICE_ACCOUNT`, needs nothing on your machine, and
       is idempotent. Locally it is the same script:
@@ -1448,7 +1498,22 @@ That is a tester-count problem, not a workflow problem.
       dispatch that #2 exists to save, which is the trade being made, and
       it is the cheaper side once releases stop being daily.
 
-- [ ] **5.9b Delete the twelve OLD-PROJECT functions in `us-central1`.**
+- [x] **5.9b Delete the twelve OLD-PROJECT functions in `us-central1` —
+      DONE 2026-08-27 (D333), in this box's own order.** `onUserDeleted`
+      first and alone, verified by generation/runtime at both ends (the
+      census read GEN_1 · nodejs18 · `user.delete` on
+      `resource=projects/prvfire33` · last deployed 2024-12-12, and the
+      CLI's delete line itself said "Node.js 18 (1st Gen)") — so account
+      deletion no longer executes foreign code. Then the other eleven in
+      one command, each confirmed 1st Gen as it went. The Cloud Scheduler
+      leftover this box warns about did NOT materialize: the shared
+      `firebase-schedule-scheduledDeletePastEvents-us-central1` job and
+      topic were both removed with their functions, and no orphaned job
+      remained. One inert residue was left in place: the topic
+      `firebase-schedule-scheduledUpdateNewStatus-us-central1` (the deploy
+      collision's other name), with no job, no subscription and no
+      publisher — clutter, not billed work. Verified with the instrument:
+      `strayCount` fell by exactly twelve. Original text below.
       Read out of production by `npm run observe -- --functions` on
       2026-08-26 (D301). These are **not this project's code** — Gen-1,
       nodejs10/18/20, last deployed 2024–2025, from an app that shared the
@@ -1499,8 +1564,32 @@ That is a tester-count problem, not a workflow problem.
       `npm run observe -- --functions`. `strayCount` should fall by twelve
       and no `us-central1` line should name a Gen-1 function.
 
-- [ ] **5.9c The Algolia extension in `europe-west3` — UNINSTALL, do not
-      delete.** Two functions there are
+- [ ] **5.9c The Algolia extension in `europe-west3` — UNINSTALLED
+      2026-08-27 (D333), and the box stays open because `ext:list` found
+      FOUR MORE.** The `-6ct7` instance was confirmed by id via
+      `ext:list` and by the Extensions API (params:
+      `COLLECTION_PATH=Cities`, `INDEX_NAME=Cities`,
+      `LOCATION=europe-west3`), then uninstalled by calling
+      `deleteInstance` on the Extensions API directly — the same call the
+      Console's Uninstall button makes, and the one the pinned CLI's
+      `ext:uninstall` never reaches (see below). The operation completed
+      and took both `europe-west3` functions with it.
+
+      **What `ext:list` surfaced that the function census could not:**
+      four MORE `algolia/firestore-algolia-search` instances —
+      `firestore-algolia-search`, `-stream`, `-intrests`, `-courts`,
+      created 2023-09 → 2024-07 — all ACTIVE **with no deployed functions
+      anywhere**, i.e. already in exactly the "installed and broken" state
+      this box warns hand-deleting creates; the old project evidently did
+      it four times. They index nothing (their source collections lived in
+      `(default)`, deleted the same day), cost nothing here, and belong to
+      the old app — left for the owner to uninstall the same way, which is
+      why this box keeps its tick open. The Algolia-side warning below
+      still stands for all five: uninstalling does not delete the Algolia
+      indexes or revoke their API keys, and an Algolia plan may still be
+      billing outside this project.
+
+      Original record: two functions there were
       `ext-firestore-algolia-search-6ct7-*`, installed 2024-06-03, indexing
       a `Cities/{documentID}` collection in `(default)` into Algolia. No
       document in this repository mentions it.
@@ -1541,8 +1630,16 @@ That is a tester-count problem, not a workflow problem.
       It may also still be costing an Algolia plan outside this bill, and
       uninstalling does not delete the Algolia index or revoke its API key.
 
-- [ ] **5.9d The nine stranded `us-central1` copies — THIS project's, and
-      a different decision.** `rebuildAreaAggregates`,
+- [x] **5.9d The nine stranded `us-central1` copies — DELETED 2026-08-27
+      (D333), with DEPLOYMENT.md's command as written.** All nine
+      confirmed GEN_2 · nodejs22 · last deployed 2026-07-29 before the
+      command ran, and 2nd Gen again in each delete line. Their four Cloud
+      Scheduler jobs went with them, so the nightly billed work that
+      produced nothing — and that was the only thing still WRITING to
+      `(default)` (see D333's attribution) — is over. `us-central1` now
+      holds **zero functions and zero scheduler jobs**; D13's one-off
+      cleanup is finally not owed. THIS project's, and
+      a different decision from 5.9b's: `rebuildAreaAggregates`,
       `rebuildCityAggregates`, `rebuildWorldAggregates`,
       `scheduledAreaAggregates`, `scheduledCityAggregates`,
       `scheduledWorldAggregates`, `scheduledTaxonomies`, `seedTaxonomies`,
@@ -1570,8 +1667,17 @@ That is a tester-count problem, not a workflow problem.
       leftovers" step would have been one command over two unrelated
       decisions.
 
-- [ ] **5.9 Deploy the functions to `europe-west1` (D201), then confirm
-      the old region is empty.** The code is merged and every gate is
+- [x] **5.9 Deploy the functions to `europe-west1` (D201), then confirm
+      the old region is empty — CLOSED 2026-08-27 (D333).** The three
+      halves closed on three different days: the deploy half on D300's
+      reading (all live functions in `europe-west1`), the build half when
+      builds 22+ shipped calling the new region (21 and earlier are
+      superseded — build 26 is in TestFlight, D324), and the confirmation
+      half today: **`us-central1` reads zero functions and zero Cloud
+      Scheduler jobs**, measured by `observe` after 5.9b and 5.9d ran.
+      The census that replaced this box's sweep clause is those two items
+      plus 5.9c, and all three are executed. Original text below.
+      The code is merged and every gate is
       green; this is the operator half, and it is the one deploy here that
       can corrupt data rather than just fail.
 

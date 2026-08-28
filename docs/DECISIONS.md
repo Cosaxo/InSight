@@ -33618,3 +33618,158 @@ and drops the claim it replaces), `pulse.test.mjs` (the verdict's states
 and arithmetic, pure and against the tree). The figures quoted here are
 the model's output at this commit, snapshots by this file's own rule —
 `npm run costs` and `npm run pulse` print the live ones.
+## D333 · Phase 5 executed: the strays are gone, the rollback is retired, and two promises got their settings
+
+**2026-08-27.** LAUNCH-RUNBOOK Phase 5's console work, performed in one
+authorized session with the deploy credential, one mutation at a time,
+`npm run observe` re-read after each. The census opened at **74 functions
+in four regions** and closed at **51 in two** — the 50 live `europe-west1`
+functions untouched throughout, plus the one stray this session was not
+sent for (below). Everything here was DONE rather than decided; the
+decisions were D301's, D165's and the runbook's, and this record is their
+execution log plus the five things execution found that the plans did not
+say.
+
+### The deletions, in D301's order
+
+**`onUserDeleted` first, alone, verified twice.** The census read GEN_1 ·
+nodejs18 · `providers/firebase.auth/eventTypes/user.delete` on
+`resource=projects/prvfire33` · last deployed 2024-12-12 — D301's row,
+matched by evidence rather than name — and the CLI's own delete line
+confirmed "Node.js 18 (1st Gen)" as it went. Since that moment, deleting
+an InSight account runs no code this repository cannot read.
+
+**Then the eleven, then the nine.** Each confirmed 1st Gen (old app) or
+2nd Gen · nodejs22 · 2026-07-29 (ours, D13's) as it was deleted.
+`strayCount` fell 24 → 12 → 3. The Cloud Scheduler hazard D301 flagged —
+a Gen-1 delete leaving its job firing at nothing — did not materialize:
+the shared `firebase-schedule-scheduledDeletePastEvents-us-central1` job
+and topic went with their functions, and after the nine, `us-central1`
+reads **zero functions, zero scheduler jobs**. One inert leftover was
+left standing: the topic
+`firebase-schedule-scheduledUpdateNewStatus-us-central1` (the old
+project's deploy collision under its other name) — no job, no
+subscription, no publisher, no bill.
+
+**The Algolia instance, uninstalled by the call the Console makes.**
+Runbook 5.9c proved `ext:uninstall` edits `firebase.json` and never
+reaches the Extensions API; this environment has no console, so the
+uninstall was the API itself — `deleteInstance` on
+`firestore-algolia-search-6ct7`, the id confirmed by `ext:list` AND by
+reading the instance's own params (`COLLECTION_PATH=Cities`,
+`LOCATION=europe-west3`) first. The operation completed and took both
+`europe-west3` functions with it. That route touches nothing in this
+repository's config, which was the whole objection to the CLI form.
+
+### What execution found that the plans did not say
+
+1. **Four more Algolia instances.** `ext:list` — run to confirm one id —
+   returned five: `-6ct7` plus `firestore-algolia-search`, `-stream`,
+   `-intrests`, `-courts` (2023-09 → 2024-07), all ACTIVE, none with a
+   deployed function anywhere in the census. The old project evidently
+   hand-deleted their functions years ago, leaving exactly the
+   "installed and broken" state 5.9c warns about, four times. Left for
+   the owner; 5.9c's box stays open on them.
+2. **`processBatch`, `europe-north1`** — GEN_2, **python310**, Pub/Sub
+   trigger on the `process-batch` topic, deployed 2024-08-05. Not in
+   D301's table, not on any runbook list, not this repository's code
+   (nothing here is Python). Reported, deliberately untouched, with its
+   companions: the `process-batch` and `RemoveUnverifiedUsers` topics,
+   the old app's four app registrations (Strangers Web, three NabeAir
+   iOS), and the `staging.` / `us.artifacts.` App Engine-era buckets.
+   The census that found 21 strays where the runbook said nine (D301)
+   now has its own remainder, and the honest count of foreign residue
+   left in `prvfire33` is: one function, three-plus topics, four broken
+   extension instances, four app registrations, assorted infra buckets.
+3. **Runbook 5.1's command targeted the wrong database.** The gcloud
+   form named no `--database`, which defaults to `(default)` — where
+   none of the three collection groups live. The TTL policies were set
+   on **`insight`** via the Firestore Admin API instead, and all three
+   read back `ttlConfig.state=ACTIVE` the same hour: `v2_agg_events`,
+   `engagement` (the one `web/privacy.html` promises in writing — the
+   90-day rolling window is now a real setting, not a stamped field),
+   `v2_ratelimits`. The runbook command is corrected in place. Had it
+   been run as written it would have exited 0, configured nothing that
+   matters, and left the promise looking kept.
+4. **The scrub measured zero.** `insight_discoverable` was already
+   empty, so the report pass WAS the operation: the store-privacy
+   precondition (data-inventory) is met by measurement, nothing needed
+   `--apply`, and the same day's database deletion removed the
+   collection's container besides.
+5. **The "(default) has taken no writes" verification FAILED, and the
+   failure had an owner.** The per-database metric
+   (`document/write_ops_count`) showed exactly **6 UPDATE ops per day**
+   since the migration — clockwork, not people. Attribution by document
+   `updateTime`: `aggregates_world/snapshot` at 02:00
+   (scheduledWorldAggregates, `0 2 * * *`), `taxonomies/interest_categories`
+   at 06:00 (scheduledTaxonomies), `aggregates_media/world`
+   (scheduledAreaAggregates, every 6h → four) — 1+1+4 = 6, all three
+   documents the inert residue D13 already called "nothing reads them",
+   all three writers deleted earlier the same session. `(default)`'s own
+   v2 data had not moved since migration day (newest ledger event
+   2026-08-15T11:42Z; `v2_users` last touched 08-13; the 20 retired
+   `test-cognitive-*` docs still in its bank — the pre-D165
+   fingerprint). The letter of the check failed; the thing the check
+   exists to establish — that no live data flows there and nothing
+   depends on it — held with every write accounted for.
+
+### The rollback is retired
+
+With `insight` measured serving (710 questions, zero `test-cognitive-*`,
+the nightly fit publishing onto `v2_meta/app`, answers folding through
+the trigger the same afternoon) and `(default)`'s writes attributed as
+above, `(default)` was deleted — the old app's 43,805 `Cities`
+documents, the inert v1 aggregates and the stale pre-D165 v2 copy with
+it. **D165's rollback option no longer exists**, twelve days after D165
+said a week of it was the only way back, and FIRESTORE-REGION's
+two-databases erasure caveat is moot: `prvfire33` has one database, and
+an erasure run reaches everything there is.
+
+### Storage: emptied first, closed second
+
+The bucket held **117 objects and none were under the path the rules
+kept open**: 115 `users/{uid}/uploads/*` (six uids, ~60 MB, the old
+app's) and 2 `users/{uid}/daily_snaps/*`, newest 2026-02-08; zero
+`dailyPhotos/`, zero `avatars/`. So the erasure gap 5.4 feared was
+already real for those paths — objects their owners could neither read
+nor remove under the current rules. All 117 deleted (the delete loop
+refuses anything outside the two legacy prefixes), bucket read back at
+0, and only then the `dailyPhotos` read/delete grant removed from
+`storage.rules` — the order 5.4 prescribes, kept because reversing it
+converts a dead feature into an erasure gap. `avatars/{uid}` stays: it
+is D178's live feature. The rules tests were rewritten to assert total
+denial on the retired path (153/153 green); the rules deploy rides the
+next pipeline run, this session deploying nothing by design.
+
+### Verified rather than performed
+
+**Monitoring (5.5) was already armed** — the D303 path had run — so this
+session's contribution is the half a count cannot see: every one of the
+eight policies carries the `InSight oncall` email channel, read off the
+policies themselves, and the channel points at the owner's address,
+enabled. The dry run reports all fourteen objects `already exists`.
+
+**Auth (5.2) is the free edition**: the Identity Toolkit config says
+`subtype: FIREBASE_AUTH`, and `identityplatform.googleapis.com` is not
+activated on the project. Recorded at SHIP-CHECKLIST §5.
+
+**App Check (1.4/3.4), reported and not touched**: the InSight iOS app
+has a real DeviceCheck key (`AGSXZ3H65U`); the web app's reCAPTCHA v3
+provider has **no site secret** — registered app, unconfigured provider,
+the exact half-done state 1.4 warns "looks identical to having
+neither"; every service reads UNENFORCED; and the last seven days of
+verdicts are ~3,750 Firestore requests, **all** MISSING_OUTDATED_CLIENT
+or MISSING_UNKNOWN_ORIGIN — verified share ≈ 0%. The 3.4 soak
+precondition (near-100% verified) is not near; enforcement stays
+untouched, as instructed and as the numbers independently insist.
+
+### Blocked, with the role named
+
+The $50 notify-only budget: `billingbudgets` returned 403. Budgets are
+IAM on the **billing account** (`billingAccounts/0185A3-9BC4AF-7E35D2`),
+which project `Editor` does not reach. The grant that would unblock it is
+**`roles/billing.costsManager`** (or `roles/billing.admin`) on that
+billing account for `firebase-adminsdk-qdsv5@prvfire33.iam.gserviceaccount.com`
+— or the owner creates the budget in the console in under a minute:
+Billing → Budgets & alerts → $50, threshold emails only, no programmatic
+action.
