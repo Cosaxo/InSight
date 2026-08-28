@@ -36,6 +36,9 @@ const LIVE = vi.hoisted(() => ({
   // D331 — the political consent pair. Defaults to NOT consented, which
   // is the state a first-run screen is actually in.
   politicalConsented: vi.fn(() => false),
+  // …and whether it was ANSWERED at all, which is the state a decline
+  // leaves behind and consent alone cannot express.
+  politicalAnswered: vi.fn(() => false),
   setPoliticalConsent: vi.fn(async (on: boolean) => { void on; }),
   social: { claimHandle: vi.fn(async (h: string) => ({ handle: h })) },
   subscribe: () => () => {},
@@ -60,6 +63,7 @@ beforeEach(() => {
   LIVE.saveDisplayName.mockClear();
   LIVE.setPoliticalConsent.mockClear();
   LIVE.politicalConsented.mockReturnValue(false);
+  LIVE.politicalAnswered.mockReturnValue(false);
   LIVE.social.claimHandle.mockClear();
   onDone.mockClear();
 });
@@ -165,6 +169,44 @@ describe("the ask is an ask, not a wall", () => {
       expect(localStorage.getItem(PROFILE_SETUP_LS), String(close)).toBeTruthy();
       expect(profileSetupNeeded(), String(close)).toBe(false);
     }
+  });
+
+  // A DECLINE IS AN ANSWER. The comment above this screen's own seed says
+  // so: "someone who taps 'Not these' and then 'Skip for now' has decided,
+  // and losing that to a dismissed screen would re-ask them tomorrow —
+  // which is how a refusal quietly becomes a nag." The seed then read
+  // consent alone, so a decline came back identical to never having been
+  // asked and neither button was marked.
+  const marked = (label: string) => {
+    const b = screen.getByText(label).closest("button")!;
+    return b.style.border.includes("var(--ink)");
+  };
+
+  it("shows a recorded decline as the answer it was, not as a fresh ask", () => {
+    LIVE.politicalConsented.mockReturnValue(false);
+    LIVE.politicalAnswered.mockReturnValue(true);
+    render(<LiveProfileSetup onDone={onDone} />);
+    expect(marked("Not these"), "a declined account is asked again with "
+      + "neither button marked — their refusal is invisible to the screen "
+      + "built to honour it").toBe(true);
+    expect(marked("Yes, build it")).toBe(false);
+  });
+
+  it("shows consent as consent, and an unanswered ask as neither", () => {
+    // The two states that already worked, asserted here so the fix cannot
+    // have been made by marking something unconditionally.
+    LIVE.politicalConsented.mockReturnValue(true);
+    LIVE.politicalAnswered.mockReturnValue(true);
+    const { unmount } = render(<LiveProfileSetup onDone={onDone} />);
+    expect(marked("Yes, build it")).toBe(true);
+    expect(marked("Not these")).toBe(false);
+    unmount();
+
+    LIVE.politicalConsented.mockReturnValue(false);
+    LIVE.politicalAnswered.mockReturnValue(false);
+    render(<LiveProfileSetup onDone={onDone} />);
+    expect(marked("Not these")).toBe(false);
+    expect(marked("Yes, build it")).toBe(false);
   });
 
   it("does not offer to save nothing", () => {

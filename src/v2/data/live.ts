@@ -206,7 +206,8 @@ import { myType } from "./typeMix";
 import { patternsEligible, type PatternsSignal } from "./patternsReady";
 import { locateCell, locateSupported } from "./locate";
 import {
-  mayPublishPolitical, politicalConsentRecord, POLITICAL_RESULT_KEY,
+  hasAnsweredPoliticalAsk, mayPublishPolitical, politicalConsentRecord,
+  POLITICAL_RESULT_KEY,
 } from "./politicalConsent";
 import { scrubPersonaAnchors } from "./personaResidue";
 import { FUNCTIONS_REGION } from "../../lib/region";
@@ -4320,6 +4321,22 @@ const LIVE = {
    */
   politicalConsented(): boolean {
     return mayPublishPolitical(state.profile);
+  },
+  /**
+   * Has this account ANSWERED the ask — either way?
+   *
+   * Not the same question as `politicalConsented`, and the setup screen
+   * needs both. It seeded its two buttons from consent alone, so a person
+   * who tapped "Not these" came back to a screen with NEITHER marked:
+   * their refusal was invisible to the screen built to honour it, and the
+   * comment above that seed says exactly why that is wrong — "a refusal
+   * quietly becomes a nag".
+   *
+   * `false` means ask. A stale consent version means ask too, which is
+   * the other half `POLITICAL_CONSENT_VERSION` was written for.
+   */
+  politicalAnswered(): boolean {
+    return hasAnsweredPoliticalAsk(state.profile);
   },
   /**
    * Set — or withdraw — the political consent (D331).

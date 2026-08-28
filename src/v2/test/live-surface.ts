@@ -169,7 +169,11 @@ export const LIVE_MEMBERS = [
   // because a toggle that silently lost its writer would leave the compass
   // published with a switch that says otherwise, which is the failure the
   // whole record is about.
-  "politicalConsented", "setPoliticalConsent",
+  // `politicalAnswered` is the third: consented, DECLINED, and not asked
+  // are three states, and the setup screen needs to tell the middle one
+  // from the last. Seeding from `politicalConsented` alone made a decline
+  // look like a fresh account and re-asked it.
+  "politicalConsented", "politicalAnswered", "setPoliticalConsent",
   "ready", "saveAnchors",
   "saveDisplayName",
   // Operator-only, and the one member here no spec-layer JSX reads — it is

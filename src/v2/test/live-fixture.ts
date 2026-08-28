@@ -702,6 +702,9 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // political-consent.test.ts. A fixture defaulting to off would make
     // the compass silently absent everywhere and read as a broken fold.
     politicalConsented: () => true,
+    // Answered as well as consented — the fixture consents, so both are
+    // true. A decline is the case profileSetup's own suite covers.
+    politicalAnswered: () => true,
     setPoliticalConsent: () => Promise.resolve(),
     syncPassiveResults: () => {},
     loadCityKindred: async () => {},
