@@ -598,12 +598,18 @@ export const BREAKDOWN_DIMS = [
   "education",
   "relationship",
   "heightBand",
+  // D328. NOT `profession`: the pick is a list of 31 and growing, which is
+  // longer than the cap and therefore exhaustible. This is its derived
+  // FIELD (20 values), the same pair `ageBand` makes with `age`.
+  "jobField",
 ] as const;
 export type BreakdownDim = (typeof BREAKDOWN_DIMS)[number];
 
-// Per-dimension distinct-value cap. 7 dims x 24 buckets x up to 20 options is
-// ~3.4k integers worst case — tens of KB against Firestore's 1 MiB limit,
-// with room for the plain counts alongside.
+// Per-dimension distinct-value cap. 8 dims x 24 buckets x up to 20 options is
+// ~3.8k integers worst case — tens of KB against Firestore's 1 MiB limit,
+// with room for the plain counts alongside. D328 added the eighth and did
+// not move this number: the cap is what bounds the document, so a new dim
+// costs one dimension's worth and nothing more.
 export const BREAKDOWN_MAX_BUCKETS = 24;
 // Bucket labels are stored as map keys; anything longer is a free-text field
 // that slipped through and should not be minting keys.
@@ -620,9 +626,10 @@ export const BREAKDOWN_MAX_LABEL = 40;
 //
 // Two different defences, because the dimensions are two different shapes.
 //
-// FOUR OF THEM HAVE A CLOSED VOCABULARY, and it is SHORTER THAN THE CAP.
-// ageBand/gender/education/relationship come from <select>s of 7, 4, 15 and 6
-// values; checking membership means the dimension cannot be exhausted at all,
+// SIX OF THEM HAVE A CLOSED VOCABULARY, and it is SHORTER THAN THE CAP.
+// ageBand/gender/education/relationship/heightBand/jobField come from
+// <select>s of 7, 4, 15, 6, 6 and 20 values; checking membership means the
+// dimension cannot be exhausted at all,
 // because there are fewer legal buckets than slots. That is the real fix and
 // it is available here and nowhere else — the rules layer cannot hold a
 // vocabulary, and the client choosing from a list says nothing about what a
@@ -675,6 +682,20 @@ export const BREAKDOWN_DIM_VOCAB: Partial<Record<BreakdownDim, readonly string[]
   heightBand: [
     "Under 160 cm", "160-169 cm", "170-179 cm", "180-189 cm",
     "190 cm or taller", "Prefer not to say",
+  ],
+  // D328: derived from the profession pick, never typed — JOB_FIELDS in
+  // src/v2/spec/profile-vitals.js, held equal by check:anchors, which also
+  // proves every JOB_OPTS entry maps into this list. Twenty against a cap
+  // of 24: the headroom is deliberate, so the list can grow before the
+  // unexhaustibility property has to be re-argued.
+  jobField: [
+    "Arts & culture", "Media & writing", "Science, education & research",
+    "Software & IT", "Engineering & architecture", "Healthcare",
+    "Business & finance", "Marketing & sales", "Law & government",
+    "Public sector & nonprofit", "Trades, construction & manufacturing",
+    "Agriculture & environment", "Transport & logistics",
+    "Service & hospitality", "Self-employed", "Student", "Retired",
+    "Homemaker", "Between jobs", "Other",
   ],
 };
 

@@ -34,6 +34,7 @@ interface TakeLite {
 const LIVE = vi.hoisted(() => ({
   enabled: true,
   uid: "u_me",
+  budgetPaused: false as boolean,
   subscribe: () => () => {},
   // D98: world takes are named, resolved through the shared uid → name
   // cache. "u_other" is deliberately absent so the unnamed fallback is
@@ -74,6 +75,7 @@ const take = (id: string, authorUid: string, text: string): TakeLite => ({
 beforeEach(() => {
   LIVE.enabled = true;
   LIVE.uid = "u_me";
+  LIVE.budgetPaused = false;
   LIVE.social.takeList = [take("t1", "u_other", "Someone else's take")];
   LIVE.voterList = null;
   LIVE.loadVoters.mockClear();
@@ -455,6 +457,20 @@ describe("the side filter", () => {
     expect(screen.queryByText("Ninety minutes of flow.")).toBeNull();
     fireEvent.click(sb());
     expect(screen.getByText("Ninety minutes of flow.")).toBeTruthy();
+  });
+
+  it("says PAUSED for an unloaded list under the read breaker (D332)", () => {
+    // The store's takes never loaded (the breaker refused the query), so
+    // the list is empty for a reason that is not "nobody wrote" — and
+    // "say the first thing" would present a withheld room as a blank one.
+    // The composer stays: writing still works, and a posted take echoes
+    // locally.
+    LIVE.budgetPaused = true;
+    LIVE.social.takeList = [];
+    panel();
+    expect(screen.getByText(/costs in check/i)).toBeTruthy();
+    expect(screen.queryByText(/say the first thing/i)).toBeNull();
+    expect(screen.getByPlaceholderText("Add your take…")).toBeTruthy();
   });
 
   it("names the side when its filter is empty, not the whole panel", () => {

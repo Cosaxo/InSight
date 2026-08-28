@@ -46,6 +46,7 @@
 // opened. That one is behind its own tab and fetches on first view.
 import React from "react";
 import LIVE from "../data/live";
+import { BUDGET_PAUSED_BODY } from "../data/budgetMode";
 import { cityIsConfirmed } from "../data/cityConfirm";
 import {
   COHORT_DIMS, DIM_LABEL, divergenceFor, meanScore, mixFor, pctFor,
@@ -494,7 +495,9 @@ function PeopleLens({ qs, scope, shortName }: {
         {loading && !ranked.length ? (
           <LlEmpty>Matching…</LlEmpty>
         ) : !ranked.length ? (
-          <LlEmpty>Fills in as you answer more.</LlEmpty>
+          // Paused before empty (D332): "fills in as you answer more" is a
+          // promise the refused fetch cannot keep.
+          <LlEmpty>{LIVE.budgetPaused ? BUDGET_PAUSED_BODY : "Fills in as you answer more."}</LlEmpty>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {shown.map((p) => <KindredCard key={p.uid} p={p} />)}

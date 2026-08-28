@@ -5,9 +5,9 @@
 > decision that was still open, which is how it should stay — the argument
 > is the useful part and re-tensing it would cost the reasoning. Read
 > "today" and "current" as *2026-08-13*, and `nam5` as the option not
-> taken. Only step 5 of the procedure is outstanding (deleting `(default)`),
-> and the tables below are therefore the counterfactual: what the app would
-> cost if this page had been ignored.
+> taken. Step 5 — deleting `(default)` — was executed 2026-08-27 (D333),
+> so the whole procedure is done and the tables below are the
+> counterfactual: what the app would cost if this page had been ignored.
 >
 > **The saving is real and was invisible for three days.** The cost model
 > kept pricing `nam5` until D200, because the region was a default
@@ -177,7 +177,7 @@ Deploy, then answer one question on a real device and watch the count move.
 Not before. It costs nothing to keep for a week and it is the only way
 back.
 
-> **Executed 2026-08-27 (D327), twelve days after the migration, and the
+> **Executed 2026-08-27 (D333), twelve days after the migration, and the
 > "satisfied" was measured rather than felt.** Two readings before the
 > delete: the `insight` database serving (710 questions, zero
 > `test-cognitive-*`, the nightly fit publishing onto `v2_meta/app` and

@@ -22,7 +22,7 @@ the count is zero**, which is a change from 2026-08-04: the Team ID and the
 `REVERSED_CLIENT_ID` were the other two and both are filled.
 
 `check:store-listing` and `check:versions` pass; the daily bank is at 130
-questions of 710 seeded; the production backend is deployed. **Measured
+questions of 716 seeded; the production backend is deployed. **Measured
 2026-08-04:** anonymous sign-in works (`accounts:signUp` returns an
 `idToken`, where it returned `ADMIN_ONLY_OPERATION` on 2026-08-03), the
 InSight web app is registered, and the default hosting site `prvfire33`
@@ -141,7 +141,7 @@ arithmetic.
 
       **DONE 2026-08-15 (D165): `insight` / `europe-west1` is live** —
       created, rules + functions deployed, bank seeded and verified. The
-      `(default)` deletion it left waiting **happened 2026-08-27 (D327)**,
+      `(default)` deletion it left waiting **happened 2026-08-27 (D333)**,
       twelve days later, after measuring that `insight` serves and that
       nothing but D13's stranded schedulers had written to `(default)`
       since the move — so the whole of 0.0 is closed and the project has
@@ -171,7 +171,7 @@ arithmetic.
       below because it documents how the gap was reasoned about while it
       was real.
       Actions → **Seed content** → Run workflow.
-      710 questions land in `v2_questions` — idempotent and, since D34,
+      716 questions land in `v2_questions` — idempotent and, since D34,
       cheap to repeat.
 
       **This step is now automatic for everything that follows it (D88):**
@@ -182,7 +182,7 @@ arithmetic.
       either way — `written: 0` means nothing landed.
 
       **It is unticked on purpose, and still is.** That run wrote **389**,
-      and the bank is **710** after the K=5 test expansion, D103's
+      and the bank is **716** after the K=5 test expansion, D103's
       retirement of the Thinking test, D114's continuum questions and the
       D14 go-live's pick promotion — so
       the difference is in the repo and not in production. Note that the gap now runs BOTH ways: 20
@@ -985,7 +985,7 @@ start.
       your own name.** There is no k-floor since D98: the first answer
       publishes exactly, so a count of 1 on your own device is that one
       answer and the who-voted sheet will name you. That is the product
-      working, not a leak — the 710 seeded questions are live regardless.
+      working, not a leak — the 716 seeded questions are live regardless.
       What used to sit here was the opposite warning (*"You're early"*
       under `AGG_MIN_N`, paused by D81 and removed entirely by D98).
 - [ ] **3.3 Walk the on-device verification list** — six checks, first
@@ -1288,7 +1288,7 @@ That is a tester-count problem, not a workflow problem.
 ## Phase 5 — Production hygiene before the app is public
 
 - [x] **5.1 Enable TTL on all THREE collection groups that stamp
-      `expireAt` — DONE 2026-08-27 (D327), all three `ACTIVE` on the
+      `expireAt` — DONE 2026-08-27 (D333), all three `ACTIVE` on the
       `insight` database.** Set through the Firestore Admin REST API with
       the deploy credential and read back the same way:
       `ttlConfig.state=ACTIVE` for `v2_agg_events`, `engagement` and
@@ -1313,7 +1313,7 @@ That is a tester-count problem, not a workflow problem.
       Stamping `expireAt` does nothing on its own — a TTL policy is a
       per-collection-group setting on the database, and the field is inert
       until somebody turns it on. Nothing in this repository can read
-      whether one is enabled, so the verification above lives in D327
+      whether one is enabled, so the verification above lives in D333
       rather than in a gate.
 
       This step named `v2_agg_events` alone until 2026-08-26, which
@@ -1339,7 +1339,7 @@ That is a tester-count problem, not a workflow problem.
         growth, not runaway, and listed here because the comment asserting
         the sweep should not be the only place it is asserted.
 - [x] **5.2 Confirm the Authentication billing edition — ANSWERED
-      2026-08-27 (D327): Firebase Authentication, the free edition.**
+      2026-08-27 (D333): Firebase Authentication, the free edition.**
       Read off the API rather than a console: the Identity Toolkit admin
       config reports `subtype: FIREBASE_AUTH`, and
       `identityplatform.googleapis.com` is not activated on the project.
@@ -1349,7 +1349,7 @@ That is a tester-count problem, not a workflow problem.
       means every install becomes an authenticated identity: free forever
       on Firebase Authentication, MAU-priced on Identity Platform. At 1.5M
       MAU that is $0 vs ~$6,015/month for zero code difference.
-- [x] **5.3 Scrub the dead v1 collection — RUN 2026-08-27 (D327), and it
+- [x] **5.3 Scrub the dead v1 collection — RUN 2026-08-27 (D333), and it
       measured ZERO documents.** The report pass found `insight_discoverable`
       already empty, so there was nothing to `--apply` to: the exposure this
       step guards — Big Five, politics, age, bio, display names with no
@@ -1364,7 +1364,7 @@ That is a tester-count problem, not a workflow problem.
       node scripts/scrub-v1-discoverable.mjs --project prvfire33 --apply  # delete
       ```
 - [x] **5.4 Storage bucket: check, empty, then lock down — DONE
-      2026-08-27 (D327), in that order.** Checked: `prvfire33.appspot.com`
+      2026-08-27 (D333), in that order.** Checked: `prvfire33.appspot.com`
       held **117 objects, none of them under the path the rules kept
       open** — 115 under `users/{uid}/uploads/` (6 uids, ~60 MB, the old
       app's) and 2 under `users/{uid}/daily_snaps/`, newest 2026-02-08;
@@ -1382,7 +1382,7 @@ That is a tester-count problem, not a workflow problem.
       rules — `deleteAccount` does not touch this path, so revoking access
       while objects remain converts a dead feature into an erasure gap.
 - [x] **5.5 Apply the eight monitoring alerts — VERIFIED ARMED AND WIRED
-      2026-08-27 (D327).** Found already applied (the D303 path had run):
+      2026-08-27 (D333).** Found already applied (the D303 path had run):
       the dry run reports every object `already exists`, `observe` reads
       `armed: true`, and — the half a green count cannot see — a direct
       policy read shows **all eight policies carry the `InSight oncall`
@@ -1499,7 +1499,7 @@ That is a tester-count problem, not a workflow problem.
       it is the cheaper side once releases stop being daily.
 
 - [x] **5.9b Delete the twelve OLD-PROJECT functions in `us-central1` —
-      DONE 2026-08-27 (D327), in this box's own order.** `onUserDeleted`
+      DONE 2026-08-27 (D333), in this box's own order.** `onUserDeleted`
       first and alone, verified by generation/runtime at both ends (the
       census read GEN_1 · nodejs18 · `user.delete` on
       `resource=projects/prvfire33` · last deployed 2024-12-12, and the
@@ -1565,7 +1565,7 @@ That is a tester-count problem, not a workflow problem.
       and no `us-central1` line should name a Gen-1 function.
 
 - [ ] **5.9c The Algolia extension in `europe-west3` — UNINSTALLED
-      2026-08-27 (D327), and the box stays open because `ext:list` found
+      2026-08-27 (D333), and the box stays open because `ext:list` found
       FOUR MORE.** The `-6ct7` instance was confirmed by id via
       `ext:list` and by the Extensions API (params:
       `COLLECTION_PATH=Cities`, `INDEX_NAME=Cities`,
@@ -1631,12 +1631,12 @@ That is a tester-count problem, not a workflow problem.
       uninstalling does not delete the Algolia index or revoke its API key.
 
 - [x] **5.9d The nine stranded `us-central1` copies — DELETED 2026-08-27
-      (D327), with DEPLOYMENT.md's command as written.** All nine
+      (D333), with DEPLOYMENT.md's command as written.** All nine
       confirmed GEN_2 · nodejs22 · last deployed 2026-07-29 before the
       command ran, and 2nd Gen again in each delete line. Their four Cloud
       Scheduler jobs went with them, so the nightly billed work that
       produced nothing — and that was the only thing still WRITING to
-      `(default)` (see D327's attribution) — is over. `us-central1` now
+      `(default)` (see D333's attribution) — is over. `us-central1` now
       holds **zero functions and zero scheduler jobs**; D13's one-off
       cleanup is finally not owed. THIS project's, and
       a different decision from 5.9b's: `rebuildAreaAggregates`,
@@ -1668,7 +1668,7 @@ That is a tester-count problem, not a workflow problem.
       decisions.
 
 - [x] **5.9 Deploy the functions to `europe-west1` (D201), then confirm
-      the old region is empty — CLOSED 2026-08-27 (D327).** The three
+      the old region is empty — CLOSED 2026-08-27 (D333).** The three
       halves closed on three different days: the deploy half on D300's
       reading (all live functions in `europe-west1`), the build half when
       builds 22+ shipped calling the new region (21 and earlier are

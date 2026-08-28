@@ -25,7 +25,7 @@ import { execFileSync } from "node:child_process";
 
 import {
   collect, collectArchive, bucketEvenness, addressablePlaces, isoDay, ROOT,
-  collectEngagement, engagementFromDays,
+  collectEngagement, engagementFromDays, guardVerdict,
 } from "./pulse-collect.mjs";
 import { renderPulse } from "./pulse-render.mjs";
 import { PEN_TARGET } from "./farm-budget.mjs";
@@ -536,6 +536,28 @@ describe("the pulse artifact", () => {
     for (const b of p.money.breakEven) expect(b.burnUsd).toBeGreaterThanOrEqual(p.money.fixedUsdPerMonth);
   });
 
+  it("guards usage against revenue at the MEASURED size, not a scenario (D332)", () => {
+    // Whatever the committed engagement trail holds, the guard must agree
+    // with the rate card and the model about its own arithmetic — the
+    // committed tree carries an allowance, so unarmed here means the read
+    // of rates.json broke, not that the owner unarmed it.
+    const rates = JSON.parse(read("monitoring/rates.json"));
+    expect(p.guard.allowanceUsd).toBe(rates.guard.maxNetBurnUsdPerMonth);
+    if (p.guard.state === "unmeasured") {
+      // No committed engagement day yet — the honest pre-launch answer.
+      expect(p.guard.measuredActives).toBeUndefined();
+    } else {
+      expect(["ok", "over"]).toContain(p.guard.state);
+      // net = burn − revenue, and burn covers at least the fixed line.
+      expect(p.guard.netBurnUsd).toBe(
+        Math.round((p.guard.burnUsd - p.guard.revenueUsd) * 100) / 100);
+      expect(p.guard.burnUsd).toBeGreaterThanOrEqual(p.money.fixedUsdPerMonth);
+      // The measured size is the engagement trail's, never a scenario's.
+      expect(p.guard.measuredActives).toBe(Math.max(
+        p.engagement.latest?.actives ?? 0, Math.ceil(p.engagement.weekMeanActives ?? 0)));
+    }
+  });
+
   it("counts every deployed function and marks which are alerted", () => {
     const { functions, functionCount, alertedCount } = p.instrumentation;
     expect(functionCount).toBe(functions.length);
@@ -588,6 +610,32 @@ describe("the pulse artifact", () => {
       expect(x.record).toBeTruthy();
       expect(x.why).toBeTruthy();
     }
+  });
+});
+
+describe("the guard's verdict (D332), pure", () => {
+  // The arithmetic without a tree — the engagementFromDays pattern. The
+  // states matter as much as the numbers: unarmed and unmeasured are
+  // QUESTIONS the console reports, and only "over" may page.
+  it("trips only past the allowance, on burn NET of revenue", () => {
+    const base = { allowanceUsd: 50, measuredActives: 800 };
+    expect(guardVerdict({ ...base, burnUsd: 78, revenueUsd: 0 }).state).toBe("over");
+    expect(guardVerdict({ ...base, burnUsd: 78, revenueUsd: 30 }).state).toBe("ok");
+    // Exactly at the allowance is inside it — the budget's own 100% rule
+    // fires separately; this one is for the overshoot.
+    expect(guardVerdict({ ...base, burnUsd: 50, revenueUsd: 0 }).state).toBe("ok");
+    expect(guardVerdict({ ...base, burnUsd: 120, revenueUsd: 100 }).netBurnUsd).toBe(20);
+  });
+
+  it("answers 'unarmed' with no allowance and 'unmeasured' with no population", () => {
+    expect(guardVerdict({ allowanceUsd: null, measuredActives: 5, burnUsd: 1, revenueUsd: 0 }).state)
+      .toBe("unarmed");
+    expect(guardVerdict({ allowanceUsd: 50, measuredActives: null, burnUsd: 0, revenueUsd: 0 }).state)
+      .toBe("unmeasured");
+    // Zero actives is a MEASURED zero — a real digest day — and must
+    // evaluate rather than read as absent (the trail's gap-vs-zero rule).
+    expect(guardVerdict({ allowanceUsd: 50, measuredActives: 0, burnUsd: 28, revenueUsd: 0 }).state)
+      .toBe("ok");
   });
 });
 
@@ -765,6 +813,79 @@ describe("the rendered page", () => {
     const html = renderPulse(nasty, []);
     expect(html).not.toContain("<img src=x>");
     expect(html).toContain("&lt;/script&gt;");
+  });
+});
+
+describe("the console does not claim a floor D98 deleted", () => {
+  // WHY THIS EXISTS. D98 removed the k-anonymity floor outright on
+  // 2026-08-11 — no AGG_MIN_N, no PUBLISH_EVERY, no complementary
+  // suppression, no `tooSmall`. The ARITHMETIC followed a day later in
+  // the client and, at D296, in the scorecard. The CAPTIONS did not: nine
+  // rendered strings across pulse-render and pulse-collect went on telling
+  // the reader that questions had "cleared the k-floor of 5" and that
+  // "under-floor questions publish nothing", beside numbers computed by
+  // `isScoredAgg = (agg) => !!agg`, which floors nothing.
+  //
+  // Nothing could catch them. check:public-copy is the gate for a surface
+  // saying what the server does not do, and its scope note is explicit
+  // that it covers "only files whose audience is a user or a store
+  // reviewer" — this console's audience is the owner, so it sits outside
+  // by design, and source comments are excluded there as recorded debt.
+  // That leaves the rendered strings with no reader at all, which is how
+  // they outlived the thing they describe by fifteen days.
+  //
+  // The assertion is on the RENDERED HTML rather than on the source, so a
+  // caption reintroduced anywhere in the console fails here — including in
+  // a panel this file has no other case for. Comments are untouched on
+  // purpose: they are debt, not a claim to anyone (check-public-copy.mjs
+  // says so), and scanning them would bury this signal in them.
+  //
+  // The one legitimate use of the word is a caption that says the floor is
+  // GONE ("the k-floor this used to wait out is gone — D98"), so the
+  // vocabulary is matched as the CLAIM shapes rather than as the bare
+  // word.
+  const RETIRED = [
+    "cleared the k-floor",
+    "cleared the floor",
+    "k-floored",
+    "under-floor",
+    "below the k-floor",
+    "tooSmall",
+  ];
+
+  // Both banner branches: the population panel says one thing at
+  // totalAnswers > 0 and another at 0, and only one of them renders per
+  // call. The pre-launch branch is the one that carried "No answers have
+  // cleared the k-floor", so rendering only the committed state would
+  // have missed it.
+  const states = () => {
+    const live = collect();
+    const zeroed = {
+      ...live,
+      pipeline: {
+        ...live.pipeline,
+        scorecard: { ...live.pipeline.scorecard, totalAnswers: 0, scoredQuestions: 0 },
+      },
+    };
+    return [["live", live], ["pre-launch", zeroed]];
+  };
+
+  for (const [label, fixture] of states()) {
+    it(`renders no retired floor vocabulary — ${label}`, () => {
+      const html = renderPulse(fixture, []);
+      for (const phrase of RETIRED) {
+        expect(html).not.toContain(phrase);
+      }
+    });
+  }
+
+  it("still describes the population panel's floors, which are a different claim", () => {
+    // Guard against over-correcting. The numbers here really are floors —
+    // an unanswered question has no aggregate document, so every figure
+    // understates — and that sentence must survive a sweep aimed at the
+    // k-floor. Deleting it would trade a false claim for a missing one.
+    const html = renderPulse(collect(), []);
+    expect(html).toContain("a floor");
   });
 });
 

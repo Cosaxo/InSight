@@ -10,7 +10,7 @@ rules_version = '2';
 // this path and revoking access to objects that still existed would have
 // opened an erasure gap. On 2026-08-27 the bucket was emptied first (117
 // legacy objects, none of them under dailyPhotos/) and the grant removed
-// second, in that order on purpose (runbook 5.4, D327).
+// second, in that order on purpose (runbook 5.4, D333).
 //
 // D98's note on this file used to say "a photo is not an answer, the path
 // is dead, and nothing on the Mirror reads it." Two thirds of that stopped
@@ -69,7 +69,7 @@ service firebase.storage {
     // was measured it held zero objects under this path — the 117 that DID
     // exist sat under users/{uid}/uploads/ and /daily_snaps/, paths no rule
     // has granted since the port, and were deleted before this edit. An
-    // access grant whose objects cannot exist is only a surface (D327).
+    // access grant whose objects cannot exist is only a surface (D333).
 
     // Everything else: explicitly denied. Adds an extra line of
     // defence beyond Storage's default-deny in case a future

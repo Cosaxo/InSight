@@ -77,8 +77,9 @@ read: signed-in · write: nobody (admin SDK only)
   the scheduler's spaced retries stay in device localStorage.
 
 v2_users/{uid}
-  displayName?, anon?, anchors { city country ageBand gender
-                                 profession education relationship },
+  displayName?, anon?, anchors { city country ageBand age gender
+                                 profession jobField education
+                                 relationship heightBand },
   testResults? { big5|political|values|attachment: { title, taken,
                                                      dims [{id,label,value 0-100,blurb?}] },
                  logic: server-written only (D57) }
@@ -159,8 +160,12 @@ v2_aggs_private/{qid}              the CATALOG fold's accumulator (no readers).
                                    Lives HERE, in the doc the trigger
                                    already writes, so D7's ~1 write/sec
                                    per document is unchanged. Bounded:
-                                   low-cardinality anchors only (no city,
-                                   no profession) and ≤24 buckets/dim.
+                                   low-cardinality anchors only and ≤24
+                                   buckets/dim. `city` is a dim since D9
+                                   (a closed catalogue); `profession` is
+                                   not and cannot be — the pick list is
+                                   longer than the cap — so D328 buckets
+                                   its derived `jobField` instead.
 v2_agg_events/{eventId}            trigger ledger (opaque), four jobs (D28, D268)
   { qid, uid, optionIdx?, at,      dedup: at-least-once delivery can't
     expireAt }                     double-count. Attribution: uid is what
@@ -590,7 +595,7 @@ read: the buyer (uid == auth.uid) · write: nobody client-side
 ## Functions
 
 - `seedContentV2` (callable; emulator or SEED_ADMIN_UIDS allowlist) — mirrors `/content` question banks
-  into `v2_questions` (710 docs, stable ids `daily-000`, `feed-<id>`,
+  into `v2_questions` (716 docs, stable ids `daily-000`, `feed-<id>`,
   `pick-<id>`, `group-<id>`, `duo-000`, `test-<key>-NN`; idempotent merge; `active` written only on first create, preserving the
   operational kill switch). Bank source:
   `functions/src/v2content.ts`, generated from `/content/*.json`.
@@ -663,7 +668,7 @@ read: signed-in · write: nobody
 ## Read economics (client)
 
 A live boot costs ~20 reads, not ~380: one `v2_meta/app` read decides
-everything. The question bank (710 docs) caches in localStorage keyed by
+everything. The question bank (716 docs) caches in localStorage keyed by
 `contentRev`, and refreshes **incrementally** — one query for docs newer
 than the cache's `updatedAt` cursor, so a promotion cycle costs the
 handful of questions it added rather than the whole bank (D34;
@@ -698,7 +703,7 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
 
 ## Verification
 
-- `npm run test:rules` — 153 rules tests (Firestore + Storage; the v2
+- `npm run test:rules` — 154 rules tests (Firestore + Storage; the v2
   surface, the anonymous-default lens, and the retired-v1 guard).
 - `firestore-tests/e2e-v2-loop.mjs` under
   `firebase emulators:exec --only auth,firestore,functions` — the full

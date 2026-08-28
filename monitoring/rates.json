@@ -10,8 +10,25 @@
     "many of these covers the bill' — that is the decision this file exists",
     "for, and a price here is a hypothesis, not a commitment.",
     "",
+    "guard.maxNetBurnUsdPerMonth is the usage-vs-revenue tolerance (D332):",
+    "pulse --check goes red when the modelled bill at the MEASURED actives",
+    "exceeds recorded revenue by more than this. Raise it deliberately when a",
+    "bigger burn is a choice; delete it and the guard reports unarmed.",
+    "",
     "Nothing reads this at runtime. It is an operator input to a local script."
   ],
+
+  "guard": {
+    "maxNetBurnUsdPerMonth": 50,
+    "note": "How much a month may cost NET of revenue before the daily pulse run goes red. $50 is docs/COSTS.md's own budget arithmetic — launch sizes model at ~$0-2 infra plus ~$28 fixed, so red means 'traction arrived, or something is wrong', both of which are an operator's morning. Keep it in step with the Cloud Billing budget when that is retuned.",
+    "source": "docs/COSTS.md 'The controls that are not in this repository'; docs/DECISIONS.md D332",
+    "budget": {
+      "amount": 500,
+      "currency": "NOK",
+      "note": "What the Cloud Billing budget holds, in the currency the billing account bills — discovered NOK at the first live apply (2026-08-27), when the USD figure above would have stood up a 50 NOK (~$4.6) budget. 500 NOK ~= maxNetBurnUsdPerMonth at ~10 NOK/USD, the same threshold in the account's own money, not a second opinion; move the two together when retuning either. The applier prefers this figure, which is what keeps its standing dry run idempotent instead of demanding a retune back to 50 forever.",
+      "source": "docs/DECISIONS.md D332 §3; docs/COSTS.md control 1"
+    }
+  },
 
   "fixed": [
     {
@@ -43,7 +60,7 @@
       "assumedUsdPerUnit": 0,
       "assumedUnits": 0,
       "source": "docs/MONETIZATION.md path 1",
-      "note": "A place-scoped question is an ordinary question with an ordinary aggregate — no code is needed to serve the first buyer. What the buyer gets is the public k-floored aggregate and nothing else."
+      "note": "A place-scoped question is an ordinary question with an ordinary aggregate — no code is needed to serve the first buyer. What the buyer gets is the public aggregate and nothing else."
     },
     {
       "id": "sponsored",
@@ -67,5 +84,5 @@
     }
   ],
 
-  "constraint": "Users never pay, with money or with their identity, and the sold split is the same honest floored number every user sees for free. There is no premium data tier to model: a paying city's window is the public k-floored aggregate, enforced by firestore.rules rather than by contract (docs/MONETIZATION.md)."
+  "constraint": "Users never pay, with money or with their identity, and the sold split is the same number every user sees for free. There is no premium data tier to model: a paying city's window is the public aggregate. D98 removed the floor, so what bounds a buyer is SCOPE and not arithmetic — the window is a convenience over data the buyer could read themselves, and any pitch offering more is a new decision (docs/MONETIZATION.md)."
 }

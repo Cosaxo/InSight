@@ -33,6 +33,7 @@
 // policy". What happens next is the verdict's to say.
 import React from "react";
 import LIVE, { TAKE_MAX_CHARS } from "../data/live";
+import { BUDGET_PAUSED_BODY } from "../data/budgetMode";
 import type { TakeDoc } from "../data/live";
 import { isMutedAuthor, muteAuthor, subscribeMutes } from "../data/mutes";
 // The app's one option-colour function, so a side wears the same hue in the
@@ -469,9 +470,14 @@ function LiveTakesPanel({ gid, qid, options }: {
       ))}
       {!takes.length && (
         <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)" }}>
-          {openSide >= 0
-            ? <>Nobody who picked {opts[openSide]} has written a take yet.</>
-            : <>No takes yet. Say the first thing.</>}
+          {/* Paused before empty (D332): unloaded is not "nobody wrote".
+              The composer stays — writing still works, and your own take
+              echoes locally until the next real fetch. */}
+          {LIVE.budgetPaused
+            ? <>{BUDGET_PAUSED_BODY}</>
+            : openSide >= 0
+              ? <>Nobody who picked {opts[openSide]} has written a take yet.</>
+              : <>No takes yet. Say the first thing.</>}
         </span>
       )}
       {mineAlready ? (

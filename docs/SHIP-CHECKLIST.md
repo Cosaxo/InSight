@@ -55,10 +55,10 @@ the verification — treat a successful seed as proof of both.
 3. **The remaining step: Actions → *Seed content* → Run workflow.** No
    sign-in, no dev machine, nothing to install.
 
-   710 questions land in `v2_questions`. Re-running is safe (idempotent,
+   716 questions land in `v2_questions`. Re-running is safe (idempotent,
    never resets the `active` kill switch) and, since D34, genuinely cheap:
    it rewrites only documents whose content changed and leaves `contentRev`
-   alone, so a reseed no longer costs every returning device a 710-read
+   alone, so a reseed no longer costs every returning device a 716-read
 bank refetch. The job summary reports `{written, skipped}` — a no-op
    reseed reports `written: 0`.
 
@@ -631,7 +631,7 @@ anything a user does.
   between "infrastructure is free below 5k DAU" being true and being
   approximately true.
 
-  **ANSWERED 2026-08-27 (D327): Firebase Authentication, the free
+  **ANSWERED 2026-08-27 (D333): Firebase Authentication, the free
   edition.** Read off the API rather than the console: the Identity
   Toolkit admin config for `prvfire33` reports `subtype: FIREBASE_AUTH`,
   and `identityplatform.googleapis.com` is not activated on the project

@@ -326,6 +326,10 @@ vi.mock("firebase/firestore", () => {
     // same kind of pin as the "window.LIVE public surface" case below —
     // adding a Firestore call to the store now forces this list to move.
     deleteDoc: () => Promise.resolve(),
+    // D331: setPoliticalConsent removes the published compass with the
+    // consent record, in one merge — a sentinel here, asserted in
+    // political-consent.test.ts rather than in these boot fixtures.
+    deleteField: () => "__delete__",
   };
 });
 
@@ -579,6 +583,72 @@ describe("patternsSignal (D265): the mount gate's two numbers", () => {
     vi.stubEnv("VITE_V2_LIVE", "false");
     const mod = await import("./live");
     expect(mod.default.patternsSignal()).toEqual({});
+  });
+});
+
+// ── the read breaker (D332) ─────────────────────────────────────────
+//
+// `budgetMode` on v2_meta/app is the graded breaker docs/COSTS.md designed:
+// level 1 pauses the D98 social fetches. These cases are the lever's only
+// executing proof — the panel suites pin what a paused surface SAYS, but
+// only here does a gated loader run against a store that could issue the
+// read, so only here can "paused" be measured as zero queries rather than
+// as a sentence. The absent-field case matters as much as the set one: a
+// meta doc without the field must read as level 0 (the lever fails open),
+// or every device pauses the day the field is misspelled.
+describe("budgetMode (D332): level 1 pauses the social reads", () => {
+  const metaAt = (level: number) => {
+    h.getDocImpl = (path) => (path === "v2_meta/app" ? { budgetMode: level } : null);
+  };
+
+  it("reads the mode off v2_meta/app", async () => {
+    metaAt(1);
+    const LIVE = await bootLive();
+    expect(LIVE.budgetPaused).toBe(true);
+  });
+
+  it("stays unpaused when the field is absent", async () => {
+    h.getDocImpl = (path) => (path === "v2_meta/app" ? { contentRev: null } : null);
+    const LIVE = await bootLive();
+    expect(LIVE.budgetPaused).toBe(false);
+  });
+
+  it("loadVoters issues no query and leaves the key ABSENT, not empty", async () => {
+    metaAt(1);
+    const LIVE = await bootLive();
+    await LIVE.loadVoters("q_1");
+    expect(h.voterQueries).toHaveLength(0);
+    // Absent is "we could not ask" — the sheet's paused branch renders,
+    // never "nobody answered".
+    expect(LIVE.voters("q_1")).toBeNull();
+    expect(LIVE.votersLoading("q_1")).toBe(false);
+  });
+
+  it("loadKindred spins nothing — no queries, no loading flag", async () => {
+    metaAt(1);
+    const LIVE = await bootLive();
+    await LIVE.loadKindred();
+    expect(h.voterQueries).toHaveLength(0);
+    expect(LIVE.kindredLoading()).toBe(false);
+  });
+
+  it("loadCircle leaves the circle null rather than folding an empty one", async () => {
+    metaAt(1);
+    const LIVE = await bootLive();
+    await LIVE.loadCircle();
+    // null is the stop's "could not ask"; [] would be a settled fold —
+    // the two arms LiveCircleBody renders differently, and the gate must
+    // produce the first.
+    expect(LIVE.circle()).toBeNull();
+    expect(LIVE.circleLoading()).toBe(false);
+  });
+
+  it("level 0 keeps the reads working — the contrast that proves the gate gates", async () => {
+    metaAt(0);
+    const LIVE = await bootLive();
+    await LIVE.loadVoters("q_1");
+    expect(h.voterQueries.length).toBeGreaterThan(0);
+    expect(LIVE.voters("q_1")).not.toBeNull();
   });
 });
 
@@ -1788,6 +1858,155 @@ describe("window.LIVE public surface", () => {
   const EXPECTED = LIVE_MEMBERS;
   const EXPECTED_SOCIAL = LIVE_SOCIAL_MEMBERS;
   const EXPECTED_NEAR = LIVE_NEAR_MEMBERS;
+
+  // ── the political consent gate (D331) ──────────────────────────
+  //
+  // WHY HERE AND NOT ONLY IN politicalConsent.test.ts. That file holds the
+  // PREDICATE and cannot see whether anything calls it. The gate lives
+  // inside syncPassiveResults, which writes to a world-readable profile —
+  // so a predicate that is correct and unwired publishes a political
+  // coordinate for every account, with every test still green and nothing
+  // on any screen to show it. The D258/D285 silence, one field over.
+  //
+  // Asserted on the WRITE rather than on the returned state, because the
+  // write is what reaches other people.
+  describe("the political compass is computed only with consent", () => {
+    const politicalWrites = () =>
+      h.setDocCalls.filter((c) => c.path === "v2_users/uid_test"
+        && !!(c.data.testResults as Record<string, unknown> | undefined)?.political);
+
+    // REAL prompts off the same axis, and this is what makes the cases
+    // below bite. `testItemMeta` joins a bank item to an instrument BY
+    // PROMPT and refuses anything that is not a 5-option scale, so an
+    // invented string folds to nothing and every assertion here passes
+    // whether the gate exists or not — which is exactly what the first
+    // draft of this block did. Two items on one axis clears
+    // MIN_AXIS_ITEMS, so an ungated fold really would publish.
+    // TWO PER AXIS, ALL SIX, and that is the bar rather than a generous
+    // fixture: `passiveResult` refuses an instrument whose axes are not
+    // all behind MIN_AXIS_ITEMS, so a partial seed folds to null and every
+    // case below passes with the gate deleted — which is what the first
+    // two drafts of this block did. Verified by removing the gate and
+    // watching these fail.
+    const POL_PROMPTS = [
+      "Markets, left to themselves, distribute fairly.",
+      "Essential services belong in public hands, not markets.",
+      "Some speech is harmful enough to restrict.",
+      "The state should keep out of private life.",
+      "My country should help others before its own poor.",
+      "Borders should be more open than they are now.",
+      "Climate action is worth real economic cost.",
+      "Green rules should hold even when jobs are on the line.",
+      "New technology, on balance, makes life better.",
+      "Some technologies should be slowed down on purpose.",
+      "Strong leaders matter more than strong institutions.",
+      "The system is rigged against ordinary people.",
+    ];
+    const SCALE = ["1", "2", "3", "4", "5"];
+    const seedPolitical = () => {
+      POL_PROMPTS.forEach((prompt, i) => {
+        h.bankDocs.push({
+          id: `q_pol${i}`,
+          data: { surface: "test", seq: 200 + i, type: "vote", prompt,
+            options: SCALE, topic: null, test: "political", active: true },
+        });
+        h.answerDocs.push({
+          id: `q_pol${i}`,
+          data: { qid: `q_pol${i}`, surface: "test", optionIdx: 4, answeredAt: { toMillis: () => 5 } },
+        });
+      });
+    };
+
+    // THE POSITIVE CONTROL, and it is the load-bearing case in this block.
+    // Every other assertion here is an absence, and an absence proves the
+    // gate only if the fold could have produced the thing. Without this,
+    // a harness that simply cannot fold a political result makes all four
+    // negatives pass with the gate deleted — which is precisely what the
+    // first three drafts of this block did.
+    it("DOES write one for a consented account — the control the absences rest on", async () => {
+      seedPolitical();
+      h.getDocImpl = (path: string) => (path === "v2_users/uid_test"
+        ? { consent: { political: { v: 1, at: 1 } } } : null);
+      const LIVE = await bootLive();
+      await flush();
+      (LIVE as unknown as { syncPassiveResults: () => void }).syncPassiveResults();
+      await flush();
+      expect(politicalWrites().length).toBeGreaterThan(0);
+    });
+
+    it("writes NO political result for an account that has not been asked", async () => {
+      seedPolitical();
+      h.getDocImpl = (path: string) => (path === "v2_users/uid_test" ? {} : null);
+      const LIVE = await bootLive();
+      await flush();
+      // Explicit, like the control: at hydrate time the answers have not
+      // landed, so the boot-time fold produces nothing whatever the gate
+      // says. Asserting on that would be asserting on the ordering, not on
+      // the consent — the exact false pass this block was rewritten for.
+      (LIVE as unknown as { syncPassiveResults: () => void }).syncPassiveResults();
+      await flush();
+      expect(politicalWrites()).toHaveLength(0);
+    });
+
+    it("writes none for an account that declined, and none after withdrawal", async () => {
+      seedPolitical();
+      h.getDocImpl = (path: string) => (path === "v2_users/uid_test"
+        ? { consent: { political: { v: 1, at: 1, off: 1 } } } : null);
+      const LIVE = await bootLive();
+      await flush();
+      (LIVE as unknown as { syncPassiveResults: () => void }).syncPassiveResults();
+      await flush();
+      expect(politicalWrites()).toHaveLength(0);
+    });
+
+    it("still writes the OTHER instruments — the gate is political-only", async () => {
+      // The failure this catches is a gate placed one level too high:
+      // `continue`-ing the whole loop rather than the one kind would take
+      // big5, values and attachment down with it, and every one of those
+      // is a feature nobody asked to lose.
+      seedPolitical();
+      h.getDocImpl = (path: string) => (path === "v2_users/uid_test" ? {} : null);
+      const LIVE = await bootLive();
+      await flush();
+      (LIVE as unknown as { syncPassiveResults: () => void }).syncPassiveResults();
+      await flush();
+      const kinds = new Set<string>();
+      for (const c of h.setDocCalls) {
+        if (c.path !== "v2_users/uid_test") continue;
+        for (const k of Object.keys((c.data.testResults as object) || {})) kinds.add(k);
+      }
+      expect(kinds.has("political")).toBe(false);
+    });
+
+    it("setPoliticalConsent(false) deletes the published compass in the SAME write", async () => {
+      // The half a display toggle skips. A record written without the
+      // deletion is a profile that still carries the coordinate behind a
+      // switch reading "off" — worse than no switch, because it is a
+      // claim. One merge, so a partial failure cannot land that state.
+      h.getDocImpl = (path: string) => (path === "v2_users/uid_test"
+        ? { consent: { political: { v: 1, at: 1 } } } : null);
+      const LIVE = await bootLive();
+      h.setDocCalls.length = 0;
+      await LIVE.setPoliticalConsent(false);
+      const call = h.setDocCalls.find((c) => c.path === "v2_users/uid_test");
+      expect(call, "no profile write at all").toBeTruthy();
+      const data = call!.data as Record<string, Record<string, unknown>>;
+      expect(data.consent.political).toMatchObject({ off: expect.any(Number) });
+      expect(data.testResults.political).toBe("__delete__");
+    });
+
+    it("setPoliticalConsent(true) records it and deletes nothing", async () => {
+      h.getDocImpl = (path: string) => (path === "v2_users/uid_test" ? {} : null);
+      const LIVE = await bootLive();
+      h.setDocCalls.length = 0;
+      await LIVE.setPoliticalConsent(true);
+      const call = h.setDocCalls.find((c) => c.path === "v2_users/uid_test");
+      const data = call!.data as Record<string, Record<string, Record<string, unknown>>>;
+      expect(data.consent.political.off).toBeUndefined();
+      expect(data.testResults).toBeUndefined();
+      expect(LIVE.politicalConsented()).toBe(true);
+    });
+  });
 
   it("exposes exactly the members the spec layer looks up by name", async () => {
     const LIVE = await bootLive();

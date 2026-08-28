@@ -14,7 +14,7 @@
 // leftover photo was their own read/delete. On 2026-08-27 the bucket was
 // measured and emptied FIRST (117 legacy objects, none under dailyPhotos/)
 // and the grant removed second — runbook 5.4's order, kept because
-// reversing it converts a dead feature into an erasure gap (D327).
+// reversing it converts a dead feature into an erasure gap (D333).
 //
 // The retired-path suite below therefore asserts total denial now, owner
 // included: with the bucket empty there is no object left for the old
@@ -144,7 +144,7 @@ describe("storage: the profile photo (D178)", () => {
   });
 });
 
-describe("storage: the retired v1 path is fully closed (D327)", () => {
+describe("storage: the retired v1 path is fully closed (D333)", () => {
   it("the owner can no longer read or delete under dailyPhotos", async () => {
     // The positive halves of these two lived here from 2026-08-13 to
     // 2026-08-27 as the erasure path for leftover v1 objects. The bucket

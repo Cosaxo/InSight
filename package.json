@@ -100,6 +100,8 @@
     "seed": "node scripts/seed-content.mjs",
     "rebuild:agg": "node scripts/rebuild-aggregate.mjs",
     "mod:queue": "node scripts/mod-queue.mjs",
+    "budget:mode": "node scripts/budget-mode.mjs",
+    "budget:apply": "node scripts/apply-budget.mjs",
     "observe": "node scripts/observe.mjs"
   },
   "dependencies": {

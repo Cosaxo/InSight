@@ -103,6 +103,11 @@ export const LIVE_MEMBERS = [
   // iPhone has no console to ask — the first device this app ran on
   // failed exactly there.
   "bootError",
+  // The read breaker (D332): true while v2_meta/app.budgetMode pauses the
+  // D98 social loaders above (loadVoters, loadKindred, loadCircle, takes).
+  // The gated panels' paused branches read it, so a crowd that was
+  // withheld is never rendered as one that is absent.
+  "budgetPaused",
   "confirmedVotes", "dailyBank", "deck",
   "deleteAccount", "demoInProd", "displayName", "handle",
   // D86: the one repeatable answer write — moves an existing daily/feed/
@@ -164,6 +169,12 @@ export const LIVE_MEMBERS = [
   // own pool because an ad takes no answer and folds into no aggregate;
   // null while unread, an array once known.
   "feedAds", "loadAds",
+  // The political consent pair (D331). `politicalConsented` is the account
+  // row's read and `setPoliticalConsent` is the only writer — listed here
+  // because a toggle that silently lost its writer would leave the compass
+  // published with a switch that says otherwise, which is the failure the
+  // whole record is about.
+  "politicalConsented", "setPoliticalConsent",
   "ready", "saveAnchors",
   "saveDisplayName",
   // Operator-only, and the one member here no spec-layer JSX reads — it is

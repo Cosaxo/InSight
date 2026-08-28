@@ -52,6 +52,7 @@ type FnsApi = typeof import("firebase/functions");
 let clearIndexedDbPersistence!: FsApi["clearIndexedDbPersistence"];
 let collection!: FsApi["collection"];
 let deleteDoc!: FsApi["deleteDoc"];
+let deleteField!: FsApi["deleteField"];
 let doc!: FsApi["doc"];
 let documentId!: FsApi["documentId"];
 let getDoc!: FsApi["getDoc"];
@@ -91,8 +92,8 @@ async function getDb(): Promise<import("firebase/firestore").Firestore> {
     getDbRaw(), getFirestoreApi(), getFunctionsApi(),
   ]);
   ({
-    clearIndexedDbPersistence, collection, deleteDoc, doc, documentId, getDoc,
-    getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc,
+    clearIndexedDbPersistence, collection, deleteDoc, deleteField, doc, documentId,
+    getDoc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc,
     startAfter, terminate, Timestamp, updateDoc, where,
   } = fs);
   ({ getFunctions, httpsCallable } = fns);
@@ -202,7 +203,11 @@ import { nearMode, nearOptedIn, nearUntil, setNearMode, type NearMode } from "./
 // The device computes its own archetype name for the presence doc (D176).
 import { myType } from "./typeMix";
 import { patternsEligible, type PatternsSignal } from "./patternsReady";
+import { socialReadsPaused } from "./budgetMode";
 import { locateCell, locateSupported } from "./locate";
+import {
+  mayPublishPolitical, politicalConsentRecord, POLITICAL_RESULT_KEY,
+} from "./politicalConsent";
 import { scrubPersonaAnchors } from "./personaResidue";
 import { FUNCTIONS_REGION } from "../../lib/region";
 
@@ -303,11 +308,15 @@ const state = {
     // reading a second document — and so a later profile edit cannot
     // retroactively rewrite which cohort a past answer counted in.
     anchors: {} as Record<string, string>,
+    // The political consent record (D331). Held on the profile object
+    // because that is where it lives on the server — one document, one
+    // read, and every predicate in politicalConsent.ts takes the profile.
+    consent: {} as { political?: unknown },
   },
   // `patterns*` are written by the nightly fit rather than the seed
   // (functions/src/patterns.ts) — the crowd half of the Patterns tab's
   // mount gate (D265), riding the meta read hydrate already pays.
-  meta: { latestBuild: 0, minBuild: 0, updateUrl: "", patternsPool: 0, patternsBasis: 0 },
+  meta: { latestBuild: 0, minBuild: 0, updateUrl: "", patternsPool: 0, patternsBasis: 0, budgetMode: 0 },
   stats: { bankSource: "none", aggsFetched: 0, answersFetched: 0, callOutcomesFetched: 0, cacheWriteFailures: 0 },
   groups: [] as Array<Record<string, unknown> & { id: string }>,
   duelBank: [] as Array<QuestionDoc & { id: string }>,
@@ -524,7 +533,7 @@ export const TAKE_MAX_CHARS = 280;
 // ruleset can be diffed against each other by eye.
 const ANCHOR_FIELDS: Record<string, number> = {
   city: 80, country: 80, ageBand: 20, age: 3, gender: 40,
-  profession: 80, education: 80, relationship: 40, heightBand: 20,
+  profession: 80, jobField: 40, education: 80, relationship: 40, heightBand: 20,
 };
 
 // The snapshot written onto an answer. A copy, so a later profile edit
@@ -1218,6 +1227,8 @@ async function hydrate(): Promise<void> {
       state.meta.updateUrl = String(meta.get("updateUrl") || "");
       state.meta.patternsPool = Number(meta.get("patternsPool") || 0);
       state.meta.patternsBasis = Number(meta.get("patternsBasis") || 0);
+      // The read breaker (D332) rides the same one read — see budgetMode.ts.
+      state.meta.budgetMode = Number(meta.get("budgetMode") || 0);
     }
   } catch {
     /* meta is best-effort — absence just means no caching/update info */
@@ -1901,6 +1912,8 @@ async function hydrate(): Promise<void> {
           (prof.get("testResults") as Record<string, unknown>) || {};
         state.profile.anchors =
           (prof.get("anchors") as Record<string, string>) || {};
+        state.profile.consent =
+          (prof.get("consent") as { political?: unknown }) || {};
         // A doc a pre-fix build polluted with the sample persona's job and
         // education (the baseFor merge leak — personaResidue.ts has the
         // history) heals HERE, not only on the next profile open: the Map's
@@ -2716,6 +2729,9 @@ const SOCIAL = {
     // list reads exactly like a circle that never wrote a take), so a
     // transient failure retries and a real empty result is kept.
     if (key == null || state.takesLoading[key] || state.takes[key]) return;
+    // The read breaker (D332): takes are the fourth D98 surface. Absent,
+    // not empty, for the reason the cache comment above gives.
+    if (socialReadsPaused(state.meta.budgetMode)) return;
     state.takesLoading[key] = true;
     try {
       const db = await getDb();
@@ -3335,6 +3351,12 @@ const LIVE = {
   get updateUrl(): string {
     return state.meta.updateUrl;
   },
+  /** The read breaker (D332): true while `v2_meta/app.budgetMode` holds
+   *  the social reads paused. The panels' paused branches read this so a
+   *  withheld crowd is never rendered as an absent one. */
+  get budgetPaused(): boolean {
+    return socialReadsPaused(state.meta.budgetMode);
+  },
   get latestBuild(): number {
     return state.meta.latestBuild;
   },
@@ -3420,6 +3442,13 @@ const LIVE = {
     // array now means "nobody answered" and is kept, which is what
     // distinguishing those two states was for.
     if (!qid || state.votersLoading[qid] || state.voters[qid]) return;
+    // The read breaker (D332): level 1 pauses exactly this — reading other
+    // users' answer documents on demand. Refused BEFORE the loading flag,
+    // so the panels' loading states stay false and their paused branches
+    // (keyed on LIVE.budgetPaused) are what renders. The key stays absent:
+    // "we chose not to ask" is a kind of "we could not ask", never "nobody
+    // answered".
+    if (socialReadsPaused(state.meta.budgetMode)) return;
     state.votersLoading[qid] = true;
     try {
       const db = await getDb();
@@ -3660,6 +3689,11 @@ const LIVE = {
   // Up to a quarter of the twelve slots bought an empty list.
   async loadKindred(): Promise<void> {
     if (state.kindredLoading) return;
+    // The read breaker (D332). loadVoters refuses on its own below, but
+    // without this the loop would still spin twelve no-op calls and hold
+    // kindredLoading long enough for the lens to say "Matching…" about a
+    // match that is not being attempted.
+    if (socialReadsPaused(state.meta.budgetMode)) return;
     state.kindredLoading = true;
     try {
       const qids = pickKindredQids(state.votes, divisivenessOf, KINDRED_QUESTIONS, storesOptionIdx);
@@ -3764,6 +3798,9 @@ const LIVE = {
     // guarded by a boolean so the pool refetches for the new city instead
     // of serving the old one forever.
     if (state.cityVotersAt === city) return;
+    // The read breaker (D332): the city-scoped half of the same voter
+    // fan-out loadKindred pays, so it pauses with it.
+    if (socialReadsPaused(state.meta.budgetMode)) return;
     state.cityKindredLoading = true;
     notify();
     try {
@@ -3812,6 +3849,10 @@ const LIVE = {
     // state.circle keeps the "who may invalidate this" list to one site.
     if (!this.enabled || !me || state.circleLoading) return;
     if (!force && state.circle) return;
+    // The read breaker (D332): a query per member is the most expensive of
+    // the four gated fetches. `force` does not override — setFollowing's
+    // write still lands, and the refreshed fold waits with the rest.
+    if (socialReadsPaused(state.meta.budgetMode)) return;
     state.circleLoading = true;
     notify();
     try {
@@ -4255,6 +4296,55 @@ const LIVE = {
   },
   // Test results survive devices: mirrored onto the owner-only profile
   // doc whenever the local persistence runs (test-definitions.js).
+  /**
+   * Is the political coordinate allowed to be computed and published?
+   * The UI's read of the toggle; the fold's own check is in
+   * syncPassiveResults.
+   */
+  politicalConsented(): boolean {
+    return mayPublishPolitical(state.profile);
+  },
+  /**
+   * Set — or withdraw — the political consent (D331).
+   *
+   * TWO WRITES, AND THE SECOND IS THE POINT. Recording the decision is the
+   * easy half; turning it OFF has to also delete the coordinate already
+   * sitting on a world-readable profile, or the control is a lie about
+   * data that is still out there. `deleteField()` rather than writing
+   * null, because a null is a value a defensive reader could still parse
+   * and `parseTestResults` would rather see the key gone.
+   *
+   * One `setDoc(merge)` so a failure cannot land the record without the
+   * deletion — the state that would tell the user they are private while
+   * the compass is still published.
+   *
+   * Local state moves FIRST so the screen reflects the decision even if
+   * the network is down; the write is retried by nothing, deliberately —
+   * the next boot re-reads the server and the toggle shows the truth
+   * rather than an optimistic lie.
+   */
+  async setPoliticalConsent(on: boolean): Promise<void> {
+    const rec = politicalConsentRecord(on, Date.now());
+    state.profile.consent = { ...state.profile.consent, political: rec };
+    if (!on) delete state.profile.testResults[POLITICAL_RESULT_KEY];
+    publishTestResults();
+    const db = await getDb();
+    const uid = state.uid;
+    if (!uid) return;
+    await setDoc(
+      doc(db, "v2_users", uid),
+      {
+        consent: { political: rec },
+        ...(on ? {} : { testResults: { [POLITICAL_RESULT_KEY]: deleteField() } }),
+      },
+      { merge: true },
+    );
+    // Consenting does not wait for the next answer: the fold re-runs now,
+    // so an account that already cleared the threshold gets its coordinate
+    // on the tap rather than on the next card (the D277 argument, one
+    // gate over).
+    if (on) this.syncPassiveResults();
+  },
   saveTestResult(kind: string, result: unknown): void {
     state.profile.testResults[kind] = result;
     void (async () => {
@@ -4318,6 +4408,17 @@ const LIVE = {
       for (const kind of CORE_TEST_KINDS) {
         const def = defs[kind];
         if (!def) continue;
+        // D331. The political coordinate is COMPUTED only with consent —
+        // not computed and hidden. `passiveResult` writes to a profile any
+        // signed-in user can read, so a fold that ran and a screen that
+        // declined to draw it would publish the thing anyway, which is the
+        // D327 failure and is not what a toggle means.
+        //
+        // The default is off (politicalConsent.ts), so this also closes
+        // the window between install and the ask: an account that has not
+        // answered yet publishes no political position rather than a
+        // smaller one.
+        if (kind === POLITICAL_RESULT_KEY && !mayPublishPolitical(state.profile)) continue;
         const stored = state.profile.testResults[kind] as { passive?: boolean } | undefined;
         if (stored && !stored.passive) continue;
         const next = passiveResult(
@@ -5501,7 +5602,7 @@ function resetForNewUid(uid: string): void {
   // class of leak resetForNewUid exists for.
   state.invites = [];
   state.invitesLoading = false;
-  state.profile = { displayName: "", handle: "", testResults: {}, anchors: {} };
+  state.profile = { displayName: "", handle: "", testResults: {}, anchors: {}, consent: {} };
   state.deckIds = [];
   state.deckDay = -1;
   state.ready = false;
