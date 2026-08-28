@@ -212,7 +212,7 @@ everything else: the static gates, and where each one runs.
 | `check:ios-location` | ci | The iOS location declarations against what the app does. ITMS-90683 is why it exists |
 | `check:web-firebase` | release | That the shipped bundle actually carries the Firebase config |
 | `check:store-listing` | release | Marketing copy against both consoles' length limits |
-| `check:store-copy` | manual | No unfilled placeholders in the store-facing legal pages. A pre-submission gate, and off CI on purpose |
+| `check:store-copy` | release | No unfilled placeholders in the store-facing legal pages. Off the PR path on purpose — it fails on an unfilled tree by design — but `ios-release.yml` runs it, so it decides whether an iOS submission ships. It was marked "manual" because that workflow invokes the script directly rather than through `npm run`, which rule 5 could not see |
 
 ## 6 · Finding the decision that governs something
 
