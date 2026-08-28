@@ -1,7 +1,7 @@
 # The graph-optimizer axiom — current theory
 
-*Regenerated from `graph.json`, 2026-08-26. The graph is the data; this
-page is its readable face. 9 nodes: 6 argued, 3 cited.*
+*Regenerated from `graph.json`, 2026-08-28. The graph is the data; this
+page is its readable face. 10 nodes: 7 argued, 3 cited.*
 
 ## The substrate (go-1 · go-9)
 
@@ -54,37 +54,68 @@ zero), detail weight (>400w) per lane; unresolved contradictions and
 near-duplicate claim pairs (Jaccard ≥ 0.5) program-wide. Thresholds are
 named constants (a change is a diff, not drift); orphan degree is
 program-wide because cross-edges are the combination (go-3); staleness
-is a timestamp proxy and therefore a lower bound on rot.
+is a timestamp proxy and therefore a lower bound on rot. 2026-08-28:
+the instrument gains a per-lane **graded-sources count** — verification
+markers in source strings only, the one placement countable without
+interpreting prose (the suffix is homonymous in prose; go-10). It
+prices what a schema-defined grade field would inherit; it does not
+push adoption.
 
-## What the first measurement taught (go-6 · go-7 · go-8)
+## What the measurements taught (go-6 · go-7 · go-8 · go-10)
 
 **go-6 (argued)** — the contradiction count measures *recording*, not
-harmony. Three adversarial passes forced real corrections this week and
-none became an edge; the one live cross-lane tension (pat-6's negative
-results against gen-5's conjecture) was typed `refines`, the mildest
-type. The count is a lower bound. The typing rule this lane now runs:
-when evidence cuts against a claim another node **still asserts**, type
-it `contradicts` and let the target lane resolve it; when the target
-has already narrowed in response, `refines` is the honest type —
-go-9→go-1 is the worked example of the second case.
+harmony, and is a lower bound on live tension. Since 2026-08-27 the
+program has its first `contradicts` edge — tst-6→cen-1, recorded in
+exactly the split-verdict shape this node offered: `contradicts` scoped
+to the singular cen-1 still asserts, `refines` for the half tst-6
+sharpens, the tests LOG naming both. Central inherits a visible work
+item. The typing rule stands: evidence against a claim the target
+**still asserts** is `contradicts`; after the target narrows, `refines`
+is the honest type (go-9→go-1 is the worked example of the rule's
+second branch).
 
-**go-7 (argued)** — detail has a weight budget. Six of 43 pre-existing
-nodes exceed 400 words, all born `cited` from scout runs — and three of
-the six hand-label own-inference sub-claims inline (map-3, map-4,
-gen-4; exact strings verified), which is an argued-rung claim living
-inside a cited node: the lanes doing manually what node granularity
-would do structurally. The fix is fission into nodes the ladder can
-grip separately; splitting is the owning lane's act, the optimizer
-flags weight and records the pattern.
+**go-7 (argued)** — detail has a weight budget; fission into nodes the
+ladder can grip separately is the fix, and splitting is the owning
+lane's act. Second measurement (2026-08-28): 23 of 69 nodes over
+budget — 33%, from 14% two days earlier; max more than doubled (map-6
+at 1531 words); argument-only nodes cross it too, so it is not
+scout-specific; **zero fissions have occurred**. The flag as published
+changes no behavior — either no lane reads it where it lives, or
+go-10's lesson generalizes: practice no artifact enforces does not
+propagate. Not a gate, deliberately. This run's lever is naming the
+worst offenders in the digest-facing summary below.
 
-**go-8 (argued)** — genetic, map and pattern independently invented
-per-source verification grading, in three different vocabularies
-("abstract-grade"/"vendor-grade"; "snippet/repo-table/index-grade";
-per-node "Verification grade:" sentences). That is schema pressure
-toward a v2 per-source `grade` field — absorbed only once the
-convention stops moving (rule: after body/questions/tests have each
-run a scout), because migration is all-graphs-or-nothing (§5) and a
-premature enum forces a v3.
+**go-8 (argued)** — three lanes independently invented per-source
+verification grading, which is real schema pressure; but its original
+decision rule — absorb once the convention stops moving — fired on
+2026-08-28 and was answered **no**: the convention was never going to
+settle on its own (go-10 carries the measurement and the decision).
+What survives: the want is real, and unstructured grade strings
+accumulate migration debt.
+
+**go-10 (argued, new 2026-08-28)** — across fresh-session lanes, **a
+convention lives only where a committed artifact enforces it**.
+Measured: 18 distinct `-grade` tokens program-wide (16 excluding this
+lane's own meta-prose), from 11 by the same census two days earlier;
+the suffix went homonymous (verification labels vs domain adjectives
+sharing it); placement split four ways (two source-string syntaxes
+plus genetic's third, detail prose, free-form sentences) — genetic, a
+co-inventor, at 5/98 barely uses its own convention — and zero of the
+three newly scouted lanes adopted any. Propagation follows the
+*receiving* lane's read path and nothing else: 'instrument-grade'
+crossed lanes because central appended it to tests' QUESTIONS.md, a
+file tests is chartered to read, while genetic's graded source
+strings, readable by everyone, propagated nowhere. And read-path
+carriage moves tokens, not conventions — tests absorbed the
+homonymous adjective, not the grading practice — so only an enforced
+artifact keeps a convention convergent: the one practice exercised
+across lanes (electing `contradicts`) is the one SCHEMA.md documents.
+Consequences: no v2 grade enum now; if grades are ever schematized,
+the schema defines an enumerated vocabulary, lanes populate their own
+sources, and the field lands optional-and-empty — the
+migrate-all-in-one-run rule bounds mechanical migration to what a
+script derives without reading, a general constraint on schema
+evolution. Optionality enforces vocabulary, not adoption.
 
 ## Standing frame (go-3 · go-4)
 
@@ -94,41 +125,39 @@ touches another lane's content (go-4).
 
 ---
 
-## Health summary — 2026-08-26 (for the digest)
-
-*Measured post-rebase, after central's first run and the owner's
-chartering of the database lane landed mid-run.*
+## Health summary — 2026-08-28 (for the digest)
 
 `node graph/check.mjs --all`: **green**, schema v1, all 9 graphs.
-`node graph/health.mjs`: 54 nodes, 84 edges (34 cross-graph).
+`node graph/health.mjs`: 70 nodes, 137 edges (59 cross-graph).
 
-| Lane | Nodes | Status mix (c/a/c/m) | Flags |
-| --- | --- | --- | --- |
-| genetic | 8 | 1/4/3/0 | gen-4 detail 476w |
-| body | 5 | 2/3/0/0 | unscouted |
-| questions | 4 | 2/2/0/0 | unscouted |
-| tests | 5 | 3/2/0/0 | unscouted |
-| map | 5 | 1/1/3/0 | map-3 559w, map-4 688w |
-| pattern | 7 | 0/4/3/0 | pat-1/6/7 ≈415w |
-| graph-optimizer | 9 | 0/6/3/0 | — |
-| central | 6 | 1/5/0/0 | cen-1 484w, cen-2 511w |
-| database | 5 | 1/4/0/0 | chartered today; unscouted |
+| Lane | Nodes | Status mix (c/a/c/m) | Graded src | Flags |
+| --- | --- | --- | --- | --- |
+| genetic | 11 | 0/3/8/0 | 5/98 | 6 nodes over detail budget, gen-5 970w |
+| body | 8 | 0/4/4/0 | 0/16 | — |
+| questions | 6 | 0/3/3/0 | 0/26 | que-5 623w, que-2 474w |
+| tests | 7 | 3/2/2/0 | 0/12 | tst-6 644w, tst-2 501w |
+| map | 6 | 1/1/4/0 | 1/49 | **map-6 1531w** (3.8× budget), map-3 753w, map-4 688w |
+| pattern | 8 | 0/3/5/0 | 0/43 | pat-3 899w, pat-8 505w, pat-6 549w +2 |
+| graph-optimizer | 10 | 0/7/3/0 | 19/19 | — |
+| central | 6 | 1/5/0/0 | 0/0 | cen-1 484w, cen-2 511w; no sources yet in any node |
+| database | 8 | 0/4/4/0 | 20/45 | db-7 573w, db-3 495w, db-4 437w |
 
-Program reading: **11 conjecture · 31 argued · 12 cited · 0 measured**.
-No orphans, no dangling cross-edges, no near-duplicate pairs at
-threshold, no stale conjectures yet (program is 1 day old). The zero in
-"measured" is the milestone to watch — map's displacement request and
-pattern's prequential request both got worth-building verdicts today
-and are each one product decision away from a first `measured` node.
-The contradiction count (0) is a lower bound, not concord: this week's
-adversarial passes forced real corrections that resolved into prose,
-and the one live cross-lane tension (pat-6 vs gen-5) is typed
-`refines` (go-6). Eight nodes now exceed the detail budget — six
-scout-born plus central's cen-1/cen-2, which crossed it in an
-argument-only run, so the pathology is not scout-specific — fission
-offered (go-7). No merges or prunes were warranted this run: no
-literal duplicates exist and every node has degree ≥ 1 program-wide.
-Tooling note: health.mjs originally hardcoded the eight chartered
-lanes and was blind to the database lane the hour it was born; it now
-discovers lanes from `theory/` so a new lane is counted the run it
-lands, while check.mjs remains the arbiter of what is chartered.
+Program reading: **5 conjecture · 32 argued · 33 cited · 0 measured**.
+Cited overtook argued this week; the zero in `measured` remains the
+milestone to watch. No orphans, no dangling cross-edges, no
+near-duplicate pairs at threshold, no stale conjectures. **The
+program's first `contradicts` edge is live**: tst-6⇄cen-1 (tests,
+2026-08-27) — a real, correctly scoped open problem now sitting in
+central's path; how central resolves it is the first test of the
+schema's contradiction machinery end to end. **Detail bloat is the
+worsening signal**: 23 of 69 nodes over the 400-word budget (33%, from
+14% on 08-26), zero fissions so far; worst offenders named per lane
+above, fission offered per go-7 (per this run's LOG row, this lane
+trimmed its own freshly over-budget nodes back under rather than ship
+flags it preaches against). Cross-graph structural changes this run:
+**none warranted** — no literal duplicates, no dangling edges, nothing
+to prune. Schema verdict this run: **no v2** — go-8's grade-enum
+decision rule fired and answered no (go-10 has the measurement:
+18-token vocabulary, 11 two days earlier by the same census,
+homonymous suffix, four-way placement split, zero adoption by the
+newly scouted lanes).

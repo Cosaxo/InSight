@@ -1,7 +1,7 @@
 {
   "version": 1,
   "axiom": "graph-optimizer",
-  "updated": "2026-08-26",
+  "updated": "2026-08-28",
   "nodes": [
     {
       "id": "go-1",
@@ -36,7 +36,12 @@
         "Aghajani E, Nagy C, Vega-Márquez OL, Linares-Vásquez M, Moreno L, Bavota G, Lanza M 2019, 'Software Documentation Issues Unveiled', ICSE 2019:1199-1210, DOI 10.1109/ICSE.2019.00122 — 878 artifacts mined; up-to-dateness and completeness both frequently mentioned, abstract-grade",
         "Halfaker A, Geiger RS, Morgan JT, Riedl J 2013, 'The Rise and Decline of an Open Collaboration System', American Behavioral Scientist 57(5):664-688, DOI 10.1177/0002764212469365 — counter-evidence: quality-control restrictiveness implicated in contributor decline, abstract-grade"
       ],
-      "edges": [{ "to": "go-1", "type": "supports" }],
+      "edges": [
+        {
+          "to": "go-1",
+          "type": "supports"
+        }
+      ],
       "created": "2026-08-25",
       "updated": "2026-08-26"
     },
@@ -46,7 +51,12 @@
       "status": "argued",
       "detail": "Central's combination theory is largely MADE of cross-graph edges (gen-3 supports cen-1, pat-4 supports cen-2). The optimizer therefore validates cross-references every run (no dangling ids), keeps id prefixes stable forever, and treats a broken cross-edge as a build failure, not a cosmetic one.",
       "sources": [],
-      "edges": [{ "to": "cen-1", "type": "supports" }],
+      "edges": [
+        {
+          "to": "cen-1",
+          "type": "supports"
+        }
+      ],
       "created": "2026-08-25",
       "updated": "2026-08-25"
     },
@@ -56,7 +66,12 @@
       "status": "argued",
       "detail": "This lane may change the schema and its own methods — the owner asked for a graph optimizer 'including itself' — under three bounds: every schema change bumps the version and migrates ALL graphs in the same run or does not land; changes are reversible from git history; and the optimizer never rewrites another lane's CONTENT (claims, statuses, details) — only structure (format, merges of literal duplicates with a log row, id hygiene). Content is each lane's; shape is this lane's.",
       "sources": [],
-      "edges": [{ "to": "go-1", "type": "refines" }],
+      "edges": [
+        {
+          "to": "go-1",
+          "type": "refines"
+        }
+      ],
       "created": "2026-08-25",
       "updated": "2026-08-25"
     },
@@ -64,41 +79,73 @@
       "id": "go-5",
       "claim": "Graph health is a committed measurement instrument — named metrics with named thresholds, computed by a tool in the repo — never a hand count in a summary.",
       "status": "argued",
-      "detail": "The first scheduled run replaced hand-counting with graph/health.mjs: per lane, status mix, stale conjectures (untouched >14 days), orphans (program-wide degree zero; the rate is the list over the node count) and detail weight (>400 words flagged); program-wide, unresolved contradicts edges and near-duplicate claim pairs (token Jaccard ≥ 0.5, cross-graph pairs included). Three design choices carry the theory. (a) Thresholds are named constants in the tool, so changing one is a reviewable diff rather than drift in a summary's prose. (b) Orphan degree is program-wide: a node referenced only from another lane's graph is not an orphan, because cross-graph edges are the combination (go-3) — a per-file orphan count would misread exactly the nodes central most depends on. (c) The tool is descriptive, never gating: check.mjs holds form, health.mjs reports signals, and the judgment (merge, prune, flag, ignore) stays with the optimizer — every metric here is a proxy a lane could Goodhart the moment it gates (trivial edges to dodge the orphan count, detail sharded into filler nodes to dodge the budget). Near-duplicate flags in particular are candidates to READ, not to merge: token overlap cannot tell a duplicate from a deliberate cross-lane mirror (bod-2/gen-2), and only literal duplicates are ever merged (§5). First measurement, 2026-08-26: 43 nodes, 59 edges (25 cross-graph), mix 12 conjecture / 22 argued / 9 cited / 0 measured, zero contradictions recorded, zero near-duplicate pairs at threshold, six nodes over detail budget. Interpretation caveat, added the same day from go-2's evidence: the staleness metric is a timestamp proxy and rot is often born rather than aged (Zhang et al. 2021, at go-2), so a low stale count is a lower bound on decay, not an all-clear.",
+      "detail": "The first scheduled run replaced hand-counting with graph/health.mjs: per lane, status mix, stale conjectures (untouched >14 days), orphans (program-wide degree zero; the rate is the list over the node count) and detail weight (>400 words flagged); program-wide, unresolved contradicts edges and near-duplicate claim pairs (token Jaccard ≥ 0.5, cross-graph pairs included). Three design choices carry the theory. (a) Thresholds are named constants in the tool, so changing one is a reviewable diff rather than drift in a summary's prose. (b) Orphan degree is program-wide: a node referenced only from another lane's graph is not an orphan, because cross-graph edges are the combination (go-3) — a per-file orphan count would misread exactly the nodes central most depends on. (c) The tool is descriptive, never gating: check.mjs holds form, health.mjs reports signals, and the judgment (merge, prune, flag, ignore) stays with the optimizer — every metric here is a proxy a lane could Goodhart the moment it gates (trivial edges to dodge the orphan count, detail sharded into filler nodes to dodge the budget). Near-duplicate flags in particular are candidates to READ, not to merge: token overlap cannot tell a duplicate from a deliberate cross-lane mirror (bod-2/gen-2), and only literal duplicates are ever merged (§5). First measurement, 2026-08-26: 43 nodes, 59 edges (25 cross-graph), mix 12 conjecture / 22 argued / 9 cited / 0 measured, zero contradictions recorded, zero near-duplicate pairs at threshold, six nodes over detail budget. Interpretation caveat, added the same day from go-2's evidence: the staleness metric is a timestamp proxy and rot is often born rather than aged (Zhang et al. 2021, at go-2), so a low stale count is a lower bound on decay, not an all-clear. 2026-08-28: the instrument gains a per-lane graded-sources count — source-string verification markers only ('-grade' suffix in the sources array), the one placement countable without interpreting prose; grades written into detail prose are deliberately not counted, because the suffix is now homonymous between verification labels and domain adjectives and only a reader can tell them apart (go-10 has the evidence). The metric exists to price what an eventual schema-defined grade field would inherit, not to push adoption of a convention go-10 records as non-propagating.",
       "sources": [],
-      "edges": [{ "to": "go-2", "type": "refines" }, { "to": "go-3", "type": "depends" }],
+      "edges": [
+        {
+          "to": "go-2",
+          "type": "refines"
+        },
+        {
+          "to": "go-3",
+          "type": "depends"
+        }
+      ],
       "created": "2026-08-26",
-      "updated": "2026-08-26"
+      "updated": "2026-08-28"
     },
     {
       "id": "go-6",
       "claim": "A zero in the contradiction metric measures recording, not harmony: adversarial findings that die in prose leave the graph looking more agreed than the program is.",
       "status": "argued",
-      "detail": "Measured fact, first health pass: zero contradicts edges across 43 nodes and 59 edges — after three scout runs whose adversarial passes each forced substantive corrections (genetic: gen-8's kinship claim inverted; pattern: pat-1's claim string rewritten to be conditional; map: map-4 narrowed to outcome uncertainty). Within-run corrections rightly vanish into the rewritten claim (git and the LOG hold the history; no edge is owed to a retracted form). The gap is standing, surviving tension. The clearest live one: gen-5 conjectures that LLM-shaped sequence models are the perfect genetic analysis layer, while pat-6's cited negative results — transcriptomic foundation models repeatedly losing to trivial baselines, no data-scaling law — cut directly against the analogy gen-5 leans on. The lanes recorded that as pat-6 refines gen-5, the mildest edge type, plus an 'open for genetic' log note; defensible, since pat-6 conditions rather than refutes, but the effect is that the program's one genuine cross-lane tension is typed indistinguishably from a friendly sharpening, and the contradicts count reads 0. Two consequences. For the instrument (go-5): the contradiction metric is a lower bound on live disagreement — the health summary must say so rather than reading 0 as concord, because the schema only registers a tension when some lane elects the strongest edge type. For practice — offered, not imposed, since content is the lanes' (§5): when external evidence cuts against a claim another node STILL asserts, type the edge contradicts and let the target lane resolve it into a refinement — SCHEMA.md already reads a contradicts edge between two argued nodes as an open problem the lane should be working, and extending that to cross-lane visibility is this node's own gloss; when the target has already narrowed in response, refines is the honest type (go-9→go-1 is the worked example: it landed as refines precisely because go-1 absorbed the critique the same run). A contradicts edge is a work item a later run is forced to see; a refines edge is a fact nobody revisits. 'Contradictions are first-class' (go-1) is today the least exercised part of the schema.",
+      "detail": "Measured fact, first health pass: zero contradicts edges across 43 nodes and 59 edges — after three scout runs whose adversarial passes each forced substantive corrections (genetic: gen-8's kinship claim inverted; pattern: pat-1's claim string rewritten to be conditional; map: map-4 narrowed to outcome uncertainty). Within-run corrections rightly vanish into the rewritten claim (git and the LOG hold the history; no edge is owed to a retracted form). The gap is standing, surviving tension. The clearest live one at first writing: gen-5's LLM-analogy conjecture against pat-6's cited negative results, recorded as pat-6 refines gen-5 — the mildest edge type — so the program's one genuine cross-lane tension was typed indistinguishably from a friendly sharpening, and the contradicts count read 0. Two consequences. For the instrument (go-5): the contradiction metric is a lower bound on live disagreement — the health summary must say so rather than reading 0 as concord, because the schema only registers a tension when some lane elects the strongest edge type. For practice — offered, not imposed, since content is the lanes' (§5): when external evidence cuts against a claim another node STILL asserts, type the edge contradicts and let the target lane resolve it into a refinement — SCHEMA.md already reads a contradicts edge between two argued nodes as an open problem the lane should be working, and extending that to cross-lane visibility is this node's own gloss; when the target has already narrowed in response, refines is the honest type (go-9→go-1 is the worked example: it landed as refines precisely because go-1 absorbed the critique the same run). A contradicts edge is a work item a later run is forced to see; a refines edge is a fact nobody revisits. 'Contradictions are first-class' (go-1) was, when this node was written, the least exercised part of the schema. Update 2026-08-28: the program's first contradicts edge exists — tst-6→cen-1 (tests, 2026-08-27) — in exactly this node's offered shape: tst-6 carries BOTH edge types to cen-1, contradicts scoped to the 'one coordinate system' singular cen-1 still asserts, refines for the between-person half it sharpens, split verdict named in the tests LOG. Central inherits a visible work item its same-day run can resolve. The lower-bound caveat stands: a count of 1 measures one lane's election of the strongest type, not the program's total live tension.",
       "sources": [],
-      "edges": [{ "to": "go-5", "type": "refines" }, { "to": "go-2", "type": "supports" }],
+      "edges": [
+        {
+          "to": "go-5",
+          "type": "refines"
+        },
+        {
+          "to": "go-2",
+          "type": "supports"
+        }
+      ],
       "created": "2026-08-26",
-      "updated": "2026-08-26"
+      "updated": "2026-08-28"
     },
     {
       "id": "go-7",
       "claim": "Detail has a weight budget: past a few hundred words a node is an essay wearing one status, and the fix is fission into nodes the ladder can grip separately.",
       "status": "argued",
-      "detail": "Measured: six of 43 nodes exceed the 400-word detail budget (map-4 at 688 words, map-3 at 559, gen-4 at 476, pat-6/pat-1/pat-7 at 411–417), all six born cited from scout runs; the scouted lanes' mean detail runs three to over five times the seeded lanes' (map 5.2×). The tell that this is structural rather than stylistic: three of the six already hand-label sub-claims inline to keep rungs separate — map-3 marks a transfer as 'this node's own inference, recorded as such', map-4 marks 'consequences this node draws as its OWN design inferences', gen-4 marks a product observation 'internal context, not external evidence, and marked as such' (exact strings verified 2026-08-26). Each label is an argued-rung sub-claim living inside a cited node, hand-annotated because the ladder is per-node and the node has grown past one claim; the labels are the lanes doing manually what node granularity would do structurally. One-node-one-status only checks anything while a node carries roughly one claim (go-1): a 700-word detail hides which sentence the status covers, hands the skeptic no target smaller than the whole essay, and turns every future edit into a conflict with everything else in the string. Fission restores per-claim status at zero information cost — map-4 is visibly three nodes (the encoding-form evidence; the which-uncertainty boundary; the declared-modifier carve-out) with three statuses and edges between them. Boundary honored: splitting content is the owning lane's act; the optimizer flags weight (health.mjs) and records the pattern here. The budget is a smell threshold, not a gate — a dense sourced node at 410 words can be healthy, and a graph that never flags would mean the threshold is too loose, not that the discipline is working.",
+      "detail": "First measurement: six of 43 nodes over the 400-word budget (map-4 688, map-3 559, gen-4 476, pat-6/pat-1/pat-7 411–417), all born cited from scout runs; scouted lanes' mean detail ran three to five times the seeded lanes'. The tell that this is structural: three of the six hand-label sub-claims inline to keep rungs separate (map-3 'this node's own inference, recorded as such'; map-4 'consequences this node draws as its OWN design inferences'; gen-4 'internal context, not external evidence' — strings verified 2026-08-26). Each label is an argued-rung sub-claim living inside a cited node: the lanes doing manually what node granularity would do structurally. One-node-one-status only checks anything while a node carries roughly one claim (go-1): a 700-word detail hides which sentence the status covers and hands the skeptic no target smaller than the whole essay. Fission restores per-claim status at zero information cost — map-4 is visibly three nodes (the encoding-form evidence; the which-uncertainty boundary; the declared-modifier carve-out) with three statuses and edges between them. Boundary honored: splitting content is the owning lane's act; the optimizer flags weight (health.mjs) and records the pattern here. The budget is a smell threshold, not a gate — a dense sourced node at 410 words can be healthy, and a graph that never flags would mean the threshold is too loose, not that the discipline is working. Second measurement, 2026-08-28: 23 of 69 nodes over budget — 33%, from 14% two days earlier (or 11% on the same-day nine-graph state; either baseline, the jump is real); the maximum more than doubled (map-6 at 1531 words, gen-5 970, pat-3 899); argument-only nodes cross it too (cen-1, cen-2, tst-6), so the pathology is confirmed not scout-specific; zero fissions have occurred. The flag, as published, changes no behavior — either it reaches the wrong readers (the summary feeds central and the owner's digest per §5–6, but a flagged lane's own read path is its own files, so the flag never lands in front of the lane it names), or go-10's lesson generalizes from vocabulary to discipline: practice no committed artifact enforces does not propagate across fresh-session lanes. Still deliberately not a gate (go-5's Goodhart argument stands). This run's lever is visibility — the digest-facing summary names the worst offenders — and central, the one lane that reads everything and may append to every QUESTIONS.md, is the legitimate channel if fission is worth asking for by name.",
       "sources": [],
-      "edges": [{ "to": "go-1", "type": "refines" }, { "to": "go-2", "type": "supports" }],
+      "edges": [
+        {
+          "to": "go-1",
+          "type": "refines"
+        },
+        {
+          "to": "go-2",
+          "type": "supports"
+        }
+      ],
       "created": "2026-08-26",
-      "updated": "2026-08-26"
+      "updated": "2026-08-28"
     },
     {
       "id": "go-8",
-      "claim": "The lanes already run a finer evidence scale than the schema knows — per-source verification grades — and the schema should absorb it only once the convention stops moving.",
+      "claim": "The lanes run a finer evidence scale than the schema knows — per-source verification grades — and if the schema ever absorbs it, it will be as a defined vocabulary: waiting for the emergent convention to settle was measured to be waiting on something the architecture cannot produce.",
       "status": "argued",
-      "detail": "Bottom-up observation, three scout runs in: genetic, map and pattern each independently invented per-source verification grading, in three different vocabularies — genetic writes 'abstract-grade' and 'vendor-grade' inline; pattern writes 'abstract/snippet/repo-table-grade' and 'index-grade'; map writes per-node 'Verification grade:' sentences ('full text', 'abstract level') with no suffix convention — and map and genetic additionally mark own-inference sub-claims inline (go-7 has the strings). Same instinct three ways is schema pressure: cited is one rung, but what the lanes actually record is which source cleared which bar, and today that lives in strings where check.mjs cannot hold it (a 'full text' label can silently outlive the verification it names, and nothing forces a grade at all). Candidate schema v2: an optional enumerated grade per source entry, checkable and countable by health.mjs. Why not this run: the vocabulary is one day old and still moving — three lanes, three overlapping but different label sets — and a schema change migrates every graph in the same run or does not land (§5, go-4); that migration is cheap at 43 nodes and grows with the corpus, but an enum frozen too early forces a v3 when the convention settles differently, which doubles exactly the cost the rule exists to bound. Decision rule: revisit after the three unscouted lanes (body, questions, tests) have each run a scout — if the grade vocabulary holds across six lanes it is stable enough to freeze, and the cost curve then says migrate promptly rather than let string-grade sources accumulate.",
+      "detail": "Bottom-up observation, three scout runs in: genetic, map and pattern each independently invented per-source verification grading, in three different vocabularies — genetic writes 'abstract-grade' and 'vendor-grade' inline; pattern writes 'abstract/snippet/repo-table-grade' and 'index-grade'; map writes per-node 'Verification grade:' sentences ('full text', 'abstract level') with no suffix convention — and map and genetic additionally mark own-inference sub-claims inline (go-7 has the strings). Same instinct three ways is schema pressure: cited is one rung, but what the lanes actually record is which source cleared which bar, and today that lives in strings where check.mjs cannot hold it (a 'full text' label can silently outlive the verification it names, and nothing forces a grade at all). Candidate schema v2: an optional enumerated grade per source entry, checkable and countable by health.mjs. Why not this run: the vocabulary is one day old and still moving — three lanes, three overlapping but different label sets — and a schema change migrates every graph in the same run or does not land (§5, go-4); that migration is cheap at 43 nodes and grows with the corpus, but an enum frozen too early forces a v3 when the convention settles differently, which doubles exactly the cost the rule exists to bound. Decision rule: revisit after the three unscouted lanes (body, questions, tests) have each run a scout — if the grade vocabulary holds across six lanes it is stable enough to freeze, and the cost curve then says migrate promptly rather than let string-grade sources accumulate. THE RULE FIRED 2026-08-28: all three lanes have scouted, and the vocabulary did not hold — it proliferated and split (census and verdict at go-10, which now carries the decision). No v2 grade enum lands, and the original claim's 'once the convention stops moving' clause is retired as wrong-headed rather than merely premature: the convention was never going to stop moving on its own, because nothing carries one lane's style to another (go-10's mechanism). What survives of this node: the observation that lanes independently want per-source grading was real and still stands — three MORE vocabularies appeared after it was written — and the cost-curve argument (unstructured grade strings accumulate migration debt) transfers intact to go-10's schema-defined path.",
       "sources": [],
-      "edges": [{ "to": "go-4", "type": "refines" }],
+      "edges": [
+        {
+          "to": "go-4",
+          "type": "refines"
+        }
+      ],
       "created": "2026-08-26",
-      "updated": "2026-08-26"
+      "updated": "2026-08-28"
     },
     {
       "id": "go-9",
@@ -111,9 +158,45 @@
         "Conklin J, Begeman ML 1988, 'gIBIS: a hypertext tool for exploratory policy discussion', ACM TOIS/TOOIS 6(4):303-331, DOI 10.1145/58566.59297 — cost quotes snippet-grade from a hosted PDF, wording unconfirmed at source",
         "Buckingham Shum S, Motta E, Domingue J 2000, 'ScholOnto: an ontology-based digital library server for research documents and discourse', International Journal on Digital Libraries 3(3):237-248, DOI 10.1007/s007990000034. Index-grade"
       ],
-      "edges": [{ "to": "go-1", "type": "refines" }, { "to": "go-7", "type": "supports" }, { "to": "go-8", "type": "supports" }],
+      "edges": [
+        {
+          "to": "go-1",
+          "type": "refines"
+        },
+        {
+          "to": "go-7",
+          "type": "supports"
+        },
+        {
+          "to": "go-8",
+          "type": "supports"
+        }
+      ],
       "created": "2026-08-26",
       "updated": "2026-08-26"
+    },
+    {
+      "id": "go-10",
+      "claim": "Across fresh-session lanes a convention lives only where a committed artifact enforces it: unschematized conventions do not converge — they proliferate and drift into homonymy — so schema absorption is an act of coordination, never a ratification of emergence.",
+      "status": "argued",
+      "detail": "Measured 2026-08-28, two days after go-8. Census over all nine graphs (recomputable from the tree): 18 distinct '-grade' tokens — 16 excluding this lane's own meta-prose — from 11 by the same census when go-8 was written (its 'roughly four label families' was an informal three-lane count, not this census). The suffix is now homonymous — 'record-grade' and 'metadata-grade' state how a source was verified; 'genetic-grade phenotyping' (genetic), central's 'instrument-grade standard' and tests' 'instrument-grade model' are domain adjectives — indistinguishable by surface form (contexts verified this run). Placement split four ways: source strings for graph-optimizer and database (19/19, 20/45; database in bracket syntax) and for genetic — a co-inventor — in a third syntax (uppercase, em-dash) at only 5/98, barely using its own convention; pattern in detail prose, zero markers across 43 source strings; map in free-form sentences (1/49). The newly scouted lanes — body, questions, tests — adopted none (0/16, 0/26, 0/12). Mechanism, this lane's own inference: a run is a fresh session reading the charter, the schema and its own lane's files, so propagation follows the RECEIVING lane's read path and nothing else — both live observations obey this: 'instrument-grade' crossed lanes because central appended it to tests' QUESTIONS.md — a file tests is chartered to read — surfacing verbatim in tst-6 the next run; genetic's graded source strings, though readable by every lane, propagated nowhere — no other lane's run shape opens them. Read-path carriage moves tokens, not conventions (tests absorbed the homonymous adjective, not the grading practice); only an enforced artifact — schema plus checker — keeps a convention convergent, and the one practice exercised cross-lane this week, electing contradicts (tst-6→cen-1, go-6), is the one SCHEMA.md documents. Consequences: (a) go-8's rule fired, answer no — emergence was the wrong test. (b) If grades are ever schematized, the schema defines an enumerated vocabulary and each lane populates its own sources — the optimizer cannot: a grade judges verification, which is content (§5, go-4). Such a field lands optional-and-empty — the migrate-all-in-one-run rule bounds mechanical migration to what a script derives without reading, a standing constraint on schema evolution — and optionality enforces vocabulary, not adoption: an enum ends homonymy wherever populated; adoption waits on a checker rule or a central question. (c) Until then health.mjs counts source-string grade markers only — the one placement countable without interpreting prose — pricing what a schema-defined field would inherit.",
+      "sources": [],
+      "edges": [
+        {
+          "to": "go-8",
+          "type": "refines"
+        },
+        {
+          "to": "go-4",
+          "type": "refines"
+        },
+        {
+          "to": "go-6",
+          "type": "supports"
+        }
+      ],
+      "created": "2026-08-28",
+      "updated": "2026-08-28"
     }
   ]
 }
