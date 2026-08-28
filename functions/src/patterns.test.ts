@@ -37,9 +37,13 @@ function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
     model: (PatternsModel & { lastDay?: string }) | null;
     users: Map<string, PatternsUserState>;
     putModelCalls: number;
+    breakPutModelOnce: boolean;
     quality: PatternsQuality | null;
     displacement: PatternsDisplacement | null;
-  } = { model: null, users: new Map(), putModelCalls: 0, quality: null, displacement: null };
+  } = {
+    model: null, users: new Map(), putModelCalls: 0,
+    breakPutModelOnce: false, quality: null, displacement: null,
+  };
   const store: PatternsStore = {
     async ledgerDay(day) { return ledger[day] ?? []; },
     // the real store hands the series back off the published doc — the
@@ -48,6 +52,10 @@ function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
       return state.model ? { ...state.model, series: state.quality?.series ?? [] } : null;
     },
     async putModel(model, lastDay, folded, quality, displacement) {
+      if (state.breakPutModelOnce) {
+        state.breakPutModelOnce = false;
+        throw new Error("model write lost");
+      }
       state.model = { ...model, lastDay };
       state.quality = quality;
       state.displacement = displacement;
@@ -111,6 +119,47 @@ describe("idempotence and catch-up", () => {
     const again = await runPatternsFit(store, NOW);
     expect(again.folded).toBe(0);
     expect(state.model?.q[CORE_A].n).toBe(1);
+  });
+
+  // THE CRASH the case above cannot reach. "A second run the same
+  // morning" works because the cursor was written; the cursor is written
+  // ONCE, after the whole catch-up loop, while the user vectors are
+  // written per day — so a crash inside the loop leaves the cursor behind
+  // and the next run re-reads days those vectors already carry.
+  // `foldUserDay` is a step, not a set, so it moved every touched
+  // person's coordinate twice.
+  it("a crash before the model is published does not step a vector twice", async () => {
+    const { store, state } = memoryStore({
+      [yesterday]: [{ uid: "u1", qid: CORE_A, optionIdx: 0 }],
+    });
+    state.breakPutModelOnce = true;
+    await expect(runPatternsFit(store, NOW)).rejects.toThrow("model write lost");
+    const after = state.users.get("u1")!;
+    expect(after.n, "the vector was written before the crash").toBe(1);
+    expect(after.d, "and stamped with the day it folded").toBe(yesterday);
+    expect(state.model, "the cursor never landed").toBeNull();
+
+    const again = await runPatternsFit(store, NOW);
+    expect(
+      state.users.get("u1")!.n,
+      "the vector was stepped twice — the crash left the cursor behind and "
+      + "the retry re-read a day this person already carries",
+    ).toBe(1);
+    expect(again.folded).toBe(0);
+    expect(again.users).toBe(0);
+  });
+
+  it("a vector written before the stamp existed folds once, not never", async () => {
+    // Every vector in production predates `d`. An absent stamp has to mean
+    // "fold it", or this fix would freeze every existing coordinate.
+    const { store, state } = memoryStore({
+      [yesterday]: [{ uid: "u1", qid: CORE_A, optionIdx: 0 }],
+    });
+    state.users.set("u1", { v: [0, 0, 0, 0, 0, 0, 0, 0], n: 3 });
+    const r = await runPatternsFit(store, NOW);
+    expect(r.folded).toBe(1);
+    expect(state.users.get("u1")!.n).toBe(4);
+    expect(state.users.get("u1")!.d).toBe(yesterday);
   });
 
   it("a missed night folds on the next run, oldest day first", async () => {

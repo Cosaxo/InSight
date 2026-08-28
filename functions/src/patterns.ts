@@ -110,9 +110,29 @@ import { utcDay } from "./pure";
 export { utcDay };
 
 /**
- * Fold every unfolded day up to and including yesterday. Idempotent: the
- * model carries the last folded day, so a retried schedule re-folds
- * nothing and a missed night folds on the next run.
+ * Fold every unfolded day up to and including yesterday.
+ *
+ * IDEMPOTENT PER PERSON, which is the claim that is true. The model's
+ * cursor is written ONCE, after the whole catch-up loop, while the user
+ * vectors are written per day — so a crash inside the loop leaves the
+ * cursor behind and the next run re-reads days these vectors already
+ * carry. `foldUserDay` is a STEP, not a set, so re-reading them moved
+ * every touched person's vector twice and re-stepped the model from it.
+ * The docstring here used to say the model's cursor made that impossible.
+ *
+ * Each vector now carries the last day folded into it and a day already
+ * stamped on a person is skipped.
+ *
+ * WHAT THAT COSTS, stated because it is a real trade and not a free win.
+ * The model and the vectors co-evolve: the model is stepped from each
+ * person's vector as that person's day is folded. On a retry the skipped
+ * people do not step the model either, so a crashed night's contribution
+ * to the MODEL from people already folded is lost rather than applied
+ * twice. That is the same bargain the engagement folds strike — "a crash
+ * leaves work unfolded rather than double-folded" — and it is the right
+ * one here: an under-learned day is noise in an online fit, while a
+ * double-stepped vector is a person's own coordinate moved to somewhere
+ * they never were.
  */
 export async function runPatternsFit(
   store: PatternsStore,
@@ -184,16 +204,22 @@ export async function runPatternsFit(
       byUid.set(e.uid, seen);
     }
     const states = await store.getUsers([...byUid.keys()].sort());
+    const write = new Map<string, PatternsUserState>();
     for (const [uid, seen] of [...byUid.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
       const obs: PatternsObservation[] = [...seen.entries()].map(([qid, x]) => ({ qid, x }));
       obs.sort((a, b) => (a.qid < b.qid ? -1 : 1));
       const user = states.get(uid) ?? emptyUser(model.k);
+      // ALREADY FOLDED — a previous attempt at this day wrote this person
+      // before it died. Neither the vector nor the model steps again; see
+      // the note on the trade in this function's header.
+      if (user.d && user.d >= day) continue;
       foldUserDay(model, user, obs, score);
-      states.set(uid, user);
+      user.d = day;
+      write.set(uid, user);
       touched.add(uid);
       folded += obs.length;
     }
-    await store.putUsers(states);
+    if (write.size) await store.putUsers(write);
   }
   const quality = publishableQuality(scored, priorSeries);
   const displacement = displacementSummary(prevPub, model);
