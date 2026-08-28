@@ -809,6 +809,35 @@ describe("question-bank cache", () => {
     expect((await readCache()).questions.map((x) => x.id)).toContain("feed-t9");
   });
 
+  it("heals an answered CATALOGUE PICK back — the feed's other id lane", async () => {
+    // The lane list is pinned against the generator in
+    // scripts/feed-lanes.test.mjs, and that is the half that catches a
+    // NEW lane. This is the half that catches the CALLER: the heal
+    // filtered the answered set on `startsWith("feed-")`, which is the
+    // feed's own lane and not the surface, so all 24 catalogue picks were
+    // excluded. Reverting `isFeedQid` back to that prefix left every test
+    // green, because the two heal cases either side of this one use a
+    // `feed-` id and a `learn-` id and no test used a `pick-` one.
+    storage.setItem("insight.answersCache.v1", JSON.stringify({
+      uid: "uid_test", votes: { "pick-pk04": "0" }, maxTs: 500, maxEditTs: 0,
+    }));
+    h.bankDocs = [
+      q("q_1", 1000),
+      q("pick-pk04", 1000, { surface: "feed", topic: "culture" }),
+    ];
+    await bootLive();
+    await vi.waitFor(() => {
+      const feed = (window as unknown as { WORLD_FEED_QS?: Array<{ id: string }> })
+        .WORLD_FEED_QS || [];
+      expect(
+        feed.map((x) => x.id),
+        "a catalogue pick you answered never came back — it shares the feed "
+        + "surface but not the feed's id prefix",
+      ).toContain("pick-pk04");
+    });
+    expect((await readCache()).questions.map((x) => x.id)).toContain("pick-pk04");
+  });
+
   it("heals a history card back into the pool even with no order published", async () => {
     // The mastery map says this device knows cell9; the cache lost it (a
     // contentRev bump refetches only the boot surfaces). No order doc —
