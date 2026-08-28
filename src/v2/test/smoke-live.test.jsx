@@ -2038,6 +2038,28 @@ describe("live mode never inherits the sample persona (D55)", () => {
       .toBeNull();
   });
 
+  // WHICH OPTION THE GROUP CHOSE, off the counts rather than off the
+  // rounded percentages.
+  //
+  // sharePcts guarantees no inversion — a smaller count never draws larger
+  // — and the ridge's bar heights rest on that. It does not guarantee
+  // distinctness: two different counts can print the same integer, and
+  // `indexOf(max)` then breaks the real tie by INDEX. That decided the Map
+  // card's "most chose N" and its "you're with the majority" / "a minority
+  // take" verdict — the same defect the feed's own line had.
+  it("the group's mode follows the votes, not the rounding", () => {
+    live = installLive({
+      aggCounts: { 0: 449, 1: 451, 2: 100 },
+    });
+    const all = window.MapStats.dist("daily-000", "all", 3, 0);
+    // Both leaders draw the SAME integer — this is the case that used to
+    // decide by index. If the fixture ever stops producing it, the
+    // assertion below stops proving anything, so it is checked.
+    expect(all[0], "the fixture no longer produces a rounding tie").toBe(all[1]);
+    // …and the answer is still the one with more votes.
+    expect(window.MapStats.mode("daily-000", "all", 3, 0)).toBe(1);
+  });
+
   it("draws no group split on a Map answer in live mode", () => {
     live = installLive();
     expect(window.MapStats.dist("daily-000", "age", 3, 0), "MapStats still fabricates")

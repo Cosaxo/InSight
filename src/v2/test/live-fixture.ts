@@ -51,6 +51,14 @@ export interface LiveFixtureOptions {
   tooSmall?: boolean;
   /** A live build that fell back to mock data — suppresses everything (D11). */
   demoInProd?: boolean;
+  /**
+   * Override the published `counts` on every aggregate. The default splits
+   * cleanly, which is exactly what a case about ROUNDING cannot use: a
+   * reading taken off percentages and one taken off counts agree on it,
+   * so the case would pass either way. Pass a vector whose top two counts
+   * round to the same integer to tell them apart.
+   */
+  aggCounts?: Record<string, number>;
   /** The viewer's city anchor, "" for a profile that has not picked one. */
   myCity?: string;
   /**
@@ -282,6 +290,7 @@ export interface LiveHandle {
 
 export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   const tooSmall = !!opts.tooSmall;
+  const aggCounts = opts.aggCounts;
   const votes: Record<string, string> = {};
   const listeners = new Set<() => void>();
   const deck = [
@@ -420,7 +429,11 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     aggFor: () => (tooSmall
       ? { tooSmall: true }
       : {
-        counts: { 0: 12, 1: 8, 2: 5 }, total: 25, tooSmall: false,
+        counts: aggCounts ?? { 0: 12, 1: 8, 2: 5 },
+        total: aggCounts
+          ? Object.values(aggCounts).reduce((a, b) => a + b, 0)
+          : 25,
+        tooSmall: false,
         // A real breakdown, not `{}`. It was empty for as long as
         // nothing rendered from it, and that made the Mirror's
         // geographic stops paint ZERO answer rows under the fixture —
