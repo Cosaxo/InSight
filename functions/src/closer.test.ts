@@ -42,8 +42,21 @@ function purchaseQuery() {
   let cap = Infinity;
   let after: string | null = null;
   const q = {
-    where: (_f: string, _op: string, v: unknown) => { eq = v; return q; },
-    orderBy: () => q,
+    // The field and the operator are ASSERTED, not ignored. A fake that
+    // takes any `where` would keep passing if the closer started filtering
+    // on the wrong field — real Firestore would return nothing and the
+    // test would still be green, which is the failure this whole file
+    // exists to prevent one level up.
+    where: (f: string, op: string, v: unknown) => {
+      expect([f, op]).toEqual(["state", "=="]);
+      eq = v;
+      return q;
+    },
+    orderBy: (f: unknown) => {
+      // Likewise the order: `startAfter` is only meaningful against it.
+      expect(String(f)).toBe("__name__");
+      return q;
+    },
     limit: (n: number) => { cap = n; return q; },
     startAfter: (s: { id: string }) => { after = s.id; return q; },
     get: async () => {
