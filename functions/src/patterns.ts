@@ -318,6 +318,10 @@ export function firestorePatternsStore(db: Firestore): PatternsStore {
             out.set(chunk[j], {
               v: (snap.get("v") as number[]) ?? [],
               n: (snap.get("n") as number) ?? 0,
+              // The day stamp, BOTH WAYS — see the twin in taste.ts. The
+              // retry guard reads `d` off what this returns, so omitting
+              // it here made that guard dead in production.
+              ...(snap.get("d") ? { d: String(snap.get("d")) } : {}),
             });
           }
         });
@@ -331,7 +335,9 @@ export function firestorePatternsStore(db: Firestore): PatternsStore {
         for (const [uid, s] of entries.slice(i, i + 400)) {
           batch.set(
             db.collection("v2_users").doc(uid).collection("patterns").doc("state"),
-            { v: s.v, n: s.n, at: FieldValue.serverTimestamp() },
+            // `set` with no merge replaces the document — `d` has to be
+            // named or the stamp never lands.
+            { v: s.v, n: s.n, at: FieldValue.serverTimestamp(), ...(s.d ? { d: s.d } : {}) },
           );
         }
         await batch.commit();

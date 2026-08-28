@@ -62,12 +62,25 @@ function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
       state.putModelCalls++;
       void folded;
     },
+    // PROJECTED, field by field, exactly as firestorePatternsStore does —
+    // and it used to hand back the same object REFERENCE, so anything the
+    // fold hung on the state survived here for free while the real store
+    // named `v` and `n` and nothing else. That is how the retry guard
+    // shipped dead. A fake that carries more than its subject proves
+    // nothing about it.
     async getUsers(uids) {
       const out = new Map<string, PatternsUserState>();
-      for (const uid of uids) { const s = state.users.get(uid); if (s) out.set(uid, s); }
+      for (const uid of uids) {
+        const s = state.users.get(uid);
+        if (s) out.set(uid, { v: [...s.v], n: s.n, ...(s.d ? { d: s.d } : {}) });
+      }
       return out;
     },
-    async putUsers(states) { for (const [uid, s] of states) state.users.set(uid, s); },
+    async putUsers(states) {
+      for (const [uid, s] of states) {
+        state.users.set(uid, { v: [...s.v], n: s.n, ...(s.d ? { d: s.d } : {}) });
+      }
+    },
   };
   return { store, state };
 }

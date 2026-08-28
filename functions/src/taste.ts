@@ -207,6 +207,13 @@ export function firestoreTasteStore(db: Firestore): TasteStore {
             out.set(chunk[j], {
               t: (snap.get("t") as Record<string, number>) ?? {},
               n: (snap.get("n") as number) ?? 0,
+              // The day stamp, BOTH WAYS. These projections name their
+              // fields one by one, so a field missing from either end is
+              // silently dropped — and the retry guard reads `d` off what
+              // this returns. Leaving it out of the read made the guard
+              // dead in production while the in-memory fake, which keeps
+              // the whole object, went on proving it worked.
+              ...(snap.get("d") ? { d: String(snap.get("d")) } : {}),
             });
           }
         });
@@ -220,7 +227,10 @@ export function firestoreTasteStore(db: Firestore): TasteStore {
         for (const [uid, p] of entries.slice(i, i + 400)) {
           batch.set(
             db.collection("v2_users").doc(uid).collection("taste").doc("profile"),
-            { t: p.t, n: p.n, at: FieldValue.serverTimestamp() },
+            // `set` with no merge replaces the document, so every field
+            // the profile carries has to be named here — `d` included, or
+            // the stamp written above is dropped on the way out.
+            { t: p.t, n: p.n, at: FieldValue.serverTimestamp(), ...(p.d ? { d: p.d } : {}) },
           );
         }
         await batch.commit();

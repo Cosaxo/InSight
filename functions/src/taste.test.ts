@@ -41,13 +41,25 @@ function fakeStore(over: Partial<Pick<FakeStore, "profiles" | "lastDay" | "ledge
       return Promise.resolve(s.ledger[day] ?? []);
     },
     getLastDay: () => Promise.resolve(s.lastDay),
+    // PROJECTED, field by field, exactly as firestoreTasteStore does.
+    //
+    // This fake used to hand the whole object back and store the whole
+    // object — so a field the REAL store drops on the way out or in
+    // round-tripped here for free. That is how the retry guard shipped
+    // dead: `d` was written by the fold, kept by this map, read back by
+    // this map, and named in neither of the real store's projections.
+    // A fake that carries more than its subject proves nothing about it.
     getProfiles: (uids) =>
       Promise.resolve(new Map(uids.flatMap((u) => {
         const p = s.profiles.get(u);
-        return p ? [[u, structuredClone(p)] as [string, TasteProfile]] : [];
+        return p
+          ? [[u, { t: structuredClone(p.t), n: p.n, ...(p.d ? { d: p.d } : {}) }] as [string, TasteProfile]]
+          : [];
       }))),
     putProfiles: (profiles) => {
-      for (const [u, p] of profiles) s.profiles.set(u, p);
+      for (const [u, p] of profiles) {
+        s.profiles.set(u, { t: structuredClone(p.t), n: p.n, ...(p.d ? { d: p.d } : {}) });
+      }
       return Promise.resolve();
     },
     putLastDay: (day) => {
