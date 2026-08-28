@@ -11932,6 +11932,36 @@ a catastrophe from everyone else's. The run reports
 - **No handle on the who-voted sheet or Kindred rows.** Those name people
   by `displayName` today; showing a handle there is how you would add
   someone you met through their answers, and it is a follow-on.
+## D122 amendment (2026-08-29) · The registry is a lookup in the rule, not only in the prose
+
+D122's paragraph in `firestore.rules` says what the registry is not:
+"there is no query surface here that enumerates handles, only an exact-id
+lookup, so the registry answers 'is @olaf someone' and never 'who is
+everyone'." `docs/data-inventory.md` says the same thing in the same
+words. Neither was a rule. `allow read` is `get` PLUS `list`, so any
+signed-in client could take one collection read and receive every handle
+in the app, each holding the uid whose public answers it unlocks — the
+exact enumeration both records said did not exist, from the one grant
+D122 called "a real widening rather than a consequence of D98".
+
+Nothing wanted it. The client's only registry read is an exact-id
+`getDoc` (`socialFetch.ts`); the one query over the collection is
+`deleteAccount` phase 3b through the Admin SDK, which rules do not touch;
+and finding people by anything other than an exact handle is the
+directory's job (D239). So this narrows nothing anybody was doing — it
+makes the rule say what the record already claimed: `allow get` for the
+lookup, `allow list: if false` in writing beside it.
+
+Pinned in `firestore-tests/rules.test.ts` beside the lookup case, and
+deliberately holding both halves in one test: narrowing a `read` to a
+`get` is the shape that takes the lookup with it. Proved both ways in one
+emulator run — 155 pass as narrowed, and widening the grant back to
+`read` fails exactly the new case.
+
+Not a privacy walk-back under D334. Nothing is withheld from anybody that
+the product asked to show; the widening D122 recorded — you are findable
+by name — is untouched.
+
 ## D123 · The dedup gate learns morphology and synonyms, and pre-flights the batch against itself
 
 **Date:** 2026-08-13 · **Status:** Adopted

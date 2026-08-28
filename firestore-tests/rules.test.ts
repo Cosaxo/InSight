@@ -3042,6 +3042,24 @@ describe("handles: the account registry (D122)", () => {
     await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_handles", "olaf")));
   });
 
+  it("…by name, one at a time — the registry is not a list of everyone", async () => {
+    // `read` is `get` PLUS `list`, so the open lookup above was also an
+    // open enumeration: one collection read returning every handle in the
+    // app, each holding the uid whose public answers it unlocks. The
+    // paragraph in firestore.rules said that query surface did not exist
+    // and so did the data inventory; neither was a rule until now.
+    //
+    // Nothing in the app wants it. The client's only registry read is the
+    // exact-id getDoc above, deleteAccount's query over it runs through
+    // the Admin SDK, and finding people by anything other than an exact
+    // handle is the directory's job (D239).
+    await seedHandle();
+    await assertFails(getDocs(collection(asUser(STRANGER), "v2_handles")));
+    // Narrowing a `read` to a `get` is the shape that takes the lookup
+    // with it, so hold both in one place.
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_handles", "olaf")));
+  });
+
   it("nobody claims, moves or frees a handle from a client", async () => {
     await seedHandle();
     // Uniqueness is the document id, and a client create would race the
