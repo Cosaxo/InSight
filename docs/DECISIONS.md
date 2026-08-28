@@ -33773,3 +33773,118 @@ billing account for `firebase-adminsdk-qdsv5@prvfire33.iam.gserviceaccount.com`
 — or the owner creates the budget in the console in under a minute:
 Billing → Budgets & alerts → $50, threshold emails only, no programmatic
 action.
+
+## D334 · The product is the connections, and a privacy constraint is an ask rather than a stop
+
+**2026-08-28.** **Status:** binding. **Owner's call**, two sentences in
+one message: *"we should add a note on privacy as it has stopped us
+multiple time so needs a note about how if something should be stopped
+due to a privacy constraint it has to ask me first"*, and *"we should
+make it clearer that the apps main focus is to create connections
+between data and display it in usefull ways"*.
+
+One record for both, because the second is the reason the first is worth
+a rule. The app's subject is the *links* between answers; a privacy
+constraint settled quietly in the tree is a link removed with nobody
+choosing to remove it — and this repo has three of those on the record.
+
+### 1 · What the app is for, written where a session reads it first
+
+**Connecting data, and drawing the connection where someone can read
+it.** Answers are the raw material; the product is what one answer says
+about another, what yours say about you, and what a population's say
+about it.
+
+Two consequences, both meant to be usable as a test on a proposal before
+its cost arithmetic:
+
+- **A surface that collects without joining is unfinished, and so is a
+  join nothing draws.** Storage is not a feature here and neither is a
+  computation the app never shows.
+- **Where the choice is between hiding a link and drawing it, drawing it
+  is the default** — and where a privacy argument is what would hide it,
+  §2 applies.
+
+None of this is new. It is what D98 retired the entire privacy model for
+(*"the answers are NOT private … that's the whole point of the app"*),
+what D100's Scores lens and D112's constellations are, what
+`SCALE-PLAN.md` §1 protects when it forbids the daily from adapting, and
+what the module ratio already recorded in `CLAUDE.md` measures — the
+Mirror's modules outweigh the daily's and the feed's put together. What
+was missing is that none of it was stated **as the focus** anywhere a
+session reads before planning: `CLAUDE.md` opened on the tab structure
+and `ORIENTATION.md` §2 on the write path, so the frame had to be
+inferred from seven documents. It is now the opening paragraph of
+`CLAUDE.md` and the first line of `ORIENTATION.md` §2.
+
+### 2 · The rule: a privacy constraint is an ask
+
+**Where a privacy argument is the only thing standing between a proposal
+and the tree, it goes to the owner with the arithmetic, and the owner
+rules.** Not quietly dropped, not narrowed to the safe half, and not
+left standing because it is written down somewhere.
+
+**Why it needs to be a rule, from this repo's own record:**
+
+- **D98.** Under the pre-D98 model — answers owner-only, every cell
+  floored — *most of the Mirror shipped dark*. It was retired whole, in
+  one owner sentence, once the owner was actually asked. Nothing
+  technical had ever required it.
+- **D329.** D269 recorded seven refusals in a single bullet whose
+  justifications had nothing to do with each other. The owner read it
+  and said *"i think this can be removed dont understand why it is
+  here"*; three were lifted the same day. The finding under that record
+  is the general case: **a preference stated as a rule reads as a rule**,
+  and reads that way to the next session too.
+- **D330.** The politics exclusion was real (Art. 9 consent, D8), but it
+  had an option nobody had put to the owner — ask for the consent at the
+  start of the app. Put to them, it took one sentence: *"it should just
+  be a consent from the start of the app cause its a core
+  functionality."* The constraint was never the blocker; not asking was.
+
+**The ask goes both ways.** The rule is *the owner decides*, not *the
+answer is yes*. Shipping past a constraint silently is the same failure
+pointed the other way — and it is the failure this product defines
+itself against, since a UI that says something the rules do not enforce
+is the one thing D98 kept from the old model.
+
+**Four things stay outside the ask, because they are not preferences:**
+
+1. **The three denies** — the unscored logic answer key (anti-cheat),
+   flag authorship (anti-retaliation), the presence cell (physical
+   safety). D98 published what people answered, not where their phone is
+   standing.
+2. **A promise `web/privacy.html` makes in writing.** That page moves
+   first, by its own forward clause (D314), and `check:policy-claims` is
+   what proves the app matches it.
+3. **The store forms** — the App Store nutrition label and Play Data
+   Safety, `check:store-forms`, derived from `docs/data-inventory.md`.
+4. **A consent requirement in law**, which is satisfied by BUILDING the
+   consent, not by deciding it away — D329's line stands verbatim:
+   *"Owner preference does not reach a consent requirement."* D330/D331
+   are what building it looks like.
+
+Those four are not refusals to the owner either; they are work items
+with a cost, and the cost is what the ask carries.
+
+**What to bring when you ask:** what would be exposed, to whom, which of
+those four it touches if any, the smallest shape that still gets the
+value (consent · coarsen · aggregate · defer), and what each costs. The
+same arithmetic a deferral already owes `DECISIONS.md` — the difference
+is that it goes to the owner *before* it is written down as settled.
+
+### What this record does not do
+
+**Nothing is built and nothing is reversed.** D269's standing four,
+D8's Art. 9 exclusion, the three denies, `firestore.rules` and every
+rules test stand exactly as they did this morning. This changes who
+decides a privacy question and when they are asked — not what is
+currently true.
+
+**It is not a licence to widen collection.** Every gate that guards the
+promises — `check:policy-claims`, `check:store-forms`,
+`check:data-inventory`, `check:public-copy` — is untouched and still
+fails a change that outruns the paperwork.
+
+The live documents move: `CLAUDE.md` (the opening paragraph, the privacy
+section, and the House style deferral bullet) and `ORIENTATION.md` §2.

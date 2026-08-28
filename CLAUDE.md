@@ -9,6 +9,21 @@ decision by number. Read this file, then go there for where your task
 lives. Both are gated by `check:docs`, so neither can quietly stop being
 true.
 
+**What the app is FOR: connecting data, and drawing the connection
+where someone can read it.** Answers are the raw material, not the
+product — the product is what one answer says about another, what yours
+say about you, and what a population's say about it. That is the
+sentence D98 retired the entire privacy model for (*"that's the whole
+point of the app"*), and it is the test to put to a proposal before its
+cost arithmetic: does it create a link between data that did not exist,
+or draw an existing one somewhere it can be read? A surface that
+collects without joining is unfinished, and so is a join nothing draws.
+Where the choice is between hiding a link and drawing it, drawing it is
+the default — and if a privacy argument is what would hide it, that is
+an ASK, not a stop (D334, below). The ratio in the next paragraph — the
+Mirror's modules outweighing the daily's and the feed's put together —
+is that focus measured, not an accident of what got built first.
+
 InSight ships v1 as a two-tab app (daily · mirror) **until the data can
 carry a third**: **patterns** is built, and it puts itself in the bar
 when the nightly fit has published enough to draw and you have answered
@@ -103,6 +118,35 @@ authorship (anti-retaliation) and the presence cell (physical safety —
 D98 published what people answered, not where their phone is standing).
 Duel answers stay sealed until the next-day reveal, enforced as a
 `surface` test: that is game timing, not privacy.
+
+**A privacy constraint is an ASK, not a stop (D334).** Where a privacy
+argument is the only thing standing between a proposal and the tree — a
+lens that would name someone, a field that would join two things, a
+number that would be exact, a refusal already written down — it goes to
+the owner with the arithmetic, and the owner rules. Do not quietly drop
+the feature, narrow it to the safe half, or leave a constraint standing
+because it is written somewhere. This has cost the app three times that
+are on the record: under the pre-D98 model most of the Mirror shipped
+dark, and one owner sentence retired the model whole; D269 wrote seven
+refusals as a single bullet and D329 lifted three of them the moment the
+owner read it (*"i think this can be removed dont understand why it is
+here"*), the finding under that record being that a preference stated as
+a rule reads as a rule; and D330's politics exclusion had an option
+nobody had put to the owner — ask for the consent at the start — which
+took one sentence to choose.
+
+The ask goes **both ways**, and that is what keeps it cheap: shipping
+past a constraint silently is the same failure pointed the other way, so
+the rule is *the owner decides*, not *the answer is yes*. Four things
+stay outside the ask because they are not preferences — the three denies
+above; a promise `web/privacy.html` makes in writing (that page moves
+first, `check:policy-claims`); the store forms (`check:store-forms`); and
+a consent requirement in law, which is satisfied by BUILDING the consent
+rather than by deciding it away (D8, D329's line — *"owner preference
+does not reach a consent requirement"* — and D330/D331, which built it).
+What to bring when you ask: what would be exposed, to whom, which of
+those four it touches if any, the smallest shape that still gets the
+value (consent · coarsen · aggregate · defer), and what each costs.
 
 Binding decisions live in [`docs/DECISIONS.md`](docs/DECISIONS.md) (D1–D7)
 and stay binding until an explicitly recorded reversal.
@@ -386,6 +430,9 @@ an emergency rules fix.
   not parse, an ESM export shape, a module evaluation order.
 - When you defer something, record it in `docs/DECISIONS.md` with the
   arithmetic. A known limit is survivable; a surprise is not.
+- **A deferral on privacy grounds is the one you may not take alone.**
+  Record the arithmetic as above, then ask the owner rather than writing
+  it down as settled — D334, and the privacy section has what to bring.
 - **Copy follows `visual > word > sentence > sentences`** (the owner's
   rule, D182). A caption explaining a shape the reader is looking at, a
   noun the ruler and the tab bar already say, a clause restating its own
