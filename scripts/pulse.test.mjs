@@ -386,10 +386,27 @@ describe("cost-arith reads its constants from source, not from memory", () => {
   it("the reveal pipeline's per-member read count still has its five parts", () => {
     // revealReadsPerMember(m) = (4 + 3m)/m — the page read, revealRef.get(),
     // getAll(answers), getAll(profiles), and the committing tx.getAll.
+    //
+    // EXACT, not a floor, and that is the difference between a tripwire and
+    // a decoration. This asserted `>= 3` for as long as it existed, which
+    // can only fail on a REMOVAL — while its own stated purpose is that
+    // ADDING a document access fails here with a pointer to the block that
+    // needs recounting. Its siblings above use equality for exactly this
+    // reason. Measured while fixing it: an extra per-member getAll added to
+    // revealGroupDay left all 556 script tests green.
+    //
+    // Five getAll SITES, which is not the same as five reads on one pass:
+    // getAll(answers), the close-the-day transaction's tx.getAll,
+    // getAll(profiles, fieldMask), and the committing tx.getAll — plus one
+    // more inside the same function. The close-the-day transaction and the
+    // committing one are ALTERNATIVES, which is why the model's 4 + 3M
+    // counts three of these sites and not four. A new site here means a new
+    // billed read on some path: recount cost-arith's block before moving
+    // this number.
     const s = read("functions/src/v2social.ts");
     const fn = s.match(/async function revealGroupDay[\s\S]*?\n\}/)[0];
-    expect((fn.match(/getAll\(/g) || []).length).toBeGreaterThanOrEqual(3);
-    expect(fn).toMatch(/revealRef\.get\(\)/);
+    expect((fn.match(/getAll\(/g) || []).length).toBe(5);
+    expect((fn.match(/revealRef\.get\(\)/g) || []).length).toBe(1);
   });
 
   it("egress and index storage are billed, not assumed free", () => {
