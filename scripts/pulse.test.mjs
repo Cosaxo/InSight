@@ -25,7 +25,8 @@ import { execFileSync } from "node:child_process";
 
 import {
   collect, collectArchive, bucketEvenness, addressablePlaces, isoDay, ROOT,
-  collectEngagement, engagementFromDays, guardVerdict,
+  collectEngagement, engagementFromDays, guardVerdict, MEASURE_MAX_AGE_DAYS,
+  collectGuard,
 } from "./pulse-collect.mjs";
 import { renderPulse } from "./pulse-render.mjs";
 import { PEN_TARGET } from "./farm-budget.mjs";
@@ -547,7 +548,11 @@ describe("the pulse artifact", () => {
       // No committed engagement day yet — the honest pre-launch answer.
       expect(p.guard.measuredActives).toBeUndefined();
     } else {
-      expect(["ok", "over"]).toContain(p.guard.state);
+      // "stale" belongs here and is not a test bug: monitoring/engagement.json
+      // is a committed file that only moves when somebody fetches it, so the
+      // very trail this suite reads goes stale by the calendar. The states
+      // that carry figures are what the arithmetic below applies to.
+      expect(["ok", "over", "stale"]).toContain(p.guard.state);
       // net = burn − revenue, and burn covers at least the fixed line.
       expect(p.guard.netBurnUsd).toBe(
         Math.round((p.guard.burnUsd - p.guard.revenueUsd) * 100) / 100);
@@ -636,6 +641,60 @@ describe("the guard's verdict (D332), pure", () => {
     // evaluate rather than read as absent (the trail's gap-vs-zero rule).
     expect(guardVerdict({ allowanceUsd: 50, measuredActives: 0, burnUsd: 28, revenueUsd: 0 }).state)
       .toBe("ok");
+  });
+
+  it("will not call a stopped trail a pass", () => {
+    // The condition this state exists for: monitoring/engagement.json moves
+    // only when a human runs the fetch, so a file that froze reads as a
+    // confident green forever — the guard would keep pricing a population
+    // from last month and keep saying "inside the allowance".
+    const base = { allowanceUsd: 50, measuredActives: 800, burnUsd: 30, revenueUsd: 0 };
+    expect(guardVerdict({ ...base, measuredAgeDays: 1 }).state).toBe("ok");
+    expect(guardVerdict({ ...base, measuredAgeDays: MEASURE_MAX_AGE_DAYS }).state).toBe("ok");
+    expect(guardVerdict({ ...base, measuredAgeDays: MEASURE_MAX_AGE_DAYS + 1 }).state).toBe("stale");
+    expect(guardVerdict({ ...base, measuredAgeDays: 400 }).state).toBe("stale");
+    // No age at all (a trail with no day) is not a staleness claim.
+    expect(guardVerdict({ ...base, measuredAgeDays: null }).state).toBe("ok");
+    // Stale still carries its figures, so the banner and the check can say
+    // what it last read rather than going blank.
+    const stale = guardVerdict({ ...base, measuredAgeDays: 30 });
+    expect(stale.netBurnUsd).toBe(30);
+    expect(stale.measuredActives).toBe(800);
+    expect(stale.measuredAgeDays).toBe(30);
+  });
+
+  it("ages the day the guard PRICES, not the fetch that wrote the file", () => {
+    // The wiring, not the arithmetic: `fetchedOn` moves every time anyone
+    // re-runs the fetch, so a trail whose digest stopped folding days would
+    // keep looking fresh if the collector reached for the wrong field. A
+    // pure test of guardVerdict cannot see that — the bug would be a caller
+    // that never passes an age.
+    const today = new Date().toISOString().slice(0, 10);
+    const longAgo = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+    const money = { fixedUsdPerMonth: 28, revenueUsdPerMonth: 0 };
+    const engagement = {
+      present: true, fetchedOn: today, days: 7, lastDay: longAgo,
+      latest: { actives: 3 }, weekMeanActives: 3,
+    };
+    const g = collectGuard(REGIONAL, money, engagement);
+    expect(g.state).toBe("stale");
+    expect(g.measuredOn).toBe(longAgo);
+    expect(g.measuredAgeDays).toBe(90);
+    // …and yesterday's day, with the same fetch stamp, still passes.
+    const fresh = collectGuard(REGIONAL, money, {
+      ...engagement, lastDay: new Date(Date.now() - 86400000).toISOString().slice(0, 10),
+    });
+    expect(fresh.state).toBe("ok");
+    expect(fresh.measuredAgeDays).toBe(1);
+  });
+
+  it("keeps an overshoot an overshoot however old the day is", () => {
+    // An over verdict is true at the size it was priced at; what staleness
+    // makes unbelievable is the PASS. Both page, so the distinction is only
+    // in what the operator is told to go look at.
+    expect(guardVerdict({
+      allowanceUsd: 50, measuredActives: 800, measuredAgeDays: 90, burnUsd: 90, revenueUsd: 0,
+    }).state).toBe("over");
   });
 });
 

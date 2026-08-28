@@ -33618,6 +33618,35 @@ and drops the claim it replaces), `pulse.test.mjs` (the verdict's states
 and arithmetic, pure and against the tree). The figures quoted here are
 the model's output at this commit, snapshots by this file's own rule —
 `npm run costs` and `npm run pulse` print the live ones.
+## D332 amendment (2026-08-29) · A third guard state, because the pass could be a frozen file
+
+The paragraph above says unarmed and unmeasured report as questions
+rather than paging, and that was the whole state set: everything else
+was `ok` or `over`. What it missed is that the measurement itself can
+stop. `monitoring/engagement.json` moves only when a human runs
+`npm run scorecard -- --fetch` — nothing schedules that fetch — so a
+trail that froze in June would have kept pricing June's population and
+kept printing `pulse --check OK … net burn $28.25/mo at 2 measured
+actives` every morning, indefinitely and confidently, while the real
+population and the real bill did whatever they liked. The daily email
+that exists to notice would have been the thing reassuring nobody was
+looking.
+
+The asymmetry was already in the file, five lines up: `scorecard`
+carries `staleness`, and `--check` reds when it is `expired`. The guard
+now carries the same shape — `state: "stale"`, tripping the check, with
+the red message and the money panel's banner both saying which day it is
+pricing and how far back that is. The threshold is **7 days**, and it is derived rather than
+chosen: the guard's own measure is the max of the latest day and the
+SEVEN-day mean, so once the last folded day is older than that window,
+every input it averages is outside it.
+
+`over` still wins over `stale`. An overshoot is true at the size it was
+priced at — the population would have to have shrunk for it to be wrong —
+and both states page anyway, so the ordering only decides which sentence
+the operator reads. What staleness can make unbelievable is the PASS, and
+that is the reading the state exists for.
+
 ## D333 · Phase 5 executed: the strays are gone, the rollback is retired, and two promises got their settings
 
 **2026-08-27.** LAUNCH-RUNBOOK Phase 5's console work, performed in one
