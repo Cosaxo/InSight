@@ -632,6 +632,50 @@ describe("budgetMode (D332): level 1 pauses the social reads", () => {
     expect(LIVE.kindredLoading()).toBe(false);
   });
 
+  it("loadKindred never even RAISES its flag — the caption is the whole point", async () => {
+    // The case above cannot see this gate. Delete it and loadKindred runs
+    // its loop: every loadVoters refuses on its own gate, so no query is
+    // issued and the flag is back to false by the time the await returns —
+    // both assertions above still pass. What the gate buys is the interval
+    // BETWEEN, which is where the lens reads the flag and says "Matching…"
+    // about a match nobody is attempting. So look before awaiting.
+    //
+    // It needs a vote to be worth gating: with an empty vote map the loop
+    // has nothing to iterate, so the whole body — flag up, flag down —
+    // runs synchronously and never suspends, and the gate's absence would
+    // be invisible however you looked. So seed one and assert it landed.
+    metaAt(1);
+    h.answerDocs.push({
+      id: "q_1",
+      data: { qid: "q_1", surface: "daily", optionIdx: 0, answeredAt: { toMillis: () => 5 } },
+    });
+    const LIVE = await bootLive();
+    expect(Object.keys(LIVE.myVotes())).toHaveLength(1);
+    const pending = LIVE.loadKindred();
+    expect(LIVE.kindredLoading()).toBe(false);
+    await pending;
+    expect(h.voterQueries).toHaveLength(0);
+  });
+
+  it("loadCityKindred is gated too, and nothing else in the suite asked", async () => {
+    // The city half of the same fan-out (D278) — a second twelve queries,
+    // behind its own copy of the gate, and until now behind no test at
+    // all. Same shape: the flag must never rise.
+    h.getDocImpl = (path) => (path === "v2_meta/app"
+      ? { budgetMode: 1 }
+      : path === "v2_users/uid_test"
+        ? { anchors: { city: "Oslo, NO", country: "NO" } }
+        : null);
+    const LIVE = await bootLive();
+    // The precondition, asserted rather than assumed: with no city the
+    // loader returns at its first line and this test would prove nothing.
+    expect(LIVE.myCity).toBe("Oslo, NO");
+    const pending = LIVE.loadCityKindred();
+    expect(LIVE.kindredLoading()).toBe(false);
+    await pending;
+    expect(h.voterQueries).toHaveLength(0);
+  });
+
   it("loadCircle leaves the circle null rather than folding an empty one", async () => {
     metaAt(1);
     const LIVE = await bootLive();
