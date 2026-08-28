@@ -12,6 +12,7 @@
 import { describe, it, expect } from "vitest";
 import { feedInsight } from "../spec/feed-read.js";
 import { sharePcts } from "../data/pct";
+import { wfPcts } from "../spec/world-feed-math.js";
 
 // A live vote question and the aggregate the store would hand back for
 // it. `feedInsight` reads `window.LIVE.aggFor`, not the card, so the stub
@@ -30,6 +31,45 @@ const q = (counts, cellCounts) => {
   };
   return question;
 };
+
+describe("the room the surprise line talks about is the room the card drew", () => {
+  // `o.count` has the viewer's own vote SUBTRACTED (countsFor, data/deck.ts)
+  // because the UI layer adds its own +1 — the card renders
+  // `wfPcts(counts, mine)`. The line's baseline did not, so it described a
+  // population that appeared on no screen, and it decided both which option
+  // the room "won" and how far the cohort had to be to earn a line.
+  //
+  // These pass `mine`, which no case here did before, and that omission is
+  // exactly why nothing caught it.
+  it("does not call a flip against a winner the card never showed", () => {
+    // Store counts [3, 3]; the viewer voted option 1, so the card draws
+    // 43/57 with Disagree ahead. The cohort also picks 1. Nothing flipped.
+    const question = q([3, 3], [1, 3]);
+    const drawn = wfPcts([3, 3], 1);
+    expect(drawn.p.indexOf(Math.max(...drawn.p)), "fixture: the card must show option 1 ahead").toBe(1);
+    const ins = feedInsight(question, null, 1);
+    expect(ins && ins.kind, "the card shows 1 winning and the line called a flip TO 1").not.toBe("flip");
+  });
+
+  it("still calls a flip the card really did not show", () => {
+    // The contrast, or the case above would also pass on a function that
+    // never returns a flip. Viewer votes 0, the room lands on 0, and the
+    // cohort goes the other way.
+    const question = q([6, 2], [0, 5]);
+    const drawn = wfPcts([6, 2], 0);
+    expect(drawn.p.indexOf(Math.max(...drawn.p))).toBe(0);
+    const ins = feedInsight(question, null, 0);
+    expect(ins && ins.kind).toBe("flip");
+    expect(ins.sideIdx).toBe(1);
+  });
+
+  it("reads an unanswered card exactly as it did before", () => {
+    // `mine` is null on a card the viewer has not answered, and the
+    // baseline must be the plain counts — no accidental +1 on option 0.
+    const question = q([1, 20, 20], [5, 3, 1]);
+    expect(feedInsight(question, null, null)).toEqual(feedInsight(question));
+  });
+});
 
 describe("the feed's surprise line", () => {
   it("prints the share the breakdown prints for the same cell", () => {
