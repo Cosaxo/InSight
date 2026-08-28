@@ -83,8 +83,6 @@ const INVENTORY = join(ROOT, "docs/data-inventory.md");
 const EXEMPT = {
   databases:
     "Not a collection. `match /databases/{database}/documents` is the wrapper every rules file opens with, and it matches the same shape as a collection path.",
-  v2_questions:
-    "The question BANK — content the app ships, not data it collects from anyone. Client-read-only, server-seeded (seedContentV2). Its drift gates are check:catalogs and check:figures, which read the bank itself.",
   v2_meta:
     "Global app config (minBuild and friends). World-readable, server-written, and holds nothing about any person.",
   v2_velocity:
@@ -262,7 +260,9 @@ export const SAYS_NOBODY = /\bnobody\b|\bno one\b/i;
 // means the gate now covers more than the number claims and the number
 // comes up in the same commit that earned it. Either way the drift is a
 // red build rather than a quiet allowance.
-const READER_EXPECTED = 32;
+// 32 → 33 when `v2_questions` stopped being exempt and became a row:
+// the bank is content, but a BOUGHT question carries the buyer's name.
+const READER_EXPECTED = 33;
 const readClasses = classifyReads(rules);
 let readerChecked = 0;
 for (const row of inventoryRows(inventory, named)) {
