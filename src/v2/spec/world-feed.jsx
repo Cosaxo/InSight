@@ -691,10 +691,15 @@ class WorldFeed extends React.Component {
   // the consequence beat — replaces the result reveal for ~2s after a vote
   renderBeat(q, T, big) {
     const mine = this.state.votes[q.id];
-    const { p } = wfPcts(q.options.map((o) => o.count), mine);
+    // `c` alongside `p`: the beat PRINTS a percentage and then says
+    // whether you are with them, and those are different questions — the
+    // second one is about votes. The feed's own line under the card was
+    // reading it off the percentages until earlier tonight, and a beat
+    // that kept doing so would now disagree with the line it precedes.
+    const { p, c } = wfPcts(q.options.map((o) => o.count), mine);
     return (
       <ConsequenceBeat seed={q.id} options={q.options.map((o, i) => ({ label: o.label, color: wfShade(T.color, i) }))}
-        pcts={p} mineIdx={mine} height={big ? 300 : 200} onDone={() => this.setState({ beat: null })} />
+        pcts={p} counts={c} mineIdx={mine} height={big ? 300 : 200} onDone={() => this.setState({ beat: null })} />
     );
   }
 
