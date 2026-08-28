@@ -32862,10 +32862,17 @@ that, and this record inherits rather than re-proves it.
 
 ## D327 · Anonymous answers and private results — drafted for adoption
 
-**Drafted:** 2026-08-27 · **Status:** Proposed — binds nothing until the
-owner adopts it (ORIENTATION §6's rule; D269 is the precedent for a
-record drafted ahead of the word). Source: VISION-2026-08-26 §1, whose
-§9 step 1 asks for exactly this sentence in this file.
+**Drafted:** 2026-08-27 · **Status: the ANSWER HALF is binding — adopted
+2026-08-28** on the owner's words: *"yes answars are all open by
+default, but there should be a option if you want to answar a question
+that you might not wanna share you can toggle anonymous but it is never
+on by default"* — which is this record's answer half exactly: default
+public, per-answer opt-in at vote time, never on by default. The
+adoption sentence speaks to answering questions; the RESULT-PRIVACY
+half below stays **Proposed** (adopting it later is its own word, and
+the record already prices it as the weaker promise). Source:
+VISION-2026-08-26 §1, whose §9 step 1 asks for exactly this sentence in
+this file.
 
 **The question, in three parts.** (1) Does a per-answer anonymous
 option exist at all — the first exception to D98 that is ABOUT answers,
@@ -32923,9 +32930,13 @@ sentence of the panel copy it licenses.
 ## D328 · Subscription pricing: a split across seats, not a per-buyer price — drafted for adoption
 
 **Drafted:** 2026-08-27 · **Status:** Proposed — binds nothing until
-the owner adopts it. Source: VISION-2026-08-26 §2.2; PAID-PLAN §5/§6.
-§9 step 1 asks for this sentence before any catalog copy prints a
-price.
+the owner adopts it. **2026-08-28: put to the owner, who asked what the
+scenario even is ("don't see how 2 would be paying?") — the question
+stands open with a plainer explanation owed, and nothing waits on it:
+the seat machinery is demand-gated behind two real would-be subscribers
+either way, so the record can sit Proposed until a buyer makes it
+concrete.** Source: VISION-2026-08-26 §2.2; PAID-PLAN §5/§6. §9 step 1
+asks for this sentence before any catalog copy prints a price.
 
 **The question:** when a place-score metric takes subscribers, is its
 period price a PER-BUYER price (each subscriber pays the posted line)
@@ -32968,14 +32979,26 @@ alternative instead should say which of those two costs it accepts.
 
 **2026-08-27.** AXES-RUNBOOK Phase 1 (AXES-PLAN §2's "project, don't
 refit"), built in one pass — the fold, the publication, the client
-reading, the paperwork — with **one line deliberately left open: the
-[owner] confirmation** 1.3 names, that beside a server-computed trait
+reading, the paperwork — with one line left open at ship: the
+[owner] confirmation 1.3 names, that beside a server-computed trait
 direction, D8's "a test result is never a breakdown dim, so nothing is
 ever cross-tabbed by it" still says what it means. The build holds the
 sentence literally true — no dim was added, no per-question cell is
 keyed by any result, an axis row is a regression n people enter and one
 direction leaves — and the confirmation that "literally true" is also
 "means what it says" is the owner's, not this record's.
+
+**CONFIRMED 2026-08-28**, emphatically — the owner's words: *"one of
+the core features of the app is to show how diffrent cohorts vote on
+diffrent questions"*, alongside a standing frustration that privacy
+promises have been the costliest drag on the app's development. Two
+things belong in the record with that: the cohort×question readings the
+owner names are exactly what D98 already publishes (per-anchor cells,
+exact from the first answer — nothing in the standing docs restricts
+them), and the one cohort cut still not server-published is BY TEST
+RESULT — which is D8's rule, has a client-side route since D146, and is
+amendable as its own decision (NEXT-FUNCTIONALITY's types tier 2) the
+day the owner wants the server cell.
 
 **The build.** The scoring join (`qid → instrument/dim/invert`) is
 compiled by `gen-v2content` into `TEST_ITEM_META`/`TEST_AXES` — the

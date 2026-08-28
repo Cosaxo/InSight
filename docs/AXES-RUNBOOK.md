@@ -309,13 +309,12 @@ is done.
       pinned against a recording fake: every folding run writes the
       block, an empty one included. · **Gate:** `patterns.test.ts`
       extended, functions suite green. · **Size:** S.
-- [x] **1.3 The paperwork — DONE 2026-08-27 (D329), one line open.**
-      The `docs/COSTS.md` Patterns row carries the sweep; the
-      data-inventory loadings row carries the block and the D8
-      re-read. The **[owner]** confirmation itself stands OPEN in
-      D329 — the record flags it rather than assuming it.
-      · **Gate:** `check:data-inventory`, `check:policy-claims`,
-      `check:docs`. · **Size:** S.
+- [x] **1.3 The paperwork — DONE 2026-08-27 (D329); the [owner]
+      confirmation landed 2026-08-28.** The `docs/COSTS.md` Patterns
+      row carries the sweep; the data-inventory loadings row carries
+      the block and the D8 re-read; D329 quotes the owner's
+      confirmation. · **Gate:** `check:data-inventory`,
+      `check:policy-claims`, `check:docs`. · **Size:** S.
 - [x] **1.4 The client reading — DONE 2026-08-27 (D329).**
       `data/patterns.ts` parses the block defensively and holds the
       two draw floors; the Map draws the axes as faint labelled
