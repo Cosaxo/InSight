@@ -15,6 +15,7 @@ import { PASSIVE } from './passive-progress.js';
 import { passiveStanding } from './passive-meter.jsx';
 import { list as anchorList } from './map-anchors.js';
 import { PROFILE_GENERAL_LS } from '../data/cityAnchor';
+import { sharePcts } from '../data/pct';
 import { CITY_OK_LEAF } from '../data/cityConfirm.ts';
 // `PLACES` stood here as an import (D39 converted it from a window.PLACES
 // read, which is what moved the coupling meter down). The import outlived
@@ -495,7 +496,9 @@ import {
                   <span style={{ display: 'block', fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 750, letterSpacing: '-0.01em', color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.prompt}</span>
                   <span style={{ display: 'block', marginTop: 2, fontFamily: 'var(--sans)', fontSize: 11.5, fontWeight: 600, color: 'var(--ink-3)' }}>
                     {total > 0 && lead >= 0
-                      ? `${Math.round(((p.counts[lead] || 0) / total) * 100)}% ${p.options[lead] || ''} · ${total.toLocaleString('en-US').replace(/,/g, ' ')} answers`
+                      // sharePcts, the app's one rounding rule — the same
+                      // vector the public card draws (see AskedByYouOverlay).
+                      ? `${sharePcts(p.counts)[lead]}% ${p.options[lead] || ''} · ${total.toLocaleString('en-US').replace(/,/g, ' ')} answers`
                       : 'no answers yet'}
                     {p.state === 'running' ? '' : ` · ${p.state}`}
                   </span>
