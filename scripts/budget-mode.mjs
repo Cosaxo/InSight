@@ -34,8 +34,8 @@
 // field survives them (functions/src/patterns.ts's own comment: the fit
 // owns two fields on a document the seed and the operator own the rest of).
 
-import { initializeApp, applicationDefault } from "firebase-admin/app";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { FieldValue } from "firebase-admin/firestore";
+import { adminDb } from "./admin-db.mjs";
 
 const argv = process.argv.slice(2);
 const flag = (name) => argv.includes(`--${name}`);
@@ -62,8 +62,9 @@ if (!status && !(level === 0 || level === 1)) {
   die(`--level must be 0 or 1 — level 2 is reserved, not built (D332, src/v2/data/budgetMode.ts)`);
 }
 
-initializeApp(emulator ? { projectId } : { credential: applicationDefault(), projectId });
-const db = getFirestore();
+// NAMES THE DATABASE. `getFirestore()` binds to `(default)`, which this
+// app does not use and which no longer exists — see scripts/admin-db.mjs.
+const db = adminDb({ projectId, emulator });
 const ref = db.collection("v2_meta").doc("app");
 
 const snap = await ref.get();

@@ -42,8 +42,8 @@
 //     human means it — a contract is append-mostly, and a silent
 //     overwrite is how a signed cap would drift
 
-import { initializeApp, applicationDefault } from "firebase-admin/app";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { FieldValue } from "firebase-admin/firestore";
+import { adminDb } from "./admin-db.mjs";
 
 const argv = process.argv.slice(2);
 const flag = (name) => argv.includes(`--${name}`);
@@ -106,8 +106,9 @@ if (days > 366) die(`${days}-day window — PAID-PLAN §8 caps a paid question a
 
 // No credential key at all against the emulator — firebase-admin rejects
 // an explicit `credential: undefined`, and the emulator wants none.
-initializeApp(emulator ? { projectId } : { credential: applicationDefault(), projectId });
-const db = getFirestore();
+// NAMES THE DATABASE. `getFirestore()` binds to `(default)`, which this
+// app does not use and which no longer exists — see scripts/admin-db.mjs.
+const db = adminDb({ projectId, emulator });
 
 const pid = `${uid}_${qid}`;
 const ref = db.collection("v2_purchases").doc(pid);
