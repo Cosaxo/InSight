@@ -2289,6 +2289,10 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
         gid: GID, authorUid: OWNER, text: "contested", createdAt: new Date(),
         hidden: false,
       });
+      await setDoc(doc(db, "v2_takes", "t3"), {
+        gid: GID, authorUid: OWNER, text: "also contested", createdAt: new Date(),
+        hidden: false,
+      });
       await setDoc(doc(db, "v2_takes", "t_gone"), {
         gid: GID, authorUid: OWNER, text: "settled", createdAt: new Date(),
         hidden: true, hiddenMeta: { by: "mod", policyLine: "H5" },
@@ -2302,6 +2306,23 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
     // an id that doesn't match takeId_uid would let one account stuff counts
     await assertFails(setDoc(
       doc(asUser(FRIEND), "v2_flags", "t2_sock2"), flag("t2", FRIEND)));
+    // THE STAMP IS THE TIE-BREAK, so the client may not write it. The queue
+    // ranks by flag count and breaks ties on the earliest flag
+    // (`buildModQueueFrom`'s `firstAt`), and the whole argument for moving
+    // that tie-break off the take id was that `at` is server-written: an
+    // attacker can always make a take newly flagged and can never make it
+    // older. The rule's `at == request.time` is the only thing that makes
+    // that sentence true, and nothing was watching it — a flagger writing
+    // `at: new Date(0)` sorts their target to the head of every queue
+    // generation for the price of the flag floor, which is precisely the
+    // attack the tie-break was introduced to close.
+    await assertFails(setDoc(
+      doc(asUser(FRIEND), "v2_flags", "t3_" + FRIEND),
+      flag("t3", FRIEND, { at: new Date(0) })));
+    // The same flag, same flagger, same take, with the server's stamp:
+    // the refusal above is the STAMP and not the identity or the take.
+    await assertSucceeds(setDoc(
+      doc(asUser(FRIEND), "v2_flags", "t3_" + FRIEND), flag("t3", FRIEND)));
     // D98: a stranger may flag. The membership gate rested on "a stranger
     // cannot flag speech they cannot read", and a stranger can now read
     // every take — so the premise went and the gate with it.
