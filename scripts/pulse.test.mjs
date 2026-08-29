@@ -583,6 +583,24 @@ describe("the pulse artifact", () => {
   it("counts every deployed function and marks which are alerted", () => {
     const { functions, functionCount, alertedCount } = p.instrumentation;
     expect(functionCount).toBe(functions.length);
+    // AGAINST THE DEPLOY LIST, because the assertion above is a tautology
+    // over the panel's own scan: it counted 40 of 42 for as long as the
+    // scan named three trigger kinds and the tree had five, and this test
+    // — titled "counts every deployed function" — could not see it. The
+    // two missing were onV2AnswerUpdated and the Stripe webhook, neither
+    // of which has an alert policy, so the panel's whole question ("am I
+    // flying blind?") was answered with the two least-watched functions
+    // left out of the frame.
+    //
+    // firebase-deploy.yml's `--only` list is the deploy surface itself,
+    // which makes it the right authority and not a second opinion.
+    const deployed = [...read(".github/workflows/firebase-deploy.yml")
+      .matchAll(/functions:([A-Za-z0-9_]+)/g)].map((m) => m[1]);
+    expect(deployed.length, "the deploy workflow's --only list moved").toBeGreaterThan(30);
+    const scanned = new Set(functions.map((f) => f.name));
+    for (const name of deployed) {
+      expect(scanned, `the console cannot see deployed function ${name}`).toContain(name);
+    }
     expect(alertedCount).toBe(functions.filter((f) => f.alerted).length);
     // onV2AnswerCreated is the one that fails SILENTLY (retry:true), so it
     // is the one that must never lose its alert.

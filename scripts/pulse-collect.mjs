@@ -792,11 +792,17 @@ export function collectInstrumentation() {
   const functions = [];
   for (const f of fnFiles) {
     const src = read(`functions/src/${f}`);
-    // The v2 export surface is what deploys. `export const x = onCall(` /
-    // `onDocumentCreated(` / `onSchedule(` is the whole shape here; a
-    // wrapper form would be missed, which is why the count is reported
-    // beside the file list rather than asserted.
-    for (const m of src.matchAll(/export const (\w+) = (onCall|onDocumentCreated|onSchedule)\b/g)) {
+    // The v2 export surface is what deploys, and the trigger KIND is read
+    // rather than listed. Naming three of them —
+    // onCall/onDocumentCreated/onSchedule — silently dropped the two the
+    // tree grew afterwards: `onDocumentUpdated` (D86's answer-edit fold)
+    // and `onRequest` (the Stripe webhook, D313). Neither has an alert
+    // policy, so the console's "am I flying blind?" panel reported
+    // 40 of 42 functions and the two it could not see were the two least
+    // watched. `check:figures` reads the same surface with `on[A-Z]`, and
+    // now so does this; a wrapper form would still be missed, which is why
+    // the count is reported beside the file list rather than asserted.
+    for (const m of src.matchAll(/export const (\w+) = (on[A-Z]\w+)\b/g)) {
       functions.push({ name: m[1], kind: m[2], file: `functions/src/${f}` });
     }
   }
