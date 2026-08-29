@@ -673,6 +673,30 @@ export let PICK_QS;
       169452: 3,    // Shaquille O'Neal — below the floor
       0: 12,        // Not listed — the local-legend and Ali-in-'74 vote
     },
+    // daily catalog-question run, 2026-08-29 — the third films canon is
+    // grief, and it agrees with neither of the others: pk26 ranks prestige,
+    // pk27 comfort, and this one ranks the films people cannot rewatch.
+    // Shawshank leads pk26 and sits below the floor here; Home Alone leads
+    // pk27 and does not appear at all.
+    pk31: {
+      44578: 24,     // Titanic — the crossover, beloved and devastating
+      208263: 19,    // The Green Mile
+      483941: 16,    // Schindler's List
+      19355: 14,     // Life Is Beautiful
+      11621: 12,     // E.T. the Extra-Terrestrial
+      106316: 11,    // Dead Poets Society
+      223374: 9,     // The Notebook
+      14704171: 8,   // The Fault in Our Stars
+      204057: 7,     // Philadelphia
+      18703032: 6,   // Room
+      3286391: 5,    // A Star Is Born — clears the floor, not the top 10; folds
+      487181: 5,     // Requiem for a Dream — same
+      27044293: 4,   // The Lion King (2019) — below the floor
+      172241: 3,     // The Shawshank Redemption — below the floor
+      0: 15,         // Not listed — the Pixar vote has nowhere to file: Up,
+                     // Coco, Grave of the Fireflies and the 1994 Lion King
+                     // are all absent from the sitelink top-1000
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -1031,6 +1055,18 @@ export let PICK_QS;
         Men: { 1189: 8, 39444: 7, 41421: 7, 79031: 6, 615: 5 },
       },
     },
+    pk31: {
+      ageBand: {
+        // the young cell cries at the films it grew up with; the older cell
+        // at the ones it was made to sit through
+        '18-24': { 14704171: 8, 223374: 7, 18703032: 6, 44578: 5, 11621: 4 },
+        '25-34': { 44578: 8, 208263: 7, 19355: 6, 106316: 5, 11621: 4 },
+      },
+      gender: {
+        Women: { 44578: 9, 223374: 7, 14704171: 6, 208263: 5, 18703032: 4 },
+        Men: { 208263: 8, 483941: 7, 19355: 6, 106316: 6, 11621: 5 },
+      },
+    },
   };
 
   const api = {
@@ -1196,6 +1232,7 @@ export let PICK_QS;
     { id: 'pk28', cat: 'fav', type: 'pick', domain: 'athletes', prompt: 'The greatest athlete who ever lived?', n: 168 },
     { id: 'pk29', cat: 'fav', type: 'pick', domain: 'colors', prompt: 'What colour is happiness?', n: 153 },
     { id: 'pk30', cat: 'fav', type: 'pick', domain: 'athletes', prompt: 'The athlete you’d pay to watch in their prime?', n: 157 },
+    { id: 'pk31', cat: 'fav', type: 'pick', domain: 'films', prompt: 'The film that made you cry the most?', n: 158 },
   ];
   window.PICK_QS = PICK_QS;
 })();
