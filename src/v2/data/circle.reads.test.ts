@@ -35,6 +35,7 @@ vi.mock("firebase/firestore", () => ({
       path: src?.path,
       wheres: parts.filter((p) => p.__k === "where").map((p) => [p.field, p.op, p.val]),
       limit: (parts.find((p) => p.__k === "limit") || {}).n ?? null,
+      orderBys: parts.filter((p) => p.__k === "orderBy").map((p) => p.field),
     };
     h.queries.push(q);
     return q;
@@ -46,7 +47,7 @@ vi.mock("firebase/firestore", () => ({
   documentId: () => "__name__",
   doc: (_db: unknown, ...p: string[]) => ({ __k: "doc", path: p.join("/") }),
   limit: (n: number) => ({ __k: "limit", n }),
-  orderBy: () => ({ __k: "orderBy" }),
+  orderBy: (field: string) => ({ __k: "orderBy", field }),
   // THE FAKE FILTERS, because the code under test stopped filtering on the
   // device. `fetchFollowersOf` now names the exact rows it wants and lets
   // the server return only those; a fake that handed back everything
@@ -123,6 +124,20 @@ describe("fetchFollowing", () => {
     await fetchFollowing({} as never, "me");
     expect(h.queries[0].path).toBe("v2_users/me/following");
     expect(h.queries[0].limit, "the read was unbounded").toBe(FOLLOW_CAP);
+  });
+
+  it("orders BEFORE the cap, so the fifty kept are the oldest fifty", async () => {
+    // The cap is documented as "oldest first so it is stable across
+    // sessions", and the sort that delivered that ran on the page AFTER
+    // Firestore had already chosen it. An unordered `limit` takes
+    // documents by NAME, so an account over the cap kept the
+    // alphabetically-first fifty target uids and lost the rest of its
+    // circle silently — the client sort only reordered what had already
+    // been picked.
+    const { fetchFollowing } = await import("./circle");
+    await fetchFollowing({} as never, "me");
+    expect(h.queries[0].orderBys, "the cap is applied to an unordered read")
+      .toEqual(["at"]);
   });
 });
 

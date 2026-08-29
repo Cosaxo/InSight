@@ -44,6 +44,7 @@ import {
   documentId,
   getDocs,
   limit as fsLimit,
+  orderBy,
   query,
   serverTimestamp,
   setDoc,
@@ -156,13 +157,32 @@ export function capFollows(uids: readonly string[], cap = FOLLOW_CAP): string[] 
 export async function fetchFollowing(db: Firestore, uid: string): Promise<string[]> {
   const snap = await getDocs(query(
     collection(db, "v2_users", uid, "following"),
+    // ORDERED BEFORE THE CAP, not after it. This ordered the page once it
+    // was in hand — which reorders whatever Firestore already chose, and
+    // an unordered `limit` takes documents by NAME. So an account over the
+    // cap kept the alphabetically-first fifty target uids while the
+    // comment here claimed the oldest fifty, and the rest of their circle
+    // vanished with nothing saying so.
+    //
+    // Reachable, because the cap is client-only and leaky: the follow
+    // button gates on a cached circle that is null until the Circle stop
+    // has been opened, and `firestore.rules` caps nothing. Somebody adding
+    // people from who-voted sheets can pass fifty without ever seeing the
+    // stop that would have stopped them.
+    //
+    // No index needed and none added: this is one document's subcollection
+    // ordered on a single field, which Firestore indexes automatically —
+    // the override in firestore.indexes.json ADDS a collection-group index
+    // for `to` and exempts nothing. `at` is safe to order on because rules
+    // require it on every row (`hasOnly(["at","to"])`, `at == request.time`),
+    // so no follow can be dropped for lacking the field.
+    orderBy("at"),
     fsLimit(FOLLOW_CAP),
   ));
   return snap.docs
     .map((d) => ({ id: d.id, at: (d.data().at as { seconds?: number } | undefined)?.seconds || 0 }))
-    // Oldest first so the cap is stable across sessions: ordering by an
-    // unindexed field server-side would need an index for a list this
-    // small, and the sort is free once the page is in hand.
+    // The server has ordered them; this only settles same-instant ties,
+    // which two follows made in one batch can genuinely have.
     .sort((a, b) => a.at - b.at || a.id.localeCompare(b.id))
     .map((d) => d.id);
 }
