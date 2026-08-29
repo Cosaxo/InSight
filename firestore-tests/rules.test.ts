@@ -1118,6 +1118,20 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     await assertFails(setDoc(ref(QID), answer({ surface: "bogus" })));       // bad surface
     await assertFails(setDoc(ref(QID), answer({ extra: 1 })));               // unknown field
     await assertFails(setDoc(ref(QID), answer({ answeredAt: new Date() }))); // not request.time
+    // The ANCHORS, which nothing was checking on this path. They are the D8
+    // cohort snapshot frozen onto the answer, client-written and — since
+    // D98 — readable by every signed-in user; `isValidV2Anchors` is their
+    // only write-side cap. All three existing cases for it write the
+    // PROFILE copy, so deleting the call from the answer create left the
+    // suite green.
+    await assertFails(setDoc(ref(QID), answer({ anchors: { zip: "0150" } })));
+    await assertFails(setDoc(ref(QID), answer({ anchors: { city: "x".repeat(81) } })));
+    await assertFails(setDoc(ref(QID), answer({ anchors: "Oslo" })));
+    // …and the snapshot a real client writes still lands, so the three
+    // refusals above are the map and not the field.
+    await assertSucceeds(setDoc(ref(QID), answer({
+      anchors: { city: "Oslo", country: "Norway", ageBand: "25-34" },
+    })));
   });
 
   it("honours the active kill switch and the question's own surface", async () => {
