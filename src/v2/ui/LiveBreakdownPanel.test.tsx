@@ -486,7 +486,27 @@ describe("LiveBreakdownPanel · the Friends cut", () => {
     LIVE.voters = () => [v({ uid: "zz", name: "Stranger", optionIdx: 0 })];
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
     fireEvent.click(chip("Friends"));
-    expect(screen.getByText(/none of the people you follow has answered/i)).toBeTruthy();
+    // Bounded by what was READ, not a census. `voters` is the newest
+    // VOTER_FETCH_CAP answers, so a friend who answered early on a busy
+    // question is simply not in the list — the type and logic cuts in this
+    // same panel already say "Of the N answers this session has read" for
+    // exactly that reason, and this cut used to claim more than it knew.
+    expect(screen.getByText(/none of the people you follow is in the 1 answers/i)).toBeTruthy();
+  });
+
+  it("says what the friends headline is counted over", () => {
+    // "4 of 6 friends are on your side" is a count over the answers this
+    // session read, not over your friends — and the panel's own type and
+    // logic cuts state that basis for the same list. Saying the number
+    // without the basis is the census claim this cut used to make.
+    LIVE.follows = () => FRIENDS;
+    LIVE.voters = () => [
+      v({ uid: FRIENDS[0], name: "Ada", optionIdx: 0 }),
+      v({ uid: "zz", name: "Stranger", optionIdx: 1 }),
+    ];
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    fireEvent.click(chip("Friends"));
+    expect(screen.getByText(/of the 2 answers this session has read/i)).toBeTruthy();
   });
 
   it("keeps 'could not ask' apart from 'nobody', like every other read here", () => {
