@@ -15,6 +15,7 @@
 // Driven as a SUBPROCESS: doc-index.mjs is a script, so importing it runs
 // the whole gate and exits.
 import { describe, it, expect } from "vitest";
+import { gatePlacement } from "./gate-placement.mjs";
 import { execFileSync } from "node:child_process";
 import { writeFileSync, rmSync, readFileSync, existsSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
@@ -56,29 +57,47 @@ describe("doc-index and the working tree", () => {
   });
 
   it("sees a gate a workflow invokes BY PATH, not only by npm run", () => {
-    // The gate that could not fail. `placement()` located a gate by
-    // searching workflows for `npm run <name>` — and `check:store-copy` is
-    // invoked as `node scripts/check-store-copy.mjs --ios`, because it
-    // takes an argument. So it classified as "manual", the map recorded
-    // that, and the release gate could have been deleted from
-    // ios-release.yml with nothing anywhere going red. Worse: anyone
-    // correcting the row to the truth was failed by CI until they put the
-    // wrong value back.
+    // The gate that could not fail. Placement was decided by searching the
+    // workflows for `npm run <name>` — and a gate that takes an argument is
+    // invoked as `node scripts/<file>.mjs --flag` instead. One is: the
+    // store-copy gate, run on every iOS archive. It classified as "manual",
+    // the map recorded that, the release gate could have been deleted from
+    // its workflow with nothing going red, and anyone correcting the row
+    // was failed by CI until they put the false value back.
     //
-    // Measured against the real workflow rather than a fixture: remove the
-    // line that runs it and the row must stop being true.
-    const wf = join(root, ".github/workflows/ios-release.yml");
-    const before = readFileSync(wf, "utf8");
-    expect(before, "ios-release.yml no longer runs the store-copy gate by path")
-      .toMatch(/node scripts\/check-store-copy\.mjs/);
-    try {
-      writeFileSync(wf, before.replace(/^.*node scripts\/check-store-copy\.mjs.*$/m, ""));
-      const r = run();
-      expect(r.code, "deleting the release gate from its workflow left doc-index green").toBe(1);
-      expect(r.out).toMatch(/check:store-copy/);
-    } finally {
-      writeFileSync(wf, before);
-    }
+    // Tested on the pure classifier rather than by editing a workflow. The
+    // first version of this case deleted the invocation from the tracked
+    // release workflow and restored it in a `finally` — which does not
+    // survive a SIGKILL or a cancelled job, so its crash left the release
+    // gate missing from the release workflow. That is the very failure the
+    // gate exists to prevent, produced by the test for it.
+    const npmRun = new Map([["some-release.yml", "  run: npm run check:thing\n"]]);
+    const byPath = new Map([["some-release.yml", "  run: node scripts/check-thing.mjs --ios\n"]]);
+    const neither = new Map([["some-release.yml", "  run: echo hello\n"]]);
+    const cmd = "node scripts/check-thing.mjs";
+    expect(gatePlacement("check:thing", cmd, npmRun)).toBe("release");
+    expect(gatePlacement("check:thing", cmd, byPath)).toBe("release");
+    expect(gatePlacement("check:thing", cmd, neither)).toBe("manual");
+    // The priority order is part of the answer, not an accident of it.
+    expect(gatePlacement("check:thing", cmd, new Map([
+      ["backend-checks.yml", "node scripts/check-thing.mjs"],
+      ["ci.yml", "npm run check:thing"],
+    ]))).toBe("deploy");
+    expect(gatePlacement("check:thing", cmd, new Map([
+      ["ci.yml", "node scripts/check-thing.mjs"],
+      ["other.yml", "npm run check:thing"],
+    ]))).toBe("ci");
+  });
+
+  it("and the real store-copy gate is still invoked, by path, on the release path", () => {
+    // The other half, without touching anything: the classifier above is
+    // only useful if the workflow really still runs it. If that line goes,
+    // the tree-is-green case at the top of this file goes red, because the
+    // map row says "release" and the workflows would say "manual".
+    const wf = readFileSync(join(root, ".github/workflows/ios-release.yml"), "utf8");
+    expect(wf).toMatch(/node scripts\/check-store-copy\.mjs/);
+    const orientation = readFileSync(join(root, "docs/ORIENTATION.md"), "utf8");
+    expect(orientation).toMatch(/`check:store-copy` \| release \|/);
   });
 
   it("still fails for a root document that IS in the repo", () => {

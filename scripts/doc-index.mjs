@@ -80,6 +80,7 @@
 //      node scripts/doc-index.mjs --write   (regenerate the index)
 
 import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from "node:fs";
+import { gatePlacement } from "./gate-placement.mjs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { numberingProblems } from "./decision-numbering.mjs";
@@ -454,19 +455,7 @@ if (orientation) {
   // anyone who corrected the row was failed by CI until they put the wrong
   // value back. A gate that enforces the wrong answer is worse than no
   // gate: it defends the error.
-  const scriptPaths = (name) =>
-    [...String(pkg.scripts[name] ?? "").matchAll(/\bscripts\/[\w.-]+\.mjs/g)].map((m) => m[0]);
-  const placement = (name) => {
-    const paths = scriptPaths(name);
-    const runs = [...workflows]
-      .filter(([, src]) =>
-        src.includes(`npm run ${name}`) || paths.some((path) => src.includes(path)))
-      .map(([f]) => f);
-    if (runs.includes("backend-checks.yml")) return "deploy";
-    if (runs.includes("ci.yml")) return "ci";
-    if (runs.length) return "release";
-    return "manual";
-  };
+  const placement = (name) => gatePlacement(name, pkg.scripts[name], workflows);
   const gates = Object.keys(pkg.scripts).filter((n) => n.startsWith("check:")).sort();
   checked.gates = gates.length;
   for (const gate of gates) {
