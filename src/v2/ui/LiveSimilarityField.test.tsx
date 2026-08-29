@@ -328,6 +328,32 @@ describe("the Near field is a crowd, never a directory", () => {
     expect(screen.getByText(/the rest have not taken it/)).toBeTruthy();
   });
 
+  it("does not tell a room that people who took the test have not", async () => {
+    // The field draws the closest fourteen; the server hands back up to
+    // twenty-four. The caption gave ONE reason for both — "the rest have
+    // not taken it" — so a room of twenty people who had all taken it drew
+    // fourteen and said the other six had not. About six people standing
+    // next to the reader.
+    const room = Array.from({ length: 20 }, (_, i) => ({ uid: `p${i}` }));
+    LIVE.near.room = () => ({ people: room, qs: {} });
+    LIVE.scoresFor = () => big5(50, 50, 50, 52, 48);
+    render(<NearField />);
+    expect(screen.queryByText(/have not taken it/)).toBeNull();
+    // …and it says what did happen instead.
+    expect(screen.getByText(/closest 14 of 20 who have/)).toBeTruthy();
+  });
+
+  it("still says so when people really have not taken it", () => {
+    // The contrast, or the case above would pass on a caption that simply
+    // stopped mentioning the untested.
+    const room = Array.from({ length: 6 }, (_, i) => ({ uid: `p${i}` }));
+    LIVE.near.room = () => ({ people: room, qs: {} });
+    LIVE.scoresFor = (uid: string) => (uid === "p0" || uid === "p1" ? big5(50, 50, 50, 52, 48) : null);
+    render(<NearField />);
+    expect(screen.getByText(/the rest have not taken it/)).toBeTruthy();
+    expect(screen.queryByText(/closest/)).toBeNull();
+  });
+
   it("places nobody at all when the viewer has no scores to place them against", () => {
     // A radius is a claim about a person. With no scores on the viewer's
     // side there is no distance to draw, and an invented one would be the

@@ -617,7 +617,7 @@ export function NearField() {
   // NOT drawn rather than parked at a default radius: a node at an invented
   // distance is a claim about a person, and the caption below says how many
   // are missing instead.
-  const placed = Object.keys(myFlat).length
+  const placeable = Object.keys(myFlat).length
     ? roster
       .map((p) => {
         const theirs = LIVE.scoresFor(p.uid);
@@ -638,8 +638,17 @@ export function NearField() {
       // NEAR_FIELD_CAP), so the slice below is a real choice and both
       // failures decide who is dropped.
       .sort((a, b) => b.m.raw - a.m.raw || b.m.axes - a.m.axes || a.uid.localeCompare(b.uid))
-      .slice(0, NEAR_FIELD_CAP)
     : [];
+  // THE TWO REASONS SOMEBODY IS NOT DRAWN, kept apart, because the caption
+  // used to give one of them for both. Everyone here whose scores this
+  // device can read is `placeable`; the field draws the closest
+  // NEAR_FIELD_CAP of them. So a room of twenty people who have ALL taken
+  // the test drew fourteen and told the reader the other six had not —
+  // about six people standing next to them. The sort comment above already
+  // says the slice is "a real choice"; the caption contradicted it.
+  const placed = placeable.slice(0, NEAR_FIELD_CAP);
+  const untested = roster.length - placeable.length;
+  const capped = placeable.length > placed.length;
 
   if (!on) {
     return (
@@ -688,7 +697,8 @@ export function NearField() {
       </SfCaption>
       <SfEmpty>
         Nobody is named here; <strong>People</strong> names them. Placed by
-        test scores{placed.length < roster.length ? " — the rest have not taken it" : ""}.
+        test scores{capped ? ` — the closest ${placed.length} of ${placeable.length} who have` : ""}
+        {untested > 0 ? `${capped ? "; the rest" : " — the rest"} have not taken it` : ""}.
       </SfEmpty>
     </div>
   );
