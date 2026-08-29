@@ -49,6 +49,9 @@ import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { ENFORCE_APP_CHECK, LIGHT_CALLABLE, FUNCTIONS_REGION } from "./ops";
+// The day key, offset in days. Was a byte-identical local copy until the
+// two families of `utcDayKey` were separated — see pure.ts's own comment.
+import { utcDayKey } from "./pure";
 import { db as firestore, FIRESTORE_DB_ID } from "./db";
 import { PRICING_CARD } from "./pricing";
 
@@ -883,12 +886,6 @@ export const createPaidCheckoutV2 = onCall(
 
 // ── going live: the webhook ─────────────────────────────────────────────
 
-/** The UTC day key, offset in days — the same YYYY-MM-DD grain every
- * window in the bank speaks. */
-export function utcDayKey(offsetDays: number, nowMs = Date.now()): string {
-  return new Date(nowMs + offsetDays * 86400000).toISOString().slice(0, 10);
-}
-
 /** Day arithmetic on the same grain: `dayPlus("2026-08-27", 1)` →
  * "2026-08-28". Null-safe against a malformed key (returns the input). */
 export function dayPlus(day: string, days: number): string {
@@ -907,6 +904,53 @@ export function dayPlus(day: string, days: number): string {
  * QUESTIONS remains (their billing absorbs it) and the door says so
  * before payment.
  */
+/**
+ * Do two ad audiences reach any of the same people?
+ *
+ * WHY THIS IS NOT `scope === scope`. The queue below exists so a
+ * flat-priced ad is not "silently diluted by another ad… getting less for
+ * the same money". It queued against ads of the SAME SCOPE — but scopes
+ * are NESTED audiences, not disjoint ones. A world ad matches everybody,
+ * and `pickPaid` gives exactly ONE paid slot a day out of one pool built
+ * from every eligible question and ad. So a world ad was invisible to a
+ * city booking's queue and then halved it: 29 days bought, ~14 served,
+ * flat price paid in full. It runs both ways, and a country ad does it to
+ * every city inside it.
+ *
+ * Containment is exact rather than guessed, because the shapes are
+ * pinned: a city place is "<name>, <CC>" and a country place is the same
+ * ISO alpha-2 code (pure.ts's BREAKDOWN_DIM_SHAPE). So "Oslo, NO" is
+ * inside "NO" and nothing else has to be looked up.
+ *
+ * An unrecognised shape counts as OVERLAPPING. The two errors are not
+ * equal: queueing two ads that never meet costs the second buyer time,
+ * while failing to queue two that do costs them half of what they paid
+ * for, silently. Time is recoverable and a diluted flat price is not.
+ */
+export function adAudiencesOverlap(
+  a: { scope?: string; place?: string | null },
+  b: { scope?: string; place?: string | null },
+): boolean {
+  if (a.scope === "world" || b.scope === "world") return true;
+  // Same scope: disjoint only when BOTH name a place and the places
+  // differ. A missing place is an unrecognised shape, and those queue —
+  // the asymmetry in the doc comment above.
+  if (a.scope === b.scope && (a.scope === "city" || a.scope === "country")) {
+    if (!a.place || !b.place) return true;
+    return a.place === b.place;
+  }
+  const city = a.scope === "city" ? a : b.scope === "city" ? b : null;
+  const country = a.scope === "country" ? a : b.scope === "country" ? b : null;
+  if (!city || !country) return true;
+  // A city place that does not carry its country code, or a country with
+  // no place, is a shape this cannot reason about — so it queues.
+  const cc = typeof city.place === "string" && /^.+, [A-Z]{2}$/.test(city.place)
+    ? city.place.slice(-2)
+    : "";
+  if (!cc || !country.place) return true;
+  return cc === country.place;
+}
+
 export function adStartDay(
   runningAdWindows: ReadonlyArray<{ until?: string }>,
   nowMs = Date.now(),
@@ -1125,13 +1169,29 @@ export async function goLive(db: Firestore, bid: string, paymentIntentId: string
       // second retries against the first's committed window and queues
       // behind it (adStartDay). This is the day-exclusivity the flat
       // price is honest by.
+      // EVERY running ad, then filtered by whether its audience actually
+      // meets this one (adAudiencesOverlap). The scope equality that used
+      // to be in the query here was the bug: it made a world ad invisible
+      // to a city booking's queue, and then the two shared the single
+      // daily paid slot.
       const runningAds = await tx.get(
         db.collection("v2_purchases")
           .where("kind", "==", "ad")
-          .where("scope", "==", b.scope)
           .where("state", "==", "running"),
       );
-      const start = adStartDay(runningAds.docs.map((d) => (d.get("window") as { until?: string }) ?? {}));
+      const mine = {
+        scope: b.scope,
+        place: b.scope === "city" ? b.dims.city ?? null
+          : b.scope === "country" ? b.dims.country ?? null : null,
+      };
+      const start = adStartDay(
+        runningAds.docs
+          .filter((d) => adAudiencesOverlap(mine, {
+            scope: String(d.get("scope") ?? ""),
+            place: (d.get("place") as string | null) ?? null,
+          }))
+          .map((d) => (d.get("window") as { until?: string }) ?? {}),
+      );
       const until = dayPlus(start, WINDOW_DAYS - 1); // 29 days inclusive
       const adId = `paidad-${bid}`;
       tx.set(db.collection("v2_ads").doc(adId), paidAdDoc(b, start, until, seq));

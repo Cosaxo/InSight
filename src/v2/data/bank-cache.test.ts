@@ -196,7 +196,20 @@ vi.mock("firebase/firestore", () => {
       if (h.deltaError) return Promise.reject(h.deltaError());
       const since = (delta.value as { ms: number }).ms;
       const at = (d: FakeDoc) => (d.data.updatedAt as { toMillis(): number }).toMillis();
-      return Promise.resolve(snapOf(h.bankDocs.filter((d) => at(d) > since)));
+      // ORDERED and LIMITED, the way Firestore serves it. A query with an
+      // inequality and no explicit ordering is implicitly ordered by the
+      // inequality's own field, ascending — so a capped delta returns the
+      // OLDEST page past the cursor, not an arbitrary one. The fake used
+      // to hand back every match: that makes the overflow branch reachable
+      // (which is how the loop below was found) but makes the cursor the
+      // caller derives from the page meaningless, and the cursor is the
+      // whole subject of that branch.
+      return Promise.resolve(snapOf(
+        h.bankDocs
+          .filter((d) => at(d) > since)
+          .sort((a, b) => at(a) - at(b))
+          .slice(0, lim),
+      ));
     },
     onSnapshot: () => vi.fn(),
     setDoc: () => Promise.resolve(),
@@ -438,6 +451,53 @@ describe("question-bank cache", () => {
     // queries.
     expect(bankFetches()).toBe(5);
     expect((await readCache()).questions).toHaveLength(2500);
+  });
+
+  it("never settles into re-fetching the whole bank on every boot", async () => {
+    // THE LOOP. The full fetch takes its cursor from the three BOOT
+    // queries — boot surfaces, core feed, bought — so a `learn` or tail
+    // `feed` document's updatedAt never reaches it. Let a page's worth of
+    // those be newer than everything the boot queries can see, and the
+    // next boot's delta fills its page, is correctly refused as "not a
+    // delta", falls through to a full fetch… which sets the cursor right
+    // back to the boot-only maximum. Every boot after that re-reads the
+    // entire bank, forever, and nothing ever says so — the bank is served
+    // correctly the whole time, just at full price.
+    h.bankDocs = [
+      q("q_1", 1000),
+      q("q_2", 1000),
+      // `learn` is not a boot surface and a non-core feed row is not in
+      // the core query, so neither is visible to the fetch that sets the
+      // cursor.
+      // A page's worth of paged rows (BANK_PAGE is 1000 in live.ts — the
+      // sibling block below keeps that same literal), all newer, spread
+      // over ~10s the way a reseed writes them. The spread matters: the
+      // delta deliberately rewinds 5s off the cursor to catch a
+      // same-instant batch, so a page of documents sharing ONE timestamp
+      // is re-read forever by construction and would prove nothing about
+      // the cursor.
+      ...Array.from({ length: 1000 }, (_, i) =>
+        q(`learn_${String(i).padStart(6, "0")}`, 9000 + i * 10, { surface: "learn", core: false })),
+    ];
+    await bootLive();
+    const first = (await readCache()).cursor;
+
+    vi.resetModules();
+    h.bankQueries.length = 0;
+    await bootLive();
+    const second = (await readCache()).cursor;
+
+    // The cursor must MOVE. If it comes back the same, the next boot
+    // repeats this boot exactly.
+    expect(second, "the cursor did not advance past the paged rows — every "
+      + "boot from here re-reads the whole bank").toBeGreaterThan(first);
+
+    // …and the boot after that is a delta again, not a third full fetch.
+    vi.resetModules();
+    h.bankQueries.length = 0;
+    await bootLive();
+    expect(isDelta(0), "still full-fetching on the third boot").toBe(true);
+    expect(bankFetches()).toBe(1);
   });
 
   it("does not stop one page early when the bank is an exact multiple of the page", async () => {
@@ -747,6 +807,35 @@ describe("question-bank cache", () => {
       expect(feed.map((x) => x.id)).toContain("feed-t9");
     });
     expect((await readCache()).questions.map((x) => x.id)).toContain("feed-t9");
+  });
+
+  it("heals an answered CATALOGUE PICK back — the feed's other id lane", async () => {
+    // The lane list is pinned against the generator in
+    // scripts/feed-lanes.test.mjs, and that is the half that catches a
+    // NEW lane. This is the half that catches the CALLER: the heal
+    // filtered the answered set on `startsWith("feed-")`, which is the
+    // feed's own lane and not the surface, so all 24 catalogue picks were
+    // excluded. Reverting `isFeedQid` back to that prefix left every test
+    // green, because the two heal cases either side of this one use a
+    // `feed-` id and a `learn-` id and no test used a `pick-` one.
+    storage.setItem("insight.answersCache.v1", JSON.stringify({
+      uid: "uid_test", votes: { "pick-pk04": "0" }, maxTs: 500, maxEditTs: 0,
+    }));
+    h.bankDocs = [
+      q("q_1", 1000),
+      q("pick-pk04", 1000, { surface: "feed", topic: "culture" }),
+    ];
+    await bootLive();
+    await vi.waitFor(() => {
+      const feed = (window as unknown as { WORLD_FEED_QS?: Array<{ id: string }> })
+        .WORLD_FEED_QS || [];
+      expect(
+        feed.map((x) => x.id),
+        "a catalogue pick you answered never came back — it shares the feed "
+        + "surface but not the feed's id prefix",
+      ).toContain("pick-pk04");
+    });
+    expect((await readCache()).questions.map((x) => x.id)).toContain("pick-pk04");
   });
 
   it("heals a history card back into the pool even with no order published", async () => {

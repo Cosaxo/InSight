@@ -30,6 +30,61 @@ import {
 } from "../spec/world-feed-math.js";
 import { pctFor } from "../data/cohort";
 
+// WHOSE SIDE WON is a question about counts, and it was answered off the
+// drawn percentages.
+//
+// `sharePcts` guarantees no INVERSION — a smaller count never draws
+// larger — and that is the property the rest of the app leans on. It does
+// NOT guarantee distinctness: two different counts can print the same
+// integer. So `p[mine] === Math.max(...p)` said "with the majority" to a
+// voter whose option had strictly fewer votes.
+//
+// Measured with the shipped rule over 400,000 random 2-5 option vectors
+// with counts 0-299: 3.07% of cards carried at least one wrong reading,
+// and 0.91% of individual readings claimed a majority that was not one.
+// The reverse ("you picked the underdog" on a genuine top count) is
+// almost absent — 3 in 1.38 million — because sharePcts breaks ties
+// toward the lower index, so the true leader usually keeps the drawn one.
+// That asymmetry is why this reads as flattery rather than as a bug.
+//
+// It was also written into the permanent per-device read log, which feeds
+// the Mirror's with-the-crowd rate — recorded, not just drawn.
+describe("wfPcts returns the counts, because the majority is a count question", () => {
+  it("hands back the count vector it actually used, viewer's +1 included", () => {
+    const { c } = wfPcts([3, 4], 0);
+    expect(c).toEqual([4, 4]);
+    expect(wfPcts([3, 4], -1).c).toEqual([3, 4]);
+  });
+
+  it("the counts disagree with the percentages exactly where the claim was wrong", () => {
+    // 449 vs 451 both draw 45%. Reading the winner off `p` tells the
+    // voter on 449 they are with the majority; reading it off `c` does
+    // not. (mineIdx -1 so the +1 does not move either side.)
+    const { p, c } = wfPcts([449, 451, 100], -1);
+    expect(p).toEqual([45, 45, 10]);
+    expect(p[0] === Math.max(...p)).toBe(true);   // what it used to ask
+    expect(c[0] === Math.max(...c)).toBe(false);  // what it asks now
+  });
+
+  it("a genuine tie in COUNTS is still with the majority, on both sides", () => {
+    // The fix must not swing the other way: equal counts are equal, and
+    // neither voter picked an underdog.
+    const { c } = wfPcts([5, 5], -1);
+    expect(c[0] === Math.max(...c)).toBe(true);
+    expect(c[1] === Math.max(...c)).toBe(true);
+  });
+
+  it("your own vote can make you the majority, and that is not a rounding artefact", () => {
+    // [5, 5, 3] draws [39, 38, 23] — the percentages already disagree with
+    // each other on a genuine tie. With your vote on the second option the
+    // counts become [5, 6, 3] and you are the majority in fact.
+    expect(wfPcts([5, 5, 3], -1).p).toEqual([39, 38, 23]);
+    const { c } = wfPcts([5, 5, 3], 1);
+    expect(c).toEqual([5, 6, 3]);
+    expect(c[1] === Math.max(...c)).toBe(true);
+  });
+});
+
 describe("wfPcts — the split a user reads", () => {
   it("counts the viewer's own vote, which the store leaves out", () => {
     // live.ts hands over counts EXCLUDING you; mineIdx is where you go.

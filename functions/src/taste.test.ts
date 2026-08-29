@@ -25,6 +25,8 @@ interface FakeStore extends TasteStore {
   lastDay: string;
   ledger: Record<string, Array<{ uid: string; qid: string }>>;
   askedDays: string[];
+  /** Make the next cursor write throw — the crash this fold has to survive. */
+  breakCursorOnce: boolean;
 }
 
 function fakeStore(over: Partial<Pick<FakeStore, "profiles" | "lastDay" | "ledger">> = {}): FakeStore {
@@ -33,21 +35,38 @@ function fakeStore(over: Partial<Pick<FakeStore, "profiles" | "lastDay" | "ledge
     lastDay: over.lastDay ?? "",
     ledger: over.ledger ?? {},
     askedDays: [],
+    breakCursorOnce: false,
     ledgerDay(day) {
       s.askedDays.push(day);
       return Promise.resolve(s.ledger[day] ?? []);
     },
     getLastDay: () => Promise.resolve(s.lastDay),
+    // PROJECTED, field by field, exactly as firestoreTasteStore does.
+    //
+    // This fake used to hand the whole object back and store the whole
+    // object — so a field the REAL store drops on the way out or in
+    // round-tripped here for free. That is how the retry guard shipped
+    // dead: `d` was written by the fold, kept by this map, read back by
+    // this map, and named in neither of the real store's projections.
+    // A fake that carries more than its subject proves nothing about it.
     getProfiles: (uids) =>
       Promise.resolve(new Map(uids.flatMap((u) => {
         const p = s.profiles.get(u);
-        return p ? [[u, structuredClone(p)] as [string, TasteProfile]] : [];
+        return p
+          ? [[u, { t: structuredClone(p.t), n: p.n, ...(p.d ? { d: p.d } : {}) }] as [string, TasteProfile]]
+          : [];
       }))),
     putProfiles: (profiles) => {
-      for (const [u, p] of profiles) s.profiles.set(u, p);
+      for (const [u, p] of profiles) {
+        s.profiles.set(u, { t: structuredClone(p.t), n: p.n, ...(p.d ? { d: p.d } : {}) });
+      }
       return Promise.resolve();
     },
     putLastDay: (day) => {
+      if (s.breakCursorOnce) {
+        s.breakCursorOnce = false;
+        return Promise.reject(new Error("cursor write lost"));
+      }
       s.lastDay = day;
       return Promise.resolve();
     },
@@ -69,8 +88,8 @@ describe("runTasteFold", () => {
       },
     });
     const summary = await runTasteFold(store, NOW, TOPICS);
-    expect(store.profiles.get("a")).toEqual({ t: { food: 2, sport: 1 }, n: 3 });
-    expect(store.profiles.get("b")).toEqual({ t: { food: 1 }, n: 1 });
+    expect(store.profiles.get("a")).toEqual({ t: { food: 2, sport: 1 }, n: 3, d: "2026-08-25" });
+    expect(store.profiles.get("b")).toEqual({ t: { food: 1 }, n: 1, d: "2026-08-25" });
     expect(summary).toEqual({ days: 1, counted: 4, people: 2 });
     expect(store.lastDay).toBe("2026-08-25");
   });
@@ -90,7 +109,7 @@ describe("runTasteFold", () => {
       },
     });
     await runTasteFold(store, NOW, TOPICS);
-    expect(store.profiles.get("a")).toEqual({ t: { food: 1 }, n: 1 });
+    expect(store.profiles.get("a")).toEqual({ t: { food: 1 }, n: 1, d: "2026-08-25" });
   });
 
   it("never counts a qid outside the feed's topic map", async () => {
@@ -119,7 +138,7 @@ describe("runTasteFold", () => {
       ledger: { "2026-08-25": [{ uid: "a", qid: "feed-s1" }] },
     });
     await runTasteFold(store, NOW, TOPICS);
-    expect(store.profiles.get("a")).toEqual({ t: { food: 5, sport: 1 }, n: 6 });
+    expect(store.profiles.get("a")).toEqual({ t: { food: 5, sport: 1 }, n: 6, d: "2026-08-25" });
   });
 
   it("catches up the owed days, oldest first, bounded by the window", async () => {
@@ -137,7 +156,70 @@ describe("runTasteFold", () => {
     expect(store.askedDays).toHaveLength(7);
     expect(store.askedDays).not.toContain("2026-08-18");
     expect(summary.days).toBe(7);
-    expect(store.profiles.get("a")).toEqual({ t: { food: 2 }, n: 2 });
+    // The stamp names the LAST day folded, not the first.
+    expect(store.profiles.get("a")).toEqual({ t: { food: 2 }, n: 2, d: "2026-08-25" });
+  });
+
+  // THE RETRY, for real. The case below covers the easy half — nothing
+  // owed, nothing read — and the docstring used to claim the hard half
+  // too: "the cursor is advanced only after the profiles are written, so
+  // a retried schedule re-folds nothing it already committed." Cursor-last
+  // is exactly what makes a retry re-fold what WAS committed, because `t`
+  // and `n` are accumulators.
+  it("a crash between the profiles and the cursor does not count the day twice", async () => {
+    const store = fakeStore({
+      lastDay: "2026-08-24",
+      ledger: { "2026-08-25": [{ uid: "a", qid: "feed-f1" }] },
+    });
+    store.breakCursorOnce = true;
+    await expect(runTasteFold(store, NOW, TOPICS)).rejects.toThrow("cursor write lost");
+    // The profile landed; the cursor did not.
+    expect(store.profiles.get("a")).toEqual({ t: { food: 1 }, n: 1, d: "2026-08-25" });
+    expect(store.lastDay).toBe("2026-08-24");
+
+    // The retry re-reads the same day and must ADD NOTHING.
+    const summary = await runTasteFold(store, NOW, TOPICS);
+    expect(
+      store.profiles.get("a"),
+      "one answer was folded twice — the profile is an accumulator and the "
+      + "day was re-read after a crash that left the cursor behind",
+    ).toEqual({ t: { food: 1 }, n: 1, d: "2026-08-25" });
+    expect(summary.counted).toBe(0);
+    expect(summary.people).toBe(0);
+    // …and the cursor catches up, so the day is not re-read forever.
+    expect(store.lastDay).toBe("2026-08-25");
+  });
+
+  it("folds a person the crashed attempt never reached", async () => {
+    // The other half: a partial write. `b` was not stamped, so the retry
+    // must fold `b` while leaving `a` alone.
+    const store = fakeStore({
+      lastDay: "2026-08-24",
+      profiles: new Map([["a", { t: { food: 1 }, n: 1, d: "2026-08-25" }]]),
+      ledger: {
+        "2026-08-25": [
+          { uid: "a", qid: "feed-f1" },
+          { uid: "b", qid: "feed-f1" },
+        ],
+      },
+    });
+    const summary = await runTasteFold(store, NOW, TOPICS);
+    expect(store.profiles.get("a")).toEqual({ t: { food: 1 }, n: 1, d: "2026-08-25" });
+    expect(store.profiles.get("b")).toEqual({ t: { food: 1 }, n: 1, d: "2026-08-25" });
+    expect(summary).toEqual({ days: 1, counted: 1, people: 1 });
+  });
+
+  it("a profile written before the stamp existed folds once, not never", async () => {
+    // Every profile in production predates `d`. An absent stamp has to
+    // mean "fold it" — the old behaviour, once — or the fix would freeze
+    // every existing profile at the value it has today.
+    const store = fakeStore({
+      lastDay: "2026-08-24",
+      profiles: new Map([["a", { t: { food: 5 }, n: 5 }]]),
+      ledger: { "2026-08-25": [{ uid: "a", qid: "feed-s1" }] },
+    });
+    await runTasteFold(store, NOW, TOPICS);
+    expect(store.profiles.get("a")).toEqual({ t: { food: 5, sport: 1 }, n: 6, d: "2026-08-25" });
   });
 
   it("is a no-op when yesterday is already folded — the retry contract", async () => {

@@ -67,6 +67,20 @@ export interface PatternsModel {
 export interface PatternsUserState {
   v: number[];
   n: number;
+  /**
+   * The last ledger day folded into this vector — the only thing that
+   * makes the fit safe to retry.
+   *
+   * `v` and `n` are advanced by `foldUserDay`, which is a step, not a
+   * set. `runPatternsFit` writes the users day by day and the model's
+   * cursor ONCE at the end, so a crash part-way through a catch-up leaves
+   * the cursor behind and the next run re-folds days it already applied
+   * to these vectors. The docstring on that function claimed the reverse.
+   *
+   * Optional because every vector written before this existed has none,
+   * and an absent stamp means "fold it" — the old behaviour, once.
+   */
+  d?: string;
 }
 
 export interface PatternsObservation {

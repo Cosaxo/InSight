@@ -68,33 +68,41 @@ import { sharePcts } from '../data/pct';
     return x / 9973;
   }
 
+  // The COUNT vector behind a live reading, or null. The two branches of
+  // `dist` below both build one and then throw it away; `mode` needs it
+  // kept, so it lives here and both callers share it.
+  function liveCounts(qid, anchorId, nOpts, myIdx) {
+    const width = Math.max(2, nOpts);
+    const pick = (cell) => {
+      const counts = Array.from({ length: width }, (_, i) => cell[String(i)] || 0);
+      return counts.reduce((a, b) => a + b, 0) ? counts : null;
+    };
+    // 'all' is EVERYONE — not a cohort, so no anchor and no dim lookup.
+    if (anchorId === 'all') return pick((LIVE.aggFor(qid) || {}).counts || {});
+    if (!liveTypicality(qid, anchorId, width, myIdx)) return null;
+    const dim = MAP_ANCHOR_DIM[anchorId];
+    return pick(byOf(LIVE.aggFor(qid))[dim][(LIVE.anchors() || {})[dim]]);
+  }
+
   // % per option, integers summing to 100. Biased so the group's most common
   // answer matches YOURS roughly 60% of the time — agreement, not an echo.
   function dist(qid, anchorId, nOpts, myIdx) {
     if (refuses()) {
-      // Live: the published cell, as percentages. Same shape the hash
-      // returned, so every call site is unchanged.
-      const t = liveTypicality(qid, anchorId, nOpts, myIdx);
-      if (!t) return null;
-      const cell = byOf(LIVE.aggFor(qid))[MAP_ANCHOR_DIM[anchorId]][(LIVE.anchors() || {})[MAP_ANCHOR_DIM[anchorId]]];
-      const counts = Array.from({ length: Math.max(2, nOpts) }, (_, i) => cell[String(i)] || 0);
-      // `sharePcts` (data/pct.ts), the one rounding rule — NOT the
+      // Live: the published counts, as percentages, through `sharePcts`
+      // (data/pct.ts) — the one rounding rule, NOT the
       // round-then-dump-the-residue-on-the-leader shape that used to be
       // here. That shape can hand a bucket a point it did not earn and
-      // hand another one fewer, and `mode()` right below reads
-      // indexOf(max) off this array: the Map card's "you're with the
-      // majority" / "a minority take", its peak label and its
-      // where-you-differ list all rest on which bucket comes out largest.
-      // Measured over 200k random count vectors at ten options — a rating
-      // question's width — the expression this replaces drew the leading
-      // option below the top percentage 15826 times and drew a smaller
-      // count at a larger percentage 12500 times. sharePcts: 0 and 0, at
-      // every width tried.
+      // another one fewer. Measured over 200k random count vectors at ten
+      // options — a rating question's width — the expression it replaced
+      // drew the leading option below the top percentage 15826 times and
+      // drew a smaller count at a larger percentage 12500 times.
+      // sharePcts: 0 and 0, at every width tried.
       //
       // The demo branch below keeps its own arithmetic: its numbers are
       // invented from a hash, so their rounding is not a claim about
       // anybody.
-      return sharePcts(counts);
+      const counts = liveCounts(qid, anchorId, nOpts, myIdx);
+      return counts ? sharePcts(counts) : null;
     }
     const n = Math.max(2, nOpts);
     const w = [];
@@ -112,7 +120,24 @@ import { sharePcts } from '../data/pct';
     return pct;
   }
 
+  // WHICH OPTION THE GROUP CHOSE — off the COUNTS in live mode, not off
+  // the percentages.
+  //
+  // `sharePcts` guarantees no inversion (a smaller count never draws
+  // larger) and that is what the ridge's bar heights rest on. It does not
+  // guarantee distinctness: two different counts can print the same
+  // integer, and `indexOf(max)` then resolves the tie by INDEX. That made
+  // the Map card's "most chose 4" and its "you're with the majority" /
+  // "a minority take" verdict answerable by rounding rather than by
+  // votes — the same defect the feed's own with-the-majority line had.
+  //
+  // The demo keeps reading its percentages, because in a demo the hash IS
+  // the content and there are no counts behind it.
   function mode(qid, anchorId, nOpts, myIdx) {
+    if (refuses()) {
+      const counts = liveCounts(qid, anchorId, nOpts, myIdx);
+      return counts ? counts.indexOf(Math.max(...counts)) : null;
+    }
     const d = dist(qid, anchorId, nOpts, myIdx);
     return d ? d.indexOf(Math.max(...d)) : null;
   }

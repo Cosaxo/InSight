@@ -192,6 +192,7 @@ import {
   duelQFor as duelQForPure,
   hasPublishedCounts,
   isCore,
+  isFeedQid,
   rankCrowdFor,
   CANON_BOARD_N,
   splitBanks,
@@ -206,7 +207,8 @@ import { patternsEligible, type PatternsSignal } from "./patternsReady";
 import { socialReadsPaused } from "./budgetMode";
 import { locateCell, locateSupported } from "./locate";
 import {
-  mayPublishPolitical, politicalConsentRecord, POLITICAL_RESULT_KEY,
+  hasAnsweredPoliticalAsk, mayPublishPolitical, politicalConsentRecord,
+  POLITICAL_RESULT_KEY,
 } from "./politicalConsent";
 import { scrubPersonaAnchors } from "./personaResidue";
 import { FUNCTIONS_REGION } from "../../lib/region";
@@ -1367,6 +1369,18 @@ async function hydrate(): Promise<void> {
       if (dsnap.size >= BANK_PAGE) {
         // A delta that fills the page is not a delta. Fall through to the
         // full fetch rather than silently serving a truncated bank.
+        //
+        // ADVANCE THE CURSOR ANYWAY, and this is the half that was
+        // missing. The query carries an inequality and no explicit
+        // ordering, so Firestore serves the OLDEST page past the cursor —
+        // these are real `updatedAt` values with nothing skipped over
+        // between them. Leaving the cursor where it was means the next
+        // boot asks the same question, gets the same full page, and falls
+        // through again: a permanent full-bank refetch on every boot,
+        // serving the right bank at full price with nothing to see it.
+        // The delta's own success path already advances past documents it
+        // deliberately drops, for the same reason.
+        cursor = Math.max(cursor, cursorOf(dsnap));
         all = null;
       } else {
         const byId = new Map(all.map((q) => [q.id, q]));
@@ -1494,7 +1508,13 @@ async function hydrate(): Promise<void> {
       where("until", ">=", utcDayKey(0)),
     ], "until")).filter((q) => q.surface === "feed");
     all = [...bootRows, ...coreRows, ...paidRows];
-    cursor = maxCursor;
+    // NEVER LOWER IT. `maxCursor` is the newest `updatedAt` across the
+    // three BOOT queries, and those do not cover the paged surfaces —
+    // `learn` is not a boot surface and a non-core feed row is not in the
+    // core query. So a bank whose newest documents are paged ones has a
+    // boot-only maximum BEHIND the cursor the device already holds, and
+    // assigning it walks the cursor backwards into the loop above.
+    cursor = Math.max(cursor, maxCursor);
     state.stats.bankSource = "network";
     // Whatever the cache held (a delta can overflow into this path from an
     // "idb" load), what stands now is the fetch — rewrite whole below.
@@ -2058,10 +2078,17 @@ async function topUpBankPages(db: Awaited<ReturnType<typeof getDb>>): Promise<vo
   }
 
   try {
-    // The feed's history is its answers: every voted feed- qid must
+    // The feed's history is its answers: every voted feed qid must
     // resolve to a document whatever page it was on. Core needs no heal
     // — it ships whole at boot by definition.
-    const answered = Object.keys(state.votes).filter((id) => id.startsWith("feed-"));
+    //
+    // BOTH LANES (isFeedQid, deck.ts). This read `startsWith("feed-")`,
+    // which is the feed's own lane and not the surface: a catalogue pick
+    // ships as `pick-<id>` on the SAME surface, so all 24 of them were
+    // excluded from the heal. A pick you answered that had since rotated
+    // off your cached pages was never fetched back, so the one place your
+    // own answer has to resolve to a question could not resolve it.
+    const answered = Object.keys(state.votes).filter(isFeedQid);
     // The person's own interest profile (D317 phase 1, D322) — the one
     // document in the system only its owner may read, and the pager is
     // the one thing that reads it: topics this person actually answers
@@ -4285,9 +4312,37 @@ const LIVE = {
         const db = await getDb();
         const uid = state.uid;
         if (!uid) return;
-        // merge:false on the nested map would drop the other profile
-        // fields, so the anchors map is replaced wholesale under a merge.
-        await setDoc(doc(db, "v2_users", uid), { anchors: clean }, { merge: true });
+        // `mergeFields`, NOT `merge: true`, and the difference is the
+        // whole reason the persona-residue heal exists twice.
+        //
+        // `merge: true` DEEP-MERGES a nested map: a key absent from
+        // `clean` is left standing on the server. So this write could add
+        // an anchor and change one, and could never REMOVE one — while the
+        // comment that used to sit here said the map was "replaced
+        // wholesale". Its one caller that removes keys is hydrate's
+        // persona-residue heal, which believed its repair was durable; the
+        // fabricated `profession` and `education` a pre-fix build wrote
+        // stayed on the world-readable profile permanently, and the heal
+        // re-fired on every cold boot forever without converging.
+        //
+        // `mergeFields: ["anchors"]` replaces the named field entirely and
+        // leaves every other profile field alone — which is what the old
+        // comment described and the old call did not do. It still upserts,
+        // so a first save on a profile document that does not exist yet
+        // behaves as before. Verified against the emulator both ways.
+        //
+        // TWO GUARDS, because the first one alone was not what its own
+        // commit claimed. firestore-tests/rules.test.ts proves what
+        // FIRESTORE does with each option — it hand-writes the two calls
+        // and reads them back — and says nothing about what this caller
+        // asks for: reverting this line left every test green. The pin
+        // that bites is in data/vote.test.ts, on the options object this
+        // write passes.
+        //
+        // (setPoliticalConsent, a few lines down, already knew: it uses
+        // deleteField() precisely because a merge cannot take something
+        // away.)
+        await setDoc(doc(db, "v2_users", uid), { anchors: clean }, { mergeFields: ["anchors"] });
       } catch (err) {
         reportError(err, { where: "saveAnchors" });
       }
@@ -4303,6 +4358,22 @@ const LIVE = {
    */
   politicalConsented(): boolean {
     return mayPublishPolitical(state.profile);
+  },
+  /**
+   * Has this account ANSWERED the ask — either way?
+   *
+   * Not the same question as `politicalConsented`, and the setup screen
+   * needs both. It seeded its two buttons from consent alone, so a person
+   * who tapped "Not these" came back to a screen with NEITHER marked:
+   * their refusal was invisible to the screen built to honour it, and the
+   * comment above that seed says exactly why that is wrong — "a refusal
+   * quietly becomes a nag".
+   *
+   * `false` means ask. A stale consent version means ask too, which is
+   * the other half `POLITICAL_CONSENT_VERSION` was written for.
+   */
+  politicalAnswered(): boolean {
+    return hasAnsweredPoliticalAsk(state.profile);
   },
   /**
    * Set — or withdraw — the political consent (D331).
@@ -4418,7 +4489,53 @@ const LIVE = {
         // the window between install and the ask: an account that has not
         // answered yet publishes no political position rather than a
         // smaller one.
-        if (kind === POLITICAL_RESULT_KEY && !mayPublishPolitical(state.profile)) continue;
+        if (kind === POLITICAL_RESULT_KEY && !mayPublishPolitical(state.profile)) {
+          // …and REMOVE what a pre-gate build already published.
+          //
+          // Skipping the fold stops a new coordinate being computed. It
+          // does nothing about the one that is already sitting on the
+          // world-readable profile: `testResults.political` has published
+          // since D277, D331 added the gate, and consent defaults to OFF —
+          // so on upgrade every existing account read "Off. Your answers
+          // still count; no political profile is built from them" on the
+          // account row while its six-axis coordinate was still there, and
+          // still joined by voters.ts's parseTestResults.
+          //
+          // Nothing else could take it away. The only deleter is
+          // setPoliticalConsent(false), and the panel renders its "Turn
+          // off" control ONLY when consent is already on — so the sole
+          // route to removing the coordinate was to consent to it first.
+          //
+          // This is the failure the paragraph above names in its own
+          // words: "a fold that ran and a screen that declined to draw it
+          // would publish the thing anyway". The fold ran before the gate
+          // existed, which is the same state by a different route.
+          //
+          // Guarded on the key actually being present, so a boot with
+          // nothing to remove costs no write — this runs on every hydrate.
+          if (state.profile.testResults[POLITICAL_RESULT_KEY]) {
+            delete state.profile.testResults[POLITICAL_RESULT_KEY];
+            wrote = true;
+            void (async () => {
+              try {
+                const db = await getDb();
+                const uid = state.uid;
+                if (!uid) return;
+                await setDoc(
+                  doc(db, "v2_users", uid),
+                  { testResults: { [POLITICAL_RESULT_KEY]: deleteField() } },
+                  { merge: true },
+                );
+              } catch (err) {
+                // The local delete stands either way, so the screen never
+                // shows a coordinate this account has not consented to.
+                // The next boot retries; the server is re-read then.
+                reportError(err, { where: "syncPassiveResults.politicalPurge" });
+              }
+            })();
+          }
+          continue;
+        }
         const stored = state.profile.testResults[kind] as { passive?: boolean } | undefined;
         if (stored && !stored.passive) continue;
         const next = passiveResult(

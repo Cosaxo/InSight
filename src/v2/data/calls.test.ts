@@ -10,6 +10,7 @@ import {
   stateOf,
   type CallCard,
 } from "./calls";
+import { sharePcts } from "./pct";
 import { CALL_VOID, type CallRubric } from "./callRubric";
 
 const RUBRIC: CallRubric = { kind: "agg", qid: "feed-f01", test: "topShareAtLeast", threshold: 60 };
@@ -120,6 +121,38 @@ describe("callPcts", () => {
     const ps = callPcts([1, 1, 1])!;
     expect(ps.reduce((a, b) => a + b, 0)).toBe(100);
     expect(ps).toEqual([34, 33, 33]);
+  });
+
+  // The case the two above could not see. Both pass under the OLD
+  // implementation too — round each share, dump the residue on the leader
+  // — because [1,1,1] lands the same either way. That is the shape worth
+  // naming: a rounding test that only exercises the value both rules agree
+  // on.
+  it("is the app's one rounding rule, not a second one that agrees sometimes", () => {
+    // 5 against 3 drew 62/38 here and 63/37 in the Mirror's answer rows for
+    // the same question, one tab apart. Round-then-dump always shaves the
+    // WINNER.
+    expect(callPcts([5, 3])).toEqual([63, 37]);
+    expect(callPcts([7, 1])).toEqual([88, 12]);
+    // …and it is asymmetric, which is why a spot check could miss it: the
+    // mirrored pair agreed under both rules.
+    expect(callPcts([3, 5])).toEqual([38, 62]);
+  });
+
+  it("agrees with sharePcts on every two-option split up to 200", () => {
+    // Pinned as an EQUALITY against the shared rule rather than as a list
+    // of expected numbers, so it cannot drift back by someone
+    // reimplementing the rounding here. 160 pairs in this range disagreed.
+    const bad: string[] = [];
+    for (let a = 0; a <= 200; a++) {
+      for (let b = 0; b <= 200; b++) {
+        if (a + b === 0) continue;
+        const got = callPcts([a, b])!;
+        const want = sharePcts([a, b]);
+        if (got[0] !== want[0] || got[1] !== want[1]) bad.push(`[${a},${b}]`);
+      }
+    }
+    expect(bad.slice(0, 5), `${bad.length} splits disagree with the shared rounding rule`).toEqual([]);
   });
 });
 

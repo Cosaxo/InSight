@@ -444,8 +444,20 @@ if (orientation) {
   // BOTH call — so it guards a PR and production with the same job. `ci`
   // means ci.yml's own jobs: pull requests only. `release` is a
   // platform-release or metadata workflow. `manual` is nothing automated.
+  //
+  // MATCHED ON THE SCRIPT FILE TOO, not only on the `npm run` spelling. A
+  // workflow may invoke a gate directly — `node scripts/check-store-copy.mjs
+  // --ios` in ios-release.yml is the only one today — and matching the
+  // spelling alone called that gate "manual" while it decided whether an
+  // iOS release ships. This rule's whole point is answering "can this
+  // block an emergency rules fix", and it was giving the inverse answer
+  // for exactly the same reason: reading how a gate is SPELLED rather
+  // than what it RUNS.
   const placement = (name) => {
-    const runs = [...workflows].filter(([, src]) => src.includes(`npm run ${name}`)).map(([f]) => f);
+    const file = (String(pkg.scripts[name] || "").match(/scripts\/[\w.-]+\.mjs/) || [])[0];
+    const runs = [...workflows]
+      .filter(([, src]) => src.includes(`npm run ${name}`) || (file && src.includes(file)))
+      .map(([f]) => f);
     if (runs.includes("backend-checks.yml")) return "deploy";
     if (runs.includes("ci.yml")) return "ci";
     if (runs.length) return "release";

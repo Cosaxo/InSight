@@ -45,7 +45,15 @@ const h = vi.hoisted(() => ({
   // the reveal has to add it back in. Default null keeps every other case
   // on the "document does not exist" answer they were written against.
   getDocImpl: null as null | ((path: string) => Record<string, unknown> | null),
-  setDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
+  // OPTIONS TOO. The third argument decides whether a write can REMOVE a
+  // field, and dropping it here is why nothing could pin `saveAnchors`
+  // passing `mergeFields` — a fix landed with a comment claiming the
+  // rules suite guarded it, and reverting the fix left every test green.
+  setDocCalls: [] as Array<{
+    path: string;
+    data: Record<string, unknown>;
+    opts?: Record<string, unknown>;
+  }>,
   // the D86 edit path writes through updateDoc, never setDoc
   updateDocImpl: null as null | (() => Promise<void>),
   updateDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
@@ -304,8 +312,12 @@ vi.mock("firebase/firestore", () => {
       h.snapshots.push({ path: target?.path, next, error });
       return vi.fn();
     },
-    setDoc: (target: { path: string }, data: Record<string, unknown>) => {
-      h.setDocCalls.push({ path: target.path, data });
+    setDoc: (
+      target: { path: string },
+      data: Record<string, unknown>,
+      opts?: Record<string, unknown>,
+    ) => {
+      h.setDocCalls.push({ path: target.path, data, opts });
       return h.setDocImpl ? h.setDocImpl() : Promise.resolve();
     },
     updateDoc: (target: { path: string }, data: Record<string, unknown>) => {
@@ -1995,6 +2007,63 @@ describe("window.LIVE public surface", () => {
       expect(data.testResults.political).toBe("__delete__");
     });
 
+    it("purges a compass a pre-gate build already published, with no consent on file", async () => {
+      // THE UPGRADE CASE, and the one the gate alone does not cover.
+      // `testResults.political` has published since D277; D331 added the
+      // gate; consent defaults to OFF. So every account that used the app
+      // before the gate landed had a six-axis coordinate sitting on a
+      // world-readable profile while the account row read "Off. Your
+      // answers still count; no political profile is built from them."
+      //
+      // Skipping the fold does not remove it, and nothing else did: the
+      // only deleter is setPoliticalConsent(false), and the panel offers
+      // "Turn off" only when consent is already ON — so the sole route to
+      // removing the coordinate was to consent to it first.
+      seedPolitical();
+      h.getDocImpl = (path: string) => (path === "v2_users/uid_test"
+        ? { testResults: { political: { dims: [{ id: "econ", label: "Economy", value: 0.4 }] } } }
+        : null);
+      const LIVE = await bootLive();
+      await flush();
+      h.setDocCalls.length = 0;
+      (LIVE as unknown as { syncPassiveResults: () => void }).syncPassiveResults();
+      await flush();
+      const call = h.setDocCalls.find((c) => c.path === "v2_users/uid_test");
+      expect(call, "the stored compass was left on the profile — the gate "
+        + "stops a NEW one being computed and says nothing about the one "
+        + "already published").toBeTruthy();
+      const data = call!.data as Record<string, Record<string, unknown>>;
+      expect(data.testResults.political).toBe("__delete__");
+      // …and no real coordinate is written back in the same breath.
+      // `politicalWrites()` matches on truthiness and the delete sentinel
+      // is a truthy string, so this asks the sharper question: is any
+      // write carrying an actual result object?
+      const real = politicalWrites().filter((c) => {
+        const d = c.data as Record<string, Record<string, unknown>>;
+        return d.testResults.political !== "__delete__";
+      });
+      expect(real).toHaveLength(0);
+    });
+
+    it("purging costs no write when there is nothing to purge", async () => {
+      // This runs on every hydrate, so an account that never had a
+      // coordinate must not buy a profile write on every boot forever —
+      // which is the shape of the persona-residue heal this same night
+      // found looping.
+      seedPolitical();
+      h.getDocImpl = (path: string) => (path === "v2_users/uid_test" ? {} : null);
+      const LIVE = await bootLive();
+      await flush();
+      h.setDocCalls.length = 0;
+      (LIVE as unknown as { syncPassiveResults: () => void }).syncPassiveResults();
+      await flush();
+      const deletes = h.setDocCalls.filter((c) => {
+        const d = c.data as Record<string, Record<string, unknown>>;
+        return c.path === "v2_users/uid_test" && d.testResults?.political === "__delete__";
+      });
+      expect(deletes).toHaveLength(0);
+    });
+
     it("setPoliticalConsent(true) records it and deletes nothing", async () => {
       h.getDocImpl = (path: string) => (path === "v2_users/uid_test" ? {} : null);
       const LIVE = await bootLive();
@@ -2667,6 +2736,42 @@ describe("loadCityKindred — asking for the city instead of filtering for it", 
     LIVE.saveAnchors({ city: "Bergen, NO" });
     await LIVE.loadCityKindred();
     expect(h.voterQueries.some((w) => w["anchors.city"] === "Bergen, NO")).toBe(true);
+  });
+});
+
+// The WRITE SHAPE `saveAnchors` uses, pinned at the caller.
+//
+// A commit landed the fix for this — `merge: true` deep-merges a nested
+// map, so the anchors write could add and change a key and never REMOVE
+// one, and the persona-residue heal that removes keys therefore never
+// converged — under a comment saying "firestore-tests/rules.test.ts holds
+// the semantics so a future 'simplification' back to merge:true cannot
+// pass." It did not. That case hand-writes its own `setDoc` with
+// `mergeFields` and never calls `saveAnchors`, so it proves what
+// Firestore does and nothing about what this caller asks for: reverting
+// the fix left all 2228 tests green.
+//
+// The reason nothing could pin it is one line up in this file — the
+// harness's `setDoc` dropped its third argument, so the option that
+// decides whether a write can remove a field was invisible to every test.
+describe("saveAnchors asks for a write that can REMOVE an anchor", () => {
+  it("passes mergeFields naming anchors, not a plain merge", async () => {
+    const LIVE = await bootLive();
+    h.setDocCalls.length = 0;
+    LIVE.saveAnchors({ city: "Bergen, NO" });
+    await flush();
+    const call = h.setDocCalls.find((c) => c.path === "v2_users/uid_test");
+    expect(call, "saveAnchors wrote no profile document at all").toBeTruthy();
+    expect(
+      call!.opts,
+      "a plain `{ merge: true }` DEEP-MERGES the anchors map, so a key the "
+      + "caller left out survives on the server and the persona-residue "
+      + "heal re-fires on every boot forever without converging",
+    ).toEqual({ mergeFields: ["anchors"] });
+    // …and it names ONLY anchors: naming more would drop the rest of the
+    // profile, which is the failure the original `merge: true` was there
+    // to avoid.
+    expect(call!.data).toEqual({ anchors: { city: "Bergen, NO" } });
   });
 });
 

@@ -83,8 +83,6 @@ const INVENTORY = join(ROOT, "docs/data-inventory.md");
 const EXEMPT = {
   databases:
     "Not a collection. `match /databases/{database}/documents` is the wrapper every rules file opens with, and it matches the same shape as a collection path.",
-  v2_questions:
-    "The question BANK — content the app ships, not data it collects from anyone. Client-read-only, server-seeded (seedContentV2). Its drift gates are check:catalogs and check:figures, which read the bank itself.",
   v2_meta:
     "Global app config (minBuild and friends). World-readable, server-written, and holds nothing about any person.",
   v2_velocity:
@@ -242,17 +240,29 @@ export function widestRead(classes) {
 export const SAYS_PUBLIC = /any signed-in user|anyone signed in/i;
 export const SAYS_NOBODY = /\bnobody\b|\bno one\b/i;
 
-// A FLOOR, because rule 2's failure mode is silence: every way it can stop
-// working — a parser that mis-attributes, a `Where` cell that stops naming
-// its path, a read rule edited into a form this declines to read — takes
-// rows OUT of the checked set and leaves the gate green. The number can
-// rise freely; it may not fall without saying so. 27 was the tree D257
-// landed against, and it then sat four below the real number for long
-// enough to swallow a row silently — which is the very failure it exists
-// to announce, so a floor that is not kept level with the tree is not a
-// floor. Raised to the tree on 2026-08-26 and to be raised again whenever
-// this gate reports more.
-const READER_FLOOR = 31;
+// A RATCHET, not a floor, and the difference is the whole point.
+//
+// Rule 2's failure mode is silence: every way it can stop working — a
+// parser that mis-attributes, a `Where` cell that stops naming its path, a
+// read rule edited into a form this declines to read — takes rows OUT of
+// the checked set and leaves the gate green. A floor catches that only
+// while it is level with the tree, and this one has now drifted below the
+// tree TWICE. It sat four low after D257, was raised to 31 on 2026-08-26,
+// and the tree reached 32 at D316–D322 with nothing saying so. Each gap is
+// that many rows rule 2 could lose while still reporting OK — the very
+// failure the number exists to announce.
+//
+// "The number can rise freely" was the bug. A floor that may silently rise
+// is a floor that silently stops being one, because the slack is invisible
+// and only ever grows. So it is held as an EQUALITY in both directions,
+// the shape check:globals rule 4 already uses for its coupling count:
+// FEWER rows means something was lost and you find out which, and MORE
+// means the gate now covers more than the number claims and the number
+// comes up in the same commit that earned it. Either way the drift is a
+// red build rather than a quiet allowance.
+// 32 → 33 when `v2_questions` stopped being exempt and became a row:
+// the bank is content, but a BOUGHT question carries the buyer's name.
+const READER_EXPECTED = 33;
 const readClasses = classifyReads(rules);
 let readerChecked = 0;
 for (const row of inventoryRows(inventory, named)) {
@@ -278,13 +288,22 @@ for (const row of inventoryRows(inventory, named)) {
 // after it is a finding nothing prints and an exit code that stays 0. A
 // gate against silent loss that failed silently; the CLI marker was moved
 // above an existing block rather than the block being moved under it.
-if (readerChecked < READER_FLOOR) {
+if (readerChecked < READER_EXPECTED) {
   problems.push(
-    `rule 2 covered ${readerChecked} row(s), down from ${READER_FLOOR}.\n` +
+    `rule 2 covered ${readerChecked} row(s), down from ${READER_EXPECTED}.\n` +
       `    A row leaves the checked set silently — a read rule edited into a form\n` +
       `    this declines to read, a \`Where\` cell that stopped naming its path, or a\n` +
-      `    parser that mis-attributed it. Find which, then lower READER_FLOOR\n` +
+      `    parser that mis-attributed it. Find which, then lower READER_EXPECTED\n` +
       `    deliberately if the loss is correct.`,
+  );
+} else if (readerChecked > READER_EXPECTED) {
+  problems.push(
+    `rule 2 covered ${readerChecked} row(s), up from ${READER_EXPECTED}.\n` +
+      `    Nothing is broken — the gate now checks MORE than its number claims.\n` +
+      `    Raise READER_EXPECTED to ${readerChecked} in this same commit. The\n` +
+      `    number is a ratchet rather than a floor precisely because letting it\n` +
+      `    rise quietly is how it drifted below the tree twice, and slack here is\n` +
+      `    rows rule 2 can lose while still reporting OK.`,
   );
 }
 

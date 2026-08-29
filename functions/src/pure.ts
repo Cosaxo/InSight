@@ -98,9 +98,37 @@ export const RESERVED_HANDLES = new Set([
 
 // ── day-key arithmetic (v2social) ───────────────────────────────
 
+// THE ARGUMENT IS AN OFFSET IN DAYS, not a timestamp, and that distinction
+// is why this comment exists. `functions/src` carried FOUR exports named
+// `utcDayKey` in two incompatible families: this one and paid.ts's took an
+// offset, logic.ts's and velocity.ts's took a millisecond timestamp. So
+// `utcDayKey(0)` meant TODAY in one family and 1970-01-01 in the other,
+// and `utcDayKey(Date.now())` meant a date about 46 million years out.
+// Nothing imported across the families, so it never fired — it was a trap
+// waiting for the first person to import the nearer one.
+//
+// The two timestamp-takers are `utcDayKeyOf` now, and paid.ts's copy is
+// gone in favour of this one, which it was byte-identical to. One name,
+// one meaning. functions/src/exports.test.ts refuses a second export of
+// any name, so the shape cannot come back.
 export function utcDayKey(offsetDays = 0, nowMs: number = Date.now()): string {
   const d = new Date(nowMs + offsetDays * 86400000);
   return d.toISOString().slice(0, 10);
+}
+
+/**
+ * The same grain, from a TIMESTAMP rather than an offset — `utcDayKeyOf(
+ * Date.now())` is today. The name carries the difference because the
+ * shared one did not: both families are `(number) => string`, so calling
+ * either with the other's argument type-checks and silently returns a
+ * date 46 million years out, or 1970.
+ *
+ * One implementation, here, because logic.ts and velocity.ts each had
+ * their own — velocity's built the string field by field and this one
+ * slices an ISO string, which agree on every value either was ever given.
+ */
+export function utcDayKeyOf(ms: number): string {
+  return new Date(ms).toISOString().slice(0, 10);
 }
 
 /**

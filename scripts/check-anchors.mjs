@@ -371,8 +371,21 @@ if (!ruleCaps.size) {
 // item that has now been forgotten once is a gate's job, so this is the
 // paragraph converted.
 //
-// Read off BREAKDOWN_DIMS rather than a second list, because a hand-kept
-// copy is the drift every other rule in this file exists to prevent.
+// TWO LISTS, because the first cut used the wrong one. The paragraph is
+// about ANCHOR KEYS — what `anchorsFrom` stamps onto every answer — and
+// the gate read BREAKDOWN_DIMS, which is the set of keys the aggregate
+// BREAKS DOWN by. Those overlap and are not the same: `age` and
+// `profession` are written onto every answer and are not dims, so a rule
+// enumerating dims could not see either. `profession` happened to carry
+// its exemption already; `age` did not, and the gate reported "every
+// breakdown dim carries its exemption" while every answer ever written
+// paid two index entries for it. D155 added `age` and `heightBand`
+// together and only one of them got a row.
+//
+// So: the dims are still checked (a dim that is somehow not an anchor key
+// would still be a billed index), and the anchor keys are checked too,
+// read off `anchorsFrom`'s own return object rather than a hand-kept
+// copy — the drift every other rule in this file exists to prevent.
 const INDEXES = "firestore.indexes.json";
 try {
   const dimsBlock = pure.slice(
@@ -387,14 +400,49 @@ try {
         && Array.isArray(f.indexes) && f.indexes.length === 0)
       .map((f) => f.fieldPath),
   );
+  // The keys `anchorsFrom` actually returns — the thing the paragraph is
+  // about. Sliced from the function rather than grepped file-wide so a
+  // key name appearing in a comment cannot join the list.
+  const anchorsBlock = profile.slice(
+    profile.indexOf("return {", profile.indexOf("function anchorsFrom")),
+    profile.indexOf("\n}", profile.indexOf("function anchorsFrom")),
+  );
+  // `key: value` AND bare `key,` — a SHORTHAND property is still an anchor.
+  // The first cut matched the colon form only, and `city` is written
+  // shorthand, so the rule that was added to stop enumerating the wrong
+  // list went on enumerating nine keys of ten. It cost nothing only
+  // because `city` happens to be a breakdown dim as well, and the other
+  // half of this rule caught it.
+  const anchorKeys = [...anchorsBlock.matchAll(/^ {4}(\w+)\s*[:,]/gm)].map((m) => m[1]);
   if (!dims.length) {
     errors.push(`${PURE}: BREAKDOWN_DIMS parsed as EMPTY, which cannot be right.`);
   }
-  for (const dim of dims) {
-    if (!exempt.has(`anchors.${dim}`)) {
+  // AN EQUALITY, not a floor, for the reason the floor one file over was
+  // converted to a ratchet: a parse that quietly covers less than it says
+  // is this rule's whole failure mode, and slack is invisible. It parsed
+  // NINE of ten and the floor was eight, so the miss sat inside the
+  // allowance the floor granted.
+  //
+  // Adding or removing an anchor is already a several-file change
+  // (profile-vitals, the rules' allowlist, the index exemptions, the
+  // vocabularies); this is one more line, and it is the line that proves
+  // the rest of the rule is still reading the whole list.
+  const ANCHOR_KEYS_EXPECTED = 10;
+  if (anchorKeys.length !== ANCHOR_KEYS_EXPECTED) {
+    errors.push(
+      `${PROFILE}: anchorsFrom's returned keys parsed as `
+      + `[${anchorKeys.join(", ")}] — ${anchorKeys.length}, not `
+      + `${ANCHOR_KEYS_EXPECTED}.\n`
+      + "    If an anchor was added or removed, update ANCHOR_KEYS_EXPECTED in\n"
+      + "    this script in the same commit. If it was not, this rule has\n"
+      + "    stopped reading the whole list and is checking less than it says.",
+    );
+  }
+  for (const key of [...new Set([...dims, ...anchorKeys])]) {
+    if (!exempt.has(`anchors.${key}`)) {
       errors.push(
-        `${INDEXES}: no single-field exemption for "anchors.${dim}".\n`
-        + "    Every breakdown dim is written onto every answer and queried by\n"
+        `${INDEXES}: no single-field exemption for "anchors.${key}".\n`
+        + "    Every anchor key is written onto every answer and filtered on by\n"
         + "    nothing, so without a `\"indexes\": []` override Firestore keeps two\n"
         + "    index entries per answer for it — D64's storage-cost regression,\n"
         + "    which is billed silently and never raises anything.",
@@ -416,5 +464,5 @@ console.log(
   `check:anchors OK — ${PAIRS.length} closed vocabularies match the profile's `
   + `<select>s (${sizes}), all under BREAKDOWN_MAX_BUCKETS=${MAX_BUCKETS}; `
   + `${ruleCaps.size} length caps agree between ${RULES} and ${LIVE}; `
-  + `every breakdown dim carries its ${INDEXES} exemption`,
+  + `every anchor key and breakdown dim carries its ${INDEXES} exemption`,
 );

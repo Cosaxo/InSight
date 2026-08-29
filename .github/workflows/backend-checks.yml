@@ -89,6 +89,24 @@ jobs:
       # does not have, which the demo build is by definition unable to
       # notice. Node stdlib only, no root node_modules.
       - run: npm run check:learn-sample
+      # The rate card the SERVER charges from (D313). Same shape as the two
+      # above and the same reason: functions/src/pricing.ts is a generated
+      # embed of content/pricing.json, and check:pricing byte-compares them
+      # so "the price the server charges and the price the door prints
+      # cannot drift".
+      #
+      # It sat on ci.yml alone under a comment calling it client content —
+      # true when it only validated the card's own clamps, and false since
+      # D313 gave it a server copy to compare. firebase-deploy.yml calls
+      # THIS workflow and does not wait on ci.yml, so a push to main
+      # deployed the stale card while ci.yml went red beside it, in
+      # parallel, too late. Measured: bump content/pricing.json without a
+      # regen and every gate on this path stays green.
+      #
+      # priceQuote() is what invoices a buyer, which makes this the one
+      # derived-copy gate whose silent failure charges somebody the wrong
+      # money. Node stdlib only, no root node_modules.
+      - run: npm run check:pricing
       # The seed's field whitelist against what the generator emits (D285).
       # Deploy-path, and the most deploy-path of them all: a field the seed
       # does not name never reaches Firestore, and every other gate stays
