@@ -586,6 +586,65 @@ describe("patternsSignal (D265): the mount gate's two numbers", () => {
   });
 });
 
+// ── how divisive a question was, over the options it HAS ────────────
+//
+// The selection key for the twelve questions Kindred, the City
+// constellation and the People lens are computed over. It densified the
+// published counts by walking "0".."19" and BREAKING at the first missing
+// key — but the server mints a key by incrementing and deletes one that
+// reaches zero, so an option nobody picked simply has no key. A gapped
+// vector was therefore scored on its leading run, and `divisiveness`
+// normalises by option COUNT, so the short vector is not merely missing
+// zeros: it is rescaled.
+describe("divisivenessOf reads the whole question, not its leading run", () => {
+  const bankDoc = (id: string, options: string[]) => ({
+    id,
+    data: {
+      surface: "feed", seq: 1, type: "vote", prompt: id,
+      options, topic: null, test: null, active: true, core: true,
+    },
+  });
+
+  /** Boot with the question in the bank, then land the published counts
+   *  through the store's own refresh — the only path that fills
+   *  `state.aggs`, which is what divisivenessOf reads. */
+  const withCounts = async (
+    qid: string, options: string[] | null, counts: Record<string, number> | null,
+  ) => {
+    if (options) h.bankDocs.push(bankDoc(qid, options));
+    const mod = await import("./live");
+    const LIVE = await bootLive();
+    LIVE.vote(qid, "0");
+    await vi.waitFor(() => {
+      expect(mod._aggRefreshForTest().pending).toContain(qid);
+    });
+    h.aggDocs = counts ? [{ id: qid, data: { total: 0, counts } }] : [];
+    await mod._aggRefreshForTest().drain({ __db: true } as never);
+    return mod;
+  };
+
+  it("fills an unpicked option with zero instead of stopping there", async () => {
+    const mod = await withCounts("q_gap", ["A", "B", "C", "D", "E"],
+      { "0": 2, "1": 3, "3": 3, "4": 1 });
+    // Five options, lead 3 of 9 → (1 − 1/3) / (1 − 1/5). Truncated at the
+    // gap it was three options wide and scored 0.6667.
+    expect(mod.divisivenessOf("q_gap")).toBeCloseTo((1 - 3 / 9) / (1 - 1 / 5), 6);
+  });
+
+  it("scores a landslide as zero rather than as unmeasured", async () => {
+    // Option 0 unpicked on a two-option question truncated the vector to
+    // nothing, and −1 means "this device holds no counts" — a claim about
+    // missing data, made over data that was present.
+    const mod = await withCounts("q_slide", ["A", "B"], { "1": 7 });
+    expect(mod.divisivenessOf("q_slide")).toBe(0);
+  });
+
+  it("still answers −1 when the device holds no counts at all", async () => {
+    const mod = await withCounts("q_none", ["A", "B"], null);
+    expect(mod.divisivenessOf("q_none")).toBe(-1);
+  });
+});
+
 // ── arming a loader is a state change (the "could not load" frame) ──
 //
 // A loading flag nobody is told about is not a loading state. The panels

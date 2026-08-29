@@ -458,17 +458,45 @@ const AD_POOL_CAP = 200;
  * empty pool. `divisiveness` normalises by option count (cohort.ts), so a
  * 2-option daily and a 5-option scale item are comparable.
  */
-function divisivenessOf(qid: string): number {
+export function divisivenessOf(qid: string): number {
   const counts = state.aggs[qid]?.counts;
   if (!counts) return -1;
-  const dense: number[] = [];
-  for (let i = 0; i < 20; i++) {
-    const c = counts[String(i)];
-    if (typeof c !== "number") break;
-    dense.push(c);
-  }
-  if (dense.length < 2) return -1;
+  // HOW MANY OPTIONS THE QUESTION HAS, not how many the counts happen to
+  // name. The server mints a count key by incrementing and DELETES one
+  // that reaches zero (pure.ts: "a zero count never occurs on the create
+  // path"), so an option nobody picked simply has no key — and this used
+  // to stop at the first gap. A five-option question with option 2
+  // unpicked was scored on its first two options; a ten-point rating with
+  // option 0 unpicked scored as unmeasured.
+  //
+  // It is the selection key for loadKindred's twelve, so a wrong value
+  // spends twelve collection-group queries on a worse-chosen set — and
+  // `divisiveness` normalises by option COUNT, which is why a short
+  // vector is not merely missing zeros but rescaled.
+  //
+  // Every other densifier in the tree reads the bank's option count and
+  // fills with `|| 0` (cohort.ts, deck.ts, testNorms.ts, purchases.ts).
+  // This one now does too, with the highest key present as the fallback
+  // for a qid no bank on this device can name.
+  const n = optionCountOf(qid);
+  const len = n > 0 ? n : Object.keys(counts)
+    .reduce((max, k) => (/^\d+$/.test(k) ? Math.max(max, Number(k) + 1) : max), 0);
+  if (len < 2) return -1;
+  const dense = Array.from({ length: Math.min(len, 20) }, (_, i) => counts[String(i)] || 0);
   return divisiveness(dense);
+}
+
+/** The bank's option count for a qid, or 0 when no bank on this device
+ *  holds it — the storesOptionIdx lookup, one question over. */
+function optionCountOf(qid: string): number {
+  for (const bank of [
+    state.questions, state.feedBank, state.duelBank,
+    state.learnBank, state.callBank, state.pulseBank,
+  ]) {
+    const q = bank.find((x) => x.id === qid);
+    if (q) return Array.isArray(q.options) ? q.options.length : 0;
+  }
+  return 0;
 }
 
 /**
