@@ -40,11 +40,27 @@ vi.mock("firebase/firestore", () => ({
     return q;
   },
   where: (field: unknown, op: unknown, val: unknown) => ({ __k: "where", field, op, val }),
+  // The two the exact follower read needs. `documentId()` is a sentinel in
+  // the real SDK too — a marker the query builder recognises — so a string
+  // stands in for it here without weakening anything.
+  documentId: () => "__name__",
+  doc: (_db: unknown, ...p: string[]) => ({ __k: "doc", path: p.join("/") }),
   limit: (n: number) => ({ __k: "limit", n }),
   orderBy: () => ({ __k: "orderBy" }),
-  getDocs: () => Promise.resolve({
-    size: h.docs.length,
-    docs: h.docs.map((d) => ({
+  // THE FAKE FILTERS, because the code under test stopped filtering on the
+  // device. `fetchFollowersOf` now names the exact rows it wants and lets
+  // the server return only those; a fake that handed back everything
+  // regardless would be more permissive than Firestore and would pass a
+  // query that asked for the wrong documents.
+  getDocs: (q: { wheres?: Array<[unknown, unknown, unknown]> }) => {
+    const idIn = (q?.wheres || []).find((w) => w[0] === "__name__" && w[1] === "in");
+    const want = idIn
+      ? new Set((idIn[2] as Array<{ path: string }>).map((r) => r.path))
+      : null;
+    const docs = want ? h.docs.filter((d) => want.has(d.path)) : h.docs;
+    return Promise.resolve({
+    size: docs.length,
+    docs: docs.map((d) => ({
       id: d.id,
       data: () => d.data,
       get: (k: string) => d.data[k],
@@ -56,7 +72,8 @@ vi.mock("firebase/firestore", () => ({
         parent: { parent: { id: d.path.split("/")[1] } },
       },
     })),
-  }),
+    });
+  },
 }));
 
 beforeEach(() => { h.queries = []; h.docs = []; });
@@ -128,11 +145,61 @@ describe("fetchFollowersOf", () => {
     expect(back.has("u_grace")).toBe(false);
   });
 
-  it("queries the collection group on `to`, which is the index that exists", async () => {
+  it("keeps the `to` equality AND names the exact rows it wants", async () => {
+    // Two filters, and both are load-bearing. `to == me` is what
+    // firestore.rules gates the collection group on, and D65's measured
+    // lesson is that a collection-group read must carry the matching
+    // `where` or Firestore refuses the whole query. The id filter is the
+    // fix: it asks for the candidates' own rows instead of fetching a page
+    // of everyone's and intersecting on the device.
     const { fetchFollowersOf } = await import("./circle");
     await fetchFollowersOf({} as never, "me", ["u_ada"]);
     expect(h.queries[0].path).toBe("following");
-    expect(h.queries[0].wheres).toEqual([["to", "==", "me"]]);
+    expect(h.queries[0].wheres).toEqual([
+      ["to", "==", "me"],
+      ["__name__", "in", [{ __k: "doc", path: "v2_users/u_ada/following/me" }]],
+    ]);
+    // …and no row cap, because the id list IS the bound.
+    expect(h.queries[0].limit).toBeNull();
+  });
+
+  it("finds a mutual however many OTHER followers there are", async () => {
+    // The defect this replaced. The read used to fetch one page of
+    // "everyone who follows me" — 100 rows, no ordering — and intersect it
+    // here. Firestore's implicit order is by path, so past 100 followers
+    // the page was the lexicographically-first hundred, picked without
+    // reference to the people being asked about: a mutual outside it read
+    // as false, the Circle printed "N follow you back" too low, and at
+    // zero it told someone whose circle does follow them back that
+    // following is one-way.
+    //
+    // 200 other followers sort before the candidate, so any page-and-
+    // intersect shape misses them.
+    const { fetchFollowersOf } = await import("./circle");
+    h.docs = [
+      ...Array.from({ length: 200 }, (_, i) =>
+        following(`u_aaa${String(i).padStart(3, "0")}`, "me", i)),
+      following("u_zoe", "me", 999),
+    ];
+    const back = await fetchFollowersOf({} as never, "me", ["u_zoe"]);
+    expect([...back]).toEqual(["u_zoe"]);
+  });
+
+  it("splits a candidate list past Firestore's `in` limit into whole chunks", async () => {
+    // 30 is the limit on `in`. A list of 50 — the follow cap — is two
+    // queries, and every candidate must appear in one of them or the
+    // people in the tail silently lose their badge.
+    const { fetchFollowersOf } = await import("./circle");
+    const among = Array.from({ length: 50 }, (_, i) => `u_${String(i).padStart(3, "0")}`);
+    h.docs = among.map((u, i) => following(u, "me", i));
+    const back = await fetchFollowersOf({} as never, "me", among);
+    expect(h.queries).toHaveLength(2);
+    for (const q of h.queries) {
+      const ids = (q.wheres as Array<[string, string, unknown[]]>)[1];
+      expect(ids[0]).toBe("__name__");
+      expect(ids[2].length).toBeLessThanOrEqual(30);
+    }
+    expect(back.size).toBe(50);
   });
 
   it("issues no query at all for an empty candidate list", async () => {

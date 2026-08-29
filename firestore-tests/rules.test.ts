@@ -29,6 +29,7 @@ import {
   collection,
   collectionGroup,
   doc,
+  documentId,
   getDoc,
   getDocs,
   query,
@@ -1554,6 +1555,20 @@ describe("v2 follow graph (D101 — Circle)", () => {
     await assertSucceeds(getDocs(query(
       collectionGroup(asUser(OWNER), "following"),
       where("to", "==", OWNER),
+    )));
+    // …AND the id-filtered form, which is what it sends now. The read used
+    // to fetch a page of everyone who follows you and intersect it on the
+    // device, so past a hundred followers a mutual outside the
+    // lexicographically-first page silently read as false. It now names
+    // the candidates' own rows — every path is known, because a follow's
+    // document id IS its target. The `to` clause stays because this rule
+    // is what requires it, and the failure mode if this combination is
+    // ever refused is the one the paragraph above describes: a screen that
+    // works and is empty.
+    await assertSucceeds(getDocs(query(
+      collectionGroup(asUser(OWNER), "following"),
+      where("to", "==", OWNER),
+      where(documentId(), "in", [followRef(OWNER, STRANGER, OWNER)]),
     )));
     // Not a licence to enumerate the whole follow graph.
     await assertFails(getDocs(collectionGroup(asUser(OWNER), "following")));
