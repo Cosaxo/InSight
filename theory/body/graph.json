@@ -1,7 +1,7 @@
 {
   "version": 1,
   "axiom": "body",
-  "updated": "2026-08-27",
+  "updated": "2026-08-29",
   "nodes": [
     {
       "id": "bod-1",
@@ -9,7 +9,12 @@
       "status": "argued",
       "detail": "Sleep, heart data, activity, nutrition, and clinic-derived values are one body described by channels of different noise and cadence; the perfect axiom models them jointly on a person's timeline. The concrete case the seed asked for now exists, from bod-3's evidence: perceived and device-measured sleep dissociate, and each channel carries predictive signal the other lacks — subjective reports track emotional state, objective measures predict cognition and cardiometabolic risk. A subjective-only axiom therefore mislabels mood as sleep; an objective-only axiom silently discards the channel that carries the affect coupling. Only joint modeling of both channels can attribute a night's signal to the right construct, which is fusion changing a conclusion, not just improving precision. And the discrepancy term itself exists only in the joint representation — it is not computable in either channel alone — which is what makes this fusion rather than parallel tracking. Rises to cited when a study directly demonstrating a fusion-vs-single-channel attribution reversal is in hand; the current argument composes bod-3's cited findings rather than citing one directly.",
       "sources": [],
-      "edges": [{ "to": "bod-3", "type": "depends" }],
+      "edges": [
+        {
+          "to": "bod-3",
+          "type": "depends"
+        }
+      ],
       "created": "2026-08-25",
       "updated": "2026-08-27"
     },
@@ -19,7 +24,12 @@
       "status": "argued",
       "detail": "The raw stream (beat-by-beat HR, minute steps) has maximal re-identification surface and near-zero marginal value for cross-axiom coupling, which operates at the band/summary grain anyway. The perfect system folds at the edge (device), crosses bands, and keeps the stream where the OS already holds it. Mirrors gen-2: minimizing custody is design quality, not compromise.",
       "sources": [],
-      "edges": [{ "to": "gen-2", "type": "supports" }],
+      "edges": [
+        {
+          "to": "gen-2",
+          "type": "supports"
+        }
+      ],
       "created": "2026-08-25",
       "updated": "2026-08-25"
     },
@@ -33,7 +43,12 @@
         "Characterising the inconsistency between perceived and actual sleep and its impact upon cognition and mood (2024). Scientific Reports 14:29342. DOI 10.1038/s41598-024-80683-w. PMID 39592657",
         "Bathgate CJ, Edinger JD, Wyatt JK, Krystal AD (2016). Objective but Not Subjective Short Sleep Duration Associated with Increased Risk for Hypertension in Individuals with Insomnia. Sleep 39(5):1037–1045. PMID 26951399"
       ],
-      "edges": [{ "to": "bod-1", "type": "supports" }],
+      "edges": [
+        {
+          "to": "bod-1",
+          "type": "supports"
+        }
+      ],
       "created": "2026-08-25",
       "updated": "2026-08-27"
     },
@@ -43,23 +58,33 @@
       "status": "argued",
       "detail": "A meal photo stream and a DICOM file are storage-and-liability heavy artifacts whose analytical content, at the coupling grain, compresses to a handful of derived values (diet pattern, imaging-derived measures). The perfect axiom ingests the values with provenance and leaves artifact custody to institutions built for it. The door stays open for a future where on-device models derive values from artifacts locally — which would satisfy this node, not contradict it.",
       "sources": [],
-      "edges": [{ "to": "bod-2", "type": "supports" }],
+      "edges": [
+        {
+          "to": "bod-2",
+          "type": "supports"
+        }
+      ],
       "created": "2026-08-25",
       "updated": "2026-08-25"
     },
     {
       "id": "bod-5",
-      "claim": "Within-person change beats between-person level for most body→mind couplings.",
+      "claim": "Within-person change is the design-correct grain for body→mind couplings, and where directly compared (sleep) it beats between-person level — but the ordering is unestablished elsewhere, and the grain pays only as far as the state instrument's reliability.",
       "status": "cited",
-      "detail": "Now quantitatively grounded, and it answers central's 2026-08-26 portfolio question. The direct within-vs-between comparison exists for sleep→self-control: meta-analytically, within-individual r = .35 [.24, .45] for sleep quality and r = .20 [.09, .31] for duration — both LARGER than the corresponding between-individual estimates (.26 and .14) (Guarana 2021). That is this node's claim measured — with the honest caveat that the within- and between-individual confidence intervals overlap substantially, so the ordering is a consistent point-estimate direction rather than a statistically separated difference. Scope caveat: the direct within-vs-between comparison exists for sleep couplings only; extension to other body→mind channels is projection, not measurement — the claim's 'most' is the theory's bet, not yet the literature's finding. The best-evidenced single coupling by volume is prior-night sleep → next-day affect: a meta-analysis of 118 intensive-longitudinal (diary/EMA) studies finds small-to-moderate within-person correlations — better-than-usual subjective sleep quality and longer-than-usual sleep predicting improved next-day affect — with the reverse direction weaker and absent for total sleep time (Bourke 2026). A well-powered single anchor: in 1,982 adults over 8 daily interviews, nights of shorter-than-own-usual sleep predicted blunted positive-affect responses to both stressors and positive events, with no evidence for the reverse direction (Sin 2020). What is NOT the anchor: acute sleep loss → risk-taking, whose direction is unstable across sex, framing and protocol in the recent synthesis literature — central should not hang cen-2 on risk specifically. Caveats: within-person effects are consistently stronger for self-reported than actigraphic sleep, so part of the coupling is appraisal rather than physiology — which is not a defeater here, because bod-3's channel routing makes the perception channel a legitimate sensor; and the experimental (causal) leg is mostly acute total deprivation rather than naturalistic night-to-night variation. Verification depth as bod-3: search-index corroborated, abstract-level, full texts egress-blocked this run.",
+      "detail": "Now quantitatively grounded, and it answers central's 2026-08-26 portfolio question. The direct within-vs-between comparison exists for sleep→self-control: meta-analytically, within-individual r = .35 [.24, .45] for sleep quality and r = .20 [.09, .31] for duration — both LARGER than the corresponding between-individual estimates (.26 and .14) (Guarana 2021). That is this node's claim measured — with the honest caveat that the within- and between-individual confidence intervals overlap substantially, so the ordering is a consistent point-estimate direction rather than a statistically separated difference. Scope, corrected 2026-08-29 after the adversarial pass: the direct within-vs-between comparison still exists for sleep only. The endocrine and metabolic fronts (bod-9, bod-10) show within-person affect couplings that are small in absolute terms, which bounds the PAYOFF of the grain on those fronts but does not test the ORDERING — no within-vs-between comparison of one same coupling exists there — and bod-10 adds the standing condition that occasions pay only as far as the state instrument's reliability (bod-7). The claim is scoped to the design-grain argument plus the demonstrated sleep ordering, no longer 'most couplings'. The best-evidenced single coupling by volume is prior-night sleep → next-day affect: a meta-analysis of 118 intensive-longitudinal (diary/EMA) studies finds small-to-moderate within-person correlations — better-than-usual subjective sleep quality and longer-than-usual sleep predicting improved next-day affect — with the reverse direction weaker and absent for total sleep time (Bourke 2026). A well-powered single anchor: in 1,982 adults over 8 daily interviews, nights of shorter-than-own-usual sleep predicted blunted positive-affect responses to both stressors and positive events, with no evidence for the reverse direction (Sin 2020). What is NOT the anchor: acute sleep loss → risk-taking, whose direction is unstable across sex, framing and protocol in the recent synthesis literature — central should not hang cen-2 on risk specifically. Caveats: within-person correlations are generally stronger when sleep is self-reported rather than objectively measured (the meta-analysis's own wording — 'generally', not 'consistently', and 'objectively measured', not specifically actigraphy; corrected 2026-08-29 on re-verification), so part of the coupling is appraisal rather than physiology — which is not a defeater here, because bod-3's channel routing makes the perception channel a legitimate sensor; and the experimental (causal) leg is mostly acute total deprivation rather than naturalistic night-to-night variation. Verification depth as bod-3: search-index corroborated, abstract-level, full texts egress-blocked this run.",
       "sources": [
         "Guarana CL, Ryu JW, O'Boyle EH Jr, Lee J, Barnes CM (2021). Sleep and self-control: A systematic review and meta-analysis. Sleep Medicine Reviews 59:101514. PMID 34157493",
         "Bourke M, et al. (2026). Sleep well, feel well and vice versa? A meta-analysis of daily bidirectional within-person associations between sleep and affect. Sleep Medicine Reviews 86:102232. PMID 41570755",
         "Sin NL, Wen JH, Klaiber P, Buxton OM, Almeida DM (2020). Sleep duration and affective reactivity to stressors and positive events in daily life. Health Psychology 39(12):1078–1088. PMID 32897097"
       ],
-      "edges": [{ "to": "pat-3", "type": "supports" }],
+      "edges": [
+        {
+          "to": "pat-3",
+          "type": "supports"
+        }
+      ],
       "created": "2026-08-25",
-      "updated": "2026-08-27"
+      "updated": "2026-08-29"
     },
     {
       "id": "bod-6",
@@ -75,9 +100,18 @@
         "Nothing to see here: No structural brain differences as a function of the Big Five personality traits from a systematic review and meta-analysis. Personality Neuroscience (Cambridge University Press)"
       ],
       "edges": [
-        { "to": "bod-5", "type": "depends" },
-        { "to": "gen-9", "type": "supports" },
-        { "to": "cen-2", "type": "supports" }
+        {
+          "to": "bod-5",
+          "type": "depends"
+        },
+        {
+          "to": "gen-9",
+          "type": "supports"
+        },
+        {
+          "to": "cen-2",
+          "type": "supports"
+        }
       ],
       "created": "2026-08-27",
       "updated": "2026-08-27"
@@ -94,24 +128,139 @@
         "Hickman L, Seyedsalehi A, Cook JL, Bird G, Murphy J (2020). The relationship between heartbeat counting and heartbeat discrimination: A meta-analysis. Biological Psychology 156:107949"
       ],
       "edges": [
-        { "to": "bod-6", "type": "refines" },
-        { "to": "que-2", "type": "supports" }
+        {
+          "to": "bod-6",
+          "type": "refines"
+        },
+        {
+          "to": "que-2",
+          "type": "supports"
+        }
       ],
       "created": "2026-08-27",
       "updated": "2026-08-27"
     },
     {
       "id": "bod-8",
-      "claim": "Every trait–body coupling is a composite of direct regulatory paths, behavior-mediated paths and reverse causation, and the perfect cross-connection publishes the decomposition with the coupling.",
-      "status": "argued",
-      "detail": "The owner's cross-connection question, third piece — the body-side twin of gen-11's composite gene–trait coupling. The evidence behind bod-6's couplings does not say which way they run or through what: conscientiousness→CRP plausibly runs partly through health behavior (a physical-activity mediation literature exists — lead: 'Physical activity mediates the association between personality and biomarkers of inflammation', PMID 29796267); Mendelian-randomization results on inflammation→depression are marker-inconsistent, with IL-6 signaling implicated for some symptom dimensions (notably suicidality) while CRP's associations do not replicate across markers, samples and MR estimators (leads: Kappelmann et al. 2020, JAMA Psychiatry; an MR in the HUNT cohort, Psychological Medicine); and bod-5's sleep→affect coupling is consistently stronger for self-reported than actigraphic sleep, mixing an appraisal path into the physiological one. So a bare correlation published as a body↔trait connection is a composite pretending to be a mechanism. The perfect cross-connection publishes, with every coupling: its effect-size currency (bod-6), its instrument status (bod-7), and its decomposition status — which of direct / behavior-mediated / reverse / confounded has been excluded, and by what design (within-person change, MR, experiment). Held at argued deliberately: the MR literature is unsettled and this run's container could not open the primary papers — the named leads stay in detail, not in sources, until re-verified (§4: when in doubt, the status stays down).",
-      "sources": [],
+      "claim": "An observed trait–body coupling does not fix its direction or mechanism, and current design-based decomposition (Mendelian randomization, statistical mediation) is itself marker- and design-sensitive — so the perfect cross-connection publishes each coupling's decomposition status, unknowns and unsearched limbs declared.",
+      "status": "cited",
+      "detail": "Risen argued→cited 2026-08-29 on re-verified sources; the corrections forced along the way are themselves the lesson. The showcase is inflammation↔depression under Mendelian randomization: CRP–symptom coheritability largely reassigns to metabolic dysregulation — BMI potentially causal for anhedonia, tiredness, appetite change and feelings of inadequacy — leaving genetically upregulated IL-6 signaling associated with suicidality only (Kappelmann 2021, GWAS summary data including UK Biobank); in one cohort two markers of the same pathway carry OPPOSITE MR signs — genetically higher IL-6 activity predicting more depressive symptoms, genetically higher CRP fewer (Ye 2021, N up to 144,890); and the sign does not survive cohorts — one-sample MR in HUNT (N=68,769) finds no major causal role for serum CRP, its weakly positive point estimates crossing the null and its conclusion explicitly rejecting Ye's protective direction (Bekkevold 2023), while Lifelines points CRP–anxiety the other way again (Slaney 2025). A 52-article systematic review reports substantial heterogeneity and methodological flaws across depression MR (Ma 2023). So the decomposition instruments disagree among themselves: 'not reliably separated even by design' is the honest current state, and what remains publishable is decomposition STATUS — which components a design has excluded, and how stable that verdict has proven. IL-6 is the best-supported single marker; the one proof-of-concept RCT's effects were still not statistically significant (Foley 2026, JAMA Psychiatry, N=30 — held as a lead). The behavior-mediation limb, corrected: conscientiousness–CRP is virtually unchanged by smoking adjustment and attenuated but not eliminated by BMI (Luchetti 2014) — partial adiposity mediation, not wholesale behavior mediation; and the mediation study last run led with (PMID 29796267) mediates the MPQ achievement facet via physical activity, not conscientiousness, with overlapping measurement windows (Graham 2018) — statistical mediation without temporal ordering, illustrating the problem rather than discharging it. The reverse limb for conscientiousness↔CRP was NOT searched to completion this run — a disease→personality-change pooled analysis (Jokela et al., Psychological Medicine — lead) shows the direction is live — so its status is UNSEARCHED, declared as such; the discipline is declaring unknowns, never assuming them absent. Quantifier softened from the 2026-08-27 form: couplings are decomposable and underdetermined by the observed association — not every component nonzero everywhere. Verification depth as bod-3 (search-index corroborated, abstract-level; scholarly full texts egress-blocked).",
+      "sources": [
+        "Kappelmann N, Arloth J, Georgakis MK, Czamara D, Rost N, Ligthart S, Khandaker GM, Binder EB (2021). Dissecting the Association Between Inflammation, Metabolic Dysregulation, and Specific Depressive Symptoms: A Genetic Correlation and 2-Sample Mendelian Randomization Study. JAMA Psychiatry 78(2):161-170. DOI 10.1001/jamapsychiatry.2020.3436. PMID 33079133",
+        "Ye Z, Kappelmann N, Moser S, Davey Smith G, Burgess S, Jones PB, Khandaker GM (2021). Role of inflammation in depression and anxiety: Tests for disorder specificity, linearity and potential causality of association in the UK Biobank. eClinicalMedicine 38:100992. DOI 10.1016/j.eclinm.2021.100992",
+        "Bekkevold O-J, Damås JK, Brumpton BM, Åsvold BO (2023). The causal role of C-reactive protein and interleukin-6 on anxiety and depression symptoms and life satisfaction: Mendelian randomisation analyses in the HUNT study. Psychological Medicine 53(16). DOI 10.1017/S0033291723001290. PMID 37217205",
+        "Ma Y, et al. (2023). Mendelian randomization studies of depression: evidence, opportunities, and challenges. Annals of General Psychiatry 22:47. DOI 10.1186/s12991-023-00479-6",
+        "Slaney C, Mac Giollabhui N, Hemani G, et al. (2025). Role of inflammation in depressive and anxiety disorders, affect, and cognition: genetic and non-genetic findings in the Lifelines cohort study. Translational Psychiatry 15(1):164. DOI 10.1038/s41398-025-03372-w. PMID 40348744",
+        "Luchetti M, Barkley JM, Stephan Y, Terracciano A, Sutin AR (2014). Five-factor model personality traits and inflammatory markers: New data and a meta-analysis. Psychoneuroendocrinology 50:181-193. PMID 25233337",
+        "Graham EK, Bastarache ED, Milad E, Turiano NA, Cotter KA, Mroczek DK (2018). Physical activity mediates the association between personality and biomarkers of inflammation. SAGE Open Medicine 6. DOI 10.1177/2050312118774990. PMID 29796267"
+      ],
       "edges": [
-        { "to": "bod-6", "type": "refines" },
-        { "to": "gen-11", "type": "supports" }
+        {
+          "to": "bod-6",
+          "type": "refines"
+        },
+        {
+          "to": "gen-11",
+          "type": "supports"
+        }
       ],
       "created": "2026-08-27",
-      "updated": "2026-08-27"
+      "updated": "2026-08-29"
+    },
+    {
+      "id": "bod-9",
+      "claim": "On the endocrine front trait–cortisol couplings are near-null between persons, the momentary affect–cortisol coupling is attenuated-small with no within-vs-between comparison in existence, and most cortisol person-parameters sit at bod-7's attenuated or unmeasured states.",
+      "status": "cited",
+      "detail": "The endocrine front of the owner's cross-connection question, scouted 2026-08-29. Between persons: the depression–HPA case-control coupling pools to d=0.60 for cortisol (the 671 effect sizes across 361 studies, N=18,454, span cortisol, ACTH and CRH; ACTH d=0.28, CRH null — Stetler & Miller 2011), but the estimate is strongly sample-dependent — outpatient-only d=0.32 vs all-inpatient d=0.74; a 'methods-quality halving to d=0.33' figure failed re-corroboration in the adversarial pass and is not used — and reactivity direction is sex-dependent: currently depressed women blunted, men increased (Zorn 2017, direction only; effect sizes not index-retrievable). Trait–cortisol is near-null: no dedicated personality–cortisol meta-analysis exists (searched this run, none found); up to twelve 24-h urinary measurements over 30 years yield a modest conscientiousness association and no neuroticism relation (Sutin 2022); a Mendelian-randomization lead (SERPINA6/SERPINA1 instruments, PMID 38525495 — single-retrieval) supports morning cortisol→anxiety but not depression or neuroticism. This BOUNDS bod-6's positive half rather than confirming it: not every regulatory parameter carries trait signal — cortisol, the paradigm regulatory parameter, largely does not between persons. Its psychosocial couplings carry p-curve evidential value yet explain only 1–3.6% of awakening-response variance, depression toward higher output and PTSD lower (Boggero 2017 — psychosocial functioning, not personality traits). Within persons, momentary negative affect–cortisol is r=.06 across 38,418 observations, positive affect r=−.05 (Joseph 2021); under bod-7's states this is ATTENUATED, not small-and-final — single momentary saliva samples of a pulsatile analyte with a secretory lag are a weak state instrument, so r=.06 is a lower bound — and no within-vs-between comparison of one same coupling exists on this front, so bod-5's ordering is untested here, not refuted. What is firm is instrument-side: cortisol-awakening-response day-to-day reliability is too poor for individual-differences research while total-output AUCg is fair-to-good (ICCs 0.00–0.75 — Norton 2023); a stable diurnal slope needs ~10 sampling days (Segerstrom 2014); the consensus guidelines demand objective awakening-time verification most studies still lack (Stalder 2016; the 2022 update found little improvement); and hair cortisol runs +22% with stressor exposure, +43% ongoing, yet shows no consistent association with questionnaire-measured perceived stress (Stalder 2017, N=10,289) — read with its months-scale grain and its non-stress determinants (age, sex, hair-washing, BMI) in view. Net: most cortisol channels sit at 'attenuated', single-timepoint cortisol at 'unmeasured' as a person parameter. Verification depth as bod-3, with per-figure flags above where retrieval was single or failed.",
+      "sources": [
+        "Stetler C, Miller GE (2011). Depression and hypothalamic-pituitary-adrenal activation: a quantitative summary of four decades of research. Psychosomatic Medicine 73(2):114-126. PMID 21257974. DOI 10.1097/PSY.0b013e31820ad12b",
+        "Zorn JV, Schür RR, Boks MP, Kahn RS, Joëls M, Vinkers CH (2017). Cortisol stress reactivity across psychiatric disorders: A systematic review and meta-analysis. Psychoneuroendocrinology 77:25-36. PMID 28012291",
+        "Adam EK, Quinn ME, Tavernier R, McQuillan MT, Dahlke KA, Gilbert KE (2017). Diurnal cortisol slopes and mental and physical health outcomes: A systematic review and meta-analysis. Psychoneuroendocrinology 83:25-41. PMID 28578301. DOI 10.1016/j.psyneuen.2017.05.018",
+        "Joseph NT, Jiang Y, Zilioli S (2021). Momentary emotions and salivary cortisol: A systematic review and meta-analysis of ecological momentary assessment studies. Neuroscience & Biobehavioral Reviews. PMID 33662445",
+        "Norton S, et al. (2023). Reliability of diurnal salivary cortisol metrics: A meta-analysis and investigation in two independent samples. Comprehensive Psychoneuroendocrinology 16:100191. PMID 37635863",
+        "Segerstrom SC, Boggero IA, Smith GT, Sephton SE (2014). Variability and reliability of diurnal cortisol in younger and older adults: implications for design decisions. Psychoneuroendocrinology 49:299-309. PMID 25137484",
+        "Stalder T, Kirschbaum C, Kudielka BM, Adam EK, Pruessner JC, Wüst S, et al. (2016). Assessment of the cortisol awakening response: Expert consensus guidelines. Psychoneuroendocrinology 63:414-432. PMID 26563991",
+        "Stalder T, Steudte-Schmiedgen S, Alexander N, Klucken T, Vater A, Wichmann S, Kirschbaum C, Miller R (2017). Stress-related and basic determinants of hair cortisol in humans: A meta-analysis. Psychoneuroendocrinology 77:261-274. PMID 28135674",
+        "Boggero IA, Hostinar CE, Haak EA, Murphy MLM, Segerstrom SC (2017). Psychosocial functioning and the cortisol awakening response: Meta-analysis, P-curve analysis, and evaluation of the evidential value in existing studies. Biological Psychology 129:207-230. PMID 28870447",
+        "Sutin AR, et al. (2022). Five-factor model personality traits and 24-h urinary cortisol in the Baltimore Longitudinal Study of Aging. Stress and Health 38(4):837-843. PMID 35099848. DOI 10.1002/smi.3130",
+        "Stalder T, Lupien SJ, Kudielka BM, Adam EK, Pruessner JC, Wüst S, et al. (2022). Evaluation and update of the expert consensus guidelines for the assessment of the cortisol awakening response (CAR). Psychoneuroendocrinology 146:105946. DOI 10.1016/j.psyneuen.2022.105946"
+      ],
+      "edges": [
+        {
+          "to": "bod-6",
+          "type": "refines"
+        },
+        {
+          "to": "bod-5",
+          "type": "refines"
+        },
+        {
+          "to": "bod-7",
+          "type": "supports"
+        }
+      ],
+      "created": "2026-08-29",
+      "updated": "2026-08-29"
+    },
+    {
+      "id": "bod-10",
+      "claim": "On the metabolic front between-person trait couplings are small and partly adiposity-routed, HbA1c is an excellent person parameter while per-meal glucose responses fail test–retest even under controlled feeding, and within-person glucose–affect coupling is weak and percept-dominated — the measured channel's live within-person coupling is cognition under diabetic-scale excursions.",
+      "status": "cited",
+      "detail": "The metabolic front, scouted 2026-08-29. Between persons bod-6 holds: conscientiousness is the only Big Five trait coupled to incident diabetes — OR 0.87 (0.82–0.91) per SD, attenuated by obesity adjustment (the attenuation fraction failed re-corroboration; held below citation) (Jokela 2014, pooled N=34,913; obesity itself OR 0.84 per SD — Jokela 2013, n=78,931); depression→incident type 2 diabetes is RR 1.60 in the 2008 meta (Mezuk 2008) and 1.18 (1.12–1.24) in the modern 21-study meta (Graham 2020). Two findings are new to the theory. First, the instrument currencies must be kept apart (bod-6's own rule): HbA1c is a superb trait-grain instrument — within-subject CV ≈1.7% in healthy adults (PLOS ONE 2023 meta) — while the state grain splits in two. True test–retest reliability of the glucose response is poor even under metabolic-ward duplicate meals (ICC 0.31 Abbott / 0.14 Dexcom, 1,189 responses, N=30 — AJCN 2025), so a per-meal response is not a stable personal parameter; but free-living day-to-day profile reproducibility of ICC 0.30 in normoglycemic adults (Matabuena 2023, N=581) mixes real behavioral state variance with noise — not by itself instrument unreliability; real within-person variance is what within-person designs feed on. No study found this run quantifies the CGM days needed for stable nondiabetic estimates, and bod-5's grain pays only as far as the state instrument's reliability (bod-7). Second, where within-person affect coupling exists it runs through the PERCEPT: the only systematic review of glucose-variability–mood finds no clear empirical support (4 of 8 studies positive — Muijs 2021); a 15-adolescent CGM-EMA pilot reports couplings it itself calls small (Zink 2020; numeric figures a single-retrieval lead); perceived glucose variability and perceived hyperglycemia dominate daily diabetes distress — a disease-specific appraisal outcome, not affect proper — while CGM-measured variability is non-significant (Ehrmann 2024, N=379, 17 days); and in healthy adults metabolic-state ratings mediate glucose→mood (eBioMedicine 2025, N=90, four weeks). The measured channel's live within-person coupling is cognitive, at excursions only diabetes produces: low and high glucose slow processing speed within five minutes in type 1 diabetes, sustained attention null, and slight above-mean elevations run FASTER — non-monotonic (GluCog 2024, N=200); a nondiabetic null (CGM metrics vs cognition, PMID 39261457) is methods-only at abstract level and held uncorroborated. The between-person glycemia–dementia gradient is small (HR 1.18, 1.04–1.33, 115-vs-100 mg/dL nondiabetic — Crane 2013) and MR of HbA1c on reaction time is null (Garfield 2021 — lead): even the gradient may be non-causal. Verification depth as bod-3, with per-figure flags above.",
+      "sources": [
+        "Jokela M, Elovainio M, Nyberg ST, Tabák AG, Hintsa T, Batty GD, Kivimäki M (2014). Personality and risk of diabetes in adults: pooled analysis of 5 cohort studies. Health Psychology 33(12):1618-1621. PMID 23957901. DOI 10.1037/hea0000003",
+        "Jokela M, et al. (2013). Association of personality with the development and persistence of obesity: a meta-analysis based on individual-participant data. Obesity Reviews 14(4):315-323. PMID 23176713. DOI 10.1111/obr.12007",
+        "Mezuk B, Eaton WW, Albrecht S, Golden SH (2008). Depression and type 2 diabetes over the lifespan: a meta-analysis. Diabetes Care 31(12):2383-2390. PMID 19033418",
+        "Graham EA, Deschênes SS, Khalil MN, Danna S, Filion KB, Schmitz N (2020). Measures of depression and risk of type 2 diabetes: A systematic review and meta-analysis. Journal of Affective Disorders 265:224-232. PMID 32090745",
+        "Muijs LT, Racca C, de Wit M, et al. (2021). Glucose variability and mood in adults with diabetes: A systematic review. Endocrinology, Diabetes & Metabolism 4(1):e00152. PMID 33532604. DOI 10.1002/edm2.152",
+        "Ehrmann D, et al. (2024). Perceived glucose levels matter more than CGM-based data in predicting diabetes distress in type 1 or type 2 diabetes: a precision mental health approach using n-of-1 analyses. Diabetologia. PMID 39078490. DOI 10.1007/s00125-024-06239-9",
+        "Glucose levels are associated with mood, but the association is mediated by ratings of metabolic state (2025). eBioMedicine. DOI 10.1016/j.ebiom.2025.106035",
+        "Zink J, Nicolo M, Imm K, et al. (2020). Interstitial glucose and subsequent affective and physical feeling states: A pilot study combining continuous glucose monitoring and ecological momentary assessment in adolescents. Journal of Psychosomatic Research. PMID 32447156",
+        "Dynamic associations between glucose and ecological momentary cognition in Type 1 Diabetes (2024). npj Digital Medicine 7:59. PMID 38499605",
+        "Within-subject variation of HbA1c: A systematic review and meta-analysis (2023). PLOS ONE 18(8):e0289085",
+        "Matabuena M, Pazos-Couselo M, Alonso-Sampedro M, Fernández-Merino C, González-Quintela A, Gude F (2023). Reproducibility of continuous glucose monitoring results under real-life conditions in an adult population: a functional data analysis. Scientific Reports 13. PMID 37634017. DOI 10.1038/s41598-023-40949-1",
+        "Crane PK, Walker R, Hubbard RA, et al. (2013). Glucose levels and risk of dementia. New England Journal of Medicine 369(6):540-548. PMID 23924004. DOI 10.1056/NEJMoa1215740",
+        "Intraindividual variability of glucose responses to duplicate presented meals in adults without diabetes (2025). American Journal of Clinical Nutrition. PMID 39755436"
+      ],
+      "edges": [
+        {
+          "to": "bod-6",
+          "type": "refines"
+        },
+        {
+          "to": "bod-5",
+          "type": "refines"
+        },
+        {
+          "to": "bod-3",
+          "type": "supports"
+        }
+      ],
+      "created": "2026-08-29",
+      "updated": "2026-08-29"
+    },
+    {
+      "id": "bod-11",
+      "claim": "bod-3's channel routing — affect coupling to the perception channel, cognition to the measured channel — recurs on the metabolic front; whether it is a general law is open, with common-method variance the rival explanation a decisive design must break.",
+      "status": "argued",
+      "detail": "Composition of cited findings (bod-1's precedent), scoped by this run's adversarial pass. The pattern: sleep — subjective reports track emotional state while objective measures predict cognition and cardiometabolic risk (bod-3), and within-person sleep–affect correlations are generally stronger for self-reported than objectively measured sleep (Bourke 2026, in bod-5's sources); metabolic — metabolic-state ratings mediate glucose→mood and perceived variability dominates diabetes distress while CGM-measured variability is non-significant, yet measured glucose moves processing speed (bod-10). Construct honesty about those legs: diabetes distress is a disease-specific appraisal, not affect proper — of the perception-side outcomes only eBioMedicine's mood measure is genuinely affect. The endocrine front contributes an ADJACENT dissociation, not an instance: hair cortisol tracks objective stressor exposure but not perceived stress (bod-9) — a measured-channel/perception-variable dissociation with no affect outcome, which the pattern does not yet cover. The rival explanation, named: every perception→affect leg so far is same-instrument, same-moment self-report (diary→diary, app→app, EMA→EMA) while every measured leg is cross-method — common-method variance predicts exactly this pattern with no routing law at all (bod-3 carries the sleep version of this caveat; it applies with full force here). What survives either way: the perception channel is a different sensor with a different referent, not a degraded copy of the measured channel, and on current evidence it is the affect-relevant one — so every published cross-connection declares its channel (perceived vs measured) as part of bod-7's instrument status, and a coupling computed on one channel is never quoted for the other; a body axiom that waits for hardware measures the wrong channel for an important class of its couplings. Rises to cited only on a design that breaks the method confound — perception and measured channels predicting an affect outcome assessed by a third method within one study; eBioMedicine 2025's mediation shape (in bod-10's sources) is closest but still same-method on the affect side.",
+      "sources": [],
+      "edges": [
+        {
+          "to": "bod-3",
+          "type": "supports"
+        },
+        {
+          "to": "bod-9",
+          "type": "depends"
+        },
+        {
+          "to": "bod-10",
+          "type": "depends"
+        }
+      ],
+      "created": "2026-08-29",
+      "updated": "2026-08-29"
     }
   ]
 }

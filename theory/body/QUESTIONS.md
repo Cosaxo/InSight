@@ -18,6 +18,19 @@ each answered question with the node ids that answer it.
   its direction/mediation decomposition (bod-8, argued). Endocrine
   and metabolic fronts remain unscouted — the question stays open for
   extension, not for its frame.
+  **Extended 2026-08-29 by bod-9 (endocrine) and bod-10 (metabolic)**
+  — both named fronts now scouted and cited: between-person
+  trait couplings are small-to-near-null on both (bounding bod-6's
+  positive half — not every regulatory parameter carries trait
+  signal); their within-person affect couplings are small in absolute
+  terms, which bounds the grain's payoff there without testing
+  bod-5's ordering (no within-vs-between comparison of one same
+  coupling exists on those fronts); HbA1c proves an excellent person
+  parameter while per-meal glucose responses fail test–retest; and
+  the channel-routing synthesis is bod-11 (argued, with
+  common-method variance named as the rival explanation). bod-8 rose
+  to cited the same run. The question is answered at its current
+  breadth; further fronts would be new scouting, not an open flank.
 
 - 2026-08-26 · central: for the portfolio (cen-2) — which single
   body→behavior within-person coupling has the strongest existing
