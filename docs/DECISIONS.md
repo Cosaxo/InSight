@@ -33947,3 +33947,172 @@ fails a change that outruns the paperwork.
 
 The live documents move: `CLAUDE.md` (the opening paragraph, the privacy
 section, and the House style deferral bullet) and `ORIENTATION.md` §2.
+
+## D335 · Two night audits, reviewed together — 64 fixes kept, one figure corrected, and the merge that had to be both
+
+**2026-08-29.** **Status:** binding as a RECORD OF WHAT WAS MERGED and of
+THREE THINGS TO WATCH. The thirty-one fixes on `night-20260828` and the
+thirty-three on `night-20260829` are kept as written. Nothing was
+reverted. One commit was added on the review branch, and it corrects a
+number in prose rather than any behaviour.
+
+### Why two nights are in one record
+
+`night-20260828` was never reviewed. It closed at 05:36 UTC on the 28th;
+D332 landed on main at 07:26, and D333 and D334 followed the same day —
+so the day's work went in on top of a branch nobody had merged, and the
+night's thirty-one fixes stayed on the shelf. `night-20260829` branched
+from D334, which is main's head, so the two nights are independent lines
+from the same ancestor with eighteen files in common.
+
+A completed review of the 28th exists on `claude/night-shifts-review-kuyj45`
+and was never merged. **Do not merge it.** It is seven commits behind
+main and its record is numbered D332, which is now the read breaker —
+the collision is the evidence that it was written before the day's work
+existed.
+
+### THE FINDING: neither night was safe to merge alone
+
+This is the half a commit-by-commit review cannot see, and it is the
+reason the branches went in together.
+
+`500d8b4` (the 29th) fixes a booking that read the buyer's name off
+`prof.get("name")` — a field `firestore.rules` does not admit and no
+writer in the tree has ever written. The read had returned undefined
+since it was written, so a buyer who ticked *wear my name* never got it,
+and the automated reviewer's rule about a slur or an impersonation in
+the buyer name had been judging `null` on every submission. The fix is
+right, and on its own it turns on a byline that lands on
+`v2_questions` — a world-readable document that nothing in the tree
+deletes.
+
+`4f41539` (the 28th) is the other half: `deleteAccount` never touched
+`v2_questions` at all, so `sponsor.buyer` survived erasure with no
+pointer left anywhere in the database to reach it by. It adds the strip
+in phase 4e, off the purchase rows that phase already reads and before
+they are deleted.
+
+Merged alone, the 29th would have started writing a permanent,
+unerasable display name onto a public document. Merged alone, the 28th
+strips a field that is always empty. Merged together they close the
+loop, and the loop is the reason this record covers both nights rather
+than the newer one. Verified in the merged tree: `paid.ts:689` reads
+`displayName`, `paid.ts:1094` writes `sponsor.buyer` only on
+`wearName`, and `index.ts:946` deletes it on erasure. `wearName` is
+strict opt-in for a question (`d.wearName === true`); the ad path's
+`wearName: true` prints a typed advertiser field, never a profile name.
+
+### What was verified before keeping it
+
+Every gate that guards a PR, green on the merge: `tsc -b` (0), eslint
+clean, `test:unit` (2268 over 154 files, up from 2219/152),
+`functions` (511, up from 452), `test:scripts` (569, up from 545),
+`test:rules` (156, Java 21, Firestore + Storage), and all three e2e
+suites against the real emulated functions on one boot — loop, erasure
+and moderation, exit 0. Every `check:*` gate passes, `check:bundle` on a
+SHIPPING build (2152 KB total / 770 KB eager, against 2440 / 880).
+
+The two that need production secrets — `check:web-firebase`,
+`check:store-copy` — fail identically on main, which was measured rather
+than assumed by running both against a checkout of main. Release-path
+gates, not PR ones. That is D323's finding, unchanged.
+
+`check:globals`'s coupling ratchet moved 238 → 236 and the baseline came
+down with it, which is the only direction it may move.
+
+**The e2e suites needed `HTTPS_PROXY` unset**, exactly as CLAUDE.md's
+sandbox note says. Environmental; no test and no allowlist was touched.
+
+One caveat on how the suites were run, because it produced a false
+signal worth not repeating: the first full `test:unit` run reported two
+failures in `vote.test.ts`, both in cases that sleep on real timers to
+prove the agg-write coalescer. They were this reviewer's own CPU
+contention — eslint and the whole `check:*` battery were running beside
+them. Re-run alone the file passes 110/110, and the suite uncontended
+passes 2268/2268. Recorded rather than called a flake, because "a
+timing test failed under load" is exactly what a real regression in a
+debouncer would also look like, and the way to tell them apart is to
+re-run it alone rather than to reason about it.
+
+### The three resolutions this review had to make
+
+**1. `functions/src/taste.ts` merged as BINARY, and both sides were
+wanted.** The file carries a literal NUL byte as a composite Map-key
+separator, which trips git's binary heuristic, so git left ours in place
+and resolved nothing. The two nights had changed different things: the
+28th made the fold idempotent at the (person, day) grain, and the 29th
+skipped an edit's ledger entry so changing your mind on Tuesday about
+Monday's answer stops reading as a second act of interest. Hand-merged,
+and **proved both halves by mutation rather than by reading**: dropping
+`d` from the write projection turns `store-projection.test.ts`'s
+"taste.ts: the WRITE object names `d`" red, and removing the `fromIdx`
+skip turns "an edit made on a LATER day is not a second act of interest"
+red. The 28th's own `0d2a51c` incidentally rewrote that separator as a
+unicode escape, so the file is text again and the next merge of it will
+not need this paragraph.
+
+**2. Both nights fixed the same `check:docs` classifier, and the 29th's
+is better.** Each found that a gate invoked as `node scripts/x.mjs
+--flag` classified as "manual" while a release workflow ran it. The
+28th patched the expression in place; the 29th extracted it to
+`scripts/gate-placement.mjs` with its own test — and matches EVERY
+script path in a command rather than the first, which the 28th's single
+`match` would have got wrong on a composite script. Took the 29th's;
+nothing of the 28th's is lost but the comment.
+
+**3. The rules figure is 156, and both nights had it wrong.** The 28th
+wrote 159 against a tree that still had the four storage cases D333
+deleted later that day; the 29th wrote 155 against a tree without the
+28th's case. The obvious arithmetic — 154 + 5 + 1 — is wrong for the
+same reason and is what this review put in first. `check:figures` named
+the truth and a real emulator run confirmed it: 145 + 1 + 1 rules cases
+plus the 9 storage cases D333 left standing. The one commit this review
+adds is that correction.
+
+### Three things to watch
+
+**1. `check:pricing` moved onto the deploy path** (`e33a77d`), and
+CLAUDE.md names that path's rule by hand: client-only checks stay off
+`backend-checks.yml` because each could block an emergency rules fix.
+The move is consistent with the rule's stated REASON rather than an
+exception to it — `functions/src/pricing.ts` is a generated server copy
+since D313, `check:pricing` byte-compares it against
+`content/pricing.json`, and `priceQuote()` at `paid.ts:327` invoices a
+buyer from it, so the gate now speaks to backend correctness. It still
+runs on every PR, because `backend-checks.yml` is called by `ci.yml`.
+**What is now true that was not:** a pricing regen somebody forgot can
+block a rules deploy. That is the trade the night took deliberately, and
+it is the one placement in this merge an owner might want back.
+
+**2. A live grant is narrower** (`aa7db6b`). `v2_handles` was `allow
+read`, which is `get` PLUS `list`, so any signed-in client could take
+one collection read and receive every handle in the app with the uid
+each unlocks — the enumeration D122's own paragraph and
+`docs/data-inventory.md` both said did not exist. It is now `allow get`
+with `allow list: if false`. The reasoning that nothing wanted the list
+was re-run rather than taken on trust: every read in `src/`,
+`functions/src/`, `scripts/` and `firestore-tests/` is an exact-id
+`getDoc`, and the one collection query is `deleteAccount` phase 3b
+through the Admin SDK, which rules do not touch. A caller outside this
+tree would start failing.
+
+**3. `anchors.age` is exempted from automatic indexing** (`968557a`),
+which breaks any query that filters on it. Verified there is none: the
+only `where` on an anchor anywhere is `anchors.city` in `voters.ts`,
+which was already exempted on main and is served by the composite
+`[qid, surface, anchors.city, answeredAt]`. Single-field exemptions do
+not touch composites.
+
+### What the two nights say about each other
+
+Both nights found their own defects by re-reading their branch as one
+unit, and in both cases the defect was introduced by an earlier commit
+the same night: `0d2a51c` found that the 28th's two retry guards never
+persisted their stamp, because the stores project field by field and `d`
+was in none of the four projections; `b336761` found that the 29th's own
+revision path computed 0/0 on a question the model had never folded, and
+NaN would have reached the Map, the Oracle and the People lens as a
+number-shaped thing that is not a number. Neither is a failure of the
+night. Both are the argument for reviewing a branch whole, and both are
+why `night-20260828` sitting unreviewed for a day was the real cost
+here — not any of the sixty-four fixes.
