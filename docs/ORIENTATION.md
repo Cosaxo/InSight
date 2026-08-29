@@ -223,7 +223,7 @@ everything else: the static gates, and where each one runs.
 | `check:ios-location` | ci | The iOS location declarations against what the app does. ITMS-90683 is why it exists |
 | `check:web-firebase` | release | That the shipped bundle actually carries the Firebase config |
 | `check:store-listing` | release | Marketing copy against both consoles' length limits |
-| `check:store-copy` | manual | No unfilled placeholders in the store-facing legal pages. A pre-submission gate, and off CI on purpose |
+| `check:store-copy` | release | No unfilled placeholders in the store-facing legal pages. Runs on every iOS archive (`ios-release.yml`) and is off CI on purpose |
 
 ## 6 · Finding the decision that governs something
 

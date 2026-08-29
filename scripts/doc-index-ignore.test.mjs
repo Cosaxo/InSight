@@ -55,6 +55,32 @@ describe("doc-index and the working tree", () => {
     }
   });
 
+  it("sees a gate a workflow invokes BY PATH, not only by npm run", () => {
+    // The gate that could not fail. `placement()` located a gate by
+    // searching workflows for `npm run <name>` — and `check:store-copy` is
+    // invoked as `node scripts/check-store-copy.mjs --ios`, because it
+    // takes an argument. So it classified as "manual", the map recorded
+    // that, and the release gate could have been deleted from
+    // ios-release.yml with nothing anywhere going red. Worse: anyone
+    // correcting the row to the truth was failed by CI until they put the
+    // wrong value back.
+    //
+    // Measured against the real workflow rather than a fixture: remove the
+    // line that runs it and the row must stop being true.
+    const wf = join(root, ".github/workflows/ios-release.yml");
+    const before = readFileSync(wf, "utf8");
+    expect(before, "ios-release.yml no longer runs the store-copy gate by path")
+      .toMatch(/node scripts\/check-store-copy\.mjs/);
+    try {
+      writeFileSync(wf, before.replace(/^.*node scripts\/check-store-copy\.mjs.*$/m, ""));
+      const r = run();
+      expect(r.code, "deleting the release gate from its workflow left doc-index green").toBe(1);
+      expect(r.out).toMatch(/check:store-copy/);
+    } finally {
+      writeFileSync(wf, before);
+    }
+  });
+
   it("still fails for a root document that IS in the repo", () => {
     // The other half: making the gate ignore what .gitignore ignores must
     // not make it ignore a real document the map has no row for.

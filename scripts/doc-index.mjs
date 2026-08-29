@@ -444,8 +444,24 @@ if (orientation) {
   // BOTH call — so it guards a PR and production with the same job. `ci`
   // means ci.yml's own jobs: pull requests only. `release` is a
   // platform-release or metadata workflow. `manual` is nothing automated.
+  //
+  // A gate can be invoked two ways and BOTH have to count. `npm run <name>`
+  // is the common one; `node scripts/<file>.mjs --flag` is what a workflow
+  // writes when it needs an argument. Matching only the first said
+  // `check:store-copy` was "manual" while ios-release.yml ran it on every
+  // archive — so the map recorded a false value, the release gate could
+  // have been deleted from that workflow with nothing going red, and
+  // anyone who corrected the row was failed by CI until they put the wrong
+  // value back. A gate that enforces the wrong answer is worse than no
+  // gate: it defends the error.
+  const scriptPaths = (name) =>
+    [...String(pkg.scripts[name] ?? "").matchAll(/\bscripts\/[\w.-]+\.mjs/g)].map((m) => m[0]);
   const placement = (name) => {
-    const runs = [...workflows].filter(([, src]) => src.includes(`npm run ${name}`)).map(([f]) => f);
+    const paths = scriptPaths(name);
+    const runs = [...workflows]
+      .filter(([, src]) =>
+        src.includes(`npm run ${name}`) || paths.some((path) => src.includes(path)))
+      .map(([f]) => f);
     if (runs.includes("backend-checks.yml")) return "deploy";
     if (runs.includes("ci.yml")) return "ci";
     if (runs.length) return "release";
