@@ -1281,12 +1281,21 @@ export function tallyFlags(takeIds: readonly unknown[]): Record<string, number> 
 /**
  * The same tally, one page at a time.
  *
- * `v2_flags` has no upper bound — MOD_ADVISORY makes the keep-verdict sweep
- * that deletes flags dead code, nothing else deletes them, and there is no
- * TTL — so the caller pages through it and folds each page in rather than
- * materialising the collection. What is retained is one entry per DISTINCT
- * take, which is smaller than the flag count by however many people flagged
- * the same take, and is the smallest thing the queue can be built from.
+ * `v2_flags` has no upper bound, so the caller pages through it and folds
+ * each page in rather than materialising the collection.
+ *
+ * The reason is NOT that nothing deletes flags. This said MOD_ADVISORY made
+ * the keep-verdict sweep dead code — true when it was written, false since
+ * D83, and never true of the settled-target sweep in the nightly build,
+ * which has never consulted that flag. What is actually unbounded is what
+ * never SETTLES: an escalated take's flags are kept as the evidence a human
+ * will read, and a flagged take below the queue floor is never judged. Add
+ * no TTL and the growing set of takes ever flagged, and the ceiling is
+ * still absent — for a different reason than this paragraph gave.
+ *
+ * What is retained here is one entry per DISTINCT take, which is smaller
+ * than the flag count by however many people flagged the same take, and is
+ * the smallest thing the queue can be built from.
  */
 export function tallyFlagsInto(
   counts: Map<string, number>,
