@@ -21,6 +21,8 @@ import { logger } from "firebase-functions";
 type Rec = { id: string; data: Record<string, unknown> };
 
 const purchases: Rec[] = [];
+/** Every purchase query the closer issued, so "asks once" is countable. */
+const queries: Array<{ after: string | null }> = [];
 const aggs = new Map<string, Record<string, number>>();
 const deletedAds: string[] = [];
 
@@ -60,6 +62,7 @@ function purchaseQuery() {
     limit: (n: number) => { cap = n; return q; },
     startAfter: (s: { id: string }) => { after = s.id; return q; },
     get: async () => {
+      queries.push({ after });
       // Evaluated live, like the real query: docs this run has already
       // closed have left the "running" set. Safe because the cursor only
       // ever moves forward by id.
@@ -126,6 +129,7 @@ const stateOf = (id: string) => purchases.find((r) => r.id === id)?.data.state;
 
 beforeEach(() => {
   purchases.length = 0;
+  queries.length = 0;
   deletedAds.length = 0;
   aggs.clear();
 });
@@ -174,9 +178,25 @@ describe("the campaign closer walks past its first page", () => {
   });
 
   it("an empty collection asks once and stops", async () => {
-    // The other end: no running purchases must not loop, and must not
-    // read a second page to find that out.
+    // The other end: no running purchases must not loop, and must not read
+    // a second page to find that out.
+    //
+    // COUNTING THE QUERIES, because the assertion this used to make —
+    // that the seeded-nothing list is still empty — is a fact `beforeEach`
+    // establishes and the closer cannot change. It could not fail, and it
+    // stood as claimed coverage for the loop's termination.
     await runCloser();
+    expect(queries, "an empty first page must end the walk").toHaveLength(1);
+    expect(queries[0].after, "the first query carries no cursor").toBeNull();
     expect(purchases).toHaveLength(0);
+  });
+
+  it("stops on a SHORT page too, without asking for the one after it", async () => {
+    // The other termination arm, and the one that runs in practice: a page
+    // that comes back under the limit is the end of the collection.
+    for (let i = 0; i < 3; i++) purchases.push(purchase(idAt(i), YESTERDAY));
+    await runCloser();
+    expect(queries).toHaveLength(1);
+    expect(purchases.every((r) => r.data.state === "closed")).toBe(true);
   });
 });
