@@ -2468,9 +2468,18 @@ class WorldFeed extends React.Component {
     if (!q.options) return null;
     const mine = typeof this.state.votes[q.id] === 'number' ? this.state.votes[q.id] : null;
     const counts = q.options.map((o) => o.count);
-    // feedInsight here is the LIVE version (feed-read.js): it reads q alone,
-    // ignores the demo-signature args, and returns null on demo cards rather
-    // than inventing a cohort (its header says why).
+    // feedInsight here is the LIVE version (feed-read.js): it returns null
+    // on demo cards rather than inventing a cohort (its header says why).
+    //
+    // `mine` — the third argument — IS READ, and this comment said the
+    // opposite until the line below started depending on it. The live
+    // implementation adds the viewer's own vote back into the room
+    // baseline, because `o.count` has it subtracted and the card above
+    // draws with it added; without it the line announces that a cohort
+    // "flips it" to the option the card is already showing as the winner.
+    // Dropping the arguments here on the old comment's authority would
+    // bring that back with every gate green, because the test for it calls
+    // feedInsight directly and never sees this call site.
     const ins = feedInsight(q, counts, mine, wfHash, WF_FRIENDS);
     if (!ins) return null;
     const n = q.options.length;
