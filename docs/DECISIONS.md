@@ -11932,6 +11932,36 @@ a catastrophe from everyone else's. The run reports
 - **No handle on the who-voted sheet or Kindred rows.** Those name people
   by `displayName` today; showing a handle there is how you would add
   someone you met through their answers, and it is a follow-on.
+## D122 amendment (2026-08-29) · The registry is a lookup in the rule, not only in the prose
+
+D122's paragraph in `firestore.rules` says what the registry is not:
+"there is no query surface here that enumerates handles, only an exact-id
+lookup, so the registry answers 'is @olaf someone' and never 'who is
+everyone'." `docs/data-inventory.md` says the same thing in the same
+words. Neither was a rule. `allow read` is `get` PLUS `list`, so any
+signed-in client could take one collection read and receive every handle
+in the app, each holding the uid whose public answers it unlocks — the
+exact enumeration both records said did not exist, from the one grant
+D122 called "a real widening rather than a consequence of D98".
+
+Nothing wanted it. The client's only registry read is an exact-id
+`getDoc` (`socialFetch.ts`); the one query over the collection is
+`deleteAccount` phase 3b through the Admin SDK, which rules do not touch;
+and finding people by anything other than an exact handle is the
+directory's job (D239). So this narrows nothing anybody was doing — it
+makes the rule say what the record already claimed: `allow get` for the
+lookup, `allow list: if false` in writing beside it.
+
+Pinned in `firestore-tests/rules.test.ts` beside the lookup case, and
+deliberately holding both halves in one test: narrowing a `read` to a
+`get` is the shape that takes the lookup with it. Proved both ways in one
+emulator run — 155 pass as narrowed, and widening the grant back to
+`read` fails exactly the new case.
+
+Not a privacy walk-back under D334. Nothing is withheld from anybody that
+the product asked to show; the widening D122 recorded — you are findable
+by name — is untouched.
+
 ## D123 · The dedup gate learns morphology and synonyms, and pre-flights the batch against itself
 
 **Date:** 2026-08-13 · **Status:** Adopted
@@ -33618,6 +33648,35 @@ and drops the claim it replaces), `pulse.test.mjs` (the verdict's states
 and arithmetic, pure and against the tree). The figures quoted here are
 the model's output at this commit, snapshots by this file's own rule —
 `npm run costs` and `npm run pulse` print the live ones.
+## D332 amendment (2026-08-29) · A third guard state, because the pass could be a frozen file
+
+The paragraph above says unarmed and unmeasured report as questions
+rather than paging, and that was the whole state set: everything else
+was `ok` or `over`. What it missed is that the measurement itself can
+stop. `monitoring/engagement.json` moves only when a human runs
+`npm run scorecard -- --fetch` — nothing schedules that fetch — so a
+trail that froze in June would have kept pricing June's population and
+kept printing `pulse --check OK … net burn $28.25/mo at 2 measured
+actives` every morning, indefinitely and confidently, while the real
+population and the real bill did whatever they liked. The daily email
+that exists to notice would have been the thing reassuring nobody was
+looking.
+
+The asymmetry was already in the file, five lines up: `scorecard`
+carries `staleness`, and `--check` reds when it is `expired`. The guard
+now carries the same shape — `state: "stale"`, tripping the check, with
+the red message and the money panel's banner both saying which day it is
+pricing and how far back that is. The threshold is **7 days**, and it is derived rather than
+chosen: the guard's own measure is the max of the latest day and the
+SEVEN-day mean, so once the last folded day is older than that window,
+every input it averages is outside it.
+
+`over` still wins over `stale`. An overshoot is true at the size it was
+priced at — the population would have to have shrunk for it to be wrong —
+and both states page anyway, so the ordering only decides which sentence
+the operator reads. What staleness can make unbelievable is the PASS, and
+that is the reading the state exists for.
+
 ## D333 · Phase 5 executed: the strays are gone, the rollback is retired, and two promises got their settings
 
 **2026-08-27.** LAUNCH-RUNBOOK Phase 5's console work, performed in one

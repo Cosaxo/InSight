@@ -82,6 +82,9 @@ export interface PatternsLedgerEntry {
   uid: string;
   qid: string;
   optionIdx?: number;
+  /** Present only on a D86 edit (v2.ts's ledgerEntry): the index the
+   *  answer moved away from. Its ABSENCE is what marks a first answer. */
+  fromIdx?: number;
 }
 
 /** The I/O the fit needs, as an interface (calls.ts's store precedent) —
@@ -195,18 +198,49 @@ export async function runPatternsFit(
     // exactly why the second one exists. It is only this reader that wants a
     // person's latest answer instead.
     //
+    // AND ACROSS DAYS, WHICH IS THE COMMON CASE. This map was built inside
+    // the per-day loop and nowhere else, so "last wins" held only within
+    // one UTC day — while an edit has no day window at all (rules impose a
+    // 60-second cooldown, nothing more). A person who changed their mind
+    // on Tuesday about Monday's answer produced exactly the
+    // `{n: 60, marginal: 0}` the paragraph above calls the bug, from the
+    // very code that says it fixed it.
+    //
+    // What makes it fixable without per-person state is that an edit's
+    // ledger entry now carries `fromIdx` — what the answer moved away
+    // from. An entry with no `fromIdx` is a first answer and counts a
+    // person; a day whose entries for a pair are ALL edits is a revision
+    // of something an earlier day folded, and moves the marginal by
+    // -old/+new without adding to `n` (foldUserDay). An edit written
+    // before that field existed carries none, so it reads as a first
+    // answer and folds the old way — history stays as it was folded.
+    //
     // `ledgerDay` returns the day in `at` order, so the last entry for a pair
-    // is the newest.
-    const byUid = new Map<string, Map<string, number>>();
+    // is the newest and the FIRST edit carries the value the model holds.
+    const byUid = new Map<string, Map<string, { x: number; prev?: number }>>();
     for (const e of entries) {
-      const seen = byUid.get(e.uid) ?? new Map<string, number>();
-      seen.set(e.qid, encodeAnswer(e.optionIdx as number));
+      const seen = byUid.get(e.uid) ?? new Map<string, { x: number; prev?: number }>();
+      const x = encodeAnswer(e.optionIdx as number);
+      const cur = seen.get(e.qid);
+      if (e.fromIdx === undefined) {
+        // A first answer supersedes anything the day held for this pair:
+        // create-then-edit inside one day is one person, final answer.
+        seen.set(e.qid, { x });
+      } else if (cur) {
+        // Another edit on a pair the day has already classified — keep
+        // that classification, take the newer answer.
+        seen.set(e.qid, { ...cur, x });
+      } else {
+        seen.set(e.qid, { x, prev: encodeAnswer(e.fromIdx) });
+      }
       byUid.set(e.uid, seen);
     }
     const states = await store.getUsers([...byUid.keys()].sort());
     const write = new Map<string, PatternsUserState>();
     for (const [uid, seen] of [...byUid.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
-      const obs: PatternsObservation[] = [...seen.entries()].map(([qid, x]) => ({ qid, x }));
+      const obs: PatternsObservation[] = [...seen.entries()].map(([qid, v]) => (
+        v.prev === undefined ? { qid, x: v.x } : { qid, x: v.x, prev: v.prev }
+      ));
       obs.sort((a, b) => (a.qid < b.qid ? -1 : 1));
       const user = states.get(uid) ?? emptyUser(model.k);
       // ALREADY FOLDED — a previous attempt at this day wrote this person

@@ -27,6 +27,7 @@ import { loadMine, mine, subscribePurchases, type Purchase } from "../data/purch
 // receipt. scripts/quote-copy.test.mjs pins the rule.
 import { fmtExact, subscribeCur } from "../data/pricing";
 import { askWindow } from "../data/askWindow";
+import { sharePcts } from "../data/pct";
 // The switch lives in its own module since phase 4: the ask-a-question
 // door (a different lazy chunk) renders it too, and CurSwitch.tsx's
 // header says why an import between the two overlays was the wrong wire.
@@ -119,7 +120,17 @@ function PurchaseCard({ p }: { p: Purchase }): React.ReactElement {
           </div>
           <div style={{ marginTop: 6, fontFamily: SANS, fontSize: 12, fontWeight: 650, color: "var(--ink-2)" }}>
             <span style={{ fontWeight: 800, color: "var(--ink)", fontVariantNumeric: "tabular-nums" }}>
-              {Math.round(((p.counts[lead] || 0) / total) * 100)}% {p.options[lead] || ""}
+              {/* `sharePcts`, not a hand-rolled round: this is the same
+                  published counts vector the public feed card draws for
+                  this question, and the feed rounds it with the app's one
+                  largest-remainder rule (data/pct.ts). Two rules over one
+                  vector disagree on about one cell in eleven at three to
+                  four options, always by a point — so the buyer read a
+                  headline share one off the one everybody else was
+                  reading for the buyer's own question. The BAR widths
+                  above stay exact fractions: they are a shape, not a
+                  number anyone reads. */}
+              {sharePcts(p.counts)[lead]}% {p.options[lead] || ""}
             </span>{" · "}
             <span style={{ fontVariantNumeric: "tabular-nums" }}>{fmtN(total)} {total === 1 ? "answer" : "answers"}</span>
           </div>

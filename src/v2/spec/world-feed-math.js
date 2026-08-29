@@ -103,6 +103,37 @@ export function wfCatArt(color, seed) {
 // a `cats` field: the two reads must not be confusable at a call site.
 export function wfCarried(q) { return [q.cat, ...(q.also || [])]; }
 
+/**
+ * The feed's stream interleave — round-robin across streams so the list
+ * reads as a mix rather than as blocks.
+ *
+ * HERE, RATHER THAN INLINE IN THE COMPONENT, because it carries
+ * docs/TAGS-PLAN.md §1: "a card appears once; `also` multiplies the ways to
+ * reach it, never the copies of it". `wfFeedMatch` decides whether a card
+ * is in, over every door it carries; this decides which stream it lands in,
+ * and it keys on the card's HOME topic alone. A key that learned about
+ * `also` would put a straddler in two streams and render it twice.
+ *
+ * The test for that invariant used to compute the key expression inside
+ * itself and assert on its own copy, which passes for any source. It runs
+ * this now, so breaking the rule in the component breaks the case.
+ */
+export function wfStreamMix(qs) {
+  const byKey = {};
+  const keys = [];
+  for (const q of qs) {
+    const k = q.scene || q.sub || q.cat;
+    if (!byKey[k]) { byKey[k] = []; keys.push(k); }
+    byKey[k].push(q);
+  }
+  const lists = keys.map((k) => byKey[k]);
+  const mixed = [];
+  for (let i = 0; lists.some((l) => i < l.length); i++) {
+    for (const l of lists) if (i < l.length) mixed.push(l[i]);
+  }
+  return mixed;
+}
+
 // The feed's topic filter over one card. Pure so it is testable — the filter
 // shipped inside a 2,350-line class component, which is how the single-cat
 // assumption survived unnamed for as long as it did.

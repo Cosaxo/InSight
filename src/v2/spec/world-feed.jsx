@@ -84,7 +84,7 @@ import { PathsCard } from './paths-card.jsx';
 import LiveReadGame from '../ui/LiveReadGame.tsx';
 import {
   wfCarried, wfCatArt, wfFeedMatch, wfFmt, wfHash, wfKnowBias, wfKnowRate,
-  wfPcts, wfPickGroup, wfRateAvg, wfRateBg, wfRateInk, wfShadeText,
+  wfPcts, wfPickGroup, wfRateAvg, wfRateBg, wfRateInk, wfShadeText, wfStreamMix,
   wfTileArt, wfTint,
 } from './world-feed-math.js';
 
@@ -2515,9 +2515,18 @@ class WorldFeed extends React.Component {
     if (!q.options) return null;
     const mine = typeof this.state.votes[q.id] === 'number' ? this.state.votes[q.id] : null;
     const counts = q.options.map((o) => o.count);
-    // feedInsight here is the LIVE version (feed-read.js): it reads q alone,
-    // ignores the demo-signature args, and returns null on demo cards rather
-    // than inventing a cohort (its header says why).
+    // feedInsight here is the LIVE version (feed-read.js): it returns null
+    // on demo cards rather than inventing a cohort (its header says why).
+    //
+    // `mine` — the third argument — IS READ, and this comment said the
+    // opposite until the line below started depending on it. The live
+    // implementation adds the viewer's own vote back into the room
+    // baseline, because `o.count` has it subtracted and the card above
+    // draws with it added; without it the line announces that a cohort
+    // "flips it" to the option the card is already showing as the winner.
+    // Dropping the arguments here on the old comment's authority would
+    // bring that back with every gate green, because the test for it calls
+    // feedInsight directly and never sees this call site.
     const ins = feedInsight(q, counts, mine, wfHash, WF_FRIENDS);
     if (!ins) return null;
     const n = q.options.length;
@@ -3931,12 +3940,10 @@ class WorldFeed extends React.Component {
     const qs = this.feedPool().filter((q) => q.scene
       ? SCENES.has(q.scene) && cats[q.scene] !== false
       : wfFeedMatch(q, { cats, pulled, leafOn, chanSet: WF_CHAN_SET }));
-    // interleave streams round-robin so the feed reads as a mix, not blocks
-    const byKey = {}; const keys = [];
-    qs.forEach((q) => { const k = q.scene || q.sub || q.cat; if (!byKey[k]) { byKey[k] = []; keys.push(k); } byKey[k].push(q); });
-    const lists = keys.map((k) => byKey[k]);
-    const mixed = [];
-    for (let i = 0; lists.some((l) => i < l.length); i++) lists.forEach((l) => { if (i < l.length) mixed.push(l[i]); });
+    // interleave streams round-robin so the feed reads as a mix, not blocks.
+    // In world-feed-math.js so TAGS-PLAN §1 — one card, one stream, however
+    // many doors it carries — has a test that runs the real grouping.
+    const mixed = wfStreamMix(qs);
     // sort lenses: hot = the interleaved mix · top = most votes · new = latest first
     const sort = this.state.sort;
     const sorted = sort === 'top' ? [...qs].sort((a, b) => wfVotes(b) - wfVotes(a)) : sort === 'new' ? [...qs].reverse() : mixed;

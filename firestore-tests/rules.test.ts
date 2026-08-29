@@ -647,6 +647,20 @@ describe("the daily pulse (D139): one answer per day, day-keyed like a duel's", 
       doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_${day}`),
       pulseAnswer(day, { qid: BASE }),
     ));
+    // …and the id must be COMPOSED of the two, which the case above does
+    // not reach: it moves qid away from the id, so `qid == aid` refuses it
+    // and the composition clause is never asked. Point them at each other
+    // instead and only the composition clause is left standing.
+    //
+    // What it is holding up: the aggregate trigger folds by DOC ID. An
+    // answer that satisfies every other clause at the id `daily-000` is a
+    // pulse answer — bounded by the pulse template's options, day-keyed,
+    // one per day — folded into the daily question's public aggregate,
+    // once per day, forever.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", "daily-000"),
+      pulseAnswer(day, { qid: "daily-000" }),
+    ));
   });
 
   it("the template answers for the bound, the kill switch, and the surface claim", async () => {
@@ -3071,6 +3085,24 @@ describe("handles: the account registry (D122)", () => {
     // the entire purpose. Deliberately wider than D98: that made answers
     // readable to anyone holding your uid, this makes you findable by
     // name. Recorded as its own decision rather than assumed.
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_handles", "olaf")));
+  });
+
+  it("…by name, one at a time — the registry is not a list of everyone", async () => {
+    // `read` is `get` PLUS `list`, so the open lookup above was also an
+    // open enumeration: one collection read returning every handle in the
+    // app, each holding the uid whose public answers it unlocks. The
+    // paragraph in firestore.rules said that query surface did not exist
+    // and so did the data inventory; neither was a rule until now.
+    //
+    // Nothing in the app wants it. The client's only registry read is the
+    // exact-id getDoc above, deleteAccount's query over it runs through
+    // the Admin SDK, and finding people by anything other than an exact
+    // handle is the directory's job (D239).
+    await seedHandle();
+    await assertFails(getDocs(collection(asUser(STRANGER), "v2_handles")));
+    // Narrowing a `read` to a `get` is the shape that takes the lookup
+    // with it, so hold both in one place.
     await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_handles", "olaf")));
   });
 

@@ -195,11 +195,21 @@ async function runBuildModQueue(): Promise<void> {
     const db = firestore();
     // PAGED, not `.get()` on the collection.
     //
-    // v2_flags has no upper bound. MOD_ADVISORY makes the keep-verdict sweep
-    // below the only path that deletes a flag, and it is dead code while
-    // advisory is on; deleteAccount removes one uid's; nothing else does, and
-    // there is no TTL. So the collection only grows, and materialising it
-    // here put a snapshot of every flag ever cast on a 256 MiB instance
+    // v2_flags has no upper bound, and the reason is NOT that nothing
+    // deletes flags — that was the reason while MOD_ADVISORY was true, and
+    // it has been false since D83. A settled take's flags go two ways now:
+    // `submitModVerdict` sweeps them on every keep AND remove, and the loop
+    // at the end of this function sweeps every settled target on each
+    // nightly build, without consulting the advisory flag at all.
+    //
+    // What is unbounded is what NEVER settles. An escalated take's flags
+    // are kept deliberately — they are the evidence a human is going to
+    // read — and a flagged take below the queue floor is never judged, so
+    // its flags stay. Add the takes ever flagged, no TTL, and deleteAccount
+    // removing one uid's, and the collection still has no ceiling: it
+    // simply has one for a different reason than this paragraph used to
+    // give. Materialising it here put a snapshot of every flag ever cast on
+    // a 256 MiB instance
     // (LIGHT_UNBOUNDED, whose ops.ts rationale describes a STREAMING
     // recursiveDelete). At roughly 1.2 KB of heap per snapshot doc that is
     // an OOM somewhere above 100k flags — well before the 480 s deadline the

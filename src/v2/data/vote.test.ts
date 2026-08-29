@@ -598,6 +598,126 @@ describe("patternsSignal (D265): the mount gate's two numbers", () => {
   });
 });
 
+// ── how divisive a question was, over the options it HAS ────────────
+//
+// The selection key for the twelve questions Kindred, the City
+// constellation and the People lens are computed over. It densified the
+// published counts by walking "0".."19" and BREAKING at the first missing
+// key — but the server mints a key by incrementing and deletes one that
+// reaches zero, so an option nobody picked simply has no key. A gapped
+// vector was therefore scored on its leading run, and `divisiveness`
+// normalises by option COUNT, so the short vector is not merely missing
+// zeros: it is rescaled.
+describe("divisivenessOf reads the whole question, not its leading run", () => {
+  const bankDoc = (id: string, options: string[]) => ({
+    id,
+    data: {
+      surface: "feed", seq: 1, type: "vote", prompt: id,
+      options, topic: null, test: null, active: true, core: true,
+    },
+  });
+
+  /** Boot with the question in the bank, then land the published counts
+   *  through the store's own refresh — the only path that fills
+   *  `state.aggs`, which is what divisivenessOf reads. */
+  const withCounts = async (
+    qid: string, options: string[] | null, counts: Record<string, number> | null,
+  ) => {
+    if (options) h.bankDocs.push(bankDoc(qid, options));
+    const mod = await import("./live");
+    const LIVE = await bootLive();
+    LIVE.vote(qid, "0");
+    await vi.waitFor(() => {
+      expect(mod._aggRefreshForTest().pending).toContain(qid);
+    });
+    h.aggDocs = counts ? [{ id: qid, data: { total: 0, counts } }] : [];
+    await mod._aggRefreshForTest().drain({ __db: true } as never);
+    return mod;
+  };
+
+  it("fills an unpicked option with zero instead of stopping there", async () => {
+    const mod = await withCounts("q_gap", ["A", "B", "C", "D", "E"],
+      { "0": 2, "1": 3, "3": 3, "4": 1 });
+    // Five options, lead 3 of 9 → (1 − 1/3) / (1 − 1/5). Truncated at the
+    // gap it was three options wide and scored 0.6667.
+    expect(mod.divisivenessOf("q_gap")).toBeCloseTo((1 - 3 / 9) / (1 - 1 / 5), 6);
+  });
+
+  it("scores a landslide as zero rather than as unmeasured", async () => {
+    // Option 0 unpicked on a two-option question truncated the vector to
+    // nothing, and −1 means "this device holds no counts" — a claim about
+    // missing data, made over data that was present.
+    const mod = await withCounts("q_slide", ["A", "B"], { "1": 7 });
+    expect(mod.divisivenessOf("q_slide")).toBe(0);
+  });
+
+  it("does not drop counts that reach past the option list it holds", async () => {
+    // The mirror of the gap bug. Reading the bank as the only authority
+    // truncates a vector whose published counts go further than this
+    // device's option list does — a bank entry that changed after answers
+    // folded, or a device on a stale content revision — and that is the
+    // same rescaling failure pointed the other way.
+    const mod = await withCounts("q_wide", ["A", "B"], { "0": 2, "1": 2, "2": 4 });
+    // Three options, lead 4 of 8 → (1 − 1/2) / (1 − 1/3). Truncated to the
+    // bank's two it would have been (1 − 1/2) / (1 − 1/2) = 1: a perfect
+    // split, which is the most divisive a question can be.
+    expect(mod.divisivenessOf("q_wide")).toBeCloseTo((1 - 4 / 8) / (1 - 1 / 3), 6);
+  });
+
+  it("still answers −1 when the device holds no counts at all", async () => {
+    const mod = await withCounts("q_none", ["A", "B"], null);
+    expect(mod.divisivenessOf("q_none")).toBe(-1);
+  });
+});
+
+// ── arming a loader is a state change (the "could not load" frame) ──
+//
+// A loading flag nobody is told about is not a loading state. The panels
+// that own these loaders call them from an effect, which runs AFTER the
+// first paint — so the frame with no data and no flag is already on
+// screen, and without a notify on arm it stays there until the query
+// lands. On the Friends cut that frame reads "Could not load how your
+// friends answered", which is a network-failure claim about a read that
+// is working; on the People lens it reads "Fills in as you answer more."
+//
+// These assert the NOTIFY, not the flag: the flag was always set on arm,
+// and setting it changed nothing anybody could see.
+describe("a loader that starts tells its subscribers it started", () => {
+  const armed = async (start: (l: Awaited<ReturnType<typeof bootLive>>) => void) => {
+    const LIVE = await bootLive();
+    const listener = vi.fn();
+    LIVE.subscribe(listener);
+    start(LIVE);                       // deliberately NOT awaited
+    return { LIVE, calls: listener.mock.calls.length };
+  };
+
+  it("loadVoters", async () => {
+    const { LIVE, calls } = await armed((l) => void l.loadVoters("q_1"));
+    expect(calls).toBeGreaterThan(0);
+    expect(LIVE.votersLoading("q_1")).toBe(true);
+    await flush();
+  });
+
+  it("loadFollows", async () => {
+    const { LIVE, calls } = await armed((l) => void l.loadFollows());
+    expect(calls).toBeGreaterThan(0);
+    expect(LIVE.followsLoading()).toBe(true);
+    await flush();
+  });
+
+  it("loadKindred inherits it from loadVoters, which is the only reason it needs none", () => {
+    // Recorded rather than left implicit: loadKindred's only suspension
+    // point is the loadVoters call in its loop, so the People lens's
+    // re-render comes from there. A notify on its own arm would be
+    // unobservable — measured by adding one and finding no test could
+    // fail without it.
+    const src = readFileSync(resolve(process.cwd(), "src/v2/data/live.ts"), "utf8");
+    const body = /async loadKindred\(\)[\s\S]*?\n {2}\},/.exec(src);
+    expect(body).toBeTruthy();
+    expect(body![0]).toMatch(/await this\.loadVoters\(qid\)/);
+  });
+});
+
 // ── the read breaker (D332) ─────────────────────────────────────────
 //
 // `budgetMode` on v2_meta/app is the graded breaker docs/COSTS.md designed:
@@ -642,6 +762,50 @@ describe("budgetMode (D332): level 1 pauses the social reads", () => {
     await LIVE.loadKindred();
     expect(h.voterQueries).toHaveLength(0);
     expect(LIVE.kindredLoading()).toBe(false);
+  });
+
+  it("loadKindred never even RAISES its flag — the caption is the whole point", async () => {
+    // The case above cannot see this gate. Delete it and loadKindred runs
+    // its loop: every loadVoters refuses on its own gate, so no query is
+    // issued and the flag is back to false by the time the await returns —
+    // both assertions above still pass. What the gate buys is the interval
+    // BETWEEN, which is where the lens reads the flag and says "Matching…"
+    // about a match nobody is attempting. So look before awaiting.
+    //
+    // It needs a vote to be worth gating: with an empty vote map the loop
+    // has nothing to iterate, so the whole body — flag up, flag down —
+    // runs synchronously and never suspends, and the gate's absence would
+    // be invisible however you looked. So seed one and assert it landed.
+    metaAt(1);
+    h.answerDocs.push({
+      id: "q_1",
+      data: { qid: "q_1", surface: "daily", optionIdx: 0, answeredAt: { toMillis: () => 5 } },
+    });
+    const LIVE = await bootLive();
+    expect(Object.keys(LIVE.myVotes())).toHaveLength(1);
+    const pending = LIVE.loadKindred();
+    expect(LIVE.kindredLoading()).toBe(false);
+    await pending;
+    expect(h.voterQueries).toHaveLength(0);
+  });
+
+  it("loadCityKindred is gated too, and nothing else in the suite asked", async () => {
+    // The city half of the same fan-out (D278) — a second twelve queries,
+    // behind its own copy of the gate, and until now behind no test at
+    // all. Same shape: the flag must never rise.
+    h.getDocImpl = (path) => (path === "v2_meta/app"
+      ? { budgetMode: 1 }
+      : path === "v2_users/uid_test"
+        ? { anchors: { city: "Oslo, NO", country: "NO" } }
+        : null);
+    const LIVE = await bootLive();
+    // The precondition, asserted rather than assumed: with no city the
+    // loader returns at its first line and this test would prove nothing.
+    expect(LIVE.myCity).toBe("Oslo, NO");
+    const pending = LIVE.loadCityKindred();
+    expect(LIVE.kindredLoading()).toBe(false);
+    await pending;
+    expect(h.voterQueries).toHaveLength(0);
   });
 
   it("loadCircle leaves the circle null rather than folding an empty one", async () => {

@@ -80,6 +80,7 @@
 //      node scripts/doc-index.mjs --write   (regenerate the index)
 
 import { readFileSync, writeFileSync, readdirSync, existsSync, statSync } from "node:fs";
+import { gatePlacement } from "./gate-placement.mjs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { numberingProblems } from "./decision-numbering.mjs";
@@ -445,24 +446,16 @@ if (orientation) {
   // means ci.yml's own jobs: pull requests only. `release` is a
   // platform-release or metadata workflow. `manual` is nothing automated.
   //
-  // MATCHED ON THE SCRIPT FILE TOO, not only on the `npm run` spelling. A
-  // workflow may invoke a gate directly — `node scripts/check-store-copy.mjs
-  // --ios` in ios-release.yml is the only one today — and matching the
-  // spelling alone called that gate "manual" while it decided whether an
-  // iOS release ships. This rule's whole point is answering "can this
-  // block an emergency rules fix", and it was giving the inverse answer
-  // for exactly the same reason: reading how a gate is SPELLED rather
-  // than what it RUNS.
-  const placement = (name) => {
-    const file = (String(pkg.scripts[name] || "").match(/scripts\/[\w.-]+\.mjs/) || [])[0];
-    const runs = [...workflows]
-      .filter(([, src]) => src.includes(`npm run ${name}`) || (file && src.includes(file)))
-      .map(([f]) => f);
-    if (runs.includes("backend-checks.yml")) return "deploy";
-    if (runs.includes("ci.yml")) return "ci";
-    if (runs.length) return "release";
-    return "manual";
-  };
+  // A gate can be invoked two ways and BOTH have to count. `npm run <name>`
+  // is the common one; `node scripts/<file>.mjs --flag` is what a workflow
+  // writes when it needs an argument. Matching only the first said
+  // `check:store-copy` was "manual" while ios-release.yml ran it on every
+  // archive — so the map recorded a false value, the release gate could
+  // have been deleted from that workflow with nothing going red, and
+  // anyone who corrected the row was failed by CI until they put the wrong
+  // value back. A gate that enforces the wrong answer is worse than no
+  // gate: it defends the error.
+  const placement = (name) => gatePlacement(name, pkg.scripts[name], workflows);
   const gates = Object.keys(pkg.scripts).filter((n) => n.startsWith("check:")).sort();
   checked.gates = gates.length;
   for (const gate of gates) {

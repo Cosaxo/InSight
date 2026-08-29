@@ -240,6 +240,60 @@ describe("idempotence and catch-up", () => {
     expect(edited.state.model?.q).toEqual(plain.state.model?.q);
   });
 
+  it("an edit made on a LATER day is a revision, not a second person", async () => {
+    // The case the per-day dedupe could not see, and the common one: an
+    // edit has no day window, so most of them land after the day the
+    // answer was folded. Read as a first answer it put the same person in
+    // `n` twice and left both answers in `sum` — thirty people who said 0
+    // and changed to 1 published `{n: 60, marginal: 0}` where the truth is
+    // `{n: 30, marginal: +1}`.
+    const dayA = utcDay(NOW, -2);
+    const dayB = utcDay(NOW, -1);
+    const N = 30;
+    const ledger: Record<string, PatternsLedgerEntry[]> = { [dayA]: [], [dayB]: [] };
+    for (let i = 0; i < N; i++) {
+      const uid = `u${i}`;
+      ledger[dayA].push({ uid, qid: CORE_A, optionIdx: 1 });
+      // the edit: option 1 → option 0, carrying what it moved away from
+      ledger[dayB].push({ uid, qid: CORE_A, optionIdx: 0, fromIdx: 1 });
+    }
+    const { store, state } = memoryStore(ledger);
+    await runPatternsFit(store, NOW);
+    const L = state.model!.q[CORE_A];
+    expect(L.n, "the population did not grow — one member changed their mind").toBe(N);
+    expect(L.sum / L.n, "everyone now says option 0, which encodes +1").toBe(1);
+  });
+
+  it("counts the person once even when the create and the edit share a day", async () => {
+    // The other order, which the per-day dedupe already handled and must
+    // keep handling: a create and an edit on the same day is one person
+    // with their final answer, never a revision of something unfolded.
+    const { store, state } = memoryStore({
+      [yesterday]: [
+        { uid: "u1", qid: CORE_A, optionIdx: 1 },
+        { uid: "u1", qid: CORE_A, optionIdx: 0, fromIdx: 1 },
+      ],
+    });
+    await runPatternsFit(store, NOW);
+    const L = state.model!.q[CORE_A];
+    expect(L.n).toBe(1);
+    expect(L.sum).toBe(1);
+  });
+
+  it("folds an edit written before the ledger carried fromIdx exactly as it used to", async () => {
+    // History is not rewritten. An entry with no `fromIdx` is a first
+    // answer by definition, so rows already in the ledger keep folding the
+    // way they were folded — the fix is forward-looking and says so.
+    const dayA = utcDay(NOW, -2);
+    const dayB = utcDay(NOW, -1);
+    const { store, state } = memoryStore({
+      [dayA]: [{ uid: "u1", qid: CORE_A, optionIdx: 1 }],
+      [dayB]: [{ uid: "u1", qid: CORE_A, optionIdx: 0 }],
+    });
+    await runPatternsFit(store, NOW);
+    expect(state.model!.q[CORE_A].n).toBe(2);
+  });
+
   it("still folds two DIFFERENT questions from one person", async () => {
     // The dedup is per (person, question). Collapsing to one observation per
     // person would be the obvious wrong version of this fix, and it would

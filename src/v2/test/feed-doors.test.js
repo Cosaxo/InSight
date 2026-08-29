@@ -13,7 +13,7 @@
 //      the stream grouping keys on `cat` alone, asserted here at the same
 //      key expression the component uses.
 import { describe, expect, it } from "vitest";
-import { wfCarried, wfFeedMatch } from "../spec/world-feed-math.js";
+import { wfCarried, wfFeedMatch, wfStreamMix } from "../spec/world-feed-math.js";
 
 // A demo-build shape: format channels always-on, subject topics reached
 // through pulls. (In a live build every subject is a channel — D96 — which
@@ -77,14 +77,51 @@ describe("wfFeedMatch — a mute is a veto", () => {
 });
 
 describe("doors multiply reach, never copies", () => {
-  it("the stream-grouping key ignores doors — one card, one stream", () => {
-    // The component groups with `q.scene || q.sub || q.cat` (world-feed.jsx,
-    // the round-robin interleave). If that expression ever learns about
-    // `also`, a straddler renders once per door — the most visible way to
-    // break docs/TAGS-PLAN.md §1's invariant. Asserted here on the same
-    // expression so the failure names the rule rather than a snapshot.
-    const q = { cat: "sport", also: ["tech", "food"] };
-    const key = q.scene || q.sub || q.cat;
-    expect(key).toBe("sport");
+  // This ran the grouping expression COPIED INTO THE TEST and asserted on
+  // its own copy, which passes for any source — measured: teaching the
+  // component's key about `also` left the whole suite green. The grouping
+  // now lives in world-feed-math.js and these run it.
+  it("a straddler appears once, however many doors it carries", () => {
+    const straddler = { id: "s", cat: "sport", also: ["tech", "food"] };
+    const mixed = wfStreamMix([straddler, { id: "t", cat: "tech" }]);
+    expect(mixed.filter((q) => q.id === "s")).toHaveLength(1);
+    expect(mixed).toHaveLength(2);
+  });
+
+  it("keeps every card exactly once across many streams", () => {
+    // The general form, so the case above cannot be satisfied by a mix
+    // that drops cards instead of duplicating them.
+    const qs = [
+      { id: "a", cat: "sport", also: ["tech"] },
+      { id: "b", cat: "sport" },
+      { id: "c", cat: "tech", also: ["sport", "food"] },
+      { id: "d", cat: "food" },
+      { id: "e", scene: "night", also: ["sport"] },
+      { id: "f", cat: "tech", sub: "phones", also: ["sport"] },
+    ];
+    const mixed = wfStreamMix(qs);
+    expect(mixed).toHaveLength(qs.length);
+    expect(new Set(mixed.map((q) => q.id)).size).toBe(qs.length);
+  });
+
+  it("interleaves the streams rather than serving them in blocks", () => {
+    // The other half of what the function is for: two cards from one
+    // stream must not sit next to each other while another stream waits.
+    const mixed = wfStreamMix([
+      { id: "s1", cat: "sport" }, { id: "s2", cat: "sport" },
+      { id: "t1", cat: "tech" }, { id: "t2", cat: "tech" },
+    ]);
+    expect(mixed.map((q) => q.id)).toEqual(["s1", "t1", "s2", "t2"]);
+  });
+
+  it("groups on the home topic, not on a door", () => {
+    // A straddler and a card whose HOME is that door are different
+    // streams, so they interleave rather than stacking.
+    const mixed = wfStreamMix([
+      { id: "a", cat: "sport", also: ["tech"] },
+      { id: "b", cat: "sport", also: ["tech"] },
+      { id: "c", cat: "tech" },
+    ]);
+    expect(mixed.map((q) => q.id)).toEqual(["a", "c", "b"]);
   });
 });

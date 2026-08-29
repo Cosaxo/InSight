@@ -244,6 +244,51 @@ for (const m of METRICS) {
   });
 }
 
+/**
+ * The caveat an operator needs at the moment they arm alerting, DERIVED
+ * from the committed policies rather than restated beside them.
+ *
+ * It used to say all four silence policies watch an absence and cannot
+ * fire until each job has run once in production. That was true when it
+ * was written and is now the inverse for three of them: D303's amendment
+ * moved the nightly-job policies to trailing-24h THRESHOLDS carrying
+ * `evaluationMissingData: EVALUATION_MISSING_DATA_ACTIVE`, chosen in that
+ * record precisely because a threshold over a never-emitting series
+ * "would otherwise evaluate nothing and stay green forever, which is the
+ * exact hole the absence condition existed to close".
+ *
+ * So the operator was told three live, firing-capable alerts were inert,
+ * printed at the moment they go and verify. Reading the shape off the
+ * files is what stops it going stale a second time: nothing here restates
+ * which policy is which.
+ */
+function absenceCaveat() {
+  const absent = [];
+  const armed = [];
+  for (const rel of POLICIES) {
+    const body = JSON.parse(readFileSync(join(root, rel), "utf8"));
+    const conds = body.conditions || [];
+    (conds.some((c) => c.conditionAbsent) ? absent : armed).push(body.displayName);
+  }
+  const lines = [];
+  for (const name of absent) {
+    lines.push(
+      `\n  ! "${name}" is a metric-ABSENCE policy, and absence conditions`
+      + "\n    need a time series that has existed at least once. Until that job"
+      + "\n    has run in production it cannot fire — green because there is"
+      + "\n    nothing to be absent, not because the loop is healthy.",
+    );
+  }
+  if (armed.length) {
+    lines.push(
+      `\n  · The other ${armed.length} fire from the first evaluation: they are`
+      + "\n    thresholds with evaluationMissingData ACTIVE, so a series that has"
+      + "\n    never emitted is treated as a breach rather than as silence.",
+    );
+  }
+  return lines.join("\n");
+}
+
 // ── 3. the policies ─────────────────────────────────────────────────
 const policyList = must(
   "listing alert policies",
@@ -283,11 +328,6 @@ console.log(
       + "Then send yourself a test page from the console — an alert nobody has\n"
       + "ever seen arrive is an alert you do not know is wired up.\n"
       + "\n"
-      + '  ! "scheduledDuelReveals has gone quiet" is a metric-ABSENCE policy,\n'
-      + "    and absence conditions need a time series that has existed at\n"
-      + "    least once. Until the first scheduled (indexed) reveal scan has\n"
-      + "    run in production, it cannot fire — it is green because there is\n"
-      + "    nothing to be absent, not because the loop is healthy. The same\n"
-      + "    holds for the three nightly-job silence policies."
+      + absenceCaveat()
     : "\napply-monitoring: dry run. Re-run with --apply to create the above.",
 );

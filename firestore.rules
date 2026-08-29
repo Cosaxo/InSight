@@ -1306,16 +1306,25 @@ service cloud.firestore {
     // "anyone who knows your handle can find them". Those are different
     // exposures and this one is deliberate: a handle exists precisely so
     // a friend can find you, and a directory nobody may read cannot do
-    // that. What it is NOT is a listing — there is no query surface here
-    // that enumerates handles, only an exact-id lookup, so the registry
-    // answers "is @olaf someone" and never "who is everyone".
+    // that. What it is NOT is a listing, and that is now the RULE rather
+    // than a description of the client: `read` is `get` + `list`, so
+    // `allow read: if request.auth != null` granted exactly the query
+    // this paragraph said did not exist — one collection read returning
+    // every handle in the app, each holding the uid whose public answers
+    // it unlocks. Nothing asks for that: the app's only registry read is
+    // an exact-id `getDoc` (socialFetch.ts), the one query over it runs
+    // in `deleteAccount` through the Admin SDK, and the surface built for
+    // finding people is the directory below. So the grant is `get`, and
+    // `list` is refused in writing — the registry answers "is @olaf
+    // someone" and cannot be asked "who is everyone".
     //
     // WRITE is server-only. A claim is two writes that must not
     // interleave (take the new key, release the old), and rules cannot
     // express atomicity across two documents: a create-if-absent rule
     // gets uniqueness right and renames wrong.
     match /v2_handles/{handle} {
-      allow read: if request.auth != null;
+      allow get: if request.auth != null;
+      allow list: if false;
       allow write: if false;
     }
 

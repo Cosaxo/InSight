@@ -94,7 +94,7 @@ export interface TasteProfile {
 
 export interface TasteStore {
   /** The ledger entries for one UTC day. */
-  ledgerDay(dayKey: string): Promise<Array<{ uid: string; qid: string }>>;
+  ledgerDay(dayKey: string): Promise<Array<{ uid: string; qid: string; fromIdx?: number }>>;
   /** The last folded day key, "" when the fold has never run. */
   getLastDay(): Promise<string>;
   getProfiles(uids: string[]): Promise<Map<string, TasteProfile>>;
@@ -143,6 +143,16 @@ export async function runTasteFold(
     for (const e of await store.ledgerDay(day)) {
       const topic = topicOf.get(e.qid);
       if (!topic || !e.uid) continue;
+      // AN EDIT IS NEVER A NEW ACT OF INTEREST. `fromIdx` is present only
+      // on a D86 edit's ledger entry (v2.ts), so this skips the second and
+      // later entries for one answer whatever DAY they land on — which the
+      // within-day set below could not, and edits have no day window
+      // (rules impose a 60-second cooldown and nothing else). Changing
+      // your mind on Tuesday about Monday's answer added a second count to
+      // that topic, so a person who edited a lot read as a person who
+      // cared a lot. An entry written before the field existed carries
+      // none and still folds the old way — history is not rewritten.
+      if (e.fromIdx !== undefined) continue;
       // The within-day dedupe (the edit rule in the header): one count
       // per (person, question) per day, first entry wins — the create
       // and its same-day edit are one act of interest.

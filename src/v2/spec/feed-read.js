@@ -88,14 +88,34 @@ export let feedInsight;
   // here is publishable by construction, and this adds no disclosure of its
   // own. Returns null for anything it cannot say honestly: a demo card, a
   // question below the floor, a breakdown with nothing surprising in it.
-  feedInsight = function feedInsightImpl(q) {
+  //
+  // `mine` is the viewer's own option index, third in the demo signature
+  // the call site still uses (`feedInsight(q, counts, mine, …)`) and the
+  // one demo argument this live implementation cannot ignore. Reason
+  // below, where the room baseline is built.
+  feedInsight = function feedInsightImpl(q, _counts, mine) {
     if (!q || !q.live || !q.options || q.options.length < 2) return null;
     const L = window.LIVE;
     const agg = L && L.enabled && L.aggFor ? L.aggFor(q.id) : null;
     const by = agg && agg.by;
     if (!by) return null;
 
-    const counts = q.options.map((o) => o.count || 0);
+    // THE VIEWER'S OWN VOTE GOES BACK IN, because the room this line talks
+    // about has to be the room the card above it drew. `o.count` comes from
+    // `countsFor` (data/deck.ts), which SUBTRACTS the viewer's vote once the
+    // trigger has folded it — the UI layer adds its own +1. So the card
+    // renders `wfPcts(counts, mine)`, which puts it back, and the cohort
+    // cells in `agg.by` contain it too. Without this line the baseline was
+    // the only population on the screen that nobody was counted in, and it
+    // decided both `roomWin` and `gap`.
+    //
+    // What that produced: whenever your own vote made or changed the
+    // leader — routine at the counts a question has in its first hours —
+    // the line under the card announced that a cohort "flips it" to the
+    // option the card was already showing as the winner. The third site of
+    // this same +1 mismatch; the other two are recorded at
+    // world-feed.jsx's answers-sheet total and daily-split's.
+    const counts = q.options.map((o, i) => (o.count || 0) + (mine === i ? 1 : 0));
     const roomTotal = counts.reduce((a, b) => a + b, 0);
     if (!roomTotal) return null;
     const roomPct = counts.map((c) => (c / roomTotal) * 100);

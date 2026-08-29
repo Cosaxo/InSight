@@ -43,7 +43,7 @@
 // refund in the system is the closer's under-delivery refund, which is
 // arithmetic over a public number.
 
-import { FieldValue, Timestamp, type Firestore } from "firebase-admin/firestore";
+import { FieldPath, FieldValue, Timestamp, type Firestore } from "firebase-admin/firestore";
 import { onCall, onRequest, HttpsError } from "firebase-functions/v2/https";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
@@ -197,13 +197,27 @@ export function validatePaidBooking(data: unknown): { ok: PaidBookingPayload } |
     }
     options.push(s);
   }
-  if (options.length > PAID_OPTIONS_MAX) return { error: `at most ${PAID_OPTIONS_MAX} options` };
   // The continuum forms carry the app's own scales — an authored option
   // list on a scale question would re-key what every stored optionIdx
   // means, which is the D52 line. Synthesize, never accept.
+  //
+  // THE BOUND APPLIES TO AUTHORED LISTS, NOT SYNTHESIZED ONES, and that
+  // ordering is the whole fix. This validator runs TWICE on a booking:
+  // once on the wire, and again on the STORED payload when reviewGates
+  // re-reads the doc. The bound used to run before the substitution, so
+  // the first pass saw the composer's empty list and passed, the doc was
+  // written with five Likert steps or ten rating steps — and the second
+  // pass then declined the buyer's own booking with "at most 4 options".
+  // Two of the five forms the paid composer offers could not be sold at
+  // all, and the buyer read that sentence as the reason.
+  //
+  // Which makes the property worth stating rather than the line worth
+  // moving: validating an already-validated payload must produce the same
+  // payload. Pinned as exactly that, over every form.
   if (type === "scale") options = [...LIKERT];
   else if (type === "rating") options = [...RATING];
   else if (options.length < 2) return { error: "give people at least two options" };
+  else if (options.length > PAID_OPTIONS_MAX) return { error: `at most ${PAID_OPTIONS_MAX} options` };
   const topicRaw = String(d.topic ?? "").trim().toLowerCase();
   const topic = PAID_TOPICS.has(topicRaw) ? topicRaw : null;
 
@@ -663,7 +677,16 @@ export const bookPaidQuestionV2 = onCall(
     let buyerName: string | null = null;
     if (b.kind === "question" && b.wearName) {
       const prof = await db.collection("v2_users").doc(uid).get();
-      const n = prof.exists ? String(prof.get("name") ?? "").trim() : "";
+      // `displayName`, which is the only name a v2_users document can
+      // hold: firestore.rules admits exactly seven keys there and `name`
+      // is not one of them, so this read had been returning undefined
+      // since it was written. Two things were dead behind it — the band
+      // never wore the buyer's name however hard they asked for it, and
+      // the reviewer's rule about slurs or impersonation IN THE BUYER
+      // NAME was judging `null` on every submission. (`name` is a real
+      // field one collection over, on v2_people, which is the likely
+      // origin of the typo.)
+      const n = prof.exists ? String(prof.get("displayName") ?? "").trim() : "";
       buyerName = n ? n.slice(0, 40) : null;
     }
     const ref = db.collection("v2_paid_bookings").doc(`${uid}_${Date.now().toString(36)}`);
@@ -1330,6 +1353,15 @@ export const stripeWebhookV2 = onRequest(
 
 // ── the closer ──────────────────────────────────────────────────────────
 
+/** One page of running purchases per query. */
+export const CLOSER_PAGE = 200;
+/** How many pages one nightly run may walk. 5,000 running campaigns is
+ *  far past anything the rate card contemplates; the bound is here so a
+ *  runaway collection cannot turn a scheduled job into an unbounded read,
+ *  and hitting it logs rather than passing quietly. */
+export const CLOSER_MAX_PAGES = 25;
+
+
 /** The refund the closer owes at window end: the unserved answers at the
  * locked rate, clamped into [0, capEur]. Billed per answer (D164) with
  * payment taken up front means under-delivery is the buyer's money. */
@@ -1350,80 +1382,115 @@ export const closePaidCampaignsV2 = onSchedule(
   async () => {
     const db = firestore();
     const today = utcDayKey(0);
-    const running = await db.collection("v2_purchases")
-      .where("state", "==", "running")
-      .limit(200)
-      .get();
     const key = stripeKey();
     let stripe: import("stripe").Stripe | null = null;
-    for (const doc of running.docs) {
-      const until = String((doc.get("window") as { until?: string })?.until ?? "");
-      if (!until || until >= today) continue; // still serving
-      const kind = String(doc.get("kind") ?? "question");
-      if (kind === "ad") {
-        // No refund arithmetic: the flat price bought the window and the
-        // window ran (D315). The DELETE is the janitor half runSeedAds
-        // gave up for `paidad-` ids: an expired paid ad would otherwise
-        // sit in a pool every client downloads whole, forever — the
-        // exact accumulation the seed's own delete exists to prevent.
-        const adId = String(doc.get("adId") ?? "");
-        if (adId) await db.collection("v2_ads").doc(adId).delete();
-        await doc.ref.update({ state: "closed", closed: { at: Timestamp.now() } });
-        logger.info(`[paid] closed ad ${doc.id}`, { metric: "paid_campaign_closed" });
-        continue;
-      }
-      if (kind !== "question") continue; // subscriptions (PAID-PLAN §5) are not this job's
-      const qid = String(doc.get("qid") ?? "");
-      const budget = (doc.get("budget") as { cap: number; capEur: number; ratePerAnswer: number }) ?? { cap: 0, capEur: 0, ratePerAnswer: 0 };
-      let answers = 0;
-      if (qid) {
-        const agg = await db.collection("v2_question_aggs").doc(qid).get();
-        const counts = (agg.exists ? agg.get("counts") : null) as Record<string, number> | null;
-        if (counts) answers = Object.values(counts).reduce((a, b) => a + (b || 0), 0);
-      }
-      const refundEur = refundEurFor(budget.cap, budget.capEur, budget.ratePerAnswer, answers);
-      const paymentIntent = String(doc.get("stripePaymentIntent") ?? "");
-      let refundId: string | null = null;
-      if (refundEur > 0 && paymentIntent && key) {
-        try {
-          if (!stripe) {
-            const { default: Stripe } = await import("stripe");
-            stripe = new Stripe(key);
-          }
-          const refund = await stripe.refunds.create({
-            payment_intent: paymentIntent,
-            amount: Math.round(refundEur * 100),
-          });
-          refundId = refund.id;
-        } catch (err) {
-          // A failed refund HOLDS the purchase open — closing it would
-          // record the debt as settled. Tomorrow's run retries.
-          logger.error(`[paid] refund failed for ${doc.id} — held for retry`, {
-            metric: "paid_refund_held",
-            message: String((err as Error)?.message ?? err),
-          });
+    // PAGED, and the page is the whole point. A single `limit(200)` reads
+    // the first 200 running purchases by document id and never a second
+    // page — and a purchase leaves "running" only when THIS job closes it.
+    // So past 200 concurrent campaigns the same first 200 come back every
+    // night, and a campaign that sits beyond the cut never closes: its
+    // window ends, its refund is owed, and nothing ever pays it. Silent on
+    // both sides — the buyer sees a campaign that never settles, and no
+    // log line says the closer ran out of page.
+    //
+    // Ordered by document id explicitly, which is what an equality-only
+    // query already does implicitly — written down because `startAfter`
+    // depends on it, and an order nobody stated is an order somebody can
+    // change.
+    let cursor: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+    let pages = 0;
+    for (;;) {
+      let q = db.collection("v2_purchases")
+        .where("state", "==", "running")
+        .orderBy(FieldPath.documentId())
+        .limit(CLOSER_PAGE);
+      if (cursor) q = q.startAfter(cursor);
+      const running = await q.get();
+      if (running.empty) break;
+      for (const doc of running.docs) {
+        const until = String((doc.get("window") as { until?: string })?.until ?? "");
+        if (!until || until >= today) continue; // still serving
+        const kind = String(doc.get("kind") ?? "question");
+        if (kind === "ad") {
+          // No refund arithmetic: the flat price bought the window and the
+          // window ran (D315). The DELETE is the janitor half runSeedAds
+          // gave up for `paidad-` ids: an expired paid ad would otherwise
+          // sit in a pool every client downloads whole, forever — the
+          // exact accumulation the seed's own delete exists to prevent.
+          const adId = String(doc.get("adId") ?? "");
+          if (adId) await db.collection("v2_ads").doc(adId).delete();
+          await doc.ref.update({ state: "closed", closed: { at: Timestamp.now() } });
+          logger.info(`[paid] closed ad ${doc.id}`, { metric: "paid_campaign_closed" });
           continue;
         }
-      } else if (refundEur > 0 && (!paymentIntent || !key)) {
-        // Emulator, or a purchase written by the operator script (no
-        // payment intent): record the arithmetic, close without a
-        // transfer — the contract channel settles those by hand.
-        logger.warn(`[paid] ${doc.id} closes owing €${refundEur} with no refund path — settle off-app`, {
-          metric: "paid_refund_offapp",
+        if (kind !== "question") continue; // subscriptions (PAID-PLAN §5) are not this job's
+        const qid = String(doc.get("qid") ?? "");
+        const budget = (doc.get("budget") as { cap: number; capEur: number; ratePerAnswer: number }) ?? { cap: 0, capEur: 0, ratePerAnswer: 0 };
+        let answers = 0;
+        if (qid) {
+          const agg = await db.collection("v2_question_aggs").doc(qid).get();
+          const counts = (agg.exists ? agg.get("counts") : null) as Record<string, number> | null;
+          if (counts) answers = Object.values(counts).reduce((a, b) => a + (b || 0), 0);
+        }
+        const refundEur = refundEurFor(budget.cap, budget.capEur, budget.ratePerAnswer, answers);
+        const paymentIntent = String(doc.get("stripePaymentIntent") ?? "");
+        let refundId: string | null = null;
+        if (refundEur > 0 && paymentIntent && key) {
+          try {
+            if (!stripe) {
+              const { default: Stripe } = await import("stripe");
+              stripe = new Stripe(key);
+            }
+            const refund = await stripe.refunds.create({
+              payment_intent: paymentIntent,
+              amount: Math.round(refundEur * 100),
+            });
+            refundId = refund.id;
+          } catch (err) {
+            // A failed refund HOLDS the purchase open — closing it would
+            // record the debt as settled. Tomorrow's run retries.
+            logger.error(`[paid] refund failed for ${doc.id} — held for retry`, {
+              metric: "paid_refund_held",
+              message: String((err as Error)?.message ?? err),
+            });
+            continue;
+          }
+        } else if (refundEur > 0 && (!paymentIntent || !key)) {
+          // Emulator, or a purchase written by the operator script (no
+          // payment intent): record the arithmetic, close without a
+          // transfer — the contract channel settles those by hand.
+          logger.warn(`[paid] ${doc.id} closes owing €${refundEur} with no refund path — settle off-app`, {
+            metric: "paid_refund_offapp",
+          });
+        }
+        await doc.ref.update({
+          state: "closed",
+          closed: {
+            at: Timestamp.now(),
+            answers,
+            refundEur,
+            ...(refundId ? { refundId } : {}),
+          },
+        });
+        logger.info(`[paid] closed ${doc.id}: ${answers}/${budget.cap} answers, refund €${refundEur}`, {
+          metric: "paid_campaign_closed",
         });
       }
-      await doc.ref.update({
-        state: "closed",
-        closed: {
-          at: Timestamp.now(),
-          answers,
-          refundEur,
-          ...(refundId ? { refundId } : {}),
-        },
-      });
-      logger.info(`[paid] closed ${doc.id}: ${answers}/${budget.cap} answers, refund €${refundEur}`, {
-        metric: "paid_campaign_closed",
-      });
+      pages += 1;
+      // A short page is the end of the collection; a full one may not be.
+      if (running.size < CLOSER_PAGE) break;
+      if (pages >= CLOSER_MAX_PAGES) {
+        // The bound exists so one scheduled run cannot walk forever, and
+        // it must never become the silent cap the single page was: say so,
+        // and tomorrow's run starts from the top and gets further because
+        // tonight closed some.
+        logger.warn(
+          `[paid] closer stopped at ${pages} pages (${pages * CLOSER_PAGE} running purchases) — more remain`,
+          { metric: "paid_closer_page_cap", pages },
+        );
+        break;
+      }
+      cursor = running.docs[running.docs.length - 1];
     }
   },
 );

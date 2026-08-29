@@ -460,17 +460,52 @@ const AD_POOL_CAP = 200;
  * empty pool. `divisiveness` normalises by option count (cohort.ts), so a
  * 2-option daily and a 5-option scale item are comparable.
  */
-function divisivenessOf(qid: string): number {
+export function divisivenessOf(qid: string): number {
   const counts = state.aggs[qid]?.counts;
   if (!counts) return -1;
-  const dense: number[] = [];
-  for (let i = 0; i < 20; i++) {
-    const c = counts[String(i)];
-    if (typeof c !== "number") break;
-    dense.push(c);
-  }
-  if (dense.length < 2) return -1;
+  // HOW MANY OPTIONS THE QUESTION HAS, not how many the counts happen to
+  // name. The server mints a count key by incrementing and DELETES one
+  // that reaches zero (pure.ts: "a zero count never occurs on the create
+  // path"), so an option nobody picked simply has no key — and this used
+  // to stop at the first gap. A five-option question with option 2
+  // unpicked was scored on its first two options; a ten-point rating with
+  // option 0 unpicked scored as unmeasured.
+  //
+  // It is the selection key for loadKindred's twelve, so a wrong value
+  // spends twelve collection-group queries on a worse-chosen set — and
+  // `divisiveness` normalises by option COUNT, which is why a short
+  // vector is not merely missing zeros but rescaled.
+  //
+  // Every other densifier in the tree reads the bank's option count and
+  // fills with `|| 0` (cohort.ts, deck.ts, testNorms.ts, purchases.ts).
+  // This one now does too, with the highest key present as the fallback
+  // for a qid no bank on this device can name.
+  // The WIDER of the two, not the bank's alone. Taking the bank as the only
+  // authority fixes the gap-truncation above and introduces its mirror: a
+  // question whose published counts reach past the option list this device
+  // holds — a bank entry that changed after answers folded, or a device on
+  // a stale content revision — would have its tail dropped and be scored
+  // on a narrower vector, which is the same rescaling failure pointed the
+  // other way. Neither source is trustworthy alone; the union of them is.
+  const highestKey = Object.keys(counts)
+    .reduce((max, k) => (/^\d+$/.test(k) ? Math.max(max, Number(k) + 1) : max), 0);
+  const len = Math.max(optionCountOf(qid), highestKey);
+  if (len < 2) return -1;
+  const dense = Array.from({ length: Math.min(len, 20) }, (_, i) => counts[String(i)] || 0);
   return divisiveness(dense);
+}
+
+/** The bank's option count for a qid, or 0 when no bank on this device
+ *  holds it — the storesOptionIdx lookup, one question over. */
+function optionCountOf(qid: string): number {
+  for (const bank of [
+    state.questions, state.feedBank, state.duelBank,
+    state.learnBank, state.callBank, state.pulseBank,
+  ]) {
+    const q = bank.find((x) => x.id === qid);
+    if (q) return Array.isArray(q.options) ? q.options.length : 0;
+  }
+  return 0;
 }
 
 /**
@@ -3476,7 +3511,16 @@ const LIVE = {
     // "we chose not to ask" is a kind of "we could not ask", never "nobody
     // answered".
     if (socialReadsPaused(state.meta.budgetMode)) return;
+    // ARM AND SAY SO. A loading flag nobody is told about is not a loading
+    // state: the panel that mounts this loader has already painted by the
+    // time its effect runs, so without this notify its FIRST frame — the
+    // one with no data and no flag — stands until the query lands. On the
+    // Friends cut that frame reads "Could not load how your friends
+    // answered", a network-failure claim about a read that is working.
+    // loadCircle and loadCityKindred have always notified here; these
+    // three had not.
     state.votersLoading[qid] = true;
+    notify();
     try {
       const db = await getDb();
       // SORTED HERE, once, rather than on every read. Both keys the
@@ -3721,6 +3765,14 @@ const LIVE = {
     // kindredLoading long enough for the lens to say "Matching…" about a
     // match that is not being attempted.
     if (socialReadsPaused(state.meta.budgetMode)) return;
+    // No notify here, deliberately, and it took removing one to see why:
+    // this body's only suspension point is `await this.loadVoters(qid)` in
+    // the loop below, and loadVoters notifies as it arms. When the loop
+    // has nothing to fetch — no votes, or every list already cached — the
+    // whole body runs to its `finally` synchronously and an arm notify
+    // could never be observed by anyone. So the People lens gets its
+    // re-render from loadVoters, one microtask later, and a line here
+    // would be one no test could hold.
     state.kindredLoading = true;
     try {
       const qids = pickKindredQids(state.votes, divisivenessOf, KINDRED_QUESTIONS, storesOptionIdx);
@@ -3940,6 +3992,7 @@ const LIVE = {
     if (!this.enabled || !me || state.followsLoading) return;
     if (state.follows) return;
     state.followsLoading = true;
+    notify(); // see loadVoters: an unannounced flag paints as a failure
     try {
       const [db, circleMod] = await Promise.all([getDb(), import("./circle")]);
       state.follows = circleMod.capFollows(await circleMod.fetchFollowing(db, me));

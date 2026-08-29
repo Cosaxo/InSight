@@ -23,7 +23,7 @@ const NOW = Date.UTC(2026, 7, 26, 12);
 interface FakeStore extends TasteStore {
   profiles: Map<string, TasteProfile>;
   lastDay: string;
-  ledger: Record<string, Array<{ uid: string; qid: string }>>;
+  ledger: Record<string, Array<{ uid: string; qid: string; fromIdx?: number }>>;
   askedDays: string[];
   /** Make the next cursor write throw — the crash this fold has to survive. */
   breakCursorOnce: boolean;
@@ -110,6 +110,38 @@ describe("runTasteFold", () => {
     });
     await runTasteFold(store, NOW, TOPICS);
     expect(store.profiles.get("a")).toEqual({ t: { food: 1 }, n: 1, d: "2026-08-25" });
+  });
+
+  it("an edit made on a LATER day is not a second act of interest", async () => {
+    // The within-day set could not see this: an edit has no day window, so
+    // changing your mind the next day added a second count to the topic
+    // and a person who edited a lot read as a person who cared a lot.
+    // `fromIdx` is present only on an edit's ledger entry, which is what
+    // makes it visible across days without any per-person state.
+    const store = fakeStore({
+      lastDay: "2026-08-23",
+      ledger: {
+        "2026-08-24": [{ uid: "a", qid: "feed-s1" }],
+        "2026-08-25": [{ uid: "a", qid: "feed-s1", fromIdx: 0 }],
+      },
+    });
+    const summary = await runTasteFold(store, NOW, TOPICS);
+    expect(summary.counted, "the edit is the same answer, not a second one").toBe(1);
+    expect(store.profiles.get("a")!.n).toBe(1);
+  });
+
+  it("still counts a first answer on every day it sees one", async () => {
+    // The contrast, or the case above would pass on a fold that counted
+    // nothing at all across days.
+    const store = fakeStore({
+      lastDay: "2026-08-23",
+      ledger: {
+        "2026-08-24": [{ uid: "a", qid: "feed-s1" }],
+        "2026-08-25": [{ uid: "a", qid: "feed-f1" }],
+      },
+    });
+    const summary = await runTasteFold(store, NOW, TOPICS);
+    expect(summary.counted).toBe(2);
   });
 
   it("never counts a qid outside the feed's topic map", async () => {
