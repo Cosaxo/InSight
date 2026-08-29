@@ -189,11 +189,21 @@ export const LEDGER_RETENTION_DAYS = 90;
 // account (index.ts phase 4c). Absent on catalog entries — the fit's
 // pool is two-option questions only — and an edit's entry carries the
 // NEW side, so a refit leans toward what the person now says.
-function ledgerEntry(uid: string, qid: string, optionIdx?: number) {
+function ledgerEntry(uid: string, qid: string, optionIdx?: number, fromIdx?: number) {
   return {
     qid,
     uid,
     ...(optionIdx === undefined ? {} : { optionIdx }),
+    // WHAT AN EDIT MOVED FROM, and only an edit carries it (D86's update
+    // arm). The ledger is a log of aggregate EVENTS, so an edit's entry is
+    // byte-identical in shape to the create it supersedes — which is
+    // exactly right for the counts, whose -old/+new delta is why the
+    // second entry exists, and wrong for every reader that wants a
+    // PERSON's answer. The nightly patterns fit is one: without this it
+    // read an edit as a second person, inflating the published basis and
+    // cancelling the marginal (patterns.ts). One field makes the two
+    // readings distinguishable instead of asking a reader to guess.
+    ...(fromIdx === undefined ? {} : { fromIdx }),
     at: FieldValue.serverTimestamp(),
     expireAt: new Date(Date.now() + LEDGER_RETENTION_DAYS * 86400000),
   };
@@ -958,7 +968,7 @@ export const onV2AnswerUpdated = onDocumentUpdated(
       const edits: EditFlow =
         (agg.exists && (agg.get("edits") as EditFlow)) || {};
       foldEditFlow(edits, fromIdx, toIdx);
-      tx.set(eventRef, ledgerEntry(event.params.uid, qid, toIdx));
+      tx.set(eventRef, ledgerEntry(event.params.uid, qid, toIdx, fromIdx));
       // An edit always republishes now. It used to be conditional on
       // EDITS_REPUBLISH — a guard that existed because, under a publish
       // cadence, an edit's -old/+new leaves `total` unmoved, so a lone

@@ -164,6 +164,24 @@ describe("a redelivered event folds once (retry: true is at-least-once)", () => 
     expect(counts["1"]).toBeUndefined();
   });
 
+  it("an edit's ledger entry records what it moved FROM", async () => {
+    // Not idempotence, but the same file's reach: this harness is the only
+    // place the real edit trigger runs, and `fromIdx` is what lets a
+    // reader tell a D86 edit from a first answer. The nightly patterns fit
+    // is built on that distinction — without the field it counts one
+    // person twice and publishes a basis that reads healthy and is not.
+    // Removing the argument from the write left the whole functions suite
+    // green, which is why this case exists.
+    await deliver("evt-1", vote);
+    await deliverEdit("edit-1", 1, 0);
+    const entry = store.get("v2_agg_events/edit-1");
+    expect(entry, "the edit wrote no ledger entry at all").toBeTruthy();
+    expect(entry!.fromIdx).toBe(1);
+    expect(entry!.optionIdx).toBe(0);
+    // …and a CREATE carries none: its absence is the marker.
+    expect(store.get("v2_agg_events/evt-1")).not.toHaveProperty("fromIdx");
+  });
+
   it("marks the ledger in the same transaction as the fold", async () => {
     // The other half of the property: a fold that lands without its ledger
     // entry is a fold that will land again on the next delivery.

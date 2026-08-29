@@ -73,6 +73,18 @@ export interface PatternsObservation {
   qid: string;
   /** The encoded answer: +1 for option 0, −1 for option 1. */
   x: number;
+  /**
+   * The encoded answer this one REPLACES, when the person had already been
+   * folded on this question and has since edited it (D86). Absent on a
+   * first answer, which is the ordinary case.
+   *
+   * It exists because `n` and `sum` are counts of PEOPLE and an edit is
+   * not a second person. Folding one as a first answer put the same person
+   * in `n` twice and left both of their answers in `sum` — so someone who
+   * said 0 and changed their mind to 1 contributed nothing to the marginal
+   * instead of +1, and inflated the basis at the same time.
+   */
+  prev?: number;
 }
 
 /** Two-option answers encode symmetrically; anything else is ineligible
@@ -175,7 +187,12 @@ export function foldUserDay(
     // step ahead or it isn't held out.
     let dot = 0;
     for (let i = 0; i < k; i++) dot += user.v[i] * L.v[i];
-    if (score) {
+    const revision = o.prev !== undefined;
+    // A revision is not a held-out prediction. The person's answer to this
+    // question was already scored the day it first arrived; scoring the
+    // edit would count them twice in the day's own scorecard too, which is
+    // the same error one level up.
+    if (score && !revision) {
       const mPrev = L.n > 0 ? L.sum / L.n : 0;
       const bits = prequentialBits(mPrev + dot, o.x);
       score.n += 1;
@@ -187,8 +204,28 @@ export function foldUserDay(
     // marginal first, then centre — the mean INCLUDES this answer, so a
     // question's very first answer carries no signal beyond existing
     // (r = 0), which is right: one vote says nothing about co-variation.
-    L.n += 1;
-    L.sum += o.x;
+    //
+    // A REVISION MOVES THE MARGINAL WITHOUT ADDING A PERSON: -old/+new,
+    // `n` untouched. The same delta the aggregate counts take on an edit,
+    // and for the same reason — the population did not grow, one member of
+    // it changed their mind. Theta still steps below, which is the edit's
+    // consequence v2.ts records as considered and accepted; it was only
+    // the counts that were never meant to move twice.
+    if (revision) {
+      L.sum += o.x - (o.prev as number);
+      // The invariant, as a clamp rather than an assumption: every answer
+      // is ±1, so |sum| can never exceed n. It could only be breached by a
+      // revision whose FIRST answer this model never folded — a create
+      // that fell outside the catch-up window, or landed before the
+      // question became eligible — where the subtraction removes something
+      // that was never added. Rare, undetectable from the ledger alone,
+      // and bounded here instead of left to skew a marginal past 1.
+      if (L.sum > L.n) L.sum = L.n;
+      else if (L.sum < -L.n) L.sum = -L.n;
+    } else {
+      L.n += 1;
+      L.sum += o.x;
+    }
     const m = L.sum / L.n;
     const r = o.x - m;
     const e = r - dot;
@@ -199,7 +236,7 @@ export function foldUserDay(
       user.v[i] = ui + PATTERNS_ETA_USER * (e * li - PATTERNS_LAMBDA * ui);
       L.v[i] = li + eq * (e * ui - PATTERNS_LAMBDA * li);
     }
-    user.n += 1;
+    if (!revision) user.n += 1;
   }
   return { model, user };
 }

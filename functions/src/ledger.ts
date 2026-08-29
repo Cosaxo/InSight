@@ -17,6 +17,9 @@ export interface LedgerDayEntry {
   uid: string;
   qid: string;
   optionIdx?: number;
+  /** Present only on a D86 edit: the index the answer moved AWAY from.
+   *  Its absence is what marks an entry as a first answer. */
+  fromIdx?: number;
 }
 
 const PAGE = 5000;
@@ -31,7 +34,13 @@ export async function readLedgerDay(db: Firestore, dayKey: string): Promise<Ledg
     .where("at", ">=", start)
     .where("at", "<", end)
     .orderBy("at")
-    .select("uid", "qid", "optionIdx", "at")
+    // EVERY FIELD THE ENTRY DECLARES, and the projection is the whole
+    // reason to say so out loud: `select` is a fixed list, so a field
+    // added to the interface above and forgotten here arrives as
+    // undefined at every reader — no error, no log, just a fold that
+    // quietly stops distinguishing an edit from a first answer. Pinned in
+    // ledger.test.ts against the interface itself.
+    .select("uid", "qid", "optionIdx", "fromIdx", "at")
     .limit(PAGE);
   for (;;) {
     const snap = await query.get();
@@ -40,6 +49,7 @@ export async function readLedgerDay(db: Firestore, dayKey: string): Promise<Ledg
         uid: String(d.get("uid") ?? ""),
         qid: String(d.get("qid") ?? ""),
         optionIdx: d.get("optionIdx") as number | undefined,
+        ...(d.get("fromIdx") === undefined ? {} : { fromIdx: d.get("fromIdx") as number }),
       });
     }
     if (snap.size < PAGE) break;

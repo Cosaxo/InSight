@@ -90,6 +90,58 @@ function runFit(people: number, days: number, score?: ReturnType<typeof emptyDay
   return model;
 }
 
+describe("a revision moves the marginal without adding a person", () => {
+  // `n` and `sum` are counts of PEOPLE. An edit is the same person saying
+  // something else, so it is -old/+new on the sum and nothing at all on
+  // the count — the same delta the aggregate counts take on an edit, for
+  // the same reason. Theta still steps: that consequence is recorded as
+  // considered and accepted where the edit trigger lives.
+  const obs = (qid: string, x: number, prev?: number) =>
+    (prev === undefined ? [{ qid, x }] : [{ qid, x, prev }]);
+
+  it("leaves n alone and moves sum by the delta", () => {
+    const model: PatternsModel = { k: PATTERNS_K, q: {} };
+    const user = emptyUser(PATTERNS_K);
+    foldUserDay(model, user, obs("q", -1));
+    expect(model.q.q.n).toBe(1);
+    expect(model.q.q.sum).toBe(-1);
+    foldUserDay(model, user, obs("q", 1, -1));
+    expect(model.q.q.n, "the population did not grow").toBe(1);
+    expect(model.q.q.sum, "-old/+new, so the marginal is now +1").toBe(1);
+    expect(user.n, "the person did not answer a second question either").toBe(1);
+  });
+
+  it("does not score a revision as a fresh prediction", () => {
+    // The day's scorecard is a prequential score over answers the model
+    // had not seen. Scoring an edit counts the same person twice there
+    // too — the same error one level up.
+    const model: PatternsModel = { k: PATTERNS_K, q: {} };
+    const user = emptyUser(PATTERNS_K);
+    const first = emptyDayScore();
+    foldUserDay(model, user, obs("q", -1), first);
+    expect(first.n).toBe(1);
+    const second = emptyDayScore();
+    foldUserDay(model, user, obs("q", 1, -1), second);
+    expect(second.n).toBe(0);
+    expect(second.perQ.q).toBeUndefined();
+  });
+
+  it("clamps a marginal a revision would push past ±1", () => {
+    // Only reachable when the FIRST answer was never folded — a create
+    // outside the catch-up window, or one that predates the question
+    // becoming eligible — where the subtraction removes something never
+    // added. Every answer is ±1, so |sum| ≤ n is an invariant, not a
+    // preference.
+    const model: PatternsModel = { k: PATTERNS_K, q: {} };
+    const user = emptyUser(PATTERNS_K);
+    foldUserDay(model, user, obs("q", 1));          // n 1, sum +1
+    foldUserDay(model, user, obs("q", 1, -1));      // +1 -(-1) = +2 → 3, clamped
+    expect(model.q.q.n).toBe(1);
+    expect(model.q.q.sum).toBe(1);
+    expect(Math.abs(model.q.q.sum) <= model.q.q.n).toBe(true);
+  });
+});
+
 describe("determinism", () => {
   it("the same log reproduces the same model bit for bit", () => {
     const a = runFit(60, 30);
