@@ -478,9 +478,16 @@ export function divisivenessOf(qid: string): number {
   // fills with `|| 0` (cohort.ts, deck.ts, testNorms.ts, purchases.ts).
   // This one now does too, with the highest key present as the fallback
   // for a qid no bank on this device can name.
-  const n = optionCountOf(qid);
-  const len = n > 0 ? n : Object.keys(counts)
+  // The WIDER of the two, not the bank's alone. Taking the bank as the only
+  // authority fixes the gap-truncation above and introduces its mirror: a
+  // question whose published counts reach past the option list this device
+  // holds — a bank entry that changed after answers folded, or a device on
+  // a stale content revision — would have its tail dropped and be scored
+  // on a narrower vector, which is the same rescaling failure pointed the
+  // other way. Neither source is trustworthy alone; the union of them is.
+  const highestKey = Object.keys(counts)
     .reduce((max, k) => (/^\d+$/.test(k) ? Math.max(max, Number(k) + 1) : max), 0);
+  const len = Math.max(optionCountOf(qid), highestKey);
   if (len < 2) return -1;
   const dense = Array.from({ length: Math.min(len, 20) }, (_, i) => counts[String(i)] || 0);
   return divisiveness(dense);

@@ -639,6 +639,19 @@ describe("divisivenessOf reads the whole question, not its leading run", () => {
     expect(mod.divisivenessOf("q_slide")).toBe(0);
   });
 
+  it("does not drop counts that reach past the option list it holds", async () => {
+    // The mirror of the gap bug. Reading the bank as the only authority
+    // truncates a vector whose published counts go further than this
+    // device's option list does — a bank entry that changed after answers
+    // folded, or a device on a stale content revision — and that is the
+    // same rescaling failure pointed the other way.
+    const mod = await withCounts("q_wide", ["A", "B"], { "0": 2, "1": 2, "2": 4 });
+    // Three options, lead 4 of 8 → (1 − 1/2) / (1 − 1/3). Truncated to the
+    // bank's two it would have been (1 − 1/2) / (1 − 1/2) = 1: a perfect
+    // split, which is the most divisive a question can be.
+    expect(mod.divisivenessOf("q_wide")).toBeCloseTo((1 - 4 / 8) / (1 - 1 / 3), 6);
+  });
+
   it("still answers −1 when the device holds no counts at all", async () => {
     const mod = await withCounts("q_none", ["A", "B"], null);
     expect(mod.divisivenessOf("q_none")).toBe(-1);
