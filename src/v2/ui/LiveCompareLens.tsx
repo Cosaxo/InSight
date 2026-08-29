@@ -153,8 +153,27 @@ function LiveCompareLens({ pop, whom, emptyThem }: {
   // it would re-ask for scores it already holds. A no-op for the `cells`
   // basis, which reads counts the stop already has.
   const uidKey = pop.basis === "people" ? pop.uids.join(",") : "";
+  // READING IS NOT EMPTY. The scores this basis folds come out of the
+  // shared profile cache, and `scoresFor` answers null for "fetched, has
+  // none" and "never fetched" alike — its own docstring says so. The fetch
+  // below runs AFTER first paint, so without this flag the first frame has
+  // no scores, falls into the empty arm, and states an absence: on Groups
+  // that reads "Nobody here has finished a test yet" for the length of one
+  // round trip, before flipping to a full profile. Groups is the worst
+  // case because nothing else there fetches names, so the cold arm always
+  // shows.
+  //
+  // Held here rather than in the store because the store has no flag for
+  // name resolution and this is the only surface that needs one. The
+  // fetch is a no-op when everything is cached, so the flag simply never
+  // becomes visible on a warm open.
+  const [reading, setReading] = React.useState(false);
   React.useEffect(() => {
-    if (uidKey) void LIVE.loadNames(uidKey.split(","));
+    if (!uidKey) return;
+    let live = true;
+    setReading(true);
+    void LIVE.loadNames(uidKey.split(",")).finally(() => { if (live) setReading(false); });
+    return () => { live = false; };
   }, [uidKey]);
   // After the hooks: an early return above them would change the hook
   // order between renders (react-hooks/rules-of-hooks).
@@ -203,17 +222,21 @@ function LiveCompareLens({ pop, whom, emptyThem }: {
   const read = compareRead(DEFS, CORE_TEST_KINDS, mine, theirs, theirN);
 
   if (!read.cards.length) {
-    // Three emptinesses, kept apart. Collapsing them would tell someone
-    // who has taken every test that they have taken none.
+    // FOUR emptinesses now, kept apart. Collapsing them would tell someone
+    // who has taken every test that they have taken none — and the fourth,
+    // "not read yet", was collapsed into "nobody has" until this: an
+    // absence stated about people whose profiles had not arrived.
     const mineN = Object.keys(mine).length;
     const themN = Object.keys(theirs).length;
     return (
       <LcNote>
         {!mineN
           ? <>Fills in as you answer the test cards in your feed.</>
-          : !themN
-            ? emptyThem
-            : <>No instrument you have both answered enough of yet.</>}
+          : reading && !themN
+            ? <>Reading…</>
+            : !themN
+              ? emptyThem
+              : <>No instrument you have both answered enough of yet.</>}
       </LcNote>
     );
   }

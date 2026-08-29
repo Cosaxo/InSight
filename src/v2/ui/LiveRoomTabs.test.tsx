@@ -12,7 +12,7 @@
 // So: the three states of a read that can fail, and the two rules People
 // is built to keep.
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 const LIVE = vi.hoisted(() => {
   const deck = [{
@@ -221,7 +221,7 @@ describe("LiveRoomTabs · Answers and Compare read the room", () => {
     expect(text).toMatch(/1 of 1 have taken one/);
   });
 
-  it("keeps your empty and theirs apart", () => {
+  it("keeps your empty, theirs, and not-read-yet apart", async () => {
     // Two different facts, and one "no data" would collapse them. You
     // first: nothing of yours to lay over anybody.
     render(<LiveRoomTabs tab="compare" />);
@@ -235,6 +235,12 @@ describe("LiveRoomTabs · Answers and Compare read the room", () => {
       ] },
     });
     render(<LiveRoomTabs tab="compare" />);
+    // "Nobody has one" is a claim about people whose profiles have been
+    // READ. Until the profile fetch lands there is a fourth state, and it
+    // is the one on screen first: this case used to assert the absence on
+    // the first frame, which is exactly the collapse the lens now refuses.
+    expect(screen.getByText("Reading…")).toBeTruthy();
+    await act(async () => { await Promise.resolve(); });
     expect(screen.getByText(/Nobody here has finished a test yet/i)).toBeTruthy();
   });
 
