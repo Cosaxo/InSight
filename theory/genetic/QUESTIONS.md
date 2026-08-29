@@ -54,3 +54,18 @@ each answered question with the node ids that answer it.
   information cost. Worth doing on the touch that resolves the
   Epi-PRS scout item, since that result lands in exactly one of the
   three sub-claims.
+  → **Answered 2026-08-29, exactly as suggested — fission on the
+  resolving touch**: gen-5 fissioned into gen-5 (annotation-engine
+  architecture, kept id, 970→~380 detail words), gen-12 (the
+  no-independently-replicated-win finding, cited — absorbing the
+  Epi-PRS scout resolution: zero replications/critiques/benchmark
+  inclusions 14 months post-publication, 0-fork repository, three
+  2026 PGS benchmarks all omitting it and all won by tuned linear
+  methods, and the authors' own 0%-epigenetic-effect simulation
+  ablation leaving nonlinearity-plus-rare-variants as the
+  undischarged alternative — no real-data ablation isolates the
+  sequence model), and
+  gen-13 (the additivity bound, cited — gaining two in-window
+  sources: Kelemen 2025 Nature Communications and a 2025
+  non-additive-effects benchmark preprint). Each sub-claim now
+  citable and attackable on its own.

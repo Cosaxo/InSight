@@ -1,12 +1,13 @@
 # The genetic axiom — current theory
 
 *Regenerated from `graph.json` by each run; the graph is the data, this
-page is its readable face. Last regenerated 2026-08-27. Statuses follow
+page is its readable face. Last regenerated 2026-08-29. Statuses follow
 CHARTER §4: conjecture → argued → cited → measured; sources live on the
-nodes. Provenance note for the 2026-08-27 run: the environment blocked
-publisher pages, so that run's sources are record-verified (consistent
-title/venue/identifier across independent index records) with figures
-snippet-grade unless stated — labeled inline on the nodes.*
+nodes. Provenance note for the 2026-08-27 and 2026-08-29 runs: the
+environment blocked publisher pages, so those runs' sources are
+record-verified (consistent title/venue/identifier across independent
+index records) with figures snippet-grade unless stated — labeled
+inline on the nodes; GitHub-fetched facts are record-grade.*
 
 The perfect genetic axiom, as the graph currently stands: **import,
 never assay; keep the file with the person; point everything at the one
@@ -170,40 +171,84 @@ three parts.
   measurements and genotype priors — hypothesis generation over
   consented aggregates, never medical advice.
 
-## The analysis engine (gen-5 · cited — rewritten 2026-08-27)
+## The analysis engine (gen-5 · cited, gen-12 · cited, gen-13 · cited — fissioned 2026-08-29)
 
-Central's question answered, in the form the adversarial pass licensed:
-**no independently replicated demonstration exists of a sequence model
-beating a tuned polygenic score at individual-level complex-trait
-prediction** (searched five framings, Aug 2026). The one published
-claim to the contrary — **Epi-PRS** (PNAS 2025): sequence-model-imputed
-epigenomic intermediates, ~11–12% AUC over LDpred2/PRS-CS for breast
-cancer and T2D — is unreplicated, and its own record shows non-LLM
-nonlinear baselines also beating those PGS methods at large n, so the
-gain is plausibly nonlinearity plus rare-variant reach rather than the
-sequence model as such; named scout task. The individual-level failure
-elsewhere is measured (companion Nature Genetics 2023 papers:
-cross-individual expression correlations near zero, directions often
-wrong; 2025–2026 models improved — direction odds ~3×, chromatin
-accessibility near its heritability ceiling — but expression remains
-far below its ceiling). The load-bearing half is structural:
-common-variant genetic variance is **predominantly additive** (theory
-and biobank measurement across 70 traits: additive 0.208, dominance
-0.001, epistatic 0.055 — epistasis a limited role per the authors), so
-a linear score captures most of the common-variant ceiling by
-construction — a bound on the headroom, not a zeroing of it. Deep nets
-did not beat linear models on ~100k UK Biobank individuals; an
-80-phenotype end-to-end benchmark reports PGS workflows winning a
-majority with many practical ties (counts unconfirmed at record grade;
-the benchmark also reports PRS-tool failure modes — not a clean
-sweep). Where the models DO belong: the **annotation engine** —
-functional annotations improve additive PGS (+14%/+34% SBayesRC),
-sequence-model priors improve fine-mapping (+9.45% Borzoi-informed),
-protein LMs raise rare-variant *discovery* yield (explicitly not
-individual accuracy). This is the genetic-domain instance of pat-6's
-law, answered in exactly the qualified form pat-6 left open — and it
-strengthens gen-2, because an additive score over published weights is
-exactly what a device can compute.
+The 2026-08-27 run's single 970-word node split into its three
+separable claims (central's 2026-08-28 question, go-7's per-claim-status
+argument), on the same touch that **resolved the Epi-PRS scout task**
+(dedicated scout pass, 26 searches, 2026-08-29).
+
+- **The empirical finding (gen-12).** As of Aug 2026, **no
+  independently replicated demonstration exists of a genomic sequence
+  model beating a tuned polygenic score at individual-level
+  complex-trait prediction** — and the absence is now corroborated
+  structurally, not just asserted: fourteen months after publication,
+  Epi-PRS (PNAS 2025, the leading published claim) has zero
+  replications, zero critiques, zero benchmark inclusions; three
+  substantial 2026 PGS benchmarks (46-tool harmonized, PGS-hub,
+  80-phenotype openSNP) all omit it and all crown tuned linear
+  LDpred2-class winners; its repository has 0 forks and two
+  pre-publication bug reports from one outside user (record-grade,
+  fetched and cloned). The attribution resolved as far as snippets
+  allow: the reported "~11–12%" is the mean *relative* auROC gain
+  (0.6997 vs 0.6399 breast cancer, 0.7575 vs 0.6618 T2D — derived from
+  the paper's λ metric, snippet-grade), and the authors' own simulation
+  ablation cuts both ways but leaves the alternative explanation
+  undischarged: with the designed epigenetic effect at 0%, Epi-PRS and
+  plain gradient boosting perform alike (both still beating
+  LDpred2/PRS-CS), Epi-PRS pulls ahead only as a designed epigenetic
+  effect grows, and **no real-data ablation isolates the sequence
+  model**. Design note (this lane's own observation, not a published
+  critique): 5 significance-selected LD blocks (record-grade, from the
+  cloned repo) vs genome-wide baselines is where a leakage critique
+  would land. The adjacent candidates dissolve on classification —
+  arXiv 2509.20702 and GENPHIRE are text-LLM embedding papers over
+  annotation text / risk-allele summaries, not sequence models, both
+  unpublished; PRSformer (the strongest in-window nonlinear claim)
+  consumes genotypes, not sequence, on a private cohort, unreplicated.
+  The second published sequence-model claim, HFS (Sei-based, eLife
+  2024, +16–40% cross-ancestry over LDAK), is likewise unreplicated —
+  named in the claim rather than elided. Individual-level failure
+  stays directly measured where tested (Enformer — exactly Epi-PRS's
+  front-end — poorly explains personal expression variation; the
+  2025–2026 generation improved, not solved this). Re-open trigger: an
+  independent replication attributing the gain to the sequence model
+  specifically.
+
+- **The structural bound (gen-13).** Common-variant genetic variance is
+  **predominantly additive** (theory: Hill 2008; biobank measurement
+  across 70 traits: additive 0.208, dominance 0.001, epistatic 0.055),
+  so a linear score captures most of the common-variant ceiling by
+  construction — a bound on nonlinear headroom, not a zeroing of it.
+  Three direct predictive tests agree: Bellot 2018 (~100k UKB, deep
+  nets don't beat linear); **Kelemen 2025 (new this run — NNs detect
+  limited nonlinearity and lose to linear regression across 28 UKB
+  traits, apparent nonlinearity attributed to LD joint tagging)**; a
+  2025 non-additive benchmark (new this run — additive PGS robust,
+  dominance ~0.83% of additive h² across >1,000 UKB phenotypes;
+  preprint). One contrary result is counted as contrary rather than
+  absorbed (the adversarial pass corrected the first draft here):
+  Elgart 2022 reports large *relative* nonlinear gains with the PRS
+  retained as a feature — absolute bases unverified by this lane. The
+  Epi-PRS/GBRT class, Elgart, and PRSformer all sit in the non-zeroed
+  crack: nonlinear methods can win in specific designs; the replicated
+  sequence-model win is what hasn't happened, and the nonlinear wins
+  that exist are unreplicated, relative-scale, or on non-public data.
+
+- **The architecture (gen-5).** Sequence models are the **annotation
+  engine** of the perfect analysis layer, never its individual
+  predictor: variant-effect and pathogenicity prediction, regulatory
+  annotation, molecular phenotypes (Nucleotide Transformer, Evo/Evo 2,
+  Borzoi, AlphaGenome — whose claimed wins are all molecular
+  evaluations, none individual-level trait prediction). Fed into the
+  additive layer they produce measured gains while the predictor stays
+  auditable (+14%/+34% SBayesRC; +9.45% Borzoi-informed fine-mapping;
+  protein-LM rare-variant *discovery* yield). This strengthens gen-2:
+  an additive score over published weights is exactly what a device
+  can compute — the heavy models live on the public annotation side,
+  never on the per-person path. If gen-12's re-open trigger ever
+  fires, the claim widens to "annotation plus epigenomic-intermediate
+  imputation"; the two-layer architecture survives either way.
 
 ## Open scout tasks
 
@@ -211,16 +256,20 @@ exactly what a device can compute.
    server, structural variants, interaction terms).
 2. DTC methylation raw-file access at vendor-ToS or peer-review grade
    (gen-8), before gen-2's device-side story extends to methylation.
-3. **Epi-PRS (gen-5): open the PNAS paper from an unblocked network —
-   comparator PGS methods, tuning, actual AUC/R² deltas.** The one
-   result that could widen gen-5's claim.
+3. ~~Epi-PRS~~ **Resolved 2026-08-29 into gen-12** — standing watch
+   item only: an independent replication attributing the gain to the
+   sequence model specifically re-opens gen-12 and widens gen-5.
 4. Full-text confirmation of the 4.41% upper instrument figure and of
    Graf 2024's robustness models (gen-4, gen-3).
 5. How methylation's consent copy differs from genotype's, given
    MethylGenotyper-class genotype recovery (gen-6, gen-8).
 6. Confirm from full text, when reachable: Sasse 2023's 184-gene /
    ~43% anti-correlation figure; Hivert 2021's variance triple; Howe
-   2022's EA 0.14→0.04; Border 2022's R2=74% (gen-5, gen-9, gen-11).
+   2022's EA 0.13→0.04; Border 2022's R2=74%; the Epi-PRS λ table and
+   0%-ablation (gen-12, gen-13, gen-9, gen-11).
 7. ReGPC 2025 is preprint-grade: re-check for the peer-reviewed
    version and whether "no within-family reduction for Big Five"
    survives review (gen-9, gen-11).
+8. The three 2026 PGS benchmarks at gen-12 are preprint- or
+   record-grade: confirm peer-review status and tool lists from full
+   text when reachable.
