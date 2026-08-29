@@ -5934,6 +5934,109 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "unit": "h"
  },
  {
+  "id": "feed-f117",
+  "surface": "feed",
+  "seq": 160,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A stranger's kindness you still remember: tell them, or leave it?",
+  "options": [
+   "Track them down",
+   "Leave it be"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f118",
+  "surface": "feed",
+  "seq": 161,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The villain everyone secretly roots for: fine, or a problem?",
+  "options": [
+   "Perfectly fine",
+   "A bit of a problem"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f119",
+  "surface": "feed",
+  "seq": 162,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Learning an instrument at 40: worth starting, or too late?",
+  "options": [
+   "Start anyway",
+   "Too late"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f120",
+  "surface": "feed",
+  "seq": 163,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Watching sport alone, or in a crowd?",
+  "options": [
+   "Alone",
+   "In a crowd"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f121",
+  "surface": "feed",
+  "seq": 164,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Your search history, visible to one person you trust: fine, or absolutely not?",
+  "options": [
+   "Fine",
+   "Absolutely not"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl17",
+  "surface": "feed",
+  "seq": 165,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many years ahead do you actually plan?",
+  "options": [
+   "0–2 years",
+   "2–3 years",
+   "3–5 years",
+   "5–7 years",
+   "7–8 years",
+   "8–10 years",
+   "10–12 years",
+   "12–13 years",
+   "13–15 years",
+   "15–17 years",
+   "17–18 years",
+   "18–20 years"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 20,
+  "unit": "years"
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,
