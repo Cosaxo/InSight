@@ -395,17 +395,26 @@ describe("cost-arith reads its constants from source, not from memory", () => {
     // reason. Measured while fixing it: an extra per-member getAll added to
     // revealGroupDay left all 556 script tests green.
     //
-    // Five getAll SITES, which is not the same as five reads on one pass:
-    // getAll(answers), the close-the-day transaction's tx.getAll,
-    // getAll(profiles, fieldMask), and the committing tx.getAll — plus one
-    // more inside the same function. The close-the-day transaction and the
-    // committing one are ALTERNATIVES, which is why the model's 4 + 3M
-    // counts three of these sites and not four. A new site here means a new
-    // billed read on some path: recount cost-arith's block before moving
-    // this number.
+    // FOUR getAll SITES, and COMMENTS ARE STRIPPED FIRST — this counted
+    // five, because the function carries a paragraph that says "the
+    // getAll() above is a snapshot". A tripwire over billed reads that
+    // counts prose is wrong twice: it would go red on a comment reword,
+    // and the number it enforces is not the number of reads. Every other
+    // source pin in this tree strips comments before matching, and this
+    // one now does too.
+    //
+    // The four: getAll(answers), the close-the-day transaction's
+    // tx.getAll, getAll(profiles, fieldMask), and the committing tx.getAll.
+    // The close-the-day transaction and the committing one are
+    // ALTERNATIVES — one pass takes one of them — which is why the model's
+    // 4 + 3M counts three of these sites and not four. A new site here
+    // means a new billed read on some path: recount cost-arith's block
+    // before moving this number.
     const s = read("functions/src/v2social.ts");
-    const fn = s.match(/async function revealGroupDay[\s\S]*?\n\}/)[0];
-    expect((fn.match(/getAll\(/g) || []).length).toBe(5);
+    const fn = s.match(/async function revealGroupDay[\s\S]*?\n\}/)[0]
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/^\s*\/\/.*$/gm, "");
+    expect((fn.match(/getAll\(/g) || []).length).toBe(4);
     expect((fn.match(/revealRef\.get\(\)/g) || []).length).toBe(1);
   });
 
