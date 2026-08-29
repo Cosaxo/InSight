@@ -377,6 +377,12 @@ const convertedSpecModules = (() => {
     }).length;
 })();
 
+// How far that hand-listed seven had drifted when D39's successor measured
+// it: 32 in the tree against 7 in the prose. A fixed fact about a past
+// state, so it is written down rather than computed — see the FIGURES entry
+// that quotes it.
+const SPEC_MIGRATION_DRIFT = 25;
+
 // The mount smoke files, counted off the directory. CLAUDE.md §2 calls them
 // out by glob and then says how many, and the two parted company when
 // smoke-live.test.jsx landed: the glob matched six while the sentence said
@@ -451,7 +457,15 @@ const FIGURES = [
     file: "CLAUDE.md",
     what: "how far that figure had drifted (§1)",
     re: /understate the migration by (\d+)\n?modules/m,
-    actual: String(convertedSpecModules - 7),
+    // A CONSTANT, not `convertedSpecModules - 7`. That subtraction read as
+    // the same recomputation as the entry above it and is not: the drift is
+    // history — the prose said seven while the tree held 32 — so it is 25
+    // whatever the tree holds today. Derived, it moved with every
+    // conversion, so the first person doing the "convert on touch" work
+    // CLAUDE.md asks for would have been told by a red gate to write a
+    // number that never happened. The one figure here the tree cannot
+    // answer, and the only one whose `actual` is a literal.
+    actual: String(SPEC_MIGRATION_DRIFT),
     fix: (n) => `"understate the migration by ${n} modules"`,
   },
   {
