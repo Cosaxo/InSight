@@ -148,10 +148,23 @@ describe("the overlays with no button — opened through the nav registry", () =
   // ── the other half: the chunk that never arrives ────────────────────
   //
   // Everything above runs with loadOverlays() already resolved, so it only ever
-  // exercises the happy path. These five components ship in a chunk that loads
+  // exercises the happy path. These four components ship in a chunk that loads
   // after first paint, and app-shell reads each off `window` rather than as a
   // bare identifier precisely so a failed load degrades to a blank instead of a
   // ReferenceError that takes the whole shell down.
+  //
+  // FOUR, and the table below is the list — it said five while holding four,
+  // which is the drift that matters most in a table that is itself the
+  // coverage claim. The two overlays in that chunk NOT here are the two
+  // app-shell renders as bare identifiers: relmap, whose own note gives the
+  // reason, and search. Neither can be reached with its name unbound —
+  // openOverlay awaits the chunk and returns on failure, so `ov` never
+  // becomes theirs — and neither can gain the guard cheaply: `window.X &&
+  // <window.X>` is two shared-global references where a bare tag is one, so
+  // check:globals rule 4 refuses it as new coupling. Measured, not assumed:
+  // guarding the search site takes app-shell.jsx from 39 to 40 and fails the
+  // ratchet. The day either name becomes a real import, the guard comes with
+  // it and this table grows a row.
   //
   // Nothing else in this repo can catch that. `check:globals` and eslint's
   // no-undef are name-level and see a legitimately-defined global either way;
@@ -159,7 +172,7 @@ describe("the overlays with no button — opened through the nav registry", () =
   // loaded. Deleting the global is the only way to render the frame a broken
   // chunk produces.
   //
-  // Mutation-checked: restoring any of these five to a bare identifier in
+  // Mutation-checked: restoring any of these four to a bare identifier in
   // app-shell.jsx fails exactly its own row here on the boundary assertion, and
   // passes again on revert.
   describe("a failed overlay chunk degrades rather than crashing", () => {
