@@ -3125,6 +3125,101 @@
       "lo": 17,
       "hi": 23,
       "unit": "h"
+    },
+    {
+      "id": "f117",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "A stranger's kindness you still remember: tell them, or leave it?",
+      "options": [
+        {
+          "label": "Track them down",
+          "count": 2400
+        },
+        {
+          "label": "Leave it be",
+          "count": 2900
+        }
+      ]
+    },
+    {
+      "id": "f118",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "The villain everyone secretly roots for: fine, or a problem?",
+      "options": [
+        {
+          "label": "Perfectly fine",
+          "count": 3200
+        },
+        {
+          "label": "A bit of a problem",
+          "count": 1800
+        }
+      ]
+    },
+    {
+      "id": "f119",
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "Learning an instrument at 40: worth starting, or too late?",
+      "options": [
+        {
+          "label": "Start anyway",
+          "count": 3600
+        },
+        {
+          "label": "Too late",
+          "count": 1400
+        }
+      ]
+    },
+    {
+      "id": "f120",
+      "core": false,
+      "cat": "sport",
+      "type": "vote",
+      "prompt": "Watching sport alone, or in a crowd?",
+      "options": [
+        {
+          "label": "Alone",
+          "count": 2200
+        },
+        {
+          "label": "In a crowd",
+          "count": 3000
+        }
+      ]
+    },
+    {
+      "id": "f121",
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "Your search history, visible to one person you trust: fine, or absolutely not?",
+      "options": [
+        {
+          "label": "Fine",
+          "count": 1700
+        },
+        {
+          "label": "Absolutely not",
+          "count": 3300
+        }
+      ]
+    },
+    {
+      "id": "dl17",
+      "core": false,
+      "cat": "bigq",
+      "type": "dial",
+      "prompt": "How many years ahead do you actually plan?",
+      "lo": 0,
+      "hi": 20,
+      "unit": "years"
     }
   ]
 }
