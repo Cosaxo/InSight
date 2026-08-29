@@ -126,6 +126,27 @@ describe("a revision moves the marginal without adding a person", () => {
     expect(second.perQ.q).toBeUndefined();
   });
 
+  it("folds an edit whose first answer was never folded as a FIRST answer", () => {
+    // The 0/0. A revision leaves `n` alone by design, so a revision on a
+    // question this model has never folded an answer to computed
+    // `sum / n` as 0/0 — NaN into the loading vector, NaN into the
+    // person's theta, and from there into every other question they
+    // answer on any later night. Firestore stores NaN as a valid double
+    // and nothing downstream checks, so it would have published.
+    //
+    // Reachable on the first run after a deploy, where every question
+    // starts at n = 0, and in the case the clamp below was written for.
+    const model: PatternsModel = { k: PATTERNS_K, q: {} };
+    const user = emptyUser(PATTERNS_K);
+    foldUserDay(model, user, [{ qid: "q", x: 1, prev: -1 }]);
+    const L = model.q.q;
+    expect(L.n, "nothing to revise, so it counts as the person it is").toBe(1);
+    expect(L.sum).toBe(1);
+    expect(L.v.every((n) => Number.isFinite(n)), "the loading went NaN").toBe(true);
+    expect(user.v.every((n) => Number.isFinite(n)), "the person's theta went NaN").toBe(true);
+    expect(user.n).toBe(1);
+  });
+
   it("clamps a marginal a revision would push past ±1", () => {
     // Only reachable when the FIRST answer was never folded — a create
     // outside the catch-up window, or one that predates the question

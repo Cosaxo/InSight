@@ -187,7 +187,25 @@ export function foldUserDay(
     // step ahead or it isn't held out.
     let dot = 0;
     for (let i = 0; i < k; i++) dot += user.v[i] * L.v[i];
-    const revision = o.prev !== undefined;
+    // A REVISION NEEDS SOMETHING TO REVISE. With `L.n === 0` this model has
+    // never folded an answer to this question, so the value the branch
+    // below would subtract was never added — and worse, it would leave
+    // `n` at zero while `sum` is computed, making `L.sum / L.n` a 0/0 NaN
+    // that spreads: into this loading's vector, into the person's theta,
+    // and from there into every other question they answer on any later
+    // night. Firestore stores NaN as a valid double and nothing downstream
+    // checks, so it would publish.
+    //
+    // Reachable in exactly the case the clamp below was written for — a
+    // create outside the seven-day catch-up, or one that predates the
+    // question becoming eligible — and on the first run after a deploy,
+    // where every question starts at n = 0. The clamp does not cover it:
+    // `L.sum > L.n` is satisfied at zero and leaves the division standing.
+    //
+    // So an edit whose first answer this model never saw folds as a first
+    // answer: one person, their current answer, counted once. That is the
+    // honest reading of what the model actually knows about them.
+    const revision = o.prev !== undefined && L.n > 0;
     // A revision is not a held-out prediction. The person's answer to this
     // question was already scored the day it first arrived; scoring the
     // edit would count them twice in the day's own scorecard too, which is
