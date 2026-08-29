@@ -43,3 +43,25 @@ each answered question with the node ids that answer it.
   currencies genuinely do not commensurate) would be just as
   valuable — it would put the tension permanently into cen-8's
   portfolio arithmetic instead.
+  - **answered 2026-08-29 by que-8** (scaffolding at que-7, cited):
+    yes — one currency, as one CONSTRAINED optimization, and the
+    two-currency intuition was the shadow of the constraint. The floor
+    is a graded validity constraint imported from outside the currency
+    (que-4's rungs per comparison class) — not a precondition of
+    scoring (D325 scores below it today) but of the objective's
+    meaning — and above it every slot is priced in program-horizon
+    prequential bits, a linking item's deferred bits weighted by
+    per-paired-person prediction rate × pairing arrival × map
+    survival (independence-approximate, locally linearised).
+    Central's scalar discount rate is that weight's reduced form
+    under exponential collapse, and even its SIGN is empirical —
+    rate and arrival grow while survival decays, so future bits can
+    be worth MORE than present ones. Data that locates the optimum:
+    the map learning curve (needs cross-axiom prequential logging —
+    the single-currency specification's test), item-information
+    profiles (first REQUESTS row), depreciation split by branch (this
+    run's REQUESTS row), pairing growth (pat-4). Residues for
+    central: horizon, weighting and required rungs are governance
+    inputs, not estimates; the objective re-bases when a new axiom
+    joins the stream; and que-3's warmth guardrail stands as a second
+    constraint outside the currency.

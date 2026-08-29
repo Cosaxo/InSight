@@ -20,3 +20,21 @@ implements its own requests.
   claim (does the current core set look chosen for within-bank
   information or for joint-space identification); que-3's loop (do
   shape-level authoring rules predict measured discrimination).
+
+- 2026-08-29 · **what**: publish refit-to-refit loading-vector drift
+  per core question from the nightly fit — dissimilarity between
+  consecutive fits' loading vectors after orthogonal-Procrustes
+  alignment of the loading matrices, published alongside a refit-noise
+  null (expected dissimilarity between refits with no true drift,
+  e.g. from split-half or resampled refits), as a committed artifact
+  readable like the scorecards. · **why**: que-8 prices the spine
+  trade with a depreciation term per item-role branch; within-bank
+  loading drift is the anchor/complementary branch's depreciation
+  curve, and without the alignment step and the null the number
+  conflates true drift with rotational indeterminacy and refit noise
+  (cen-1/tst-7's indeterminacy warning). The linking branch's
+  survival factor (cross-instrument map drift) is named in que-8 but
+  not requestable until cross-instrument maps are estimated at all.
+  · **measurable**: que-8's depreciation curve (one of its weight's
+  three factors); que-2's rung toward *measured* — whether live
+  calibration drifts as Stocking's warning predicts.
