@@ -2026,13 +2026,36 @@ export function tallyPicks(picks: readonly (number | null | undefined)[]): Recor
  * a bad one here would be a path injection into a getAll, so it is
  * refused rather than escaped.
  */
-export function roomQids(raw: unknown, cap: number = ROOM_QUESTION_CAP): string[] {
+export function roomQids(
+  raw: unknown,
+  cap: number = ROOM_QUESTION_CAP,
+  known?: (qid: string) => boolean,
+): string[] {
   if (!Array.isArray(raw)) return [];
   const seen = new Set<string>();
   for (const q of raw) {
     if (typeof q !== "string") continue;
     const id = q.trim();
     if (!id || id.length > 120 || id.includes("/") || id === "." || id === "..") continue;
+    // MUST NAME A QUESTION, when the caller can say what one is.
+    //
+    // The shape checks above are not a bound on cost. Each id the room has
+    // not already folded costs a getAll over ROOM_PEOPLE_CAP answer refs —
+    // and Firestore bills a missing document in a batchGet — so eight
+    // unknown ids are ~192 billed reads. A folded id is CACHED, which is
+    // what makes the honest case cheap and the dishonest one unbounded: a
+    // caller sending eight FRESH invented ids every time never hits the
+    // cache and pays the full fold on every call, from one anonymous
+    // account, with no rate limit on this path.
+    //
+    // The same strings also become field names on the shared, server-only
+    // room document, which the fold merges into — so invented ids grow a
+    // document every caller in that cell reads, eight at a time, until it
+    // passes 1 MiB and the write starts failing into a catch that
+    // swallows it.
+    //
+    // The caller passes the bank, so this is a lookup rather than a guess.
+    if (known && !known(id)) continue;
     seen.add(id);
     if (seen.size >= cap) break;
   }

@@ -30,6 +30,7 @@ import {
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { randomBytes } from "node:crypto";
+import { V2_QUESTIONS } from "./v2content";
 import { db as firestore } from "./db";
 import {
   duelAggDelta,
@@ -1781,12 +1782,31 @@ async function roomMixFor(cells: string[], own: string): Promise<RoomMix | null>
 //
 // A DIRECTORY OF STRANGERS IS THE FAILURE MODE, and the radius is what
 // keeps it from being one: at ~200 m these are people you can see.
+/**
+ * Does this id name a question the bank holds?
+ *
+ * The pulse surface mints one id per DAY from a template
+ * (`{baseQid}_{YYYY-MM-DD}`, firestore.rules pins the composition), so the
+ * bank holds the base rather than the day's id — the same allowance
+ * `surfaceOfQid` makes one module over.
+ */
+const ROOM_BANK_IDS: ReadonlySet<string> = new Set(V2_QUESTIONS.map((q) => q.id));
+const ROOM_DAY_SUFFIX = /_\d{4}-\d{2}-\d{2}$/;
+export function isRoomQid(qid: string): boolean {
+  if (ROOM_BANK_IDS.has(qid)) return true;
+  const base = qid.replace(ROOM_DAY_SUFFIX, "");
+  return base !== qid && ROOM_BANK_IDS.has(base);
+}
+
 export const nearbyRoomV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
   const uid = request.auth.uid;
   const cell = request.data?.cell;
   if (!presenceCellOk(cell)) throw new HttpsError("invalid-argument", "cell must be a la_lo grid id");
-  const qids = roomQids(request.data?.qids);
+  // Bank-checked: an id the bank does not hold is dropped rather than
+  // folded. See roomQids for what an unchecked id costs — this callable
+  // carries no rate limit, and a fresh invented id never hits the cache.
+  const qids = roomQids(request.data?.qids, undefined, isRoomQid);
   const db = firestore();
   const cells = presenceNeighbors(cell as string);
   const now = Timestamp.fromMillis(Date.now());
