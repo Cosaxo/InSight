@@ -58,6 +58,7 @@ import {
   PRESENCE_LINGER_MIN,
   ROOM_SAMPLE_CAP,
   ROOM_PEOPLE_CAP,
+  ROOM_WINDOW_QUESTION_CAP,
   ROOM_SCAN_CAP,
   sampleN,
   roomMix,
@@ -1893,7 +1894,16 @@ async function roomFor(cells: string[], own: string, qids: string[]): Promise<Ro
         return typeof t === "string" && t ? { uid: d.id, type: t } : { uid: d.id };
       });
     }
-    const missing = qids.filter((q) => !(q in qs));
+    // BOUNDED BY THE WINDOW, not only by the call. `ROOM_QUESTION_CAP`
+    // caps one request at eight; nothing capped what the cell accumulates
+    // before the window turns over, so the map could reach the whole
+    // question bank — seven hundred keys on a document every caller in
+    // the cell reads, at a batched read per key. Past the window cap the
+    // room serves what it already holds: a thinner grid, never an error.
+    const room = Object.keys(qs).length;
+    const missing = qids
+      .filter((q) => !(q in qs))
+      .slice(0, Math.max(0, ROOM_WINDOW_QUESTION_CAP - room));
     if (missing.length && people.length) {
       // One getAll per question rather than one for the whole grid: it
       // bounds each call at ROOM_PEOPLE_CAP refs, and the misses cost
@@ -1932,11 +1942,13 @@ async function roomFor(cells: string[], own: string, qids: string[]): Promise<Ro
       // says something false.
       //
       // Bounding the window bounds the document too. `qs` grows a key per
-      // question asked, and `roomQids` shape-checks its input without
-      // holding it to any known set — so an unbounded window was also an
-      // unbounded map. A window that actually expires rewrites the doc
-      // wholesale on the next miss, which resets `qs` to what that call
-      // asked for.
+      // question asked, so an unbounded window was also an unbounded map.
+      // Two things bound it now, and they close different halves: the qids
+      // must NAME questions (roomQids takes the bank, so an invented id is
+      // dropped before anything is read), and the window itself may only
+      // accumulate ROOM_WINDOW_QUESTION_CAP of them. A window that
+      // actually expires rewrites the doc wholesale on the next miss,
+      // which resets `qs` to what that call asked for.
       await ref.set(
         hit ? { qs } : { people, qs, at: FieldValue.serverTimestamp() },
         { merge: hit },

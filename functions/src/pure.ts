@@ -1982,6 +1982,30 @@ export const ROOM_PEOPLE_CAP = 24;
  */
 export const ROOM_QUESTION_CAP = 8;
 
+/**
+ * How many questions ONE CELL'S WINDOW may accumulate.
+ *
+ * `ROOM_QUESTION_CAP` bounds a single call; nothing bounded the window.
+ * The cell's cached map gains a key for every distinct question anybody
+ * asks about until the four-minute window turns over, and each new key
+ * costs a batched read over `ROOM_PEOPLE_CAP` people — so the ceiling was
+ * the whole question bank, seven hundred keys on a document every caller
+ * in that cell reads, and about seventeen thousand billed reads to get
+ * there. Eight at a time, from any signed-in account, with nothing
+ * refusing.
+ *
+ * 64 is generous for the honest case and still bounds the window: the
+ * day's deck is the same list for everyone, callers differ only in how
+ * far through it they have scrolled, and a window is four minutes. It
+ * bounds a cell-window at 64 × 24 reads rather than at the bank.
+ *
+ * A SOFT bound, deliberately. Past it the room serves what it has already
+ * folded instead of refusing the call — an honest client never reaches it,
+ * and one that does gets a slightly thinner grid rather than an error on a
+ * surface whose own failure rule is "leave the stop with its number".
+ */
+export const ROOM_WINDOW_QUESTION_CAP = 64;
+
 /** A qid → {optionIdx → count} map, the shape v2_question_aggs uses. */
 export type RoomCounts = Record<string, Record<string, number>>;
 

@@ -22,6 +22,7 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { isRoomQid } from "./v2social";
 import { V2_QUESTIONS } from "./v2content";
+import { ROOM_QUESTION_CAP, ROOM_WINDOW_QUESTION_CAP } from "./pure";
 
 describe("the room folds questions, not strings", () => {
   it("accepts what the bank holds and refuses what it does not", () => {
@@ -69,5 +70,41 @@ describe("and the callable actually passes the gate", () => {
     expect(call, "nearbyRoomV2 no longer calls roomQids where this looks").toBeTruthy();
     expect(call![1], "the room's qids are shape-checked and not bank-checked")
       .toContain("isRoomQid");
+  });
+});
+
+describe("and the window is bounded, not only the call", () => {
+  // ROOM_QUESTION_CAP caps one request at eight. Nothing capped what the
+  // CELL accumulates before its four-minute window turns over, so the
+  // cached map could reach the whole bank — seven hundred keys on a
+  // document every caller in that cell reads, at a batched read over
+  // twenty-four people per key, eight at a time from any signed-in
+  // account.
+  const src = readFileSync(
+    resolve(dirname(fileURLToPath(import.meta.url)), "v2social.ts"), "utf8",
+  ).replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+  it("trims what it will fold by the room's remaining headroom", () => {
+    // The fold list is what costs reads, so the bound has to be applied to
+    // it — not to what is returned afterwards.
+    const fold = /const missing = qids\s*([\s\S]{0,220}?);/.exec(src);
+    expect(fold, "the room's fold list is no longer built where this looks").toBeTruthy();
+    expect(fold![1]).toContain("ROOM_WINDOW_QUESTION_CAP");
+    expect(fold![1], "the headroom is the cap minus what the window holds")
+      .toMatch(/Object\.keys\(qs\)|room/);
+  });
+
+  it("is a soft bound: it serves a thinner grid rather than refusing", () => {
+    // This surface's own failure rule is to leave the stop with its
+    // number, so the cap must not throw. Nothing between the fold list and
+    // the write may raise on it.
+    expect(src).not.toMatch(/ROOM_WINDOW_QUESTION_CAP[\s\S]{0,120}HttpsError/);
+  });
+
+  it("the cap is smaller than the bank it used to be able to reach", () => {
+    // A vacuity guard: a cap at or above the bank size would parse fine
+    // and bound nothing.
+    expect(ROOM_WINDOW_QUESTION_CAP).toBeGreaterThan(ROOM_QUESTION_CAP);
+    expect(ROOM_WINDOW_QUESTION_CAP).toBeLessThan(V2_QUESTIONS.length);
   });
 });
