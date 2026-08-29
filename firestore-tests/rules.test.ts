@@ -765,6 +765,20 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     // answered is the product; what the system concluded you are INTO is
     // a summary nobody signed up to be read as by strangers.
     await assertFails(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "taste", "profile")));
+    // …and the LIST is its own grant, which the get rule above does not
+    // imply. Widen `allow list` to any signed-in user and every assertion
+    // in this case still passes while one collection read hands a stranger
+    // the whole profile — the only list refusal the suite had was the
+    // collection-group case further down, which the absence of a wildcard
+    // match refuses whatever this line says. `check:data-inventory` reads
+    // the literal and would flip the row to PUBLIC, but that is prose in
+    // the lint job, not the rule.
+    await assertFails(getDocs(collection(asUser(STRANGER), "v2_users", OWNER, "taste")));
+    // Refused for its subject too, as written: the doc id is known
+    // (`profile`), so `get` is the entire read path and nothing needs to
+    // enumerate. If a second taste doc ever arrives, widen this to the
+    // owner — the stranger line above is the one carrying the claim.
+    await assertFails(getDocs(collection(asUser(OWNER), "v2_users", OWNER, "taste")));
     // Client write closed: a self-writable profile would let a device
     // forge its own fetch weighting.
     await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "taste", "profile"), { t: { food: 99 }, n: 99 }));
