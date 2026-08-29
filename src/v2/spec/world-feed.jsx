@@ -84,7 +84,7 @@ import { PathsCard } from './paths-card.jsx';
 import LiveReadGame from '../ui/LiveReadGame.tsx';
 import {
   wfCarried, wfCatArt, wfFeedMatch, wfFmt, wfHash, wfKnowBias, wfKnowRate,
-  wfPcts, wfPickGroup, wfRateAvg, wfRateBg, wfRateInk, wfShadeText,
+  wfPcts, wfPickGroup, wfRateAvg, wfRateBg, wfRateInk, wfShadeText, wfStreamMix,
   wfTileArt, wfTint,
 } from './world-feed-math.js';
 
@@ -3884,12 +3884,10 @@ class WorldFeed extends React.Component {
     const qs = this.feedPool().filter((q) => q.scene
       ? SCENES.has(q.scene) && cats[q.scene] !== false
       : wfFeedMatch(q, { cats, pulled, leafOn, chanSet: WF_CHAN_SET }));
-    // interleave streams round-robin so the feed reads as a mix, not blocks
-    const byKey = {}; const keys = [];
-    qs.forEach((q) => { const k = q.scene || q.sub || q.cat; if (!byKey[k]) { byKey[k] = []; keys.push(k); } byKey[k].push(q); });
-    const lists = keys.map((k) => byKey[k]);
-    const mixed = [];
-    for (let i = 0; lists.some((l) => i < l.length); i++) lists.forEach((l) => { if (i < l.length) mixed.push(l[i]); });
+    // interleave streams round-robin so the feed reads as a mix, not blocks.
+    // In world-feed-math.js so TAGS-PLAN §1 — one card, one stream, however
+    // many doors it carries — has a test that runs the real grouping.
+    const mixed = wfStreamMix(qs);
     // sort lenses: hot = the interleaved mix · top = most votes · new = latest first
     const sort = this.state.sort;
     const sorted = sort === 'top' ? [...qs].sort((a, b) => wfVotes(b) - wfVotes(a)) : sort === 'new' ? [...qs].reverse() : mixed;
