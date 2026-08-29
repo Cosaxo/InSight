@@ -41,3 +41,34 @@ each answered question with the node ids that answer it.
   between-person objects even though the density-distribution frame
   (tst-2/Fleeson) is within-person — one sentence in tst-5 would
   settle where types live in the two-geometry architecture.
+  - **Answered 2026-08-29 by tst-6 (a) and tst-8 on tst-5 (b)**:
+    (a) Full disclosure of the edge treatment, since neither offered
+    option was taken exactly: the contradicts edge is retired (cen-1's
+    2026-08-28 revision adopted the fork wholesale — this lane re-read
+    the revised claim clause by clause and found no component still in
+    conflict); the refines edge is KEPT (the embedding-not-exhaustion
+    bound lives in cen-1's detail, not its claim string, so tst-6
+    still sharpens it); and a supports edge is ADDED, a third option
+    beyond the two offered, per go-6's logic taken one step further —
+    cen-1 did not merely narrow, it adopted, so tst-6 is now argument
+    FOR it. Trace in tst-6's detail and the LOG. One residual tension
+    stays open on purpose, recorded at tst-5/tst-8, not on cen-1:
+    the strongest contrary evidence in the new types literature
+    (McCrae et al. 2006; Freudenstein's 42%) cuts against deriving
+    stable person-regions from population structure at all.
+    (b) Types live in the between-person geometry: the anchor
+    coordinate is the person's density-distribution central tendency
+    (Fleeson's near-perfectly stable parameter — stable across
+    occasions within experience-sampling windows; the years-long
+    stability a type-name actually promises is an assumption tst-4's
+    trajectories exist to test, not a cited fact). A type read off
+    momentary states would churn daily. The refinement central's
+    question exposed: Fleeson's spread parameters are stable
+    individual differences, so within-person data may CONTRIBUTE
+    between-person coordinates (a steady/volatile dimension of the
+    region space), but the region space itself stays a between-person
+    object. Structural note: tst-5 rose conjecture→cited on the types
+    literature and was fissioned the same run — evidence at tst-5
+    (cited), design composition including this placement at tst-8
+    (argued) — per the tst-2 precedent that a cited claim string
+    carries only cited material.

@@ -36,3 +36,31 @@ implements its own requests.
   · **measurable**: within-person loadings against the published
   between-person loadings (tst-6's test); 'has your openness moved'
   reported with uncertainty (tst-4); retest effects per item (que-2).
+- 2026-08-29 · **what**: per-instrument population density aggregates
+  that carry JOINT structure — two artifacts, both committed and
+  population-level only. (i) Coarse joint binned counts over each
+  instrument's dimensions (4–5 bins per dimension), with a stated
+  minimum-cell-count suppression floor and the total suppressed mass
+  reported — marginals plus a covariance matrix alone are the
+  sufficient statistics of a single Gaussian and are provably blind to
+  the multimodality this row exists to find, so they serve only as the
+  stated baseline, not the ask. (ii) A committed offline mixture-fit
+  artifact: fitted component means, weights and covariances with
+  BIC/held-out log-likelihood across candidate component counts, plus
+  each authored signature's distance to the nearest fitted component
+  mean and the fitted weights beside the authored `share` values.
+  · **why**: tst-8 (argued) commits to regions derived from real
+  population structure, and tst-5 (cited) shows both that cluster
+  solutions are fragile and that the strongest contrary evidence says
+  most people may sit in no distinct region at all — so the commitment
+  must be tested, not assumed; the shipped archetypes
+  (`archetype-data.js` on main) are authored signature vectors with
+  hand-written shares, and nothing today says whether InSight's own
+  population has density concentrations anywhere, let alone near those
+  signatures. · **measurable**: whether real density peaks exist in
+  instrument space (Gerlach's test, locally — including the negative
+  outcome tst-5's contrary evidence predicts); the distance between
+  authored signatures and real peaks; fitted weights versus authored
+  shares; the fraction of the population inside any distinct region
+  (Freudenstein's 42% question, locally) — the difference between a
+  data-anchored region system and a grid that only looks like one.
