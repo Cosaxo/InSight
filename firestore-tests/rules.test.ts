@@ -828,10 +828,28 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
 
   it("a person's day rollup is owner-create-only, date-keyed, field-pinned (R3/D272)", async () => {
     await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", rollupDay()), rollup()));
-    // not someone else's subtree, not a bare-map id, not a mismatched day
+    // not someone else's subtree, not a bare-map id, not a day outside the
+    // window
     await assertFails(setDoc(doc(asUser(STRANGER), "v2_users", OWNER, "engagement", rollupDay()), rollup()));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "_state"), rollup()));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "2026-01-01"), rollup({ day: "2026-01-01" })));
+    // …and not a doc that DISAGREES with its own id, which the line above
+    // does not test: it moves the id and the field together, so the window
+    // bound refuses it and `day == docId` is never asked. The fold reads
+    // the FIELD (`runRollupFold` groups by `d.get("day")`) and then marks
+    // the rollup folded at that same field as an id — a document which,
+    // for a disagreeing pair, does not exist. `batch.update` on a missing
+    // doc is NOT_FOUND, so the whole chunk's commit fails, the rollup is
+    // never marked folded, and it comes back tomorrow to break the fold
+    // again while the world-readable day doc it did reach carries the
+    // wrong day's numbers. One client write, every night after.
+    const older = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10);
+    await assertFails(setDoc(
+      doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()), rollup({ day: older })));
+    // Both halves are legal on their own, so the refusal above is the
+    // disagreement and not the date.
+    await assertSucceeds(setDoc(
+      doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", older), rollup({ day: older })));
     // folded is the fold's flag, never the client's
     await assertFails(setDoc(doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()), rollup({ folded: true })));
     await assertFails(setDoc(doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()), rollup({ sessions: 5000 })));
