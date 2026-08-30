@@ -568,6 +568,16 @@ export interface AttentionStore {
   /** ONE atomic commit: merge the delta into the day doc's `attn`
    * section AND delete exactly these shards. */
   applyAttention(day: string, delta: AttnDelta, shardIds: string[]): Promise<void>;
+  /**
+   * The question keys the day document already holds.
+   *
+   * One read per day per run, and the only thing that can make the
+   * per-day cap true across runs: the shards are deleted as they fold, so
+   * tomorrow night starts with an empty page and a full budget while the
+   * document keeps everything it was given. Without this the fence bounds
+   * one night's fold and the document grows by up to a cap every night.
+   */
+  dayQids(day: string): Promise<ReadonlySet<string>>;
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -643,8 +653,32 @@ export const QIDS_PER_DAY_CAP = 1500;
 const clampBucket = (raw: unknown): number =>
   typeof raw === "number" && Number.isFinite(raw) ? Math.min(4, Math.max(0, Math.trunc(raw))) : 0;
 
-export function foldShards(shards: AttentionShardDoc[]): Map<string, AttnDelta> {
+export function foldShards(
+  shards: AttentionShardDoc[],
+  /**
+   * The question keys each day's document ALREADY holds — what makes the
+   * cap below a fence around the DAY rather than around this call.
+   *
+   * Without it the cap counted only the keys in the delta being built, and
+   * `runAttentionFold` builds one delta per CHUNK of 300 shards and merges
+   * every one of them into the same day document. So the 1,500 test reset
+   * itself every chunk: 600 shards of distinct keys put 3,000 on one day
+   * doc, measured, and nothing bounded the total at all. Past ~2,500 the
+   * document exceeds Firestore's 40,000 index entries, the batch fails,
+   * the shards are never deleted so they come back on every page forever,
+   * and the rollup fold and its heartbeat — awaited after this — stop
+   * running with it. Recovery is a manual delete.
+   *
+   * Optional because the fold is also called directly on a whole day's
+   * shards, where the delta IS the day.
+   */
+  held?: (day: string) => ReadonlySet<string> | undefined,
+): Map<string, AttnDelta> {
   const out = new Map<string, AttnDelta>();
+  // Per day: everything the document will hold once this delta lands —
+  // what it already had, plus what this call has admitted so far. The cap
+  // is a test on THIS, which is the number that has to stay under 2,500.
+  const union = new Map<string, Set<string>>();
   for (const shard of shards) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(shard.day)) continue;
     // A rate outside the honest range weighs ONE device, which is what an
@@ -663,7 +697,9 @@ export function foldShards(shards: AttentionShardDoc[]): Map<string, AttnDelta> 
     if (!delta) {
       delta = { devices: 0, s: {}, q: {}, qOther: 0 };
       out.set(shard.day, delta);
+      union.set(shard.day, new Set(held?.(shard.day) ?? []));
     }
+    const dayKeys = union.get(shard.day)!;
     delta.devices = round2(delta.devices + weight);
     const s = shard.s && typeof shard.s === "object" ? (shard.s as Record<string, unknown>) : {};
     for (const [key, raw] of Object.entries(s)) {
@@ -703,10 +739,11 @@ export function foldShards(shards: AttentionShardDoc[]): Map<string, AttnDelta> 
         spill();
         continue;
       }
-      if (!delta.q[qid] && Object.keys(delta.q).length >= QIDS_PER_DAY_CAP) {
+      if (!dayKeys.has(qid) && dayKeys.size >= QIDS_PER_DAY_CAP) {
         spill();
         continue;
       }
+      dayKeys.add(qid);
       for (const [kind, raw] of Object.entries(kindsRaw as Record<string, unknown>)) {
         if (kind !== "s" && kind !== "a" && kind !== "p" && kind !== "d") continue;
         const bucket = clampBucket(raw);
@@ -733,6 +770,9 @@ export async function runAttentionFold(
   // page of them ends the loop.
   const skipped = new Set<string>();
   const days = new Set<string>();
+  // day → the question keys its document holds, seeded from the document
+  // and grown as this run's chunks land. Outlives the page loop.
+  const heldByDay = new Map<string, Set<string>>();
 
   for (;;) {
     const seen = folded + skipped.size;
@@ -754,10 +794,24 @@ export async function runAttentionFold(
         for (const s of shards) skipped.add(s.id);
         continue;
       }
+      // WHAT THE DAY ALREADY HOLDS, read once and then carried across
+      // every chunk of it — including the pages after this one, which is
+      // why the map lives outside the page loop. Each chunk becomes its
+      // own delta merged into the same document, so a cap that could only
+      // see one delta was no cap at all.
+      let seen = heldByDay.get(day);
+      if (!seen) {
+        seen = new Set(await store.dayQids(day));
+        heldByDay.set(day, seen);
+      }
+      const dayKeys = seen;
       for (let i = 0; i < shards.length; i += SHARD_CHUNK) {
         const chunk = shards.slice(i, i + SHARD_CHUNK);
-        const delta = foldShards(chunk).get(day);
-        if (delta) await store.applyAttention(day, delta, chunk.map((s) => s.id));
+        const delta = foldShards(chunk, (d) => (d === day ? dayKeys : undefined)).get(day);
+        if (delta) {
+          await store.applyAttention(day, delta, chunk.map((s) => s.id));
+          for (const qid of Object.keys(delta.q)) dayKeys.add(qid);
+        }
         folded += chunk.length;
       }
     }
@@ -783,6 +837,14 @@ export function firestoreAttentionStore(db: Firestore): AttentionStore {
         s: d.get("s"),
         qids: d.get("qids"),
       }));
+    },
+    async dayQids(day) {
+      // The whole document rather than a projection: Firestore cannot
+      // project a map's KEYS, and this map is exactly what the cap keeps
+      // small. One read per day per run.
+      const snap = await db.collection("v2_engagement_daily").doc(day).get();
+      const q = snap.get("attn.q");
+      return new Set(q && typeof q === "object" ? Object.keys(q as object) : []);
     },
     async applyAttention(day, delta, shardIds) {
       const batch = db.batch();

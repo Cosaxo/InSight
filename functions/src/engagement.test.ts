@@ -268,16 +268,25 @@ function attnStore(shards: AttentionShardDoc[]) {
   const state = {
     shards: [...shards],
     applied: [] as Array<{ day: string; delta: AttnDelta; ids: string[] }>,
-    days: new Map<string, { devices: number; s: Record<string, { reach: number; est: number }> }>(),
+    days: new Map<string, {
+      devices: number;
+      s: Record<string, { reach: number; est: number }>;
+      // The QUESTION keys the document holds, which is what the day cap
+      // is about. The fake used to track devices and surfaces only, so a
+      // day document could grow without bound here and nothing noticed.
+      q: Set<string>;
+    }>(),
   };
   const store: AttentionStore = {
     async shardPage(cap) { return state.shards.slice(0, cap); },
+    async dayQids(day) { return state.days.get(day)?.q ?? new Set<string>(); },
     // the memory twin of the batched set-merge + delete: additive, and it
     // removes exactly the ids it was handed
     async applyAttention(day, delta, ids) {
       state.applied.push({ day, delta, ids });
       state.shards = state.shards.filter((s) => !ids.includes(s.id));
-      const doc = state.days.get(day) ?? { devices: 0, s: {} };
+      const doc = state.days.get(day) ?? { devices: 0, s: {}, q: new Set<string>() };
+      for (const qid of Object.keys(delta.q)) doc.q.add(qid);
       doc.devices += delta.devices;
       for (const [k, c] of Object.entries(delta.s)) {
         const cur = doc.s[k] ?? { reach: 0, est: 0 };
@@ -441,6 +450,52 @@ describe("runAttentionFold", () => {
     const res = await runAttentionFold(store, 10);
     expect(res).toMatchObject({ shards: 10, capped: true });
     expect(state.shards).toHaveLength(20);
+  });
+
+  // THE CAP IS ABOUT THE DAY DOCUMENT, and for a long time it was not.
+  // `foldShards` builds one delta per CHUNK of 300 shards, every one of
+  // them merged into the same document, and the 1,500 test looked only at
+  // the delta in hand — so each chunk started from zero and the document
+  // grew without any bound at all. Past ~2,500 keys it exceeds Firestore's
+  // 40,000 index entries, the batch fails, the shards are never deleted so
+  // they return on every page forever, and the rollup fold awaited after
+  // this stops running with it.
+  it("fences the DAY's question keys, not each chunk's", async () => {
+    // Two chunks' worth of shards, each carrying keys nothing else does.
+    const cap = QIDS_PER_DAY_CAP;
+    const shards: AttentionShardDoc[] = [];
+    for (let i = 0; i < 2 * SHARD_CHUNK; i++) {
+      const qids: Record<string, unknown> = {};
+      for (let k = 0; k < 4; k++) qids[`q-${i}-${k}`] = { s: 1 };
+      shards.push({ id: `s${i}`, day: "2026-08-22", rate: 1, s: { opens: 1 }, qids });
+    }
+    const { store, state } = attnStore(shards);
+    await runAttentionFold(store);
+    const day = state.days.get("2026-08-22")!;
+    expect(day.q.size, "the day document grew past its own cap").toBeLessThanOrEqual(cap);
+    // …and the fence did not simply refuse everything: the first chunk's
+    // keys are there, and the overflow is counted as "…and more" rather
+    // than dropped.
+    expect(day.q.size).toBe(cap);
+    expect(state.applied.some((a) => a.delta.qOther > 0), "overflow was dropped, not spilled").toBe(true);
+  });
+
+  it("carries the fence across NIGHTS, not just across chunks", async () => {
+    // The shards are deleted as they fold, so tomorrow starts with an
+    // empty page and a full budget while the document keeps everything.
+    // Seeding from the document is the only thing that makes the cap true
+    // over time.
+    const { store, state } = attnStore([]);
+    state.days.set("2026-08-22", {
+      devices: 0,
+      s: {},
+      q: new Set(Array.from({ length: QIDS_PER_DAY_CAP }, (_, i) => `old-${i}`)),
+    });
+    state.shards = [{ id: "s1", day: "2026-08-22", rate: 1, s: { opens: 1 }, qids: { "brand-new": { s: 1 } } }];
+    await runAttentionFold(store);
+    const day = state.days.get("2026-08-22")!;
+    expect(day.q.has("brand-new"), "a full day accepted another key").toBe(false);
+    expect(day.q.size).toBe(QIDS_PER_DAY_CAP);
   });
 
   it("a malformed day is skipped, never guessed at, never deleted blind", async () => {
