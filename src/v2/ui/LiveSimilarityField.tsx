@@ -602,7 +602,24 @@ export function NearField() {
   // current one, and with no qids the question test is vacuous.
   const beat = LIVE.near.updatedAt();
   React.useEffect(() => { void LIVE.near.loadRoom([]); }, [beat]);
-  React.useEffect(() => { void LIVE.loadSimilarity(); }, []);
+  // NO loadSimilarity HERE. It was correct until D181, when this field
+  // drew the city's crowd and read `kindredPeople()`; that rewrite
+  // replaced the body with the presence roster and deleted the comment
+  // justifying the loader, but left the loader. Nothing this component
+  // renders reads what it fetches — the scores under each glyph come from
+  // `loadNames(roster)` below, through the shared profile cache.
+  //
+  // What it cost: ~110 test aggregates in four batched queries, plus
+  // loadKindred's twelve collection-group reads of up to 200 answers each
+  // and their name resolution — a few thousand billed reads — charged to
+  // a viewer who opened Near and may never open City or World. The stops
+  // that DO read it ask on arrival and the fold is session-cached, so
+  // nothing is lost by not pre-warming here: loadSimilarity's own comment
+  // names the moment it is spent for, and Near is not in that list.
+  //
+  // Taken verbatim from the reviewed branch waiting to merge, which found
+  // this and removed it. Adopted here so the two lines compose without a
+  // conflict — the same move this night made for the call card's rounding.
 
   const on = LIVE.near.on();
   const room = LIVE.near.room();
