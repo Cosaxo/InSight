@@ -387,7 +387,10 @@ export const loadWorldFeed = retryable(async () => {
 // SYNCHRONISED BY THE CONSUMER, not by a re-render from here: mirror-tab's
 // MapSlot runs its own dynamic import of the same module and holds the
 // named export in state, so the You stop re-renders itself when the chunk
-// lands (mirror-field-pops' relmap pattern, D200). This loader exists so
+// lands (mirror-field-pops' relmap pattern, D200). That component did not
+// exist when this paragraph was written — the stop used a `React.lazy`,
+// which caches a rejection and re-throws it forever — and it does now,
+// which is what makes the sentence above true. This loader exists so
 // main.jsx can start the fetch right after first paint — by the time a
 // thumb reaches the Mirror the module cache already has it — and so
 // check:globals rule 2 sees the './spec/map-tab.jsx' literal that proves
