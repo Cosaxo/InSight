@@ -1005,6 +1005,15 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
   // after; a sibling audit saw the same shape in a mount suite's 3s lazy
   // timeout the same night. Nothing here asserts a flush is FAST, so a wait
   // that must happen can afford to be generous.
+  //
+  // WHAT IT COSTS, measured rather than waved at: this file ran 13.8s
+  // before and 18.2s after — three waits that must happen went from 1200ms
+  // to 2500ms, and the two that could be watched for stopped waiting at
+  // all. `41e06f71`'s message said the time was "unchanged within a
+  // second", which was never measured against the old file and is wrong by
+  // about four. Four seconds inside a suite that runs its files in
+  // parallel, against a red check that costs somebody a morning chasing a
+  // cache bug that never happened.
   const PAST_WINDOW_MS = 2500;
   /**
    * Wait until the write has landed, rather than waiting out the clock.
