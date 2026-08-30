@@ -240,7 +240,7 @@ jobs:
       # D337. Registration hangs off Main.storyboard's customClass, which
       # `npx cap sync` may rewrite — a red line here is the only way that
       # gets noticed.
-      - run: npm run check:ios-devicebind
+      - run: npm run check:devicebind
 
   typecheck-build:
     runs-on: ubuntu-latest

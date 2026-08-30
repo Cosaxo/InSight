@@ -243,12 +243,39 @@ async function iosActivate(deviceToken: string, now: Date): Promise<boolean> {
   return true;
 }
 
-async function androidActivate(integrityToken: string, now: Date): Promise<boolean> {
+/**
+ * What the signed payload has to say about the request before any verdict
+ * in it is worth reading. Pure and exported so the two refusals are pinned
+ * by unit tests — neither can be reached from the emulator, and both are
+ * the kind of check that is easy to write inverted.
+ *
+ * The nonce arm is REQUIRED on Android rather than best-effort. Play
+ * refuses to build a request without a nonce, so a token that carries none
+ * did not come from this app's bridge; treating that as acceptable would
+ * make the check decorative, which is the failure mode this whole area
+ * already had once (D337).
+ */
+export function requestDetailsProblem(
+  details: { requestPackageName?: string; nonce?: string } | undefined,
+  pkg: string,
+  nonce: string | undefined,
+): string | null {
+  if (details?.requestPackageName !== pkg) return "token is for a different app";
+  if (!nonce) return "missing integrity nonce";
+  if (details?.nonce !== nonce) return "integrity nonce does not match";
+  return null;
+}
+
+async function androidActivate(
+  integrityToken: string,
+  nonce: string | undefined,
+  now: Date,
+): Promise<boolean> {
   const pkg = process.env.PLAY_PACKAGE_NAME || "com.cosaxo.insight";
   const auth = new GoogleAuth({ scopes: ["https://www.googleapis.com/auth/playintegrity"] });
   const client = await auth.getClient();
   let payload: {
-    requestDetails?: { requestPackageName?: string };
+    requestDetails?: { requestPackageName?: string; nonce?: string };
     deviceIntegrity?: { deviceRecognitionVerdict?: string[] };
     deviceRecall?: { values?: RecallValues; writeDates?: RecallWriteDates };
   };
@@ -263,8 +290,10 @@ async function androidActivate(integrityToken: string, now: Date): Promise<boole
     logger.warn("[deviceBind] Play Integrity decode failed:", err);
     throw new HttpsError("unavailable", "attestation service unreachable");
   }
-  if (payload.requestDetails?.requestPackageName !== pkg) {
-    throw new HttpsError("failed-precondition", "token is for a different app");
+  const problem = requestDetailsProblem(payload.requestDetails, pkg, nonce);
+  if (problem) {
+    logger.warn(`[deviceBind] Play Integrity request rejected: ${problem}`);
+    throw new HttpsError("failed-precondition", problem);
   }
   const verdict = payload.deviceIntegrity?.deviceRecognitionVerdict || [];
   if (!verdict.includes("MEETS_DEVICE_INTEGRITY")) {
@@ -331,9 +360,17 @@ export const activateDeviceV2 = onCall(
     if (typeof token !== "string" || !token || token.length > 65536) {
       throw new HttpsError("invalid-argument", "missing attestation token");
     }
+    // Android's Play Integrity nonce, echoed back by the platform inside
+    // the signed payload. Length-bounded like the token for the same
+    // reason: this is an unauthenticated-shaped input on an App
+    // Check-enforced callable, and neither field is ever long.
+    const nonce = request.data?.nonce;
+    if (nonce !== undefined && (typeof nonce !== "string" || nonce.length > 1024)) {
+      throw new HttpsError("invalid-argument", "bad nonce");
+    }
     const now = new Date();
     const allow =
-      platform === "ios" ? await iosActivate(token, now) : await androidActivate(token, now);
+      platform === "ios" ? await iosActivate(token, now) : await androidActivate(token, nonce, now);
     if (!allow) {
       // Expected outcome, not an error: this device already bought its
       // account this month. The client memoizes and retries next month.

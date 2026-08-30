@@ -12,7 +12,7 @@ parts and their state:
 | Rules requirement on answer writes | shipped **soft** — `deviceBindEnforced()` returns `false`; the flipped text is pre-tested |
 | Client activation flow (`src/v2/data/deviceBind.ts`) | shipped, wired into the live boot, memo logic unit-tested |
 | Native token bridge — **iOS** | **shipped (D337)**, compiled on every PR by `ios-build.yml` |
-| Native token bridge — Android | **not in the tree — paste-ready below**, needs Android Studio |
+| Native token bridge — **Android** | **shipped (D337)**, compiled on every PR by `ci.yml`'s `android-build` |
 | Apple/Google console setup + env vars | **owner steps below** |
 | Apple/Google endpoint shapes | written from D29's verify-before-build list; **confirm against current docs before relying on staging results** |
 
@@ -60,7 +60,7 @@ flip.
 3. `PLAY_PACKAGE_NAME` env is optional — defaults to
    `com.cosaxo.insight` (capacitor.config.ts appId).
 
-## 2 · Native token bridges — iOS shipped, Android paste-ready
+## 2 · Native token bridges — both shipped
 
 Neither token is exposed by the App Check plugin (D10) — App Check
 consumes its attestations internally. Each bridge exposes exactly one
@@ -73,9 +73,19 @@ with no ordering constraint against the rest of D29.
 from a machine that cannot compile them", and that premise was wrong the
 whole time** — `ios-build.yml` compiles the iOS target on every PR
 touching `ios/**`, on a macOS runner, unsigned and with no Apple account,
-and `ci.yml` builds the Android shell with `assembleDebug`. The compile
-check that would have made this safe already existed. D337 committed the
-iOS half against it; the same argument retires the caution for Android.
+and `ci.yml`'s `android-build` runs `assembleDebug`. The compile check
+that would have made this safe already existed, on both platforms. D337
+committed both halves against it.
+
+**And the Android snippet that sat here was broken.** It built its
+`IntegrityTokenRequest` without a nonce, which that builder refuses —
+so it would have failed on every device it ever ran on, and failed
+*silently*, because `deviceBind.ts` treats any activation error as "try
+again on a later boot". Pasting it would have looked identical to the
+missing-bridge state it was meant to end. The committed version generates
+a 32-byte base64url nonce, returns it to JS, and `activateDeviceV2`
+refuses a payload whose signed nonce disagrees
+(`requestDetailsProblem`, unit-tested).
 
 **iOS — shipped, and not by the route this section used to prescribe.**
 `ios/App/App/DeviceBindPlugin.swift` holds the plugin;
@@ -100,62 +110,18 @@ registering and activation defers again with no error — the exact failure
 the bridge's absence already caused once. Check that attribute first if
 `[deviceBind] activated` lines stop appearing.
 
-**Android — `android/app/src/main/java/com/cosaxo/insight/DeviceBindPlugin.java`**
-(a new file in the source tree is picked up by Gradle without project
-surgery):
+**Android — shipped.**
+`android/app/src/main/java/com/cosaxo/insight/DeviceBindPlugin.java` holds
+the plugin; `MainActivity.java` registers it with
+`registerPlugin(DeviceBindPlugin.class)` **before** `super.onCreate`, which
+is where Capacitor builds the bridge — registering after it compiles,
+ships and does nothing. `app/build.gradle` carries
+`com.google.android.play:integrity` at `playIntegrityVersion` from
+`variables.gradle`.
 
-```java
-package com.cosaxo.insight;
-
-import com.getcapacitor.JSObject;
-import com.getcapacitor.Plugin;
-import com.getcapacitor.PluginCall;
-import com.getcapacitor.PluginMethod;
-import com.getcapacitor.annotation.CapacitorPlugin;
-import com.google.android.play.core.integrity.IntegrityManager;
-import com.google.android.play.core.integrity.IntegrityManagerFactory;
-import com.google.android.play.core.integrity.IntegrityTokenRequest;
-
-@CapacitorPlugin(name = "DeviceBind")
-public class DeviceBindPlugin extends Plugin {
-
-    @PluginMethod
-    public void requestIntegrityToken(PluginCall call) {
-        IntegrityManager manager = IntegrityManagerFactory.create(getContext());
-        IntegrityTokenRequest.Builder req = IntegrityTokenRequest.builder();
-        String cloudProjectNumber = call.getString("cloudProjectNumber");
-        if (cloudProjectNumber != null) {
-            try {
-                req.setCloudProjectNumber(Long.parseLong(cloudProjectNumber));
-            } catch (NumberFormatException e) {
-                call.reject("bad cloudProjectNumber");
-                return;
-            }
-        }
-        manager.requestIntegrityToken(req.build())
-            .addOnSuccessListener(r -> {
-                JSObject out = new JSObject();
-                out.put("token", r.token());
-                call.resolve(out);
-            })
-            .addOnFailureListener(e ->
-                call.reject("integrity token failed: " + e.getMessage()));
-    }
-
-    @PluginMethod
-    public void generateToken(PluginCall call) {
-        call.reject("ios only");
-    }
-}
-```
-
-Register it in `MainActivity` (`registerPlugin(DeviceBindPlugin.class);`
-before `super.onCreate`), and add the Play library to
-`android/app/build.gradle` if it is not already present transitively:
-
-```groovy
-implementation "com.google.android.play:integrity:1.4.0"
-```
+`npm run check:devicebind` holds all of it on both platforms, including
+that registration order and the nonce, because every one of those failures
+is silent on a device.
 
 **Verify while adding (D29's open API questions):** whether device
 recall requires the *standard* (warmed-up) integrity request rather than

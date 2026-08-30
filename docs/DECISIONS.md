@@ -34342,24 +34342,42 @@ reach, not the question's total.
   survive — and on a credential collision it REPORTS and stops rather than
   offering the gate's "sign in and leave this phone's answers", which from
   settings would be a wipe wearing a login.
-- **The iOS bridge landed**: `DeviceBindPlugin.swift` plus
-  `MainViewController.swift`, which registers it from `capacitorDidLoad()`.
-  Not the `CAP_PLUGIN` macro DEVICE-BIND.md prescribed — that needs an
+- **Both native bridges landed.** iOS: `DeviceBindPlugin.swift` plus
+  `MainViewController.swift`, which registers it from `capacitorDidLoad()`
+  — not the `CAP_PLUGIN` macro DEVICE-BIND.md prescribed, which needs an
   Objective-C file and a bridging header this project does not have, over
   a Capacitor that arrives as a Swift Package with no ObjC umbrella header.
-- **`check:ios-devicebind`**, because the failure being fixed is silent.
+  Android: `DeviceBindPlugin.java` plus `registerPlugin` in `MainActivity`
+  **before** `super.onCreate`, which is where Capacitor builds the bridge
+  — after it, the registration compiles and does nothing.
+- **The Android snippet the doc called paste-ready was broken**, and the
+  way it was broken is this record's own theme. It built its
+  `IntegrityTokenRequest` without a nonce, which that builder refuses. Had
+  anyone pasted it, activation would have failed on every Android device,
+  and failed *silently* — `deviceBind.ts` treats any activation error as
+  "try again on a later boot", so the symptom would have been
+  indistinguishable from the missing bridge it was written to end. The
+  committed plugin mints a 32-byte base64url nonce and returns it;
+  `activateDeviceV2` now refuses a payload whose signed nonce disagrees
+  (`requestDetailsProblem`, five unit tests). It fails CLOSED on a missing
+  nonce, because an optional check is one a caller skips by omission.
+- **`check:devicebind`**, because the failure being fixed is silent.
   An unregistered plugin leaves a green build, a passing suite and an app
   that behaves identically — enforcement is soft, so nothing differs. That
-  is precisely how D29 sat inert for a month. Registration hangs off
-  `Main.storyboard`'s `customClass`, which `npx cap sync` may rewrite, so
-  the gate reads that attribute as well as the compile phase.
+  is precisely how D29 sat inert for a month. It holds both platforms and
+  reads the tool-managed files each depends on — `Main.storyboard`'s
+  `customClass`, the pbxproj compile phase, and on Android the
+  registration ORDER against `super.onCreate` plus the nonce, every one of
+  which fails without an error on a device.
 
-**The caution that kept the bridge out was already unnecessary**, and that
+**The caution that kept the bridges out was already unnecessary**, and that
 is the reusable finding: `ios-build.yml` compiles the iOS target on every
 PR touching `ios/**`, unsigned, on a macOS runner, needing no Apple
-account, and `ci.yml` builds the Android shell with `assembleDebug`. The
-compile check that made committing this safe existed the whole time. The
-same argument retires the caution for the Android bridge.
+account, and `ci.yml`'s `android-build` runs `assembleDebug`. The compile
+check that made committing these safe existed the whole time, on both
+platforms — and its absence was never the real reason the code was not
+written, because a compiler would not have caught the missing nonce
+either. Only a reader would.
 
 ### What did NOT ship, deliberately
 
@@ -34368,9 +34386,11 @@ same argument retires the caution for the Android bridge.
   fleet rate can be read until activation has run on real devices. An
   early flip refuses honest votes *silently* — the option takes, then
   un-takes — which is the failure D37 exists to prevent.
-- **The Android bridge**, still paste-ready. D42 launches iOS alone, and
-  Play's device-recall opt-in carries open API questions DEVICE-BIND.md
-  already flags.
+- **Nothing about D42.** The Android bridge is here because the owner
+  corrected the premise mid-change — iOS is the first store, not the only
+  one. Play's device-recall opt-in still carries the open API questions
+  DEVICE-BIND.md flags, and `decideRecall` already handles both verdict
+  shapes, so those are a console question rather than a code one.
 - **App Check console enforcement**, which is owner-gated and is the one
   control that limits account CREATION rather than counting. Its absence
   is the older half of D219's unmet condition.
