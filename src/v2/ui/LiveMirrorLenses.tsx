@@ -862,7 +862,17 @@ function ScoresLens({ qs, shortName, scope }: {
              instead: true whoever the answer belongs to, which
              matters because a vote carries the city it was cast
              from (D8) and this stop shows the city you are in now. */
-          : lead.n === 1
+          /* …and only for the crowd that CONTAINS your answer. `lead`
+             follows the fore toggle, so at "from elsewhere" this printed
+             "the only answer here so far" beside a line that had just
+             counted the answers here — your vote is never in the away
+             crowd at your own stop, and one answer from elsewhere is one
+             answer to be above or below, which the arm underneath already
+             says correctly. Tested against `here` itself rather than
+             against the toggle, because `lead` falls back to the here
+             crowd for a row that has no away scores at all, and that row's
+             sentence is the true one. */
+          : lead.n === 1 && lead === here
             ? <>You gave it <strong style={{ color: "var(--ink-2)" }}>{mine}</strong> · the only answer here so far</>
             : <>You gave it <strong style={{ color: "var(--ink-2)" }}>{mine}</strong>
               {mine === lead.mean ? <> — exactly the average</>
