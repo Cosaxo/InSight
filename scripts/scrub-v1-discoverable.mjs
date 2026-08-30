@@ -54,8 +54,7 @@
 // them; docs/DEPLOYMENT.md has the functions:delete command that goes
 // with them.
 
-import { initializeApp, applicationDefault } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { adminDb } from "./admin-db.mjs";
 
 const COLLECTION = "insight_discoverable";
 const BATCH = 400; // Firestore's batch limit is 500; headroom, as in deleteAccount.
@@ -92,8 +91,9 @@ if (!projectId) {
 
 let db;
 try {
-  initializeApp({ credential: applicationDefault(), projectId });
-  db = getFirestore();
+  // NAMES THE DATABASE — see scripts/admin-db.mjs. The bare
+  // `getFirestore()` binds to `(default)`, which this app does not use.
+  db = adminDb({ projectId });
 } catch (err) {
   console.error(
     `scrub-v1-discoverable: could not initialise the admin SDK.\n${err.message}\n\n` +

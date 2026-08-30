@@ -217,8 +217,20 @@ export function collectMoney(cost) {
 // console-side) is the control that fires on the OUTCOME, and this row
 // exists so the repo-side console stops needing to be asked.
 
+// How old the measured day may be before it stops being a measurement.
+// Not a taste number: the guard's own measure is the max of the latest day
+// and the SEVEN-day mean, so once the last committed day is older than that
+// window, every input the guard averages is out of it — the figure it
+// prices is a description of a week nobody is living in. The engagement
+// trail moves only when a human runs `npm run scorecard -- --fetch`;
+// nothing schedules it, which is exactly why a frozen file has to be able
+// to say so rather than passing forever.
+export const MEASURE_MAX_AGE_DAYS = 7;
+
 /** The pure verdict, tested without a tree. All inputs in USD/month. */
-export function guardVerdict({ allowanceUsd, measuredActives, burnUsd, revenueUsd }) {
+export function guardVerdict({
+  allowanceUsd, measuredActives, measuredAgeDays, burnUsd, revenueUsd,
+}) {
   if (typeof allowanceUsd !== "number") {
     // No allowance recorded is a question, not a pass — the unpriced-path
     // rule. The check treats it as unarmed and says how to arm it.
@@ -231,14 +243,25 @@ export function guardVerdict({ allowanceUsd, measuredActives, burnUsd, revenueUs
     return { state: "unmeasured", allowanceUsd };
   }
   const netBurnUsd = round2(burnUsd - revenueUsd);
-  return {
-    state: netBurnUsd > allowanceUsd ? "over" : "ok",
+  const figures = {
     allowanceUsd,
     measuredActives,
+    measuredAgeDays: measuredAgeDays ?? null,
     burnUsd: round2(burnUsd),
     revenueUsd: round2(revenueUsd),
     netBurnUsd,
   };
+  // Over wins over stale, deliberately. An overshoot is true at the size
+  // it was priced at — the population would have to have SHRUNK for it to
+  // be wrong, and the operator has to look either way because both states
+  // page. What staleness can make unbelievable is the PASS, and that is
+  // the reading this state exists for: the same asymmetry the scorecard
+  // has carried since D33, one panel over.
+  if (netBurnUsd > allowanceUsd) return { state: "over", ...figures };
+  if (figures.measuredAgeDays != null && figures.measuredAgeDays > MEASURE_MAX_AGE_DAYS) {
+    return { state: "stale", ...figures };
+  }
+  return { state: "ok", ...figures };
 }
 
 export function collectGuard(regional, money, engagement) {
@@ -265,16 +288,25 @@ export function collectGuard(regional, money, engagement) {
     burnUsd = totalCost(at.cost) + money.fixedUsdPerMonth;
   }
 
+  // Age of the day the guard is pricing, not of the fetch that wrote the
+  // file: `fetchedOn` moves every time somebody re-runs the fetch, so a
+  // trail that has stopped folding days would keep looking fresh.
+  const measuredOn = engagement.present ? engagement.lastDay ?? null : null;
+  const measuredAgeDays = measuredOn
+    ? Math.floor((Date.now() - Date.parse(`${measuredOn}T00:00:00Z`)) / 86400000)
+    : null;
+
   const verdict = guardVerdict({
     allowanceUsd,
     measuredActives: measured,
+    measuredAgeDays,
     burnUsd: burnUsd ?? 0,
     revenueUsd: money.revenueUsdPerMonth,
   });
 
   return {
     ...verdict,
-    measuredOn: engagement.present ? engagement.lastDay ?? null : null,
+    measuredOn,
     basis: "modelled infra cost at the measured actives (max of latest day and 7-day mean, "
       + "monitoring/engagement.json) plus fixed costs, against recorded revenue "
       + "(monitoring/rates.json). A model, not an invoice — the Cloud Billing budget is "
@@ -760,11 +792,17 @@ export function collectInstrumentation() {
   const functions = [];
   for (const f of fnFiles) {
     const src = read(`functions/src/${f}`);
-    // The v2 export surface is what deploys. `export const x = onCall(` /
-    // `onDocumentCreated(` / `onSchedule(` is the whole shape here; a
-    // wrapper form would be missed, which is why the count is reported
-    // beside the file list rather than asserted.
-    for (const m of src.matchAll(/export const (\w+) = (onCall|onDocumentCreated|onSchedule)\b/g)) {
+    // The v2 export surface is what deploys, and the trigger KIND is read
+    // rather than listed. Naming three of them —
+    // onCall/onDocumentCreated/onSchedule — silently dropped the two the
+    // tree grew afterwards: `onDocumentUpdated` (D86's answer-edit fold)
+    // and `onRequest` (the Stripe webhook, D313). Neither has an alert
+    // policy, so the console's "am I flying blind?" panel reported
+    // 40 of 42 functions and the two it could not see were the two least
+    // watched. `check:figures` reads the same surface with `on[A-Z]`, and
+    // now so does this; a wrapper form would still be missed, which is why
+    // the count is reported beside the file list rather than asserted.
+    for (const m of src.matchAll(/export const (\w+) = (on[A-Z]\w+)\b/g)) {
       functions.push({ name: m[1], kind: m[2], file: `functions/src/${f}` });
     }
   }

@@ -19,7 +19,7 @@ import { createServer } from "node:http";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { generateKeyPairSync } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -211,6 +211,51 @@ describe("--apply", () => {
     await apply(["--apply"]);
     const contention = posts().find((c) => c.url === METRICS && c.body.name === "agg_contention");
     expect(contention.body.filter).toContain('jsonPayload.metric="agg_contention"');
+  });
+});
+
+describe("what the operator is told after arming", () => {
+  // This text prints at the exact moment somebody arms alerting and then
+  // goes to verify, and it said all four silence policies watch an ABSENCE
+  // and cannot fire until each job has run once in production. Since
+  // D303's amendment that is the inverse for three of them: they are
+  // trailing-24h thresholds with evaluationMissingData ACTIVE, chosen
+  // precisely so a never-emitting series reads as a breach. Nothing pinned
+  // the sentence, so it went stale with the shape change.
+  //
+  // Held against the committed policy files, which are the shape itself.
+  const shapes = () => {
+    const absent = [];
+    const armed = [];
+    for (const f of readdirSync(join(root, "monitoring")).filter((f) => f.endsWith(".json"))) {
+      let body;
+      try { body = JSON.parse(readFileSync(join(root, "monitoring", f), "utf8")); } catch { continue; }
+      if (!Array.isArray(body.conditions) || !body.displayName) continue;
+      (body.conditions.some((c) => c.conditionAbsent) ? absent : armed).push(body.displayName);
+    }
+    return { absent, armed };
+  };
+
+  it("names the absence policies it actually has, and no others", async () => {
+    const { absent, armed } = shapes();
+    // Vacuity guards: the split has to be a real split, or the assertions
+    // below would hold over an empty set.
+    expect(absent.length).toBeGreaterThan(0);
+    expect(armed.length).toBeGreaterThan(0);
+    const out = await apply(["--apply"]);
+    for (const name of absent) {
+      expect(out, `${name} is an absence policy and the caveat does not name it`).toContain(name);
+    }
+    for (const name of armed) {
+      expect(out, `${name} is a threshold and the caveat calls it an absence`)
+        .not.toContain(`"${name}" is a metric-ABSENCE policy`);
+    }
+  });
+
+  it("says the rest fire from the first evaluation", async () => {
+    const out = await apply(["--apply"]);
+    expect(out).toMatch(/fire from the first evaluation/);
+    expect(out).toMatch(/evaluationMissingData ACTIVE/);
   });
 });
 

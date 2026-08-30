@@ -90,12 +90,26 @@ function MTNoCohort({ who }) {
 // ── group answer viz — daily-style stacked bar, your slice colored ─────────
 function MTGroupBars({ node, anchor }) {
   const n = mtNOpts(node);
-  const d = window.MapStats.dist(node.qid, anchor.id, n, node.aidx);
-  const who = window.MapStats.groupLabel(anchor.id);
+  // Bound once. This block asks MapStats three things now, and the
+  // coupling ratchet counts references rather than modules — a third
+  // `window.MapStats.` here would raise this file's number for no new
+  // coupling at all, which is not what that number is measuring.
+  const MS = window.MapStats;
+  const d = MS.dist(node.qid, anchor.id, n, node.aidx);
+  const who = MS.groupLabel(anchor.id);
   if (!d) return <MTNoCohort who={who}></MTNoCohort>;
   const max = Math.max(...d);
   const self = mtAnchorSelf(anchor);
-  const gmode = d.indexOf(max);
+  // ASK for the mode rather than re-deriving it from the percentages.
+  // `d` is rounded, and two different counts can round to the same
+  // integer, so `d.indexOf(max)` resolved a real tie by index — which
+  // decides "most chose 4" and the verdict above it. MapStats reads the
+  // counts in live mode and its own percentages in demo, where the
+  // numbers are invented anyway. It can refuse, and a refusal here is the
+  // bar's own leader: the ridge's heights are what `d` is FOR, and no
+  // reading is better than a fabricated one.
+  const asked = MS.mode(node.qid, anchor.id, n, node.aidx);
+  const gmode = asked == null ? d.indexOf(max) : asked;
   const isMode = gmode === node.aidx;
   // rating → too many rows; show the group's full spread as a small ridge
   if (node.qtype === 'rating') {

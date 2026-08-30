@@ -40,7 +40,7 @@
 // is the real module — the README's rule: mock the store, never the pure
 // folds, or the test stops proving the panel reads them correctly.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { KindredPerson, ParsedResults } from "../data/similarity";
 import { agreementOf } from "../data/cohort";
 
@@ -49,7 +49,15 @@ interface RoomRead { people: Array<{ uid: string; type?: string }>; qs: Record<s
 const LIVE = vi.hoisted(() => ({
   enabled: true,
   budgetPaused: false as boolean,
-  subscribe: () => () => {},
+  // Real, because the re-fold case below drives a beat through it: the
+  // field re-renders on notify, which is how a new `updatedAt` reaches its
+  // effect.
+  listeners: [] as Array<() => void>,
+  subscribe(fn: () => void) {
+    this.listeners.push(fn);
+    return () => { this.listeners = this.listeners.filter((f) => f !== fn); };
+  },
+  notify() { for (const f of [...this.listeners]) f(); },
   loadSimilarity: vi.fn(() => Promise.resolve()),
   // D278: the City stop asks for its own city-scoped pass beside the
   // unscoped one. Stubbed rather than exercised here — this file is about
@@ -72,6 +80,7 @@ const LIVE = vi.hoisted(() => ({
     room: (): RoomRead | null => null,
     roomLoading: (): boolean => false,
     loadRoom: vi.fn(() => Promise.resolve()),
+    updatedAt: (): number => 0,
   },
 }));
 
@@ -319,6 +328,22 @@ describe("the Near field is a crowd, never a directory", () => {
     }
   });
 
+  it("does not pay the similarity load for data it never reads", () => {
+    // The loader was right while this field drew the city's crowd. D181
+    // replaced the body with the presence roster and left the effect: ~110
+    // test aggregates plus twelve collection-group answer reads, charged
+    // to a viewer who opened Near and may never open the stops that read
+    // them. Everything this component draws comes from the room call and
+    // loadNames.
+    (LIVE.loadSimilarity as ReturnType<typeof vi.fn>).mockClear();
+    render(<NearField />);
+    expect(LIVE.loadSimilarity).not.toHaveBeenCalled();
+    // …and the two loads it DOES need are still made, or this would pass
+    // on a component that fetched nothing at all.
+    expect(LIVE.near.loadRoom).toHaveBeenCalled();
+    expect(LIVE.loadNames).toHaveBeenCalled();
+  });
+
   it("counts who it could place against who is there, rather than quietly dropping them", () => {
     render(<NearField />);
     // "2 of 3 here" — the person with no test is missing from the ring and
@@ -328,6 +353,52 @@ describe("the Near field is a crowd, never a directory", () => {
     expect(screen.getByText(/the rest have not taken it/)).toBeTruthy();
   });
 
+  it("does not tell a room that people who took the test have not", async () => {
+    // The field draws the closest fourteen; the server hands back up to
+    // twenty-four. The caption gave ONE reason for both — "the rest have
+    // not taken it" — so a room of twenty people who had all taken it drew
+    // fourteen and said the other six had not. About six people standing
+    // next to the reader.
+    const room = Array.from({ length: 20 }, (_, i) => ({ uid: `p${i}` }));
+    LIVE.near.room = () => ({ people: room, qs: {} });
+    LIVE.scoresFor = () => big5(50, 50, 50, 52, 48);
+    render(<NearField />);
+    expect(screen.queryByText(/have not taken it/)).toBeNull();
+    // …and it says what did happen instead.
+    expect(screen.getByText(/closest 14 of 20 who have/)).toBeTruthy();
+  });
+
+  it("still says so when people really have not taken it", () => {
+    // The contrast, or the case above would pass on a caption that simply
+    // stopped mentioning the untested.
+    const room = Array.from({ length: 6 }, (_, i) => ({ uid: `p${i}` }));
+    LIVE.near.room = () => ({ people: room, qs: {} });
+    LIVE.scoresFor = (uid: string) => (uid === "p0" || uid === "p1" ? big5(50, 50, 50, 52, 48) : null);
+    render(<NearField />);
+    expect(screen.getByText(/the rest have not taken it/)).toBeTruthy();
+    expect(screen.queryByText(/closest/)).toBeNull();
+  });
+
+  it("asks for the room again when the beat moves it underneath the field", async () => {
+    // The other half of the same defect the room TABS were fixed for, on
+    // the surface that matters more: the tab bodies exist only once a tab
+    // is tapped, and this is what the stop opens on. Mounted with an empty
+    // dep list it drew the block you had walked out of, under a headcount
+    // that moved with every beat.
+    LIVE.near.updatedAt = () => 1;
+    LIVE.near.loadRoom.mockClear();
+    render(<NearField />);
+    expect(LIVE.near.loadRoom).toHaveBeenCalledTimes(1);
+    LIVE.near.updatedAt = () => 2;
+    await act(async () => { LIVE.notify(); });
+    expect(LIVE.near.loadRoom).toHaveBeenCalledTimes(2);
+    // …and a beat that did not move must not re-ask, or the dep is a call
+    // per beat wearing a dep.
+    await act(async () => { LIVE.notify(); });
+    expect(LIVE.near.loadRoom).toHaveBeenCalledTimes(2);
+    LIVE.near.updatedAt = () => 0;
+  });
+
   it("places nobody at all when the viewer has no scores to place them against", () => {
     // A radius is a claim about a person. With no scores on the viewer's
     // side there is no distance to draw, and an invented one would be the
@@ -335,6 +406,21 @@ describe("the Near field is a crowd, never a directory", () => {
     LIVE.myTestResults = () => null;
     const { container } = render(<NearField />);
     expect(nodes(container)).toHaveLength(0);
+  });
+
+  it("and says whose turn it is — the room is not to blame for the viewer's own state", () => {
+    // The case above never looked at the sentence, and the sentence blamed
+    // the room: "Nobody here has taken the test", in a room where two of
+    // the three had, to a reader who simply has not taken it yet. That is
+    // the state every account is in before its first instrument, so it is
+    // the most common thing this field has ever said.
+    const room = [{ uid: "p0" }, { uid: "p1" }, { uid: "p2" }];
+    LIVE.near.room = () => ({ people: room, qs: {} });
+    LIVE.scoresFor = (uid: string) => (uid === "p0" || uid === "p1" ? big5(50, 50, 50, 52, 48) : null);
+    LIVE.myTestResults = () => null;
+    render(<NearField />);
+    expect(screen.getByText(/Finish a test/)).toBeTruthy();
+    expect(screen.queryByText(/Nobody here has taken the test/)).toBeNull();
   });
 });
 

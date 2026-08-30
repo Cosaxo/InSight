@@ -152,17 +152,39 @@ describe("LiveCircleBody · the row is the stop's, not the data's", () => {
     // top — while the People tab beneath, which draws the same list in
     // rankMembers order under "By likeness", puts the other one first.
     // One screen, two answers.
+    //
+    // A third member carries the OTHER end now. Thin used to fill it, by
+    // being last in a sort that pushes small samples down — which printed
+    // "mirrors you least" over the one person in the circle who had agreed
+    // with everything. The far end is the lowest printed likeness, and Far
+    // is it.
+    LIVE.circle = () => [
+      { uid: "u_thin", name: "Thin", mutual: false, like: { pct: 100, same: 1, shared: 1, rate: 0.21 }, answers: {} },
+      { uid: "u_deep", name: "Deep", mutual: false, like: { pct: 90, same: 45, shared: 50, rate: 0.81 }, answers: {} },
+      { uid: "u_far", name: "Far", mutual: false, like: { pct: 40, same: 20, shared: 50, rate: 0.27 }, answers: {} },
+    ];
+    render(<LiveCircleBody />);
+    expect(screen.getByText(/mirrors you closest/).textContent).toContain("Deep");
+    expect(screen.getByText(/mirrors you least|mirrors you closest/).textContent).toContain("Far");
+    expect(screen.getByText(/mirrors you closest/).textContent).not.toContain("Thin");
+    // …and the closest is named before the least-alike, which is the
+    // direction the sentence reads.
+    const line = screen.getByText(/mirrors you closest/).textContent || "";
+    expect(line.indexOf("Deep")).toBeLessThan(line.indexOf("Far"));
+  });
+
+  it("says nothing at all when the far end is the closest member", () => {
+    // Two placed members, one of them a 1-of-1 at 100%: the top is Deep on
+    // the bound, and the lowest PRINTED likeness is Deep as well. There is
+    // no one further from you than the person being called closest, so the
+    // line has nothing true to say and does not say it. It used to name
+    // Thin — at 100% — as the one who mirrors you least.
     LIVE.circle = () => [
       { uid: "u_thin", name: "Thin", mutual: false, like: { pct: 100, same: 1, shared: 1, rate: 0.21 }, answers: {} },
       { uid: "u_deep", name: "Deep", mutual: false, like: { pct: 90, same: 45, shared: 50, rate: 0.81 }, answers: {} },
     ];
     render(<LiveCircleBody />);
-    expect(screen.getByText(/mirrors you closest/).textContent).toContain("Deep");
-    expect(screen.getByText(/mirrors you least|mirrors you closest/).textContent).toContain("Thin");
-    // …and the closest is named before the least-alike, which is the
-    // direction the sentence reads.
-    const line = screen.getByText(/mirrors you closest/).textContent || "";
-    expect(line.indexOf("Deep")).toBeLessThan(line.indexOf("Thin"));
+    expect(screen.queryByText(/mirrors you/)).toBeNull();
   });
 
   it("says nothing when the circle is flat — nobody is closest on equal numbers", () => {

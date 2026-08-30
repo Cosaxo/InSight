@@ -5,6 +5,9 @@
 // exactly the shape the client's bank fetch and the answer rules expect.
 
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   AD_AUDIENCE_MAX,
   AD_URL_RE,
@@ -12,6 +15,7 @@ import {
   LIKERT,
   adPriceQuote,
   adStartDay,
+  adAudiencesOverlap,
   dayPlus,
   paidAdDoc,
   paidAdPurchaseDoc,
@@ -31,10 +35,11 @@ import {
   refundEurFor,
   reviewGates,
   reviewSubject,
-  utcDayKey,
   validatePaidBooking,
   type PaidBookingPayload,
 } from "./paid";
+// One name, one meaning: the day-key helpers live in pure.ts now.
+import { utcDayKey } from "./pure";
 
 const BOOKING: PaidBookingPayload = {
   kind: "question",
@@ -63,6 +68,103 @@ const AD: PaidBookingPayload = {
   dims: { city: "Oslo, NO" },
   wearName: true,
 };
+
+describe("the buyer name is read off a field the profile can actually hold", () => {
+  // The defect this pins was invisible in every other way: reading a
+  // field that does not exist returns undefined, so "wear your name"
+  // simply did nothing — no error, no log, and the composer went on
+  // previewing the name to the buyer. It also blinded the reviewer,
+  // whose rule 8 is about slurs and impersonation IN THE BUYER NAME.
+  //
+  // So the assertion is not the string. It reads the field name out of
+  // paid.ts and holds it against the key allowlist in firestore.rules —
+  // the one place that decides what a v2_users document may contain. A
+  // rename on either side reds this.
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+  const paidSrc = readFileSync(resolve(root, "functions/src/paid.ts"), "utf8");
+  const rules = readFileSync(resolve(root, "firestore.rules"), "utf8");
+
+  const allowed = (() => {
+    const block = /match \/v2_users\/\{uid\} \{[\s\S]*?hasOnly\(\[([\s\S]*?)\]\)/.exec(rules);
+    expect(block, "could not find the v2_users key allowlist in firestore.rules").toBeTruthy();
+    return [...block![1].matchAll(/"(\w+)"/g)].map((m) => m[1]);
+  })();
+
+  it("reads a key firestore.rules admits on v2_users", () => {
+    const read = /collection\("v2_users"\)[\s\S]{0,900}?prof\.get\("(\w+)"\)/.exec(paidSrc);
+    expect(read, "could not find the buyer-name profile read in paid.ts").toBeTruthy();
+    expect(allowed).toContain(read![1]);
+  });
+
+  it("and the allowlist is really the profile's, not an empty match", () => {
+    // The vacuity guard: an allowlist this test failed to parse would be
+    // an empty array, and `toContain` on an empty array fails loudly —
+    // but a WRONG block would not. Anchor it on two keys that are the
+    // profile's alone.
+    expect(allowed).toEqual(expect.arrayContaining(["displayName", "anchors", "handle"]));
+    expect(allowed).not.toContain("name");
+  });
+});
+
+describe("a validated booking survives being validated again", () => {
+  // NOT a tidiness property. The validator runs TWICE on every booking:
+  // once on the wire in bookPaidQuestionV2, and again inside reviewGates,
+  // which re-reads the STORED doc (`bookingPayloadOf`) before the model
+  // is called. So anything the validator normalizes has to be acceptable
+  // to the validator, or the booking is declined for the shape the
+  // validator itself gave it — and the buyer reads that sentence as the
+  // reason their question was refused.
+  //
+  // It has happened: the option-count bound ran BEFORE the continuum
+  // forms had their scales substituted, so "scale" (5 Likert steps) and
+  // "rating" (10) passed on the wire with the composer's empty list and
+  // were declined on re-read with "at most 4 options". Two of the five
+  // forms the composer offers could not be sold at all.
+  const round = (input: unknown) => {
+    const first = validatePaidBooking(input);
+    expect(first, `first pass rejected: ${JSON.stringify(first)}`).not.toHaveProperty("error");
+    const ok = (first as { ok: PaidBookingPayload }).ok;
+    const second = validatePaidBooking(ok);
+    expect(second, `second pass rejected: ${JSON.stringify(second)}`).not.toHaveProperty("error");
+    return { ok, again: (second as { ok: PaidBookingPayload }).ok };
+  };
+
+  // Every form the paid composer offers, with the wire shape the composer
+  // actually sends: the continuum forms send NO options, because the app
+  // owns their scales.
+  for (const type of ["binary", "choice", "scale", "rating", "dilemma"]) {
+    it(`holds for a ${type} question`, () => {
+      const wire = type === "scale" || type === "rating"
+        ? { ...BOOKING, type, options: [] }
+        : { ...BOOKING, type };
+      const { ok, again } = round(wire);
+      expect(again).toEqual(ok);
+    });
+  }
+
+  it("holds for an ad", () => {
+    const { ok, again } = round(AD);
+    expect(again).toEqual(ok);
+  });
+
+  it("and the gates agree with the validator on the stored payload", () => {
+    // The path that actually declined people: reviewGates runs the
+    // validator first, so a payload the validator rejects is a decline
+    // with the validator's own sentence.
+    for (const type of ["scale", "rating"]) {
+      const first = validatePaidBooking({ ...BOOKING, type, options: [] });
+      const stored = (first as { ok: PaidBookingPayload }).ok;
+      expect(reviewGates(stored), `${type} was declined by its own gates`).toBeNull();
+    }
+  });
+
+  it("still refuses five AUTHORED options", () => {
+    // The bound did not go away — it moved behind the substitution, so it
+    // applies to lists a buyer wrote and not to the ones the app minted.
+    expect(validatePaidBooking({ ...BOOKING, type: "choice", options: ["a", "b", "c", "d", "e"] }))
+      .toHaveProperty("error");
+  });
+});
 
 describe("validatePaidBooking", () => {
   it("accepts the composer's happy path and normalizes it", () => {
@@ -388,6 +490,77 @@ describe("adStartDay — ads queue, never overlap (D315)", () => {
   it("dayPlus speaks the same grain", () => {
     expect(dayPlus("2026-08-27", WINDOW_DAYS - 1)).toBe("2026-09-24");
     expect(dayPlus("not-a-day", 3)).toBe("not-a-day");
+  });
+});
+
+// The half `adStartDay` cannot see: WHICH running ads it should be handed.
+//
+// The queue exists so a flat-priced ad is not "silently diluted by another
+// ad… getting less for the same money". goLive selected the ads to queue
+// behind with `scope == b.scope`, and scopes are NESTED audiences, not
+// disjoint ones: a world ad matches everybody, and pickPaid gives exactly
+// ONE paid slot a day out of a single pool. So a world ad was invisible to
+// a city booking's queue and then halved it — 29 days bought, about 14
+// served, flat price paid in full.
+describe("adAudiencesOverlap — which ads actually compete for the one daily slot", () => {
+  const world = { scope: "world", place: null };
+  const oslo = { scope: "city", place: "Oslo, NO" };
+  const bergen = { scope: "city", place: "Bergen, NO" };
+  const norway = { scope: "country", place: "NO" };
+  const sweden = { scope: "country", place: "SE" };
+  const stockholm = { scope: "city", place: "Stockholm, SE" };
+
+  it("a world ad meets everyone — the case that was invisible", () => {
+    expect(adAudiencesOverlap(world, oslo)).toBe(true);
+    expect(adAudiencesOverlap(oslo, world)).toBe(true);
+    expect(adAudiencesOverlap(world, norway)).toBe(true);
+    expect(adAudiencesOverlap(world, world)).toBe(true);
+  });
+
+  it("a country ad meets the cities inside it and no others", () => {
+    // Derivable exactly: a city place is "<name>, <CC>" and a country
+    // place is that same ISO code (pure.ts pins both shapes).
+    expect(adAudiencesOverlap(norway, oslo)).toBe(true);
+    expect(adAudiencesOverlap(oslo, norway)).toBe(true);
+    expect(adAudiencesOverlap(norway, stockholm)).toBe(false);
+    expect(adAudiencesOverlap(sweden, stockholm)).toBe(true);
+  });
+
+  it("two different cities do not meet, and neither do two different countries", () => {
+    // The half that must NOT over-queue: making everything overlap would
+    // park a Bergen campaign behind an Oslo one for a month for nothing.
+    expect(adAudiencesOverlap(oslo, bergen)).toBe(false);
+    expect(adAudiencesOverlap(norway, sweden)).toBe(false);
+    expect(adAudiencesOverlap(oslo, oslo)).toBe(true);
+    expect(adAudiencesOverlap(norway, norway)).toBe(true);
+  });
+
+  it("an unrecognised shape counts as overlapping", () => {
+    // The two errors are not equal. Queueing two ads that never meet costs
+    // the second buyer TIME; failing to queue two that do costs them half
+    // of what they paid for, silently. So a missing place, a malformed
+    // city, or a scope this function does not know queues rather than
+    // shares.
+    expect(adAudiencesOverlap({ scope: "city", place: null }, oslo)).toBe(true);
+    expect(adAudiencesOverlap({ scope: "city", place: "Oslo" }, norway)).toBe(true);
+    expect(adAudiencesOverlap({ scope: "", place: null }, oslo)).toBe(true);
+    expect(adAudiencesOverlap({}, {})).toBe(true);
+  });
+
+  it("composed with adStartDay: the world ad now pushes the city booking", () => {
+    const NOW = Date.UTC(2026, 7, 26, 12);
+    const running = [
+      { scope: "world", place: null, window: { until: "2026-09-24" } },
+      { scope: "city", place: "Bergen, NO", window: { until: "2026-10-30" } },
+    ];
+    const mine = oslo;
+    const queued = running
+      .filter((r) => adAudiencesOverlap(mine, r))
+      .map((r) => r.window);
+    // The world ad is queued behind; Bergen's later window is NOT, because
+    // it never meets an Oslo reader.
+    expect(queued).toEqual([{ until: "2026-09-24" }]);
+    expect(adStartDay(queued, NOW)).toBe("2026-09-25");
   });
 });
 

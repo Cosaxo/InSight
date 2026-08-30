@@ -192,6 +192,34 @@ describe("axisRank counts people instead of assuming a spread", () => {
     expect(rank).toEqual({ outOfTen: 9, people: NORM_MIN_PEOPLE, above: true });
   });
 
+  it("says nothing rather than 'higher than 5 in 10'", () => {
+    // The comment beside this used to claim that choosing a side before
+    // rounding prevented the middle from printing as five. It does not: at
+    // an even split both sides round to five, and so does anything from
+    // 45% to 55% — the widest band on the axis. "Higher than 5 in 10" is
+    // the same unsupportable sentence the 1..9 clamp refuses at the ends.
+    L.enabled = true;
+    // Exactly half below, half above.
+    L.kindredPeople = () => [...crowd(10, 10, "lo"), ...crowd(10, 90, "hi")];
+    expect(axisRank("big5", "O", 50)).toBeNull();
+    // …and the band around it, not only the exact tie: 13 of 25 below is
+    // 52%, which rounds to five on the high side, and 12 of 25 is 48%,
+    // which rounds to five on the low one.
+    L.kindredPeople = () => [...crowd(13, 10, "lo"), ...crowd(12, 90, "hi")];
+    expect(axisRank("big5", "O", 50)).toBeNull();
+    L.kindredPeople = () => [...crowd(12, 10, "lo"), ...crowd(13, 90, "hi")];
+    expect(axisRank("big5", "O", 50)).toBeNull();
+  });
+
+  it("still speaks once the reading is off the middle", () => {
+    // The contrast, or the case above would pass on a function that had
+    // simply stopped answering.
+    L.enabled = true;
+    L.kindredPeople = () => [...crowd(13, 10, "lo"), ...crowd(7, 90, "hi")];
+    const rank = axisRank("big5", "O", 50);
+    expect(rank).toMatchObject({ outOfTen: 7, above: true });
+  });
+
   it("reads the low side as a low-side share, not its complement", () => {
     // 8 of 20 below you → you are under the median, and the sentence is
     // "lower than 6 in 10", not "higher than 4 in 10".

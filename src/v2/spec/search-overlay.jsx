@@ -283,12 +283,26 @@ function SearchOverlay({ onClose, onPerson, samplePeople }) {
   };
 
   const qRow = (qq) => {
-    const isOpen = openQ && openQ.id === qq.id;
+    // The feed's own card, and the feed is a DIFFERENT deferred chunk from
+    // this overlay's — main.jsx starts loadWorldFeed and loadOverlays as
+    // concurrent promises, neither awaiting the other, and a chunk that
+    // fails is never retried for the rest of the session. Unguarded, a tap
+    // on a question hit rendered `undefined` as an element type and the
+    // boundary took the whole search overlay — query, results and all — for
+    // a screen the user opened to read one card. daily-split.jsx guards the
+    // identical read and degrades to no feed node; this is the same
+    // degradation, back to the collapsed row.
+    //
+    // Held in a local rather than guarded in place: `window.X && <window.X>`
+    // is two shared-global references where the tag alone is one, and
+    // check:globals rule 4 may only move down.
+    const WF = window.WorldFeed;
+    const isOpen = WF && openQ && openQ.id === qq.id;
     if (isOpen) {
       return (
         <div key={qq.id} data-openq="1" style={{ position: 'relative', border: '1px solid color-mix(in oklch, var(--accent) 32%, var(--rule))', borderRadius: 18, padding: '4px 12px 8px', margin: '6px 0 10px', background: 'var(--surface-2)', boxShadow: 'var(--shadow-card)' }}>
           <button className="press tap44" aria-label="Close question" onClick={() => setOpenQ(null)} style={{ position: 'absolute', top: 12, right: 12, zIndex: 2, width: 26, height: 26, borderRadius: '50%', border: '0.5px solid var(--rule)', background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, WebkitAppearance: 'none' }}>✕</button>
-          <window.WorldFeed focus={[qq]} cats={{}} onToggle={() => {}} beats={false}
+          <WF focus={[qq]} cats={{}} onToggle={() => {}} beats={false}
             opts={{ pass: false, clock: false, ripple: false, why: false }}
             onVote={() => setVotes(srchVotes())} />
         </div>

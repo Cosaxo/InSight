@@ -33,7 +33,7 @@ on:
         type: boolean
         default: false
       amount:
-        description: "Monthly figure (integer, billing-account currency). Empty = monitoring/rates.json guard.maxNetBurnUsdPerMonth — the same number the pulse guard reds on."
+        description: "Monthly figure (positive integer) in the BILLING ACCOUNT's currency, which is NOK — not USD. Empty = monitoring/rates.json guard.budget.amount (500 NOK), the pulse guard's $50 tolerance in the account's own money. Typing 50 here arms a 50 NOK budget, about a tenth of the intended one."
         type: string
         required: false
         default: ""

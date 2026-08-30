@@ -18,15 +18,30 @@ function cbRand(seed) { let h = 2166136261; const s = String(seed); for (let i =
 const cbEaseOut = (x) => 1 - Math.pow(1 - x, 3);
 const cbEaseInOut = (x) => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 
-function ConsequenceBeat({ seed, options, pcts, mineIdx, height = 220, onDone }) {
+function ConsequenceBeat({ seed, options, pcts, counts, mineIdx, height = 220, onDone }) {
   const rootRef = React.useRef(null), canvasRef = React.useRef(null), doneRef = React.useRef(false);
   const finish = () => { if (!doneRef.current) { doneRef.current = true; onDone && onDone(); } };
-  const maxP = Math.max(...pcts), minP = Math.min(...pcts), mineP = pcts[mineIdx];
+  const maxP = Math.max(...pcts), mineP = pcts[mineIdx];
   // name the side you picked — the number alone was never the payoff
   const mineLabel = (options[mineIdx] && options[mineIdx].label) || '';
   const chose = mineP + '% chose ' + mineLabel;
-  const msg = mineP === maxP ? chose + ' \u2014 you\u2019re with them'
-    : mineP === minP ? 'only ' + chose + ' \u2014 you\u2019re the rare side'
+  // THE NUMBER IS A PERCENTAGE; THE VERDICT IS ABOUT VOTES. `sharePcts`
+  // never inverts two counts but it can round them to the SAME integer,
+  // so deciding "you're with them" off `pcts` told a voter with strictly
+  // fewer votes that they had won — the same defect fixed on the line
+  // under the card, which this beat is shown immediately before. Reading
+  // both off percentages was at least self-consistent; reading one off
+  // each would have made the beat contradict the line two seconds later.
+  //
+  // `counts` is optional so a caller that has none degrades exactly as
+  // before rather than throwing. Today world-feed's renderBeat is the
+  // only caller and it always has them.
+  const rank = counts && counts.length === pcts.length ? counts : pcts;
+  // Not `maxR` — that name is a RADIUS further down and shadowing it here
+  // would read as the same quantity.
+  const topRank = Math.max(...rank), lowRank = Math.min(...rank), myRank = rank[mineIdx];
+  const msg = myRank === topRank ? chose + ' \u2014 you\u2019re with them'
+    : myRank === lowRank ? 'only ' + chose + ' \u2014 you\u2019re the rare side'
     : chose + ' \u2014 you among them';
 
   React.useEffect(() => {

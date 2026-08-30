@@ -14,7 +14,7 @@
 // converting test-definitions.js made that fallback dead code, so it went too.
 import { IS_TESTS, IS_TEST_RESULTS, TEST_HUE } from './test-definitions.js';
 
-// passive-progress.js — progress for the five core tests. Only a test's OWN
+// passive-progress.js — progress for the four core tests. Only a test's OWN
 // questions count: they surface as marked cards in the World feed (TEST_FEED_QS)
 // or get answered in the test itself. Regular feed questions carry no signal.
 // Staggered demo seeds included. Plain script.

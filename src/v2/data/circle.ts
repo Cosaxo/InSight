@@ -41,8 +41,10 @@ import {
   collectionGroup,
   deleteDoc,
   doc,
+  documentId,
   getDocs,
   limit as fsLimit,
+  orderBy,
   query,
   serverTimestamp,
   setDoc,
@@ -50,6 +52,7 @@ import {
   type Firestore,
 } from "firebase/firestore";
 import { agreement, type Agreement } from "./cohort";
+import { chunkUids } from "./voters";
 import { WORLD_ANSWER_SURFACES } from "./voters";
 
 /**
@@ -154,13 +157,32 @@ export function capFollows(uids: readonly string[], cap = FOLLOW_CAP): string[] 
 export async function fetchFollowing(db: Firestore, uid: string): Promise<string[]> {
   const snap = await getDocs(query(
     collection(db, "v2_users", uid, "following"),
+    // ORDERED BEFORE THE CAP, not after it. This ordered the page once it
+    // was in hand — which reorders whatever Firestore already chose, and
+    // an unordered `limit` takes documents by NAME. So an account over the
+    // cap kept the alphabetically-first fifty target uids while the
+    // comment here claimed the oldest fifty, and the rest of their circle
+    // vanished with nothing saying so.
+    //
+    // Reachable, because the cap is client-only and leaky: the follow
+    // button gates on a cached circle that is null until the Circle stop
+    // has been opened, and `firestore.rules` caps nothing. Somebody adding
+    // people from who-voted sheets can pass fifty without ever seeing the
+    // stop that would have stopped them.
+    //
+    // No index needed and none added: this is one document's subcollection
+    // ordered on a single field, which Firestore indexes automatically —
+    // the override in firestore.indexes.json ADDS a collection-group index
+    // for `to` and exempts nothing. `at` is safe to order on because rules
+    // require it on every row (`hasOnly(["at","to"])`, `at == request.time`),
+    // so no follow can be dropped for lacking the field.
+    orderBy("at"),
     fsLimit(FOLLOW_CAP),
   ));
   return snap.docs
     .map((d) => ({ id: d.id, at: (d.data().at as { seconds?: number } | undefined)?.seconds || 0 }))
-    // Oldest first so the cap is stable across sessions: ordering by an
-    // unindexed field server-side would need an index for a list this
-    // small, and the sort is free once the page is in hand.
+    // The server has ordered them; this only settles same-instant ties,
+    // which two follows made in one batch can genuinely have.
     .sort((a, b) => a.at - b.at || a.id.localeCompare(b.id))
     .map((d) => d.id);
 }
@@ -168,10 +190,32 @@ export async function fetchFollowing(db: Firestore, uid: string): Promise<string
 /**
  * Which of `uids` follow `me` back.
  *
- * One collection-group query on `to`, not one query per candidate. The
- * `to` field exists for deleteAccount (a collection-group query cannot
- * filter on a document id) and this is its second reader — the mutual
- * flag comes free off an index that had to exist anyway.
+ * ASKED FOR EXACTLY THE ROWS IT WANTS, which is the fix for a count that
+ * was bounded on the wrong side of the join. This used to fetch a page of
+ * "everyone who follows me" — `where("to","==",me)` with a 100-row cap, no
+ * ordering, nothing tying the page to `among` — and then intersect it on
+ * the device. Firestore's implicit order is by path, so past 100 followers
+ * the page was the lexicographically-first hundred, chosen without
+ * reference to the people actually being asked about: every mutual outside
+ * that slice read as false. The Circle then printed "N follow you back"
+ * too low, dropped the badge from real mutuals, and at zero told someone
+ * whose circle DOES follow them back that following is one-way. The
+ * follower count is entirely outside the viewer's control, and rules cap
+ * it at nothing.
+ *
+ * The rows wanted are `v2_users/{candidate}/following/{me}` — every path
+ * fully known, because a follow's document id IS its target. So the query
+ * names them: `documentId() in [...]`, thirty at a time, which is Firestore's
+ * limit on `in`. Fewer reads than the old page (at most one per candidate,
+ * ≤50, against a flat 100) and exact at any follower count.
+ *
+ * The `to` equality STAYS, and not as a leftover. `firestore.rules` gates
+ * the collection group on `resource.data.to == request.auth.uid`, and D65's
+ * measured lesson is that a collection-group read must carry the matching
+ * `where` or Firestore refuses the whole query rather than filtering it.
+ * Verified against the real rules in an emulator, not reasoned about: the
+ * two filters together return exactly the candidates who follow back,
+ * including ones the old page could never reach.
  */
 export async function fetchFollowersOf(
   db: Firestore,
@@ -179,17 +223,20 @@ export async function fetchFollowersOf(
   among: readonly string[],
 ): Promise<Set<string>> {
   if (!among.length) return new Set();
-  const snap = await getDocs(query(
-    collectionGroup(db, "following"),
-    where("to", "==", me),
-    fsLimit(FOLLOW_CAP * 2),
-  ));
-  const set = new Set(among);
   const out = new Set<string>();
-  for (const d of snap.docs) {
-    // The follower is the uid that OWNS the row: v2_users/{follower}/following/{me}
-    const owner = d.ref.parent.parent?.id;
-    if (owner && set.has(owner)) out.add(owner);
+  // 30 is the `in` limit. `chunkUids` dedupes and preserves order, which is
+  // the same helper the voter reads use for the same reason.
+  for (const chunk of chunkUids(among, 30)) {
+    const snap = await getDocs(query(
+      collectionGroup(db, "following"),
+      where("to", "==", me),
+      where(documentId(), "in", chunk.map((u) => doc(db, "v2_users", u, "following", me))),
+    ));
+    for (const d of snap.docs) {
+      // The follower is the uid that OWNS the row: v2_users/{follower}/following/{me}
+      const owner = d.ref.parent.parent?.id;
+      if (owner) out.add(owner);
+    }
   }
   return out;
 }

@@ -202,9 +202,22 @@ export default function LiveRoomTabs({ tab }: { tab: string }) {
 
   const deck = LIVE.deck();
   const qids = React.useMemo(() => deck.map((q) => q.id).join(","), [deck]);
+  // …AND THE BEAT, not the deck alone. The room is per CELL, and the cell
+  // changes underneath this component while it stays mounted — `loadRoom`'s
+  // own docstring says "walking into the next cell re-folds", and with the
+  // deck as the only dep nothing ever re-ran, so the tabs kept naming the
+  // people from the block you left. The same dep is what makes the failure
+  // note below true: a failed fold clears the cached cell, so the next
+  // settled count really does retry it.
+  //
+  // Cheap on every other beat: `loadRoom` returns at once when the cell it
+  // holds is the current one and the deck's questions are already folded —
+  // no call, no notify. `updatedAt` is stamped on each settled beat, one
+  // line before the cell it belongs to.
+  const beat = LIVE.near.updatedAt();
   React.useEffect(() => {
     void LIVE.near.loadRoom(qids ? qids.split(",") : []);
-  }, [qids]);
+  }, [qids, beat]);
 
   const room = LIVE.near.room();
   const loading = LIVE.near.roomLoading();

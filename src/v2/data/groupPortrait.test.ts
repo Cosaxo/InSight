@@ -151,6 +151,38 @@ describe("twin / contrarian need a spread, not just a sample", () => {
     expect(p.contrarian).toBeNull();
   });
 
+  // The sort is `likenessRate` — a lower bound, so a thin sample sits low
+  // whatever it agreed on. Reading the dissenter off the END of that sort
+  // therefore named the member with the least DATA, not the least agreement,
+  // and the row beside the label showed their real number.
+  it("does not call the member who agreed with everything a dissenter", () => {
+    // Ada shares fourteen days and agrees on thirteen (93%); Bo joins for the
+    // last two and agrees on both (100%). Bo sorts last on the bound (.55
+    // against .79) and used to be printed "breaks ranks" beside a full bar.
+    const days = [];
+    for (let d = 1; d <= 12; d++) days.push(rev(d, { me: 0, ann: 0 }));
+    days.push(rev(13, { me: 0, ann: 1, bo: 0 }));
+    days.push(rev(14, { me: 0, ann: 0, bo: 0 }));
+    const p = groupPortrait(days, "me");
+    const pct = Object.fromEntries(p.people.map((x) => [x.uid, x.pct]));
+    expect(pct).toEqual({ ann: 93, bo: 100 });
+    expect(p.twin!.uid).toBe("ann");
+    expect(p.contrarian, "called the 100% member a dissenter").toBeNull();
+  });
+
+  it("names the lowest PRINTED likeness when one is genuinely below the twin", () => {
+    // Same shape with a third member who really is further away: the
+    // sentence has something true to say, so it says it — and it names cy
+    // (40%) rather than whoever the bound happened to put last.
+    const days = [];
+    for (let d = 1; d <= 12; d++) days.push(rev(d, { me: 0, ann: 0, cy: d <= 7 ? 1 : 0 }));
+    days.push(rev(13, { me: 0, ann: 1, bo: 0, cy: 1 }));
+    days.push(rev(14, { me: 0, ann: 0, bo: 0, cy: 1 }));
+    const p = groupPortrait(days, "me");
+    expect(p.twin!.uid).toBe("ann");
+    expect(p.contrarian!.uid).toBe("cy");
+  });
+
   it("still names both when there is a real spread", () => {
     const p = groupPortrait([
       rev(1, { me: 0, ann: 0, cy: 1 }),

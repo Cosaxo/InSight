@@ -37,9 +37,13 @@ function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
     model: (PatternsModel & { lastDay?: string }) | null;
     users: Map<string, PatternsUserState>;
     putModelCalls: number;
+    breakPutModelOnce: boolean;
     quality: PatternsQuality | null;
     displacement: PatternsDisplacement | null;
-  } = { model: null, users: new Map(), putModelCalls: 0, quality: null, displacement: null };
+  } = {
+    model: null, users: new Map(), putModelCalls: 0,
+    breakPutModelOnce: false, quality: null, displacement: null,
+  };
   const store: PatternsStore = {
     async ledgerDay(day) { return ledger[day] ?? []; },
     // the real store hands the series back off the published doc — the
@@ -48,18 +52,35 @@ function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
       return state.model ? { ...state.model, series: state.quality?.series ?? [] } : null;
     },
     async putModel(model, lastDay, folded, quality, displacement) {
+      if (state.breakPutModelOnce) {
+        state.breakPutModelOnce = false;
+        throw new Error("model write lost");
+      }
       state.model = { ...model, lastDay };
       state.quality = quality;
       state.displacement = displacement;
       state.putModelCalls++;
       void folded;
     },
+    // PROJECTED, field by field, exactly as firestorePatternsStore does —
+    // and it used to hand back the same object REFERENCE, so anything the
+    // fold hung on the state survived here for free while the real store
+    // named `v` and `n` and nothing else. That is how the retry guard
+    // shipped dead. A fake that carries more than its subject proves
+    // nothing about it.
     async getUsers(uids) {
       const out = new Map<string, PatternsUserState>();
-      for (const uid of uids) { const s = state.users.get(uid); if (s) out.set(uid, s); }
+      for (const uid of uids) {
+        const s = state.users.get(uid);
+        if (s) out.set(uid, { v: [...s.v], n: s.n, ...(s.d ? { d: s.d } : {}) });
+      }
       return out;
     },
-    async putUsers(states) { for (const [uid, s] of states) state.users.set(uid, s); },
+    async putUsers(states) {
+      for (const [uid, s] of states) {
+        state.users.set(uid, { v: [...s.v], n: s.n, ...(s.d ? { d: s.d } : {}) });
+      }
+    },
   };
   return { store, state };
 }
@@ -111,6 +132,47 @@ describe("idempotence and catch-up", () => {
     const again = await runPatternsFit(store, NOW);
     expect(again.folded).toBe(0);
     expect(state.model?.q[CORE_A].n).toBe(1);
+  });
+
+  // THE CRASH the case above cannot reach. "A second run the same
+  // morning" works because the cursor was written; the cursor is written
+  // ONCE, after the whole catch-up loop, while the user vectors are
+  // written per day — so a crash inside the loop leaves the cursor behind
+  // and the next run re-reads days those vectors already carry.
+  // `foldUserDay` is a step, not a set, so it moved every touched
+  // person's coordinate twice.
+  it("a crash before the model is published does not step a vector twice", async () => {
+    const { store, state } = memoryStore({
+      [yesterday]: [{ uid: "u1", qid: CORE_A, optionIdx: 0 }],
+    });
+    state.breakPutModelOnce = true;
+    await expect(runPatternsFit(store, NOW)).rejects.toThrow("model write lost");
+    const after = state.users.get("u1")!;
+    expect(after.n, "the vector was written before the crash").toBe(1);
+    expect(after.d, "and stamped with the day it folded").toBe(yesterday);
+    expect(state.model, "the cursor never landed").toBeNull();
+
+    const again = await runPatternsFit(store, NOW);
+    expect(
+      state.users.get("u1")!.n,
+      "the vector was stepped twice — the crash left the cursor behind and "
+      + "the retry re-read a day this person already carries",
+    ).toBe(1);
+    expect(again.folded).toBe(0);
+    expect(again.users).toBe(0);
+  });
+
+  it("a vector written before the stamp existed folds once, not never", async () => {
+    // Every vector in production predates `d`. An absent stamp has to mean
+    // "fold it", or this fix would freeze every existing coordinate.
+    const { store, state } = memoryStore({
+      [yesterday]: [{ uid: "u1", qid: CORE_A, optionIdx: 0 }],
+    });
+    state.users.set("u1", { v: [0, 0, 0, 0, 0, 0, 0, 0], n: 3 });
+    const r = await runPatternsFit(store, NOW);
+    expect(r.folded).toBe(1);
+    expect(state.users.get("u1")!.n).toBe(4);
+    expect(state.users.get("u1")!.d).toBe(yesterday);
   });
 
   it("a missed night folds on the next run, oldest day first", async () => {
@@ -176,6 +238,60 @@ describe("idempotence and catch-up", () => {
     await runPatternsFit(plain.store, NOW);
     expect(edited.state.users.get("u1")).toEqual(plain.state.users.get("u1"));
     expect(edited.state.model?.q).toEqual(plain.state.model?.q);
+  });
+
+  it("an edit made on a LATER day is a revision, not a second person", async () => {
+    // The case the per-day dedupe could not see, and the common one: an
+    // edit has no day window, so most of them land after the day the
+    // answer was folded. Read as a first answer it put the same person in
+    // `n` twice and left both answers in `sum` — thirty people who said 0
+    // and changed to 1 published `{n: 60, marginal: 0}` where the truth is
+    // `{n: 30, marginal: +1}`.
+    const dayA = utcDay(NOW, -2);
+    const dayB = utcDay(NOW, -1);
+    const N = 30;
+    const ledger: Record<string, PatternsLedgerEntry[]> = { [dayA]: [], [dayB]: [] };
+    for (let i = 0; i < N; i++) {
+      const uid = `u${i}`;
+      ledger[dayA].push({ uid, qid: CORE_A, optionIdx: 1 });
+      // the edit: option 1 → option 0, carrying what it moved away from
+      ledger[dayB].push({ uid, qid: CORE_A, optionIdx: 0, fromIdx: 1 });
+    }
+    const { store, state } = memoryStore(ledger);
+    await runPatternsFit(store, NOW);
+    const L = state.model!.q[CORE_A];
+    expect(L.n, "the population did not grow — one member changed their mind").toBe(N);
+    expect(L.sum / L.n, "everyone now says option 0, which encodes +1").toBe(1);
+  });
+
+  it("counts the person once even when the create and the edit share a day", async () => {
+    // The other order, which the per-day dedupe already handled and must
+    // keep handling: a create and an edit on the same day is one person
+    // with their final answer, never a revision of something unfolded.
+    const { store, state } = memoryStore({
+      [yesterday]: [
+        { uid: "u1", qid: CORE_A, optionIdx: 1 },
+        { uid: "u1", qid: CORE_A, optionIdx: 0, fromIdx: 1 },
+      ],
+    });
+    await runPatternsFit(store, NOW);
+    const L = state.model!.q[CORE_A];
+    expect(L.n).toBe(1);
+    expect(L.sum).toBe(1);
+  });
+
+  it("folds an edit written before the ledger carried fromIdx exactly as it used to", async () => {
+    // History is not rewritten. An entry with no `fromIdx` is a first
+    // answer by definition, so rows already in the ledger keep folding the
+    // way they were folded — the fix is forward-looking and says so.
+    const dayA = utcDay(NOW, -2);
+    const dayB = utcDay(NOW, -1);
+    const { store, state } = memoryStore({
+      [dayA]: [{ uid: "u1", qid: CORE_A, optionIdx: 1 }],
+      [dayB]: [{ uid: "u1", qid: CORE_A, optionIdx: 0 }],
+    });
+    await runPatternsFit(store, NOW);
+    expect(state.model!.q[CORE_A].n).toBe(2);
   });
 
   it("still folds two DIFFERENT questions from one person", async () => {

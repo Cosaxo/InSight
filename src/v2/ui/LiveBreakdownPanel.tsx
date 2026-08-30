@@ -457,7 +457,18 @@ function LbFriends({ qid, options, mine }: {
     });
 
   if (!rows.length) {
-    return <LbNote>None of the people you follow has answered this yet.</LbNote>;
+    // "In what this session read", not "at all". `voters` is the newest
+    // VOTER_FETCH_CAP answers, so a friend who answered early on a busy
+    // question is not in the list — and the type and logic cuts in this
+    // same file already say "Of the N answers this session has read" for
+    // exactly that reason. A census claim over a truncated sample is the
+    // one thing this panel's other cuts are careful not to make.
+    return (
+      <LbNote>
+        None of the people you follow is in the {voters.length.toLocaleString()}
+        {" "}answers this session has read.
+      </LbNote>
+    );
   }
 
   const same = mine >= 0 ? rows.filter((v) => v.optionIdx === mine).length : 0;
@@ -471,6 +482,13 @@ function LbFriends({ qid, options, mine }: {
           ? `${same} of ${rows.length} ${rows.length === 1 ? "friend is" : "friends are"} on your side`
           : `How your ${rows.length === 1 ? "friend" : "friends"} answered`}
       </div>
+      {/* The denominator is what this session READ, not how many of your
+          friends answered — the same caveat the type and logic cuts carry,
+          and for the same reason: `voters` is capped at the newest
+          VOTER_FETCH_CAP. Said once, under the headline it qualifies. */}
+      <LbNote>
+        Of the {voters.length.toLocaleString()} answers this session has read.
+      </LbNote>
       {rows.map((v) => {
         const fill = sideFill(v.optionIdx, options.length);
         return (
@@ -842,6 +860,15 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
               const bMean = rating ? meanScore(b.counts) : null;
               const oMean = rating ? meanScore(overall) : null;
               const meanGap = bMean && oMean ? bMean.mean - oMean.mean : 0;
+              // DECIDE ON THE NUMBER THIS PRINTS, not on the one behind
+              // it. The sentence below draws the gap to one decimal and
+              // used to gate on the raw float at `>= 0.1`, so a gap of
+              // 0.06 — which draws as "0.1" — fell into the other arm and
+              // said "land right where everyone lands". Half of every gap
+              // that rounds to a tenth said it, and the reader has no way
+              // to tell those apart from the ones that print 0.1 and are
+              // called a difference.
+              const gapShown = Math.abs(meanGap).toFixed(1);
               return (
                 <>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
@@ -860,10 +887,10 @@ function LiveBreakdownPanel({ qid, options, mine = -1, renderBody, kind }: {
                       reader has to interpret. */}
                   <div style={{ fontFamily: "var(--sans)", fontSize: 11.5, fontWeight: 600, color: "var(--ink-3)", lineHeight: 1.5, textWrap: "pretty" }}>
                     {rating ? (
-                      bMean && oMean && Math.abs(meanGap) >= 0.1
+                      bMean && oMean && gapShown !== "0.0"
                         ? <>
                           {label} average <strong style={{ color: "var(--ink-2)" }}>{bMean.mean.toFixed(1)}</strong>
-                          {" "}— {Math.abs(meanGap).toFixed(1)} {meanGap > 0 ? "above" : "below"} everyone.
+                          {" "}— {gapShown} {meanGap > 0 ? "above" : "below"} everyone.
                         </>
                         : <>{label} land right where everyone lands.</>
                     ) : d && d.gap > 0

@@ -17,7 +17,7 @@
 // profile, which is where those surfaces live.
 
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { IS_DATA } from "../spec/sample-data.js";
 import { openHeaderOverlay,
   expectOpened, mountApp, openVia, registerSmokeHooks, SMOKE_TIMEOUT_MS,
@@ -148,10 +148,23 @@ describe("the overlays with no button — opened through the nav registry", () =
   // ── the other half: the chunk that never arrives ────────────────────
   //
   // Everything above runs with loadOverlays() already resolved, so it only ever
-  // exercises the happy path. These five components ship in a chunk that loads
+  // exercises the happy path. These four components ship in a chunk that loads
   // after first paint, and app-shell reads each off `window` rather than as a
   // bare identifier precisely so a failed load degrades to a blank instead of a
   // ReferenceError that takes the whole shell down.
+  //
+  // FOUR, and the table below is the list — it said five while holding four,
+  // which is the drift that matters most in a table that is itself the
+  // coverage claim. The two overlays in that chunk NOT here are the two
+  // app-shell renders as bare identifiers: relmap, whose own note gives the
+  // reason, and search. Neither can be reached with its name unbound —
+  // openOverlay awaits the chunk and returns on failure, so `ov` never
+  // becomes theirs — and neither can gain the guard cheaply: `window.X &&
+  // <window.X>` is two shared-global references where a bare tag is one, so
+  // check:globals rule 4 refuses it as new coupling. Measured, not assumed:
+  // guarding the search site takes app-shell.jsx from 39 to 40 and fails the
+  // ratchet. The day either name becomes a real import, the guard comes with
+  // it and this table grows a row.
   //
   // Nothing else in this repo can catch that. `check:globals` and eslint's
   // no-undef are name-level and see a legitimately-defined global either way;
@@ -159,9 +172,38 @@ describe("the overlays with no button — opened through the nav registry", () =
   // loaded. Deleting the global is the only way to render the frame a broken
   // chunk produces.
   //
-  // Mutation-checked: restoring any of these five to a bare identifier in
+  // Mutation-checked: restoring any of these four to a bare identifier in
   // app-shell.jsx fails exactly its own row here on the boundary assertion, and
   // passes again on revert.
+  // The overlay chunk landing is not the only thing a search hit needs. The
+  // expanded row renders the FEED's card, and the feed is a different
+  // deferred chunk — main.jsx starts both loaders without either awaiting
+  // the other, and a failed chunk is never retried. Unguarded, the tap
+  // rendered undefined as an element type and the boundary took the whole
+  // search overlay. This is the one case in the file where the missing name
+  // belongs to a chunk other than the one under test.
+  it("expands a search hit with the feed chunk missing — a collapsed row, not a snag", async () => {
+    const WorldFeed = window.WorldFeed;
+    expect(WorldFeed, "the feed never registered — this case would prove nothing").toBeTruthy();
+    delete window.WorldFeed;
+    try {
+      const expectNoBoundary = mountApp();
+      await openVia("openOverlay", "search");
+      const field = screen.getByPlaceholderText(/questions, topics, people/i);
+      await act(async () => {
+        fireEvent.change(field, { target: { value: "a" } });
+      });
+      const hit = document.querySelector("button.search-hit");
+      expect(hit, "no search hit to tap — the query matched nothing").toBeTruthy();
+      await act(async () => {
+        fireEvent.click(hit);
+      });
+      expectNoBoundary("search hit, feed chunk missing");
+    } finally {
+      window.WorldFeed = WorldFeed;
+    }
+  });
+
   describe("a failed overlay chunk degrades rather than crashing", () => {
     const GUARDED = [
       ["SuggestOverlay", "openSuggestions", []],

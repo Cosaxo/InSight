@@ -62,6 +62,44 @@ export default defineConfig([
       globals: globals.browser,
     },
   },
+  // The dev-only tweaks panel. Ordinary ESM JSX — outside the spec layer's
+  // global bridge, and outside src/v2, which is the only JS/JSX glob any
+  // block below names. So it resolved to ZERO rules, for exactly the reason
+  // scripts/ did before the block above existed: `npm run lint` walked it,
+  // reported nothing, and said nothing. Measured with eslint's own resolver
+  // ("File ignored because no matching configuration was supplied").
+  //
+  // Not folded into the spec-layer block underneath: that one seeds the
+  // shared globals and switches `no-unused-vars` off because a spec module
+  // exports by publishing a name. Neither is true here, and both would cost
+  // this file the two rules most likely to catch something in it.
+  {
+    files: ['src/dev/**/*.{js,jsx}'],
+    extends: [
+      js.configs.recommended,
+      reactHooks.configs.flat.recommended,
+    ],
+    languageOptions: {
+      ecmaVersion: 2022,
+      globals: globals.browser,
+      parserOptions: {
+        ecmaFeatures: { jsx: true },
+      },
+    },
+    rules: {
+      // OFF, and for a reason that is not the spec layer's. The base
+      // `no-unused-vars` does not count a name used as a JSX TAG — that
+      // takes eslint-plugin-react's `jsx-uses-vars`, which this repo does
+      // not carry (the .tsx block gets it free from typescript-eslint's
+      // own scope analysis). With it on, this file reports seven
+      // components as unused while five of them render inside the ones
+      // above; every report would be false. Everything else applies —
+      // no-undef, the hooks rules, no-dupe-keys, no-unreachable — and
+      // those are the rules with something to catch here. Adding
+      // eslint-plugin-react is what turns this back on.
+      'no-unused-vars': 'off',
+    },
+  },
   // The ported spec layer (src/v2/spec + its loaders). Files talk
   // through the shared global scope by design, so a bare cross-module
   // reference is normal here and eslint cannot resolve one on its own.

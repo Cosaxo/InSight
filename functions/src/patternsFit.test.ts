@@ -90,6 +90,79 @@ function runFit(people: number, days: number, score?: ReturnType<typeof emptyDay
   return model;
 }
 
+describe("a revision moves the marginal without adding a person", () => {
+  // `n` and `sum` are counts of PEOPLE. An edit is the same person saying
+  // something else, so it is -old/+new on the sum and nothing at all on
+  // the count — the same delta the aggregate counts take on an edit, for
+  // the same reason. Theta still steps: that consequence is recorded as
+  // considered and accepted where the edit trigger lives.
+  const obs = (qid: string, x: number, prev?: number) =>
+    (prev === undefined ? [{ qid, x }] : [{ qid, x, prev }]);
+
+  it("leaves n alone and moves sum by the delta", () => {
+    const model: PatternsModel = { k: PATTERNS_K, q: {} };
+    const user = emptyUser(PATTERNS_K);
+    foldUserDay(model, user, obs("q", -1));
+    expect(model.q.q.n).toBe(1);
+    expect(model.q.q.sum).toBe(-1);
+    foldUserDay(model, user, obs("q", 1, -1));
+    expect(model.q.q.n, "the population did not grow").toBe(1);
+    expect(model.q.q.sum, "-old/+new, so the marginal is now +1").toBe(1);
+    expect(user.n, "the person did not answer a second question either").toBe(1);
+  });
+
+  it("does not score a revision as a fresh prediction", () => {
+    // The day's scorecard is a prequential score over answers the model
+    // had not seen. Scoring an edit counts the same person twice there
+    // too — the same error one level up.
+    const model: PatternsModel = { k: PATTERNS_K, q: {} };
+    const user = emptyUser(PATTERNS_K);
+    const first = emptyDayScore();
+    foldUserDay(model, user, obs("q", -1), first);
+    expect(first.n).toBe(1);
+    const second = emptyDayScore();
+    foldUserDay(model, user, obs("q", 1, -1), second);
+    expect(second.n).toBe(0);
+    expect(second.perQ.q).toBeUndefined();
+  });
+
+  it("folds an edit whose first answer was never folded as a FIRST answer", () => {
+    // The 0/0. A revision leaves `n` alone by design, so a revision on a
+    // question this model has never folded an answer to computed
+    // `sum / n` as 0/0 — NaN into the loading vector, NaN into the
+    // person's theta, and from there into every other question they
+    // answer on any later night. Firestore stores NaN as a valid double
+    // and nothing downstream checks, so it would have published.
+    //
+    // Reachable on the first run after a deploy, where every question
+    // starts at n = 0, and in the case the clamp below was written for.
+    const model: PatternsModel = { k: PATTERNS_K, q: {} };
+    const user = emptyUser(PATTERNS_K);
+    foldUserDay(model, user, [{ qid: "q", x: 1, prev: -1 }]);
+    const L = model.q.q;
+    expect(L.n, "nothing to revise, so it counts as the person it is").toBe(1);
+    expect(L.sum).toBe(1);
+    expect(L.v.every((n) => Number.isFinite(n)), "the loading went NaN").toBe(true);
+    expect(user.v.every((n) => Number.isFinite(n)), "the person's theta went NaN").toBe(true);
+    expect(user.n).toBe(1);
+  });
+
+  it("clamps a marginal a revision would push past ±1", () => {
+    // Only reachable when the FIRST answer was never folded — a create
+    // outside the catch-up window, or one that predates the question
+    // becoming eligible — where the subtraction removes something never
+    // added. Every answer is ±1, so |sum| ≤ n is an invariant, not a
+    // preference.
+    const model: PatternsModel = { k: PATTERNS_K, q: {} };
+    const user = emptyUser(PATTERNS_K);
+    foldUserDay(model, user, obs("q", 1));          // n 1, sum +1
+    foldUserDay(model, user, obs("q", 1, -1));      // +1 -(-1) = +2 → 3, clamped
+    expect(model.q.q.n).toBe(1);
+    expect(model.q.q.sum).toBe(1);
+    expect(Math.abs(model.q.q.sum) <= model.q.q.n).toBe(true);
+  });
+});
+
 describe("determinism", () => {
   it("the same log reproduces the same model bit for bit", () => {
     const a = runFit(60, 30);

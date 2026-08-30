@@ -248,6 +248,23 @@ export function groupPortrait(reveals: PortraitReveal[], myUid: string | null): 
   // claims no contrast. What is meaningless is TWO OR MORE at the same
   // number, where first and last are the uid tiebreak talking.
   const flatTie = eligible.length > 1 && eligible[0].pct === eligible[eligible.length - 1].pct;
+  // …and the OTHER end is not simply the other end of this sort. The list is
+  // ordered by `likenessRate` — a Wilson lower bound, which is right for
+  // crowning the twin (D277 §2: rate sorts, pct draws) and wrong for reading
+  // backwards off, because a bound penalises a thin sample toward zero. So
+  // the member who shared two days and agreed on both lands LAST at 100%,
+  // and "breaks ranks" is printed beside a full accent bar reading 2/2.
+  // Reproduced with Ada 13/14 and Bo 2/2: rate .79 vs .55, and Bo is last.
+  //
+  // The dissenter is therefore the lowest PRINTED likeness, which is the
+  // number the label is read against — and there is no dissenter at all when
+  // that is the twin, because then nobody in the group is further from you
+  // than the person being called closest. `flatTie` is the special case of
+  // that and stays for the twin's own sake.
+  const low = eligible.reduce((a, b) => (b.pct < a.pct ? b : a), eligible[0]);
+  const contrarian = eligible.length > 1 && low.uid !== eligible[0].uid && low.pct < eligible[0].pct
+    ? low
+    : null;
   return {
     days: rows.length,
     daysPlayed,
@@ -256,6 +273,6 @@ export function groupPortrait(reveals: PortraitReveal[], myUid: string | null): 
     rows,
     people,
     twin: flatTie ? null : (eligible[0] || null),
-    contrarian: !flatTie && eligible.length > 1 ? eligible[eligible.length - 1] : null,
+    contrarian,
   };
 }

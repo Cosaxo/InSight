@@ -420,6 +420,52 @@ describe("LiveBreakdownPanel · a rating answers with its average (D305)", () =>
     expect(screen.getByText(/1\.5 above everyone/)).toBeTruthy();
     expect(screen.queryByText(/points/)).toBeNull();
   });
+
+  // The sentence and the number it prints have to agree.
+  //
+  // The gate was on the RAW gap at `>= 0.1` while the number beside it is
+  // drawn to one decimal, so a gap that prints "0.1" could fall into the
+  // other arm and say "land right where everyone lands" instead. Half of
+  // every gap that rounds to a tenth did, and the reader cannot tell those
+  // apart from the tenths that ARE called a difference.
+  //
+  // The case below is the sharp end of it: this cohort is a tenth above
+  // everyone EXACTLY — 8.0 against 7.9 — and `8 - 7.9` is
+  // 0.09999999999999964 in binary floating point, so `>= 0.1` was false
+  // for a gap of precisely one tenth.
+  it("says the gap it prints, including the tenth that floating point loses", () => {
+    LIVE.aggFor = () => ({
+      // 20 answers: one 6 and nineteen 8s → mean 7.9.
+      counts: { "5": 1, "7": 19 },
+      total: 20,
+      by: { ageBand: { "25-34": { "7": 1 } } },
+    });
+    render(<LiveBreakdownPanel qid="q1" options={TEN} mine={7} kind="rating" />);
+    fireEvent.click(chip("Age"));
+    fireEvent.click(chip(/^25-34 · 1/));
+    expect(
+      screen.getByText(/0\.1 above everyone/),
+      "a cohort exactly one tenth above everyone was told it lands right "
+      + "where everyone lands, while the same screen was ready to print 0.1",
+    ).toBeTruthy();
+    expect(screen.queryByText(/right where everyone lands/)).toBeNull();
+  });
+
+  it("still says 'right where everyone lands' when the gap really does round to nothing", () => {
+    // The other direction: a fix that simply dropped the threshold would
+    // print "0.0 above everyone", which is worse than the sentence it
+    // replaced.
+    LIVE.aggFor = () => ({
+      counts: { "7": 20 },
+      total: 20,
+      by: { ageBand: { "25-34": { "7": 5 } } },
+    });
+    render(<LiveBreakdownPanel qid="q1" options={TEN} mine={7} kind="rating" />);
+    fireEvent.click(chip("Age"));
+    fireEvent.click(chip(/^25-34 · 5/));
+    expect(screen.getByText(/right where everyone lands/)).toBeTruthy();
+    expect(screen.queryByText(/above everyone|below everyone/)).toBeNull();
+  });
 });
 
 // ── the one cut that answers with people (D149) ──────────────────────
@@ -486,7 +532,27 @@ describe("LiveBreakdownPanel · the Friends cut", () => {
     LIVE.voters = () => [v({ uid: "zz", name: "Stranger", optionIdx: 0 })];
     render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
     fireEvent.click(chip("Friends"));
-    expect(screen.getByText(/none of the people you follow has answered/i)).toBeTruthy();
+    // Bounded by what was READ, not a census. `voters` is the newest
+    // VOTER_FETCH_CAP answers, so a friend who answered early on a busy
+    // question is simply not in the list — the type and logic cuts in this
+    // same panel already say "Of the N answers this session has read" for
+    // exactly that reason, and this cut used to claim more than it knew.
+    expect(screen.getByText(/none of the people you follow is in the 1 answers/i)).toBeTruthy();
+  });
+
+  it("says what the friends headline is counted over", () => {
+    // "4 of 6 friends are on your side" is a count over the answers this
+    // session read, not over your friends — and the panel's own type and
+    // logic cuts state that basis for the same list. Saying the number
+    // without the basis is the census claim this cut used to make.
+    LIVE.follows = () => FRIENDS;
+    LIVE.voters = () => [
+      v({ uid: FRIENDS[0], name: "Ada", optionIdx: 0 }),
+      v({ uid: "zz", name: "Stranger", optionIdx: 1 }),
+    ];
+    render(<LiveBreakdownPanel qid="q1" options={OPTS} />);
+    fireEvent.click(chip("Friends"));
+    expect(screen.getByText(/of the 2 answers this session has read/i)).toBeTruthy();
   });
 
   it("keeps 'could not ask' apart from 'nobody', like every other read here", () => {

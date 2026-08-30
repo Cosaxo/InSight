@@ -82,9 +82,14 @@ import { PASSIVE } from './passive-progress.js';
 // paint; check:bundle's eager ceiling has no headroom for either.
 import { PathsCard } from './paths-card.jsx';
 import LiveReadGame from '../ui/LiveReadGame.tsx';
+// The app's ONE rounding rule (D277). Three splits in this file computed
+// their own — round each share, dump the residue on the largest bucket —
+// which is the rule pct.ts retired for drawing a smaller count at a larger
+// percentage.
+import { sharePcts } from '../data/pct.ts';
 import {
   wfCarried, wfCatArt, wfFeedMatch, wfFmt, wfHash, wfKnowBias, wfKnowRate,
-  wfPcts, wfPickGroup, wfRateAvg, wfRateBg, wfRateInk, wfShadeText,
+  wfPcts, wfPickGroup, wfRateAvg, wfRateBg, wfRateInk, wfShadeText, wfStreamMix,
   wfTileArt, wfTint,
 } from './world-feed-math.js';
 
@@ -395,7 +400,10 @@ class WorldFeed extends React.Component {
             const local = votes[id];
             if (q && q.type === 'dial') {
               if (typeof local === 'number' && local >= q.lo && local <= q.hi && this.dialBucket(q, local) === n) continue;
-              votes[id] = this.dialBucketMid(q, n); changed = true;
+              // Shown, not mid: this value is persisted and read back as a
+              // raw drag on the next boot, so it has to be one the card can
+              // print without leaving its own bucket.
+              votes[id] = this.dialBucketShown(q, n); changed = true;
             } else if (q && q.type === 'field') {
               if (local && typeof local === 'object' && this.fieldCell(local.x, local.y) === n) continue;
               votes[id] = this.fieldCellMid(n); changed = true;
@@ -638,8 +646,12 @@ class WorldFeed extends React.Component {
     // No crowd on a selfOnly card means no majority to be with.
     if (q.options && typeof val === 'number' && !selfOnly) {
       const counts = q.options.map((o) => o.count);
-      const { p } = wfPcts(counts, val);
-      FEEDREAD.log(id, { maj: p[val] === Math.max(...p) });
+      // COUNTS, not percentages. This one is written into a permanent
+      // per-device log that feeds the Mirror's sparse gate and its
+      // with-the-crowd rate, so a wrong reading here is recorded rather
+      // than merely drawn.
+      const { c } = wfPcts(counts, val);
+      FEEDREAD.log(id, { maj: c[val] === Math.max(...c) });
     }
     // the ripple — where this vote landed on your Mirror. Deliberately on
     // ~45% of answers, chosen by a hash of the id so it is stable per
@@ -684,10 +696,15 @@ class WorldFeed extends React.Component {
   // the consequence beat — replaces the result reveal for ~2s after a vote
   renderBeat(q, T, big) {
     const mine = this.state.votes[q.id];
-    const { p } = wfPcts(q.options.map((o) => o.count), mine);
+    // `c` alongside `p`: the beat PRINTS a percentage and then says
+    // whether you are with them, and those are different questions — the
+    // second one is about votes. The feed's own line under the card was
+    // reading it off the percentages until earlier tonight, and a beat
+    // that kept doing so would now disagree with the line it precedes.
+    const { p, c } = wfPcts(q.options.map((o) => o.count), mine);
     return (
       <ConsequenceBeat seed={q.id} options={q.options.map((o, i) => ({ label: o.label, color: wfShade(T.color, i) }))}
-        pcts={p} mineIdx={mine} height={big ? 300 : 200} onDone={() => this.setState({ beat: null })} />
+        pcts={p} counts={c} mineIdx={mine} height={big ? 300 : 200} onDone={() => this.setState({ beat: null })} />
     );
   }
 
@@ -782,6 +799,36 @@ class WorldFeed extends React.Component {
   // reason D52 froze option sets.
   dialBucket(q, val) { return Math.max(0, Math.min(11, Math.floor(((val - q.lo) / (q.hi - q.lo)) * 12))); }
   dialBucketMid(q, i) { return q.lo + ((i + 0.5) / 12) * (q.hi - q.lo); }
+  // The value to hand out AS YOUR ANSWER for a bucket — which is not the
+  // midpoint, because `dialFmt` rounds to an integer and the midpoint
+  // does not survive it.
+  //
+  // When (hi-lo)/12 is a whole number every midpoint ends in .5, and
+  // half-up rounding lands on the TOP EDGE of its own bucket, which
+  // re-buckets one higher. On the 0-12 h dial you answer 3 h; a device
+  // that did not do the drag has only the bucket, reads the midpoint 3.5,
+  // prints "4 h", and the surprise line quotes 4 back at you. 11 of that
+  // dial's 12 buckets did this; 22 bucket-readings across the four dials
+  // whose step is a whole unit.
+  //
+  // So: the integer nearest the midpoint that STAYS IN THE BUCKET. Tried
+  // round, then floor, then ceil — floor alone is not safe, because on a
+  // dial whose step is under 1 the floor can fall out of the bucket
+  // downward.
+  //
+  // KNOWN LIMIT, deliberately not closed here. On a dial finer than one
+  // unit per bucket (1-4 hrs, step 0.25) most buckets contain NO integer
+  // at all, so no integer display can be inside them and this returns the
+  // midpoint, exactly as before. That is a different defect — the
+  // display's resolution is coarser than the dial's — and closing it means
+  // teaching `dialFmt` decimals, which it uses for end labels, medians,
+  // averages and gaps on every dial card. It is on the night list.
+  dialBucketShown(q, i) {
+    const mid = this.dialBucketMid(q, i);
+    const cands = [Math.round(mid), Math.floor(mid), Math.ceil(mid)];
+    for (const c of cands) if (this.dialBucket(q, c) === i) return c;
+    return mid;
+  }
   fieldCell(x, y) { return Math.min(2, Math.floor(y / (100 / 3))) * 4 + Math.min(3, Math.floor(x / 25)); }
   fieldCellMid(i) { return { x: ((i % 4) + 0.5) * 25, y: (Math.floor(i / 4) + 0.5) * (100 / 3) }; }
 
@@ -803,7 +850,7 @@ class WorldFeed extends React.Component {
     const stale = q.live && typeof v === 'number' && (v < q.lo || v > q.hi);
     if ((v != null && !stale) || !q.live || !LIVE.myVotes) return v;
     const b = LIVE.myVotes()[q.id];
-    return b == null ? v : this.dialBucketMid(q, Number(b));
+    return b == null ? v : this.dialBucketShown(q, Number(b));
   }
   fieldVal(q) {
     const v = this.state.votes[q.id];
@@ -869,7 +916,7 @@ class WorldFeed extends React.Component {
       const prior = LIVE.myVotes ? LIVE.myVotes()[q.id] : null;
       if (prior == null) { if (LIVE.vote) LIVE.vote(q.id, String(idx)); }
       else if (Number(prior) !== idx && !(LIVE.editVote && LIVE.editVote(q.id, String(idx)))) {
-        val = this.dialBucketMid(q, Number(prior));
+        val = this.dialBucketShown(q, Number(prior));
       }
     }
     this._fresh = q.id;
@@ -1909,7 +1956,7 @@ class WorldFeed extends React.Component {
   // the floor (see renderVote), so every option can carry its own number.
   renderVoteTiles(q, T, big) {
     const mine = this.state.votes[q.id];
-    const { p, total } = wfPcts(q.options.map((o) => o.count), mine);
+    const { p, c, total } = wfPcts(q.options.map((o) => o.count), mine);
     const maxP = Math.max(...p);
     const fresh = this._fresh === q.id;
     const n = q.options.length;
@@ -1958,7 +2005,7 @@ class WorldFeed extends React.Component {
             );
           })}
         </div>
-        {!this.footInstead(q) && this.renderMeta(q, T, big, total, p, mine)}
+        {!this.footInstead(q) && this.renderMeta(q, T, big, total, c, mine)}
       </div>
     );
   }
@@ -2002,12 +2049,17 @@ class WorldFeed extends React.Component {
 
   // one quiet line: the scale of the vote, where you sit, and — briefly — where
   // the answer landed on your Mirror
-  renderMeta(q, T, big, total, p, mine) {
-    const maxP = Math.max(...p);
+  // `c` is the COUNT vector (with the viewer's own +1), not the drawn
+  // percentages. The sentence below claims which side won, and that is a
+  // question about counts: two different counts can round to the same
+  // integer, so reading it off the percentages told a voter whose option
+  // had strictly fewer votes that they were "with the majority".
+  renderMeta(q, T, big, total, c, mine) {
+    const maxN = Math.max(...c);
     const rip = this.state.ripple === q.id ? (WF_BRANCH[q.cat] || 'Interests') : null;
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 18 }}>
-        <span style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>{this.state.editHold === q.id ? 'One change a minute — try again shortly.' : wfFmt(total) + (total === 1 ? ' vote' : ' votes') + (p[mine] === maxP ? ' · with the majority' : ' · you picked the underdog')}</span>
+        <span style={{ fontSize: big ? 12.5 : 11.5, fontWeight: 600, color: 'var(--ink-2)' }}>{this.state.editHold === q.id ? 'One change a minute — try again shortly.' : wfFmt(total) + (total === 1 ? ' vote' : ' votes') + (c[mine] === maxN ? ' · with the majority' : ' · you picked the underdog')}</span>
         {rip && <button onClick={() => NAV.goTab('mirror')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'var(--sans)', fontSize: 12, fontWeight: 700, color: 'var(--accent, var(--ink-2))', whiteSpace: 'nowrap', animation: 'toastFade 3.2s ease forwards' }}>added to {rip}<span aria-hidden="true">→</span></button>}
       </div>
     );
@@ -2468,9 +2520,18 @@ class WorldFeed extends React.Component {
     if (!q.options) return null;
     const mine = typeof this.state.votes[q.id] === 'number' ? this.state.votes[q.id] : null;
     const counts = q.options.map((o) => o.count);
-    // feedInsight here is the LIVE version (feed-read.js): it reads q alone,
-    // ignores the demo-signature args, and returns null on demo cards rather
-    // than inventing a cohort (its header says why).
+    // feedInsight here is the LIVE version (feed-read.js): it returns null
+    // on demo cards rather than inventing a cohort (its header says why).
+    //
+    // `mine` — the third argument — IS READ, and this comment said the
+    // opposite until the line below started depending on it. The live
+    // implementation adds the viewer's own vote back into the room
+    // baseline, because `o.count` has it subtracted and the card above
+    // draws with it added; without it the line announces that a cohort
+    // "flips it" to the option the card is already showing as the winner.
+    // Dropping the arguments here on the old comment's authority would
+    // bring that back with every gate green, because the test for it calls
+    // feedInsight directly and never sees this call site.
     const ins = feedInsight(q, counts, mine, wfHash, WF_FRIENDS);
     if (!ins) return null;
     const n = q.options.length;
@@ -3505,8 +3566,7 @@ class WorldFeed extends React.Component {
     const same = mySide == null || !friends.length ? null : friends.filter((f) => f.oi === mySide).length;
     // the world's own split — it becomes the header bar (legend + baseline in one)
     // and every group's seam is read against it
-    const op = counts.map((c) => Math.round((c / total) * 100));
-    op[op.indexOf(Math.max(...op))] += 100 - op.reduce((a, b) => a + b, 0);
+    const op = sharePcts(counts);
     const nG = WF_GRP(dim, axis).length;
     const many = nG > 6;
     const GRID = { display: 'grid', gridTemplateColumns: '92px 1fr', gap: 10, alignItems: 'center' };
@@ -3541,9 +3601,7 @@ class WorldFeed extends React.Component {
           {WF_GRP(dim, axis).map((g, gi) => {
             const key = q.id + ':' + cutKey + ':' + gi;
             const w = counts.map((c, oi) => (c / total) * (0.55 + wfHash(key + ':' + oi)));
-            const sum = w.reduce((a, b) => a + b, 0);
-            const ps = w.map((x) => Math.round((x / sum) * 100));
-            ps[ps.indexOf(Math.max(...ps))] += 100 - ps.reduce((a, b) => a + b, 0);
+            const ps = sharePcts(w);
             return { g, gi, ps };
           }).sort((a, b) => b.ps[0] - a.ps[0]).map(({ g, gi, ps }) => {
             const you = g.label === youBand;
@@ -3579,10 +3637,7 @@ class WorldFeed extends React.Component {
       const r = q.crowd[i];
       const w = [];
       for (let p = 1; p <= N; p++) w.push(Math.exp(-Math.abs(p - r) * 0.85) * (0.75 + 0.5 * wfHash(q.id + ':' + i + ':' + p)));
-      const s = w.reduce((a, b) => a + b, 0);
-      const ps = w.map((x) => Math.round((x / s) * 100));
-      ps[ps.indexOf(Math.max(...ps))] += 100 - ps.reduce((a, b) => a + b, 0);
-      return ps;
+      return sharePcts(w);
     };
     const items = q.items.map((label, i) => ({ i, label, ps: dist(i) })).sort((a, b) => q.crowd[a.i] - q.crowd[b.i]);
     // friends' first picks, weighted by the crowd's share at position one
@@ -3884,12 +3939,10 @@ class WorldFeed extends React.Component {
     const qs = this.feedPool().filter((q) => q.scene
       ? SCENES.has(q.scene) && cats[q.scene] !== false
       : wfFeedMatch(q, { cats, pulled, leafOn, chanSet: WF_CHAN_SET }));
-    // interleave streams round-robin so the feed reads as a mix, not blocks
-    const byKey = {}; const keys = [];
-    qs.forEach((q) => { const k = q.scene || q.sub || q.cat; if (!byKey[k]) { byKey[k] = []; keys.push(k); } byKey[k].push(q); });
-    const lists = keys.map((k) => byKey[k]);
-    const mixed = [];
-    for (let i = 0; lists.some((l) => i < l.length); i++) lists.forEach((l) => { if (i < l.length) mixed.push(l[i]); });
+    // interleave streams round-robin so the feed reads as a mix, not blocks.
+    // In world-feed-math.js so TAGS-PLAN §1 — one card, one stream, however
+    // many doors it carries — has a test that runs the real grouping.
+    const mixed = wfStreamMix(qs);
     // sort lenses: hot = the interleaved mix · top = most votes · new = latest first
     const sort = this.state.sort;
     const sorted = sort === 'top' ? [...qs].sort((a, b) => wfVotes(b) - wfVotes(a)) : sort === 'new' ? [...qs].reverse() : mixed;

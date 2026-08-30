@@ -9,6 +9,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import type { Purchase } from "../data/purchases";
+import { sharePcts } from "../data/pct";
 
 const STORE = vi.hoisted(() => ({
   rows: null as Purchase[] | null,
@@ -70,6 +71,25 @@ describe("the room", () => {
     expect(screen.getByText(/bills per answer at €0.16, stops at the cap/)).toBeTruthy();
     // the dims are printed — every one, D228's own rule
     expect(screen.getByText("city:Oslo")).toBeTruthy();
+  });
+
+  it("rounds the split by the app's rule, not by its own", () => {
+    // The buyer's room and the public feed card draw the SAME published
+    // counts vector, and the feed rounds it with `sharePcts` — the
+    // largest-remainder rule pct.ts exists to be the only one of. This
+    // site used `Math.round` per option, which disagrees on about one
+    // cell in eleven at three and four options, always by a point: the
+    // buyer read a headline share one off the one everyone else was
+    // reading for the buyer's own question.
+    //
+    // [8, 7, 6, 12] is such a cell: 12/33 is 36.36…, which rounds to 36
+    // on its own and takes the last remainder to 37 in the vector.
+    const counts = [8, 7, 6, 12];
+    expect(Math.round((12 / 33) * 100), "fixture no longer separates the rules").toBe(36);
+    expect(sharePcts(counts)[3]).toBe(37);
+    STORE.rows = [{ ...PURCHASE, counts, options: ["A", "B", "C", "D"] }];
+    render(<AskedByYouOverlay onClose={() => {}} />);
+    expect(screen.getByText(/37% D/)).toBeTruthy();
   });
 
   it("counts the last serving day as a day — `until` is inclusive", () => {

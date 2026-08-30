@@ -82,6 +82,9 @@ export interface PatternsLedgerEntry {
   uid: string;
   qid: string;
   optionIdx?: number;
+  /** Present only on a D86 edit (v2.ts's ledgerEntry): the index the
+   *  answer moved away from. Its ABSENCE is what marks a first answer. */
+  fromIdx?: number;
 }
 
 /** The I/O the fit needs, as an interface (calls.ts's store precedent) —
@@ -110,9 +113,29 @@ import { utcDay } from "./pure";
 export { utcDay };
 
 /**
- * Fold every unfolded day up to and including yesterday. Idempotent: the
- * model carries the last folded day, so a retried schedule re-folds
- * nothing and a missed night folds on the next run.
+ * Fold every unfolded day up to and including yesterday.
+ *
+ * IDEMPOTENT PER PERSON, which is the claim that is true. The model's
+ * cursor is written ONCE, after the whole catch-up loop, while the user
+ * vectors are written per day — so a crash inside the loop leaves the
+ * cursor behind and the next run re-reads days these vectors already
+ * carry. `foldUserDay` is a STEP, not a set, so re-reading them moved
+ * every touched person's vector twice and re-stepped the model from it.
+ * The docstring here used to say the model's cursor made that impossible.
+ *
+ * Each vector now carries the last day folded into it and a day already
+ * stamped on a person is skipped.
+ *
+ * WHAT THAT COSTS, stated because it is a real trade and not a free win.
+ * The model and the vectors co-evolve: the model is stepped from each
+ * person's vector as that person's day is folded. On a retry the skipped
+ * people do not step the model either, so a crashed night's contribution
+ * to the MODEL from people already folded is lost rather than applied
+ * twice. That is the same bargain the engagement folds strike — "a crash
+ * leaves work unfolded rather than double-folded" — and it is the right
+ * one here: an under-learned day is noise in an online fit, while a
+ * double-stepped vector is a person's own coordinate moved to somewhere
+ * they never were.
  */
 export async function runPatternsFit(
   store: PatternsStore,
@@ -175,25 +198,62 @@ export async function runPatternsFit(
     // exactly why the second one exists. It is only this reader that wants a
     // person's latest answer instead.
     //
+    // AND ACROSS DAYS, WHICH IS THE COMMON CASE. This map was built inside
+    // the per-day loop and nowhere else, so "last wins" held only within
+    // one UTC day — while an edit has no day window at all (rules impose a
+    // 60-second cooldown, nothing more). A person who changed their mind
+    // on Tuesday about Monday's answer produced exactly the
+    // `{n: 60, marginal: 0}` the paragraph above calls the bug, from the
+    // very code that says it fixed it.
+    //
+    // What makes it fixable without per-person state is that an edit's
+    // ledger entry now carries `fromIdx` — what the answer moved away
+    // from. An entry with no `fromIdx` is a first answer and counts a
+    // person; a day whose entries for a pair are ALL edits is a revision
+    // of something an earlier day folded, and moves the marginal by
+    // -old/+new without adding to `n` (foldUserDay). An edit written
+    // before that field existed carries none, so it reads as a first
+    // answer and folds the old way — history stays as it was folded.
+    //
     // `ledgerDay` returns the day in `at` order, so the last entry for a pair
-    // is the newest.
-    const byUid = new Map<string, Map<string, number>>();
+    // is the newest and the FIRST edit carries the value the model holds.
+    const byUid = new Map<string, Map<string, { x: number; prev?: number }>>();
     for (const e of entries) {
-      const seen = byUid.get(e.uid) ?? new Map<string, number>();
-      seen.set(e.qid, encodeAnswer(e.optionIdx as number));
+      const seen = byUid.get(e.uid) ?? new Map<string, { x: number; prev?: number }>();
+      const x = encodeAnswer(e.optionIdx as number);
+      const cur = seen.get(e.qid);
+      if (e.fromIdx === undefined) {
+        // A first answer supersedes anything the day held for this pair:
+        // create-then-edit inside one day is one person, final answer.
+        seen.set(e.qid, { x });
+      } else if (cur) {
+        // Another edit on a pair the day has already classified — keep
+        // that classification, take the newer answer.
+        seen.set(e.qid, { ...cur, x });
+      } else {
+        seen.set(e.qid, { x, prev: encodeAnswer(e.fromIdx) });
+      }
       byUid.set(e.uid, seen);
     }
     const states = await store.getUsers([...byUid.keys()].sort());
+    const write = new Map<string, PatternsUserState>();
     for (const [uid, seen] of [...byUid.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
-      const obs: PatternsObservation[] = [...seen.entries()].map(([qid, x]) => ({ qid, x }));
+      const obs: PatternsObservation[] = [...seen.entries()].map(([qid, v]) => (
+        v.prev === undefined ? { qid, x: v.x } : { qid, x: v.x, prev: v.prev }
+      ));
       obs.sort((a, b) => (a.qid < b.qid ? -1 : 1));
       const user = states.get(uid) ?? emptyUser(model.k);
+      // ALREADY FOLDED — a previous attempt at this day wrote this person
+      // before it died. Neither the vector nor the model steps again; see
+      // the note on the trade in this function's header.
+      if (user.d && user.d >= day) continue;
       foldUserDay(model, user, obs, score);
-      states.set(uid, user);
+      user.d = day;
+      write.set(uid, user);
       touched.add(uid);
       folded += obs.length;
     }
-    await store.putUsers(states);
+    if (write.size) await store.putUsers(write);
   }
   const quality = publishableQuality(scored, priorSeries);
   const displacement = displacementSummary(prevPub, model);
@@ -292,6 +352,10 @@ export function firestorePatternsStore(db: Firestore): PatternsStore {
             out.set(chunk[j], {
               v: (snap.get("v") as number[]) ?? [],
               n: (snap.get("n") as number) ?? 0,
+              // The day stamp, BOTH WAYS — see the twin in taste.ts. The
+              // retry guard reads `d` off what this returns, so omitting
+              // it here made that guard dead in production.
+              ...(snap.get("d") ? { d: String(snap.get("d")) } : {}),
             });
           }
         });
@@ -305,7 +369,9 @@ export function firestorePatternsStore(db: Firestore): PatternsStore {
         for (const [uid, s] of entries.slice(i, i + 400)) {
           batch.set(
             db.collection("v2_users").doc(uid).collection("patterns").doc("state"),
-            { v: s.v, n: s.n, at: FieldValue.serverTimestamp() },
+            // `set` with no merge replaces the document — `d` has to be
+            // named or the stamp never lands.
+            { v: s.v, n: s.n, at: FieldValue.serverTimestamp(), ...(s.d ? { d: s.d } : {}) },
           );
         }
         await batch.commit();

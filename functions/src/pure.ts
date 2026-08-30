@@ -98,9 +98,37 @@ export const RESERVED_HANDLES = new Set([
 
 // ── day-key arithmetic (v2social) ───────────────────────────────
 
+// THE ARGUMENT IS AN OFFSET IN DAYS, not a timestamp, and that distinction
+// is why this comment exists. `functions/src` carried FOUR exports named
+// `utcDayKey` in two incompatible families: this one and paid.ts's took an
+// offset, logic.ts's and velocity.ts's took a millisecond timestamp. So
+// `utcDayKey(0)` meant TODAY in one family and 1970-01-01 in the other,
+// and `utcDayKey(Date.now())` meant a date about 46 million years out.
+// Nothing imported across the families, so it never fired — it was a trap
+// waiting for the first person to import the nearer one.
+//
+// The two timestamp-takers are `utcDayKeyOf` now, and paid.ts's copy is
+// gone in favour of this one, which it was byte-identical to. One name,
+// one meaning. functions/src/exports.test.ts refuses a second export of
+// any name, so the shape cannot come back.
 export function utcDayKey(offsetDays = 0, nowMs: number = Date.now()): string {
   const d = new Date(nowMs + offsetDays * 86400000);
   return d.toISOString().slice(0, 10);
+}
+
+/**
+ * The same grain, from a TIMESTAMP rather than an offset — `utcDayKeyOf(
+ * Date.now())` is today. The name carries the difference because the
+ * shared one did not: both families are `(number) => string`, so calling
+ * either with the other's argument type-checks and silently returns a
+ * date 46 million years out, or 1970.
+ *
+ * One implementation, here, because logic.ts and velocity.ts each had
+ * their own — velocity's built the string field by field and this one
+ * slices an ISO string, which agree on every value either was ever given.
+ */
+export function utcDayKeyOf(ms: number): string {
+  return new Date(ms).toISOString().slice(0, 10);
 }
 
 /**
@@ -1281,12 +1309,21 @@ export function tallyFlags(takeIds: readonly unknown[]): Record<string, number> 
 /**
  * The same tally, one page at a time.
  *
- * `v2_flags` has no upper bound — MOD_ADVISORY makes the keep-verdict sweep
- * that deletes flags dead code, nothing else deletes them, and there is no
- * TTL — so the caller pages through it and folds each page in rather than
- * materialising the collection. What is retained is one entry per DISTINCT
- * take, which is smaller than the flag count by however many people flagged
- * the same take, and is the smallest thing the queue can be built from.
+ * `v2_flags` has no upper bound, so the caller pages through it and folds
+ * each page in rather than materialising the collection.
+ *
+ * The reason is NOT that nothing deletes flags. This said MOD_ADVISORY made
+ * the keep-verdict sweep dead code — true when it was written, false since
+ * D83, and never true of the settled-target sweep in the nightly build,
+ * which has never consulted that flag. What is actually unbounded is what
+ * never SETTLES: an escalated take's flags are kept as the evidence a human
+ * will read, and a flagged take below the queue floor is never judged. Add
+ * no TTL and the growing set of takes ever flagged, and the ceiling is
+ * still absent — for a different reason than this paragraph gave.
+ *
+ * What is retained here is one entry per DISTINCT take, which is smaller
+ * than the flag count by however many people flagged the same take, and is
+ * the smallest thing the queue can be built from.
  */
 export function tallyFlagsInto(
   counts: Map<string, number>,
@@ -1982,8 +2019,59 @@ export const ROOM_PEOPLE_CAP = 24;
  */
 export const ROOM_QUESTION_CAP = 8;
 
+/**
+ * How many questions ONE CELL'S WINDOW may accumulate.
+ *
+ * `ROOM_QUESTION_CAP` bounds a single call; nothing bounded the window.
+ * The cell's cached map gains a key for every distinct question anybody
+ * asks about until the four-minute window turns over, and each new key
+ * costs a batched read over `ROOM_PEOPLE_CAP` people — so the ceiling was
+ * the whole question bank, seven hundred keys on a document every caller
+ * in that cell reads, and about seventeen thousand billed reads to get
+ * there. Eight at a time, from any signed-in account, with nothing
+ * refusing.
+ *
+ * 64 is generous for the honest case and still bounds the window: the
+ * day's deck is the same list for everyone, callers differ only in how
+ * far through it they have scrolled, and a window is four minutes. It
+ * bounds a cell-window at 64 × 24 reads rather than at the bank.
+ *
+ * A SOFT bound, deliberately. Past it the room serves what it has already
+ * folded instead of refusing the call — an honest client never reaches it,
+ * and one that does gets a slightly thinner grid rather than an error on a
+ * surface whose own failure rule is "leave the stop with its number".
+ */
+export const ROOM_WINDOW_QUESTION_CAP = 64;
+
 /** A qid → {optionIdx → count} map, the shape v2_question_aggs uses. */
 export type RoomCounts = Record<string, Record<string, number>>;
+
+/**
+ * The questions one call may fold, given what the cell's window already holds.
+ *
+ * A FUNCTION, and it takes the window's OWN map, because the bound above
+ * shipped as arithmetic at the call site and the arithmetic was dead. It
+ * measured the headroom against the cached entries this call had asked for
+ * — an intersection with the request, so at most `ROOM_QUESTION_CAP` of
+ * them — and then trimmed a list that was already shorter than the limit it
+ * was trimming to. `64 - 8` never cut anything, so the window still grew a
+ * key per novel question until it held the bank: the exact ceiling the
+ * constant was added to close.
+ *
+ * The window's size is the size of what the CELL holds, which is the map on
+ * the document. Nothing else can measure it, which is why this takes it.
+ */
+export function roomWindowMisses(
+  qids: readonly string[],
+  held: Readonly<Record<string, unknown>> | null | undefined,
+  cap: number = ROOM_WINDOW_QUESTION_CAP,
+): string[] {
+  const have = new Set(held ? Object.keys(held) : []);
+  // A window already at the cap folds nothing new — it serves what it has,
+  // which is the soft bound the constant's own note describes.
+  const room = Math.max(0, cap - have.size);
+  return qids.filter((q) => !have.has(q)).slice(0, room);
+}
 
 /**
  * Tally one question's picks into the aggregate shape.
@@ -2026,13 +2114,36 @@ export function tallyPicks(picks: readonly (number | null | undefined)[]): Recor
  * a bad one here would be a path injection into a getAll, so it is
  * refused rather than escaped.
  */
-export function roomQids(raw: unknown, cap: number = ROOM_QUESTION_CAP): string[] {
+export function roomQids(
+  raw: unknown,
+  cap: number = ROOM_QUESTION_CAP,
+  known?: (qid: string) => boolean,
+): string[] {
   if (!Array.isArray(raw)) return [];
   const seen = new Set<string>();
   for (const q of raw) {
     if (typeof q !== "string") continue;
     const id = q.trim();
     if (!id || id.length > 120 || id.includes("/") || id === "." || id === "..") continue;
+    // MUST NAME A QUESTION, when the caller can say what one is.
+    //
+    // The shape checks above are not a bound on cost. Each id the room has
+    // not already folded costs a getAll over ROOM_PEOPLE_CAP answer refs —
+    // and Firestore bills a missing document in a batchGet — so eight
+    // unknown ids are ~192 billed reads. A folded id is CACHED, which is
+    // what makes the honest case cheap and the dishonest one unbounded: a
+    // caller sending eight FRESH invented ids every time never hits the
+    // cache and pays the full fold on every call, from one anonymous
+    // account, with no rate limit on this path.
+    //
+    // The same strings also become field names on the shared, server-only
+    // room document, which the fold merges into — so invented ids grow a
+    // document every caller in that cell reads, eight at a time, until it
+    // passes 1 MiB and the write starts failing into a catch that
+    // swallows it.
+    //
+    // The caller passes the bank, so this is a lookup rather than a guess.
+    if (known && !known(id)) continue;
     seen.add(id);
     if (seen.size >= cap) break;
   }

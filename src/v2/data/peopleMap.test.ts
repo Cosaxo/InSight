@@ -58,6 +58,32 @@ function rowsOf(qid: string): PeopleRow[] | null {
   return base;
 }
 
+describe("the basis the card states", () => {
+  // `answered` and `basis` are different numbers and the card printed the
+  // wrong one: every pool question the viewer has answered, over a crowd
+  // placed from the twelve lists the fold actually reads. Your own dot is
+  // solved from all of them, which is what made it look right — and every
+  // dot beside it said "12 of 12 shared answers" on the same screen.
+  it("counts the lists the crowd was placed from, not everything answered", () => {
+    const items = Array.from({ length: 40 }, (_, i) => item(`q${i}`));
+    // Only three lists came back with rows, however many were asked for.
+    const rows: Record<string, PeopleRow[]> = {
+      q0: [row("a", 0)], q1: [row("a", 1)], q2: [row("a", 0)],
+    };
+    const fetched = items.slice(0, 12).map((i) => i.qid);
+    const field = foldPeople(items, fetched, (qid) => rows[qid] ?? null);
+    expect(field.answered, "the viewer's own dot is solved from all of them").toBe(40);
+    expect(field.basis, "the crowd came from the lists that returned rows").toBe(3);
+  });
+
+  it("does not count a list that came back empty or unread", () => {
+    const items = Array.from({ length: 12 }, (_, i) => item(`q${i}`));
+    const fetched = items.map((i) => i.qid);
+    expect(foldPeople(items, fetched, () => null).basis).toBe(0);
+    expect(foldPeople(items, fetched, () => []).basis).toBe(0);
+  });
+});
+
 describe("foldPeople", () => {
   const field = foldPeople(ITEMS, FETCHED, rowsOf);
   const by = new Map(field.placed.map((p) => [p.uid, p]));

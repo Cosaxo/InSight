@@ -21,14 +21,29 @@ describe("rankMembers", () => {
     expect(out.map((x) => x.uid)).toEqual(["b", "a"]);
   });
 
-  it("breaks a tie on OVERLAP, which is the bug this app would ship", () => {
-    // One shared question that happened to match scores 100%. Without the
-    // second key that person heads the list forever, above someone who
-    // matched on forty of fifty — and it looks completely right until the
-    // day somebody answers a single question.
+  it("puts a thin perfect match BELOW a thick near-perfect one (D277 §2)", () => {
+    // The fixture matters more than the assertion here, and this one was
+    // wrong: it compared 100%-of-1 against 100%-of-40, which the REJECTED
+    // comparator (`pct` first, `shared` as a tie-break) also orders
+    // correctly — that is the one arrangement its second key handles. So
+    // the case named the bug and could not catch it. Measured: reverting
+    // the ranking to sort on `pct` first left all eleven cases here green.
+    //
+    // The discriminating shape is the one D277's own note describes: a
+    // 100%-of-1 against a 90%-of-50. `pct` first puts the lucky stranger
+    // top of your circle forever; the Wilson lower bound discounts a
+    // sample that thin and puts the real match first.
     const lucky = m("lucky", "Lucky", 100, 1);
-    const real = m("real", "Real", 100, 40);
+    const real = m("real", "Real", 90, 50);
     expect(rankMembers([lucky, real]).map((x) => x.uid)).toEqual(["real", "lucky"]);
+  });
+
+  it("and still separates two equal percentages by how much they share", () => {
+    // The old fixture, kept for what it does prove: with the rates tied
+    // the deeper overlap wins.
+    const thin = m("thin", "Thin", 100, 1);
+    const thick = m("thick", "Thick", 100, 40);
+    expect(rankMembers([thin, thick]).map((x) => x.uid)).toEqual(["thick", "thin"]);
   });
 
   it("is stable and does not depend on input order", () => {

@@ -348,15 +348,25 @@ reaches users.
    names. That is user-generated content and social interaction on any
    version of this form, whatever the content questions say.
 2. **Coarse location exists** (D9, optional). Answer consistently with §1.
-3. **Free text is live at both scopes.** Circle takes with names since
-   D78 part 1 (2026-08-09); world takes since D83 (2026-08-10) —
-   **anonymous by construction** (no author names rendered, one take per
-   person per question), behind ENFORCED moderation (`MOD_ADVISORY =
-   false`) with report and per-author mute. This fact has moved twice:
-   "no live free-text surface" → "circle-scoped" (D79) → "both scopes,
-   world anonymous" (D83) — which is why
-   `messagingAndChat` is `true` (D79) while `EMAILS_OR_TEXT_MESSAGES` stays
-   unticked.
+3. **Free text is live at both scopes, and NAMED at both.** Circle takes
+   with names since D78 part 1 (2026-08-09); world takes since D83
+   (2026-08-10), carrying their author's name since D98 (2026-08-16), one
+   take per person per question, behind ENFORCED moderation
+   (`MOD_ADVISORY = false`) with report and per-author mute. This fact has
+   moved three times: "no live free-text surface" → "circle-scoped" (D79)
+   → "both scopes, world anonymous" (D83) → "both scopes, both named"
+   (D98) — which is why `messagingAndChat` is `true` (D79) while
+   `EMAILS_OR_TEXT_MESSAGES` stays unticked.
+
+   It said **anonymous by construction** here until 2026-08-30, two weeks
+   after D98 named every world take. That is a claim about the app made to
+   a store reviewer, and the file it is mirrored into contradicted itself:
+   `$guideline12` in `app-privacy.json` has said "D98 makes every take
+   named at world scale" since the day it shipped. What answers guideline
+   1.2 for the world surface is the kit — enforced moderation, report,
+   per-author mute — and never anonymity, which was always a client-side
+   string choice rather than a rule (`authorUid` has been on the take
+   document and readable all along).
 
 ### Every answer, keyed by the field Apple actually stores
 

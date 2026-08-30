@@ -549,6 +549,25 @@ describe("Scores", () => {
     expect(screen.queryByText("6")).toBeNull();
   });
 
+  it("does not call your answer the only one HERE while describing elsewhere", () => {
+    // `lead` follows the toggle; the singleton sentence did not. Four here
+    // and one from elsewhere, with your own answer among the four: switch
+    // the card to "from elsewhere" and it printed "the only answer here so
+    // far" on the line that had just counted four of them. Your vote is
+    // never in the away crowd at your own stop.
+    mount("scores", [{ ...RATED, all: [0, 0, 2, 0, 0, 0, 0, 0, 3, 0], mine: 8 }]);
+    fireEvent.click(screen.getByRole("button", { name: /from elsewhere/ }));
+    expect(screen.queryByText(/the only answer here so far/)).toBeNull();
+    // …and it still says something true about your answer against them.
+    expect(screen.getByText(/above them|below them|exactly the average/)).toBeTruthy();
+  });
+
+  it("keeps it for the crowd that really is one answer — your own", () => {
+    // The contrast: one answer here, and it is yours.
+    mount("scores", [{ ...RATED, counts: [0, 0, 0, 0, 0, 0, 0, 0, 1, 0], all: [0, 0, 0, 0, 0, 0, 0, 0, 1, 0], mine: 8 }]);
+    expect(screen.getByText(/the only answer here so far/)).toBeTruthy();
+  });
+
   it("never splits the world — there, everyone IS the crowd", () => {
     const world: LensQuestion = { ...RATED, id: "w1", rates: "world", tag: "Kindness",
       all: [0, 0, 4, 0, 0, 0, 0, 0, 4, 0] };

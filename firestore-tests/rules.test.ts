@@ -29,6 +29,7 @@ import {
   collection,
   collectionGroup,
   doc,
+  documentId,
   getDoc,
   getDocs,
   query,
@@ -345,6 +346,52 @@ describe("v2 questions + aggregates", () => {
 });
 
 describe("v2 profile", () => {
+  // NOT a rules case — a FIRESTORE SEMANTICS case, here because this is the
+  // only suite in the repo that runs against a real Firestore and can prove
+  // it. The client's `saveAnchors` (data/live.ts) is the one write in the
+  // app that must be able to REMOVE an anchor, and it could not.
+  //
+  // `merge: true` deep-merges a nested map: a key absent from the payload
+  // is left standing on the server. saveAnchors used it under a comment
+  // saying the map was "replaced wholesale", and its one key-removing
+  // caller is hydrate's persona-residue heal — so a profile a pre-fix build
+  // polluted with the sample persona's job and education kept them on a
+  // WORLD-READABLE document forever, while the heal re-fired on every cold
+  // boot and never converged.
+  //
+  // `mergeFields` replaces the named field and leaves the rest alone. The
+  // case asserts both halves, because a fix that dropped the other profile
+  // fields would be the failure the original comment was guarding against.
+  it("saveAnchors' write shape can REMOVE an anchor and keeps the rest of the profile", async () => {
+    const mine = doc(asUser(OWNER), "v2_users", OWNER);
+    await assertSucceeds(setDoc(mine, {
+      displayName: "Mira",
+      anchors: { city: "Oslo", country: "Norway", profession: "Editor" },
+    }));
+    // What the persona heal asks for: the same map minus one key.
+    await assertSucceeds(setDoc(
+      mine, { anchors: { city: "Oslo", country: "Norway" } }, { mergeFields: ["anchors"] },
+    ));
+    const after = await getDoc(mine);
+    expect(
+      after.data()!.anchors,
+      "the removed anchor survived the write — `merge: true` deep-merges a "
+      + "nested map, so the heal never converges and the residue stays on a "
+      + "world-readable profile",
+    ).toEqual({ city: "Oslo", country: "Norway" });
+    expect(
+      after.data()!.displayName,
+      "the rest of the profile was dropped — mergeFields must name ONLY "
+      + "`anchors`, or this fix trades one bug for a worse one",
+    ).toBe("Mira");
+    // And it upserts: saveAnchors can run before the profile doc exists.
+    const fresh = doc(asUser(FRIEND), "v2_users", FRIEND);
+    await assertSucceeds(setDoc(
+      fresh, { anchors: { city: "Bergen" } }, { mergeFields: ["anchors"] },
+    ));
+    expect((await getDoc(fresh)).data()!.anchors).toEqual({ city: "Bergen" });
+  });
+
   it("world-readable, owner-written, with validated fields", async () => {
     const mine = doc(asUser(OWNER), "v2_users", OWNER);
     await assertSucceeds(setDoc(mine, {
@@ -601,6 +648,20 @@ describe("the daily pulse (D139): one answer per day, day-keyed like a duel's", 
       doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_${day}`),
       pulseAnswer(day, { qid: BASE }),
     ));
+    // …and the id must be COMPOSED of the two, which the case above does
+    // not reach: it moves qid away from the id, so `qid == aid` refuses it
+    // and the composition clause is never asked. Point them at each other
+    // instead and only the composition clause is left standing.
+    //
+    // What it is holding up: the aggregate trigger folds by DOC ID. An
+    // answer that satisfies every other clause at the id `daily-000` is a
+    // pulse answer — bounded by the pulse template's options, day-keyed,
+    // one per day — folded into the daily question's public aggregate,
+    // once per day, forever.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", "daily-000"),
+      pulseAnswer(day, { qid: "daily-000" }),
+    ));
   });
 
   it("the template answers for the bound, the kill switch, and the surface claim", async () => {
@@ -764,6 +825,20 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     // answered is the product; what the system concluded you are INTO is
     // a summary nobody signed up to be read as by strangers.
     await assertFails(getDoc(doc(asUser(STRANGER), "v2_users", OWNER, "taste", "profile")));
+    // …and the LIST is its own grant, which the get rule above does not
+    // imply. Widen `allow list` to any signed-in user and every assertion
+    // in this case still passes while one collection read hands a stranger
+    // the whole profile — the only list refusal the suite had was the
+    // collection-group case further down, which the absence of a wildcard
+    // match refuses whatever this line says. `check:data-inventory` reads
+    // the literal and would flip the row to PUBLIC, but that is prose in
+    // the lint job, not the rule.
+    await assertFails(getDocs(collection(asUser(STRANGER), "v2_users", OWNER, "taste")));
+    // Refused for its subject too, as written: the doc id is known
+    // (`profile`), so `get` is the entire read path and nothing needs to
+    // enumerate. If a second taste doc ever arrives, widen this to the
+    // owner — the stranger line above is the one carrying the claim.
+    await assertFails(getDocs(collection(asUser(OWNER), "v2_users", OWNER, "taste")));
     // Client write closed: a self-writable profile would let a device
     // forge its own fetch weighting.
     await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "taste", "profile"), { t: { food: 99 }, n: 99 }));
@@ -813,10 +888,44 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
 
   it("a person's day rollup is owner-create-only, date-keyed, field-pinned (R3/D272)", async () => {
     await assertSucceeds(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", rollupDay()), rollup()));
-    // not someone else's subtree, not a bare-map id, not a mismatched day
+    // not someone else's subtree, not a bare-map id, not a day outside the
+    // window
     await assertFails(setDoc(doc(asUser(STRANGER), "v2_users", OWNER, "engagement", rollupDay()), rollup()));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "_state"), rollup()));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "2026-01-01"), rollup({ day: "2026-01-01" })));
+    // …and not a doc that DISAGREES with its own id, which the line above
+    // does not test: it moves the id and the field together, so the window
+    // bound refuses it and `day == docId` is never asked. The fold reads
+    // the FIELD (`runRollupFold` groups by `d.get("day")`) and then marks
+    // the rollup folded at that same field as an id — a document which,
+    // for a disagreeing pair, does not exist. `batch.update` on a missing
+    // doc is NOT_FOUND, so the whole chunk's commit fails, the rollup is
+    // never marked folded, and it comes back tomorrow to break the fold
+    // again while the world-readable day doc it did reach carries the
+    // wrong day's numbers. One client write, every night after.
+    const older = new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10);
+    await assertFails(setDoc(
+      doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()), rollup({ day: older })));
+    // Both halves are legal on their own, so the refusal above is the
+    // disagreement and not the date.
+    await assertSucceeds(setDoc(
+      doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", older), rollup({ day: older })));
+    // THE 90-DAY PROMISE, which `web/privacy.html` makes in writing and the
+    // TTL policy keeps by deleting at whatever `expireAt` says. That makes
+    // this bound the only thing enforcing the sentence at runtime —
+    // `check:policy-claims` asserts the page STATES it, not that anything
+    // holds a client to it — and nothing was testing the bound. A note
+    // stamped four hundred days out is an account-linked trail living four
+    // times as long as the page says it does.
+    await assertFails(setDoc(
+      doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()),
+      rollup({ expireAt: new Date(Date.now() + 400 * 86400000) })));
+    // The other end, for the same reason pointed the other way: a stamp
+    // already past means the TTL may take the note before the nightly fold
+    // has counted it, so the day document quietly loses people.
+    await assertFails(setDoc(
+      doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()),
+      rollup({ expireAt: new Date(Date.now() - 86400000) })));
     // folded is the fold's flag, never the client's
     await assertFails(setDoc(doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()), rollup({ folded: true })));
     await assertFails(setDoc(doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()), rollup({ sessions: 5000 })));
@@ -1085,6 +1194,20 @@ describe("v2 answers (world-readable since D98; option edits only — D86)", () 
     await assertFails(setDoc(ref(QID), answer({ surface: "bogus" })));       // bad surface
     await assertFails(setDoc(ref(QID), answer({ extra: 1 })));               // unknown field
     await assertFails(setDoc(ref(QID), answer({ answeredAt: new Date() }))); // not request.time
+    // The ANCHORS, which nothing was checking on this path. They are the D8
+    // cohort snapshot frozen onto the answer, client-written and — since
+    // D98 — readable by every signed-in user; `isValidV2Anchors` is their
+    // only write-side cap. All three existing cases for it write the
+    // PROFILE copy, so deleting the call from the answer create left the
+    // suite green.
+    await assertFails(setDoc(ref(QID), answer({ anchors: { zip: "0150" } })));
+    await assertFails(setDoc(ref(QID), answer({ anchors: { city: "x".repeat(81) } })));
+    await assertFails(setDoc(ref(QID), answer({ anchors: "Oslo" })));
+    // …and the snapshot a real client writes still lands, so the three
+    // refusals above are the map and not the field.
+    await assertSucceeds(setDoc(ref(QID), answer({
+      anchors: { city: "Oslo", country: "Norway", ageBand: "25-34" },
+    })));
   });
 
   it("honours the active kill switch and the question's own surface", async () => {
@@ -1554,6 +1677,20 @@ describe("v2 follow graph (D101 — Circle)", () => {
     await assertSucceeds(getDocs(query(
       collectionGroup(asUser(OWNER), "following"),
       where("to", "==", OWNER),
+    )));
+    // …AND the id-filtered form, which is what it sends now. The read used
+    // to fetch a page of everyone who follows you and intersect it on the
+    // device, so past a hundred followers a mutual outside the
+    // lexicographically-first page silently read as false. It now names
+    // the candidates' own rows — every path is known, because a follow's
+    // document id IS its target. The `to` clause stays because this rule
+    // is what requires it, and the failure mode if this combination is
+    // ever refused is the one the paragraph above describes: a screen that
+    // works and is empty.
+    await assertSucceeds(getDocs(query(
+      collectionGroup(asUser(OWNER), "following"),
+      where("to", "==", OWNER),
+      where(documentId(), "in", [followRef(OWNER, STRANGER, OWNER)]),
     )));
     // Not a licence to enumerate the whole follow graph.
     await assertFails(getDocs(collectionGroup(asUser(OWNER), "following")));
@@ -2274,6 +2411,10 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
         gid: GID, authorUid: OWNER, text: "contested", createdAt: new Date(),
         hidden: false,
       });
+      await setDoc(doc(db, "v2_takes", "t3"), {
+        gid: GID, authorUid: OWNER, text: "also contested", createdAt: new Date(),
+        hidden: false,
+      });
       await setDoc(doc(db, "v2_takes", "t_gone"), {
         gid: GID, authorUid: OWNER, text: "settled", createdAt: new Date(),
         hidden: true, hiddenMeta: { by: "mod", policyLine: "H5" },
@@ -2287,6 +2428,23 @@ describe("moderation substrate: takes + flags (docs/MODERATION.md, D22)", () => 
     // an id that doesn't match takeId_uid would let one account stuff counts
     await assertFails(setDoc(
       doc(asUser(FRIEND), "v2_flags", "t2_sock2"), flag("t2", FRIEND)));
+    // THE STAMP IS THE TIE-BREAK, so the client may not write it. The queue
+    // ranks by flag count and breaks ties on the earliest flag
+    // (`buildModQueueFrom`'s `firstAt`), and the whole argument for moving
+    // that tie-break off the take id was that `at` is server-written: an
+    // attacker can always make a take newly flagged and can never make it
+    // older. The rule's `at == request.time` is the only thing that makes
+    // that sentence true, and nothing was watching it — a flagger writing
+    // `at: new Date(0)` sorts their target to the head of every queue
+    // generation for the price of the flag floor, which is precisely the
+    // attack the tie-break was introduced to close.
+    await assertFails(setDoc(
+      doc(asUser(FRIEND), "v2_flags", "t3_" + FRIEND),
+      flag("t3", FRIEND, { at: new Date(0) })));
+    // The same flag, same flagger, same take, with the server's stamp:
+    // the refusal above is the STAMP and not the identity or the take.
+    await assertSucceeds(setDoc(
+      doc(asUser(FRIEND), "v2_flags", "t3_" + FRIEND), flag("t3", FRIEND)));
     // D98: a stranger may flag. The membership gate rested on "a stranger
     // cannot flag speech they cannot read", and a stranger can now read
     // every take — so the premise went and the gate with it.
@@ -3025,6 +3183,24 @@ describe("handles: the account registry (D122)", () => {
     // the entire purpose. Deliberately wider than D98: that made answers
     // readable to anyone holding your uid, this makes you findable by
     // name. Recorded as its own decision rather than assumed.
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_handles", "olaf")));
+  });
+
+  it("…by name, one at a time — the registry is not a list of everyone", async () => {
+    // `read` is `get` PLUS `list`, so the open lookup above was also an
+    // open enumeration: one collection read returning every handle in the
+    // app, each holding the uid whose public answers it unlocks. The
+    // paragraph in firestore.rules said that query surface did not exist
+    // and so did the data inventory; neither was a rule until now.
+    //
+    // Nothing in the app wants it. The client's only registry read is the
+    // exact-id getDoc above, deleteAccount's query over it runs through
+    // the Admin SDK, and finding people by anything other than an exact
+    // handle is the directory's job (D239).
+    await seedHandle();
+    await assertFails(getDocs(collection(asUser(STRANGER), "v2_handles")));
+    // Narrowing a `read` to a `get` is the shape that takes the lookup
+    // with it, so hold both in one place.
     await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_handles", "olaf")));
   });
 
