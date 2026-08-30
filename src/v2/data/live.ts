@@ -4099,7 +4099,20 @@ const LIVE = {
 
   /** Whether the viewer follows `uid` — answered from the loaded list. */
   isFollowing(uid: string): boolean {
-    return !!state.circle?.some((m) => m.uid === uid);
+    // THE CIRCLE WHEN IT IS LOADED, and otherwise the follow SET — which
+    // is the cheap list D149 built for exactly this question.
+    //
+    // `state.circle` is filled by one component, the Circle stop's body.
+    // Three surfaces draw a follow button — the Kindred cards, the city
+    // constellation's person card, and people search — and not one of them
+    // loads it. So this read was FALSE for everyone you already follow: the
+    // button said Follow with `aria-pressed` false, and the first tap
+    // re-wrote a follow you already had, which reloads the circle, flips
+    // the label to Following, and leaves unfollowing to a second tap. Two
+    // of those hosts already load the follow set for other reasons, so the
+    // answer was in memory and this predicate would not look at it.
+    if (state.circle) return state.circle.some((m) => m.uid === uid);
+    return !!state.follows?.includes(uid);
   },
   /**
    * Follow or unfollow, then reload. Optimism is deliberately NOT applied

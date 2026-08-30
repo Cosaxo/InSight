@@ -77,6 +77,8 @@ const h = vi.hoisted(() => ({
   // listener the tests used to push into, so its fixtures are a document set
   // rather than a callback, and they land in this same map.
   aggDocs: [] as FakeSnapshotDoc[],
+  /** The viewer's `following` rows — the set every follow button reads. */
+  followDocs: [] as FakeSnapshotDoc[],
   // Documents the my-answers query resolves to (empty = the fresh-account
   // boot every earlier case was written against). Added for the catalog
   // fold: an entity answer doc has no optionIdx, and hydrate's fold has to
@@ -291,6 +293,13 @@ vi.mock("firebase/firestore", () => {
         h.voterQueries.push(wheres);
         const city = typeof wheres["anchors.city"] === "string" ? wheres["anchors.city"] as string : "";
         return Promise.resolve(snapOf(h.voterDocs[city] || []));
+      }
+      // The viewer's own follow rows. Served because `isFollowing` reads
+      // this set when the circle is not loaded, and every follow button
+      // outside the Circle stop is in exactly that state — with the path
+      // unserved, the store could only ever answer "not following".
+      if (q?.path === "v2_users/uid_test/following") {
+        return Promise.resolve(snapOf(h.followDocs));
       }
       if (q?.path === "v2_question_aggs") {
         const ids = (q.parts || [])
@@ -696,6 +705,24 @@ describe("a loader that starts tells its subscribers it started", () => {
     expect(calls).toBeGreaterThan(0);
     expect(LIVE.votersLoading("q_1")).toBe(true);
     await flush();
+  });
+
+  it("isFollowing answers from the follow set, not only from the circle", async () => {
+    // `state.circle` is filled by ONE component, the Circle stop's body,
+    // and three surfaces draw a follow button without ever loading it: the
+    // Kindred cards, the city constellation's person card, and people
+    // search. So this predicate returned false for everyone you already
+    // follow — the button read Follow with aria-pressed false, and the
+    // first tap re-wrote a follow you already had before the label could
+    // flip. Two of those hosts already load the set for other reasons, so
+    // the answer was in memory and the predicate would not look at it.
+    h.followDocs = [{ id: "u_friend", data: { to: "u_friend", at: { seconds: 1 } } }];
+    const LIVE = await bootLive();
+    expect(LIVE.isFollowing("u_friend"), "before the set is asked for").toBe(false);
+    await LIVE.loadFollows();
+    expect(LIVE.follows()).toContain("u_friend");
+    expect(LIVE.isFollowing("u_friend"), "the set was loaded and ignored").toBe(true);
+    expect(LIVE.isFollowing("u_stranger")).toBe(false);
   });
 
   it("loadFollows", async () => {

@@ -74,6 +74,11 @@ const LIVE = vi.hoisted(() => ({
   aggFor: (() => null) as (qid: string) => unknown,
   scoresFor: (() => null) as (uid: string) => ParsedResults | null,
   isFollowing: (() => false) as (uid: string) => boolean,
+  // The follow buttons ask for this set now: `isFollowing` reads the
+  // circle when the Circle stop has loaded it and the follow set
+  // otherwise, which is the state every surface but that one is in.
+  loadFollows: async () => {},
+  follows: () => null as string[] | null,
   setFollowing: vi.fn(() => Promise.resolve()),
   near: {
     on: (): boolean => true,

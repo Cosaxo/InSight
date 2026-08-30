@@ -78,6 +78,11 @@ const LIVE = vi.hoisted(() => ({
   // honest empty state and these cases scroll past it.
   anchors: () => ({} as Record<string, string>),
   isFollowing: () => false,
+  // The follow buttons ask for this set now: `isFollowing` reads the
+  // circle when the Circle stop has loaded it and the follow set
+  // otherwise, which is the state every surface but that one is in.
+  loadFollows: async () => {},
+  follows: () => null as string[] | null,
   setFollowing: async () => {},
   // LIVE.near survives on the mock because the D92 city-derive effect
   // still reads the grant state here; the CARD moved to NearLiveBody

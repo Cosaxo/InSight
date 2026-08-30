@@ -455,6 +455,10 @@ function PeopleLens({ qs, scope, shortName }: {
   qs: LensQuestion[]; scope: "city" | "country" | "world"; shortName: string;
 }) {
   React.useEffect(() => { void LIVE.loadKindred(); }, []);
+  // The follow buttons on these cards read the follow set when the circle
+  // is not loaded, and this lens is one of the surfaces that never loads
+  // it. One query, session-cached.
+  React.useEffect(() => { void LIVE.loadFollows(); }, []);
   const [, bump] = React.useReducer((n: number) => n + 1, 0);
   React.useEffect(() => LIVE.subscribe(bump), []);
 
