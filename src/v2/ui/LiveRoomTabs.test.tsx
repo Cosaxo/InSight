@@ -26,7 +26,15 @@ const LIVE = vi.hoisted(() => {
   return {
     enabled: true,
     uid: "u_me",
-    subscribe: () => () => {},
+    // Real, because two cases below drive a beat through it: the component
+    // re-renders on notify, which is how a new `updatedAt` reaches its
+    // effect.
+    listeners: [] as Array<() => void>,
+    subscribe(fn: () => void) {
+      this.listeners.push(fn);
+      return () => { this.listeners = this.listeners.filter((f) => f !== fn); };
+    },
+    notify() { for (const f of [...this.listeners]) f(); },
     deck: () => deck,
     myVotes: () => ({ a: "0" }) as Record<string, string>,
     myTestResults: () => ({}) as Record<string, unknown>,
@@ -47,6 +55,7 @@ const LIVE = vi.hoisted(() => {
         qs: Record<string, Record<string, number>> } | null,
       roomLoading: () => false as boolean,
       loadRoom: vi.fn(async () => {}),
+      updatedAt: () => 0 as number,
     },
   };
 });
@@ -247,6 +256,34 @@ describe("LiveRoomTabs · Answers and Compare read the room", () => {
   it("asks the store for exactly the deck it is about to draw", () => {
     render(<LiveRoomTabs tab="answers" />);
     expect(LIVE.near.loadRoom).toHaveBeenCalledWith(["a"]);
+  });
+
+  it("asks again when the beat moves the room underneath it", async () => {
+    // The room is per cell and the cell changes while this stays mounted.
+    // Keyed on the deck alone, nothing re-ran: the tabs went on naming the
+    // people from the block you walked out of, and the failure note's
+    // promise of a retry was a promise nothing kept.
+    LIVE.near.updatedAt = () => 1;
+    LIVE.near.loadRoom.mockClear();
+    render(<LiveRoomTabs tab="answers" />);
+    expect(LIVE.near.loadRoom).toHaveBeenCalledTimes(1);
+    LIVE.near.updatedAt = () => 2;
+    await act(async () => { LIVE.notify(); });
+    expect(LIVE.near.loadRoom).toHaveBeenCalledTimes(2);
+    LIVE.near.updatedAt = () => 0;
+  });
+
+  it("costs nothing on a beat that did not move", async () => {
+    // The dep is the beat, so a re-render without one must not re-ask. (A
+    // beat that repeats the same cell is refused inside the store too, but
+    // this component should not be leaning on that.)
+    LIVE.near.updatedAt = () => 7;
+    LIVE.near.loadRoom.mockClear();
+    render(<LiveRoomTabs tab="answers" />);
+    expect(LIVE.near.loadRoom).toHaveBeenCalledTimes(1);
+    await act(async () => { LIVE.notify(); });
+    expect(LIVE.near.loadRoom).toHaveBeenCalledTimes(1);
+    LIVE.near.updatedAt = () => 0;
   });
 });
 
