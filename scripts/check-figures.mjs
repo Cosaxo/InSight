@@ -383,6 +383,27 @@ const convertedSpecModules = (() => {
 // that quotes it.
 const SPEC_MIGRATION_DRIFT = 25;
 
+// The instruments the app actually ships, counted off IS_TESTS' own keys.
+//
+// `passive-progress.js` opened with "progress for the five core tests"
+// while the object had held four since D103 retired the Thinking test —
+// the same hand-kept-figure drift this script exists for, in a file the
+// smoke suite has a whole describe block about ("the retired Thinking test
+// is gone from every surface"). A top-level key at four-space indent is a
+// test; the nested `dims` and `questions` sit deeper.
+const coreTests = (() => {
+  const src = read("src/v2/spec/test-definitions.js");
+  const open = src.indexOf("export const IS_TESTS = {");
+  if (open < 0) {
+    throw new Error(
+      "check-figures: src/v2/spec/test-definitions.js no longer declares\n"
+      + "    `export const IS_TESTS = {` — fix this scan rather than the count.\n"
+      + "    A figure gate that cannot find its subject reports zero.",
+    );
+  }
+  return [...src.slice(open).matchAll(/^ {4}([a-z][A-Za-z0-9_]*):\s*\{/gm)].length;
+})();
+
 // The mount smoke files, counted off the directory. CLAUDE.md §2 calls them
 // out by glob and then says how many, and the two parted company when
 // smoke-live.test.jsx landed: the glob matched six while the sentence said
@@ -438,6 +459,13 @@ const FIGURES = [
     re: /`public\/cities\.txt` \(([\d,]+) places/,
     actual: cityPlaces.toLocaleString("en-US"),
     fix: (n) => `"\`public/cities.txt\` (${n} places"`,
+  },
+  {
+    file: "src/v2/spec/passive-progress.js",
+    what: "core tests the passive tracker follows",
+    re: /progress for the (\w+) core tests/,
+    actual: NUMBER_WORDS[coreTests] || String(coreTests),
+    fix: (n) => `"progress for the ${n} core tests"`,
   },
   {
     file: "CLAUDE.md",
