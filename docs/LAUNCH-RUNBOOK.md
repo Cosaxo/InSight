@@ -121,23 +121,28 @@ arithmetic.
 
 ## Phase 0 — Do these first (about an hour, one console)
 
-- [ ] **0.0 Decide the Firestore region — the only item here with a
-      DEADLINE.** Not a task so much as a fork, and it sits above the seed
-      because every day it is not decided makes it more expensive.
-      A database's location is fixed at creation, so this stops being a
-      setting and becomes a migration the moment real answers accumulate.
-      Worth roughly half of every Firestore line, forever, with no
-      user-visible change — and worth ~$20/month at the traction this app
-      is actually planning for, so the money is not the argument. The
-      deadline is.
+- [x] **0.0 The Firestore region — TAKEN 2026-08-15 (D165), and the
+      procedure finished 2026-08-27 (D333).** Production is `insight` /
+      `europe-west1`, a single region; `nam5` is the option not taken,
+      and deleting `(default)` was the last step. This carried the only
+      DEADLINE in the file, because a database's location is fixed at
+      creation and becomes a migration the moment real answers
+      accumulate — which is exactly why it was taken before they did.
 
-      [`FIRESTORE-REGION.md`](FIRESTORE-REGION.md) has the arithmetic, the
-      three options, the ordered procedure, and the two ways the migration
-      fails **silently** (a deploy sub-target that prints "Deploy
-      complete!" and ships nothing, and a Firestore trigger that binds to
-      the wrong database and simply never fires). Read it before touching
-      anything; staying on `nam5` is a legitimate answer and the point of
-      the page is that it be an answer rather than a default.
+      **The box stayed unticked for two weeks after the fact**, and that
+      is the documentation error this repo keeps re-committing (D39): the
+      tree said `europe-west1` the whole time — `FIRESTORE_LOCATION` in
+      `functions/src/db.ts`, `FUNCTIONS_REGION` in `functions/src/ops.ts`
+      — and only the checkbox lagged. It read as the largest open item on
+      the list while being the most finished thing on it.
+
+      [`FIRESTORE-REGION.md`](FIRESTORE-REGION.md) keeps its argument in
+      the present tense of a decision that was still open, on purpose:
+      the arithmetic, the three options, the ordered procedure, and the
+      two ways the migration fails **silently** (a deploy sub-target that
+      prints "Deploy complete!" and ships nothing, and a Firestore
+      trigger that binds to the wrong database and simply never fires).
+      Read it before touching a database region again, here or anywhere.
 
       **DONE 2026-08-15 (D165): `insight` / `europe-west1` is live** —
       created, rules + functions deployed, bank seeded and verified. The
