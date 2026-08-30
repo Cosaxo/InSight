@@ -116,10 +116,28 @@ describe("callPcts", () => {
   it("is null before anyone has called it — never a row of zeroes", () => {
     expect(callPcts([0, 0])).toBeNull();
   });
-  it("sums to exactly 100, with the remainder on the leader", () => {
+  it("sums to exactly 100", () => {
     const ps = callPcts([1, 1, 1])!;
     expect(ps.reduce((a, b) => a + b, 0)).toBe(100);
     expect(ps).toEqual([34, 33, 33]);
+  });
+  // …and it is the app's ONE rule doing it. `[1, 1, 1]` cannot tell the two
+  // apart — both give [34, 33, 33] — so the case above passed just as well
+  // against the retired rule this function used to carry, under a comment
+  // claiming it was what every other split does. This vector is pct.ts's
+  // own counter-example: round-then-dump prints the 9-vote option at 23%
+  // and the 10-vote winner at 22%, which is a false claim about the data
+  // rather than a rounding artifact.
+  it("never draws a smaller count at a larger percentage", () => {
+    const counts = [5, 7, 1, 9, 1, 7, 10];
+    const ps = callPcts(counts)!;
+    expect(ps.reduce((a, b) => a + b, 0)).toBe(100);
+    expect(ps.indexOf(Math.max(...ps))).toBe(counts.indexOf(Math.max(...counts)));
+    for (let i = 0; i < counts.length; i++) {
+      for (let j = 0; j < counts.length; j++) {
+        if (counts[i] > counts[j]) expect(ps[i]).toBeGreaterThanOrEqual(ps[j]);
+      }
+    }
   });
 });
 

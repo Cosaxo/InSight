@@ -82,6 +82,11 @@ import { PASSIVE } from './passive-progress.js';
 // paint; check:bundle's eager ceiling has no headroom for either.
 import { PathsCard } from './paths-card.jsx';
 import LiveReadGame from '../ui/LiveReadGame.tsx';
+// The app's ONE rounding rule (D277). Three splits in this file computed
+// their own — round each share, dump the residue on the largest bucket —
+// which is the rule pct.ts retired for drawing a smaller count at a larger
+// percentage.
+import { sharePcts } from '../data/pct.ts';
 import {
   wfCarried, wfCatArt, wfFeedMatch, wfFmt, wfHash, wfKnowBias, wfKnowRate,
   wfPcts, wfPickGroup, wfRateAvg, wfRateBg, wfRateInk, wfShadeText,
@@ -3505,8 +3510,7 @@ class WorldFeed extends React.Component {
     const same = mySide == null || !friends.length ? null : friends.filter((f) => f.oi === mySide).length;
     // the world's own split — it becomes the header bar (legend + baseline in one)
     // and every group's seam is read against it
-    const op = counts.map((c) => Math.round((c / total) * 100));
-    op[op.indexOf(Math.max(...op))] += 100 - op.reduce((a, b) => a + b, 0);
+    const op = sharePcts(counts);
     const nG = WF_GRP(dim, axis).length;
     const many = nG > 6;
     const GRID = { display: 'grid', gridTemplateColumns: '92px 1fr', gap: 10, alignItems: 'center' };
@@ -3541,9 +3545,7 @@ class WorldFeed extends React.Component {
           {WF_GRP(dim, axis).map((g, gi) => {
             const key = q.id + ':' + cutKey + ':' + gi;
             const w = counts.map((c, oi) => (c / total) * (0.55 + wfHash(key + ':' + oi)));
-            const sum = w.reduce((a, b) => a + b, 0);
-            const ps = w.map((x) => Math.round((x / sum) * 100));
-            ps[ps.indexOf(Math.max(...ps))] += 100 - ps.reduce((a, b) => a + b, 0);
+            const ps = sharePcts(w);
             return { g, gi, ps };
           }).sort((a, b) => b.ps[0] - a.ps[0]).map(({ g, gi, ps }) => {
             const you = g.label === youBand;
@@ -3579,10 +3581,7 @@ class WorldFeed extends React.Component {
       const r = q.crowd[i];
       const w = [];
       for (let p = 1; p <= N; p++) w.push(Math.exp(-Math.abs(p - r) * 0.85) * (0.75 + 0.5 * wfHash(q.id + ':' + i + ':' + p)));
-      const s = w.reduce((a, b) => a + b, 0);
-      const ps = w.map((x) => Math.round((x / s) * 100));
-      ps[ps.indexOf(Math.max(...ps))] += 100 - ps.reduce((a, b) => a + b, 0);
-      return ps;
+      return sharePcts(w);
     };
     const items = q.items.map((label, i) => ({ i, label, ps: dist(i) })).sort((a, b) => q.crowd[a.i] - q.crowd[b.i]);
     // friends' first picks, weighted by the crowd's share at position one

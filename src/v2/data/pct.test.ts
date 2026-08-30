@@ -8,6 +8,9 @@
 // only ever check the cases someone had already thought of.
 
 import { describe, expect, it } from "vitest";
+import { readFileSync, readdirSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { sharePcts } from "./pct";
 
 /** Every count vector of `len` options with each count in 0..max. */
@@ -175,5 +178,44 @@ describe("sharePcts — the cases with a history", () => {
     const big = sharePcts([9999, 1]);
     expect(big).toEqual([100, 0]);
     expect(big.reduce((a, b) => a + b, 0)).toBe(100);
+  });
+});
+
+// ONE rule means one implementation, and the way this repo lost that the
+// first time was not a decision — it was a copy. `pct.ts` was written to
+// replace the four lines below, and four copies of them were still running
+// afterwards: three in the feed's own cut panels and one in the CALL
+// surface, that one under a comment calling it "the same repair every other
+// split in this app makes". None of them was reachable by a test of this
+// module, because a copy is not a caller.
+//
+// So this case reads the tree rather than the module. It is the cheapest
+// thing that notices the fifth copy, and the fifth copy is the failure mode
+// this file exists to prevent.
+describe("nothing recomputes the retired rule", () => {
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+
+  /** Every source file under src/, excluding this module's own prose. */
+  function sources(dir: string, out: string[] = []): string[] {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, e.name);
+      if (e.isDirectory()) sources(full, out);
+      else if (/\.(ts|tsx|js|jsx)$/.test(e.name)) out.push(full);
+    }
+    return out;
+  }
+
+  it("has no second copy of round-then-dump-the-residue anywhere in src/", () => {
+    // The shape, not the exact text: `p[...] += 100 - p.reduce(...)` is the
+    // dump whatever the array is called and however the round above it is
+    // written.
+    const RESIDUE_DUMP = /\+=\s*100\s*-\s*\w+\s*\.reduce\(/;
+    const offenders = sources(join(root, "src"))
+      // pct.ts QUOTES the retired rule in the comment explaining why it is
+      // retired, and this file quotes it again above. Both are the record.
+      .filter((f) => !/pct\.(ts|test\.ts)$/.test(f))
+      .filter((f) => RESIDUE_DUMP.test(readFileSync(f, "utf8")))
+      .map((f) => relative(root, f));
+    expect(offenders).toEqual([]);
   });
 });

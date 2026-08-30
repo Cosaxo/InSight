@@ -11,6 +11,7 @@
 // the copy inside the deploy. This module is the part that is only ever
 // the client's: presentation state, and the re-grade.
 import { evalRubric, type CallRubric, type CallSnapshot } from "./callRubric";
+import { sharePcts } from "./pct";
 import type { CallOutcome, QuestionDoc } from "./deck";
 
 /** One call as the card needs it: the question, the crowd, the grade, you. */
@@ -149,12 +150,15 @@ export function daysUntil(resolvesAt: string, now: number): number {
 export function callPcts(counts: readonly number[]): number[] | null {
   const total = counts.reduce((a, b) => a + b, 0);
   if (total <= 0) return null;
-  const ps = counts.map((c) => Math.round((100 * c) / total));
-  // Whole percentages do not sum to 100; give the remainder to the leader,
-  // the same repair every other split in this app makes.
-  const lead = ps.indexOf(Math.max(...ps));
-  ps[lead] += 100 - ps.reduce((a, b) => a + b, 0);
-  return ps;
+  // The app's ONE rounding rule (D277). What stood here was the retired
+  // one — round every share, then dump the whole residue on the leader —
+  // under a comment calling it "the same repair every other split in this
+  // app makes", which stopped being true the day pct.ts was written. On two
+  // options the two rules agree, and `cardsFrom` only builds two-option
+  // cards, so nothing drawn today was wrong; the function is exported and
+  // takes any width, and the residue lands on ONE bucket however many
+  // options it has to spread across.
+  return sharePcts(counts);
 }
 
 /** Build the card view models from the bank, the votes and the outcomes. */
