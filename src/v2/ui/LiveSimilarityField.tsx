@@ -590,7 +590,18 @@ export function NearField() {
   // so arriving at Near costs a presence sample rather than a document per
   // person per question. The tabs ask again with the deck when one is
   // opened, and the per-cell cache means the roster is already there.
-  React.useEffect(() => { void LIVE.near.loadRoom([]); }, []);
+  //
+  // KEYED ON THE BEAT, for the reason the tabs' own effect gives: the room
+  // is per cell, `loadRoom` is the only writer of it, and nothing in the
+  // store re-folds when the cell changes. Mounted once with an empty dep
+  // list, this field drew the roster of the block you walked out of under a
+  // headcount that moved with every beat — and it is the surface that
+  // matters more, because the tab bodies below only exist once a tab is
+  // tapped, while this is what the stop opens on. Free on a beat that did
+  // not move: the store returns at once when the cell it holds is the
+  // current one, and with no qids the question test is vacuous.
+  const beat = LIVE.near.updatedAt();
+  React.useEffect(() => { void LIVE.near.loadRoom([]); }, [beat]);
   React.useEffect(() => { void LIVE.loadSimilarity(); }, []);
 
   const on = LIVE.near.on();
