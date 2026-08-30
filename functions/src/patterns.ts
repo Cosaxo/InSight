@@ -94,7 +94,13 @@ export interface PatternsStore {
   ledgerDay(dayKey: string): Promise<PatternsLedgerEntry[]>;
   /** The model, plus the published quality series (D325) so the fit can
    * append to it rather than restart it every night. */
-  getModel(): Promise<(PatternsModel & { lastDay?: string; series?: PatternsQualityDay[] }) | null>;
+  getModel(): Promise<(PatternsModel & {
+    lastDay?: string;
+    series?: PatternsQualityDay[];
+    /** The previous publish in full — carried forward by a run that scores
+     * nothing, so a crashed day does not cost the perQ table too. */
+    quality?: PatternsQuality;
+  }) | null>;
   putModel(
     model: PatternsModel,
     lastDay: string,
@@ -152,6 +158,9 @@ export async function runPatternsFit(
   // the fold mutates them, so the displacement summary (D325) compares
   // publish to publish with zero extra reads.
   const priorSeries = model.series ?? [];
+  // The whole previous publish, not just its series: it is what a run that
+  // scores nothing carries forward, perQ table included.
+  const prevQuality = model.quality;
   const prevPub: Record<string, number[]> = {};
   for (const [qid, L] of Object.entries(model.q)) prevPub[qid] = [...L.v];
 
@@ -177,6 +186,7 @@ export async function runPatternsFit(
     const entries = (await store.ledgerDay(day)).filter(
       (e) => eligible.has(e.qid) && (e.optionIdx === 0 || e.optionIdx === 1),
     );
+    let refolded = 0;
     if (!entries.length) continue;
     // group by person; sort each person's day by qid so a replay
     // reproduces the run (the fit is order-sensitive within a day)
@@ -246,7 +256,7 @@ export async function runPatternsFit(
       // ALREADY FOLDED — a previous attempt at this day wrote this person
       // before it died. Neither the vector nor the model steps again; see
       // the note on the trade in this function's header.
-      if (user.d && user.d >= day) continue;
+      if (user.d && user.d >= day) { refolded += 1; continue; }
       foldUserDay(model, user, obs, score);
       user.d = day;
       write.set(uid, user);
@@ -254,8 +264,31 @@ export async function runPatternsFit(
       folded += obs.length;
     }
     if (write.size) await store.putUsers(write);
+    // A DAY A DEAD RUN ALREADY FOLDED IS NOT AN EMPTY DAY. The retry guard
+    // above skips everybody a previous attempt stamped, so `score` stays at
+    // n: 0 — and a zero row published into the series says exactly what the
+    // series' own docstring defines it to mean: nobody answered. For a day
+    // that had answers, folded into the model that crashed before it could
+    // publish. The row then lives 90 days in the standing prequential
+    // record D325 keeps as "the number any candidate engine must beat", and
+    // the ledger day it describes is consumed, so nothing can recompute it.
+    //
+    // Silence is the honest reading: a previous attempt owned that day's
+    // score and it is gone. Dropped from `scored` rather than published,
+    // and only when the day had entries and every one of them was skipped
+    // as already folded — a day that genuinely had no eligible answers
+    // keeps its n: 0 row, which is the putModel zero-rather-than-nothing
+    // idiom working as intended.
+    if (!write.size && refolded > 0) scored.pop();
   }
-  const quality = publishableQuality(scored, priorSeries);
+  // …and if EVERY owed day was one of those, there is no head to publish.
+  // `lastDay` still advances — the days really are folded, and not
+  // advancing would re-walk them forever, since every user is stamped — so
+  // the previous publish is carried forward untouched rather than replaced
+  // by a row about nothing.
+  const quality = scored.length
+    ? publishableQuality(scored, priorSeries)
+    : (prevQuality ?? publishableQuality([{ day: yesterday, score: emptyDayScore() }], priorSeries));
   const displacement = displacementSummary(prevPub, model);
   await store.putModel(model, yesterday, folded, quality, displacement);
   return { days: days.length, folded, users: touched.size, questions: Object.keys(model.q).length, bits: quality.bits };
@@ -284,6 +317,7 @@ export function firestorePatternsStore(db: Firestore): PatternsStore {
         q: (snap.get("q") as PatternsModel["q"]) ?? {},
         lastDay: (snap.get("lastDay") as string) ?? "",
         series: (snap.get("quality") as PatternsQuality | undefined)?.series ?? [],
+        quality: snap.get("quality") as PatternsQuality | undefined,
       };
     },
     async putModel(model, lastDay, folded, quality, displacement) {
