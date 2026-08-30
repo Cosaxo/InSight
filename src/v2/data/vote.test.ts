@@ -1007,7 +1007,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
   // that must happen can afford to be generous.
   //
   // WHAT IT COSTS, measured rather than waved at: this file ran 13.8s
-  // before and 18.2s after — three waits that must happen went from 1200ms
+  // before and 17.7s after — three waits that must happen went from 1200ms
   // to 2500ms, and the two that could be watched for stopped waiting at
   // all. `41e06f71`'s message said the time was "unchanged within a
   // second", which was never measured against the old file and is wrong by

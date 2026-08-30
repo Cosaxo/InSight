@@ -470,7 +470,7 @@ const FIGURES = [
     // merged replaces it with `word()` from scripts/number-words.mjs and
     // deletes the table. Git merges both changes without a conflict and the
     // gate then dies on a name that no longer exists — measured, in a
-    // throwaway merge of the two lines. A four-word list depends on
+    // throwaway merge of the two lines. A literal list depends on
     // neither.
     actual: ["zero", "one", "two", "three", "four", "five", "six", "seven"][coreTests]
       ?? String(coreTests),
