@@ -44,8 +44,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { initializeApp, applicationDefault } from "firebase-admin/app";
-import { getFirestore } from "firebase-admin/firestore";
+import { adminDb } from "./admin-db.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = resolve(root, "content/pricing.json");
@@ -65,8 +64,9 @@ if (emulator && !process.env.FIRESTORE_EMULATOR_HOST) {
   process.env.FIRESTORE_EMULATOR_HOST = "127.0.0.1:8080";
 }
 
-initializeApp(emulator ? { projectId } : { credential: applicationDefault(), projectId });
-const db = getFirestore();
+// NAMES THE DATABASE. `getFirestore()` binds to `(default)`, which this
+// app does not use and which no longer exists — see scripts/admin-db.mjs.
+const db = adminDb({ projectId, emulator });
 
 // The standing constants come FROM the committed file, so a deliberate
 // re-pricing is an edit to pricing.json reviewed in a PR — this script

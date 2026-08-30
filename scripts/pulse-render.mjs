@@ -414,6 +414,14 @@ function panelMoney(p) {
         ${usd(g.allowanceUsd)} allowance. Price a path, pull the read breaker
         (<code>npm run budget:mode -- --level 1</code>), or raise the allowance in the
         commit that says why.</div></div>`
+    : g.state === "stale"
+      ? `<div class="banner" style="border-left-color:var(--s4)">
+          <div><strong>The usage guard is measuring a stopped trail.</strong>
+          Its last folded day is ${esc(g.measuredOn || "")}, ${int(g.measuredAgeDays)} days back, and it
+          averages a seven-day window — so the ${usd(g.netBurnUsd)}/mo it reads against the
+          ${usd(g.allowanceUsd)} allowance describes a week that has passed. Refresh it
+          (<code>npm run scorecard -- --fetch</code>); if the trail will not move, the digest
+          has stopped folding days.</div></div>`
     : g.state === "ok"
       ? `<div class="banner" style="border-left-color:var(--s3)">
           <div><strong>Usage vs revenue: inside the allowance.</strong>

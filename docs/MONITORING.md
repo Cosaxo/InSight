@@ -131,8 +131,12 @@ recorded revenue, and goes red past `guard.maxNetBurnUsdPerMonth` in
 rides the pulse workflow's daily `--check`, so it is an email, not a
 dashboard hoping to be opened; the message names the levers in order
 (record revenue, pull `npm run budget:mode -- --level 1`, or raise the
-allowance in a commit that says why). It is a model at a measured size,
-never an invoice — the Cloud Billing budget stays the outcome-side
+allowance in a commit that says why). A **stale** trail reds too, and for
+the reason the green would otherwise be worthless: the engagement file
+moves only when somebody runs the fetch, so a trail that stopped folding
+days would keep pricing an old population and keep passing. Past seven
+days — the width of the window the guard averages — it says so instead.
+It is a model at a measured size, never an invoice — the Cloud Billing budget stays the outcome-side
 control, and COSTS.md's controls section still owns that list. Arming
 that budget is one command too since the same record: `npm run
 budget:apply` (or the **Arm budget** workflow) creates it from the

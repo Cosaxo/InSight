@@ -319,6 +319,22 @@ describe("the Near field is a crowd, never a directory", () => {
     }
   });
 
+  it("does not pay the similarity load for data it never reads", () => {
+    // The loader was right while this field drew the city's crowd. D181
+    // replaced the body with the presence roster and left the effect: ~110
+    // test aggregates plus twelve collection-group answer reads, charged
+    // to a viewer who opened Near and may never open the stops that read
+    // them. Everything this component draws comes from the room call and
+    // loadNames.
+    (LIVE.loadSimilarity as ReturnType<typeof vi.fn>).mockClear();
+    render(<NearField />);
+    expect(LIVE.loadSimilarity).not.toHaveBeenCalled();
+    // …and the two loads it DOES need are still made, or this would pass
+    // on a component that fetched nothing at all.
+    expect(LIVE.near.loadRoom).toHaveBeenCalled();
+    expect(LIVE.loadNames).toHaveBeenCalled();
+  });
+
   it("counts who it could place against who is there, rather than quietly dropping them", () => {
     render(<NearField />);
     // "2 of 3 here" — the person with no test is missing from the ring and

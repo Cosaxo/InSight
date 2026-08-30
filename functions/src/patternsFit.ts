@@ -67,12 +67,38 @@ export interface PatternsModel {
 export interface PatternsUserState {
   v: number[];
   n: number;
+  /**
+   * The last ledger day folded into this vector — the only thing that
+   * makes the fit safe to retry.
+   *
+   * `v` and `n` are advanced by `foldUserDay`, which is a step, not a
+   * set. `runPatternsFit` writes the users day by day and the model's
+   * cursor ONCE at the end, so a crash part-way through a catch-up leaves
+   * the cursor behind and the next run re-folds days it already applied
+   * to these vectors. The docstring on that function claimed the reverse.
+   *
+   * Optional because every vector written before this existed has none,
+   * and an absent stamp means "fold it" — the old behaviour, once.
+   */
+  d?: string;
 }
 
 export interface PatternsObservation {
   qid: string;
   /** The encoded answer: +1 for option 0, −1 for option 1. */
   x: number;
+  /**
+   * The encoded answer this one REPLACES, when the person had already been
+   * folded on this question and has since edited it (D86). Absent on a
+   * first answer, which is the ordinary case.
+   *
+   * It exists because `n` and `sum` are counts of PEOPLE and an edit is
+   * not a second person. Folding one as a first answer put the same person
+   * in `n` twice and left both of their answers in `sum` — so someone who
+   * said 0 and changed their mind to 1 contributed nothing to the marginal
+   * instead of +1, and inflated the basis at the same time.
+   */
+  prev?: number;
 }
 
 /** Two-option answers encode symmetrically; anything else is ineligible
@@ -175,7 +201,30 @@ export function foldUserDay(
     // step ahead or it isn't held out.
     let dot = 0;
     for (let i = 0; i < k; i++) dot += user.v[i] * L.v[i];
-    if (score) {
+    // A REVISION NEEDS SOMETHING TO REVISE. With `L.n === 0` this model has
+    // never folded an answer to this question, so the value the branch
+    // below would subtract was never added — and worse, it would leave
+    // `n` at zero while `sum` is computed, making `L.sum / L.n` a 0/0 NaN
+    // that spreads: into this loading's vector, into the person's theta,
+    // and from there into every other question they answer on any later
+    // night. Firestore stores NaN as a valid double and nothing downstream
+    // checks, so it would publish.
+    //
+    // Reachable in exactly the case the clamp below was written for — a
+    // create outside the seven-day catch-up, or one that predates the
+    // question becoming eligible — and on the first run after a deploy,
+    // where every question starts at n = 0. The clamp does not cover it:
+    // `L.sum > L.n` is satisfied at zero and leaves the division standing.
+    //
+    // So an edit whose first answer this model never saw folds as a first
+    // answer: one person, their current answer, counted once. That is the
+    // honest reading of what the model actually knows about them.
+    const revision = o.prev !== undefined && L.n > 0;
+    // A revision is not a held-out prediction. The person's answer to this
+    // question was already scored the day it first arrived; scoring the
+    // edit would count them twice in the day's own scorecard too, which is
+    // the same error one level up.
+    if (score && !revision) {
       const mPrev = L.n > 0 ? L.sum / L.n : 0;
       const bits = prequentialBits(mPrev + dot, o.x);
       score.n += 1;
@@ -187,8 +236,28 @@ export function foldUserDay(
     // marginal first, then centre — the mean INCLUDES this answer, so a
     // question's very first answer carries no signal beyond existing
     // (r = 0), which is right: one vote says nothing about co-variation.
-    L.n += 1;
-    L.sum += o.x;
+    //
+    // A REVISION MOVES THE MARGINAL WITHOUT ADDING A PERSON: -old/+new,
+    // `n` untouched. The same delta the aggregate counts take on an edit,
+    // and for the same reason — the population did not grow, one member of
+    // it changed their mind. Theta still steps below, which is the edit's
+    // consequence v2.ts records as considered and accepted; it was only
+    // the counts that were never meant to move twice.
+    if (revision) {
+      L.sum += o.x - (o.prev as number);
+      // The invariant, as a clamp rather than an assumption: every answer
+      // is ±1, so |sum| can never exceed n. It could only be breached by a
+      // revision whose FIRST answer this model never folded — a create
+      // that fell outside the catch-up window, or landed before the
+      // question became eligible — where the subtraction removes something
+      // that was never added. Rare, undetectable from the ledger alone,
+      // and bounded here instead of left to skew a marginal past 1.
+      if (L.sum > L.n) L.sum = L.n;
+      else if (L.sum < -L.n) L.sum = -L.n;
+    } else {
+      L.n += 1;
+      L.sum += o.x;
+    }
     const m = L.sum / L.n;
     const r = o.x - m;
     const e = r - dot;
@@ -199,7 +268,7 @@ export function foldUserDay(
       user.v[i] = ui + PATTERNS_ETA_USER * (e * li - PATTERNS_LAMBDA * ui);
       L.v[i] = li + eq * (e * ui - PATTERNS_LAMBDA * li);
     }
-    user.n += 1;
+    if (!revision) user.n += 1;
   }
   return { model, user };
 }

@@ -13,6 +13,14 @@
 // world-feed-data without place-stats, which leaves a pool the app never
 // has (13 rate cards short). One import of spec-index, one loader, no
 // beforeEach.
+//
+// The loadOverlays half of this used to sit at the bottom of this file and
+// could not fail: by the time it ran, the case above had already called
+// loadWorldFeed() in the same module registry, and the stock install is
+// idempotent behind a module-level flag. It is its own file now
+// (overlays-wiring.test.jsx) for exactly the reason this one is — vitest
+// gives each file a pristine registry, which is the only place "alone"
+// means alone.
 
 import { describe, expect, it } from "vitest";
 
@@ -50,24 +58,5 @@ describe("loadWorldFeed assembles the whole demo pool", () => {
     // this global at render, and its group is the one main.jsx re-renders
     // the root after — which is why it rides here rather than loadOverlays.
     expect(typeof window.PlaceStatsCard, "place-stats.jsx did not publish PlaceStatsCard").toBe("function");
-  });
-});
-
-
-describe("loadOverlays carries the subtopic stock too", () => {
-  it("the discover sheet's leaves are stocked without the feed group", async () => {
-    // search-overlay.jsx reads `SUBTOPICS.offers()`, which is "only the
-    // stocked leaves" and reads the pool to decide. The stock is installed
-    // by a loader now, so the overlays group has to install it as well —
-    // main.jsx starts the two concurrently and neither may wait on the
-    // other. Asserted through loadOverlays ALONE, which is the only way to
-    // see the dependency if it comes back.
-    const specIndex = await import("../spec-index.js");
-    await specIndex.loadOverlays();
-    const { SUBTOPICS } = await import("../spec/world-subtopics.js");
-    expect(
-      SUBTOPICS.offers().map((s) => s.id),
-      "loadOverlays left the leaves unstocked — search's discover sheet would offer nothing",
-    ).toEqual(["sub_tennis", "sub_football", "sub_running"]);
   });
 });

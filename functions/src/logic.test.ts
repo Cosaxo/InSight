@@ -18,10 +18,11 @@ import {
   measuredPctile,
   nextStartsToday,
   scoreLogicPicks,
-  utcDayKey,
   validLogicPicks,
   type LogicAttempt,
 } from "./logic";
+// One name, one meaning: the day-key helpers live in pure.ts now.
+import { utcDayKeyOf } from "./pure";
 import { generateForm, version as GEN_VERSION } from "./logic-gen";
 
 const NOW = Date.UTC(2026, 7, 6, 12, 0, 0); // 2026-08-06T12:00Z
@@ -33,7 +34,7 @@ const attempt = (over: Partial<LogicAttempt>): LogicAttempt => ({
   status: "open",
   startedAtMs: NOW - 1000,
   deadlineMs: NOW - 1000 + LOGIC_DEADLINE_MS,
-  dayKey: utcDayKey(NOW),
+  dayKey: utcDayKeyOf(NOW),
   startsToday: 1,
   ...over,
 });
@@ -88,7 +89,7 @@ describe("canStartLogic", () => {
       status: "scored",
       scoredAtMs: NOW - (LOGIC_REVERIFY_DAYS + 1) * DAY,
       startsToday: 1,
-      dayKey: utcDayKey(NOW - (LOGIC_REVERIFY_DAYS + 1) * DAY),
+      dayKey: utcDayKeyOf(NOW - (LOGIC_REVERIFY_DAYS + 1) * DAY),
     });
     expect(canStartLogic(old, NOW).ok).toBe(true);
   });

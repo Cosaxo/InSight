@@ -161,6 +161,22 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
         </div>
       );
     }
+    // COULD NOT ASK IS NOT NOBODY, and on this population it is a
+    // different sentence. `loadFollows` leaves its cache null when the
+    // fetch fails, deliberately — "could not ask must not render as you
+    // follow nobody" is its own comment, and the breakdown panel honours
+    // it. Here the null was collapsed to an empty set two hundred lines
+    // up, the keep filter then rejected everyone, and the lens stated
+    // that nobody from your circle is placed here: a confident claim
+    // about a list it never read.
+    if (pop === "circle" && LIVE.follows() === null) {
+      return (
+        <Empty
+          head="Could not read your circle"
+          line="Your follow list did not load, so this cannot say who is here. Try again in a moment."
+        />
+      );
+    }
     return pop === "circle"
       ? <Empty head="Crowd too thin" line="Nobody from your circle is placed here yet — you appear to each other as you both answer." />
       : <Empty head="Crowd too thin" line="Too few people share your questions yet. The map fills as the crowd answers." />;

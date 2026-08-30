@@ -94,6 +94,31 @@ describe("the thin and loading states", () => {
     expect(screen.queryByText("Crowd too thin")).toBeNull();
   });
 
+  it("says the circle could not be READ, never that it is empty", () => {
+    // loadFollows leaves its cache null on failure on purpose — "could not
+    // ask" must not render as "you follow nobody". This lens collapsed the
+    // null to an empty set, so the keep filter rejected everyone and the
+    // screen stated that nobody from your circle is placed here: a
+    // confident claim about a list that never arrived.
+    LIVE.follows = () => null;
+    LIVE.followsLoading = () => false;
+    LIVE.voters = () => [row("only", 0)];
+    render(<PatternsPeople items={ITEMS} version={1} pop="circle" onOracle={noop} />);
+    expect(screen.getByText("Could not read your circle")).toBeTruthy();
+    expect(screen.queryByText("Crowd too thin")).toBeNull();
+  });
+
+  it("still says thin when the circle really did load and is small", () => {
+    // The contrast: an empty follow list that WAS read is a thin crowd,
+    // and must keep saying so.
+    LIVE.follows = () => [];
+    LIVE.followsLoading = () => false;
+    LIVE.voters = () => [row("only", 0)];
+    render(<PatternsPeople items={ITEMS} version={1} pop="circle" onOracle={noop} />);
+    expect(screen.getByText("Crowd too thin")).toBeTruthy();
+    expect(screen.queryByText("Could not read your circle")).toBeNull();
+  });
+
   it("says PAUSED under the read breaker, never that the crowd is thin (D332)", () => {
     // The lists were refused, not read — "Crowd too thin" would be a
     // claim about a crowd nothing looked at.

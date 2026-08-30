@@ -45,7 +45,15 @@ const h = vi.hoisted(() => ({
   // the reveal has to add it back in. Default null keeps every other case
   // on the "document does not exist" answer they were written against.
   getDocImpl: null as null | ((path: string) => Record<string, unknown> | null),
-  setDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
+  // OPTIONS TOO. The third argument decides whether a write can REMOVE a
+  // field, and dropping it here is why nothing could pin `saveAnchors`
+  // passing `mergeFields` — a fix landed with a comment claiming the
+  // rules suite guarded it, and reverting the fix left every test green.
+  setDocCalls: [] as Array<{
+    path: string;
+    data: Record<string, unknown>;
+    opts?: Record<string, unknown>;
+  }>,
   // the D86 edit path writes through updateDoc, never setDoc
   updateDocImpl: null as null | (() => Promise<void>),
   updateDocCalls: [] as Array<{ path: string; data: Record<string, unknown> }>,
@@ -304,8 +312,12 @@ vi.mock("firebase/firestore", () => {
       h.snapshots.push({ path: target?.path, next, error });
       return vi.fn();
     },
-    setDoc: (target: { path: string }, data: Record<string, unknown>) => {
-      h.setDocCalls.push({ path: target.path, data });
+    setDoc: (
+      target: { path: string },
+      data: Record<string, unknown>,
+      opts?: Record<string, unknown>,
+    ) => {
+      h.setDocCalls.push({ path: target.path, data, opts });
       return h.setDocImpl ? h.setDocImpl() : Promise.resolve();
     },
     updateDoc: (target: { path: string }, data: Record<string, unknown>) => {
@@ -586,6 +598,126 @@ describe("patternsSignal (D265): the mount gate's two numbers", () => {
   });
 });
 
+// ── how divisive a question was, over the options it HAS ────────────
+//
+// The selection key for the twelve questions Kindred, the City
+// constellation and the People lens are computed over. It densified the
+// published counts by walking "0".."19" and BREAKING at the first missing
+// key — but the server mints a key by incrementing and deletes one that
+// reaches zero, so an option nobody picked simply has no key. A gapped
+// vector was therefore scored on its leading run, and `divisiveness`
+// normalises by option COUNT, so the short vector is not merely missing
+// zeros: it is rescaled.
+describe("divisivenessOf reads the whole question, not its leading run", () => {
+  const bankDoc = (id: string, options: string[]) => ({
+    id,
+    data: {
+      surface: "feed", seq: 1, type: "vote", prompt: id,
+      options, topic: null, test: null, active: true, core: true,
+    },
+  });
+
+  /** Boot with the question in the bank, then land the published counts
+   *  through the store's own refresh — the only path that fills
+   *  `state.aggs`, which is what divisivenessOf reads. */
+  const withCounts = async (
+    qid: string, options: string[] | null, counts: Record<string, number> | null,
+  ) => {
+    if (options) h.bankDocs.push(bankDoc(qid, options));
+    const mod = await import("./live");
+    const LIVE = await bootLive();
+    LIVE.vote(qid, "0");
+    await vi.waitFor(() => {
+      expect(mod._aggRefreshForTest().pending).toContain(qid);
+    });
+    h.aggDocs = counts ? [{ id: qid, data: { total: 0, counts } }] : [];
+    await mod._aggRefreshForTest().drain({ __db: true } as never);
+    return mod;
+  };
+
+  it("fills an unpicked option with zero instead of stopping there", async () => {
+    const mod = await withCounts("q_gap", ["A", "B", "C", "D", "E"],
+      { "0": 2, "1": 3, "3": 3, "4": 1 });
+    // Five options, lead 3 of 9 → (1 − 1/3) / (1 − 1/5). Truncated at the
+    // gap it was three options wide and scored 0.6667.
+    expect(mod.divisivenessOf("q_gap")).toBeCloseTo((1 - 3 / 9) / (1 - 1 / 5), 6);
+  });
+
+  it("scores a landslide as zero rather than as unmeasured", async () => {
+    // Option 0 unpicked on a two-option question truncated the vector to
+    // nothing, and −1 means "this device holds no counts" — a claim about
+    // missing data, made over data that was present.
+    const mod = await withCounts("q_slide", ["A", "B"], { "1": 7 });
+    expect(mod.divisivenessOf("q_slide")).toBe(0);
+  });
+
+  it("does not drop counts that reach past the option list it holds", async () => {
+    // The mirror of the gap bug. Reading the bank as the only authority
+    // truncates a vector whose published counts go further than this
+    // device's option list does — a bank entry that changed after answers
+    // folded, or a device on a stale content revision — and that is the
+    // same rescaling failure pointed the other way.
+    const mod = await withCounts("q_wide", ["A", "B"], { "0": 2, "1": 2, "2": 4 });
+    // Three options, lead 4 of 8 → (1 − 1/2) / (1 − 1/3). Truncated to the
+    // bank's two it would have been (1 − 1/2) / (1 − 1/2) = 1: a perfect
+    // split, which is the most divisive a question can be.
+    expect(mod.divisivenessOf("q_wide")).toBeCloseTo((1 - 4 / 8) / (1 - 1 / 3), 6);
+  });
+
+  it("still answers −1 when the device holds no counts at all", async () => {
+    const mod = await withCounts("q_none", ["A", "B"], null);
+    expect(mod.divisivenessOf("q_none")).toBe(-1);
+  });
+});
+
+// ── arming a loader is a state change (the "could not load" frame) ──
+//
+// A loading flag nobody is told about is not a loading state. The panels
+// that own these loaders call them from an effect, which runs AFTER the
+// first paint — so the frame with no data and no flag is already on
+// screen, and without a notify on arm it stays there until the query
+// lands. On the Friends cut that frame reads "Could not load how your
+// friends answered", which is a network-failure claim about a read that
+// is working; on the People lens it reads "Fills in as you answer more."
+//
+// These assert the NOTIFY, not the flag: the flag was always set on arm,
+// and setting it changed nothing anybody could see.
+describe("a loader that starts tells its subscribers it started", () => {
+  const armed = async (start: (l: Awaited<ReturnType<typeof bootLive>>) => void) => {
+    const LIVE = await bootLive();
+    const listener = vi.fn();
+    LIVE.subscribe(listener);
+    start(LIVE);                       // deliberately NOT awaited
+    return { LIVE, calls: listener.mock.calls.length };
+  };
+
+  it("loadVoters", async () => {
+    const { LIVE, calls } = await armed((l) => void l.loadVoters("q_1"));
+    expect(calls).toBeGreaterThan(0);
+    expect(LIVE.votersLoading("q_1")).toBe(true);
+    await flush();
+  });
+
+  it("loadFollows", async () => {
+    const { LIVE, calls } = await armed((l) => void l.loadFollows());
+    expect(calls).toBeGreaterThan(0);
+    expect(LIVE.followsLoading()).toBe(true);
+    await flush();
+  });
+
+  it("loadKindred inherits it from loadVoters, which is the only reason it needs none", () => {
+    // Recorded rather than left implicit: loadKindred's only suspension
+    // point is the loadVoters call in its loop, so the People lens's
+    // re-render comes from there. A notify on its own arm would be
+    // unobservable — measured by adding one and finding no test could
+    // fail without it.
+    const src = readFileSync(resolve(process.cwd(), "src/v2/data/live.ts"), "utf8");
+    const body = /async loadKindred\(\)[\s\S]*?\n {2}\},/.exec(src);
+    expect(body).toBeTruthy();
+    expect(body![0]).toMatch(/await this\.loadVoters\(qid\)/);
+  });
+});
+
 // ── the read breaker (D332) ─────────────────────────────────────────
 //
 // `budgetMode` on v2_meta/app is the graded breaker docs/COSTS.md designed:
@@ -630,6 +762,50 @@ describe("budgetMode (D332): level 1 pauses the social reads", () => {
     await LIVE.loadKindred();
     expect(h.voterQueries).toHaveLength(0);
     expect(LIVE.kindredLoading()).toBe(false);
+  });
+
+  it("loadKindred never even RAISES its flag — the caption is the whole point", async () => {
+    // The case above cannot see this gate. Delete it and loadKindred runs
+    // its loop: every loadVoters refuses on its own gate, so no query is
+    // issued and the flag is back to false by the time the await returns —
+    // both assertions above still pass. What the gate buys is the interval
+    // BETWEEN, which is where the lens reads the flag and says "Matching…"
+    // about a match nobody is attempting. So look before awaiting.
+    //
+    // It needs a vote to be worth gating: with an empty vote map the loop
+    // has nothing to iterate, so the whole body — flag up, flag down —
+    // runs synchronously and never suspends, and the gate's absence would
+    // be invisible however you looked. So seed one and assert it landed.
+    metaAt(1);
+    h.answerDocs.push({
+      id: "q_1",
+      data: { qid: "q_1", surface: "daily", optionIdx: 0, answeredAt: { toMillis: () => 5 } },
+    });
+    const LIVE = await bootLive();
+    expect(Object.keys(LIVE.myVotes())).toHaveLength(1);
+    const pending = LIVE.loadKindred();
+    expect(LIVE.kindredLoading()).toBe(false);
+    await pending;
+    expect(h.voterQueries).toHaveLength(0);
+  });
+
+  it("loadCityKindred is gated too, and nothing else in the suite asked", async () => {
+    // The city half of the same fan-out (D278) — a second twelve queries,
+    // behind its own copy of the gate, and until now behind no test at
+    // all. Same shape: the flag must never rise.
+    h.getDocImpl = (path) => (path === "v2_meta/app"
+      ? { budgetMode: 1 }
+      : path === "v2_users/uid_test"
+        ? { anchors: { city: "Oslo, NO", country: "NO" } }
+        : null);
+    const LIVE = await bootLive();
+    // The precondition, asserted rather than assumed: with no city the
+    // loader returns at its first line and this test would prove nothing.
+    expect(LIVE.myCity).toBe("Oslo, NO");
+    const pending = LIVE.loadCityKindred();
+    expect(LIVE.kindredLoading()).toBe(false);
+    await pending;
+    expect(h.voterQueries).toHaveLength(0);
   });
 
   it("loadCircle leaves the circle null rather than folding an empty one", async () => {
@@ -1995,6 +2171,63 @@ describe("window.LIVE public surface", () => {
       expect(data.testResults.political).toBe("__delete__");
     });
 
+    it("purges a compass a pre-gate build already published, with no consent on file", async () => {
+      // THE UPGRADE CASE, and the one the gate alone does not cover.
+      // `testResults.political` has published since D277; D331 added the
+      // gate; consent defaults to OFF. So every account that used the app
+      // before the gate landed had a six-axis coordinate sitting on a
+      // world-readable profile while the account row read "Off. Your
+      // answers still count; no political profile is built from them."
+      //
+      // Skipping the fold does not remove it, and nothing else did: the
+      // only deleter is setPoliticalConsent(false), and the panel offers
+      // "Turn off" only when consent is already ON — so the sole route to
+      // removing the coordinate was to consent to it first.
+      seedPolitical();
+      h.getDocImpl = (path: string) => (path === "v2_users/uid_test"
+        ? { testResults: { political: { dims: [{ id: "econ", label: "Economy", value: 0.4 }] } } }
+        : null);
+      const LIVE = await bootLive();
+      await flush();
+      h.setDocCalls.length = 0;
+      (LIVE as unknown as { syncPassiveResults: () => void }).syncPassiveResults();
+      await flush();
+      const call = h.setDocCalls.find((c) => c.path === "v2_users/uid_test");
+      expect(call, "the stored compass was left on the profile — the gate "
+        + "stops a NEW one being computed and says nothing about the one "
+        + "already published").toBeTruthy();
+      const data = call!.data as Record<string, Record<string, unknown>>;
+      expect(data.testResults.political).toBe("__delete__");
+      // …and no real coordinate is written back in the same breath.
+      // `politicalWrites()` matches on truthiness and the delete sentinel
+      // is a truthy string, so this asks the sharper question: is any
+      // write carrying an actual result object?
+      const real = politicalWrites().filter((c) => {
+        const d = c.data as Record<string, Record<string, unknown>>;
+        return d.testResults.political !== "__delete__";
+      });
+      expect(real).toHaveLength(0);
+    });
+
+    it("purging costs no write when there is nothing to purge", async () => {
+      // This runs on every hydrate, so an account that never had a
+      // coordinate must not buy a profile write on every boot forever —
+      // which is the shape of the persona-residue heal this same night
+      // found looping.
+      seedPolitical();
+      h.getDocImpl = (path: string) => (path === "v2_users/uid_test" ? {} : null);
+      const LIVE = await bootLive();
+      await flush();
+      h.setDocCalls.length = 0;
+      (LIVE as unknown as { syncPassiveResults: () => void }).syncPassiveResults();
+      await flush();
+      const deletes = h.setDocCalls.filter((c) => {
+        const d = c.data as Record<string, Record<string, unknown>>;
+        return c.path === "v2_users/uid_test" && d.testResults?.political === "__delete__";
+      });
+      expect(deletes).toHaveLength(0);
+    });
+
     it("setPoliticalConsent(true) records it and deletes nothing", async () => {
       h.getDocImpl = (path: string) => (path === "v2_users/uid_test" ? {} : null);
       const LIVE = await bootLive();
@@ -2667,6 +2900,42 @@ describe("loadCityKindred — asking for the city instead of filtering for it", 
     LIVE.saveAnchors({ city: "Bergen, NO" });
     await LIVE.loadCityKindred();
     expect(h.voterQueries.some((w) => w["anchors.city"] === "Bergen, NO")).toBe(true);
+  });
+});
+
+// The WRITE SHAPE `saveAnchors` uses, pinned at the caller.
+//
+// A commit landed the fix for this — `merge: true` deep-merges a nested
+// map, so the anchors write could add and change a key and never REMOVE
+// one, and the persona-residue heal that removes keys therefore never
+// converged — under a comment saying "firestore-tests/rules.test.ts holds
+// the semantics so a future 'simplification' back to merge:true cannot
+// pass." It did not. That case hand-writes its own `setDoc` with
+// `mergeFields` and never calls `saveAnchors`, so it proves what
+// Firestore does and nothing about what this caller asks for: reverting
+// the fix left all 2228 tests green.
+//
+// The reason nothing could pin it is one line up in this file — the
+// harness's `setDoc` dropped its third argument, so the option that
+// decides whether a write can remove a field was invisible to every test.
+describe("saveAnchors asks for a write that can REMOVE an anchor", () => {
+  it("passes mergeFields naming anchors, not a plain merge", async () => {
+    const LIVE = await bootLive();
+    h.setDocCalls.length = 0;
+    LIVE.saveAnchors({ city: "Bergen, NO" });
+    await flush();
+    const call = h.setDocCalls.find((c) => c.path === "v2_users/uid_test");
+    expect(call, "saveAnchors wrote no profile document at all").toBeTruthy();
+    expect(
+      call!.opts,
+      "a plain `{ merge: true }` DEEP-MERGES the anchors map, so a key the "
+      + "caller left out survives on the server and the persona-residue "
+      + "heal re-fires on every boot forever without converging",
+    ).toEqual({ mergeFields: ["anchors"] });
+    // …and it names ONLY anchors: naming more would drop the rest of the
+    // profile, which is the failure the original `merge: true` was there
+    // to avoid.
+    expect(call!.data).toEqual({ anchors: { city: "Bergen, NO" } });
   });
 });
 

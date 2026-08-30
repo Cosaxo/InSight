@@ -232,3 +232,42 @@ describe("apply-budget", () => {
     expect(err).toMatch(/no active billing account/);
   });
 });
+
+describe("the workflow form the operator actually fills in", () => {
+  // The script's figure is right and pinned above; what the operator READS
+  // was not. The Arm budget form said an empty box means
+  // `guard.maxNetBurnUsdPerMonth` — "the same number the pulse guard reds
+  // on" — which stopped being true when guard.budget.amount arrived at the
+  // first live apply. An operator trusting that sentence and typing the
+  // USD figure into the box arms a 50 NOK budget: about a tenth of the
+  // intended one, on the one control whose whole job is to be the backstop.
+  // That is the failure rates.json already records happening once, and the
+  // field it happened in is not covered by any figure gate.
+  const yml = readFileSync(join(root, ".github/workflows/budget.yml"), "utf8");
+  const description = (() => {
+    const m = /^ {6}amount:\n {8}description: "(.+)"$/m.exec(yml);
+    expect(m, "budget.yml no longer has an `amount` input with a quoted description")
+      .toBeTruthy();
+    return m[1];
+  })();
+
+  it("names the field the script actually prefers", () => {
+    // Precedence, not just presence: whichever of the two the script would
+    // resolve to is the one the form has to name.
+    expect(description).toContain(
+      GUARD.budget?.amount != null ? "guard.budget.amount" : "guard.maxNetBurnUsdPerMonth");
+  });
+
+  it("states the figure and the currency an empty box resolves to", () => {
+    expect(description).toContain(`${GUARD_AMOUNT} ${GUARD_CURRENCY}`);
+    // And the USD tolerance stays in the sentence as the RELATION between
+    // the two, so retuning either one reds this rather than drifting.
+    expect(description).toContain(`$${GUARD.maxNetBurnUsdPerMonth}`);
+  });
+
+  it("warns against typing the USD figure into a box the account reads as NOK", () => {
+    if (GUARD_CURRENCY === "USD") return; // no trap to warn about
+    expect(description).toMatch(
+      new RegExp(`${GUARD.maxNetBurnUsdPerMonth}\\s+${GUARD_CURRENCY}`));
+  });
+});

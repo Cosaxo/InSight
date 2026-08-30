@@ -57,6 +57,7 @@ const LIVE = vi.hoisted(() => ({
   saveDisplayName: vi.fn(async (n: string) => { void n; }),
   // D331 — the consent ask lives on this screen; not consented by default.
   politicalConsented: vi.fn(() => false),
+  politicalAnswered: vi.fn(() => false),
   setPoliticalConsent: vi.fn(async (on: boolean) => { void on; }),
   social: { claimHandle: vi.fn(async (h: string) => ({ handle: h })) },
 }));

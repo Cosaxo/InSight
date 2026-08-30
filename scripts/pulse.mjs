@@ -32,7 +32,7 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { collect } from "./pulse-collect.mjs";
+import { collect, MEASURE_MAX_AGE_DAYS } from "./pulse-collect.mjs";
 import { REGIONAL as PROD_REGIONAL } from "./cost-arith.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -149,9 +149,11 @@ function check(pulse) {
     );
   }
 
-  // The usage-vs-revenue guard (D332). "over" alone trips — unarmed and
-  // unmeasured are questions the OK line carries, not conditions to page
-  // about every morning pre-launch.
+  // The usage-vs-revenue guard (D332). "over" and "stale" trip — unarmed
+  // and unmeasured are questions the OK line carries, not conditions to
+  // page about every morning pre-launch. Stale is neither of those: it
+  // means a trail EXISTED and stopped, which is the one shape that reads
+  // as a confident pass while measuring nothing.
   const g = pulse.guard;
   if (g.state === "over") {
     problems.push(
@@ -166,6 +168,18 @@ function check(pulse) {
       + "      3. raise the allowance deliberately, in the same commit that says why.\n"
       + "    And check the Cloud Billing budget/console — this figure is a model, and the\n"
       + "    model's own record is that its errors are missing terms (docs/COSTS.md).",
+    );
+  }
+
+  if (g.state === "stale") {
+    problems.push(
+      `the usage guard is pricing a ${g.measuredAgeDays}-day-old population (last folded day\n`
+      + `    ${g.measuredOn}, stale past ${MEASURE_MAX_AGE_DAYS}). It reads $${g.netBurnUsd}/mo net against the\n`
+      + `    $${g.allowanceUsd} allowance, and that pass means nothing: the guard averages a 7-day\n`
+      + "    window, so every day it is averaging is now outside it. monitoring/engagement.json\n"
+      + "    moves only when somebody fetches it — nothing schedules that.\n"
+      + "    Fix: npm run scorecard -- --fetch (and if the trail will not move, the digest\n"
+      + "    itself has stopped folding days — check digestEngagementV2).",
     );
   }
 

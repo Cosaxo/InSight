@@ -242,19 +242,11 @@ const appPrivacyRows = JSON.parse(read("design/store/app-privacy.json")).collect
 // digits and the diff says so plainly.
 const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1);
 
-const NUMBER_WORDS = {
-  1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six",
-  7: "seven", 8: "eight", 9: "nine", 10: "ten", 11: "eleven", 12: "twelve",
-  114: "a hundred and fourteen", 120: "a hundred and twenty",
-  121: "a hundred and twenty-one", 122: "a hundred and twenty-two",
-  123: "a hundred and twenty-three", 124: "a hundred and twenty-four",
-  125: "a hundred and twenty-five", 126: "a hundred and twenty-six",
-  127: "a hundred and twenty-seven", 128: "a hundred and twenty-eight",
-  129: "a hundred and twenty-nine", 130: "a hundred and thirty",
-  131: "a hundred and thirty-one", 132: "a hundred and thirty-two",
-  133: "a hundred and thirty-three", 134: "a hundred and thirty-four",
-  135: "a hundred and thirty-five", 136: "a hundred and thirty-six",
-};
+// The number words this file's suggestions are written in — generated,
+// in their own module so the gate's own arithmetic can be tested without
+// importing (and therefore RUNNING) the gate.
+import { word } from "./number-words.mjs";
+
 
 // How many test runners this repo has, off package.json — the figure
 // CLAUDE.md §2's heading quotes and ORIENTATION §1 and §5 repeat.
@@ -437,7 +429,7 @@ const FIGURES = [
     file: "CLAUDE.md",
     what: "mount smoke files over one harness (§2)",
     re: /smoke-\*\.test\.jsx` \((\w+) files over one harness/,
-    actual: NUMBER_WORDS[smokeFiles] || String(smokeFiles),
+    actual: word(smokeFiles),
     fix: (n) => `"(${n} files over one harness"`,
   },
   {
@@ -458,7 +450,7 @@ const FIGURES = [
     file: "docs/LAUNCH-RUNBOOK.md",
     what: "monitoring alerts the operator step applies",
     re: /Apply the (\w+) monitoring alerts/,
-    actual: NUMBER_WORDS[monitoringPolicies] || String(monitoringPolicies),
+    actual: word(monitoringPolicies),
     fix: (n) => `"Apply the ${n} monitoring alerts"`,
   },
   {
@@ -467,7 +459,7 @@ const FIGURES = [
     // Capitalised: the figure opens the sentence, so the word in the prose
     // is "Four" and a lowercase `actual` would fail on a correct document.
     re: /\*\*What the environment gates\.\*\* (\w+) jobs/,
-    actual: cap(NUMBER_WORDS[gatedJobs] || String(gatedJobs)),
+    actual: cap(word(gatedJobs)),
     fix: (n) => `"**What the environment gates.** ${n} jobs"`,
   },
   {
@@ -477,7 +469,7 @@ const FIGURES = [
     // all — byte-identical before and after that commit, at seven against a
     // tree of eight. Gated now for the reason the sweep exists.
     re: /\| `monitoring\/\*\.json` \| (\w+) alert policies/,
-    actual: NUMBER_WORDS[monitoringPolicies] || String(monitoringPolicies),
+    actual: word(monitoringPolicies),
     fix: (n) => `"| \`monitoring/*.json\` | ${n} alert policies"`,
   },
   {
@@ -489,7 +481,7 @@ const FIGURES = [
     // and priced against a retired premise, and apply-monitoring's header
     // had already been fixed at D291. See D303's own correction.)
     re: /`monitoring\/` holds\s+(\w+) policies/,
-    actual: NUMBER_WORDS[monitoringPolicies] || String(monitoringPolicies),
+    actual: word(monitoringPolicies),
     fix: (n) => `"\`monitoring/\` holds ${n} policies"`,
   },
   {
@@ -501,28 +493,28 @@ const FIGURES = [
     // check:monitoring holds the LISTS equal to the directory; nothing held
     // the prose to the lists.
     re: /## Alerting \((\w+) policies, \w+ log-based metrics\)/,
-    actual: NUMBER_WORDS[monitoringPolicies] || String(monitoringPolicies),
+    actual: word(monitoringPolicies),
     fix: (n) => `"## Alerting (${n} policies, ...)"`,
   },
   {
     file: "docs/DEPLOYMENT.md",
     what: "log-based metrics the section documents",
     re: /## Alerting \(\w+ policies, (\w+) log-based metrics\)/,
-    actual: NUMBER_WORDS[monitoringMetrics] || String(monitoringMetrics),
+    actual: word(monitoringMetrics),
     fix: (n) => `"## Alerting (..., ${n} log-based metrics)"`,
   },
   {
     file: "scripts/apply-monitoring.mjs",
     what: "alert policies this script puts in place",
     re: /put the (\w+) alert policies in place/,
-    actual: NUMBER_WORDS[monitoringPolicies] || String(monitoringPolicies),
+    actual: word(monitoringPolicies),
     fix: (n) => `"put the ${n} alert policies in place"`,
   },
   {
     file: "scripts/apply-monitoring.mjs",
     what: "log-based metrics this script creates",
     re: /a notification channel, (\w+) log-based metrics/,
-    actual: NUMBER_WORDS[monitoringMetrics] || String(monitoringMetrics),
+    actual: word(monitoringMetrics),
     fix: (n) => `"a notification channel, ${n} log-based metrics"`,
   },
   {
@@ -540,21 +532,21 @@ const FIGURES = [
     file: "CLAUDE.md",
     what: "test runners (the §2 heading)",
     re: /There are (\w+) test runners, and they are not interchangeable/,
-    actual: NUMBER_WORDS[testRunners] || String(testRunners),
+    actual: word(testRunners),
     fix: (n) => `"There are ${n} test runners, and they are not interchangeable"`,
   },
   {
     file: "docs/ORIENTATION.md",
     what: "test runners (§1's reading order)",
     re: /global scope; (\w+) non-interchangeable test runners/,
-    actual: NUMBER_WORDS[testRunners] || String(testRunners),
+    actual: word(testRunners),
     fix: (n) => `"the spec layer's global scope; ${n} non-interchangeable test runners"`,
   },
   {
     file: "docs/ORIENTATION.md",
     what: "test runners (§5's gate map)",
     re: /There are (\w+) test runners, \*\*not interchangeable\*\*/,
-    actual: NUMBER_WORDS[testRunners] || String(testRunners),
+    actual: word(testRunners),
     fix: (n) => `"There are ${n} test runners, **not interchangeable**"`,
   },
   {
@@ -582,7 +574,7 @@ const FIGURES = [
     file: "README.md",
     what: "callables exempt from App Check",
     re: /The\s+(\w+) that cannot are the operator and moderator instruments/,
-    actual: NUMBER_WORDS[appCheckExemptions] || String(appCheckExemptions),
+    actual: word(appCheckExemptions),
     fix: (n) => `"The ${n} that cannot are the operator and moderator instruments"`,
   },
   // MIRROR.md reasons from this ratio — "so a given week's deck serves at
@@ -594,7 +586,7 @@ const FIGURES = [
     file: "docs/MIRROR.md",
     what: "the daily bank behind the place-rating ratio",
     re: /holds twenty-four in ([a-z- ]+), spread over three radii/,
-    actual: NUMBER_WORDS[dailyQuestions] || String(dailyQuestions),
+    actual: word(dailyQuestions),
     fix: (n) => `"holds twenty-four in ${n}, spread over three radii"`,
   },
   {

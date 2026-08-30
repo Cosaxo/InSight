@@ -212,7 +212,7 @@ everything else: the static gates, and where each one runs.
 | `check:monitoring` | ci | The alert chain from the log line a function emits to the policy that reads it. Every link fails the same silent way |
 | `check:data-inventory` | ci | Every collection the rules reach is named in `docs/data-inventory.md` (D130), and — where a read rule is literally `request.auth != null` or `false` — that the row's reader column agrees with it (D257) |
 | `check:policy-claims` | ci | A live promise that **vanishes** from `web/privacy.html` — since D183 a claim deleted there is a claim deleted from the product |
-| `check:pricing` | ci | The committed rate card (`content/pricing.json`, PAID-PLAN §6, D288 §3) stays inside its own clamps: exact cohorts, idx within floor/ceiling, 14 real booked ticks, no estimate without a completed campaign behind it — and since D313 the generated `functions/src/pricing.ts` embed matches it byte-for-byte, so the price the server charges and the price the door prints cannot drift |
+| `check:pricing` | deploy | The committed rate card (`content/pricing.json`, PAID-PLAN §6, D288 §3) stays inside its own clamps: exact cohorts, idx within floor/ceiling, 14 real booked ticks, no estimate without a completed campaign behind it — and since D313 the generated `functions/src/pricing.ts` embed matches it byte-for-byte, so the price the server charges and the price the door prints cannot drift. On the DEPLOY path since that second half existed: `priceQuote()` invoices the buyer, and `firebase-deploy.yml` does not wait on `ci.yml` |
 | `check:public-copy` | ci | The retired pre-D98 privacy vocabulary **reappearing** in copy a user reads |
 | `check:store-forms` | ci | The privacy nutrition label, which exists twice on purpose, agreeing with itself |
 | `check:quality` | ci | Question form and provenance (D97), the place-scope tripwire, and the id/bank headroom |
@@ -223,7 +223,7 @@ everything else: the static gates, and where each one runs.
 | `check:ios-location` | ci | The iOS location declarations against what the app does. ITMS-90683 is why it exists |
 | `check:web-firebase` | release | That the shipped bundle actually carries the Firebase config |
 | `check:store-listing` | release | Marketing copy against both consoles' length limits |
-| `check:store-copy` | manual | No unfilled placeholders in the store-facing legal pages. A pre-submission gate, and off CI on purpose |
+| `check:store-copy` | release | No unfilled placeholders in the store-facing legal pages. Runs on every iOS archive (`ios-release.yml`) and is off CI on purpose |
 
 ## 6 · Finding the decision that governs something
 

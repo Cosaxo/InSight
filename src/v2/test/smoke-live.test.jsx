@@ -2010,6 +2010,77 @@ describe("live mode never inherits the sample persona (D55)", () => {
   };
   const AGE_ANCHOR = [{ id: "age", label: "Age", hue: 265, value: "age 30-39" }];
 
+  // The OTHER half of the same gate. `age` refuses because the viewer's
+  // age band cannot answer for a cohort that has not answered; 'all' is
+  // not a cohort at all — it is everyone, and the question's own published
+  // counts are exactly that.
+  //
+  // It used to fall through to the anchor lookup, find no 'all' in
+  // MAP_ANCHOR_DIM and return null, and the Map's constellation builder
+  // substituted `typ = 0.5` and `maj = true` for EVERY answer. So on a
+  // live build every dot sat at the same radius from you and the "rare
+  // take" mark could never render for anybody — the fabrication D72's null
+  // exists to prevent, done by the consumer instead of the source.
+  it("answers for EVERYONE from the published counts, and still refuses a cohort", () => {
+    live = installLive();
+    // The fixture publishes counts { 0: 12, 1: 8, 2: 5 } — 25 answers.
+    const all = window.MapStats.dist("daily-000", "all", 3, 0);
+    expect(all, "'all' still refuses — every Map dot is fabricated").not.toBeNull();
+    expect(all.reduce((a, b) => a + b, 0)).toBe(100);
+    // Real, and in the counts' own order: 12 > 8 > 5.
+    expect(all[0]).toBeGreaterThan(all[1]);
+    expect(all[1]).toBeGreaterThan(all[2]);
+    // The mode reads off the same array, so it is real too.
+    expect(window.MapStats.mode("daily-000", "all", 3, 0)).toBe(0);
+    // …and the cohort anchor still refuses, which is the half that must
+    // not have been widened by this.
+    expect(window.MapStats.dist("daily-000", "age", 3, 0), "the cohort gate was widened too")
+      .toBeNull();
+  });
+
+  // WHICH OPTION THE GROUP CHOSE, off the counts rather than off the
+  // rounded percentages.
+  //
+  // sharePcts guarantees no inversion — a smaller count never draws larger
+  // — and the ridge's bar heights rest on that. It does not guarantee
+  // distinctness: two different counts can print the same integer, and
+  // `indexOf(max)` then breaks the real tie by INDEX. That decided the Map
+  // card's "most chose N" and its "you're with the majority" / "a minority
+  // take" verdict — the same defect the feed's own line had.
+  it("the group's mode follows the votes, not the rounding", () => {
+    live = installLive({
+      aggCounts: { 0: 449, 1: 451, 2: 100 },
+    });
+    const all = window.MapStats.dist("daily-000", "all", 3, 0);
+    // Both leaders draw the SAME integer — this is the case that used to
+    // decide by index. If the fixture ever stops producing it, the
+    // assertion below stops proving anything, so it is checked.
+    expect(all[0], "the fixture no longer produces a rounding tie").toBe(all[1]);
+    // …and the answer is still the one with more votes.
+    expect(window.MapStats.mode("daily-000", "all", 3, 0)).toBe(1);
+  });
+
+  // The Map DOT's own reading of the same tie. `dc099bd7` taught MapStats
+  // to answer 'all', which is what put a real number behind every dot —
+  // and in doing so it brought a line that had been dead to life with the
+  // rounding-tie defect still in it: while 'all' refused, `gd` was always
+  // null there and `maj` was hard-coded true. So the fix activated the
+  // bug, in the block it edited.
+  //
+  // `maj` decides `is-rare` on the dot and "a rare take" in the card, so
+  // on a tie the person who picked the option with MORE votes had their
+  // answer marked as the rare one.
+  it("the Map dot's majority reading follows the votes, not the rounding", () => {
+    live = installLive({ aggCounts: { 0: 449, 1: 451, 2: 100 } });
+    const d = window.MapStats.dist("daily-000", "all", 3, 1);
+    // The rounding tie is really there — otherwise the case proves nothing.
+    expect(d[0], "the fixture no longer produces a rounding tie").toBe(d[1]);
+    // Reading it the way the constellation used to.
+    expect(d.indexOf(Math.max(...d))).toBe(0);
+    // …and the way it reads now: option 1 has 451 votes.
+    expect(window.MapStats.mode("daily-000", "all", 3, 1)).toBe(1);
+  });
+
   it("draws no group split on a Map answer in live mode", () => {
     live = installLive();
     expect(window.MapStats.dist("daily-000", "age", 3, 0), "MapStats still fabricates")

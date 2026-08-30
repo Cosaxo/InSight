@@ -345,6 +345,52 @@ describe("v2 questions + aggregates", () => {
 });
 
 describe("v2 profile", () => {
+  // NOT a rules case — a FIRESTORE SEMANTICS case, here because this is the
+  // only suite in the repo that runs against a real Firestore and can prove
+  // it. The client's `saveAnchors` (data/live.ts) is the one write in the
+  // app that must be able to REMOVE an anchor, and it could not.
+  //
+  // `merge: true` deep-merges a nested map: a key absent from the payload
+  // is left standing on the server. saveAnchors used it under a comment
+  // saying the map was "replaced wholesale", and its one key-removing
+  // caller is hydrate's persona-residue heal — so a profile a pre-fix build
+  // polluted with the sample persona's job and education kept them on a
+  // WORLD-READABLE document forever, while the heal re-fired on every cold
+  // boot and never converged.
+  //
+  // `mergeFields` replaces the named field and leaves the rest alone. The
+  // case asserts both halves, because a fix that dropped the other profile
+  // fields would be the failure the original comment was guarding against.
+  it("saveAnchors' write shape can REMOVE an anchor and keeps the rest of the profile", async () => {
+    const mine = doc(asUser(OWNER), "v2_users", OWNER);
+    await assertSucceeds(setDoc(mine, {
+      displayName: "Mira",
+      anchors: { city: "Oslo", country: "Norway", profession: "Editor" },
+    }));
+    // What the persona heal asks for: the same map minus one key.
+    await assertSucceeds(setDoc(
+      mine, { anchors: { city: "Oslo", country: "Norway" } }, { mergeFields: ["anchors"] },
+    ));
+    const after = await getDoc(mine);
+    expect(
+      after.data()!.anchors,
+      "the removed anchor survived the write — `merge: true` deep-merges a "
+      + "nested map, so the heal never converges and the residue stays on a "
+      + "world-readable profile",
+    ).toEqual({ city: "Oslo", country: "Norway" });
+    expect(
+      after.data()!.displayName,
+      "the rest of the profile was dropped — mergeFields must name ONLY "
+      + "`anchors`, or this fix trades one bug for a worse one",
+    ).toBe("Mira");
+    // And it upserts: saveAnchors can run before the profile doc exists.
+    const fresh = doc(asUser(FRIEND), "v2_users", FRIEND);
+    await assertSucceeds(setDoc(
+      fresh, { anchors: { city: "Bergen" } }, { mergeFields: ["anchors"] },
+    ));
+    expect((await getDoc(fresh)).data()!.anchors).toEqual({ city: "Bergen" });
+  });
+
   it("world-readable, owner-written, with validated fields", async () => {
     const mine = doc(asUser(OWNER), "v2_users", OWNER);
     await assertSucceeds(setDoc(mine, {
@@ -600,6 +646,20 @@ describe("the daily pulse (D139): one answer per day, day-keyed like a duel's", 
     await assertFails(setDoc(
       doc(asUser(OWNER), "v2_users", OWNER, "answers", `${BASE}_${day}`),
       pulseAnswer(day, { qid: BASE }),
+    ));
+    // …and the id must be COMPOSED of the two, which the case above does
+    // not reach: it moves qid away from the id, so `qid == aid` refuses it
+    // and the composition clause is never asked. Point them at each other
+    // instead and only the composition clause is left standing.
+    //
+    // What it is holding up: the aggregate trigger folds by DOC ID. An
+    // answer that satisfies every other clause at the id `daily-000` is a
+    // pulse answer — bounded by the pulse template's options, day-keyed,
+    // one per day — folded into the daily question's public aggregate,
+    // once per day, forever.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", "daily-000"),
+      pulseAnswer(day, { qid: "daily-000" }),
     ));
   });
 
@@ -3025,6 +3085,24 @@ describe("handles: the account registry (D122)", () => {
     // the entire purpose. Deliberately wider than D98: that made answers
     // readable to anyone holding your uid, this makes you findable by
     // name. Recorded as its own decision rather than assumed.
+    await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_handles", "olaf")));
+  });
+
+  it("…by name, one at a time — the registry is not a list of everyone", async () => {
+    // `read` is `get` PLUS `list`, so the open lookup above was also an
+    // open enumeration: one collection read returning every handle in the
+    // app, each holding the uid whose public answers it unlocks. The
+    // paragraph in firestore.rules said that query surface did not exist
+    // and so did the data inventory; neither was a rule until now.
+    //
+    // Nothing in the app wants it. The client's only registry read is the
+    // exact-id getDoc above, deleteAccount's query over it runs through
+    // the Admin SDK, and finding people by anything other than an exact
+    // handle is the directory's job (D239).
+    await seedHandle();
+    await assertFails(getDocs(collection(asUser(STRANGER), "v2_handles")));
+    // Narrowing a `read` to a `get` is the shape that takes the lookup
+    // with it, so hold both in one place.
     await assertSucceeds(getDoc(doc(asUser(STRANGER), "v2_handles", "olaf")));
   });
 
