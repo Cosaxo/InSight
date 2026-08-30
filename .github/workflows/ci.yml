@@ -233,6 +233,14 @@ jobs:
       # names, reported by email after the upload transferred and the build
       # number was spent. Same side of the line as the two above.
       - run: npm run check:ios-location
+      # D29's device-bind bridge is WIRED, not merely present. Its whole
+      # failure mode is silence: an unregistered plugin leaves a green
+      # build, a passing suite and an app that behaves identically, because
+      # enforcement is soft. That is how the gate sat inert from D29 to
+      # D337. Registration hangs off Main.storyboard's customClass, which
+      # `npx cap sync` may rewrite — a red line here is the only way that
+      # gets noticed.
+      - run: npm run check:ios-devicebind
 
   typecheck-build:
     runs-on: ubuntu-latest

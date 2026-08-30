@@ -34247,3 +34247,145 @@ the day anything else writes a question into Firestore — a console edit,
 a second seeder, a promoted question shipped without a functions deploy.
 The failure is quiet and small (that question's counts vanish from the
 Near grid, nothing errors), which is exactly why it is here.
+---
+
+## D337 · The fake-account defence was inert, and two records had already spent it
+
+**Date:** 2026-08-30 · **Status:** built. Owner's report is the trigger:
+*"one of the things that has been warned about the most is fake accounts
+would ruin this app by destroying the data's authenticity. right now it
+seems like there's no good defence against it as I have no issue creating
+multiple accounts and ruining the data."*
+
+He is right, and the reason is not a missing design. It is a design that
+shipped switched off while three later records reasoned as though it were
+running.
+
+### The chain, in the order it happened
+
+1. **D29** built device binding end to end — the callable, the month
+   logic, the soft rules switch, the client flow — and deliberately left
+   out the ~30 lines of native code that fetch the platform attestation,
+   because the machine writing them could not compile them.
+2. `src/v2/data/deviceBind.ts` therefore asks
+   `Capacitor.isPluginAvailable("DeviceBind")`, does not find it, logs
+   `native bridge missing — activation deferred`, and returns.
+   **Activation has never run once, on any device.**
+3. **D211** removed the Sign-in row from the account panel, reasoning that
+   "the D134 gate walls every release build behind Google, so the row
+   could only ever read Linked ✓".
+4. **D219** took that wall down. Its own record answers the owner's stated
+   condition — *"as long as that means that everyone has a account and
+   question can be attribute to a spesific user that cant easly create
+   duplicate acounts"* — by naming two mechanisms: App Check on the
+   account-creation surface, and D29's device binding, "shipped end to end
+   and soft". App Check has never been enabled console-side
+   (`SECURITY.md`), and the bridge was not there. **Both cited controls
+   were inert at the moment they were cited.**
+5. Nobody returned to the row D211 had removed on the strength of a wall
+   D219 then removed. So a store build has no link control at the door and
+   none in settings, and D134's own sentence — an anonymous session "lives
+   on ONE phone and dies with it" — became the shipping default.
+
+Each step is defensible alone. The composite is a product where making a
+counted duplicate costs thirty seconds and where the app mints duplicates
+on its users' behalf.
+
+### The threat model this tree never wrote down
+
+D28, D29 and D54 are all written against **a ring**: few actors, many
+accounts, aimed at particular questions. The owner is describing something
+else — **diffuse duplication at population scale**, where ordinary people
+hold a second account because they reinstalled, replaced a handset,
+cleared storage or answered again out of curiosity.
+
+Nothing built can see it or undo it, and the reasons are structural:
+
+- **D54's four signals all look for CONCENTRATION** — impossible per-uid
+  volume, scripted cadence, birth clusters, per-question bursts. A
+  duplicate account produced by a reinstall has none of them, because it
+  is behaviourally indistinguishable from an honest new user. It is one.
+- **D28's guarantee is correction GIVEN A UID LIST.** No list can be
+  built. Nothing distinguishes a second account from a first.
+
+So for this shape the whole fallback story — detect, attribute, subtract,
+republish — is silent, and was silent without ever saying so.
+
+### The arithmetic, and why D28's decays and this one does not
+
+D28 prices a **fixed** F against a **growing** R: shifting a 50/50 split
+ten points takes F ≈ R/4, so exposure is worst at launch and decays with
+every honest vote. That reasoning is sound and does not apply here.
+
+Diffuse duplication scales WITH the population. If a fraction q of people
+hold two accounts, the published share is off by
+
+    bias = q / (1 + q) × (how much duplicators differ from everyone else)
+
+— a constant, at any crowd size, forever. At q = 0.2 and a ten-point
+difference that is a permanent ~1.7 points. And it is **bias, not noise**:
+duplicators are a selected group (more engaged, more likely to be
+re-answering *because* they disagreed with what they saw), so it does not
+average out the way random duplication would.
+
+The exposure is also worse than the world-level figure suggests, because
+this app slices. Since D98 every cell publishes exact counts from the
+first answer, so the R that matters is the smallest cell a reader can
+reach, not the question's total.
+
+### What shipped here
+
+- **The Sign-in row is back** (`LivePrivacyPanel.tsx`), because the
+  cheapest fix for duplication is to stop manufacturing it. Unlinked, it
+  states the loss and offers the link; linked, it is a fact with no
+  control. It calls `linkGoogle()` — the uid and every existing answer
+  survive — and on a credential collision it REPORTS and stops rather than
+  offering the gate's "sign in and leave this phone's answers", which from
+  settings would be a wipe wearing a login.
+- **The iOS bridge landed**: `DeviceBindPlugin.swift` plus
+  `MainViewController.swift`, which registers it from `capacitorDidLoad()`.
+  Not the `CAP_PLUGIN` macro DEVICE-BIND.md prescribed — that needs an
+  Objective-C file and a bridging header this project does not have, over
+  a Capacitor that arrives as a Swift Package with no ObjC umbrella header.
+- **`check:ios-devicebind`**, because the failure being fixed is silent.
+  An unregistered plugin leaves a green build, a passing suite and an app
+  that behaves identically — enforcement is soft, so nothing differs. That
+  is precisely how D29 sat inert for a month. Registration hangs off
+  `Main.storyboard`'s `customClass`, which `npx cap sync` may rewrite, so
+  the gate reads that attribute as well as the compile phase.
+
+**The caution that kept the bridge out was already unnecessary**, and that
+is the reusable finding: `ios-build.yml` compiles the iOS target on every
+PR touching `ios/**`, unsigned, on a macOS runner, needing no Apple
+account, and `ci.yml` builds the Android shell with `assembleDebug`. The
+compile check that made committing this safe existed the whole time. The
+same argument retires the caution for the Android bridge.
+
+### What did NOT ship, deliberately
+
+- **The enforcement flip stays `false`.** D37's sequence is unchanged and
+  its conditions are unmet: `minBuild` has not been raised and neither
+  fleet rate can be read until activation has run on real devices. An
+  early flip refuses honest votes *silently* — the option takes, then
+  un-takes — which is the failure D37 exists to prevent.
+- **The Android bridge**, still paste-ready. D42 launches iOS alone, and
+  Play's device-recall opt-in carries open API questions DEVICE-BIND.md
+  already flags.
+- **App Check console enforcement**, which is owner-gated and is the one
+  control that limits account CREATION rather than counting. Its absence
+  is the older half of D219's unmet condition.
+
+### The ceiling, stated so nobody reads more into this than it does
+
+After the flip, one person with N phones gets N counted accounts a month.
+There is no mechanism, here or anywhere, that guarantees one human one
+account: D28's Douceur argument is unchanged, and D28's own 2026-08-06
+amendment already prices the rung above — government ID re-prices a fake
+account in *documents*, which for some attackers is cheaper than a phone.
+What this record buys is narrower and worth having: the accidental
+duplicates stop being created, the deliberate ones acquire a hardware
+price, and the app can eventually say what its numbers are a count OF.
+D28's claim was never "no fake accounts" — it was that the number is
+bounded in how wrong it can silently be. Until today that claim rested on
+two controls that were not running.
+

@@ -11,14 +11,27 @@ parts and their state:
 | Month/epoch decision logic | shipped, unit-tested (`functions/src/deviceBind.test.ts`) |
 | Rules requirement on answer writes | shipped **soft** — `deviceBindEnforced()` returns `false`; the flipped text is pre-tested |
 | Client activation flow (`src/v2/data/deviceBind.ts`) | shipped, wired into the live boot, memo logic unit-tested |
-| Native token bridges (iOS/Android) | **not in the tree — paste-ready below**, needs Xcode / Android Studio |
+| Native token bridge — **iOS** | **shipped (D337)**, compiled on every PR by `ios-build.yml` |
+| Native token bridge — Android | **not in the tree — paste-ready below**, needs Android Studio |
 | Apple/Google console setup + env vars | **owner steps below** |
 | Apple/Google endpoint shapes | written from D29's verify-before-build list; **confirm against current docs before relying on staging results** |
 
-Until the last three land, activation on real devices fails loud and
-retries next boot; because enforcement is soft, no vote is refused. The
-emulator path (e2e, dev-in-a-browser) grants without Apple/Google and is
-green today.
+Until the remaining pieces land, activation on real devices fails loud
+and retries next boot; because enforcement is soft, no vote is refused.
+The emulator path (e2e, dev-in-a-browser) grants without Apple/Google and
+is green today.
+
+**What was actually blocking this, and it was not the console (D337).**
+It was the bridge. `src/v2/data/deviceBind.ts` checks
+`Capacitor.isPluginAvailable("DeviceBind")`, did not find it, logged
+`native bridge missing — activation deferred`, and returned. So activation
+had never run once, on any device — and every later record that cited
+device binding as a live control was citing something inert. D219 is the
+consequential one: it took the sign-in wall off the store build partly on
+the strength of "that layer is shipped end to end and soft". The layer was
+shipped and not connected. The iOS half is now in the tree and compiled by
+CI; what remains is genuinely owner-gated — the Apple key, the probe, the
+flip.
 
 ## 1 · Console + environment (owner-gated)
 
@@ -47,69 +60,45 @@ green today.
 3. `PLAY_PACKAGE_NAME` env is optional — defaults to
    `com.cosaxo.insight` (capacitor.config.ts appId).
 
-## 2 · Native token bridges (paste-ready, ~30 lines each)
+## 2 · Native token bridges — iOS shipped, Android paste-ready
 
 Neither token is exposed by the App Check plugin (D10) — App Check
-consumes its attestations internally. These bridges expose exactly one
-platform call each and are deliberately not committed from a machine
-that cannot compile them: iOS additionally requires registering the file
-with the Xcode project (`project.pbxproj`), which is not safe to edit
-blind. The JS side (`src/v2/data/deviceBind.ts`) detects the bridge with
-`Capacitor.isPluginAvailable("DeviceBind")` and simply waits until it
-exists, so pasting these is a self-contained change with no ordering
-constraint against the rest of D29.
+consumes its attestations internally. Each bridge exposes exactly one
+platform call. The JS side (`src/v2/data/deviceBind.ts`) detects the
+bridge with `Capacitor.isPluginAvailable("DeviceBind")` and simply waits
+until it exists, so each platform's bridge is a self-contained change
+with no ordering constraint against the rest of D29.
 
-**iOS — `ios/App/App/DeviceBindPlugin.swift`** (add via Xcode so the
-project file updates):
+**This section used to say both bridges were "deliberately not committed
+from a machine that cannot compile them", and that premise was wrong the
+whole time** — `ios-build.yml` compiles the iOS target on every PR
+touching `ios/**`, on a macOS runner, unsigned and with no Apple account,
+and `ci.yml` builds the Android shell with `assembleDebug`. The compile
+check that would have made this safe already existed. D337 committed the
+iOS half against it; the same argument retires the caution for Android.
 
-```swift
-import Foundation
-import Capacitor
-import DeviceCheck
+**iOS — shipped, and not by the route this section used to prescribe.**
+`ios/App/App/DeviceBindPlugin.swift` holds the plugin;
+`ios/App/App/MainViewController.swift` registers it from
+`capacitorDidLoad()`, and `Base.lproj/Main.storyboard` names that class in
+place of `CAPBridgeViewController`. Four `project.pbxproj` entries carry
+the two files into the target.
 
-@objc(DeviceBindPlugin)
-public class DeviceBindPlugin: CAPPlugin {
-    @objc func generateToken(_ call: CAPPluginCall) {
-        guard DCDevice.current.isSupported else {
-            // Simulators cannot mint DeviceCheck tokens — expected there,
-            // an error on any real device.
-            call.reject("devicecheck unsupported on this device")
-            return
-        }
-        DCDevice.current.generateToken { data, error in
-            if let error = error {
-                call.reject("token failed: \(error.localizedDescription)")
-                return
-            }
-            guard let data = data else {
-                call.reject("no token data")
-                return
-            }
-            call.resolve(["token": data.base64EncodedString()])
-        }
-    }
+The `CAP_PLUGIN` macro this section used to prescribe was **not usable
+here**, and the reason generalises: the macro lives in an Objective-C
+file, needs `#import <Capacitor/Capacitor.h>` and a bridging header, and
+this project has no `.m` file and no `SWIFT_OBJC_BRIDGING_HEADER` — while
+Capacitor arrives as a Swift Package (`CapApp-SPM`), which publishes no
+Objective-C umbrella header to import. Registering the instance from the
+bridge view controller is all-Swift, needs no new build settings, and is
+Capacitor's own documented path for app-local plugins.
 
-    @objc func requestIntegrityToken(_ call: CAPPluginCall) {
-        call.reject("android only")
-    }
-}
-```
-
-**iOS — `ios/App/App/DeviceBindPlugin.m`** (the registration macro; same
-Xcode add):
-
-```objc
-#import <Capacitor/Capacitor.h>
-
-CAP_PLUGIN(DeviceBindPlugin, "DeviceBind",
-  CAP_PLUGIN_METHOD(generateToken, CAPPluginReturnPromise);
-  CAP_PLUGIN_METHOD(requestIntegrityToken, CAPPluginReturnPromise);
-)
-```
-
-If the app's Capacitor version has moved off the macro registration,
-follow the current "custom code" page (registerPluginInstance in a
-CAPBridgeViewController subclass) — the plugin class body is unchanged.
+**The fragility that route buys, stated because it is silent.** The
+storyboard is a Capacitor-managed file. If `npx cap sync` ever rewrites
+that `customClass` back to `CAPBridgeViewController`, the plugin stops
+registering and activation defers again with no error — the exact failure
+the bridge's absence already caused once. Check that attribute first if
+`[deviceBind] activated` lines stop appearing.
 
 **Android — `android/app/src/main/java/com/cosaxo/insight/DeviceBindPlugin.java`**
 (a new file in the source tree is picked up by Gradle without project
