@@ -456,16 +456,14 @@ const FIGURES = [
     file: "src/v2/spec/passive-progress.js",
     what: "core tests the passive tracker follows",
     re: /progress for the (\w+) core tests/,
-    // Spelled out here rather than through the shared table, and that is
-    // not carelessness: this entry has to work in two trees. `NUMBER_WORDS`
-    // is the spelling in this file today; the reviewed branch waiting to be
-    // merged replaces it with `word()` from scripts/number-words.mjs and
-    // deletes the table. Git merges both changes without a conflict and the
-    // gate then dies on a name that no longer exists — measured, in a
-    // throwaway merge of the two lines. A literal list depends on
-    // neither.
-    actual: ["zero", "one", "two", "three", "four", "five", "six", "seven"][coreTests]
-      ?? String(coreTests),
+    // Through the shared speller like every other entry here. It shipped
+    // as a literal list because the two lines it had to survive spelled
+    // numbers differently — this file's own `NUMBER_WORDS` table on one
+    // side, `word()` on the other — and git merges those two changes
+    // without a conflict, leaving the gate dead on a name that no longer
+    // exists. Both lines are on main now and `word()` is the survivor, so
+    // the list has nothing left to protect against.
+    actual: word(coreTests),
     fix: (n) => `"progress for the ${n} core tests"`,
   },
   {
