@@ -42,10 +42,10 @@ exports and passes both gates with no Mac (run 6).
 - **The privacy nutrition label is not pushable at all.** Apple's API has
   no App Privacy resource (D73), so the metadata workflow prints it as the
   form and it is typed in by hand. **Still outstanding.**
-- **Trader status: declared** (D69), **and the address document is in
-  hand since 2026-08-30.** The *bostedsattest* arrived 23 days after the
-  declaration. What is left in 4.3b is the upload, and pending
-  verification gates only the EU-27 storefronts.
+- **Trader status: declared** (D69), **and the address document was
+  uploaded 2026-08-30.** The *bostedsattest* arrived 23 days after the
+  declaration and went up the same day. 4.3b now waits on Apple's
+  verification, which gates only the EU-27 storefronts.
 
 **Three decisions came out of that week and each is a gate now**: D73 (the
 privacy label has no endpoint), D74 (a tick is printed after the write, not
@@ -1135,7 +1135,7 @@ That is a tester-count problem, not a workflow problem.
       later — the *bostedsattest* from Skatteetaten, which is the
       Norwegian record that fits Apple's ask for proof of address. The
       wait this step was open for is over, and both of the exits it
-      carried are spent. What is left is the upload.
+      carried are spent.
 
       **It is not in this repo, and it must not be.** The page carries a
       fødselsnummer and a date of birth next to the address, and a git
@@ -1143,24 +1143,23 @@ That is a tester-count problem, not a workflow problem.
       construction, and mirrored by every clone. What is recorded here is
       that the document arrived, not what it says.
 
-      **Mask the fødselsnummer before the upload — owner's call, because
-      it cuts both ways.** Apple's wording asks for "business or legal
-      records" that verify **name and address**, and the identity number
-      is the one field on the page no part of the form needs; it is also
-      worth more to a thief than the home address D69 already decided to
-      publish. Against that: a redacted document can draw a re-request,
-      which costs a round-trip on a step that has already cost three
-      weeks. Nothing in this repo can decide it, and no gate here will
-      see it either way.
+      **Uploaded 2026-08-30**, through App Store Connect → **Business**
+      → *Trader Status*. **The step stays open anyway, and D74 is why:**
+      the upload is a fact, EU distribution being unblocked is not one
+      yet. It closes when the console reports the status verified — that
+      is Apple's to run, not work in this file. If the document comes
+      back instead, the open question is whether to send the
+      fødselsnummer unmasked: Apple's wording asks only for records
+      verifying **name and address**, so no part of the form needs it,
+      and that is the owner's call rather than this file's.
 
-      **Then the wait is Apple's, and it gates only the EU 27.** App
-      Store Connect → **Business** → *Trader Status* takes the PDF.
-      Norway is EEA (D69), so submission, TestFlight and every non-EU
-      storefront are untouched while verification runs. Pricing and
-      Availability can still exclude the EU 27 at launch and add them on
-      verification without a new review — no longer a way around a wait,
-      but still the way to register the ENK (D69's way out) before the
-      home address publishes on any listing.
+      **Nothing below waits on it.** Verification gates ONLY EU
+      distribution — Norway is EEA (D69), so submission (6.2),
+      TestFlight and every non-EU storefront are untouched while it
+      runs. Pricing and Availability can still exclude the EU 27 at
+      launch and add them on verification without a new review, which
+      stays the way to register the ENK (D69's way out) before the home
+      address publishes on any listing.
 - [ ] **4.4 The privacy nutrition label — the last form, and it is manual.**
       Mandatory; Apple accepts no submission without it.
 
