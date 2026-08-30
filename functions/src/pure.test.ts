@@ -1940,6 +1940,28 @@ describe("roomQids", () => {
     expect(roomQids(["a", "b"])).toEqual(["a", "b"]);
   });
 
+  it("drops an id the bank does not hold, when a bank is given", () => {
+    // The shape checks are not a cost bound. Each id the room has not
+    // already folded costs a getAll over ROOM_PEOPLE_CAP answer refs — and
+    // Firestore bills a MISSING document in a batchGet — so eight unknown
+    // ids are ~192 billed reads. A folded id is cached, which is exactly
+    // what makes an honest caller cheap and an inventive one unbounded:
+    // eight fresh invented ids every call never hit the cache. The same
+    // strings become field names on the shared room document, which every
+    // caller in that cell reads, so invented ids also grow it until the
+    // write fails into a swallowing catch.
+    const known = (q: string) => q === "daily-000" || q === "feed-x";
+    expect(roomQids(["daily-000", "made-up", "feed-x", "also-invented"], undefined, known))
+      .toEqual(["daily-000", "feed-x"]);
+    expect(roomQids(["nothing-real"], undefined, known)).toEqual([]);
+  });
+
+  it("still takes everything shape-legal when no bank is given", () => {
+    // The predicate is optional, and its absence must not quietly become a
+    // refusal — every other caller of this helper passes nothing.
+    expect(roomQids(["a", "b"])).toEqual(["a", "b"]);
+  });
+
   it("de-duplicates, because a repeated qid folds and pays twice", () => {
     expect(roomQids(["a", "a", "b", "a"])).toEqual(["a", "b"]);
   });

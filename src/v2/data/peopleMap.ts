@@ -115,8 +115,21 @@ export interface PlacedPerson {
 export interface PeopleField {
   placed: PlacedPerson[];
   me: { x: number; y: number; r: number };
-  /** The viewer's answered pool questions — the summary card's figure. */
+  /** The viewer's answered pool questions. What the viewer's OWN dot is
+   *  solved from, and the figure the mount gate reads. */
   answered: number;
+  /**
+   * How many questions the CROWD was placed from — the fetched lists the
+   * fold actually read, which is capped at PEOPLE_QUESTIONS.
+   *
+   * Separate from `answered` because the two are different numbers and the
+   * card was printing the wrong one: "placed around you, from the 40
+   * questions you've answered here" over a crowd folded from twelve, while
+   * every dot the reader taps says "12 of 12 shared answers". The card and
+   * its own detail view contradicted each other on one screen, by up to
+   * about nine times at a full pool.
+   */
+  basis: number;
   /** The floor `placed` cleared — for tests; the UI states counts, not this. */
   minShared: number;
 }
@@ -378,5 +391,9 @@ export function foldPeople(
     }
   }
 
-  return { placed, me, answered: mineAll.length, minShared };
+  // `fetched` is what the caller asked the store for; the basis is how
+  // many of those actually came back with rows, because a list that
+  // failed or was refused placed nobody.
+  const basis = fetched.filter((qid) => (rowsOf(qid) || []).length > 0).length;
+  return { placed, me, answered: mineAll.length, basis, minShared };
 }

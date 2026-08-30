@@ -590,7 +590,18 @@ export function NearField() {
   // so arriving at Near costs a presence sample rather than a document per
   // person per question. The tabs ask again with the deck when one is
   // opened, and the per-cell cache means the roster is already there.
-  React.useEffect(() => { void LIVE.near.loadRoom([]); }, []);
+  //
+  // KEYED ON THE BEAT, for the reason the tabs' own effect gives: the room
+  // is per cell, `loadRoom` is the only writer of it, and nothing in the
+  // store re-folds when the cell changes. Mounted once with an empty dep
+  // list, this field drew the roster of the block you walked out of under a
+  // headcount that moved with every beat — and it is the surface that
+  // matters more, because the tab bodies below only exist once a tab is
+  // tapped, while this is what the stop opens on. Free on a beat that did
+  // not move: the store returns at once when the cell it holds is the
+  // current one, and with no qids the question test is vacuous.
+  const beat = LIVE.near.updatedAt();
+  React.useEffect(() => { void LIVE.near.loadRoom([]); }, [beat]);
   // NO loadSimilarity HERE. It was correct until D181, when this field
   // drew the city's crowd and read `kindredPeople()`; that rewrite
   // replaced the body with the presence roster and deleted the comment
@@ -630,7 +641,7 @@ export function NearField() {
   // NOT drawn rather than parked at a default radius: a node at an invented
   // distance is a claim about a person, and the caption below says how many
   // are missing instead.
-  const placed = Object.keys(myFlat).length
+  const placeable = Object.keys(myFlat).length
     ? roster
       .map((p) => {
         const theirs = LIVE.scoresFor(p.uid);
@@ -651,8 +662,17 @@ export function NearField() {
       // NEAR_FIELD_CAP), so the slice below is a real choice and both
       // failures decide who is dropped.
       .sort((a, b) => b.m.raw - a.m.raw || b.m.axes - a.m.axes || a.uid.localeCompare(b.uid))
-      .slice(0, NEAR_FIELD_CAP)
     : [];
+  // THE TWO REASONS SOMEBODY IS NOT DRAWN, kept apart, because the caption
+  // used to give one of them for both. Everyone here whose scores this
+  // device can read is `placeable`; the field draws the closest
+  // NEAR_FIELD_CAP of them. So a room of twenty people who have ALL taken
+  // the test drew fourteen and told the reader the other six had not —
+  // about six people standing next to them. The sort comment above already
+  // says the slice is "a real choice"; the caption contradicted it.
+  const placed = placeable.slice(0, NEAR_FIELD_CAP);
+  const untested = roster.length - placeable.length;
+  const capped = placeable.length > placed.length;
 
   if (!on) {
     return (
@@ -664,12 +684,28 @@ export function NearField() {
   if (!placed.length) {
     return (
       <SfEmptyField>
+        {/* FOUR STATES, and the last two are the split this arm was missing.
+            With no scores of your own there is nothing to measure anybody
+            against, so nobody is placeable however many people here have
+            finished a test — and the room got the blame: "Nobody here has
+            taken the test", said to a room where everybody had, in the
+            state every account is in before its first instrument.
+            The sibling below (PlacesField) already splits these two.
+
+            The room's own two states stay in front of it: a room still
+            being read says so, and an EMPTY room is about the room whatever
+            the reader has taken (D160's ring case and the loading/empty
+            separation both rest on that order). Telling someone to finish a
+            test is only useful once there is somebody here to be drawn
+            against. */}
         {LIVE.near.roomLoading()
           ? <>Matching…</>
-          : roster.length
-            ? <>Nobody here has taken the test — {roster.length} in the room,
-              {" "}<strong>People</strong> lists them.</>
-            : <>Nobody else has Near on right now.</>}
+          : !roster.length
+            ? <>Nobody else has Near on right now.</>
+            : !Object.keys(myFlat).length
+              ? <>Finish a test and the room draws in around you.</>
+              : <>Nobody here has taken the test — {roster.length} in the room,
+                {" "}<strong>People</strong> lists them.</>}
       </SfEmptyField>
     );
   }
@@ -701,7 +737,8 @@ export function NearField() {
       </SfCaption>
       <SfEmpty>
         Nobody is named here; <strong>People</strong> names them. Placed by
-        test scores{placed.length < roster.length ? " — the rest have not taken it" : ""}.
+        test scores{capped ? ` — the closest ${placed.length} of ${placeable.length} who have` : ""}
+        {untested > 0 ? `${capped ? "; the rest" : " — the rest"} have not taken it` : ""}.
       </SfEmpty>
     </div>
   );

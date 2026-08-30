@@ -253,9 +253,19 @@ export function axisRank(testKey: string, dim: string, value: number): AxisRank 
   const above = frac >= 0.5;
   // Deciles of the side you are on, so the sentence and the number agree:
   // "higher than 7 in 10" reads off `frac`, "lower than 7 in 10" off its
-  // complement. Rounding before choosing a side would let an even split
-  // print as "higher than 5 in 10", which says nothing at all.
+  // complement.
   const outOfTen = Math.max(1, Math.min(9, Math.round((above ? frac : 1 - frac) * 10)));
+  // …AND CHOOSING THE SIDE FIRST DOES NOT SAVE THE MIDDLE, which the
+  // paragraph here used to claim it did. At an even split both sides round
+  // to five, and so does anything from 45% to 55%: "higher than 5 in 10"
+  // says nothing at all, and it said it to everybody near the middle of
+  // every axis — the widest band on the card.
+  //
+  // Refused rather than reworded, for the reason the 1..9 clamp above
+  // exists: a sentence this sample cannot support is not printed. The card
+  // already draws nothing for a null rank, so the axis simply loses a line
+  // it should never have had.
+  if (outOfTen === 5) return null;
   return { outOfTen, people: people.length, above };
 }
 

@@ -30,6 +30,7 @@ import {
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { randomBytes } from "node:crypto";
+import { V2_QUESTIONS } from "./v2content";
 import { db as firestore } from "./db";
 import {
   duelAggDelta,
@@ -57,6 +58,7 @@ import {
   PRESENCE_LINGER_MIN,
   ROOM_SAMPLE_CAP,
   ROOM_PEOPLE_CAP,
+  roomWindowMisses,
   ROOM_SCAN_CAP,
   sampleN,
   roomMix,
@@ -1781,12 +1783,31 @@ async function roomMixFor(cells: string[], own: string): Promise<RoomMix | null>
 //
 // A DIRECTORY OF STRANGERS IS THE FAILURE MODE, and the radius is what
 // keeps it from being one: at ~200 m these are people you can see.
+/**
+ * Does this id name a question the bank holds?
+ *
+ * The pulse surface mints one id per DAY from a template
+ * (`{baseQid}_{YYYY-MM-DD}`, firestore.rules pins the composition), so the
+ * bank holds the base rather than the day's id — the same allowance
+ * `surfaceOfQid` makes one module over.
+ */
+const ROOM_BANK_IDS: ReadonlySet<string> = new Set(V2_QUESTIONS.map((q) => q.id));
+const ROOM_DAY_SUFFIX = /_\d{4}-\d{2}-\d{2}$/;
+export function isRoomQid(qid: string): boolean {
+  if (ROOM_BANK_IDS.has(qid)) return true;
+  const base = qid.replace(ROOM_DAY_SUFFIX, "");
+  return base !== qid && ROOM_BANK_IDS.has(base);
+}
+
 export const nearbyRoomV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforceAppCheck: ENFORCE_APP_CHECK }, async (request) => {
   if (!request.auth) throw new HttpsError("unauthenticated", "must be signed in");
   const uid = request.auth.uid;
   const cell = request.data?.cell;
   if (!presenceCellOk(cell)) throw new HttpsError("invalid-argument", "cell must be a la_lo grid id");
-  const qids = roomQids(request.data?.qids);
+  // Bank-checked: an id the bank does not hold is dropped rather than
+  // folded. See roomQids for what an unchecked id costs — this callable
+  // carries no rate limit, and a fresh invented id never hits the cache.
+  const qids = roomQids(request.data?.qids, undefined, isRoomQid);
   const db = firestore();
   const cells = presenceNeighbors(cell as string);
   const now = Timestamp.fromMillis(Date.now());
@@ -1843,6 +1864,7 @@ async function roomFor(cells: string[], own: string, qids: string[]): Promise<Ro
   const fresh = Date.now() - 4 * 60_000;
   let people: Array<{ uid: string; type?: string }> = [];
   const qs: RoomCounts = {};
+  let held: RoomCounts | undefined;
   let hit = false;
   try {
     const snap = await ref.get();
@@ -1852,6 +1874,10 @@ async function roomFor(cells: string[], own: string, qids: string[]): Promise<Ro
       if (Array.isArray(cached)) { people = cached; hit = true; }
       const cq = snap.get("qs") as RoomCounts | undefined;
       if (cq && typeof cq === "object") {
+        // Kept whole as well as filtered: `qs` is what this CALL draws,
+        // `held` is what the WINDOW has accumulated, and only the second
+        // one can say whether the window is full.
+        held = cq;
         for (const q of qids) if (cq[q]) qs[q] = cq[q];
       }
     }
@@ -1873,7 +1899,13 @@ async function roomFor(cells: string[], own: string, qids: string[]): Promise<Ro
         return typeof t === "string" && t ? { uid: d.id, type: t } : { uid: d.id };
       });
     }
-    const missing = qids.filter((q) => !(q in qs));
+    // BOUNDED BY THE WINDOW, not only by the call. `ROOM_QUESTION_CAP`
+    // caps one request at eight; nothing capped what the cell accumulates
+    // before the window turns over, so the map could reach the whole
+    // question bank — seven hundred keys on a document every caller in
+    // the cell reads, at a batched read per key. Past the window cap the
+    // room serves what it already holds: a thinner grid, never an error.
+    const missing = roomWindowMisses(qids, held);
     if (missing.length && people.length) {
       // One getAll per question rather than one for the whole grid: it
       // bounds each call at ROOM_PEOPLE_CAP refs, and the misses cost
@@ -1912,11 +1944,13 @@ async function roomFor(cells: string[], own: string, qids: string[]): Promise<Ro
       // says something false.
       //
       // Bounding the window bounds the document too. `qs` grows a key per
-      // question asked, and `roomQids` shape-checks its input without
-      // holding it to any known set — so an unbounded window was also an
-      // unbounded map. A window that actually expires rewrites the doc
-      // wholesale on the next miss, which resets `qs` to what that call
-      // asked for.
+      // question asked, so an unbounded window was also an unbounded map.
+      // Two things bound it now, and they close different halves: the qids
+      // must NAME questions (roomQids takes the bank, so an invented id is
+      // dropped before anything is read), and the window itself may only
+      // accumulate ROOM_WINDOW_QUESTION_CAP of them. A window that
+      // actually expires rewrites the doc wholesale on the next miss,
+      // which resets `qs` to what that call asked for.
       await ref.set(
         hit ? { qs } : { people, qs, at: FieldValue.serverTimestamp() },
         { merge: hit },

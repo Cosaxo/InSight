@@ -457,7 +457,18 @@ function LbFriends({ qid, options, mine }: {
     });
 
   if (!rows.length) {
-    return <LbNote>None of the people you follow has answered this yet.</LbNote>;
+    // "In what this session read", not "at all". `voters` is the newest
+    // VOTER_FETCH_CAP answers, so a friend who answered early on a busy
+    // question is not in the list — and the type and logic cuts in this
+    // same file already say "Of the N answers this session has read" for
+    // exactly that reason. A census claim over a truncated sample is the
+    // one thing this panel's other cuts are careful not to make.
+    return (
+      <LbNote>
+        None of the people you follow is in the {voters.length.toLocaleString()}
+        {" "}answers this session has read.
+      </LbNote>
+    );
   }
 
   const same = mine >= 0 ? rows.filter((v) => v.optionIdx === mine).length : 0;
@@ -471,6 +482,13 @@ function LbFriends({ qid, options, mine }: {
           ? `${same} of ${rows.length} ${rows.length === 1 ? "friend is" : "friends are"} on your side`
           : `How your ${rows.length === 1 ? "friend" : "friends"} answered`}
       </div>
+      {/* The denominator is what this session READ, not how many of your
+          friends answered — the same caveat the type and logic cuts carry,
+          and for the same reason: `voters` is capped at the newest
+          VOTER_FETCH_CAP. Said once, under the headline it qualifies. */}
+      <LbNote>
+        Of the {voters.length.toLocaleString()} answers this session has read.
+      </LbNote>
       {rows.map((v) => {
         const fill = sideFill(v.optionIdx, options.length);
         return (

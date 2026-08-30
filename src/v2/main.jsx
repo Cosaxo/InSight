@@ -81,9 +81,12 @@ initLive().finally(() => {
   // a prewarm rather than a defer-until-needed: by the time a thumb reaches
   // the Mirror the chunk is in the module cache and mirror-tab's lazy body
   // resolves without a visible wait. No re-render needed here — the lazy
-  // body suspends and settles itself (unlike daily-split's window.WorldFeed
-  // read above). A failed chunk costs the You stop its Map until the next
-  // visit re-attempts (retryable), not the app.
+  // body holds the module in state and settles itself (unlike daily-split's
+  // window.WorldFeed read above). A failed chunk costs the You stop its Map
+  // until the next visit re-attempts, not the app — true of THIS loader
+  // through retryable(), and true of the stop itself only since MapSlot
+  // replaced a React.lazy, which cached its rejection and re-threw it on
+  // every later visit.
   loadMapTab().catch((err) => reportError(err, { where: 'loadMapTab' }));
 
   // The account-creation questions (D151) — the anchors every answer

@@ -45,7 +45,36 @@ import NAV from '../data/nav';
 const LiveCircleBody = React.lazy(() => import('../ui/LiveCircleBody'));
 const LiveCohortBody = React.lazy(() => import('../ui/LiveCohortBody'));
 const LiveGroupsMirrorBody = React.lazy(() => import('../ui/LiveGroupsMirrorBody'));
-const MapTabLazy = React.lazy(() => import('./map-tab.jsx').then((m) => ({ default: m.MapTab })));
+// THE SLOT spec-index.js's comment already described, built at last.
+//
+// It was `React.lazy` before, and React.lazy caches a REJECTION: the
+// payload keeps the error and re-throws it on every later render, with no
+// second call to the loader ever. The tab boundary is keyed per tab, so
+// leaving the Mirror and coming back mounts a fresh boundary around the
+// same poisoned lazy and re-throws — one failed chunk fetch turned the
+// Mirror's LANDING stop into "This view hit a snag" for the rest of the
+// session. That is the permanence data/lazy.ts was written to close, on
+// the stop a new account meets first.
+//
+// State and an import instead, which is what mirror-field-pops does for
+// relmap and what the loader comment in spec-index.js has claimed this
+// file does since D200. Re-entering the stop re-attempts; a fetch that
+// keeps failing costs the Map its drawing, not the stop its screen.
+//
+// No retry loop and console.error rather than reportError, for the reason
+// the relmap slot gives: main.jsx already reports a dead chunk once.
+function MapSlot() {
+  const [MapTab, setMapTab] = React.useState(null);
+  React.useEffect(() => {
+    if (MapTab) return undefined;
+    let live = true;
+    import('./map-tab.jsx')
+      .then((m) => { if (live) setMapTab(() => m.MapTab); })
+      .catch((e) => { console.error('[InSight] map chunk failed to load:', e); });
+    return () => { live = false; };
+  }, [MapTab]);
+  return MapTab ? <MapTab /> : null;
+}
 
 // mirror-tab.jsx — MIRROR: one tab, one verb — see yourself against a population.
 // One telescope, seven stops, from fully retracted to fully extended:
@@ -306,12 +335,12 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, backKey 
     // fully retracted — you, alone, visualized: the Map lives here
     body = (
       <div className="tab-swap" style={{ flex: 1, minHeight: 0, position: 'relative' }}>
-        {/* null fallback like the three below — and here it is genuinely a
-            frame, not a wait: main.jsx prewarms loadMapTab() right after
-            first paint, so the lazy resolve is a module-cache hit. */}
-        <React.Suspense fallback={null}>
-          <MapTabLazy />
-        </React.Suspense>
+        {/* Nothing until it lands, and that is genuinely a frame rather
+            than a wait: main.jsx prewarms loadMapTab() right after first
+            paint, so this import is a module-cache hit. No Suspense —
+            MapSlot resolves into state, so there is nothing to suspend
+            on, and nothing to poison if the fetch fails. */}
+        <MapSlot />
       </div>
     );
   } else if (isGeoLive) {

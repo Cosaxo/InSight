@@ -44,7 +44,7 @@
 // per-option counts on the bank's own prompts, read back through the join
 // the panel actually runs.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { act, cleanup, render, screen, within } from "@testing-library/react";
 import type { ParsedResults, TestBankItem } from "../data/similarity";
 
 const LIVE = vi.hoisted(() => ({
@@ -207,6 +207,42 @@ beforeEach(() => {
 afterEach(cleanup);
 
 // ── 1 · each score keeps its own side ────────────────────────────────
+
+describe("reading is not empty", () => {
+  // The scores this basis folds come out of the shared profile cache, and
+  // the fetch that fills it runs after first paint. `scoresFor` answers
+  // null for "fetched, has none" and "never fetched" alike, so the first
+  // frame used to state an absence about people whose profiles had not
+  // arrived — on Groups, "Nobody here has finished a test yet" for the
+  // length of one round trip, before flipping to a full profile.
+  it("says it is reading while the profiles are in flight", async () => {
+    let release!: () => void;
+    LIVE.loadNames = vi.fn(() => new Promise<void>((r) => { release = r; }));
+    LIVE.scoresFor = () => null;
+    // The viewer HAS results, or the first arm outranks this one.
+    LIVE.myTestResults = () => stored({ big5: { O: 90, C: 70, E: 50 } });
+    render(lens({ basis: "people", uids: ["a", "b"] }));
+    expect(screen.getByText("Reading…")).toBeTruthy();
+    expect(screen.queryByText(OSLO_EMPTY)).toBeNull();
+    // …and once the read lands with nothing in it, the absence is true
+    // and gets said.
+    await act(async () => { release(); await Promise.resolve(); });
+    expect(screen.getByText(OSLO_EMPTY)).toBeTruthy();
+    expect(screen.queryByText("Reading…")).toBeNull();
+  });
+
+  it("does not say it is reading when the viewer has answered nothing", () => {
+    // The first arm outranks it: someone with no test answers of their own
+    // is told what to do, not made to wait for other people's profiles.
+    LIVE.loadNames = vi.fn(() => new Promise<void>(() => {}));
+    LIVE.scoresFor = () => null;
+    LIVE.myTestResults = () => ({});
+    LIVE.myVotes = () => ({});
+    render(lens({ basis: "people", uids: ["a"] }));
+    expect(screen.getByText(/Fills in as you answer/)).toBeTruthy();
+    expect(screen.queryByText("Reading…")).toBeNull();
+  });
+});
 
 describe("your number and theirs never change places", () => {
   it("draws your score as the solid petal and theirs as the washed dot, axis for axis", () => {

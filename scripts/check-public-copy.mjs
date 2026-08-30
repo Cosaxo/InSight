@@ -86,6 +86,20 @@ const TSX_FILES = [
 ];
 const LISTING = "design/store/listing.json";
 
+// The two store-form surfaces, added 2026-08-30 because one of them had
+// been telling Apple something false for two weeks with every gate green.
+// STORE-FORMS.md's structural fact 3 and app-privacy.json's `$structural`
+// both called the world takes "anonymous by construction" — a claim D98
+// retired when it put names on them, and one the SAME JSON file's
+// `$guideline12` already contradicted four keys further down.
+//
+// This gate's own SCOPE paragraph says its subject is copy whose audience
+// is "a user or a store reviewer", and these are the second half of that
+// sentence: a reviewer's answers are derived from them. check:store-forms
+// compares the collected-type and age-rating TABLES and reads none of the
+// prose, so nothing looked at these words at all.
+const FORM_FILES = ["docs/STORE-FORMS.md", "design/store/app-privacy.json"];
+
 // The retired vocabulary, in the PRESENT tense only.
 //
 // Past-tense history is explicitly allowed and must stay allowed: D106's
@@ -140,6 +154,36 @@ export const RETIRED = [
     re: /\b(?:comments?|takes?) (?:are|is) anonymous\b/i,
     why: "takes carry the author's name at both scopes since D98",
   },
+  // The store-form spellings, which none of the three above matched: the
+  // claim was made as a PROPERTY ("anonymity by construction") and as a
+  // scope description ("world-scale WITHOUT names"), never as "takes are
+  // anonymous". Same lesson as the three above — grep the claim, not the
+  // string — one surface further out.
+  {
+    re: /\banonymity by construction\b/i,
+    why: "takes carry the author's name at both scopes since D98",
+  },
+  {
+    re: /\bworld[- ]scale\b[^.!?]{0,20}\b(?:without names|with no names)\b/i,
+    why: "takes carry the author's name at both scopes since D98",
+  },
+  // A THIRD spelling, and the one the wider scan was added for. The two
+  // above are the wordings app-privacy.json carried; STORE-FORMS.md said
+  // the same thing as "anonymous by construction (no author names
+  // rendered)", which neither of them matches — so the commit that widened
+  // this gate proved itself against the JSON's phrasings planted into the
+  // Markdown, and restoring the Markdown file's OWN retired sentence still
+  // passed. Four patterns for one claim now, which is this file's oldest
+  // lesson written down twice: grep the claim, not the string.
+  //
+  // Anchored on a noun so the history line those files now keep — "It said
+  // anonymous by construction here until 2026-08-30" — stays legal, the
+  // same way every pattern above leaves web/privacy.html's two historical
+  // paragraphs alone.
+  {
+    re: /\b(?:takes?|free text|posts?)\b[^.!?]{0,60}\banonymous by construction\b/i,
+    why: "takes carry the author's name at both scopes since D98",
+  },
 ];
 
 // Strings a scan must not read as copy. `$`-prefixed keys in listing.json
@@ -169,12 +213,41 @@ export function scanText(text) {
 export function collect() {
   const out = [];
 
-  for (const rel of [...HTML_FILES, ...TSX_FILES]) {
+  for (const rel of [...HTML_FILES, ...TSX_FILES, ...FORM_FILES]) {
     let raw;
     try {
       raw = readFileSync(join(root, rel), "utf8");
     } catch (e) {
       out.push({ label: rel, text: "", error: e.message });
+      continue;
+    }
+    if (rel.endsWith(".json")) {
+      // Every string value, `$`-prefixed keys INCLUDED — the inverse of
+      // the listing rule below, and deliberately. In listing.json a `$`
+      // key is a note to the operator and the shipped copy is elsewhere;
+      // in app-privacy.json the `$` keys ARE the prose, the notes a human
+      // answers Apple's form from. Excluding them here would scan a file
+      // of booleans and enums and call it covered.
+      const seen = [];
+      const walkJson = (node) => {
+        if (typeof node === "string") seen.push(node);
+        else if (Array.isArray(node)) node.forEach(walkJson);
+        else if (node && typeof node === "object") Object.values(node).forEach(walkJson);
+      };
+      try {
+        walkJson(JSON.parse(raw));
+      } catch (e) {
+        out.push({ label: rel, text: "", error: e.message });
+        continue;
+      }
+      out.push({ label: rel, text: seen.join("\n") });
+      continue;
+    }
+    if (rel.endsWith(".md")) {
+      // Markdown carries no comment syntax the gate needs to strip, and
+      // its history lines are past tense, which every pattern here is
+      // written to leave alone.
+      out.push({ label: rel, text: raw });
       continue;
     }
     if (rel.endsWith(".tsx")) {

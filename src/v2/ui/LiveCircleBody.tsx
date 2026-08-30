@@ -174,11 +174,23 @@ function LiveCircleBody() {
   // everyone sits at the same likeness the old guard still crowned one
   // named person and told another they mirror you least, on identical
   // figures. groupPortrait's sibling sentence carries the same guard.
+  //
+  // And the LOW end is not the end of this sort. `rankMembers` orders by the
+  // Wilson lower bound, which is right for the top — that is the whole point
+  // of the line above — and wrong read backwards, because a bound pushes a
+  // thin sample down whatever it agreed on. One member at 1 of 1 is 100% and
+  // sorts LAST, so the sentence told them they mirror you least beside a
+  // field that draws them at the far edge of agreement. The low end is the
+  // lowest PRINTED likeness, and there is none when that is the top: nobody
+  // in the circle is further from you than the person called closest.
   const placed = rankMembers(members.filter((m) => m.like.shared > 0 && m.name));
-  const soWhat = placed.length >= 2
-    && placed[0].uid !== placed[placed.length - 1].uid
-    && placed[0].like.rate !== placed[placed.length - 1].like.rate
-    ? { top: placed[0], low: placed[placed.length - 1] }
+  const least = placed.length
+    ? placed.reduce((a, b) => (b.like.pct < a.like.pct ? b : a), placed[0])
+    : null;
+  const soWhat = placed.length >= 2 && least
+    && placed[0].uid !== least.uid
+    && least.like.pct < placed[0].like.pct
+    ? { top: placed[0], low: least }
     : null;
 
   /**

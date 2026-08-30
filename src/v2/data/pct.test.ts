@@ -8,6 +8,9 @@
 // only ever check the cases someone had already thought of.
 
 import { describe, expect, it } from "vitest";
+import { readFileSync, readdirSync } from "node:fs";
+import { dirname, join, relative, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { sharePcts } from "./pct";
 
 /** Every count vector of `len` options with each count in 0..max. */
@@ -175,5 +178,75 @@ describe("sharePcts — the cases with a history", () => {
     const big = sharePcts([9999, 1]);
     expect(big).toEqual([100, 0]);
     expect(big.reduce((a, b) => a + b, 0)).toBe(100);
+  });
+});
+
+// ONE rule means one implementation, and the way this repo lost that the
+// first time was not a decision — it was a copy. `pct.ts` was written to
+// replace the four lines below, and four copies of them were still running
+// afterwards: three in the feed's own cut panels and one in the CALL
+// surface, that one under a comment calling it "the same repair every other
+// split in this app makes". None of them was reachable by a test of this
+// module, because a copy is not a caller.
+//
+// So this case reads the tree rather than the module. It is the cheapest
+// thing that notices the fifth copy, and the fifth copy is the failure mode
+// this file exists to prevent.
+describe("nothing recomputes the retired rule", () => {
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
+
+  /** Every source file under src/, excluding this module's own prose. */
+  function sources(dir: string, out: string[] = []): string[] {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, e.name);
+      if (e.isDirectory()) sources(full, out);
+      else if (/\.(ts|tsx|js|jsx)$/.test(e.name)) out.push(full);
+    }
+    return out;
+  }
+
+  // The DUMP, not the subtraction. The first version of this scan looked
+  // for `+= 100 - x.reduce(` and therefore only caught the rule written on
+  // one line: `map-group-stats.js` computes the residue into `drift` first
+  // and dumped it on the next line, and the scan sold as "no file under
+  // src/ may recompute the residue dump" walked straight past it. What is
+  // unmistakable is the TARGET — the largest bucket, found by
+  // `indexOf(Math.max(…))`, receiving a `+=`. Checked against the two
+  // legitimate remainder computations in the tree, which this does not
+  // match: `daily-questions.js` hands its remainder out in fractional
+  // order (largest remainder, correct), and `world-feed.jsx` prints the
+  // leftover share as a tail figure without moving anything.
+  const RESIDUE_DUMP = /\w+\[\s*\w+\.indexOf\(\s*Math\.max\(/;
+
+  // Files that may keep it, each for a reason someone wrote down.
+  //
+  // The demo Map's per-anchor curves are invented numbers with a 1% floor
+  // per bucket, so the shared rule is not a drop-in — it would redistribute
+  // that floor and change a prototype drawing nobody reads as data. The
+  // live branch three lines above it already calls `sharePcts`. Excluded
+  // ON PURPOSE and named here, rather than excluded by a regex that could
+  // not see it, which is the difference this case exists to hold.
+  const KEEPS_IT = {
+    "src/v2/spec/map-group-stats.js": "demo-only curves with a per-bucket floor; the live branch uses sharePcts",
+  };
+
+  it("has no second copy of round-then-dump-the-residue anywhere in src/", () => {
+    const offenders = sources(join(root, "src"))
+      // pct.ts QUOTES the retired rule in the comment explaining why it is
+      // retired, and this file quotes it again above. Both are the record.
+      .filter((f) => !/pct\.(ts|test\.ts)$/.test(f))
+      .filter((f) => !(relative(root, f) in KEEPS_IT))
+      .filter((f) => RESIDUE_DUMP.test(readFileSync(f, "utf8")))
+      .map((f) => relative(root, f));
+    expect(offenders).toEqual([]);
+  });
+
+  it("would catch the copy it used to miss", () => {
+    // The vacuity guard for the exclusion above: if the scan stopped
+    // matching the named-intermediate spelling, the entry in KEEPS_IT would
+    // be excluding nothing and the next copy written that way would pass.
+    for (const [rel, why] of Object.entries(KEEPS_IT)) {
+      expect(RESIDUE_DUMP.test(readFileSync(join(root, rel), "utf8")), why).toBe(true);
+    }
   });
 });

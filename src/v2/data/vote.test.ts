@@ -1173,6 +1173,40 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
   // switching clocks underneath a pending real timer leaks it into whatever
   // test runs next. Each case waits out the window instead.
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+  // THE MARGIN, and why it is not 200ms any more. The coalescing window is
+  // AGG_CACHE_MS (1000, data/live.ts) and every wait below used to be 1200
+  // — a fifth of a second of headroom, on a real clock, in a suite that
+  // runs 150-odd files in parallel. Two of these cases failed together in
+  // one full run on 2026-08-30 and passed alone and on the three runs
+  // after; a sibling audit saw the same shape in a mount suite's 3s lazy
+  // timeout the same night. Nothing here asserts a flush is FAST, so a wait
+  // that must happen can afford to be generous.
+  //
+  // WHAT IT COSTS, measured rather than waved at: this file ran 13.8s
+  // before and 17.7s after — three waits that must happen went from 1200ms
+  // to 2500ms, and the two that could be watched for stopped waiting at
+  // all. `41e06f71`'s message said the time was "unchanged within a
+  // second", which was never measured against the old file and is wrong by
+  // about four. Four seconds inside a suite that runs its files in
+  // parallel, against a red check that costs somebody a morning chasing a
+  // cache bug that never happened.
+  const PAST_WINDOW_MS = 2500;
+  /**
+   * Wait until the write has landed, rather than waiting out the clock.
+   *
+   * For the POSITIVE assertions only: "the flush happened" is a condition a
+   * test can watch for, so those cases now finish as soon as it is true and
+   * fail loudly if it never is. The negative ones — nothing wrote, or wrote
+   * exactly once — have no condition to watch and still wait the margin
+   * out.
+   */
+  const waitFor = async (done: () => Promise<boolean> | boolean) => {
+    for (let waited = 0; waited < PAST_WINDOW_MS; waited += 25) {
+      if (await done()) return;
+      await sleep(25);
+    }
+    throw new Error("waitFor: the coalescing window closed with nothing written");
+  };
   const spyAggTx = () => {
     const spy = vi.spyOn(IDBDatabase.prototype, "transaction");
     return {
@@ -1199,7 +1233,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
 
   it("coalesces a burst of agg snapshots into one cache write, carrying the last state", async () => {
     await bootLive();
-    await sleep(1200); // let boot's own flush land, so the spy counts only ours
+    await sleep(PAST_WINDOW_MS); // let boot's own flush land, so the spy counts only ours
     const spy = spyAggTx();
 
     for (let i = 1; i <= 5; i++) await emitAgg(i);
@@ -1209,7 +1243,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     expect(spy.count()).toBe(0);
     expect(await readAggCache()).not.toHaveProperty("q_1");
 
-    await sleep(1200);
+    await waitFor(() => spy.count() === 1);
     expect(spy.count()).toBe(1);
     // Leading-schedule/trailing-write: the flush happens a beat after the
     // FIRST snapshot but reads state at write time, so it carries the
@@ -1231,7 +1265,7 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     // so it is said here).
     await bootLive();
     await emitAgg(3); // a persisted aggregate from the outgoing account
-    await sleep(1200);
+    await waitFor(async () => "q_1" in (await readAggCache()));
     expect(await readAggCache()).toHaveProperty("q_1");
 
     await emitAgg(9); // schedules a write…
@@ -1251,16 +1285,20 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
     // Past the window the pending write would have fired in: the store may
     // fill again (the new uid's own poll writes it), but never carrying
     // the counts the previous account's in-flight write was holding.
-    await sleep(1200);
+    await sleep(PAST_WINDOW_MS);
     expect(await readAggCache()).not.toHaveProperty("q_1");
   });
 
+  // Two full windows waited out, on purpose: one to clear boot's own flush
+  // and one to prove the timer really was dropped. That is past vitest's
+  // 5s default, so the budget is stated rather than left to be discovered
+  // as a timeout — the case is slow by design, not stuck.
   it("hiding the app flushes the pending agg write rather than losing it", async () => {
     // Hiding is the last callback a mobile WebView is guaranteed before the
     // OS may kill it. Before coalescing, the write was already on disk by
     // then; now it can be up to a second in the future.
     await bootLive();
-    await sleep(1200);
+    await sleep(PAST_WINDOW_MS);
     const spy = spyAggTx();
 
     await emitAgg(7);
@@ -1278,11 +1316,11 @@ describe("vote() optimistic path (inflight vs unaggregated)", () => {
 
     // …and exactly once: the flush drops the timer and drains the dirty
     // set, so the window expiring afterwards must not write again.
-    await sleep(1200);
+    await sleep(PAST_WINDOW_MS);
     expect(spy.count()).toBe(1);
     (document as unknown as { hidden: boolean }).hidden = false;
     spy.restore();
-  });
+  }, PAST_WINDOW_MS * 4);
 
   it("a revoked session keeps real data on screen rather than blanking to demo", async () => {
     const LIVE = await bootLive();

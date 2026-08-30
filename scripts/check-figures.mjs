@@ -369,6 +369,33 @@ const convertedSpecModules = (() => {
     }).length;
 })();
 
+// How far that hand-listed seven had drifted when D39's successor measured
+// it: 32 in the tree against 7 in the prose. A fixed fact about a past
+// state, so it is written down rather than computed — see the FIGURES entry
+// that quotes it.
+const SPEC_MIGRATION_DRIFT = 25;
+
+// The instruments the app actually ships, counted off IS_TESTS' own keys.
+//
+// `passive-progress.js` opened with "progress for the five core tests"
+// while the object had held four since D103 retired the Thinking test —
+// the same hand-kept-figure drift this script exists for, in a file the
+// smoke suite has a whole describe block about ("the retired Thinking test
+// is gone from every surface"). A top-level key at four-space indent is a
+// test; the nested `dims` and `questions` sit deeper.
+const coreTests = (() => {
+  const src = read("src/v2/spec/test-definitions.js");
+  const open = src.indexOf("export const IS_TESTS = {");
+  if (open < 0) {
+    throw new Error(
+      "check-figures: src/v2/spec/test-definitions.js no longer declares\n"
+      + "    `export const IS_TESTS = {` — fix this scan rather than the count.\n"
+      + "    A figure gate that cannot find its subject reports zero.",
+    );
+  }
+  return [...src.slice(open).matchAll(/^ {4}([a-z][A-Za-z0-9_]*):\s*\{/gm)].length;
+})();
+
 // The mount smoke files, counted off the directory. CLAUDE.md §2 calls them
 // out by glob and then says how many, and the two parted company when
 // smoke-live.test.jsx landed: the glob matched six while the sentence said
@@ -426,6 +453,22 @@ const FIGURES = [
     fix: (n) => `"\`public/cities.txt\` (${n} places"`,
   },
   {
+    file: "src/v2/spec/passive-progress.js",
+    what: "core tests the passive tracker follows",
+    re: /progress for the (\w+) core tests/,
+    // Spelled out here rather than through the shared table, and that is
+    // not carelessness: this entry has to work in two trees. `NUMBER_WORDS`
+    // is the spelling in this file today; the reviewed branch waiting to be
+    // merged replaces it with `word()` from scripts/number-words.mjs and
+    // deletes the table. Git merges both changes without a conflict and the
+    // gate then dies on a name that no longer exists — measured, in a
+    // throwaway merge of the two lines. A literal list depends on
+    // neither.
+    actual: ["zero", "one", "two", "three", "four", "five", "six", "seven"][coreTests]
+      ?? String(coreTests),
+    fix: (n) => `"progress for the ${n} core tests"`,
+  },
+  {
     file: "CLAUDE.md",
     what: "mount smoke files over one harness (§2)",
     re: /smoke-\*\.test\.jsx` \((\w+) files over one harness/,
@@ -443,7 +486,15 @@ const FIGURES = [
     file: "CLAUDE.md",
     what: "how far that figure had drifted (§1)",
     re: /understate the migration by (\d+)\n?modules/m,
-    actual: String(convertedSpecModules - 7),
+    // A CONSTANT, not `convertedSpecModules - 7`. That subtraction read as
+    // the same recomputation as the entry above it and is not: the drift is
+    // history — the prose said seven while the tree held 32 — so it is 25
+    // whatever the tree holds today. Derived, it moved with every
+    // conversion, so the first person doing the "convert on touch" work
+    // CLAUDE.md asks for would have been told by a red gate to write a
+    // number that never happened. The one figure here the tree cannot
+    // answer, and the only one whose `actual` is a literal.
+    actual: String(SPEC_MIGRATION_DRIFT),
     fix: (n) => `"understate the migration by ${n} modules"`,
   },
   {

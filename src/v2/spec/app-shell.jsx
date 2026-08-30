@@ -774,7 +774,13 @@ function App() {
               rule 4) stays flat. This said "live mode has no person graph at
               all (D3)" until D200; D101 gave it one, and what the gate is
               about is that these particular people are made up. */}
-          {ov === 'search' && <SearchOverlay onClose={() => setOv(null)} samplePeople={!liveOn} onPerson={(p) => { setOv(null); setPerson(p); }} onCity={(c) => { setOv(null); setCity(c); }} />}
+          {/* No `onCity`: the overlay never took one. Search finds
+              questions, topics and people — its own placeholder says so —
+              and the handler sat here wired on one side only, closing the
+              overlay and opening a city sheet that nothing could ask for.
+              If city hits are ever added, this is the line they need
+              back. */}
+          {ov === 'search' && <SearchOverlay onClose={() => setOv(null)} samplePeople={!liveOn} onPerson={(p) => { setOv(null); setPerson(p); }} />}
           {ov === 'logic' && window.LogicOverlay && <window.LogicOverlay onClose={() => setOv(null)} />}
           {/* The one overlay here NOT read off window, though its module is
               deferred like the rest (D200). Reachable only from the embedded

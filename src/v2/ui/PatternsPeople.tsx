@@ -280,7 +280,14 @@ export default function PatternsPeople({ items, version, pop = "world", onOracle
           <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
             <span style={{ fontFamily: SANS, fontSize: 34, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1 }}>{placed.length}</span>
             <span style={{ fontFamily: SANS, fontSize: 13.5, fontWeight: 600, color: "var(--ink-2)", lineHeight: 1.4, textWrap: "pretty" }}>
-              people placed around you, from the <b style={{ color: "var(--ink)", fontWeight: 700 }}>{field.answered} questions</b> you’ve answered here. Tap anyone.
+              {/* THE CROWD'S BASIS, not yours. This printed `answered` —
+                  every pool question you have answered — over a crowd
+                  placed from the twelve lists the fold actually reads, so
+                  the card overstated itself by up to about nine times
+                  while every dot under it said "12 of 12 shared answers".
+                  Your own dot IS solved from all of them, which is what
+                  made the wrong number look right. */}
+              people placed around you, from the <b style={{ color: "var(--ink)", fontWeight: 700 }}>{field.basis} questions</b> you share here. Tap anyone.
             </span>
           </div>
           {/* The stated sample: newest-first, capped lists (VOTER_FETCH_CAP) — the
