@@ -10,6 +10,7 @@ import {
   stateOf,
   type CallCard,
 } from "./calls";
+import { sharePcts } from "./pct";
 import { CALL_VOID, type CallRubric } from "./callRubric";
 
 const RUBRIC: CallRubric = { kind: "agg", qid: "feed-f01", test: "topShareAtLeast", threshold: 60 };
@@ -116,18 +117,50 @@ describe("callPcts", () => {
   it("is null before anyone has called it — never a row of zeroes", () => {
     expect(callPcts([0, 0])).toBeNull();
   });
-  it("sums to exactly 100", () => {
+  it("sums to exactly 100, with the remainder on the leader", () => {
     const ps = callPcts([1, 1, 1])!;
     expect(ps.reduce((a, b) => a + b, 0)).toBe(100);
     expect(ps).toEqual([34, 33, 33]);
   });
-  // …and it is the app's ONE rule doing it. `[1, 1, 1]` cannot tell the two
-  // apart — both give [34, 33, 33] — so the case above passed just as well
-  // against the retired rule this function used to carry, under a comment
-  // claiming it was what every other split does. This vector is pct.ts's
-  // own counter-example: round-then-dump prints the 9-vote option at 23%
-  // and the 10-vote winner at 22%, which is a false claim about the data
-  // rather than a rounding artifact.
+
+  // The case the two above could not see. Both pass under the OLD
+  // implementation too — round each share, dump the residue on the leader
+  // — because [1,1,1] lands the same either way. That is the shape worth
+  // naming: a rounding test that only exercises the value both rules agree
+  // on.
+  it("is the app's one rounding rule, not a second one that agrees sometimes", () => {
+    // 5 against 3 drew 62/38 here and 63/37 in the Mirror's answer rows for
+    // the same question, one tab apart. Round-then-dump always shaves the
+    // WINNER.
+    expect(callPcts([5, 3])).toEqual([63, 37]);
+    expect(callPcts([7, 1])).toEqual([88, 12]);
+    // …and it is asymmetric, which is why a spot check could miss it: the
+    // mirrored pair agreed under both rules.
+    expect(callPcts([3, 5])).toEqual([38, 62]);
+  });
+
+  it("agrees with sharePcts on every two-option split up to 200", () => {
+    // Pinned as an EQUALITY against the shared rule rather than as a list
+    // of expected numbers, so it cannot drift back by someone
+    // reimplementing the rounding here. 160 pairs in this range disagreed.
+    const bad: string[] = [];
+    for (let a = 0; a <= 200; a++) {
+      for (let b = 0; b <= 200; b++) {
+        if (a + b === 0) continue;
+        const got = callPcts([a, b])!;
+        const want = sharePcts([a, b]);
+        if (got[0] !== want[0] || got[1] !== want[1]) bad.push(`[${a},${b}]`);
+      }
+    }
+    expect(bad.slice(0, 5), `${bad.length} splits disagree with the shared rounding rule`).toEqual([]);
+  });
+
+  // The width the CALL card does not build today, kept because the
+  // function is exported and takes any. Round-then-dump's worst failure
+  // needs more than two options: this is pct.ts's own counter-example,
+  // where it prints the 9-vote option at 23% and the 10-vote winner at
+  // 22% — a smaller count drawn larger, which is a false claim about the
+  // data rather than a rounding artifact.
   it("never draws a smaller count at a larger percentage", () => {
     const counts = [5, 7, 1, 9, 1, 7, 10];
     const ps = callPcts(counts)!;
