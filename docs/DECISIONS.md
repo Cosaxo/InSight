@@ -34116,3 +34116,134 @@ number-shaped thing that is not a number. Neither is a failure of the
 night. Both are the argument for reviewing a branch whole, and both are
 why `night-20260828` sitting unreviewed for a day was the real cost
 here — not any of the sixty-four fixes.
+
+## D336 · The 2026-08-30 night audit, merged with the two-night review that had been waiting — 104 commits landed as one tree
+
+**2026-08-30.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+forty commits on `night-20260830` and the sixty-nine on
+`claude/night-shifts-review-03g3km` (D335's two nights) are kept as
+written. Nothing was reverted, nothing amended. One commit is added by
+this review and it collapses a merge artefact that the artefact's own
+comment asked the merger to collapse.
+
+### What was on the shelf, and why it was three branches deep
+
+D335 reviewed `night-20260828` and `night-20260829` together on the 29th,
+verified the composed tree in full — and was never merged. So the night
+of the 30th branched from **main**, not from that review, and the tree
+this record merges is the first one that holds all three lines at once:
+
+| Branch | Ahead of main | State on arrival |
+| --- | --- | --- |
+| `claude/night-shifts-review-03g3km` | 69 | reviewed 2026-08-29 (D335), unmerged |
+| `night-20260830` | 40 | unreviewed |
+| `claude/night-shifts-review-kuyj45` | 34 | **stays unmerged** — D335 says why |
+
+Twelve files are touched by both lines. Merged: 135 files, +6,609/−724.
+
+### THE FINDING: the night composed itself against a branch it could not merge
+
+Four of the forty commits are merge work rather than fixes — `3ec12805`,
+`510046e9`, `d1ffef14`, `b523d916` — and they exist because the closing
+flow D326 §2 bought did the thing a commit-by-commit reading cannot: it
+ran a throwaway three-way merge of main, the reviewed branch and its own,
+and then ran the **whole battery on the composed tree** rather than
+checking that it merged. Three collisions came back, and the night went
+back and rewrote its own work to remove them: `callPcts` was taken from
+the reviewed branch byte-for-byte (its own extra case dropped, because
+the reviewed sweep already pins every two-option split); the reviewed
+branch's `loadSimilarity` removal was adopted verbatim; and a
+`check:figures` entry was re-spelled to depend on neither side's number
+speller.
+
+That third one is the one worth the paragraph. The entry landed an hour
+earlier spelling its number through `NUMBER_WORDS`, the table
+`check-figures.mjs` used at the time; the reviewed branch replaces that
+table with `word()` from a new module and deletes it. **Git merges both
+changes without a conflict** — different regions of one file — and the
+merged gate then throws `ReferenceError` before it checks a single
+figure. Nothing would have been red about either change; the gate on the
+lint job would simply have stopped working. It was measured, not
+predicted, and it is the argument for the closing flow in one artefact.
+
+### The one conflict left, and the one commit this review adds
+
+`src/v2/ui/LiveSimilarityField.tsx`, two adjacent hunks in the Near
+field: the reviewed branch deleted a `loadSimilarity()` pre-warm the
+field stopped reading at D181, and the night keyed the room fold on the
+beat one line above it. Resolved as **the night's effect over the
+reviewed branch's comment** — the night's own note explaining that it was
+adopting a removal "so the two lines compose" is residue the moment they
+do compose, and a reader of main would be looking for a branch that no
+longer waits.
+
+`db2b3ec8` is the same class one file over, and it is this review's only
+commit: the `check:figures` entry above says in its comment that it is a
+merge artefact and names collapsing it as the merger's job. `word()` is
+the surviving speller and spells four identically, so the literal list
+has nothing left to protect against. Proved both ways rather than
+reasoned — green as collapsed, and with "five" planted in
+`passive-progress.js` the gate fails with the correction quoted.
+
+### What was verified before merging it
+
+Every gate that guards a PR, green on the composed tree: `tsc -b` (0),
+eslint clean, `test:unit` **2295 over 155 files**, `functions` **525**,
+`test:scripts` **572**, `test:rules` **156** (Java 21, Firestore +
+Storage), and all three e2e suites against the real emulated functions
+on one boot — loop, erasure, moderation, exit 0. Every `check:*` gate
+that runs without production secrets: forty of them, each exit 0.
+`check:bundle` on a SHIPPING build — 2,153 KB total / 771 KB eager,
+against 2,440 / 880.
+
+`check:globals`'s coupling ratchet reads 236 against a baseline of 236.
+The reviewed branch lowered it from 238 and brought the baseline with
+it; the night's two guarded call sites were written through locals
+precisely so it would not move.
+
+The two release-path gates that need production secrets —
+`check:web-firebase`, `check:store-copy` — fail on this tree, and fail
+**identically on main**: measured against a checkout of main built the
+same way, not assumed. That is D323's and D335's finding, unchanged.
+
+**The e2e suites needed `HTTPS_PROXY` unset**, exactly as CLAUDE.md's
+sandbox note says. Environmental; no test and no allowlist was touched.
+
+### The false signal D335 recorded is closed
+
+D335 had to write a caveat rather than a result: two `vote.test.ts`
+cases that sleep on real timers to prove the agg-write coalescer failed
+under the reviewer's own CPU contention and passed alone. `41e06f71` and
+`bae51476` are the night's answer — the waits that must happen went from
+1200 ms to 2500 ms, the two that could be watched for stopped waiting at
+all, and the four seconds it costs are measured and written beside the
+constant rather than claimed. Re-run here under deliberately reproduced
+contention — the unit suite beside eslint, the functions suite,
+`test:scripts` and two gates — **2295/2295, exit 0**. The caveat does not
+need writing a second time.
+
+### What still stands from D335, unchanged by this night
+
+All three of its watch items survive this merge untouched, and none is
+re-litigated here: `check:pricing` on the deploy path (the one placement
+an owner might want back), the `v2_handles` grant narrowed from `read`
+to `get` with `list` refused in writing, and the `anchors.age`
+single-field index exemption. The handle grant was re-checked in the
+merged tree rather than taken from the record: every read in `src/` is
+the exact-id `getDoc` in `socialFetch.ts`, the one collection QUERY is
+`deleteAccount` phase 3b through the Admin SDK (the handle write in
+`v2social.ts` is a `.doc()` reference, not a list), and the rules suite
+pins both directions.
+
+### One limit this review did NOT close
+
+`isRoomQid` (`82ba8326`) narrows a live callable to ids the bank holds,
+and the bank it checks against is the one compiled into the deployed
+functions bundle. That is sound today for a reason worth writing down
+rather than rediscovering: `v2_questions` is seeded **by**
+`seedContentV2` from that same compiled-in `V2_QUESTIONS`, so the served
+deck cannot contain an id the gate does not hold. It stops being sound
+the day anything else writes a question into Firestore — a console edit,
+a second seeder, a promoted question shipped without a functions deploy.
+The failure is quiet and small (that question's counts vanish from the
+Near grid, nothing errors), which is exactly why it is here.
