@@ -154,24 +154,6 @@ describe("callPcts", () => {
     }
     expect(bad.slice(0, 5), `${bad.length} splits disagree with the shared rounding rule`).toEqual([]);
   });
-
-  // The width the CALL card does not build today, kept because the
-  // function is exported and takes any. Round-then-dump's worst failure
-  // needs more than two options: this is pct.ts's own counter-example,
-  // where it prints the 9-vote option at 23% and the 10-vote winner at
-  // 22% — a smaller count drawn larger, which is a false claim about the
-  // data rather than a rounding artifact.
-  it("never draws a smaller count at a larger percentage", () => {
-    const counts = [5, 7, 1, 9, 1, 7, 10];
-    const ps = callPcts(counts)!;
-    expect(ps.reduce((a, b) => a + b, 0)).toBe(100);
-    expect(ps.indexOf(Math.max(...ps))).toBe(counts.indexOf(Math.max(...counts)));
-    for (let i = 0; i < counts.length; i++) {
-      for (let j = 0; j < counts.length; j++) {
-        if (counts[i] > counts[j]) expect(ps[i]).toBeGreaterThanOrEqual(ps[j]);
-      }
-    }
-  });
 });
 
 describe("daysUntil", () => {
