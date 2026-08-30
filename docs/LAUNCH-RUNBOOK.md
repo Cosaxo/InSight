@@ -397,9 +397,24 @@ arithmetic.
       is what it is built to score low. `src/lib/appcheck.ts` takes one in
       `VITE_APPCHECK_DEBUG`: `true` mints a token and prints it for you to
       register once, any other value IS a registered token, which is the
-      only form a job can use. Register under App Check › Apps › Manage
-      debug tokens; the screenshot workflow reads
-      `secrets.APPCHECK_DEBUG_TOKEN`.
+      only form a job can use.
+
+      **The three actions, in order. Two tokens, not one** — a token is a
+      credential, and one shared between a laptop and a public CI log is
+      revoked in both places at once when either leaks:
+
+      1. **Mint yours.** Put `VITE_APPCHECK_DEBUG=true` in `.env` and run
+         the app locally. The browser console prints the token.
+      2. **Register it.** Firebase Console → **App Check** → **Apps** →
+         the web app → the three-dot menu → **Manage debug tokens** →
+         paste it in.
+      3. **Repeat for CI**, with its own token, and put that one in
+         GitHub → Settings → Secrets and variables → Actions as
+         **`APPCHECK_DEBUG_TOKEN`**. That is the name
+         `.github/workflows/screenshots.yml` already reads.
+
+      All three before 3.4, not after — the flip is what makes them
+      load-bearing.
 
       **A debug token is a bypass, not an attestation.** Whoever holds it
       is past App Check. One per environment, in secrets, never in a build
