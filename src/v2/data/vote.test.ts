@@ -2453,6 +2453,46 @@ describe("loadSimilarity — parallel chunks keep partial progress (D169)", () =
       expect.objectContaining({ where: "loadSimilarity" }),
     );
   });
+
+  it("fetches the place aggregates and NOT the voter lists", async () => {
+    // This awaited `loadKindred` — twelve collection-group queries of up
+    // to 200 answers each, plus the profile reads that resolve their
+    // names — and every stop that draws a constellation called it. Only
+    // City reads those rows; Country and World draw places from the test
+    // aggregates fetched above, so the fan-out was bought for nothing on
+    // two stops out of three. It is the city field's own loader now.
+    h.bankDocs.push({
+      id: "q_t00",
+      data: {
+        surface: "test", seq: 100, type: "vote", prompt: "Item",
+        options: ["1", "2", "3", "4", "5"], topic: "self", test: "big5", active: true,
+      },
+    });
+    h.aggDocs.push({ id: "q_t00", data: { total: 4, counts: { "2": 4 } } });
+    // A vote of the viewer's own, because the fan-out picks its questions
+    // from those: with none, `loadKindred` returns without asking anybody
+    // anything and the assertion below would hold for the wrong reason.
+    // The control at the end of the case is what proves it does not.
+    h.answerDocs.push({
+      id: "q_1",
+      data: { qid: "q_1", optionIdx: 0, surface: "daily", answeredAt: { seconds: 1 } },
+    });
+    const LIVE = await bootLive();
+    h.voterQueries.length = 0;
+
+    await LIVE.loadSimilarity();
+
+    expect(LIVE.aggFor("q_t00"), "the place profiles' own aggregates did not land").not.toBeNull();
+    expect(h.voterQueries, "the constellation fold paid the voter fan-out again").toHaveLength(0);
+
+    // THE CONTROL, and without it the assertion above is worth nothing:
+    // this fixture must be one where the fan-out really would fire. Asking
+    // for it directly — which is what the city field now does — issues the
+    // queries the loader used to issue for every stop.
+    await LIVE.loadKindred();
+    expect(h.voterQueries.length, "this fixture never fans out, so the case above proves nothing")
+      .toBeGreaterThan(0);
+  });
 });
 
 // The learn crowd split, warmed before the tap (D125).

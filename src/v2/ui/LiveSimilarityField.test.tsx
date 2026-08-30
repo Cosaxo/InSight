@@ -78,6 +78,10 @@ const LIVE = vi.hoisted(() => ({
   // circle when the Circle stop has loaded it and the follow set
   // otherwise, which is the state every surface but that one is in.
   loadFollows: async () => {},
+  // The city scope loads BOTH halves of the kindred pool now — the
+  // general fan-out moved here out of `loadSimilarity`, which was paying
+  // it for Country and World too.
+  loadKindred: vi.fn(async () => {}),
   follows: () => null as string[] | null,
   setFollowing: vi.fn(() => Promise.resolve()),
   near: {

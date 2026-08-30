@@ -905,7 +905,12 @@ function SimilaritySection({ scope }: {
   // buy nothing. Session-cached and keyed on the anchor; a viewer with no
   // city returns immediately.
   React.useEffect(() => {
-    if (scope === "city") void LIVE.loadCityKindred();
+    if (scope !== "city") return;
+    // Both halves of the pool, and both only here. `loadSimilarity` used
+    // to await the general fan-out for every scope, so Country and World
+    // paid a few thousand reads for rows they never draw.
+    void LIVE.loadKindred();
+    void LIVE.loadCityKindred();
   }, [scope]);
   if (!LIVE.enabled) return null;
 

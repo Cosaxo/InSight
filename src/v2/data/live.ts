@@ -4212,7 +4212,19 @@ const LIVE = {
         // AGG_ID_CAP top-up re-fetching it next boot.
         saveAggCache();
       }
-      await this.loadKindred();
+      // NOT loadKindred(). It was awaited here, so opening Country or
+      // World paid the voter fan-out — twelve collection-group queries of
+      // up to 200 answers each, plus the profile reads that resolve their
+      // names — for data neither stop reads: the place fields draw from
+      // the test aggregates above. Only City reads `kindredPeople()`, and
+      // the People lens loads it for itself.
+      //
+      // The city half was already scoped this way, by the effect in
+      // LiveSimilarityField that calls `loadCityKindred()` under a comment
+      // saying Country and World "never filter on it, so paying a second
+      // fan-out there would buy nothing". The general one is scoped there
+      // too now. Same shape as the Near stop's fix three nights ago: the
+      // loader belongs to the surface that reads it.
     } catch (err) {
       reportError(err, { where: "loadSimilarity" });
     } finally {
