@@ -850,6 +850,22 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     // disagreement and not the date.
     await assertSucceeds(setDoc(
       doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", older), rollup({ day: older })));
+    // THE 90-DAY PROMISE, which `web/privacy.html` makes in writing and the
+    // TTL policy keeps by deleting at whatever `expireAt` says. That makes
+    // this bound the only thing enforcing the sentence at runtime —
+    // `check:policy-claims` asserts the page STATES it, not that anything
+    // holds a client to it — and nothing was testing the bound. A note
+    // stamped four hundred days out is an account-linked trail living four
+    // times as long as the page says it does.
+    await assertFails(setDoc(
+      doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()),
+      rollup({ expireAt: new Date(Date.now() + 400 * 86400000) })));
+    // The other end, for the same reason pointed the other way: a stamp
+    // already past means the TTL may take the note before the nightly fold
+    // has counted it, so the day document quietly loses people.
+    await assertFails(setDoc(
+      doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()),
+      rollup({ expireAt: new Date(Date.now() - 86400000) })));
     // folded is the fold's flag, never the client's
     await assertFails(setDoc(doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()), rollup({ folded: true })));
     await assertFails(setDoc(doc(asUser(FRIEND), "v2_users", FRIEND, "engagement", rollupDay()), rollup({ sessions: 5000 })));
