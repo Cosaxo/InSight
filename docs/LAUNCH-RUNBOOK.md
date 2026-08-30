@@ -42,10 +42,10 @@ exports and passes both gates with no Mac (run 6).
 - **The privacy nutrition label is not pushable at all.** Apple's API has
   no App Privacy resource (D73), so the metadata workflow prints it as the
   form and it is typed in by hand. **Still outstanding.**
-- **Trader status: declared** (D69). Waiting on a *bostedsattest* as the
-  address document — and the wait has two exits (4.3b, measured
-  2026-08-20): Skatteetaten issues it digitally to the Altinn inbox in
-  ~3 days, and pending verification gates only the EU-27 storefronts.
+- **Trader status: declared** (D69), **and the address document is in
+  hand since 2026-08-30.** The *bostedsattest* arrived 23 days after the
+  declaration. What is left in 4.3b is the upload, and pending
+  verification gates only the EU-27 storefronts.
 
 **Three decisions came out of that week and each is a gate now**: D73 (the
 privacy label has no endpoint), D74 (a tick is printed after the write, not
@@ -1131,30 +1131,36 @@ That is a tester-count problem, not a workflow problem.
       that can replace it, which is a second and independent reason to want
       the ENK that D42 parked.
 
-      **Declared 2026-08-07. Waiting on the address document.** Apple asks
-      for proof of address; a Norwegian *bostedsattest* from Skatteetaten
-      is the one that fits and it arrives by post. This step is open only
-      until that envelope does — it is waiting, not work, so do not let it
-      block anything below it.
+      **Declared 2026-08-07. The document arrived 2026-08-30**, 23 days
+      later — the *bostedsattest* from Skatteetaten, which is the
+      Norwegian record that fits Apple's ask for proof of address. The
+      wait this step was open for is over, and both of the exits it
+      carried are spent. What is left is the upload.
 
-      **The envelope is the slow path, and it is not the only one
-      (researched 2026-08-20, still unarrived at ~2 weeks).** Two exits,
-      independent of each other:
+      **It is not in this repo, and it must not be.** The page carries a
+      fødselsnummer and a date of birth next to the address, and a git
+      history is the wrong place for any of the three — irrevocable by
+      construction, and mirrored by every clone. What is recorded here is
+      that the document arrived, not what it says.
 
-      - **Order the attest digitally.** Skatteetaten issues the
-        bostedsattest to the Altinn inbox in about three days; the
-        stamped paper copy is the one that costs up to two weeks plus
-        postage, and Apple never sees the stamp — the upload takes a
-        PDF, and Apple's wording asks only for "business or legal
-        records" that verify name and address. Ordering the digital one
-        now does not conflict with the paper order already in flight.
-      - **Ship without the EU 27, add them on verification.** Pending
-        trader verification gates ONLY EU distribution — Norway is EEA
-        (D69), and submission, TestFlight and every non-EU storefront
-        are untouched. Pricing and Availability can exclude the EU 27 at
-        launch and add them later without a new review. That order also
-        buys time to register the ENK (D69's way out) before the home
-        address publishes on any listing.
+      **Mask the fødselsnummer before the upload — owner's call, because
+      it cuts both ways.** Apple's wording asks for "business or legal
+      records" that verify **name and address**, and the identity number
+      is the one field on the page no part of the form needs; it is also
+      worth more to a thief than the home address D69 already decided to
+      publish. Against that: a redacted document can draw a re-request,
+      which costs a round-trip on a step that has already cost three
+      weeks. Nothing in this repo can decide it, and no gate here will
+      see it either way.
+
+      **Then the wait is Apple's, and it gates only the EU 27.** App
+      Store Connect → **Business** → *Trader Status* takes the PDF.
+      Norway is EEA (D69), so submission, TestFlight and every non-EU
+      storefront are untouched while verification runs. Pricing and
+      Availability can still exclude the EU 27 at launch and add them on
+      verification without a new review — no longer a way around a wait,
+      but still the way to register the ENK (D69's way out) before the
+      home address publishes on any listing.
 - [ ] **4.4 The privacy nutrition label — the last form, and it is manual.**
       Mandatory; Apple accepts no submission without it.
 
