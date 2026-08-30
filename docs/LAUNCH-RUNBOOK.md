@@ -380,7 +380,7 @@ arithmetic.
       same console page, and having one without the other looks identical
       to having neither.
 
-      **AND THE REMAINING HALF IS PROBABLY NOT WORTH DOING (2026-08-30).**
+      **AND THE REMAINING HALF IS NOT BEING DONE (D337, 2026-08-30).**
       The owner's reading, checked against the tree and correct: there is
       no public web client and none is planned. `web/` is seven static
       pages, none of which loads Firebase — `web/home.html` says so in its

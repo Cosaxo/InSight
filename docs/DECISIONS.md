@@ -34247,3 +34247,81 @@ the day anything else writes a question into Firestore — a console edit,
 a second seeder, a promoted question shipped without a functions deploy.
 The failure is quiet and small (that question's counts vanish from the
 Near grid, nothing errors), which is exactly why it is here.
+
+## D337 · reCAPTCHA stays unprovisioned; the web path is developers and CI, and they carry debug tokens
+
+**2026-08-30.** **Status:** adopted. **Owner's question**, which is what
+opened it: *"why is recapatcha needed?"* — asked about LAUNCH-RUNBOOK 1.4,
+which had listed the web reCAPTCHA v3 provider as an outstanding launch
+item since 2026-08-04 without ever saying who it was for.
+
+**It was for nobody, on the user side.** Checked against the tree rather
+than reasoned about: `web/` is seven static pages and only two mention
+Firebase, both in comments — `web/home.html` says *"Deliberately NOT the
+app: InSight is a native product"* and `web/join.html` describes itself
+as the invite-link fallback. No Firebase SDK is loaded anywhere in
+hosting, and `firebase.json` serves `web/`, not `dist/`. The shipping
+product is native and attests through DeviceCheck. The owner confirmed
+the intent directly: *"den trenger ikke å være tilgjengelig for å brukes
+i nettleser utenom for meg når jeg utvikler den"*.
+
+**So the web provider serves exactly two browsers, and both are ours:** a
+developer's, and the screenshot job's. Both read production Firestore
+without attesting, which is invisible today and fatal the moment console
+enforcement is flipped (runbook 3.4) — at which point `npm run dev`
+against real data returns nothing and a capture run fails at the size
+gate with no output explaining why.
+
+**Decision: do not provision reCAPTCHA. Use App Check debug tokens.**
+Firebase's own debug-provider documentation prescribes tokens for CI, and
+the reason is mechanical: reCAPTCHA v3 scores behaviour, and a headless
+browser is the thing it is built to score low, so the "real" provider is
+the one more likely to fail in the job that needs it.
+
+### What was verified rather than assumed
+
+The route was checked in installed code before it was recommended,
+because the recommendation had already been given once too confidently:
+
+- the Capacitor plugin accepts `debugToken: boolean | string` and sets
+  `self.FIREBASE_APPCHECK_DEBUG_TOKEN`;
+- `@firebase/app-check` short-circuits `getToken` to the debug exchange
+  and never consults the provider;
+- **but `_activate` calls `provider.initialize(app)` unconditionally.** A
+  placeholder site key would therefore still fetch Google's reCAPTCHA
+  script and log an error for an answer nothing reads. `initAppCheck`
+  hands the debug path a `CustomProvider` that rejects if consulted
+  instead.
+
+Two things stated to the owner before that check were wrong and are
+corrected here: a debug token does *not* remove the need for a provider
+(the plugin demands one), and tokens and reCAPTCHA are not alternatives
+in general — the split is by **where**, and only CI is clear-cut.
+
+### The cost, stated rather than discovered later
+
+**A debug token is a bypass, not an attestation.** Whoever holds it is
+past App Check on every request, and revoking one is a console action
+nobody watching a store build would think to take. Two tokens, not one —
+a laptop's and CI's are revoked independently — both in secrets, neither
+in a build that reaches users.
+
+That last clause is enforced rather than asked for. This change made the
+bad shape *reachable*: before it, no site key meant no App Check at all
+and `shipsUnattested` refused the build. Now a build can have no key and
+still initialise, so `shipsDebugToken` refuses any production build
+carrying `VITE_APPCHECK_DEBUG`, with no exemption for a native build —
+the tempting one, and false for its own biggest user, since the
+screenshot job sets `CAPACITOR_BUILD=1` and runs the result in a browser.
+That job now builds `--mode capture` instead, which costs three bytes
+(measured: 2,171,828 against 2,171,831 — the mode string, inlined once as
+the Sentry environment tag).
+
+### When to revisit
+
+**The day a public web build ships.** Nothing here is an argument that
+reCAPTCHA is wrong; it is an argument that provisioning a public
+attestation provider for two of our own browsers is work with no
+recipient. A web surface with real users reverses that in one step, and
+`VITE_APPCHECK_RECAPTCHA_SITE_KEY` is still the path — `initAppCheck`
+prefers it over the debug provider whenever it is set.
