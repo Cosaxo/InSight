@@ -90,7 +90,7 @@ who decides:
 | `design/` | Two different things under one name. The **standalone revisions** are the frozen prototype and its history — read-only reference, and what "do not edit design/" is about. `design/icon/` and `design/store/` are the opposite: live SOURCES that builders rasterise and gates read, and that `asc:push` sends to App Store Connect | `design/README.md` |
 | `.github/workflows/` | `backend-checks.yml` is called by **both** `ci.yml` and `firebase-deploy.yml`, so what guards a PR guards production | `docs/DEPLOYMENT.md` |
 | `.github/scripts/` | `report_audit_issue.py` — the weekly dependency audit's issue writer. A file rather than an inline `run:` block, and hand-written rather than a third-party action: the workflow whose subject is supply-chain hygiene adds no SHA of its own to pin | `.github/workflows/security-audit.yml` |
-| `.claude/` | Committed Claude Code project settings: the permission allowlist that keeps the autonomous lanes' sessions from stalling on prompts. Hardening is by omission — no merge tools, no API file writes, no trigger mutation, and no `deny` list, because the file reaches every session in the repo | `docs/AXES-RUNBOOK.md` § the permission paragraph |
+| `.claude/` | Committed Claude Code project settings: the permission allowlist that keeps the autonomous lanes' sessions from stalling on prompts, and `.claude/skills/`, where a lane's entry point lives as a reviewable file rather than inside its schedule. Hardening is by omission — no merge tools, no API file writes, no lane-cadence mutation, and no `deny` list, because the file reaches every session in the repo | `docs/AXES-RUNBOOK.md` § the permission paragraph |
 
 ## 4 · The documents
 
@@ -116,6 +116,7 @@ directions.
 | [`MODERATION.md`](MODERATION.md) | Flagged takes, the scheduled reviewer, confinement. Enforcing since D83 | tree |
 | [`CATALOG-QUESTIONS.md`](CATALOG-QUESTIONS.md) | "Favourite X" with a thousand options — how catalogue answers are keyed and validated | tree |
 | [`QUESTION-FARM.md`](QUESTION-FARM.md) | The instruction manual for the scheduled autonomous runs that deepen the archive. **If you are one of those runs, this is your brief** | tree |
+| [`DOC-SWEEP.md`](DOC-SWEEP.md) | The scheduled documentation-drift lane, contract and procedure in one file: why a stale sentence is the class the static gates deliberately do not read, what the lane may edit versus only report, its schedule and its retirement condition. **If you are that run, this is your brief** | tree |
 | [`RANK-CATALOG-LIVE.md`](RANK-CATALOG-LIVE.md) | The path back for the two once-withheld feed forms — catalogue picks (D232) and rank (D233), both shipped; kept for the plans' arguments and as-built deviations | tree |
 | [`COSTS.md`](COSTS.md) | The bill at five sizes, as a prediction with its inputs written down. Reproduce with `npm run costs` | tree |
 | [`FIRESTORE-REGION.md`](FIRESTORE-REGION.md) | The one cost decision with a deadline, and the one that cannot be revisited | tree |
