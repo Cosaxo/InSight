@@ -34247,3 +34247,168 @@ the day anything else writes a question into Firestore — a console edit,
 a second seeder, a promoted question shipped without a functions deploy.
 The failure is quiet and small (that question's counts vanish from the
 Near grid, nothing errors), which is exactly why it is here.
+
+## D337 · Build 27's pre-flight: run as-is, and the rules are at Firestore's expression ceiling
+
+**2026-08-30.** **Status:** binding as a PRE-FLIGHT RECORD and ONE LIMIT.
+No number moved and no code changed. What this adds is a limit the e2e
+has been printing for at least two releases and nothing was reading —
+D191's shape again, and D324's: a pre-flight that finds nothing to do is
+the moment to ask what the gates are not seeing.
+
+### The comparison, made against the run list
+
+D158's rule, because a doc cannot see App Store Connect:
+
+- Run 44 (`33071251527`, 2026-08-27T12:18:34Z) is still the highest run
+  in `ios-release.yml`'s list — 44 of 44, nothing dispatched in three
+  days.
+- Its step 17, `Upload to App Store Connect`, is **`success`**
+  (12:25:22Z → 12:27:13Z, 1m 51s of transfer). Build 26 is spent.
+- `appBuild` at run 44's **own `head_sha`** — `ac9072f`, D159's rule
+  rather than the commit anyone merged — is **26**.
+- The tree at `b78cd9c` reads **27**.
+
+27 > 26, so the answer is **run as-is** and no number moves. Fifth
+pre-flight to come out that way (D153, D158, D191, D324, this one), and
+build 26's bump is the one that made it: D324 read it off step 17 while
+the step list was on screen. Eight bumps have held (20, 21, 22, 28, 33,
+36, 42, 44) against seven skipped (18, 19, 24, 26, 31, 38, 40).
+
+D198 and D273 are unchanged and worth restating, because a record of this
+kind has been read as a guarantee before: **a verdict has a shelf life of
+exactly one dispatch, and a bump has a shelf life of exactly one
+upload.** "No number moved" is a report about a comparison made at
+`b78cd9c` on 2026-08-30, never a statement about the tree afterwards.
+
+### The gap this release carries
+
+130 commits since build 26, over three days. It holds D324's own record
+(deliberately left unmerged while build 26 shipped, so it merged after),
+the patterns bridge publishing its own scorecard (D325), the widened
+genetic axiom and the night shift's closing hour (D326), twelve console
+captions that had outlived their arithmetic (D327), profession becoming a
+breakdown dim through `jobField` (D328), three of D269's seven refusals
+lifted (D329), the political consent asked at the start and the compass
+that waits for a yes (D330–D331), the read breaker and its third guard
+state (D332 and its amendment), Phase 5's hygiene — strays deleted,
+rollback retired, the storage bucket closed (D333), the product being the
+connections and a privacy constraint being an ask (D334), and the two
+night audits reviewed together plus the 2026-08-30 audit merged as one
+tree (D335–D336), with a D122 amendment alongside.
+
+### The limit: the rules are at Firestore's 1,000-expression ceiling
+
+A passing `test:e2e` prints this ten times:
+
+```
+Unable to evaluate the expression as the maximum of 1000 expressions to
+evaluate has been reached. for 'create' @ L1003
+```
+
+**Every one of the ten ends in `false`, and every one is an
+`expectDenied` case** — so no legitimate write is lost, the suite is
+honestly green, and this is not a regression. It was measured rather than
+assumed: the same driver run against build 26's own tree (`ac9072f`, in a
+worktree) prints the identical ten, at the same two rule sites, shifted
+only by the 35 lines the file has grown since — `L968`/`L1754` there,
+`L1003`/`L1798` here. The behaviour is unchanged by this release's 130
+commits.
+
+What is worth writing down is the shape of it. A denial that comes from
+the **ceiling** rather than from the rule is a right answer for the wrong
+reason, and the same request one expression later is a wrong answer —
+Firestore denies a request whose evaluation it cannot finish, so the
+failure mode is a legitimate answer refused with nothing the app can say
+about it. `firestore.rules` grew 105,720 → 108,766 bytes across this gap
+alone, and it has grown at every release.
+
+**And the signal arrives on the one path built to discard it.**
+`test:rules` — 156 tests, the suite that exists for the rules — surfaces
+this **zero** times: `rules-unit-testing` does not carry the message.
+Only the e2e's real-client gRPC path does, inside the text of a
+`PERMISSION_DENIED` it was already asserting. So the one gate that could
+notice is the one asserting "denied" and not reading why.
+
+It is a third category next to the pair D229 and D274 settled and the
+icon D324 added. Those read: *a dry run derisks the signing; the gates on
+the release path derisk the bundle.* Rules evaluation is in neither half,
+and it is not in the icon's half either — it ships through
+`firebase-deploy`, not through `ios-release.yml` at all.
+
+**Why this is recorded and not closed.** The honest gate asserts the
+message is absent from an e2e run, which is a one-line grep and would go
+red the day a *legitimate* write starts hitting the ceiling — but it goes
+red today, on ten denials that are correct, so it would have to allowlist
+the ten it already knows and that allowlist is the thing nobody has
+calibrated. Counting expressions statically is not available: the budget
+is a property of the request's path through the rules, not of the file.
+Neither is more than a release pre-flight should decide, and CLAUDE.md's
+rule is that a deferral is recorded with its arithmetic.
+
+### The e2e failed once, and the reason is worth naming
+
+The first run failed at `learn public agg never appeared after 20000ms`.
+It was not dismissed as a flake: the same suite passed clean on a quiet
+container (126 assertions, 0 failures), and `firebase-deploy` run 146
+passed the same driver — `test:e2e:all`, through `backend-checks.yml` —
+on `fd89bc0` this morning. The failing assertion is a 20-second
+wall-clock wait for a Firestore trigger, and the failing run had a Vite
+production build and `check:bundle` running beside it. A wall-clock bound
+on a machine the suite does not own is the mechanism; it is not this
+tree's.
+
+### What was verified before calling the tree ready
+
+Green at `b78cd9c`: `tsc -b`, eslint (`--max-warnings 0`), `test:unit`
+(2295 in 155 files), `functions` (525 in 23 files), `test:scripts` (572
+in 32 files), `test:rules` (156 in 2 files, Java 21), `test:e2e` (126
+assertions against the real emulated functions), and every `check:*`
+gate. `check:store-copy` fails bare on D42's parked Play fingerprint and
+passes under `--ios`, which is the flag the release path uses.
+
+`test:rules` is 156 where D324 recorded 157, and the one test is a real
+removal rather than a skip: D333 closed the retired v1 `dailyPhotos`
+storage path, so the cases that exercised owner read, delete and upload
+were replaced by cases asserting the path is closed. Nothing in
+`firestore-tests/` is `.skip` or `.todo`.
+
+The release-path build was rehearsed in its own shape —
+`CAPACITOR_BUILD=1 VITE_V2_LIVE=true`, `dist/` asserted rather than the
+environment:
+
+| Measure | Build 27 | Build 26 | Ceiling |
+| --- | --- | --- | --- |
+| total JS | 2153 KB | 2144 KB | 2440 KB |
+| eager graph | 771 KB | 767 KB | 880 KB |
+| blocking CSS | 68 KB | 68 KB | 74 KB |
+| total CSS | 86 KB | 86 KB | 88 KB |
+| fonts | 64 KB | 64 KB | 96 KB |
+
+D191's second variable held: built without a DSN the same tree comes out
+2053 KB with the Sentry group shaken out, and `check:bundle` withholds
+the total ceiling rather than passing it — 770 KB eager either way, since
+Sentry is not in that graph.
+
+**The Firebase values in that rehearsal were stand-ins, and that is a
+limit of the rehearsal rather than of the build.** The real ones are
+repository Variables; `check:web-firebase` came back OK on 132 chunks
+against a stand-in project id, which proves the build inlined *a* config
+and not that it inlined the right one. The run's own step 6 is what
+asserts that, against `vars.*`, before `cap sync` — which is the
+placement D144 and the script's own header argue for, and it is unchanged
+here. The bundle numbers above are unaffected: a different literal string
+is a handful of bytes.
+
+The backend is not this workflow's to ship and was checked anyway:
+`firebase-deploy` run 146 (`33299863233`) deployed `fd89bc0` at
+2026-08-30T07:43:10Z, `success`. `fd89bc0` is `b78cd9c`'s parent and the
+only commit between them is a pulse trail row, so the client at build 27
+meets a backend carrying D336 — its own tree.
+
+`ios/App/App/Assets.xcassets/` is untouched since `ac9072f`, so build 27
+carries the same iris D302 put there and **D324's icon limit is
+unchanged**: still no gate on that path, and still true that nothing in
+this repo could tell the difference. Version lockstep holds —
+`check:versions` reads 2.0.0 (build 27) across `package.json`, Android
+and iOS, with `CURRENT_PROJECT_VERSION = 27` in both iOS configs.

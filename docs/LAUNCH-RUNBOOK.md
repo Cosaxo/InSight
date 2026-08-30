@@ -517,6 +517,17 @@ arithmetic.
       `5c9c4a5` merged, both runs archived `d547f7a` after a pulse trail
       row landed in between, and `appBuild` was 21 at both. D199.
 
+      **This is the last build recorded HERE, and deliberately so.**
+      Builds 22 onwards live in
+      [`IOS-RELEASE.md`](IOS-RELEASE.md) — one place rather than two, after
+      D180 and D184 found the record and the number being separate edits
+      that a session can discharge one of. Do not read the line above as
+      the current state: it was true on 2026-08-19 and the file keeps it
+      as a dated record, not as a status. **Ask the run list** — step 17's
+      own conclusion on the newest `ios-release.yml` run, and `appBuild`
+      at that run's own `head_sha`. That is D158's rule and it is the
+      whole procedure; a doc cannot see App Store Connect.
+
 
       **BUILD 20 WAS UPLOADED BY RUN 31, AND BUILD 21'S PRE-FLIGHT HAD TO
       BUMP** (2026-08-19). Three runs sit at `f8c8465` and no document

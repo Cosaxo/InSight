@@ -642,6 +642,33 @@ run and the upload name one tree, and the first where the gap was closed
 on purpose — so what run 43 proved was proved on exactly the bundle run
 44 shipped, which is what D229 could not say about build 23.
 
+**Build 27's pre-flight found nothing to do, and found a limit the e2e
+had been printing for two releases** (D337, 2026-08-30). Run 44 was still
+the highest run — nothing dispatched in three days — its step 17 still
+`success`, and `appBuild` at run 44's own `head_sha` `ac9072f` still 26
+against a tree at 27. So *run as-is*, and no number moved. Fifth
+pre-flight to come out that way after D153, D158, D191 and D324, and it
+is build 26's bump (D324, read off step 17 while the step list was on
+screen) that made it come out that way.
+
+What it found instead is that `firestore.rules` is at Firestore's
+**1,000-expression evaluation ceiling**. A passing `test:e2e` prints
+`maximum of 1000 expressions to evaluate has been reached` ten times, all
+ten on `expectDenied` cases that end `false` — so nothing legitimate is
+refused and the suite is honestly green. It is not new either: build 26's
+own tree prints the identical ten at the same two rule sites. The reason
+it is worth a line here is that a denial from the ceiling is a right
+answer for the wrong reason, the file grew 105,720 → 108,766 bytes across
+this gap alone, and **`test:rules` surfaces the message zero times** —
+only the e2e's real-client path carries it, inside a `PERMISSION_DENIED`
+it was already asserting. It ships through `firebase-deploy` rather than
+this workflow, so it is in neither half of the pair D229 and D274 settled
+and not in the icon's half either. D337 has why it is recorded rather
+than closed.
+
+130 commits rode in that gap, against 193 for 25 → 26 and two days for
+24 → 25.
+
 
 **Build 16's pre-flight found nothing to do either, which is the first
 time that has happened twice running** (D158, 2026-08-15). Run 21 was
