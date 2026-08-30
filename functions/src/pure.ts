@@ -2010,6 +2010,33 @@ export const ROOM_WINDOW_QUESTION_CAP = 64;
 export type RoomCounts = Record<string, Record<string, number>>;
 
 /**
+ * The questions one call may fold, given what the cell's window already holds.
+ *
+ * A FUNCTION, and it takes the window's OWN map, because the bound above
+ * shipped as arithmetic at the call site and the arithmetic was dead. It
+ * measured the headroom against the cached entries this call had asked for
+ * — an intersection with the request, so at most `ROOM_QUESTION_CAP` of
+ * them — and then trimmed a list that was already shorter than the limit it
+ * was trimming to. `64 - 8` never cut anything, so the window still grew a
+ * key per novel question until it held the bank: the exact ceiling the
+ * constant was added to close.
+ *
+ * The window's size is the size of what the CELL holds, which is the map on
+ * the document. Nothing else can measure it, which is why this takes it.
+ */
+export function roomWindowMisses(
+  qids: readonly string[],
+  held: Readonly<Record<string, unknown>> | null | undefined,
+  cap: number = ROOM_WINDOW_QUESTION_CAP,
+): string[] {
+  const have = new Set(held ? Object.keys(held) : []);
+  // A window already at the cap folds nothing new — it serves what it has,
+  // which is the soft bound the constant's own note describes.
+  const room = Math.max(0, cap - have.size);
+  return qids.filter((q) => !have.has(q)).slice(0, room);
+}
+
+/**
  * Tally one question's picks into the aggregate shape.
  *
  * The same `{ "0": 3, "2": 1 }` map the published aggregates carry, and

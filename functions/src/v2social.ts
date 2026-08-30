@@ -58,7 +58,7 @@ import {
   PRESENCE_LINGER_MIN,
   ROOM_SAMPLE_CAP,
   ROOM_PEOPLE_CAP,
-  ROOM_WINDOW_QUESTION_CAP,
+  roomWindowMisses,
   ROOM_SCAN_CAP,
   sampleN,
   roomMix,
@@ -1864,6 +1864,7 @@ async function roomFor(cells: string[], own: string, qids: string[]): Promise<Ro
   const fresh = Date.now() - 4 * 60_000;
   let people: Array<{ uid: string; type?: string }> = [];
   const qs: RoomCounts = {};
+  let held: RoomCounts | undefined;
   let hit = false;
   try {
     const snap = await ref.get();
@@ -1873,6 +1874,10 @@ async function roomFor(cells: string[], own: string, qids: string[]): Promise<Ro
       if (Array.isArray(cached)) { people = cached; hit = true; }
       const cq = snap.get("qs") as RoomCounts | undefined;
       if (cq && typeof cq === "object") {
+        // Kept whole as well as filtered: `qs` is what this CALL draws,
+        // `held` is what the WINDOW has accumulated, and only the second
+        // one can say whether the window is full.
+        held = cq;
         for (const q of qids) if (cq[q]) qs[q] = cq[q];
       }
     }
@@ -1900,10 +1905,7 @@ async function roomFor(cells: string[], own: string, qids: string[]): Promise<Ro
     // question bank — seven hundred keys on a document every caller in
     // the cell reads, at a batched read per key. Past the window cap the
     // room serves what it already holds: a thinner grid, never an error.
-    const room = Object.keys(qs).length;
-    const missing = qids
-      .filter((q) => !(q in qs))
-      .slice(0, Math.max(0, ROOM_WINDOW_QUESTION_CAP - room));
+    const missing = roomWindowMisses(qids, held);
     if (missing.length && people.length) {
       // One getAll per question rather than one for the whole grid: it
       // bounds each call at ROOM_PEOPLE_CAP refs, and the misses cost
