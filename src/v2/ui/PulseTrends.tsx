@@ -70,7 +70,13 @@ export default function PulseTrends({ compact, pid, mapLink }: { compact?: boole
     i = j;
   }
   const skipped = days.filter((d) => d.scheduled && d.v == null && !d.today).length;
-  const zeroDays = ser.filter((s) => s.n === 0);
+  // SCHEDULED DAYS ONLY. An unscheduled day comes back as `n: 0` because
+  // the crowd's answers are not placed on a day this reading has no row
+  // for — the store says so where it builds them — and counting those as
+  // "no answers in <place>" says something about people out of days nobody
+  // was asked. On a weekly cadence that was eighteen of twenty-one days.
+  const zeroDays = ser.filter((s) => s.scheduled && s.n === 0);
+  const askedN = ser.filter((s) => s.scheduled).length;
   const thinDays = ser.filter((s) => s.thin);
   const placedN = ser.filter((s) => s.placed);
   const totalN = placedN.reduce((a, s) => a + s.n, 0);
@@ -243,7 +249,7 @@ export default function PulseTrends({ compact, pid, mapLink }: { compact?: boole
         <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-2)" }}>Nothing — every day here has both sides.</span>
       )}
       <span style={{ fontFamily: "var(--sans)", fontSize: 12.5, fontWeight: 600, color: "var(--ink-3)", paddingTop: 1 }}>
-        {sc.label}: {PULSE.fmtN(totalN)} answers placed across {placedN.length} of {N} days · you: {answered.length}
+        {sc.label}: {PULSE.fmtN(totalN)} answers placed across {placedN.length} of {askedN} days · you: {answered.length}
       </span>
     </div>
   );

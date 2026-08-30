@@ -85,7 +85,25 @@ export interface PulseDay {
   /** False when the cadence did not ask on this day — absent, not missed. */
   scheduled: boolean;
 }
-export interface ScopeDay { i: number; mean: number | null; n: number; placed: boolean; thin: boolean }
+export interface ScopeDay {
+  i: number;
+  mean: number | null;
+  n: number;
+  placed: boolean;
+  thin: boolean;
+  /**
+   * Whether THIS reading asked on that day.
+   *
+   * An unscheduled day is returned as `n: 0` — see the note in `scope()`
+   * on why the crowd's answers are not placed on a day the reader has no
+   * row for — and without this flag the panel could not tell those from
+   * days the crowd really was silent. It reported both as "days with no
+   * answers in <place>", which is a claim about people, made about days
+   * nobody was asked. The reader's own half of that was fixed at D203;
+   * this is the crowd's half.
+   */
+  scheduled: boolean;
+}
 export interface PulseScope { id: string; label: string; short: string; series: ScopeDay[] }
 export interface PulseQ { id: string; kicker: string; text: string; steps: PulseStep[] }
 
@@ -460,7 +478,7 @@ function scope(pid: string, id: string): PulseScope {
       // is their own, so the cell may well hold answers — but placing them
       // on a day THIS reading does not draw would put a point on a line
       // the reader has no row for.
-      if (!dueOn(cad, d)) return { i, n: 0, mean: null, placed: false, thin: false };
+      if (!dueOn(cad, d)) return { i, n: 0, mean: null, placed: false, thin: false, scheduled: false };
       const agg = aggFor(pid, utcKey(d));
       const cut = agg ? cutOf(agg, id) : { n: 0, mean: null };
       return {
@@ -468,6 +486,7 @@ function scope(pid: string, id: string): PulseScope {
         mean: cut.n > 0 ? cut.mean : null,
         placed: cut.n >= THIN && cut.mean != null,
         thin: cut.n > 0 && cut.n < THIN,
+        scheduled: true,
       };
     });
     return { id, label, short: id, series };
@@ -477,9 +496,9 @@ function scope(pid: string, id: string): PulseScope {
   const label = s.label || (s.id === "city" ? (me.location || "Your city") : s.id === "country" ? (me.country || "Your country") : "World");
   const cad = cadence(pid);
   const series: ScopeDay[] = s.mean.map((m, i) => {
-    if (!dueOn(cad, dayAt(i))) return { i, mean: null, n: 0, placed: false, thin: false };
+    if (!dueOn(cad, dayAt(i))) return { i, mean: null, n: 0, placed: false, thin: false, scheduled: false };
     const n = s.n[i] || 0;
-    return { i, mean: n > 0 ? m : null, n, placed: n >= THIN && m != null, thin: n > 0 && n < THIN };
+    return { i, mean: n > 0 ? m : null, n, placed: n >= THIN && m != null, thin: n > 0 && n < THIN, scheduled: true };
   });
   return { id: s.id, label, short: s.short, series };
 }
