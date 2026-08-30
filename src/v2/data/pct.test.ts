@@ -205,17 +205,48 @@ describe("nothing recomputes the retired rule", () => {
     return out;
   }
 
+  // The DUMP, not the subtraction. The first version of this scan looked
+  // for `+= 100 - x.reduce(` and therefore only caught the rule written on
+  // one line: `map-group-stats.js` computes the residue into `drift` first
+  // and dumped it on the next line, and the scan sold as "no file under
+  // src/ may recompute the residue dump" walked straight past it. What is
+  // unmistakable is the TARGET — the largest bucket, found by
+  // `indexOf(Math.max(…))`, receiving a `+=`. Checked against the two
+  // legitimate remainder computations in the tree, which this does not
+  // match: `daily-questions.js` hands its remainder out in fractional
+  // order (largest remainder, correct), and `world-feed.jsx` prints the
+  // leftover share as a tail figure without moving anything.
+  const RESIDUE_DUMP = /\w+\[\s*\w+\.indexOf\(\s*Math\.max\(/;
+
+  // Files that may keep it, each for a reason someone wrote down.
+  //
+  // The demo Map's per-anchor curves are invented numbers with a 1% floor
+  // per bucket, so the shared rule is not a drop-in — it would redistribute
+  // that floor and change a prototype drawing nobody reads as data. The
+  // live branch three lines above it already calls `sharePcts`. Excluded
+  // ON PURPOSE and named here, rather than excluded by a regex that could
+  // not see it, which is the difference this case exists to hold.
+  const KEEPS_IT = {
+    "src/v2/spec/map-group-stats.js": "demo-only curves with a per-bucket floor; the live branch uses sharePcts",
+  };
+
   it("has no second copy of round-then-dump-the-residue anywhere in src/", () => {
-    // The shape, not the exact text: `p[...] += 100 - p.reduce(...)` is the
-    // dump whatever the array is called and however the round above it is
-    // written.
-    const RESIDUE_DUMP = /\+=\s*100\s*-\s*\w+\s*\.reduce\(/;
     const offenders = sources(join(root, "src"))
       // pct.ts QUOTES the retired rule in the comment explaining why it is
       // retired, and this file quotes it again above. Both are the record.
       .filter((f) => !/pct\.(ts|test\.ts)$/.test(f))
+      .filter((f) => !(relative(root, f) in KEEPS_IT))
       .filter((f) => RESIDUE_DUMP.test(readFileSync(f, "utf8")))
       .map((f) => relative(root, f));
     expect(offenders).toEqual([]);
+  });
+
+  it("would catch the copy it used to miss", () => {
+    // The vacuity guard for the exclusion above: if the scan stopped
+    // matching the named-intermediate spelling, the entry in KEEPS_IT would
+    // be excluding nothing and the next copy written that way would pass.
+    for (const [rel, why] of Object.entries(KEEPS_IT)) {
+      expect(RESIDUE_DUMP.test(readFileSync(join(root, rel), "utf8")), why).toBe(true);
+    }
   });
 });
