@@ -660,12 +660,28 @@ export function NearField() {
   if (!placed.length) {
     return (
       <SfEmptyField>
+        {/* FOUR STATES, and the last two are the split this arm was missing.
+            With no scores of your own there is nothing to measure anybody
+            against, so nobody is placeable however many people here have
+            finished a test — and the room got the blame: "Nobody here has
+            taken the test", said to a room where everybody had, in the
+            state every account is in before its first instrument.
+            The sibling below (PlacesField) already splits these two.
+
+            The room's own two states stay in front of it: a room still
+            being read says so, and an EMPTY room is about the room whatever
+            the reader has taken (D160's ring case and the loading/empty
+            separation both rest on that order). Telling someone to finish a
+            test is only useful once there is somebody here to be drawn
+            against. */}
         {LIVE.near.roomLoading()
           ? <>Matching…</>
-          : roster.length
-            ? <>Nobody here has taken the test — {roster.length} in the room,
-              {" "}<strong>People</strong> lists them.</>
-            : <>Nobody else has Near on right now.</>}
+          : !roster.length
+            ? <>Nobody else has Near on right now.</>
+            : !Object.keys(myFlat).length
+              ? <>Finish a test and the room draws in around you.</>
+              : <>Nobody here has taken the test — {roster.length} in the room,
+                {" "}<strong>People</strong> lists them.</>}
       </SfEmptyField>
     );
   }

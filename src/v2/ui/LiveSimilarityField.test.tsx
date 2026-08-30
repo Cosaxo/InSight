@@ -362,6 +362,21 @@ describe("the Near field is a crowd, never a directory", () => {
     const { container } = render(<NearField />);
     expect(nodes(container)).toHaveLength(0);
   });
+
+  it("and says whose turn it is — the room is not to blame for the viewer's own state", () => {
+    // The case above never looked at the sentence, and the sentence blamed
+    // the room: "Nobody here has taken the test", in a room where two of
+    // the three had, to a reader who simply has not taken it yet. That is
+    // the state every account is in before its first instrument, so it is
+    // the most common thing this field has ever said.
+    const room = [{ uid: "p0" }, { uid: "p1" }, { uid: "p2" }];
+    LIVE.near.room = () => ({ people: room, qs: {} });
+    LIVE.scoresFor = (uid: string) => (uid === "p0" || uid === "p1" ? big5(50, 50, 50, 52, 48) : null);
+    LIVE.myTestResults = () => null;
+    render(<NearField />);
+    expect(screen.getByText(/Finish a test/)).toBeTruthy();
+    expect(screen.queryByText(/Nobody here has taken the test/)).toBeNull();
+  });
 });
 
 // ── 5 · a thin place is listed, never positioned ─────────────────────
