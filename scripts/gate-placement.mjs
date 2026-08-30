@@ -38,7 +38,21 @@ export function gatePlacement(name, command, workflows) {
   // --flag` instead, and matching only the first said one gate was
   // "manual" while a release workflow ran it on every archive.
   const paths = [...String(command ?? "").matchAll(/\bscripts\/[\w.-]+\.mjs/g)].map((m) => m[0]);
+  // COMMENTS ARE NOT INVOCATIONS. The match ran over the raw file, so a
+  // workflow that merely NAMES a gate in a comment counted as running it —
+  // and these workflows explain themselves in comments, so the gates most
+  // likely to be described are the ones this got wrong. Measured: delete
+  // the real `npm run check:web-firebase` line from both workflows that
+  // carry it, leave the header comment naming it, and check:docs stays
+  // green while the gate that refuses an iOS archive built against the
+  // demo config runs nowhere at all.
+  //
+  // A whole-line test rather than a `#`-to-end-of-line one, deliberately:
+  // inside a `run:` block a `#` is a SHELL comment and the command before
+  // it is real, so cutting at the character would drop live invocations.
+  const strip = (src) => String(src).split("\n").filter((l) => !/^\s*#/.test(l)).join("\n");
   const runs = [...workflows]
+    .map(([f, src]) => [f, strip(src)])
     .filter(([, src]) =>
       src.includes(`npm run ${name}`) || paths.some((path) => src.includes(path)))
     .map(([f]) => f);
