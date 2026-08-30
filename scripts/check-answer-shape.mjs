@@ -37,6 +37,7 @@
 // may take. This holds only that the field is written at all.
 
 import { readFileSync } from "node:fs";
+import { stripComments } from "./strip-comments.mjs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -50,7 +51,16 @@ const REQUIRED = ["qid", "answeredAt", "anchors"];
 // elsewhere cannot quietly satisfy this gate.
 const PATH = '"v2_users", uid, "answers"';
 
-const src = readFileSync(resolve(root, SRC), "utf8");
+// COMMENTS BLANKED FIRST, on both reads below. A commented-out `anchors:`
+// line is precisely the shape this gate exists to refuse and the raw text
+// could not tell it from a live one: measured, `// anchors: answerAnchors(),`
+// in the duel payload leaves this printing "6 answer-create site(s) carry
+// qid, answeredAt, anchors", exit 0, while deleting the same line fails by
+// file and line. Blanking rather than deleting is why the line numbers this
+// gate reports stay true — see strip-comments.mjs, whose whole design note
+// is that property, and check-appcheck.mjs, which records the identical
+// failure in its own scan.
+const src = stripComments(readFileSync(resolve(root, SRC), "utf8"));
 
 /** Take the object literal starting at `open` (an index pointing at `{`). */
 function braceBlock(text, open) {
@@ -152,7 +162,7 @@ if (creates < 5) {
 // gate green, because a substring match cannot tell a live read from a
 // rename that broke it. It now demands the exact accessor — the value
 // coming off the answer DOCUMENT — which is the thing that must not go.
-const consumer = readFileSync(resolve(root, CONSUMER), "utf8");
+const consumer = stripComments(readFileSync(resolve(root, CONSUMER), "utf8"));
 if (!/\.get\(\s*["']anchors["']\s*\)/.test(consumer)) {
   problems.push(
     `${CONSUMER} no longer reads \`anchors\` off the answer document — `
