@@ -167,6 +167,23 @@ export const RETIRED = [
     re: /\bworld[- ]scale\b[^.!?]{0,20}\b(?:without names|with no names)\b/i,
     why: "takes carry the author's name at both scopes since D98",
   },
+  // A THIRD spelling, and the one the wider scan was added for. The two
+  // above are the wordings app-privacy.json carried; STORE-FORMS.md said
+  // the same thing as "anonymous by construction (no author names
+  // rendered)", which neither of them matches — so the commit that widened
+  // this gate proved itself against the JSON's phrasings planted into the
+  // Markdown, and restoring the Markdown file's OWN retired sentence still
+  // passed. Four patterns for one claim now, which is this file's oldest
+  // lesson written down twice: grep the claim, not the string.
+  //
+  // Anchored on a noun so the history line those files now keep — "It said
+  // anonymous by construction here until 2026-08-30" — stays legal, the
+  // same way every pattern above leaves web/privacy.html's two historical
+  // paragraphs alone.
+  {
+    re: /\b(?:takes?|free text|posts?)\b[^.!?]{0,60}\banonymous by construction\b/i,
+    why: "takes carry the author's name at both scopes since D98",
+  },
 ];
 
 // Strings a scan must not read as copy. `$`-prefixed keys in listing.json
