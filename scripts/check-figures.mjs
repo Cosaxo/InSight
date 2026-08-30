@@ -464,7 +464,16 @@ const FIGURES = [
     file: "src/v2/spec/passive-progress.js",
     what: "core tests the passive tracker follows",
     re: /progress for the (\w+) core tests/,
-    actual: NUMBER_WORDS[coreTests] || String(coreTests),
+    // Spelled out here rather than through the shared table, and that is
+    // not carelessness: this entry has to work in two trees. `NUMBER_WORDS`
+    // is the spelling in this file today; the reviewed branch waiting to be
+    // merged replaces it with `word()` from scripts/number-words.mjs and
+    // deletes the table. Git merges both changes without a conflict and the
+    // gate then dies on a name that no longer exists — measured, in a
+    // throwaway merge of the two lines. A four-word list depends on
+    // neither.
+    actual: ["zero", "one", "two", "three", "four", "five", "six", "seven"][coreTests]
+      ?? String(coreTests),
     fix: (n) => `"progress for the ${n} core tests"`,
   },
   {
