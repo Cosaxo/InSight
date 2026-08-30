@@ -200,6 +200,26 @@ describe("LiveCohortBody · an absent cell is counted and named", () => {
   const missingLine = (n: number, where: string) =>
     new RegExp(`${n} more question${n === 1 ? " has" : "s have"} no\\s+answers from ${where} yet`, "i");
 
+  it("counts one whose aggregate has no city map at all", () => {
+    // The state EVERY city-rated question is in before anybody confirms a
+    // city: the server's bucket for an empty anchor is null, so the
+    // aggregate publishes counts and no `by.city`. The counter skipped
+    // those — it asked for the scope's map first and only counted a
+    // missing cell INSIDE one — so the question was dropped from the rows
+    // and from the sentence, which is the silence this counter exists to
+    // prevent: "a question that vanishes reads as 'not asked here' rather
+    // than 'not answered here'".
+    LIVE.aggFor = (qid) => qid === "q1"
+      ? { by: { city: { "Oslo, NO": { "0": 7, "1": 5 } } } }
+      : { counts: { "0": 9, "1": 3 }, total: 12 };
+
+    mountAnswers("city");
+
+    expect(screen.getByText("First question")).toBeTruthy();
+    expect(screen.queryByText("Second question")).toBeNull();
+    expect(screen.getByText(missingLine(1, "Oslo"))).toBeTruthy();
+  });
+
   it("counts and names a question whose city cell is missing", () => {
     LIVE.aggFor = (qid) => qid === "q1"
       ? { by: { city: { "Oslo, NO": { "0": 7, "1": 5 } } } }
