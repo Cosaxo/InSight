@@ -26,9 +26,27 @@
 // prototype's own pool rule — two options, nothing else — over the daily
 // bank (core by construction) and the feed's core: true questions.
 //
-// Scale note, recorded not built (D7): the day's per-user fold holds the
-// active users' vectors in memory — fine to ~100k DAU under 256MiB, and
-// the fix at that size is paging the fold by uid range, not a bigger box.
+// Scale note, recorded not built (D7) — and CORRECTED 2026-08-31, because
+// it named the wrong term and therefore the wrong fix.
+//
+// It said the binding cost is "the active users' vectors in memory", with
+// the remedy "paging the fold by uid range". The vectors are eight floats
+// per person; the term that actually binds is the LEDGER DAY, which
+// `readLedgerDay` pages out of Firestore and then returns as one array.
+// Measured here with realistic 28-character uids and bank-shaped qids,
+// after a forced gc: ~290 bytes retained per entry — 124 MiB at 450k
+// entries, 250 MiB at 900k. At COSTS.md's ~5 world answers per user per
+// day, 100k DAU is ~500k entries ≈ 139 MiB for the array alone, before the
+// per-uid Map of Maps built on top of it, the vectors, and node's own
+// baseline, on a 256 MiB instance.
+//
+// Paging by uid range cannot help: the whole day is read precisely to
+// learn which uids answered. The fix is the one `velocity.ts` already
+// took and wrote down — fold each PAGE as it arrives (`foldInto` there)
+// instead of buffering the day — and its note explains why this failure is
+// worse than a lost run: nothing here advances a cursor until the end, so
+// an OOM re-reads the same day and dies identically, every night, with
+// the shards and the rollup behind it never draining.
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { logger } from "firebase-functions";
 import { FieldValue } from "firebase-admin/firestore";
