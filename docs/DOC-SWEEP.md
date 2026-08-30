@@ -801,25 +801,39 @@ the run log.
 
 ## The schedule
 
-The Routine fires `17 8 */2 * *` UTC and spawns a **fresh session per
-firing** (`create_new_session_on_fire`), which is the one place this lane
-departs from the twelve that came before it. They are dispatcher-bound —
-each firing wakes the persistent *Axiom dispatcher* session, which forwards
-the lane prompt onward. This lane is not, and the reason is measured rather
-than stylistic: that dispatcher is configured `claude-fable-5` and was
-found in a failed state on 2026-08-30 (`You've reached your Fable 5 limit`),
-and a Routine bound to a persistent session inherits **that session's**
-model until the binding clears. Binding here would therefore have silently
-delivered a Fable session to a lane the owner asked to run on Opus, and
-would have parked it behind another lane's rate limit. A fresh session takes
-the Routine's own model instead, so the model is a field somebody can read
-and change rather than a property inherited from a neighbour.
+The Routine fires `17 8 */2 * *` UTC, dispatcher-bound like the twelve lanes
+before it — but to **its own dispatcher**, not the shared one, and that is
+the one structural departure worth understanding before changing anything
+here.
 
-What the dispatcher bought the other lanes, this lane has to buy for itself:
-a cron-spawned container starts empty with read-only git, so **provisioning
-is the first phase and a refusal to provision ends the run** — Phase 0 and
-the Preconditions above are that cost, and they are why the prompt carries
-the `add_repo` instructions verbatim instead of assuming a checkout.
+Dispatcher-binding is forced, not preferred. A Routine that spawns a fresh
+session per firing fires it **without any `mcp__*` tools** — the create call
+says so in as many words — and `add_repo` is an `mcp__*` tool. A fresh
+session therefore cannot provision a checkout, and a lane that cannot
+provision is not a degraded lane, it is a no-op that reports failure every
+second day forever. This was tried first and reverted on that finding
+(`trig_014nZhojNQHiKfrCfSTKJ3Gp`, created and deleted 2026-08-30). A
+persistent session holds those tools, so the firing wakes one that can
+provision itself.
+
+The dispatcher is **`Doc sweep dispatcher`
+(`session_01NeQGEZcneyKmf5Q4fi4PGj`), configured `opus`**, created for this
+lane rather than reusing the existing *Axiom dispatcher*. The reason is
+measured: that session is configured `claude-fable-5` and was found failed
+on its own rate limit on 2026-08-30 (`You've reached your Fable 5 limit`),
+and a Routine bound to a persistent session runs on **that session's** model
+until the binding clears. Reusing it would have delivered a Fable session to
+a lane the owner asked to run on Opus, and parked it behind twelve other
+lanes' usage. Its failure is also this lane's most likely failure: a
+long-lived dispatcher accumulates context and eventually hits a limit, so
+**if runs stop appearing on the run log, check the dispatcher session's
+status before suspecting the procedure.**
+
+The container is still reclaimed between firings, so a run still starts from
+empty with read-only git: **provisioning is the first phase and a refusal to
+provision ends the run** — Phase 0 and the Preconditions above are that
+cost, and they are why the prompt carries the `add_repo` instructions
+verbatim instead of assuming a checkout.
 
 The consequence for the rest of this page: **the lane shares a checkout with
 nothing**, so the dirty-tree precondition is a sanity assertion rather than
@@ -868,7 +882,7 @@ whenever this lane is added, rebound, re-paced or retired.
 
 | Routine | Trigger id | Schedule (UTC) | Run log | Binding |
 | --- | --- | --- | --- | --- |
-| InSight doc sweep | `trig_PENDING` | `17 8 */2 * *` — odd days, 08:17 | `doc-sweep run log` | fresh session per fire, model `claude-opus-5` |
+| InSight doc sweep | `trig_01E2bBC1QmYbkkHj3V96k6L1` | `17 8 */2 * *` — odd days, 08:17 | `doc-sweep run log` | `Doc sweep dispatcher` (`session_01NeQGEZcneyKmf5Q4fi4PGj`), model `opus` |
 
 The canonical prompt is kept in this file's § The canonical prompt so the
 prompt and the manual cannot drift; update **both** in any future change,
