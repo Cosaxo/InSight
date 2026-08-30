@@ -739,6 +739,23 @@ export function foldShards(
         spill();
         continue;
       }
+      // A THIRD FENCE, and the only one about the NAME rather than the
+      // size. `delta.q` is a plain object indexed by a key any anonymous
+      // device chooses — the rules bound that map by COUNT (120) and never
+      // by name — so `delta.q[qid] || (delta.q[qid] = {})` hands a
+      // prototype member straight through. Reproduced against the compiled
+      // fold: one shard carrying `constructor` puts `{reach, est}` on the
+      // global `Object` itself, which outlives the invocation on a warm
+      // instance, while that shard's tally for the key is silently
+      // discarded. `__proto__` is defused today only by an accident of how
+      // the Admin SDK deserialises maps — nothing here pins it, and the
+      // day it changes the same shape blanks real questions' cells.
+      //
+      // `breakdownBucket`'s idiom, one module over, for the same reason.
+      if (qid in ({} as Record<string, unknown>)) {
+        spill();
+        continue;
+      }
       if (!dayKeys.has(qid) && dayKeys.size >= QIDS_PER_DAY_CAP) {
         spill();
         continue;

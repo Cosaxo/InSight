@@ -460,6 +460,30 @@ describe("runAttentionFold", () => {
   // 40,000 index entries, the batch fails, the shards are never deleted so
   // they return on every page forever, and the rollup fold awaited after
   // this stops running with it.
+  it("refuses a question key that names a prototype member", () => {
+    // `delta.q` is a plain object and its keys come from any anonymous
+    // device: the rules bound that map by count and never by name. Against
+    // the fold as it shipped, one shard carrying `constructor` put
+    // `{reach, est}` on the global `Object` — process-wide, outliving the
+    // invocation on a warm instance — and the shard's own tally for that
+    // key went nowhere.
+    const before = JSON.stringify((Object as unknown as Record<string, unknown>).s);
+    const out = foldShards([
+      { id: "s1", day: "2026-08-22", rate: 1, s: { opens: 1 },
+        qids: { constructor: { s: 1 }, "feed-002": { s: 1 } } } as AttentionShardDoc,
+    ]);
+    const d = out.get("2026-08-22")!;
+    expect(Object.keys(d.q), "a prototype name reached the map").toEqual(["feed-002"]);
+    expect((Object as unknown as Record<string, unknown>).s, "the global Object was written")
+      .toBe(undefined);
+    expect(before).toBe(undefined);
+    // …and it spills like the other two fences: a refused key is one
+    // device reading "…and more", never a silent drop.
+    expect(d.qOther).toBeGreaterThan(0);
+    // the real question beside it is untouched
+    expect(d.q["feed-002"]).toMatchObject({ s: { reach: 1 } });
+  });
+
   it("fences the DAY's question keys, not each chunk's", async () => {
     // Two chunks' worth of shards, each carrying keys nothing else does.
     const cap = QIDS_PER_DAY_CAP;
