@@ -17,7 +17,7 @@
 // profile, which is where those surfaces live.
 
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
 import { IS_DATA } from "../spec/sample-data.js";
 import { openHeaderOverlay,
   expectOpened, mountApp, openVia, registerSmokeHooks, SMOKE_TIMEOUT_MS,
@@ -175,6 +175,35 @@ describe("the overlays with no button — opened through the nav registry", () =
   // Mutation-checked: restoring any of these four to a bare identifier in
   // app-shell.jsx fails exactly its own row here on the boundary assertion, and
   // passes again on revert.
+  // The overlay chunk landing is not the only thing a search hit needs. The
+  // expanded row renders the FEED's card, and the feed is a different
+  // deferred chunk — main.jsx starts both loaders without either awaiting
+  // the other, and a failed chunk is never retried. Unguarded, the tap
+  // rendered undefined as an element type and the boundary took the whole
+  // search overlay. This is the one case in the file where the missing name
+  // belongs to a chunk other than the one under test.
+  it("expands a search hit with the feed chunk missing — a collapsed row, not a snag", async () => {
+    const WorldFeed = window.WorldFeed;
+    expect(WorldFeed, "the feed never registered — this case would prove nothing").toBeTruthy();
+    delete window.WorldFeed;
+    try {
+      const expectNoBoundary = mountApp();
+      await openVia("openOverlay", "search");
+      const field = screen.getByPlaceholderText(/questions, topics, people/i);
+      await act(async () => {
+        fireEvent.change(field, { target: { value: "a" } });
+      });
+      const hit = document.querySelector("button.search-hit");
+      expect(hit, "no search hit to tap — the query matched nothing").toBeTruthy();
+      await act(async () => {
+        fireEvent.click(hit);
+      });
+      expectNoBoundary("search hit, feed chunk missing");
+    } finally {
+      window.WorldFeed = WorldFeed;
+    }
+  });
+
   describe("a failed overlay chunk degrades rather than crashing", () => {
     const GUARDED = [
       ["SuggestOverlay", "openSuggestions", []],
