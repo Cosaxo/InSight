@@ -380,6 +380,34 @@ arithmetic.
       same console page, and having one without the other looks identical
       to having neither.
 
+      **AND THE REMAINING HALF IS PROBABLY NOT WORTH DOING (2026-08-30).**
+      The owner's reading, checked against the tree and correct: there is
+      no public web client and none is planned. `web/` is seven static
+      pages, none of which loads Firebase — `web/home.html` says so in its
+      own comment, *"Deliberately NOT the app: InSight is a native
+      product"* — and the shipping product attests through DeviceCheck.
+      So the web reCAPTCHA provider was never for users. It is for the two
+      browsers that read production Firestore: **a developer's, and the
+      screenshot job's**, both of which stop working the moment 3.4 flips.
+      This step never said that, which is why it read as a launch item.
+
+      **The supported answer for both is a debug token, not reCAPTCHA** —
+      Firebase's own debug-provider documentation says so for CI, and the
+      reason is that reCAPTCHA v3 scores behaviour and a headless browser
+      is what it is built to score low. `src/lib/appcheck.ts` takes one in
+      `VITE_APPCHECK_DEBUG`: `true` mints a token and prints it for you to
+      register once, any other value IS a registered token, which is the
+      only form a job can use. Register under App Check › Apps › Manage
+      debug tokens; the screenshot workflow reads
+      `secrets.APPCHECK_DEBUG_TOKEN`.
+
+      **A debug token is a bypass, not an attestation.** Whoever holds it
+      is past App Check. One per environment, in secrets, never in a build
+      that reaches users — `shipsDebugToken` in `scripts/appcheck-guard.ts`
+      refuses a production build carrying one, which is why the screenshot
+      job builds `--mode capture`. Provision reCAPTCHA only if a public
+      web build ever ships.
+
       DeviceCheck needs a `.p8` key, not a toggle — an earlier note in
       this conversation said "one click, no keys" and that was wrong.
 
@@ -1004,6 +1032,14 @@ start.
       callables already enforce in prod; `APPCHECK_ENFORCE=false` on the
       production environment is the incident switch.
       `SHIP-CHECKLIST § hardening`.
+
+      **Two browsers break on this flip, and both are yours.** A dev
+      browser and the screenshot job read production Firestore without
+      attesting, which is fine only while enforcement is off. Register
+      the debug tokens 1.4 describes BEFORE flipping: afterwards a
+      screenshot run fails at the size gate with nothing in its output
+      about why, and `npm run dev` against real data simply stops
+      returning rows.
 
 ## Phase 4 — Build the listings (do this while the clocks run)
 

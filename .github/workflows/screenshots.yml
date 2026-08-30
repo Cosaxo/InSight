@@ -76,19 +76,44 @@ jobs:
           #   - VITE_V2_LIVE is what turns live mode on (src/v2/main.jsx);
           #     the Firebase config alone builds the DEMO app, the exact
           #     thing this workflow exists to stop capturing.
-          #   - CAPACITOR_BUILD waives vite.config.ts's reCAPTCHA-key guard
-          #     and defines nothing else. Honest here because the captures
-          #     depict the native app, which ships keyless on DeviceCheck /
-          #     Play Integrity. The capture browser therefore runs with App
-          #     Check uninitialised — fine until Firestore enforcement flips
-          #     (LAUNCH-RUNBOOK 3.4). After that, register the web app
-          #     (1.4), put VITE_APPCHECK_RECAPTCHA_SITE_KEY in the repo
-          #     variables and add it here instead of re-waiving the guard.
+          #   - CAPACITOR_BUILD IS GONE, and its removal is the point of the
+          #     block below. It was here only to waive vite.config.ts's
+          #     reCAPTCHA-key guard by declaring a native build, which this
+          #     job does not produce: it builds a WEB bundle and drives it in
+          #     a browser. The waiver worked and the reasoning was a fiction,
+          #     and the fiction was about to matter — see the App Check note.
           VITE_V2_LIVE: "true"
-          CAPACITOR_BUILD: "1"
+          # App Check for a browser that cannot attest. reCAPTCHA v3 scores
+          # behaviour and a headless run is precisely what it is built to
+          # score low, so a registered debug token is the supported answer
+          # here (Firebase's own debug-provider docs say so for CI) and no
+          # reCAPTCHA registration is needed for a web build that reaches no
+          # user. src/lib/appcheck.ts takes a token string in this variable.
+          #
+          # EMPTY IS THE OLD BEHAVIOUR, deliberately: with no secret set the
+          # variable is blank, appcheck.ts skips App Check, and the captures
+          # work exactly as they do today. It stops working the day Firestore
+          # enforcement is flipped on (LAUNCH-RUNBOOK 3.4) — the browser is
+          # then unattested traffic and Firestore refuses it. Create the
+          # secret before that flip, not after: a screenshot job that cannot
+          # read the backend fails at the size gate with nothing to say about
+          # why.
+          VITE_APPCHECK_DEBUG: ${{ secrets.APPCHECK_DEBUG_TOKEN }}
         run: |
           set -o pipefail
-          npm run build
+          # --mode capture rather than the default production, for one
+          # reason: a PRODUCTION build carrying a debug token is refused by
+          # vite.config.ts, and correctly — a token in a bundle that reaches
+          # users is a bypass for every one of them. This bundle reaches
+          # nobody, and the mode says so instead of CAPACITOR_BUILD claiming
+          # a native build that never existed.
+          #
+          # It costs nothing measurable. Built both ways: 2,171,828 bytes
+          # against 2,171,831, a three-byte difference which is the mode
+          # string itself, inlined once as the Sentry environment tag
+          # (src/lib/sentry.ts). Same minification, same React, PROD still
+          # true — `vite build` sets that from the command, not from --mode.
+          npm run build -- --mode capture
           npm run check:web-firebase
 
       - name: Install Playwright (not a dependency of this repo)
