@@ -34412,3 +34412,44 @@ unchanged**: still no gate on that path, and still true that nothing in
 this repo could tell the difference. Version lockstep holds —
 `check:versions` reads 2.0.0 (build 27) across `package.json`, Android
 and iOS, with `CURRENT_PROJECT_VERSION = 27` in both iOS configs.
+
+### The dispatches, and the bump
+
+Same session, same day, so this is D337 rather than a record after it.
+
+**Runs 45 and 46 delivered build 27, and the bump landed off step 17's
+conclusion.** Run 45 (`33324889659`, 17:18:30Z) step 17 `skipped` — the
+dry run, 6m 08s, signed `.ipa` kept as an artifact; run 46
+(`33325304169`, 17:27:23Z) step 17 **`success`**, 17:31:54Z → 17:33:17Z,
+1m 23s of transfer. `UPLOAD SUCCEEDED with no errors`, delivery UUID
+`16213c73-cb2e-4b3f-804e-7ad281523986`, 6,131,570 bytes against build
+26's 6,128,733. Tenth pair of this shape after 15/16, 23/24, 25/26,
+27/28, 32/33, 37/38, 39/40, 41/42 and 43/44.
+
+`appBuild` went 27 → 28 read off step 17 rather than recalled, and
+`check:versions --fix` carried it into both native projects in the same
+edit. **Nine that held** (20, 21, 22, 28, 33, 36, 42, 44, 46) against
+seven skipped (18, 19, 24, 26, 31, 38, 40).
+
+**D159's trap did not fire, and as at build 26 that was arranged rather
+than lucky.** Both runs archived `b78cd9c`: `main` was read between the
+dispatches and had not moved, and this record was deliberately left
+unmerged on its own branch so that merging it could not become the commit
+in the gap. Third release since run 21 where the dry run and the upload
+name one tree, after builds 24 and 26, and the second where the gap was
+closed on purpose — so what run 45 proved was proved on exactly the
+bundle run 46 shipped.
+
+**The stand-in caveat above is closed by the runs themselves.** Step 6
+ran `check:web-firebase` and `check:bundle` against the real `vars.*` on
+both dispatches and passed both times, so the build that shipped inlined
+the right project and not merely *a* project. That is the assertion this
+session could not make locally, made where it belongs.
+
+Every gate on the path came back green on build 27's own tree: step 5
+(placeholders, public copy, version lockstep), step 6 (the live build
+against the real secrets), step 13 (the archive carries the Firebase
+config and the APNs entitlement) and step 15 (the exported `.ipa` is
+**production**-signed for APNs). Neither reads
+`AppIcon-512@2x.png`, so D324's limit is unchanged by a successful pair
+here — and neither reads `firestore.rules`, which is this record's own.
