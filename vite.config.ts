@@ -1,7 +1,10 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import pkg from './package.json'
-import { shipsUnattested, UNATTESTED_MESSAGE } from './scripts/appcheck-guard.ts'
+import {
+  shipsUnattested, UNATTESTED_MESSAGE,
+  shipsDebugToken, DEBUG_TOKEN_MESSAGE,
+} from './scripts/appcheck-guard.ts'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -14,12 +17,26 @@ export default defineConfig(({ mode }) => {
   // one CI job that makes a web bundle sets no VITE_FIREBASE_API_KEY, so the
   // condition short-circuited before the throw. That file's header has the
   // full account; appcheck-guard.test.ts runs both directions for nothing.
-  if (shipsUnattested({
+  // One description of the build, read by both refusals — they disagree about
+  // what is wrong with it, not about what it is.
+  const buildEnv = {
     mode,
     isNativeBuild: env.CAPACITOR_BUILD === '1',
     apiKey: env.VITE_FIREBASE_API_KEY,
     siteKey: env.VITE_APPCHECK_RECAPTCHA_SITE_KEY,
-  })) {
+    debug: env.VITE_APPCHECK_DEBUG,
+  }
+
+  // The debug refusal comes FIRST, and the order is about the message rather
+  // than the safety: both conditions hold for a production build with a token
+  // and no site key, and whichever throws is the remedy the developer reads.
+  // "Set the site key" is the wrong thing to do about a bypass, and doing it
+  // clears the other guard while leaving the bypass in the bundle.
+  if (shipsDebugToken(buildEnv)) {
+    throw new Error(DEBUG_TOKEN_MESSAGE)
+  }
+
+  if (shipsUnattested(buildEnv)) {
     throw new Error(UNATTESTED_MESSAGE)
   }
 
