@@ -102,6 +102,7 @@
 // Node stdlib only, like every other check here.
 
 import { readFileSync, readdirSync, existsSync } from "node:fs";
+import { stripComments } from "./strip-comments.mjs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -279,9 +280,21 @@ for (const f of onDisk) {
 }
 
 // ── rule 4: each metric selects on a field a function emits ──────────
+// COMMENTS STRIPPED, because a commented-out emitter is exactly the shape
+// this rule exists to catch and the raw text could not tell the two apart.
+// Measured: comment out the one `logger.info("patterns fit", { metric:
+// "patterns_fit", … })` call and this gate stays green — "every metric to a
+// field a function emits" — while the metric receives no points, the
+// threshold policy never fires, and its own error text ("it reports health
+// it has never measured") becomes true of the gate itself. Deleting the
+// same line fails loudly, which is what made the hole invisible.
+//
+// check-appcheck.mjs records the identical failure — `// assertOperator(
+// request);` answered yes — and `strip-comments.mjs` exists because four
+// gates needed this and each had its own copy.
 const fnSrc = readdirSync(join(root, "functions/src"))
   .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"))
-  .map((f) => read(`functions/src/${f}`))
+  .map((f) => stripComments(read(`functions/src/${f}`)))
   .join("\n");
 
 for (const name of metricNames) {
