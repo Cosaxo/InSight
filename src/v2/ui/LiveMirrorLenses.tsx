@@ -56,7 +56,7 @@ import { sharePcts } from "../data/pct";
 // D125: these two lenses printed the raw bucket KEY, so a country row read
 // "NO" and a city row "Oslo, NO". One resolver, shared with the feed's
 // breakdown sheet, so the same cohort is named the same everywhere.
-import { bucketLabel } from "./cohortLabels";
+import { bucketLabel } from "../data/cohortLabels";
 import TypeMixCard from "./TypeMixCard";
 // The People lens draws people rather than listing them (D152): the
 // prototype's match ring, a per-person hue, and the place name behind a

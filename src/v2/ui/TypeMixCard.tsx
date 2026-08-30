@@ -25,7 +25,7 @@ import { BUDGET_PAUSED_HEAD } from "../data/budgetMode";
 import { myTypeOn, typeMixFor, TYPE_SMALL, TYPE_SYSTEMS, TYPE_TEST, isTypeSystem, type TypeRow } from "../data/typeMix";
 // @ts-expect-error TS7016 — untyped spec module (additive export, D141)
 import { TypeMark } from "../spec/type-marks.jsx";
-import { bucketLabel } from "./cohortLabels";
+import { bucketLabel } from "../data/cohortLabels";
 
 /** The chosen instrument, remembered across opens (D202). Device state, so
  * `purgeLocalTrace`'s `insight.` prefix sweep takes it for free — the

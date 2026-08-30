@@ -19,9 +19,13 @@
 //     put. That is the specific lie these cases exist to prevent.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+// `enabled` is a getter so a case can flip the store live for the length of
+// one assertion: the demo and live branches of `scope()` build their labels
+// differently, and only the demo one had ever been read by a test.
+let liveOn = false;
 vi.mock("./live", () => ({
   default: {
-    enabled: false,
+    get enabled() { return liveOn; },
     anchors: () => ({ city: "Oslo, NO", country: "NO" }),
     pulseQs: () => [],
     pulseVotes: () => ({}),
@@ -222,6 +226,28 @@ describe("a day the pulse never asked on is absent, not missed", () => {
     expect(PULSE.scope("pulse-pace", "city").label).toBe("Oslo");
     expect(PULSE.scope("pulse-pace", "country").label).toBe("Norway");
     expect(PULSE.scope("pulse-pace", "world").label).toBe("World");
+  });
+
+  // …AND THE LIVE ONES AFTER THE STORAGE KEY, which is not a name. Anchors
+  // are stored canonically so one cohort is one cell worldwide — "NO" for a
+  // country, "Oslo, NO" for a city — and the live branch printed those
+  // straight at the reader: on the scope button, and inside sentences like
+  // "3 days with no answers in NO". That is D125's failure exactly, on a
+  // surface built after the resolver written to prevent it. The case above
+  // could not see it: it runs the demo branch, which never touches an
+  // anchor.
+  it("names the live scopes after the place, not after the bucket key", () => {
+    liveOn = true;
+    try {
+      expect(PULSE.scope("pulse-pace", "country").label).toBe("Norway");
+      // The app's one name for that cell — the same string every cohort
+      // chip shows for it. Longer than the demo room's bare "Oslo" above,
+      // and deliberately the same conversion rather than a second one.
+      expect(PULSE.scope("pulse-pace", "city").label).toBe("Oslo · Norway");
+      expect(PULSE.scope("pulse-pace", "world").label).toBe("World");
+    } finally {
+      liveOn = false;
+    }
   });
 
   it("reports an empty run for a paused pulse rather than a broken one", () => {

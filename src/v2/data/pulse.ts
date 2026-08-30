@@ -45,6 +45,10 @@
 //     precisely the lie these rules exist to prevent.
 //   · no smoothing, no rolling mean, no invented baseline anywhere
 import LIVE from "./live";
+// The one conversion from a stored bucket key to a name (D125). It moved
+// into `data/` for this call site: it wraps `data/places` and sat in
+// `ui/`, so the pulse could not reach it without inverting the layering.
+import { bucketLabel } from "./cohortLabels";
 import { getDb, getFirestoreApi } from "../../lib/firebase";
 // The demo room's "me" — an ESM import because sample-data.js came off the
 // global bridge and publishes nothing to `window`. This read was
@@ -438,7 +442,17 @@ const cutOf = (agg: DayAgg, scopeId: string): { n: number; mean: number | null }
 function scope(pid: string, id: string): PulseScope {
   if (LIVE.enabled) {
     const a = LIVE.anchors() || {};
-    const label = id === "city" ? (a.city || "Your city") : id === "country" ? (a.country || "Your country") : "World";
+    // THE READER'S NAME FOR THE PLACE, not the storage key. `anchors()`
+    // hands back what the cell is keyed by — "NO" for a country, "Oslo,
+    // NO" for a city — and this printed it: on the scope button, and
+    // inside three sentences ("of 12 days you and Oslo, NO both counted",
+    // "3 days with no answers in NO"). That is D125's failure verbatim,
+    // on a surface that shipped after the resolver written to stop it.
+    const label = id === "city"
+      ? (a.city ? bucketLabel("city", a.city) : "Your city")
+      : id === "country"
+        ? (a.country ? bucketLabel("country", a.country) : "Your country")
+        : "World";
     const cad = cadence(pid);
     const series: ScopeDay[] = Array.from({ length: DAYS }, (_, i) => {
       const d = dayAt(i);
