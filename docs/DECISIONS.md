@@ -34325,3 +34325,130 @@ attestation provider for two of our own browsers is work with no
 recipient. A web surface with real users reverses that in one step, and
 `VITE_APPCHECK_RECAPTCHA_SITE_KEY` is still the path — `initAppCheck`
 prefers it over the debug provider whenever it is set.
+
+## D338 · The 2026-08-31 night audit, reviewed and merged — 35 commits kept, two hand-written figures corrected, and one live bias that is the owner's call
+
+**2026-08-31.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+thirty-five commits on `night-20260831` are kept as written. Nothing was
+reverted and nothing amended; two commits are added by this review, both
+correcting a figure or a comment the night itself left behind.
+
+### What arrived, and what made it cheap to read
+
+| | |
+| --- | --- |
+| Branch | `night-20260831`, 35 commits |
+| Against main | **0 behind** — it branched from `e5f52b81` and main had not moved |
+| Size | 57 files, +1,488 / −110 |
+
+The 0-behind row is the whole difference from D336. That review had to
+compose three branches and found a `check:figures` collision that git
+merged without a conflict and that would have thrown `ReferenceError`
+before the gate checked a single figure. Here there is no composition to
+get wrong: the branch is a fast-forward, so the tree that was tested is
+the tree that lands.
+
+### Verified, not assumed
+
+Every runner and every gate, on the branch tip, in this environment:
+
+| Runner | Result |
+| --- | --- |
+| `test:unit` | 2,302 passed (155 files) |
+| `test --prefix functions` | 536 passed (24 files) |
+| `test:scripts` | 586 passed (32 files) |
+| `test:rules` | 158 passed (2 files) |
+| `test:e2e` | ALL E2E CHECKS PASSED |
+| `tsc -b` · `npm run lint` | 0 · 0 |
+| 28 `check:*` gates | all pass |
+
+`check:fn-runtime` needs `npm run build --prefix functions` first and
+reports a missing build rather than a failure until it has one — worth
+knowing before reading its red as a regression.
+
+### The three changes read closest, and why they cleared
+
+- **`paid.ts`, the double refund.** The closer refunded and marked the
+  purchase closed after the money moved, so a crash in that window
+  re-refunded the same campaign every night. Now it lists refunds on the
+  payment intent before paying and pays under an idempotency key. Both
+  guards are load-bearing: the key covers a retry inside Stripe's 24-hour
+  window, and the job runs daily, so only the lookup covers the next
+  night. One residual, accepted: a partial refund made on that intent for
+  any other reason reads as "already refunded" and closes the row. That
+  errs toward not paying twice, which is the right direction for the
+  failure it is guarding.
+- **`engagement.ts`, the prototype fence on `q`.** Checked against
+  `firestore.rules` rather than taken on trust, because the fix is only
+  correct if the neighbouring `s` map does *not* need it: `s` keys are
+  bounded by name (`hasOnly([...])`, 31 of them) and `qids` only by count
+  (`<= 120`). So `s` cannot carry `constructor` and `q` can. The claim in
+  the commit message is exact.
+- **`live.ts`, dropping `loadKindred()` from `loadSimilarity`.** This is
+  the one that could have blanked a surface, so every reader of
+  `kindredPeople()` was walked: `PeopleLens` loads it in its own effect
+  (and `TypeMixCard` renders inside `PeopleLens`), `LiveSimilarityField`
+  loads it in an effect scoped to the city stop, and `CohortCompare` —
+  which looks like a counterexample, since `testNorms` reads the pool —
+  passes `basis: "cells"` and never reaches the pool at all. Nothing is
+  left reading an unloaded list.
+
+### The two commits this review adds
+
+Both are the same defect in different files, and it is the defect the
+night was itself hunting: **a comment that argues from something no
+longer true.** The night fixed two of these (the `anon` field in
+`v2social.ts`'s fieldMask note, which D331 had removed; the claim in
+`index.ts` that the reveal read rule tests membership, which D98 removed)
+and then left two of its own.
+
+1. **`LiveMirrorLenses.tsx`, `CohortCompare`.** Its "NO LOADER HERE" note
+   gave two reasons, and the night's own `live.ts` change voided the
+   second one an hour later: the note still said `loadSimilarity` "still
+   awaits `loadKindred`, which is the People lens's own cost gate", which
+   is exactly what stopped being true. The conclusion survives — the
+   constellation already holds those aggregates — so the reason is
+   corrected rather than the code.
+2. **`circle.ts`, `CIRCLE_ANSWER_CAP`.** The night replaced "it cannot
+   bind today" with a count, and got the count wrong: it wrote "feed 190,
+   test 160 = 644". Counted off the committed banks, feed is 166 and the
+   four instruments in `IS_TESTS` hold 110 — **570**, not 644. The
+   finding is untouched (570 is nearly twice the cap) but a hand-written
+   figure inside the argument it supports is this repo's most-repeated
+   documentation error, and `check:figures` exists because of it.
+
+### THE ASK: the circle's answer cap truncates alphabetically, and it binds now
+
+This is the one thing on the branch that is **not** closed, and it is
+recorded here rather than left in a code comment because the night's own
+note says it should go to the owner.
+
+`fetchAnswers` in `src/v2/data/circle.ts` reads a followed account's
+answers with `where("surface","in",[...6 surfaces])` and
+`limit(CIRCLE_ANSWER_CAP)` and **no `orderBy`**. An unordered Firestore
+limit takes documents by name, and the document name here is the question
+id — so past 300 answers a member's likeness is computed from the
+alphabetically-first 300 questions they have answered. The reading still
+draws. Nothing is empty, nothing errors, and no gate can see it. It is
+the same shape as the follow cap's own bug, fixed four nights ago after
+it silently kept the alphabetically-first fifty people in a circle.
+
+**It binds today**, against 570 answerable questions and a cap of 300,
+with no bank growth required.
+
+**The fix is not free, which is why it is an ask.** Ordering by
+`answeredAt` needs a composite index on (surface ASC, answeredAt DESC)
+scoped to the `answers` collection group, and this repo pays index
+entries on every answer ever written — the night that removed a
+reader-less index said so in its own message. The alternatives, smallest
+first: raise the cap (cheap, moves the threshold, does not remove the
+bias); order by `answeredAt` and pay the index (removes it, recurring
+write cost on every answer forever); page the query (removes it, costs
+reads per member per open). **What changed is the urgency, not the
+price** — this stops being a note filed behind the pagination work and
+becomes a live bias in a reading the app draws today.
+
+### When to revisit
+
+**The ask above, at the owner's next pass.** Nothing else here is open:
+the branch is merged, and the two corrections it needed are in it.
