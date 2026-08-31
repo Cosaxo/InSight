@@ -20,7 +20,14 @@
 // green and is never deployed) and check:appcheck (a callable that serves
 // the internet because one option was omitted).
 //
-// THE FOUR RULES:
+// THE EIGHT RULES:
+//
+// (Four when this list was written. Rules 5 to 8 were each added by a
+// production failure the four could not see — a filter the API rejects, a
+// rate limit on the wrong condition type, documentation with content and
+// no MIME type — and the heading was never moved. A count in prose is the
+// one documentation error this repo keeps re-committing, and this one sat
+// inside a gate.)
 //
 //   1. Every policy file on disk is in apply-monitoring's POLICIES list.
 //      A committed policy nobody applies is check:deploy-targets' bug with

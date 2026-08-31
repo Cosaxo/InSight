@@ -375,6 +375,14 @@ const convertedSpecModules = (() => {
 // that quotes it.
 const SPEC_MIGRATION_DRIFT = 25;
 
+// The monitoring gate's own rule list, counted off its numbered header —
+// the list a reader trusts before they trust the gate.
+const monitoringRules = (() => {
+  const src = read("scripts/check-monitoring.mjs");
+  const head = src.slice(0, src.indexOf("import "));
+  return new Set([...head.matchAll(/^\/\/\s+(\d)\. /gm)].map((m) => m[1])).size;
+})();
+
 // The instruments the app actually ships, counted off IS_TESTS' own keys.
 //
 // `passive-progress.js` opened with "progress for the five core tests"
@@ -451,6 +459,17 @@ const FIGURES = [
     re: /`public\/cities\.txt` \(([\d,]+) places/,
     actual: cityPlaces.toLocaleString("en-US"),
     fix: (n) => `"\`public/cities.txt\` (${n} places"`,
+  },
+  {
+    file: "scripts/check-monitoring.mjs",
+    what: "rules the monitoring gate's header enumerates",
+    re: /THE (\w+) RULES:/,
+    // Counted off the header's own numbered list, which is the thing that
+    // drifted: it said FOUR while enumerating eight, each of the last four
+    // added by a production failure the first four could not see.
+    actual: ["ZERO", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE"][monitoringRules]
+      ?? String(monitoringRules),
+    fix: (n) => `"THE ${n} RULES:"`,
   },
   {
     file: "src/v2/spec/passive-progress.js",
