@@ -579,15 +579,23 @@ export const deleteAccount = onCall(
               ...picks,
               [`votes.${uid}`]: FieldValue.delete(),
               [`names.${uid}`]: FieldValue.delete(),
-              // The membership snapshot the reveal read rule gates on
-              // (firestore.rules, the /reveals/{day} match). Scrubbing the
-              // vote and the name but leaving the uid here left a
-              // pseudonymous identifier — and the group-day history it
-              // implies — surviving an erasure request. Removing it costs
-              // the deleted user read access to a reveal they can no longer
-              // authenticate for anyway, and costs no OTHER member
-              // anything: the rule tests `request.auth.uid in members`, so
-              // each entry only ever grants its own owner.
+              // Scrubbing the vote and the name but leaving the uid here
+              // left a pseudonymous identifier — and the group-day history
+              // it implies — surviving an erasure request, in a document
+              // `allow read: if request.auth != null` hands to any signed-in
+              // user (firestore.rules, the /reveals/{day} match). That is
+              // the same survivor pickUidScrub refuses one field over.
+              //
+              // This called `members` "the membership snapshot the reveal
+              // read rule gates on … the rule tests `request.auth.uid in
+              // members`" until 2026-08-31. It does not, and has not since
+              // D98 removed the arm — the claim survived in two copies here
+              // while the pickUidScrub comment above, written later, states
+              // the rule correctly and points AT these. What the array is
+              // now is an erasure index: phase 1c-bis's own collection-group
+              // `array-contains` query is its only reader, which is why
+              // removing the entry is safe to do while paging that query —
+              // one pass, and a page already in hand.
               members: FieldValue.arrayRemove(uid),
             });
             if (++ops >= 450) {
@@ -669,15 +677,12 @@ export const deleteAccount = onCall(
             ...pickUidScrub(r),
             [`votes.${uid}`]: FieldValue.delete(),
             [`names.${uid}`]: FieldValue.delete(),
-            // The membership snapshot the reveal read rule gates on
-            // (firestore.rules, the /reveals/{day} match). Scrubbing the
-            // vote and the name but leaving the uid here left a
-            // pseudonymous identifier — and the group-day history it
-            // implies — surviving an erasure request. Removing it costs
-            // the deleted user read access to a reveal they can no longer
-            // authenticate for anyway, and costs no OTHER member
-            // anything: the rule tests `request.auth.uid in members`, so
-            // each entry only ever grants its own owner.
+            // Same scrub, same reason as phase 1c above: a uid left in
+            // `members` is a pseudonymous identifier of a deleted account
+            // in a document any signed-in user can read. `members` is not
+            // an access grant — the reveal read rule is
+            // `allow read: if request.auth != null` — it is the index THIS
+            // phase's `array-contains` query walks.
             members: FieldValue.arrayRemove(uid),
           });
           if (++ops >= 450) {
