@@ -78,16 +78,23 @@ export const FOLLOW_CAP = 50;
  * fixed four nights ago after it silently kept the alphabetically-first
  * fifty people in a circle.
  *
- * It cannot bind today — the core bank is ~130 questions against a cap of
- * 300 — and the fix is NOT free, which is why this is recorded rather
- * than built (D7): ordering by `answeredAt` needs a composite index on
+ * IT BINDS TODAY. This said "it cannot bind today — the core bank is
+ * ~130 questions" until the closing review of 2026-08-31 measured it
+ * against the wrong bank. `core` is the Mirror's corpus; the query below
+ * asks for WORLD_ANSWER_SURFACES, which is six of them — daily 130, feed
+ * 190, test 160, learn 156, pulse 5, call 3 = 644 answerable questions
+ * against a cap of 300, with no bank growth required. Somebody who has
+ * worked through more than half of what they can answer is read from the
+ * alphabetically-first slice of it, and the reading still draws.
+ *
+ * The fix is NOT free, which is why this is still recorded rather than
+ * built (D7): ordering by `answeredAt` needs a composite index on
  * (surface ASC, answeredAt DESC) scoped to the `answers` COLLECTION, and
  * this repo pays index entries on every answer ever written. The night
- * that removed a reader-less index said so in its own message.
- *
- * So: when SCALE-PLAN's unbounded feed lands, this is one of the reads
- * that has to be ordered before it is capped, and the index goes in with
- * it.
+ * that removed a reader-less index said so in its own message. What
+ * changed is the urgency, not the price — this is a live bias to bring to
+ * the owner with the index cost, not a note to file behind the pagination
+ * work.
  */
 export const CIRCLE_ANSWER_CAP = 300;
 
