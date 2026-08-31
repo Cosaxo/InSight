@@ -99,6 +99,20 @@ a second clone fails both. If provisioning or a push is refused, the run
 **stops and reports that**, without starting the job. A run that cannot
 land its work must not do the work.
 
+**The checkout is shallow AND single-branch, so `git status` cannot tell
+you whether your work is safe.** `git clone --depth 1` implies
+`--single-branch`, which pins `remote.origin.fetch` to `main` alone. A
+later depth-bounded fetch then drops the `origin/<branch>` ref that
+`push -u` created, and the upstream link goes with it — after which `git
+status` reports a fully pushed branch as unpushed with no remote. Measured
+2026-08-31 on a branch GitHub already held at the identical SHA.
+
+So **confirm a push with `git ls-remote --heads origin <branch>`**, which
+asks the remote, and never re-push on `git status`'s word alone: the second
+push is a no-op that hides the cause instead of fixing it. This matters
+here more than in an ordinary checkout, because a run that wrongly believes
+its branch is unpushed is a run that reports failure after succeeding.
+
 **Budget: 50 minutes, and no new edit after minute 35**, measured from the
 run's own first tool call. The last 15 minutes are for landing what exists,
 not for starting one more thing. A sweep that runs out of clock mid-edit
