@@ -61,16 +61,28 @@ function LivePrivacyPanel() {
   const [confirmDel, setConfirmDel] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
   const [photoMsg, setPhotoMsg] = React.useState<string | null>(null);
-  // D331. Local mirror of the stored consent so the row flips on the tap
-  // rather than on the next boot; LIVE holds the truth and a failed write
-  // is corrected by the next hydrate rather than by an optimistic lie.
+  // D331. READ, not mirrored. This was
+  // `useState(() => LIVE.politicalConsented())`, and a lazy initializer
+  // runs once per component instance: the panel re-renders on every store
+  // notify through the tick above, but that value never re-read, and the
+  // only writer was this component's own handler.
   //
-  // UP HERE WITH THE OTHER HOOKS, not down beside the handler that uses
-  // it: `if (!LIVE.enabled) return null` sits between, and a useState
-  // after an early return is called on some renders and not others —
-  // which eslint's rules-of-hooks caught, and which would have desynced
-  // every state in this component the first time a demo build mounted it.
-  const [pol, setPol] = React.useState(() => LIVE.politicalConsented());
+  // The profile's consent field fills late, in hydrate. So an account that
+  // HAS consented, opening Account before the profile document lands, read
+  // "Off. Your answers still count; no political profile is built from
+  // them" while the six-axis coordinate was published — a statement about
+  // what is on a world-readable profile, made from a snapshot of what this
+  // device happened to know at mount. It self-heals on the next open,
+  // which is why it was easy to miss; it is still the failure this
+  // panel's own D327 note is written against, since the sentence is a
+  // claim about the server rather than about the control.
+  //
+  // No local mirror is needed for the tap either: `setPoliticalConsent`
+  // writes `state.profile.consent` synchronously before it awaits the
+  // network, so the store already answers the new value by the time the
+  // handler's `setBusy(false)` re-renders. A failed write leaves the row
+  // where the store is, which is the honest place for it.
+  const pol = LIVE.politicalConsented();
   const [confirmPol, setConfirmPol] = React.useState(false);
   // whether this account holds any purchase — decides the room's door row
   // below (one session-cached mine-only query; empty for almost everyone)
@@ -111,7 +123,7 @@ function LivePrivacyPanel() {
   };
   const setPolitical = async (on: boolean) => {
     setBusy(true); setErr(null); setConfirmPol(false);
-    try { await LIVE.setPoliticalConsent(on); setPol(on); }
+    try { await LIVE.setPoliticalConsent(on); }
     catch (e) { setErr(String((e instanceof Error && e.message) || e)); }
     setBusy(false);
   };
