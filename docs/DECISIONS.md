@@ -34546,3 +34546,56 @@ gains pulse rows on a schedule, and `b78cd9c` is one. And make the bump
 to 29 off step 17's own conclusion while the step list is on screen,
 which is the only arrangement that has ever made it stick (D186, D198,
 D273).
+
+## D339 amendment (2026-08-31) · Build 28 is delivered, and the bump held off step 17
+
+**Status:** binding as a RELEASE RECORD. D339 above is the pre-flight that
+prepared build 28; this is what the dispatch did with it.
+
+Run 47 (`33424574013`, 18:21:42Z) was the dry run — step 17 `skipped`,
+5m 51s, archive and both entitlement gates green. Run 48
+(`33425156532`, 18:27:58Z) was the upload — step 17 **`success`**,
+18:33:57Z → 18:35:41Z, 1m 44s of transfer, `UPLOAD SUCCEEDED with no
+errors`, delivery UUID `0b481684-32d0-46d5-b0cb-bb0488dd3741`,
+6,131,775 bytes. **Build 28 is spent**, and `appBuild` went 28 → 29 read
+off that step's own step list rather than from a memory of it.
+
+Nine bumps have now held (20, 21, 22, 28, 33, 36, 42, 44, 48) against
+eight skipped (18, 19, 24, 26, 31, 38, 40, 46) — the first time the held
+count has led since the tally began.
+
+### The gap was closed on purpose, and on a different commit than last time
+
+Both runs archived `8abb8e5`, and `main` was re-read between the two
+dispatches and confirmed unmoved before the upload went. That is the
+second deliberate close after runs 43/44, so what run 47 proved was
+proved on exactly the bundle run 48 shipped — signing *and* bundle
+together, which D229 and D274 could each only say by halves.
+
+**What differs from runs 43/44 is which tree that is.** That release
+closed the gap by leaving its record unmerged, so the archived commit was
+`ac9072f`, a pulse trail row. Here the archived commit is the merge of
+the release prep itself — `8abb8e5`, PR #338, carrying the very bump that
+made build 28 a legal number. The dry run and the upload name the release
+commit rather than whatever a Routine last pushed, which has not been
+true since run 21.
+
+The order that produced it is worth stating, because it is the opposite
+of D324's and both are correct: when the pre-flight verdict is *run
+as-is*, nothing needs to reach `main`, so the record can be held back to
+keep the gap empty. When the verdict is **bump**, the number must be on
+`main` before the dispatch or the run archives the spent build — so the
+record merges first, and the gap is closed by re-reading `main` between
+the dispatches instead.
+
+42 commits rode in the 27 → 28 gap, over one day.
+
+### When to revisit
+
+**At build 29's pre-flight.** The comparison is unchanged and is made
+against the run list: run 48 is the highest run, its step 17 `success`,
+`appBuild` at its own `head_sha` `8abb8e5` is 28, and the tree is at 29 —
+so unless something dispatches in between, that pre-flight should answer
+*run as-is*. Per D198 that sentence is a report about a comparison, never
+a promise about the tree: **a verdict has a shelf life of exactly one
+dispatch, and a bump has a shelf life of exactly one upload.**

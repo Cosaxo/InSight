@@ -1506,7 +1506,7 @@ That is a tester-count problem, not a workflow problem.
       "three alerts, deliberately" for as long as there were eight, and
       `MONITORING.md` said seven through a sweep that claimed to have found
       every copy.
-- [x] **5.6 Version lockstep — holds at 2.0.0 build 28.**
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 29.**
       *This line was stale three times, each one a bump behind 2.4 — build
       11 on 2026-08-13, build 12 later the same day, then 13 against a tree
       at 22.* It is the D39 shape — a figure kept current by intention —

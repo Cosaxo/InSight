@@ -695,6 +695,33 @@ a reused number *after* the transfer completes, so every gate in this
 repo passes, the archive signs, the upload runs, and ~150 minutes of
 macOS quota is spent on a rejection.
 
+**Runs 47 and 48 then delivered build 28, and the bump landed off step
+17's conclusion** (D339 amendment, 2026-08-31). Run 47 (`33424574013`,
+18:21:42Z) step 17 `skipped` — the dry run, 5m 51s; run 48
+(`33425156532`, 18:27:58Z) `success`, 18:33:57Z → 18:35:41Z, 1m 44s of
+transfer. `UPLOAD SUCCEEDED with no errors`, delivery UUID
+`0b481684-32d0-46d5-b0cb-bb0488dd3741`, 6,131,775 bytes. Eleventh pair of
+this shape. `appBuild` went 28 → 29 read off step 17 rather than recalled
+— **nine that held** (20, 21, 22, 28, 33, 36, 42, 44, 48) against eight
+skipped (18, 19, 24, 26, 31, 38, 40, 46).
+
+**D159's trap did not fire, and the gap was closed on purpose for the
+second time** after runs 43/44. Both runs archived `8abb8e5`, and `main`
+was re-read between the dispatches and confirmed unmoved before the
+upload was sent. So what run 47 proved was proved on exactly the bundle
+run 48 shipped — the signing *and* the bundle, which is the pair D229 and
+D274 could only state by halves.
+
+**What is new here is which commit that one tree is.** Runs 43/44 closed
+the gap by leaving the release record unmerged, so the archived commit
+was `ac9072f`, a pulse trail row. This time the archived commit is
+`8abb8e5` — the merge of the release prep itself, carrying the bump that
+made the build number legal. The dry run and the upload therefore name
+the release commit rather than whatever the Routines happened to push
+last, which is the first time that has been true since run 21.
+
+42 commits rode in the 27 → 28 gap, over one day.
+
 **Build 16's pre-flight found nothing to do either, which is the first
 time that has happened twice running** (D158, 2026-08-15). Run 21 was
 still the highest run in the list, its upload step still `success`,
