@@ -34452,3 +34452,97 @@ becomes a live bias in a reading the app draws today.
 
 **The ask above, at the owner's next pass.** Nothing else here is open:
 the branch is merged, and the two corrections it needed are in it.
+
+## D339 · Build 27 was delivered and unrecorded; the pre-flight opened on a spent number, and the counts are level
+
+**2026-08-31.** **Status:** binding as a RELEASE RECORD and a PRE-FLIGHT
+VERDICT. One number moved — `appBuild` 27 → 28 — and no code changed.
+This is the release prep for build 28, and what it found first is that
+build 27 had already gone out.
+
+### What the run list said
+
+D158's rule, because a doc cannot see App Store Connect:
+
+- Run 46 (`33325304169`, 2026-08-30T17:27:23Z) is the highest run in
+  `ios-release.yml`'s list, 46 of 46.
+- Its step 17, `Upload to App Store Connect`, is **`success`**
+  (17:31:54Z → 17:33:17Z, 1m 23s of transfer). `UPLOAD SUCCEEDED with no
+  errors`, delivery UUID `16213c73-cb2e-4b3f-804e-7ad281523986`,
+  6,131,570 bytes. **Build 27 is spent.**
+- Run 45 (`33324889659`, 17:18:30Z) is its dry run — same commit, nine
+  minutes earlier, step 17 `skipped`. Tenth pair of this shape.
+- `appBuild` at run 46's **own `head_sha`** — `b78cd9c`, D159's rule
+  rather than any commit someone merged — is **27**.
+- The tree at `ed9ecf9` reads **27**.
+
+27 is not greater than 27, so the answer is **bump**. `appBuild` went
+27 → 28 through `check:versions --fix`, which carried it into
+`android/app/build.gradle` and both `CURRENT_PROJECT_VERSION` settings in
+the iOS project.
+
+### The counts are level for the first time
+
+Eight bumps have held (20, 21, 22, 28, 33, 36, 42, 44) against **eight
+skipped** (18, 19, 24, 26, 31, 38, 40, 46). Every skip in that list is
+D143's arithmetic waiting to be paid: App Store Connect refuses a reused
+build number *after* the transfer completes, so a dispatch on a stale
+number spends ~150 minutes of macOS quota to be told no.
+
+**And no record was written either — the D184 shape for the fourth
+time**, after runs 25/26, 29–31 (D198) and 39/40 (D273). Nothing in
+`docs/` named run 45, run 46, or build 27's delivery until this
+pre-flight read the run list. The tree was returned to for a day and 40
+commits (D337, and D338's night audit) by sessions with no reason to
+think about a build number.
+
+### The finding: the gate that fired is downstream of the bump
+
+`LAUNCH-RUNBOOK.md` 5.6 read *"holds at 2.0.0 build 27"* throughout, and
+it was **correct**. `check:figures` holds that sentence to
+`package.json`, `package.json` said 27, and the two agreed. The gate went
+red only *after* this session bumped to 28 — it was reporting that the
+prose had fallen behind the tree, which is its job and is not this.
+
+So the one automated line that looks like it should have caught a spent
+build number cannot, in principle: **a figure gate proves the tree agrees
+with itself, never that the tree agrees with Apple.** D184 reached the
+same place from the other side when it observed that a gate keyed on the
+runbook's claim would have stayed silent where no claim was written. The
+sound invariant keys on the run list, and nothing in this tree can read
+it — so this stays a procedure, and the procedure is the comparison
+above.
+
+### What D159's trap did, and did not, do
+
+Both runs archived `b78cd9c`, so the dry run and the upload name one
+tree — the third release since run 21, after 39/40 and 43/44. `b78cd9c`
+is itself a pulse trail row rather than any release commit, which is run
+22's shape: the dispatch ran against `main` as it stood when it was
+accepted. That costs nothing here and is exactly why the comparison is
+made at the run's own `head_sha`.
+
+130 commits rode in the 26 → 27 gap over three days, the second widest
+after build 26's 193. Build 28 carries 40 more.
+
+### What is prepared, and what is not
+
+Prepared: `appBuild` 28 in lockstep across the three files, the release
+record above, and the release-path gates run locally —
+`check-store-copy --ios` (the Play fingerprint is D42's parked one, which
+`--ios` excuses), `check:public-copy`, `check:versions`.
+
+**Not done: the dispatch.** It is `workflow_dispatch`-only for two
+reasons this session does not get to overrule — it bills at 10x, and its
+upload is outward-facing in a way that cannot be withdrawn, only
+superseded. The runbook's order stands: `upload = false` first, then
+`upload = true` against the same commit.
+
+### When to revisit
+
+**At the dispatch**, on two points. Read `appBuild` at the run's own
+`head_sha` rather than at the commit that merged this record — `main`
+gains pulse rows on a schedule, and `b78cd9c` is one. And make the bump
+to 29 off step 17's own conclusion while the step list is on screen,
+which is the only arrangement that has ever made it stick (D186, D198,
+D273).
