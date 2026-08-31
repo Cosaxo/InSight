@@ -724,6 +724,46 @@ export interface ReviewSweepStore {
   review(bid: string): Promise<void>;
 }
 
+/**
+ * One page of held bookings, cursored on the previous page's last id.
+ *
+ * EXPORTED, and a named function rather than the closure it was, because
+ * the paging is the half `runReviewSweep`'s own tests cannot see: they
+ * inject a `ReviewSweepStore` and prove the LOOP, while the adapter that
+ * talks to Firestore ran under nothing. That is the shape this file has
+ * already paid for once — `taste.ts` and `patterns.ts` both carry the
+ * note about a guard that "was dead in production while the in-memory
+ * fake, which keeps the whole object, went on proving it worked".
+ *
+ * A VANISHED CURSOR ENDS THE RUN. It used to fall through to `base` with
+ * no `startAfter` at all, which is page ONE — so the sweep re-scanned and
+ * re-reviewed the same held bookings up to SWEEP_MAX_PAGES times, each
+ * retry a billed model call, while the bookings actually starved behind
+ * them were never reached: precisely the starvation runReviewSweep exists
+ * to fix, reintroduced by the adapter under it. The cursor can genuinely
+ * disappear mid-run — `deleteAccount` sweeps this collection by uid — so
+ * this is a real state, not a defensive branch.
+ *
+ * Ending rather than rewinding is the conservative half of the choice:
+ * the bookings past the lost cursor wait for the next scheduled run,
+ * which is minutes, instead of the queue re-reviewing its own head.
+ */
+export async function heldPageFrom(
+  base: FirebaseFirestore.Query,
+  db: FirebaseFirestore.Firestore,
+  after: string | null,
+  limit: number,
+): Promise<Array<{ id: string; attempts: number }>> {
+  let q = base.limit(limit);
+  if (after) {
+    const cur = await db.collection("v2_paid_bookings").doc(after).get();
+    if (!cur.exists) return [];
+    q = base.startAfter(cur).limit(limit);
+  }
+  const snap = await q.get();
+  return snap.docs.map((d) => ({ id: d.id, attempts: Number(d.get("reviewAttempts") ?? 0) }));
+}
+
 export const SWEEP_PAGE = 50;
 /** A loop bound, not a policy: 250 held bookings in one run is already an
  * incident, and an unbounded `while` in a scheduled job is worse. */
@@ -772,15 +812,7 @@ export const sweepPaidReviewsV2 = onSchedule(
       .where("status", "==", "review")
       .where("createdAt", "<", cutoff);
     const res = await runReviewSweep({
-      async heldPage(after, limit) {
-        let q = base.limit(limit);
-        if (after) {
-          const cur = await db.collection("v2_paid_bookings").doc(after).get();
-          if (cur.exists) q = base.startAfter(cur).limit(limit);
-        }
-        const snap = await q.get();
-        return snap.docs.map((d) => ({ id: d.id, attempts: Number(d.get("reviewAttempts") ?? 0) }));
-      },
+      heldPage: (after, limit) => heldPageFrom(base, db, after, limit),
       review: (bid) => reviewBooking(db, bid),
     });
     if (res.scanned) {
