@@ -82,10 +82,18 @@ export const FOLLOW_CAP = 50;
  * ~130 questions" until the closing review of 2026-08-31 measured it
  * against the wrong bank. `core` is the Mirror's corpus; the query below
  * asks for WORLD_ANSWER_SURFACES, which is six of them — daily 130, feed
- * 190, test 160, learn 156, pulse 5, call 3 = 644 answerable questions
+ * 166, test 110, learn 156, pulse 5, call 3 = 570 answerable questions
  * against a cap of 300, with no bank growth required. Somebody who has
  * worked through more than half of what they can answer is read from the
  * alphabetically-first slice of it, and the reading still draws.
+ *
+ * (That line first landed saying "feed 190, test 160 = 644". Counted off
+ * the committed banks instead: `content/feed-questions.json` holds 166
+ * questions and the four instruments in `IS_TESTS` hold 110 between them
+ * — 25 + 30 + 30 + 25. The conclusion is untouched, 570 being nearly
+ * twice the cap either way, but a figure written by hand inside the
+ * argument it supports is this repo's most-repeated documentation error,
+ * and it does not get an exemption for being in a comment that is right.)
  *
  * The fix is NOT free, which is why this is still recorded rather than
  * built (D7): ordering by `answeredAt` needs a composite index on
