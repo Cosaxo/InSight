@@ -673,6 +673,25 @@ describe("divisivenessOf reads the whole question, not its leading run", () => {
     expect(mod.divisivenessOf("q_wide")).toBeCloseTo((1 - 4 / 8) / (1 - 1 / 3), 6);
   });
 
+  it("fills the TRAILING options nobody has picked yet", async () => {
+    // The bank's half of the union, which nothing reached. Every case
+    // above happens to have `highestKey === options.length`, so
+    // `optionCountOf` could return 0 for every question and all of them
+    // still passed — while the bank half is the one that matters in the
+    // ORDINARY early state of a multi-option question: counts that stop
+    // before the option list ends, because the last options have no votes
+    // yet.
+    //
+    // Divisiveness normalises by the vector's length, so a short vector is
+    // RESCALED rather than merely missing zeros — and the value is the
+    // selection key for `pickKindredQids`, so it decides which twelve
+    // collection-group queries the Kindred fetch spends.
+    const mod = await withCounts("q_tail", ["A", "B", "C", "D", "E"], { "0": 2, "1": 3 });
+    // Five options, lead 3 of 5 → (1 − 3/5) / (1 − 1/5) = 0.5. Truncated
+    // to the two that have counts it is (1 − 3/5) / (1 − 1/2) = 0.8.
+    expect(mod.divisivenessOf("q_tail")).toBeCloseTo((1 - 3 / 5) / (1 - 1 / 5), 6);
+  });
+
   it("still answers −1 when the device holds no counts at all", async () => {
     const mod = await withCounts("q_none", ["A", "B"], null);
     expect(mod.divisivenessOf("q_none")).toBe(-1);
