@@ -388,6 +388,16 @@ const monitoringRules = (() => {
   return new Set([...head.matchAll(/^\/\/\s+(\d+)\. /gm)].map((m) => m[1])).size;
 })();
 
+// The anchors MapStats can answer for — the keys of MAP_ANCHOR_DIM, which
+// is the table the refusal is decided by. Two files quote this count in
+// prose and neither is reachable any other way.
+const mapAnchorDims = (() => {
+  const src = read("src/v2/data/cohort.ts");
+  const open = src.indexOf("export const MAP_ANCHOR_DIM");
+  const body = src.slice(open, src.indexOf("};", open));
+  return [...stripComments(body).matchAll(/^\s{2}(\w+):/gm)].length;
+})();
+
 // The modules that define Cloud Functions, counted off the tree. ops.ts's
 // header prose said "nine" while there were fifteen — the hand-kept-figure
 // drift this script exists for, in the file whose whole subject is that a
@@ -616,6 +626,18 @@ const FIGURES = [
     re: /a notification channel, (\w+) log-based metrics/,
     actual: word(monitoringMetrics),
     fix: (n) => `"a notification channel, ${n} log-based metrics"`,
+  },
+  {
+    file: "src/v2/spec/map-group-stats.js",
+    what: "the anchors MapStats answers for, off MAP_ANCHOR_DIM",
+    re: /REAL for the (\w+) anchors/,
+    // D328 moved `job` from refusing to real, and updated the paragraph
+    // thirteen lines down inside this same header while leaving the
+    // opening sentence at "two" — a file contradicting itself, in the
+    // direction that understates what the Map now draws. A second copy in
+    // world-feed.jsx said "five null anchors" for the same reason.
+    actual: word(mapAnchorDims),
+    fix: (n) => `"REAL for the ${n} anchors"`,
   },
   {
     file: "functions/src/engagement.ts",

@@ -3212,7 +3212,7 @@ class WorldFeed extends React.Component {
     // fabrication with more of it: every row below is `wfKnowRate`, a hash
     // of (card, cohort) \u2014 a per-cohort knowledge rate nobody has measured,
     // drawn against a baseline nobody has measured either. So the cuts go
-    // the way MapStats' five null anchors went (D72): refused at the
+    // the way MapStats' null anchors went (D72): refused at the
     // source, returning when a per-cohort learn aggregate exists to rank.
     //
     // The headline stays, because it has a true version \u2014 LEARN_RATE hands
