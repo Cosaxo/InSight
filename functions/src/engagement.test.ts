@@ -132,6 +132,24 @@ describe("runEngagementDigest", () => {
     expect(state.users.get("habit")).toMatchObject({ lastDay: Y, activeDays: 6, streak: 1 });
   });
 
+  it("breaks the streak at a gap of exactly two — one missed day", async () => {
+    // The boundary, and the case the suite had no instance of: every
+    // broken-streak fixture above uses gap 3, where `gap >= 2` and
+    // `gap >= 3` agree, so the threshold could be moved up one with the
+    // suite green. Gap 2 is a habit user who missed a single day, which is
+    // the commonest instance of the churn signal this day document exists
+    // to publish — under the mutation that whole population silently stops
+    // being counted.
+    const { store, state } = memoryStore({ [Y]: [e("habit", "q1")] });
+    state.users.set("habit", {
+      firstDay: "2026-08-01", lastDay: dayOffset(Y, -2),
+      activeDays: 5, streak: STREAK_BROKEN_MIN,
+    });
+    await runEngagementDigest(store, NOW, FEED);
+    expect(state.days.get(Y)!.streaksBroken).toBe(1);
+    expect(state.users.get("habit")).toMatchObject({ lastDay: Y, streak: 1 });
+  });
+
   it("grows an unbroken streak by one per consecutive day", async () => {
     const d1 = dayOffset(Y, -1);
     const { store, state } = memoryStore({
