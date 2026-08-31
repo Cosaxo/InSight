@@ -568,7 +568,7 @@ export const TAKE_MAX_CHARS = 280;
 // The anchor keys firestore.rules accepts, with its per-field length caps
 // (isValidV2Anchors). Kept here rather than inline so the client and the
 // ruleset can be diffed against each other by eye.
-const ANCHOR_FIELDS: Record<string, number> = {
+export const ANCHOR_FIELDS: Record<string, number> = {
   city: 80, country: 80, ageBand: 20, age: 3, gender: 40,
   profession: 80, jobField: 40, education: 80, relationship: 40, heightBand: 20,
 };
@@ -4383,9 +4383,15 @@ const LIVE = {
   // into no breakdown cell (D8).
   saveAnchors(next: Record<string, string>): void {
     const clean: Record<string, string> = {};
-    // Only the seven keys firestore.rules validates, trimmed and capped to
-    // its per-field lengths. Sending anything else fails the whole write,
-    // so the client must not rely on the server to reject the extras.
+    // Only the keys firestore.rules validates, trimmed and capped to its
+    // per-field lengths. Sending anything else fails the whole write, so
+    // the client must not rely on the server to reject the extras — and
+    // "the whole write" is the point: the rules refuse the DOCUMENT, so
+    // one over-long value does not lose a city, it loses the profile save
+    // with the display name in it.
+    //
+    // This said "the seven keys" while ANCHOR_FIELDS held ten. The count
+    // is check:figures' now, off that table.
     for (const [k, max] of Object.entries(ANCHOR_FIELDS)) {
       const v = next[k];
       if (typeof v !== "string") continue;

@@ -3061,6 +3061,42 @@ describe("saveAnchors asks for a write that can REMOVE an anchor", () => {
     // to avoid.
     expect(call!.data).toEqual({ anchors: { city: "Bergen, NO" } });
   });
+
+  it("trims and CAPS each field, because one long one loses the whole write", async () => {
+    // `isValidV2Anchors` bounds every anchor, and firestore.rules refuses
+    // the DOCUMENT rather than the field — so one over-long value does not
+    // lose a city, it loses the profile write, display name included. The
+    // comment above `saveAnchors` says exactly that ("Sending anything
+    // else fails the whole write, so the client must not rely on the
+    // server to reject the extras") and nothing held it: every test that
+    // touches saveAnchors mocks it, so the real body's caps ran under
+    // nothing and could be deleted with the whole suite green.
+    //
+    // Asserted against ANCHOR_FIELDS itself rather than against numbers
+    // typed here, so the day a cap moves in the rules and in that table
+    // this case follows instead of arguing.
+    // Imported HERE, not at the top of the file: this suite sets `window`
+    // up per case and evaluates the store through a dynamic import, so a
+    // static import of anything in it runs before that and dies on
+    // `window is not defined`.
+    const { ANCHOR_FIELDS } = await import("./live");
+    const LIVE2 = await bootLive();
+    const anchorsFor = async (next: Record<string, string>) => {
+      h.setDocCalls.length = 0;
+      LIVE2.saveAnchors(next);
+      await flush();
+      const c = h.setDocCalls.find((x) => x.path === "v2_users/uid_test");
+      return ((c?.data as { anchors?: Record<string, string> })?.anchors) || {};
+    };
+    for (const [k, max] of Object.entries(ANCHOR_FIELDS)) {
+      const out = await anchorsFor({ [k]: `   ${"x".repeat(max + 25)}  ` });
+      expect(out[k]?.length, `${k} was written past its ${max}-character cap`).toBe(max);
+    }
+    // …and the trim is a trim, not a side effect of the slice.
+    expect((await anchorsFor({ city: "  Oslo, NO  " })).city).toBe("Oslo, NO");
+    // A key the rules do not accept never reaches the write at all.
+    expect((await anchorsFor({ ssn: "123" })).ssn).toBeUndefined();
+  });
 });
 
 // ── the cold answer fetch is PAGED, not capped ─────────────────────────
