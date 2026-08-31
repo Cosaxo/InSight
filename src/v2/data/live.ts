@@ -4216,8 +4216,16 @@ const LIVE = {
       // World paid the voter fan-out — twelve collection-group queries of
       // up to 200 answers each, plus the profile reads that resolve their
       // names — for data neither stop reads: the place fields draw from
-      // the test aggregates above. Only City reads `kindredPeople()`, and
-      // the People lens loads it for itself.
+      // the test aggregates above.
+      //
+      // This said "Only City reads `kindredPeople()`" and that was wrong:
+      // `data/testNorms.ts` reads it too, for the result card's counted
+      // percentiles, and that card had no loader of its own — so scoping
+      // the fan-out here quietly stopped its numbers computing for anyone
+      // who opened World but never City. The card loads for itself now
+      // (spec/result-card.jsx), which is this comment's own rule applied
+      // to the reader it had missed. The city field and the People lens
+      // load for themselves the same way.
       //
       // The city half was already scoped this way, by the effect in
       // LiveSimilarityField that calls `loadCityKindred()` under a comment
