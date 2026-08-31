@@ -417,6 +417,24 @@ describe("v2 profile", () => {
       testResults: { big5: { dims: [], title: "Big Five" } },
     }, { merge: true }));
     await assertFails(setDoc(mine, { testResults: "hacked" }, { merge: true }));
+    // …and capped at 8 keys, which nothing asserted either.
+    await assertFails(setDoc(mine, {
+      testResults: Object.fromEntries(
+        Array.from({ length: 9 }, (_, i) => [`t${i}`, { dims: [] }]),
+      ),
+    }, { merge: true }));
+    // The display name's own 60-char cap. It went untested from the day it
+    // was written: this case checked the unknown-field and stranger-write
+    // arms and stopped, so `isOptionalShortString(displayName, 60)` could be
+    // widened to 6000, or deleted, with the whole suite still green. That
+    // matters more than the number — displayName is the string rendered
+    // beside every answer, take, reveal row and directory hit, and it is the
+    // one field on this document a person types freely. Its two neighbours
+    // with identical caps (the anchors below, and `v2_people.name`) both
+    // have negative cases; this one had none.
+    await assertFails(setDoc(mine, { displayName: "x".repeat(61) }, { merge: true }));
+    await assertFails(setDoc(mine, { displayName: 7 }, { merge: true }));
+    await assertSucceeds(setDoc(mine, { displayName: "x".repeat(60) }, { merge: true }));
   });
 
   // Push tokens are the reveal sender's fan-out list, and a token is a
@@ -893,6 +911,11 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(setDoc(doc(asUser(STRANGER), "v2_users", OWNER, "engagement", rollupDay()), rollup()));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "_state"), rollup()));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "2026-01-01"), rollup({ day: "2026-01-01" })));
+    // The forward half of the same window, untested here for the same
+    // reason as on the shard above.
+    const ahead = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "engagement", ahead), rollup({ day: ahead })));
     // …and not a doc that DISAGREES with its own id, which the line above
     // does not test: it moves the id and the field together, so the window
     // bound refuses it and `day == docId` is never asked. The fold reads
@@ -958,6 +981,12 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     // a uid on the question channel is the two-channel rule's exact breach
     await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-3"), shard({ uid: OWNER })));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-4"), shard({ day: "2026-01-01" })));
+    // Both directions. The duel idiom this block copied has a test named
+    // "no pre-sealing the future, no deep backfill"; the copy took the
+    // clause and half the test, so `day < request.time + 2d` could be
+    // widened to 2000 days with the suite green.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-4f"),
+      shard({ day: new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10) })));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-5"), shard({ s: { opens: 1, notAKey: 1 } })));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-6"), shard({ sampled: false })));
   });
