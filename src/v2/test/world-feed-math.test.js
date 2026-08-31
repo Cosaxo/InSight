@@ -27,6 +27,7 @@ import { describe, expect, it } from "vitest";
 import {
   wfCatArt, wfFmt, wfHash, wfKnowBias, wfKnowRate, wfPcts, wfPickGroup,
   wfRateAvg, wfRateBg, wfTileArt, wfTint,
+  wfVotesOf,
 } from "../spec/world-feed-math.js";
 import { pctFor } from "../data/cohort";
 
@@ -323,5 +324,37 @@ describe("the texture helpers", () => {
   it("wfRateBg strengthens with the score", () => {
     const pct = (css) => Number(/\s([\d.]+)%/.exec(css)[1]);
     expect(pct(wfRateBg("red", 1))).toBeLessThan(pct(wfRateBg("red", 9)));
+  });
+});
+
+describe("wfVotesOf — one counter for every question shape", () => {
+  // The search overlay carried a FORK of this that knew `rank` and `rate`
+  // and then fell through to summing `q.options`. Continuum and catalogue
+  // questions carry no options, so dial, field and pick all scored 0 — in
+  // both of the overlay's orderings. These are the three that were zero.
+  it("counts the continuum and catalogue types off `n`", () => {
+    expect(wfVotesOf({ type: "dial", n: 5200 })).toBe(5200);
+    expect(wfVotesOf({ type: "field", n: 6800 })).toBe(6800);
+    expect(wfVotesOf({ type: "pick", n: 91 })).toBe(91);
+  });
+
+  it("falls back to the catalogue's own tally for a pick with no `n`", () => {
+    expect(wfVotesOf({ type: "pick" }, 44)).toBe(44);
+    // …and to zero where the caller has no table to consult, rather than
+    // to NaN or undefined.
+    expect(wfVotesOf({ type: "pick" })).toBe(0);
+  });
+
+  it("keeps the shapes that already worked", () => {
+    expect(wfVotesOf({ type: "rank", votes: 12 })).toBe(12);
+    expect(wfVotesOf({ type: "rate", n: 7 })).toBe(7);
+    expect(wfVotesOf({ type: "vote", options: [{ count: 10 }, { count: 20 }] })).toBe(30);
+    expect(wfVotesOf({ type: "vote" })).toBe(0);
+  });
+
+  it("treats an option row with no count as zero, not as NaN", () => {
+    // The fork omitted the `|| 0`, so one row missing `count` turned the
+    // whole total into NaN — which sorts unpredictably rather than low.
+    expect(wfVotesOf({ type: "vote", options: [{ count: 10 }, {}] })).toBe(10);
   });
 });

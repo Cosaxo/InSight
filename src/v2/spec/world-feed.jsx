@@ -91,6 +91,7 @@ import {
   wfCarried, wfCatArt, wfFeedMatch, wfFmt, wfHash, wfKnowBias, wfKnowRate,
   wfPcts, wfPickGroup, wfRateAvg, wfRateBg, wfRateInk, wfShadeText, wfStreamMix,
   wfTileArt, wfTint,
+  wfVotesOf,
 } from './world-feed-math.js';
 
 // world-feed.jsx — the question feed under the World daily. Answer today's
@@ -176,7 +177,7 @@ function wfLoadTakes() {
   try { const v = JSON.parse(localStorage.getItem(WF_TAKES_LS) || '{}'); return v && typeof v === 'object' ? v : {}; }
   catch (e) { return {}; }
 }
-function wfVotes(q) { return q.type === 'rank' ? (q.votes || 0) : q.type === 'rate' || q.type === 'dial' || q.type === 'field' ? (q.n || 0) : q.type === 'pick' ? (q.n || ((WF_CATALOGS[q.catalog] || {}).picks || 0)) : q.options ? q.options.reduce((a, o) => a + o.count, 0) : 0; }
+function wfVotes(q) { return wfVotesOf(q, (WF_CATALOGS[q.catalog] || {}).picks || 0); }
 
 
 
