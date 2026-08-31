@@ -24,6 +24,7 @@ import { getAuth } from "firebase-admin/auth";
 import { getStorage } from "firebase-admin/storage";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { avatarTarget } from "./moderation";
+import { refundEurFor } from "./paid";
 import { presenceNeighbors } from "./pure";
 import { logger } from "firebase-functions";
 // ./ops also sets the global runtime options — and must be imported
@@ -958,6 +959,61 @@ export const deleteAccount = onCall(
         }
       }
       counts.paidQuestionBylines = stripped;
+
+      // A RUNNING campaign's row is the only pointer at the money it owes
+      // back, and this sweep is about to delete it.
+      //
+      // closePaidCampaignsV2 finds its work with
+      // `where("state","==","running")` on this same collection, and that
+      // query is the ONLY thing in the system that pays a refund. So a
+      // buyer who erases their account mid-window had the unserved part of
+      // their budget — up to capEur — written off in silence: no refund,
+      // no line anywhere, and the payment intent gone with the row.
+      //
+      // Recorded rather than refunded, deliberately. A Stripe call on the
+      // erasure path is a network round trip inside an operation that must
+      // finish: a hang or a 500 there would leave an account half-deleted,
+      // which is a worse failure than a debt an operator settles. This is
+      // the same posture the closer already takes when it meets a purchase
+      // with no payment path — same metric, same arithmetic, so the two
+      // land in one place.
+      //
+      // In its own try/catch because nothing here may block the sweep
+      // below: recording a debt is strictly better than the silence, and
+      // strictly worse than the erasure completing.
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        for (const d of bought.docs) {
+          if (String(d.get("state") ?? "") !== "running") continue;
+          if (String(d.get("kind") ?? "question") !== "question") continue;
+          const until = String((d.get("window") as { until?: string })?.until ?? "");
+          const budget = (d.get("budget") as {
+            cap: number; capEur: number; ratePerAnswer: number;
+          }) ?? { cap: 0, capEur: 0, ratePerAnswer: 0 };
+          const qid = String(d.get("qid") ?? "");
+          let answers = 0;
+          if (qid) {
+            const agg = await db.collection("v2_question_aggs").doc(qid).get();
+            const c = (agg.exists ? agg.get("counts") : null) as Record<string, number> | null;
+            if (c) answers = Object.values(c).reduce((a, b) => a + (b || 0), 0);
+          }
+          const refundEur = refundEurFor(
+            budget.cap, budget.capEur, budget.ratePerAnswer, answers,
+          );
+          if (refundEur <= 0) continue;
+          logger.warn(
+            `[deleteAccount] ${d.id} erased while running, owing €${refundEur} — settle off-app`,
+            {
+              metric: "paid_refund_offapp",
+              paymentIntent: String(d.get("stripePaymentIntent") ?? ""),
+              qid, answers, until, today,
+            },
+          );
+        }
+      } catch (err) {
+        logger.error("[deleteAccount] running-campaign debt not recorded:", err);
+      }
+
       counts.purchases = await deleteQueryDocs(
         db.collection("v2_purchases").where("uid", "==", uid),
       );
