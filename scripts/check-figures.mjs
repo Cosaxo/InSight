@@ -246,6 +246,7 @@ const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1);
 // in their own module so the gate's own arithmetic can be tested without
 // importing (and therefore RUNNING) the gate.
 import { word } from "./number-words.mjs";
+import { stripComments } from "./strip-comments.mjs";
 
 
 // How many test runners this repo has, off package.json — the figure
@@ -380,7 +381,11 @@ const SPEC_MIGRATION_DRIFT = 25;
 const monitoringRules = (() => {
   const src = read("scripts/check-monitoring.mjs");
   const head = src.slice(0, src.indexOf("import "));
-  return new Set([...head.matchAll(/^\/\/\s+(\d)\. /gm)].map((m) => m[1])).size;
+  // \d+ rather than \d: at a single digit the count silently stops at
+  // nine, so a tenth rule would leave the gate reporting NINE and passing
+  // a drifted heading straight through — the entry defending the drift it
+  // was added to catch.
+  return new Set([...head.matchAll(/^\/\/\s+(\d+)\. /gm)].map((m) => m[1])).size;
 })();
 
 // The modules that define Cloud Functions, counted off the tree. ops.ts's
@@ -389,9 +394,17 @@ const monitoringRules = (() => {
 // value spelled out in many places is a value some edit will miss.
 const fnModules = (() => {
   const dir = "functions/src";
-  return readdirSync(dir)
+  // join(root, …) like every other block here. A bare relative read is the
+  // one thing in this file that depends on the caller's cwd, and it dies
+  // with ENOENT when the gate is run from scripts/ rather than the root.
+  return readdirSync(join(root, dir))
     .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"))
-    .filter((f) => /\bonCall\(|\bonSchedule\(|\bonDocument/.test(read(`${dir}/${f}`)))
+    // Through stripComments, for the reason two other gates adopted it
+    // tonight: a commented-out `onCall(` would count as a definition.
+    // Today raw and stripped both give 15, so this is a latent miscount
+    // rather than a live one — which is exactly when it is cheap to close.
+    .filter((f) => /\bonCall\(|\bonSchedule\(|\bonDocument/
+      .test(stripComments(read(`${dir}/${f}`))))
     .length;
 })();
 
