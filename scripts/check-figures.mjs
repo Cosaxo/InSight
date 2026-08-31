@@ -246,6 +246,7 @@ const cap = (w) => w.charAt(0).toUpperCase() + w.slice(1);
 // in their own module so the gate's own arithmetic can be tested without
 // importing (and therefore RUNNING) the gate.
 import { word } from "./number-words.mjs";
+import { stripComments } from "./strip-comments.mjs";
 
 
 // How many test runners this repo has, off package.json — the figure
@@ -375,6 +376,38 @@ const convertedSpecModules = (() => {
 // that quotes it.
 const SPEC_MIGRATION_DRIFT = 25;
 
+// The monitoring gate's own rule list, counted off its numbered header —
+// the list a reader trusts before they trust the gate.
+const monitoringRules = (() => {
+  const src = read("scripts/check-monitoring.mjs");
+  const head = src.slice(0, src.indexOf("import "));
+  // \d+ rather than \d: at a single digit the count silently stops at
+  // nine, so a tenth rule would leave the gate reporting NINE and passing
+  // a drifted heading straight through — the entry defending the drift it
+  // was added to catch.
+  return new Set([...head.matchAll(/^\/\/\s+(\d+)\. /gm)].map((m) => m[1])).size;
+})();
+
+// The modules that define Cloud Functions, counted off the tree. ops.ts's
+// header prose said "nine" while there were fifteen — the hand-kept-figure
+// drift this script exists for, in the file whose whole subject is that a
+// value spelled out in many places is a value some edit will miss.
+const fnModules = (() => {
+  const dir = "functions/src";
+  // join(root, …) like every other block here. A bare relative read is the
+  // one thing in this file that depends on the caller's cwd, and it dies
+  // with ENOENT when the gate is run from scripts/ rather than the root.
+  return readdirSync(join(root, dir))
+    .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"))
+    // Through stripComments, for the reason two other gates adopted it
+    // tonight: a commented-out `onCall(` would count as a definition.
+    // Today raw and stripped both give 15, so this is a latent miscount
+    // rather than a live one — which is exactly when it is cheap to close.
+    .filter((f) => /\bonCall\(|\bonSchedule\(|\bonDocument/
+      .test(stripComments(read(`${dir}/${f}`))))
+    .length;
+})();
+
 // The instruments the app actually ships, counted off IS_TESTS' own keys.
 //
 // `passive-progress.js` opened with "progress for the five core tests"
@@ -451,6 +484,24 @@ const FIGURES = [
     re: /`public\/cities\.txt` \(([\d,]+) places/,
     actual: cityPlaces.toLocaleString("en-US"),
     fix: (n) => `"\`public/cities.txt\` (${n} places"`,
+  },
+  {
+    file: "scripts/check-monitoring.mjs",
+    what: "rules the monitoring gate's header enumerates",
+    re: /THE (\w+) RULES:/,
+    // Counted off the header's own numbered list, which is the thing that
+    // drifted: it said FOUR while enumerating eight, each of the last four
+    // added by a production failure the first four could not see.
+    actual: ["ZERO", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE"][monitoringRules]
+      ?? String(monitoringRules),
+    fix: (n) => `"THE ${n} RULES:"`,
+  },
+  {
+    file: "functions/src/ops.ts",
+    what: "modules that define functions and import the region constant",
+    re: /imported by all (\w+) modules that define functions/,
+    actual: word(fnModules),
+    fix: (n) => `"imported by all ${n} modules that define functions"`,
   },
   {
     file: "src/v2/spec/passive-progress.js",

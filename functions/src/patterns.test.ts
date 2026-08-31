@@ -49,7 +49,16 @@ function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
     // the real store hands the series back off the published doc — the
     // memory one hands back what the last putModel published
     async getModel() {
-      return state.model ? { ...state.model, series: state.quality?.series ?? [] } : null;
+      return state.model
+        ? {
+          ...state.model,
+          series: state.quality?.series ?? [],
+          // The whole previous publish, as the real store hands it back —
+          // a run that scores nothing carries it forward rather than
+          // replacing it with a row about nothing.
+          ...(state.quality ? { quality: state.quality } : {}),
+        }
+        : null;
     },
     async putModel(model, lastDay, folded, quality, displacement) {
       if (state.breakPutModelOnce) {
@@ -88,6 +97,7 @@ function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
 // two real eligible qids from the compiled bank, so the test moves with it
 const [CORE_A, CORE_B] = [...PATTERNS_QIDS];
 const yesterday = utcDay(NOW, -1);
+const twoBack = utcDay(NOW, -2);
 
 describe("the eligible set", () => {
   it("is two-option daily plus core feed, and nothing else", () => {
@@ -160,6 +170,37 @@ describe("idempotence and catch-up", () => {
     ).toBe(1);
     expect(again.folded).toBe(0);
     expect(again.users).toBe(0);
+  });
+
+  // …AND IT DOES NOT PUBLISH "NOBODY ANSWERED" ABOUT THAT DAY. The retry
+  // guard above skips everybody the dead run stamped, so the re-walk scores
+  // nothing — and a zero row in the series means exactly one thing, which
+  // that day is not: the day HAD answers, they were folded, and the run
+  // that folded them died before it could publish. The row would have sat
+  // 90 days in the standing prequential record, and the ledger day is
+  // consumed, so nothing could ever recompute it.
+  it("a crashed day is not republished as a day nobody answered", async () => {
+    const { store, state } = memoryStore({
+      [twoBack]: [{ uid: "u1", qid: CORE_A, optionIdx: 0 }, { uid: "u2", qid: CORE_A, optionIdx: 1 }],
+      [yesterday]: [{ uid: "u1", qid: CORE_B, optionIdx: 1 }, { uid: "u2", qid: CORE_B, optionIdx: 0 }],
+    });
+    state.breakPutModelOnce = true;
+    await expect(runPatternsFit(store, NOW)).rejects.toThrow("model write lost");
+    expect(state.quality, "nothing was published by the run that died").toBeNull();
+
+    await runPatternsFit(store, NOW);
+    const series = state.quality!.series;
+    const zeros = series.filter((r) => r.n === 0).map((r) => r.day);
+    // Only about the two days that HAD answers. The catch-up window's
+    // genuinely empty days keep their zero rows, which is the putModel
+    // zero-rather-than-nothing idiom saying something true.
+    expect(zeros, "a day that had answers was published as a day with none")
+      .not.toContain(twoBack);
+    expect(zeros).not.toContain(yesterday);
+    // …and the cursor still advanced, or the same days would be re-walked
+    // every night forever: every person is stamped, so no later run can
+    // ever score them.
+    expect(state.model!.lastDay).toBe(yesterday);
   });
 
   it("a vector written before the stamp existed folds once, not never", async () => {

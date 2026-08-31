@@ -282,7 +282,7 @@ export function MapTab({ rail = true, anchorsOn = true, recency = true, fields: 
     if (cue0.current && cue0.current.group) return cue0.current.group;
     // Learn's “See it” hands the map the group to land on
     const g = typeof window !== 'undefined' ? window.MAP_OPEN_GROUP : null;
-    if (g) { try { delete window.MAP_OPEN_GROUP; } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } return g; }
+    if (g) { try { delete window.MAP_OPEN_GROUP; } catch (e) { /* a non-configurable global throws on delete in strict mode; the value was already read into `g` above, so the cue is delivered either way. NOT storage — this comment said localStorage and nothing here touches it. */ } return g; }
     return null;
   });
 

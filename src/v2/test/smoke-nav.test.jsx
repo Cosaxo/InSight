@@ -247,9 +247,23 @@ describe("the surfaces that own their drag are excluded from the axis swipes", (
 // nothing and write nothing. If this fails, a demo build is collecting.
 describe("the anonymous tally is inert unarmed", () => {
   it("a full mount and a tab switch write no insight.engagement.v1", async () => {
+    // THE TAB SWITCH REALLY HAPPENS NOW. This called `awaitNode` with a
+    // FUNCTION where it wants a selector string and a label where it wants
+    // a retry count, so `document.querySelector(() => …)` threw on the
+    // first line, `.catch(() => null)` swallowed it, and the click was
+    // skipped — the case asserted inertness across a mount that never left
+    // the daily tab, and the dead retry loop (`0 < "mirror tab button"`)
+    // meant it never even waited. Neither of those selectors is how any
+    // other case in these suites finds that button, either.
     const expectNoBoundary = mountApp();
-    const mirror = await awaitNode(() => document.querySelector('[data-nav="mirror"], [data-tab-btn="mirror"]'), "mirror tab button").catch(() => null);
-    if (mirror) fireEvent.click(mirror);
+    fireEvent.click(screen.getByRole("button", { name: /^mirror$/i }));
+    // Asserted, so the switch cannot go quiet again: the whole point of
+    // this case is what the tally does when the shell's tab, stop and
+    // overlay effects have all run.
+    expect(
+      document.querySelector(".app")?.getAttribute("data-view"),
+      "the tab switch never happened, so this case proves nothing",
+    ).toMatch(/^mirror/);
     expect(localStorage.getItem("insight.engagement.v1")).toBeNull();
     expectNoBoundary();
   });

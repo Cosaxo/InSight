@@ -65,7 +65,7 @@ import React from "react";
 import LIVE from "../data/live";
 import { BUDGET_PAUSED_BODY } from "../data/budgetMode";
 import { VOTER_FETCH_CAP } from "../data/voters";
-import { bucketLabel } from "./cohortLabels";
+import { bucketLabel } from "../data/cohortLabels";
 import {
   COHORT_DIMS, DIM_LABEL, cellFor, divergenceFor, meanScore, mixFor, pctFor, byOf, vocabMix,
   type ByMap, type Bucket,

@@ -87,6 +87,27 @@ describe("doc-index and the working tree", () => {
       ["ci.yml", "node scripts/check-thing.mjs"],
       ["other.yml", "npm run check:thing"],
     ]))).toBe("ci");
+
+    // A COMMENT IS NOT AN INVOCATION, and this is the half that made the
+    // classifier defend the error rather than catch it. These workflows
+    // explain themselves in prose, so the gates most likely to be NAMED in
+    // a comment are exactly the ones whose placement matters — and the
+    // match ran over the raw file. Measured on the real tree: delete the
+    // `npm run check:web-firebase` line from both workflows that carry it,
+    // leave the header comment naming it, and check:docs stays green while
+    // the gate that refuses an iOS archive built against the demo config
+    // runs nowhere at all.
+    expect(gatePlacement("check:thing", cmd, new Map([
+      ["some-release.yml", "  # what check:thing does: npm run check:thing\n  run: echo hello\n"],
+    ])), "a comment naming the gate counted as running it").toBe("manual");
+    expect(gatePlacement("check:thing", cmd, new Map([
+      ["some-release.yml", "  # see node scripts/check-thing.mjs\n  run: echo hello\n"],
+    ])), "a comment naming the script path counted as running it").toBe("manual");
+    // …and a `#` INSIDE a run line is a shell comment: the command before
+    // it is real, so only whole comment lines are dropped.
+    expect(gatePlacement("check:thing", cmd, new Map([
+      ["ci.yml", "  run: |\n    npm run check:thing  # the one that matters\n"],
+    ]))).toBe("ci");
   });
 
   it("and the real store-copy gate is still invoked, by path, on the release path", () => {

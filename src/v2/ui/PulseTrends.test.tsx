@@ -55,7 +55,9 @@ function blank(): void {
     today: i === DAYS - 1, weekStart: i % 7 === 0, v: null, scheduled: true,
   }));
   h.series = Array.from({ length: DAYS }, (_, i) => ({
-    i, mean: null, n: 0, placed: false, thin: false,
+    // `scheduled` since 2026-08-31: an unscheduled day comes back as n: 0
+    // like a silent one, and the panel has to tell them apart.
+    i, mean: null, n: 0, placed: false, thin: false, scheduled: true,
   }));
 }
 
@@ -147,6 +149,38 @@ describe("PulseTrends · a day nobody asked about is not a day you skipped", () 
       // days 2 and 3 scheduled, unanswered, not today
       await mount();
       expect(document.body.textContent).toMatch(/didn’t answer on \d+ days?/);
+    })();
+  });
+});
+
+describe("PulseTrends · a day nobody was asked is not a day the crowd was silent", () => {
+  it("counts only scheduled days as days with no answers", () => {
+    // The crowd's half of D203's fourth rule. An unscheduled day is
+    // returned as n: 0 — the store does not place the crowd on a day this
+    // reading has no row for — and the panel read those as absence: on a
+    // weekly cadence it said "18 days with no answers in Oslo" about days
+    // nobody was asked anything.
+    return (async () => {
+      for (let i = 0; i < DAYS; i++) setScope(i, { scheduled: false });
+      setScope(0, { scheduled: true, n: 12, mean: 3.2, placed: true });
+      setScope(7, { scheduled: true, n: 0 });
+      await mount();
+      // One scheduled day really had nothing; the eighteen unscheduled
+      // ones are not the crowd's silence.
+      expect(document.body.textContent, "unasked days were reported as the crowd's silence")
+        .toMatch(/1 day with no answers/);
+      expect(document.body.textContent).not.toMatch(/1[0-9] days with no answers/);
+    })();
+  });
+
+  it("counts the denominator in days it asked about", () => {
+    return (async () => {
+      for (let i = 0; i < DAYS; i++) setScope(i, { scheduled: false });
+      setScope(0, { scheduled: true, n: 12, mean: 3.2, placed: true });
+      setScope(7, { scheduled: true, n: 9, mean: 3.0, placed: true });
+      await mount();
+      expect(document.body.textContent, "the footer counted days nobody was asked")
+        .toMatch(/across 2 of 2 days/);
     })();
   });
 });

@@ -395,6 +395,12 @@ describe("refundEurFor — the closer's arithmetic", () => {
     expect(refundEurFor(2222, 320, 0.144, 2222)).toBe(0);
     expect(refundEurFor(2222, 320, 0.144, 5000)).toBe(0);
     expect(refundEurFor(2222, 320, 0.144, 0)).toBeLessThanOrEqual(320);
+    // The clamp, actually reached. The line above satisfies itself: 2222 ×
+    // 0.144 = 319.97, already under the cap, so `Math.min(capEur, …)` could
+    // be deleted with the whole suite green — under the name "never more
+    // than was paid". These two put the raw product ABOVE the cap.
+    expect(refundEurFor(2222, 300, 0.144, 0)).toBe(300);
+    expect(refundEurFor(2222, 300, 0.144, 1000)).toBe(175.97); // unclamped, unchanged
   });
   it("treats a negative answer count as zero rather than inventing money", () => {
     expect(refundEurFor(100, 16, 0.16, -5)).toBe(16);

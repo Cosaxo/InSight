@@ -12,7 +12,7 @@ export const WF_REPORT = (function () {
   let S = {};
   try { S = JSON.parse(localStorage.getItem(LS) || '{}') || {}; } catch (e) { S = {}; }
   const listeners = new Set();
-  const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } listeners.forEach((f) => { try { f(); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } }); };
+  const save = () => { try { localStorage.setItem(LS, JSON.stringify(S)); } catch (e) { /* localStorage can throw: private mode, quota, disabled storage. Best-effort — in-memory state stays correct. */ } listeners.forEach((f) => { try { f(); } catch (e) { /* a subscriber that throws must not stop the others — one broken listener would silence the store for every screen watching it. NOT storage: the comment here said localStorage for years, pasted from the save() above. */ } }); };
   // The purge (data/live.ts, D51): drop the report history too, or the next
   // report()'s save writes the previous account's back under the new uid.
   window.addEventListener('insight:local-purge', () => { S = {}; listeners.forEach((f) => { try { f(); } catch (e) { /* best-effort */ } }); });

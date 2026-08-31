@@ -9,11 +9,18 @@
 // Its own module for the mechanical reason lensDefs.ts records: eslint's
 // react-refresh rule wants a component file to export only components, and
 // it is right that a function shared between two of them does not belong
-// in one. The practical reason is better — before D125 there were two
+// in one.
+//
+// It lives under `data/` since 2026-08-31, and that move is the same
+// lesson a third time. It sat in `ui/` while the module it wraps
+// (`data/places`) sat here, so the one surface below `ui/` that needed it
+// — the pulse's own scope labels — could not import it without inverting
+// the layering, and printed the raw keys instead: "NO" for a country,
+// "Oslo, NO" for a city, at the reader. The practical reason is better — before D125 there were two
 // conversions (world-feed's `wfBucketLabel`, off `window.PLACES`) and one
 // omission (the Mirror's lenses, which printed "NO" at people), which is
 // exactly the drift a shared list exists to stop.
-import PLACES from "../data/places";
+import PLACES from "./places";
 
 export function bucketLabel(dim: string, bucket: string): string {
   if (dim === "country") return PLACES.countryName(bucket) || bucket;
