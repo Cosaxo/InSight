@@ -510,6 +510,7 @@ clearing engine — not before.
 | Core grows faster than the population | The ratio gate (§6 item 6) | Until it exists, the Mirror can thin without anyone noticing |
 | Sponsored content reaches the Mirror's corpus | Tail-only placement, same flag as §1 | An operator who flags a sponsored question core |
 | Cost surprise | The model takes production rate as an input; re-run it, do not reason about it | Three behaviour inputs are still guesses (`COSTS.md` says which) |
+| A capped read truncates by NAME, not by recency | `fetchAnswersOf` (`src/v2/data/circle.ts`) caps at 300 answers per followed account with no `orderBy`, and an unordered `limit` takes documents by question id — so past the cap a circle member's likeness is computed from the alphabetically-first slice of what they answered, and it still draws | Cannot bind at ~130 core questions; ordering it needs a composite index on (`surface` ASC, `answeredAt` DESC) over the `answers` collection, so the index goes in with the pagination work rather than before it |
 
 ## 8 · What I would do
 

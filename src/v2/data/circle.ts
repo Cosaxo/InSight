@@ -66,7 +66,29 @@ import { WORLD_ANSWER_SURFACES } from "./voters";
  */
 export const FOLLOW_CAP = 50;
 
-/** Answers to read per followed account. */
+/**
+ * Answers to read per followed account.
+ *
+ * WHICH answers, when it binds: the query below carries no `orderBy`, and
+ * an unordered `limit` in Firestore takes documents by NAME — here the
+ * question id. So past this cap a member's likeness would be computed
+ * from the alphabetically-first 300 questions they have answered, and the
+ * bias would be invisible: the reading still draws, it is just about a
+ * slice nobody chose. That is the same shape as the follow cap's own bug,
+ * fixed four nights ago after it silently kept the alphabetically-first
+ * fifty people in a circle.
+ *
+ * It cannot bind today — the core bank is ~130 questions against a cap of
+ * 300 — and the fix is NOT free, which is why this is recorded rather
+ * than built (D7): ordering by `answeredAt` needs a composite index on
+ * (surface ASC, answeredAt DESC) scoped to the `answers` COLLECTION, and
+ * this repo pays index entries on every answer ever written. The night
+ * that removed a reader-less index said so in its own message.
+ *
+ * So: when SCALE-PLAN's unbounded feed lands, this is one of the reads
+ * that has to be ordered before it is capped, and the index goes in with
+ * it.
+ */
 export const CIRCLE_ANSWER_CAP = 300;
 
 export interface Member {
