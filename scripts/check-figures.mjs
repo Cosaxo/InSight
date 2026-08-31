@@ -383,6 +383,18 @@ const monitoringRules = (() => {
   return new Set([...head.matchAll(/^\/\/\s+(\d)\. /gm)].map((m) => m[1])).size;
 })();
 
+// The modules that define Cloud Functions, counted off the tree. ops.ts's
+// header prose said "nine" while there were fifteen — the hand-kept-figure
+// drift this script exists for, in the file whose whole subject is that a
+// value spelled out in many places is a value some edit will miss.
+const fnModules = (() => {
+  const dir = "functions/src";
+  return readdirSync(dir)
+    .filter((f) => f.endsWith(".ts") && !f.endsWith(".test.ts"))
+    .filter((f) => /\bonCall\(|\bonSchedule\(|\bonDocument/.test(read(`${dir}/${f}`)))
+    .length;
+})();
+
 // The instruments the app actually ships, counted off IS_TESTS' own keys.
 //
 // `passive-progress.js` opened with "progress for the five core tests"
@@ -470,6 +482,13 @@ const FIGURES = [
     actual: ["ZERO", "ONE", "TWO", "THREE", "FOUR", "FIVE", "SIX", "SEVEN", "EIGHT", "NINE"][monitoringRules]
       ?? String(monitoringRules),
     fix: (n) => `"THE ${n} RULES:"`,
+  },
+  {
+    file: "functions/src/ops.ts",
+    what: "modules that define functions and import the region constant",
+    re: /imported by all (\w+) modules that define functions/,
+    actual: word(fnModules),
+    fix: (n) => `"imported by all ${n} modules that define functions"`,
   },
   {
     file: "src/v2/spec/passive-progress.js",

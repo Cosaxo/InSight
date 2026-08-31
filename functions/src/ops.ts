@@ -111,7 +111,7 @@ export const ENFORCE_APP_CHECK =
 /**
  * WHERE EVERY FUNCTION RUNS (D201).
  *
- * One constant, imported by all nine modules that define functions, for the
+ * One constant, imported by all fifteen modules that define functions, for the
  * reason `db.ts` is one accessor rather than 37 literal edits: this value
  * was spelled out in ten places on this side and eight on the client's, and
  * a move that reaches some of them is worse than one that reaches none —
@@ -166,7 +166,7 @@ setGlobalOptions({
 // NOTE: the emulator ignores all of this (see the note above), so CI proves
 // only that the values are set, never that they are right. The check after a
 // deploy is:
-//   gcloud functions describe <name> --gen2 --region us-central1 \
+//   gcloud functions describe <name> --gen2 --region europe-west1 \
 //     --format="value(serviceConfig.availableMemory,serviceConfig.timeoutSeconds)"
 
 // Bounded work, sub-second in practice: a couple of indexed queries and one
