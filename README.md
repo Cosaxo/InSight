@@ -18,7 +18,7 @@ conventions you have to know before the first edit.
 ## Answering — three ways in, all blind until you've played
 
 - **The daily.** One blind vote a day, *then* how the world split, with
-  exact counts — plus a finite question feed underneath to
+  exact counts — plus a question feed underneath to
   snack on.
 - **Duels.** Groups and 1v1s with your real people: one question a day,
   everyone's answers **sealed until tomorrow**, then revealed with names.
