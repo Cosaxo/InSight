@@ -759,14 +759,18 @@ async function revealGroupDay(
 
   // ONE FIELD, and the fieldMask is load-bearing rather than tidy. A
   // profile is client-writable and firestore.rules bounds only some of it:
-  // displayName and the anchors are capped, `testResults` only by KEY
-  // COUNT (8), and `anon`/`createdAt`/`updatedAt` not at all. So a member
+  // displayName and the anchors are capped, the consent record is keyed
+  // and typed, `testResults` is bounded only by KEY COUNT (8), and
+  // `createdAt`/`updatedAt` not at all — no cap, not even a type. So a member
   // can legitimately hold a document approaching Firestore's 1 MiB, and
   // LANES = 5 × GROUP_CAP = 32 puts up to 160 of them in flight on the
   // 512 MiB instance. The mask bounds the exposure regardless of what any
   // rule permits, which is why it is fixed here rather than by capping
-  // testResults: `anon` is equally unbounded and the next field added
-  // would be too. Reading past the gate narrows the same window further —
+  // testResults: `createdAt` is equally unbounded and the next field
+  // added would be too. (This named `anon` until 2026-08-31 — a key D331
+  // took off the allowlist, so the example had no writer at all. The
+  // argument held; its illustration named a ghost, which is the way an
+  // argument stops being checkable.) Reading past the gate narrows the same window further —
   // only days that actually reveal put profiles in flight at all.
   const profileSnaps = await db.getAll(
     ...members.map((uid) => db.doc(`v2_users/${uid}`)),
