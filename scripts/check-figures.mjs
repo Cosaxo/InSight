@@ -618,6 +618,16 @@ const FIGURES = [
     fix: (n) => `"a notification channel, ${n} log-based metrics"`,
   },
   {
+    file: "functions/src/engagement.ts",
+    what: "the bank the day-document's qid fence is sized against",
+    re: /The bank is\n \* (\d+) questions today/,
+    // The whole point of the sentence is the HEADROOM — "the bank can
+    // double before this truncates anything real" — so the number it is
+    // measured against has to be the live one. It said 710 against 722.
+    actual: String(seededQuestions),
+    fix: (n) => `"The bank is\n * ${n} questions today"`,
+  },
+  {
     file: "src/v2/data/patternsReady.ts",
     what: "the Patterns fit's eligible corpus",
     re: /the eligible corpus is (\d+) questions today/,
