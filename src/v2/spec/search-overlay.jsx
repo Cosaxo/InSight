@@ -15,7 +15,7 @@ import { SUBTOPICS } from './world-subtopics.js';
 // D223), so neither reaches the first frame — world-catalogs is already
 // pulled in by loadWorldFeed for the same reason.
 import { WF_CATALOGS } from './world-catalogs.js';
-import { wfVotesOf } from './world-feed-math.js';
+import { wfAnsweredOf, wfVotesOf } from './world-feed-math.js';
 import { WPAL } from './world-palette.js';
 import { FRIENDS } from './follows.js';
 import { DAILYQ } from './daily-questions.js';
@@ -67,9 +67,12 @@ function srchQScore(q, query, topicLabel) {
 function srchQVotes(q) {
   return wfVotesOf(q, (WF_CATALOGS[q.catalog] || {}).picks || 0);
 }
+// The feed's own predicate, not a fork of it. This was the feed's TAIL
+// with the live branch cut off, so an answer that exists only on the
+// server — another device, or a page fetched after boot — read as
+// unanswered in both orderings below and on the row itself.
 function srchAnswered(q, votes) {
-  const v = votes[q.id];
-  return q.type === 'rank' ? !!(v && v.order) : v != null;
+  return wfAnsweredOf(q, votes, LIVE.myVotes ? () => LIVE.myVotes() : null);
 }
 // what you said, in the fewest words that still mean something
 function srchMyPick(q, votes) {

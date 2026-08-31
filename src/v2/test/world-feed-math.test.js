@@ -28,6 +28,7 @@ import {
   wfCatArt, wfFmt, wfHash, wfKnowBias, wfKnowRate, wfPcts, wfPickGroup,
   wfRateAvg, wfRateBg, wfTileArt, wfTint,
   wfVotesOf,
+  wfAnsweredOf,
 } from "../spec/world-feed-math.js";
 import { pctFor } from "../data/cohort";
 
@@ -356,5 +357,50 @@ describe("wfVotesOf — one counter for every question shape", () => {
     // The fork omitted the `|| 0`, so one row missing `count` turned the
     // whole total into NaN — which sorts unpredictably rather than low.
     expect(wfVotesOf({ type: "vote", options: [{ count: 10 }, {}] })).toBe(10);
+  });
+});
+
+describe("wfAnsweredOf — an answer that exists only on the server", () => {
+  // The search overlay carried the feed's TAIL with the live branch cut
+  // off, so a continuum or catalogue answer given on another device — or
+  // on a page fetched after boot, which the local mirror never sees — read
+  // as UNANSWERED. It then went into the "five open questions"
+  // round-robin, sorted as unanswered in the result tiebreak, and its row
+  // offered the question again instead of the share meter.
+  const server = () => ({ d1: 2 });
+
+  it("counts a continuum answer held only server-side", () => {
+    for (const type of ["dial", "field", "pick", "rank"]) {
+      expect(wfAnsweredOf({ id: "d1", type, live: true }, {}, server),
+        `${type} answered only on the server read as unanswered`).toBe(true);
+    }
+  });
+
+  it("does not consult the server for an ordinary vote question", () => {
+    // The branch is deliberately narrow: a vote question's local value is
+    // the whole truth, and asking the store for one would be a read the
+    // feed never made.
+    let asked = 0;
+    const spy = () => { asked++; return { v1: 1 }; };
+    expect(wfAnsweredOf({ id: "v1", type: "vote", live: true }, {}, spy)).toBe(false);
+    expect(asked, "the server was consulted for a vote question").toBe(0);
+  });
+
+  it("prefers the local value when there is one", () => {
+    let asked = 0;
+    const spy = () => { asked++; return {}; };
+    expect(wfAnsweredOf({ id: "d1", type: "dial", live: true }, { d1: 3 }, spy)).toBe(true);
+    expect(asked, "the server was consulted over a local answer").toBe(0);
+  });
+
+  it("asks nobody on a demo card, or with no server read to make", () => {
+    expect(wfAnsweredOf({ id: "d1", type: "dial" }, {}, server)).toBe(false);
+    expect(wfAnsweredOf({ id: "d1", type: "dial", live: true }, {}, null)).toBe(false);
+  });
+
+  it("keeps rank's own shape: an order, not merely a value", () => {
+    expect(wfAnsweredOf({ id: "r1", type: "rank" }, { r1: { order: [1, 0] } }, null)).toBe(true);
+    expect(wfAnsweredOf({ id: "r1", type: "rank" }, { r1: {} }, null)).toBe(false);
+    expect(wfAnsweredOf({ id: "q1", type: "vote" }, { q1: "0" }, null)).toBe(true);
   });
 });

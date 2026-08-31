@@ -123,6 +123,32 @@ export function wfCarried(q) { return [q.cat, ...(q.also || [])]; }
  * it, so one option row without a `count` turned the whole total into NaN,
  * which sorts unpredictably rather than low.
  */
+/**
+ * Has this person answered the question, counting an answer that exists
+ * only on the server?
+ *
+ * ONE COPY, for the reason `wfVotesOf` below is one: the search overlay
+ * kept a fork of this that was the feed's TAIL with the live branch cut
+ * off. A continuum or catalogue answer given on another device — or on a
+ * page fetched after boot — has no local raw value, so search read it as
+ * unanswered: it went into the "five open questions" round-robin, sorted
+ * as unanswered in the result tiebreak, and its row offered the question
+ * again instead of showing the share meter.
+ *
+ * `getServer` is a THUNK rather than a map, so the caller's server-side
+ * read only happens on the branch that needs it — which is what the
+ * feed's own version did by having the call inside the `if`.
+ */
+export function wfAnsweredOf(q, votes, getServer) {
+  const v = votes[q.id];
+  if ((q.type === 'dial' || q.type === 'field' || q.type === 'pick' || q.type === 'rank')
+      && v == null && q.live && getServer) {
+    const server = getServer();
+    return !!server && server[q.id] != null;
+  }
+  return q.type === 'rank' ? !!(v && v.order) : v != null;
+}
+
 export function wfVotesOf(q, catalogPicks = 0) {
   if (q.type === 'rank') return q.votes || 0;
   if (q.type === 'rate' || q.type === 'dial' || q.type === 'field') return q.n || 0;

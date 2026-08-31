@@ -92,6 +92,7 @@ import {
   wfPcts, wfPickGroup, wfRateAvg, wfRateBg, wfRateInk, wfShadeText, wfStreamMix,
   wfTileArt, wfTint,
   wfVotesOf,
+  wfAnsweredOf,
 } from './world-feed-math.js';
 
 // world-feed.jsx — the question feed under the World daily. Answer today's
@@ -2245,14 +2246,11 @@ class WorldFeed extends React.Component {
   // and rank question takes that branch, because the server-side answer has
   // no local raw value.
   answered(q, mine) {
-    const v = this.state.votes[q.id];
     // a live continuum answer may exist only server-side (fresh device, no
     // local raw value) — the bucket in myVotes is still an answer, and the
     // card must show its reveal rather than offer the question again
-    if ((q.type === 'dial' || q.type === 'field' || q.type === 'pick' || q.type === 'rank') && v == null && q.live && LIVE.myVotes) {
-      return (mine || LIVE.myVotes())[q.id] != null;
-    }
-    return q.type === 'rank' ? !!(v && v.order) : v != null;
+    return wfAnsweredOf(q, this.state.votes,
+      LIVE.myVotes ? () => mine || LIVE.myVotes() : null);
   }
 
   // The feed's source pool, read in one place by the two callers that need
