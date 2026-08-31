@@ -1223,8 +1223,12 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     // screen that is still animating and proves nothing. Found by
     // mutation: ungating `!S.live` did NOT fail this case until the beat
     // was dismissed here.
-    const beat = [...document.querySelectorAll("button")].find((b) => /chose /.test(b.textContent || ""));
-    if (beat) fireEvent.click(beat);
+    // settleBeat, not `if (beat)`. The harness's own note says why: a
+    // conditional click degrades to a no-op the day the beat stops
+    // mounting, and the assertions below then run against a screen that is
+    // still animating — which is what this click exists to prevent, so the
+    // case would pass while proving nothing.
+    settleBeat();
     await act(async () => { for (let i = 0; i < 40; i++) await Promise.resolve(); });
     // The DEMO row is what must stay gated. Its two markers: seeded
     // Comments, and the hash-built sheet's cut chips. "Who voted what" is
@@ -1257,8 +1261,12 @@ describe("the live gates hold in the DOM, not just in the source", () => {
     const myLabel = opts[0].textContent.trim();
     fireEvent.click(opts[0]);
     await act(async () => { for (let i = 0; i < 30; i++) await Promise.resolve(); });
-    const beat = [...document.querySelectorAll("button")].find((b) => /chose /.test(b.textContent || ""));
-    if (beat) fireEvent.click(beat);
+    // settleBeat, not `if (beat)`. The harness's own note says why: a
+    // conditional click degrades to a no-op the day the beat stops
+    // mounting, and the assertions below then run against a screen that is
+    // still animating — which is what this click exists to prevent, so the
+    // case would pass while proving nothing.
+    settleBeat();
     await act(async () => { for (let i = 0; i < 40; i++) await Promise.resolve(); });
 
     const who = screen.getByRole("button", { name: "Who voted what" });
