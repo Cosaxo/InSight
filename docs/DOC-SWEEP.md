@@ -392,13 +392,30 @@ So the next reader assumes no more than it checks:
 - Two documents a run is a slow cycle over a corpus this size. The rotation
   is the floor, not the coverage claim.
 
-**Open: the lane has no proven write path.** The 2026-08-31 run could
-provision and push a branch, but every GitHub write — creating the run log
-issue, commenting on it, opening a PR — was refused by the harness
-permission classifier before any request left the container. The reads
-worked. `.claude/settings.json` already allowlists the `mcp__github__*`
-issue and PR writes this lane needs, so the gap is that no GitHub MCP
-server is connected to the dispatcher's environment, not that the
-permission is missing from the repo. Until that is closed, every run can
-do the work and cannot report it — which, for a lane whose only product is
-a report, means it cannot do the work. This is the first thing to fix.
+**Open: the write path works under instruction and did not work
+unattended.** This was measured in both directions on 2026-08-31, which is
+the only reason it can be stated this precisely.
+
+During the unattended run, every GitHub **write** was refused by the
+harness permission classifier before a request left the container —
+creating the run log issue and commenting on it — while authenticated
+**reads** succeeded and `git push` of a branch succeeded. Later the same
+day, with the owner instructing the work directly in the dispatcher
+session, the identical `curl` calls succeeded: this file's PR and run log
+issue #336 were both created that way.
+
+So the boundary is not the token, not `.claude/settings.json`, and not
+GitHub. It is the classifier's judgement of a write issued with nobody
+watching — which is the one condition every scheduled run meets by
+definition. A lane whose only product is a report cannot do its work
+without it.
+
+The repo has already provisioned the intended path and it is unused:
+`.claude/settings.json` allowlists the `mcp__github__*` issue and PR
+writes, but no GitHub MCP server is connected to the dispatcher's
+environment, so those tools do not exist in a run. Connecting one is worth
+trying first, because it is a different mechanism from a classified Bash
+call rather than the same request in another coat — but until a scheduled
+run has actually reported through it, this stays open, and the
+`DOC-SWEEP-DIAG.md` fallback in §8 is what keeps a blocked run from being
+a silent one.
