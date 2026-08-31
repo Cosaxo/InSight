@@ -689,8 +689,8 @@ not per boot. `LIVE.stats` reports `bankSource` / `answersFetched` /
   deterministic daily rotation (`dayIndex % bankSize`, local midnight),
   aggregate snapshots per deck question, optimistic votes with rollback,
   mock fallback on timeout. The daily tab reads `LIVE.deck()` when live.
-  Live cards show takes — named inside a circle, anonymous at world
-  scale (D83) — and DO show who-voted, by name, from the collection-group
+  Live cards show takes — named at both scales since D98, which is the
+  same reversal the rest of this bullet describes — and DO show who-voted, by name, from the collection-group
   read D98 opened (`data/voters.ts`, `ui/LiveBreakdownPanel.tsx`'s
   Friends cut and `ui/LiveTakesPanel.tsx`'s side badges, capped at
   `VOTER_FETCH_CAP`). The per-anchor breakdown beside it is exact per

@@ -60,9 +60,9 @@ thread has to belong to one question.
 **World takes (D83, adopting D78 part 2) mount behind a post-vote
 toggle** on live world cards and the live daily — after your own blind
 vote, never before, because reading the discourse before answering is
-the same leak at world scale. They are anonymous (no author names
-rendered; the sentinel gid "world", one take per person per question via
-the `qid_uid` doc id), flaggable by any signed-in user, and carry the
+the same leak at world scale. They carry the sentinel gid "world", one take
+per person per question via the `qid_uid` doc id, and they are NAMED —
+the anonymity this sentence claimed went with D98, flaggable by any signed-in user, and carry the
 local mute control (`data/mutes.ts`) guideline 1.2 expects of a
 world-scale UGC surface.
 
