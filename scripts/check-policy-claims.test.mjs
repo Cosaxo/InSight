@@ -13,6 +13,19 @@ import { CLAIMS, missingClaims, readPage } from "./check-policy-claims.mjs";
 
 const page = readPage();
 
+// An absence claim ("the retired wording is gone") cannot be tested by
+// cutting text out — there is no text to cut. Each one is paired here with
+// the wording it forbids, which the test puts BACK to prove the row fires.
+// This map used to be a single hard-coded "kilometre-sized" string, which
+// meant the second absence row added to the gate passed its own test by
+// reviving the FIRST row's wording — a new row that could not fail, in the
+// suite whose whole subject is gates that cannot fail.
+const RETIRED_WORDING = new Map([
+  ["D175 · the retired kilometre claim is gone", "kilometre-sized"],
+  ["D98 · the retired circle-scoped reveal audience is gone", "then the members of that group"],
+  ["D98 · group takes are world-readable too, not circle-scoped", "Your group takes: that group"],
+]);
+
 describe("check-policy-claims", () => {
   it("passes on the page in the tree", () => {
     expect(missingClaims(page)).toEqual([]);
@@ -36,8 +49,13 @@ describe("check-policy-claims", () => {
       // Two shapes of claim: a regex whose match is the sentence (cut the
       // match), and a predicate asserting an ABSENCE (put the retired
       // wording back). Both have to fail closed.
+      const revived = RETIRED_WORDING.get(label);
+      if (typeof test === "function") {
+        expect(revived, `absence claim "${label}" has no entry in RETIRED_WORDING`)
+          .toBeTypeOf("string");
+      }
       const broken = typeof test === "function"
-        ? page + "\n<p>kilometre-sized</p>\n"
+        ? page + `\n<p>${revived}</p>\n`
         : page.replace(test, "");
       expect(broken, `deleting "${label}" changed nothing — the pattern matches no text`)
         .not.toBe(page);

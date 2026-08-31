@@ -96,6 +96,21 @@ export const CLAIMS = [
     /record of the contract[\s\S]{0,200}?only you can read it[\s\S]{0,200}?no private cut/i],
   ["D5 · duel picks stay sealed until the next day's reveal",
     /sealed[\s\S]{0,200}?until the day after/i],
+  // The row above pins the SEAL and says nothing about who reads the
+  // reveal once it opens, which is how the page went on promising "the
+  // people in that group" for a year after D98 removed the membership
+  // arm from `match /reveals/{day}` (it is `request.auth != null`, and
+  // rules.test.ts asserts a stranger, a late joiner and someone who left
+  // all read a day). Two rows, because the page states the audience
+  // twice and a half-corrected promise is the same failure.
+  ["D98 · a revealed duel day is readable by anyone holding the circle's id",
+    /anyone signed in who has that circle&rsquo;s id can see them/i],
+  ["D98 · the audience summary says the same thing",
+    /reveal, then anyone signed in who has that circle&rsquo;s id/i],
+  ["D98 · the retired circle-scoped reveal audience is gone",
+    (src) => !/(picks to the people in that group|then the members of that group)/i.test(src)],
+  ["D98 · group takes are world-readable too, not circle-scoped",
+    (src) => !/group takes: that group/i.test(src)],
   ["D9 · coordinates are never transmitted or stored",
     /coordinates are not sent to us, not stored/i],
   ["D175 · the presence square's SIZE tracks the grid (~200 m, not km)",
