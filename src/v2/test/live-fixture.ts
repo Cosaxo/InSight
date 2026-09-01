@@ -318,6 +318,8 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     myDuelVote: () => null,
     revealFor: () => null,
     revealHistory: () => [],
+    // Settled: a mount test is about the drawn frame, not the cold one.
+    revealHistoryLoading: () => false,
     loadRevealHistory: async () => {},
     createGroup: async () => ({ gid: "g_test", inviteCode: "ABCD2345" }),
     requestJoin: async () => ({ gid: "g_test", name: "Test", status: "requested" as const }),

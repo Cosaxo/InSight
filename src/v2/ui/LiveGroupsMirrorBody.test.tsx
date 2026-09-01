@@ -31,6 +31,10 @@ const LIVE = vi.hoisted(() => {
   const social = {
     groups: (mode?: string) => { void mode; return [] as Array<Record<string, unknown>>; },
     revealHistory: () => [] as Array<Record<string, unknown>>,
+    /** Settled by default — every case below is about a history that HAS
+     *  been read. The reading arm has its own two cases. */
+    reading: false,
+    revealHistoryLoading(this: { reading: boolean }) { return this.reading; },
     loadRevealHistory: async () => {},
     bankQ: () => null as Record<string, unknown> | null,
   };
@@ -78,6 +82,7 @@ beforeEach(() => {
   LIVE.uid = "u_me";
   LIVE.social.groups = () => [GROUP];
   LIVE.social.revealHistory = () => [];
+  LIVE.social.reading = false;
   LIVE.social.bankQ = () => ({ prompt: "Who moves first?", options: ["Left", "Right"] });
   LIVE.myTestResults = () => ({});
   LIVE.scoresFor = () => null;
@@ -112,6 +117,25 @@ describe("LiveGroupsMirrorBody · thin history makes no claims about people", ()
 });
 
 describe("LiveGroupsMirrorBody · states it refuses to fake", () => {
+  it("says it is reading rather than that nothing was ever revealed", () => {
+    // The stop OPENS on a fan-out of one getDoc per day, and
+    // `revealHistory()` is empty for a history still arriving as much as
+    // for a group that has never played. So the cold frame told a group
+    // with weeks of history that nothing had been revealed — a claim about
+    // the group, made about the read.
+    //
+    // The loader is careful about exactly this one function up: a
+    // permission-denied caches null permanently, while a transient error
+    // leaves the key absent "so a later call retries it rather than
+    // freezing a gap into the portrait". The surface threw the
+    // distinction away.
+    LIVE.social.revealHistory = () => [];
+    LIVE.social.reading = true;
+    render(<LiveGroupsMirrorBody />);
+    expect(screen.queryByText(/Nothing revealed yet/),
+      "an unread history was called an empty one").toBeNull();
+  });
+
   it("says answers are sealed when the group has no reveals yet", () => {
     LIVE.social.revealHistory = () => [];
     render(<LiveGroupsMirrorBody />);
@@ -180,6 +204,20 @@ describe("LiveGroupsMirrorBody · the day rows say what was actually chosen", ()
       day("2026-07-29", 0, 0, 1),
       day("2026-07-28", 1, 1, 0),
     ];
+  });
+
+  it("the Answers tab says it is reading, not that nothing was revealed", () => {
+    // The tab arm, which the stop-card case above does not reach: with the
+    // row bar drawn, an empty Answers tab is its own sentence, and it was
+    // the same conflation. D190's rule is that a tab says WHY it is empty
+    // — "still reading" and "never played" are two different whys.
+    LIVE.social.revealHistory = () => [];
+    LIVE.social.reading = true;
+    render(<LiveGroupsMirrorBody />);
+    openTab("Answers");
+    expect(screen.queryByText(/Nothing revealed yet/),
+      "an unread history was called an empty one").toBeNull();
+    expect(screen.getByText(/Reading the days/)).toBeTruthy();
   });
 
   it("labels the majority option from the bank, not the option index", () => {

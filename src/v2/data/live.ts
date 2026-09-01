@@ -2535,6 +2535,21 @@ const SOCIAL = {
   // Every readable reveal for this group, newest first — the cached
   // history plus yesterday's live listener doc. Shape matches what
   // groupPortrait.ts consumes.
+  /**
+   * Is this group's reveal history still being read?
+   *
+   * `revealHistory()` answers `[]` for "never fetched", "in flight" and
+   * "genuinely nothing revealed" alike, and the Groups Mirror stop opens
+   * on a fan-out of one getDoc per day — so the cold frame told a group
+   * with weeks of history that nothing had been revealed. The loader one
+   * function up is careful about exactly this distinction (a
+   * `permission-denied` caches null permanently; a transient error leaves
+   * the key absent "so a later call retries it rather than freezing a gap
+   * into the portrait") and the surface threw it away.
+   */
+  revealHistoryLoading(gid: string): boolean {
+    return !!state.revealHistLoading[gid];
+  },
   revealHistory(gid: string): Array<Record<string, unknown> & { day: string }> {
     const out: Array<Record<string, unknown> & { day: string }> = [];
     const yesterday = state.reveals[gid];

@@ -192,6 +192,7 @@ export const LIVE_MEMBERS = [
 export const LIVE_SOCIAL_MEMBERS = [
   "bankQ", "createGroup", "groups", "leaveGroup",
   "loadRevealHistory", "myDuelVote", "revealFor", "revealHistory",
+  "revealHistoryLoading",
   "romanticPoolReady", "setDuoMode", "todayKey", "todayQ", "voteDuel",
   // The in-flight flag beside `takes` — listed here because the pin is
   // what makes the surface reviewed, and this one existed in state for a
