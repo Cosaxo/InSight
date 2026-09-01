@@ -73,4 +73,26 @@ describe("the fold stores carry the retry stamp in both directions", () => {
       ).toContain(`${field}:`);
     });
   }
+
+  // The velocity scan's own projection, added for the same reason and
+  // pinned separately because it is a `.select()` on a query rather than a
+  // field-by-field read of a snapshot.
+  //
+  // `fromIdx` is the only thing distinguishing a D86 edit's ledger row
+  // from a create, and the volume ceiling is about creates. Drop it from
+  // the select and every row reads as a create again — the exact state
+  // this file was written about, where the guard is dead in production
+  // while the in-memory fake goes on proving it works, because
+  // velocity.test.ts builds its rows by hand and never reaches the query.
+  it("velocity.ts: the ledger scan selects `fromIdx`", () => {
+    const src = read("velocity.ts");
+    const m = /\.select\(([^)]*)\)/.exec(src);
+    expect(m, "the ledger scan's .select() moved or was renamed — this case is vacuous").toBeTruthy();
+    for (const field of ["uid", "qid", "at", "fromIdx"]) {
+      expect(
+        m[1],
+        `velocity.ts's scan drops \`${field}\` from its projection`,
+      ).toContain(`"${field}"`);
+    }
+  });
 });

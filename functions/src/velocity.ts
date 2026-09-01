@@ -60,6 +60,10 @@ export interface LedgerRow {
   uid: string;
   qid: string;
   atMs: number;
+  /** A D86 edit's ledger row, marked by `fromIdx` on the entry. Counted in
+   *  CADENCE — an edit is an action, and a script's rhythm shows in it —
+   *  and not in VOLUME, where the ceiling is one entry per question. */
+  isEdit?: boolean;
 }
 
 // UTC calendar day, "YYYY-MM-DD" — the ledger's `at` is server commit
@@ -68,8 +72,22 @@ export interface LedgerRow {
 
 // The impossible-volume ceiling. Answers are create-only with doc id ==
 // qid and deleteAccount sweeps the ledger with the account, so one uid
-// can NEVER honestly exceed one ledger entry per aggregate-feeding bank
-// question — not per day, ever. Duel surfaces never reach the ledger
+// can never honestly hold more than one CREATE per aggregate-feeding bank
+// question — not per day, ever.
+//
+// CREATES, and that word is the correction. This said "one ledger entry
+// per question" and D86 broke it: an optionIdx edit writes a SECOND row
+// (v2.ts's update arm, `ledgerEntry(uid, qid, toIdx, fromIdx)`), which is
+// why ledger.ts projects `fromIdx` and why both nightly folds dedupe on
+// it. With the bank at its current size the ceiling had become almost
+// exactly the honest maximum, so a heavy user who also revised answers
+// inside the 72-hour window could cross it — a false WARN on the person
+// using the app most.
+//
+// Restored by counting what the invariant is about rather than by
+// inflating the bound: edit rows are excluded from the volume count and
+// still feed the cadence signal, which is where an edit-spam script would
+// show anyway. Duel surfaces never reach the ledger
 // (they feed member reveals, not aggregates — D29), so they are not in
 // the ceiling. Derived from the committed bank at cold start, the
 // POLITICAL_QIDS pattern: no Firestore read.
@@ -239,11 +257,16 @@ export function burstSignal(
 export interface WindowFold {
   entries: number;
   perUid: Map<string, number[]>;
+  /** Non-edit rows per uid — what VOLUME_CEILING bounds. Separate from
+   *  `perUid` because cadence wants every action and volume wants one per
+   *  question; folding them into one number would put the invariant back
+   *  where D86 left it. */
+  createsPerUid: Map<string, number>;
   perDayQid: DayCounts;
 }
 
 export function emptyFold(): WindowFold {
-  return { entries: 0, perUid: new Map(), perDayQid: {} };
+  return { entries: 0, perUid: new Map(), createsPerUid: new Map(), perDayQid: {} };
 }
 
 // Fold a batch INTO an existing accumulator. The scan calls this once per
@@ -260,6 +283,7 @@ export function foldInto(acc: WindowFold, rows: LedgerRow[]): WindowFold {
       acc.perUid.set(r.uid, times);
     }
     times.push(r.atMs);
+    if (!r.isEdit) acc.createsPerUid.set(r.uid, (acc.createsPerUid.get(r.uid) || 0) + 1);
     const day = utcDayKeyOf(r.atMs);
     const forDay = acc.perDayQid[day] || (acc.perDayQid[day] = {});
     forDay[r.qid] = (forDay[r.qid] || 0) + 1;
@@ -347,7 +371,12 @@ export const ledgerVelocityScan = onSchedule(
         .collection("v2_agg_events")
         .where("at", ">", Timestamp.fromMillis(windowStart))
         .orderBy("at")
-        .select("uid", "qid", "at")
+        // `fromIdx` rides along because an edit's row carries it and
+        // nothing else does — the volume ceiling is about creates, and a
+        // field left out of the projection is a guard that is dead in
+        // production while the in-memory fake goes on proving it works
+        // (the note store-projection.test.ts exists for).
+        .select("uid", "qid", "at", "fromIdx")
         .limit(PAGE);
       if (cursor) q = q.startAfter(cursor);
       const page = await q.get();
@@ -359,7 +388,10 @@ export const ledgerVelocityScan = onSchedule(
         // can still be inside the window shortly after that deploy.
         if (typeof uid === "string" && uid && at) {
           const atMs = at.toMillis();
-          pageRows.push({ uid, qid: String(d.get("qid") || ""), atMs });
+          pageRows.push({
+            uid, qid: String(d.get("qid") || ""), atMs,
+            ...(d.get("fromIdx") === undefined ? {} : { isEdit: true }),
+          });
           if (atMs > maxAt) maxAt = atMs;
         }
       }
@@ -372,11 +404,12 @@ export const ledgerVelocityScan = onSchedule(
     let volumeFlags = 0;
     let cadenceFlags = 0;
     for (const [uid, times] of fold.perUid) {
-      if (times.length > VOLUME_CEILING) {
+      const creates = fold.createsPerUid.get(uid) || 0;
+      if (creates > VOLUME_CEILING) {
         volumeFlags++;
         logger.warn(
-          `[velocity] impossible volume: uid=${uid} n=${times.length} exceeds the ceiling (${AGG_BANK_SIZE}-question bank + ${PULSE_BANK_SIZE} pulse × ${WINDOW_MAX_DAYS}d of window) — dedup failure or forged writes`,
-          { metric: "velocity_flag", kind: "volume", uid, n: times.length },
+          `[velocity] impossible volume: uid=${uid} creates=${creates} of n=${times.length} exceeds the ceiling (${AGG_BANK_SIZE}-question bank + ${PULSE_BANK_SIZE} pulse × ${WINDOW_MAX_DAYS}d of window) — dedup failure or forged writes`,
+          { metric: "velocity_flag", kind: "volume", uid, n: creates, entries: times.length },
         );
       }
       const cad = cadenceSignal(times);
