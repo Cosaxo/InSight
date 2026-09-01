@@ -963,8 +963,8 @@ const listeners = new Set<() => void>();
 // carries the same note: derived on read rather than cached, so a
 // ranking cannot go stale against its own inputs. That reasoning is
 // right and it was being paid for on every render rather than on every
-// change. `kindredPeople()` walks every cached voter list and has six
-// call sites (LiveSimilarityField ×2, LiveMirrorLenses, typeMix ×2,
+// change. `kindredPeople()` walks every cached voter list and has 5
+// call sites (LiveMirrorLenses, LiveSimilarityField, typeMix ×2,
 // testNorms); each of those is inside a component that re-renders on
 // every notify(), and none of them memoises. So one Mirror stop folded
 // the same voter cache four to six times per render — 14 ms a fold in
@@ -4282,9 +4282,10 @@ const LIVE = {
   // TEST_FEED_QS for the feed, exposed so the typed layer can join them
   // to IS_TESTS for scoring metadata without a bridge read.
   //
-  // perRev because the bank only changes at hydrate and this has five
-  // render-path callers (SimilaritySection, PlacesField, testNorms,
-  // result-card ×2), each feeding it straight into testItemMeta — and
+  // perRev because the bank only changes at hydrate and this has 6
+  // render-path callers (SimilaritySection, PlacesField, LiveCompareLens,
+  // testNorms, result-card ×2), each feeding it straight into
+  // testItemMeta — and
   // because docs/SCALE-PLAN.md makes `feedBank` the collection that grows
   // without bound, so a per-call filter over it is the wrong shape to
   // leave lying around.

@@ -388,6 +388,27 @@ const monitoringRules = (() => {
   return new Set([...head.matchAll(/^\/\/\s+(\d+)\. /gm)].map((m) => m[1])).size;
 })();
 
+/**
+ * Live call sites of a store accessor, across the app's own source.
+ *
+ * Comments stripped, tests and fixtures excluded: what the perRev
+ * comments count is folds paid for per RENDER, so a mention in prose and a
+ * stub in a fixture are both noise. Two of these figures had drifted, in
+ * the paragraphs that argue for the memoisation itself.
+ */
+const callSites = (call) => {
+  const dirs = ["src/v2/data", "src/v2/ui", "src/v2/spec"];
+  let n = 0;
+  for (const dir of dirs) {
+    for (const f of readdirSync(join(root, dir))) {
+      if (!/\.(ts|tsx|js|jsx)$/.test(f) || /\.test\./.test(f)) continue;
+      const src = stripComments(read(`${dir}/${f}`));
+      n += src.split(call).length - 1;
+    }
+  }
+  return n;
+};
+
 // The political marker's two figures, and the store header's own count of
 // the dynamic-import sites it points a reader at. All three sit in source
 // comments, which is where this repo's figure drift keeps surviving.
@@ -642,6 +663,25 @@ const FIGURES = [
     re: /a notification channel, (\w+) log-based metrics/,
     actual: word(monitoringMetrics),
     fix: (n) => `"a notification channel, ${n} log-based metrics"`,
+  },
+  {
+    file: "src/v2/data/live.ts",
+    what: "call sites of kindredPeople(), the fold perRev exists for",
+    re: /walks every cached voter list and has (\d+)\n\/\/ call sites/,
+    // The COUNT is the argument for the memoisation — how many folds per
+    // render are being paid for — so it is the sentence's load-bearing
+    // half. It said six with "LiveSimilarityField ×2"; that file has had
+    // one since the Near field was rewritten.
+    actual: String(callSites("kindredPeople()")),
+    fix: (n) => `"walks every cached voter list and has ${n}\n// call sites"`,
+  },
+  {
+    file: "src/v2/data/live.ts",
+    what: "render-path callers of testFeedItems()",
+    re: /and this has (\d+)\n {2}\/\/ render-path callers/,
+    actual: String(callSites("testFeedItems()") - 1),
+    // −1 for live.ts's own internal call, which is not a render path.
+    fix: (n) => `"and this has ${n}\n  // render-path callers"`,
   },
   {
     file: "src/v2/data/politicalConsent.ts",
