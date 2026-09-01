@@ -52,10 +52,17 @@ captures/
 # Comment next line if keeping position of elements in Navigation Editor is relevant for you
 .idea/navEditor.xml
 
-# Keystore files
-# Uncomment the following lines if you do not want to check your keystore files in.
-#*.jks
-#*.keystore
+# Keystore files — UNCOMMENTED 2026-09-01 (D340), and they must stay that
+# way. The release build reads an upload keystore (app/build.gradle), so
+# from now on there can be one sitting in this directory. Committing it
+# publishes the credential that proves an upload comes from this project;
+# Play App Signing makes that recoverable — a new upload key can be
+# registered — but only after Google is told, and only if anyone notices.
+# keystore.properties is the local alternative to the CI environment
+# variables and carries the passwords in plain text, so it goes too.
+*.jks
+*.keystore
+keystore.properties
 
 # External native build folder generated in Android Studio 2.2 and later
 .externalNativeBuild

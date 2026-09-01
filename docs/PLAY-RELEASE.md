@@ -28,18 +28,24 @@ been bitten by twice before.
 
 | | Item | Kind | State |
 | --- | --- | --- | --- |
-| 1 | Release signing — `buildTypes.release` has no `signingConfig` | code | open |
-| 2 | No `play-release.yml` — the AAB has no way out of CI | code | open |
+| 1 | Release signing — `buildTypes.release` has no `signingConfig` | code | **done** (D340) — built and verified against a real build |
+| 2 | No `play-release.yml` — the AAB has no way out of CI | code | **done** (D340) — written; the four Play API calls are untested |
 | 3 | App Check → Play Integrity, or **every callable fails on Android** | console | **written down** (SHIP-CHECKLIST §2); the console work is account-gated |
 | 4 | `google-services.json`, downloaded in the right order | console | account-gated |
 | 5 | An account-deletion **URL** — Play requires one, Apple does not | web page | **done** — `web/delete-account.html` |
 | 6 | The Data Safety **Shared** column after D98 | owner decision | open |
-| 7 | The account type — re-read D41 under D42's condition | owner decision | open |
+| 7 | The account type — re-read D41 under D42's condition | owner decision | **decided** — ENK, so D41's organization route (D340) |
 | 8 | The payments-policy read on D313/D315's Stripe checkout | owner decision | open |
 
 Everything else is either done or trails the submission.
 
-**Worked 2026-09-01, in the commit that follows this page:** item 5 built,
+**Worked 2026-09-01, second pass (D340):** Play un-parked onto D41's
+organization route on the owner's call, items 1 and 2 built, and §2.6
+measured rather than reasoned. **What remains needs a Play Console account
+or an owner's ruling — there is no longer any Play work in this tree that
+somebody could just sit down and do.**
+
+**Worked 2026-09-01, first pass:** item 5 built,
 item 3 written into the checklist that was missing it, §3.2's transposed
 row corrected, §3.4's stale rationale restated in both copies, and §4's
 proposed third leg on `check:store-forms` built with tests. What is left
@@ -107,13 +113,25 @@ compiles on the day this is revisited"* — and the shell does.
 and proguard files, and **no `signingConfig`**. `./gradlew bundleRelease`
 today produces an unsigned AAB, which Play will not accept.
 
-What this needs is an upload keystore and an environment-driven signing
-config — environment-driven because the keystore must not be committed,
-and because the same file has to work for a developer on a laptop and
-for a CI runner holding it as a secret. Under Play App Signing, Google
-holds the app signing key and the upload key is replaceable if lost,
-which is the one thing that makes this recoverable; generate it and
-enroll rather than opting out.
+**Built at D340 and verified against a real build.** `android/app/build.gradle`
+now reads the keystore from the environment first (CI secrets) and an
+untracked `android/keystore.properties` second. **With neither present the
+release stays unsigned on purpose** — a clean clone, `assembleDebug`, and
+the `android-build` job D42 kept alive all keep working, and a
+configure-time warning says what is missing. `signingConfig` is left null
+rather than defaulted to debug: a debug-signed AAB is worse than an
+unsigned one, because it uploads, installs, and can never be updated by a
+correctly-signed build.
+
+You still generate and hold the keystore. Under Play App Signing, Google
+holds the app signing key and this one is only the upload key, replaceable
+if lost — which is the single thing that makes a lost keystore survivable.
+Enroll rather than opting out.
+
+Verified, not assumed: `assembleDebug` still succeeds; `bundleRelease`
+with nothing configured succeeds and produces an unsigned bundle;
+`bundleRelease` with a throwaway keystore succeeds and carries a signature
+block.
 
 `minifyEnabled false` is worth a second look at the same time but is not
 a blocker: it costs download size, not correctness, and turning R8 on for
@@ -129,7 +147,7 @@ than its sibling: an `ubuntu-latest` runner rather than macOS at 10×
 billing, no cloud signing, no provisioning profiles, none of the four
 runs of signing archaeology that `ios-release.yml`'s comments preserve.
 
-What it would carry, by analogy with the iOS job:
+**Built at D340.** What it carries, and why each piece is where it is:
 
 - The same pre-flight — but `node scripts/check-store-copy.mjs` **without**
   `--ios`. That flag exists to excuse D42's parked Play fingerprint
@@ -151,8 +169,29 @@ What it would carry, by analogy with the iOS job:
   `workflow_dispatch` boolean, as on iOS — publication through the Play
   Developer API with a service-account JSON secret.
 
-The `upload=false` first run is worth copying verbatim. It is how you
-find out whether signing works before it matters.
+The `upload=false` first run is copied verbatim from the iOS job. It is
+how you find out whether signing works before it matters.
+
+Three things the iOS job has no equivalent of:
+
+- **`scripts/play-upload.mjs`** does the publish with **no dependency at
+  all** — Node 22's `fetch` plus `node:crypto` for the RS256 assertion,
+  against the Play Developer API v3. The obvious move is a marketplace
+  action, and this tree's bar is visible in `ci.yml`, which declined even
+  `gradle/actions/setup-gradle` for "one fewer third-party action to pin
+  and audit". An upload step holds the one credential that can publish to
+  real users. Its pure helpers are tested; the four API calls are not, and
+  cannot be until an account exists.
+- **`--first-upload`** on `check:store-copy`, for the bootstrap in §2.5.
+- **Three assertions on the bundle itself** — signed, Firebase config
+  actually compiled in (`google_app_id` in `resources.pb`, matched on the
+  exact resource name because a looser grep for "firebase" passes on a
+  config-less bundle), and 16 KB alignment. Each was verified in both
+  directions against real bundles.
+
+**None of it has run against a real Play account, because there is not one
+yet.** Written and unexercised, said plainly here rather than discovered
+at the first dispatch.
 
 ### 2.3 · App Check, and the silent failure that is not in the checklist
 
@@ -200,6 +239,14 @@ one exists.
 Setup → App signing and therefore cannot exist before the first upload,
 which makes this a post-upload step rather than a pre-flight one.
 
+That chicken-and-egg is handled rather than tolerated: `check:store-copy
+--first-upload` excuses the placeholder for exactly one run and says
+loudly that it is good for one, and `play-release.yml` runs the check
+**bare** by default, so every upload after the first fails until the
+fingerprint is filled. The flag is deliberately separate from `--ios`,
+which excuses the same line for the opposite reason — "not my store"
+versus "not yet mintable".
+
 It is a **quality gap, not a blocker**, and D238 is why: the hosted
 `/join` page's "Open in InSight" button navigates to `insight://join/CODE`,
 a custom scheme that needs no fingerprint, so a tapped invite already
@@ -215,13 +262,21 @@ Capacitor plugins, Firestore and Play Integrity are managed code.
 **`@sentry/capacitor` is the exception** — the Sentry Android SDK ships
 `.so` files.
 
-Recent Sentry Android releases do support 16 KB pages, so the expected
-answer is "already fine", but **that is reasoning, not measurement**, and
-this repo's norm is to say which it was. It could not be measured here:
-neither the Android SDK nor `node_modules` is present in the environment
-this was written in. Verify it by building the release AAB once and
-checking the alignment of the packaged `.so` files, before spending a
-version code on an upload Play will refuse.
+**Measured at D340, and the answer is that nothing needs doing.** The
+Android SDK and `node_modules` were installed and the release bundle
+built. It carries three native libraries across four ABIs —
+`libsentry.so` and `libsentry-android.so` as predicted, plus
+`libdatastore_shared_counter.so`, which was **not** predicted: it comes
+from androidx.datastore, and it is the reminder that "which dependencies
+ship native code" is a question to measure rather than to reason about.
+
+**Every LOAD segment on both 64-bit ABIs reports `0x4000` — 16384 exactly,
+the requirement.** So the app is compliant today with no work.
+
+That measurement is now **a step in `play-release.yml`** rather than a
+sentence here, because what makes it true is a dependency version and
+nothing else in the tree would notice it regressing. A document recording
+a passing measurement is the thing that goes stale; a gate is not.
 
 ## 3 · What Play asks that Apple did not
 
@@ -348,13 +403,18 @@ stale, in the D116 shape — right answer, reasoning that no longer holds.
 
 ### 3.5 · The account type — re-read D41 *and* D42 together
 
+**Decided at D340: the owner is going for an ENK**, which is D41's
+organization route and the before-an-installed-base branch, so **D41
+stands in full and nothing in it needs re-deriving.** The rest of this
+section is why that is the cheaper branch, and what has moved under it.
+
 [D41](DECISIONS.md) chose an organization account, backed by an ENK and a
 D-U-N-S, to escape the closed-testing gate. [D42](DECISIONS.md) made that
 **conditional rather than settled**: if Play opens before there is an
 installed base, D41 stands; after one, the gate may be satisfiable by
 asking existing users, and the organization account becomes optional.
-D42 is explicit that both halves must be re-read at that moment rather
-than assumed.
+D42 was explicit that both halves be re-read rather than assumed, which is
+what this is.
 
 What has changed since D41 was written, and it moves in the app's favour:
 the requirement is now **12** testers rather than the 20 it launched at,
@@ -365,21 +425,34 @@ checks that testers genuinely used the app, which raises the bar on
 helps twice and a tester farm helps not at all (D41 rejected those
 outright, and the reason stands: the downside is account termination).
 
-D42's unverified link is also still unverified and still load-bearing:
-whether Google's organization verification accepts an
-Enhetsregisteret-only ENK, or wants what Foretaksregisteret provides. If
-the latter, the free path becomes a ~3,000 kr one. Check it in the
-account-type flow before spending anything.
+D42's unverified link is also still unverified and **is now the live
+question**, because the ENK is being registered: whether Google's
+organization verification accepts an Enhetsregisteret-only ENK, or wants
+what Foretaksregisteret provides. If the latter, the free path becomes a
+~3,000 kr one. Check it in the account-type flow **before paying for a
+D-U-N-S expedite**. No code depends on the answer.
+
+**And one follow-up the ENK itself creates.** If it is registered under a
+business name, `web/terms.html`'s operator line has to name the entity a
+user is actually contracting with rather than Olaf Taule personally. D41
+and SHIP-CHECKLIST both say so, and `check:store-copy` **cannot** raise it
+— it only sees placeholders, and a stale name looks exactly like a correct
+one. Answer it when the ENK exists.
 
 ## 4 · What changes in the gates
 
-- **`check:store-copy` stops being a known-permanent failure.** D42
+- **`check:store-copy` has stopped being a known-permanent failure.** D42
   recorded the bare run's single remaining placeholder as a permanent
-  non-blocker; filling it retires that status. At that point the `--ios`
-  flag in `ios-release.yml`'s pre-flight should be revisited — it exists
-  to excuse the Play fingerprint, and once the fingerprint is fillable an
-  excuse is a hole. If both release paths run the bare check, the script
-  can go into CI, which is what it was always kept out of for.
+  non-blocker; D340 retires that status — the fingerprint is now merely
+  *unminted*, which is a different thing, and `--first-upload` (§2.5) is
+  the one-run excuse that says so. `play-release.yml` runs the check bare
+  by default, so the fingerprint is enforced from the second upload on.
+
+  **Two things still to do here, once the fingerprint is filled.** The
+  `--ios` flag in `ios-release.yml`'s pre-flight becomes a hole rather than
+  a courtesy — it excuses a value that is now obtainable — and with both
+  release paths running the bare check, the script can finally go into CI,
+  which is the thing it was kept out of CI *for*.
 - **`check:store-forms` got its third leg, 2026-09-01.**
   `design/store/play-data-safety.json` is now the machine-readable twin of
   STORE-FORMS §3, and **rule 6** holds them equal row for row — total in
@@ -403,26 +476,42 @@ account-type flow before spending anything.
 
 ## 5 · The order, if it is un-parked
 
-Decisions first — they are free and they gate spending:
+**It is un-parked (D340), so this is the live order.** Struck items are
+done; everything left needs an account or a ruling.
 
-1. **Account type** (§3.5) — organization or 12×14, re-reading D41 under
-   D42's condition. Everything else queues behind it.
-2. **The Shared column** (§3.2) and **the payments read** (§3.4).
+1. ~~**Account type**~~ — decided: ENK, D41's organization route.
+2. **Register the ENK** → organisasjonsnummer → D-U-N-S → Play Console
+   organization account. Check the Enhetsregisteret-vs-Foretaksregisteret
+   question (§3.5) before paying for any expedite, and answer the
+   `web/terms.html` operator-line question if it trades under a name.
+3. **Console, because two code steps need values only it can mint:** app
+   created → Play Integrity + App Check registration (§2.3) →
+   `google-services.json` with the debug SHA-1 (§2.4) → a service account
+   with Play Developer API access, for `PLAY_SERVICE_ACCOUNT_JSON`.
+4. **The secrets and variables** `play-release.yml` names in its header,
+   including generating the upload keystore and enrolling in Play App
+   Signing.
+5. ~~**Code**~~ — signing, the workflow, the deletion page and the 16 KB
+   check are all built (D340).
+6. **The first dispatch: `upload=false`.** It builds, signs, and runs
+   every assertion without Play seeing anything.
+7. **Then `upload=true first_upload=true track=internal`.** Not
+   production — see §2.2 on why that track is an explicit choice.
+8. **Immediately after, the two things Play App Signing has just made
+   possible:** the SHA-256 into `assetlinks.json` and a hosting deploy
+   (§2.5 — the next dispatch fails until this is done), and the SHA-1 into
+   Firebase with a `google-services.json` re-download (§2.4).
+9. **The forms** (§3.2, §3.3), including the two rows that need
+   re-deriving first, and **recaptured screenshots** against seeded
+   production — the committed set is a demo-mode preview and one capture
+   shows affordances a live question never has.
+10. **Production access**, then the production track.
 
-Then console, because two code steps need values that only exist after
-it: Play Console account → app created → Play Integrity + App Check
-registration (§2.3) → `google-services.json` with the debug SHA-1
-(§2.4).
-
-Then code: release signing (§2.1), `play-release.yml` (§2.2), the
-deletion page (§3.1), and the 16 KB verification (§2.6) on the first
-release build.
-
-Then the first upload — `upload=false` first — and only then the two
-things that need Play App Signing to exist: `assetlinks.json` (§2.5) and
-the `google-services.json` re-download (§2.4).
-
-Then the forms, the tracks, and production access.
+The one thing no step here covers: **nobody has run this app on an
+Android phone.** CI compiles `assembleDebug`, which proves the Gradle
+config parses. SHIP-CHECKLIST §4's on-device list is unchecked and written
+iPhone-first. Step 6 gives you an installable artifact; walking that list
+on a real handset is the cheapest bug-finding on this page.
 
 ## 6 · Sourcing
 

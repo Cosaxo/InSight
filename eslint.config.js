@@ -25,7 +25,23 @@ export default defineConfig([
   // vendored files nobody wrote — and only on machines that have run
   // test:coverage. Gitignoring them is not enough; eslint does not read
   // .gitignore.
-  globalIgnores(['dist', 'functions/lib', 'coverage', 'functions/coverage']),
+  //
+  // android/app/build is the third instance of exactly that class, added
+  // 2026-09-01 (D340): Gradle merges Capacitor's native-bridge.js into
+  // build/intermediates/assets/, and that vendored file carries
+  // eslint-disable comments plus a rule name this config does not load. So
+  // `npm run lint` reports six errors in code nobody here wrote, on any
+  // machine that has run a Gradle build. CI never saw it because the lint
+  // job and android-build are separate runners — but docs/PLAY-RELEASE.md
+  // now tells people to build the shell locally, which is what turned a
+  // latent trap into a real one.
+  globalIgnores([
+    'dist',
+    'functions/lib',
+    'coverage',
+    'functions/coverage',
+    'android/app/build',
+  ]),
   // Node tooling: the guard-rail scripts, the emulator suites, and the flat
   // configs themselves. Measured with eslint's own resolver, every file
   // under scripts/ resolved to ZERO rules while src/lib/firebase.ts got 106

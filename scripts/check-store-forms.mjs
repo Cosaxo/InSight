@@ -35,11 +35,16 @@
 // was prose that nobody could compare to anything. That is the same
 // absence rule 5 was added for, one store over.
 //
-// Play is PARKED (D42), so nothing here has been filed. The rule exists
-// anyway for the reason §3 itself gives for existing: the answers were
-// derived once from an audited inventory and should not be re-derived
-// under time pressure, which is only true if they are still correct when
-// they are picked up.
+// Nothing here has been FILED yet — D42 parked Play and D340 un-parked it
+// onto an ENK, but the Console account does not exist as this is written.
+// The rule matters more now than when it was added a few hours earlier,
+// for the reason §3 itself gives for existing: the answers were derived
+// once from an audited inventory and should not be re-derived under time
+// pressure, which is only true if they are still correct when they are
+// picked up. §3 carries three answers that are NOT settled — the Shared
+// column, App activity, Purchases — and this rule deliberately does not
+// arbitrate them; it holds the two copies equal so that whatever is
+// decided is decided once.
 //
 // Rule 5 was added after the age rating failed to push at all. The privacy
 // half of app-privacy.json was gated by rules 1-4 from the day it was
@@ -379,5 +384,5 @@ console.log(
   // stops matching reports zero rows and passes every comparison — the
   // D275 shape exactly — so the number goes in the success line where a
   // reader sees it fall.
-  + `${playProse.length} Play row(s) agree across play-data-safety.json and §3 (parked, D42).`,
+  + `${playProse.length} Play row(s) agree across play-data-safety.json and §3.`,
 );
