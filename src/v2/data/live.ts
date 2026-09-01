@@ -2238,7 +2238,7 @@ function buildFeedGlobals(): void {
     .filter((q) => q.surface === "feed"
       && ((q.options || []).length >= 2 || q.type === "catalog"))
     .map((q) => {
-      // Crossroads (D136, dealt in at D340): a story is a feed question AND
+      // Crossroads (D136, dealt in at D341): a story is a feed question AND
       // a feed card — a member of this pool like any other, so the stream's
       // own ordering places it and several can ride at once. It keeps its
       // own card shape (paths-card.jsx) because its reveal is a tree rather
@@ -5146,7 +5146,7 @@ const LIVE = {
   },
   /**
    * Crossroads' stories with their folded ending counts (D136), or an empty
-   * list in a demo build. Since D340 the CARD no longer reads this — a
+   * list in a demo build. Since D341 the CARD no longer reads this — a
    * story rides WORLD_FEED_QS like any other feed question and the card
    * receives it as a prop — so the one caller left is the Map's Walks
    * branch (paths-card.jsx pathsMapTree), which needs every story whatever
@@ -5155,7 +5155,7 @@ const LIVE = {
    * Folded ON CALL rather than precomputed into state by buildFeedGlobals,
    * which is where it started. The precomputed version cost ~1 KB of the
    * EAGER graph — this file is in the first-paint chunk — and check:bundle
-   * refused it at the time: MAX_EAGER_KB had no headroom then. D340's feed
+   * refused it at the time: MAX_EAGER_KB had no headroom then. D341's feed
    * arm in buildFeedGlobals is not that trade re-taken: pool membership
    * needs the mapped item either way, the ceiling has headroom today, and
    * check:bundle graded it. THIS accessor stays on-call because its caller

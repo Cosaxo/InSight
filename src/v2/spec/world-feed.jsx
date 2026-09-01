@@ -69,7 +69,7 @@ import LiveTakesPanel from '../ui/LiveTakesPanel.tsx';
 // coupling-meter reasoning. The three legacy stores stay window.* reads
 // below (in the D39 baseline); convert them on touch, never re-add one.
 import ELEMENTS_CATALOG from '../data/elements.ts';
-import { COUNTRIES, DOGS, COLORS } from '../data/catalogs.ts';
+import { COUNTRIES, DOGS, COLORS, LANGUAGES } from '../data/catalogs.ts';
 // Imported for the D89 gate rather than read off window — same meter
 // reasoning as the imports above. The window.LIVE reads elsewhere in this
 // file predate the ratchet; new ones may not join them.
@@ -1612,6 +1612,7 @@ class WorldFeed extends React.Component {
       : domain === 'countries' ? COUNTRIES
       : domain === 'dogs' ? DOGS
       : domain === 'colors' ? COLORS
+      : domain === 'languages' ? LANGUAGES
       : POKEDEX;
   }
 
@@ -1711,7 +1712,7 @@ class WorldFeed extends React.Component {
     // it. The entity count renders only when the fold covers at least two
     // entries (the subtraction-leak rule the backend fold keeps) and steps
     // down like the vote counts do, so it never ticks per-answer.
-    const nounOf = { pokemon: 'Pokémon', emoji: 'emoji', films: 'films', artists: 'artists', athletes: 'athletes' };
+    const nounOf = { pokemon: 'Pokémon', emoji: 'emoji', films: 'films', artists: 'artists', athletes: 'athletes', languages: 'languages' };
     const foldNoun = nounOf[q.domain] || 'picks';
     const foldNote = c.restEntities >= 5
       ? ` votes across ${Math.floor(c.restEntities / 5) * 5}+ other ${foldNoun}`
@@ -2249,7 +2250,7 @@ class WorldFeed extends React.Component {
   // no local raw value.
   answered(q, mine) {
     const v = this.state.votes[q.id];
-    // A Crossroads story (D340) is answered when its walk is finished. The
+    // A Crossroads story (D341) is answered when its walk is finished. The
     // walk lives in PATHS (demo and live alike — the card writes each fork
     // there), and a live finish is ALSO a vote, which covers the returning
     // device whose localStorage is gone. An unfinished walk is not an
@@ -3926,7 +3927,7 @@ class WorldFeed extends React.Component {
         <div ref={(n) => { this._root = n; }} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {/* the same dispatch the stream uses: a story found through
               search opens as the real story card, not as renderCard's
-              option apparatus over a walk (D340) */}
+              option apparatus over a walk (D341) */}
           {this.props.focus.filter(Boolean).map((q) => (q.type === 'path'
             ? <PathsCard key={q.id} q={q}></PathsCard>
             : this.renderCard(q, {})))}
@@ -4105,7 +4106,7 @@ class WorldFeed extends React.Component {
     // Never a card that carries a real window (D231) — the fake ring on a
     // card with a true deadline is the one place this grace note would be
     // read as information. Both fallbacks are filtered for the same reason.
-    // Nor a story (D340): the ring is renderCard's to draw and PathsCard
+    // Nor a story (D341): the ring is renderCard's to draw and PathsCard
     // never would, so a hash that landed on one would silently spend the
     // grace note on a card that cannot wear it.
     const clockable = feedList.filter((q) => !askWindow(q) && q.type !== 'path');
@@ -4163,7 +4164,7 @@ class WorldFeed extends React.Component {
           <React.Fragment key={q.id}>
             {/* The reading game (D196) — held at the head, not dealt into
                 the stream: it is one thing you are doing, not a card in
-                it. (Crossroads stood beside it here until D340 made a
+                it. (Crossroads stood beside it here until D341 made a
                 story an ordinary member of the stream — see the dispatch
                 below.) It renders nothing in a demo build and nothing
                 until there are enough fair reads to keep a record worth
@@ -4178,14 +4179,14 @@ class WorldFeed extends React.Component {
                 this game's engine — see D196. */}
             {i === 0 && <LiveReadGame />}
             {sugg && i === 2 && this.renderSuggestion(sugg, snap)}
-            {/* Three card shapes, one stream. A Crossroads story (D340) is
+            {/* Three card shapes, one stream. A Crossroads story (D341) is
                 a MEMBER of feedList — a feed question like any other, so
                 the sort, the topic chips, the weave and the answered
                 partition all place it and several can be on screen at
                 once — but its reveal is a tree rather than a split, so it
                 renders through its own component instead of renderCard
                 (the D136 half that stands). D136 pinned one story at the
-                head instead; the owner's correction is on record in D340:
+                head instead; the owner's correction is on record in D341:
                 "it should be in the feed like the others". */}
             {q.ad
               ? <AdCard ad={q.ad}></AdCard>

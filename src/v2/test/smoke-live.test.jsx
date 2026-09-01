@@ -602,7 +602,7 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // be showing authored crowd figures to a live user, which is D1's case.
   // Binding on the fixture's own story title is what tells them apart.
   //
-  // Since D340 a story is a MEMBER of the feed pool — the fixture pushes
+  // Since D341 a story is a MEMBER of the feed pool — the fixture pushes
   // it into WORLD_FEED_QS the way buildFeedGlobals emits it — so finding
   // the title here also pins the live dispatch: the stream dealt the card,
   // nothing reserved it a slot. (The membership shape itself — several at

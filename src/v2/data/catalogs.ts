@@ -142,6 +142,10 @@ const DOGS = makeCatalog("dogs.txt");
 // Hex-derived keys (build-colors.mjs, 1 + parseInt(hex, 16)) — like
 // COUNTRIES, export-only: its consumers import it.
 const COLORS = makeCatalog("colors.txt");
+// Catalogue-minted keys (build-languages.mjs, append-only, the dogs
+// discipline; names carry the native name in parens when it differs) —
+// like COUNTRIES, export-only: its consumers import it.
+const LANGUAGES = makeCatalog("languages.txt");
 
 declare global {
   interface Window {
@@ -158,4 +162,4 @@ declare global {
 // exactly what check:globals rule 5 exists to delete.
 Object.assign(globalThis, { FILMS, ARTISTS, EMOJI });
 
-export { FILMS, ARTISTS, ATHLETES, EMOJI, COUNTRIES, DOGS, COLORS };
+export { FILMS, ARTISTS, ATHLETES, EMOJI, COUNTRIES, DOGS, COLORS, LANGUAGES };

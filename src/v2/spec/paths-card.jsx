@@ -14,7 +14,7 @@
 // story comes from paths-data.js and its branch shares are authored. The
 // card reads whichever it has and NEVER mixes them — `srcOf` returns one
 // shape, and the only thing that differs downstream is where `flow` comes
-// from and whether a choice writes to the server. Since D340 the feed
+// from and whether a choice writes to the server. Since D341 the feed
 // hands the card its item as a prop — a story is a MEMBER of the stream,
 // dealt in like any question, several at once when the bank holds
 // several — and the item's `live` flag is the source switch.
@@ -140,7 +140,7 @@ function srcOf(live, demoId) {
 /**
  * One Crossroads story, as a card in the feed. `q` is the feed item the
  * stream dealt this card — a bank doc's fields when live, an id-bearing
- * stub when demo (D340: a story is a feed QUESTION, placed by the feed's
+ * stub when demo (D341: a story is a feed QUESTION, placed by the feed's
  * own ordering like any other, several at once when the bank holds
  * several; D136's pinned singleton read pathQs()[0] and could never show
  * the second story — the limit D185 §6 recorded).

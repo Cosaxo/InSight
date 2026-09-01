@@ -298,7 +298,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   // tree would look correct. `tooSmall` empties them, which is this
   // fixture's way of asking for the nobody-has-finished-this-yet arm.
   //
-  // ONE object behind both doors (D340): `pathQs` serves it to the Map's
+  // ONE object behind both doors (D341): `pathQs` serves it to the Map's
   // Walks branch, and the feed pool below carries it as a member — the
   // same split the app has, so a fixture drift between the two would be
   // the drift the real build cannot have.
@@ -617,7 +617,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
       }
       return out;
     },
-    // The Map's Walks branch reads the story from here (D340: the CARD no
+    // The Map's Walks branch reads the story from here (D341: the CARD no
     // longer does — it receives the feed item below as a prop).
     pathQs: () => [pathStory],
     // Catalogue picks (D14 gone live). The fixture mirrors the real
@@ -840,7 +840,7 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
         : {}),
     }),
   );
-  // The Crossroads story rides the pool as a member (D340), the shape
+  // The Crossroads story rides the pool as a member (D341), the shape
   // buildFeedGlobals emits: the story's fields plus its home topic (the
   // bank's `topic`, 'dilemma' — an always-on channel), the prompt search
   // reads, and the `n` the "top" sort keys on.

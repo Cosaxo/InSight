@@ -137,7 +137,7 @@ window.WORLD_FEED_QS = [
   { id: 'f37', cat: 'culture', type: 'vote', prompt: 'Small talk is a skill, not a chore.', options: [ { label: 'A skill', count: 4700 }, { label: 'A chore', count: 4100 } ] },
 
   // dilemmas
-  // The two Crossroads stories ride the pool as members (D340) — a story is
+  // The two Crossroads stories ride the pool as members (D341) — a story is
   // a feed question, placed by the mix like everything else, and both can
   // be on screen at once. Only what the feed mechanics read lives here (id,
   // home topic, a prompt for search and the pass row); the CONTENT is

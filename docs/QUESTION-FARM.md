@@ -1200,7 +1200,7 @@ you got there.
 
 **Topic, not corner.** A story's `cat` must differ from the `cat` of each of
 the two paths before it in the bank (`PATH_GENRE_LOOKBACK`, gated). Stories
-ride the feed as ordinary members since D340 (D136 had pinned one slot at
+ride the feed as ordinary members since D341 (D136 had pinned one slot at
 the head), and a story's genre is also its feed home — same-topic stories
 are neighbours in one topic's stream, so two in a row on one topic is still
 the reader's experience of Crossroads repeating itself. The

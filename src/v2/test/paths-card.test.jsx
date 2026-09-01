@@ -15,7 +15,7 @@
 //
 // The live/demo SOURCE choice is pinned on real mounts in
 // smoke-live.test.jsx and smoke-daily.test.jsx, where the whole feed is
-// assembled. Since D340 the card is dealt into the stream as a member and
+// assembled. Since D341 the card is dealt into the stream as a member and
 // receives its feed item as a prop (`q`): a live item carries the bank
 // doc's fields, a demo stub carries the id paths-data.js resolves. What is
 // pinned here is everything downstream of that: the walk, the arithmetic,
@@ -35,7 +35,7 @@ import { MTPathsCard, PathsCard, pathsMapTree } from "../spec/paths-card.jsx";
 // to swap it per test and vi.mock is hoisted to module scope either way.
 // The DEFAULT is a demo build — `enabled` false, `pathQs` empty — which is
 // what every case in the first two describes runs against. The CARD now
-// touches the store only when its item is live (myVotes, vote — D340); the
+// touches the store only when its item is live (myVotes, vote — D341); the
 // Map-branch cases below still read `pathQs`.
 vi.mock("../data/live", () => ({ get default() { return globalThis.__pathsLive; } }));
 
@@ -136,7 +136,7 @@ describe("Crossroads · the crowd numbers are authored, and the card knows it", 
 // Mounted against a mocked store, because everything worth asserting here
 // is about what the card WRITES and where it reads its numbers from —
 // neither of which a demo render can show. The live feed ITEM is the
-// source now (D340): each case passes the story doc as `q`, the shape
+// source now (D341): each case passes the story doc as `q`, the shape
 // buildFeedGlobals deals into the stream, and the store mock supplies only
 // the answer plumbing (myVotes, vote).
 describe("Crossroads · live", () => {

@@ -93,7 +93,7 @@ describe("the daily tab", () => {
     expectNoBoundary("feed window");
   });
 
-  // Crossroads as MEMBERS of the demo feed (D340), reading the DEMO source
+  // Crossroads as MEMBERS of the demo feed (D341), reading the DEMO source
   // — this build has no bank, so the pool's path stubs resolve their
   // content from paths-data.js by id. smoke-live.test.jsx owns the other
   // source, and the pair is what makes the source switch a decision rather
@@ -102,7 +102,7 @@ describe("the daily tab", () => {
   // On the real mount rather than in the card's own suite, because the card
   // renders perfectly well in isolation whether or not anything ever deals
   // it in — which is the failure this catches. What is pinned is the
-  // owner's correction itself (D340: a story is a question TYPE, "in the
+  // owner's correction itself (D341: a story is a question TYPE, "in the
   // feed like the others"): BOTH demo stories on screen at once, at
   // whatever depths the mix put them — the pinned singleton read
   // pathQs()[0] and could never show a second story (D185 §6).

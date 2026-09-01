@@ -18,7 +18,7 @@
 // PINNED AT THE FEED HEAD, one at a time — a call is not dealt into the
 // stream, because its whole shape is "one open question you are
 // carrying". `data/calls.ts` picks which one. (Crossroads shared this
-// head slot when the line was written; D340 dealt it into the stream,
+// head slot when the line was written; D341 dealt it into the stream,
 // which changes nothing about the reasoning here — a story is content,
 // a call is a commitment.)
 //
