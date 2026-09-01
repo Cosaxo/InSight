@@ -39,6 +39,7 @@ const LANES = {
   database: "db",
   "graph-optimizer": "go",
   central: "cen",
+  review: "rev",
 };
 const PREFIX_RE = new RegExp(
   `^(${Object.values(LANES).join("|")})-\\d+$`
@@ -147,8 +148,9 @@ function checkGraph(lane, g, current, siblings, fail, warn) {
   return { nodes: g.nodes.length, edges: g.nodes.reduce((a, n) => a + (Array.isArray(n.edges) ? n.edges.length : 0), 0), cross };
 }
 
-// §7 mechanized: which paths a lane's run may have touched. Central and the
-// optimizer carry their charter extras; everyone else stays home.
+// §7 mechanized: which paths a lane's run may have touched. Central, the
+// optimizer and the review lane carry their charter extras; everyone else
+// stays home.
 function allowedPath(lane, p) {
   if (p.startsWith(`theory/${lane}/`)) return true;
   if (lane === "central")
@@ -156,6 +158,10 @@ function allowedPath(lane, p) {
       /^theory\/[^/]+\/QUESTIONS\.md$/.test(p);
   if (lane === "graph-optimizer")
     return p.startsWith("graph/") || /^theory\/[^/]+\/graph\.json$/.test(p);
+  // The review lane's one cross-workspace write (§12): every lane's
+  // FEEDBACK.md, rewritten whole — never a graph, a theory or a LOG.
+  if (lane === "review")
+    return /^theory\/[^/]+\/FEEDBACK\.md$/.test(p);
   return false;
 }
 

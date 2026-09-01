@@ -43,9 +43,9 @@ serving is drifting.
 
 ## 2 · The lanes
 
-Nine recurring lanes — every lane every other day (§10), each firing
-as a fresh session spawned through the dispatcher — each owning one
-workspace directory. Orchestrator model is Fable at
+Ten recurring lanes — nine theory lanes every other day and the review
+lane every second night (§10), each firing as a fresh session spawned
+through the dispatcher — each owning one workspace directory. Orchestrator model is Fable at
 full reasoning; heavy subtasks fan out to Opus subagents at high
 effort; simple mechanical steps may use Opus at lower effort; **never a
 model below Opus** (owner's direction, 2026-08-25 — budget is
@@ -62,13 +62,17 @@ explicitly not the constraint; quality is).
 | Database | `theory/database/` | Infrastructure theory, deliberately NOT an axiom (the owner, 2026-08-26): the perfect, most efficient and most useful database for the axioms and their connections — the join as the unit of design, custody as layout, storage shapes per reader, schema evolution. Reads the others; does not write them |
 | Graph optimizer | `theory/graph-optimizer/` | The theory OF the graphs: schema, health, pruning, cross-links — including optimizing itself. The only lane that may touch every graph, and only for §5's reasons |
 | Central | `theory/central/` | The combination theory: how the axioms combine perfectly, which carry the most value, which new ones should exist — and §6's duties |
+| Review | `theory/review/` | The scoring lane (§12, chartered 2026-09-01 on the owner's direction): every second night, every other lane's latest work scored against this charter's own clauses — useful · innovative · effective · rigorous · connected · legible — with feedback each lane reads before its next run. Reads every workspace; writes only its own and each lane's `FEEDBACK.md` |
 
 ## 3 · The run shape
 
 One firing = one bounded improvement to the lane's theory:
 
-1. **Orient** — read your `graph.json`, your `LOG.md` tail, and your
-   `QUESTIONS.md` (central's open questions are priority input).
+1. **Orient** — read your `graph.json`, your `LOG.md` tail, your
+   `QUESTIONS.md` (central's open questions are priority input) and
+   your `FEEDBACK.md` (the review lane's scores and feedback on your
+   last run, §12 — priority input of the other kind: it is about HOW
+   you work, not what you work on).
 2. **Scout** — research what the step needs. Factual claims about the
    world need citations (§4); use web research where available, and
    fan out Opus subagents for deep reading.
@@ -82,8 +86,10 @@ One firing = one bounded improvement to the lane's theory:
    refute what this run added before it lands.
 5. **Write** — update `graph.json`; regenerate `THEORY.md` from it
    (the graph is the data, THEORY.md is its readable face); append ONE
-   row to `LOG.md`; add any new data/tracking/computation wishes to
-   `REQUESTS.md` (§8). Then run `node graph/check.mjs <lane>` from the
+   row to `LOG.md` — and where `FEEDBACK.md` carried items, the row
+   answers each (`feedback: took …; declined … (why)`), so the next
+   review can score the response (§12); add any new
+   data/tracking/computation wishes to `REQUESTS.md` (§8). Then run `node graph/check.mjs <lane>` from the
    branch root — red never lands: fix what it names, or log plainly
    what you could not.
 6. **Land** — set your git identity if unset (a fresh container has
@@ -155,15 +161,19 @@ writes any lane but the optimizer may make:
   input, and central never edits another lane's theory.
 - **The digest and the bridge**: on its first firing after Sunday
   00:00 UTC each week, central rewrites `DIGEST.md` — what every
-  theory concluded this week, graph health, open questions, and the
-  bridge queue — and works `bridge/VERDICTS.md` per §8. The digest is
+  theory concluded this week, graph health, open questions, the
+  bridge queue, and the review lane's latest scores table (§12) — and
+  works `bridge/VERDICTS.md` per §8. The digest is
   what the owner reads; it is written for a person with five minutes.
 
 ## 7 · Workspace rules
 
 Write only your own directory. Central additionally: `DIGEST.md`,
 `bridge/VERDICTS.md`, and appends to any `QUESTIONS.md`. The optimizer
-additionally: `graph/` and other graphs strictly per §5. Nobody
+additionally: `graph/` and other graphs strictly per §5. The review
+lane additionally: every lane's `FEEDBACK.md`, rewritten whole each
+review (§12) — the one file in a lane's directory its lane does not
+write. Nobody
 touches `main` or any product branch, ever; no PRs from theory lanes;
 `LOG.md` is append-only; never delete another lane's content. Your
 container spawns empty: the clone you provision (per your prompt's
@@ -229,7 +239,11 @@ legibility channel); environment `env_013gTXHYYHNaKBiWe8c4gmtd`.
 **Cadence: every lane every other day (the owner's re-pace,
 2026-08-25)** — subject axioms on odd UTC dates, reader lanes on even
 dates, so a reader always works on subject output at most a day old;
-four to five runs a day in total across the nine.
+four to five runs a day in total across the nine. **The review lane
+(§12, added 2026-09-01) runs at 02:02 UTC on odd dates** — six hours
+before the earliest lane slot, so every lane's next run reads feedback
+that already covers its latest landed run: the subject lanes the same
+morning, the reader lanes the next.
 
 | Lane | Trigger id | Schedule (UTC) |
 | --- | --- | --- |
@@ -242,6 +256,7 @@ four to five runs a day in total across the nine.
 | Pattern | `trig_01AsWK9g327DuHD6XatbBAmR` | `2 10 2-30/2 * *` |
 | Graph optimizer | `trig_016uPKLAXGriwC7ukQyRRmUG` | `2 11 2-30/2 * *` |
 | Central | `trig_017ZfLe6VNmVGZ677qqvkqgm` | `2 12 2-30/2 * *` |
+| Review | `trig_01P1aDKgDhab3yLeCrYn3TAt` | `2 2 1-31/2 * *` |
 
 Central still sits last in its group so it reads the freshest axiom
 work. The three product-side program Routines (build · skeptic ·
@@ -264,6 +279,76 @@ wakes the dispatcher.
   prevent — a schema migration landing while a writer is mid-run on
   the old format — is closed by §3's second check, never by the
   writer's push winning.
+- **Review drift**: feedback declined with reasons three reviews
+  running is evidence against the rubric, not against the lane — the
+  review lane argues the fix in its own graph and bumps `RUBRIC.md`;
+  a review that keeps changing no score is re-paced like any other
+  lane (§12).
 - **The owner's dial**: pausing any lane is one toggle in the
   claude.ai Routines UI; re-pacing is one `update_trigger`; the digest
   is the place to learn you want to.
+
+## 12 · Review — the scoring lane
+
+Chartered 2026-09-01 on the owner's direction: *a system that scores
+the different axioms' work every second night and leaves feedback on
+how it could be even more useful, innovative, effective — or any other
+relevant score.* The lane's subject is the other lanes' WORK, not
+their subjects; it never writes a theory.
+
+**What it scores with.** `theory/review/RUBRIC.md`, versioned. Six
+dimensions, each 0–10, each a clause of this charter turned into a
+count: **useful** (§1's purpose — data and data-connections as
+powerful and useful as possible, or another axiom's data made
+stronger), **innovative** (§1's perfection licence, used), **effective**
+(§3's ratchet, and the direction of the motion — falsifiers named and
+contradictions resolved score above node count), **rigorous** (§4 and
+§9 — the ladder rises only on the evidence that defines the rung),
+**connected** (§1's cross-axis rule) and **legible** (§6's five-minute
+reader). Scores are against this contract, never a ranking of lanes
+against each other — a ranking may be printed, it is never a verdict —
+and **a score without its evidence line is not a score**: every number
+in the ledger names what was counted.
+
+**The one check a lane cannot run on itself.** Each review fetches and
+reads at least two `cited` sources per lane among the nodes that rose
+or were added since the last review. A source that does not exist, or
+does not say what the node claims, is named by node id in that lane's
+feedback and in `SCORES.md` and lowers Rigorous. The lane fixes it
+(§11's source-rot rule); the review never edits the node. What the
+container could not reach is not counted as verified.
+
+**How feedback reaches a lane, and how it is answered.** Each review
+REWRITES `theory/<lane>/FEEDBACK.md` — the scores with their evidence
+lines, whether the previous feedback was acted on, and **at most three
+items**, each actionable within one run and each naming the dimension
+it would move. The lane reads it in its Orient step (§3) and answers
+each item in its next LOG row: took it, or declined it with a reason.
+The next review scores the response. A decline with a reason is a
+legitimate answer and is never marked down; silence is Effective's
+failure mode. Feedback is about HOW a lane works; WHAT it should
+conclude stays central's (§6), and an item that strays there is a
+suggestion the lane may decline.
+
+**The ledger.** `theory/review/scores.json` (one entry per review,
+per lane, per dimension, with the evidence line, the spot-check
+outcome and the response to the previous feedback) rendered as
+`SCORES.md` for a person with five minutes; central's weekly digest
+carries the latest table (§6). The ratchet applies to the ledger: a
+review that changes no score says so in its LOG row rather than
+inventing motion.
+
+**Bounds.** The review lane may write `theory/review/` and every lane's
+`FEEDBACK.md` — nothing else (§7; `graph/check.mjs` holds the path
+set). It never edits a graph, a theory, a LOG, a REQUESTS or a
+QUESTIONS file; never rules on bridge requests (central's, §8); never
+scores itself; never inflates or softens. Who reviews the reviewer: the
+lanes' decline rate (§11's review-drift rule), the optimizer's health
+pass over its graph like any other, and the owner's dial.
+
+**Cost, priced at chartering.** A review reads ten workspaces and
+fetches a couple of dozen sources — a bounded run, roughly half to one
+theory run (~$10–20), every second night ≈ 15 runs a month. The
+evidence that it earns its slot is `SCORES.md` moving and feedback
+being taken; the evidence that it does not is three reviews of
+unchanged scores or of reasoned declines — either one is §11's dial.
