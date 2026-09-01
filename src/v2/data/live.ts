@@ -237,6 +237,12 @@ const state = {
   // The deck on screen came off disk and the network has not confirmed it
   // yet. Cleared by the attach; `LIVE.stale` reads it.
   warm: false,
+  // `uid` is the profile mirror's, not yet auth's (D342): the warm paint
+  // runs before the SDK has restored the session, so the account it
+  // paints for is the one this device last confirmed. Cleared the moment
+  // sign-in resolves; while it stands, a null auth state means "not
+  // restored yet", not "session lost" — see the observer in initLive.
+  uidProvisional: false,
   // Why boot did not attach, in the user's own build. See LIVE.bootError.
   bootError: "",
   // Which await boot is sitting on, "" once attached. Separate from
@@ -1395,6 +1401,17 @@ function loadOwnProfile(uid: string): boolean {
   }
 }
 
+// The mirror's owner, without loading it — what the pre-sign-in warm
+// paint trusts provisionally (refreshLive has the argument).
+function ownProfileUid(): string | null {
+  try {
+    const raw = JSON.parse(localStorage.getItem(OWN_PROFILE_LS) || "null");
+    return raw && typeof raw.uid === "string" && raw.uid ? raw.uid : null;
+  } catch {
+    return null;
+  }
+}
+
 function saveOwnProfile(): void {
   const uid = state.uid;
   if (torndown || !uid) return;
@@ -1519,6 +1536,67 @@ function markWarmPaint(): void {
   markPaintable();
 }
 
+// The disk read handed from the pre-sign-in warm paint to the hydrate
+// that follows it, so a confirmed uid does not pay the same five reads
+// twice. Cleared by hydrate on pickup and by resetForNewUid: a read made
+// for one account must never seed another's network phase.
+let warmDisk: { uid: string; disk: DiskCaches } | null = null;
+
+// The warm phase itself: the disk, folded and — when it holds a bank and
+// this account's profile mirror — published and painted. Called before
+// the sign-in with the mirror's own uid (refreshLive), and by hydrate for
+// the confirmed one on every other path.
+//
+// THE GUARD AFTER THE AWAIT is the whole safety of the provisional case.
+// The reads take a few macrotasks, and the auth observer can reset the
+// account inside that window; what came back then belongs to a uid that
+// is no longer this session's and must fold into nothing. The check is
+// against `state.uid` rather than a flag because resetForNewUid is what
+// moves it, and that is the one event this has to notice.
+async function warmFromDisk(uid: string | null): Promise<DiskCaches> {
+  const disk = await readDiskCaches(uid);
+  if (torndown || state.uid !== uid) return disk;
+  if (disk.aggs) {
+    for (const [id, agg] of Object.entries(disk.aggs.rows)) state.aggs[id] = agg;
+    if (disk.aggs.from === "ls") {
+      // Migrate: mark every imported entry dirty so the flush the top-up
+      // schedules carries them into IndexedDB. Display cache, so losing
+      // the 1 s window to a kill costs a refetch at most — the two caches
+      // beside it order removal after commit because theirs cost more.
+      for (const id of Object.keys(disk.aggs.rows)) aggDirty.add(id);
+      try {
+        localStorage.removeItem(AGG_LS);
+      } catch {
+        /* best-effort */
+      }
+      saveAggCache();
+    }
+  }
+  // The answers, folded now rather than after the bank fetch: they are
+  // this account's (readDiskCaches made the owner check) and the network
+  // phase only ever ADDS to them. The cursors ride `disk.answers` down to
+  // the delta queries.
+  if (disk.answers) Object.assign(state.votes, disk.answers.votes);
+  // The paint needs BOTH halves — a bank to draw and the profile mirror
+  // whose anchors the first tap will stamp (the header above has why).
+  // Without the mirror nothing is published here at all, and the boot is
+  // the pre-D342 boot: the feed globals in particular must not go out
+  // before `enabled` is true, or loadWorldFeed's demo join would land on
+  // top of the live pool.
+  const warmBank = disk.bank && uid && loadOwnProfile(uid) ? disk.bank : null;
+  if (warmBank && publishBank(warmBank.rows)) {
+    bankIds = new Set(warmBank.rows.map((q) => q.id));
+    state.stats.bankSource = "cache";
+    computeDeck();
+    publishTestResults();
+    loadProfileCache();
+    mirrorFeedVotes();
+    buildFeedGlobals();
+    markWarmPaint();
+  }
+  return disk;
+}
+
 async function hydrate(): Promise<void> {
   const db = await getDb();
 
@@ -1554,46 +1632,15 @@ async function hydrate(): Promise<void> {
   // BEHIND moves to the bank block below, where the answer to it decides
   // delta-or-refetch exactly as before — the only difference is that the
   // screen is not waiting on the question.
-  const disk = await readDiskCaches(uidEarly);
-  if (disk.aggs) {
-    for (const [id, agg] of Object.entries(disk.aggs.rows)) state.aggs[id] = agg;
-    if (disk.aggs.from === "ls") {
-      // Migrate: mark every imported entry dirty so the flush the top-up
-      // below schedules carries them into IndexedDB. Display cache, so
-      // losing the 1 s window to a kill costs a refetch at most — the two
-      // caches beside it order removal after commit because theirs cost
-      // more.
-      for (const id of Object.keys(disk.aggs.rows)) aggDirty.add(id);
-      try {
-        localStorage.removeItem(AGG_LS);
-      } catch {
-        /* best-effort */
-      }
-      saveAggCache();
-    }
-  }
-  // The answers, folded now rather than after the bank fetch: they are
-  // this account's (readDiskCaches made the owner check) and the network
-  // phase only ever ADDS to them. The cursors ride `disk.answers` down to
-  // the delta queries.
-  if (disk.answers) Object.assign(state.votes, disk.answers.votes);
-  // The paint needs BOTH halves — a bank to draw and the profile mirror
-  // whose anchors the first tap will stamp (the header above has why).
-  // Without the mirror nothing is published here at all, and the boot is
-  // the pre-D342 boot: the feed globals in particular must not go out
-  // before `enabled` is true, or loadWorldFeed's demo join would land on
-  // top of the live pool.
-  const warmBank = disk.bank && uidEarly && loadOwnProfile(uidEarly) ? disk.bank : null;
-  if (warmBank && publishBank(warmBank.rows)) {
-    bankIds = new Set(warmBank.rows.map((q) => q.id));
-    state.stats.bankSource = "cache";
-    computeDeck();
-    publishTestResults();
-    loadProfileCache();
-    mirrorFeedVotes();
-    buildFeedGlobals();
-    markWarmPaint();
-  }
+  //
+  // On a first boot the read (and the paint) already happened BEFORE the
+  // sign-in, for the mirror's uid — refreshLive has why. If auth confirmed
+  // that uid, the read is reused here; on every other path (a reconnect,
+  // an account that had no mirror, a uid auth disagreed with) it is made
+  // now, for the confirmed account.
+  const pre = warmDisk;
+  warmDisk = null;
+  const disk = pre && pre.uid === uidEarly ? pre.disk : await warmFromDisk(uidEarly);
 
   // ── one meta read runs the whole cache story ──
   // contentRev invalidates the local question-bank cache; latest/min
@@ -6106,6 +6153,8 @@ function resetForNewUid(uid: string): void {
   state.ready = false;
   state.attached = false;
   state.warm = false;
+  state.uidProvisional = false;
+  warmDisk = null;
   state.sessionLost = false;
   state.uid = uid;
   purgeLocalTrace();
@@ -6316,7 +6365,49 @@ export function refreshLive(): Promise<void> {
     // exotic one. Each stage is published before it is awaited.
     state.bootStage = "signing in";
     notify();
-    state.uid = await anonSignIn();
+    // THE WARM PAINT DOES NOT WAIT FOR THE SDK EITHER (D342). anonSignIn is
+    // the first thing that imports firebase — ~400 KB of Firestore and
+    // Auth to parse — and then the auth restore's own IndexedDB read; on a
+    // mid-range phone that pair is the longest LOCAL wait a warm boot has
+    // left, and none of it is needed to draw a deck the device already
+    // holds. So the sign-in is started, not awaited, and the disk is read
+    // beside it.
+    //
+    // The account the paint is for is the profile mirror's — the uid this
+    // device last confirmed — held PROVISIONALLY until auth speaks. Three
+    // ways that ends: auth restores the same uid (the common case; nothing
+    // to do), auth names a different one (the observer's existing reset
+    // path purges every trace and this boot continues cold for the new
+    // account — the one below is the belt for the ordering where the
+    // sign-in resolves before the observer has fired), or the sign-in
+    // fails (the deck stays, the last-sync pill says why, the next wake
+    // retries). What the mirror can name is only ever an account this
+    // device confirmed; a mismatch is a lost session, and the purge it
+    // now triggers is what D51 asks for and what the pre-D342 boot could
+    // not do, because it never knew the previous uid.
+    //
+    // First boot of the process only: a reconnect already has a confirmed
+    // uid and a deck on screen, and nothing here would add to either.
+    const signIn = anonSignIn();
+    if (!state.uid && !state.attached) {
+      const mirrorUid = ownProfileUid();
+      if (mirrorUid) {
+        state.uid = mirrorUid;
+        state.uidProvisional = true;
+        const disk = await warmFromDisk(mirrorUid);
+        if (state.uid === mirrorUid) warmDisk = { uid: mirrorUid, disk };
+      }
+    }
+    const uid = await signIn;
+    if (state.uid && state.uid !== uid) {
+      // The observer normally sees this first and resets; this is the
+      // same reset for the other ordering. resetForNewUid re-enters
+      // refreshLive, which joins THIS run — so the hydrate below is the
+      // new account's, over a purged disk.
+      resetForNewUid(uid);
+    }
+    state.uid = uid;
+    state.uidProvisional = false;
     // uid-only (never email/name) — matches sentry.ts's PII stance.
     setSentryUser(state.uid);
     state.bootStage = "loading questions";
@@ -6595,7 +6686,11 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
       return;
     }
     if (linkedChanged) notify();
-    if (!next && state.uid) {
+    // While the uid is the mirror's (D342), a null state is the SDK
+    // reporting "no restored session yet" on the way to refreshLive's own
+    // sign-in — the recovery below would start a SECOND anonymous sign-in
+    // beside it and mint two accounts.
+    if (!next && state.uid && !state.uidProvisional) {
       // Session lost. Deliberately do NOT flip enabled=false: the deck and
       // the bank on screen are still valid, and blanking to demo data is a
       // worse lie than a stale-but-true view. Anonymous-first means we can

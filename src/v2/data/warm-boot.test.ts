@@ -69,11 +69,26 @@ const h = vi.hoisted(() => ({
   listeners: {} as Record<string, () => void>,
   // The auth observer's callback, so a test can switch accounts.
   authCb: null as null | ((u: { uid: string } | null) => void),
+  // Whether subscribing fires the observer at once with `uid` (the SDK
+  // does, asynchronously, once the session is restored). Off, a test
+  // fires `authCb` itself to choose the ordering.
+  autoAuth: true,
+  // The sign-in gate: held, anonSignIn parks until `releaseSignIn` — the
+  // SDK import and the auth restore, made as slow as a test needs.
+  holdSignIn: false,
+  releaseSignIn: null as null | (() => void),
+  signIns: 0,
 }));
 
 vi.mock("../../lib/firebase", () => ({
   firebaseEnabled: true,
-  anonSignIn: () => Promise.resolve(h.uid),
+  anonSignIn: () => {
+    h.signIns += 1;
+    if (!h.holdSignIn) return Promise.resolve(h.uid);
+    return new Promise<string>((resolve) => {
+      h.releaseSignIn = () => resolve(h.uid);
+    });
+  },
   getDb: () => Promise.resolve({ __db: true }),
   getFirestoreApi: () => import("firebase/firestore"),
   getFunctionsApi: () => import("firebase/functions"),
@@ -81,7 +96,7 @@ vi.mock("../../lib/firebase", () => ({
   googleSignOut: () => Promise.resolve(),
   subscribeToAuth: (cb: (u: { uid: string } | null) => void) => {
     h.authCb = cb;
-    cb({ uid: h.uid });
+    if (h.autoAuth) cb({ uid: h.uid });
     return () => {};
   },
 }));
@@ -286,6 +301,11 @@ async function releaseAll(LIVE: { attached: boolean }) {
   }, { timeout: 5000 });
 }
 const flush = () => new Promise<void>((r) => setTimeout(r, 0));
+// Wait until exactly these reads are parked. The paint no longer waits
+// for the sign-in, so the reads that follow it can still be a few
+// microtasks away when initLive returns.
+const expectParked = (paths: string[]) =>
+  vi.waitFor(() => { expect(pendingPaths().sort()).toEqual([...paths].sort()); });
 
 beforeEach(() => {
   vi.resetModules();
@@ -301,6 +321,10 @@ beforeEach(() => {
   h.profile = { displayName: "Ada", anchors: { city: "Oslo, NO", age: "30s" } };
   h.listeners = {};
   h.authCb = null;
+  h.autoAuth = true;
+  h.holdSignIn = false;
+  h.releaseSignIn = null;
+  h.signIns = 0;
   storage = new MemoryStorage();
   vi.stubGlobal("localStorage", storage);
   idb = new IDBFactory();
@@ -332,14 +356,20 @@ describe("the warm paint", () => {
     // …and an answer this account gave on another device since.
     h.answerDocs = [{ id: "q_2", data: { optionIdx: 0, answeredAt: ts(900) } }];
 
+    // …and the sign-in is held too: the paint waits for neither the SDK
+    // nor the auth restore, so with both parked the render is released
+    // on the disk alone.
+    h.holdSignIn = true;
     const mod = await import("./live");
     const LIVE = mod.default;
     // A generous budget, so the only thing that can settle this is the
     // warm paint: the network is gated shut and the deadline is far off.
     await mod.initLive(30_000);
 
-    // The store is on screen, off disk, and says so.
+    // The store is on screen, off disk, and says so — for the account the
+    // mirror names, held provisionally until auth confirms it.
     expect(LIVE.ready).toBe(true);
+    expect(LIVE.uid).toBe("uid_test");
     expect(LIVE.enabled).toBe(true);
     expect(LIVE.attached).toBe(false);
     expect(LIVE.stale).toBe(true);
@@ -353,10 +383,16 @@ describe("the warm paint", () => {
     // reason the mirror is a condition of the paint.
     expect(LIVE.anchors()).toEqual({ city: "Oslo, NO", age: "30s" });
     expect(LIVE.displayName).toBe("Ada");
-    // And the server has answered NOTHING: the reads that went out are
-    // all still parked.
-    expect(h.pending.length).toBeGreaterThan(0);
-    expect(h.calls.length).toBe(h.pending.length);
+    // And nothing has been asked of the server — not one read, because
+    // the boot is still waiting on the sign-in.
+    expect(h.calls).toHaveLength(0);
+
+    // Auth confirms the account; the network phase issues its reads and
+    // they park — the server has still answered nothing.
+    h.releaseSignIn?.();
+    await expectParked(["v2_meta/app", "v2_users/uid_test"]);
+    expect(LIVE.ready).toBe(true);
+    expect(LIVE.attached).toBe(false);
 
     // The network phase reconciles in place.
     await releaseAll(LIVE);
@@ -556,6 +592,8 @@ describe("the warm paint", () => {
     const LIVE = mod.default;
     await mod.initLive(30_000);
     expect(LIVE.ready).toBe(true);
+    // The boot is parked on its first reads.
+    await expectParked(["v2_meta/app", "v2_users/uid_test"]);
     const before = h.calls.length;
     // A foreground while the boot is in flight. With `ready` as the key
     // this would run resubscribeForToday → startAggPoll and issue a
@@ -564,6 +602,94 @@ describe("the warm paint", () => {
     await flush();
     expect(h.calls.length).toBe(before);
     await releaseAll(LIVE);
+  });
+});
+
+describe("the provisional account", () => {
+  // The warm paint runs before auth has restored the session, for the
+  // account the profile mirror names. These pin the three ways that can
+  // end: confirmed (the first case above), contradicted in either order,
+  // and a null state that is merely "not restored yet".
+
+  it("auth naming a different account — observer first — leaves nothing of the mirror's on screen or on disk", async () => {
+    await seedWarmDevice();
+    // The device's last confirmed account was uid_test; the session that
+    // restores is a different one (a lost session re-minted, D3).
+    h.uid = "uid_new";
+    h.profile = { displayName: "Bea", anchors: { city: "Bergen, NO" } };
+    h.gated = true;
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    // The observer fires inside initLive, before the disk read finishes:
+    // the reset lands mid-read, and the read must fold into nothing.
+    await mod.initLive(30);
+    expect(LIVE.uid).toBe("uid_new");
+    expect(LIVE.ready).toBe(false);
+    expect(LIVE.myVotes()).toEqual({});
+    expect(LIVE.anchors()).toEqual({});
+    expect(storage.getItem(OWN_PROFILE_LS)).toBeNull();
+    // One boot, not two: the reset's refreshLive joined the running one.
+    expect(h.signIns).toBe(1);
+    await releaseAll(LIVE);
+    expect(h.calls.filter((c) => c.path === "v2_meta/app")).toHaveLength(1);
+    expect(LIVE.anchors()).toEqual({ city: "Bergen, NO" });
+    expect(JSON.parse(storage.getItem(OWN_PROFILE_LS) || "null")).toMatchObject({ uid: "uid_new" });
+  });
+
+  it("auth naming a different account — sign-in first — un-paints and purges the same way", async () => {
+    await seedWarmDevice();
+    h.autoAuth = false;
+    h.holdSignIn = true;
+    h.gated = true;
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    // Painted for the mirror's account…
+    expect(LIVE.ready).toBe(true);
+    expect(LIVE.uid).toBe("uid_test");
+    expect(LIVE.myVotes()).toEqual({ q_1: "1" });
+    // …then the sign-in resolves to another one before the observer has
+    // said a word. refreshLive's own check is the belt for this order.
+    h.uid = "uid_new";
+    h.profile = { displayName: "Bea", anchors: { city: "Bergen, NO" } };
+    h.releaseSignIn?.();
+    await vi.waitFor(() => { expect(LIVE.uid).toBe("uid_new"); });
+    expect(LIVE.ready).toBe(false);
+    expect(LIVE.myVotes()).toEqual({});
+    expect(LIVE.anchors()).toEqual({});
+    expect(storage.getItem(OWN_PROFILE_LS)).toBeNull();
+    // The observer catching up changes nothing further.
+    h.authCb?.({ uid: "uid_new" });
+    expect(h.signIns).toBe(1);
+    await releaseAll(LIVE);
+    expect(LIVE.anchors()).toEqual({ city: "Bergen, NO" });
+    expect(JSON.parse(storage.getItem(OWN_PROFILE_LS) || "null")).toMatchObject({ uid: "uid_new" });
+  });
+
+  it("a null auth state while the uid is provisional starts no second sign-in", async () => {
+    await seedWarmDevice();
+    h.autoAuth = false;
+    h.holdSignIn = true;
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    expect(LIVE.ready).toBe(true);
+    // The SDK reports "no session" on its way to the sign-in refreshLive
+    // already started. Before D342 state.uid was null here and the branch
+    // could not fire; with a provisional uid it would have minted a
+    // second anonymous account beside the first.
+    h.authCb?.(null);
+    await flush();
+    expect(h.signIns).toBe(1);
+    expect(LIVE.ready).toBe(true);
+    expect(LIVE.uid).toBe("uid_test");
+    // The sign-in lands on the same account: nothing to reset.
+    h.releaseSignIn?.();
+    h.authCb?.({ uid: "uid_test" });
+    await releaseAll(LIVE);
+    expect(LIVE.uid).toBe("uid_test");
+    expect(LIVE.myVotes()).toEqual({ q_1: "1" });
+    expect(h.signIns).toBe(1);
   });
 });
 
@@ -579,7 +705,7 @@ describe("the network phase's round trips", () => {
     const LIVE = mod.default;
     await mod.initLive(30_000);
     // Step 1: the meta read and the early profile read, nothing else.
-    expect(pendingPaths().sort()).toEqual(["v2_meta/app", "v2_users/uid_test"]);
+    await expectParked(["v2_meta/app", "v2_users/uid_test"]);
     await release();
     // Step 2: the bank delta alone — it needs the rev.
     expect(pendingPaths()).toEqual(["v2_questions"]);
@@ -597,7 +723,7 @@ describe("the network phase's round trips", () => {
     const mod = await import("./live");
     const LIVE = mod.default;
     await mod.initLive(30);
-    expect(pendingPaths().sort()).toEqual(["v2_meta/app", "v2_users/uid_test"]);
+    await expectParked(["v2_meta/app", "v2_users/uid_test"]);
     await release();
     // The boot surfaces, the core feed, the bought reach — at once.
     expect(pendingPaths()).toEqual(["v2_questions", "v2_questions", "v2_questions"]);

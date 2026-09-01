@@ -34819,20 +34819,47 @@ launch — the case the caches were built for — showed sample questions.
 
 ### What changed
 
-**The disk is read first, all of it at once, and the paint does not
-wait for the server.** `readDiskCaches` issues the five IndexedDB reads
-in parallel (tens of milliseconds) before the meta read is issued. A
-device holding a bank *and* this account's profile mirror publishes the
-deck, the votes, the aggregates and the feed globals, flips `ready` and
-`enabled`, and resolves a third runner in `initLive`'s race
-(`paintable`). The network phase then runs exactly as before against the
-same pre-read caches — a delta merges, a changed rev refetches and
-replaces the bank whole, the profile document overwrites the mirror, the
-deck's aggregates refresh — and every one of those reaches the screen
-through the notify path that already served late boots. The cold path
-(nothing on disk) is unchanged, deadline and label included.
+**The disk is read first, all of it at once, and the paint waits for
+neither the server nor the SDK.** `readDiskCaches` issues the five
+IndexedDB reads in parallel (tens of milliseconds) beside the sign-in,
+not after it: `anonSignIn` is the first thing that imports firebase —
+~400 KB of Firestore and Auth to parse, then the auth restore's own
+IndexedDB read — and on a mid-range phone that pair was the longest
+local wait a warm boot had left, none of it needed to draw a deck the
+device already holds. A device holding a bank *and* a profile mirror
+publishes the deck, the votes, the aggregates and the feed globals for
+the account the mirror names, flips `ready` and `enabled`, and resolves
+a third runner in `initLive`'s race (`paintable`). The network phase
+then runs exactly as before against the same pre-read caches — a delta
+merges, a changed rev refetches and replaces the bank whole, the profile
+document overwrites the mirror, the deck's aggregates refresh — and
+every one of those reaches the screen through the notify path that
+already served late boots. The cold path (nothing on disk) is unchanged,
+deadline and label included.
 
-**Round trips before `ready`:** warm device 6 → **0**. The network phase
+**The account it paints for is provisional until auth speaks**, and the
+three ways that ends are each pinned. Auth restores the same uid (the
+common case): nothing to do, and the disk read is handed to hydrate so
+it is not paid twice. Auth names a different one — a lost session
+re-minted (D3): the observer's existing reset path runs, purging every
+trace and continuing the same boot cold for the new account; and
+because the sign-in can resolve before the observer has fired,
+`refreshLive` makes the same check itself. What the mirror can name is
+only ever an account this device confirmed, so a mismatch IS a lost
+session, and the purge it now triggers is what D51 asks for and what the
+old boot could not do, because it never knew the previous uid. The
+sign-in fails: the deck stays, the last-sync pill says why, the next
+wake retries. One guard makes the provisional state safe in the
+observer: a null auth state while the uid is provisional is the SDK
+saying "not restored yet" on its way to the sign-in already running —
+the session-lost recovery it used to trigger would have started a
+second anonymous sign-in beside the first and minted two accounts.
+And the disk read is checked against `state.uid` after its awaits, so a
+reset landing mid-read folds that read into nothing.
+
+**Round trips before `ready`:** warm device 6 → **0**, and no SDK parse
+and no auth restore in front of it either — on a returning device the
+paint is the entry chunk plus the disk. The network phase
 itself, which still has to finish before the counts are today's: warm
 6 → 4 (the two answer deltas and the deck aggregates share one trip —
 they share no input, and they are still folded in the old order), cold
@@ -34895,28 +34922,37 @@ reconcile never flashes a label on launch.
 - `slowBoots` still measures the network attach, not the paint: it is a
   fact about the network, and it stays one. A perceived-boot number
   would be a different input.
-- Nothing preloads the SDK. The warm paint still waits on its import and
-  the auth restore (both local); check:bundle's eager ceiling is what
-  keeps the SDK out of first paint on the demo build, and that argument
-  stands.
+- Nothing preloads the SDK, and nothing needs to: the warm paint no
+  longer waits on it. check:bundle's eager ceiling is what keeps the SDK
+  out of first paint on the demo build, and that argument stands.
+- For the length of the auth restore, the account on screen is the one
+  this device last confirmed. If that is not the account auth restores,
+  the person sees their own previous account's deck for that window and
+  then the purge; the pre-D342 boot showed the demo deck for longer and
+  then kept the previous account's device trace under the new uid.
 
 ### What proves it
 
 `src/v2/data/warm-boot.test.ts` gates the network — every read parks
-until the test releases it — so "the render was released while the
-server had answered nothing" is an assertion rather than a timing claim.
-Eleven cases: the warm paint itself (ready, enabled, not attached,
-stale, the cached deck/votes/aggregates/anchors, and the delta merging
-behind it); the cold boot unchanged, label included, and the mirror it
-leaves behind; a cached bank without the mirror waiting (the anchors
-argument); another account's answers and mirror never reaching a paint;
-a changed rev replacing the warm deck through a full fetch and
-rewriting the cache; a failed reconcile keeping the deck, setting the
-reason, and a wake retrying it; the deadline labelling a silent server
-and the attach clearing it; a wake during the running boot issuing
-nothing; an account switch purging the mirror; and the two round-trip
-shapes — meta, delta, then answers ‖ aggregates in one trip; meta, then
-the three bank queries in one trip. `smoke-live.test.jsx` draws the
+until the test releases it — and the sign-in, so "the render was
+released while the server had answered nothing and the SDK had not
+signed in" is an assertion rather than a timing claim. Fourteen cases:
+the warm paint itself (ready, enabled, not attached, stale, the cached
+deck/votes/aggregates/anchors, zero reads issued with the sign-in held,
+and the delta merging behind it once released); the cold boot
+unchanged, label included, and the mirror it leaves behind; a cached
+bank without the mirror waiting (the anchors argument); another
+account's answers and mirror never reaching a paint; a changed rev
+replacing the warm deck through a full fetch and rewriting the cache; a
+failed reconcile keeping the deck, setting the reason, and a wake
+retrying it; the deadline labelling a silent server and the attach
+clearing it; a wake during the running boot issuing nothing; an account
+switch purging the mirror; the provisional account contradicted by auth
+in both orders (observer first, sign-in first) un-painting and purging
+with one boot and one sign-in; a null auth state while provisional
+starting no second sign-in; and the two round-trip shapes — meta, delta,
+then answers ‖ aggregates in one trip; meta, then the three bank queries
+in one trip. `smoke-live.test.jsx` draws the
 last-sync pill against the fixture's new `stale` option and asserts a
 healthy boot shows neither pill. The seven boot-driven suites' helpers
 wait on `attached`, which is the meaning they had been relying on;
@@ -34924,7 +34960,7 @@ bank-cache's paging pin counts cursor-carrying pages instead of indexing
 the log, because the interleaving moved. `test:unit` 156 files / 2316
 tests green; lint, `tsc -b`, check:globals (coupling unchanged at 236),
 check:figures, check:docs, test:scripts, check:purge and the rest of the
-client gates green; the shipping bundle's eager graph 772 → 774 KB
+client gates green; the shipping bundle's eager graph 772 → 775 KB
 against 880.
 
 ### When to revisit
@@ -34938,3 +34974,7 @@ against 880.
   wants and the object is small.
 - If a surface ever needs the *network* fact rather than the *deck* fact,
   it reads `attached`. `ready` will not tell it.
+- If the provisional window ever needs to be shorter than the auth
+  restore, the mirror could carry the last-confirmed uid's `linked`
+  state too; today `linked` is false until auth speaks, which only the
+  account panel reads, and only as copy.
