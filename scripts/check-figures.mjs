@@ -437,6 +437,19 @@ const coreTests = (() => {
 const smokeFiles = readdirSync(join(root, "src/v2/test"))
   .filter((f) => /^smoke-.*\.test\.jsx$/.test(f)).length;
 
+// …and the suites that actually SHARE that harness, which is a different
+// number and the one CLAUDE.md's sentence is about. The glob and the
+// harness parted company twice over: `dialog.test.jsx` has imported
+// mount-app for a long time, and the 2026-09-02 render-coverage files are
+// not named smoke-*. Until this entry the sentence read "these are the
+// only ones that execute a render", which by then was wrong about eighteen
+// suites in this one directory.
+const harnessFiles = readdirSync(join(root, "src/v2/test"))
+  .filter((f) => /\.test\.jsx$/.test(f))
+  .filter((f) => /from ["']\.\/mount-app\.jsx["']/.test(
+    readFileSync(join(root, "src/v2/test", f), "utf8"),
+  )).length;
+
 // The city catalogue's size, read off the generated file's own header — the
 // same line check-cities.mjs parses. It is quoted exactly once in live
 // documentation and was quoted in seven code comments besides, none of them
@@ -519,10 +532,17 @@ const FIGURES = [
   },
   {
     file: "CLAUDE.md",
-    what: "mount smoke files over one harness (§2)",
-    re: /smoke-\*\.test\.jsx` \((\w+) files over one harness/,
+    what: "mount smoke files (§2)",
+    re: /all but one of the \*\*(\w+)\*\* `smoke-\*\.test\.jsx`/,
     actual: word(smokeFiles),
-    fix: (n) => `"(${n} files over one harness"`,
+    fix: (n) => `"all but one of the **${n}** \`smoke-*.test.jsx\`"`,
+  },
+  {
+    file: "CLAUDE.md",
+    what: "suites sharing the mount harness (§2)",
+    re: /harness, and \*\*(\w+)\*\* suites share it/,
+    actual: word(harnessFiles),
+    fix: (n) => `"and **${n}** suites share it"`,
   },
   {
     file: "CLAUDE.md",
