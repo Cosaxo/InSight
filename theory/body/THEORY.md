@@ -1,7 +1,7 @@
 # The body axiom — current theory
 
 *Regenerated from `graph.json` each run; the graph is the data, this
-page is its readable face. Last regenerated 2026-08-29.*
+page is its readable face. Last regenerated 2026-09-01.*
 
 The perfect body axiom is one measurement theory of the body over
 time — sensors, self-report and derived clinical values as channels of
@@ -80,8 +80,9 @@ portfolio question.
 
 *The owner's question (2026-08-25): how do traits measured by the
 other axioms map onto parts and systems of the body? The answer is
-now six claims — the frame (bod-6, bod-7, bod-8), the scouted fronts
-(bod-9, bod-10), and a candidate synthesis (bod-11).*
+now eight claims — the frame (bod-6, bod-7, bod-8), the scouted
+fronts (bod-9, bod-10), a candidate synthesis (bod-11), and the
+reverse limb in both grains (bod-12, bod-13).*
 
 **bod-6 · cited — Cross-connections run through regulatory-system
 parameters, not anatomy, and the honest between-person effects are
@@ -136,8 +137,9 @@ and how stable that verdict has proven. The behavior-mediation limb,
 corrected: conscientiousness–CRP is unchanged by smoking adjustment
 and only attenuated by BMI (Luchetti 2014); the named mediation study
 mediates the achievement facet, not conscientiousness (Graham 2018).
-The reverse limb for conscientiousness↔CRP was not searched to
-completion this run — declared UNSEARCHED, not absent. Twin of gen-11.
+The reverse limb, declared UNSEARCHED on 2026-08-29, was searched
+2026-09-01 and is now its own nodes — bod-12 (trait grain) and bod-13
+(state grain). Twin of gen-11.
 
 **bod-9 · cited — The endocrine front: trait–cortisol near-null
 between persons; the momentary coupling attenuated-small; most
@@ -206,6 +208,68 @@ of bod-7's instrument status. Rises to cited only on a design that
 breaks the method confound — both channels predicting an affect
 outcome assessed by a third method within one study.
 
+**bod-12 · cited — The reverse limb at the trait grain: directionally
+real, small per disease, unsynthesized.** Disease onset predicts trait
+decline in the one pooled analysis (n=17,493): extraversion, emotional
+stability, conscientiousness and openness fall by 0.025–0.044 SD per
+disease (the T→SD conversion is the graph's arithmetic), agreeableness
+unchanged, dose-responsive in comorbidity — and the paper's own
+sensitivity analysis absorbs over 60% of the extraversion effect into
+concurrent depressive symptoms and self-rated health (Jokela 2014).
+The BLSA recovers only the openness decline and calls traits
+"relatively resistant" (Sutin 2013) — but at one-eighth the sample
+that is non-replication under low power, not disconfirmation. The
+design frontier has moved: a before/after-diagnosis design (chronic
+respiratory disease, HRS, N=17,078) finds post-diagnosis slope
+changes of −0.29 to +0.24 SD per decade — a different currency,
+declared (Kuss 2025). No pooled synthesis beyond Jokela exists, and
+the flagship life-events meta-analysis (N=121,187) contains no health
+event at all (Bühler 2024): unsynthesized rather than untested. Where
+both reporter sources are measured (dementia), retrospective informant
+report runs 2–3× prospective self-report at matched stage — rater
+knowledge of the diagnosis is bod-11's common-method discipline
+pointed at the rater — and dementia degrades the instrument itself
+(rank-order stability .70 intact vs .43 impaired, Terracciano 2018),
+a boundary case never underwriting diabetes or arthritis. Negative
+findings declared: no inflammation→personality-change literature
+exists; the supposed Weston/Jackson reverse-direction paper does not
+exist. Consequence: reverse couplings publish reporter source and
+prospectivity as instrument status (bod-7, by declared extension),
+and the correct object is the trait trajectory with disease onsets as
+marked events (tst-4) — while ~0.04 SD per disease bounds how much
+individual trajectory there is to recover.
+
+**bod-13 · cited — The reverse limb at the state grain: randomized
+body manipulations move the mind, within bounds the node holds as
+hard as the effects.** Endotoxin raises depressed mood, anxiety and
+cytokines (Reichenberg 2001; dose-related — Grigoleit 2011; pooled
+N=186 — Lasselin 2016; N=160 RCT, threefold under insomnia — Irwin
+2025) and lowers social-cognitive performance (N=115, Moieni 2015);
+stress-level cortisol impairs declarative memory at high dose only
+(Newcomer 1999); supraphysiologic testosterone raises mania ratings
+with 84/12/4 responder heterogeneity unpredictable at baseline (Pope
+2000) — while inflammation's heterogeneity is partly predicted
+(insomnia; cytokine response and trait anxiety). Glucocorticoid
+epidemiology bridges to naturalistic exposure but is confounded by
+indication, and its headline suicidality signal (HR 6.9, Fardet 2012)
+fails to reproduce in a 1.1M-person register cohort (Lagerberg 2025).
+The bounds: all effects acute and pharmacological; memory
+non-monotonic; the mild-stimulus (typhoid) model fails at scale
+(N=171 null); 18.9% of placebo recipients self-unblind and expectancy
+alone moves the same outcomes (Benson & Elsenbruch 2019) — the
+cleanest support bod-11's percept-dominance rival has yet had; no
+meta-analysis of experimental human endotoxemia exists (that citation
+slot cannot be filled honestly); and hormonal-contraception RCTs
+pooled show no increase in depressive symptoms (de Wit 2021). No
+collision with bod-9: exogenous pharmacological forcing is a
+different exposure class from endogenous variation — the channel
+moves under forcing and is largely quiet in the naturalistic
+between-person range. Whether other axioms' occasion-level
+measurements are body-state-conditioned in the naturalistic range is
+a live hypothesis this evidence bounds, not licenses; illness
+episodes and medication courses become candidate occasion covariates
+via REQUESTS.
+
 ## 3 · Open problems
 
 - Raise bod-1 with a study directly demonstrating a
@@ -213,18 +277,24 @@ outcome assessed by a third method within one study.
 - Raise bod-11 with a method-confound-breaking channel-routing test;
   eBioMedicine 2025's mediation design is the closest shape but is
   same-method on the affect side.
-- bod-8's reverse limb for conscientiousness↔CRP is UNSEARCHED (a
-  disease→personality-change pooled analysis exists as a lead); a
-  future run should search it properly.
 - bod-2 and bod-4 remain argued; both need grounding in the
   re-identification and edge-computation literatures.
-- Named literature gaps found this run: no study quantifies CGM days
-  needed for stable nondiabetic estimates; no dedicated
-  personality–cortisol meta-analysis exists.
+- Named literature gaps: no study quantifies CGM days needed for
+  stable nondiabetic estimates; no dedicated personality–cortisol
+  meta-analysis exists; no pooled synthesis of disease-onset→trait
+  change beyond Jokela 2014; no meta-analysis of experimental human
+  endotoxemia on mood; health events are absent from the life-events
+  canon (a gap the field, not just this graph, should close).
+- bod-12's cancer- and stroke-specific before/after-diagnosis
+  literatures are held as leads; a future run could cite them and
+  test whether Kuss 2025's per-decade slope shifts generalize across
+  disease classes.
 
 *Verification depth this run: scholarly full texts were unreachable
 from the container (egress-blocked); all `cited` sources were
 corroborated against the public search index across independent
-queries, by two separate agents (scout and adversary), and claims are
-abstract-level with per-figure flags in the nodes where retrieval was
-single or failed. §11 source-rot rule applies as usual.*
+queries, by two separate agents (scout and adversary — this run the
+adversary re-verified all 23 sources of the two new nodes and found
+every one real and to-the-digit), and claims are abstract-level with
+per-figure flags in the nodes where retrieval was single or failed.
+§11 source-rot rule applies as usual.*

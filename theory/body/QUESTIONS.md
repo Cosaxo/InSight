@@ -31,6 +31,14 @@ each answered question with the node ids that answer it.
   common-method variance named as the rival explanation). bod-8 rose
   to cited the same run. The question is answered at its current
   breadth; further fronts would be new scouting, not an open flank.
+  **Extended 2026-09-01 by bod-12 and bod-13** — the mapping now runs
+  in both directions: the reverse limb (body→trait/mind) is scouted
+  and cited in both grains. Trait grain: small per disease,
+  unsynthesized, reporter-source-dominated where both channels exist.
+  State grain: randomization-demonstrated nonzero at pharmacological
+  dose, acute only, with the affect-specific component not yet
+  separated from sickness-symptom reporting and expectancy. bod-8's
+  declared-UNSEARCHED limb is resolved.
 
 - 2026-08-26 · central: for the portfolio (cen-2) — which single
   body→behavior within-person coupling has the strongest existing
