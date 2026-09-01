@@ -736,21 +736,26 @@ describe("feed ads (D197): readable by everyone, writable by nobody", () => {
   });
 });
 
+// The CALL fixtures, at module scope because TWO describes need them now:
+// this feature's own cases, and the last of them, which the re-bracketing
+// below separates from the folds' documents that had been filed under this
+// name. Lifting them changes nothing about what any case does.
+const CALL = "call-c01";
+const seedCall = () => seed(async (db) => {
+  await setDoc(doc(db, "v2_questions", CALL), {
+    surface: "call", seq: 0, type: "call", prompt: "Will it be lopsided?",
+    options: ["It will", "It stays close"], active: true, tier: "A",
+    resolvesAt: "2026-10-01",
+    rubric: { kind: "agg", qid: "daily-000", test: "topShareAtLeast", threshold: 60 },
+  });
+});
+const callAnswer = (over: Record<string, unknown> = {}) => ({
+  qid: CALL, surface: "call", optionIdx: 0,
+  answeredAt: serverTimestamp(), anchors: {}, ...over,
+});
+const mine = () => doc(asUser(OWNER), "v2_users", OWNER, "answers", CALL);
+
 describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded", () => {
-  const CALL = "call-c01";
-  const seedCall = () => seed(async (db) => {
-    await setDoc(doc(db, "v2_questions", CALL), {
-      surface: "call", seq: 0, type: "call", prompt: "Will it be lopsided?",
-      options: ["It will", "It stays close"], active: true, tier: "A",
-      resolvesAt: "2026-10-01",
-      rubric: { kind: "agg", qid: "daily-000", test: "topShareAtLeast", threshold: 60 },
-    });
-  });
-  const callAnswer = (over: Record<string, unknown> = {}) => ({
-    qid: CALL, surface: "call", optionIdx: 0,
-    answeredAt: serverTimestamp(), anchors: {}, ...over,
-  });
-  const mine = () => doc(asUser(OWNER), "v2_users", OWNER, "answers", CALL);
 
   it("a call is answered like any world question, and read like one", async () => {
     await seedCall();
@@ -793,7 +798,20 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(updateDoc(doc(asUser(OWNER), "v2_call_outcomes", CALL), { outcomeIdx: 1 }));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_call_outcomes", "call-new"), { outcomeIdx: 0 }));
   });
+});
 
+// Eleven cases sat inside the Foresight CALL describe above, so every
+// failure in them printed under that feature's name and nothing in this
+// file led a reader to the attention or engagement blocks at all. They are
+// not CALL cases: they are the nightly folds' documents — published,
+// owner-only, or readable by nobody — and the reason they share a
+// neighbourhood is that shape, not the feature.
+//
+// RE-BRACKETED, not reordered. A rules suite shares emulator state across
+// the cases in a file, so moving one changes what it sees; adding the two
+// braces changes only what a failure is called. The CALL describe reopens
+// below for its own last case, which really is one.
+describe("the nightly folds' documents: published, owner-only, or nobody's", () => {
   it("the Patterns loadings read like an aggregate and write like one — nobody (v28 §2)", async () => {
     await seed(async (db) => {
       await setDoc(doc(db, "v2_patterns", "loadings"), { k: 8, q: { "daily-000": { v: [0.1], n: 3 } } });
@@ -1061,7 +1079,9 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     for (let i = 0; i <= 120; i++) over[`feed-${i}`] = { s: 1 };
     await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "q2"), shard({ qids: over })));
   });
+});
 
+describe("Foresight CALL (D194): the question's own bounds", () => {
   it("the option bound, the kill switch and the surface claim all read off the question", async () => {
     await seedCall();
     await assertFails(setDoc(mine(), callAnswer({ optionIdx: 2 })));
