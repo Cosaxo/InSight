@@ -1,20 +1,23 @@
 # The genetic axiom — current theory
 
 *Regenerated from `graph.json` by each run; the graph is the data, this
-page is its readable face. Last regenerated 2026-08-29. Statuses follow
+page is its readable face. Last regenerated 2026-09-01. Statuses follow
 CHARTER §4: conjecture → argued → cited → measured; sources live on the
-nodes. Provenance note for the 2026-08-27 and 2026-08-29 runs: the
-environment blocked publisher pages, so those runs' sources are
-record-verified (consistent title/venue/identifier across independent
-index records) with figures snippet-grade unless stated — labeled
-inline on the nodes; GitHub-fetched facts are record-grade.*
+nodes. Provenance note for the 2026-08-27, 2026-08-29 and 2026-09-01
+runs: the environment blocked publisher pages, so those runs' sources
+are record-verified (consistent title/venue/identifier across
+independent index records) with figures snippet-grade unless stated —
+labeled inline on the nodes; GitHub-fetched facts are record-grade.*
 
 The perfect genetic axiom, as the graph currently stands: **import,
 never assay; keep the file with the person; point everything at the one
 asymmetry that matters — the phenotype battery is the scarce asset and
-the genome a weak, fixed prior beside it; and connect the axes through
+the genome a weak, fixed prior beside it; connect the axes through
 architecture, not gene lists — except at the percept boundary, where a
-named gene really does predict a person's answer.**
+named gene really does predict a person's answer; and contribute
+outward on the axes the resource actually owns — decomposition
+magnitudes and never-phenotyped domains for engineering, the axes
+orthogonal to sample size for genetics itself.**
 
 ## Entry — the import door (gen-1 · argued, gen-8 · cited)
 
@@ -250,6 +253,81 @@ argument), on the same touch that **resolved the Epi-PRS scout task**
   fires, the claim widens to "annotation plus epigenomic-intermediate
   imputation"; the two-layer architecture survives either way.
 
+## The widened ambition — engineering and the understanding of genetics (gen-14 · cited, gen-15 · cited)
+
+This run's advance (2026-09-01): the owner's 2026-08-27 widening —
+genetic engineering and the general understanding of genetics beside
+aging — gets its two claims, each landed only after the adversarial
+pass killed its naive first draft. §9 bounds both: knowledge-layer
+contributions over consented aggregates, never procedures.
+
+- **Engineering: magnitudes, not concepts (gen-14).** Two tempting
+  framings are recorded as what the node does NOT say. Not "editing has
+  outrun target knowledge" — the editing field names per-mutation
+  agents, delivery and regulation as its own clinical bottleneck, and
+  the capability headline (prime editing addressing ~89% of ClinVar
+  pathogenic variants) is edit-type arithmetic, not demonstrated
+  correction. Not "the resource refines drug-target success" — the
+  measured driver there is causal-**gene** confidence (success 2.6x
+  with genetic support, improving with causal-gene confidence and
+  largely unaffected by effect size, allele frequency or discovery
+  year; the >2-fold concentrating in Mendelian/coding evidence), which
+  is a variant-to-gene axis a behavioral battery does not supply — and
+  the whole 2x line is observational with self-acknowledged selection
+  confounds. For the heritable branch the binding constraint is law and
+  safety (75 of the 96 policy-bearing countries among 106 surveyed
+  prohibit; the same-day reply to the flagship feasibility analysis
+  calls embryo editing unsafe and unproven; the 2025 landscape —
+  moratorium call vs the first heritable-editing startups — is a
+  news-grade open scout task). What survives, marked as the lane's own
+  inference: the polygenic-editing and embryo-selection analyses
+  (Visscher 2025, Turley 2021, Lencz 2021) already **know** their
+  outputs scale with direct-effect fidelity — Visscher works the
+  proportional shortfall from winner's curse, stratification and
+  indirect effects; Turley simulates on within-family predictive power
+  outright — but they consume within-family decomposition magnitudes
+  measured on thin designs for a handful of traits. The axiom's
+  contribution is (i) gen-11's decomposed couplings **at scale**:
+  per-trait direct/nurture/mating magnitudes with within-family
+  evidence grades across the whole battery (REQUESTS row: consented
+  within-family pairing), and (ii) **first** gene–trait maps for
+  domains nobody has phenotyped (inventory-grade interests,
+  direct-output percept items) — existence, not refinement. What it
+  cannot move — causal-gene assignment, per-mutation agents, delivery,
+  law — is recorded as the bound.
+
+- **Understanding: the axes orthogonal to n (gen-15).** The naive
+  negative — "discovery scale belongs to shallow phenotyping at large
+  n" — did not survive the adversarial pass: shallow-at-scale wins
+  locus counts (Hyde 2016: 17 SNPs at n=459,481 where 9,240 clinical
+  cases had found none; Howard 2018: broad depression the most
+  tractable UK Biobank phenotype), **but** CONVERGE won in the same
+  trait with 5,303 deeply homogeneous severe cases (two replicated
+  loci) when >9,000 heterogeneous cases had yielded nothing, and the
+  field's own framing is that the depth/breadth choice "remains
+  contested" (Dahl 2023). The axiom doesn't own the discovery axis and
+  doesn't need it — the import principle rides other people's n. What
+  the deep battery measurably buys is four axes orthogonal to n:
+  **specificity** (minimal-phenotyping depression: h2 ~11% vs ~26%
+  strict, rg 0.84 with plain neuroticism, PGS predictive power
+  "explained entirely by large sample sizes"; a validated single item
+  is precise-narrow where a minimal phenotype is loose-broad — what
+  costs specificity is measurement looseness, not item count);
+  **structure** (GWAS-by-subtraction's noncognitive factor, 157 loci —
+  with the caveat that it ran on existing summary statistics: the
+  battery's addition is choosing the measurement model, not
+  decomposability per se); **time** (13 loci with age-varying effects
+  under repeated-measures GWAS — the genetic argument for gen-8's
+  longitudinal import series); and **integration** (Dahl 2023: item
+  integration doubled effective n, ~10x loci, ~2x PRS R2 — proving the
+  many-items substrate and simultaneously setting the bar a new item
+  must clear: add what integration over existing items cannot recover,
+  which points at the never-phenotyped domains). Volunteer-bias
+  correction (van Alten 2025) binds participation structure back into
+  gen-11's social-vs-biology honesty rule. Stated plainly, gen-15
+  **narrows gen-3's ranking claim**: the battery's contribution runs on
+  these axes, not on discovery scale.
+
 ## Open scout tasks
 
 1. Device-side analysis ceiling for gen-2 (imputation without a
@@ -273,3 +351,13 @@ argument), on the same touch that **resolved the Epi-PRS scout task**
 8. The three 2026 PGS benchmarks at gen-12 are preprint- or
    record-grade: confirm peer-review status and tool lists from full
    text when reachable.
+9. Pin primary sources for the 2025 heritable-editing landscape at
+   gen-14 (the 2025-03-26 multi-stakeholder moratorium call;
+   Preventive Medicine PBC; Manhattan Genomics) — currently news-grade
+   via the adversarial pass.
+10. Pin identifiers not reached this run: CONVERGE 2015 DOI/PMID and
+    Lencz 2021 PMID (gen-15, gen-14); confirm Cai 2020's in-text h2
+    pair against full text (abstract says 11% vs 26%; a 0.14/SE 0.008
+    variant circulates and was unconfirmable); Flugel 2025's
+    bottleneck sentences (snippet-grade on one pass, unreachable on
+    the second).
