@@ -2912,6 +2912,27 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
     await assertSucceeds(setDoc(doc(plain, "v2_users", OWNER, "answers", duelAid), duelAnswer()));
   });
 
+  it("enforced text: a HIGHER level than the bar still passes (D338)", async () => {
+    // The `>=` property, and it is not academic. With `==`, raising the
+    // bar to 2 and later relaxing it to 1 would refuse every level-2
+    // account — the strictest users locked out by a relaxation, which is
+    // the exact wrong direction and would read as a random outage.
+    await enfEnv.clearFirestore();
+    await seedInto(enfEnv);
+    const linked = enfEnv.authenticatedContext(FRIEND, { db: 2 }).firestore();
+    await assertSucceeds(setDoc(doc(linked, "v2_users", FRIEND, "answers", QID), worldAnswer()));
+  });
+
+  it("enforced text: level 0 is refused exactly as an absent claim is (D338)", async () => {
+    // 0 is a real level (accountLevel.ts: "signed in, nothing verified"),
+    // so it must not read as "some claim, therefore fine" — the shape a
+    // truthiness check would have.
+    await enfEnv.clearFirestore();
+    await seedInto(enfEnv);
+    const zero = enfEnv.authenticatedContext(OWNER, { db: 0 }).firestore();
+    await assertFails(setDoc(doc(zero, "v2_users", OWNER, "answers", QID), worldAnswer()));
+  });
+
   it("enforced text: the claim check is type-strict — only the server's exact value passes", async () => {
     await enfEnv.clearFirestore();
     await seedInto(enfEnv);

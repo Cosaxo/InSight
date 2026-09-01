@@ -33,6 +33,7 @@ import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { logger } from "firebase-functions";
 import { GoogleAuth } from "google-auth-library";
 import { ENFORCE_APP_CHECK, LIGHT_CALLABLE, FUNCTIONS_REGION } from "./ops";
+import { levelFor, levelDef } from "./accountLevel";
 
 const REGION = FUNCTIONS_REGION;
 
@@ -328,11 +329,25 @@ async function androidActivate(
 
 // ── the callable ────────────────────────────────────────────────
 
-async function grant(uid: string): Promise<void> {
+/**
+ * Stamp the account with the LEVEL it just earned (accountLevel.ts), not a
+ * bare 1. The rules compare `>=`, so a level is both the permission and the
+ * record of which requirements were in force when it was granted.
+ *
+ * NEVER LOWERS. Re-activation on a linked account raises 1 → 2; an
+ * already-linked account whose next boot happens to look anonymous (a token
+ * read mid-link, say) must not be demoted, because a demotion silently
+ * stops that person's votes counting with nothing on screen to explain it.
+ * Levels only ratchet up, per account.
+ */
+async function grant(uid: string, level: number): Promise<void> {
   const user = await getAuth().getUser(uid);
+  const prior = Number(user.customClaims?.db ?? 0);
+  const next = Math.max(prior, level);
+  if (next === prior && prior > 0) return; // nothing to write
   // Merge, not replace: setCustomUserClaims overwrites the whole map, and
   // a future claim added elsewhere must survive activation re-runs.
-  await getAuth().setCustomUserClaims(uid, { ...(user.customClaims || {}), db: 1 });
+  await getAuth().setCustomUserClaims(uid, { ...(user.customClaims || {}), db: next });
 }
 
 export const activateDeviceV2 = onCall(
@@ -347,9 +362,14 @@ export const activateDeviceV2 = onCall(
     // Emulator: grant unconditionally, so the e2e loop, the rules claim
     // path, and dev-in-a-browser all work without Apple/Google — the
     // seedContentV2 gating pattern.
+    // The level this caller would earn if the device check passes. Read
+    // from the ID TOKEN's own sign-in provider, never from request.data —
+    // a client-declared level is not a level.
+    const signInProvider = request.auth.token.firebase?.sign_in_provider;
     if (process.env.FUNCTIONS_EMULATOR === "true") {
-      await grant(uid);
-      return { ok: true };
+      const level = levelFor({ deviceBound: true, signInProvider });
+      await grant(uid, level);
+      return { ok: true, level };
     }
     if (platform === "web") {
       // Production has no web build (hosting serves only the legal pages
@@ -377,8 +397,12 @@ export const activateDeviceV2 = onCall(
       logger.info(`[deviceBind] cooldown for uid=${uid} platform=${platform}`);
       return { ok: false, reason: "cooldown" };
     }
-    await grant(uid);
-    logger.info(`[deviceBind] activated uid=${uid} platform=${platform}`);
-    return { ok: true };
+    const level = levelFor({ deviceBound: true, signInProvider });
+    await grant(uid, level);
+    logger.info(
+      `[deviceBind] activated uid=${uid} platform=${platform} level=${level} (${levelDef(level).key})`,
+      { metric: "device_activated", platform, level },
+    );
+    return { ok: true, level };
   },
 );

@@ -682,9 +682,29 @@ service cloud.firestore {
         // literal rewritten to true, so flip day ships a one-word diff
         // whose behavior is pinned in both states.
         function deviceBindEnforced() { return false; }
+        // THE BAR, as a number rather than a boolean (D338). `db` carries
+        // the LEVEL of account requirements the activation callable could
+        // verify — see functions/src/accountLevel.ts, which is the source
+        // of truth this literal must equal (`npm run check:account-level`).
+        //
+        // Raising it here is how the requirements get stricter: every
+        // account below the new value stops counting on the deploy, with
+        // no code change and no migration. That is deliberate power, so
+        // read the daily per-level bind coverage first (velocity.ts,
+        // `bind_coverage`) — it says how many REAL votes each level would
+        // refuse, which is the only honest way to price the move.
+        function requiredAccountLevel() { return 1; }
         function deviceBound() {
           return !deviceBindEnforced()
-            || request.auth.token.get("db", 0) == 1;
+            // `>=`, not `==`: levels subsume, so an account that cleared a
+            // HIGHER bar must not be refused by a lower one. With `==`,
+            // raising the bar to 2 and later lowering it to 1 would refuse
+            // every level-2 account — the strictest users locked out by a
+            // relaxation, which is the exact wrong direction.
+            //
+            // Type-strict either way: a claim carrying a string fails the
+            // comparison rather than passing it, pinned in rules.test.ts.
+            || request.auth.token.get("db", 0) >= requiredAccountLevel();
         }
 
         // World-facing surfaces: one doc per question, id == qid.

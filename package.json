@@ -72,6 +72,8 @@
     "check:ios-facebook": "node scripts/check-ios-facebook.mjs",
     "check:ios-location": "node scripts/check-ios-location.mjs",
     "check:devicebind": "node scripts/check-devicebind.mjs",
+    "check:account-level": "node scripts/check-account-level.mjs",
+    "account-levels": "node scripts/account-levels.mjs",
     "postinstall": "node scripts/strip-facebook-sdk.mjs",
     "build:cities": "node scripts/build-cities.mjs",
     "check:deploy-targets": "node scripts/check-deploy-targets.mjs",

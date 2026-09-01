@@ -44,6 +44,7 @@ import { utcDayKeyOf } from "./pure";
 // outcome).
 import { LIGHT_UNBOUNDED, FUNCTIONS_REGION } from "./ops";
 import { V2_QUESTIONS } from "./v2content";
+import { REQUIRED_LEVEL, levelDef } from "./accountLevel";
 import { db as firestore } from "./db";
 
 const REGION = FUNCTIONS_REGION;
@@ -262,37 +263,69 @@ export function burstSignal(
 // COST: zero extra reads. The scan already fetches a UserRecord for every
 // uid in the window for the birth-cluster signal, and custom claims ride
 // that record.
+export interface LevelTally {
+  voters: number;
+  answers: number;
+}
+
 export interface BindCoverage {
   voters: number;
-  boundVoters: number;
   answers: number;
-  boundAnswers: number;
+  /** Level → what that level's accounts contributed. Sparse: only levels seen. */
+  byLevel: Map<number, LevelTally>;
 }
 
 /**
  * `perUid` is the window fold's per-account timestamp lists, so its value
- * lengths ARE that account's counted answers. `bound` is the subset of
- * uids whose auth record carries `db == 1`.
+ * lengths ARE that account's counted answers. `levels` maps uid → the `db`
+ * claim it holds.
  *
- * Accounts absent from `bound` include the erased (D28's vote-then-erase
- * residual — getUsers simply omits them). They count as unbound, which is
- * the honest direction: an answer that cannot be shown to have come from
- * a bound account has not been shown to have come from one.
+ * A uid absent from `levels` counts as LEVEL 0. That includes accounts
+ * erased since they voted (D28's vote-then-erase residual — getUsers
+ * simply omits them), and it is the honest direction: an answer that
+ * cannot be shown to have come from a qualifying account has not been
+ * shown to have come from one. The other direction overstates coverage on
+ * precisely the day it is trusted.
  */
-export function bindCoverage(perUid: Map<string, number[]>, bound: Set<string>): BindCoverage {
+export function bindCoverage(
+  perUid: Map<string, number[]>,
+  levels: Map<string, number>,
+): BindCoverage {
+  const byLevel = new Map<number, LevelTally>();
   let voters = 0;
-  let boundVoters = 0;
   let answers = 0;
-  let boundAnswers = 0;
   for (const [uid, times] of perUid) {
+    const lvl = levels.get(uid) ?? 0;
     voters += 1;
     answers += times.length;
-    if (bound.has(uid)) {
-      boundVoters += 1;
-      boundAnswers += times.length;
+    const t = byLevel.get(lvl) || { voters: 0, answers: 0 };
+    t.voters += 1;
+    t.answers += times.length;
+    byLevel.set(lvl, t);
+  }
+  return { voters, answers, byLevel };
+}
+
+/**
+ * What moving the bar to `bar` would have cost over this window: the
+ * voters and answers sitting BELOW it.
+ *
+ * This is the number to read before raising `REQUIRED_LEVEL`
+ * (accountLevel.ts) — and before the first flip of `deviceBindEnforced`,
+ * where the bar is already 1. `refusedAnswers / answers` is the share of
+ * real votes that would have been silently rolled back, which is the
+ * failure D37 exists to prevent and could not see (D337).
+ */
+export function refusedAt(cov: BindCoverage, bar: number): LevelTally {
+  let voters = 0;
+  let answers = 0;
+  for (const [lvl, t] of cov.byLevel) {
+    if (lvl < bar) {
+      voters += t.voters;
+      answers += t.answers;
     }
   }
-  return { voters, boundVoters, answers, boundAnswers };
+  return { voters, answers };
 }
 
 /** Percent, one decimal, and 0 rather than NaN on an empty window. */
@@ -459,15 +492,23 @@ export const ledgerVelocityScan = onSchedule(
     // not appear; their votes still count toward the other signals.
     const uids = [...fold.perUid.keys()];
     const created: { uid: string; createdMs: number }[] = [];
-    // Riding the same fetch: D29's claim lives on the UserRecord this loop
-    // already pulls, so bind coverage below costs no extra call.
-    const boundUids = new Set<string>();
+    // Riding the same fetch: the `db` claim lives on the UserRecord this
+    // loop already pulls, so coverage below costs no extra call.
+    const levels = new Map<string, number>();
     for (let i = 0; i < uids.length; i += 100) {
       const res = await getAuth().getUsers(uids.slice(i, i + 100).map((uid) => ({ uid })));
       for (const u of res.users) {
         const ms = Date.parse(u.metadata.creationTime);
         if (!Number.isNaN(ms)) created.push({ uid: u.uid, createdMs: ms });
-        if (u.customClaims?.db === 1) boundUids.add(u.uid);
+        // An ACTUAL integer only, matching what firestore.rules accepts —
+        // `get("db", 0) >= n` errors on a string or a boolean and denies.
+        // Coercing would overstate coverage: `Number(true)` is 1, so a
+        // malformed claim would count as a qualifying account on exactly
+        // the day this number is trusted. A level ABOVE the ladder is kept
+        // rather than discarded: that is an account minted by a newer
+        // deploy than this code, which levelDef describes honestly.
+        const raw = u.customClaims?.db;
+        if (typeof raw === "number" && Number.isInteger(raw) && raw > 0) levels.set(u.uid, raw);
       }
     }
     const clusters = birthClusters(created);
@@ -507,23 +548,32 @@ export const ledgerVelocityScan = onSchedule(
 
     await stateRef.set({ lastScanAt: maxAt, days: pruneDays(merged) });
 
-    // Bind coverage (D337). INFO, and stated as the flip question it
-    // answers rather than as two bare ratios — the number an operator
-    // needs on flip day is "what share of real votes would this have
-    // refused", and a reader should not have to do the subtraction while
-    // deciding.
-    const cov = bindCoverage(fold.perUid, boundUids);
+    // Bind coverage (D337, per-level since D338). INFO, and stated as the
+    // decision it informs rather than as bare ratios — the question an
+    // operator has on flip day, and again on every later tightening, is
+    // "what share of real votes would this refuse", and they should not
+    // have to do the subtraction while deciding.
+    const cov = bindCoverage(fold.perUid, levels);
+    const atBar = refusedAt(cov, REQUIRED_LEVEL);
+    const ladder = [...cov.byLevel.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([lvl, t]) => `L${lvl}(${levelDef(lvl).key})=${t.voters}v/${t.answers}a`)
+      .join(" ");
     logger.info(
-      `[velocity] bind coverage: ${cov.boundVoters}/${cov.voters} voters (${pct(cov.boundVoters, cov.voters)}%) `
-        + `and ${cov.boundAnswers}/${cov.answers} answers (${pct(cov.boundAnswers, cov.answers)}%) are device-bound — `
-        + `flipping deviceBindEnforced today would have refused ${pct(cov.answers - cov.boundAnswers, cov.answers)}% of this window's votes`,
+      `[velocity] bind coverage: ${ladder || "no voters"} — at the current bar (>=${REQUIRED_LEVEL}) `
+        + `enforcement would refuse ${atBar.answers}/${cov.answers} answers (${pct(atBar.answers, cov.answers)}%) `
+        + `from ${atBar.voters}/${cov.voters} voters`,
       {
         metric: "bind_coverage",
         voters: cov.voters,
-        boundVoters: cov.boundVoters,
         answers: cov.answers,
-        boundAnswers: cov.boundAnswers,
-        refusedPct: pct(cov.answers - cov.boundAnswers, cov.answers),
+        bar: REQUIRED_LEVEL,
+        refusedVoters: atBar.voters,
+        refusedAnswers: atBar.answers,
+        refusedPct: pct(atBar.answers, cov.answers),
+        // Per level, so raising the bar can be priced from the same line
+        // rather than from a second query written during an incident.
+        levels: Object.fromEntries([...cov.byLevel].map(([l, t]) => [l, t])),
       },
     );
 

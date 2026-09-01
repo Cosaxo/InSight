@@ -34437,4 +34437,119 @@ price, and the app can eventually say what its numbers are a count OF.
 D28's claim was never "no fake accounts" — it was that the number is
 bounded in how wrong it can silently be. Until today that claim rested on
 two controls that were not running.
+---
+
+## D338 · The account requirement becomes a level, so the bar can be raised later
+
+**Date:** 2026-08-30 · **Status:** built. Owner's ask: *"I also want a way
+to filter out profiles that hasn't fulfilled the newest account
+requirements so I can update them to be stricter later."*
+
+**Decision.** The `db` custom claim carries the account-requirement LEVEL
+an account has been shown to meet, and `firestore.rules` compares `>=`
+rather than `== 1`. `functions/src/accountLevel.ts` is the ladder and the
+source of truth; `requiredAccountLevel()` in the rules is the enforced
+copy, held equal by `check:account-level`.
+
+**Why a boolean was the wrong shape.** D29's `db: 1` meant "passed the
+device check", which was sufficient while there was exactly one
+requirement and is wrong the moment there are two. A boolean cannot say
+WHICH bar an account cleared, so tightening later leaves no way to
+separate the accounts that met the old requirements from the accounts that
+meet the new ones — you would be re-deriving that per account, after the
+fact, from whatever evidence survived.
+
+**Why now rather than later, and this is the load-bearing part.**
+Activation has never run — the native bridges did not exist until D337 —
+so **no account anywhere holds a `db` claim**. Redefining what the claim
+MEANS is free today and is a migration over live auth users the moment one
+real account carries it. This window closes the day the owner sets the
+Apple key.
+
+### The ladder
+
+| Level | Key | What it has been shown to satisfy |
+| --- | --- | --- |
+| 0 | `none` | Signed in, nothing verified. Every account starts here (D3) and stays here if activation never succeeds |
+| 1 | `device` | The platform confirmed this physical device had not already activated an account this calendar month (D29) |
+| 2 | `device+identity` | Device-bound AND linked to a real identity provider — the account survives the handset, and carries a second scarce factor whose Sybil defence Google and Apple already pay for |
+
+`REQUIRED_LEVEL` is **1**. Level 2 exists so the bar can be raised with no
+new code, which is the whole request.
+
+Deliberately short. A level is only worth minting when something can
+actually VERIFY it; a rung nothing checks is the dead allowlist entry D331
+removed from the profile — a promise the tree cannot keep. The level is
+computed from the ID token's own `sign_in_provider`, never from
+`request.data`: a client-declared level is not a level.
+
+### Four properties that are decisions, not details
+
+- **`>=`, never `==`.** Levels subsume. With `==`, raising the bar to 2 and
+  later relaxing it to 1 would refuse every level-2 account — the strictest
+  users locked out by a relaxation, reading as a random outage. Pinned in
+  `rules.test.ts` against the enforced ruleset.
+- **Levels ratchet up per account, never down.** Re-activation on a linked
+  account raises 1 → 2; an already-linked account whose next boot happens
+  to read as anonymous must not be demoted, because a demotion silently
+  stops that person's votes counting with nothing on screen to explain it.
+- **A malformed claim is level 0, in all three readers.** The claim is read
+  by `firestore.rules`, by the nightly scan and by the operator script, in
+  three languages, and they must agree on the case every account is in
+  today: absent. Rules answer 0 by `get("db", 0)`, and a string or boolean
+  errors the comparison and denies. The first drafts of the other two
+  coerced with `Number()` — which reads `db: true` as level **1**, a
+  malformed claim reported as a qualifying account on precisely the day the
+  report is trusted. A test caught it; both now accept an integer only.
+- **A level ABOVE the ladder is described, not discarded.** During a
+  rollout an account can be minted by a newer deploy than the reader.
+  `levelDef` names it rather than crashing a nightly scan.
+
+### The two instruments, and why both
+
+Raising `REQUIRED_LEVEL` is one number, and on deploy every account below
+it stops counting. That is deliberate power, so it gets priced before it is
+used — by two measurements that answer different questions and diverge
+hard:
+
+- **`ledgerVelocityScan`'s `bind_coverage`** (D337, per-level here) counts
+  ANSWERS from accounts that actually voted, and reports what each bar
+  would have refused. This is the aggregate question.
+- **`npm run account-levels -- --below 2`** counts ACCOUNTS. This is the
+  population question.
+
+A thousand dormant unbound accounts barely move the published numbers,
+while one heavy unbound voter moves them a lot. Reading only the second
+would price a tightening as catastrophic; reading only the first would miss
+how many people are about to be quietly excluded.
+
+The script is **read-only and has no `--apply`**, deliberately: raising the
+bar is a code edit and a deploy. A script that could re-level accounts
+would be a way to grant the claim without the device check that is supposed
+to earn it.
+
+### `check:account-level`, on the deploy path
+
+Two numbers that must agree, cannot import each other, and disagree
+silently in **both** directions: rules ahead of the source means every
+report says accounts qualify while their votes are refused; source ahead of
+rules means the bar you believe you set is not the one enforced. Neither
+appears in any test — the rules tests mint their own claims, and the
+callable's tests never open `firestore.rules`.
+
+The gate treats a missing match as a FAILURE rather than a pass, because a
+gate that reads nothing and reports OK is worse than no gate: it is
+believed. Its own test suite pins that, and pinned one real defect already
+— the ladder parser was anchored to line starts, so a formatter collapsing
+those object literals would have blinded it.
+
+### What this does NOT do
+
+It does not flip enforcement (`deviceBindEnforced()` is still `false`, and
+D37's sequence is unchanged), it does not raise the bar above 1, and it
+stores nothing new — the level lives in the auth claim, so there is no new
+collection, no data-inventory row and no erasure phase. Filtering profiles
+is a `listUsers` scan by an operator, not a queryable field on a public
+profile document; `v2_users` is world-readable since D98, and "this account
+is unverified" is not a fact this app needs to publish about a person.
 

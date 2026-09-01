@@ -27,6 +27,7 @@ import {
   mergeDays,
   pct,
   pruneDays,
+  refusedAt,
   type DayCounts,
   type LedgerRow,
 } from "./velocity";
@@ -322,7 +323,8 @@ describe("window fold and state", () => {
   });
 });
 
-// Bind coverage (D337) — the number D37's two thresholds cannot see.
+// Bind coverage (D337, per-level since D338) — the number D37's two
+// thresholds cannot see.
 //
 // D37 gates the enforcement flip on rates read from activateDeviceV2's own
 // logs. Both measure the ENDPOINT, so an account that never called it —
@@ -330,54 +332,73 @@ describe("window fold and state", () => {
 // invisible to both while still voting. This measures the voting
 // population instead, which is the one the flip actually refuses.
 describe("bindCoverage", () => {
-  const fold = (m) => new Map(Object.entries(m));
+  const fold = (m: Record<string, number[]>) => new Map(Object.entries(m));
+  const lv = (m: Record<string, number>) => new Map(Object.entries(m));
 
-  it("counts voters and their answers separately, because they differ", () => {
-    // The distinction is the whole point: one bound account answering
-    // thirty times and thirty unbound answering once each is 3% of voters
-    // and 50% of answers. Reporting only the voter ratio would call that
-    // window catastrophic; only the answer ratio would call it fine.
+  it("counts voters and their answers separately, because they diverge", () => {
+    // One bound account answering thirty times against thirty unbound
+    // answering once each is 3% of voters and 50% of answers. Reporting
+    // only the voter ratio calls that window catastrophic; only the answer
+    // ratio calls it fine. The flip refuses ANSWERS, so both are logged.
+    const perUid = fold({
+      heavy: Array(30).fill(0),
+      ...Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`u${i}`, [0]])),
+    });
+    const cov = bindCoverage(perUid, lv({ heavy: 1 }));
+    expect(cov.voters).toBe(31);
+    expect(cov.answers).toBe(60);
+    expect(cov.byLevel.get(1)).toEqual({ voters: 1, answers: 30 });
+    expect(cov.byLevel.get(0)).toEqual({ voters: 30, answers: 30 });
+    expect(pct(refusedAt(cov, 1).answers, cov.answers)).toBe(50);
+  });
+
+  it("treats an unknown uid as level 0 — the honest direction", () => {
+    // Erased accounts (D28's vote-then-erase residual) never come back from
+    // getUsers. An answer that cannot be shown to qualify has not been shown
+    // to qualify; the other direction overstates coverage on exactly the day
+    // it is trusted.
+    const cov = bindCoverage(fold({ a: [1], gone: [1, 2] }), lv({ a: 1 }));
+    expect(cov.byLevel.get(0)).toEqual({ voters: 1, answers: 2 });
+    expect(refusedAt(cov, 1)).toEqual({ voters: 1, answers: 2 });
+  });
+
+  it("prices raising the bar, which is the whole reason levels exist", () => {
+    // Three tiers in one window. Raising the bar from 1 to 2 is free of
+    // nothing: it newly refuses every level-1 account, and this is the
+    // number to read BEFORE editing REQUIRED_LEVEL.
     const cov = bindCoverage(
-      fold({ heavy: Array(30).fill(0), ...Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`u${i}`, [0]])) }),
-      new Set(["heavy"]),
+      fold({ anon: [1, 2], dev: [1, 2, 3], linked: [1] }),
+      lv({ dev: 1, linked: 2 }),
     );
-    expect(cov).toEqual({ voters: 31, boundVoters: 1, answers: 60, boundAnswers: 30 });
-    expect(pct(cov.boundVoters, cov.voters)).toBe(3.2);
-    expect(pct(cov.boundAnswers, cov.answers)).toBe(50);
+    expect(refusedAt(cov, 1)).toEqual({ voters: 1, answers: 2 });
+    expect(refusedAt(cov, 2)).toEqual({ voters: 2, answers: 5 });
+    // A bar of 0 refuses nobody — every account is at least 0.
+    expect(refusedAt(cov, 0)).toEqual({ voters: 0, answers: 0 });
   });
 
-  it("treats an unknown uid as unbound — the honest direction", () => {
-    // Erased accounts (D28's vote-then-erase residual) never come back
-    // from getUsers, so they are absent from the bound set. An answer that
-    // cannot be SHOWN to be bound has not been shown to be bound; the
-    // alternative reads coverage as higher than it is, on flip day.
-    const cov = bindCoverage(fold({ a: [1], gone: [1, 2] }), new Set(["a"]));
-    expect(cov.boundAnswers).toBe(1);
-    expect(cov.answers).toBe(3);
-  });
-
-  it("is 100% when every voter is bound, and 0% when none is", () => {
-    expect(bindCoverage(fold({ a: [1], b: [2] }), new Set(["a", "b"])))
-      .toEqual({ voters: 2, boundVoters: 2, answers: 2, boundAnswers: 2 });
-    expect(bindCoverage(fold({ a: [1], b: [2] }), new Set()))
-      .toEqual({ voters: 2, boundVoters: 0, answers: 2, boundAnswers: 0 });
+  it("counts a level ABOVE the bar as qualifying", () => {
+    // `>=` in the rules, so this must agree: a level-2 account must not be
+    // reported as refused by a bar of 1. With `==` semantics anywhere in
+    // this chain, the strictest accounts are the ones locked out.
+    const cov = bindCoverage(fold({ linked: [1, 2] }), lv({ linked: 2 }));
+    expect(refusedAt(cov, 1)).toEqual({ voters: 0, answers: 0 });
   });
 
   it("reports an empty window as zero rather than NaN", () => {
-    // A quiet day must not log "NaN% of votes would be refused" — the flip
-    // decision is read off this line, and NaN reads as broken instrumentation
+    // A quiet day must not log "NaN% would be refused" — the flip decision
+    // is read off this line, and NaN reads as broken instrumentation
     // exactly when the honest answer is "nothing happened".
-    const cov = bindCoverage(new Map(), new Set());
-    expect(cov).toEqual({ voters: 0, boundVoters: 0, answers: 0, boundAnswers: 0 });
-    expect(pct(cov.boundAnswers, cov.answers)).toBe(0);
+    const cov = bindCoverage(new Map(), new Map());
+    expect(cov).toEqual({ voters: 0, answers: 0, byLevel: new Map() });
+    expect(pct(refusedAt(cov, 1).answers, cov.answers)).toBe(0);
     expect(Number.isNaN(pct(0, 0))).toBe(false);
   });
 
   it("rounds to one decimal, so a third of a percent does not read as zero", () => {
     expect(pct(1, 3)).toBe(33.3);
     expect(pct(1, 1000)).toBe(0.1);
-    // Below a tenth of a percent it does read as zero, which is accepted:
-    // the flip decision does not turn on the fourth significant figure.
+    // Below a tenth of a percent it does read as zero, accepted: the flip
+    // decision does not turn on the fourth significant figure.
     expect(pct(1, 100000)).toBe(0);
   });
 });
