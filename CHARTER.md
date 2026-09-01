@@ -43,8 +43,8 @@ serving is drifting.
 
 ## 2 · The lanes
 
-Ten recurring lanes — nine theory lanes every other day and the review
-lane every second night (§10), each firing as a fresh session spawned
+Twelve recurring lanes — eleven every other day and the review lane
+every second night (§10), each firing as a fresh session spawned
 through the dispatcher — each owning one workspace directory. Orchestrator model is Fable at
 full reasoning; heavy subtasks fan out to Opus subagents at high
 effort; simple mechanical steps may use Opus at lower effort; **never a
@@ -57,6 +57,8 @@ explicitly not the constraint; quality is).
 | Body | `theory/body/` | The perfect body axiom: sensors, self-report, derived clinical values — one coherent measurement theory of the body over time; and the cross-connection half (§1): how traits the other axioms measure map onto parts and systems of the body |
 | Questions | `theory/questions/` | The perfect question axiom: the ideal bank, selection, and measurement theory of asking people things |
 | Tests | `theory/tests/` | The perfect test axiom: logic, the four instruments and the nine lenses as one measurement system |
+| Ties | `theory/ties/` | The relational axiom (chartered 2026-09-01 on the owner's suggestion, "the 1v1 and group profile"): the data whose unit is a tie rather than a person — the 1v1 and group duel record (sealed answers, guesses, picks, reveals), the membership store and the follow graph — as one measurement theory of pairs and groups: interpersonal accuracy and legibility, projection versus knowledge, nomination and reputation, consensus and independence, homophily on chosen ties, tie type; the cross-connection half (§1): what the person-level axioms predict about how a tie goes, and what a tie reveals about a person no self-report reaches. Reading the crowd (Foresight READ, the Oracle's grade) is its crowd-scale cousin |
+| Interests | `theory/interests/` | The interests axiom (chartered 2026-09-01 — the one axis in the product's frame with no lane): what a person is into, as an inventory-grade measurement, as a graph of chosen things and as a behavioural model — one measurement theory of interests over time, custody first-class (the product holds the behavioural model on the device by a binding decision, D163); the cross-connection half (§1): what interests predict about every other axiom's measurements — the genetic lane's finding that no GWAS of an administered interest inventory exists makes the phenotype first of its kind — and what they reveal that the trait instruments do not |
 | Map | `theory/map/` | Display theory: how all of this should be drawn, mapped and navigated — perfectly and most efficiently. Reads the other theories; does not write them |
 | Pattern | `theory/pattern/` | Calculation theory: how patterns should be found — the perfect successors to factorization, including LLM-shaped representation learning. Reads the others; does not write them |
 | Database | `theory/database/` | Infrastructure theory, deliberately NOT an axiom (the owner, 2026-08-26): the perfect, most efficient and most useful database for the axioms and their connections — the join as the unit of design, custody as layout, storage shapes per reader, schema evolution. Reads the others; does not write them |
@@ -239,7 +241,9 @@ legibility channel); environment `env_013gTXHYYHNaKBiWe8c4gmtd`.
 **Cadence: every lane every other day (the owner's re-pace,
 2026-08-25)** — subject axioms on odd UTC dates, reader lanes on even
 dates, so a reader always works on subject output at most a day old;
-four to five runs a day in total across the nine. **The review lane
+five to six runs a day in total across the eleven — the ties and
+interests lanes (added 2026-09-01) take the odd-date afternoon slots,
+so central still reads them at most a day old. **The review lane
 (§12, added 2026-09-01) runs at 02:02 UTC on odd dates** — six hours
 before the earliest lane slot, so every lane's next run reads feedback
 that already covers its latest landed run: the subject lanes the same
@@ -251,6 +255,8 @@ morning, the reader lanes the next.
 | Body | `trig_01AopNS2HAVVHFYk99w7oJv7` | `2 10 1-31/2 * *` |
 | Questions | `trig_01JeVZmgC9FB78L5VRxGQJ9L` | `2 11 1-31/2 * *` |
 | Tests | `trig_01URyaqWz9WgLdRJVDn6z8hX` | `2 12 1-31/2 * *` |
+| Ties | `trig_01PjG2bW3zK3GTgnfaYTjQky` | `2 13 1-31/2 * *` |
+| Interests | `trig_01HUHXnMT6xAiEaurLxeBJNq` | `2 14 1-31/2 * *` |
 | Database | `trig_01VDccEWW215SDJPE3ujHciL` | `2 8 2-30/2 * *` |
 | Map | `trig_014HZHQYSpjc4xQGfbyAgjXw` | `2 9 2-30/2 * *` |
 | Pattern | `trig_01AsWK9g327DuHD6XatbBAmR` | `2 10 2-30/2 * *` |
@@ -346,8 +352,7 @@ scores itself; never inflates or softens. Who reviews the reviewer: the
 lanes' decline rate (§11's review-drift rule), the optimizer's health
 pass over its graph like any other, and the owner's dial.
 
-**Cost, priced at chartering.** A review reads ten workspaces and
-fetches a couple of dozen sources — a bounded run, roughly half to one
+**Cost, priced at chartering.** A review reads every workspace and fetches a couple of dozen sources — a bounded run, roughly half to one
 theory run (~$10–20), every second night ≈ 15 runs a month. The
 evidence that it earns its slot is `SCORES.md` moving and feedback
 being taken; the evidence that it does not is three reviews of

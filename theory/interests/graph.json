@@ -1,0 +1,84 @@
+{
+  "version": 1,
+  "axiom": "interests",
+  "updated": "2026-09-01",
+  "nodes": [
+    {
+      "id": "int-1",
+      "claim": "Interests are an axis in three custody classes at once — public favourites, a public follow graph, and a device-only behavioural model — and the perfect interests axiom must say which of the three IS the measurement, because a fold over the public two publishes nothing about the third and the third is the richest.",
+      "status": "argued",
+      "detail": "The shipped axis is three implementations (AXES-PLAN §1's row on main): catalogue favourites written as public answers keyed into committed catalogues (D14–D17, D232, D266), the follow graph (D101 — a bookmark, one document per edge, world-readable), and D163's interest model — built from the device's own pass, defer and read signals, used to order the feed's tail, shown to the user, and never uploaded, by a binding decision whose surviving property is that the server never learns what anyone is into. The custody law (cen-6) says raw stays where the person is and what crosses is derived with its basis; D163 is that law applied before it was written. So the theory's first job is a definition, not a computation. Is the interests measurement (a) what a person declares by choosing — favourites and follows, public, sparse, socially legible; (b) what a person reveals by attention — the device model, rich, private, behavioural; or (c) an instrument — inventory-grade items answered like any other question, public under D98, comparable across people? The three differ in validity, custody and crowd value, and the seed's claim is that (c) is the measurement the combination needs, (a) is its public shadow, and (b) is a personal lens in cen-4's sense — valuable at population zero and never pooled. Falsifier: a demonstration that declared choices predict the other axioms' measurements as well as an inventory would makes (c) redundant collection.",
+      "sources": [],
+      "edges": [
+        { "to": "cen-6", "type": "depends" },
+        { "to": "cen-4", "type": "supports" }
+      ],
+      "created": "2026-09-01",
+      "updated": "2026-09-01"
+    },
+    {
+      "id": "int-2",
+      "claim": "An inventory-grade interests measurement — items answered on the public stream, factors and superfactors derived from measured response structure — is the collection the axis is missing, and it is a governed-process decision about collection, not a computation.",
+      "status": "argued",
+      "detail": "The bridge already ruled this once from the other side: the genetic lane asked for interest constructs scored at factor level (2026-08-28) and central returned not-yet because the items the factors would aggregate do not exist on the answer stream — the nine lenses are minor instruments, not an interests inventory, and the topic list and D163's model are device-local by decision. So the request pipeline has located the axis's gap exactly: an item set, at inventory grade, on the public answer stream, after which factor scoring becomes the cheap derived computation the genetic lane described. What inventory grade means here is the questions axiom's own standard — a question is an instrument with estimable parameters (que-2), and cross-cohort comparison is graded by named invariance method (que-4) — applied to items about what a person is into rather than what they think. The design constraint the product adds is the feed itself: instrument items fill passively from ordinary answering (the four core tests, D121), so an interests inventory would arrive the same way, as core feed questions, with no new surface. The theory does not decide the collection — that is the governed process's — but it can specify the item set's shape so the decision has something to decide.",
+      "sources": [],
+      "edges": [
+        { "to": "que-2", "type": "depends" },
+        { "to": "que-4", "type": "depends" },
+        { "to": "int-1", "type": "refines" }
+      ],
+      "created": "2026-09-01",
+      "updated": "2026-09-01"
+    },
+    {
+      "id": "int-3",
+      "claim": "Interests deepen the genetic axiom more than any other axis can today: vocational interests are twin-heritable, aggregation to factor and superfactor raises the heritable signal, and no GWAS of an administered interest inventory exists — so an inventory-grade interests phenotype paired with imported genotypes would be first of its kind.",
+      "status": "argued",
+      "detail": "This is the genetic lane's own finding (gen-3, cited there), restated from the interests side because it is this axis's strongest cross-connection claim: interest heritability rises from item to factor to superfactor (the aggregation result gen-3 cites), vocational interests are twin-heritable in the range gen-3 reports, and no GWAS of an administered interest inventory exists as of August 2026 — proxies only. The combination frame (cen-8) ranks axioms by what they add to the others' predictability; interests add a phenotype no biobank holds, which is the phenotype-depth half of the app's genetic ambition (AXES-PLAN §4: discovery is the biobanks' game, phenotype depth is this app's). The option value matures only with consented genotype pairing (G2 in AXES-PLAN's staging), and it matures at all only if int-2's collection exists first — which is why the axis ranked second in the 2026-09-01 reflection rather than first: its value is real and gated. This node stays argued rather than cited on purpose: the citations belong to gen-3, and a second copy of a source list is the drift the optimizer's health pass exists to catch; the edge is the citation.",
+      "sources": [],
+      "edges": [
+        { "to": "gen-3", "type": "depends" },
+        { "to": "cen-8", "type": "supports" }
+      ],
+      "created": "2026-09-01",
+      "updated": "2026-09-01"
+    },
+    {
+      "id": "int-4",
+      "claim": "Interest structure is derived from measured response structure and published recomputably, never authored as a plausible grid — the rule the pattern lane holds for the fit and the questions lane for items, applied to taste.",
+      "status": "argued",
+      "detail": "The temptation specific to interests is the authored taxonomy: a topic tree, a genre list, a set of interest types with hand-written signatures — the shape the product's tests already carry in archetype-data.js (sixty-one authored signatures, which the tests lane's joint-density request exists to test against fitted structure). The bridge's not-yet verdict on factor scoring carried this as a binding condition: the factor structure must be derived from measured response structure and published recomputably (pat-2, que-2), never authored. For interests the stakes are higher than for traits, because interest taxonomies are also product furniture — the feed's topic chips, the Map's branches — and a taxonomy that is both the instrument and the navigation will be read as measurement when it is layout. The theory's rule: the navigation taxonomy may be authored; the MEASUREMENT structure (which interests co-occur, which factors emerge, how they load on the joint space) is fitted, versioned and republished, and the two are kept as different objects with different names.",
+      "sources": [],
+      "edges": [
+        { "to": "pat-2", "type": "depends" },
+        { "to": "que-2", "type": "depends" }
+      ],
+      "created": "2026-09-01",
+      "updated": "2026-09-01"
+    },
+    {
+      "id": "int-5",
+      "claim": "Interests are the one axis whose within-person change is the product itself: what a person follows, mutes and favourites moves week to week, so occasions are native, and an interests trajectory is measurable where a trait trajectory is not.",
+      "status": "conjecture",
+      "detail": "",
+      "sources": [],
+      "edges": [
+        { "to": "pat-8", "type": "depends" }
+      ],
+      "created": "2026-09-01",
+      "updated": "2026-09-01"
+    },
+    {
+      "id": "int-6",
+      "claim": "Declared interests (favourites, follows) and revealed interests (the device model) are two measurements of one thing, and their gap is itself a reading — the social desirability of taste.",
+      "status": "conjecture",
+      "detail": "",
+      "sources": [],
+      "edges": [
+        { "to": "int-1", "type": "refines" }
+      ],
+      "created": "2026-09-01",
+      "updated": "2026-09-01"
+    }
+  ]
+}

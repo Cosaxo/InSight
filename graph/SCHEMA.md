@@ -31,7 +31,8 @@ Rules:
 
 - **Ids are global and permanent**: `<prefix>-<n>`, prefix per lane
   (`gen`, `bod`, `que`, `tst`, `map`, `pat`, `db`, `go`, `cen` — `db` added 2026-08-26 with the database lane, `rev` added
-  2026-09-01 with the review lane), never reused
+  2026-09-01 with the review lane, `tie` and `int` added 2026-09-01
+  with the ties and interests lanes), never reused
   after a prune. Cross-graph edges are legal (`"to": "cen-3"` from any
   graph) — they are how the combination theory attaches.
 - **Status is the evidence ladder** (CHARTER §4). It rises only with

@@ -1,0 +1,96 @@
+{
+  "version": 1,
+  "axiom": "ties",
+  "updated": "2026-09-01",
+  "nodes": [
+    {
+      "id": "tie-1",
+      "claim": "The relational axis measures a tie, not a person: its unit is a pair or a group keyed by its members and a day, and every reading it yields — accuracy, legibility, likeness, independence, centrality, reputation — is a property of the tie or of a person-in-a-tie, never of a person alone.",
+      "status": "argued",
+      "detail": "Every other axiom measures a person: a genome, a body over time, an answer, a test score. The duel record's document is keyed by a group id and a day, its votes by member, and its 1v1 form carries two answers and two guesses; the follow graph's document is an edge. So the shipped axis already has a different unit, and the frame's own table on main filed it under Questions only because nobody had written the row — AXES-PLAN §1 names sealed-until as one of its four custody classes and gave it no row, the 2026-09-01 reflection's finding, closed by the Ties row D343 added. The consequence for measurement is not cosmetic: a person's Insight score in one 1v1 is a relationship-level number (how well THIS pair reads), and only across several ties does a person-level component (a good reader in general) become estimable — tie-2's instrument. A theory that publishes tie readings as person traits has committed the level conflation the pattern lane names for couplings (pat-3's three networks): the between-tie, the within-tie-over-days and the person-across-ties objects are different, and each carries its own basis. Falsifier: if perceiver variance across ties dominates to the point that relationship variance is negligible, the unit collapses to the person and this axis is a lens on the tests axiom rather than an axis.",
+      "sources": [],
+      "edges": [
+        { "to": "cen-9", "type": "supports" },
+        { "to": "cen-3", "type": "depends" },
+        { "to": "pat-3", "type": "depends" }
+      ],
+      "created": "2026-09-01",
+      "updated": "2026-09-01"
+    },
+    {
+      "id": "tie-2",
+      "claim": "The 1v1 guess is a second-person measurement scored against a key, and its decomposition into perceiver, target and relationship variance is the axiom's central instrument: a person in several 1v1s is a perceiver measured across targets, a person guessed by several is a target measured across perceivers.",
+      "status": "argued",
+      "detail": "A guess is a claim about someone else, sealed before the reveal and graded the next day against that person's own sealed answer — after the logic test, the second thing in the product graded against a key rather than reported. Kenny's Social Relations Model is the design that makes such dyadic scores decompose: a perceiver effect (I read people well in general), a target effect (I am legible in general), a relationship effect (I read THIS person beyond what both general effects predict) and error, estimable from a round-robin or block design in which each person appears in several dyads. The shipped record approximates that design once people hold several 1v1s (every friend pair may hold one), and the two role dimensions already drawn — Insight and Legibility (D204) — are the raw perceiver-side and target-side accuracies before decomposition; the decomposition is what turns 'right on 7 of 11' into a person-level reading with a stated basis. Funding, in pat-8's terms: persons fund crowd value and a person's occasions fund personal value; ties are a third resource neither names — a pair's days are its occasions, and the number of ties a person holds is what funds the person-level components. To cited: Kenny (1994) on the model and its designs, and the empathic-accuracy paradigm as the nearest measured analogue of a guess graded against a key.",
+      "sources": [],
+      "edges": [
+        { "to": "tie-1", "type": "depends" },
+        { "to": "pat-8", "type": "refines" }
+      ],
+      "created": "2026-09-01",
+      "updated": "2026-09-01"
+    },
+    {
+      "id": "tie-3",
+      "claim": "A right guess is knowledge or projection, and the record can tell them apart: guess = their answer measures reading, guess = your own answer measures assumed similarity, and the two coincide exactly when the pair is alike — so accuracy must be read against likeness, or the pair's similarity is reported twice.",
+      "status": "argued",
+      "detail": "Cronbach's 1955 critique of 'understanding of others' scores showed that naive accuracy conflates several components, assumed similarity among them: a judge who simply predicts that others answer as they do scores well exactly on targets who resemble them. The duel record holds the three quantities that separate this — your answer, your guess, their answer — per day, and the role fold already computes two of the three pairings (Insight: guess against their answer; Likeness: your answer against theirs). The missing pairing, guess against your own answer, is the projection rate, and the theory's rule is that Insight is reported only beside it: accuracy above the projection baseline is reading; accuracy that vanishes once projection is partialled out is similarity wearing accuracy's clothes. This also yields a person-level reading the product does not draw — how much a person projects — which is a property of the perceiver, not the pair. To cited: Cronbach (1955); Funder's Realistic Accuracy Model for the relevance–availability–detection–utilization stages that say where projection-free accuracy could come from; Ickes on empathic accuracy.",
+      "sources": [],
+      "edges": [
+        { "to": "tie-2", "type": "depends" }
+      ],
+      "created": "2026-09-01",
+      "updated": "2026-09-01"
+    },
+    {
+      "id": "tie-4",
+      "claim": "Group pick days are nominations, and nominations are sociometry: reputation is what a group picks a member for, measurable as received nominations per scenario and as the group's consensus about them — the unbuilt cast dimension is a sociometric status score awaiting data, not a missing feature.",
+      "status": "argued",
+      "detail": "Seven of the group bank's twenty-five questions are picks whose options are the member list, and since D224 each pick answer snapshots the picked member's uid into the reveal. That is Moreno's sociometric test in miniature — members nominating members for a role — and its classical outputs are received-nomination counts, their concentration (does the group agree on who drives the heist?), and status classes derived from them. The product priced exactly this and refused it for data reasons (D204: a fourth role dimension, cast, folded from zero or two snapshotted days would be a dead axis), which is the theory's point: the instrument exists, the reading is well-defined, and the only open question is the floor. The theory's addition is that reputation is a TIE reading in tie-1's sense — a property of the group's view of a member, which can differ across groups for the same person — so the perfect form publishes it per group with the group's days as its basis, and a person-level reputation only as an agreement statistic across groups. To cited: Moreno (1934); Coie, Dodge and Coppotelli (1982) on status classification from nominations.",
+      "sources": [],
+      "edges": [
+        { "to": "tie-1", "type": "depends" }
+      ],
+      "created": "2026-09-01",
+      "updated": "2026-09-01"
+    },
+    {
+      "id": "tie-5",
+      "claim": "Chosen ties carry crowd value the person-level axioms cannot: homophily — whether people who choose each other answer alike beyond chance — is measurable today from the public follow graph and public answers, its consent structure is dyadic, and it is the relational variance central's candidate list names.",
+      "status": "argued",
+      "detail": "Central's cen-9 places social-graph texture second among new-axiom candidates on exactly this ground: relational variance (who is chosen, how contests resolve) no self-report item reaches, crowd-funded through shared membership, with dyadic consent as a design axiom at admission. The follow graph (D101) is one document per edge, world-readable, and every answer is public, so the first coupling — likeness between followers against likeness between random pairs at the same anchors — needs no new collection and no custody change: a device-side or scorecard-side fold over what publishes. What the axis adds beyond the classical homophily literature is the duel record beside the graph: whether chosen ties READ each other better than unchosen ones (tie-2's relationship effect conditioned on the edge), which no social-network dataset holding only ties and attributes can ask. The consent note is the genetic lane's kinship logic transposed to chosen ties (gen-6): an edge names two people, so a reading about the edge is about both, and the perfect form asks both — the product's reveal already does by construction, since only members see a group's day. To cited: McPherson, Smith-Lovin and Cook (2001) on homophily's mechanisms and measurement.",
+      "sources": [],
+      "edges": [
+        { "to": "cen-9", "type": "depends" },
+        { "to": "cen-6", "type": "depends" },
+        { "to": "gen-6", "type": "supports" }
+      ],
+      "created": "2026-09-01",
+      "updated": "2026-09-01"
+    },
+    {
+      "id": "tie-6",
+      "claim": "Tie type is a variable of the axis: friend and romantic pairs should differ systematically in accuracy, projection and steadiness, and the authored-but-dark romantic pool is the instrument that would show it.",
+      "status": "conjecture",
+      "detail": "",
+      "sources": [],
+      "edges": [
+        { "to": "tie-2", "type": "refines" }
+      ],
+      "created": "2026-09-01",
+      "updated": "2026-09-01"
+    },
+    {
+      "id": "tie-7",
+      "claim": "Reading a person and reading the crowd are one family of second-person measurement at two scales, and a person's accuracy at one should predict the other — the product's Foresight READ verdicts and the Oracle's surprisal grade are the crowd-scale instruments.",
+      "status": "conjecture",
+      "detail": "",
+      "sources": [],
+      "edges": [
+        { "to": "tie-2", "type": "refines" }
+      ],
+      "created": "2026-09-01",
+      "updated": "2026-09-01"
+    }
+  ]
+}

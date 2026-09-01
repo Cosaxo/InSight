@@ -40,6 +40,8 @@ const LANES = {
   "graph-optimizer": "go",
   central: "cen",
   review: "rev",
+  ties: "tie",
+  interests: "int",
 };
 const PREFIX_RE = new RegExp(
   `^(${Object.values(LANES).join("|")})-\\d+$`
