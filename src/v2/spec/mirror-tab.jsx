@@ -37,9 +37,9 @@ import './lens-cards.jsx';
 import './demographics.jsx';
 import './mirror-answers.jsx';
 import './mirror-field.jsx';
-import './mirror-field-pops.jsx';
+import { MirrorFieldBody } from './mirror-field-pops.jsx';
 import './group-role-map.jsx';
-import './group-mirror.jsx';
+import { GroupsMirrorBody } from './group-mirror.jsx';
 import './segment-explorer.jsx';
 // Three of them load AFTER first paint, and the reason is the bundle budget
 // rather than taste.
@@ -360,7 +360,7 @@ export function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, b
   // (LiveGroupsMirrorBody). No Preview tag: nothing on it is sample data,
   // which is the point of the replacement.
   const isGroupsLive = p.id === 'groups' && liveGeo;
-  const isGroups = p.id === 'groups' && !isGroupsLive && typeof window.GroupsMirrorBody === 'function';
+  const isGroups = p.id === 'groups' && !isGroupsLive;
 
   let body;
   if (isYou) {
@@ -418,7 +418,7 @@ export function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, b
     // named groups — their own body: member field + accrued group portrait
     body = (
       <div key="groups-mirror" className="tab-swap mf-flex">
-        <window.GroupsMirrorBody onPerson={onPerson} />
+        <GroupsMirrorBody onPerson={onPerson} />
       </div>
     );
   } else {

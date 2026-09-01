@@ -20,6 +20,16 @@ import { Sheet } from './primitives.jsx';
 // because the surface pin in data/vote.test.ts holds every one of those
 // methods on the store's literal.
 import LIVE from '../data/live';
+// D345's sweep. WORLD_TOPICS was a module-scope `window.` read with a
+// five-entry fallback — the fragility src/v2/README.md's feed paragraph
+// names ("deferring world-feed-data swaps the real topic set for the
+// fallback, silently"); the import makes the order a graph guarantee and
+// the fallback goes. GroupDailyBody's `|| 'div'` and PassiveTag's guard
+// were load-order guards on eager modules.
+import { GroupDailyBody } from './group-daily.jsx';
+import { PassiveTag } from './passive-meter.jsx';
+import { WORLD_TOPICS } from './world-feed-data.js';
+import { WF_REPORT } from './world-feed-report.js';
 // The one rounding rule (data/pct.ts). This file was the third split
 // surface and the one that kept the rule pct.ts was written to delete —
 // see the commit that converted it. Static, not lazy: pct.ts is a pure
@@ -75,13 +85,7 @@ import NAV from '../data/nav';
 // World topic categories — the subreddit-style subscriptions. Definitions
 // (labels + hues) live in world-feed-data.js; the chip row in the feed is the
 // subscription UI, and the same set filters the daily deck.
-const WORLD_TOPICS_V2 = window.WORLD_TOPICS || [
-  { id: 'culture', label: 'Culture' },
-  { id: 'dilemma', label: 'Dilemmas' },
-  { id: 'event', label: 'World events' },
-  { id: 'people', label: 'Famous people' },
-  { id: 'bigq', label: 'Big questions' },
-];
+const WORLD_TOPICS_V2 = WORLD_TOPICS;
 
 // ── close the loop: a vote lands on your Map ──
 // Questions with a true counterpart in the map's store (DAILYQ) place a real
@@ -120,7 +124,7 @@ const modeOfGroup = (gid) => {
   return g ? (g.mode === 'duo' ? 'duo' : 'group') : null;
 };
 
-class DailySplit extends React.Component {
+export class DailySplit extends React.Component {
   state = {
     mode: this.props.mode || 'world', feedOpen: false, condensed: false, earlierOpen: false, reportFor: null,
     idx: 0, idxG: 0,
@@ -434,8 +438,7 @@ class DailySplit extends React.Component {
   // reporting a comment — same short reason list the World feed uses
   reportRow(k) {
     if (this.state.reportFor !== k) return null;
-    const R = window.WF_REPORT;
-    if (!R) return null;
+    const R = WF_REPORT;
     const h = React.createElement;
     return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 7, paddingTop: 4 } },
       h('span', { style: { fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 11.5, color: 'var(--ink-3)' } }, 'Report this take'),
@@ -803,12 +806,11 @@ class DailySplit extends React.Component {
         h('input', { value: st.draft, onChange: (e) => this.setState({ draft: e.target.value }), onKeyDown: (e) => { if (e.key === 'Enter') post(); }, placeholder: 'Add your take\u2026', style: { flex: 1, border: LINE, borderRadius: 999, padding: '10px 16px', fontSize: 13.5, fontWeight: 600, background: 'var(--surface-2)', color: INK, outline: 'none', minWidth: 0 } }),
         h('button', { onClick: post, style: { border: LINE, borderRadius: 999, padding: '0 18px', fontWeight: 800, fontSize: 13, cursor: 'pointer', background: voted ? S.options[myIdx].color : INK, color: voted ? (S.options[myIdx].textColor || '#fff') : PAPER, WebkitAppearance: 'none' } }, 'Post')),
       filtered.map(c => {
-        const R = window.WF_REPORT;
-        if (R && R.has(c.key)) {
+        if (WF_REPORT.has(c.key)) {
           if (!this._jr || !this._jr.has(c.key)) return null;
           return h('div', { key: c.key, style: { background: 'var(--surface-2)', border: LINE, borderRadius: 14, padding: '12px 13px', display: 'flex', alignItems: 'center', gap: 10 } },
             h('span', { style: { flex: 1, fontSize: 12.5, fontWeight: 600, color: 'var(--ink-3)' } }, 'Reported. Hidden from your feed.'),
-            h('button', { className: 'press', onClick: () => { R.undo(c.key); this._jr.delete(c.key); this.forceUpdate(); }, style: { border: 'none', background: 'none', padding: '2px 0', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, color: INK, cursor: 'pointer', WebkitAppearance: 'none' } }, 'Undo'));
+            h('button', { className: 'press', onClick: () => { WF_REPORT.undo(c.key); this._jr.delete(c.key); this.forceUpdate(); }, style: { border: 'none', background: 'none', padding: '2px 0', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 12, color: INK, cursor: 'pointer', WebkitAppearance: 'none' } }, 'Undo'));
         }
         const canUp = voted && c.opt === myVote;
         const rKey = S.id + '|' + c.key;
@@ -958,7 +960,7 @@ class DailySplit extends React.Component {
         wIdx !== 0 && h('button', { onClick: () => this.jumpTo(0), style: { border: 'none', background: 'none', padding: 0, cursor: 'pointer', fontWeight: 700, fontSize: 12, color: 'var(--ink-2)', WebkitAppearance: 'none', whiteSpace: 'nowrap' } }, '\u2039 back to today'),
         h('span', { style: { flex: 1 } }),
         h('button', { className: 'press tap44', onClick: () => { clearTimeout(this._sheetT); this.setState({ tab: 'ctx', sheetClosing: false }); }, 'aria-label': ctxLabel, style: { flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: S.bg ? '0.5px solid color-mix(in oklch, var(--ink) 26%, var(--rule))' : '0.5px solid var(--rule)', background: 'transparent', color: S.bg ? 'var(--ink-2)' : 'var(--ink-3)', fontFamily: BRIC, fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } }, 'i'),
-        window.PassiveTag ? h(window.PassiveTag, { q: S, answered: voted }) : null),
+        h(PassiveTag, { q: S, answered: voted })),
       chipRow,
       h('div', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: hier ? 37 : 31, lineHeight: 1.06, letterSpacing: hier ? -1.1 : -0.8, textWrap: 'balance' } }, S.text),
       !voted
@@ -1151,7 +1153,7 @@ class DailySplit extends React.Component {
     // stutter.
     const liveDuels = LIVE.enabled;
     const lazyDuel = (key, m) => h(React.Suspense, { key, fallback: null }, h(LiveDuelPanel, { mode: m }));
-    const groupBody = liveDuels ? lazyDuel('live-group', 'group') : h(window.GroupDailyBody || 'div', { key: 'group-daily' });
+    const groupBody = liveDuels ? lazyDuel('live-group', 'group') : h(GroupDailyBody, { key: 'group-daily' });
     const duoBody = liveDuels ? lazyDuel('live-duo', 'duo') : h(window.DuoBody || 'div', { key: 'duo-daily' });
 
     // ===== chrome =====
@@ -1241,6 +1243,4 @@ class DailySplit extends React.Component {
       screen);
   }
 }
-window.DailySplit = DailySplit;
 
-;globalThis.DailySplit = typeof DailySplit === 'undefined' ? globalThis.DailySplit : DailySplit;

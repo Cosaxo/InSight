@@ -18,7 +18,7 @@ function cbRand(seed) { let h = 2166136261; const s = String(seed); for (let i =
 const cbEaseOut = (x) => 1 - Math.pow(1 - x, 3);
 const cbEaseInOut = (x) => x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 
-function ConsequenceBeat({ seed, options, pcts, counts, mineIdx, height = 220, onDone }) {
+export function ConsequenceBeat({ seed, options, pcts, counts, mineIdx, height = 220, onDone }) {
   const rootRef = React.useRef(null), canvasRef = React.useRef(null), doneRef = React.useRef(false);
   const finish = () => { if (!doneRef.current) { doneRef.current = true; onDone && onDone(); } };
   const maxP = Math.max(...pcts), mineP = pcts[mineIdx];

@@ -18,6 +18,13 @@ import { onMapCue } from '../data/mapCue.ts';
 // The Mirror chunk's handoff (D346) — see MirrorSlot below.
 import { peekMirror, rememberMirror } from '../data/mirrorChunk';
 import LIVE from '../data/live';
+// D345's sweep: the shell's own eager neighbours as imports — the daily
+// tab, the device frame, the passive meter and the feed's memory. The
+// `window.X &&` beside the meter was a load-order guard on an eager module.
+import { DailySplit } from './daily-split.jsx';
+import { IOSDevice } from './iOS.jsx';
+import { PassiveMeter } from './passive-meter.jsx';
+import { FEEDREAD } from './feed-read.js';
 import { patternsEarned } from '../data/patternsReady';
 import { closeTopBackLayer } from '../data/backLayers';
 import { registerNav } from '../data/nav';
@@ -349,7 +356,7 @@ function usePatternsTab() {
   return open;
 }
 
-function App() {
+export function App() {
   const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
   const patternsOpen = usePatternsTab();
   const TABS = tabsFor(patternsOpen);
@@ -685,7 +692,7 @@ function App() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {/* the passive lens ring rides in the header, not in the feed's
                 chip row — it reports across tabs, not just the feed */}
-            {window.PassiveMeter && <window.PassiveMeter></window.PassiveMeter>}
+            <PassiveMeter />
             {/* compose — the ask-a-question door (the paid path, D288 §1),
                 one tap from anywhere; same openDeferred synchronisation as
                 the cross-links that reached it before it had a button */}
@@ -724,7 +731,7 @@ function App() {
                   builds only: the demo keeps the prototype's default (full
                   field), so style-diff still compares like with like. */}
               {tab === 'mirror' && <MirrorSlot onPerson={setPerson} pop={mirrorPop} onPop={(v) => setTweak('mirrorPop', v)} worldZoom={worldZoom} onZoom={(v) => setTweak('worldZoom', v)}
-                firstRun={!!(LIVE.enabled && window.FEEDREAD && window.FEEDREAD.stats().n < 8)}
+                firstRun={!!(LIVE.enabled && FEEDREAD.stats().n < 8)}
                 backKey={'track:duo'} />}
               {/* Suspense fallback null, PulseCard's rule: nothing rather
                   than a blank card — the chunk arrives inside the tap's

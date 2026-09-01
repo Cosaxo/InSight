@@ -54,16 +54,24 @@ describe("check:figures and the drift figure", () => {
     expect(r.code).toBe(0);
   });
 
+  // The live figure, read off the copy's CLAUDE.md rather than written here:
+  // the first case proves the copy passes, so the prose equals the tree. This
+  // test used to hard-code 32 → 33, and D345's sweep took the tree to 53 in
+  // one commit — a hand-kept figure inside the test of hand-kept figures.
+  const bridgeFigure = () =>
+    Number(/^(\d+) modules are already off the bridge/m.exec(readFileSync(join(tree, "CLAUDE.md"), "utf8"))[1]);
+
   it("asks for the live bridge figure, and says nothing about the drift, when a module converts", () => {
     // A spec module that exports and publishes nothing is one off the bridge,
-    // so the live figure moves from 32 to 33.
+    // so the live figure moves up by one.
+    const before = bridgeFigure();
     writeFileSync(
       join(tree, "src/v2/spec/zzz-figures-probe.jsx"),
       "export const zzzFiguresProbe = 1;\n",
     );
     const r = runGate(tree);
     expect(r.code).toBe(1);
-    expect(r.out).toContain("33 modules are already off the bridge");
+    expect(r.out).toContain(`${before + 1} modules are already off the bridge`);
     expect(r.out).not.toMatch(/understate the migration/);
   });
 
@@ -79,6 +87,8 @@ describe("check:figures and the drift figure", () => {
 
     const r = runGate(tree);
     expect(r.code).toBe(1);
-    expect(r.out).toContain("understate the migration by 26 modules");
+    // The probe module from the case above is still in the copy, hence +1;
+    // the seven is the hand-listed figure the drift was measured against.
+    expect(r.out).toContain(`understate the migration by ${bridgeFigure() + 1 - 7} modules`);
   });
 });

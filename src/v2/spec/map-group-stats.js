@@ -43,6 +43,11 @@ import { sharePcts } from '../data/pct';
 //
 // `groupLabel` answers in both modes either way: it is a noun for the
 // cohort, not a claim about it.
+// The export the Map's cards and the person map import (D345's sweep);
+// assigned inside the IIFE below, the DAILYQ shape. The window copy stays
+// beside it: smoke-live.test.jsx reads `window.MapStats` directly to pin
+// the cohort gate, and a test is a reader like any other.
+export let MapStats;
 (function () {
   // The demo's hash may run whenever we are not live. In live mode an
   // anchor answers only if it maps to a breakdown dim AND the viewer has
@@ -172,6 +177,6 @@ import { sharePcts } from '../data/pct';
     return Math.max(3, Math.min(97, Math.round(v)));
   }
 
-  window.MapStats = { dist, mode, groupLabel, dimVal, cohortN };
+  MapStats = window.MapStats = { dist, mode, groupLabel, dimVal, cohortN };
 })();
 

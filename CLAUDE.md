@@ -189,7 +189,7 @@ This is deliberate and temporary (see `src/v2/README.md`), but it is
 load-bearing today — and "temporary" only became true when something
 started measuring it (D39; see **The convention is shrinking** below).
 
-32 modules are already off the bridge — they export and publish nothing,
+53 modules are already off the bridge — they export and publish nothing,
 so they are ordinary ESM with named exports. They are still listed in
 `spec-index.js`, but nothing waits on their side effects: the line is
 inertia plus rule 2, not a dependency. `primitives.jsx`, `sample-data.js`
@@ -251,8 +251,11 @@ real slipped through:
   from `render()`.
 
 `src/v2/data/` and `src/v2/ui/` are typed and checked by `tsc -b`, but they
-are **not** exempt from the convention: `live.ts` publishes `window.LIVE`
-and both `ui/` panels `Object.assign` onto `globalThis` on purpose.
+are **not** exempt from the convention: `live.ts` still publishes
+`window.LIVE` (for the mount fixtures and one node-safe reader — every
+spec module imports the binding since D345), and until D345's sweep the
+two `ui/` pickers `Object.assign`ed onto `globalThis` for render-time
+lookups. The scanner reads both directories for that reason.
 
 **The convention is shrinking, and there is a number for it.** Those four
 guards make the bridge safe, which also made it comfortable enough to keep

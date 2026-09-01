@@ -6,6 +6,7 @@
 import React from 'react';
 import { DUELS } from './duels-data.js';
 import NAV from '../data/nav';
+import { GDAv } from './group-daily.jsx';
 
 // group-role-map.jsx — the group as a cast list. Scenario questions ("bank
 // heist: who drives?") crown members with ROLES; here every member (you
@@ -13,6 +14,7 @@ import NAV from '../data/nav';
 // by scenario pack — like the You map, but the orbits are the group's verdicts
 // about each person. Contested roles sit between their two rivals. Tap a role
 // for the vote behind it; tap a person for their full role-sheet.
+const EXPORTS = {};
 (function () {
   const { useState, useMemo } = React;
   const W = 360, H = 336, CX = 180, CY = 162;
@@ -116,7 +118,7 @@ import NAV from '../data/nav';
     if (person.me) return (
       <span style={{ width: size, height: size, borderRadius: '50%', background: 'var(--ink)', color: 'var(--surface)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--sans)', fontSize: size * 0.34, fontWeight: 700, flexShrink: 0 }}>you</span>
     );
-    return <window.GDAv p={person.p} size={size}></window.GDAv>;
+    return <GDAv p={person.p} size={size}></GDAv>;
   }
 
   function ScenChip({ scen }) {
@@ -301,6 +303,7 @@ import NAV from '../data/nav';
     );
   }
 
-  Object.assign(window, { GroupRoleMap });
+  Object.assign(EXPORTS, { GroupRoleMap });
 })();
+export const { GroupRoleMap } = EXPORTS;
 

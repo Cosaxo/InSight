@@ -200,15 +200,13 @@ import './spec/passive-meter.jsx';
 // window.GeneralPanel, so it could never be reached before that group had
 // resolved — yet it and its whole static tail sat in the modulepreload set
 // on every cold start. Measured: 20 KB of first paint.
-// These two were born in this repo (never in design/) and live as typed
-// TSX under ui/; they self-register on globalThis so the render-time
-// lookups in profile-general still work. ui/LivePrivacyPanel left this
-// list at D344: profile-overlay.jsx imports it now, so it rides the
-// loadOverlays chunk with its one consumer instead of costing first
-// paint, and a line here would drag it back into the entry chunk — the
-// exact mistake the NB below warns against for the other ui/ panels.
-import './ui/CityPicker';
-import './ui/PickSearch';
+// ui/CityPicker and ui/PickSearch stood here until D345's sweep. Born in
+// this repo (never in design/), they self-registered on globalThis for
+// render-time lookups in profile-general and world-feed, and this listing
+// was what made them eager. Both consumers import them now, so each rides
+// its consumer's chunk — the overlays', the feed's — and first paint
+// stops paying ~11 KB for a picker and a search box nothing on the first
+// frame can open. ui/LivePrivacyPanel left the same way at D344.
 // NB: no other ui/ panel is listed here, and the reason is now the same one
 // for all of them: nothing looks them up by name. Every remaining consumer
 // imports the panel it renders, so the ESM graph loads it (rule 2 asks

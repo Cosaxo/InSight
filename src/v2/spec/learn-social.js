@@ -13,7 +13,7 @@ import LIVE from '../data/live';
 // so a standing never shifts between sittings, and derived from the card's own
 // crowd rate: a friend is likelier to have got an easy card right, exactly as
 // the crowd is. Nothing here is stored — it is read off the friend list.
-window.LEARN_SOCIAL = (function () {
+export const LEARN_SOCIAL = (function () {
   function h2(s) {
     let h = 2166136261;
     for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }

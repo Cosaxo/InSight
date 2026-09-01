@@ -6,13 +6,13 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import './styles.css';
 import { loadWorldFeed, loadMirrorTab, loadMapTab, loadOverlays } from './spec-index.js';
+// The root, imported (D345's sweep) — spec-index above has already
+// evaluated app-shell by the time this binding is read, and the
+// `globalThis.App` publication stays for the mount suites.
+import { App } from './spec/app-shell.jsx';
 import { initLive } from './data/live';
 // side effect: publishes window.registerBackHandler for the shell
 import './data/back';
-// side effect: publishes globalThis.PLACES for the profile's city picker.
-// Import only — the ~269 KB catalogue itself is fetched lazily on first
-// open, so this costs nothing on a cold start.
-import './data/places';
 import { reportError, sentryInit } from '../lib/sentry';
 import { initDeepLinks } from './data/links';
 // The first-launch account wall, off unless VITE_REQUIRE_SIGNIN=true (D134).
@@ -35,7 +35,6 @@ initDeepLinks();
 // render so the daily deck opens on real questions; on timeout or any
 // boot failure the mock deck renders instead and live can attach later.
 initLive().finally(() => {
-  const App = globalThis.App;
   const root = createRoot(document.getElementById('root'));
   // Wrapped on every render below, not only the first: the root element
   // type has to stay identical or React remounts App and it loses its

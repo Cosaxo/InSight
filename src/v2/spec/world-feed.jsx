@@ -17,7 +17,7 @@ import { TEST_FEED_QS } from './test-feed-data.js';
 // live build's bank items arrive through data/testFeed.ts, which is where
 // the story of why that is not a `window` read lives (D280).
 import { testFeedPool } from '../data/testFeed.ts';
-import { WORLD_CHANNELS } from './world-feed-data.js';
+import { WORLD_CHANNELS, WORLD_TOPICS } from './world-feed-data.js';
 import PLACES from '../data/places';
 import { FILMS, ARTISTS, ATHLETES, EMOJI } from '../data/catalogs';
 import POKEDEX from '../data/pokedex';
@@ -79,6 +79,16 @@ import { COUNTRIES, DOGS, COLORS, LANGUAGES } from '../data/catalogs.ts';
 // The data conditions — `.enabled`, `.demoInProd` — stayed.
 import LIVE from '../data/live.ts';
 import ReactDOM from 'react-dom';
+// D345's sweep: the feed's own group members and the eager passive tag as
+// imports. learn-bits and learn-social ride this same chunk (loadWorldFeed
+// lists them ahead of this file), consequence-beat too; PickSearch is the
+// pick card's typed picker. Every `window.X ?` beside these was a
+// load-order guard, and there is no frame in which an import is unset.
+import { PassiveTag } from './passive-meter.jsx';
+import { LMStreak, LMFriends } from './learn-bits.jsx';
+import { ConsequenceBeat } from './consequence-beat.jsx';
+import { LEARN_SOCIAL } from './learn-social.js';
+import PickSearch from '../ui/PickSearch';
 import { PASSIVE } from './passive-progress.js';
 // Crossroads (D136). Imported, not read off window — rule 4 refuses new
 // coupling. The ESM graph carries it and its store into THIS chunk, which
@@ -118,7 +128,7 @@ const WF_PASS_LS = 'insight.feedPass.v1';
 const WF_DEFER_LS = 'insight.feedDefer.v1';
 // where a vote lands on your Mirror — the ripple line after answering
 const WF_BRANCH = { food: 'Food', sport: 'Body', movies: 'Taste', music: 'Taste', tech: 'Mind', culture: 'Values', dilemma: 'Morals', event: 'Mind', people: 'Values', bigq: 'Values', fav: 'Taste' };
-const WF_TOPICS = window.WORLD_TOPICS || [];
+const WF_TOPICS = WORLD_TOPICS;
 const WF_TOPIC = Object.fromEntries(WF_TOPICS.map((t) => [t.id, t]));
 const WF_CHANNELS = WORLD_CHANNELS;
 const WF_CHAN_SET = Object.fromEntries(WF_CHANNELS.map((id) => [id, true]));
@@ -678,7 +688,7 @@ class WorldFeed extends React.Component {
       wfSave(votes);
       // …and the beat replays the split as a scene, so it is the same
       // fabrication on a selfOnly card that the bars would be.
-      const beat = (!editing && this.props.beats !== false && window.ConsequenceBeat && !selfOnly) ? id : s.beat;
+      const beat = (!editing && this.props.beats !== false && !selfOnly) ? id : s.beat;
       // Ask for a reason once, while the vote is warm, and only if this
       // question has none of your takes yet. Demo cards only: a live card
       // shows no takes, so there would be nowhere for the answer to go —
@@ -1551,7 +1561,7 @@ class WorldFeed extends React.Component {
             ) : null}
             {card.w ? <p style={{ margin: 0, fontFamily: 'var(--sans)', fontSize: 13.5, fontWeight: 500, lineHeight: 1.5, color: 'var(--ink-2)', textWrap: 'pretty' }}>{card.w}</p> : null}
             {this.opts.reveal ? this.renderKnowInsight(q, T) : null}
-            {window.LMFriends ? <LMFriends card={card} col={T.color}></LMFriends> : null}
+            <LMFriends card={card} col={T.color}></LMFriends>
           </div>
         ) : null}
       </div>
@@ -3244,8 +3254,7 @@ class WorldFeed extends React.Component {
     const rate = LEARN_RATE(card);
     const p = rate.pct;
     const r = this.knowOf(q);
-    const S = window.LEARN_SOCIAL;
-    const seen = S ? S.onCard(card) : [];
+    const seen = LEARN_SOCIAL.onCard(card);
     const rows = dim === 'friends' ? [] : (() => { const gs = WF_GRP(dim, axis); return gs.map((g, i) => ({ ...g, rate: wfKnowRate(q.id, WF_CUTKEY(dim, axis) + ':' + g.label, p, wfKnowBias(dim, axis, gs.length, i)) })).sort((a, b) => b.rate - a.rate); })();
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
@@ -3822,7 +3831,7 @@ class WorldFeed extends React.Component {
         {/* A real deadline outranks the decorative one — never both (D231). */}
         {win ? this.renderWindow(T, win) : (F.closing && this.renderClock(T))}
         <span style={{ flex: 1 }}></span>
-        {window.PassiveTag && <window.PassiveTag q={q} answered={answered}></window.PassiveTag>}
+        <PassiveTag q={q} answered={answered}></PassiveTag>
       </div>
     );
     const snap = !compact && !focus;

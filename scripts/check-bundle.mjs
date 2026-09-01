@@ -799,7 +799,12 @@ const MAX_TOTAL_JS_KB = 2440;
 // guard. Band ~12 KB, the same posture as every entry above: the freed
 // room is not headroom for the next eager feature — a feature that wants
 // it raises this line with a measurement beside it.
-const MAX_EAGER_KB = 645;
+// 645 → 630 (2026-09-01, D345's sweep): ui/CityPicker and ui/PickSearch
+// left spec-index's eager list when their two consumers (profile-general,
+// world-feed — both lazy) started importing them, so each rides its
+// consumer's chunk. Measured: eager 633 → 619 (−14), total unchanged.
+// Band ~11 KB, same posture.
+const MAX_EAGER_KB = 630;
 
 // THE BYTES THAT ARE NOT JAVASCRIPT, which this gate could not see at all
 // until D223. It weighed dist/assets/*.js exclusively, so the stylesheet —

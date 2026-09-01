@@ -369,16 +369,6 @@ const PLACES = {
   countryName,
 };
 
-declare global {
-  interface Window {
-    PLACES?: typeof PLACES;
-  }
-}
-
-// Object.assign rather than `globalThis.PLACES = PLACES`: the latter needs
-// an index signature on typeof globalThis that a `declare global` interface
-// on Window does not provide (TS7017). Same form the ui/ panels use, and
-// the scanner matches it.
-Object.assign(globalThis, { PLACES });
-
+// No publication since D345's sweep: feed-read.js, its last window reader,
+// imports the default export like every typed consumer always has.
 export default PLACES;

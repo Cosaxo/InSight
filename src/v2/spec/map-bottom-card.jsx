@@ -5,6 +5,7 @@
 // guards the wiring in CI.
 import React from 'react';
 import { IS_TESTS, IS_TEST_RESULTS } from './test-definitions.js';
+import { MapStats } from './map-group-stats.js';
 
 // InSight — Map tab bottom card. Group-comparison model:
 //  · answer card — pick one of the 7 profile filters (chips), see how that
@@ -90,11 +91,10 @@ function MTNoCohort({ who }) {
 // ── group answer viz — daily-style stacked bar, your slice colored ─────────
 function MTGroupBars({ node, anchor }) {
   const n = mtNOpts(node);
-  // Bound once. This block asks MapStats three things now, and the
-  // coupling ratchet counts references rather than modules — a third
-  // `window.MapStats.` here would raise this file's number for no new
-  // coupling at all, which is not what that number is measuring.
-  const MS = window.MapStats;
+  // Bound once, out of habit from when this was a bridge read that the
+  // coupling ratchet counted per reference; the binding is an import now
+  // (D345's sweep) and the alias only keeps the lines short.
+  const MS = MapStats;
   const d = MS.dist(node.qid, anchor.id, n, node.aidx);
   const who = MS.groupLabel(anchor.id);
   if (!d) return <MTNoCohort who={who}></MTNoCohort>;
@@ -179,7 +179,7 @@ function MTAnswerBody({ node, anchors, activeA, onFilter }) {
 }
 
 // ── answer card: kicker + body ──
-function MTAnswerCard({ node, cat, anchors, activeA, onFilter }) {
+export function MTAnswerCard({ node, cat, anchors, activeA, onFilter }) {
   return (
     <div style={{ '--hue': cat ? cat.hue : 282 }}>
       {/* The separator goes with the date. `note` is null on a live build
@@ -208,7 +208,7 @@ function MTAnchorStat({ anchor, openDim, onDim }) {
     // Resolved once, ahead of the rows, so the legend can ask whether a
     // "them" series exists without a second call into MapStats — a second
     // call site is also a second thing to forget when this gate moves.
-    const them = R.dims.map((d) => window.MapStats.dimVal(anchor.id, d.id, d.value));
+    const them = R.dims.map((d) => MapStats.dimVal(anchor.id, d.id, d.value));
     const hasThem = them.some((v) => v != null);
     return (
       <div className="mmt-astat">
@@ -287,16 +287,16 @@ function MTAnchorChips({ anchors, activeId, onPick }) {
 }
 
 // ── anchor card: your stat · match headline · differences ───────────────────
-function MTAnchorCard({ anchor, items, onPick, anchors, onAnchor }) {
+export function MTAnchorCard({ anchor, items, onPick, anchors, onAnchor }) {
   const [dimId, setDimId] = React.useState(null);
   const hasChips = !!(anchors && anchors.length > 1 && onAnchor);
   const R = IS_TEST_RESULTS[anchor.id];
   const dim = dimId && R && R.dims ? R.dims.find((d) => d.id === dimId) : null;
   const gkey = dim ? anchor.id + '·' + dim.id : anchor.id;   // axis scope → own group
-  const who = dim ? 'people near you on ' + dim.label : window.MapStats.groupLabel(anchor.id);
+  const who = dim ? 'people near you on ' + dim.label : MapStats.groupLabel(anchor.id);
   const rows = items.map((node) => {
     const n = mtNOpts(node);
-    const gmode = window.MapStats.mode(node.qid, gkey, n, node.aidx);
+    const gmode = MapStats.mode(node.qid, gkey, n, node.aidx);
     return { node, gmode, match: gmode === node.aidx };
   });
   // Live mode: MapStats refuses (D72), so there is no group mode to match
@@ -380,7 +380,7 @@ function MTAnchorCard({ anchor, items, onPick, anchors, onAnchor }) {
 }
 
 // ── root ─────────────────────────────────────────────────────────────────────
-function MTRootCard({ count, anchorCount }) {
+export function MTRootCard({ count, anchorCount }) {
   return (
     <div>
       <div className="mmt-kicker">your map</div>
@@ -408,7 +408,7 @@ export function MTSwipeRow({ items, onPick, activeId }) {
 }
 
 // ── branch: header + swipeable answers ─────────────────────────────
-function MTBranchCard({ cat, items, onPick }) {
+export function MTBranchCard({ cat, items, onPick }) {
   return (
     <div style={{ '--hue': cat.hue }}>
       <div className="mmt-slim">
@@ -423,7 +423,7 @@ function MTBranchCard({ cat, items, onPick }) {
 
 // ── sub-branch: header + swipeable answers ──────────────────────────────────
 // the sub card carries the breakdown inline — one card, no second hop
-function MTSubCard({ node, cat, rows, anchors, activeA, onFilter }) {
+export function MTSubCard({ node, cat, rows, anchors, activeA, onFilter }) {
   const hue = cat ? cat.hue : 282;
   const [cur, setCur] = React.useState(rows[0] ? rows[0].id : null);
   const active = rows.find((r) => r.id === cur) || rows[0];

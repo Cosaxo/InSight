@@ -136,7 +136,7 @@ function IOSNavBar({ title = 'Title', dark = false, trailingIcon = true }) {
 // ─────────────────────────────────────────────────────────────
 // Device frame
 // ─────────────────────────────────────────────────────────────
-function IOSDevice({
+export function IOSDevice({
   children, width = 402, height = 874, dark = false,
   title, keyboard = false,
 }) {
@@ -303,4 +303,3 @@ Object.assign(window, {
   IOSDevice,
 });
 
-;globalThis.IOSDevice = typeof IOSDevice === 'undefined' ? globalThis.IOSDevice : IOSDevice;

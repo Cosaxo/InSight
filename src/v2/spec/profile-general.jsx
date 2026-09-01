@@ -7,6 +7,16 @@ import React from 'react';
 import NAV from '../data/nav';
 import { loadMine as loadPurchases, mine as myPurchases, subscribePurchases } from '../data/purchases';
 import LIVE from '../data/live';
+// D345's sweep: the lens store, the saved logic result, the demo Scenes
+// field and the city picker as imports. This panel rides loadOverlays(),
+// which awaits the Mirror's chunk first, so mirror-field-pops is landed
+// before this can render; logic-test.jsx is pulled into this chunk by the
+// import, ahead of the group's own line for it — harmless, it reads no
+// global while evaluating.
+import { LOGIC } from './logic-test.jsx';
+import { MirrorFieldBody } from './mirror-field-pops.jsx';
+import { LENSES } from './lens-defs.js';
+import CityPicker from '../ui/CityPicker';
 import { IS_DATA } from './sample-data.js';
 import { IS_TEST_RESULTS } from './test-definitions.js';
 import { PASSIVE } from './passive-progress.js';
@@ -54,6 +64,7 @@ import {
 // overwrite whatever a user saved under an older build. They
 // round-trip inertly instead — cheap, and lossless if a card returns.
 // ─────────────────────────────────────────────────────────────
+const EXPORTS = {};
 (function () {
   const { useState, useEffect, useRef, useId } = React;
 
@@ -384,7 +395,7 @@ import {
   // read. A shortcut to the Lenses sub-tab, which is otherwise only reachable
   // by knowing it is there; the sibling of TestArcsCard above it.
   function LensesRowCard({ onGo }) {
-    const L = window.LENSES;
+    const L = LENSES;
     if (!L) return null;
     const n = L.KEYS.length, m = L.mapped();
     return (
@@ -513,9 +524,9 @@ import {
   }
 
   function LogicCard() {
-    const lg = window.LOGIC ? window.LOGIC.load() : null;
+    const lg = LOGIC.load();
     const C = 2 * Math.PI * 23;
-    const col = window.LOGIC ? window.LOGIC.color : 'var(--ink)';
+    const col = LOGIC.color;
     return (
       <button className="card press" onClick={() => NAV.openLogicTest()} style={{
         width: '100%', marginBottom: 16, padding: '13px 18px', cursor: 'pointer', textAlign: 'left',
@@ -658,10 +669,10 @@ import {
             section scale. Live mode drops the section whole; follows are
             managed from the feed's chip row and search until a live scenes
             surface exists with real numbers behind it (D1). */}
-        {!LIVE_ON && typeof window.MirrorFieldBody === 'function' && (
+        {!LIVE_ON && (
           <div>
             <Chapter>Scenes you follow</Chapter>
-            <window.MirrorFieldBody pop="groups" worldZoom="world" />
+            <MirrorFieldBody pop="groups" worldZoom="world" />
           </div>
         )}
         {LIVE_ON && (
@@ -674,6 +685,7 @@ import {
     );
   }
 
-  window.GeneralPanel = GeneralPanel;
+  EXPORTS.GeneralPanel = GeneralPanel;
 })();
+export const { GeneralPanel } = EXPORTS;
 
