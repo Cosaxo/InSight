@@ -26,18 +26,27 @@ generate from the product's own stylesheet. What is missing is
 the four pieces of code fails silently in exactly the way this repo has
 been bitten by twice before.
 
-| | Item | Kind |
-| --- | --- | --- |
-| 1 | Release signing — `buildTypes.release` has no `signingConfig` | code |
-| 2 | No `play-release.yml` — the AAB has no way out of CI | code |
-| 3 | App Check → Play Integrity, or **every callable fails on Android** | console + verify |
-| 4 | `google-services.json`, downloaded in the right order | console |
-| 5 | An account-deletion **URL** — Play requires one, Apple does not | web page |
-| 6 | The Data Safety **Shared** column after D98 | owner decision |
-| 7 | The account type — re-read D41 under D42's condition | owner decision |
-| 8 | The payments-policy read on D313/D315's Stripe checkout | owner decision |
+| | Item | Kind | State |
+| --- | --- | --- | --- |
+| 1 | Release signing — `buildTypes.release` has no `signingConfig` | code | open |
+| 2 | No `play-release.yml` — the AAB has no way out of CI | code | open |
+| 3 | App Check → Play Integrity, or **every callable fails on Android** | console | **written down** (SHIP-CHECKLIST §2); the console work is account-gated |
+| 4 | `google-services.json`, downloaded in the right order | console | account-gated |
+| 5 | An account-deletion **URL** — Play requires one, Apple does not | web page | **done** — `web/delete-account.html` |
+| 6 | The Data Safety **Shared** column after D98 | owner decision | open |
+| 7 | The account type — re-read D41 under D42's condition | owner decision | open |
+| 8 | The payments-policy read on D313/D315's Stripe checkout | owner decision | open |
 
 Everything else is either done or trails the submission.
+
+**Worked 2026-09-01, in the commit that follows this page:** item 5 built,
+item 3 written into the checklist that was missing it, §3.2's transposed
+row corrected, §3.4's stale rationale restated in both copies, and §4's
+proposed third leg on `check:store-forms` built with tests. What is left
+is the two code items, the console work nobody without an account can do,
+and the three decisions — which is the point of splitting the table this
+way: **everything on it that did not need an account or an owner is now
+done.**
 
 ---
 
@@ -238,11 +247,25 @@ the reason each survives. What it does not have is a **URL that is the
 deletion resource** — that section is a section of a long policy page,
 and the request route is the support address further down it.
 
-So the work is small: a dedicated page under `web/` stating the in-app
-path, the request route for someone who no longer has the app, and the
-what-goes / what-stays / how-long content that mostly already exists one
-file over. It is the cheapest item on this page and the only one that is
-outright missing rather than merely unstarted.
+**Built 2026-09-01: `web/delete-account.html`.** It carries both routes —
+the in-app button, and an email route for someone who no longer has the
+app — the full list of what is deleted, the two things that survive with
+the reason each survives, and a 30-day answer window. `web/privacy.html`
+links it from its own *Deleting everything* section, so it is
+discoverable as well as addressable, and `firebase.json` already publishes
+the whole `web/` directory, so it is served with no hosting change. The
+URL is carried in `design/store/play-data-safety.json` and held to the
+page's existence by `check:store-forms` rule 6 — a rename in `web/` now
+fails the gate rather than becoming a dead link on a filed form.
+
+**One limit is stated on the page rather than papered over.** InSight
+gives every install an account without asking anyone to sign up
+([D3](DECISIONS.md)), so an account that never linked Google and never
+claimed a handle carries nothing that can be matched to an email. The
+web route genuinely cannot reach it, and the page says so plainly instead
+of implying otherwise. That is a property of anonymous-first, not a gap in
+the page: such an account holds no name, no address and no identifier, and
+the device's own delete button is its route.
 
 Note it is required *because account creation is offered at all* — the
 fact that InSight is anonymous-first and every install becomes an account
@@ -263,13 +286,22 @@ flipping six rows on an engineer's reading would be as wrong as leaving
 them. **Resolve it before filing, not while filing.** The Collected
 column is unaffected either way.
 
-Two smaller ones live next to it. §3's table has a row where the columns
-are visibly transposed — Precise location reads
+Three smaller ones live next to it. §3's table had a row whose columns
+were visibly transposed — Precise location read
 `Yes (D175) | App Functionality | Not linked… | No` against a
-`Collected | Shared | Optional? | Purpose` header — worth straightening
-before anyone transcribes from it. And the file's own D322 note records
-that Play's rows gain a **Personalization** purpose when the form is
-actually filed.
+`Collected | Shared | Optional? | Purpose` header — **corrected
+2026-09-01**, and it is now the regression pinned by rule 6's tests,
+because it is precisely what a machine-readable twin exists to catch.
+
+Two more are flagged in §3 itself rather than changed, because both are
+re-derivations against `data-inventory.md` rather than typos: the **App
+activity** row files No while §1's Apple table carries Product Interaction
+as collected since D270 and linked since D272 — the under-declaring
+direction — and the **Purchases** row predates D313/D315 existing at all.
+Neither should be transcribed as it stands.
+
+And the file's own D322 note records that Play's rows gain a
+**Personalization** purpose when the form is actually filed.
 
 ### 3.3 · The forms with no Apple counterpart
 
@@ -348,14 +380,19 @@ account-type flow before spending anything.
   to excuse the Play fingerprint, and once the fingerprint is fillable an
   excuse is a hole. If both release paths run the bare check, the script
   can go into CI, which is what it was always kept out of for.
-- **`check:store-forms` needs a third leg.** It holds
-  `design/store/app-privacy.json` equal to STORE-FORMS §1–2. Play's §3
-  has no machine-readable twin, so nothing can see it going stale — and
-  the transposed row in §3.2 above is what that looks like already. A
-  `design/store/play-data-safety.json` and a third comparison would put
-  the Play form under the same guard as Apple's, which is the whole
-  point of the gate: pushed state and its reasoning drift apart, and only
-  one of them is checkable.
+- **`check:store-forms` got its third leg, 2026-09-01.**
+  `design/store/play-data-safety.json` is now the machine-readable twin of
+  STORE-FORMS §3, and **rule 6** holds them equal row for row — total in
+  both directions, unlike rules 1–2, which compare only the collected set,
+  and which a transposition passes straight through. It also holds the
+  deletion URL to being `https` and naming a page that exists in `web/`.
+  `scripts/check-store-forms.test.mjs` pins the parser against synthetic
+  markdown, including the transposed row as it actually shipped, because a
+  gate parser that silently matches nothing is this repo's most-repeated
+  failure (D179, D197, D275) — and the success line now reports the Play
+  row count so a fall to zero is visible rather than green. The file is
+  also under `check:public-copy` now, so a parked form cannot quietly
+  carry retired pre-D98 vocabulary either.
 - **`check:versions`** already covers `versionCode` — nothing to do.
 - **`check:public-copy`** already covers `listing.json`, so the Play
   description is under the same truth gate as Apple's.

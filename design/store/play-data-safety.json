@@ -1,0 +1,29 @@
+{
+  "_comment": "Play's Data Safety form as data — the twin of docs/STORE-FORMS.md §3, held equal to it by scripts/check-store-forms.mjs rule 6. PARKED under D42: Play is deferred, nothing here has been filed. It exists because §3's answers were derived once from an audited inventory and a transposed row survived in that table for weeks with nothing able to read it. docs/data-inventory.md stays canonical; if this file and that one disagree, that one is right.",
+  "$status": "parked (D42) — derived, reviewed, never submitted",
+  "$canonical": "docs/data-inventory.md is the audited source. docs/STORE-FORMS.md §3 is the prose this file is compared against. Neither this file nor that section decides anything on its own.",
+  "$openBeforeFiling": "Three answers below are NOT settled and §3 says so at length: the Shared column after D98 (an owner/legal call, not an edit), the App activity row against D270/D272, and the Purchases row against D313/D315. They are carried here as currently derived so the gate has something to hold — carrying them is not endorsing them.",
+
+  "rows": [
+    { "category": "Personal info → User IDs", "collected": true, "shared": false, "optional": "Required", "purpose": "App functionality" },
+    { "category": "Personal info → Email address", "collected": true, "shared": false, "optional": "Optional", "purpose": "App functionality" },
+    { "category": "Personal info → Name", "collected": true, "shared": false, "optional": "Optional", "purpose": "App functionality" },
+    { "category": "Personal info → Political or religious beliefs", "collected": true, "shared": false, "optional": "Optional", "purpose": "App functionality" },
+    { "category": "Personal info → Gender", "collected": true, "shared": false, "optional": "Optional", "purpose": "App functionality" },
+    { "category": "Location → Approximate location", "collected": true, "shared": false, "optional": "Optional", "purpose": "App functionality" },
+    { "category": "Location → Precise location", "collected": true, "shared": false, "optional": "Optional", "purpose": "App functionality" },
+    { "category": "App activity, Web browsing, Contacts, Photos, Financial, Purchases", "collected": false, "shared": null, "optional": null, "purpose": null },
+    { "category": "App info & performance → Crash logs", "collected": true, "shared": false, "optional": "Required", "purpose": "App functionality" },
+    { "category": "Advertising ID / any ads box", "collected": false, "shared": null, "optional": null, "purpose": null }
+  ],
+
+  "encryptedInTransit": true,
+  "$encryptedInTransit": "All traffic is HTTPS to Firebase.",
+
+  "usersCanRequestDeletion": true,
+  "deletionRequestUrl": "https://prvfire33.web.app/delete-account.html",
+  "$deletionRequestUrl": "Play requires BOTH an in-app deletion path and a web URL that can be reached without installing the app, and enforces the URL independently of the rest of this form. The in-app half is the privacy panel's delete button (the deleteAccount callable). web/delete-account.html is the web half: publicly reachable, no login, states what is deleted, what is kept and why, and how long it takes. It is linked from web/privacy.html so it is discoverable as well as addressable.",
+
+  "advertisingIdCollected": false,
+  "$advertisingIdCollected": "No advertising ID is collected and no ad SDK ships. This is a DIFFERENT question from the store listing's Contains ads declaration, which is Yes since D315 — one asks about an identifier, the other about the presence of ads. Keeping them apart is the point."
+}
