@@ -34857,6 +34857,44 @@ second anonymous sign-in beside the first and minted two accounts.
 And the disk read is checked against `state.uid` after its awaits, so a
 reset landing mid-read folds that read into nothing.
 
+**Nothing reaches Firestore while the uid is the mirror's.** The review
+of the first cut found the hole: a live deck on screen invites a tap,
+and a write handed to the SDK before Auth's credential listener has
+fired is filed under the UNAUTHENTICATED user's mutation queue — when
+the real user arrives the SDK swaps queues rather than re-signing what
+was pending, so the vote's promise never settles, the cache never files
+it, the server never sees it (verified against `@firebase/firestore`
+4.14.1). Every mutator reaches Firestore through `getDb()`, so that is
+the one choke point: it holds while `uidProvisional`, and the gate is
+released when the sign-in settles or a reset replaces the account —
+never rejected, because a failed sign-in keeps the writes waiting for
+the session the next wake restores, which is the offline state's own
+shape. The engagement rollup's `hasUid` is confirmed-only for the same
+reason: it clears its local copy on handing the write over.
+
+Two more things the same review moved, and one it proposed that was
+refused. The deck poll starts inside hydrate now, beside the answers
+reads, and those are the unguarded ones — so `refreshLive` stops the
+poll when hydrate throws, and `startAggPoll` carries a generation so a
+stop that lands inside its awaited read wins over the arm that follows
+(a hide during that read had the same race before D342). The profile
+block no longer wipes `state.profile` when the document does not exist:
+the read is issued at the top of hydrate, the setup screen can collect a
+name and anchors on a warm-painted device before the block runs, and
+wiping to "what the server said a second ago" mirrored the empty
+object — every later answer would have snapshotted no anchors, the
+exact fault the mirror exists to prevent. The refusal: the review
+priced the lost-session purge at the +738-read cold fetch it now costs
+the next account (the bank and aggregate stores are public content and
+the purge clears them too) and proposed clearing the account's store
+alone. Tried, and reverted on the repo's own rule: WHICH public rows a
+device cached — the paged cards chosen for one account's taste, the
+aggregates of the questions it answered — is itself a trace of what the
+previous account did, and D51 does not distinguish a public row from a
+private one on that point (two of `vote.test.ts`'s uid-change pins fail
+on the narrowing, and both were right). The cold fetch is the price of
+a lost session, paid once and only there.
+
 **Round trips before `ready`:** warm device 6 → **0**, and no SDK parse
 and no auth restore in front of it either — on a returning device the
 paint is the entry chunk plus the disk. The network phase
@@ -34936,7 +34974,7 @@ reconcile never flashes a label on launch.
 `src/v2/data/warm-boot.test.ts` gates the network — every read parks
 until the test releases it — and the sign-in, so "the render was
 released while the server had answered nothing and the SDK had not
-signed in" is an assertion rather than a timing claim. Fourteen cases:
+signed in" is an assertion rather than a timing claim. Sixteen cases:
 the warm paint itself (ready, enabled, not attached, stale, the cached
 deck/votes/aggregates/anchors, zero reads issued with the sign-in held,
 and the delta merging behind it once released); the cold boot
@@ -34947,12 +34985,17 @@ replacing the warm deck through a full fetch and rewriting the cache; a
 failed reconcile keeping the deck, setting the reason, and a wake
 retrying it; the deadline labelling a silent server and the attach
 clearing it; a wake during the running boot issuing nothing; an account
-switch purging the mirror; the provisional account contradicted by auth
-in both orders (observer first, sign-in first) un-painting and purging
-with one boot and one sign-in; a null auth state while provisional
-starting no second sign-in; and the two round-trip shapes — meta, delta,
-then answers ‖ aggregates in one trip; meta, then the three bank queries
-in one trip. `smoke-live.test.jsx` draws the
+switch purging the mirror and keeping the public caches (the next
+account's bank query is a delta); the provisional account contradicted
+by auth in both orders (observer first, sign-in first) un-painting and
+purging with one boot and one sign-in; a null auth state while
+provisional starting no second sign-in; a vote on the warm deck reaching
+the SDK only once the session has restored; a boot failing past the
+poll's start leaving no poll armed, and the next boot re-arming it; and
+the two round-trip shapes — meta, delta, then answers ‖ aggregates in
+one trip; meta, then the three bank queries in one trip.
+`cacheStore.test.ts` pins the purge listener's narrowed scope beside
+`clearAll`'s unchanged one. `smoke-live.test.jsx` draws the
 last-sync pill against the fixture's new `stale` option and asserts a
 healthy boot shows neither pill. The seven boot-driven suites' helpers
 wait on `attached`, which is the meaning they had been relying on;
@@ -34960,7 +35003,7 @@ bank-cache's paging pin counts cursor-carrying pages instead of indexing
 the log, because the interleaving moved. `test:unit` 156 files / 2316
 tests green; lint, `tsc -b`, check:globals (coupling unchanged at 236),
 check:figures, check:docs, test:scripts, check:purge and the rest of the
-client gates green; the shipping bundle's eager graph 772 → 775 KB
+client gates green; the shipping bundle's eager graph 772 → 774 KB
 against 880.
 
 ### When to revisit

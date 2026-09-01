@@ -65,10 +65,15 @@ const h = vi.hoisted(() => ({
   profile: null as null | Record<string, unknown>,
   // Which uid the sign-in mock hands back.
   uid: "uid_test",
-  // Captured window listeners, so a test can fire `online`.
-  listeners: {} as Record<string, () => void>,
+  // Captured window listeners, by event — and DISPATCHED, unlike the
+  // sibling harnesses' stubs: purgeLocalTrace's `insight:local-purge`
+  // has to reach cacheStore's listener here, because what the account
+  // switch leaves on disk is one of the things these cases are about.
+  listeners: {} as Record<string, Array<(ev?: unknown) => void>>,
   // The auth observer's callback, so a test can switch accounts.
   authCb: null as null | ((u: { uid: string } | null) => void),
+  // Every setDoc handed to the SDK, by path.
+  writes: [] as string[],
   // Whether subscribing fires the observer at once with `uid` (the SDK
   // does, asynchronously, once the session is restored). Off, a test
   // fires `authCb` itself to choose the ordering.
@@ -206,7 +211,10 @@ vi.mock("firebase/firestore", () => {
       });
     },
     onSnapshot: () => () => {},
-    setDoc: () => Promise.resolve(),
+    setDoc: (r: { path: string }) => {
+      h.writes.push(r.path);
+      return Promise.resolve();
+    },
     updateDoc: () => Promise.resolve(),
     deleteDoc: () => Promise.resolve(),
     deleteField: () => "__delete__",
@@ -301,6 +309,8 @@ async function releaseAll(LIVE: { attached: boolean }) {
   }, { timeout: 5000 });
 }
 const flush = () => new Promise<void>((r) => setTimeout(r, 0));
+// Fire every listener registered for a window event (`online`, mostly).
+const fire = (ev: string) => { for (const fn of h.listeners[ev] || []) fn(); };
 // Wait until exactly these reads are parked. The paint no longer waits
 // for the sign-in, so the reads that follow it can still be a few
 // microtasks away when initLive returns.
@@ -321,6 +331,7 @@ beforeEach(() => {
   h.profile = { displayName: "Ada", anchors: { city: "Oslo, NO", age: "30s" } };
   h.listeners = {};
   h.authCb = null;
+  h.writes.length = 0;
   h.autoAuth = true;
   h.holdSignIn = false;
   h.releaseSignIn = null;
@@ -330,8 +341,19 @@ beforeEach(() => {
   idb = new IDBFactory();
   vi.stubGlobal("indexedDB", idb);
   vi.stubGlobal("window", {
-    dispatchEvent: () => true,
-    addEventListener: (ev: string, fn: () => void) => { h.listeners[ev] = fn; },
+    dispatchEvent: (ev: { type: string }) => {
+      for (const fn of h.listeners[ev.type] || []) {
+        try {
+          fn(ev);
+        } catch {
+          /* a spec-layer listener with no DOM to act on — not this file's subject */
+        }
+      }
+      return true;
+    },
+    addEventListener: (ev: string, fn: (e?: unknown) => void) => {
+      (h.listeners[ev] ||= []).push(fn);
+    },
     removeEventListener: () => {},
   });
   vi.stubGlobal("document", {
@@ -531,9 +553,9 @@ describe("the warm paint", () => {
 
     // The network returns. wake() keys on `attached`, not `ready` — a
     // warm session is ready and must still get the full refresh here.
-    expect(typeof h.listeners.online).toBe("function");
+    expect(h.listeners.online?.length).toBeGreaterThan(0);
     h.gated = false;
-    h.listeners.online();
+    fire("online");
     await vi.waitFor(() => { expect(LIVE.attached).toBe(true); });
     expect(LIVE.stale).toBe(false);
   });
@@ -583,6 +605,14 @@ describe("the warm paint", () => {
     expect(JSON.parse(storage.getItem(OWN_PROFILE_LS) || "null")).toMatchObject({
       uid: "uid_new", displayName: "Bea",
     });
+    // The purge took every store, the public bank and aggregates included
+    // (D51: which rows a device cached is itself a trace of what the
+    // previous account did), so the new account's boot was the cold
+    // fetch — the priced cost of a lost session, not a delta.
+    const cs = await import("./cacheStore");
+    expect(await cs.readMeta("answers")).toMatchObject({ uid: "uid_new" });
+    const bankQs = h.calls.filter((c) => c.path === "v2_questions");
+    expect(bankQs.some((c) => c.cons.some((k) => k.kind === "where" && k.field === "surface" && k.op === "in"))).toBe(true);
   });
 
   it("a wake during the running boot joins it rather than starting the poll twice", async () => {
@@ -598,7 +628,7 @@ describe("the warm paint", () => {
     // A foreground while the boot is in flight. With `ready` as the key
     // this would run resubscribeForToday → startAggPoll and issue a
     // second deck-aggregate read; with `attached` it joins the boot.
-    h.listeners.online();
+    fire("online");
     await flush();
     expect(h.calls.length).toBe(before);
     await releaseAll(LIVE);
@@ -664,6 +694,67 @@ describe("the provisional account", () => {
     await releaseAll(LIVE);
     expect(LIVE.anchors()).toEqual({ city: "Bergen, NO" });
     expect(JSON.parse(storage.getItem(OWN_PROFILE_LS) || "null")).toMatchObject({ uid: "uid_new" });
+  });
+
+  it("a vote on the warm deck waits for the session before it reaches the SDK", async () => {
+    // A write handed to Firestore before Auth has restored the session is
+    // filed under the UNAUTHENTICATED user's mutation queue, and when the
+    // real user arrives the SDK swaps queues rather than re-signing what
+    // was pending — the promise never settles, the vote stays inflight
+    // for the session, the server never sees it. So every mutator's
+    // getDb() holds while the uid is the mirror's.
+    await seedBank([row("q_1", 1), row("q_2", 2)], h.contentRev, 1000);
+    await seedAnswers("uid_test", { q_1: "1" }, 500);
+    seedProfile("uid_test");
+    h.holdSignIn = true;
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    expect(LIVE.ready).toBe(true);
+    // The tap lands on the optimistic state at once…
+    LIVE.vote("q_2", "0");
+    expect(LIVE.myVotes()).toEqual({ q_1: "1", q_2: "0" });
+    await flush();
+    await flush();
+    // …and nothing has been handed to the SDK.
+    expect(h.writes).toEqual([]);
+    // The session restores; the write goes out under it.
+    h.releaseSignIn?.();
+    await vi.waitFor(() => { expect(h.writes).toContain("v2_users/uid_test/answers/q_2"); });
+    await releaseAll(LIVE);
+    expect(LIVE.myVotes()).toEqual({ q_1: "1", q_2: "0" });
+  });
+
+  it("a boot that fails past the deck poll's start does not leave the poll armed", async () => {
+    // The poll starts the moment there is a deck (beside the answers
+    // reads, D342) and the answers reads are the unguarded ones — so a
+    // failure there used to strand a read-per-minute on a session that
+    // never attached.
+    await seedWarmDevice();
+    h.gated = true;
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    // meta + profile, then the delta, then the answers ‖ aggregates trip:
+    // fail that one.
+    await expectParked(["v2_meta/app", "v2_users/uid_test"]);
+    await release();
+    await expectParked(["v2_questions"]);
+    await release();
+    await vi.waitFor(() => { expect(h.pending.length).toBe(3); });
+    // The poll arms only once the deck's read has returned, so it is not
+    // running yet — and after the failure it must not be running either,
+    // whichever of the two rejections' chains ran first (the read's,
+    // which arms; the answers', which stops).
+    h.pending.splice(0).forEach((p) => p.fail(new Error("offline")));
+    await vi.waitFor(() => { expect(LIVE.bootError).toContain("offline"); });
+    await flush();
+    expect(LIVE.attached).toBe(false);
+    expect(mod._aggPollForTest().running).toBe(false);
+    // …and the next successful boot re-arms it.
+    fire("online");
+    await releaseAll(LIVE);
+    expect(mod._aggPollForTest().running).toBe(true);
   });
 
   it("a null auth state while the uid is provisional starts no second sign-in", async () => {

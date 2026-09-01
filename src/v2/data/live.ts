@@ -3,7 +3,11 @@
 // tab reads instead of its demo deck:
 //
 //   LIVE.enabled      flag: firebase configured AND VITE_V2_LIVE=true
-//   LIVE.ready        true once auth + first fetch have settled
+//   LIVE.ready        there is a deck to draw — off this device's caches
+//                     (the warm paint, D342) or off the network
+//   LIVE.attached     the network boot completed this session; what
+//                     `ready` meant before D342, and what re-entry keys on
+//   LIVE.stale        ready off disk and not yet attached
 //   LIVE.deck()       today's daily questions in the UI's "S" shape;
 //                     counts come from the k-floored public aggregates
 //                     and EXCLUDE the viewer's own vote (the UI adds
@@ -97,6 +101,20 @@ async function getDb(): Promise<import("firebase/firestore").Firestore> {
     startAfter, terminate, Timestamp, updateDoc, where,
   } = fs);
   ({ getFunctions, httpsCallable } = fns);
+  // NOTHING REACHES FIRESTORE WHILE THE UID IS THE MIRROR'S (D342). The
+  // warm paint puts a live deck on screen before Auth has restored the
+  // session, and every mutator here comes through this function — so
+  // this is the one choke point. It is not tidiness: a write handed to
+  // the SDK before its credential listener has fired is filed into the
+  // UNAUTHENTICATED user's mutation queue, and when the real user
+  // arrives the SDK swaps queues rather than re-signing the pending
+  // mutations, so that write's promise never settles — the vote stays
+  // inflight for the session, the cache never files it, the server never
+  // sees it. Waiting here costs the tap a few hundred milliseconds (the
+  // optimistic state is already on screen) and costs a failed sign-in
+  // nothing it was not losing anyway: the write waits for the session
+  // the next wake restores, which is the offline state's own shape.
+  if (state.uidProvisional) await authSettled;
   return db;
 }
 import { reportError, setSentryUser } from "../../lib/sentry";
@@ -1121,6 +1139,12 @@ function buildS(
 // cheaper.
 const AGG_POLL_MS = 60_000;
 let aggPollTimer: ReturnType<typeof setInterval> | null = null;
+// Which start the armed interval belongs to. startAggPoll awaits the
+// deck's read before it arms, and a stop can land inside that await — a
+// hide, or (since D342, when the poll starts beside the boot's unguarded
+// answers reads) a boot that failed. Arming past such a stop would
+// resurrect the poll it dropped; the generation is how the start notices.
+let aggPollGen = 0;
 
 /**
  * Read the given aggregates once and fold them into the store.
@@ -1158,6 +1182,7 @@ async function refreshAggs(qids: readonly string[]): Promise<void> {
 }
 
 function stopAggPoll(): void {
+  aggPollGen += 1;
   if (aggPollTimer) {
     clearInterval(aggPollTimer);
     aggPollTimer = null;
@@ -1187,8 +1212,10 @@ async function startAggPoll(): Promise<void> {
   // `resubscribeForToday` keeps one because it is a re-entry point.
   if (torndown) return;
   stopAggPoll();
+  const gen = aggPollGen;
   await refreshAggs(state.deckIds);
-  if (torndown) return;
+  // A stop that landed during the read wins — see aggPollGen.
+  if (torndown || gen !== aggPollGen) return;
   aggPollTimer = setInterval(() => {
     // Today only — deckIds[0] is back=0 by computeDeckIds' construction.
     // Guarded on visibility as well as on the hide handler, because a tab
@@ -1410,6 +1437,25 @@ function ownProfileUid(): string | null {
   } catch {
     return null;
   }
+}
+
+// The provisional window's gate (getDb has why). Armed when the uid is
+// taken from the mirror, released when the sign-in settles or a reset
+// replaces the account — never rejected: a failed sign-in keeps the gate
+// closed, and the writes queued behind it wait for the session the next
+// wake restores.
+let authSettled: Promise<void> = Promise.resolve();
+let settleAuth: () => void = () => {};
+function beginProvisional(uid: string): void {
+  state.uid = uid;
+  state.uidProvisional = true;
+  authSettled = new Promise<void>((resolve) => {
+    settleAuth = resolve;
+  });
+}
+function endProvisional(): void {
+  state.uidProvisional = false;
+  settleAuth();
 }
 
 function saveOwnProfile(): void {
@@ -2260,12 +2306,13 @@ async function hydrate(): Promise<void> {
       const prof = uid0 === uidEarly && profileP
         ? await profileP
         : await getDoc(doc(db, "v2_users", uid0));
-      if (prof && !prof.exists()) {
-        // The server says there is no document. The warm paint may have
-        // drawn from the mirror of one — server truth wins, and the
-        // re-mirror below records the absence so the next paint agrees.
-        state.profile = { displayName: "", handle: "", testResults: {}, anchors: {}, consent: {} };
-      }
+      // A document that does not exist leaves state.profile ALONE — the
+      // pre-D342 behaviour, restored after a review: the read was issued
+      // at the top of hydrate, and on a warm-painted device the setup
+      // screen can have collected a name and anchors in the meantime.
+      // Wiping to "what the server said a second ago" threw those away
+      // and mirrored the empty object, so every later answer snapshotted
+      // no anchors — the exact fault the mirror exists to prevent.
       if (prof && prof.exists()) {
         state.profile.displayName = (prof.get("displayName") as string) || "";
         state.profile.handle = (prof.get("handle") as string) || "";
@@ -6153,10 +6200,12 @@ function resetForNewUid(uid: string): void {
   state.ready = false;
   state.attached = false;
   state.warm = false;
-  state.uidProvisional = false;
   warmDisk = null;
   state.sessionLost = false;
   state.uid = uid;
+  // After the uid: the gate's waiters proceed under the account they
+  // will be authenticated as.
+  endProvisional();
   purgeLocalTrace();
   // AFTER purgeLocalTrace: it reads the on-disk copy, which the purge has
   // just removed, so this publishes the empty state rather than re-seeding
@@ -6392,8 +6441,7 @@ export function refreshLive(): Promise<void> {
     if (!state.uid && !state.attached) {
       const mirrorUid = ownProfileUid();
       if (mirrorUid) {
-        state.uid = mirrorUid;
-        state.uidProvisional = true;
+        beginProvisional(mirrorUid);
         const disk = await warmFromDisk(mirrorUid);
         if (state.uid === mirrorUid) warmDisk = { uid: mirrorUid, disk };
       }
@@ -6407,12 +6455,23 @@ export function refreshLive(): Promise<void> {
       resetForNewUid(uid);
     }
     state.uid = uid;
-    state.uidProvisional = false;
+    endProvisional();
     // uid-only (never email/name) — matches sentry.ts's PII stance.
     setSentryUser(state.uid);
     state.bootStage = "loading questions";
     notify();
-    await hydrate();
+    try {
+      await hydrate();
+    } catch (err) {
+      // The deck poll starts INSIDE hydrate since D342 — the moment there
+      // is a deck, beside the answers — so a boot that fails past that
+      // point (the answers reads are the unguarded ones) would otherwise
+      // leave a read-per-minute armed on a session that never attached.
+      // Before D342 the poll started after the answers block and this
+      // could not happen; the next successful refresh re-arms it.
+      stopAggPoll();
+      throw err;
+    }
     state.bootStage = "loading groups";
     notify();
     await hydrateSocial();
@@ -6631,7 +6690,10 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
       if (!uid) throw new Error("no session");
       await setDoc(doc(db, "v2_users", uid, "engagement", rollup.day), rollup);
     },
-    hasUid: () => !!state.uid,
+    // Confirmed, not provisional (D342): a rollup handed over while the
+    // uid is still the mirror's would clear its local copy on the way to
+    // a write the gate in getDb holds until the session is known.
+    hasUid: () => !!state.uid && !state.uidProvisional,
     build: typeof __APP_BUILD__ === "number" ? __APP_BUILD__ : 0,
   });
   // A slow first paint is a boredom input like any other. Measured from

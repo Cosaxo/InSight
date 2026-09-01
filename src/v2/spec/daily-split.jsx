@@ -1195,6 +1195,25 @@ class DailySplit extends React.Component {
     const h = React.createElement;
     const st = this.state;
     const { rootRef, screen } = this.renderVals();
+    // One pill for both boot states — the demo deck under a lost race
+    // (D77) and the real deck off this device's caches with the server
+    // unheard from (D342): the label, and the reason one tap away. A
+    // helper rather than two copies, because the second copy had drifted
+    // from the first (no pointer cursor, UA button chrome on WebKit)
+    // before it shipped.
+    const bootPill = (key, label, reason) => h('div', {
+      key,
+      style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 },
+    },
+      h('button', {
+        type: 'button',
+        onClick: () => this.setState(s => ({ showBootErr: !s.showBootErr })),
+        'aria-expanded': !!st.showBootErr,
+        style: { fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', background: 'none', border: '1px solid var(--rule)', borderRadius: 999, padding: '3px 10px', cursor: 'pointer', WebkitAppearance: 'none' },
+      }, label),
+      st.showBootErr && h('div', {
+        style: { fontSize: 11, lineHeight: 1.5, color: 'var(--ink-3)', textAlign: 'center', maxWidth: 320, padding: '0 12px', wordBreak: 'break-word' },
+      }, reason));
     return h('div', {
       ref: rootRef,
       'data-screen-label': 'Split daily v2',
@@ -1225,41 +1244,16 @@ class DailySplit extends React.Component {
       // reachable only with a Mac. One tap is the whole remedy; it stays
       // behind a tap because "reconnecting…" is the honest thing to show
       // someone on a train, and `auth/network-request-failed` is not.
-      LIVE.demoInProd && h('div', {
-        key: 'demo-banner',
-        style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 },
-      },
-        h('button', {
-          type: 'button',
-          onClick: () => this.setState(s => ({ showBootErr: !s.showBootErr })),
-          'aria-expanded': !!st.showBootErr,
-          style: { fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', background: 'none', border: '1px solid var(--rule)', borderRadius: 999, padding: '3px 10px', cursor: 'pointer', WebkitAppearance: 'none' },
-        }, 'Sample questions · reconnecting…'),
-        st.showBootErr && h('div', {
-          style: { fontSize: 11, lineHeight: 1.5, color: 'var(--ink-3)', textAlign: 'center', maxWidth: 320, padding: '0 12px', wordBreak: 'break-word' },
-        }, LIVE.bootError || 'connecting…')),
-      // D342: the other honest case, and the one the banner above cannot
+      LIVE.demoInProd && bootPill('demo-banner', 'Sample questions · reconnecting…', LIVE.bootError || 'connecting…'),
+      // D342: the other honest case, and the one the pill above cannot
       // see. A returning device paints the REAL deck off its own caches
       // before the network is heard from; if the server then fails or
       // stays silent past the boot's budget, what is on screen is this
       // device's last sync — real answers, real counts, as of last time —
       // and the person deserves to know the counts are not today's.
-      // Same tap-for-the-reason shape as the demo banner, and gated on a
-      // reason existing: the ordinary reconcile takes under a second and
-      // must not flash a label on every launch.
-      LIVE.enabled && LIVE.stale && LIVE.bootError && h('div', {
-        key: 'stale-banner',
-        style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 },
-      },
-        h('button', {
-          type: 'button',
-          onClick: () => this.setState(s => ({ showBootErr: !s.showBootErr })),
-          'aria-expanded': !!st.showBootErr,
-          style: { fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', background: 'none', border: '1px solid var(--rule)', borderRadius: 999, padding: '3px 10px' },
-        }, 'Last sync · reconnecting…'),
-        st.showBootErr && h('div', {
-          style: { fontSize: 11, lineHeight: 1.5, color: 'var(--ink-3)', textAlign: 'center', maxWidth: 320, padding: '0 12px', wordBreak: 'break-word' },
-        }, LIVE.bootError)),
+      // Gated on a reason existing: the ordinary reconcile takes under a
+      // second and must not flash a label on every launch.
+      LIVE.enabled && LIVE.stale && LIVE.bootError && bootPill('stale-banner', 'Last sync · reconnecting…', LIVE.bootError),
       screen);
   }
 }
