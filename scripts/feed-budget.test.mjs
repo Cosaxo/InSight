@@ -123,8 +123,10 @@ describe("feedBudget", () => {
   it("levels evenly above the floor when there is no demand signal", () => {
     const { allocation, split } = feedBudget({ topics: level(10, TOPIC_FLOOR + 5) });
     expect(split.level).toBe(RUN_CAP);
-    // 12 over 10 topics: ten get one, the two alphabetically first get two.
-    expect(allocation.filter((a) => a.write === 2).map((a) => a.topic)).toEqual(["t00", "t01"]);
+    // Every topic touched, none more than one ahead of another.
+    expect(allocation).toHaveLength(10);
+    const writes = allocation.map((a) => a.write);
+    expect(Math.max(...writes) - Math.min(...writes)).toBeLessThanOrEqual(1);
     expect(total(allocation)).toBe(RUN_CAP);
   });
 

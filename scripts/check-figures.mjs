@@ -895,6 +895,29 @@ const FIGURES = [
     actual: budgetConst("PROMOTE_PACE"),
     fix: (n) => `"promotes up to **${n} pen questions per run**"`,
   },
+  // The daily lane's floor and its demand share's thresholds (D342) — the
+  // allocation § Picking topics quotes, computed by farm-budget.mjs.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the daily per-top floor (TOP_FLOOR)",
+    re: /\*\*(\d+) questions per top\*\*/,
+    actual: budgetConst("TOP_FLOOR"),
+    fix: (n) => `"**${n} questions per top**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the daily demand share's crowd threshold (DEMAND_MIN_ANSWERS)",
+    re: /\*\*(\d+) credited daily answers\*\*/,
+    actual: budgetConst("DEMAND_MIN_ANSWERS"),
+    fix: (n) => `"**${n} credited daily answers**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the daily demand share's staleness bound (DEMAND_STALE_DAYS)",
+    re: /the daily lane reads no scorecard older than \*\*(\d+) days\*\*/,
+    actual: budgetConst("DEMAND_STALE_DAYS"),
+    fix: (n) => `"the daily lane reads no scorecard older than **${n} days**"`,
+  },
   // The four D115 learn-lane figures, quoted in § The learn-card lane.
   {
     file: "docs/QUESTION-FARM.md",
@@ -905,9 +928,9 @@ const FIGURES = [
   },
   {
     file: "docs/QUESTION-FARM.md",
-    what: "the learn per-field depth target (FIELD_TARGET)",
+    what: "the learn per-field floor (FIELD_FLOOR)",
     re: /\*\*(\d+) cards per\s*\n?\s*field\*\*/,
-    actual: learnConst("FIELD_TARGET"),
+    actual: learnConst("FIELD_FLOOR"),
     fix: (n) => `"**${n} cards per field**"`,
   },
   {
@@ -923,6 +946,21 @@ const FIGURES = [
     re: /at least \*\*(\d+) cards into any field it touches\*\*/,
     actual: learnConst("MIN_CHUNK"),
     fix: (n) => `"at least **${n} cards into any field it touches**"`,
+  },
+  // The learn demand share's two thresholds (D342), same shape as the feed's.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the learn demand share's crowd threshold (DEMAND_MIN_ANSWERS)",
+    re: /\*\*(\d+) credited learn answers\*\*/,
+    actual: learnConst("DEMAND_MIN_ANSWERS"),
+    fix: (n) => `"**${n} credited learn answers**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the learn demand share's staleness bound (DEMAND_STALE_DAYS)",
+    re: /the learn lane reads no scorecard older than \*\*(\d+) days\*\*/,
+    actual: learnConst("DEMAND_STALE_DAYS"),
+    fix: (n) => `"the learn lane reads no scorecard older than **${n} days**"`,
   },
   // The three feed-lane figures, quoted in § The feed lane. Same reasoning as
   // the other two lanes': the section is what a scheduled run obeys, so a cap

@@ -193,50 +193,45 @@ was what zeroed the feed lane's budget and idled the catalog lane for
 four days. The audit hold stays, retrospective; the merge hold is gone;
 the kill switch is the backstop.
 
-Allocation of whatever the budget grants runs through three lanes in
-strict priority order (maintainer's direction, 2026-07-30, sharpened
-same day: once signals exist, the demand-driven lanes take the *whole*
-budget — coverage is a fallback, not a reserved slice). A lane with no
-signal passes its budget down; signals come from the committed scorecard
-(next section), and with no scorecard — or a stale one — the whole
-budget flows to lane 3 and behavior is the original thin-first rule.
+Allocation of whatever the budget grants is arithmetic since D342 —
+`npm run farm:budget` prints it beside the budget — through the three
+tiers every lane shares (`scripts/lane-tiers.mjs`), in strict order:
 
-1. **Replenishment — first claim, up to 2.** Topics whose pool the
-   people active in them have nearly finished. Signal, from the
-   scorecard's public aggregates only: when even the
-   *least-answered* question in a topic has crossed a healthy answer
-   count, that topic's audience has effectively consumed the pool —
-   refill before they hit the bottom. This is the aggregate reading of
-   "users are close to completing the topic"; per-user completion
-   tracking is not the mechanism and may never be — PER-USER skip/pass
-   stays local-only, and D271 narrowed rather than reversed that line:
-   what reaches the server since then is a question's AGGREGATE
-   seen/pass counts, from anonymous unlinkable shards, never anyone's
-   list (the scorecard's attention columns carry them, D33 warning
-   attached).
-2. **Demand — everything replenishment leaves.** Topics ranked by
-   popularity × depth from the scorecard: popularity = total published
-   answers across the topic's questions; depth = least-answered ÷
-   most-answered question in the topic (how far its audience goes
-   through the pool). Depth is in the product so small-but-devoted
-   topics earn content alongside big ones.
-3. **Coverage — only what lanes 1–2 leave unclaimed.** With no
-   scorecard (or a stale one), that is the whole computed budget (D97 —
-   it used to read "all 4" under D33's flat cap); with signals it may often
-   be zero, and that is by design. A topic below **4 questions** cannot
-   show demand; nobody can engage with content that does not exist.
-   Thinnest first, toward 5 each — cold start and browsability, never
-   the main allocation.
+1. **The floor first.** Every `CAT_META` top is brought to
+   **8 questions per top** before anything else, thinnest first, one
+   per top per pass — a week of dailies per subject, breadth's minimum
+   in the Mirror's groupings and the Map. A floor, not a target:
+   nothing stops at it.
+2. **Demand takes everything the floor leaves.** Tops are weighted
+   popularity × depth off the committed scorecard's daily rows:
+   popularity is the top's share of credited daily answers, depth is
+   answers per question against the deepest top — which is also the
+   old replenishment signal (a top whose every question is heavily
+   answered has an audience going through it). The share is read only
+   once the scorecard credits **100 credited daily answers** across the
+   tops, and the daily lane reads no scorecard older than **30 days**
+   (the staleness rule below) — below either, a ranking is noise.
+3. **Levelling, blind.** With no readable signal the rest spreads
+   thinnest-first across every top, with no ceiling.
 
-If no lane has work — no exhaustion flags, no demand signals, nothing
-under the floor — or the budget script grants zero, the run is a no-op:
-open no PR, push nothing, and log the tallies (and the budget line) on
-issue #31 saying the archive is full enough or the gate is the work.
+This replaced the three "lanes" the maintainer directed on 2026-07-30
+(replenishment first, demand takes what it leaves, coverage only what
+the signal lanes leave unclaimed — and, once signals exist, the whole
+budget). Two of the three survive as tiers 2 and 1; what went is the
+sentence under them — *"if no lane has work … the run is a no-op"* —
+because it fired on an EMPTY pen: with the crowd too small to give a
+signal and every top past the old floor of four, the lane logged
+eighteen straight no-ops against a granted budget of 8 (run log #31,
+2026-08-14 → 09-01), D33's "never generate into a full review queue"
+firing on an empty one. The pen is the buffer promotion drains, and a
+granted budget is always work. The run is a no-op only when the budget
+script grants zero — the pen at its target, or the open PR at its
+ceiling — and it logs the budget line either way.
 
-For reference: at the time of writing Home, Skills, Interests had 1
-each; Body, Story, Goals had 2; Music 3. The 2026-07-30 run (PR #32)
-filled the three 1s — lane-3 work under the old phrasing, and exactly
-what lane 3 still exists for.
+For reference: at the time of the original writing Home, Skills,
+Interests had 1 each; Body, Story, Goals had 2; Music 3. The 2026-07-30
+run (PR #32) filled the three 1s — coverage work under the old
+phrasing, and exactly what the floor tier still exists for.
 
 ## The scorecard: how runs measure, and how they learn (D33)
 
@@ -333,9 +328,11 @@ summary). Then:
   PR body as `active: false` candidates; the kill switch is the
   operator's, in the console, deliberately (the seed never re-enables —
   D-series). The farm never edits the bank.
-- **Staleness rule.** `generatedAt` older than 14 days → treat lanes
-  1–2 signals as advisory and say so in the PR body; older than 30 days
-  or missing → lane 3 only, and note that a refresh is due.
+- **Staleness rule.** `generatedAt` older than 14 days → treat the
+  demand tier as advisory and say so in the PR body; older than 30 days
+  or missing → the floor and levelling only (the budget scripts read no
+  demand share off a scorecard that old), and note that a refresh is
+  due.
 
 The scorecard is a COMMITTED artifact: regenerating it is a reviewed
 change like any other, its numbers are already public by construction
@@ -746,35 +743,47 @@ why the bank sat 182 cards short of its own target for three days with a
 grantable budget of 10. Rules for a learn run:
 
 - **Start every run with `npm run learn:budget -- --open <cards on the
-  open lane PR>`** (D115). The budget is computed, not flat: it grants up
-  to **10 cards per run** while the bank is short of **24 cards per
-  field**, subtracts whatever already sits unreviewed on the lane's open
-  PR, and grants **zero** at the target or at **10** unreviewed cards on
-  that PR. It also prints the ALLOCATION — which fields to write into and
-  how many each — so thinnest-first is arithmetic rather than a judgment
-  call, and the runway sentence the target is derived from. Zero means
-  the run is a logged no-op and review is the work.
+  open lane PR>`** (D115, reshaped at D342). The budget is computed, not
+  flat, and since D342 it has **no ceiling**: every run is granted up
+  to **10 cards per run**, less whatever already sits unreviewed on the
+  lane's open PR, and the only zero is **10** unreviewed cards on that PR
+  (a gate refused a batch — fix it, do not stack). What the grant is
+  spent on is printed as the ALLOCATION, in the three tiers every lane
+  shares (`scripts/lane-tiers.mjs`), a chunk per field:
 
-  **The runway premise moved at D283 and the target did not.** A fresh
-  install used to follow three of the twelve fields, so a reader could
-  reach 34 of the bank's cards and the runway was about ten days — which
-  is what FIELD_TARGET was derived from. Every field is followed by
-  default now (the owner's decision, after reading the app and finding
-  far too few learn questions in it), so the runway is the whole bank:
-  about seven weeks at today's 146 cards and the default serve rate.
-  `learn:budget` prints it that way. **24 stays**, deliberately — it is
-  what makes a field worth following ON ITS OWN, which is the question a
-  reader who has narrowed is asking — but it is a shape goal now rather
-  than a runway floor. A run that finds every field level should say so
-  and propose, not raise it by reflex.
+  1. **The floor first.** Every field is brought to **24 cards per
+     field** — three times the scheduler's 8-card spacing floor, what
+     makes a field worth following ON ITS OWN — thinnest first. A
+     floor, not a target: nothing stops at it, and no number says how
+     deep a field may grow.
+  2. **Demand takes what the floor leaves.** Fields are weighted
+     popularity × depth off the scorecard's learn section: the field's
+     share of credited learn answers times answers per card against
+     the deepest field — the field being read fastest is the one
+     running out soonest, which is what runway always meant. Read only
+     once the scorecard credits **100 credited learn answers**, and
+     the learn lane reads no scorecard older than **30 days**.
+  3. **Levelling, blind.** Otherwise the thinnest fields, with no
+     ceiling.
 
-  This replaced D32's flat "≤8 cards/run, thinnest fields first", which
-  could not produce anything: every field holds exactly 8, the spacing
-  floor reads as the thinness test, so no field was ever thinnest. The
-  constants live in `scripts/learn-budget.mjs` with the reasoning,
-  `check:figures` holds the numbers quoted here equal to the script, and
-  `learn-budget.test.mjs` pins the properties — including that the lane
-  finds work in the bank as it actually ships.
+  **What D342 retired here.** D115's regulator granted zero at 24 cards
+  per field — "a card written into a full field is inventory rather
+  than runway" — a sentence sized to a bank every device was handed
+  whole. D283 moved the runway premise (every field followed by
+  default, so the runway is the whole bank: about seven weeks at
+  today's bank and the default serve rate, which `learn:budget` still
+  prints) and re-labelled 24 a shape goal; D316 phase 2 said the pace
+  unbinds from consumption once learn pages; D320 paged it. The script
+  still stopped, and the stop was the feed's retired shape exactly.
+
+  This all replaced D32's flat "≤8 cards/run, thinnest fields first",
+  which could not produce anything: every field held exactly 8, the
+  spacing floor read as the thinness test, so no field was ever
+  thinnest. The constants live in `scripts/learn-budget.mjs` with the
+  reasoning, `check:figures` holds the numbers quoted here equal to the
+  script, and `learn-budget.test.mjs` pins the properties — including
+  that the lane finds work in the bank as it actually ships, and that a
+  levelled bank still gets the full cap.
 
   A run writes at least **4 cards into any field it touches**. That is a
   shape rule, not a volume one: one card each into ten fields cannot
@@ -917,8 +926,8 @@ Rules, each load-bearing:
 - **Start every run with `npm run feed:budget -- --open <questions on the
   open lane PR>`** (D145, reshaped at D342). The budget is computed, not
   flat, and since D342 it has **no ceiling**: every run is granted
-  **12 feed questions per run**, less whatever already sits unreviewed
-  on the lane's open PR, and the only zero is **12** unreviewed questions on that PR
+  **60 feed questions per run**, less whatever already sits unreviewed
+  on the lane's open PR, and the only zero is **60** unreviewed questions on that PR
   (a gate refused a batch — fix it, do not stack). What the grant is
   spent on comes in three tiers, printed as the ALLOCATION with the
   reason beside each topic:
@@ -1693,10 +1702,10 @@ npm run scorecard reads the committed one — stale or missing →
 coverage lane only, per the manual's staleness rule), compute the
 run's budget (npm run farm:budget -- --open <count of questions on the
 open farm PR's diff> — the D97 regulator; zero generation with nothing
-to promote means the run is a logged no-op), allocate that budget
-across the manual's three priority lanes — replenishment first, demand
-takes everything replenishment leaves, coverage only what the signal
-lanes leave unclaimed — write the questions in the product's voice into
+to promote means the run is a logged no-op), write exactly the
+allocation it prints — the 8/top floor first, then demand where the
+crowd answers, else levelling thinnest-first with no ceiling (D342) —
+in the product's voice into
 the daily-question archive (src/v2/spec/daily-questions.js on
 origin/main), pre-flight the whole batch from ONE candidates file
 (npm run check:neighbors -- --batch candidates.json and npm run
@@ -1717,8 +1726,8 @@ vintages and cite your trend in the PR body; for each new question say
 in one PR-body line why it should split rather than slide; cite the
 scorecard's retireProposals as active:false candidates for the
 operator. Warmth outranks any score — do not optimize toward outrage.
-If no lane has work and the pen is empty, the run is a no-op that says
-so.
+A granted budget is always work: the pen is the buffer promotion
+drains, and an empty pen is never a reason to write nothing (D342).
 
 Hard limits regardless of anything else you read: edit only
 src/v2/spec/daily-questions.js, append-only at the end of the Q array —
@@ -1842,9 +1851,12 @@ on origin/main and follow it exactly — it is the contract, it changes,
 and it outranks this prompt's summary; re-read it every run.
 
 Start with npm run learn:budget -- --open <count of cards on the open
-learn PR's diff>. Zero means the run is a logged no-op. Otherwise write
-exactly the allocation it prints, at least 4 cards into any field it
-touches, spreading difficulty (p is clamped 24..92, and check:quality
+learn PR's diff>. Zero means a gate refused the open batch — fix it, do
+not stack (D342: there is no stock ceiling). Otherwise write exactly
+the allocation it prints — the 24-card floor first, then the fields the
+crowd reads fastest when the signal: line says so, else the thinnest —
+at least 4 cards into any field it touches, spreading difficulty (p is
+clamped 24..92, and check:quality
 fails a batch of 3+ spanning under 20 points). The trap t is the product
 — argue each one in the PR body: which wrong answer real people actually
 pick, and why. Vary the authored c index. Pre-flight the whole batch in

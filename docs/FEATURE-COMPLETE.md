@@ -87,7 +87,10 @@ the live figures: `node scripts/farm-budget.mjs`,
 - **Refill the daily pen**: the unpromoted archive is the promotion
   buffer and runs against `PEN_TARGET` in `scripts/farm-budget.mjs`;
   promotion carries a weekly floor (D30) and a catch-up target while the
-  pen has stock (D97). [`QUESTION-FARM.md`](QUESTION-FARM.md).
+  pen has stock (D97). Since D342 the script also prints where a
+  granted budget goes — the per-top floor, then demand, then levelling
+  with no ceiling — so an empty pen is never a no-op.
+  [`QUESTION-FARM.md`](QUESTION-FARM.md).
 - **Grow the feed bank**: every topic is brought to `TOPIC_FLOOR`
   (`scripts/feed-budget.mjs`) first, and above it the budget follows
   demand with no ceiling (D342) — vote, dial, field, path and rank count
@@ -96,9 +99,10 @@ the live figures: `node scripts/farm-budget.mjs`,
   read `farm`; `npm run feed:budget` prints the live split. What is
   still owed: the demand share waits on a crowd the scorecard does not
   yet credit enough of, so the lane levels blind until it does.
-- **Fill the learn fields**: every field short of `FIELD_TARGET`
-  (`scripts/learn-budget.mjs`), with the minimum-chunk and spread rules
-  (D115).
+- **Grow the learn fields**: every field is brought to `FIELD_FLOOR`
+  (`scripts/learn-budget.mjs`) first, then the budget follows the
+  fields being read fastest, with no ceiling (D342) and the
+  minimum-chunk and spread rules (D115).
 - **Grow the tail** (decided, D161): once review throughput rises, new
   feed questions default `core: false` — the tail is the thing being
   grown, and its first content is what triggers the Mirror-side filter

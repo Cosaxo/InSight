@@ -1,4 +1,5 @@
-// learn-budget.test.mjs — pins the D115 learn regulator's arithmetic.
+// learn-budget.test.mjs — pins the learn regulator's arithmetic (D115,
+// reshaped at D342).
 //
 // The first property under test is the one the old rule failed: the lane must
 // be able to return work. D32's "≤8 cards/run, thinnest fields first" could
@@ -6,23 +7,33 @@
 // thinnest and every run was a correctly-reasoned no-op. A budget function
 // that returns zero against the shipped bank is the bug, not the safeguard.
 //
-// The second is the single-gate posture: a learn card merges straight into
-// production, so unlike the daily lane the regulator subtracts the open PR's
-// unreviewed cards from the budget rather than only comparing them to a
-// ceiling. The simulation below says what that does over a year.
+// The second, since D342, is that it must never stop for stock either: the
+// D115 regulator granted zero at 24 cards per field, and the test that pinned
+// that ("throttles to zero once every field is at target") was the
+// bounded-bank premise worn as a test. 24 is a FLOOR now — reached first,
+// never stopped at.
+//
+// The third is the single-gate posture: a learn card merges straight into
+// production, so the regulator subtracts the open PR's unreviewed cards from
+// the budget rather than only comparing them to a ceiling.
+import { readFileSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 import {
   learnBudget,
   learnRunway,
+  learnSignal,
   loadLearnFields,
   RUN_CAP,
-  FIELD_TARGET,
+  FIELD_FLOOR,
   OPEN_MAX,
   MIN_CHUNK,
+  DEMAND_MIN_ANSWERS,
+  DEMAND_STALE_DAYS,
 } from "./learn-budget.mjs";
 
 const level = (n, cards) =>
   Array.from({ length: n }, (_, i) => ({ id: `f${String(i).padStart(2, "0")}`, cards }));
+const total = (allocation) => allocation.reduce((n, a) => n + a.write, 0);
 
 describe("learnBudget", () => {
   it("finds work in the bank as it actually ships", () => {
@@ -33,18 +44,16 @@ describe("learnBudget", () => {
     expect(allocation.length).toBeGreaterThan(0);
   });
 
-  it("grants the full cap to a bank far from target", () => {
+  it("grants the full cap to a bank far from the floor", () => {
     expect(learnBudget({ fields: level(12, 8) }).budget).toBe(RUN_CAP);
   });
 
-  it("throttles to zero once every field is at target", () => {
-    expect(learnBudget({ fields: level(12, FIELD_TARGET) }).budget).toBe(0);
-    expect(learnBudget({ fields: level(12, FIELD_TARGET + 5) }).budget).toBe(0);
-  });
-
-  it("writes only the gap when one field is nearly full", () => {
-    const fields = [...level(11, FIELD_TARGET), { id: "thin", cards: FIELD_TARGET - 3 }];
-    expect(learnBudget({ fields }).budget).toBe(3);
+  it("never stops for stock — a levelled bank still gets the full cap (D316/D342)", () => {
+    expect(learnBudget({ fields: level(12, FIELD_FLOOR) }).budget).toBe(RUN_CAP);
+    const { budget, split } = learnBudget({ fields: level(12, FIELD_FLOOR * 10) });
+    expect(budget).toBe(RUN_CAP);
+    expect(split.floor).toBe(0);
+    expect(split.level).toBe(RUN_CAP);
   });
 
   it("subtracts the open PR from the budget, not just from a ceiling", () => {
@@ -54,21 +63,19 @@ describe("learnBudget", () => {
     expect(learnBudget({ fields: level(12, 8), open: OPEN_MAX - 1 }).budget).toBe(1);
   });
 
-  it("stops entirely when the open PR is unreviewable", () => {
-    // Even with an empty bank: OPEN_MAX is about the reviewer, not the bank.
+  it("stops entirely when the open PR is unreviewable — the one stop left", () => {
+    // Even with an empty bank: OPEN_MAX is about the gate, not the bank.
     expect(learnBudget({ fields: level(12, 0), open: OPEN_MAX }).budget).toBe(0);
     expect(learnBudget({ fields: level(12, 0), open: OPEN_MAX + 5 }).budget).toBe(0);
   });
 
-  it("never exceeds the cap, never goes negative, never overfills a field", () => {
-    for (const cards of [0, 4, 8, 20, FIELD_TARGET - 1, FIELD_TARGET]) {
+  it("never exceeds the cap, never goes negative, always spends what it grants", () => {
+    for (const cards of [0, 4, 8, 20, FIELD_FLOOR - 1, FIELD_FLOOR, FIELD_FLOOR + 40]) {
       for (let open = 0; open <= OPEN_MAX + 2; open++) {
-        const fields = level(12, cards);
-        const { budget, allocation } = learnBudget({ fields, open });
+        const { budget, allocation } = learnBudget({ fields: level(12, cards), open });
         expect(budget).toBeGreaterThanOrEqual(0);
         expect(budget).toBeLessThanOrEqual(RUN_CAP);
-        expect(allocation.reduce((n, a) => n + a.write, 0)).toBe(budget);
-        for (const a of allocation) expect(a.cards + a.write).toBeLessThanOrEqual(FIELD_TARGET);
+        expect(total(allocation)).toBe(budget);
       }
     }
   });
@@ -82,7 +89,7 @@ describe("learnBudget", () => {
       { id: "deep", cards: 20 },
       { id: "thin", cards: 4 },
       { id: "middling", cards: 12 },
-      ...level(9, FIELD_TARGET),
+      ...level(9, FIELD_FLOOR),
     ];
     const { allocation } = learnBudget({ fields });
     expect(allocation.length).toBeLessThanOrEqual(Math.floor(RUN_CAP / MIN_CHUNK));
@@ -90,20 +97,22 @@ describe("learnBudget", () => {
     for (const a of allocation) expect(a.write).toBeGreaterThanOrEqual(MIN_CHUNK);
   });
 
-  it("moves the remainder on rather than overfilling a nearly-full field", () => {
+  it("a field near the floor still takes a full chunk — there is no ceiling to stop short of", () => {
+    // The old regulator wrote 2 into a field two short and moved the rest
+    // on; that was the target's rule. A floor has no room to respect.
     const fields = [
-      { id: "almost", cards: FIELD_TARGET - 2 },
+      { id: "almost", cards: FIELD_FLOOR - 2 },
       { id: "room", cards: 10 },
-      ...level(10, FIELD_TARGET),
+      ...level(10, FIELD_FLOOR),
     ];
     const { allocation } = learnBudget({ fields });
-    const almost = allocation.find((a) => a.field === "almost");
-    expect(almost.write).toBe(2);
-    expect(allocation.find((a) => a.field === "room").write).toBe(RUN_CAP - 2);
+    expect(allocation.map((a) => a.field)).toEqual(["room", "almost"]);
+    for (const a of allocation) expect(a.write).toBeGreaterThanOrEqual(MIN_CHUNK);
+    expect(total(allocation)).toBe(RUN_CAP);
   });
 
   it("level fields come up in turn across runs rather than one absorbing every batch", () => {
-    // Ties break on id, so a run is reproducible; the water-filling is what
+    // Ties break on id, so a run is reproducible; thinnest-first is what
     // makes reproducible not mean repetitive.
     const fields = level(12, 8);
     const touched = new Set();
@@ -117,34 +126,76 @@ describe("learnBudget", () => {
     expect(touched.size).toBeGreaterThan(4);
   });
 
-  it("steady state: the bank converges on the target and stops", () => {
-    // A year of weekly runs against a reviewer who merges each batch before
-    // the next. The claims: the bank reaches the target, no field overshoots
-    // it, and generation stops there rather than running to the 52 × RUN_CAP
-    // the cap alone would permit.
+  it("clears the floor in a bounded number of runs and keeps going", () => {
+    // The floor is reachable, and once every field clears it the lane does
+    // NOT go quiet: generation continues at the cap, levelling.
     const fields = level(12, 8);
-    let generated = 0;
-    for (let week = 0; week < 52; week++) {
+    let runs = 0;
+    for (; runs < 100 && !fields.every((f) => f.cards >= FIELD_FLOOR); runs++) {
       const { allocation } = learnBudget({ fields });
-      for (const a of allocation) {
-        fields.find((f) => f.id === a.field).cards += a.write;
-        generated += a.write;
-      }
+      for (const a of allocation) fields.find((f) => f.id === a.field).cards += a.write;
     }
-    expect(generated).toBe(12 * (FIELD_TARGET - 8));
-    expect(generated).toBeLessThan(52 * RUN_CAP);
-    for (const f of fields) expect(f.cards).toBe(FIELD_TARGET);
-    expect(learnBudget({ fields }).budget).toBe(0);
+    expect(runs).toBeLessThan(100);
+    expect(fields.every((f) => f.cards >= FIELD_FLOOR)).toBe(true);
+    const next = learnBudget({ fields });
+    expect(next.budget).toBe(RUN_CAP);
+    expect(next.split.level).toBe(RUN_CAP);
+  });
+
+  it("above the floor, the demand share picks the fields the crowd reads fastest", () => {
+    const fields = level(3, FIELD_FLOOR);
+    const { allocation, split } = learnBudget({ fields, demand: { f00: 0.1, f01: 0.7, f02: 0.2 } });
+    expect(allocation.map((a) => a.field)).toEqual(["f01", "f02"]);
+    expect(split.demand).toBe(RUN_CAP);
   });
 
   it("constants hold their documented relationships", () => {
-    // FIELD_TARGET is three times the scheduler's 8-card spacing floor;
-    // OPEN_MAX EQUALS RUN_CAP, which is the single-gate posture and the one
-    // relationship deliberately unlike the daily lane's (there OPEN_MAX is
-    // the larger, because a second human gate still stands behind that PR).
-    expect(FIELD_TARGET).toBe(3 * 8);
+    // FIELD_FLOOR is three times the scheduler's 8-card spacing floor;
+    // OPEN_MAX EQUALS RUN_CAP, the single-gate posture.
+    expect(FIELD_FLOOR).toBe(3 * 8);
     expect(OPEN_MAX).toBe(RUN_CAP);
     expect(RUN_CAP).toBeGreaterThanOrEqual(MIN_CHUNK * 2);
+  });
+});
+
+describe("learnSignal", () => {
+  const fresh = () => new Date().toISOString();
+  const scorecardOf = (fields, answers, generatedAt = fresh()) => ({
+    generatedAt,
+    learn: { fields: Object.fromEntries(fields.map((f) => [f.id, { cards: f.cards, scored: 1, answers: answers(f) }])) },
+  });
+
+  it("is blind with no scorecard, and under DEMAND_MIN_ANSWERS", () => {
+    const fields = loadLearnFields();
+    expect(learnSignal(null, fields).mode).toBe("blind");
+    const s = learnSignal(scorecardOf(fields, () => (DEMAND_MIN_ANSWERS - 1) / fields.length), fields);
+    expect(s.mode).toBe("blind");
+    expect(s.note).toContain(`under ${DEMAND_MIN_ANSWERS}`);
+  });
+
+  it("is blind against the committed scorecard as it stands today, and says why", () => {
+    const scorecard = JSON.parse(readFileSync(new URL("../content/scorecard.json", import.meta.url), "utf8"));
+    const fields = loadLearnFields();
+    const credited = fields.reduce((n, f) => n + (scorecard.learn?.fields?.[f.id]?.answers ?? 0), 0);
+    const s = learnSignal(scorecard, fields, Date.parse(scorecard.generatedAt));
+    expect(s.mode).toBe(credited >= DEMAND_MIN_ANSWERS ? "demand" : "blind");
+  });
+
+  it("is blind past DEMAND_STALE_DAYS, however loud the crowd", () => {
+    const fields = loadLearnFields();
+    const at = Date.parse("2026-01-01T00:00:00Z");
+    const sc = scorecardOf(fields, () => 1000, new Date(at).toISOString());
+    expect(learnSignal(sc, fields, at + (DEMAND_STALE_DAYS + 1) * 86400000).mode).toBe("blind");
+    expect(learnSignal(sc, fields, at + DEMAND_STALE_DAYS * 86400000).mode).toBe("demand");
+  });
+
+  it("reads the learn section, not the daily/feed topic rows", () => {
+    const fields = level(3, 20);
+    const sc = { generatedAt: fresh(), topics: { f00: { answers: 9999 } }, learn: { fields: {} } };
+    expect(learnSignal(sc, fields).mode).toBe("blind");
+    const s = learnSignal(scorecardOf(fields, (f) => ({ f00: 600, f01: 300, f02: 100 })[f.id]), fields);
+    expect(s.mode).toBe("demand");
+    expect(s.weights.f00).toBeGreaterThan(s.weights.f01);
   });
 });
 
@@ -175,8 +226,8 @@ describe("learnRunway", () => {
     expect(r.followed).toBe(3);
   });
 
-  it("scales with the target, which is the argument for raising it", () => {
-    const atTarget = learnRunway(level(12, FIELD_TARGET), { followed: 3 });
-    expect(atTarget.someDays).toBeGreaterThanOrEqual(25);
+  it("scales with the floor, which is the argument for it", () => {
+    const atFloor = learnRunway(level(12, FIELD_FLOOR), { followed: 3 });
+    expect(atFloor.someDays).toBeGreaterThanOrEqual(25);
   });
 });
