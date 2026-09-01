@@ -10,14 +10,16 @@
 // to the same table of cases, which is the cheap version of the same
 // guarantee.
 //
-// PURE, and that is structural rather than tidy: this module is imported
-// by LiveDuelPanel and LivePrivacyPanel, both of which are EAGER (they
-// self-register for the spec layer's render-time lookups). A
-// `firebase/firestore` import here therefore lands the whole SDK in the
-// first-paint chunk — measured at 1270 KB against a 955 KB ceiling, which
-// is precisely the tree as it stood before D110. The lookup that needs
-// Firestore lives in ./socialFetch, which only live.ts imports and only
-// dynamically.
+// PURE, and that is structural rather than tidy: this module rode the
+// first-paint chunk through its panel importers for most of its life
+// (LiveDuelPanel until D156 made it a React.lazy, LivePrivacyPanel until
+// D341 moved it into the overlays chunk), and a `firebase/firestore`
+// import here landed the whole SDK in that chunk — measured at 1270 KB
+// against a 955 KB ceiling, which is precisely the tree as it stood
+// before D110. Both importers are off first paint now; the split stays,
+// because a pure module cannot regress the eager graph however its
+// importers move. The lookup that needs Firestore lives in ./socialFetch,
+// which only live.ts imports and only dynamically.
 
 /** Longest a handle may be, typed or stored. */
 export const HANDLE_MAX = 20;

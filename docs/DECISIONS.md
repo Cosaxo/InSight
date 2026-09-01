@@ -34681,3 +34681,72 @@ If the icon ever needs to read on a dark launcher wallpaper more than it
 needs to be the app's own paper: `mark-tile` is still there, and the move
 back is `GROUND`, `ic_launcher_background.xml`, the extractor's group
 name and the two favicons — the same four places this change touched.
+
+## D341 · Account & privacy moves behind a gear in the profile's corner
+
+**2026-09-01.** Owner: *"Hide accont and privacy in a gear icon in the
+cornor of your profile"*, over a screenshot of the profile opening on the
+settings card. Since D98 the account panel (`ui/LivePrivacyPanel.tsx`)
+has been the first thing the General tab draws, above the profile it
+names — so every profile visit opened on an errand surface. It now lives
+in its own sheet behind a gear `icon-btn` in the profile header's right
+corner, where the spacer that centred the title stood, and the General
+tab opens on what the answers have built.
+
+### What moved one tap deeper, and what did not move
+
+The panel carries the app's bluntest disclosure, so the move is worth its
+own paragraph rather than a silent relocation. `docs/COPY.md` §3 already
+draws the line this change stands on: **"Moving a disclosure one tap away
+and deleting a clause from it are different edits."** This is the first
+edit and not the second — the panel moves whole, no sentence changed.
+The public-answers line stays open, unlinked and untapped *on the panel*
+(`LivePrivacyPanel.test.tsx` pins that inside the component, unchanged),
+and the smoke case pins that the sheet holds it one tap from the profile.
+The three denies, `web/privacy.html` (which names no in-app placement),
+the store forms and D331's consent row are all untouched — the compass
+toggle still governs whether the coordinate is computed, from the same
+row, one tap over. The disclosure a user meets *before* any answer
+exists is unchanged too: D330 put the political consent at the start,
+and the sign-in gate's copy is not this panel's.
+
+### The gear is live-only, and the sheet is a real dialog
+
+- **No gear in demo** (`L.enabled` gates it): the panel states facts
+  about a real account and renders nothing without one, so the button
+  would open an empty sheet — D167's rule one control down. The 32px
+  spacer returns so the title does not shift between builds. Pinned from
+  both sides: `smoke-overlays` (demo — absent), `smoke-live` (live —
+  present, opens, holds the panel).
+- **The sheet** (`AccountSheet`, profile-overlay.jsx) is person-overlay's
+  stacked-map shape — a second `.overlay` at `zIndex: 24` — plus the
+  dialog semantics that pattern skips: `useDialog` for Escape and the
+  focus trap (its stopPropagation is why Escape peels the sheet and not
+  the profile under it), and a `pushBackLayer` registration so Android's
+  back does the same (app-shell asks `closeTopBackLayer` first). The
+  smoke case presses Escape and asserts the profile survives.
+- **The kicker is gone from the panel**: the sheet's header says
+  "Account & privacy" directly above the card, and a noun the header
+  already says is one of D182's four deletions.
+
+### The touch converted the panel off the bridge, and out of first paint
+
+D39's convert-on-touch, applied at the site being touched: the two
+`window.LivePrivacyPanel` sites became a static import, the
+`Object.assign(globalThis, …)` publication is deleted with its last
+render-time reader (single writer, checked per rule 6's warning), and
+rule 4 drops **6 → 4** for profile-overlay.jsx, **236 → 234** total.
+The panel also leaves the entry chunk: its spec-index line was what kept
+it eager, and its one consumer rides `loadOverlays()` (D223), so the
+import moves it into that chunk and first paint stops paying for a
+settings panel — same ESM-graph guarantee, no new race.
+
+Three comments whose premises had expired were corrected where the work
+touched them, because two of them mis-stated the tree to this change
+(the D200 shape — a correct reason outliving its premise): profile-
+overlay's "THIS FILE IS EAGER" (false since D223, and the reason the
+Roles lazy boundary exists was written against it), and the
+`handles.ts` / `socialFetch.ts` claim that LiveDuelPanel and
+LivePrivacyPanel are eager importers (half-false since D156 made the
+duel panel a `React.lazy`, fully false here) — the purity split stays,
+dated, with why it outlives them.

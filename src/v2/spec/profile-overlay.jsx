@@ -18,17 +18,62 @@ import { passiveStanding } from './passive-meter.jsx';
 // were already here takes it DOWN instead, which is the trade the ratchet
 // exists to force.
 import LIVE from '../data/live.ts';
+// Same trade at D341: the account sheet below is this panel's ONLY
+// consumer, so its two `window.LivePrivacyPanel` sites became an import,
+// the publication came off the bridge with them (rule 5's honest shape —
+// single writer, checked per rule 6's warning), and this file's rule-4
+// count dropped 6 → 4. The import also moves the panel out of the entry
+// chunk: this file rides loadOverlays() (D223), so the panel now loads
+// with its one consumer instead of on first paint.
+import LivePrivacyPanel from '../ui/LivePrivacyPanel.tsx';
+// Android's back has to peel the account sheet before the shell peels the
+// profile overlay itself — same import, same reason as primitives' Sheet.
+import { pushBackLayer } from '../data/backLayers';
 
-// The Roles tab (D204), behind a lazy boundary. THIS FILE IS EAGER — it is
-// imported by spec-index.js at line ~123 — and check:bundle's MAX_EAGER_KB
-// had ~8 KB of headroom when Roles shipped, so a static import here would
-// have put two roses, the archetype matcher and the panel itself on first
-// paint for a subtab most opens never reach.
+// The Roles tab (D204), behind a lazy boundary. When Roles shipped this
+// file was eager (spec-index imported it at top level) and MAX_EAGER_KB
+// had ~8 KB of headroom, so a static import would have put two roses, the
+// archetype matcher and the panel itself on first paint for a subtab most
+// opens never reach. D223 moved this file into loadOverlays(), which
+// retires the first-paint half of that argument — the lazy boundary still
+// earns its keep by keeping Roles' weight out of the overlay group's
+// chunk, for a subtab most profile opens still never reach.
 const RolesPanelLazy = React.lazy(() => import('../ui/LiveRolesPanel.tsx'));
 
 // InSight — ProfileOverlay (your own profile) + the Politics cards.
 // The sit-down test flow is gone (D121 — the four core instruments fill
 // from the feed); question banks live in test-definitions.js.
+
+// The account & privacy sheet (D341). The panel opened the General tab for
+// every profile visit; the owner moved it behind the gear in the corner, so
+// the tab opens on what the answers have built instead of on settings.
+// Stacked over the profile the way person-overlay's map is (zIndex 24),
+// plus the dialog semantics that pattern skips: useDialog for Escape and
+// the focus trap — its stopPropagation is what keeps Escape from closing
+// the profile underneath in the same press — and a back layer so Android's
+// back peels this sheet first (app-shell asks closeTopBackLayer before its
+// own levels).
+function AccountSheet({ onClose }) {
+  const dlg = useDialog(onClose, 'Account & privacy');
+  // The ref shape primitives' Sheet uses, for its reason: onClose is a
+  // fresh arrow every parent render, and re-registering on each would
+  // churn the back stack until its LIFO order meant nothing.
+  const closeRef = React.useRef(onClose);
+  React.useEffect(() => { closeRef.current = onClose; });
+  React.useEffect(() => pushBackLayer(() => closeRef.current()), []);
+  return (
+    <div className="overlay surface-tint" {...dlg} style={{ zIndex: 24, '--accent': 'var(--c-people)' }}>
+      <div className="app-header">
+        <button className="avatar-btn" onClick={onClose}>✕</button>
+        <div className="h-title">Account &amp; <em>privacy</em></div>
+        <div style={{ width: 32, flexShrink: 0 }} />
+      </div>
+      <div className="app-body">
+        <LivePrivacyPanel />
+      </div>
+    </div>
+  );
+}
 
 // `lensBoxed` left the signature with the v28 §10 teardown (this branch);
 // the Roles panel and the LIVE read arrived with D204 (main). The merge
@@ -62,6 +107,10 @@ function ProfileOverlay({ onClose, me }) {
   const validSub = (id) => SUBTABS.some(s => s.id === id) ? id : 'general';
   const [sub, setSubRaw] = React.useState(validSub(window.__profileSub));
   const setSub = (id) => { window.__profileSub = id; setSubRaw(id); };
+  // The gear's sheet (D341). Deliberately NOT remembered the way `sub` is:
+  // settings are an errand, and a profile that reopens onto them would be
+  // the old General tab wearing a worse door.
+  const [acct, setAcct] = React.useState(false);
   // Keep the active chip fully visible: seven chips are wider than the frame
   // (since D204's Roles), so the last two are off-rail until it scrolls. A
   // single smooth scrollTo on mount lost the race — the tab re-mount resets
@@ -203,7 +252,27 @@ function ProfileOverlay({ onClose, me }) {
       <div className="app-header">
         <button className="avatar-btn" onClick={onClose}>✕</button>
         <div className="h-title">Your <em>profile</em></div>
-        <div style={{ width: 32, flexShrink: 0 }} />
+        {/* the corner gear (D341) — the door to Account & privacy since it
+            left the General tab. Live only: the panel states facts about a
+            real account and renders nothing in demo, and a gear opening an
+            empty sheet is worse than no gear (D167's rule, one control
+            down). The spacer keeps the title centred when it is absent —
+            both are 32px, so the title does not shift between builds. */}
+        {L.enabled ? (
+          <button className="icon-btn" aria-label="Account & privacy" onClick={() => setAcct(true)}>
+            {/* the stroke idiom of the header's other icon buttons
+                (app-shell's ask/search): 24-grid, currentColor, 1.8.
+                The outline is Feather's `settings` cog verbatim — a
+                hand-simplified tooth ring was tried first and rendered
+                as a squiggle; screenshot-verified, don't re-shorten. */}
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
+        ) : (
+          <div style={{ width: 32, flexShrink: 0 }} />
+        )}
       </div>
       <div className="app-body" style={{ paddingTop: 0 }}>
         {/* compact identity row — the content is the star, not the header.
@@ -241,7 +310,8 @@ function ProfileOverlay({ onClose, me }) {
         </div>
 
         <div key={sub} className="tab-swap" style={{ marginTop: 4 }}>
-          {sub === 'general' && L.enabled && window.LivePrivacyPanel && <window.LivePrivacyPanel />}
+          {/* LivePrivacyPanel opened this tab from D98 to D341; it lives
+              behind the header's gear now — see AccountSheet above. */}
           {sub === 'general' && <window.GeneralPanel onGo={setSub} />}
           {sub === 'big5' && <><Big5Panel /><TestProgress k="big5" /></>}
           {sub === 'politics' && <><PoliticsPanel /><TestProgress k="political" /></>}
@@ -253,6 +323,10 @@ function ProfileOverlay({ onClose, me }) {
           {sub === 'lenses' && window.LensesPanel && <window.LensesPanel />}
         </div>
       </div>
+
+      {/* the gear's sheet — a sibling of the header and body so its
+          inset:0 covers the whole profile, person-overlay's map shape */}
+      {acct ? <AccountSheet onClose={() => setAcct(false)} /> : null}
     </div>
   );
 }
