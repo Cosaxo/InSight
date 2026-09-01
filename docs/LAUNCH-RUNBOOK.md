@@ -42,10 +42,10 @@ exports and passes both gates with no Mac (run 6).
 - **The privacy nutrition label is not pushable at all.** Apple's API has
   no App Privacy resource (D73), so the metadata workflow prints it as the
   form and it is typed in by hand. **Still outstanding.**
-- **Trader status: declared** (D69), **and the address document is in
-  hand since 2026-08-30** — 23 days after the declaration. The upload is
-  still outstanding and is 4.3b's whole remainder; pending verification
-  then gates only the EU-27 storefronts.
+- **Trader status: declared** (D69), **and the address document was
+  uploaded 2026-08-30** — 23 days after the declaration, on the day it
+  arrived. 4.3b now waits on Apple's verification, which gates only the
+  EU-27 storefronts.
 
 **Three decisions came out of that week and each is a gate now**: D73 (the
 privacy label has no endpoint), D74 (a tick is printed after the write, not
@@ -1199,26 +1199,32 @@ That is a tester-count problem, not a workflow problem.
       construction, and mirrored by every clone. What is recorded here is
       that the document arrived, not what it says.
 
-      **NOT UPLOADED YET, and this file said it was for four hours.**
-      The upload is App Store Connect → **Business** → *Trader Status*
-      (or the banner on the Apps list); the trader declaration itself was
-      made 2026-08-07, so the document is all that is outstanding. Before
-      sending it, one open question: whether to mask the fødselsnummer.
-      Apple's wording asks only for records verifying **name and
-      address**, so no part of the form needs it — against which a
-      redacted document can draw a re-request. Owner's call.
+      **Uploaded 2026-08-30, on the owner's report** — App Store Connect
+      → **Business** → *Trader Status*, or the banner on the Apps list.
+      The trader declaration itself was made 2026-08-07, so the document
+      was the whole remainder.
 
-      **How the false claim got in, because the shape is the point.**
-      `267984c` recorded the upload as done, and a merged PR repeated it,
-      on the strength of one chat message — "should be uploaded now" —
-      read as a report of the console action rather than of the file
-      being ready. Nothing was observed: there is no App Store Connect
-      access from the tree, so the claim could not be checked and was not.
-      That is D74's rule broken from the outside rather than by a script.
-      A tick is a claim of fact, and so is a sentence; **an owner step
-      here is recorded from something seen, or it is recorded as
-      pending.** The two candidates were one word apart and only one of
-      them was verifiable.
+      **The step stays open anyway, and D74 is why:** the upload is a
+      fact, EU distribution being unblocked is not one yet. It closes
+      when the console reports the status verified — Apple's to run, not
+      work in this file. If the document comes back instead, the question
+      that comes with it is whether to mask the fødselsnummer: Apple's
+      wording asks only for records verifying **name and address**, so no
+      part of the form needs it, against which a redacted document can
+      draw a re-request. Owner's call either way.
+
+      **This paragraph said "uploaded" once already today and was wrong,
+      which is worth keeping.** `267984c` recorded it, and a merged PR
+      repeated it, on one chat message — "should be uploaded now" — read
+      as a report of the console action when it was about the file being
+      ready. Nothing was observed and nothing could be: there is no App
+      Store Connect access from this tree, so the claim was unverifiable
+      at the moment it was written and went in because it arrived phrased
+      like a fact. That is D74 from outside a script. The rule it leaves:
+      **an owner step is recorded from what the owner states, and stated
+      as theirs** — the failure was not trusting the owner, who is the
+      only source for a console action, it was promoting an ambiguous
+      sentence about one thing into a fact about another.
 
       **Nothing below waits on it.** Verification gates ONLY EU
       distribution — Norway is EEA (D69), so submission (6.2),
