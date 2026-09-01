@@ -1,6 +1,6 @@
 # The pattern axiom — current theory
 
-*Regenerated from `graph.json` (2026-08-28); the graph is the data, this
+*Regenerated from `graph.json` (2026-09-01); the graph is the data, this
 page is its readable face.*
 
 The pattern axiom is calculation theory: how patterns in and across the
@@ -121,41 +121,115 @@ that need not agree in magnitude or sign; a level-blind estimator
 conflates them, so the perfect engine keeps the person-period as its
 native record and estimates and publishes both levels, matching each
 published coupling to its level rather than promoting either.**
-Rewritten and raised 2026-08-28 — the 2026-08-25 form said couplings
-"graduate" to within-person change, and the literature refuses the
-promotion reading: the levels are different estimands, and the field's
-recommendation is to match model to question (Orth et al. 2021). The
-level-divergence facts are the siblings' and are leaned on by edge
+Raised 2026-08-28 — the 2026-08-25 form said couplings "graduate" to
+within-person change, and the literature refuses the promotion
+reading: the levels are different estimands, and the field's
+recommendation is to match model to question (Orth et al. 2021).
+Fissioned 2026-09-01 per central's 2026-08-28 question (go-7's budget
+argument): the three machinery claims now stand at pat-9, pat-10 and
+pat-11, each with its own sources and status; nothing was re-argued in
+the move. What this node holds: sign discordance between levels is
+empirically documented, not merely possible in principle — a
+three-wave study where the between- and
+within-person cross-lagged paths run in opposite directions, the
+authors' own Simpson's-paradox construction (Dietvorst et al. 2018) —
+and the divergence backdrop is the siblings', leaned on by edge
 (tst-7's ergodicity and variance-excess facts; bod-5's meta-analytic
-within-vs-between ordering with its caveats inherited; map-6's stricter
-treatment carrying the published rebuttal to Fisher). This lane's own
-half is machinery: conflation is an estimator property — where
-stability is at all trait-like, CLPM lagged parameters "do not
-represent the actual within-person relationships over time", with
-presence, predominance and sign as the authors' own failure-mode list
-(Hamaker, Kuiper & Grasman 2015); a level-blind panel estimator returns
-an "uninterpretable amalgam" of the levels (Berry & Willoughby 2017, on
-the ARCL model — the wider generalisation is this lane's inference,
-marked); simulation shows both failure directions (Lucas 2023; Lüdtke &
-Robitzsch 2022); and sign discordance is empirically documented — a
-three-wave study where the between- and within-person cross-lagged
-paths run in opposite directions, the authors' own Simpson's-paradox
-construction (Dietvorst et al. 2018). Native person-period machinery
-exists (two-level DSEM: Asparouhov, Hamaker & Muthén 2018, McNeish &
-Hamaker 2020; the three-network multilevel VAR decomposition: Epskamp
-et al. 2018 — so a level-blind engine conflates three objects, not two;
-group-pooled individual model recovery: Gates & Molenaar 2012), and the
-separation is not free or automatic (centering/detrending policy
-changes the answer: Wang & Maxwell 2015; person-specific reliability:
-Schuurman & Hamaker 2019; the random-intercept adjustment is
-parametric, not a design-based difference-out, and time-varying
-confounding remains a standing residual: Lüdtke & Robitzsch 2022). The
-published within-person object is the population-average within-person
-parameter, never a per-person coupling (tst-6's §9 reading); gene-side
-couplings have no within-person half (map-6's scope note); and the
-shipped corpus is nearly all T=1 per (person, question) — the
-record-grain requirement cannot be retrofitted onto person-aggregates,
-which is the point.
+within-vs-between ordering with its caveats inherited — the adjacent
+diary evidence there is nightly, nights not weeks; map-6's
+stricter treatment carrying the published rebuttal to Fisher). The
+design consequences, this lane's own inferences and marked so: the
+person-period is the native record (aggregation to the person is lossy
+and non-invertible); published artifacts are level-labeled, with
+pat-10's three-network decomposition supplying the label set — the
+engine-side half of map-6's display rule and of tst-6's
+two-linked-geometries architecture; the published within-person object
+is the population-average parameter, never a per-person coupling
+(tst-6's §9 reading forecloses per-person latent publication, so
+pat-8's person-specific estimands inform design without reaching the
+published surface); gene-side couplings have no within-person half
+(map-6's scope note); and the shipped corpus is nearly all T=1 per
+(person, question) — the record-grain requirement cannot be
+retrofitted onto person-aggregates, which is the point.
+
+**pat-9 · cited — Level conflation is an estimator property — not one
+more data fixes: where a construct's stability is at all trait-like, a
+level-blind cross-lagged estimator returns an uninterpretable amalgam
+of between- and within-person associations, with failure modes in the
+presence, predominance and sign of inferred influences.**
+Fissioned from pat-3 2026-09-01; the evidence is the 2026-08-28
+scout's, moved intact with its grades. Where stability is to any
+extent trait-like and time-invariant — the authors' own load-bearing
+conditional — CLPM lagged parameters "do not represent the actual
+within-person relationships over time", with presence, predominance
+and sign the authors' own failure-mode list (Hamaker, Kuiper & Grasman
+2015; their random-intercept fix is what the field later named the
+RI-CLPM); a level-blind panel estimator returns an "uninterpretable
+amalgam" of the levels (Berry & Willoughby 2017, on the ARCL model
+specifically — the wider generalisation is this lane's inference,
+marked); simulation shows both failure directions with the source's
+asymmetry kept — spurious cross-lagged effects very likely found where
+none exist, real ones sometimes underestimated (Lucas 2023) — and CLPM
+bias under unmeasured stable confounding is independently confirmed
+(Lüdtke & Robitzsch 2022). This lane's inference, marked so: where
+Hamaker's conditional holds — the construct carries trait-like
+between-person variance — the conflation happens inside the estimator,
+and more persons do not discharge the problem; only level-aware
+estimation does (pat-10).
+
+**pat-10 · cited — Native person-period machinery exists — two-level
+dynamic SEM, multilevel VAR's three separately-estimable networks
+(temporal within-person, contemporaneous within-person,
+between-person), group-pooled individual model recovery — so a
+level-blind engine conflates three objects, not two.**
+Fissioned from pat-3 2026-09-01; evidence moved intact with its
+grades. Two-level DSEM carries person-specific dynamics under a
+between-person structural model, Bayesian, at intensive-longitudinal
+scale (Asparouhov, Hamaker & Muthén 2018; McNeish & Hamaker 2020 as
+the operational primer); multilevel VAR separates coupling structure
+into three separately-estimable networks that need not agree (Epskamp
+et al. 2018), so the conflation pat-9 describes folds three objects,
+not two — and the decomposition supplies the audit layer's level-label
+set (this lane's inference, marked: between · within-temporal ·
+within-contemporaneous); group-pooled model search recovers
+individual-level directed models from the replicated group skeleton
+(Gates & Molenaar 2012 — the qualitative recovery result; the
+circulating 97%/95% figures are snippet-grade and not relied on),
+which is the group-prior partial relief pat-8 names, never a
+substitute for a person's own occasions. All of it is defined over
+person-period records and none of it can be run on person-aggregates
+(this lane's inference from the methods' own definitions, marked so) —
+the operational content of pat-3's native-record consequence.
+
+**pat-11 · cited — The level separation is not free or automatic:
+centering and detrending policy change the disaggregated answer,
+person-specific reliability is its own estimand, and the
+random-intercept adjustment is parametric — with time-varying
+confounding a standing residual this node does not claim away.**
+Fissioned from pat-3 2026-09-01; evidence moved intact with its
+grades. Three costs: centering and detrending policy change the
+disaggregated answer — three centering by four detrending choices,
+examined in the same journal issue as the CLPM critique (Wang &
+Maxwell 2015) — so, this lane's gloss marked so, the within/between
+split is an analytic decision, not a button; multilevel
+autoregressive practice routinely assumes perfect reliability, and
+person-specific reliability is its own estimand (Schuurman & Hamaker
+2019) — and, this lane's inference marked so, an occasion is worth
+what the state instrument's reliability says it is, the engine-side
+analogue of the body lane's instrument-validity boundary (bod-7 — an
+analogy between a reliability boundary and a validity boundary, not a
+shared result); and the random-intercept
+adjustment is parametric, not the design-based fixed-effects
+difference-out — latent approaches "strongly depend on the specific
+parametric assumptions" (Lüdtke & Robitzsch 2022) — with even the
+design-based guarantee covering time-invariant confounding only, so
+time-varying confounding remains a standing residual. Consequence,
+this lane's inference and marked so: the level split is itself a
+modeled, versioned analytic policy, published beside the coupling like
+any other basis declaration (pat-2; map-6's declared-basis rule) —
+two correct engines with different centering policies publish
+different within-person numbers from the same records, and a reader
+who cannot see the policy cannot recompute the number.
 
 **pat-4 · argued — Coupling capacity is bounded by the paired
 population, and the perfect engine budgets it explicitly.** A
@@ -173,7 +247,8 @@ literature reported (secondary-grade, carriers disagreeing on numbers)
 to find large-N/small-T the stronger regime (Schultzberg & Muthén
 2018, headline figures flagged for a primary read). For
 person-specific estimands the compensation fails structurally: another
-person's stream supplies only a group prior (what GIMME formalizes),
+person's stream supplies only a group prior (what pat-10's group-pooled
+machinery — GIMME — formalizes),
 and the idiographic-network feasibility study prices the demand upward
 — sensitivity was low even at the 75–100 timepoints feasible in
 practice, and under short series the correctly specified VAR(1) lost
@@ -199,6 +274,15 @@ makes drift detectable in principle; attributing it still needs the
 sampling model this node demands.
 
 ## Verification note
+
+The 2026-09-01 run added no new sources: pat-9/pat-10/pat-11 hold
+redistributed subsets of pat-3's 2026-08-28 source list (all twelve
+strings preserved verbatim across the four nodes). Primary reads of
+the two standing flagged items (Schultzberg & Muthén's N×T headline
+figures; Mansueto's overfitting sentence) were attempted again and
+remain egress-blocked (statmodel.com, PMC, tandfonline.com, and the
+UvA institutional repository all refused at CONNECT); both items stay
+below reliance, as labeled in pat-8.
 
 Sources added 2026-08-26 and 2026-08-28 were verified by multi-index
 bibliographic corroboration (publisher records, PubMed, Semantic
