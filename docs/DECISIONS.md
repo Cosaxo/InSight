@@ -34708,7 +34708,25 @@ separate legal person, so the operator is still Olaf Taule *unless* it
 trades under a registered name, in which case the operator line should name
 the entity a user is actually contracting with. `check:store-copy` cannot
 tell a correct name from a stale one — it only sees placeholders — so
-nothing in this repo will ever raise it. **Answer it when the ENK exists.**
+nothing in this repo will ever raise it.
+
+**The ENK is not registered yet (owner, 2026-09-01), so the operator line
+is CORRECT as it stands and was deliberately not changed.** Editing it now
+would make it wrong. What was done instead is to put the trigger at the
+line itself: `web/terms.html`'s contact block carries a comment saying why
+the line is right today, what changes when the ENK exists, and that no gate
+can raise either. A document nobody opens while editing HTML was not enough
+— that is the same reasoning as D41's warning, applied to where the warning
+has to be read.
+
+**And a second change nobody had written down, found while doing it.**
+Norway's **ehandelsloven § 8** obliges a provider of information society
+services to state the register it is entered in and its
+**organisasjonsnummer**; a registered ENK must carry that number on its
+website. There is no row for it on the page and there should not be one
+yet — there is no number. But it is not optional the day there is, and it
+is a second edit rather than a variant of the first, which is exactly the
+kind of thing that gets missed when only the name is on the checklist.
 
 ### When to revisit
 

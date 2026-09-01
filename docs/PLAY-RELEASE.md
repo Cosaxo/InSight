@@ -432,12 +432,19 @@ what Foretaksregisteret provides. If the latter, the free path becomes a
 ~3,000 kr one. Check it in the account-type flow **before paying for a
 D-U-N-S expedite**. No code depends on the answer.
 
-**And one follow-up the ENK itself creates.** If it is registered under a
-business name, `web/terms.html`'s operator line has to name the entity a
-user is actually contracting with rather than Olaf Taule personally. D41
-and SHIP-CHECKLIST both say so, and `check:store-copy` **cannot** raise it
-— it only sees placeholders, and a stale name looks exactly like a correct
-one. Answer it when the ENK exists.
+**And two follow-ups the ENK itself creates, both on `web/terms.html`.**
+If it is registered under a business name, the operator line has to name
+the entity a user is actually contracting with rather than Olaf Taule
+personally. And **ehandelsloven § 8** obliges the page to state the
+register and the **organisasjonsnummer** once there is a registered
+business behind the service — a second edit, not a variant of the first.
+
+`check:store-copy` **cannot** raise either: it only sees placeholder
+markers, and a stale operator name looks exactly like a correct one. So
+the trigger lives in the page, in a comment at the contact block, saying
+why the line is right today and what has to change. The ENK is not
+registered yet, so the line is correct as it stands and was deliberately
+left alone — changing it now would make it wrong.
 
 ## 4 · What changes in the gates
 
