@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// apply-monitoring.mjs — put the eight alert policies in place, in one command.
+// apply-monitoring.mjs — put the nine alert policies in place, in one command.
 //
 //   node scripts/apply-monitoring.mjs --email you@example.com            # report
 //   node scripts/apply-monitoring.mjs --email you@example.com --apply    # do it
 //
 // WHY THIS EXISTS. docs/DEPLOYMENT.md § Alerting spells out the console
-// steps: a notification channel, five log-based metrics, and eight policies
+// steps: a notification channel, seven log-based metrics, and eight policies
 // that each need the channel id pasted in from the first step's output. It is
 // not hard, it is just fiddly enough that it stays undone — and what it
 // guards is the failure mode that runbook calls the urgent one, the one
@@ -109,6 +109,20 @@ const METRICS = [
     description: "digestEngagementV2 completed a nightly digest (02:23 UTC)",
     filter: 'jsonPayload.metric="engagement_digest"',
   },
+  // The paid pipeline had NO metric registered at all, so none of its money
+  // outcomes could be alerted on. These two are the ones that mean a person
+  // is owed money that is not moving — see monitoring/paid-refund-stuck.json
+  // for which is which and what to do about each.
+  {
+    name: "paid_refund_held",
+    description: "closePaidCampaignsV2: a refund failed; the purchase stays open and retries nightly",
+    filter: 'jsonPayload.metric="paid_refund_held"',
+  },
+  {
+    name: "paid_refund_already",
+    description: "closePaidCampaignsV2: a refund was already on the intent — a run died mid-close",
+    filter: 'jsonPayload.metric="paid_refund_already"',
+  },
 ];
 
 const POLICIES = [
@@ -127,6 +141,10 @@ const POLICIES = [
   // BUILT-IN Firestore metric rather than a log-based one, so it needs no
   // METRICS entry above — there is no emit side to break, which also means
   // check-monitoring's rule 3 has nothing to resolve for it.
+  // The money one. Not a rate — one held refund is one too many, and its
+  // own code comment says an unfixable one retries "every night, until an
+  // operator intervenes" while reporting nothing.
+  "monitoring/paid-refund-stuck.json",
   "monitoring/firestore-read-runaway.json",
   // The write side is watched separately because the read policy cannot see
   // it: something that writes without reading runs under a green dashboard.
