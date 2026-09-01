@@ -44,6 +44,7 @@ import { utcDayKeyOf } from "./pure";
 // outcome).
 import { LIGHT_UNBOUNDED, FUNCTIONS_REGION } from "./ops";
 import { V2_QUESTIONS } from "./v2content";
+import { REQUIRED_LEVEL, levelDef } from "./accountLevel";
 import { db as firestore } from "./db";
 
 const REGION = FUNCTIONS_REGION;
@@ -236,6 +237,102 @@ export function burstSignal(
   };
 }
 
+// ── bind coverage (D342) — a MEASUREMENT, not a signal ──────────
+//
+// WHAT IT IS. Of the accounts that actually voted this window, how many
+// hold D29's `db` claim, and how many of the window's counted answers came
+// from them. Two ratios, logged at INFO: this flags nothing and accuses
+// nobody, which is why it sits apart from the four signals above.
+//
+// WHY IT EXISTS, and it closes a hole in D37 rather than adding a nicety.
+// D37 makes the enforcement flip conditional on two rates read from
+// `activateDeviceV2`'s own logs: the error rate, and Android's
+// missing-recall rate. Both measure THE ENDPOINT. Neither can see an
+// account that never called it — a client below the activation build, a
+// device whose bridge is absent (which was every device until D342), a
+// boot where the call was never reached. Those accounts vote and are
+// invisible to both numbers, so both thresholds can read perfect while
+// most voters would be refused the moment the flip lands. That is exactly
+// the silent-refusal failure D37 exists to prevent, surviving inside D37's
+// own instrument.
+//
+// This measures the POPULATION THAT MATTERS instead: people who voted.
+// `1 - boundAnswers/answers` is, directly, the share of real votes the
+// flip would have refused had it been on during this window.
+//
+// COST: zero extra reads. The scan already fetches a UserRecord for every
+// uid in the window for the birth-cluster signal, and custom claims ride
+// that record.
+export interface LevelTally {
+  voters: number;
+  answers: number;
+}
+
+export interface BindCoverage {
+  voters: number;
+  answers: number;
+  /** Level → what that level's accounts contributed. Sparse: only levels seen. */
+  byLevel: Map<number, LevelTally>;
+}
+
+/**
+ * `perUid` is the window fold's per-account timestamp lists, so its value
+ * lengths ARE that account's counted answers. `levels` maps uid → the `db`
+ * claim it holds.
+ *
+ * A uid absent from `levels` counts as LEVEL 0. That includes accounts
+ * erased since they voted (D28's vote-then-erase residual — getUsers
+ * simply omits them), and it is the honest direction: an answer that
+ * cannot be shown to have come from a qualifying account has not been
+ * shown to have come from one. The other direction overstates coverage on
+ * precisely the day it is trusted.
+ */
+export function bindCoverage(
+  perUid: Map<string, number[]>,
+  levels: Map<string, number>,
+): BindCoverage {
+  const byLevel = new Map<number, LevelTally>();
+  let voters = 0;
+  let answers = 0;
+  for (const [uid, times] of perUid) {
+    const lvl = levels.get(uid) ?? 0;
+    voters += 1;
+    answers += times.length;
+    const t = byLevel.get(lvl) || { voters: 0, answers: 0 };
+    t.voters += 1;
+    t.answers += times.length;
+    byLevel.set(lvl, t);
+  }
+  return { voters, answers, byLevel };
+}
+
+/**
+ * What moving the bar to `bar` would have cost over this window: the
+ * voters and answers sitting BELOW it.
+ *
+ * This is the number to read before raising `REQUIRED_LEVEL`
+ * (accountLevel.ts) — and before the first flip of `deviceBindEnforced`,
+ * where the bar is already 1. `refusedAnswers / answers` is the share of
+ * real votes that would have been silently rolled back, which is the
+ * failure D37 exists to prevent and could not see (D342).
+ */
+export function refusedAt(cov: BindCoverage, bar: number): LevelTally {
+  let voters = 0;
+  let answers = 0;
+  for (const [lvl, t] of cov.byLevel) {
+    if (lvl < bar) {
+      voters += t.voters;
+      answers += t.answers;
+    }
+  }
+  return { voters, answers };
+}
+
+/** Percent, one decimal, and 0 rather than NaN on an empty window. */
+export function pct(part: number, whole: number): number {
+  return whole === 0 ? 0 : Math.round((part / whole) * 1000) / 10;
+}
+
 export interface WindowFold {
   entries: number;
   perUid: Map<string, number[]>;
@@ -395,11 +492,23 @@ export const ledgerVelocityScan = onSchedule(
     // not appear; their votes still count toward the other signals.
     const uids = [...fold.perUid.keys()];
     const created: { uid: string; createdMs: number }[] = [];
+    // Riding the same fetch: the `db` claim lives on the UserRecord this
+    // loop already pulls, so coverage below costs no extra call.
+    const levels = new Map<string, number>();
     for (let i = 0; i < uids.length; i += 100) {
       const res = await getAuth().getUsers(uids.slice(i, i + 100).map((uid) => ({ uid })));
       for (const u of res.users) {
         const ms = Date.parse(u.metadata.creationTime);
         if (!Number.isNaN(ms)) created.push({ uid: u.uid, createdMs: ms });
+        // An ACTUAL integer only, matching what firestore.rules accepts —
+        // `get("db", 0) >= n` errors on a string or a boolean and denies.
+        // Coercing would overstate coverage: `Number(true)` is 1, so a
+        // malformed claim would count as a qualifying account on exactly
+        // the day this number is trusted. A level ABOVE the ladder is kept
+        // rather than discarded: that is an account minted by a newer
+        // deploy than this code, which levelDef describes honestly.
+        const raw = u.customClaims?.db;
+        if (typeof raw === "number" && Number.isInteger(raw) && raw > 0) levels.set(u.uid, raw);
       }
     }
     const clusters = birthClusters(created);
@@ -438,6 +547,35 @@ export const ledgerVelocityScan = onSchedule(
     }
 
     await stateRef.set({ lastScanAt: maxAt, days: pruneDays(merged) });
+
+    // Bind coverage (D342, per-level since D343). INFO, and stated as the
+    // decision it informs rather than as bare ratios — the question an
+    // operator has on flip day, and again on every later tightening, is
+    // "what share of real votes would this refuse", and they should not
+    // have to do the subtraction while deciding.
+    const cov = bindCoverage(fold.perUid, levels);
+    const atBar = refusedAt(cov, REQUIRED_LEVEL);
+    const ladder = [...cov.byLevel.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([lvl, t]) => `L${lvl}(${levelDef(lvl).key})=${t.voters}v/${t.answers}a`)
+      .join(" ");
+    logger.info(
+      `[velocity] bind coverage: ${ladder || "no voters"} — at the current bar (>=${REQUIRED_LEVEL}) `
+        + `enforcement would refuse ${atBar.answers}/${cov.answers} answers (${pct(atBar.answers, cov.answers)}%) `
+        + `from ${atBar.voters}/${cov.voters} voters`,
+      {
+        metric: "bind_coverage",
+        voters: cov.voters,
+        answers: cov.answers,
+        bar: REQUIRED_LEVEL,
+        refusedVoters: atBar.voters,
+        refusedAnswers: atBar.answers,
+        refusedPct: pct(atBar.answers, cov.answers),
+        // Per level, so raising the bar can be priced from the same line
+        // rather than from a second query written during an incident.
+        levels: Object.fromEntries([...cov.byLevel].map(([l, t]) => [l, t])),
+      },
+    );
 
     // The heartbeat — the scheduledDuelReveals pattern: the message is
     // what a human greps, the fields are what a log-based metric would

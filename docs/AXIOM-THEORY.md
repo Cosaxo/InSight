@@ -4,7 +4,7 @@
 record of a system that lives OUTSIDE the product: twelve recurring
 Claude lanes on the orphan branch `axiom-theory` of this repo — eleven
 writing theory (two of them, ties and interests, chartered 2026-09-01
-at D343), and since D342 one scoring their work every second night. **`CHARTER.md` at that branch's root is canonical** for
+at D347), and since D346 one scoring their work every second night. **`CHARTER.md` at that branch's root is canonical** for
 everything about how the lanes behave; this page records what the
 product needs to know — where the system is, what may cross from it
 into the tree, and the account-side inventory. If the two disagree,
@@ -41,7 +41,7 @@ ethics or honesty (charter §9: no medical advice, no invented sources,
 consent and privacy as design axioms).
 
 Eleven theory lanes: six subject axioms — genetic, body, questions,
-tests, and since D343 **ties** (the relational axis: the 1v1 and group
+tests, and since D347 **ties** (the relational axis: the 1v1 and group
 profile) and **interests** — plus **map theory** (how everything should be displayed), **pattern
 theory** (how patterns should be found), and **database theory** (the
 perfect, most efficient and most useful database for the axes and
@@ -51,7 +51,7 @@ their connections — deliberately *not* an axiom, the owner's note
 new-axiom proposals, focus questions into the other lanes, and the
 weekly `DIGEST.md`. The **graph optimizer** keeps the graphs
 themselves healthy, including its own methods. And a tenth lane since
-2026-09-01, **review** (D342), scores every other lane's latest work
+2026-09-01, **review** (D346), scores every other lane's latest work
 every second night against the charter's own clauses and leaves each
 lane feedback — *The review lane*, below.
 
@@ -104,13 +104,13 @@ measurement: cron-spawned sessions stall on the provisioning step's
 permission prompt, so the crons now wake a persistent dispatcher
 session that spawns each run with its tools pre-approved), and the
 owner re-paced the cadence the same evening: **every lane every other
-day** — subject axioms (genetic, body, questions, tests, and since D343 ties and interests) at 09:02–14:02 UTC on odd dates, reader lanes (map, pattern, graph
+day** — subject axioms (genetic, body, questions, tests, and since D347 ties and interests) at 09:02–14:02 UTC on odd dates, reader lanes (map, pattern, graph
 optimizer, central) at the same hours on even dates, so readers always work on subject output at most a day old; the
 review lane at 02:02 UTC on odd dates, six hours before the earliest
-lane slot (D342). **The charter's §10 table carries the live trigger ids** and is updated first on any change;
+lane slot (D346). **The charter's §10 table carries the live trigger ids** and is updated first on any change;
 this page stopped copying the ids the evening they started moving.
 
-## The review lane (D342)
+## The review lane (D346)
 
 Chartered 2026-09-01 on the owner's direction — *"a system that scores
 the different axiom work each 2 night and leaves feedback on how it
@@ -149,7 +149,7 @@ every lane's next run reads feedback that already covers its latest
 landed run. Roughly half to one theory run per review (~$10–20), ≈ 15
 a month.
 
-**Delivery state.** Live on both halves: the Routine (id in D342, the
+**Delivery state.** Live on both halves: the Routine (id in D346, the
 account-side half) and the charter amendment — §12, the workspace, the
 checker's path set, nine seeded `FEEDBACK.md` files — landed on
 `axiom-theory` as `fa2de8e` on the owner's word the same evening,
@@ -172,7 +172,7 @@ itself.
 
 ## New axioms — the 2026-09-01 reflection
 
-**Adopted the same day (D343): Ties and Interests are chartered.** The
+**Adopted the same day (D347): Ties and Interests are chartered.** The
 rest of this section stays plan notes, not decisions — time-use, the
 anchors, Learn and the crowd-reading placement are recommendations
 until their day.
@@ -318,12 +318,12 @@ and the follow graph is one too.
 
 - **Money.** ~$20 a run (charter §10's first-day measurement), every
   other day ≈ 15 runs a month ≈ **$300 a month per lane**. Two lanes ≈ $600 a month on top of the ten (the review lane
-  included, D342). The owner's standing call is
+  included, D346). The owner's standing call is
   that budget is not the constraint and quality is — recorded, not
   re-argued.
 - **The dispatcher.** The 2026-09-01 digest reports roughly two days
   of cadence lost to a dispatcher backlog with nine theory lanes at
-  four to five runs a day, and the review lane (D342) now fires at
+  four to five runs a day, and the review lane (D346) now fires at
   night. An eleventh and twelfth add to that queue. Slots that
   keep central reading fresh subject work: **13:02 and 14:02 UTC on
   odd dates** (the subject group), with central still at 12:02 on
@@ -357,6 +357,6 @@ second-ranked candidate, which it subsumes. Charter **Interests** with
 it — the axis the frame already lists and no lane theorizes. Leave
 time-use inside central until its cheap test runs, and route the
 anchors and Learn to the questions lane as appended focus questions.
-Twelve lanes with the review lane (D342), ≈ $600 a month more, two
-new odd-date slots. **Adopted 2026-09-01 — D343.** The remaining
+Twelve lanes with the review lane (D346), ≈ $600 a month more, two
+new odd-date slots. **Adopted 2026-09-01 — D347.** The remaining
 verdicts in §2 bind nothing until theirs.

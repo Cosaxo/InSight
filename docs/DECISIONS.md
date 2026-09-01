@@ -34787,7 +34787,655 @@ the demo's two stubs ever drift from paths-data.js ids, the card renders
 null and the demo smoke fails on the missing titles — that is the drift
 alarm, not a crash.
 
-## D342 · The review lane: every second night, every axiom lane's work is scored and told how to be more useful
+---
+
+## D342 · The fake-account defence was inert, and two records had already spent it
+
+**Date:** 2026-08-30 · **Status:** built. Owner's report is the trigger:
+*"one of the things that has been warned about the most is fake accounts
+would ruin this app by destroying the data's authenticity. right now it
+seems like there's no good defence against it as I have no issue creating
+multiple accounts and ruining the data."*
+
+He is right, and the reason is not a missing design. It is a design that
+shipped switched off while three later records reasoned as though it were
+running.
+
+### The chain, in the order it happened
+
+1. **D29** built device binding end to end — the callable, the month
+   logic, the soft rules switch, the client flow — and deliberately left
+   out the ~30 lines of native code that fetch the platform attestation,
+   because the machine writing them could not compile them.
+2. `src/v2/data/deviceBind.ts` therefore asks
+   `Capacitor.isPluginAvailable("DeviceBind")`, does not find it, logs
+   `native bridge missing — activation deferred`, and returns.
+   **Activation has never run once, on any device.**
+3. **D211** removed the Sign-in row from the account panel, reasoning that
+   "the D134 gate walls every release build behind Google, so the row
+   could only ever read Linked ✓".
+4. **D219** took that wall down. Its own record answers the owner's stated
+   condition — *"as long as that means that everyone has a account and
+   question can be attribute to a spesific user that cant easly create
+   duplicate acounts"* — by naming two mechanisms: App Check on the
+   account-creation surface, and D29's device binding, "shipped end to end
+   and soft". App Check has never been enabled console-side
+   (`SECURITY.md`), and the bridge was not there. **Both cited controls
+   were inert at the moment they were cited.**
+5. Nobody returned to the row D211 had removed on the strength of a wall
+   D219 then removed. So a store build has no link control at the door and
+   none in settings, and D134's own sentence — an anonymous session "lives
+   on ONE phone and dies with it" — became the shipping default.
+
+Each step is defensible alone. The composite is a product where making a
+counted duplicate costs thirty seconds and where the app mints duplicates
+on its users' behalf.
+
+### The threat model this tree never wrote down
+
+D28, D29 and D54 are all written against **a ring**: few actors, many
+accounts, aimed at particular questions. The owner is describing something
+else — **diffuse duplication at population scale**, where ordinary people
+hold a second account because they reinstalled, replaced a handset,
+cleared storage or answered again out of curiosity.
+
+Nothing built can see it or undo it, and the reasons are structural:
+
+- **D54's four signals all look for CONCENTRATION** — impossible per-uid
+  volume, scripted cadence, birth clusters, per-question bursts. A
+  duplicate account produced by a reinstall has none of them, because it
+  is behaviourally indistinguishable from an honest new user. It is one.
+- **D28's guarantee is correction GIVEN A UID LIST.** No list can be
+  built. Nothing distinguishes a second account from a first.
+
+So for this shape the whole fallback story — detect, attribute, subtract,
+republish — is silent, and was silent without ever saying so.
+
+### The arithmetic, and why D28's decays and this one does not
+
+D28 prices a **fixed** F against a **growing** R: shifting a 50/50 split
+ten points takes F ≈ R/4, so exposure is worst at launch and decays with
+every honest vote. That reasoning is sound and does not apply here.
+
+Diffuse duplication scales WITH the population. If a fraction q of people
+hold two accounts, the published share is off by
+
+    bias = q / (1 + q) × (how much duplicators differ from everyone else)
+
+— a constant, at any crowd size, forever. At q = 0.2 and a ten-point
+difference that is a permanent ~1.7 points. And it is **bias, not noise**:
+duplicators are a selected group (more engaged, more likely to be
+re-answering *because* they disagreed with what they saw), so it does not
+average out the way random duplication would.
+
+The exposure is also worse than the world-level figure suggests, because
+this app slices. Since D98 every cell publishes exact counts from the
+first answer, so the R that matters is the smallest cell a reader can
+reach, not the question's total.
+
+### What shipped here
+
+- **The Sign-in row is back** (`LivePrivacyPanel.tsx`), because the
+  cheapest fix for duplication is to stop manufacturing it. Unlinked, it
+  states the loss and offers the link; linked, it is a fact with no
+  control. It calls `linkGoogle()` — the uid and every existing answer
+  survive — and on a credential collision it REPORTS and stops rather than
+  offering the gate's "sign in and leave this phone's answers", which from
+  settings would be a wipe wearing a login.
+- **Both native bridges landed.** iOS: `DeviceBindPlugin.swift` plus
+  `MainViewController.swift`, which registers it from `capacitorDidLoad()`
+  — not the `CAP_PLUGIN` macro DEVICE-BIND.md prescribed, which needs an
+  Objective-C file and a bridging header this project does not have, over
+  a Capacitor that arrives as a Swift Package with no ObjC umbrella header.
+  Android: `DeviceBindPlugin.java` plus `registerPlugin` in `MainActivity`
+  **before** `super.onCreate`, which is where Capacitor builds the bridge
+  — after it, the registration compiles and does nothing.
+- **The Android snippet the doc called paste-ready was broken**, and the
+  way it was broken is this record's own theme. It built its
+  `IntegrityTokenRequest` without a nonce, which that builder refuses. Had
+  anyone pasted it, activation would have failed on every Android device,
+  and failed *silently* — `deviceBind.ts` treats any activation error as
+  "try again on a later boot", so the symptom would have been
+  indistinguishable from the missing bridge it was written to end. The
+  committed plugin mints a 32-byte base64url nonce and returns it;
+  `activateDeviceV2` now refuses a payload whose signed nonce disagrees
+  (`requestDetailsProblem`, five unit tests). It fails CLOSED on a missing
+  nonce, because an optional check is one a caller skips by omission.
+- **`check:devicebind`**, because the failure being fixed is silent.
+  An unregistered plugin leaves a green build, a passing suite and an app
+  that behaves identically — enforcement is soft, so nothing differs. That
+  is precisely how D29 sat inert for a month. It holds both platforms and
+  reads the tool-managed files each depends on — `Main.storyboard`'s
+  `customClass`, the pbxproj compile phase, and on Android the
+  registration ORDER against `super.onCreate` plus the nonce, every one of
+  which fails without an error on a device.
+
+**The caution that kept the bridges out was already unnecessary**, and that
+is the reusable finding: `ios-build.yml` compiles the iOS target on every
+PR touching `ios/**`, unsigned, on a macOS runner, needing no Apple
+account, and `ci.yml`'s `android-build` runs `assembleDebug`. The compile
+check that made committing these safe existed the whole time, on both
+platforms — and its absence was never the real reason the code was not
+written, because a compiler would not have caught the missing nonce
+either. Only a reader would.
+
+### The instrument the flip was missing
+
+D37 makes the flip conditional on two rates, and this record found that
+**both measure the wrong population.** They are computed from
+`activateDeviceV2`'s own logs, so an account that never called it does not
+appear in either — a client below the activation build, a device whose
+bridge was absent (every device, until this record), a boot where the call
+was never reached. Those accounts vote. The flip refuses them. So both
+thresholds could read perfect while most real votes would be silently
+rolled back, which is the exact failure D37 exists to prevent, surviving
+inside D37's own instrument.
+
+`ledgerVelocityScan` now logs **bind coverage** daily at INFO: of the
+accounts that actually voted in the window, how many hold the `db` claim,
+and what share of the window's counted answers came from them. The derived
+figure — `refusedPct` — is the share of real votes the flip would have
+refused had it been on, and it is the number to read on flip day.
+
+It costs nothing: the scan already fetches a `UserRecord` per voting uid
+for the birth-cluster signal, and custom claims ride that record. It flags
+nothing and accuses nobody, so it sits apart from D54's four signals; D54's
+"review, not action" clause is untouched. An unknown uid counts as
+UNBOUND — erased accounts never come back from `getUsers`, and an answer
+that cannot be shown to be bound has not been shown to be bound. The other
+direction would overstate coverage on exactly the day it is trusted.
+
+This does not amend D37's thresholds; it puts a third number in front of
+them, and DEVICE-BIND.md §4 now reads it first.
+
+### What did NOT ship, deliberately
+
+- **The enforcement flip stays `false`.** D37's sequence is unchanged and
+  its conditions are unmet: `minBuild` has not been raised and neither
+  fleet rate can be read until activation has run on real devices. An
+  early flip refuses honest votes *silently* — the option takes, then
+  un-takes — which is the failure D37 exists to prevent.
+- **Nothing about D42.** The Android bridge is here because the owner
+  corrected the premise mid-change — iOS is the first store, not the only
+  one. Play's device-recall opt-in still carries the open API questions
+  DEVICE-BIND.md flags, and `decideRecall` already handles both verdict
+  shapes, so those are a console question rather than a code one.
+- **App Check console enforcement**, which is owner-gated and is the one
+  control that limits account CREATION rather than counting. Its absence
+  is the older half of D219's unmet condition.
+
+### The ceiling, stated so nobody reads more into this than it does
+
+After the flip, one person with N phones gets N counted accounts a month.
+There is no mechanism, here or anywhere, that guarantees one human one
+account: D28's Douceur argument is unchanged, and D28's own 2026-08-06
+amendment already prices the rung above — government ID re-prices a fake
+account in *documents*, which for some attackers is cheaper than a phone.
+What this record buys is narrower and worth having: the accidental
+duplicates stop being created, the deliberate ones acquire a hardware
+price, and the app can eventually say what its numbers are a count OF.
+D28's claim was never "no fake accounts" — it was that the number is
+bounded in how wrong it can silently be. Until today that claim rested on
+two controls that were not running.
+---
+
+## D343 · The account requirement becomes a level, so the bar can be raised later
+
+**Date:** 2026-08-30 · **Status:** built. Owner's ask: *"I also want a way
+to filter out profiles that hasn't fulfilled the newest account
+requirements so I can update them to be stricter later."*
+
+**Decision.** The `db` custom claim carries the account-requirement LEVEL
+an account has been shown to meet, and `firestore.rules` compares `>=`
+rather than `== 1`. `functions/src/accountLevel.ts` is the ladder and the
+source of truth; `requiredAccountLevel()` in the rules is the enforced
+copy, held equal by `check:account-level`.
+
+**Why a boolean was the wrong shape.** D29's `db: 1` meant "passed the
+device check", which was sufficient while there was exactly one
+requirement and is wrong the moment there are two. A boolean cannot say
+WHICH bar an account cleared, so tightening later leaves no way to
+separate the accounts that met the old requirements from the accounts that
+meet the new ones — you would be re-deriving that per account, after the
+fact, from whatever evidence survived.
+
+**Why now rather than later, and this is the load-bearing part.**
+Activation has never run — the native bridges did not exist until D342 —
+so **no account anywhere holds a `db` claim**. Redefining what the claim
+MEANS is free today and is a migration over live auth users the moment one
+real account carries it. This window closes the day the owner sets the
+Apple key.
+
+### The ladder
+
+| Level | Key | What it has been shown to satisfy |
+| --- | --- | --- |
+| 0 | `none` | Signed in, nothing verified. Every account starts here (D3) and stays here if activation never succeeds |
+| 1 | `device` | The platform confirmed this physical device had not already activated an account this calendar month (D29) |
+| 2 | `device+identity` | Device-bound AND linked to a real identity provider — the account survives the handset, and carries a second scarce factor whose Sybil defence Google and Apple already pay for |
+
+`REQUIRED_LEVEL` is **1**. Level 2 exists so the bar can be raised with no
+new code, which is the whole request.
+
+Deliberately short. A level is only worth minting when something can
+actually VERIFY it; a rung nothing checks is the dead allowlist entry D331
+removed from the profile — a promise the tree cannot keep. The level is
+computed from the ID token's own `sign_in_provider`, never from
+`request.data`: a client-declared level is not a level.
+
+### Four properties that are decisions, not details
+
+- **`>=`, never `==`.** Levels subsume. With `==`, raising the bar to 2 and
+  later relaxing it to 1 would refuse every level-2 account — the strictest
+  users locked out by a relaxation, reading as a random outage. Pinned in
+  `rules.test.ts` against the enforced ruleset.
+- **Levels ratchet up per account, never down.** Re-activation on a linked
+  account raises 1 → 2; an already-linked account whose next boot happens
+  to read as anonymous must not be demoted, because a demotion silently
+  stops that person's votes counting with nothing on screen to explain it.
+- **A malformed claim is level 0, in all three readers.** The claim is read
+  by `firestore.rules`, by the nightly scan and by the operator script, in
+  three languages, and they must agree on the case every account is in
+  today: absent. Rules answer 0 by `get("db", 0)`, and a string or boolean
+  errors the comparison and denies. The first drafts of the other two
+  coerced with `Number()` — which reads `db: true` as level **1**, a
+  malformed claim reported as a qualifying account on precisely the day the
+  report is trusted. A test caught it; both now accept an integer only.
+- **A level ABOVE the ladder is described, not discarded.** During a
+  rollout an account can be minted by a newer deploy than the reader.
+  `levelDef` names it rather than crashing a nightly scan.
+
+### The two instruments, and why both
+
+Raising `REQUIRED_LEVEL` is one number, and on deploy every account below
+it stops counting. That is deliberate power, so it gets priced before it is
+used — by two measurements that answer different questions and diverge
+hard:
+
+- **`ledgerVelocityScan`'s `bind_coverage`** (D342, per-level here) counts
+  ANSWERS from accounts that actually voted, and reports what each bar
+  would have refused. This is the aggregate question.
+- **`npm run account-levels -- --below 2`** counts ACCOUNTS. This is the
+  population question.
+
+A thousand dormant unbound accounts barely move the published numbers,
+while one heavy unbound voter moves them a lot. Reading only the second
+would price a tightening as catastrophic; reading only the first would miss
+how many people are about to be quietly excluded.
+
+The script is **read-only and has no `--apply`**, deliberately: raising the
+bar is a code edit and a deploy. A script that could re-level accounts
+would be a way to grant the claim without the device check that is supposed
+to earn it.
+
+### `check:account-level`, on the deploy path
+
+Two numbers that must agree, cannot import each other, and disagree
+silently in **both** directions: rules ahead of the source means every
+report says accounts qualify while their votes are refused; source ahead of
+rules means the bar you believe you set is not the one enforced. Neither
+appears in any test — the rules tests mint their own claims, and the
+callable's tests never open `firestore.rules`.
+
+The gate treats a missing match as a FAILURE rather than a pass, because a
+gate that reads nothing and reports OK is worse than no gate: it is
+believed. Its own test suite pins that, and pinned one real defect already
+— the ladder parser was anchored to line starts, so a formatter collapsing
+those object literals would have blinded it.
+
+### The identity rung was unreachable, twice over — found in review
+
+The first cut graded the identity rung on the ID token's
+`firebase.sign_in_provider`, and that was wrong in a way no test caught,
+because every test supplied the fact directly rather than deriving it.
+firebase-admin documents that field as *"the provider used to **sign in**
+the user"*, and this app **links** rather than signs in — D134's whole
+point, since the uid and every answer survive only because the session is
+not replaced. So a linked account's token keeps saying `anonymous` for the
+life of the account, and level 2 was reachable only by someone who
+ABANDONED their session through the gate's second button. Exactly
+backwards: the users who kept their history were the ones refused the
+higher rung.
+
+The fact now comes from `UserRecord.providerData` — firebase-admin's
+*"providers linked to the user"* — read from the record `regrade` already
+fetches, so it costs no extra call and cannot disagree with token refresh
+timing.
+
+**The second half was worse.** Activation runs ONCE, at boot, and
+memoizes: `activationPlan` answers "skip" for a settled account forever
+after. Linking happens later, from the account panel. So even with the
+right fact, the level was computed at a moment before the fact could be
+true, and nothing ever looked again. The rung was unreachable in two
+independent ways at once, and the docstring promising a 1 → 2 ratchet
+described a path that did not exist.
+
+Both halves close with one shape: the cooldown arm **re-grades**.
+`regrade(uid, deviceBoundNow)` treats `prior >= 1` as the record that this
+account already earned the device rung, so a cooldown — which carries no
+new device fact — can still raise the identity rung. A different account
+on the same spent device has `prior === 0` and gets nothing, which is the
+distinction that makes this safe. On the client, `linkGoogle` drops the
+activation memo at the single choke point in the store, so the next boot
+asks again and receives the cooldown that re-grades it. Next boot rather
+than immediately: re-running now would mean a platform round trip inside a
+settings tap whose answer is a foregone cooldown, and the claim only
+matters when the bar moves.
+
+**The rung grades on FEDERATED providers, not on any provider.** A review
+pass caught `linkedProviders.length > 0` accepting `password` — an
+email/password identity is free and unlimited, and carries none of the
+Sybil resistance the rung's own description claims to be borrowing. The
+predicate now names the providers whose abuse defence someone else
+actually pays for. `phone` is deliberately absent: it IS scarce, but it is
+scarce for a different reason and at a different price, so it belongs to
+its own rung rather than being folded into this one.
+
+**What this says about the ladder's design, kept because it generalises:**
+a rung is only as good as the FACT it grades on, and a fact taken from the
+wrong side of an auth boundary can be perfectly typed, fully tested, and
+still describe something else. Every test passed while the rung was
+unreachable, because every test handed `levelFor` the fact rather than
+deriving it.
+
+### Open to rungs that do not exist yet
+
+**Adding a stricter requirement later is one entry**, which was the point
+of the ask rather than a nicety. Each rung carries its own `met` predicate
+over a `LevelFacts` record, and `levelFor` walks the ladder, stopping at
+the first unmet rung — so it names no specific level and needs no edit
+when one is added. A unit test reads the walker's own source and fails if
+a number appears in it.
+
+Stopping rather than taking the highest satisfied rung is what makes
+levels subsume: an account that somehow met rung 3 but not rung 2 would
+otherwise report as 3, and the rules' `>=` would wave through an account
+that never met the bar it is compared against.
+
+The operator filter READS the ladder out of `accountLevel.ts` rather than
+restating it (`scripts/account-level-lib.mjs`, shared with the gate), so a
+new rung appears in the distribution with its name and can be filtered on
+with no edit to the tool. `--below` takes a KEY as well as a number, which
+is the future-proof form: `--below device+identity` keeps meaning the same
+requirement even if a rung is inserted beneath it and every number shifts.
+A bar the ladder does not define is REFUSED rather than filtered against —
+a typo'd `--below 5` that quietly matched everything would report the whole
+population as unqualified, which is a very convincing wrong answer.
+
+The gate grew with it: the ladder must be ascending, dense from 0, and
+every rung must declare a `met`. A gap makes a bar unreachable; a rung with
+no predicate is a requirement nothing can satisfy, and accounts would stop
+at the rung below it forever with nothing failing.
+
+**Three parser bugs in a row while writing that**, all one family — a
+parser matching slightly the wrong thing and reporting something
+plausible: the block finder took the first `[` after the name, which is the
+TYPE's (`AccountLevelDef[]`), returning an empty ladder from a file with
+three rungs; `countMet` ran over the whole file and counted the interface's
+own `met` declaration plus `levelDef`'s fallback; and an earlier level
+parser was anchored to line starts, so a formatter collapsing the object
+literals would have blinded it. Two failed loudly, and only because the
+gate treats an empty parse as an error rather than a pass.
+
+A fourth of the same family hit this file rather than the code: the edit
+adding this very section used replace-first-occurrence over a 34,000-line
+document, and `### What this does NOT do` is not unique in it, so the text
+landed in an unrelated record. Anchor inside the record.
+
+### What this does NOT do
+
+It does not flip enforcement (`deviceBindEnforced()` is still `false`, and
+D37's sequence is unchanged), it does not raise the bar above 1, and it
+stores nothing new — the level lives in the auth claim, so there is no new
+collection, no data-inventory row and no erasure phase. Filtering profiles
+is a `listUsers` scan by an operator, not a queryable field on a public
+profile document; `v2_users` is world-readable since D98, and "this account
+is unverified" is not a fact this app needs to publish about a person.
+---
+
+
+## D344 · Account & privacy moves behind a gear in the profile's corner
+
+**2026-09-01.** Owner: *"Hide accont and privacy in a gear icon in the
+cornor of your profile"*, over a screenshot of the profile opening on the
+settings card. Since D98 the account panel (`ui/LivePrivacyPanel.tsx`)
+has been the first thing the General tab draws, above the profile it
+names — so every profile visit opened on an errand surface. It now lives
+in its own sheet behind a gear `icon-btn` in the profile header's right
+corner, where the spacer that centred the title stood, and the General
+tab opens on what the answers have built.
+
+### What moved one tap deeper, and what did not move
+
+The panel carries the app's bluntest disclosure, so the move is worth its
+own paragraph rather than a silent relocation. `docs/COPY.md` §3 already
+draws the line this change stands on: **"Moving a disclosure one tap away
+and deleting a clause from it are different edits."** This is the first
+edit and not the second — the panel moves whole, no sentence changed.
+The public-answers line stays open, unlinked and untapped *on the panel*
+(`LivePrivacyPanel.test.tsx` pins that inside the component, unchanged),
+and the smoke case pins that the sheet holds it one tap from the profile.
+The three denies, `web/privacy.html` (which names no in-app placement),
+the store forms and D331's consent row are all untouched — the compass
+toggle still governs whether the coordinate is computed, from the same
+row, one tap over. The disclosure a user meets *before* any answer
+exists is unchanged too: D330 put the political consent at the start,
+and the sign-in gate's copy is not this panel's.
+
+### The gear is live-only, and the sheet is a real dialog
+
+- **No gear in demo** (`L.enabled` gates it): the panel states facts
+  about a real account and renders nothing without one, so the button
+  would open an empty sheet — D167's rule one control down. The 32px
+  spacer returns so the title does not shift between builds. Pinned from
+  both sides: `smoke-overlays` (demo — absent), `smoke-live` (live —
+  present, opens, holds the panel).
+- **The sheet** (`AccountSheet`, profile-overlay.jsx) is person-overlay's
+  stacked-map shape — a second `.overlay` at `zIndex: 24` — plus the
+  dialog semantics that pattern skips: `useDialog` for Escape and the
+  focus trap (its stopPropagation is why Escape peels the sheet and not
+  the profile under it), and a `pushBackLayer` registration so Android's
+  back does the same (app-shell asks `closeTopBackLayer` first). The
+  smoke case presses Escape and asserts the profile survives.
+- **The kicker is gone from the panel**: the sheet's header says
+  "Account & privacy" directly above the card, and a noun the header
+  already says is one of D182's four deletions.
+
+### The touch converted the panel off the bridge, and out of first paint
+
+D39's convert-on-touch, applied at the site being touched: the two
+`window.LivePrivacyPanel` sites became a static import, the
+`Object.assign(globalThis, …)` publication is deleted with its last
+render-time reader (single writer, checked per rule 6's warning), and
+rule 4 drops **6 → 4** for profile-overlay.jsx, **236 → 234** total.
+The panel also leaves the entry chunk: its spec-index line was what kept
+it eager, and its one consumer rides `loadOverlays()` (D223), so the
+import moves it into that chunk and first paint stops paying for a
+settings panel — same ESM-graph guarantee, no new race.
+
+Three comments whose premises had expired were corrected where the work
+touched them, because two of them mis-stated the tree to this change
+(the D200 shape — a correct reason outliving its premise): profile-
+overlay's "THIS FILE IS EAGER" (false since D223, and the reason the
+Roles lazy boundary exists was written against it), and the
+`handles.ts` / `socialFetch.ts` claim that LiveDuelPanel and
+LivePrivacyPanel are eager importers (half-false since D156 made the
+duel panel a `React.lazy`, fully false here) — the purity split stays,
+dated, with why it outlives them.
+
+## D344 amendment (2026-09-01) · The identity row stops calling every session anonymous
+
+Found while shipping D344 — the stale line sat directly above the new
+gear in the owner's own screenshot — and fixed on the owner's word the
+same day (*"yes fix the link google text too"*). The profile's identity
+row said **"anonymous session — link Google below to keep it"** for
+every live session, hardcoded. Wrong twice over, and half of it was
+already on the record: live.ts's auth observer comment named this exact
+site — *"profile-overlay.jsx hardcodes the same sentence with no check
+at all"* — so a Google-linked account was told it was anonymous. The
+other half expired at D211: "below" pointed at the Sign-in row that
+decision removed, and — as the branch stood when this was found — the
+only link path left was the D134 gate before the app opens, so the
+instruction clause had nothing to point at: COPY.md’s fourth deletion,
+an instruction for a control that is not underneath.
+
+The first cut therefore deleted the nudge outright: bare "anonymous
+session" was all the line could honestly say. The same day, D343 landed
+on main having revived the Sign-in row — D219 had taken the wall down
+(`VITE_REQUIRE_SIGNIN` defaults false), so anonymous sessions are real
+in release builds and every reinstall minted a duplicate account — and
+the merge changed the honest answer (the D318-amendment shape: the tree
+converged mid-flight). A link control exists again, inside the very
+panel D344 put behind the gear. So the line keeps the nudge and loses
+only what was false: **"anonymous session — sign in to keep it"** — no
+"below", no claim about where; the Sign-in row one gear tap away
+carries the full stake and the control. A linked account shows its
+handle instead — the durable identity, the same fact the account sheet
+states — or nothing while none is claimed. `LIVE.linked` picks the
+branch (the flag live.ts already derives and announces). This change
+still adds no control of its own: D343's row is the control, and the
+copy now points at a thing that exists.
+
+Both branches are pinned in smoke-live — the fixture is anonymous-first,
+so the default mount holds the nudge line and the absence of the dead
+"link Google below"; the linked case flips the flag, claims a handle,
+and asserts the swap. live.ts's observer comment and the fixture's
+`linked` note are updated to stop describing the defect as current.
+## D345 · Play is un-parked on an ENK, and the two code items that had no owner get built
+
+**Date:** 2026-09-01 · **Status:** Adopted (owner-confirmed: *"yes, do both
+and i will go for a ENK"*)
+
+**Decision.** Google Play is no longer deferred.
+[D42](#d42--insight-launches-on-ios-alone-play-is-deferred-and-the-path-to-it-gets-cheaper-while-it-waits)'s
+park is lifted, and it is lifted **onto D41's organization route**: an ENK,
+a D-U-N-S, and a Play Console organization account, which is exempt from
+the closed-testing gate. The two code items that blocked any Android
+artifact at all — release signing and a release workflow — are built here.
+
+**Why this is D41's branch and not the other one.** D42 made D41
+conditional rather than reversing it: organization is right *if Play opens
+before there is an installed base*, and after one the 12×14 gate may be
+satisfiable by asking existing users. The owner chose the ENK, which is the
+before-an-installed-base branch, so **D41 stands in full and nothing in it
+needs re-deriving.** What has moved since D41 was written moves in this
+choice's favour and is recorded because D41's own numbers are now stale:
+the gate is **12 testers, not the 20 it launched at** (Google reduced it in
+December 2024, the 14 continuous days unchanged), and reporting through
+2026 says tester *engagement* is now checked as well as tester count. That
+lowers the count and raises the bar on who counts — which makes the route
+this decision does not take slightly worse, not better.
+
+**D42's unverified link is still unverified, and it is still the one that
+costs money.** Whether Google's organization verification accepts an
+Enhetsregisteret-only ENK or wants what Foretaksregisteret provides. Free
+either way for the ENK itself; ~3,000 kr if it is the latter. **Check it in
+the Play Console account-type flow before paying for a D-U-N-S expedite.**
+Nothing in this record turns on it — the code below is the same either way.
+
+### What was built
+
+- **Release signing** (`android/app/build.gradle`). The release build type
+  had no `signingConfig` at all, so `bundleRelease` produced an unsigned
+  AAB. Invisible for as long as it was true, because CI only ever runs
+  `assembleDebug`, which signs with the debug keystore and says nothing
+  about this path. Values come from the environment first and an untracked
+  `android/keystore.properties` second; **with neither present the release
+  stays unsigned on purpose**, so a clean clone and the `android-build` job
+  D42 kept alive both keep working. `signingConfig` is left null rather
+  than defaulted to debug: a debug-signed AAB is worse than an unsigned
+  one, because it uploads, installs, and can never be updated by a
+  correctly-signed build.
+- **`.github/workflows/play-release.yml`**, the sibling of
+  `ios-release.yml` and much cheaper — ubuntu rather than macOS at 10×, no
+  cloud signing, no provisioning profiles. Dispatch-only for the second of
+  that file's two reasons: the billing one does not apply, the
+  irreversibility one applies harder, because `production` reaches every
+  user at full rollout the moment the edit commits.
+- **`scripts/play-upload.mjs`**, hand-rolled against the Play Developer API
+  v3 with **no dependency at all** — Node 22's `fetch` plus `node:crypto`
+  for the RS256 assertion. The obvious move is a marketplace action, and
+  this tree's bar for those is visible in `ci.yml`, which declined even
+  `gradle/actions/setup-gradle` for "one fewer third-party action to pin
+  and audit". An upload step holds the one credential that can publish to
+  real users; that is the last place to widen it.
+- **`check:store-copy --first-upload`**, for a genuine chicken-and-egg.
+  The assetlinks fingerprint is minted by Play Console → App signing, which
+  has nothing to show until something has been uploaded, so the first Play
+  upload cannot pass a bare check and every upload after it must. The flag
+  excuses that one run, loudly, and is deliberately **separate from
+  `--ios`**: the two excuse the same line for opposite reasons ("not my
+  store" versus "not yet mintable"), and collapsing them would make the two
+  indistinguishable in a log. It fails closed in both directions —
+  forgetting the flag is a red build, and so is forgetting to fill the
+  value afterwards.
+
+### What was measured rather than reasoned
+
+`PLAY-RELEASE.md` §2.6 flagged the 16 KB page-size requirement as the one
+item it could not measure, because neither the Android SDK nor
+`node_modules` was present when it was written. Both were installed and the
+build was run:
+
+- `assembleDebug` — **succeeds** with the signing change in place, so CI's
+  job is unaffected.
+- `bundleRelease` with nothing configured — **succeeds and is unsigned**,
+  which is the designed behaviour, and the configure-time warning prints.
+- `bundleRelease` with a throwaway keystore — **succeeds and carries a
+  signature block**.
+- The bundle carries **three native libraries × four ABIs**: `libsentry.so`
+  and `libsentry-android.so` (predicted) and
+  `libdatastore_shared_counter.so` (not predicted — androidx.datastore).
+  **Every LOAD segment on both 64-bit ABIs reports `0x4000` = 16384**, so
+  the app is 16 KB compliant with no work. That is now a **step in the
+  workflow** rather than a fact in a document, because what makes it true
+  is a dependency version and nothing else would notice it regressing.
+
+The workflow's three artifact assertions were each verified in both
+directions against real bundles — the signature check passes on the signed
+build and fails on the unsigned one; the `google_app_id` check correctly
+reports the config missing here, which is the true state and proves it is
+not a no-op. That last one is deliberately matched on the exact resource
+name: a looser grep for "firebase" passes on a config-less bundle, because
+the SDK ships `firebase_common_keep` in `resources.pb` regardless.
+
+### The follow-up this creates, and it is the owner's
+
+**If the ENK is registered under a business name, `web/terms.html` must be
+revisited.** D41 said this and SHIP-CHECKLIST repeats it: an ENK is not a
+separate legal person, so the operator is still Olaf Taule *unless* it
+trades under a registered name, in which case the operator line should name
+the entity a user is actually contracting with. `check:store-copy` cannot
+tell a correct name from a stale one — it only sees placeholders — so
+nothing in this repo will ever raise it.
+
+**The ENK is not registered yet (owner, 2026-09-01), so the operator line
+is CORRECT as it stands and was deliberately not changed.** Editing it now
+would make it wrong. What was done instead is to put the trigger at the
+line itself: `web/terms.html`'s contact block carries a comment saying why
+the line is right today, what changes when the ENK exists, and that no gate
+can raise either. A document nobody opens while editing HTML was not enough
+— that is the same reasoning as D41's warning, applied to where the warning
+has to be read.
+
+**And a second change nobody had written down, found while doing it.**
+Norway's **ehandelsloven § 8** obliges a provider of information society
+services to state the register it is entered in and its
+**organisasjonsnummer**; a registered ENK must carry that number on its
+website. There is no row for it on the page and there should not be one
+yet — there is no number. But it is not optional the day there is, and it
+is a second edit rather than a variant of the first, which is exactly the
+kind of thing that gets missed when only the name is on the checklist.
+
+### When to revisit
+
+At the first `play-release.yml` dispatch. Nothing in this record has been
+exercised against a real Play account, because there is not one yet — the
+workflow, the uploader's network half, and both secrets are written and
+untested, which is stated here rather than discovered later. Run it with
+`upload=false` first; that exercises everything except the four API calls.
+
+## D346 · The review lane: every second night, every axiom lane's work is scored and told how to be more useful
 
 **2026-09-01.** **Status:** binding — the owner's ask in their own
 words (*"lets also add a system that scores the different axiom work
@@ -34861,7 +35509,7 @@ bump (the review lane's own graph is where one is argued); and the
 Ties and Interests lanes proposed in `docs/AXIOM-THEORY.md`'s
 2026-09-01 reflection, which wait on the owner's word.
 
-## D343 · Ties and Interests are chartered: the relational axis gets its row and its lane, and the interests axis gets the lane it never had
+## D347 · Ties and Interests are chartered: the relational axis gets its row and its lane, and the interests axis gets the lane it never had
 
 **2026-09-01.** **Status:** binding — the owner's word (*"charter the
 ties and interests lanes too"*), adopting the same day's reflection in
@@ -34905,13 +35553,13 @@ the axis was already shipped, only unnamed.
 
 ### Delivery
 
-- Landed on `axiom-theory` as `ffdf2ae`, a fast-forward from D342's
-  `fa2de8e`, on the owner's word — the posture D342's landing set;
+- Landed on `axiom-theory` as `ffdf2ae`, a fast-forward from D346's
+  `fa2de8e`, on the owner's word — the posture D346's landing set;
   checker green at twelve graphs. Charter §2 (twelve lanes, two rows),
   §10 (slots, ids, five to six runs a day) and §12 (the review reads
   every workspace) amended; `graph/check.mjs` and `graph/SCHEMA.md`
   carry the lanes and the `tie`/`int` prefixes; both workspaces carry
-  the review lane's `FEEDBACK.md` seed, so D342's review covers them
+  the review lane's `FEEDBACK.md` seed, so D346's review covers them
   from its first firing — it reads the charter's table, not a list of
   its own.
 - Both Routines are dispatcher-bound like every lane, with the same
