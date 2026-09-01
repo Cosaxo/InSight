@@ -1629,6 +1629,16 @@ issue #31 come from the bound session. The ids are recorded because
 `update_trigger`/`delete_trigger` need them and they otherwise live only
 in a tool response.
 
+**The model is the bound session's, not the Routine's.** 2026-09-01: the
+owner moved every Routine on the account from `claude-fable-5` to
+`claude-fable-5-1`. All five accepted the edit (`update_trigger` with
+`model` alone; the stored value now reads `claude-fable-5-1`), but a
+Routine that fires into a persistent session runs on that session's
+model — the stored value reaches only a fire that spawns a fresh
+session. So for these five the switch is the dev session's own model
+setting, not a trigger edit, and the stored value is inert until the
+binding clears.
+
 The lanes are staggered hourly off 07:00 so no two runs are writing to
 the same checkout at once — they share one bound session, and a lane
 that finds the tree dirty is supposed to stash or use a worktree, not
