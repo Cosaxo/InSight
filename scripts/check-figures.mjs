@@ -388,6 +388,15 @@ const monitoringRules = (() => {
   return new Set([...head.matchAll(/^\/\/\s+(\d+)\. /gm)].map((m) => m[1])).size;
 })();
 
+// The anchor keys the client sends, off ANCHOR_FIELDS — the table
+// check:anchors already diffs against firestore.rules cap for cap.
+const anchorKeys = (() => {
+  const src = read("src/v2/data/live.ts");
+  const open = src.indexOf("export const ANCHOR_FIELDS");
+  const body = stripComments(src.slice(open, src.indexOf("};", open)));
+  return [...body.matchAll(/(\w+):\s*\d+/g)].length;
+})();
+
 /**
  * Live call sites of a store accessor, across the app's own source.
  *
@@ -663,6 +672,23 @@ const FIGURES = [
     re: /a notification channel, (\w+) log-based metrics/,
     actual: word(monitoringMetrics),
     fix: (n) => `"a notification channel, ${n} log-based metrics"`,
+  },
+  {
+    file: "src/v2/data/live.ts",
+    what: "anchor keys an answer snapshots, off ANCHOR_FIELDS",
+    re: /the same (\d+) keys an\n {2}\/\/ answer snapshots/,
+    actual: String(anchorKeys),
+    fix: (n) => `"the same ${n} keys an\n  // answer snapshots"`,
+  },
+  {
+    file: "src/v2/ui/LiveProfileSetup.tsx",
+    what: "anchor keys the setup screen maps onto",
+    re: /fields onto the (\d+) anchor keys/,
+    // `check:anchors` holds the CAPS against firestore.rules and reports
+    // all ten agreeing; nothing held the prose, which said seven in one
+    // file and eight in the other.
+    actual: String(anchorKeys),
+    fix: (n) => `"fields onto the ${n} anchor keys"`,
   },
   {
     file: "src/v2/data/live.ts",

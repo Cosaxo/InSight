@@ -3498,7 +3498,7 @@ const LIVE = {
     saveLocalName(name);
     notify();
   },
-  // The viewer's own anchors, as a plain map — the same seven keys an
+  // The viewer's own anchors, as a plain map — the same 10 keys an
   // answer snapshots (D8), read back. Empty until the Basics card is
   // filled in, and that emptiness is load-bearing: the Map's anchor ring
   // (spec/map-anchors.js) renders a row per anchor, so a missing value has
