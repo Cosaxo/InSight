@@ -377,8 +377,23 @@ export function firestorePatternsStore(db: Firestore): PatternsStore {
         // displacement. Zero extra reads, zero extra writes; the client
         // reads only `k` and `q` and ignores both until something is
         // built to draw them.
-        // Omitted rather than written as undefined: this is a `set` with
-        // merge, and an undefined field value is rejected outright.
+        // Omitted rather than written as undefined, which Firestore
+        // rejects outright.
+        //
+        // AND THIS `set` HAS NO MERGE — it REPLACES the document, so
+        // omitting a field deletes it. (I wrote "a `set` with merge" here
+        // when this arm landed, which is the opposite, and it is the kind
+        // of wrong sentence that makes the next edit look survivable.)
+        //
+        // Omitting is safe only because `quality` is undefined in exactly
+        // one case: the fold had no head to score AND `getModel` handed
+        // back no prior. That is a document with no `quality` to begin
+        // with, so nothing is deleted. The whole safety rests on the read
+        // above continuing to name `quality` — drop it from that
+        // projection and every run would carry undefined, and this
+        // replace would erase the 90-day prequential series D325 calls the
+        // number any candidate engine must beat. store-projection.test.ts
+        // holds both ends for that reason.
         ...(quality ? { quality } : {}),
         displacement,
       });
