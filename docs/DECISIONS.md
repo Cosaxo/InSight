@@ -35568,6 +35568,16 @@ the axis was already shipped, only unnamed.
   D224, D310 and `data/roles.ts` for Ties; D163, D101, D14–D17, D232,
   D266 and the not-yet verdict for Interests), and the guard: stop if
   the charter does not list the lane.
+- **One drift, recorded rather than hidden.** Both prompts cite this
+  record by the number it carried on the branch, D343 — which is now
+  main's account-requirement record. Prompt edits on a Routine that
+  fires into the dispatcher's session are refused by the tooling (the
+  D326 finding, met again), so the fix is D326's recreate-then-delete,
+  taken at the owner's go-ahead rather than by a run. Tolerable in the
+  meantime by the charter's own design: it outranks the prompt and is
+  re-read every run, the seeds on the branch cite this record by title
+  (`d509851`), and a lane that opens D343 finds a record about accounts
+  and moves on.
 - Cost: two more theory runs every other day, about $600 a month more;
   twelve lanes, five to six runs a day plus the review at night. The
   dispatcher backlog the 2026-09-01 digest reported is the thing to
