@@ -132,6 +132,23 @@ describe("the slot's place in the stream", () => {
     const after = interleaveFeed(world, { tests: [], lenses: [], sponsored: null, sponsorAt: SPONSOR_AT });
     expect(after.map((x) => x.id)).toEqual(before.map((x) => x.id));
   });
+
+  it("holds its depth on a returning device — a short fresh list, continued cadences, still never first (D342)", () => {
+    // Three fresh topics out of a twenty-card list. The feed weaves the
+    // fresh list and walks the full depth, so the slot lands at its
+    // position among the continued cadences: after every fresh topic and
+    // after the first test card, never at the head. Before D342 the slot
+    // fired against the SIXTH card of the full list, and with the first
+    // six answered — the ordinary returning device — the paid card
+    // surfaced right behind the answered block, at the top of the feed.
+    const fresh = Array.from({ length: 3 }, (_, i) => q(`feed-w${i}`));
+    const paid = q("feed-paid", { sponsor: { buyer: "X" } });
+    const woven = interleaveFeed(fresh, {
+      tests: [q("t0"), q("t1")], lenses: [], sponsored: paid, sponsorAt: SPONSOR_AT, depth: 20,
+    });
+    expect(woven.map((x) => x.id)).toEqual(["feed-w0", "feed-w1", "feed-w2", "t0", "feed-paid", "t1"]);
+    expect(woven.filter((x) => x.id === "feed-paid")).toHaveLength(1);
+  });
 });
 
 describe("the shipped bank", () => {

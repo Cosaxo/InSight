@@ -238,3 +238,77 @@ describe("roundRobinBy", () => {
     expect(out.map((q) => q.id).sort()).toEqual(["big5-0", "loose"]);
   });
 });
+
+// ── the returning device (D342) ───────────────────────────────────────
+//
+// The feed used to weave against the FULL world list — answered cards
+// included — and drop the answered ones from the output afterwards, so
+// the cadence positions could not be starved as the fresh half shrank.
+// The counts were right and the order was wrong: a returning device's
+// answered cards are a PREFIX of the stable order (you answer from the
+// top), so every slot that fired against the prefix survived the drop as
+// a solid block at the head of the feed. The owner's report: "when you
+// first open the app it never seems to add topics that are not tests or
+// learn". D309 had read the same complaint as depletion.
+describe("the fresh list is woven, and `depth` keeps the cadences alive (D342)", () => {
+  const bank = world(24);
+  const answered = new Set(bank.slice(0, 16));
+  const fresh = bank.filter((w) => !answered.has(w));
+  const streams = { tests: tests(9), lenses: lenses(9), know: ["k0", "k1", "k2", "k3"], knowEvery: 7 };
+  const dropAnswered = (list: string[]) => list.filter((x) => !answered.has(x));
+
+  it("would have caught the shipped shape: weave the full list, drop after, and side cards front the feed", () => {
+    // The old loop, reproduced through the shipped function: the full list
+    // in, the answered prefix filtered out of the result.
+    const feed = dropAnswered(interleaveFeed(bank, streams));
+    // Seven side cards before the first topic — the whole first mounted
+    // page (WF_PAGE = 8) bar one. The same head on a 190-card bank.
+    expect(feed.findIndex((x) => x.startsWith("w"))).toBe(7);
+    expect(feed.slice(0, 8)).toEqual(["t0", "k0", "t1", "l0", "t2", "k1", "t3", "w16"]);
+  });
+
+  it("leads with the fresh topics, at the designed rhythm", () => {
+    const out = interleaveFeed(fresh, { ...streams, depth: bank.length });
+    expect(out.slice(0, 8)).toEqual(["w16", "w17", "w18", "w19", "t0", "w20", "w21", "w22"]);
+    // Every fresh topic is there, in order, and nothing answered is.
+    expect(out.filter((x) => x.startsWith("w"))).toEqual(fresh);
+  });
+
+  it("places exactly the side cards the full walk placed — same counts per stream, one order", () => {
+    const before = dropAnswered(interleaveFeed(bank, streams));
+    const after = interleaveFeed(fresh, { ...streams, depth: bank.length });
+    // The same multiset: the fix reorders, it never adds or loses a card.
+    expect([...after].sort()).toEqual([...before].sort());
+    // Each stream keeps its own order through the continuation.
+    for (const p of ["t", "k", "l"]) {
+      expect(after.filter((x) => x.startsWith(p))).toEqual(before.filter((x) => x.startsWith(p)));
+    }
+    // …and the surplus rides AFTER the last fresh topic, all of it side cards.
+    const lastWorld = after.lastIndexOf("w23");
+    expect(after.slice(lastWorld + 1).every((x) => !x.startsWith("w"))).toBe(true);
+    expect(after.slice(lastWorld + 1).length).toBeGreaterThan(0);
+  });
+
+  it("defaults the depth to the world list, so a fresh account's feed is unchanged", () => {
+    const s = { tests: tests(19), lenses: lenses(28) };
+    const plain = interleaveFeed(world(73), s);
+    expect(interleaveFeed(world(73), { ...s, depth: 0 })).toEqual(plain);
+    // A depth shorter than the list is ignored, never a truncation.
+    expect(interleaveFeed(world(73), { ...s, depth: 10 })).toEqual(plain);
+    expect(interleaveFeed(world(73), { ...s, depth: 73 })).toEqual(plain);
+  });
+
+  it("at the caught-up end serves the surplus in cadence order with no world cards between", () => {
+    // Positions 4 → t0, 7 → k0, 8 → t1, 9 → l0, 12 → t2, 18 → l1; the
+    // exhausted streams simply stop firing.
+    const out = interleaveFeed([], { tests: tests(3), lenses: lenses(2), know: ["k0"], knowEvery: 7, depth: 24 });
+    expect(out).toEqual(["t0", "k0", "t1", "l0", "t2", "l1"]);
+  });
+
+  it("keeps the knowledge drain for a depth shorter than its cadence", () => {
+    // The muted-everything case, unchanged: nothing to walk, and the
+    // knowledge stream is still there.
+    expect(interleaveFeed([], { tests: [], lenses: [], know: ["k0", "k1"], knowEvery: 6, depth: 3 }))
+      .toEqual(["k0", "k1"]);
+  });
+});

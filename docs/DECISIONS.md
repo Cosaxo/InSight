@@ -34786,3 +34786,119 @@ which is `wfFeedMatch` working, not a bug; give it a served topic. And if
 the demo's two stubs ever drift from paths-data.js ids, the card renders
 null and the demo smoke fails on the missing titles — that is the drift
 alarm, not a crash.
+
+---
+
+## D342 · The feed weaves its fresh topics, not its answered ones — the returning device stops opening on tests and learn
+
+**2026-09-01.** **Status:** binding. Corrects the mechanism D309 §1
+named; leaves D309's cadences standing. Recorded with the measurement,
+because the previous record reasoned about this feed and was wrong
+about it for every device but a new one.
+
+> *"the algorithem needs some work when you first open the app it never
+> seams to just add topics that are not tests or learn"*
+
+The same complaint reached D309 on 2026-08-26 ("it's mostly tests and
+learn") and was answered as depletion: the world bank is finite, answered
+cards leave the fresh feed, the side streams are deep, so once the world
+half is spent the side streams are what remain. Every sentence of that
+is true and none of it is what the owner was looking at. D309 also said
+"a fresh account sees mostly world questions", which is true, and is the
+reason nothing caught the rest: the demo build and every mount suite
+mount a fresh account.
+
+### 1 · The mechanism, measured this time
+
+`world-feed.jsx` wove the side streams against the FULL world list —
+answered cards included — and dropped the answered ones from the
+output afterwards. Its own comment gave the reason: the test and lens
+slots fire on world indices, the fresh half only ever shrinks, and at
+eight fresh cards a lens stream firing every ninth would strand its
+remaining questions forever. It described the cost as the slots
+"landing a little closer together on screen as the fresh half thins".
+
+They do not land closer together. They land in a block at the head.
+The world order is stable (`wfStreamMix` round-robins bank order, and
+a new card lands at the tail of its topic's round), the reader answers
+from the top, so a returning device's answered cards are a PREFIX of
+the list — and every slot that fired against that prefix survived the
+drop with nothing left between the cards it had been woven among.
+Through the shipped `interleaveFeed`, a 190-card world list (about the
+seeded feed's size), tests, lenses and Learn at its default cadence:
+
+| Answered world cards | Side cards before the first topic card |
+| ---: | ---: |
+| 0 | 0 |
+| 8 | 3 |
+| 16 | 7 — the first mounted page (`WF_PAGE` = 8) bar one card |
+| 40 | 19 |
+| 100 | 50 |
+| 180 | 90 |
+
+The head of the feed at sixteen answered was `t0 k0 t1 l0 t2 k1 t3 w16`.
+That is "when you first open the app it never seems to add topics":
+the topics were there, two screens down, behind every test the reader
+had not taken yet. The mount fixture reproduces it in miniature —
+twenty-four cards, twelve answered — with the head
+`test-political-99 lrn-fixlearn2 lq-moral-0 feed-fixture-12`.
+
+The paid slot had the same defect one size smaller: it fired after the
+sixth card of the full list, so with six answered it surfaced at the
+top of what the reader actually saw — the placement D195 wrote "never
+first" against, reached from the other side.
+
+### 2 · What moved
+
+- **`interleaveFeed` takes a `depth`** (`data/feed-interleave.ts`): it
+  walks `max(world.length, depth)` cadence positions, pushing world
+  cards while they last and side cards wherever the cadences say. Past
+  the end of the world list a position contributes nothing of its own.
+  The knowledge drain keys on the positions walked, not the list.
+- **The feed weaves the fresh list and passes the full length as the
+  depth** (`world-feed.jsx`). The same side cards are placed — the same
+  count per stream, each in its own order, the multiset unchanged — in
+  one order: fresh topics first at the designed rhythm, the surplus
+  after them in cadence order. At the fully caught-up end that surplus
+  is exactly what the full walk produced, so the "You're caught up"
+  state and the record behind the Answered expander are untouched. The
+  final answered-id filter stays for the one card that can still need
+  it, an already-answered sponsored question, which parks behind the
+  expander rather than spending the day's slot on a result.
+- **Nothing about the cadences moved.** `TEST_EVERY`, `LENS_EVERY` and
+  Learn's rate are what D309 left them; this reorders, it does not
+  retune, and the engagement rungs D309 named are still what would
+  justify a retune. The per-mount freeze of answered-ness (`sunk`)
+  stands too: the fresh list is sampled once per visit, so a card
+  answered mid-scroll keeps its place until the next one.
+
+### What proves it
+
+`feed-interleave.test.ts` reproduces the shipped shape through the
+shipped function — full list in, answered prefix dropped, seven side
+cards at the head — and pins the fix beside it: the fresh head at the
+designed rhythm, the same multiset placed, each stream in its own
+order, the default depth leaving a fresh account's feed byte-identical,
+the caught-up surplus in cadence order, the knowledge drain intact.
+`sponsored.test.ts` pins the slot's place on a returning device.
+`test/feed-fresh-head.test.jsx` mounts the real feed in live mode with
+twelve of twenty-four cards answered and asserts the mounted ORDER —
+the half no gate reads, which list the component hands the function;
+mutation-checked: weaving the full list again fails it with the
+fixture head above, and the arithmetic suite stays green, which is why
+the mount case exists. `lint`, `tsc -b`, `check:globals` (coupling
+unchanged at its baseline), `check:figures`, `check:docs`,
+`test:scripts` and `test:unit` green.
+
+### What this deliberately is not
+
+Not the depletion cure. D309 §1's production argument stands whole: a
+device that has answered every topic still meets the side streams
+alone, and only the lanes change that. What changed is the device that
+has NOT answered everything, which was being shown the caught-up feed
+with its fresh topics hidden underneath. Left alone, knowingly: on a
+heavily answered device the surplus is a long block at the END of the
+feed — 180 answered puts ninety side cards after the ten fresh topics
+— which is the caught-up shape arriving one screen later rather than
+one screen earlier. Thinning that block is a cadence question, and
+D309 says whose numbers it waits on.
