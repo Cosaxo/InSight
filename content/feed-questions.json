@@ -3220,6 +3220,333 @@
       "lo": 0,
       "hi": 20,
       "unit": "years"
+    },
+    {
+      "id": "f122",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "The famous person you'd trust to babysit: Dolly Parton, Keanu Reeves, David Attenborough, or Michelle Obama?",
+      "options": [
+        {
+          "label": "Dolly Parton",
+          "count": 1500
+        },
+        {
+          "label": "Keanu Reeves",
+          "count": 1800
+        },
+        {
+          "label": "David Attenborough",
+          "count": 1600
+        },
+        {
+          "label": "Michelle Obama",
+          "count": 1400
+        }
+      ]
+    },
+    {
+      "id": "dl18",
+      "core": false,
+      "cat": "culture",
+      "type": "dial",
+      "prompt": "Minutes late before it counts as late?",
+      "lo": 0,
+      "hi": 30,
+      "unit": "min"
+    },
+    {
+      "id": "f123",
+      "core": false,
+      "cat": "dilemma",
+      "type": "vote",
+      "prompt": "Never lie again — and never be lied to. Take the deal?",
+      "options": [
+        {
+          "label": "Take it",
+          "count": 2700
+        },
+        {
+          "label": "Too much truth",
+          "count": 2400
+        }
+      ]
+    },
+    {
+      "id": "f124",
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "political": true,
+      "prompt": "A referendum on every big question: more democracy, or chaos?",
+      "options": [
+        {
+          "label": "More democracy",
+          "count": 2100
+        },
+        {
+          "label": "Chaos",
+          "count": 2800
+        }
+      ]
+    },
+    {
+      "id": "f125",
+      "core": false,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "Breakfast: sweet, or savoury?",
+      "options": [
+        {
+          "label": "Sweet",
+          "count": 2500
+        },
+        {
+          "label": "Savoury",
+          "count": 3100
+        }
+      ]
+    },
+    {
+      "id": "f126",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "Black-and-white films: a treat, or a chore?",
+      "options": [
+        {
+          "label": "A treat",
+          "count": 2600
+        },
+        {
+          "label": "A chore",
+          "count": 2300
+        }
+      ]
+    },
+    {
+      "id": "f127",
+      "core": false,
+      "cat": "music",
+      "type": "vote",
+      "prompt": "The band re-forms without its singer: still the band, or a tribute act?",
+      "options": [
+        {
+          "label": "Still the band",
+          "count": 2100
+        },
+        {
+          "label": "A tribute act",
+          "count": 2900
+        }
+      ]
+    },
+    {
+      "id": "f128",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "The teacher you'd want for one term: Aristotle, Leonardo da Vinci, Charles Darwin, or Maya Angelou?",
+      "options": [
+        {
+          "label": "Aristotle",
+          "count": 1300
+        },
+        {
+          "label": "Leonardo da Vinci",
+          "count": 1700
+        },
+        {
+          "label": "Charles Darwin",
+          "count": 1500
+        },
+        {
+          "label": "Maya Angelou",
+          "count": 1600
+        }
+      ]
+    },
+    {
+      "id": "f129",
+      "core": false,
+      "cat": "sport",
+      "type": "vote",
+      "prompt": "The Olympics: summer, or winter?",
+      "options": [
+        {
+          "label": "Summer",
+          "count": 3400
+        },
+        {
+          "label": "Winter",
+          "count": 2200
+        }
+      ]
+    },
+    {
+      "id": "f130",
+      "core": false,
+      "cat": "tech",
+      "type": "vote",
+      "prompt": "Video calls: camera on, or camera off?",
+      "options": [
+        {
+          "label": "Camera on",
+          "count": 2400
+        },
+        {
+          "label": "Camera off",
+          "count": 3100
+        }
+      ]
+    },
+    {
+      "id": "f131",
+      "core": false,
+      "cat": "bigq",
+      "type": "vote",
+      "prompt": "What writes more of a life: luck, or effort?",
+      "options": [
+        {
+          "label": "Luck",
+          "count": 2300
+        },
+        {
+          "label": "Effort",
+          "count": 3200
+        }
+      ]
+    },
+    {
+      "id": "pt3",
+      "core": true,
+      "cat": "culture",
+      "type": "path",
+      "hue": 200,
+      "title": "The Reunion",
+      "prompt": "The Reunion — twenty years, one evening",
+      "intro": "Twenty years since the last day of school. The invitation has sat in your inbox for a week; the RSVP closes at midnight.",
+      "nodes": {
+        "_": {
+          "axis": "risk",
+          "q": "Midnight is an hour away. The form wants one click.",
+          "a": [
+            {
+              "t": "Reply yes"
+            },
+            {
+              "t": "Let it close"
+            }
+          ]
+        },
+        "A": {
+          "axis": "company",
+          "q": "You arrive early. Across the room: your old best friend, mid-laugh, twenty years older.",
+          "a": [
+            {
+              "t": "Walk straight over"
+            },
+            {
+              "t": "Get a drink, read the room first"
+            }
+          ]
+        },
+        "B": {
+          "axis": "disclosure",
+          "q": "Next morning the group chat fills with photos. Someone writes: \"Where were you?\"",
+          "a": [
+            {
+              "t": "The truth — crowds aren't your thing"
+            },
+            {
+              "t": "Say work got in the way"
+            }
+          ]
+        },
+        "AA": {
+          "axis": "time",
+          "q": "An hour in, no time has passed at all. They mention they're moving back next month.",
+          "a": [
+            {
+              "t": "Set a date and a place, tonight"
+            },
+            {
+              "t": "\"We should catch up sometime\""
+            }
+          ]
+        },
+        "AB": {
+          "axis": "disclosure",
+          "q": "From your corner the room sorts itself into its old tables. Your old friend spots you and waves.",
+          "a": [
+            {
+              "t": "Go over: \"I almost didn't come\""
+            },
+            {
+              "t": "Wave back, keep the corner"
+            }
+          ]
+        },
+        "BA": {
+          "axis": "company",
+          "q": "A private reply: \"Fair. I only went hoping you'd be there.\"",
+          "a": [
+            {
+              "t": "Offer a coffee, just you two"
+            },
+            {
+              "t": "Leave it warm and unanswered"
+            }
+          ]
+        },
+        "BB": {
+          "axis": "certainty",
+          "q": "The chat moves on. One tagged photo shows your old table — someone new in your old seat.",
+          "a": [
+            {
+              "t": "Open the whole album"
+            },
+            {
+              "t": "Mute the chat"
+            }
+          ]
+        }
+      },
+      "endings": {
+        "AAA": {
+          "name": "The One Who Books It",
+          "line": "A date, a place, no 'sometime'. Twenty years turned out to be a scheduling problem."
+        },
+        "AAB": {
+          "name": "The Warm Maybe",
+          "line": "The hug was real. The 'sometime' stayed a sometime."
+        },
+        "ABA": {
+          "name": "The Late Arrival",
+          "line": "'Almost didn't come' — said out loud, it became the best story of the night."
+        },
+        "ABB": {
+          "name": "The Observer",
+          "line": "You saw the whole evening clearly. It never quite saw you."
+        },
+        "BAA": {
+          "name": "The Two-Chair Table",
+          "line": "No name tags, no speeches. The reunion that actually reunited."
+        },
+        "BAB": {
+          "name": "The Door Ajar",
+          "line": "Warm, unanswered. Some doors you like exactly this open."
+        },
+        "BBA": {
+          "name": "The Midnight Scroller",
+          "line": "Every photo, twice. You attended after all — from here."
+        },
+        "BBB": {
+          "name": "The Clean Break",
+          "line": "The chat went quiet because you asked it to. So did the decade."
+        }
+      }
     }
   ]
 }

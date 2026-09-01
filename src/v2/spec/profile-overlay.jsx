@@ -18,7 +18,7 @@ import { passiveStanding } from './passive-meter.jsx';
 // were already here takes it DOWN instead, which is the trade the ratchet
 // exists to force.
 import LIVE from '../data/live.ts';
-// Same trade at D341: the account sheet below is this panel's ONLY
+// Same trade at D344: the account sheet below is this panel's ONLY
 // consumer, so its two `window.LivePrivacyPanel` sites became an import,
 // the publication came off the bridge with them (rule 5's honest shape —
 // single writer, checked per rule 6's warning), and this file's rule-4
@@ -29,7 +29,7 @@ import LivePrivacyPanel from '../ui/LivePrivacyPanel.tsx';
 // Android's back has to peel the account sheet before the shell peels the
 // profile overlay itself — same import, same reason as primitives' Sheet.
 import { pushBackLayer } from '../data/backLayers';
-// The identity row shows a linked account's handle (D341 amendment) —
+// The identity row shows a linked account's handle (D344 amendment) —
 // the display form comes from the same pure module the account sheet's
 // panel uses, so "@olaf" is spelled one way everywhere.
 import { atHandle } from '../data/handles.ts';
@@ -48,7 +48,7 @@ const RolesPanelLazy = React.lazy(() => import('../ui/LiveRolesPanel.tsx'));
 // The sit-down test flow is gone (D121 — the four core instruments fill
 // from the feed); question banks live in test-definitions.js.
 
-// The account & privacy sheet (D341). The panel opened the General tab for
+// The account & privacy sheet (D344). The panel opened the General tab for
 // every profile visit; the owner moved it behind the gear in the corner, so
 // the tab opens on what the answers have built instead of on settings.
 // Stacked over the profile the way person-overlay's map is (zIndex 24),
@@ -111,7 +111,7 @@ function ProfileOverlay({ onClose, me }) {
   const validSub = (id) => SUBTABS.some(s => s.id === id) ? id : 'general';
   const [sub, setSubRaw] = React.useState(validSub(window.__profileSub));
   const setSub = (id) => { window.__profileSub = id; setSubRaw(id); };
-  // The gear's sheet (D341). Deliberately NOT remembered the way `sub` is:
+  // The gear's sheet (D344). Deliberately NOT remembered the way `sub` is:
   // settings are an errand, and a profile that reopens onto them would be
   // the old General tab wearing a worse door.
   const [acct, setAcct] = React.useState(false);
@@ -256,7 +256,7 @@ function ProfileOverlay({ onClose, me }) {
       <div className="app-header">
         <button className="avatar-btn" onClick={onClose}>✕</button>
         <div className="h-title">Your <em>profile</em></div>
-        {/* the corner gear (D341) — the door to Account & privacy since it
+        {/* the corner gear (D344) — the door to Account & privacy since it
             left the General tab. Live only: the panel states facts about a
             real account and renders nothing in demo, and a gear opening an
             empty sheet is worse than no gear (D167's rule, one control
@@ -292,19 +292,21 @@ function ProfileOverlay({ onClose, me }) {
               ? ((nm.split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()) || '·')
               : me.initials;
             // This line said "anonymous session — link Google below to
-            // keep it" for EVERY live session, hardcoded (D341 amendment).
+            // keep it" for EVERY live session, hardcoded (D344 amendment).
             // Wrong twice: live.ts's auth observer had this site on record
             // ("hardcodes the same sentence with no check at all"), so a
             // Google-linked account was told it was anonymous; and "below"
-            // pointed at the Sign-in row D211 removed — the only link path
-            // left is the D134 gate, before the app opens, so the
-            // instruction had no control to point at (COPY.md's fourth
-            // deletion). Now only facts the session holds: the handle when
-            // linked (or nothing while none is claimed), the bare state
-            // when not. NOT a revived link control — D211's reasoning
-            // stands, the copy just stops promising one.
+            // pointed at the Sign-in row D211 removed. Now only what the
+            // session holds: the handle when linked (or nothing while none
+            // is claimed), and for an anonymous session the nudge WITHOUT
+            // the false location — D343 revived the Sign-in row (D219 took
+            // the D134 wall down, so anonymous sessions are real and each
+            // reinstall minted a duplicate account), and that row lives in
+            // the account sheet behind the gear above, one tap away, with
+            // the full stake in its sub-line. The control is D343's; this
+            // line only stops pointing at a place that is not there.
             const sub = live
-              ? (L.linked ? (L.handle ? atHandle(L.handle) : '') : 'anonymous session')
+              ? (L.linked ? (L.handle ? atHandle(L.handle) : '') : 'anonymous session — sign in to keep it')
               : (me.location + ' · ' + me.country);
             return (
               <>
@@ -328,7 +330,7 @@ function ProfileOverlay({ onClose, me }) {
         </div>
 
         <div key={sub} className="tab-swap" style={{ marginTop: 4 }}>
-          {/* LivePrivacyPanel opened this tab from D98 to D341; it lives
+          {/* LivePrivacyPanel opened this tab from D98 to D344; it lives
               behind the header's gear now — see AccountSheet above. */}
           {sub === 'general' && <window.GeneralPanel onGo={setSub} />}
           {sub === 'big5' && <><Big5Panel /><TestProgress k="big5" /></>}

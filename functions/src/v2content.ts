@@ -6037,6 +6037,327 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "unit": "years"
  },
  {
+  "id": "feed-f122",
+  "surface": "feed",
+  "seq": 166,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The famous person you'd trust to babysit: Dolly Parton, Keanu Reeves, David Attenborough, or Michelle Obama?",
+  "options": [
+   "Dolly Parton",
+   "Keanu Reeves",
+   "David Attenborough",
+   "Michelle Obama"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl18",
+  "surface": "feed",
+  "seq": 167,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Minutes late before it counts as late?",
+  "options": [
+   "0–3 min",
+   "3–5 min",
+   "5–8 min",
+   "8–10 min",
+   "10–13 min",
+   "13–15 min",
+   "15–18 min",
+   "18–20 min",
+   "20–23 min",
+   "23–25 min",
+   "25–28 min",
+   "28–30 min"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 30,
+  "unit": "min"
+ },
+ {
+  "id": "feed-f123",
+  "surface": "feed",
+  "seq": 168,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Never lie again — and never be lied to. Take the deal?",
+  "options": [
+   "Take it",
+   "Too much truth"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f124",
+  "surface": "feed",
+  "seq": 169,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A referendum on every big question: more democracy, or chaos?",
+  "options": [
+   "More democracy",
+   "Chaos"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "political": true
+ },
+ {
+  "id": "feed-f125",
+  "surface": "feed",
+  "seq": 170,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Breakfast: sweet, or savoury?",
+  "options": [
+   "Sweet",
+   "Savoury"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f126",
+  "surface": "feed",
+  "seq": 171,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Black-and-white films: a treat, or a chore?",
+  "options": [
+   "A treat",
+   "A chore"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f127",
+  "surface": "feed",
+  "seq": 172,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The band re-forms without its singer: still the band, or a tribute act?",
+  "options": [
+   "Still the band",
+   "A tribute act"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f128",
+  "surface": "feed",
+  "seq": 173,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The teacher you'd want for one term: Aristotle, Leonardo da Vinci, Charles Darwin, or Maya Angelou?",
+  "options": [
+   "Aristotle",
+   "Leonardo da Vinci",
+   "Charles Darwin",
+   "Maya Angelou"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f129",
+  "surface": "feed",
+  "seq": 174,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The Olympics: summer, or winter?",
+  "options": [
+   "Summer",
+   "Winter"
+  ],
+  "topic": "sport",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f130",
+  "surface": "feed",
+  "seq": 175,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Video calls: camera on, or camera off?",
+  "options": [
+   "Camera on",
+   "Camera off"
+  ],
+  "topic": "tech",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f131",
+  "surface": "feed",
+  "seq": 176,
+  "type": "vote",
+  "domain": null,
+  "prompt": "What writes more of a life: luck, or effort?",
+  "options": [
+   "Luck",
+   "Effort"
+  ],
+  "topic": "bigq",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-pt3",
+  "surface": "feed",
+  "seq": 177,
+  "type": "path",
+  "domain": null,
+  "prompt": "The Reunion — twenty years, one evening",
+  "options": [
+   "The One Who Books It",
+   "The Warm Maybe",
+   "The Late Arrival",
+   "The Observer",
+   "The Two-Chair Table",
+   "The Door Ajar",
+   "The Midnight Scroller",
+   "The Clean Break"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "core": true,
+  "title": "The Reunion",
+  "intro": "Twenty years since the last day of school. The invitation has sat in your inbox for a week; the RSVP closes at midnight.",
+  "hue": 200,
+  "nodes": {
+   "_": {
+    "q": "Midnight is an hour away. The form wants one click.",
+    "a": [
+     {
+      "t": "Reply yes"
+     },
+     {
+      "t": "Let it close"
+     }
+    ]
+   },
+   "A": {
+    "q": "You arrive early. Across the room: your old best friend, mid-laugh, twenty years older.",
+    "a": [
+     {
+      "t": "Walk straight over"
+     },
+     {
+      "t": "Get a drink, read the room first"
+     }
+    ]
+   },
+   "B": {
+    "q": "Next morning the group chat fills with photos. Someone writes: \"Where were you?\"",
+    "a": [
+     {
+      "t": "The truth — crowds aren't your thing"
+     },
+     {
+      "t": "Say work got in the way"
+     }
+    ]
+   },
+   "AA": {
+    "q": "An hour in, no time has passed at all. They mention they're moving back next month.",
+    "a": [
+     {
+      "t": "Set a date and a place, tonight"
+     },
+     {
+      "t": "\"We should catch up sometime\""
+     }
+    ]
+   },
+   "AB": {
+    "q": "From your corner the room sorts itself into its old tables. Your old friend spots you and waves.",
+    "a": [
+     {
+      "t": "Go over: \"I almost didn't come\""
+     },
+     {
+      "t": "Wave back, keep the corner"
+     }
+    ]
+   },
+   "BA": {
+    "q": "A private reply: \"Fair. I only went hoping you'd be there.\"",
+    "a": [
+     {
+      "t": "Offer a coffee, just you two"
+     },
+     {
+      "t": "Leave it warm and unanswered"
+     }
+    ]
+   },
+   "BB": {
+    "q": "The chat moves on. One tagged photo shows your old table — someone new in your old seat.",
+    "a": [
+     {
+      "t": "Open the whole album"
+     },
+     {
+      "t": "Mute the chat"
+     }
+    ]
+   }
+  },
+  "endings": {
+   "AAA": {
+    "name": "The One Who Books It",
+    "line": "A date, a place, no 'sometime'. Twenty years turned out to be a scheduling problem."
+   },
+   "AAB": {
+    "name": "The Warm Maybe",
+    "line": "The hug was real. The 'sometime' stayed a sometime."
+   },
+   "ABA": {
+    "name": "The Late Arrival",
+    "line": "'Almost didn't come' — said out loud, it became the best story of the night."
+   },
+   "ABB": {
+    "name": "The Observer",
+    "line": "You saw the whole evening clearly. It never quite saw you."
+   },
+   "BAA": {
+    "name": "The Two-Chair Table",
+    "line": "No name tags, no speeches. The reunion that actually reunited."
+   },
+   "BAB": {
+    "name": "The Door Ajar",
+    "line": "Warm, unanswered. Some doors you like exactly this open."
+   },
+   "BBA": {
+    "name": "The Midnight Scroller",
+    "line": "Every photo, twice. You attended after all — from here."
+   },
+   "BBB": {
+    "name": "The Clean Break",
+    "line": "The chat went quiet because you asked it to. So did the decade."
+   }
+  }
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,
@@ -13811,6 +14132,225 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "p": 60,
   "k": "The Sun runs on fusion",
   "w": "Hydrogen fusing into helium in the core — not combustion; there is nothing up there to burn."
+ },
+ {
+  "id": "learn-anc14",
+  "surface": "learn",
+  "seq": 156,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Pompeii was buried by…",
+  "options": [
+   "A volcano",
+   "A flood",
+   "An earthquake",
+   "A sandstorm"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 2,
+  "p": 72,
+  "k": "Vesuvius buried Pompeii",
+  "w": "AD 79 — and the town had already been rattled by a major earthquake seventeen years earlier."
+ },
+ {
+  "id": "learn-anc15",
+  "surface": "learn",
+  "seq": 157,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The oldest known writing was mostly used for…",
+  "options": [
+   "Poetry",
+   "Prayers",
+   "Accounting",
+   "Royal decrees"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 39,
+  "k": "Writing began as accounting",
+  "w": "The earliest cuneiform tablets are inventories — grain, beer, sheep — centuries before anyone wrote a poem down."
+ },
+ {
+  "id": "learn-anc16",
+  "surface": "learn",
+  "seq": 158,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Sphinx's missing nose was…",
+  "options": [
+   "Shot off by Napoleon's troops",
+   "Removed to a museum",
+   "Eroded by a flood",
+   "Gone centuries before Napoleon"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null,
+  "c": 3,
+  "t": 0,
+  "p": 42,
+  "k": "The nose predates Napoleon",
+  "w": "Drawings made decades before Napoleon's campaign already show the Sphinx noseless."
+ },
+ {
+  "id": "learn-anc17",
+  "surface": "learn",
+  "seq": 159,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The pyramids were built mainly by…",
+  "options": [
+   "Enslaved people",
+   "Paid seasonal workers",
+   "Prisoners of war",
+   "Priests"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 40,
+  "k": "Pyramid builders were paid",
+  "w": "Workers' villages near Giza show bread and beer rations, medical care and honourable burials — not slave quarters."
+ },
+ {
+  "id": "learn-anc18",
+  "surface": "learn",
+  "seq": 160,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The trial of Socrates was decided by…",
+  "options": [
+   "A single judge",
+   "A jury of about 500",
+   "The king of Athens",
+   "An oracle"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 33,
+  "k": "Socrates faced 500 jurors",
+  "w": "Athenian juries ran to hundreds precisely so they could not be bribed."
+ },
+ {
+  "id": "learn-body14",
+  "surface": "learn",
+  "seq": 161,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Your stomach gets a new lining every…",
+  "options": [
+   "Few days",
+   "Few months",
+   "Year",
+   "It never renews"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 2,
+  "p": 35,
+  "k": "Stomach relines in days",
+  "w": "The acid would digest the stomach itself otherwise — the mucus lining turns over in under a week."
+ },
+ {
+  "id": "learn-body15",
+  "surface": "learn",
+  "seq": 162,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The body's strongest muscle for its size is…",
+  "options": [
+   "The thigh",
+   "The jaw",
+   "The heart",
+   "The bicep"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 44,
+  "k": "The jaw: strongest for size",
+  "w": "The masseter — bite force concentrates through a short, brutal lever."
+ },
+ {
+  "id": "learn-body16",
+  "surface": "learn",
+  "seq": 163,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which sense is wired most directly to memory?",
+  "options": [
+   "Sight",
+   "Hearing",
+   "Smell",
+   "Touch"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 51,
+  "k": "Smell wires to memory",
+  "w": "Olfactory signals skip the brain's relay station and land beside the memory centres — hence the time-travel of a familiar smell."
+ },
+ {
+  "id": "learn-body17",
+  "surface": "learn",
+  "seq": 164,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Goosebumps are…",
+  "options": [
+   "A leftover from having fur",
+   "A circulation boost",
+   "An infection response",
+   "Random nerve noise"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 57,
+  "k": "Goosebumps: fur we lost",
+  "w": "The muscles that raise hairs made ancestors look bigger and warmer; the reflex outlived the coat."
+ },
+ {
+  "id": "learn-body18",
+  "surface": "learn",
+  "seq": 165,
+  "type": "choice",
+  "domain": null,
+  "prompt": "How many times does your heart beat in a day, roughly?",
+  "options": [
+   "10,000",
+   "100,000",
+   "1 million",
+   "1,000"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 62,
+  "k": "100,000 beats a day"
  },
  {
   "id": "pulse-pace",

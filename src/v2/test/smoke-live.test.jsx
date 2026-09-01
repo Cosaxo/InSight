@@ -164,7 +164,7 @@ describe("spec layer mounts in live mode", () => {
     expectNoBoundary("profile/live");
   });
 
-  // D341: Account & privacy left the General tab for the gear in the
+  // D344: Account & privacy left the General tab for the gear in the
   // profile's corner. Three halves worth pinning, because each fails
   // silently: the General tab no longer mounts the panel (a re-added
   // inline render would draw the settings twice with every gate green);
@@ -175,7 +175,7 @@ describe("spec layer mounts in live mode", () => {
   // reader out of the profile for asking to leave settings. The demo half
   // (no gear at all — the panel renders nothing without an account) is in
   // smoke-overlays, where LIVE is undefined.
-  it("hides Account & privacy behind the corner gear, and the sheet peels alone (D341)", async () => {
+  it("hides Account & privacy behind the corner gear, and the sheet peels alone (D344)", async () => {
     const expectNoBoundary = mountLive();
     await openHeaderOverlay("profile");
     await act(async () => {});
@@ -198,20 +198,21 @@ describe("spec layer mounts in live mode", () => {
     expectNoBoundary("profile/live gear sheet");
   });
 
-  // The identity row's sub-line, both branches (D341 amendment). It was one
+  // The identity row's sub-line, both branches (D344 amendment). It was one
   // hardcoded sentence for every live session — "anonymous session — link
   // Google below to keep it" — wrong twice: a Google-linked account was
   // told it was anonymous (live.ts's auth observer had this exact site on
-  // record), and "below" pointed at the Sign-in row D211 removed, so the
-  // instruction had no control to point at. The fixture is anonymous-first,
-  // so the default mount pins that branch; the second flips `linked` and
-  // claims a handle to pin the other.
-  it("says 'anonymous session' — and only that — while the session is anonymous", async () => {
+  // record), and "below" pointed at the Sign-in row D211 removed. D343
+  // then revived that row inside the account sheet, so the nudge is true
+  // again and only the location claim stays dead. The fixture is
+  // anonymous-first, so the default mount pins that branch; the second
+  // flips `linked` and claims a handle to pin the other.
+  it("keeps the sign-in nudge, minus the dead location, while anonymous", async () => {
     const expectNoBoundary = mountLive();
     await openHeaderOverlay("profile");
-    expect(screen.getByText("anonymous session")).toBeTruthy();
-    // The dead instruction must not come back: nothing in the app can
-    // link, so a sentence promising a control "below" is a false door.
+    expect(screen.getByText("anonymous session — sign in to keep it")).toBeTruthy();
+    // The location claim must not come back: the Sign-in row is behind
+    // the gear (D344), not "below" on the tab this line sits on.
     expect(document.body.textContent).not.toMatch(/link Google below/i);
     expectNoBoundary("profile/live identity row, anonymous");
   });
@@ -664,6 +665,12 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // that quietly fell back to `paths-data.js` would look perfectly fine and
   // be showing authored crowd figures to a live user, which is D1's case.
   // Binding on the fixture's own story title is what tells them apart.
+  //
+  // Since D341 a story is a MEMBER of the feed pool — the fixture pushes
+  // it into WORLD_FEED_QS the way buildFeedGlobals emits it — so finding
+  // the title here also pins the live dispatch: the stream dealt the card,
+  // nothing reserved it a slot. (The membership shape itself — several at
+  // once, parking when finished — is pinned on the demo mount.)
   it("draws Crossroads from the bank on a live feed, never the demo pool", () => {
     const expectNoBoundary = mountLive();
     expect(

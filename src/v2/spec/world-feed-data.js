@@ -137,9 +137,21 @@ window.WORLD_FEED_QS = [
   { id: 'f37', cat: 'culture', type: 'vote', prompt: 'Small talk is a skill, not a chore.', options: [ { label: 'A skill', count: 4700 }, { label: 'A chore', count: 4100 } ] },
 
   // dilemmas
+  // The two Crossroads stories ride the pool as members (D341) — a story is
+  // a feed question, placed by the mix like everything else, and both can
+  // be on screen at once. Only what the feed mechanics read lives here (id,
+  // home topic, a prompt for search and the pass row); the CONTENT is
+  // paths-data.js's, resolved by id at render (paths-card.jsx srcOf), so
+  // the story is written once. 'dilemma' is their genre AND an always-on
+  // channel, which is what keeps them reachable with no scene followed.
+  // One early and one deep in the group on purpose: the mix serves streams
+  // round-robin, so the reader meets the first story a few cards in and
+  // the second a couple of screens later — not stacked, not pinned.
+  { id: 'wallet', cat: 'dilemma', type: 'path', prompt: 'The Wallet' },
   { id: 'f38', cat: 'dilemma', type: 'vote', prompt: 'Read minds \u2014 but everyone knows you can. Take it?', options: [ { label: 'Take it', count: 2600 }, { label: 'Pass', count: 7900 } ] },
   { id: 'f39', cat: 'dilemma', type: 'vote', prompt: '$1M now, but a stranger somewhere loses everything. Press the button?', options: [ { label: 'Press', count: 1400 }, { label: 'Never', count: 9800 } ] },
   { id: 'f40', cat: 'dilemma', type: 'vote', prompt: 'Would you want to know the date of your death?', options: [ { label: 'Tell me', count: 2900 }, { label: 'Never', count: 8400 } ] },
+  { id: 'text', cat: 'dilemma', type: 'path', prompt: 'The Wrong Text' },
   { id: 'f41', cat: 'dilemma', type: 'vote', prompt: 'Five years in a job you hate, then never work again?', options: [ { label: 'Take the deal', count: 6600 }, { label: 'Keep working', count: 4100 } ] },
   { id: 'f42', cat: 'dilemma', type: 'vote', prompt: 'Restart life at 10, everything you know intact?', options: [ { label: 'Restart', count: 5100 }, { label: 'Stay here', count: 5600 } ] },
   { id: 'f43', cat: 'dilemma', type: 'vote', prompt: 'Perfect memory \u2014 but you can never forget anything. Take it?', options: [ { label: 'Take it', count: 3300 }, { label: 'Keep forgetting', count: 6200 } ] },
@@ -191,6 +203,7 @@ window.WORLD_FEED_QS = [
   { id: 'dl15', cat: 'food', type: 'dial', prompt: 'Meals cooked from scratch in a week?', lo: 0, hi: 14, unit: 'meals', med: 4, n: 4000, dist: [10, 12, 14, 15, 13, 11, 8, 6, 4, 3, 2, 2] },
   { id: 'dl16', cat: 'food', type: 'dial', prompt: 'The ideal dinner hour?', lo: 17, hi: 23, unit: 'h', med: 19, n: 4400, dist: [3, 5, 8, 12, 16, 17, 14, 10, 7, 4, 2, 2] },
   { id: 'dl17', cat: 'bigq', type: 'dial', prompt: 'How many years ahead do you actually plan?', lo: 0, hi: 20, unit: 'years', med: 3, n: 4300, dist: [14, 18, 16, 13, 10, 8, 6, 5, 4, 3, 2, 1] },
+  { id: 'dl18', cat: 'culture', type: 'dial', prompt: 'Minutes late before it counts as late?', lo: 0, hi: 30, unit: 'min', med: 10, n: 4500, dist: [5, 7, 10, 14, 16, 15, 11, 8, 6, 4, 2, 2] },
   { id: 'fd4', cat: 'bigq', type: 'field', prompt: 'Human nature \u2014 place it', ax: ['selfish', 'kind'], ay: ['fixed', 'changeable'], n: 4700, cloud: [[70, 30, 11, 15], [28, 68, 9, 14], [50, 48, 5, 12]] },
 
   // ── scene questions ── asked inside one scene; counts are community-scale

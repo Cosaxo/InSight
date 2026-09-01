@@ -13,7 +13,7 @@
 // PURE, and that is structural rather than tidy: this module rode the
 // first-paint chunk through its panel importers for most of its life
 // (LiveDuelPanel until D156 made it a React.lazy, LivePrivacyPanel until
-// D341 moved it into the overlays chunk), and a `firebase/firestore`
+// D344 moved it into the overlays chunk), and a `firebase/firestore`
 // import here landed the whole SDK in that chunk — measured at 1270 KB
 // against a 955 KB ceiling, which is precisely the tree as it stood
 // before D110. Both importers are off first paint now; the split stays,

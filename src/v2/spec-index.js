@@ -192,7 +192,7 @@ import './spec/mirror-tab.jsx';
 // These two were born in this repo (never in design/) and live as typed
 // TSX under ui/; they self-register on globalThis so the render-time
 // lookups in profile-general still work. ui/LivePrivacyPanel left this
-// list at D341: profile-overlay.jsx imports it now, so it rides the
+// list at D344: profile-overlay.jsx imports it now, so it rides the
 // loadOverlays chunk with its one consumer instead of costing first
 // paint, and a line here would drag it back into the entry chunk — the
 // exact mistake the NB below warns against for the other ui/ panels.

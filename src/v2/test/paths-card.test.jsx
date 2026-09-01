@@ -15,8 +15,11 @@
 //
 // The live/demo SOURCE choice is pinned on real mounts in
 // smoke-live.test.jsx and smoke-daily.test.jsx, where the whole feed is
-// assembled. What is pinned here is everything downstream of it: the walk,
-// the arithmetic, and what a completed walk writes.
+// assembled. Since D341 the card is dealt into the stream as a member and
+// receives its feed item as a prop (`q`): a live item carries the bank
+// doc's fields, a demo stub carries the id paths-data.js resolves. What is
+// pinned here is everything downstream of that: the walk, the arithmetic,
+// and what a completed walk writes.
 //
 // The tree's geometry is not asserted. It is 8 cubic paths whose widths
 // come from flow(), and pinning path `d` strings would fail on any visual
@@ -30,13 +33,19 @@ import { MTPathsCard, PathsCard, pathsMapTree } from "../spec/paths-card.jsx";
 
 // The store is mocked for the whole file, because the live cases below need
 // to swap it per test and vi.mock is hoisted to module scope either way.
-// The DEFAULT is a demo build — `pathQs` empty — which is what every case in
-// the first two describes runs against, and what the app itself does when no
-// bank has loaded.
+// The DEFAULT is a demo build — `enabled` false, `pathQs` empty — which is
+// what every case in the first two describes runs against. The CARD now
+// touches the store only when its item is live (myVotes, vote — D341); the
+// Map-branch cases below still read `pathQs`.
 vi.mock("../data/live", () => ({ get default() { return globalThis.__pathsLive; } }));
 
 beforeEach(() => { globalThis.__pathsLive = { enabled: false, pathQs: () => [] }; });
 afterEach(() => { cleanup(); });
+
+// The demo feed stub, as world-feed-data.js deals it: the id is the whole
+// content reference — paths-data.js is the single written copy of a demo
+// story, and the card resolves it at render (srcOf).
+const demoQ = () => ({ id: PATHS.stories()[0].id, cat: "dilemma", type: "path" });
 
 describe("Crossroads · the card", () => {
   beforeEach(() => {
@@ -47,7 +56,7 @@ describe("Crossroads · the card", () => {
   const choose = (label) => fireEvent.click(screen.getByRole("button", { name: label }));
 
   it("walks three forks and reveals the ending", () => {
-    render(<PathsCard />);
+    render(<PathsCard q={demoQ()} />);
     const st = PATHS.stories()[0];
     // The intro is on screen before the first fork, and the first node's
     // question with it — the prototype shows both, so the opening card is
@@ -74,7 +83,7 @@ describe("Crossroads · the card", () => {
 
   it("keeps the walk when the card unmounts, and a finished one is final", () => {
     const st = PATHS.stories()[0];
-    const { unmount } = render(<PathsCard />);
+    const { unmount } = render(<PathsCard q={demoQ()} />);
     choose(st.nodes["_"].a[1].t);
     expect(PATHS.walkOf(st.id)).toBe("B");
     unmount();
@@ -82,7 +91,7 @@ describe("Crossroads · the card", () => {
     // Re-mounting resumes rather than restarting — the feed re-renders
     // around this card constantly, and a walk that reset on every one of
     // those would be unfinishable.
-    render(<PathsCard />);
+    render(<PathsCard q={demoQ()} />);
     expect(screen.getByText(st.nodes["B"].q)).toBeTruthy();
     choose(st.nodes["B"].a[0].t);
     choose(st.nodes["BA"].a[0].t);
@@ -126,9 +135,10 @@ describe("Crossroads · the crowd numbers are authored, and the card knows it", 
 //
 // Mounted against a mocked store, because everything worth asserting here
 // is about what the card WRITES and where it reads its numbers from —
-// neither of which a demo render can show. The mock's `pathQs` is set per
-// case; an empty list is the demo build, which is what every case above
-// runs on.
+// neither of which a demo render can show. The live feed ITEM is the
+// source now (D341): each case passes the story doc as `q`, the shape
+// buildFeedGlobals deals into the stream, and the store mock supplies only
+// the answer plumbing (myVotes, vote).
 describe("Crossroads · live", () => {
   const ENDINGS = ["A", "B"].flatMap((a) => ["A", "B"].flatMap((b) => ["A", "B"].map((c) => a + b + c)));
   const NODES = Object.fromEntries(
@@ -168,14 +178,16 @@ describe("Crossroads · live", () => {
   const choose = (label) => fireEvent.click(screen.getByRole("button", { name: label }));
   const walk3 = () => { choose("_ left"); choose("A left"); choose("AA left"); };
 
-  it("draws the bank's story, not the demo pool's", () => {
-    render(<PathsCard />);
+  it("draws the live item's story, never the demo pool's", () => {
+    // The switch is the ITEM's: a feed card carrying `live` reads only the
+    // fields it arrived with, whatever the demo pool holds.
+    render(<PathsCard q={STORY} />);
     expect(screen.getByText("Live Story")).toBeTruthy();
     expect(screen.queryByText("The Wallet")).toBeNull();
   });
 
   it("writes the finished walk as an ordinary vote, indexed by ending", () => {
-    render(<PathsCard />);
+    render(<PathsCard q={STORY} />);
     walk3();
     // AAA is index 0 of PATH_ENDINGS — and it goes through LIVE.vote, which
     // is what makes the fold, the ledger, the by-cells and the voters panel
@@ -185,7 +197,7 @@ describe("Crossroads · live", () => {
   });
 
   it("reads the crowd out of the counts, not out of an authored share", () => {
-    render(<PathsCard />);
+    render(<PathsCard q={STORY} />);
     walk3();
     // 40 of 100 ended at AAA. The demo pool's own AAA share is nowhere near
     // this, so a card that had fallen back would print a different number
@@ -199,11 +211,7 @@ describe("Crossroads · live", () => {
     // ever follows): a crowd exists, none of it at your ending. The card
     // printed "you and 0% ended here" and "1 in Infinity walks your road"
     // to the person standing there — from a device, verbatim (D211).
-    globalThis.__pathsLive = {
-      ...LIVE,
-      pathQs: () => [{ ...STORY, counts: [0, 5, 10, 5, 20, 5, 10, 5], total: 60 }],
-    };
-    render(<PathsCard />);
+    render(<PathsCard q={{ ...STORY, counts: [0, 5, 10, 5, 20, 5, 10, 5], total: 60 }} />);
     walk3();
     expect(screen.getByText("you’re the first to end here")).toBeTruthy();
     expect(screen.queryByText(/Infinity/)).toBeNull();
@@ -217,7 +225,7 @@ describe("Crossroads · live", () => {
     // walk has to come back off the vote, or a user who cleared their
     // browser would be invited to answer a question they have answered.
     votes["feed-pt1"] = "4";                       // BAA
-    render(<PathsCard />);
+    render(<PathsCard q={STORY} />);
     expect(PATHS.walkOf(STORY.id)).toBe("");
     expect(screen.getAllByText("End BAA").length).toBe(2);
   });
@@ -228,7 +236,7 @@ describe("Crossroads · live", () => {
     // moving the results it had just shown. The finished card now has no
     // way back in: the ending stands and no fork is on offer.
     votes["feed-pt1"] = "4";
-    render(<PathsCard />);
+    render(<PathsCard q={STORY} />);
     expect(screen.getAllByText("End BAA").length).toBe(2);
     expect(screen.queryByRole("button", { name: "Walk again" })).toBeNull();
     expect(screen.queryByRole("button", { name: "_ left" })).toBeNull();
@@ -242,7 +250,7 @@ describe("Crossroads · live", () => {
     // device's answer, or this one's arriving late). The server's record
     // wins — the raced walk is dropped, nothing is written, and showing it
     // would be showing an answer nobody stored.
-    render(<PathsCard />);
+    render(<PathsCard q={STORY} />);
     choose("_ left"); choose("A left");
     votes["feed-pt1"] = "4";                       // BAA lands before the last tap
     choose("AA left");
@@ -254,8 +262,7 @@ describe("Crossroads · live", () => {
   });
 
   it("draws no tree and no shares before anyone has finished it", () => {
-    globalThis.__pathsLive = { ...LIVE, pathQs: () => [{ ...STORY, counts: [0, 0, 0, 0, 0, 0, 0, 0], total: 0 }] };
-    render(<PathsCard />);
+    render(<PathsCard q={{ ...STORY, counts: [0, 0, 0, 0, 0, 0, 0, 0], total: 0 }} />);
     walk3();
     expect(screen.getByText(/first to reach the end/i)).toBeTruthy();
     expect(screen.queryByText(/ended here$/)).toBeNull();

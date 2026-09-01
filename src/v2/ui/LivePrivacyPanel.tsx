@@ -1,5 +1,5 @@
 // LivePrivacyPanel — the account & data panel (Phase 5). It opened the
-// profile's General tab from D98 to D341; the owner moved it behind the
+// profile's General tab from D98 to D344; the owner moved it behind the
 // gear in the profile's corner, so it now renders inside that sheet
 // (profile-overlay.jsx's AccountSheet) in live mode.
 //
@@ -13,7 +13,7 @@
 // product defines itself against — just pointed the other way.
 //
 // Born in this repo (not ported from the design prototype), so it
-// lives here as typed TSX. Off the global bridge since D341: the sheet
+// lives here as typed TSX. Off the global bridge since D344: the sheet
 // is the one consumer and it imports the default export, so there is no
 // publication left for check:globals rule 5 to hold.
 import React from "react";
@@ -34,6 +34,12 @@ import { atHandle } from "../data/handles";
 import { SITE_ORIGIN as LP_SITE } from "../data/links";
 
 const LP_LINE = "1px solid color-mix(in oklch, var(--rule), transparent 25%)";
+
+// Firebase spells "this credential is already an account" three ways; the
+// gate matches the same set (LiveSignInGate) and this is the second copy
+// on purpose — the two screens answer the collision differently, so a
+// shared constant would imply a shared response they must not have.
+const LP_IN_USE = /credential-already-in-use|email-already-in-use|account-exists/i;
 
 function LpRow({ title, sub, children }: {
   title: string;
@@ -64,6 +70,7 @@ function LivePrivacyPanel() {
   const [confirmDel, setConfirmDel] = React.useState(false);
   const [err, setErr] = React.useState<string | null>(null);
   const [photoMsg, setPhotoMsg] = React.useState<string | null>(null);
+  const [linkMsg, setLinkMsg] = React.useState<string | null>(null);
   // D331. Local mirror of the stored consent so the row flips on the tap
   // rather than on the next boot; LIVE holds the truth and a failed write
   // is corrected by the next hydrate rather than by an optimistic lie.
@@ -118,6 +125,23 @@ function LivePrivacyPanel() {
     catch (e) { setErr(String((e instanceof Error && e.message) || e)); }
     setBusy(false);
   };
+  // Linking cannot merge two histories — Firebase refuses, correctly, and
+  // the only way through is to abandon one. From here that would discard
+  // the session the user is standing in, so this reports the collision and
+  // stops. The gate offers the other path because it runs before there is
+  // anything to lose.
+  const linkNow = async () => {
+    setBusy(true); setLinkMsg(null);
+    try {
+      await LIVE.linkGoogle();
+    } catch (e) {
+      const msg = String((e instanceof Error && e.message) || e);
+      setLinkMsg(LP_IN_USE.test(msg)
+        ? "That Google account already has an InSight history, and two histories can’t be merged. Try another."
+        : "Couldn’t sign in just now.");
+    }
+    setBusy(false);
+  };
   const nuke = async () => {
     setBusy(true); setErr(null);
     try { await LIVE.deleteAccount(); location.reload(); }
@@ -133,7 +157,7 @@ function LivePrivacyPanel() {
 
   return (
     <div className="card" style={{ marginBottom: 14, padding: "14px 16px" }}>
-      {/* No kicker since D341: the sheet's header says "Account & privacy"
+      {/* No kicker since D344: the sheet's header says "Account & privacy"
           directly above this card, and a noun the header already says is
           one of the four deletions COPY.md names (D182). */}
 
@@ -200,14 +224,25 @@ function LivePrivacyPanel() {
           account that skipped it stays handle-less and can still be added
           to circles by invite code.
 
-          THREE ROWS LEFT WITH IT (D211): Sign-in — the D134 gate walls
-          every release build behind Google, so the row could only ever
-          read "Linked ✓", and on a build without the gate a link control
-          in settings is not the fix for a session that should have been
-          linked at the door. Crash reports — the toggle is gone and
+          ONE ROW LEFT WITH IT: Crash reports — the toggle is gone and
           reporting is on (D76 amended); a recorded opt-out from an older
           build is still honoured at every send site (sentry.ts), because
-          removing a switch must not flip anyone's recorded choice. */}
+          removing a switch must not flip anyone's recorded choice.
+
+          THE SIGN-IN ROW CAME BACK, and the reason it left is why.
+          D211 removed it because "the D134 gate walls every release build
+          behind Google, so the row could only ever read Linked ✓". D219
+          then took the wall down — `ios-release.yml` defaults
+          VITE_REQUIRE_SIGNIN to 'false' — and nobody returned to the row
+          that had been removed on the strength of the wall existing. The
+          result shipped: no link control at the door, none in settings,
+          and an anonymous session that D134's own text says "lives on ONE
+          phone and dies with it". Every reinstall and every new handset
+          therefore MINTED A SECOND ACCOUNT, and those duplicates are
+          indistinguishable from new users — nothing in D54's scan looks
+          for them and D28's correction needs a uid list that cannot be
+          built. That is the app manufacturing the skew its own defences
+          are written against. A row is the cheapest place to stop it. */}
       {LIVE.handle ? (
         <LpRow title="Your handle" sub="Friends add you by this. It can’t be changed.">
           <span style={{ fontFamily: "var(--mono, monospace)", fontSize: 13.5, fontWeight: 700, color: "var(--ink)", whiteSpace: "nowrap" }}>
@@ -215,6 +250,28 @@ function LivePrivacyPanel() {
           </span>
         </LpRow>
       ) : null}
+
+      {/* Sign-in. A FACT when it is settled, an offer when it is not —
+          never the gate's second button. LiveSignInGate can afford
+          "Sign in and leave this phone's answers" because it runs before
+          there ARE answers; from settings the same control is a wipe
+          wearing a login, so the collision is reported and the session is
+          left alone. */}
+      <LpRow
+        title="Sign-in"
+        sub={LIVE.linked
+          ? "Your answers survive a new phone."
+          : "Your answers live on this phone only — a reinstall or a new phone loses them."}
+      >
+        {LIVE.linked
+          ? <span style={{ fontWeight: 800, fontSize: 12.5, color: "var(--ink-2)", whiteSpace: "nowrap" }}>Linked ✓</span>
+          : btn("Continue with Google", () => void linkNow())}
+      </LpRow>
+      {linkMsg && (
+        <div role="status" style={{ fontFamily: "var(--sans)", fontSize: 12, fontWeight: 600, color: "var(--ink-2)", margin: "-4px 0 10px" }}>
+          {linkMsg}
+        </div>
+      )}
 
       {/* ONE SENTENCE AND A LINK (D183), where ten bullets behind a
           summary stood (D172).
