@@ -72,8 +72,14 @@ const h = vi.hoisted(() => ({
   listeners: {} as Record<string, Array<(ev?: unknown) => void>>,
   // The auth observer's callback, so a test can switch accounts.
   authCb: null as null | ((u: { uid: string } | null) => void),
-  // Every setDoc handed to the SDK, by path.
+  // Every setDoc/updateDoc handed to the SDK, by path — and, held, the
+  // writes park like the reads do: an offline device's mutation queue.
   writes: [] as string[],
+  holdWrites: false,
+  parkedWrites: [] as Array<() => void>,
+  // waitForPendingWrites: the SDK's queue-drained signal (D343). Parked
+  // until `drainQueue` — offline, it never resolves.
+  drainWaiters: [] as Array<() => void>,
   // Whether subscribing fires the observer at once with `uid` (the SDK
   // does, asynchronously, once the session is restored). Off, a test
   // fires `authCb` itself to choose the ordering.
@@ -213,9 +219,15 @@ vi.mock("firebase/firestore", () => {
     onSnapshot: () => () => {},
     setDoc: (r: { path: string }) => {
       h.writes.push(r.path);
-      return Promise.resolve();
+      if (!h.holdWrites) return Promise.resolve();
+      return new Promise<void>((resolve) => { h.parkedWrites.push(resolve); });
     },
-    updateDoc: () => Promise.resolve(),
+    updateDoc: (r: { path: string }) => {
+      h.writes.push(r.path);
+      if (!h.holdWrites) return Promise.resolve();
+      return new Promise<void>((resolve) => { h.parkedWrites.push(resolve); });
+    },
+    waitForPendingWrites: () => new Promise<void>((resolve) => { h.drainWaiters.push(resolve); }),
     deleteDoc: () => Promise.resolve(),
     deleteField: () => "__delete__",
     terminate: () => Promise.resolve(),
@@ -311,6 +323,24 @@ async function releaseAll(LIVE: { attached: boolean }) {
 const flush = () => new Promise<void>((r) => setTimeout(r, 0));
 // Fire every listener registered for a window event (`online`, mostly).
 const fire = (ev: string) => { for (const fn of h.listeners[ev] || []) fn(); };
+// The SDK reports its queue drained (D343).
+const drainQueue = async () => {
+  h.drainWaiters.splice(0).forEach((r) => r());
+  await flush();
+};
+// The mirror's key, as live.ts spells it — a literal for the same reason
+// OWN_PROFILE_LS is.
+const PENDING_LS = "insight.pendingAnswers.v1";
+const pendingFile = () => JSON.parse(storage.getItem(PENDING_LS) || "null");
+// "Kill the app": the process is gone, the disk is not.
+const relaunch = () => {
+  vi.resetModules();
+  h.calls.length = 0;
+  h.pending.length = 0;
+  h.writes.length = 0;
+  h.parkedWrites.length = 0;
+  h.drainWaiters.length = 0;
+};
 // Wait until exactly these reads are parked. The paint no longer waits
 // for the sign-in, so the reads that follow it can still be a few
 // microtasks away when initLive returns.
@@ -332,6 +362,9 @@ beforeEach(() => {
   h.listeners = {};
   h.authCb = null;
   h.writes.length = 0;
+  h.holdWrites = false;
+  h.parkedWrites.length = 0;
+  h.drainWaiters.length = 0;
   h.autoAuth = true;
   h.holdSignIn = false;
   h.releaseSignIn = null;
@@ -781,6 +814,175 @@ describe("the provisional account", () => {
     expect(LIVE.uid).toBe("uid_test");
     expect(LIVE.myVotes()).toEqual({ q_1: "1" });
     expect(h.signIns).toBe(1);
+  });
+});
+
+describe("answers the server has not acknowledged (D343)", () => {
+  // Before D342 an offline relaunch showed the demo deck, which hid this
+  // gap by showing nothing. Now that the real deck comes back, an answer
+  // that only the SDK's persisted queue holds must come back with it —
+  // or the deck re-offers it and the second tap is refused.
+
+  // A warm, attached device with q_1 answered and q_2 open; then the
+  // network goes away and the person answers q_2.
+  async function answerOffline() {
+    await seedBank([row("q_1", 1), row("q_2", 2)], h.contentRev, 1000);
+    await seedAnswers("uid_test", { q_1: "1" }, 500);
+    seedProfile("uid_test");
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    await vi.waitFor(() => { expect(LIVE.attached).toBe(true); });
+    h.holdWrites = true;
+    LIVE.vote("q_2", "0");
+    await flush();
+    // Handed to the SDK, unacknowledged: the mirror holds it, the cache
+    // does not.
+    expect(h.writes).toEqual(["v2_users/uid_test/answers/q_2"]);
+    expect(pendingFile()).toEqual({ uid: "uid_test", e: { q_2: { v: "0" } } });
+    const cs = await import("./cacheStore");
+    expect((await cs.readAll("answers")).has("q_2")).toBe(false);
+    return LIVE;
+  }
+
+  it("survives a relaunch as a vote that is still unconfirmed, and is not re-offered", async () => {
+    await answerOffline();
+    relaunch();
+    h.gated = true;
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    expect(LIVE.ready).toBe(true);
+    // Voted — the deck will not re-offer q_2 — and unconfirmed, exactly
+    // the state the process died in.
+    expect(LIVE.myVotes()).toEqual({ q_1: "1", q_2: "0" });
+    expect(LIVE.confirmedVotes()).toEqual({ q_1: "1" });
+    // …and the deck still carries the card — the daily reads myVotes()
+    // to draw it answered, which is the line above.
+    expect(LIVE.deck().map((q) => q.id)).toContain("q_2");
+  });
+
+  it("is confirmed by the answers delta once the queue delivered it", async () => {
+    await answerOffline();
+    relaunch();
+    // The queue flushed on reconnect, before this boot's delta ran.
+    h.answerDocs = [{ id: "q_2", data: { optionIdx: 0, answeredAt: ts(900) } }];
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    await vi.waitFor(() => { expect(LIVE.attached).toBe(true); });
+    await vi.waitFor(() => { expect(LIVE.confirmedVotes()).toEqual({ q_1: "1", q_2: "0" }); });
+    expect(pendingFile()).toBeNull();
+    // …and it is in the acked cache now, so the next boot needs no mirror.
+    const cs = await import("./cacheStore");
+    expect((await cs.readAll<string>("answers")).get("q_2")).toBe("0");
+    // No extra read: the delta was the proof.
+    expect(h.calls.filter((c) => c.path === "v2_users/uid_test/answers")).toHaveLength(2);
+  });
+
+  it("is confirmed by one read of its own document once the SDK reports the queue drained", async () => {
+    await answerOffline();
+    relaunch();
+    // The delta runs before the queue has flushed…
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    await vi.waitFor(() => { expect(LIVE.attached).toBe(true); });
+    await flush();
+    expect(LIVE.confirmedVotes()).toEqual({ q_1: "1" });
+    expect(LIVE.myVotes()).toEqual({ q_1: "1", q_2: "0" });
+    // …then the queue delivers, and the SDK says so.
+    h.answerDocs = [{ id: "q_2", data: { optionIdx: 0, answeredAt: ts(900) } }];
+    await drainQueue();
+    await vi.waitFor(() => { expect(LIVE.confirmedVotes()).toEqual({ q_1: "1", q_2: "0" }); });
+    expect(pendingFile()).toBeNull();
+    const byId = h.calls.filter((c) => c.path === "v2_users/uid_test/answers"
+      && c.cons.some((k) => k.kind === "where" && typeof k.field === "object"));
+    expect(byId).toHaveLength(1);
+    expect((byId[0].cons.find((k) => k.kind === "where")?.value as string[])).toEqual(["q_2"]);
+  });
+
+  it("is rolled back when the queue drained and the server holds no such document", async () => {
+    // A create the rules refused after the relaunch — the in-process
+    // catch would have rolled it back; nobody was there to catch it.
+    await answerOffline();
+    relaunch();
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    await vi.waitFor(() => { expect(LIVE.attached).toBe(true); });
+    await drainQueue();
+    await vi.waitFor(() => { expect(LIVE.myVotes()).toEqual({ q_1: "1" }); });
+    expect(pendingFile()).toBeNull();
+    // Re-offered, honestly: nothing on the server says it was answered,
+    // and the feed's own mirror of the vote went with it.
+    expect(JSON.parse(storage.getItem("insight.feedVotes.v1") || "{}")).not.toHaveProperty("q_2");
+  });
+
+  it("stays pending across an offline relaunch — the queue never reports draining", async () => {
+    await answerOffline();
+    relaunch();
+    h.gated = true;
+    const mod = await import("./live");
+    const LIVE = mod.default;
+    await mod.initLive(30_000);
+    expect(LIVE.myVotes()).toEqual({ q_1: "1", q_2: "0" });
+    // The server fails every read: the boot fails, the deck stays, and
+    // so does the unconfirmed answer — for the next boot to settle.
+    await vi.waitFor(() => {
+      h.pending.splice(0).forEach((p) => p.fail(new Error("offline")));
+      expect(LIVE.bootError).toContain("offline");
+    });
+    expect(LIVE.myVotes()).toEqual({ q_1: "1", q_2: "0" });
+    expect(LIVE.confirmedVotes()).toEqual({ q_1: "1" });
+    expect(pendingFile()).toEqual({ uid: "uid_test", e: { q_2: { v: "0" } } });
+  });
+
+  it("a pending edit keeps the newer option on screen until the server agrees, and yields if it refuses", async () => {
+    await seedBank([row("q_1", 1)], h.contentRev, 1000);
+    await seedAnswers("uid_test", { q_1: "1" }, 500);
+    seedProfile("uid_test");
+    let mod = await import("./live");
+    let LIVE = mod.default;
+    await mod.initLive(30_000);
+    await vi.waitFor(() => { expect(LIVE.attached).toBe(true); });
+    h.holdWrites = true;
+    expect(LIVE.editVote("q_1", "0")).toBe(true);
+    await flush();
+    expect(pendingFile()).toEqual({ uid: "uid_test", e: { q_1: { v: "0", edit: true } } });
+
+    relaunch();
+    // The server still holds the OLD option: the edit is in the queue.
+    h.answerDocs = [{ id: "q_1", data: { optionIdx: 1, answeredAt: ts(400), editedAt: ts(450) } }];
+    mod = await import("./live");
+    LIVE = mod.default;
+    await mod.initLive(30_000);
+    await vi.waitFor(() => { expect(LIVE.attached).toBe(true); });
+    await flush();
+    // The newer intent wins the screen; the document's value did not
+    // overwrite it.
+    expect(LIVE.myVotes()).toEqual({ q_1: "0" });
+    expect(LIVE.confirmedVotes()).toEqual({});
+    // The queue drains and the rules refused the edit (another device's
+    // edit won the cooldown): the document stands at 1, and so does the
+    // screen.
+    await drainQueue();
+    await vi.waitFor(() => { expect(LIVE.myVotes()).toEqual({ q_1: "1" }); });
+    expect(LIVE.confirmedVotes()).toEqual({ q_1: "1" });
+    expect(pendingFile()).toBeNull();
+  });
+
+  it("the mirror is the account's: a switch takes it with everything else", async () => {
+    const LIVE = await answerOffline();
+    expect(pendingFile()?.uid).toBe("uid_test");
+    h.uid = "uid_new";
+    h.profile = { displayName: "Bea", anchors: {} };
+    h.authCb?.({ uid: "uid_new" });
+    expect(pendingFile()).toBeNull();
+    // Let the new account's boot finish before the case ends: its reads
+    // go through the same hoisted mock as the next case's, and an
+    // in-flight boot from here would park them in that case's gate.
+    await vi.waitFor(() => { expect(LIVE.attached).toBe(true); });
   });
 });
 

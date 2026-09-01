@@ -351,6 +351,10 @@ vi.mock("firebase/firestore", () => {
     // consent record, in one merge — a sentinel here, asserted in
     // political-consent.test.ts rather than in these boot fixtures.
     deleteField: () => "__delete__",
+    // D343: the queue-drained signal settlePending awaits. Resolved at
+    // once here — no case in this file relaunches with an unacked answer;
+    // those live in warm-boot.test.ts, whose mock gates it.
+    waitForPendingWrites: () => Promise.resolve(),
   };
 });
 

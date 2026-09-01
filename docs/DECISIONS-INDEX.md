@@ -2,8 +2,8 @@
 
 Generated — `npm run build:doc-index`. Every record in
 [`DECISIONS.md`](DECISIONS.md), ordered by number, so the question
-"which decision governs this" is 353 lines instead of
-35,024. Do not hand-edit; `npm run check:docs` fails when this
+"which decision governs this" is 354 lines instead of
+35,127. Do not hand-edit; `npm run check:docs` fails when this
 drifts from the source.
 
 **Cited later by** is the newest record that mentions this one, and how
@@ -175,7 +175,7 @@ detect it.
 | **D154** | [The Map's mainstream boundary is sized by the map, not by a constant](DECISIONS.md#d154--the-maps-mainstream-boundary-is-sized-by-the-map-not-by-a-constant) | D158 | 15161 |
 | **D155** | [The tabs sit at the bottom, the four instruments take turns, and the age is the age](DECISIONS.md#d155--the-tabs-sit-at-the-bottom-the-four-instruments-take-turns-and-the-age-is-the-age) | D328 (+7) | 15259 |
 | **D156** | [The live 1v1 and Group get the sample's shape — a rail, marks, bars, and a guess that arrives second](DECISIONS.md#d156--the-live-1v1-and-group-get-the-samples-shape--a-rail-marks-bars-and-a-guess-that-arrives-second) | D204 (+2) | 15343 |
-| **D157** | [The test surfaces stop describing a crowd they never counted](DECISIONS.md#d157--the-test-surfaces-stop-describing-a-crowd-they-never-counted) | D204 (+6) | 15490 |
+| **D157** | [The test surfaces stop describing a crowd they never counted](DECISIONS.md#d157--the-test-surfaces-stop-describing-a-crowd-they-never-counted) | D343 (+7) | 15490 |
 | **D158** | [Build 16's pre-flight: the number was already right for the second time running](DECISIONS.md#d158--build-16s-pre-flight-the-number-was-already-right-for-the-second-time-running) | D339 (+6) | 15670 |
 | **D159** | [Run 22 delivered build 16, and the comparison gains the commit it is made at](DECISIONS.md#d159--run-22-delivered-build-16-and-the-comparison-gains-the-commit-it-is-made-at) | D339 (+10) | 15785 |
 | **D160** | [An empty field is still a field, the row actually snaps, and Near's switch goes in the corner](DECISIONS.md#d160--an-empty-field-is-still-a-field-the-row-actually-snaps-and-nears-switch-goes-in-the-corner) | D190 (+1) | 15857 |
@@ -333,7 +333,7 @@ detect it.
 | **D309** | [A lane batch on the budget's own allocation, and why the interleave cadences stand](DECISIONS.md#d309--a-lane-batch-on-the-budgets-own-allocation-and-why-the-interleave-cadences-stand) | — | 31427 |
 | **D310** | [The 2026-08-26 client passes ship; the two owner decisions and the paid family wait](DECISIONS.md#d310--the-2026-08-26-client-passes-ship-the-two-owner-decisions-and-the-paid-family-wait) | — | 31472 |
 | **D311** | [The daily builder dropped `bg`, the seed's own written-count told on it, and the seed-fields gate learns surfaces](DECISIONS.md#d311--the-daily-builder-dropped-bg-the-seeds-own-written-count-told-on-it-and-the-seed-fields-gate-learns-surfaces) | — | 31643 |
-| **D312** | [The answer-state caches leave the quota: the instrument, then the IndexedDB rows](DECISIONS.md#d312--the-answer-state-caches-leave-the-quota-the-instrument-then-the-indexeddb-rows) | D342 (+1) | 31686 |
+| **D312** | [The answer-state caches leave the quota: the instrument, then the IndexedDB rows](DECISIONS.md#d312--the-answer-state-caches-leave-the-quota-the-instrument-then-the-indexeddb-rows) | D343 (+2) | 31686 |
 | **D313** | [The paid question sells itself: automated review, Stripe checkout, and a question that goes live with nobody at the desk](DECISIONS.md#d313--the-paid-question-sells-itself-automated-review-stripe-checkout-and-a-question-that-goes-live-with-nobody-at-the-desk) | D335 (+2) | 31815 |
 | **D314** | [The no-tracking promise retires; the page describes today and stays ahead of change](DECISIONS.md#d314--the-no-tracking-promise-retires-the-page-describes-today-and-stays-ahead-of-change) | D334 (+2) | 31925 |
 | **D315** | [Ads sell themselves too — flat-priced windows through the same loop, and no Google](DECISIONS.md#d315--ads-sell-themselves-too--flat-priced-windows-through-the-same-loop-and-no-google) | D324 | 31962 |
@@ -357,7 +357,7 @@ detect it.
 | **D332** | [The read breaker is built, and the pulse guards usage against revenue](DECISIONS.md#d332--the-read-breaker-is-built-and-the-pulse-guards-usage-against-revenue) | D335 | 33486 |
 |  | ↳ *amendment 2026-08-29* — [A third guard state, because the pass could be a frozen file](DECISIONS.md#d332-amendment-2026-08-29--a-third-guard-state-because-the-pass-could-be-a-frozen-file) | — | 33651 |
 | **D333** | [Phase 5 executed: the strays are gone, the rollback is retired, and two promises got their settings](DECISIONS.md#d333--phase-5-executed-the-strays-are-gone-the-rollback-is-retired-and-two-promises-got-their-settings) | D335 | 33680 |
-| **D334** | [The product is the connections, and a privacy constraint is an ask rather than a stop](DECISIONS.md#d334--the-product-is-the-connections-and-a-privacy-constraint-is-an-ask-rather-than-a-stop) | D342 (+1) | 33836 |
+| **D334** | [The product is the connections, and a privacy constraint is an ask rather than a stop](DECISIONS.md#d334--the-product-is-the-connections-and-a-privacy-constraint-is-an-ask-rather-than-a-stop) | D343 (+2) | 33836 |
 | **D335** | [Two night audits, reviewed together — 64 fixes kept, one figure corrected, and the merge that had to be both](DECISIONS.md#d335--two-night-audits-reviewed-together--64-fixes-kept-one-figure-corrected-and-the-merge-that-had-to-be-both) | D336 | 33951 |
 | **D336** | [The 2026-08-30 night audit, merged with the two-night review that had been waiting — 104 commits landed as one tree](DECISIONS.md#d336--the-2026-08-30-night-audit-merged-with-the-two-night-review-that-had-been-waiting--104-commits-landed-as-one-tree) | D338 | 34120 |
 | **D337** | [reCAPTCHA stays unprovisioned; the web path is developers and CI, and they carry debug tokens](DECISIONS.md#d337--recaptcha-stays-unprovisioned-the-web-path-is-developers-and-ci-and-they-carry-debug-tokens) | D339 | 34251 |
@@ -366,4 +366,5 @@ detect it.
 |  | ↳ *amendment 2026-08-31* — [Build 28 is delivered, and the bump held off step 17](DECISIONS.md#d339-amendment-2026-08-31--build-28-is-delivered-and-the-bump-held-off-step-17) | — | 34550 |
 | **D340** | [The app icon moves to the paper tile, and the two-palette rule survives the move](DECISIONS.md#d340--the-app-icon-moves-to-the-paper-tile-and-the-two-palette-rule-survives-the-move) | — | 34603 |
 | **D341** | [Crossroads is a question TYPE, and its stories ride the feed as members](DECISIONS.md#d341--crossroads-is-a-question-type-and-its-stories-ride-the-feed-as-members) | — | 34685 |
-| **D342** | [First paint comes off the device: the warm boot, and `ready` splits from `attached`](DECISIONS.md#d342--first-paint-comes-off-the-device-the-warm-boot-and-ready-splits-from-attached) | — | 34790 |
+| **D342** | [First paint comes off the device: the warm boot, and `ready` splits from `attached`](DECISIONS.md#d342--first-paint-comes-off-the-device-the-warm-boot-and-ready-splits-from-attached) | D343 | 34790 |
+| **D343** | [An answer the server has not acknowledged survives the relaunch](DECISIONS.md#d343--an-answer-the-server-has-not-acknowledged-survives-the-relaunch) | — | 35025 |

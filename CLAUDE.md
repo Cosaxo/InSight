@@ -427,7 +427,11 @@ an emergency rules fix.
   (`insight.ownProfile.v1`) as well as the bank, because an answer
   snapshots the anchors at write time (D8) and a warm deck without them
   would file votes into no cohort. The boot-driven test helpers wait on
-  `attached` for the same reason.
+  `attached` for the same reason. And an answer written before the
+  server's ack is NOT in the answers cache on purpose (D312) — it lives
+  in `insight.pendingAnswers.v1` until the queue drains (D343), so a new
+  optimistic write path marks and clears that mirror or its offline
+  answer is re-offered after a relaunch.
 
 ## House style
 

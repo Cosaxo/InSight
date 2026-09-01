@@ -35021,3 +35021,106 @@ against 880.
   restore, the mirror could carry the last-confirmed uid's `linked`
   state too; today `linked` is false until auth speaks, which only the
   account panel reads, and only as copy.
+
+## D343 · An answer the server has not acknowledged survives the relaunch
+
+**2026-09-01.** **Status:** binding. Closes the gap D342 made reachable;
+amends nothing in D312's cache doctrine, which it leaves exactly as
+strict as it was.
+
+### The gap
+
+`vote()` mirrors an answer into the answers cache (D312) only on the
+server's ack, and says why: an optimistic row there would let a write
+the server later refused come back on every boot with nothing left to
+reconcile it. The other half of that discipline had a hole. An answer
+written offline lives in the SDK's persisted mutation queue and in this
+process's memory (`state.votes`, `state.inflight`); a relaunch before
+the ack has the queue but not the memory. So the deck re-offered a
+question the queue was about to answer, and the second tap was refused
+by the create-only rule — the exact failure hydrate's own comment on the
+answers read warns against ("proceeding with a partial vote set makes
+the app offer questions the user already answered, and the create-only
+rule then refuses every one of those re-votes"). Before D342 an offline
+relaunch showed the demo deck, which hid the gap by showing nothing;
+the online relaunch had it too, as a race between the delta read and
+the queue's flush, and nobody had seen it.
+
+### What changed
+
+**The unacknowledged answers keep a mirror of their own**
+(`insight.pendingAnswers.v1`): written on the tap by every optimistic
+write path — `vote`, `votePick`, `voteRank`, `votePulse`, and `editVote`
+marked as an edit — removed on the ack or the rollback, owner-stamped,
+refused under any other uid, and inside the namespace `purgeLocalTrace`
+sweeps. A relaunch folds them back over the disk copy as votes that are
+still INFLIGHT — exactly the state they were in when the process died —
+so `myVotes()` carries them (the deck does not re-offer) and
+`confirmedVotes()` does not (nothing claims the server has them).
+
+**The network phase settles each one** (`settlePending`), in two steps
+that cost at most two tiny reads and only on a boot with something
+unsettled. First against what the boot just read: an answers delta that
+returns the document confirms a create; an edit is confirmed only if the
+document carries the pending VALUE, and until it does the pending value
+keeps the screen — the fold had just written the document's old option
+over it, and the newer intent is the queue's. Then, for the rest,
+against the SDK's own word: `waitForPendingWrites` resolves once every
+mutation the queue held has been acknowledged or refused (offline it
+never resolves, which is right — the next online boot asks again), and
+one `documentId() in` read of exactly those documents follows. Present
+with the value: confirmed, and cached the way the ack would have. Present
+with another value: an edit the rules refused, and the document's value
+takes the screen. Absent: a create the rules refused, or a write that
+never reached the queue — the same rollback the in-process catch
+performs, feed mirror included.
+
+Not an ask under D334: the mirror is the account's own answers on the
+account's own device, one key beside three others that already hold
+them, exposed to nobody.
+
+### The trade, stated
+
+- One more `insight.*` key, a few hundred bytes at most, gone the moment
+  the queue is acknowledged.
+- A create the rules refuse after a relaunch is rolled back one read
+  later than the in-process catch would have managed, and only once the
+  queue reports itself drained; until then the card reads as answered
+  and unconfirmed, which is the truth.
+- `waitForPendingWrites` joins the bound SDK surface
+  (`lib/firebaseImpl.ts`'s `fsApi`), which every Firestore mock in the
+  tree lists by name; the two that build the object pin it.
+
+### What proves it
+
+`warm-boot.test.ts` gates the writes as well as the reads and the
+sign-in, and holds the queue-drained signal until a case releases it.
+Seven cases: an answer written before the ack survives a relaunch as a
+vote that is unconfirmed and not re-offered; confirmed by the delta once
+the queue delivered (no extra read); confirmed by one read of its own
+document once the SDK reports the queue drained; rolled back — feed
+mirror included — when the queue drained and the server holds no such
+document; still pending across an offline relaunch whose boot fails; a
+pending edit keeping the newer option until the server agrees, and
+yielding to the document when the rules refused it; and the mirror
+going with the account on a switch. Probed: dropping the restore fails
+the relaunch case, and confirming a refused create instead of rolling it
+back fails exactly that case. `test:unit` green in full; lint, `tsc -b`,
+check:purge (live.ts is the dispatcher and owner-stamps the key),
+check:globals unchanged. `check:answer-shape` learned one thing: the
+settle's `documentId() in` read is the first READ of the answers path
+written with the same `uid` name the write shape uses, and the scan
+could not classify it (hydrate's deltas say `uidA`, which is why they
+never reached that line). It classifies a `collection(` read now, as
+outside its subject — nothing a read does can drop a field from a
+document — rather than the read being renamed around the scan.
+
+### When to revisit
+
+- If a surface ever writes an answer outside the five paths above, it
+  marks and clears the mirror the same way, or its offline answer is the
+  pre-D343 answer.
+- `learnAnswer` is deliberately not on the list: a learn card's first
+  attempt is its own contract (`learnSent`, D157), and an offline learn
+  answer relaunched is a card re-asked, not a rule refused. If that ever
+  reads as a bug, the mechanism is here.

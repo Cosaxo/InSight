@@ -47,6 +47,7 @@ import {
   terminate,
   Timestamp,
   updateDoc,
+  waitForPendingWrites,
   where,
   type Firestore,
 } from "firebase/firestore";
@@ -84,7 +85,10 @@ export const FIRESTORE_DB_ID = import.meta.env.VITE_FIRESTORE_DB_ID || "insight"
 export const fsApi = {
   clearIndexedDbPersistence, collection, collectionGroup, deleteDoc, deleteField,
   doc, documentId, getDoc, getDocs, limit, onSnapshot, orderBy, query,
-  serverTimestamp, setDoc, startAfter, terminate, Timestamp, updateDoc, where,
+  serverTimestamp, setDoc, startAfter, terminate, Timestamp, updateDoc,
+  // D343: the SDK's own word that its persisted mutation queue has
+  // drained — what settles an answer a relaunch restored unacknowledged.
+  waitForPendingWrites, where,
 };
 export const fnsApi = { getFunctions, httpsCallable };
 

@@ -71,6 +71,7 @@ let startAfter!: FsApi["startAfter"];
 let terminate!: FsApi["terminate"];
 let Timestamp!: FsApi["Timestamp"];
 let updateDoc!: FsApi["updateDoc"];
+let waitForPendingWrites!: FsApi["waitForPendingWrites"];
 let where!: FsApi["where"];
 let getFunctions!: FnsApi["getFunctions"];
 let httpsCallable!: FnsApi["httpsCallable"];
@@ -98,7 +99,7 @@ async function getDb(): Promise<import("firebase/firestore").Firestore> {
   ({
     clearIndexedDbPersistence, collection, deleteDoc, deleteField, doc, documentId,
     getDoc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc,
-    startAfter, terminate, Timestamp, updateDoc, where,
+    startAfter, terminate, Timestamp, updateDoc, waitForPendingWrites, where,
   } = fs);
   ({ getFunctions, httpsCallable } = fns);
   // NOTHING REACHES FIRESTORE WHILE THE UID IS THE MIRROR'S (D342). The
@@ -721,6 +722,207 @@ function cacheVote(aid: string, stored: number | string): void {
   if (torndown) return;
   if (!state.uid || state.uid !== answersCacheOwner) return;
   void cacheStore.write("answers", [[aid, String(stored)]]);
+}
+
+// ── answers the server has not yet acknowledged, mirrored on disk (D343) ──
+//
+// The answers cache above mirrors ACKED documents only, and vote() is
+// careful about that: an optimistic row there would let a write the
+// server later refused come back on every boot with nothing left to
+// reconcile it. The other half of that discipline had a hole the warm
+// boot (D342) made reachable. An answer written offline lives in the
+// SDK's persisted mutation queue and in this process's memory; a relaunch
+// before the ack has the queue but not the memory — so the deck re-offered
+// a question the queue was about to answer, and the second tap was refused
+// by the create-only rule. Before D342 an offline relaunch showed the
+// demo deck, which hid the gap by showing nothing.
+//
+// So the unacked answers keep a small mirror of their own: written on
+// the tap, removed on the ack or the rollback, owner-stamped and inside
+// the namespace purgeLocalTrace sweeps. A relaunch folds them back as
+// votes that are still INFLIGHT — exactly the state they were in when
+// the process died — and the network phase settles each against the
+// server (`settlePending`): a delta that returns the document confirms
+// it; for the rest, the SDK's own signal that its queue has drained is
+// followed by one read of exactly those documents, which confirms them
+// or, for a write the rules refused, rolls them back the way the
+// in-process catch would have. Two tiny reads at most, and only on a
+// boot that has something unsettled.
+const PENDING_LS = "insight.pendingAnswers.v1";
+interface PendingAnswer {
+  // The answer in the cache's own string form (cacheVote has the shapes).
+  v: string;
+  // An edit of an existing answer (D86), where the document is expected
+  // to exist either way and only the VALUE says whether the write landed.
+  edit?: true;
+}
+function readPendingFile(): { uid: string; e: Record<string, PendingAnswer> } | null {
+  try {
+    const raw = JSON.parse(localStorage.getItem(PENDING_LS) || "null");
+    return raw && typeof raw.uid === "string" && raw.e && typeof raw.e === "object" ? raw : null;
+  } catch {
+    return null;
+  }
+}
+function markPending(aid: string, v: string, edit = false): void {
+  const uid = state.uid;
+  if (torndown || !uid) return;
+  const cur = readPendingFile();
+  const e = cur && cur.uid === uid ? cur.e : {};
+  e[aid] = edit ? { v, edit: true } : { v };
+  lsSet(PENDING_LS, JSON.stringify({ uid, e }));
+}
+function clearPending(aid: string): void {
+  const cur = readPendingFile();
+  if (!cur || !(aid in cur.e)) return;
+  delete cur.e[aid];
+  if (Object.keys(cur.e).length) {
+    lsSet(PENDING_LS, JSON.stringify(cur));
+  } else {
+    try {
+      localStorage.removeItem(PENDING_LS);
+    } catch {
+      /* best-effort */
+    }
+  }
+}
+function loadPending(uid: string): Record<string, PendingAnswer> {
+  const cur = readPendingFile();
+  return cur && cur.uid === uid ? cur.e : {};
+}
+// Back into memory as the state they died in: voted, unconfirmed, and
+// not yet in the public aggregate (the display flag every create sets).
+function restorePending(uid: string): void {
+  for (const [aid, p] of Object.entries(loadPending(uid))) {
+    state.votes[aid] = p.v;
+    state.inflight[aid] = true;
+    const n = Number(p.v);
+    state.unaggregated[aid] = Number.isFinite(n) ? n : 0;
+  }
+}
+// The feed's own vote mirror, dropped or restored beside the store's —
+// the same lines every rollback carries.
+function dropFeedMirror(aid: string, restoreTo?: string): void {
+  try {
+    const WF_LS = "insight.feedVotes.v1";
+    const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
+    if (!(aid in wf)) return;
+    if (restoreTo === undefined) {
+      delete wf[aid];
+    } else {
+      const q = feedById(aid);
+      const mv = q ? mirrorVoteValue(q, restoreTo) : null;
+      wf[aid] = mv != null ? mv : Number(restoreTo);
+    }
+    lsSet(WF_LS, JSON.stringify(wf));
+  } catch {
+    /* best-effort */
+  }
+}
+function confirmPending(aid: string, v: string): void {
+  delete state.inflight[aid];
+  cacheVote(aid, v);
+  clearPending(aid);
+}
+function rollbackPending(aid: string, serverValue?: string): void {
+  if (serverValue === undefined) {
+    delete state.votes[aid];
+  } else {
+    state.votes[aid] = serverValue;
+  }
+  delete state.inflight[aid];
+  delete state.unaggregated[aid];
+  dropFeedMirror(aid, serverValue);
+  clearPending(aid);
+}
+// The answer a document carries, in the cache's string form — the one
+// vocabulary hydrate's fold and the settle below both speak.
+function answerValueOf(get: (f: string) => unknown): string | null {
+  const optionIdx = get("optionIdx");
+  const entity = get("entity");
+  const order = get("order");
+  return typeof optionIdx === "number" ? String(optionIdx)
+    : typeof entity === "number" ? String(entity)
+    : Array.isArray(order) ? order.join(",")
+    : null;
+}
+// Settle what a relaunch restored, against what the boot just read and
+// then against the drained queue. `fetched` is what the answers reads
+// folded this boot, id → value.
+async function settlePending(
+  db: Awaited<ReturnType<typeof getDb>>,
+  uid: string,
+  fetched: Array<[string, string]>,
+): Promise<void> {
+  const pending = loadPending(uid);
+  const ids = Object.keys(pending);
+  if (!ids.length) return;
+  const seen = new Map(fetched);
+  const unsettled: string[] = [];
+  for (const aid of ids) {
+    const p = pending[aid];
+    const server = seen.get(aid);
+    if (server !== undefined && (!p.edit || server === p.v)) {
+      confirmPending(aid, p.v);
+    } else {
+      // Still pending, and still what is on screen: the fold above may
+      // have written the document's OLD value over an edit the queue is
+      // yet to deliver, and the newer intent is this one.
+      state.votes[aid] = p.v;
+      state.inflight[aid] = true;
+      unsettled.push(aid);
+    }
+  }
+  notify();
+  if (!unsettled.length) return;
+  // The SDK's word that every mutation it held has been acknowledged or
+  // refused. Offline it never resolves, which is right: the answers are
+  // still pending, and the next online boot asks again. Rejects only
+  // when the user changes under it, which resetForNewUid has already
+  // dealt with.
+  try {
+    await waitForPendingWrites(db);
+  } catch {
+    return;
+  }
+  if (torndown || state.uid !== uid) return;
+  // An ack in THIS process may have settled some of them meanwhile.
+  const still = unsettled.filter((aid) => aid in loadPending(uid));
+  if (!still.length) return;
+  try {
+    const found = new Map<string, string>();
+    for (let i = 0; i < still.length; i += 30) {
+      const chunk = still.slice(i, i + 30);
+      const snap = await getDocs(query(
+        collection(db, "v2_users", uid, "answers"),
+        where(documentId(), "in", chunk),
+      ));
+      snap.docs.forEach((d) => {
+        const v = answerValueOf((f) => d.get(f));
+        if (v !== null) found.set(d.id, v);
+      });
+      state.stats.answersFetched += snap.size;
+    }
+    const now = loadPending(uid);
+    for (const aid of still) {
+      const p = now[aid];
+      if (!p) continue;
+      const server = found.get(aid);
+      if (server !== undefined && (!p.edit || server === p.v)) {
+        confirmPending(aid, p.v);
+      } else if (server !== undefined) {
+        // An edit the rules refused: the document stands at its value.
+        rollbackPending(aid, server);
+      } else {
+        // A create the rules refused, or a write that never reached the
+        // queue — the same rollback the in-process catch performs.
+        rollbackPending(aid);
+      }
+    }
+    notify();
+  } catch (err) {
+    reportError(err, { where: "settlePending" });
+  }
 }
 
 // ── the profile cache, on disk (D129) ────────────────────────────
@@ -1623,6 +1825,10 @@ async function warmFromDisk(uid: string | null): Promise<DiskCaches> {
   // phase only ever ADDS to them. The cursors ride `disk.answers` down to
   // the delta queries.
   if (disk.answers) Object.assign(state.votes, disk.answers.votes);
+  // …and over them, the answers the server has not acknowledged (D343):
+  // newer than the disk copy, still inflight, and what the deck must not
+  // re-offer.
+  if (uid) restorePending(uid);
   // The paint needs BOTH halves — a bank to draw and the profile mirror
   // whose anchors the first tap will stamp (the header above has why).
   // Without the mirror nothing is published here at all, and the boot is
@@ -2058,13 +2264,7 @@ async function hydrate(): Promise<void> {
       // (mirrorVoteValue, buildFeedGlobals) — so skipping any here
       // would re-offer the card on a fresh device and the create-only
       // rule would then refuse the re-answer.
-      const optionIdx = d.get("optionIdx");
-      const entity = d.get("entity");
-      const order = d.get("order");
-      const val = typeof optionIdx === "number" ? String(optionIdx)
-        : typeof entity === "number" ? String(entity)
-        : Array.isArray(order) ? order.join(",")
-        : null;
+      const val = answerValueOf((f) => d.get(f));
       if (val !== null) {
         state.votes[d.id] = val;
         fetchedRows.push([d.id, val]);
@@ -2227,6 +2427,10 @@ async function hydrate(): Promise<void> {
     // owner is this uid, or an ack racing hydrate could write into a
     // store whose meta still names the previous account.
     answersCacheOwner = uidA;
+    // What a relaunch restored, settled against what was just read and
+    // then against the drained queue (D343). Not awaited: the boot has
+    // nothing to learn from it, and offline it waits for the queue.
+    void settlePending(db, uidA, fetchedRows);
   }
 
   // ── aggregates: fetch answered questions' aggs that are missing OR
@@ -5734,6 +5938,7 @@ const LIVE = {
     const aid = `${baseQid}_${day}`;
     if (state.votes[aid]) return Promise.resolve();
     state.votes[aid] = String(optionIdx);
+    markPending(aid, String(optionIdx));
     notify();
     return (async () => {
       try {
@@ -5748,8 +5953,10 @@ const LIVE = {
           anchors: answerAnchors(),
         });
         cacheVote(aid, optionIdx);
+        clearPending(aid);
       } catch (err) {
         delete state.votes[aid];
+        clearPending(aid);
         notify();
         reportError(err, { where: "votePulse", qid: aid });
       }
@@ -5793,6 +6000,7 @@ const LIVE = {
     state.votes[qid] = optionId;
     state.inflight[qid] = true;
     state.unaggregated[qid] = optionIdx;
+    markPending(qid, optionId);
     notify();
     void (async () => {
       try {
@@ -5826,6 +6034,7 @@ const LIVE = {
         // future boot with nothing left to reconcile it away.
         delete state.inflight[qid];
         cacheVote(qid, optionIdx);
+        clearPending(qid);
         // Counted on the ACK, not the tap: a refused create rolls the
         // optimistic state back below, and the tally should agree with
         // the server about what was answered (R2/D270).
@@ -5854,6 +6063,7 @@ const LIVE = {
         delete state.votes[qid];
         delete state.inflight[qid];
         delete state.unaggregated[qid];
+        clearPending(qid);
         try {
           const WF_LS = "insight.feedVotes.v1";
           const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
@@ -5886,6 +6096,7 @@ const LIVE = {
     state.votes[qid] = String(entity);
     state.inflight[qid] = true;
     state.unaggregated[qid] = entity;
+    markPending(qid, String(entity));
     notify();
     void (async () => {
       try {
@@ -5905,6 +6116,7 @@ const LIVE = {
         // phantom pick on every future boot.
         delete state.inflight[qid];
         cacheVote(qid, entity);
+        clearPending(qid);
         // …and the same two seams vote() stamps on ITS ack (R2/D270,
         // R4/D271). They were missing here, and the shape of the gap is
         // what made it invisible: the world feed stamps `s` for every card
@@ -5921,6 +6133,7 @@ const LIVE = {
         delete state.votes[qid];
         delete state.inflight[qid];
         delete state.unaggregated[qid];
+        clearPending(qid);
         try {
           const WF_LS = "insight.feedVotes.v1";
           const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
@@ -5961,6 +6174,7 @@ const LIVE = {
     // counts array) — the KEY is the pending flag rankCrowdFor and the
     // agg refresh both key on, same lifecycle as every other vote.
     state.unaggregated[qid] = 0;
+    markPending(qid, order.join(","));
     notify();
     void (async () => {
       try {
@@ -5976,6 +6190,7 @@ const LIVE = {
         });
         delete state.inflight[qid];
         cacheVote(qid, order.join(","));
+        clearPending(qid);
         // The same two seams, for the same reason as votePick above — a
         // rank card is a feed card and is stamped `s` when it scrolls into
         // view, so without this its conversion reads as zero.
@@ -5987,6 +6202,7 @@ const LIVE = {
         delete state.votes[qid];
         delete state.inflight[qid];
         delete state.unaggregated[qid];
+        clearPending(qid);
         try {
           const WF_LS = "insight.feedVotes.v1";
           const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
@@ -6034,6 +6250,7 @@ const LIVE = {
     // in the counts, no longer marked mine); the delayed refresh below
     // pulls the moved counts and settles it.
     state.unaggregated[qid] = optionIdx;
+    markPending(qid, optionId, true);
     notify();
     void (async () => {
       try {
@@ -6049,6 +6266,7 @@ const LIVE = {
         delete state.inflight[qid];
         state.editedAt[qid] = Date.now();
         cacheVote(qid, optionIdx); // keep the answers-cache mirror true to the doc
+        clearPending(qid);
         engagement.note("edits"); // acked, same rule as the create's count
         notify();
         scheduleAggRefresh(db, qid);
@@ -6059,6 +6277,7 @@ const LIVE = {
         state.votes[qid] = prev;
         delete state.inflight[qid];
         delete state.unaggregated[qid];
+        clearPending(qid);
         try {
           const WF_LS = "insight.feedVotes.v1";
           const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};

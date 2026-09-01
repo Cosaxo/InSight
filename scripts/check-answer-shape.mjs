@@ -102,6 +102,7 @@ function payloadFor(text, callIdx) {
 const problems = [];
 let creates = 0;
 let edits = 0;
+let reads = 0;
 
 for (let i = 0; ; ) {
   const at = src.indexOf(PATH, i);
@@ -122,6 +123,14 @@ for (let i = 0; ; ) {
   const line = src.slice(0, at).split("\n").length;
 
   if (/updateDoc\(/.test(callLine)) { edits++; continue; }
+  // A READ of the path — `collection(db, "v2_users", uid, "answers")`
+  // inside a query — is outside this gate's subject: nothing a read does
+  // can drop a field from a document. D343's settle is the first read
+  // written with the same `uid` name the write shape uses (hydrate's
+  // deltas say `uidA`, which is why they never reached this line), and
+  // it is classified rather than renamed around the scan, so the next
+  // read is not tempted to do the second.
+  if (/\bcollection\(/.test(callLine)) { reads++; continue; }
   if (!/setDoc\(/.test(callLine)) {
     // Neither verb on the line means the scan shape has drifted from the
     // code — a multi-line call, say. Report it: a site this cannot classify
@@ -184,5 +193,6 @@ if (problems.length) {
 
 console.log(
   `check-answer-shape OK — ${creates} answer-create site(s) carry ${REQUIRED.join(", ")}; `
-  + `${edits} edit site(s) exempt (D86); the rebuild still reads anchors.`,
+  + `${edits} edit site(s) exempt (D86); ${reads} read(s) outside the gate's subject; `
+  + "the rebuild still reads anchors.",
 );
