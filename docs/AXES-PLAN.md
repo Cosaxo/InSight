@@ -104,16 +104,19 @@ the app already lives by without naming it:
 
 The owner's five, mapped to the tree. Two of the five turn out to be
 *derived* rather than collected — a distinction the connection map needs
-(§2) — so the table carries six rows:
+(§2) — so the table carried six rows — and D343 added a seventh, for the
+axis whose custody class the paragraph beneath had named from the day
+this file was written without any row owning it:
 
 | Axis (owner's name) | What it is in the tree | Where it lives | Custody |
 | --- | --- | --- | --- |
 | General info | The nine profile anchors (`ANCHOR_FIELDS`, `src/v2/data/live.ts`): age band, exact age, gender, city, country, education, relationship, height band, profession — snapshotted onto every answer, seven of them breakdown dims (`BREAKDOWN_DIMS`, `functions/src/pure.ts`) | `v2_users/{uid}` + the `anchors` copy on each answer | Public (D98). Exact age is for screens that name a person, never a dim (D155); profession is never a dim (D8) |
-| Questions | The one write — daily, feed, learn, duels, pulses (`docs/MIRROR.md` §1). Core folds into the Mirror, tail does not, and absent means tail (D161) | `v2_users/{uid}/answers/{qid}` | Public; duels sealed until reveal |
+| Questions | The one write — daily, feed, learn, pulses (`docs/MIRROR.md` §1); duels are the Ties row's since D343. Core folds into the Mirror, tail does not, and absent means tail (D161) | `v2_users/{uid}/answers/{qid}` | Public |
 | Logic test | The one sit-down instrument, server-scored (D57), with published norms | `testResults.logic` (server-written only) + `v2_logic_norms` | Score public; the attempt doc and the unscored key are denies |
 | The four instruments | Big Five · Politics · Values · Social (`IS_TESTS`, `src/v2/spec/test-definitions.js`) — **derived**: their items fill passively from the feed (D121) as ordinary public answers; results are a fold (`data/passiveProfile.ts`) written to the profile | items in `answers`; results in `testResults` | Public (D98) |
 | The lenses | The nine minor instruments (`src/v2/spec/lens-defs.js`) — "smaller than the four core tests… the footnotes that explain it" — also **derived** from feed answers | items in `answers`; results local-only (`insight.lenses.v1`) | Items public; the folded result never uploads today |
-| Interests | The least consolidated axis, three implementations: topic follows/mutes (`scenes.js`, device-local), catalogue favourites (D14–D17, D232/D266 — public answers keyed into committed catalogues), and the real follow graph (D101) — plus D163's interest model | answers + `following` + local `insight.*` state | Mixed on purpose: favourites and follows public; the topic list and the interest model never leave the device (D163) |
+| Interests | The least consolidated axis, three implementations: topic follows/mutes (`scenes.js`, device-local), catalogue favourites (D14–D17, D232/D266 — public answers keyed into committed catalogues), and the real follow graph (D101) — plus D163's interest model. Its theory lane since D343 | answers + `following` + local `insight.*` state | Mixed on purpose: favourites and follows public; the topic list and the interest model never leave the device (D163) |
+| Ties (D343) | The relational axis — the 1v1 and group duel record (sealed answers, guesses, picks, reveals), the membership store and the follow graph: data whose unit is a pair or a group, not a person. `data/roles.ts` reads it as two instruments (D204), `duelRuns`/`groupPortrait` fold it, `duel-{qid}` is its cross-group signal (D40); the guess is the app's only second-person measurement, graded against a key | `v2_groups/{gid}` + `reveals/{day}`, `v2_users/{uid}/following`, `v2_question_aggs/duel-{qid}` | Sealed-until: the answer is its author's until the next day's reveal, which is public (D98); membership member-gated for the invite capability, not for privacy |
 
 Three things fall out of writing the table down:
 

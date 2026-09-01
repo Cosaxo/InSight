@@ -1,10 +1,10 @@
 # Axiom Theory — the theory layer, and its bridge into the product
 
 **Status: operating since 2026-08-25.** This page is the product-side
-record of a system that lives OUTSIDE the product: ten recurring
-Claude lanes on the orphan branch `axiom-theory` of this repo — nine
-writing theory, and since D342 one scoring their work every second
-night. **`CHARTER.md` at that branch's root is canonical** for
+record of a system that lives OUTSIDE the product: twelve recurring
+Claude lanes on the orphan branch `axiom-theory` of this repo — eleven
+writing theory (two of them, ties and interests, chartered 2026-09-01
+at D343), and since D342 one scoring their work every second night. **`CHARTER.md` at that branch's root is canonical** for
 everything about how the lanes behave; this page records what the
 product needs to know — where the system is, what may cross from it
 into the tree, and the account-side inventory. If the two disagree,
@@ -40,8 +40,9 @@ the buildable one — and just as deliberately may not disregard law,
 ethics or honesty (charter §9: no medical advice, no invented sources,
 consent and privacy as design axioms).
 
-Nine lanes: four subject axioms — genetic, body, questions, tests —
-plus **map theory** (how everything should be displayed), **pattern
+Eleven theory lanes: six subject axioms — genetic, body, questions,
+tests, and since D343 **ties** (the relational axis: the 1v1 and group
+profile) and **interests** — plus **map theory** (how everything should be displayed), **pattern
 theory** (how patterns should be found), and **database theory** (the
 perfect, most efficient and most useful database for the axes and
 their connections — deliberately *not* an axiom, the owner's note
@@ -93,7 +94,7 @@ alignment; the fit-not-Oracle note) carried into the record.
 
 ## The account-side inventory (product-side copy)
 
-All ten fire a **fresh session per run** on model `claude-fable-5`
+All twelve fire a **fresh session per run** on model `claude-fable-5`
 (the owner's 2026-08-25 direction: Fable orchestrates, subagents are
 Opus at matched effort, never lower), completion notifications off —
 the digest is the legibility channel.
@@ -103,8 +104,7 @@ measurement: cron-spawned sessions stall on the provisioning step's
 permission prompt, so the crons now wake a persistent dispatcher
 session that spawns each run with its tools pre-approved), and the
 owner re-paced the cadence the same evening: **every lane every other
-day** — subject axioms (genetic, body, questions, tests) at
-09:02–12:02 UTC on odd dates, reader lanes (map, pattern, graph
+day** — subject axioms (genetic, body, questions, tests, and since D343 ties and interests) at 09:02–14:02 UTC on odd dates, reader lanes (map, pattern, graph
 optimizer, central) at the same hours on even dates, so readers always work on subject output at most a day old; the
 review lane at 02:02 UTC on odd dates, six hours before the earliest
 lane slot (D342). **The charter's §10 table carries the live trigger ids** and is updated first on any change;
@@ -170,7 +170,12 @@ still logs that honestly; the weekly digest plus a next-morning
 quality peek (2026-08-26) are what say whether the cadence earns
 itself.
 
-## New axioms — the 2026-09-01 reflection (plan notes, not decisions)
+## New axioms — the 2026-09-01 reflection
+
+**Adopted the same day (D343): Ties and Interests are chartered.** The
+rest of this section stays plan notes, not decisions — time-use, the
+anchors, Learn and the crowd-reading placement are recommendations
+until their day.
 
 The owner opened the question — *"lets reflect on new axioms to add,
 my first suggestion would be the 1v1 and group profile"* — and this
@@ -353,5 +358,5 @@ it — the axis the frame already lists and no lane theorizes. Leave
 time-use inside central until its cheap test runs, and route the
 anchors and Learn to the questions lane as appended focus questions.
 Twelve lanes with the review lane (D342), ≈ $600 a month more, two
-new odd-date slots. Adoption is
-the owner's word; until then nothing above binds.
+new odd-date slots. **Adopted 2026-09-01 — D343.** The remaining
+verdicts in §2 bind nothing until theirs.
