@@ -64,3 +64,33 @@ implements its own requests.
   shares; the fraction of the population inside any distinct region
   (Freudenstein's 42% question, locally) — the difference between a
   data-anchored region system and a grid that only looks like one.
+- 2026-09-01 · **what**: a committed population-level cross-axis
+  structure artifact over the observed test-score shelf: correlation
+  AND covariance matrices over all flattened instrument axes (the
+  `test:dim` coordinates the Kindred metric consumes — 22 axes over
+  the four instruments), with per-axis means and SDs, per-pair n, the
+  eigenspectrum and first-eigenvalue share; computed from the same
+  published per-user results the similarity field already reads
+  (D98), aggregates only, no new collection. Honest caveats stated up
+  front: post-D121 most stored results are passive-fold estimates
+  with axes resting on as few as 2 items (`MIN_AXIS_ITEMS = 2`), so
+  attenuation is severe and coverage skewed — observed-score
+  correlations are lower bounds (que-2's item parameters would
+  disattenuate them), and they diagnose the OBSERVED shelf, not the
+  latent couplings tst-6 reserves for the joint model. · **why**:
+  tst-9 (cited) says correlated axes make separate and joint scoring
+  non-interchangeable, and tst-1 (argued) argues the shipped Kindred
+  ranking assumes axis independence at one load-bearing site (the
+  λ=6 shrinkage calibration, whose zero-similarity simulation drew
+  axes independently; the metric's equal weighting is the other,
+  implicit, half) — but nothing today says how correlated InSight's
+  own axes actually are, and that number is the SINGLE hinge for
+  tst-1: near-zero local correlations defeat both its consumer
+  argument and its precision argument; strong ones confirm both.
+  · **measurable**: the empirical per-axis gap distribution and
+  spread against the D277 prior's independence-calibrated constants
+  (shipped numbers tested on shipped data — means and SDs against
+  the assumed N(50,15), the width-spread against the λ=6
+  simulation); the shared-variance fraction the equal-weight
+  distance re-weights (first-eigenvalue share); tst-1's route from
+  argued toward cited/measured on local numbers.

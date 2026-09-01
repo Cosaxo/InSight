@@ -1,8 +1,8 @@
 # The tests axiom — current theory
 
 *Regenerated from `graph.json` (the graph is the data; this page is its
-readable face). Last regenerated 2026-08-29. Eight nodes: three `cited`,
-three `argued`, two `conjecture`.*
+readable face). Last regenerated 2026-09-01. Nine nodes: four `cited`,
+four `argued`, one `conjecture`.*
 
 The subject is the perfect form of InSight's test axis: the logic test,
 the four core instruments (Big Five · Politics · Values · Social) and
@@ -11,12 +11,104 @@ of separate scores.
 
 ## 1 · One joint model — bounded by the between/within fork
 
-**tst-1 (conjecture)** holds that the perfect axiom is one joint latent
+**tst-1 (argued)** holds that the perfect axiom is one joint latent
 model over all instruments: each instrument's dimensions are loadings on
 a shared person-space, cross-instrument links are geometry rather than
 authored lists, and a new lens is a new set of loadings, not a new silo.
-Still a conjecture — its named test (show a concrete consumer that gets
-a different answer from the joint model than from the shelf) is unrun.
+Raised conjecture→argued 2026-09-01: its named test — a concrete
+consumer that gets a different answer from the joint model than from
+the shelf — was run against the product's shipped code, and the
+adversarial pass's corrections are carried in the node rather than
+papered over. The Kindred/similarity field
+(`src/v2/data/similarity.ts`, D112/D277) is a shelf consumer in its
+primary tier: 22 flattened axes over the four instruments, exactly 5
+items per axis in the sit-down bank (as few as 2 where the passive
+fold publishes), the mean absolute gap printed as `match` and the
+prior-shrunk version of the same quantity ranked on as `raw`; logic is
+excluded from the distance by design. One real axis-independence
+assumption ships in that file — not two, as this run's seed draft had
+it: `TYPICAL_AXIS_GAP`'s closed form is a person-to-person marginal,
+invariant to cross-axis correlation, but the λ=6 shrinkage calibration
+drew its zero-similarity simulation with axes independent, so
+correlated axes would change the spread it was tuned to flatten. The
+lane's own argument, held at `argued`: the shelf metric weights each
+latent dimension by how many observed axes load on it, where a joint
+metric (equal-weight per latent dimension — itself a named choice, not
+geometry) weights each once. That is a *relative re-weighting*, not a
+k-fold amplification — the mean cancels amplification exactly in the
+one-factor limit, uniform loadings null it, and 5-item axis
+unreliability compresses it — but where factors are unevenly
+represented across the 22 axes, rankings flip (worked three-axis
+example in the node). Literature status, stated precisely: the
+squared-distance/Mahalanobis version of this is textbook; no source
+was found stating the mean-absolute, axis-profile, ranking-consequence
+version — that composition is the lane's own, with Cronbach & Gleser
+the one source genuinely in-register and Moshagen analogy only. The
+single hinge, named as such: near-zero local correlations would defeat
+*both* consumer arguments — the ranking one and the precision one,
+whose entire mechanism is the correlations — so the 2026-09-01
+REQUESTS row is the whole node's route upward. The precision consumer,
+with the transfer caveat: Wang et al.'s less-than-half-the-items
+figure holds under that study's simulated battery conditions and does
+not transfer as a constant; what transfers is the regime — the gain is
+largest for short, numerous, correlated tests, which at 5 items per
+axis (2 in the passive fold) is exactly where this axiom lives, with
+passive administration (tst-2) and per-era cadence (tst-4) making
+items-per-reading scarcer still. A new lens as new loadings is de la
+Torre & Patz's case exactly: it borrows the joint prior instead of
+opening a silo from zero. Communality is honestly scoped: the cited
+finding covers ability, personality and interests — nothing cited
+covers politics, values or attachment inter-correlations, and logic,
+the one ability member, is excluded from this very metric — so for
+this battery the correlation premise is analogical until measured.
+Two tensions are recorded open rather than settled: the perfect form
+*breaks* D277's rank-monotonicity invariant (D277 split printed from
+sort key while guaranteeing nobody ranks above a visibly better
+printed number; a joint metric would rank a printed 84 above a printed
+91 — the lane argues the break, since under correlated axes the
+printed sentence itself explains a distortion, but records it open);
+and a person-to-person ranking is a per-person output over latent
+estimates tst-7 calls indeterminate, where tst-6 settles publication
+to population-level sufficient statistics — so the perfect form's
+ranking must carry indeterminacy through the model
+(plausible-value-averaged ranks with rank uncertainty, never latent
+coordinates), and whether an order over named people respects tst-6's
+boundary at all stays an open problem. Bounds: "one model" means one
+hierarchical model per tst-6's fork; tst-3's two item families remain
+per-family link functions; embedding, not exhaustion, per tst-6.
+
+**tst-9 (cited)** is the scaffolding under it, facts only (the tst-7
+pattern): multidimensional IRT scoring that exploits cross-trait
+correlations reaches the same precision with less than half the
+comparable items of one-test-at-a-time scoring, the gain largest for
+short tests in large batteries — a figure scoped to that study's own
+simulated battery conditions, with the direction and regime being
+what transfers (Wang, Chen & Cheng 2004) — and the real-data
+application is most efficient for highly correlated abilities across
+multiple short tests (de la Torre & Patz 2005 — no quantified gain
+visible at this run's verification grade, so none claimed);
+multifactorial item responses do not by themselves justify subscale
+scoring — the settling questions include how much reliable variance
+subscale scores provide after controlling for a general factor
+(Reise, Bonifay & Haviland 2013), and the alternative structural
+models for hierarchical constructs differ in model-based score
+reliabilities and purpose (Brunner, Nagy & Wilhelm 2012); model
+choice changes downstream covariate correlations up to reversing
+their sign (Moshagen 2023, cited without pagination — DOI-grade
+verification only); profile similarity decomposes into elevation,
+scatter and shape, and reducing a configuration to one index loses
+information (Cronbach & Gleser 1953); and ability, personality and
+interest measures show cross-domain communality, organized as four
+trait complexes — patterned, concentrated in complexes, not uniform,
+a hedge the claim string itself now carries (Ackerman & Heggestad
+1997; the commonly quoted meta-analytic r values are table-level
+content unverifiable at this run's grade and are deliberately not
+cited). Its three `supports` edges are argued in the node: to tst-1
+(all five facts are its scaffolding), to tst-3 (cross-domain
+communality puts ability and disposition in one person-space even as
+their link functions stay apart), and to tst-6 (a sign that flips
+with model choice is estimator-level evidence that a published
+coupling cannot be model-free).
 
 **tst-3 (argued)** splits the item side: ability (logic, scored against
 a key — guessing and ceilings matter) and disposition (self-positioning
@@ -208,8 +300,18 @@ could defeat tst-8's first clause.
 
 ## Open problems
 
-- tst-1's consumer test: a concrete consumer that gets a different
-  answer from the joint model than from the score shelf.
+- tst-1's route upward: the consumer test is argued on shipped code,
+  but whether InSight's own axes are correlated enough for ANY of it
+  to bite — the ranking argument and the precision argument fall
+  together at zero correlation — waits on the 2026-09-01 REQUESTS
+  row; and no source states the mean-absolute profile-ranking version
+  of the over-weighting claim (the squared-distance/Mahalanobis
+  version is textbook).
+- tst-1's two recorded tensions: the perfect form breaks D277's
+  rank-monotonicity invariant (argued for, not settled), and whether
+  a person-to-person ranking — a per-person output over indeterminate
+  latent estimates — can respect tst-6's population-level publication
+  boundary even in plausible-value-averaged form.
 - The within-person half of tst-6: what the perfect within-person state
   space for the instruments looks like (dimensionality, link to bod-5's
   bands) is unwritten — the fork names the object, not yet its form.
@@ -220,7 +322,15 @@ could defeat tst-8's first clause.
 
 ## Bridge queue
 
-Three open requests (REQUESTS.md): pulse-roster repeat summaries
+Four open requests (REQUESTS.md). New 2026-09-01: a committed
+cross-axis structure artifact over the exact `test:dim` coordinates
+the Kindred metric consumes (correlation and covariance matrices,
+per-axis means and SDs, per-pair n, eigenspectrum; aggregates only,
+derivable from what already publishes) — the single hinge for tst-1,
+since near-zero local correlations defeat both its arguments, and a
+direct test of the D277 shrinkage calibration's independence-drawn
+simulation against shipped data. The earlier three:
+pulse-roster repeat summaries
 (aggregates only, derivable today — the only shipped surface with true
 within-person repeats); era-scoped instrument item instances (honestly
 labelled as a new serving policy, since D5/D86 make instrument repeat
