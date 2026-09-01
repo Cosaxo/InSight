@@ -388,6 +388,22 @@ const monitoringRules = (() => {
   return new Set([...head.matchAll(/^\/\/\s+(\d+)\. /gm)].map((m) => m[1])).size;
 })();
 
+// The political marker's two figures, and the store header's own count of
+// the dynamic-import sites it points a reader at. All three sit in source
+// comments, which is where this repo's figure drift keeps surviving.
+const politicalQuestions = (() => {
+  const arr = bankArray(v2content);
+  return arr.filter((q) => q.political === true && q.surface !== "test").length;
+})();
+const dailyFeedQuestions = (() => {
+  const arr = bankArray(v2content);
+  return arr.filter((q) => q.surface === "daily" || q.surface === "feed").length;
+})();
+const getDbSites = (() => {
+  const src = stripComments(read("src/v2/data/live.ts"));
+  return [...src.matchAll(/await getDb\(\)/g)].length;
+})();
+
 // The anchors MapStats can answer for — the keys of MAP_ANCHOR_DIM, which
 // is the table the refusal is decided by. Two files quote this count in
 // prose and neither is reachable any other way.
@@ -626,6 +642,30 @@ const FIGURES = [
     re: /a notification channel, (\w+) log-based metrics/,
     actual: word(monitoringMetrics),
     fix: (n) => `"a notification channel, ${n} log-based metrics"`,
+  },
+  {
+    file: "src/v2/data/politicalConsent.ts",
+    what: "questions carrying the political marker",
+    re: /is (\d+) questions carrying the political marker/,
+    actual: String(politicalQuestions),
+    fix: (n) => `"is ${n} questions carrying the political marker"`,
+  },
+  {
+    file: "src/v2/data/politicalConsent.ts",
+    what: "the daily+feed corpus that count is read against",
+    re: /out of the\n\/\/ (\d+) on the daily and the feed/,
+    // The RATIO is the sentence's whole point, so both halves have to
+    // follow the bank. This said "ten out of 278" — the first had moved
+    // and the second was wrong when it was written.
+    actual: String(dailyFeedQuestions),
+    fix: (n) => `"out of the\n// ${n} on the daily and the feed"`,
+  },
+  {
+    file: "src/v2/data/live.ts",
+    what: "the dynamic-import sites the store's header sends a reader to",
+    re: /the (\d+) `await getDb\(\)` sites in this file/,
+    actual: String(getDbSites),
+    fix: (n) => `"the ${n} \`await getDb()\` sites in this file"`,
   },
   {
     file: "src/v2/spec/map-group-stats.js",

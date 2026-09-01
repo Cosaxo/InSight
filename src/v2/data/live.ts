@@ -45,7 +45,7 @@
 // be missed.
 //
 // The local `getDb` below is the whole mechanism. It shadows the import
-// deliberately: the 25 `await getDb()` sites in this file did not change
+// deliberately: the 39 `await getDb()` sites in this file did not change
 // either, and a reader who follows one lands here.
 type FsApi = typeof import("firebase/firestore");
 type FnsApi = typeof import("firebase/functions");
