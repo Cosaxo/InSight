@@ -35191,6 +35191,7 @@ collection, no data-inventory row and no erasure phase. Filtering profiles
 is a `listUsers` scan by an operator, not a queryable field on a public
 profile document; `v2_users` is world-readable since D98, and "this account
 is unverified" is not a fact this app needs to publish about a person.
+---
 
 
 ## D344 · Account & privacy moves behind a gear in the profile's corner
@@ -35300,3 +35301,136 @@ so the default mount holds the nudge line and the absence of the dead
 "link Google below"; the linked case flips the flag, claims a handle,
 and asserts the swap. live.ts's observer comment and the fixture's
 `linked` note are updated to stop describing the defect as current.
+## D345 · Play is un-parked on an ENK, and the two code items that had no owner get built
+
+**Date:** 2026-09-01 · **Status:** Adopted (owner-confirmed: *"yes, do both
+and i will go for a ENK"*)
+
+**Decision.** Google Play is no longer deferred.
+[D42](#d42--insight-launches-on-ios-alone-play-is-deferred-and-the-path-to-it-gets-cheaper-while-it-waits)'s
+park is lifted, and it is lifted **onto D41's organization route**: an ENK,
+a D-U-N-S, and a Play Console organization account, which is exempt from
+the closed-testing gate. The two code items that blocked any Android
+artifact at all — release signing and a release workflow — are built here.
+
+**Why this is D41's branch and not the other one.** D42 made D41
+conditional rather than reversing it: organization is right *if Play opens
+before there is an installed base*, and after one the 12×14 gate may be
+satisfiable by asking existing users. The owner chose the ENK, which is the
+before-an-installed-base branch, so **D41 stands in full and nothing in it
+needs re-deriving.** What has moved since D41 was written moves in this
+choice's favour and is recorded because D41's own numbers are now stale:
+the gate is **12 testers, not the 20 it launched at** (Google reduced it in
+December 2024, the 14 continuous days unchanged), and reporting through
+2026 says tester *engagement* is now checked as well as tester count. That
+lowers the count and raises the bar on who counts — which makes the route
+this decision does not take slightly worse, not better.
+
+**D42's unverified link is still unverified, and it is still the one that
+costs money.** Whether Google's organization verification accepts an
+Enhetsregisteret-only ENK or wants what Foretaksregisteret provides. Free
+either way for the ENK itself; ~3,000 kr if it is the latter. **Check it in
+the Play Console account-type flow before paying for a D-U-N-S expedite.**
+Nothing in this record turns on it — the code below is the same either way.
+
+### What was built
+
+- **Release signing** (`android/app/build.gradle`). The release build type
+  had no `signingConfig` at all, so `bundleRelease` produced an unsigned
+  AAB. Invisible for as long as it was true, because CI only ever runs
+  `assembleDebug`, which signs with the debug keystore and says nothing
+  about this path. Values come from the environment first and an untracked
+  `android/keystore.properties` second; **with neither present the release
+  stays unsigned on purpose**, so a clean clone and the `android-build` job
+  D42 kept alive both keep working. `signingConfig` is left null rather
+  than defaulted to debug: a debug-signed AAB is worse than an unsigned
+  one, because it uploads, installs, and can never be updated by a
+  correctly-signed build.
+- **`.github/workflows/play-release.yml`**, the sibling of
+  `ios-release.yml` and much cheaper — ubuntu rather than macOS at 10×, no
+  cloud signing, no provisioning profiles. Dispatch-only for the second of
+  that file's two reasons: the billing one does not apply, the
+  irreversibility one applies harder, because `production` reaches every
+  user at full rollout the moment the edit commits.
+- **`scripts/play-upload.mjs`**, hand-rolled against the Play Developer API
+  v3 with **no dependency at all** — Node 22's `fetch` plus `node:crypto`
+  for the RS256 assertion. The obvious move is a marketplace action, and
+  this tree's bar for those is visible in `ci.yml`, which declined even
+  `gradle/actions/setup-gradle` for "one fewer third-party action to pin
+  and audit". An upload step holds the one credential that can publish to
+  real users; that is the last place to widen it.
+- **`check:store-copy --first-upload`**, for a genuine chicken-and-egg.
+  The assetlinks fingerprint is minted by Play Console → App signing, which
+  has nothing to show until something has been uploaded, so the first Play
+  upload cannot pass a bare check and every upload after it must. The flag
+  excuses that one run, loudly, and is deliberately **separate from
+  `--ios`**: the two excuse the same line for opposite reasons ("not my
+  store" versus "not yet mintable"), and collapsing them would make the two
+  indistinguishable in a log. It fails closed in both directions —
+  forgetting the flag is a red build, and so is forgetting to fill the
+  value afterwards.
+
+### What was measured rather than reasoned
+
+`PLAY-RELEASE.md` §2.6 flagged the 16 KB page-size requirement as the one
+item it could not measure, because neither the Android SDK nor
+`node_modules` was present when it was written. Both were installed and the
+build was run:
+
+- `assembleDebug` — **succeeds** with the signing change in place, so CI's
+  job is unaffected.
+- `bundleRelease` with nothing configured — **succeeds and is unsigned**,
+  which is the designed behaviour, and the configure-time warning prints.
+- `bundleRelease` with a throwaway keystore — **succeeds and carries a
+  signature block**.
+- The bundle carries **three native libraries × four ABIs**: `libsentry.so`
+  and `libsentry-android.so` (predicted) and
+  `libdatastore_shared_counter.so` (not predicted — androidx.datastore).
+  **Every LOAD segment on both 64-bit ABIs reports `0x4000` = 16384**, so
+  the app is 16 KB compliant with no work. That is now a **step in the
+  workflow** rather than a fact in a document, because what makes it true
+  is a dependency version and nothing else would notice it regressing.
+
+The workflow's three artifact assertions were each verified in both
+directions against real bundles — the signature check passes on the signed
+build and fails on the unsigned one; the `google_app_id` check correctly
+reports the config missing here, which is the true state and proves it is
+not a no-op. That last one is deliberately matched on the exact resource
+name: a looser grep for "firebase" passes on a config-less bundle, because
+the SDK ships `firebase_common_keep` in `resources.pb` regardless.
+
+### The follow-up this creates, and it is the owner's
+
+**If the ENK is registered under a business name, `web/terms.html` must be
+revisited.** D41 said this and SHIP-CHECKLIST repeats it: an ENK is not a
+separate legal person, so the operator is still Olaf Taule *unless* it
+trades under a registered name, in which case the operator line should name
+the entity a user is actually contracting with. `check:store-copy` cannot
+tell a correct name from a stale one — it only sees placeholders — so
+nothing in this repo will ever raise it.
+
+**The ENK is not registered yet (owner, 2026-09-01), so the operator line
+is CORRECT as it stands and was deliberately not changed.** Editing it now
+would make it wrong. What was done instead is to put the trigger at the
+line itself: `web/terms.html`'s contact block carries a comment saying why
+the line is right today, what changes when the ENK exists, and that no gate
+can raise either. A document nobody opens while editing HTML was not enough
+— that is the same reasoning as D41's warning, applied to where the warning
+has to be read.
+
+**And a second change nobody had written down, found while doing it.**
+Norway's **ehandelsloven § 8** obliges a provider of information society
+services to state the register it is entered in and its
+**organisasjonsnummer**; a registered ENK must carry that number on its
+website. There is no row for it on the page and there should not be one
+yet — there is no number. But it is not optional the day there is, and it
+is a second edit rather than a variant of the first, which is exactly the
+kind of thing that gets missed when only the name is on the checklist.
+
+### When to revisit
+
+At the first `play-release.yml` dispatch. Nothing in this record has been
+exercised against a real Play account, because there is not one yet — the
+workflow, the uploader's network half, and both secrets are written and
+untested, which is stated here rather than discovered later. Run it with
+`upload=false` first; that exercises everything except the four API calls.
