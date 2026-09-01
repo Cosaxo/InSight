@@ -34379,6 +34379,35 @@ platforms — and its absence was never the real reason the code was not
 written, because a compiler would not have caught the missing nonce
 either. Only a reader would.
 
+### The instrument the flip was missing
+
+D37 makes the flip conditional on two rates, and this record found that
+**both measure the wrong population.** They are computed from
+`activateDeviceV2`'s own logs, so an account that never called it does not
+appear in either — a client below the activation build, a device whose
+bridge was absent (every device, until this record), a boot where the call
+was never reached. Those accounts vote. The flip refuses them. So both
+thresholds could read perfect while most real votes would be silently
+rolled back, which is the exact failure D37 exists to prevent, surviving
+inside D37's own instrument.
+
+`ledgerVelocityScan` now logs **bind coverage** daily at INFO: of the
+accounts that actually voted in the window, how many hold the `db` claim,
+and what share of the window's counted answers came from them. The derived
+figure — `refusedPct` — is the share of real votes the flip would have
+refused had it been on, and it is the number to read on flip day.
+
+It costs nothing: the scan already fetches a `UserRecord` per voting uid
+for the birth-cluster signal, and custom claims ride that record. It flags
+nothing and accuses nobody, so it sits apart from D54's four signals; D54's
+"review, not action" clause is untouched. An unknown uid counts as
+UNBOUND — erased accounts never come back from `getUsers`, and an answer
+that cannot be shown to be bound has not been shown to be bound. The other
+direction would overstate coverage on exactly the day it is trusted.
+
+This does not amend D37's thresholds; it puts a third number in front of
+them, and DEVICE-BIND.md §4 now reads it first.
+
 ### What did NOT ship, deliberately
 
 - **The enforcement flip stays `false`.** D37's sequence is unchanged and

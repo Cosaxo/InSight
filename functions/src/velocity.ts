@@ -236,6 +236,70 @@ export function burstSignal(
   };
 }
 
+// ── bind coverage (D337) — a MEASUREMENT, not a signal ──────────
+//
+// WHAT IT IS. Of the accounts that actually voted this window, how many
+// hold D29's `db` claim, and how many of the window's counted answers came
+// from them. Two ratios, logged at INFO: this flags nothing and accuses
+// nobody, which is why it sits apart from the four signals above.
+//
+// WHY IT EXISTS, and it closes a hole in D37 rather than adding a nicety.
+// D37 makes the enforcement flip conditional on two rates read from
+// `activateDeviceV2`'s own logs: the error rate, and Android's
+// missing-recall rate. Both measure THE ENDPOINT. Neither can see an
+// account that never called it — a client below the activation build, a
+// device whose bridge is absent (which was every device until D337), a
+// boot where the call was never reached. Those accounts vote and are
+// invisible to both numbers, so both thresholds can read perfect while
+// most voters would be refused the moment the flip lands. That is exactly
+// the silent-refusal failure D37 exists to prevent, surviving inside D37's
+// own instrument.
+//
+// This measures the POPULATION THAT MATTERS instead: people who voted.
+// `1 - boundAnswers/answers` is, directly, the share of real votes the
+// flip would have refused had it been on during this window.
+//
+// COST: zero extra reads. The scan already fetches a UserRecord for every
+// uid in the window for the birth-cluster signal, and custom claims ride
+// that record.
+export interface BindCoverage {
+  voters: number;
+  boundVoters: number;
+  answers: number;
+  boundAnswers: number;
+}
+
+/**
+ * `perUid` is the window fold's per-account timestamp lists, so its value
+ * lengths ARE that account's counted answers. `bound` is the subset of
+ * uids whose auth record carries `db == 1`.
+ *
+ * Accounts absent from `bound` include the erased (D28's vote-then-erase
+ * residual — getUsers simply omits them). They count as unbound, which is
+ * the honest direction: an answer that cannot be shown to have come from
+ * a bound account has not been shown to have come from one.
+ */
+export function bindCoverage(perUid: Map<string, number[]>, bound: Set<string>): BindCoverage {
+  let voters = 0;
+  let boundVoters = 0;
+  let answers = 0;
+  let boundAnswers = 0;
+  for (const [uid, times] of perUid) {
+    voters += 1;
+    answers += times.length;
+    if (bound.has(uid)) {
+      boundVoters += 1;
+      boundAnswers += times.length;
+    }
+  }
+  return { voters, boundVoters, answers, boundAnswers };
+}
+
+/** Percent, one decimal, and 0 rather than NaN on an empty window. */
+export function pct(part: number, whole: number): number {
+  return whole === 0 ? 0 : Math.round((part / whole) * 1000) / 10;
+}
+
 export interface WindowFold {
   entries: number;
   perUid: Map<string, number[]>;
@@ -395,11 +459,15 @@ export const ledgerVelocityScan = onSchedule(
     // not appear; their votes still count toward the other signals.
     const uids = [...fold.perUid.keys()];
     const created: { uid: string; createdMs: number }[] = [];
+    // Riding the same fetch: D29's claim lives on the UserRecord this loop
+    // already pulls, so bind coverage below costs no extra call.
+    const boundUids = new Set<string>();
     for (let i = 0; i < uids.length; i += 100) {
       const res = await getAuth().getUsers(uids.slice(i, i + 100).map((uid) => ({ uid })));
       for (const u of res.users) {
         const ms = Date.parse(u.metadata.creationTime);
         if (!Number.isNaN(ms)) created.push({ uid: u.uid, createdMs: ms });
+        if (u.customClaims?.db === 1) boundUids.add(u.uid);
       }
     }
     const clusters = birthClusters(created);
@@ -438,6 +506,26 @@ export const ledgerVelocityScan = onSchedule(
     }
 
     await stateRef.set({ lastScanAt: maxAt, days: pruneDays(merged) });
+
+    // Bind coverage (D337). INFO, and stated as the flip question it
+    // answers rather than as two bare ratios — the number an operator
+    // needs on flip day is "what share of real votes would this have
+    // refused", and a reader should not have to do the subtraction while
+    // deciding.
+    const cov = bindCoverage(fold.perUid, boundUids);
+    logger.info(
+      `[velocity] bind coverage: ${cov.boundVoters}/${cov.voters} voters (${pct(cov.boundVoters, cov.voters)}%) `
+        + `and ${cov.boundAnswers}/${cov.answers} answers (${pct(cov.boundAnswers, cov.answers)}%) are device-bound — `
+        + `flipping deviceBindEnforced today would have refused ${pct(cov.answers - cov.boundAnswers, cov.answers)}% of this window's votes`,
+      {
+        metric: "bind_coverage",
+        voters: cov.voters,
+        boundVoters: cov.boundVoters,
+        answers: cov.answers,
+        boundAnswers: cov.boundAnswers,
+        refusedPct: pct(cov.answers - cov.boundAnswers, cov.answers),
+      },
+    );
 
     // The heartbeat — the scheduledDuelReveals pattern: the message is
     // what a human greps, the fields are what a log-based metric would

@@ -13,6 +13,10 @@ import {
   CADENCE_MIN_N,
   CLUSTER_MIN,
   CLUSTER_WINDOW_MS,
+  PULSE_BANK_SIZE,
+  VOLUME_CEILING,
+  WINDOW_MAX_DAYS,
+  bindCoverage,
   birthClusters,
   burstSignal,
   cadenceSignal,
@@ -20,10 +24,8 @@ import {
   foldInto,
   foldWindow,
   isAggregateSurface,
-  PULSE_BANK_SIZE,
-  VOLUME_CEILING,
-  WINDOW_MAX_DAYS,
   mergeDays,
+  pct,
   pruneDays,
   type DayCounts,
   type LedgerRow,
@@ -317,5 +319,65 @@ describe("window fold and state", () => {
     expect(Object.keys(pruned)).toHaveLength(7);
     expect(Object.keys(pruned).sort()[0]).toBe("2026-08-06");
     expect(pruned["2026-08-12"]).toEqual({ q: 12 });
+  });
+});
+
+// Bind coverage (D337) — the number D37's two thresholds cannot see.
+//
+// D37 gates the enforcement flip on rates read from activateDeviceV2's own
+// logs. Both measure the ENDPOINT, so an account that never called it —
+// old build, missing bridge, a boot that never reached the call — is
+// invisible to both while still voting. This measures the voting
+// population instead, which is the one the flip actually refuses.
+describe("bindCoverage", () => {
+  const fold = (m) => new Map(Object.entries(m));
+
+  it("counts voters and their answers separately, because they differ", () => {
+    // The distinction is the whole point: one bound account answering
+    // thirty times and thirty unbound answering once each is 3% of voters
+    // and 50% of answers. Reporting only the voter ratio would call that
+    // window catastrophic; only the answer ratio would call it fine.
+    const cov = bindCoverage(
+      fold({ heavy: Array(30).fill(0), ...Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`u${i}`, [0]])) }),
+      new Set(["heavy"]),
+    );
+    expect(cov).toEqual({ voters: 31, boundVoters: 1, answers: 60, boundAnswers: 30 });
+    expect(pct(cov.boundVoters, cov.voters)).toBe(3.2);
+    expect(pct(cov.boundAnswers, cov.answers)).toBe(50);
+  });
+
+  it("treats an unknown uid as unbound — the honest direction", () => {
+    // Erased accounts (D28's vote-then-erase residual) never come back
+    // from getUsers, so they are absent from the bound set. An answer that
+    // cannot be SHOWN to be bound has not been shown to be bound; the
+    // alternative reads coverage as higher than it is, on flip day.
+    const cov = bindCoverage(fold({ a: [1], gone: [1, 2] }), new Set(["a"]));
+    expect(cov.boundAnswers).toBe(1);
+    expect(cov.answers).toBe(3);
+  });
+
+  it("is 100% when every voter is bound, and 0% when none is", () => {
+    expect(bindCoverage(fold({ a: [1], b: [2] }), new Set(["a", "b"])))
+      .toEqual({ voters: 2, boundVoters: 2, answers: 2, boundAnswers: 2 });
+    expect(bindCoverage(fold({ a: [1], b: [2] }), new Set()))
+      .toEqual({ voters: 2, boundVoters: 0, answers: 2, boundAnswers: 0 });
+  });
+
+  it("reports an empty window as zero rather than NaN", () => {
+    // A quiet day must not log "NaN% of votes would be refused" — the flip
+    // decision is read off this line, and NaN reads as broken instrumentation
+    // exactly when the honest answer is "nothing happened".
+    const cov = bindCoverage(new Map(), new Set());
+    expect(cov).toEqual({ voters: 0, boundVoters: 0, answers: 0, boundAnswers: 0 });
+    expect(pct(cov.boundAnswers, cov.answers)).toBe(0);
+    expect(Number.isNaN(pct(0, 0))).toBe(false);
+  });
+
+  it("rounds to one decimal, so a third of a percent does not read as zero", () => {
+    expect(pct(1, 3)).toBe(33.3);
+    expect(pct(1, 1000)).toBe(0.1);
+    // Below a tenth of a percent it does read as zero, which is accepted:
+    // the flip decision does not turn on the fourth significant figure.
+    expect(pct(1, 100000)).toBe(0);
   });
 });

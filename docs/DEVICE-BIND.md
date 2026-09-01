@@ -203,6 +203,31 @@ are the fleet numbers, and they guard two different failures — one is
 "we are refusing honest users", the other is "we are not actually stopping
 the attack". Both must pass; neither substitutes for the other.
 
+**Read the third number FIRST (D337), because the two below cannot see
+the failure they exist to prevent.** Both are computed from
+`activateDeviceV2`'s own logs, so both measure THE ENDPOINT. An account
+that never called it is invisible to both — a client below the activation
+build, a device with no bridge (which was every device until D337), a boot
+where the call was never reached. Those accounts vote, and the flip
+refuses them. So both rates can read perfect while most real votes would
+be refused, which is precisely the silent-refusal failure this section
+exists to prevent, hiding inside the instrument meant to prevent it.
+
+`ledgerVelocityScan` now logs the population that actually matters, daily,
+at INFO, from the Auth records it already fetches:
+
+```bash
+gcloud logging read \
+  'resource.labels.service_name="ledgervelocityscan" AND jsonPayload.metric="bind_coverage"' \
+  --project prvfire33 --limit 7 --format='value(jsonPayload.refusedPct,jsonPayload.boundAnswers,jsonPayload.answers)'
+```
+
+`refusedPct` is, directly, the share of that window's real votes the flip
+would have refused. **It must be at or near zero before flipping** — that
+is the gate, and the two rates below are the diagnostics for why it is
+not. A coverage number that will not climb means activation is failing
+somewhere the endpoint's own logs do not show.
+
 | | Threshold | What failing it means |
 | --- | --- | --- |
 | **Error rate** — DeviceCheck/Play failures ÷ all `activateDeviceV2` invocations, over 24h | **< 1%**, and **zero** `DeviceCheck auth rejected` | Honest users on capable builds would be refused. `auth rejected` is always a misconfigured key, never a device condition, so its threshold is zero rather than small. |
