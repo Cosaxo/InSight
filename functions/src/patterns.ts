@@ -123,7 +123,9 @@ export interface PatternsStore {
     model: PatternsModel,
     lastDay: string,
     folded: number,
-    quality: PatternsQuality,
+    /** Absent when the run has no head to score and no prior to carry —
+     *  see the fold's own note. A doc predating D325 has none either. */
+    quality: PatternsQuality | undefined,
     displacement: PatternsDisplacement,
   ): Promise<void>;
   getUsers(uids: string[]): Promise<Map<string, PatternsUserState>>;
@@ -304,12 +306,25 @@ export async function runPatternsFit(
   // advancing would re-walk them forever, since every user is stamped — so
   // the previous publish is carried forward untouched rather than replaced
   // by a row about nothing.
+  // NOTHING, not an invented day, when there is no head AND no previous
+  // publish. This read `prevQuality ?? publishableQuality([{ day:
+  // yesterday, score: emptyDayScore() }], …)`, which manufactures exactly
+  // the "nobody answered" row the drop above exists to suppress — and it
+  // is reachable: a FIRST-EVER run that folds the whole catch-up window
+  // and dies before putModel leaves every entry stamped as folded and no
+  // model published, so the retry drops every day and has no prior to
+  // carry forward.
+  //
+  // `quality` is already optional on the way back out (the store's own
+  // getter types it `quality?`), because a loadings doc predating D325 has
+  // none. Publishing without one is therefore a state readers handle, and
+  // it is the honest one: the fit has nothing to say about this run.
   const quality = scored.length
     ? publishableQuality(scored, priorSeries)
-    : (prevQuality ?? publishableQuality([{ day: yesterday, score: emptyDayScore() }], priorSeries));
+    : prevQuality;
   const displacement = displacementSummary(prevPub, model);
   await store.putModel(model, yesterday, folded, quality, displacement);
-  return { days: days.length, folded, users: touched.size, questions: Object.keys(model.q).length, bits: quality.bits };
+  return { days: days.length, folded, users: touched.size, questions: Object.keys(model.q).length, bits: quality?.bits ?? 0 };
 }
 
 /** The Firestore store. State lives in two places, each chosen for its
@@ -362,7 +377,9 @@ export function firestorePatternsStore(db: Firestore): PatternsStore {
         // displacement. Zero extra reads, zero extra writes; the client
         // reads only `k` and `q` and ignores both until something is
         // built to draw them.
-        quality,
+        // Omitted rather than written as undefined: this is a `set` with
+        // merge, and an undefined field value is rejected outright.
+        ...(quality ? { quality } : {}),
         displacement,
       });
       // ── the mount signal (D265) ──────────────────────────────────
