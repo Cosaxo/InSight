@@ -35434,3 +35434,158 @@ exercised against a real Play account, because there is not one yet — the
 workflow, the uploader's network half, and both secrets are written and
 untested, which is stated here rather than discovered later. Run it with
 `upload=false` first; that exercises everything except the four API calls.
+
+## D346 · The review lane: every second night, every axiom lane's work is scored and told how to be more useful
+
+**2026-09-01.** **Status:** binding — the owner's ask in their own
+words (*"lets also add a system that scores the different axiom work
+each 2 night and leaves feedback on how it could be even more useful,
+innovative, effective or other relevant score"*), recorded here
+because, as with D326, the account-side half lives nowhere else in this
+tree. Written on `claude/axioms-1v1-group-profiles-70lkd7`; main mints
+numbers while a branch is open, so the standing collision pattern
+(D289) may renumber it at merge.
+
+### What was built
+
+A tenth lane on `axiom-theory`, **review**, in the charter's own
+grammar rather than as a report bolted on — `CHARTER.md` §12, chartered
+2026-09-01:
+
+- **The instrument.** `theory/review/RUBRIC.md` v1: six dimensions,
+  each 0–10 with shared anchors (0 nothing landed · 4 the charter's
+  minimum met honestly · 6 an advance another lane could use · 8 one
+  another lane DID use, or `measured` on InSight's own numbers · 10
+  reserved for a bridge crossing or a sibling claim overturned by
+  evidence). The three the owner named — useful, innovative, effective
+  — plus the three the charter's own clauses add — rigorous, connected,
+  legible. Each is a charter clause turned into a count, and **a score
+  without its evidence line is not a score**.
+- **The spot-check.** At least two risen `cited` sources per lane
+  fetched and read each review; a source that does not exist or does
+  not say what the node claims is named by node id and lowers
+  Rigorous. The lanes verify their own citations already; a reviewing
+  pass that shares its generator's tilt cannot see what the generator
+  could not (D162), so this is the lane's highest-value act.
+- **The feedback contract.** Each review rewrites
+  `theory/<lane>/FEEDBACK.md`: the scores with their evidence, whether
+  the previous feedback was acted on, and at most three items, each
+  actionable within one run and naming the dimension it would move.
+  Charter §3 now reads it in Orient and answers it in the LOG row
+  (`feedback: took …; declined … (why)`); the next review scores the
+  response. A reasoned decline is never marked down, and three reviews
+  of reasoned declines are evidence against the rubric (§11's new
+  review-drift rule) — the reviewer's own falsifier. The optimizer's
+  own finding is why it is a file in the lane's directory rather than
+  a table elsewhere: across fresh-session lanes, nothing converges
+  without an active channel (go-10).
+- **The ledger.** `scores.json`, rendered as `SCORES.md` beside the
+  digest; central's weekly digest carries the latest table (§6). The
+  ratchet applies: a review that changes no score says so.
+- **Mechanics.** `graph/check.mjs` gains the lane and its one
+  cross-workspace write (every lane's `FEEDBACK.md`, nothing else);
+  `graph/SCHEMA.md` the `rev` prefix; the workspace its five files
+  plus the rubric and ledger; nine `FEEDBACK.md` files seeded; the
+  charter's §2, §3, §6, §7, §10 and §11 amended. `node graph/check.mjs
+  --all`: ten graphs, one hundred nodes, green.
+
+### Delivery state, recorded honestly
+
+- **The Routine is live**: `trig_01P1aDKgDhab3yLeCrYn3TAt`, schedule
+  `2 2 1-31/2 * *` (02:02 UTC on odd dates, six hours before the
+  earliest lane slot, so every lane's next run reads feedback that
+  already covers its latest landed run), bound to the dispatcher like
+  every lane, same tool grants, first firing 2026-09-03 02:02 UTC. The
+  prompt carries central's provisioning preamble and a guard: if the
+  charter does not list the lane or the rubric is missing, stop and
+  report — no improvised review.
+- **The charter amendment landed on the owner's word** (*"land it"*, the same evening): `fa2de8e` on `axiom-theory`, a fast-forward from `f759260`, pushed after the checker ran green on the rebased tip. It was staged first on `claude/axiom-theory-review-70lkd7` rather than pushed, because a change to a lane's contract passes the owner (D289 §4: *"no run ever merges a change to any lane's contract"*) — the staging branch was the vehicle; its one commit is now the branch tip, and the branch itself stays on origin only because this environment's git proxy refused the delete — identical to the tip, safe to remove from GitHub whenever. The first firing therefore finds the lane chartered; the prompt's guard is for a future charter that drops it, not for this one.
+- **Cost**: roughly half to one theory run per review (~$10–20), ≈ 15
+  a month, under the owner's standing call that budget is not this
+  program's constraint.
+
+**Not adopted here:** any change to the nine lanes' subjects; a rubric
+bump (the review lane's own graph is where one is argued); and the
+Ties and Interests lanes proposed in `docs/AXIOM-THEORY.md`'s
+2026-09-01 reflection, which wait on the owner's word.
+
+## D347 · Ties and Interests are chartered: the relational axis gets its row and its lane, and the interests axis gets the lane it never had
+
+**2026-09-01.** **Status:** binding — the owner's word (*"charter the
+ties and interests lanes too"*), adopting the same day's reflection in
+`docs/AXIOM-THEORY.md` (its §1 and §2 hold the arguments; this record
+holds what was done). Written on
+`claude/axioms-1v1-group-profiles-70lkd7`; the standing collision
+pattern (D289) may renumber it at merge.
+
+### The two lanes
+
+- **Ties** (`theory/ties/`, ids `tie-`): the relational axiom — the
+  data whose unit is a tie rather than a person: the 1v1 and group
+  duel record, the membership store, the follow graph. Seeded with
+  seven claims: the tie as unit; the guess as a key-scored
+  second-person measurement that decomposes into perceiver, target
+  and relationship variance; knowledge against projection; picks as
+  nominations, with the unbuilt `cast` (D204) read as a sociometric
+  status score awaiting its floor; homophily on chosen ties, which
+  subsumes central's own second-ranked candidate; and two conjectures
+  — tie type, and reading the crowd as the same family at crowd scale.
+  Slot 13:02 UTC on odd dates; Routine
+  `trig_01PjG2bW3zK3GTgnfaYTjQky`; first firing 2026-09-03.
+- **Interests** (`theory/interests/`, ids `int-`): the axis AXES-PLAN
+  §1 listed with no lane. Seeded with six claims: three custody
+  classes and which of them is the measurement; the missing
+  inventory-grade collection as a governed-process decision (the
+  bridge's 2026-08-28 not-yet located the gap); the genetic deepening
+  restated from gen-3 with the edge as its citation; fitted, never
+  authored, structure; and two conjectures — native occasions, and
+  declared against revealed. Slot 14:02 UTC on odd dates; Routine
+  `trig_01HUHXnMT6xAiEaurLxeBJNq`; first firing 2026-09-03.
+
+### The frame moves with them
+
+AXES-PLAN §1's table gains its seventh row — Ties, custody sealed-until
+then public — and the Questions row stops carrying duels. The paragraph
+beneath that table had named sealed-until as one of the app's four
+custody classes from the day the file was written, and no row owned it;
+the reflection's finding is now structural. Nothing in the app moves:
+the axis was already shipped, only unnamed.
+
+### Delivery
+
+- Landed on `axiom-theory` as `ffdf2ae`, a fast-forward from D346's
+  `fa2de8e`, on the owner's word — the posture D346's landing set;
+  checker green at twelve graphs. Charter §2 (twelve lanes, two rows),
+  §10 (slots, ids, five to six runs a day) and §12 (the review reads
+  every workspace) amended; `graph/check.mjs` and `graph/SCHEMA.md`
+  carry the lanes and the `tie`/`int` prefixes; both workspaces carry
+  the review lane's `FEEDBACK.md` seed, so D346's review covers them
+  from its first firing — it reads the charter's table, not a list of
+  its own.
+- Both Routines are dispatcher-bound like every lane, with the same
+  tool grants and central's provisioning preamble, the §3 run shape,
+  a first-hand reading list on `main` (this record, D204, D156, D40,
+  D224, D310 and `data/roles.ts` for Ties; D163, D101, D14–D17, D232,
+  D266 and the not-yet verdict for Interests), and the guard: stop if
+  the charter does not list the lane.
+- **One drift, recorded rather than hidden.** Both prompts cite this
+  record by the number it carried on the branch, D343 — which is now
+  main's account-requirement record. Prompt edits on a Routine that
+  fires into the dispatcher's session are refused by the tooling (the
+  D326 finding, met again), so the fix is D326's recreate-then-delete,
+  taken at the owner's go-ahead rather than by a run. Tolerable in the
+  meantime by the charter's own design: it outranks the prompt and is
+  re-read every run, the seeds on the branch cite this record by title
+  (`d509851`), and a lane that opens D343 finds a record about accounts
+  and moves on.
+- Cost: two more theory runs every other day, about $600 a month more;
+  twelve lanes, five to six runs a day plus the review at night. The
+  dispatcher backlog the 2026-09-01 digest reported is the thing to
+  watch, and charter §11's cadence dial is the fix.
+
+**Not adopted here:** time-use (stays inside central until its cheap
+test runs), the anchors and Learn (focus questions to the questions
+lane), and any product change — every product-side item the Ties lane
+is expected to ask for (the `cast` fold, a perceiver/target summary
+over public reveals, the romantic pool's activation, homophily over
+the follow graph) arrives through the bridge and its own record.
