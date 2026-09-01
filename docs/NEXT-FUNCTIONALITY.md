@@ -642,8 +642,10 @@ displays disclosed content and opens a URL, it still runs no checkout).
 
 **Not doing, restated:** facial symmetry; genetics under the current
 posture; weight/BMI without its own record; current events on the daily
-surface (blocked on an epoch-safe retire design D97 already names);
-farm-authored current events.
+surface (blocked on an epoch-safe retire design D97 already names).
+~~Farm-authored current events~~ — reversed at D343: the now lane
+writes them, from stories found by searching and corroborated across
+outlets, never from memory.
 
 ## 8 · The design handoff — what needs a designed visual, what does not
 

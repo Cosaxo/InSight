@@ -397,33 +397,40 @@ const ALLOW = new Map([]);
 // a silently truncated bank fetch) are invisible at the moment they land.
 export const DAILY_ID_WARN = 900; // of 999 — check-content pins /^daily-\d{3}$/
 export const DAILY_ID_FAIL = 970; // an id-scheme decision is due before 999
-// Bank headroom. These guarded live.ts's `limit(1500)` until D161 paged
-// that fetch, at which point the ceiling they watched stopped existing —
-// so they were re-pointed rather than deleted, because the NEXT silent
-// ceiling wants the same alarm at a different number. Re-pointed a THIRD
-// time at D312: the localStorage quota cliff they watched second is gone
-// too — the bank cache lives in IndexedDB rows now (data/cacheStore.ts),
-// where these sizes are nothing — exactly as BANK-DELIVERY §3's closing
-// rule said to do rather than deleting them.
+// Install headroom (D342 amendment, 2026-09-01). These guarded live.ts's
+// `limit(1500)` until D161 paged that fetch, then the localStorage quota
+// (gone at D312), then "every cached row read into memory each boot" —
+// counted as the SEEDED bank, which after D320/D321 is the wrong quantity:
+// the bank is not what a device holds. The owner's question that retired
+// the count: "does youtube have a limit to how many videos can exist or
+// twitter how many tweets?" A bank-size FAILURE was a question limit in
+// everything but name, and the constant is gone.
 //
-// What they watch now is what remains of BANK-DELIVERY §4 after the
-// paged read path (D320/D321): the INSTALL fetch no longer scales with
-// the bank — a fresh device takes the boot surfaces, the feed's core
-// and a page per topic — but a device's MEMORY still holds every row
-// its cache has accumulated, and hydrate reads all of them each boot
-// (the feed pool, the topic counts, search, the test joins walk that
-// memory). There is no hard cliff at these numbers, which is why they
-// kept their values: they are the size at which "hold everything a
-// device has ever met in memory" wants re-arguing on a low-end phone
-// rather than assumed, comfortably before it becomes an incident.
-// checkHeadroom() still derives bytes-per-document from the seed itself
-// so the message moves when the documents do.
+// What every fresh device IS handed whole — the boot surfaces (daily, test,
+// group, duo, pulse, call) plus the feed's core (D321: "core ships whole,
+// always") — is the install fetch, and that is what INSTALL_WARN watches:
+// a WARNING, never an error, at the size where a fresh install's first
+// fetch wants re-arguing (about 1 MB at the seed's measured bytes per
+// document; ~460 docs today, moving at the daily's promotion pace and the
+// core's curation, so years out). The paged surfaces — learn and the feed
+// tail — are not counted: a device fetches them a page at a time. What a
+// device ACCUMULATES over months of paging is a device-side design (an
+// eviction rule for unanswered pages — BANK-DELIVERY §4, D342 amendment),
+// not a number a content gate can hold, and never a reason to stop
+// writing questions. checkHeadroom() still derives bytes-per-document
+// from the seed itself so the message moves when the documents do.
 // D162's sampled audit: one AI-reviewed question in this many gets read by
 // a person. A starting figure, not a measured one — move it with what the
 // audit actually finds.
 export const AUDIT_ONE_IN = 20;
-export const BANK_WARN = 6000;
-export const BANK_FAIL = 10000;
+export const INSTALL_WARN = 4000;
+export const INSTALL_SURFACES = new Set(["daily", "test", "group", "duo", "pulse", "call"]);
+
+/** How many seed rows a fresh device is handed whole: the boot surfaces
+ * plus the feed's core (D321). The paged surfaces are not in it. */
+export function installDocs(rows) {
+  return rows.filter((q) => INSTALL_SURFACES.has(q.surface) || (q.surface === "feed" && q.core === true)).length;
+}
 
 // ── corpus loading (the cross-read pattern promote/neighbors/scorecard use) ──
 function extractLiteral(src, marker, at, openChar = "[", closeChar = "]") {
@@ -1449,37 +1456,32 @@ export function checkHeadroom(corpus) {
   }
 
   const v2content = readFileSync(join(root, "functions", "src", "v2content.ts"), "utf8");
-  const bankSize = (v2content.match(/"id":\s*"[^"]+"/g) || []).length;
   // Measured, not assumed: the same wire-size scan check-figures runs, so
   // the estimate moves when the documents do (adding `core` to 82 entries
   // moved it by ~1 KiB and check:figures caught that on COSTS.md).
-  const bankBytes = (() => {
-    try {
-      return JSON.stringify(bankArray(v2content)).length;
-    } catch {
-      // The fallback stays, and the comment it used to carry was too
-      // relaxed about it: this path reports an INVENTED wire size rather
-      // than failing, so a parser that quietly stopped working would move
-      // a documented figure with nothing to show for it. That is exactly
-      // what happened when V2_ADS arrived (D197) — the other two copies
-      // of this scan crashed and this one silently guessed. It survives
-      // because a scorecard is not worth crashing a gate over; the scan
-      // itself now lives in one place so it cannot half-break again.
-      return bankSize * 250;
-    }
-  })();
-  const cacheMB = (n) => ((bankBytes / Math.max(bankSize, 1)) * n / 1024 / 1024).toFixed(1);
-  if (bankSize >= BANK_FAIL) {
-    errs.push(
-      `seeded bank holds ${bankSize} docs ≈ ${cacheMB(bankSize)} MB — past the point where a device holding `
-      + "its whole cache in memory was last argued (BANK-DELIVERY §4). The install fetch is paged since "
-      + "D320/D321, but every cached row is still read into memory each boot; decide the in-memory design "
-      + "before promoting more, rather than after a low-end phone reports it.",
-    );
-  } else if (bankSize >= BANK_WARN) {
+  let rows = null;
+  try {
+    rows = bankArray(v2content);
+  } catch {
+    // The fallback stays, and the comment it used to carry was too
+    // relaxed about it: this path reports an INVENTED wire size rather
+    // than failing, so a parser that quietly stopped working would move
+    // a documented figure with nothing to show for it. That is exactly
+    // what happened when V2_ADS arrived (D197) — the other two copies
+    // of this scan crashed and this one silently guessed. It survives
+    // because a scorecard is not worth crashing a gate over; the scan
+    // itself now lives in one place so it cannot half-break again.
+    rows = null;
+  }
+  const bankSize = rows ? rows.length : (v2content.match(/"id":\s*"[^"]+"/g) || []).length;
+  const bankBytes = rows ? JSON.stringify(rows).length : bankSize * 250;
+  const mb = (n) => ((bankBytes / Math.max(bankSize, 1)) * n / 1024 / 1024).toFixed(1);
+  const install = rows ? installDocs(rows) : 0;
+  if (install >= INSTALL_WARN) {
     warn.push(
-      `seeded bank at ${bankSize} docs ≈ ${cacheMB(bankSize)} MB — the install fetch is paged (D320/D321), `
-      + "but a device still holds every cached row in memory; that design wants re-arguing before this doubles",
+      `a fresh install is handed ${install} docs whole ≈ ${mb(install)} MB (the boot surfaces plus the feed's core) — `
+      + "the first fetch wants re-arguing before this doubles (BANK-DELIVERY §4). The paged surfaces are not "
+      + "counted, and no bank size fails this gate (D342 amendment)",
     );
   }
   return { errs, warn };

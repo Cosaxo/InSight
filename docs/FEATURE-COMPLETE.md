@@ -140,12 +140,14 @@ the live figures: `node scripts/farm-budget.mjs`,
   `content/pulse-questions.json` carries all five (pace, energy, sleep,
   focus, social) through the ordinary content gates.
   [`VISION-V28.md`](VISION-V28.md) §3.
-- **Event topics** (proposed only): `content/event-topics.json`, the
-  discussion-window rules arm, the feed card, editorial first topics,
-  then a farm lane with its two new rules (a named published source
-  found by searching, never memory; personal angle, honest `political`
-  flag). No code exists; building any phase graduates to a decision.
-  [`EVENT-DISCUSSIONS.md`](EVENT-DISCUSSIONS.md).
+- **Event topics** (proposed, half taken): the thread surface —
+  `content/event-topics.json`, the discussion-window rules arm, the
+  feed card — has no code. Its farm lane's two rules (a named published
+  source found by searching, never memory; personal angle, honest
+  `political` flag) are BUILT for the `now` topic at D343 as the now
+  lane, sized to what a session can reach: two outlets, a week old,
+  cited in the PR body. [`EVENT-DISCUSSIONS.md`](EVENT-DISCUSSIONS.md),
+  [`QUESTION-FARM.md`](QUESTION-FARM.md) § The now lane.
 - **Standing constraints**: no place-scoped civic questions from any
   lane (paid inventory — hard rule 6); `rates:` questions are editorial
   only (D187); sponsored content is tail-only and never farm-written

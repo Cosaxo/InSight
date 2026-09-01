@@ -42,11 +42,12 @@
 //                      one argument per question as before. Lower it the
 //                      day a batch merges with a dupe the re-read should
 //                      have caught; it is one constant. What it costs is
-//                      recorded at D342: at sixty a day the seeded bank
-//                      reaches check:quality's BANK_WARN in about three
-//                      months and BANK_FAIL in about five — the in-memory
-//                      design that tripwire asks for is the decision owed
-//                      before then, and it is a device change, not a cap.
+//                      recorded at D342: a device's install is O(core +
+//                      pages) whatever the bank (D321), the nightly order
+//                      fold is a night's ordinary work at these sizes, and
+//                      the only bank-size gate left is a WARNING on what a
+//                      fresh install is handed whole (INSTALL_WARN, D342
+//                      amendment) — no bank size fails a gate.
 //   TOPIC_FLOOR  = 24  servable questions every topic reaches BEFORE any
 //                      budget goes to demand — the breadth bound, kept at
 //                      D213's level: a reader who filters to a topic meets
@@ -147,11 +148,11 @@ export { BATCH_TOPIC_SHARE };
 // card still covers its topic for a reader.
 export const SERVABLE_TYPES = new Set(["vote", "rank", "dial", "field", "path"]);
 
-// Topics this lane may not write into (D231). `now` is the current-events
-// lane, and it is EDITORIAL by design — docs/NEXT-FUNCTIONALITY.md §1 ends
-// its "not doing" list with "farm-authored current events", because
-// timeliness needs a human and a news question written by an unsupervised
-// job is the thing the farm's governance exists to prevent.
+// Topics this lane may not write into (D231, re-homed at D343). `now` is
+// the current-events lane's OWN — a scheduled run that FINDS its stories
+// by searching, corroborated across outlets, never from memory
+// (QUESTION-FARM.md § The now lane) — and this regulator has no source
+// rule, so a `now` question written here would be news from memory.
 //
 // The exclusion has to live HERE rather than in the run's instructions,
 // because the regulator would otherwise recruit the lane by arithmetic: a

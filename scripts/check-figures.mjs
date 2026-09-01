@@ -186,6 +186,7 @@ const learnConst = constFrom("scripts/learn-budget.mjs");
 // not less: a manual quoting a bigger number than the script computes is the
 // one way a run could be told to spread the crowd thinner than the design says.
 const feedConst = constFrom("scripts/feed-budget.mjs");
+const nowConst = constFrom("scripts/now-budget.mjs");
 // The duel regulator's constants (D213), same reasoning as the other three
 // lanes': the duel section is what a scheduled run obeys.
 const duelConst = constFrom("scripts/duel-budget.mjs");
@@ -1006,6 +1007,36 @@ const FIGURES = [
     re: /no older than \*\*(\d+) days\*\*/,
     actual: feedConst("DEMAND_STALE_DAYS"),
     fix: (n) => `"no older than **${n} days**"`,
+  },
+  // The now lane's four figures (D343), quoted in § The now lane: the cap,
+  // the open-PR ceiling, and the two halves of the source rule.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the now lane's per-run cap (NOW_CAP)",
+    re: /\*\*(\d+) current-events questions per run\*\*/,
+    actual: nowConst("NOW_CAP"),
+    fix: (n) => `"**${n} current-events questions per run**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the now lane's open-PR ceiling (OPEN_MAX)",
+    re: /\*\*(\d+)\*\* unreviewed questions on the now lane's open PR/,
+    actual: nowConst("OPEN_MAX"),
+    fix: (n) => `"**${n}** unreviewed questions on the now lane's open PR"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the now lane's corroboration bar (SOURCES_MIN)",
+    re: /at least \*\*(\d+) independent outlets\*\*/,
+    actual: nowConst("SOURCES_MIN"),
+    fix: (n) => `"at least **${n} independent outlets**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the now lane's freshness bound (FRESH_DAYS)",
+    re: /published within the last \*\*(\d+) days\*\*/,
+    actual: nowConst("FRESH_DAYS"),
+    fix: (n) => `"published within the last **${n} days**"`,
   },
   // The three duel-lane figures (D213), quoted in § The duel lane.
   {

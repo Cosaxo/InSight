@@ -181,7 +181,9 @@ lever is the core/tail split's corpus, never a cache eviction.
 
 `BANK_WARN`/`BANK_FAIL` stay where they are for the bank, per
 `BANK-DELIVERY.md` §3's closing rule, and get re-pointed at the new
-store's real budget when the move lands.
+store's real budget when the move lands. (Re-pointed once more at
+D342's amendment, 2026-09-01: `INSTALL_WARN`, a warning on what a fresh
+install is handed whole; no bank size fails a gate.)
 
 ## 3 · Ceiling 2 — a life's archive on one device
 

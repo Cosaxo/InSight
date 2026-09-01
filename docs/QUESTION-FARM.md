@@ -1025,22 +1025,22 @@ Rules, each load-bearing:
   grotesque in the week of an attack — "is airport security theatre?" is
   the clean example — and no gate can see the week. Judged false positives
   go in `ALLOW` under `tragedy`, with the reason.
-- **`now` is not this lane's to write** (D231). "Happening now" is the
-  current-events topic, and it is EDITORIAL: timeliness needs a person,
-  and a news question written by an unsupervised run is what this
-  document's governance exists to prevent. The exclusion is arithmetic
-  rather than instruction — `LANE_EXCLUDED` in `scripts/feed-budget.mjs`
-  keeps the topic out of the fold entirely, so it never appears in an
-  allocation and the run never has to remember. It is there because the
-  regulator would otherwise argue the other way every single run: a
-  brand-new topic is the largest deficit in the taxonomy, so
-  thinnest-first would point at it forever. A `now` question also carries
-  a `from`/`until` window with its own bounds and its own batch rule
-  (`check:quality`), and refuses prediction-shaped prompts — see D231
-  before writing one under an explicit instruction that lifts this rule.
+- **`now` is not this lane's to write** (D231, re-homed at D343).
+  "Happening now" is the current-events topic, and it has its own lane
+  with the one rule this lane lacks — every story FOUND by searching at
+  run time, never from memory (§ The now lane). The exclusion is
+  arithmetic rather than instruction — `LANE_EXCLUDED` in
+  `scripts/feed-budget.mjs` keeps the topic out of the fold entirely, so
+  it never appears in an allocation and the run never has to remember.
+  It is there because the regulator would otherwise argue the other way
+  every single run: a brand-new topic is the largest deficit in the
+  taxonomy, so thinnest-first would point at it forever — and once it
+  had answers, demand would. A `now` question also carries a
+  `from`/`until` window with its own bounds and its own batch rule
+  (`check:quality`), and refuses prediction-shaped prompts — D231.
 
-  Two rules for the editorial run that writes it, both from the owner's
-  2026-08-24 read of the shipped six (D281):
+  Two rules for the run that writes it (§ The now lane), both from the
+  owner's 2026-08-24 read of the shipped six (D281):
 
   **Give the story the options it actually has.** All six of the first
   batch were binary, and nothing made them so — the feed's own bank
@@ -1264,6 +1264,88 @@ authored branch share `p`, because live the crowd is the aggregate.
 - Budget: a story counts inside the lane's ≤6/run and should be rare —
   one slot, and a story replaced before its tree has a crowd is a reveal
   nobody got to see.
+
+## The `now` lane (D343 — current events, found by searching, never from memory)
+
+`now` questions live in `content/feed-questions.json` under the
+"Happening now" topic (D231): a vote with a `from`/`until` window, a
+`bg` of durable facts (D281), `core: false` always, and it stops being
+asked when the window closes. Until D343 the topic was editorial — D231
+§6: "timeliness needs a human." The owner reversed that on 2026-09-01
+with one condition, *"should be made by claude but should be finding
+news from some other source"*, and that condition is this lane's whole
+character: **a story exists outside the model or it does not exist.**
+**A Routine fires this lane** (daily — the inventory under Governance
+carries the schedule). Single gate, like the feed: a merged question is
+a served question. Rules, each load-bearing:
+
+- **Start every run with `npm run now:budget -- --open <questions on the
+  open lane PR>`** (D343). The budget is up to
+  **6 current-events questions per run**, less whatever sits unreviewed
+  on the lane's open PR, and the only zero is
+  **6** unreviewed questions on the now lane's open PR (a gate refused a
+  batch — fix it, do not stack). There is no stock to level — the topic
+  empties itself — so the script's other job is the WINDOWS: it prints
+  what is live, which close dates the bank already uses, and the free
+  closes from the short end up, so a batch staggers against the bank
+  and not only against itself.
+- **Find the news; never remember it.** Every question comes from a
+  story the run found THAT DAY by searching — the session's search
+  tool, which runs outside the sandbox's egress policy — and a story
+  counts only when it appears in at least **2 independent outlets**
+  (two results from different domains naming the same event) and was
+  published within the last **7 days**. The PR body cites every
+  question's sources by outlet, headline, date and URL, one block per
+  question, beside its packet lines: the audit reads them, and a gate
+  cannot. A story the run "knows" but cannot find is not a story; a
+  story it can find in one place is a headline. Measured 2026-09-01,
+  and the reason for the bar: from the session environment every news
+  domain tried is refused at CONNECT by the egress proxy and the page
+  fetch tool reports `EGRESS_BLOCKED` for the same hosts, so a run can
+  find and cite a story but cannot open it. If the environment's
+  network policy is widened to news domains, the bar tightens to
+  "opened, and quoted" — update this bullet and the prompt together.
+- **Every D231 and D281 rule binds.** Both window ends; 3–21 days
+  served, most of a batch at 7 or under; closes distinct across the
+  batch AND clear of the bank's (the script prints them); no
+  prediction-shaped prompt — an opinion about the event, never a bet on
+  its outcome (a prediction is a CALL, D127); give the story the options
+  it actually has, not two by habit; a `bg` of the durable facts a
+  reader needs (90–320 characters, no retelling of the event, no
+  arguing), because news assumes its own week.
+- **The angle is personal, the flag is honest** (EVENT-DISCUSSIONS §5,
+  now built). Hard rule 6 still decides: the question must be
+  interesting to the person answering, not a poll of a place's citizens
+  — "Should Norway change X?" stays out; "Would this change how you
+  live?" is in. Anything charged carries `political: true` (D52).
+- **No tragedies** (D235) bites hardest here, because news skews to
+  catastrophe. A policy, a verdict, a shock, a resignation are
+  questions; an atrocity, a death toll, a named person's killing are
+  not. The tripwire clears the obvious word; the week is the run's to
+  read.
+- **Warmth over outrage.** A news lane that drifts into bait is the
+  engagement loop this product refuses, one door down. When in doubt,
+  the story with a human angle beats the one with a fight.
+- **Append only**, at the end of `questions`, ids continuing the `nNN`
+  series, `cat: "now"`, `core: false`, a provenance row (`source:
+  "farm"`, the run's date as batch), `from` = today, `until` from the
+  script's free closes. Never a continuum twin, never a `path` (D231
+  §7: this lane writes votes). Run `npm run build:content` after the
+  append.
+- **Gates before the PR**: `npm run check:quality -- --batch
+  candidates.json` (with `"surface": "feed"` and `"cat": "now"` on each
+  entry — the window, call-shape, stagger, short-end and option-count
+  rules all fire in the pre-flight), `npm run check:neighbors -- --batch
+  candidates.json`, then `check:content`, `check:quality`,
+  `check:neighbors`, `check:globals`, `lint`, `test:unit`, `build`.
+  Open the PR, merge on green (D212), log on issue #31 with the
+  sources. A day with no story worth a vote is a **logged no-op with
+  the searches it ran** — a skipped day is fine, a filler question is
+  not.
+- **Every farm hard rule inherits**: PR-only output, the roll-up rule
+  for an open lane PR (branch `claude/now-questions-<YYYY-MM-DD>` when
+  none is open), never generated activity, never a flag flipped, never
+  a shipped question's options edited.
 
 ## When no category fits (every question gets one; new ones are human)
 
@@ -1645,9 +1727,12 @@ re-paced, or retired.
 | InSight learn lane | `trig_01GtTNhRgSt1RMFWtR5K547Z` | `0 9 * * 1,4` — Mon + Thu 09:00 (D145; recreated D212) | § The learn-card lane |
 | InSight feed lane | `trig_011g1ZFhvoy4sQYp9CEsigPB` | `30 9 * * *` — daily 09:30 (D213 re-pace from Tue+Fri; recreated D212) | § The feed lane |
 | InSight duel lane | `trig_01XNv5D3npQyYhCWoAYX1nr5` | `0 10 * * 3` — weekly, Wednesday 10:00 (D213) | § The duel lane |
+| InSight now lane | `trig_0198nBegh1AHFSAPEjbuFcwa` | `0 11 * * *` — daily 11:00 (D343) | § The now lane |
 
 **All five live prompts match their canonical blocks below as of
-2026-08-19 (D212/D213).** All five carry new ids because the D212 prompt
+2026-08-19 (D212/D213); the sixth, the now lane's, was created
+2026-09-01 (D343) from a sibling session with its block below as the
+prompt.** All five carry new ids because the D212 prompt
 swap was done by delete-and-recreate — the D148 mechanism, for the D148
 reason: `update_trigger` still refuses a prompt edit into a session that
 is not the caller's own, and the old prompts hard-coded "never merge
@@ -1663,7 +1748,7 @@ telemetry. One D148 constraint has since lapsed, re-measured 2026-08-19:
 the canonical blocks below can be VERIFIED against the live prompts
 rather than trusted. Verify after any swap; keep them exact.
 
-All five fire into the maintainer's dev session
+All six fire into the maintainer's dev session
 (`session_01AvNkZgRvvMCu8zqhZtuMH5`, `persist_session: true`) for the
 reason in the paragraph above, and all five carry no stored MCP
 connectors — the GitHub tools a run needs to merge its PR and log on
@@ -1674,8 +1759,8 @@ in a tool response.
 The lanes are staggered hourly off 07:00 so no two runs are writing to
 the same checkout at once — they share one bound session, and a lane
 that finds the tree dirty is supposed to stash or use a worktree, not
-race. Five lanes with no per-item reviewer is the load this inventory
-now represents (D212); each lane's regulator still bounds its own open
+race. Six lanes with no per-item reviewer is the load this inventory
+now represents (D212, D343); each lane's regulator still bounds its own open
 batch (a PR sitting open means a gate refused it, and every lane stops
 rather than stacking on top of one), so the arithmetic that keeps the
 pipeline sane is per-lane, exactly as before — only the queue it guards
@@ -2023,6 +2108,66 @@ in Cosaxo/InSight: PR link and the budget line with the pools written,
 or the no-op reason, or the verbatim errors. Work on the lane's branch
 and return to the session's previous branch afterwards; if the tree is
 dirty, stash or use a separate git worktree.
+```
+
+The now lane's canonical prompt (new at D343 — same rule, § The now
+lane):
+
+```
+You are running InSight's NOW lane — current events, a scheduled job,
+daily. It fires into this ongoing session because fresh Routine-spawned
+sessions get read-only git access and no GitHub API tools (issue #31);
+this session has both. Read docs/QUESTION-FARM.md § The now lane on
+origin/main and follow it exactly — it is the contract, it changes, and
+it outranks this prompt's summary; re-read it every run. If that
+section is not on origin/main yet, the lane's contract has not merged:
+do nothing, and say so on issue #31.
+
+Start with npm run now:budget -- --open <count of questions on the open
+now PR's diff>. Zero means a gate refused the open batch — fix it, do
+not stack. Otherwise FIND today's news by SEARCHING with the session's
+search tool — never from memory: a story counts only when at least two
+independent outlets name it and it is under a week old, and every
+question's sources (outlet, headline, date, URL) go in the PR body
+beside its packet lines. You cannot open the articles from this
+environment; cite what the search returned. Write up to the budget as
+votes into content/feed-questions.json under cat "now": an opinion
+about the event, never a prediction (a bet on an outcome is a CALL);
+the options the story actually has, not two by habit; a bg of the
+durable facts a reader needs; a personal angle, never a poll of a
+place's citizens; political: true where charged; no tragedies (D235) —
+no death tolls, no atrocities, no named person's killing; warmth over
+outrage. Windows: from today, until one of the free closes the script
+prints, 3–21 days, most of the batch at 7 or under, no two closing on
+one day. Then npm run build:content, and pre-flight the whole batch
+from ONE candidates file with "surface": "feed" and "cat": "now" on
+each entry: npm run check:quality -- --batch candidates.json and npm
+run check:neighbors -- --batch candidates.json; paste both packet
+lines per question into the PR body. Gates: check:content,
+check:quality, check:neighbors, check:globals, lint, test:unit, build.
+Open the PR, and when every CI check on it reports success, MERGE it
+yourself (squash — D212); never merge with a failing or pending check,
+never re-run a job to outwait a real failure, never push an empty
+commit to kick CI.
+
+Hard limits: append only, at the end of `questions`, ids continuing
+the nNN series, core: false, a provenance row per question (source
+"farm", the run's date as batch); never a continuum twin or a path
+(this lane writes votes); never touch firestore.rules, functions/, or
+another surface's bank; never flip an active flag; never edit or
+reorder a shipped question's options. A day with no story worth a
+vote is a logged no-op with the searches you ran — a skipped day is
+fine, a filler question is not. Roll up onto the open now PR if one
+exists (dedup against it, one commit, retitle, dated body section); a
+fresh claude/now-questions-<YYYY-MM-DD> branch from origin/main only
+when none is open or the open one conflicts.
+
+Mandatory reporting (hard rule 7): whatever the outcome — PR merged,
+PR left open with a failure, no-op, or aborted — comment it on issue
+#31 in Cosaxo/InSight: PR link, the stories and their sources, or the
+no-op reason with the searches, or the verbatim errors. Work on the
+lane's branch and return to the session's previous branch afterwards;
+if the tree is dirty, stash or use a separate git worktree.
 ```
 
 Delivery mechanics, measured rather than assumed (run log #31,

@@ -267,6 +267,17 @@ holds it (D161). Of the census above, the topic counts and search still
 read the device's pool; their conversions are recorded in D321 with the
 fixes named.
 
+**What a device accumulates by paging is the remaining design** (D342's
+amendment, 2026-09-01): a phone that boots daily for a year holds every
+page it was handed, and hydrate reads all of them into memory. The
+answer is eviction — keep what was answered and what is on screen, drop
+the rest from memory — a client change with its own record, owed before
+heavy devices hold tens of thousands of rows. It is not a bank-size
+question: the old `BANK_WARN`/`BANK_FAIL` counted the seeded bank as a
+proxy for this and turned CI red at 10,000 questions, which was a
+question limit in everything but name. `INSTALL_WARN` (`check:quality`)
+now warns on what a fresh install is handed whole, and nothing fails.
+
 The one thing worth doing early is **not making it worse**: a new surface
 that folds over the whole bank at render time is another consumer to
 convert later, and a published count is usually as good.
@@ -295,8 +306,10 @@ convert later, and a published count is usually as good.
    lazy pages, a published order, quality filtered by signal rather
    than prevented by cap — recorded as D316, adopted the same day
    ("build the real fixes now"). What §4 still holds is the in-memory
-   walk: a device reads every cached row into memory each boot, and
-   that design is what `BANK_WARN`/`BANK_FAIL` now watch.
+   walk: a device reads every cached row into memory each boot. That
+   is a device-side eviction design (D342's amendment names it), not a
+   gate's: `INSTALL_WARN` warns on what a fresh install is handed
+   whole, and no bank size fails a gate any more.
 
 Steps 1 and 2 are independent and can land in either order. Step 3
 depends on neither.
