@@ -108,8 +108,10 @@ export const AGG_BANK_SIZE = V2_QUESTIONS.filter((q) => isAggregateSurface(q.sur
 //
 // PER DAY OF THE SCAN'S WINDOW, not of the ledger's retention. This
 // allowance was derived from the 90-day `expireAt` TTL, and the quantity
-// it is compared against is `fold.perUid.get(uid).length` — entries
-// inside the scan window, which `WINDOW_CAP_MS` caps at 72 hours. At the
+// it is compared against is `fold.createsPerUid.get(uid)` — non-edit
+// entries inside the scan window, which `WINDOW_CAP_MS` caps at 72 hours.
+// (It said `perUid.get(uid).length` until the edit rows were split out;
+// that is the cadence signal's quantity, not this one.) At the
 // current bank that made the ceiling 1026 against an honest maximum of
 // about 596: the detector's stated target is a dedup failure or forged
 // writes, which shows as roughly 2x a uid's real count, and 2x an
@@ -292,6 +294,24 @@ export function foldInto(acc: WindowFold, rows: LedgerRow[]): WindowFold {
   return acc;
 }
 
+/**
+ * Is this uid over the volume ceiling?
+ *
+ * EXPORTED and pure, for the reason `heldPageFrom` in paid.ts is: the
+ * decision lived inline in the scheduled handler, which no test reaches —
+ * the whole `ledgerVelocityScan` body is uncovered — so both halves of the
+ * D86 edit fix could be reverted with all 550 tests green. The fold's two
+ * cases proved the COUNTING and nothing proved what the count was used
+ * for.
+ *
+ * Reads `createsPerUid`, not `perUid`: an edit writes a second ledger row
+ * and the ceiling is one create per question. The cadence signal beside
+ * the call site still reads every row.
+ */
+export function volumeFlagged(fold: WindowFold, uid: string): boolean {
+  return (fold.createsPerUid.get(uid) || 0) > VOLUME_CEILING;
+}
+
 export function foldWindow(rows: LedgerRow[]): WindowFold {
   return foldInto(emptyFold(), rows);
 }
@@ -405,7 +425,7 @@ export const ledgerVelocityScan = onSchedule(
     let cadenceFlags = 0;
     for (const [uid, times] of fold.perUid) {
       const creates = fold.createsPerUid.get(uid) || 0;
-      if (creates > VOLUME_CEILING) {
+      if (volumeFlagged(fold, uid)) {
         volumeFlags++;
         logger.warn(
           `[velocity] impossible volume: uid=${uid} creates=${creates} of n=${times.length} exceeds the ceiling (${AGG_BANK_SIZE}-question bank + ${PULSE_BANK_SIZE} pulse × ${WINDOW_MAX_DAYS}d of window) — dedup failure or forged writes`,

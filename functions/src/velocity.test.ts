@@ -19,6 +19,7 @@ import {
   emptyFold,
   foldInto,
   foldWindow,
+  volumeFlagged,
   isAggregateSurface,
   PULSE_BANK_SIZE,
   VOLUME_CEILING,
@@ -98,6 +99,29 @@ describe("the impossible-volume ceiling", () => {
       "cadence lost the edits — a script's rhythm hides in them").toBe(VOLUME_CEILING + 100);
     expect(fold.createsPerUid.get("u_heavy"),
       "edits counted toward a ceiling that is about creates").toBe(VOLUME_CEILING);
+  });
+
+  it("flags on creates, and only past the line", () => {
+    // The DECISION, not just the counting. Both cases here proved the fold
+    // and nothing proved what the number was used for — the comparison
+    // lived inline in the scheduled handler, whose body no test reaches,
+    // so either half of the D86 edit fix could be reverted with all 550
+    // tests green.
+    const rows: LedgerRow[] = [];
+    for (let i = 0; i < VOLUME_CEILING; i++) {
+      rows.push({ uid: "u_heavy", qid: `q${i}`, atMs: 1_000 + i });
+    }
+    for (let i = 0; i < 200; i++) {
+      rows.push({ uid: "u_heavy", qid: `q${i}`, atMs: 900_000 + i, isEdit: true });
+    }
+    const heavy = foldWindow(rows);
+    expect(volumeFlagged(heavy, "u_heavy"),
+      "an honest reviser at the ceiling was flagged").toBe(false);
+    expect(volumeFlagged(heavy, "u_nobody"), "an unknown uid was flagged").toBe(false);
+
+    rows.push({ uid: "u_heavy", qid: "q_extra", atMs: 950_000 });
+    expect(volumeFlagged(foldWindow(rows), "u_heavy"),
+      "one create past the line was not flagged").toBe(true);
   });
 
   it("still counts a create past the ceiling", () => {
