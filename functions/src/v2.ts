@@ -55,7 +55,7 @@ import {
   type CatalogSpec,
   type SeedOptionConflict,
 } from "./pure";
-import { FILM_KEYS, ARTIST_KEYS, ATHLETE_KEYS, EMOJI_KEYS, COUNTRY_KEYS, DOG_KEYS, COLOR_KEYS } from "./catalogKeys";
+import { FILM_KEYS, ARTIST_KEYS, ATHLETE_KEYS, EMOJI_KEYS, COUNTRY_KEYS, DOG_KEYS, COLOR_KEYS, LANGUAGE_KEYS } from "./catalogKeys";
 
 const REGION = FUNCTIONS_REGION;
 
@@ -306,6 +306,7 @@ export const CATALOG_DOMAINS: Record<string, CatalogSpec> = {
   // the Not-listed 0; sparse, externally stable, and the generated set
   // is the whole contract.
   colors: { keys: COLOR_KEYS },
+  languages: { keys: LANGUAGE_KEYS },
 };
 
 // ── content seed ────────────────────────────────────────────────
