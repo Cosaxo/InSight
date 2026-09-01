@@ -263,6 +263,33 @@ describe("firestore.indexes.json vs the data layer's query shapes", () => {
   // resolves, matches what every OTHER sweep in this list already has, and
   // costs one index entry per invite on a collection that holds unanswered
   // invitations. Cheap to add, and the thing it insures against is total.
+  it("carries no composite for a query nobody makes: invites (from, at)", () => {
+    // The file declared BOTH `(to, at DESC)` and `(from, at DESC)`, added
+    // together for the client's inbox. Only the first is a query: the
+    // inbox is `where("to","==",me), orderBy("at","desc")`
+    // (data/socialFetch.ts). The only `from` query in the tree is
+    // deleteAccount's erasure sweep (functions/src/index.ts), which has no
+    // `orderBy` at all and is served by the single-field override pinned
+    // in the case below.
+    //
+    // So `(from, at DESC)` served nothing and cost an index entry on every
+    // invitation written. Removed — and asserted absent, so bringing it
+    // back is a decision rather than a copy of its neighbour. The day a
+    // real `from` + `orderBy("at")` query appears, this case is the one
+    // that has to be edited, which is the point.
+    const dead = cfg.indexes.filter((ix) =>
+      ix.collectionGroup === "invites"
+      && ix.fields.map((f) => f.fieldPath).join(",") === "from,at");
+    expect(dead, "invites (from, at) is back — which query orders invites by sender?")
+      .toHaveLength(0);
+    // The one that IS a query, so this case cannot pass by the whole
+    // collection group having been dropped.
+    const live = cfg.indexes.filter((ix) =>
+      ix.collectionGroup === "invites"
+      && ix.fields.map((f) => f.fieldPath).join(",") === "to,at");
+    expect(live, "the inbox's own (to, at DESC) composite went with it").toHaveLength(1);
+  });
+
   it("deleteAccount's cross-user sweeps each have their collection-group index", () => {
     const sweeps: Array<[string, string, "order" | "arrayConfig", string]> = [
       // functions/src/index.ts phase 3c — both directions of a circle
