@@ -57,10 +57,15 @@ by PR to this file — the prompts defer to it every firing.
 
 ### The account-side inventory (repo-side record)
 
-Created 2026-08-25 (D289), rebound 2026-08-26: model
-`claude-fable-5`, completion notifications off. Update this table
-whenever a lane is added, rebound, re-paced, or retired — the farm's
-convention.
+Created 2026-08-25 (D289), rebound 2026-08-26; model
+`claude-fable-5-1` on every Routine since 2026-09-01 (the owner's
+direction, from `claude-fable-5`). One caveat, stated by the Routine
+tooling itself: a Routine bound to a persistent session runs on that
+session's model, so a spawned lane inherits 5.1 only once the
+dispatcher session below is moved too — it was created on
+`claude-fable-5` and stays there until the owner switches it.
+Completion notifications off. Update this table whenever a lane is
+added, rebound, re-paced, or retired — the farm's convention.
 
 | Routine | Trigger id | Run log | Binding |
 | --- | --- | --- | --- |
