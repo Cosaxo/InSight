@@ -67,6 +67,10 @@ beforeAll(async () => {
   // a tab that never rendered one — the vacuous pass this file's own
   // comments were written about.
   await specIndex.loadWorldFeed();
+  // The Mirror is lazy since D346 and rendered through a slot that is
+  // same-tick only once the prewarm has remembered its module — every
+  // Mirror case below clicks the tab and asserts in the same breath.
+  await specIndex.loadMirrorTab();
   // The Map's family is lazy since v28 §5 and two cases below render
   // window.MTAnswerCard directly — without this await the global is
   // simply absent and both would fail on `undefined`, not on the gate

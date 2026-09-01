@@ -21,6 +21,26 @@ import NAV from '../data/nav';
 // gone and the data halves (`.enabled`, `.demoInProd`) stay — both are
 // false for the whole of mock mode.
 import LIVE from '../data/live';
+// THE MIRROR'S OWN MODULES, in spec-index.js's order, as side-effect
+// imports (D346). This is the file loadMirrorTab() names, so these twelve
+// ride its chunk and evaluate before this module's body — map-tab.jsx's
+// shape, which carries its six the same way. The order is semantic here
+// exactly as it was in the eager list: group-mirror reads CompareBreakdown
+// and GroupRoleMap by name at render, mirror-field-pops reads the MF*
+// family and SegmentExplorer, demographics.jsx reads DEMOGRAPHICS, and
+// each of those is a global an earlier line publishes. Do not sort these.
+import './compare-pop.js';
+import './demographics.js';
+import './compare-breakdown.jsx';
+import './lens-defs.js';
+import './lens-cards.jsx';
+import './demographics.jsx';
+import './mirror-answers.jsx';
+import './mirror-field.jsx';
+import './mirror-field-pops.jsx';
+import './group-role-map.jsx';
+import './group-mirror.jsx';
+import './segment-explorer.jsx';
 // Three of them load AFTER first paint, and the reason is the bundle budget
 // rather than taste.
 //
@@ -47,6 +67,14 @@ import LIVE from '../data/live';
 // reaches the Mirror the chunk is in the module cache and the Suspense
 // fallback is a frame, not a wait. Near stays eager; the objection still
 // holds there.
+//
+// AND THEN THE WHOLE TAB WENT (D346). This file and its twelve siblings
+// ride loadMirrorTab() now, prewarmed by main.jsx in the same breath as the
+// Map — so "Near stays eager" above is true only relative to THIS chunk:
+// NearLiveBody is a static import of this file and arrives with it. The
+// three React.lazy bodies below still defer past this chunk, for the
+// reason already given — each needs a network round trip of its own before
+// it can draw, so its fetch overlaps work the stop does regardless.
 const LiveCircleBody = React.lazy(() => import('../ui/LiveCircleBody'));
 const LiveCohortBody = React.lazy(() => import('../ui/LiveCohortBody'));
 const LiveGroupsMirrorBody = React.lazy(() => import('../ui/LiveGroupsMirrorBody'));
@@ -284,7 +312,7 @@ function MirrorPreviewTag({ popId }) {
   );
 }
 
-function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, backKey }) {
+export function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, backKey }) {
   const p = mirrorPop(pop);
   const zoom = WORLD_ZOOMS.some(z => z.id === worldZoom) ? worldZoom : 'world';
   const scaleId = p.id === 'world' ? zoom : p.id;
@@ -421,7 +449,7 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, backKey 
   );
 }
 
-Object.assign(window, { MirrorTab });
-
-;globalThis.MirrorTab = typeof MirrorTab === 'undefined' ? globalThis.MirrorTab : MirrorTab;
+// MirrorTab is an EXPORT and no longer a publication (D346): its one
+// reader, app-shell's MirrorSlot, takes it off the module namespace the
+// chunk resolves to — rule 5's honest shape, single writer, no residue.
 ;globalThis.mirrorPop = typeof mirrorPop === 'undefined' ? globalThis.mirrorPop : mirrorPop;

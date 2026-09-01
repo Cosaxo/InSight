@@ -440,7 +440,7 @@ for (const name of [...defined].sort()) {
 // keeps having to correct. The contract is only the direction.
 const COUPLING_BASELINE = {
   "src/v2/main.jsx": 1,
-  "src/v2/spec/app-shell.jsx": 22,
+  "src/v2/spec/app-shell.jsx": 21,
   "src/v2/spec/city-overlay.jsx": 2,
   "src/v2/spec/compare-breakdown.jsx": 1,
   "src/v2/spec/daily-split.jsx": 12,

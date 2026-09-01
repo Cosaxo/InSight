@@ -151,6 +151,64 @@ matches `'./spec/…'` strings against. The full reasoning, including why
 `INEFFECTIVE_DYNAMIC_IMPORT` on every build), is at the foot of
 `spec-index.js`.
 
+## …and so is the Mirror (D346)
+
+`loadMirrorTab()` defers the thirteen modules behind the app's second tab —
+`compare-pop.js`, `demographics.js`, `compare-breakdown.jsx`,
+`lens-defs.js`, `lens-cards.jsx`, `demographics.jsx`, `mirror-answers.jsx`,
+`mirror-field.jsx`, `mirror-field-pops.jsx`, `group-role-map.jsx`,
+`group-mirror.jsx`, `segment-explorer.jsx` and `mirror-tab.jsx` — the Map's
+shape: the loader names only `mirror-tab.jsx`, and that file's static
+side-effect imports carry the other twelve in the order the eager list
+held. Measured at the commit: **eager 761 → 633 KB** (−128, the largest
+single drop since D110 took the Firestore SDK out of first paint), entry
+chunk 243 → 133 KB, total unchanged within 3 KB — a relocation, which is
+what every honest move here has been. `check:bundle`'s `MAX_EAGER_KB` came
+down 880 → 645 with it.
+
+**Why it could go, and what had kept it.** The app never opens ON the
+Mirror: `TWEAK_DEFAULTS.tab` is `'track'` and nothing persists a tab
+across launches, so the tab is always one tap away and never the first
+frame. What kept ~130 KB of it eager was one JSX tag — `app-shell.jsx`
+rendered `<MirrorTab>` by name — and one honest worry, recorded in
+`check:bundle`'s header as "it needs a guard the overlays did not". The
+overlays can afford an empty frame while their chunk lands, because an
+opener awaits the load before mounting; a *tab* that flashed empty on
+every tap would be a worse trade than the bytes.
+
+**The guard is a handoff, not a render guard.** `app-shell` mounts the tab
+through `MirrorSlot` — state plus an import, `MapSlot`'s shape, because a
+`React.lazy` caches a rejection and the tab boundary is keyed per tab —
+but the slot's *initial* state reads `data/mirrorChunk`, where the
+loader remembers the resolved namespace. ESM has no synchronous read of
+the module cache; that module is one. So once the prewarm has landed
+(`main.jsx` starts it right behind the feed), opening the Mirror renders
+in the tap's own tick with no blank frame between, and the effect exists
+only for a tap that beats the prewarm or a prewarm that failed.
+`test/mirror-slot.test.jsx` holds all three cases against the real
+handoff, plus a source pin on the shell's shape; the existing
+`smoke-mirror` case — click the tab, read the ruler in the same breath,
+no `await` — is the same-tick claim asserted on the whole app.
+
+**Three overlays read Mirror globals at render** — `profile-general`'s
+`MirrorFieldBody` and `LENSES`, `profile-overlay`'s `LensesPanel`,
+`person-overlay`'s `CompareCarousel` — so `loadOverlays()` awaits
+`loadMirrorTab()` first: memoised, so that is the prewarm's own promise
+when `main.jsx` got there first and the fetch itself when a tap did. The
+reader audit that found those three (and nothing eager) is the
+transpose-the-meter script this file keeps recommending, run over the
+thirteen: every reader of a Mirror global outside the group was in the
+overlays group or was the mount site itself. Read the graph, not the
+paragraph, before moving anything else — `MapStats`, `GDAv` and
+`relmap-lenses.jsx` looked like members and are not: eager modules read
+them on first-paint surfaces.
+
+Every mount suite `await`s `loadMirrorTab()` in `beforeAll` beside the
+other three loaders, for the reason the feed paragraph gives — and one
+more that is this group's own: the slot is same-tick *only* once the
+handoff has happened, so a suite that skipped the await would click the
+tab and assert against the empty frame.
+
 ## Lint suppressions
 
 21 files in `spec/` used to open with a bare `/* eslint-disable */`,
@@ -563,7 +621,7 @@ rule could have fired.
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
-prints the current total on every run. The count today is **160 across 27
+prints the current total on every run. The count today is **159 across 27
 files**, down from 799 when the ratchet landed.
 
 The mechanism needs no bookkeeping, which is what makes it usable. The

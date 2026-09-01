@@ -67,6 +67,14 @@ export function registerSmokeHooks() {
     // layer — the feed renders on the daily tab, so dropping it costs coverage
     // without failing anything.
     await specIndex.loadWorldFeed();
+    // …and the Mirror (D346), which app-shell mounts through a slot that
+    // renders in the same tick ONLY once this has remembered the module on
+    // data/mirrorChunk. Without it every Mirror case would click the tab
+    // and assert against the empty frame before the slot's import lands.
+    // loadOverlays below awaits this too; it is named here anyway, because
+    // a suite that depends on a load nobody in it names is the one that
+    // breaks confusingly the day the overlays stop waiting.
+    await specIndex.loadMirrorTab();
     // …and the six no-button overlays, for the same reason. Every cross-link
     // case opens one of these, and the openers await this same memoised promise
     // — so strictly this line only removes a wait from the first such case. It

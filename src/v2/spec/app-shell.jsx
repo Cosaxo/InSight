@@ -15,6 +15,8 @@ import { reportError } from '../../lib/sentry';
 // answers with the navigation, map-tab reads the where. ESM on all three
 // sides, so the coupling ratchet never counts it.
 import { onMapCue } from '../data/mapCue.ts';
+// The Mirror chunk's handoff (D346) — see MirrorSlot below.
+import { peekMirror, rememberMirror } from '../data/mirrorChunk';
 import LIVE from '../data/live';
 import { patternsEarned } from '../data/patternsReady';
 import { closeTopBackLayer } from '../data/backLayers';
@@ -41,6 +43,40 @@ import { useDialog } from './primitives.jsx';
 // viewer has answered (data/patternsReady.ts). Below that line the entry
 // is not in TABS, so nothing here ever renders and the chunk never loads.
 const PatternsTabLazy = React.lazy(() => import('../ui/PatternsTab.tsx'));
+
+// The Mirror tab, after first paint (D346) — a SLOT rather than a
+// React.lazy, for the reason mirror-tab.jsx's MapSlot gives: React.lazy
+// caches a rejection, and the tab boundary below is keyed per tab, so one
+// failed chunk fetch would make the app's main tab "This view hit a snag"
+// for the rest of the session. State and an import instead; re-entering
+// the tab re-attempts, and console.error rather than reportError because
+// main.jsx already reports a dead prewarm once.
+//
+// What differs from MapSlot is the INITIAL STATE. The Map accepts one empty
+// frame on every open because its chunk sits inside a stop the user has
+// already switched to; the Mirror IS the switch, and a tab that flashes
+// blank on every tap is the guard check:bundle's header said this tab
+// needed before it could leave the eager graph. So the slot starts from
+// data/mirrorChunk — the namespace main.jsx's prewarm remembered there —
+// and when that has landed (every open after the first second or so of a
+// session) the tab renders in the same tick as the tap. The effect covers
+// the two other cases: a tap that beats the prewarm, and a prewarm that
+// failed. test/mirror-slot.test.jsx holds all three.
+function MirrorSlot(props) {
+  const [Tab, setTab] = React.useState(() => {
+    const m = peekMirror();
+    return m ? m.MirrorTab : null;
+  });
+  React.useEffect(() => {
+    if (Tab) return undefined;
+    let live = true;
+    import('./mirror-tab.jsx')
+      .then((m) => { rememberMirror(m); if (live) setTab(() => m.MirrorTab); })
+      .catch((e) => { console.error('[InSight] mirror chunk failed to load:', e); });
+    return () => { live = false; };
+  }, [Tab]);
+  return Tab ? <Tab {...props} /> : null;
+}
 
 // The Tweaks panel is DESIGN-TIME tooling and production cannot open it —
 // its only setOpen(true) is behind `if (!import.meta.env.DEV) return`. It
@@ -687,7 +723,7 @@ function App() {
                   the feed has read you. 8 matches MFSparse's `need`. Live
                   builds only: the demo keeps the prototype's default (full
                   field), so style-diff still compares like with like. */}
-              {tab === 'mirror' && <MirrorTab onPerson={setPerson} pop={mirrorPop} onPop={(v) => setTweak('mirrorPop', v)} worldZoom={worldZoom} onZoom={(v) => setTweak('worldZoom', v)}
+              {tab === 'mirror' && <MirrorSlot onPerson={setPerson} pop={mirrorPop} onPop={(v) => setTweak('mirrorPop', v)} worldZoom={worldZoom} onZoom={(v) => setTweak('worldZoom', v)}
                 firstRun={!!(LIVE.enabled && window.FEEDREAD && window.FEEDREAD.stats().n < 8)}
                 backKey={'track:duo'} />}
               {/* Suspense fallback null, PulseCard's rule: nothing rather

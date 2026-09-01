@@ -179,7 +179,11 @@ paint via `loadWorldFeed()` (D25) — still listed, still in order, just
 awaited in sequence instead of imported at the top. The Map's seven defer
 too since v28 §5, differently: `loadMapTab()` names only `map-tab.jsx`,
 and that file's own static imports carry the other six in order — see the
-comment where the eager list used to hold them.
+comment where the eager list used to hold them. The Mirror's thirteen
+defer the same way since D346 (`loadMirrorTab()` names only
+`mirror-tab.jsx`), and the tab mounts through a slot that renders in the
+tap's own tick once the prewarm has landed — `src/v2/README.md` § the
+Mirror, and `data/mirrorChunk.ts` for the handoff that makes it so.
 
 This is deliberate and temporary (see `src/v2/README.md`), but it is
 load-bearing today — and "temporary" only became true when something
