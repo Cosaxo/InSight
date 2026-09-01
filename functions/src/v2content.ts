@@ -39,7 +39,12 @@
 // admitted grading path, the earliest UTC day it may be graded, and the
 // expression the resolver RUNS. The outcome is not here — it lives in
 // v2_call_outcomes, so a reseed and the resolver never fight.
-export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }
+// `invert` is test-surface-only and COMPILE-TIME ONLY — the seed never
+// transports it (check:seed-fields NOT_TRANSPORTED has the reason). It
+// marks a reverse-scored instrument item so the nightly axes fold
+// (AXES-PLAN §2) can score answers server-side; the client keeps joining
+// scoring metadata from IS_TESTS by prompt and never reads it.
+export interface V2SeedQuestion { id: string; surface: string; seq: number; type: string; domain: string | null; prompt: string; options: string[]; topic: string | null; also?: string[]; branch?: string; sub?: string; tag?: string; rates?: string; axis: string | null; test: string | null; invert?: boolean; mode?: string; active?: boolean; political?: boolean; core?: boolean; from?: string; until?: string; bg?: string; c?: number; t?: number; p?: number; k?: string; w?: string; lo?: number; hi?: number; unit?: string; ends?: string[]; ax?: string[]; ay?: string[]; title?: string; intro?: string; hue?: number; nodes?: Record<string, { q: string; a: Array<{ t: string }> }>; endings?: Record<string, { name: string; line: string }>; sponsor?: { buyer: string; audience?: Record<string, string> }; tier?: string; resolvesAt?: string; rubric?: { kind: string; qid: string; test: string; threshold?: number; dim?: string; buckets?: string[] }; }
 export const V2_QUESTIONS: V2SeedQuestion[] = [
  {
   "id": "daily-000",
@@ -7794,7 +7799,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "O",
-  "test": "big5"
+  "test": "big5",
+  "invert": true
  },
  {
   "id": "test-big5-11",
@@ -7812,7 +7818,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "C",
-  "test": "big5"
+  "test": "big5",
+  "invert": true
  },
  {
   "id": "test-big5-12",
@@ -7830,7 +7837,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "E",
-  "test": "big5"
+  "test": "big5",
+  "invert": true
  },
  {
   "id": "test-big5-13",
@@ -7848,7 +7856,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "A",
-  "test": "big5"
+  "test": "big5",
+  "invert": true
  },
  {
   "id": "test-big5-14",
@@ -7866,7 +7875,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "N",
-  "test": "big5"
+  "test": "big5",
+  "invert": true
  },
  {
   "id": "test-big5-15",
@@ -7902,7 +7912,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "O",
-  "test": "big5"
+  "test": "big5",
+  "invert": true
  },
  {
   "id": "test-big5-17",
@@ -7938,7 +7949,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "C",
-  "test": "big5"
+  "test": "big5",
+  "invert": true
  },
  {
   "id": "test-big5-19",
@@ -7974,7 +7986,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "E",
-  "test": "big5"
+  "test": "big5",
+  "invert": true
  },
  {
   "id": "test-big5-21",
@@ -8010,7 +8023,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "A",
-  "test": "big5"
+  "test": "big5",
+  "invert": true
  },
  {
   "id": "test-big5-23",
@@ -8046,7 +8060,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "N",
-  "test": "big5"
+  "test": "big5",
+  "invert": true
  },
  {
   "id": "test-political-00",
@@ -8082,7 +8097,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "econ",
-  "test": "political"
+  "test": "political",
+  "invert": true
  },
  {
   "id": "test-political-02",
@@ -8118,7 +8134,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "auth",
-  "test": "political"
+  "test": "political",
+  "invert": true
  },
  {
   "id": "test-political-04",
@@ -8226,7 +8243,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "tech",
-  "test": "political"
+  "test": "political",
+  "invert": true
  },
  {
   "id": "test-political-10",
@@ -8316,7 +8334,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "foreign",
-  "test": "political"
+  "test": "political",
+  "invert": true
  },
  {
   "id": "test-political-15",
@@ -8334,7 +8353,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "env",
-  "test": "political"
+  "test": "political",
+  "invert": true
  },
  {
   "id": "test-political-16",
@@ -8370,7 +8390,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "estab",
-  "test": "political"
+  "test": "political",
+  "invert": true
  },
  {
   "id": "test-political-18",
@@ -8406,7 +8427,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "econ",
-  "test": "political"
+  "test": "political",
+  "invert": true
  },
  {
   "id": "test-political-20",
@@ -8442,7 +8464,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "auth",
-  "test": "political"
+  "test": "political",
+  "invert": true
  },
  {
   "id": "test-political-22",
@@ -8478,7 +8501,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "foreign",
-  "test": "political"
+  "test": "political",
+  "invert": true
  },
  {
   "id": "test-political-24",
@@ -8514,7 +8538,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "env",
-  "test": "political"
+  "test": "political",
+  "invert": true
  },
  {
   "id": "test-political-26",
@@ -8550,7 +8575,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "tech",
-  "test": "political"
+  "test": "political",
+  "invert": true
  },
  {
   "id": "test-political-28",
@@ -8586,7 +8612,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "estab",
-  "test": "political"
+  "test": "political",
+  "invert": true
  },
  {
   "id": "test-values-00",
@@ -8640,7 +8667,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "circle",
-  "test": "values"
+  "test": "values",
+  "invert": true
  },
  {
   "id": "test-values-03",
@@ -8694,7 +8722,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "hedonism",
-  "test": "values"
+  "test": "values",
+  "invert": true
  },
  {
   "id": "test-values-06",
@@ -8820,7 +8849,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "future",
-  "test": "values"
+  "test": "values",
+  "invert": true
  },
  {
   "id": "test-values-13",
@@ -8874,7 +8904,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "meaning",
-  "test": "values"
+  "test": "values",
+  "invert": true
  },
  {
   "id": "test-values-16",
@@ -8892,7 +8923,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "moral",
-  "test": "values"
+  "test": "values",
+  "invert": true
  },
  {
   "id": "test-values-17",
@@ -8910,7 +8942,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "beauty",
-  "test": "values"
+  "test": "values",
+  "invert": true
  },
  {
   "id": "test-values-18",
@@ -8946,7 +8979,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "future",
-  "test": "values"
+  "test": "values",
+  "invert": true
  },
  {
   "id": "test-values-20",
@@ -8982,7 +9016,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "circle",
-  "test": "values"
+  "test": "values",
+  "invert": true
  },
  {
   "id": "test-values-22",
@@ -9018,7 +9053,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "hedonism",
-  "test": "values"
+  "test": "values",
+  "invert": true
  },
  {
   "id": "test-values-24",
@@ -9054,7 +9090,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "meaning",
-  "test": "values"
+  "test": "values",
+  "invert": true
  },
  {
   "id": "test-values-26",
@@ -9090,7 +9127,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "moral",
-  "test": "values"
+  "test": "values",
+  "invert": true
  },
  {
   "id": "test-values-28",
@@ -9126,7 +9164,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "beauty",
-  "test": "values"
+  "test": "values",
+  "invert": true
  },
  {
   "id": "test-attachment-00",
@@ -9324,7 +9363,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "warm",
-  "test": "attachment"
+  "test": "attachment",
+  "invert": true
  },
  {
   "id": "test-attachment-11",
@@ -9342,7 +9382,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "loyal",
-  "test": "attachment"
+  "test": "attachment",
+  "invert": true
  },
  {
   "id": "test-attachment-12",
@@ -9360,7 +9401,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "open",
-  "test": "attachment"
+  "test": "attachment",
+  "invert": true
  },
  {
   "id": "test-attachment-13",
@@ -9378,7 +9420,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "play",
-  "test": "attachment"
+  "test": "attachment",
+  "invert": true
  },
  {
   "id": "test-attachment-14",
@@ -9396,7 +9439,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "easy",
-  "test": "attachment"
+  "test": "attachment",
+  "invert": true
  },
  {
   "id": "test-attachment-15",
@@ -9432,7 +9476,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "warm",
-  "test": "attachment"
+  "test": "attachment",
+  "invert": true
  },
  {
   "id": "test-attachment-17",
@@ -9468,7 +9513,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "loyal",
-  "test": "attachment"
+  "test": "attachment",
+  "invert": true
  },
  {
   "id": "test-attachment-19",
@@ -9504,7 +9550,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "open",
-  "test": "attachment"
+  "test": "attachment",
+  "invert": true
  },
  {
   "id": "test-attachment-21",
@@ -9540,7 +9587,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "play",
-  "test": "attachment"
+  "test": "attachment",
+  "invert": true
  },
  {
   "id": "test-attachment-23",
@@ -9576,7 +9624,8 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   ],
   "topic": "test",
   "axis": "easy",
-  "test": "attachment"
+  "test": "attachment",
+  "invert": true
  },
  {
   "id": "lq-moral-0",

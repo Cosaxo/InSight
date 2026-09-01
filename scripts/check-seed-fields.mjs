@@ -79,6 +79,17 @@ const NOT_TRANSPORTED = {
     + "field for nobody. The moment a reader appears (the kicker keyed on "
     + "it, the passive-collection marker D52 describes), delete this entry "
     + "and add the three transports — the gate will then insist.",
+  invert:
+    "The reverse-scoring flag on 44 instrument items (content/tests.json), "
+    + "compiled in for the nightly axes fold (AXES-PLAN §2, axes step 1.1): "
+    + "the server scores test answers from the COMPILED bank the way "
+    + "PATTERNS_QIDS and the D44 predicate read `political`, so the doc "
+    + "never needs it. No client reader exists or should: the client joins "
+    + "scoring metadata from IS_TESTS by prompt precisely because the seeded "
+    + "doc historically lacked the flag (similarity.testItemMeta's header), "
+    + "and a doc-carried copy would be a second source of truth for a sign "
+    + "bit. If a device reader ever appears, delete this entry and add the "
+    + "three transports — the gate will then insist.",
 };
 
 /** Every key the generator actually puts on a question, over the real bank. */

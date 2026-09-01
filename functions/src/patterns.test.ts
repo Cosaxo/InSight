@@ -15,7 +15,7 @@ vi.mock("firebase-functions", () => ({
   logger: { info() {}, warn() {}, error() {} },
 }));
 
-import { PATTERNS_QIDS, firestorePatternsStore, runPatternsFit, utcDay, type PatternsLedgerEntry, type PatternsStore } from "./patterns";
+import { AXES_TRAIT_ITEMS, PATTERNS_QIDS, firestorePatternsStore, runPatternsFit, utcDay, type PatternsLedgerEntry, type PatternsStore, type PatternsUserDoc } from "./patterns";
 import { V2_QUESTIONS } from "./v2content";
 import type { Firestore } from "firebase-admin/firestore";
 import {
@@ -27,7 +27,6 @@ import {
   type PatternsDisplacement,
   type PatternsModel,
   type PatternsQuality,
-  type PatternsUserState,
 } from "./patternsFit";
 
 const NOW = Date.UTC(2026, 7, 19, 3, 0, 0); // the 02:37 schedule's morning
@@ -35,7 +34,7 @@ const NOW = Date.UTC(2026, 7, 19, 3, 0, 0); // the 02:37 schedule's morning
 function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
   const state: {
     model: (PatternsModel & { lastDay?: string }) | null;
-    users: Map<string, PatternsUserState>;
+    users: Map<string, PatternsUserDoc>;
     putModelCalls: number;
     breakPutModelOnce: boolean;
     quality: PatternsQuality | null;
@@ -78,16 +77,16 @@ function memoryStore(ledger: Record<string, PatternsLedgerEntry[]>) {
     // shipped dead. A fake that carries more than its subject proves
     // nothing about it.
     async getUsers(uids) {
-      const out = new Map<string, PatternsUserState>();
+      const out = new Map<string, PatternsUserDoc>();
       for (const uid of uids) {
         const s = state.users.get(uid);
-        if (s) out.set(uid, { v: [...s.v], n: s.n, ...(s.d ? { d: s.d } : {}) });
+        if (s) out.set(uid, { v: [...s.v], n: s.n, ...(s.d ? { d: s.d } : {}), ...(s.t ? { t: { ...s.t } } : {}) });
       }
       return out;
     },
     async putUsers(states) {
       for (const [uid, s] of states) {
-        state.users.set(uid, { v: [...s.v], n: s.n, ...(s.d ? { d: s.d } : {}) });
+        state.users.set(uid, { v: [...s.v], n: s.n, ...(s.d ? { d: s.d } : {}), ...(s.t ? { t: { ...s.t } } : {}) });
       }
     },
   };
@@ -551,5 +550,184 @@ describe("what the fit publishes for the tab's gate", () => {
     // A field that stops being written is a field the client keeps
     // reading at its last value — so early nights say 0 out loud.
     expect(writes[1].data).toEqual({ patternsPool: 0, patternsBasis: PATTERNS_MIN_BASIS });
+  });
+});
+
+// ── the axes fold (step 1.1, AXES-PLAN §2) ────────────────────────────
+//
+// The same nightly pass folds each person's instrument answers into trait
+// votes on their state doc. What is pinned here is the WIRING — the
+// arithmetic has its own suite (axesFold.test.ts): the no-tautology pin
+// the runbook step names, the fold riding the same ledger read without
+// touching the fit's own numbers, and the two projection surfaces (memory
+// and Firestore stores) that the `d` stamp already proved can silently
+// drop a field.
+
+// real instrument items from the compiled bank, so the tests move with it
+const [TRAIT_A, TRAIT_B] = AXES_TRAIT_ITEMS.map((i) => i.qid);
+
+describe("the no-tautology pin", () => {
+  it("no instrument item is in the fit's own pool, ever", () => {
+    // The projection in 1.2+ is a genuine cross-source reading ONLY
+    // because the latent space is fitted on none of the instruments' own
+    // items (AXES-PLAN §2). Today that exclusion falls out of eligibility
+    // (5-option test-surface vs two-option daily/core-feed); this pin is
+    // what keeps it deliberate when either rule moves.
+    for (const item of AXES_TRAIT_ITEMS) {
+      expect(PATTERNS_QIDS.has(item.qid), item.qid).toBe(false);
+    }
+    // …and more broadly: nothing test-surface and nothing carrying an
+    // instrument key enters, whatever its option count.
+    for (const q of V2_QUESTIONS) {
+      if (q.surface === "test" || q.test != null) {
+        expect(PATTERNS_QIDS.has(q.id), q.id).toBe(false);
+      }
+    }
+  });
+});
+
+describe("what the axes fold folds", () => {
+  it("folds trait answers off the same day read, beside the fit and invisible to it", async () => {
+    const { store, state } = memoryStore({
+      [yesterday]: [
+        { uid: "u1", qid: CORE_A, optionIdx: 0 },
+        { uid: "u1", qid: TRAIT_A, optionIdx: 3 },
+        { uid: "u1", qid: TRAIT_B, optionIdx: 1 },
+        { uid: "u2", qid: TRAIT_A, optionIdx: 4 }, // trait-only person
+      ],
+    });
+    const r = await runPatternsFit(store, NOW);
+    // the fit's own numbers are exactly what they were without the traits
+    expect(r.folded).toBe(1);
+    expect(r.traits).toBe(3);
+    expect(Object.keys(state.model?.q ?? {})).toEqual([CORE_A]);
+    expect(state.quality?.n, "a trait answer is not a fit observation").toBe(1);
+    // the votes landed, per person, and the trait-only person was written
+    expect(state.users.get("u1")?.t).toEqual({ [TRAIT_A]: 3, [TRAIT_B]: 1 });
+    expect(state.users.get("u2")?.t).toEqual({ [TRAIT_A]: 4 });
+    expect(state.users.get("u2")?.n, "no fit observation was invented for them").toBe(0);
+    expect(state.users.get("u2")?.d).toBe(yesterday);
+    expect(r.users).toBe(2);
+  });
+
+  it("a later patterns-only day does not erase the votes (the d-stamp lesson, for t)", async () => {
+    const dayA = utcDay(NOW, -2);
+    const { store, state } = memoryStore({
+      [dayA]: [{ uid: "u1", qid: TRAIT_A, optionIdx: 2 }],
+      [yesterday]: [{ uid: "u1", qid: CORE_A, optionIdx: 0 }],
+    });
+    await runPatternsFit(store, NOW);
+    expect(state.users.get("u1")?.t).toEqual({ [TRAIT_A]: 2 });
+    expect(state.users.get("u1")?.d).toBe(yesterday);
+  });
+
+  it("an edit on a later day replaces the vote — one person, their current answer", async () => {
+    const dayA = utcDay(NOW, -2);
+    const { store, state } = memoryStore({
+      [dayA]: [{ uid: "u1", qid: TRAIT_A, optionIdx: 0 }],
+      [yesterday]: [{ uid: "u1", qid: TRAIT_A, optionIdx: 4, fromIdx: 0 }],
+    });
+    await runPatternsFit(store, NOW);
+    expect(state.users.get("u1")?.t).toEqual({ [TRAIT_A]: 4 });
+  });
+
+  it("a trait-only write does not republish a crashed day as one nobody answered", async () => {
+    // The scored.pop guard is about the FIT's scorecard: a day whose fit
+    // answers were folded by a dead attempt must vanish from the series,
+    // not surface as n: 0 — and a trait-only person written on the retry
+    // must not count as "the day folded fine". u1 is the dead attempt's
+    // residue (stamped); u2's trait answer is the retry's only real work.
+    const { store, state } = memoryStore({
+      [yesterday]: [
+        { uid: "u1", qid: CORE_A, optionIdx: 0 },
+        { uid: "u2", qid: TRAIT_A, optionIdx: 1 },
+      ],
+    });
+    state.users.set("u1", { v: [0, 0, 0, 0, 0, 0, 0, 0], n: 1, d: yesterday });
+    await runPatternsFit(store, NOW);
+    expect(state.users.get("u2")?.t).toEqual({ [TRAIT_A]: 1 });
+    const days = (state.quality?.series ?? []).map((row) => row.day);
+    expect(days, "the crashed day's row must be dropped, trait write or no").not.toContain(yesterday);
+  });
+
+  it("skips a day a previous attempt already stamped — votes are not re-applied blind", async () => {
+    // Idempotence would make a re-apply harmless today; the guard is
+    // pinned anyway so the trait fold cannot drift onto a different
+    // retry story than the fit it rides with.
+    const { store, state } = memoryStore({
+      [yesterday]: [{ uid: "u1", qid: TRAIT_A, optionIdx: 3 }],
+    });
+    state.users.set("u1", { v: [0, 0, 0, 0, 0, 0, 0, 0], n: 0, d: yesterday });
+    const r = await runPatternsFit(store, NOW);
+    expect(r.traits).toBe(0);
+    expect(state.users.get("u1")?.t).toBeUndefined();
+  });
+});
+
+describe("what the Firestore store carries per person", () => {
+  // Just enough Firestore for getUsers/putUsers: user-subtree docs behind
+  // getAll and batch. The memory store above PROJECTS `t` — this proves
+  // the real one does too, in both directions, because a projection gap
+  // here is precisely how the retry guard shipped dead (`d`), and for `t`
+  // the failure is worse: putUsers replaces the doc whole, so a dropped
+  // read erases every vote the person has accumulated.
+  function fakeUserDb() {
+    const docs = new Map<string, Record<string, unknown>>();
+    const leaf = (path: string) => ({
+      path,
+      collection(sub: string) {
+        return { doc: (id: string) => leaf(`${path}/${sub}/${id}`) };
+      },
+      set(data: Record<string, unknown>) {
+        docs.set(path, data);
+        return Promise.resolve();
+      },
+    });
+    const db = {
+      collection(name: string) {
+        return { doc: (id: string) => leaf(`${name}/${id}`) };
+      },
+      async getAll(...refs: Array<{ path: string }>) {
+        return refs.map((r) => ({
+          exists: docs.has(r.path),
+          get: (f: string) => docs.get(r.path)?.[f],
+        }));
+      },
+      batch() {
+        return {
+          set(r: { path: string }, data: Record<string, unknown>) {
+            docs.set(r.path, data);
+          },
+          commit: () => Promise.resolve(),
+        };
+      },
+    };
+    return { db: db as unknown as Firestore, docs };
+  }
+
+  it("round-trips the trait votes with the vector, the basis and the stamp", async () => {
+    const { db, docs } = fakeUserDb();
+    const store = firestorePatternsStore(db);
+    docs.set("v2_users/u1/patterns/state", {
+      v: [1, 0, 0, 0, 0, 0, 0, 0], n: 2, d: "2026-08-18", t: { [TRAIT_A]: 3 },
+    });
+    const got = await store.getUsers(["u1"]);
+    expect(got.get("u1")).toEqual({
+      v: [1, 0, 0, 0, 0, 0, 0, 0], n: 2, d: "2026-08-18", t: { [TRAIT_A]: 3 },
+    });
+    // …and writing back what was read keeps the votes on the doc
+    await store.putUsers(got);
+    const doc = docs.get("v2_users/u1/patterns/state");
+    expect(doc?.t).toEqual({ [TRAIT_A]: 3 });
+    expect(doc?.d).toBe("2026-08-18");
+  });
+
+  it("a doc without votes stays without the field, absent rather than empty", async () => {
+    const { db, docs } = fakeUserDb();
+    const store = firestorePatternsStore(db);
+    await store.putUsers(new Map([["u1", { v: [0], n: 0 }]]));
+    const doc = docs.get("v2_users/u1/patterns/state");
+    expect(doc && "t" in doc).toBe(false);
+    expect(doc && "d" in doc).toBe(false);
   });
 });
