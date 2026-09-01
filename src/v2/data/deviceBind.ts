@@ -61,6 +61,31 @@ export function activationPlan(
   return memo.until === monthKey(now) ? "skip" : "attempt";
 }
 
+/**
+ * Drop the activation memo so the NEXT BOOT re-runs activation.
+ *
+ * WHY THIS IS NEEDED AT ALL. Activation runs once, at boot, and memoizes —
+ * `activationPlan` returns "skip" for a settled account forever after.
+ * Linking happens later, from the account panel. Without this, an account
+ * that links after activating would keep the level it was graded at, and
+ * the identity rung (accountLevel.ts level 2) would be unreachable by the
+ * only path the app actually offers.
+ *
+ * NEXT BOOT rather than immediately, deliberately: re-running now would
+ * mean a DeviceCheck / Play Integrity round trip inside a settings tap,
+ * whose answer is a foregone `cooldown` — this device already activated
+ * this month. The server re-grades on that cooldown (deviceBind.ts
+ * `regrade`), so the level lands on the next launch, which is soon enough
+ * for a claim that only matters when the bar moves.
+ */
+export function forgetDeviceBind(): void {
+  try {
+    if (typeof localStorage !== "undefined") localStorage.removeItem(KEY);
+  } catch {
+    /* best-effort: a boot that cannot read the memo re-attempts anyway */
+  }
+}
+
 export function memoAfter(
   uid: string,
   res: { ok?: boolean; reason?: string } | null,

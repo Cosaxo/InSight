@@ -330,24 +330,49 @@ async function androidActivate(
 // ── the callable ────────────────────────────────────────────────
 
 /**
- * Stamp the account with the LEVEL it just earned (accountLevel.ts), not a
- * bare 1. The rules compare `>=`, so a level is both the permission and the
- * record of which requirements were in force when it was granted.
+ * Compute this account's level from what is true NOW, and ratchet the claim
+ * to it. Returns the resulting level.
  *
- * NEVER LOWERS. Re-activation on a linked account raises 1 → 2; an
- * already-linked account whose next boot happens to look anonymous (a token
- * read mid-link, say) must not be demoted, because a demotion silently
- * stops that person's votes counting with nothing on screen to explain it.
- * Levels only ratchet up, per account.
+ * ONE FETCH. The user record carries both halves — the prior claim and
+ * `providerData`, which firebase-admin documents as "providers linked to
+ * the user". That is the authoritative source for the identity rung, and
+ * the reason this does not read the token's `sign_in_provider`: that field
+ * is the provider used to SIGN IN, and this app links rather than signs in
+ * (D134), so it says "anonymous" for the life of a linked account.
+ *
+ * `deviceBoundNow` is false on a cooldown, and the `|| prior >= 1` below is
+ * what makes the identity rung reachable at all. Activation runs once, at
+ * boot; linking happens later, from settings. Without this, an account that
+ * links after activating could never be re-graded — every later call is a
+ * cooldown, and a cooldown that refused to look would freeze the account at
+ * level 1 forever.
+ *
+ * A cooldown for an account with prior 0 is a DIFFERENT account on a device
+ * that already spent its month, and it gets nothing: the device rung is
+ * earned per account, and `prior >= 1` is the record that THIS account
+ * earned it.
+ *
+ * NEVER LOWERS. An account whose providerData momentarily reads empty must
+ * not be demoted, because a demotion silently stops that person's votes
+ * counting with nothing on screen to explain it. Levels ratchet up.
  */
-async function grant(uid: string, level: number): Promise<void> {
+async function regrade(uid: string, deviceBoundNow: boolean): Promise<number> {
   const user = await getAuth().getUser(uid);
-  const prior = Number(user.customClaims?.db ?? 0);
+  const raw = user.customClaims?.db;
+  // An integer only, matching what firestore.rules accepts — its `>=`
+  // errors on a string or a boolean and denies. Coercing would read
+  // `db: true` as level 1.
+  const prior = typeof raw === "number" && Number.isInteger(raw) ? raw : 0;
+  const level = levelFor({
+    deviceBound: deviceBoundNow || prior >= 1,
+    linkedProviders: user.providerData.map((p) => p.providerId),
+  });
   const next = Math.max(prior, level);
-  if (next === prior && prior > 0) return; // nothing to write
+  if (next === prior) return prior;
   // Merge, not replace: setCustomUserClaims overwrites the whole map, and
   // a future claim added elsewhere must survive activation re-runs.
   await getAuth().setCustomUserClaims(uid, { ...(user.customClaims || {}), db: next });
+  return next;
 }
 
 export const activateDeviceV2 = onCall(
@@ -362,13 +387,8 @@ export const activateDeviceV2 = onCall(
     // Emulator: grant unconditionally, so the e2e loop, the rules claim
     // path, and dev-in-a-browser all work without Apple/Google — the
     // seedContentV2 gating pattern.
-    // The level this caller would earn if the device check passes. Read
-    // from the ID TOKEN's own sign-in provider, never from request.data —
-    // a client-declared level is not a level.
-    const signInProvider = request.auth.token.firebase?.sign_in_provider;
     if (process.env.FUNCTIONS_EMULATOR === "true") {
-      const level = levelFor({ deviceBound: true, signInProvider });
-      await grant(uid, level);
+      const level = await regrade(uid, true);
       return { ok: true, level };
     }
     if (platform === "web") {
@@ -394,11 +414,17 @@ export const activateDeviceV2 = onCall(
     if (!allow) {
       // Expected outcome, not an error: this device already bought its
       // account this month. The client memoizes and retries next month.
-      logger.info(`[deviceBind] cooldown for uid=${uid} platform=${platform}`);
-      return { ok: false, reason: "cooldown" };
+      //
+      // STILL RE-GRADE. For the account that bought it, a cooldown carries
+      // no new device fact but the IDENTITY fact may have moved since —
+      // this is the only path by which an account that links after
+      // activating ever reaches level 2. For any other account on this
+      // device, prior is 0 and regrade returns 0.
+      const level = await regrade(uid, false);
+      logger.info(`[deviceBind] cooldown for uid=${uid} platform=${platform} level=${level}`);
+      return { ok: false, reason: "cooldown", level };
     }
-    const level = levelFor({ deviceBound: true, signInProvider });
-    await grant(uid, level);
+    const level = await regrade(uid, true);
     logger.info(
       `[deviceBind] activated uid=${uid} platform=${platform} level=${level} (${levelDef(level).key})`,
       { metric: "device_activated", platform, level },

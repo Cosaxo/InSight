@@ -8,7 +8,7 @@
 // for coverage of the happy path, which is one line.
 import { describe, expect, it } from "vitest";
 import type { AccountLevelDef, LevelFacts } from "./accountLevel";
-import { ACCOUNT_LEVELS, REQUIRED_LEVEL, levelDef, levelFor } from "./accountLevel";
+import { ACCOUNT_LEVELS, FEDERATED_PROVIDERS, REQUIRED_LEVEL, levelDef, levelFor } from "./accountLevel";
 
 describe("the ladder itself", () => {
   it("is ascending, dense from 0, and has no duplicates", () => {
@@ -37,25 +37,62 @@ describe("the ladder itself", () => {
 
 describe("levelFor", () => {
   it("gives nothing to a device that did not pass", () => {
-    // The callable returns `cooldown` in this case and never calls grant,
-    // so this is belt and braces — but a helper that awarded a level to a
-    // failed check would be the kind of bug that ships green.
+    // The callable's cooldown arm re-grades rather than granting, so this
+    // is belt and braces — but a helper that awarded a level to a failed
+    // check would be the kind of bug that ships green.
     expect(levelFor({ deviceBound: false })).toBe(0);
-    expect(levelFor({ deviceBound: false, signInProvider: "google.com" })).toBe(0);
+    expect(levelFor({ deviceBound: false, linkedProviders: ["google.com"] })).toBe(0);
   });
 
-  it("device alone is level 1; device plus a real identity is level 2", () => {
-    expect(levelFor({ deviceBound: true, signInProvider: "anonymous" })).toBe(1);
-    expect(levelFor({ deviceBound: true, signInProvider: "google.com" })).toBe(2);
-    expect(levelFor({ deviceBound: true, signInProvider: "apple.com" })).toBe(2);
+  it("device alone is level 1; device plus a linked provider is level 2", () => {
+    expect(levelFor({ deviceBound: true, linkedProviders: [] })).toBe(1);
+    expect(levelFor({ deviceBound: true, linkedProviders: ["google.com"] })).toBe(2);
+    expect(levelFor({ deviceBound: true, linkedProviders: ["apple.com"] })).toBe(2);
   });
 
-  it("a MISSING provider is treated as anonymous, not as linked", () => {
-    // Fail closed. An absent claim on the token must not be read as "some
-    // provider", which would hand every anonymous session level 2 the day
-    // a token shape changed.
+  it("MISSING providers are treated as unlinked, not as linked", () => {
+    // Fail closed. An absent fact must not read as "some provider", which
+    // would hand every anonymous session level 2 the day the fact stopped
+    // being collected.
     expect(levelFor({ deviceBound: true })).toBe(1);
-    expect(levelFor({ deviceBound: true, signInProvider: "" })).toBe(1);
+  });
+
+  it("does NOT accept an email/password identity", () => {
+    // Caught in review. `password` is a linked provider, and an email
+    // address is free and unlimited — none of the Sybil resistance this
+    // rung's description claims to borrow. Accepting it would have made
+    // the rung a formality an attacker clears in bulk, which is worse than
+    // not having the rung: the bar would read stricter than it was.
+    expect(levelFor({ deviceBound: true, linkedProviders: ["password"] })).toBe(1);
+    // …and a federated provider alongside it still counts.
+    expect(levelFor({ deviceBound: true, linkedProviders: ["password", "google.com"] })).toBe(2);
+  });
+
+  it("does not accept `phone` either, which is scarce for a different reason", () => {
+    // Deliberately excluded rather than overlooked: a number costs money,
+    // a Google account costs Google's abuse team, and one rung meaning two
+    // unrelated things is how a bar stops being explainable. Phone is its
+    // own rung if it is ever wanted.
+    expect(FEDERATED_PROVIDERS).not.toContain("phone");
+    expect(levelFor({ deviceBound: true, linkedProviders: ["phone"] })).toBe(1);
+  });
+
+  it("grades on LINKED providers, never on the sign-in method", () => {
+    // THE BUG THIS REPLACED. The first version read the ID token's
+    // `firebase.sign_in_provider`, which firebase-admin documents as "the
+    // provider used to SIGN IN". This app links rather than signs in
+    // (D134: "it links, it does not sign in") precisely so the uid and
+    // every answer survive — so a linked account's token keeps saying
+    // "anonymous" for the life of the account, and level 2 was reachable
+    // ONLY by someone who abandoned their session through the gate's
+    // second button. Exactly backwards.
+    //
+    // The fact now comes from UserRecord.providerData, which firebase-admin
+    // documents as "providers linked to the user". An account that linked
+    // in-session has an entry there and an anonymous one has none, whatever
+    // the token says about how the session began.
+    expect(levelFor({ deviceBound: true, linkedProviders: ["google.com"] })).toBe(2);
+    expect(levelFor({ deviceBound: true, linkedProviders: [] })).toBe(1);
   });
 });
 
@@ -108,7 +145,7 @@ describe("a future rung needs no code change", () => {
   ];
 
   it("awards the new rung when its own test passes", () => {
-    const facts = { deviceBound: true, signInProvider: "google.com", phoneVerified: true };
+    const facts = { deviceBound: true, linkedProviders: ["google.com"], phoneVerified: true };
     expect(walk(withThird, facts)).toBe(3);
     // …and the real ladder, given the same facts, tops out where it should.
     expect(levelFor(facts)).toBe(2);
@@ -119,12 +156,12 @@ describe("a future rung needs no code change", () => {
     // maximising. An account meeting rung 3 but NOT rung 2 must report 2's
     // predecessor, not 3 — otherwise firestore.rules' `>=` waves through
     // an account that never met the bar it is compared against.
-    const skipped = { deviceBound: true, signInProvider: "anonymous", phoneVerified: true };
+    const skipped = { deviceBound: true, linkedProviders: [], phoneVerified: true };
     expect(walk(withThird, skipped)).toBe(1);
   });
 
   it("a rung whose test fails leaves everything above it unreachable", () => {
-    const nothing = { deviceBound: false, signInProvider: "google.com", phoneVerified: true };
+    const nothing = { deviceBound: false, linkedProviders: ["google.com"], phoneVerified: true };
     expect(walk(withThird, nothing)).toBe(0);
   });
 

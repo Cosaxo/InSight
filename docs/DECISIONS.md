@@ -34978,6 +34978,105 @@ believed. Its own test suite pins that, and pinned one real defect already
 — the ladder parser was anchored to line starts, so a formatter collapsing
 those object literals would have blinded it.
 
+### The identity rung was unreachable, twice over — found in review
+
+The first cut graded the identity rung on the ID token's
+`firebase.sign_in_provider`, and that was wrong in a way no test caught,
+because every test supplied the fact directly rather than deriving it.
+firebase-admin documents that field as *"the provider used to **sign in**
+the user"*, and this app **links** rather than signs in — D134's whole
+point, since the uid and every answer survive only because the session is
+not replaced. So a linked account's token keeps saying `anonymous` for the
+life of the account, and level 2 was reachable only by someone who
+ABANDONED their session through the gate's second button. Exactly
+backwards: the users who kept their history were the ones refused the
+higher rung.
+
+The fact now comes from `UserRecord.providerData` — firebase-admin's
+*"providers linked to the user"* — read from the record `regrade` already
+fetches, so it costs no extra call and cannot disagree with token refresh
+timing.
+
+**The second half was worse.** Activation runs ONCE, at boot, and
+memoizes: `activationPlan` answers "skip" for a settled account forever
+after. Linking happens later, from the account panel. So even with the
+right fact, the level was computed at a moment before the fact could be
+true, and nothing ever looked again. The rung was unreachable in two
+independent ways at once, and the docstring promising a 1 → 2 ratchet
+described a path that did not exist.
+
+Both halves close with one shape: the cooldown arm **re-grades**.
+`regrade(uid, deviceBoundNow)` treats `prior >= 1` as the record that this
+account already earned the device rung, so a cooldown — which carries no
+new device fact — can still raise the identity rung. A different account
+on the same spent device has `prior === 0` and gets nothing, which is the
+distinction that makes this safe. On the client, `linkGoogle` drops the
+activation memo at the single choke point in the store, so the next boot
+asks again and receives the cooldown that re-grades it. Next boot rather
+than immediately: re-running now would mean a platform round trip inside a
+settings tap whose answer is a foregone cooldown, and the claim only
+matters when the bar moves.
+
+**The rung grades on FEDERATED providers, not on any provider.** A review
+pass caught `linkedProviders.length > 0` accepting `password` — an
+email/password identity is free and unlimited, and carries none of the
+Sybil resistance the rung's own description claims to be borrowing. The
+predicate now names the providers whose abuse defence someone else
+actually pays for. `phone` is deliberately absent: it IS scarce, but it is
+scarce for a different reason and at a different price, so it belongs to
+its own rung rather than being folded into this one.
+
+**What this says about the ladder's design, kept because it generalises:**
+a rung is only as good as the FACT it grades on, and a fact taken from the
+wrong side of an auth boundary can be perfectly typed, fully tested, and
+still describe something else. Every test passed while the rung was
+unreachable, because every test handed `levelFor` the fact rather than
+deriving it.
+
+### Open to rungs that do not exist yet
+
+**Adding a stricter requirement later is one entry**, which was the point
+of the ask rather than a nicety. Each rung carries its own `met` predicate
+over a `LevelFacts` record, and `levelFor` walks the ladder, stopping at
+the first unmet rung — so it names no specific level and needs no edit
+when one is added. A unit test reads the walker's own source and fails if
+a number appears in it.
+
+Stopping rather than taking the highest satisfied rung is what makes
+levels subsume: an account that somehow met rung 3 but not rung 2 would
+otherwise report as 3, and the rules' `>=` would wave through an account
+that never met the bar it is compared against.
+
+The operator filter READS the ladder out of `accountLevel.ts` rather than
+restating it (`scripts/account-level-lib.mjs`, shared with the gate), so a
+new rung appears in the distribution with its name and can be filtered on
+with no edit to the tool. `--below` takes a KEY as well as a number, which
+is the future-proof form: `--below device+identity` keeps meaning the same
+requirement even if a rung is inserted beneath it and every number shifts.
+A bar the ladder does not define is REFUSED rather than filtered against —
+a typo'd `--below 5` that quietly matched everything would report the whole
+population as unqualified, which is a very convincing wrong answer.
+
+The gate grew with it: the ladder must be ascending, dense from 0, and
+every rung must declare a `met`. A gap makes a bar unreachable; a rung with
+no predicate is a requirement nothing can satisfy, and accounts would stop
+at the rung below it forever with nothing failing.
+
+**Three parser bugs in a row while writing that**, all one family — a
+parser matching slightly the wrong thing and reporting something
+plausible: the block finder took the first `[` after the name, which is the
+TYPE's (`AccountLevelDef[]`), returning an empty ladder from a file with
+three rungs; `countMet` ran over the whole file and counted the interface's
+own `met` declaration plus `levelDef`'s fallback; and an earlier level
+parser was anchored to line starts, so a formatter collapsing the object
+literals would have blinded it. Two failed loudly, and only because the
+gate treats an empty parse as an error rather than a pass.
+
+A fourth of the same family hit this file rather than the code: the edit
+adding this very section used replace-first-occurrence over a 34,000-line
+document, and `### What this does NOT do` is not unique in it, so the text
+landed in an unrelated record. Anchor inside the record.
+
 ### What this does NOT do
 
 It does not flip enforcement (`deviceBindEnforced()` is still `false`, and

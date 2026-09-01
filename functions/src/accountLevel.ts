@@ -28,16 +28,49 @@
  *
  * A new requirement adds a field here and a rung below — never a branch in
  * `levelFor`, which is why that function has no knowledge of any specific
- * level. Facts come from the server's own checks and from the ID token;
- * nothing here may be sourced from `request.data`, because a
+ * level. Facts come from the server's own checks and from the auth USER
+ * RECORD; nothing here may be sourced from `request.data`, because a
  * client-declared fact is not a fact.
  */
 export interface LevelFacts {
   /** The platform confirmed this device had not already activated this month. */
   deviceBound: boolean;
-  /** Firebase's `firebase.sign_in_provider` — "anonymous" until linked. */
-  signInProvider?: string;
+  /**
+   * Provider ids linked to the account — `UserRecord.providerData`, which
+   * firebase-admin documents as "providers linked to the user". Empty for a
+   * session that has never linked.
+   *
+   * NOT `firebase.sign_in_provider`, which this first read and which was
+   * wrong in a way that made rung 2 unreachable. That claim is the provider
+   * used to SIGN IN, and this app's linking path is `linkWithCredential`
+   * (D134: "it links, it does not sign in") — the uid and every answer
+   * survive precisely because the session is not replaced, so the token
+   * keeps saying "anonymous" for the life of the account. Level 2 would
+   * have been earned only by someone who ABANDONED their session through
+   * the gate's second button, which is exactly backwards.
+   */
+  linkedProviders?: readonly string[];
 }
+
+/**
+ * The providers that satisfy the identity rung.
+ *
+ * NAMED RATHER THAN "any linked provider", which is what this first said
+ * and what a review pass caught. `password` is a linked provider and an
+ * email address is free and unlimited, so it carries none of the Sybil
+ * resistance rung 2's own description claims to be borrowing — it would
+ * have made the rung a formality that any attacker clears in bulk.
+ *
+ * `phone` is deliberately ABSENT even though it is genuinely scarce. It is
+ * scarce for a different reason and at a different price (a number costs
+ * money; a Google account costs Google's abuse team), so folding it in here
+ * would let one rung mean two unrelated things. If it is ever wanted, it is
+ * its own rung — which is now a one-entry change.
+ *
+ * These are the two the app can actually offer: `linkGoogle` today, and
+ * Sign in with Apple if a reviewer ever demands it (SHIP-CHECKLIST §4.8).
+ */
+export const FEDERATED_PROVIDERS: readonly string[] = ["google.com", "apple.com"];
 
 export interface AccountLevelDef {
   level: number;
@@ -77,10 +110,12 @@ export const ACCOUNT_LEVELS: AccountLevelDef[] = [
     level: 2,
     key: "device+identity",
     what: "Device-bound AND linked to a real identity provider, so the account survives the handset and carries a second scarce factor — one whose Sybil defence Google and Apple already pay for.",
-    // Absent is treated as anonymous, not as "some provider": failing open
-    // here would hand every anonymous session this rung the day a token
-    // shape changed.
-    met: (f) => !!f.signInProvider && f.signInProvider !== "anonymous",
+    // A FEDERATED provider, not merely any linked one — see
+    // FEDERATED_PROVIDERS for why `password` does not qualify. Absent is
+    // treated as unlinked rather than as "some provider": failing open here
+    // would hand every anonymous session this rung the day the fact stopped
+    // being collected.
+    met: (f) => (f.linkedProviders ?? []).some((p) => FEDERATED_PROVIDERS.includes(p)),
   },
 ];
 
