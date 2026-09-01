@@ -55,10 +55,10 @@ the verification — treat a successful seed as proof of both.
 3. **The remaining step: Actions → *Seed content* → Run workflow.** No
    sign-in, no dev machine, nothing to install.
 
-   722 questions land in `v2_questions`. Re-running is safe (idempotent,
+   744 questions land in `v2_questions`. Re-running is safe (idempotent,
    never resets the `active` kill switch) and, since D34, genuinely cheap:
    it rewrites only documents whose content changed and leaves `contentRev`
-   alone, so a reseed no longer costs every returning device a 722-read
+   alone, so a reseed no longer costs every returning device a 744-read
 bank refetch. The job summary reports `{written, skipped}` — a no-op
    reseed reports `written: 0`.
 
@@ -496,6 +496,35 @@ Both apps must be registered under `com.cosaxo.insight`:
   comfortable if a live takes surface ships later" — has come due twice
   over: the surface shipped at D83 with the report control alongside it,
   and D98 attached names. Both obligations are met above; keep them met.
+
+  **The second trap is guideline 3.1, and nothing in this checklist saw
+  it until 2026-08-31.** The app carries a complete purchase funnel:
+  `SuggestOverlay` (`src/v2/spec/suggestions.jsx`) is the paid door —
+  rate card, scope ruler, composer, and a pay tap that opens Stripe —
+  entered from the profile tab, selling a question window at EUR 320 or
+  an ad at EUR 288. D313's *"commerce stays on the web side"* is a true
+  sentence about where the payment **form** renders; 3.1.1 is about
+  where the **call to action** lives, and that is inside the binary.
+
+  Two readings, and the gap between them is the risk. What is sold is
+  **advertising** — distribution to other people, not a feature unlocked
+  for the buyer — and MONETIZATION.md's *"a buyer gets no read path a
+  signed-in user does not have"* makes that structurally true rather
+  than merely argued. Apple's 3.1.3(e) *forbids* IAP for campaign
+  purchases, and Play has never required its billing for ad spend. But
+  3.1.3(e) is written for apps *"for the sole purpose of"* campaign
+  management and *"not offered to a general audience"*, and this is a
+  consumer app with a B2B door in its profile tab — Meta's "Boost Post"
+  shape, which Apple charged for.
+
+  **Decide it before the first submission, not after a rejection.**
+  There are zero sales and no submission yet, so the door can leave at
+  no cost today; removing it after a review costs a cycle and a flag on
+  the account. [`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md) is the working —
+  including the finding that IAP could not express this product's
+  billing at all, since the closer's partial refund (D164) has no
+  in-app-purchase primitive, and the four legal facts to verify before
+  the decision is recorded.
 - Apple Developer Program (~2 days to approve — start early, as an
   **individual** enrollment). **A Mac is no longer required**: since
   2026-08-05 `.github/workflows/ios-release.yml` archives, exports and

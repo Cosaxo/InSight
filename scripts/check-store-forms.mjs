@@ -35,7 +35,7 @@
 // was prose that nobody could compare to anything. That is the same
 // absence rule 5 was added for, one store over.
 //
-// Nothing here has been FILED yet — D42 parked Play and D340 un-parked it
+// Nothing here has been FILED yet — D42 parked Play and D344 un-parked it
 // onto an ENK, but the Console account does not exist as this is written.
 // The rule matters more now than when it was added a few hours earlier,
 // for the reason §3 itself gives for existing: the answers were derived

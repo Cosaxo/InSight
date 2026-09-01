@@ -2484,6 +2484,165 @@
       "p": 60,
       "k": "The Sun runs on fusion",
       "w": "Hydrogen fusing into helium in the core — not combustion; there is nothing up there to burn."
+    },
+    {
+      "id": "anc14",
+      "f": "ancient",
+      "q": "Pompeii was buried by…",
+      "a": [
+        "A volcano",
+        "A flood",
+        "An earthquake",
+        "A sandstorm"
+      ],
+      "c": 0,
+      "t": 2,
+      "p": 72,
+      "k": "Vesuvius buried Pompeii",
+      "w": "AD 79 — and the town had already been rattled by a major earthquake seventeen years earlier."
+    },
+    {
+      "id": "anc15",
+      "f": "ancient",
+      "q": "The oldest known writing was mostly used for…",
+      "a": [
+        "Poetry",
+        "Prayers",
+        "Accounting",
+        "Royal decrees"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 39,
+      "k": "Writing began as accounting",
+      "w": "The earliest cuneiform tablets are inventories — grain, beer, sheep — centuries before anyone wrote a poem down."
+    },
+    {
+      "id": "anc16",
+      "f": "ancient",
+      "q": "The Sphinx's missing nose was…",
+      "a": [
+        "Shot off by Napoleon's troops",
+        "Removed to a museum",
+        "Eroded by a flood",
+        "Gone centuries before Napoleon"
+      ],
+      "c": 3,
+      "t": 0,
+      "p": 42,
+      "k": "The nose predates Napoleon",
+      "w": "Drawings made decades before Napoleon's campaign already show the Sphinx noseless."
+    },
+    {
+      "id": "anc17",
+      "f": "ancient",
+      "q": "The pyramids were built mainly by…",
+      "a": [
+        "Enslaved people",
+        "Paid seasonal workers",
+        "Prisoners of war",
+        "Priests"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 40,
+      "k": "Pyramid builders were paid",
+      "w": "Workers' villages near Giza show bread and beer rations, medical care and honourable burials — not slave quarters."
+    },
+    {
+      "id": "anc18",
+      "f": "ancient",
+      "q": "The trial of Socrates was decided by…",
+      "a": [
+        "A single judge",
+        "A jury of about 500",
+        "The king of Athens",
+        "An oracle"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 33,
+      "k": "Socrates faced 500 jurors",
+      "w": "Athenian juries ran to hundreds precisely so they could not be bribed."
+    },
+    {
+      "id": "body14",
+      "f": "body",
+      "q": "Your stomach gets a new lining every…",
+      "a": [
+        "Few days",
+        "Few months",
+        "Year",
+        "It never renews"
+      ],
+      "c": 0,
+      "t": 2,
+      "p": 35,
+      "k": "Stomach relines in days",
+      "w": "The acid would digest the stomach itself otherwise — the mucus lining turns over in under a week."
+    },
+    {
+      "id": "body15",
+      "f": "body",
+      "q": "The body's strongest muscle for its size is…",
+      "a": [
+        "The thigh",
+        "The jaw",
+        "The heart",
+        "The bicep"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 44,
+      "k": "The jaw: strongest for size",
+      "w": "The masseter — bite force concentrates through a short, brutal lever."
+    },
+    {
+      "id": "body16",
+      "f": "body",
+      "q": "Which sense is wired most directly to memory?",
+      "a": [
+        "Sight",
+        "Hearing",
+        "Smell",
+        "Touch"
+      ],
+      "c": 2,
+      "t": 0,
+      "p": 51,
+      "k": "Smell wires to memory",
+      "w": "Olfactory signals skip the brain's relay station and land beside the memory centres — hence the time-travel of a familiar smell."
+    },
+    {
+      "id": "body17",
+      "f": "body",
+      "q": "Goosebumps are…",
+      "a": [
+        "A leftover from having fur",
+        "A circulation boost",
+        "An infection response",
+        "Random nerve noise"
+      ],
+      "c": 0,
+      "t": 1,
+      "p": 57,
+      "k": "Goosebumps: fur we lost",
+      "w": "The muscles that raise hairs made ancestors look bigger and warmer; the reflex outlived the coat."
+    },
+    {
+      "id": "body18",
+      "f": "body",
+      "q": "How many times does your heart beat in a day, roughly?",
+      "a": [
+        "10,000",
+        "100,000",
+        "1 million",
+        "1,000"
+      ],
+      "c": 1,
+      "t": 0,
+      "p": 62,
+      "k": "100,000 beats a day"
     }
   ]
 }

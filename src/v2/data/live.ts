@@ -2234,16 +2234,43 @@ function mirrorVoteValue(
 // from the published position sums).
 function buildFeedGlobals(): void {
   if (!state.feedBank.length) return;
-  // Crossroads (D136) is a feed question but NOT a feed card: its reveal is
-  // a tree rather than a split, so none of renderCard's apparatus — option
-  // rows, who-voted, takes, the insight line — applies to it, and the
-  // prototype pins it at the head of the list rather than dealing it into
-  // the stream. It rides its own accessor below; everything else about it
-  // is ordinary (real options, real counts, the same fold and ledger).
   const feed = state.feedBank
-    .filter((q) => q.surface === "feed" && q.type !== "path"
+    .filter((q) => q.surface === "feed"
       && ((q.options || []).length >= 2 || q.type === "catalog"))
     .map((q) => {
+      // Crossroads (D136, dealt in at D341): a story is a feed question AND
+      // a feed card — a member of this pool like any other, so the stream's
+      // own ordering places it and several can ride at once. It keeps its
+      // own card shape (paths-card.jsx) because its reveal is a tree rather
+      // than a split — renderCard's apparatus has nothing to say about a
+      // walk — so what rides here is what that card and the feed mechanics
+      // read, and NOT the synthesized `options`: the endings-as-options
+      // trick is the vote path's business, and an options array on the item
+      // would invite every generic option consumer to treat a walk as a
+      // split. `cat` is the vote arm's own mapping (bank `topic`, default
+      // 'culture') — for the shipped stories that is 'dilemma', an
+      // always-on channel in both builds, so the chip row names and mutes
+      // them like anything else it carries.
+      if (q.type === "path") {
+        const counts = feedCounts(q);
+        return {
+          id: q.id,
+          cat: q.topic || "culture",
+          type: "path",
+          prompt: q.prompt,
+          title: q.title,
+          intro: q.intro,
+          hue: q.hue,
+          nodes: q.nodes,
+          endings: q.endings,
+          counts,
+          // wfVotes' sort key ("top" is most-answered), summed here the way
+          // pathQs' readers sum it — the card itself re-derives total from
+          // `counts` and never reads this.
+          n: counts.reduce((a, b) => a + b, 0),
+          live: true,
+        };
+      }
       // Catalogue picks (D14 gone live) keep their own card shape: no
       // options — the catalogue is the answer space — so none of the
       // option-counts apparatus below applies. The board itself is not
@@ -4638,7 +4665,17 @@ const LIVE = {
     }
   },
   async linkGoogle(): Promise<void> {
-    return linkGoogle();
+    await linkGoogle();
+    // The account just gained an identity provider, which is the fact
+    // accountLevel.ts's level 2 is graded on. Activation memoizes per uid
+    // and would otherwise never look again, so drop the memo and let the
+    // next boot re-grade. Here rather than at the two call sites (the
+    // settings row and the first-launch gate) so neither can forget it.
+    //
+    // After the await: a failed link must not clear a settled memo, since
+    // nothing about the account changed.
+    const m = await import("./deviceBind");
+    m.forgetDeviceBind();
   },
   // The operator seed, reachable from a browser console.
   //
@@ -5119,16 +5156,21 @@ const LIVE = {
   },
   /**
    * Crossroads' stories with their folded ending counts (D136), or an empty
-   * list in a demo build — which is the signal spec/paths-card.jsx reads to
-   * fall back to its own authored pool.
+   * list in a demo build. Since D341 the CARD no longer reads this — a
+   * story rides WORLD_FEED_QS like any other feed question and the card
+   * receives it as a prop — so the one caller left is the Map's Walks
+   * branch (paths-card.jsx pathsMapTree), which needs every story whatever
+   * the feed's filters are showing.
    *
    * Folded ON CALL rather than precomputed into state by buildFeedGlobals,
    * which is where it started. The precomputed version cost ~1 KB of the
    * EAGER graph — this file is in the first-paint chunk — and check:bundle
-   * refused it, correctly: MAX_EAGER_KB has no headroom and is the constant
-   * keeping the Firestore SDK out of first paint, so it is not raiseable.
-   * There is one caller and it renders once per feed render, so the fold is
-   * cheaper here than the bytes were there.
+   * refused it at the time: MAX_EAGER_KB had no headroom then. D341's feed
+   * arm in buildFeedGlobals is not that trade re-taken: pool membership
+   * needs the mapped item either way, the ceiling has headroom today, and
+   * check:bundle graded it. THIS accessor stays on-call because its caller
+   * is a lazy tab that most sessions never open, and a fold nobody asked
+   * for is free only until it isn't.
    */
   pathQs(): LivePathQ[] {
     return state.feedBank

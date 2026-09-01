@@ -471,25 +471,27 @@ answers came from:
   health topic. The nearest real candidate is the personality and politics
   profiles, and neither is health or wellness.
 
-Also **Made for Kids: No**, and **In-app purchases: No**. Neither is an
-`ageRatingDeclarations` attribute, so neither is in the table.
+Also **Made for Kids: No**, and **In-app purchases: No** — there are no
+StoreKit products, which is what that field asks about.
 
-**That second answer is unchanged and its reason is not.** It read
-"`MONETIZATION.md` records no consumer paid tier at launch", which was
-true when it was written and stopped being true at D313/D315: a sponsor
-can buy a paid question or an ad from inside the app. The declaration
-still answers **No** because it asks about **StoreKit products**, of
-which there are none — the sale is a Stripe checkout opened in the system
-browser, per `NEXT-FUNCTIONALITY.md` §6's rule that commerce stays on the
-web side. Same answer, load-bearing reason replaced; the D116 shape, where
-what went stale was the sentence a reviewer checks the row against rather
-than the row.
+**The answer stands; the reason it used to give does not.** It read
+"`MONETIZATION.md` records no consumer paid tier at launch", which went
+stale at D313: there IS a paid tier now — a buyer books a question or a
+feed ad and pays through Stripe — it is simply B2B and off-StoreKit.
+Same answer, dead reasoning, which is the D179/D183 shape exactly. Where
+that purchase surface may live without the stores taking a cut of it is
+[`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md), and SHIP-CHECKLIST § 3 carries
+it as a pre-submission decision.
 
-Play's equivalent declaration answers **No** for the same reason (no
-Google Play Billing products). Whether Play's *Payments* policy requires
-that sale to use its billing system is a **separate, open question** that
-neither declaration disposes of — see
-[`PLAY-RELEASE.md`](PLAY-RELEASE.md) §3.4.
+Neither is an `ageRatingDeclarations` attribute, so neither is in the
+table.
+
+**Play's equivalent declaration answers No for the same reason** — there
+are no Google Play Billing products either. But the two stores do not ask
+the same second question: whether Play's *Payments* policy **requires**
+that sale to use its billing system is separate, open, and disposed of by
+neither declaration. [`PLAY-RELEASE.md`](PLAY-RELEASE.md) §3.4 has it, and
+`STORE-CUT-PLAN.md` above is the same subject from the Apple side.
 
 **Expect 12+ / 13+.** Answer it deliberately rather than accepting a
 default.
