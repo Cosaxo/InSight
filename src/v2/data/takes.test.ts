@@ -149,6 +149,10 @@ vi.mock("firebase/firestore", () => {
     updateDoc: () => Promise.resolve(),
     terminate: () => Promise.resolve(),
     clearIndexedDbPersistence: () => Promise.resolve(),
+    // D343: the queue-drained signal settlePending awaits — required
+    // here like every other member live.ts binds, whether or not a case
+    // reaches it (vitest throws on a member the factory does not define).
+    waitForPendingWrites: () => Promise.resolve(),
   };
 });
 
