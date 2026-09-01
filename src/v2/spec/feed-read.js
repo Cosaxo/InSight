@@ -4,6 +4,10 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import { sharePcts } from '../data/pct';
+// The store (D345): `feedInsight` below reads the aggregate through it at
+// call time. Imported rather than `window.LIVE` — the load-order guard
+// that read carried is unreachable on an import.
+import LIVE from '../data/live';
 
 // feed-read.js — the feed's memory.
 //
@@ -95,8 +99,7 @@ export let feedInsight;
   // below, where the room baseline is built.
   feedInsight = function feedInsightImpl(q, _counts, mine) {
     if (!q || !q.live || !q.options || q.options.length < 2) return null;
-    const L = window.LIVE;
-    const agg = L && L.enabled && L.aggFor ? L.aggFor(q.id) : null;
+    const agg = LIVE.enabled ? LIVE.aggFor(q.id) : null;
     const by = agg && agg.by;
     if (!by) return null;
 

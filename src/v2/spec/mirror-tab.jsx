@@ -16,6 +16,11 @@ import { bindSwipeBack } from './swipe-back.js';
 // the stop id) are unchanged, because those guard data, not loading.
 import NearLiveBody from '../ui/NearLiveBody';
 import NAV from '../data/nav';
+// The store, imported (D345). The two reads below were `window.LIVE` behind
+// an existence guard; an imported binding cannot be unset, so the guard is
+// gone and the data halves (`.enabled`, `.demoInProd`) stay — both are
+// false for the whole of mock mode.
+import LIVE from '../data/live';
 // Three of them load AFTER first paint, and the reason is the bundle budget
 // rather than taste.
 //
@@ -265,12 +270,11 @@ function MirrorPopPicker({ stopId, onPick }) {
 
 // ─── the Mirror tab ───
 function MirrorPreviewTag({ popId }) {
-  const L = window.LIVE;
   // Shown in live mode (populations are still demo data) AND when a
   // live build is stuck on the mock fallback (D1: never let sample
   // people pass as real, even offline).
-  const demoInProd = !!(L && L.demoInProd);
-  if (!(L && (L.enabled || demoInProd)) || popId === 'you') return null;
+  const demoInProd = !!LIVE.demoInProd;
+  if (!(LIVE.enabled || demoInProd) || popId === 'you') return null;
   return (
     <div style={{ display: 'flex', justifyContent: 'center', margin: '2px 0 6px' }}>
       <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', border: '1px solid var(--rule)', borderRadius: 999, padding: '3px 10px' }}>
@@ -287,7 +291,7 @@ function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, backKey 
   // The axis carries the world zooms as stops of its own, so a pick has to
   // set both halves of the old two-level state. (The live City stop is
   // back since D111, so a persisted zoom === 'city' needs no resolving.)
-  const liveGeo = !!(window.LIVE && window.LIVE.enabled);
+  const liveGeo = LIVE.enabled;
   const stopId = p.id === 'world' ? zoom : p.id;
   const pick = (s) => { if (s.pop === 'world') { onPop('world'); onZoom(s.zoom); } else onPop(s.pop); };
   // one horizontal axis across the whole app: a right-swipe here falls back onto

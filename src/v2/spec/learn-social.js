@@ -6,6 +6,8 @@
 import { FRIENDS } from './follows.js';
 import { LEARN } from './learn-progress.js';
 import { IS_DATA } from './sample-data.js';
+// The store (D345) — the two live gates below read `.enabled` at call time.
+import LIVE from '../data/live';
 
 // learn-social.js — the friend layer for Learn. Deterministic per (friend, card)
 // so a standing never shifts between sittings, and derived from the card's own
@@ -31,7 +33,7 @@ window.LEARN_SOCIAL = (function () {
     // Live mode renders honest absence (the D11 structural pattern): these
     // standings are derived from demo people, and until a real friend
     // layer exists there is nothing true to show.
-    if (window.LIVE && window.LIVE.enabled) return [];
+    if (LIVE.enabled) return [];
     return friends()
       .filter((p) => h2(p.id + '|seen|' + card.id) < 0.62)
       .map((p) => ({ id: p.id, name: p.name, init: p.init, hue: p.hue, ok: h2(p.id + '|ok|' + card.id) < (card.p / 100) * (0.78 + h2(p.id + '|sk') * 0.5) }));
@@ -41,7 +43,7 @@ window.LEARN_SOCIAL = (function () {
   // many sit level with you
   function field(fid, yourKnown) {
     // Same live gate as onCard — synthetic standings stay demo-only.
-    if (window.LIVE && window.LIVE.enabled) return null;
+    if (LIVE.enabled) return null;
     const total = LEARN.total(fid);
     if (!total) return null;
     const rows = friends()

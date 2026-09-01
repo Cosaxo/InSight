@@ -11,24 +11,29 @@
 // eleven cells at three to five options, always by a point.
 import { describe, it, expect } from "vitest";
 import { feedInsight } from "../spec/feed-read.js";
+import LIVE from "../data/live";
 import { sharePcts } from "../data/pct";
 import { wfPcts } from "../spec/world-feed-math.js";
 
 // A live vote question and the aggregate the store would hand back for
-// it. `feedInsight` reads `window.LIVE.aggFor`, not the card, so the stub
-// is the aggregate — the shape `agg.by` publishes.
+// it. `feedInsight` reads `LIVE.aggFor`, not the card, so the stub is the
+// aggregate — the shape `agg.by` publishes.
+//
+// Defined ONTO the imported singleton, not assigned to `window.LIVE`:
+// feed-read.js imports the binding (D345), and a second object on the
+// global would reach nobody — test/live-fixture.ts's header has the
+// failure that avoids. The un-booted store is inert, so flipping
+// `enabled` and swapping `aggFor` is the whole stand-in.
 const q = (counts, cellCounts) => {
   const question = {
     id: "feed-x", live: true, type: "vote",
     options: counts.map((c, i) => ({ id: String(i), label: `Opt ${i}`, count: c })),
   };
-  window.LIVE = {
-    enabled: true,
-    aggFor: () => ({
-      counts: Object.fromEntries(counts.map((c, i) => [String(i), c])),
-      by: { ageBand: { "25-34": Object.fromEntries(cellCounts.map((c, i) => [String(i), c])) } },
-    }),
-  };
+  LIVE.enabled = true;
+  LIVE.aggFor = () => ({
+    counts: Object.fromEntries(counts.map((c, i) => [String(i), c])),
+    by: { ageBand: { "25-34": Object.fromEntries(cellCounts.map((c, i) => [String(i), c])) } },
+  });
   return question;
 };
 

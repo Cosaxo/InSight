@@ -563,7 +563,7 @@ rule could have fired.
 **Rule 4** counts every site where one file reads a name another file
 assigns to global scope, per file, and the number may only go down. The
 baseline is in `scripts/check-spec-globals.mjs`; `npm run check:globals`
-prints the current total on every run. The count today is **234 across 32
+prints the current total on every run. The count today is **160 across 27
 files**, down from 799 when the ratchet landed.
 
 The mechanism needs no bookkeeping, which is what makes it usable. The
@@ -893,3 +893,82 @@ at size 34 — so only the import here went. Worth checking rather than
 assuming: the sentence above this one said "imported by nothing" until a
 grep said otherwise, and dropping the export on that reading would have
 broken a panel every gate here is blind to.
+
+### `LIVE` — the store itself leaves the bridge (D345)
+
+234 → 160 in one change, the largest single drop since `test-definitions.js`
+and `passive-progress.js` (657 → 540), and the cheapest per site: `LIVE` was
+**79 of the 234** remaining sites — a third of the whole meter — and
+`data/live.ts` had exported the singleton since the port. Seventeen spec
+modules already imported it (`lens-defs.js`, `map-anchors.js`,
+`result-card.jsx`, `app-shell.jsx` and `daily-split.jsx` among them) while
+reading `window.LIVE` in the same file a few hundred lines down, so for six
+of the thirteen consumers the conversion added no import edge at all, only
+replaced the spelling. Provider view first, as this section keeps saying:
+the per-name transpose of rule 4's own `definedBy`/`referenced` maps put
+`LIVE` at the top by a factor of six over the next name (`GDAv`, 13).
+
+What it cost and what it taught, in the order they were met:
+
+- **Cycle safety is a module-scope question, and both directions were
+  read before the import went in.** `live.ts` imports
+  `test-definitions.js` (for `IS_TESTS`), so any spec module that imports
+  `live.ts` and is itself reachable from `test-definitions.js` closes a
+  loop — and the loop is harmless exactly when neither side reads the
+  other's bindings while evaluating. `live.ts` touches `IS_TESTS` only
+  inside `syncPassiveResults`; `daily-questions.js`, the earliest new
+  importer (4th in `spec-index.js`), reads `LIVE` only inside `myAnswer`
+  and `liveSync`. Checked by reading the module scopes, then proved by
+  the six mount suites, which boot the whole graph.
+- **One reader stays, for a reason the scanner cannot see.**
+  `test-definitions.js` keeps its four `window.LIVE` sites because
+  `scripts/report-lib.mjs` imports that module under plain node (and
+  `archetype-data.js` imports `IS_TEST_AVG` from it), where `live.ts`
+  cannot follow: it publishes `window.LIVE` at module scope and binds the
+  Firebase SDK. The baseline entry carries the reason. The honest fix is a
+  node-safe seam for the store's write half — `persistTestResult`'s
+  callers are all in-app — and it is an ordinary refactor now, not a
+  prerequisite.
+- **Three tests had hand-rolled the D280 trap.** `feed-insight-round.test.js`,
+  `map-dates.test.js` and `learn-split.test.ts` each assigned their own
+  object to `window.LIVE` (the third through a `W` alias, which is why the
+  first grep for the shape found two) and asserted against a module that,
+  after this change, imports the binding — so the stand-in reached nobody.
+  The full suite said so: 17 failures in `learn-split`, every live case
+  reading `enabled: false` and reporting the demo estimate. The other two
+  were found by reading rather than by failing, and one of them would have
+  passed vacuously (`map-dates`' demo path IS `enabled: false`). All three
+  now define their members ONTO the imported singleton, which is what
+  `test/live-fixture.ts` has done since its header was written;
+  `map-dates` and `learn-split` need `defineProperty` because `ready` is a
+  getter on the store's literal and the real descriptors have to go back.
+- **The guard list gained a shape.** Beside the six load-order shapes
+  `follows.js` and `result-card.jsx` recorded, this layer had grown
+  *member-existence* guards on the store — `L.myVotes ? L.myVotes()[id] :
+  null`, `L.editVote && L.editVote(…)`, `!L.dailyBank`, `L.confirmedVotes ?
+  … : L.myVotes()`, `L.aggFor && L.aggFor(…)`. Every one of those members
+  is on the object literal and pinned by `data/vote.test.ts`'s surface
+  test, so the false branch was unreachable in the app and reachable only
+  from a hand-built stand-in that omitted the member. They went with the
+  bridge reads; the data conditions beside them — `.enabled`, `.ready`,
+  `.demoInProd`, `.feedReady` — stayed, because those are false for the
+  whole of mock mode and that is a real branch.
+- **A comment had outlived its premise, again.** `daily-split.jsx` said its
+  `demoInProd` read was a window read *deliberately*, "because the smoke
+  fixtures drive this branch through the window stand-in" — true when the
+  fixture assigned a second object to the global, and false since it began
+  installing onto the singleton. The corrected comment names the failure
+  that taught the fixture, rather than re-asserting the old reason.
+- **The suppression count did not move.** D108 predicted every conversion
+  would raise it before lowering it, because the React Compiler bails out
+  of a component that reads a value through global scope. Not here:
+  `app-shell.jsx`, `daily-split.jsx` and `world-feed.jsx` already held the
+  import for other reads, so the compiler had never been bailing out on
+  `LIVE`'s account. `npm run lint` is unchanged at zero.
+
+What remains at 160 is `mirror-field-pops.jsx` (23), `app-shell.jsx` (22),
+`map-tab.jsx` (17), `world-feed.jsx` (16), `daily-split.jsx` (12) and
+`group-mirror.jsx` (11), and the provider view says what those are made of:
+`GDAv` (13, from `group-daily.jsx`), `LMStreak` (8), `MapStats` (7), and a
+long tail of one- and two-site component tags between Mirror modules. None
+of them is the store any more.

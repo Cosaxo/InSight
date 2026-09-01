@@ -83,7 +83,7 @@ function AccountSheet({ onClose }) {
 // the Roles panel and the LIVE read arrived with D204 (main). The merge
 // keeps both changes.
 function ProfileOverlay({ onClose, me }) {
-  const L = window.LIVE || {};
+  const L = LIVE;
   const dims = [
     { label: 'Openness', v: me.personality.O },
     { label: 'Conscientiousness', v: me.personality.C },

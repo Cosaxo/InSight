@@ -143,7 +143,7 @@ import {
   }
 
   function loadGen() {
-    const live = !!(window.LIVE && window.LIVE.enabled);
+    const live = LIVE.enabled;
     const base = baseFor(live);
     try {
       const saved = JSON.parse(localStorage.getItem(GKEY) || 'null') || migrateV1(live);
@@ -605,9 +605,8 @@ import {
       try { localStorage.setItem(GKEY, JSON.stringify(data)); } catch (e) { /* ignore */ }
     }, [data]);
     // One liveness read for the panel: the anchors mirror below and the
-    // demo-section gate at the foot both branch on it, and consolidating
-    // here keeps the file's shared-global reference count flat (D39 rule 4).
-    const LIVE_ON = !!(window.LIVE && window.LIVE.enabled);
+    // demo-section gate at the foot both branch on it.
+    const LIVE_ON = LIVE.enabled;
     // Mirror the anchor subset onto the owner-only profile doc (D8), so
     // later answers can snapshot it. Only in live mode — in mock mode the
     // vitals are demo data and there is no server to write to.
@@ -628,7 +627,7 @@ import {
     // anchors exactly where they are.
     useEffect(() => {
       if (anchorsJson == null) return;
-      try { window.LIVE.saveAnchors(JSON.parse(anchorsJson)); } catch (e) { /* best-effort */ }
+      try { LIVE.saveAnchors(JSON.parse(anchorsJson)); } catch (e) { /* best-effort */ }
     }, [anchorsJson]);
 
     return (

@@ -248,9 +248,9 @@ export function UpdateRequiredBlocker() {
         <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--ink-2)', lineHeight: 1.5, marginBottom: 16 }}>
           This version can no longer talk to the server safely. Grab the latest and you're back in.
         </div>
-        <button className="press" onClick={() => { const u = window.LIVE.updateUrl; if (u) window.open(u, '_blank'); else location.reload(); }}
+        <button className="press" onClick={() => { const u = LIVE.updateUrl; if (u) window.open(u, '_blank'); else location.reload(); }}
           style={{ border: 'none', borderRadius: 999, padding: '12px 24px', cursor: 'pointer', background: 'var(--ink)', color: 'var(--surface)', fontFamily: 'var(--sans)', fontWeight: 800, fontSize: 14 }}>
-          {window.LIVE.updateUrl ? 'Get the update' : 'Reload'}
+          {LIVE.updateUrl ? 'Get the update' : 'Reload'}
         </button>
       </div>
     </div>
@@ -574,13 +574,13 @@ function App() {
 
   const me = IS_DATA.me;
   // live identity: initials from the real display name (demo persona off)
-  const liveOn = window.LIVE && window.LIVE.enabled;
+  const liveOn = LIVE.enabled;
   const liveInitials = liveOn
-    ? (((window.LIVE.displayName || '').split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()) || '·')
+    ? (((LIVE.displayName || '').split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()) || '·')
     : null;
   const [, liveTick] = useState(0);
-  const this_dismissedUpdate = () => { try { return sessionStorage.getItem('insight.updateDismissed') === String(window.LIVE && window.LIVE.latestBuild); } catch (e) { return false; } };
-  useEffect(() => (window.LIVE ? window.LIVE.subscribe(() => liveTick((t) => t + 1)) : undefined), []);
+  const this_dismissedUpdate = () => { try { return sessionStorage.getItem('insight.updateDismissed') === String(LIVE.latestBuild); } catch (e) { return false; } };
+  useEffect(() => LIVE.subscribe(() => liveTick((t) => t + 1)), []);
 
   // Sync tab tweak <-> state (so Tweaks panel can drive it).
   // These are the two halves of a deliberate two-way sync, and each one
@@ -662,15 +662,15 @@ function App() {
           </div>
         </header>
 
-        {liveOn && window.LIVE.updateRequired && <UpdateRequiredBlocker />}
-        {liveOn && !window.LIVE.updateRequired && window.LIVE.updateAvailable && !this_dismissedUpdate() && (
+        {liveOn && LIVE.updateRequired && <UpdateRequiredBlocker />}
+        {liveOn && !LIVE.updateRequired && LIVE.updateAvailable && !this_dismissedUpdate() && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 16px', background: 'color-mix(in oklch, var(--accent, var(--ink)) 9%, var(--surface-2))', borderBottom: '1px solid var(--rule)', fontSize: 12.5, fontWeight: 700 }}>
             <span style={{ flex: 1 }}>A newer version is out.</span>
-            <button className="press" onClick={() => { const u = window.LIVE.updateUrl; if (u) window.open(u, '_blank'); else location.reload(); }}
+            <button className="press" onClick={() => { const u = LIVE.updateUrl; if (u) window.open(u, '_blank'); else location.reload(); }}
               style={{ border: 'none', background: 'none', cursor: 'pointer', fontWeight: 800, color: 'var(--accent, var(--ink))', fontSize: 12.5 }}>
-              {window.LIVE.updateUrl ? 'Update' : 'Refresh'}
+              {LIVE.updateUrl ? 'Update' : 'Refresh'}
             </button>
-            <button aria-label="Dismiss update notice" onClick={() => { try { sessionStorage.setItem('insight.updateDismissed', String(window.LIVE.latestBuild)); } catch { /* best-effort */ } liveTick((t) => t + 1); }}
+            <button aria-label="Dismiss update notice" onClick={() => { try { sessionStorage.setItem('insight.updateDismissed', String(LIVE.latestBuild)); } catch { /* best-effort */ } liveTick((t) => t + 1); }}
               style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--ink-3)', fontSize: 14, padding: 0 }}>✕</button>
           </div>
         )}
@@ -688,7 +688,7 @@ function App() {
                   builds only: the demo keeps the prototype's default (full
                   field), so style-diff still compares like with like. */}
               {tab === 'mirror' && <MirrorTab onPerson={setPerson} pop={mirrorPop} onPop={(v) => setTweak('mirrorPop', v)} worldZoom={worldZoom} onZoom={(v) => setTweak('worldZoom', v)}
-                firstRun={!!(window.LIVE && window.LIVE.enabled && window.FEEDREAD && window.FEEDREAD.stats().n < 8)}
+                firstRun={!!(LIVE.enabled && window.FEEDREAD && window.FEEDREAD.stats().n < 8)}
                 backKey={'track:duo'} />}
               {/* Suspense fallback null, PulseCard's rule: nothing rather
                   than a blank card — the chunk arrives inside the tap's
