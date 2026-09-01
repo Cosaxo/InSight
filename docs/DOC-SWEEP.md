@@ -120,6 +120,19 @@ leaves a half-corrected document, which is worse than the stale one it
 replaced, because it now carries two vintages of claim with nothing
 marking the seam.
 
+**That clock is the run's own, and it is not the cron slot.** A
+dispatcher-bound lane starts when the dispatcher is free, not when the
+Routine fires: the 2026-09-01 firing was created at 08:18:13 UTC and
+reached the session at 13:43 UTC, five and a half hours later. Two things
+follow. Measure the 50 minutes from your **first tool call**, never from
+the schedule — they are different clocks and only one of them is yours.
+And do not lean on the hourly staggering `QUESTION-FARM.md` uses to keep
+two lanes off one checkout: that spacing is between *fire* times, and
+arrival is not fire time, so the guarantee does not transfer to a
+dispatcher-bound lane. Check the tree is clean before working, and stash
+or use a worktree if it is not. Nothing has collided yet; this is written
+down before it does.
+
 **Fan out.** The three detectors (§4) and the two rotation audits (§5) are
 independent and should run concurrently as subagents. Adjudication — what
 is a real finding, and does it fall on the EDIT or the REPORT side of §1 —
@@ -406,30 +419,32 @@ So the next reader assumes no more than it checks:
 - Two documents a run is a slow cycle over a corpus this size. The rotation
   is the floor, not the coverage claim.
 
-**Open: the write path works under instruction and did not work
-unattended.** This was measured in both directions on 2026-08-31, which is
-the only reason it can be stated this precisely.
+**The write path: measured three times, and the tidy explanation was wrong
+twice.** It is written out in full because each correction cost a run, and
+because the shape of the mistake is the more useful half.
 
-During the unattended run, every GitHub **write** was refused by the
-harness permission classifier before a request left the container —
-creating the run log issue and commenting on it — while authenticated
-**reads** succeeded and `git push` of a branch succeeded. Later the same
-day, with the owner instructing the work directly in the dispatcher
-session, the identical `curl` calls succeeded: this file's PR and run log
-issue #336 were both created that way.
+1. **2026-08-31, unattended.** Every GitHub *write* was refused by the
+   harness permission classifier before a request left the container;
+   authenticated reads and `git push` both worked. The run inferred that
+   the cause was the unconnected MCP server. **That was a guess wearing a
+   measurement's clothes, and it was wrong.**
+2. **2026-08-31, under instruction.** The identical `curl` calls
+   succeeded. Which suggested a cleaner rule — *unattended writes are
+   blocked* — and that rule is the one this file carried for a day.
+3. **2026-09-01, unattended.** The run's own abort report posted with
+   nobody watching and nobody asked. **So that rule does not hold
+   either.**
 
-So the boundary is not the token, not `.claude/settings.json`, and not
-GitHub. It is the classifier's judgement of a write issued with nobody
-watching — which is the one condition every scheduled run meets by
-definition. A lane whose only product is a report cannot do its work
-without it.
+Whatever refused the first run was narrower than either explanation, and
+it is not a standing property of scheduled runs. So the rule for a run is
+not about permissions at all, it is about behaviour: **attempt the write,
+and fall back to `DOC-SWEEP-DIAG.md` (§8) when it is refused.** The
+fallback is the load-bearing part precisely *because* the failure is
+intermittent rather than principled — an intermittent failure is the kind
+a lane absorbs silently, and a silent lane is indistinguishable from a
+lane with nothing to say.
 
-The repo has already provisioned the intended path and it is unused:
-`.claude/settings.json` allowlists the `mcp__github__*` issue and PR
-writes, but no GitHub MCP server is connected to the dispatcher's
-environment, so those tools do not exist in a run. Connecting one is worth
-trying first, because it is a different mechanism from a classified Bash
-call rather than the same request in another coat — but until a scheduled
-run has actually reported through it, this stays open, and the
-`DOC-SWEEP-DIAG.md` fallback in §8 is what keeps a blocked run from being
-a silent one.
+Still unconnected and still untested: the `mcp__github__*` path
+`.claude/settings.json` already allowlists. It is no longer the only way
+this lane could report, so it is an improvement to make rather than a
+blocker to clear.
