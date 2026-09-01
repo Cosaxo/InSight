@@ -6037,6 +6037,112 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "unit": "years"
  },
  {
+  "id": "feed-f122",
+  "surface": "feed",
+  "seq": 166,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The famous person you'd trust to babysit: Dolly Parton, Keanu Reeves, David Attenborough, or Michelle Obama?",
+  "options": [
+   "Dolly Parton",
+   "Keanu Reeves",
+   "David Attenborough",
+   "Michelle Obama"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl18",
+  "surface": "feed",
+  "seq": 167,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Minutes late before it counts as late?",
+  "options": [
+   "0–3 min",
+   "3–5 min",
+   "5–8 min",
+   "8–10 min",
+   "10–13 min",
+   "13–15 min",
+   "15–18 min",
+   "18–20 min",
+   "20–23 min",
+   "23–25 min",
+   "25–28 min",
+   "28–30 min"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 30,
+  "unit": "min"
+ },
+ {
+  "id": "feed-f123",
+  "surface": "feed",
+  "seq": 168,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Never lie again — and never be lied to. Take the deal?",
+  "options": [
+   "Take it",
+   "Too much truth"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f124",
+  "surface": "feed",
+  "seq": 169,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A referendum on every big question: more democracy, or chaos?",
+  "options": [
+   "More democracy",
+   "Chaos"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "political": true
+ },
+ {
+  "id": "feed-f125",
+  "surface": "feed",
+  "seq": 170,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Breakfast: sweet, or savoury?",
+  "options": [
+   "Sweet",
+   "Savoury"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f126",
+  "surface": "feed",
+  "seq": 171,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Black-and-white films: a treat, or a chore?",
+  "options": [
+   "A treat",
+   "A chore"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,
