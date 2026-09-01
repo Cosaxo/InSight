@@ -18,6 +18,17 @@
 // mount suites exist to prevent, and it was sitting under the largest
 // screen in the app.
 //
+// THE CLASS WAS ALREADY KNOWN, AND THAT IS THE POINT. person-mindmap.jsx
+// carries the same capped-retry fit, and person-mindmap-still.test.jsx
+// (2026-08-26) exists because a ReferenceError in its label pass shipped
+// behind exactly this early return, with every gate green. That file's
+// header states the mechanism in full and its `measure()` stubs the same
+// two prototype getters. What nobody went back for was map-tab.jsx —
+// the SAME construct, on the Mirror's landing stop, 843 statements to
+// person-mindmap's 647. So this is the second sighting of a known bug
+// class on a bigger screen, not a new one, and the argument below is
+// borrowed from that file rather than made fresh.
+//
 // WHY A SIZE STUB IS HONEST HERE, against setup-dom.ts's rule that a stub
 // faking a RESULT the test asserts on is testing the stub. A pane's width
 // is not a result the Map computes; it is the layout jsdom declines to do,
@@ -46,12 +57,19 @@ let restore = null;
 
 function measurable(on) {
   if (on) {
-    // The real getters live on Element.prototype, not here — jsdom defines
-    // them one link up the chain — so there is no own descriptor to put
-    // back and `delete` is the restore: it unshadows the inherited pair.
+    // Restore by whichever route applies, the shape person-mindmap-still
+    // already uses: jsdom defines these getters one link up the chain, on
+    // Element.prototype, so today there is no own descriptor here and
+    // `delete` is what unshadows the inherited pair — but a jsdom that
+    // moved them down would leave one, and deleting it would strip the
+    // getters from every later suite in this worker.
+    const saved = ["clientWidth", "clientHeight"].map((k) =>
+      [k, Object.getOwnPropertyDescriptor(HTMLElement.prototype, k)]);
     restore = () => {
-      delete HTMLElement.prototype.clientWidth;
-      delete HTMLElement.prototype.clientHeight;
+      for (const [k, d] of saved) {
+        if (d) Object.defineProperty(HTMLElement.prototype, k, d);
+        else delete HTMLElement.prototype[k];
+      }
     };
     Object.defineProperty(HTMLElement.prototype, "clientWidth", {
       configurable: true, get() { return PANE.width; },
