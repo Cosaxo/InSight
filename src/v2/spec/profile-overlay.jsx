@@ -29,6 +29,10 @@ import LivePrivacyPanel from '../ui/LivePrivacyPanel.tsx';
 // Android's back has to peel the account sheet before the shell peels the
 // profile overlay itself — same import, same reason as primitives' Sheet.
 import { pushBackLayer } from '../data/backLayers';
+// The identity row shows a linked account's handle (D341 amendment) —
+// the display form comes from the same pure module the account sheet's
+// panel uses, so "@olaf" is spelled one way everywhere.
+import { atHandle } from '../data/handles.ts';
 
 // The Roles tab (D204), behind a lazy boundary. When Roles shipped this
 // file was eager (spec-index imported it at top level) and MAX_EAGER_KB
@@ -287,13 +291,27 @@ function ProfileOverlay({ onClose, me }) {
             const init = live
               ? ((nm.split(' ').map((w) => w[0]).filter(Boolean).slice(0, 2).join('').toUpperCase()) || '·')
               : me.initials;
-            const sub = live ? 'anonymous session — link Google below to keep it' : (me.location + ' · ' + me.country);
+            // This line said "anonymous session — link Google below to
+            // keep it" for EVERY live session, hardcoded (D341 amendment).
+            // Wrong twice: live.ts's auth observer had this site on record
+            // ("hardcodes the same sentence with no check at all"), so a
+            // Google-linked account was told it was anonymous; and "below"
+            // pointed at the Sign-in row D211 removed — the only link path
+            // left is the D134 gate, before the app opens, so the
+            // instruction had no control to point at (COPY.md's fourth
+            // deletion). Now only facts the session holds: the handle when
+            // linked (or nothing while none is claimed), the bare state
+            // when not. NOT a revived link control — D211's reasoning
+            // stands, the copy just stops promising one.
+            const sub = live
+              ? (L.linked ? (L.handle ? atHandle(L.handle) : '') : 'anonymous session')
+              : (me.location + ' · ' + me.country);
             return (
               <>
                 <Av init={init} hue={38} size={42} />
                 <div style={{ minWidth: 0 }}>
                   <div style={{ fontFamily: 'var(--sans)', fontWeight: 700, fontSize: 18, letterSpacing: '-0.02em', lineHeight: 1.15 }}>{nm}</div>
-                  <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, color: 'var(--ink-3)', marginTop: 2 }}>{sub}</div>
+                  {sub ? <div style={{ fontFamily: 'var(--sans)', fontSize: 12.5, color: 'var(--ink-3)', marginTop: 2 }}>{sub}</div> : null}
                 </div>
               </>
             );

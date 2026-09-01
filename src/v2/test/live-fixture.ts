@@ -726,8 +726,9 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     loadLearnAggs: async () => {},
     linkGoogle: async () => {},
     // Anonymous-first (D3) is the default state, so that is what the fixture
-    // renders — the branch the privacy panel and profile overlay both
-    // describe in copy.
+    // renders — the identity row's "anonymous session" branch
+    // (profile-overlay.jsx, D341 amendment). A case that needs the linked
+    // branch flips this in its prep.
     linked: false,
     // Operator-only and never rendered; present so the fixture's key set
     // still matches the real surface (fixtureSurfaceMismatch checks both

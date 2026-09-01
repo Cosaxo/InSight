@@ -6251,8 +6251,9 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
     // so a Google-linked user was told "You're on an anonymous session" and
     // offered "Link Google", which then painted auth/provider-already-linked
     // into the panel. Fail-safe (it could only under-claim), but wrong on
-    // screen, and profile-overlay.jsx hardcodes the same sentence with no
-    // check at all.
+    // screen — and profile-overlay.jsx hardcoded the same sentence with no
+    // check at all until the D341 amendment wired its identity row to this
+    // flag.
     //
     // …and ANNOUNCE it when it changes (D134). The anonymous → Google
     // upgrade keeps the uid, so this callback set `linked` and then fell

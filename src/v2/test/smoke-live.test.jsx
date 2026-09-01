@@ -198,6 +198,35 @@ describe("spec layer mounts in live mode", () => {
     expectNoBoundary("profile/live gear sheet");
   });
 
+  // The identity row's sub-line, both branches (D341 amendment). It was one
+  // hardcoded sentence for every live session — "anonymous session — link
+  // Google below to keep it" — wrong twice: a Google-linked account was
+  // told it was anonymous (live.ts's auth observer had this exact site on
+  // record), and "below" pointed at the Sign-in row D211 removed, so the
+  // instruction had no control to point at. The fixture is anonymous-first,
+  // so the default mount pins that branch; the second flips `linked` and
+  // claims a handle to pin the other.
+  it("says 'anonymous session' — and only that — while the session is anonymous", async () => {
+    const expectNoBoundary = mountLive();
+    await openHeaderOverlay("profile");
+    expect(screen.getByText("anonymous session")).toBeTruthy();
+    // The dead instruction must not come back: nothing in the app can
+    // link, so a sentence promising a control "below" is a false door.
+    expect(document.body.textContent).not.toMatch(/link Google below/i);
+    expectNoBoundary("profile/live identity row, anonymous");
+  });
+
+  it("shows the handle, not the anonymous line, once the account is linked", async () => {
+    const expectNoBoundary = mountLive({}, (l) => {
+      l.LIVE.linked = true;
+      l.LIVE.handle = "fixture";
+    });
+    await openHeaderOverlay("profile");
+    expect(screen.queryByText(/anonymous session/)).toBeNull();
+    expect(screen.getByText("@fixture")).toBeTruthy();
+    expectNoBoundary("profile/live identity row, linked");
+  });
+
   // ── the patterns tab's mount gate, both sides (D265) ────────────────
   //
   // The tab is absent until the nightly fit has published enough to draw

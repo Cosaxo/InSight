@@ -34750,3 +34750,35 @@ Roles lazy boundary exists was written against it), and the
 LivePrivacyPanel are eager importers (half-false since D156 made the
 duel panel a `React.lazy`, fully false here) — the purity split stays,
 dated, with why it outlives them.
+
+## D341 amendment (2026-09-01) · The identity row stops calling every session anonymous
+
+Found while shipping D341 — the stale line sat directly above the new
+gear in the owner's own screenshot — and fixed on the owner's word the
+same day (*"yes fix the link google text too"*). The profile's identity
+row said **"anonymous session — link Google below to keep it"** for
+every live session, hardcoded. Wrong twice over, and half of it was
+already on the record: live.ts's auth observer comment named this exact
+site — *"profile-overlay.jsx hardcodes the same sentence with no check
+at all"* — so a Google-linked account was told it was anonymous. The
+other half expired at D211: "below" pointed at the Sign-in row that
+decision removed, and the only link path left is the D134 gate before
+the app opens, so the instruction clause had nothing to point at —
+COPY.md's fourth deletion, an instruction for a control that is not
+underneath.
+
+The row now states only what the session actually holds: `LIVE.linked`
+picks the branch (the flag D134's live.ts half already derives and
+announces), a linked account shows its handle — the durable identity,
+the same fact the account sheet states — or nothing while none is
+claimed, and an anonymous session says the bare fact with no dead
+direction. What this deliberately does NOT do is revive a link control:
+D211's reasoning stands (a gated build can never need one; an ungated
+build's fix is the gate, not a settings row), so the copy stops
+promising one instead of adding one.
+
+Both branches are pinned in smoke-live — the fixture is anonymous-first,
+so the default mount holds the anonymous line and the absence of the
+dead instruction; the linked case flips the flag, claims a handle, and
+asserts the swap. live.ts's observer comment and the fixture's `linked`
+note are updated to stop describing the defect as current.
