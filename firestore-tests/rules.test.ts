@@ -2915,6 +2915,9 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
   // therefore already green here before it is made.
   const QID = "daily-000";
   const CATQ = "cat-bind0";
+  const PULSEQ = "pulse-b01";
+  const CALLQ = "call-b01";
+  const RANKQ = "feed-b01";
   const GID = "gbind";
   const DAY = dayOffset(-1);
 
@@ -2961,6 +2964,23 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
         name: "Bind", mode: "duo", ownerUid: OWNER,
         memberUids: [OWNER, FRIEND], inviteCode: "BIND2345", streak: 0,
       });
+      // The three surfaces whose `deviceBound()` no case reached. Each has
+      // its own branch in the create rule and its own binding, and until
+      // now the block proved the binding for daily and catalog only.
+      await setDoc(doc(db, "v2_questions", PULSEQ), {
+        surface: "pulse", seq: 0, type: "pulse",
+        prompt: "?", options: ["1", "2", "3", "4", "5"], active: true,
+      });
+      await setDoc(doc(db, "v2_questions", CALLQ), {
+        surface: "call", seq: 0, type: "call", prompt: "?",
+        options: ["It will", "It stays close"], active: true, tier: "A",
+        resolvesAt: "2026-10-01",
+        rubric: { kind: "agg", qid: QID, test: "topShareAtLeast", threshold: 60 },
+      });
+      await setDoc(doc(db, "v2_questions", RANKQ), {
+        surface: "feed", seq: 1, type: "rank",
+        prompt: "?", options: ["A", "B", "C"], active: true,
+      });
     });
 
   const worldAnswer = () => ({
@@ -2969,6 +2989,24 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
   });
   const catAnswer = () => ({
     qid: CATQ, surface: "feed", entity: 7,
+    answeredAt: serverTimestamp(), anchors: {},
+  });
+  // A pulse answer is keyed {baseQid}_{day} and carries both, so its id
+  // and its fields have to agree — the template lives in the bank, the
+  // answer is one per day.
+  const pulseDay = new Date().toISOString().slice(0, 10);
+  const pulseAid = `${PULSEQ}_${pulseDay}`;
+  const pulseAnswer = () => ({
+    qid: pulseAid, baseQid: PULSEQ, day: pulseDay,
+    surface: "pulse", optionIdx: 2,
+    answeredAt: serverTimestamp(), anchors: {},
+  });
+  const callAnswerB = () => ({
+    qid: CALLQ, surface: "call", optionIdx: 0,
+    answeredAt: serverTimestamp(), anchors: {},
+  });
+  const rankAnswerB = () => ({
+    qid: RANKQ, surface: "feed", order: [2, 0, 1],
     answeredAt: serverTimestamp(), anchors: {},
   });
   const duelAid = `g_${GID}_${DAY}`;
@@ -3000,6 +3038,31 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
     // feed member-only reveals, never aggregates, and membership already
     // required a human's invite code (D29).
     await assertSucceeds(setDoc(doc(plain, "v2_users", OWNER, "answers", duelAid), duelAnswer()));
+  });
+
+  it("enforced text: pulse, call and rank demand the claim too", async () => {
+    // Three more branches of the same create rule, each with its own
+    // `deviceBound()` and none of them reached: the block wrote a daily
+    // answer, a catalog answer and a duel answer and stopped. Removing the
+    // binding from any of these three left the whole suite green.
+    //
+    // Each is bound for its own recorded reason — the pulse feeds a
+    // published aggregate, a call is "exactly what a sybil would want to
+    // spam", a rank feeds one too — so each is asserted separately rather
+    // than as a group.
+    await enfEnv.clearFirestore();
+    await seedInto(enfEnv);
+    const plain = enfEnv.authenticatedContext(OWNER).firestore();
+    const bound = enfEnv.authenticatedContext(FRIEND, { db: 1 }).firestore();
+    for (const [name, answer, qid] of [
+      ["pulse", pulseAnswer, pulseAid],
+      ["call", callAnswerB, CALLQ],
+      ["rank", rankAnswerB, RANKQ],
+    ] as const) {
+      await assertFails(setDoc(doc(plain, "v2_users", OWNER, "answers", qid), answer()));
+      await assertSucceeds(setDoc(doc(bound, "v2_users", FRIEND, "answers", qid), answer()));
+      void name;
+    }
   });
 
   it("enforced text: the EDIT arm demands the claim too (D86 × D343)", async () => {
