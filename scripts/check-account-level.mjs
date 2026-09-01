@@ -16,44 +16,29 @@
 // Neither shows up in any test — the rules tests construct their own
 // claims, and the callable's tests never read the rules file.
 import { readFileSync } from "node:fs";
+import {
+  RULES,
+  SOURCE,
+  countMet,
+  parseLadder,
+  parseRequired,
+  parseRulesLevel,
+} from "./account-level-lib.mjs";
 
-const RULES = "firestore.rules";
-const SOURCE = "functions/src/accountLevel.ts";
-
-export function rulesLevel(rulesSrc) {
-  const m = rulesSrc.match(/function\s+requiredAccountLevel\(\)\s*\{\s*return\s+(\d+)\s*;\s*\}/);
-  return m ? Number(m[1]) : null;
-}
-
-export function sourceLevel(tsSrc) {
-  const m = tsSrc.match(/export\s+const\s+REQUIRED_LEVEL\s*=\s*(\d+)\s*;/);
-  return m ? Number(m[1]) : null;
-}
-
-/**
- * Levels the ladder actually defines, so the bar cannot name a rung that
- * does not exist.
- *
- * Deliberately NOT anchored to the start of a line: the first version was
- * `/^\s*level:\s*(\d+),/gm`, which reads the file only while each entry
- * stays formatted one field per line. A formatter collapsing those object
- * literals would have made the ladder unreadable to this gate — the
- * "parser has drifted" arm below would fire, loudly, but on a change that
- * broke nothing. `\blevel:` plus a digit cannot match `levelFor`,
- * `levelDef` or the interface's `level: number`.
- */
-export function definedLevels(tsSrc) {
-  return [...tsSrc.matchAll(/\blevel:\s*(\d+)/g)].map((m) => Number(m[1]));
-}
+// Re-exported so this gate's own tests can drive the parsers directly, and
+// so a reader who lands here first is not sent hunting for them.
+export { parseRulesLevel as rulesLevel, parseRequired as sourceLevel };
+export const definedLevels = (tsSrc) => parseLadder(tsSrc).map((l) => l.level);
 
 export function checkAccountLevel(read = (p) => readFileSync(p, "utf8")) {
   const problems = [];
   const rules = read(RULES);
   const source = read(SOURCE);
 
-  const rl = rulesLevel(rules);
-  const sl = sourceLevel(source);
-  const levels = definedLevels(source);
+  const rl = parseRulesLevel(rules);
+  const sl = parseRequired(source);
+  const ladder = parseLadder(source);
+  const levels = ladder.map((l) => l.level);
 
   // A missing match is the dangerous case, not a soft one: it means this
   // gate is reading nothing and would pass forever.
@@ -71,6 +56,24 @@ export function checkAccountLevel(read = (p) => readFileSync(p, "utf8")) {
   if (!levels.includes(sl)) {
     problems.push(`${SOURCE}: REQUIRED_LEVEL = ${sl} is not a level ACCOUNT_LEVELS defines (${levels.join(", ")})`);
   }
+  // The ladder must stay ascending and dense from 0. `>=` only means
+  // "subsumes" while every rung below the bar exists — a gap makes a bar
+  // unreachable, and a repeat makes a level's identity depend on array
+  // order. Checked HERE rather than only in the unit tests because this is
+  // the copy that runs on the deploy path.
+  const ascending = [...levels].sort((a, b) => a - b);
+  if (String(levels) !== String(ascending) || new Set(levels).size !== levels.length) {
+    problems.push(`${SOURCE}: ACCOUNT_LEVELS is not ascending and unique (${levels.join(", ")})`);
+  } else if (levels.some((l, i) => l !== i)) {
+    problems.push(`${SOURCE}: ACCOUNT_LEVELS must be dense from 0 (${levels.join(", ")}) — a gap makes a bar unreachable`);
+  }
+  // Every rung needs a test for earning it. A rung with no `met` is a
+  // requirement nothing can satisfy: accounts silently stop at the rung
+  // below, forever, with nothing failing.
+  const met = countMet(source);
+  if (met !== levels.length) {
+    problems.push(`${SOURCE}: ${levels.length} level(s) but ${met} met() predicate(s) — a rung with no test can never be earned`);
+  }
   return problems;
 }
 
@@ -81,6 +84,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     for (const p of problems) console.error(`  - ${p}`);
     process.exit(1);
   }
-  const lvl = sourceLevel(readFileSync(SOURCE, "utf8"));
-  console.log(`check:account-level OK — rules and accountLevel.ts agree the bar is ${lvl}.`);
+  const src = readFileSync(SOURCE, "utf8");
+  const ladder = parseLadder(src);
+  const lvl = parseRequired(src);
+  const name = ladder.find((l) => l.level === lvl)?.key ?? "?";
+  console.log(
+    `check:account-level OK — rules and accountLevel.ts agree the bar is ${lvl} (${name}); `
+    + `${ladder.length} rung(s): ${ladder.map((l) => `${l.level}=${l.key}`).join(" ")}`,
+  );
 }

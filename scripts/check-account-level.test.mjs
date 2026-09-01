@@ -14,10 +14,10 @@ const RULES = `
     function deviceBound() { return request.auth.token.get("db", 0) >= requiredAccountLevel(); }
 `;
 const SOURCE = `
-export const ACCOUNT_LEVELS = [
-  { level: 0, key: "none", what: "..." },
-  { level: 1, key: "device", what: "..." },
-  { level: 2, key: "device+identity", what: "..." },
+export const ACCOUNT_LEVELS: AccountLevelDef[] = [
+  { level: 0, key: "none", what: "...", met: () => true },
+  { level: 1, key: "device", what: "...", met: (f) => f.deviceBound },
+  { level: 2, key: "device+identity", what: "...", met: (f) => !!f.signInProvider },
 ];
 export const REQUIRED_LEVEL = 1;
 `;
@@ -62,6 +62,21 @@ describe("check:account-level", () => {
       .toMatch(/requiredAccountLevel\(\) not found/);
     expect(run({ "functions/src/accountLevel.ts": "export const SOMETHING = 1;" }).join(" "))
       .toMatch(/REQUIRED_LEVEL not found/);
+  });
+
+  it("catches a GAP in the ladder, which makes a bar unreachable", () => {
+    // `>=` only means "subsumes" while every rung below the bar exists.
+    const gapped = SOURCE.replace('{ level: 1, key: "device", what: "...", met: (f) => f.deviceBound },', "");
+    expect(checkAccountLevel((p) => ({ "firestore.rules": RULES, "functions/src/accountLevel.ts": gapped }[p])).join(" "))
+      .toMatch(/dense from 0|not a level ACCOUNT_LEVELS defines/);
+  });
+
+  it("catches a rung with no met() — a requirement nothing can satisfy", () => {
+    // Accounts would silently stop at the rung below, forever, with
+    // nothing failing anywhere.
+    const noMet = SOURCE.replace(", met: (f) => !!f.signInProvider", "");
+    expect(run({ "functions/src/accountLevel.ts": noMet }).join(" "))
+      .toMatch(/3 level\(s\) but 2 met\(\) predicate\(s\)/);
   });
 
   it("parses the numbers it claims to parse", () => {

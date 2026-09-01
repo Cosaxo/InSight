@@ -20144,6 +20144,52 @@ filed as editorial is undisclosed inventory laundered into the vintage
 rollup, and a row filed `sponsor` with no block is a card that would wear
 no band. Both mutations fail.
 
+### Open to rungs that do not exist yet
+
+**Adding a stricter requirement later is one entry**, and that was the
+point of the ask rather than a nicety. Each rung carries its own `met`
+predicate over a `LevelFacts` record, and `levelFor` walks the ladder,
+stopping at the first unmet rung — so it names no specific level and needs
+no edit when one is added. A unit test reads the walker's own source and
+fails if a number appears in it.
+
+Stopping rather than taking the highest satisfied rung is what makes levels
+subsume: an account that somehow met rung 3 but not rung 2 would otherwise
+report as 3, and the rules' `>=` would wave through an account that never
+met the bar it is compared against.
+
+The operator filter READS the ladder out of `accountLevel.ts` rather than
+restating it (`scripts/account-level-lib.mjs`, shared with the gate), so a
+new rung appears in the distribution with its name and can be filtered on
+with no edit to the tool. `--below` takes a KEY as well as a number, which
+is the future-proof form: `--below device+identity` keeps meaning the same
+requirement even if a rung is inserted beneath it and every number shifts.
+A bar the ladder does not define is REFUSED rather than filtered against —
+a typo'd `--below 5` that quietly matched everything would report the whole
+population as unqualified, which is a very convincing wrong answer.
+
+The gate grew with it: the ladder must be ascending, dense from 0, and
+every rung must declare a `met`. A gap makes a bar unreachable; a rung with
+no predicate is a requirement nothing can satisfy, and accounts would stop
+at the rung below it forever with nothing failing.
+
+**Three parser bugs in a row, all the same family, all worth recording**
+because the family is what this repo keeps re-committing — a parser that
+matches slightly the wrong thing and reports something plausible:
+
+1. The block finder took the first `[` after the name, which is the one in
+   the TYPE (`AccountLevelDef[]`). It returned an empty ladder from a file
+   with three rungs.
+2. `countMet` ran over the whole file and counted the interface's own `met`
+   declaration and `levelDef`'s fallback — five predicates for three rungs.
+3. An earlier level parser was anchored to line starts, so a formatter
+   collapsing the object literals would have blinded it.
+
+Two of the three failed loudly, and only because the gate treats an empty
+parse as an error rather than a pass. That decision is the whole reason
+they were cheap, and every one of them is now a case in
+`account-level-lib.test.mjs`.
+
 ### What this does NOT do
 
 - **No auction, no bidding, no per-impression anything.** The slot is a
