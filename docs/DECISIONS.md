@@ -35589,3 +35589,182 @@ lane), and any product change — every product-side item the Ties lane
 is expected to ask for (the `cast` fold, a perceiver/target summary
 over public reveals, the romantic pool's activation, homophily over
 the follow graph) arrives through the bridge and its own record.
+
+## D348 · A second night shift, on a second subscription, whose extra hour is the merge verdict nobody was writing
+
+**2026-09-01.** **Status:** binding — an owner call made in one sitting,
+account-side first and recorded here because, like D326, nothing else in
+this tree holds it. The first shift's brief lives in its Routine; so does
+this one's. What `main` carries is this record and `.gitignore`'s second
+block. The Routine is `trig_01GNe14hPrZcYzXkFHjPH2bW`, bound to a
+persistent worker session on the owner's second subscription, which is
+what makes the standing push authorization — a human turn in that
+session's history — as effective there as D326 §2 made it for the first.
+
+### 1 · What was actually short, and it was not fixes
+
+The audit half works, and the record says so without needing a fresh
+total: D326 §2 counted about 75 of 76 landed fixes surviving the first
+three reviews, and the two reviews since kept theirs as written and
+reverted nothing — 64 across two nights (D335), 35 (D338). More raw fixes
+is not where the marginal value is, which is the finding D326 §2 made
+when it declined to buy a fifth audit flow.
+
+What is short is the other end, and D335 already priced it:
+`night-20260828` sat unreviewed for a day, the day's own work went in on
+top of it, and it then had to be composed with the 29th's branch —
+because the 29th turned a buyer byline onto a world-readable doc and the
+28th taught erasure to strip it. Either alone was wrong. Tonight
+`night-20260901` is in that position: 32 commits, unmerged, and **41
+commits behind** a `main` that has moved every day since. None of the
+seven merged night branches was deleted either, so the ritual's own last
+line — *review the branch, merge or cherry-pick, and delete it* — is the
+part of the loop nobody performs.
+
+So the second shift's extra hour buys a **merge verdict**, not more
+fixes.
+
+### 2 · A shallow clone makes "is it merged?" answer NO, and that is the whole job's floor
+
+Found by walking into it while writing this record, twice. These
+containers can arrive as a SHALLOW clone, and in that state
+`git merge-base origin/main origin/<branch>` returns empty, so
+`git merge-base --is-ancestor` exits non-zero — which is exactly what it
+does for a branch that genuinely is not merged. There is no second
+signal. This session's first reading of the backlog said
+`night-20260825` and `night-20260826` were unmerged and unexplained
+since August; after the history was fetched, both are ancestors of
+`main` and always were. The premise this work started from was that
+artifact.
+
+A verdict flow that cannot tell "not merged" from "history not present"
+does not have a bug, it has no output — it would re-verdict, re-compose
+and re-push work that landed a week ago. So the brief's first step in
+**every** flow, before anything else reads history:
+
+    git rev-parse --is-shallow-repository
+    git fetch --unshallow origin || git fetch origin
+    git fetch origin --prune '+refs/heads/*:refs/remotes/origin/*'
+
+### 3 · The schedule, and why it runs EARLIER rather than later
+
+Five firings, `0 20,22,0,2,4 * * *` UTC, in its own container:
+
+| Firing (UTC) | Oslo | Kind | Budget |
+| --- | --- | --- | --- |
+| 20:00 | 22:00 | audit | 95 min |
+| 22:00 | 00:00 | audit | 95 min |
+| 00:00 | 02:00 | audit | 95 min |
+| 02:00 | 04:00 | audit | 95 min |
+| 04:00 | 06:00 | closing **+ merge verdict** | 110 min |
+
+The 110 minutes are D326 §2's arithmetic run again on a different hour:
+06:00 Oslo plus 110 minutes still puts the summary on the branch before
+08:00 local, so the owner's extra hour is preserved rather than spent.
+
+The hour it runs is the load-bearing choice. The obvious placement was
+*after* the first shift — a sixth firing at 06:00 UTC, ten minutes past
+that shift's close, verdicting the branch while it was warm. It was
+rejected: a merge verdict on a branch still being written is not a
+verdict, and the honest version of it costs an hour of the morning (a
+summary at 09:15 Oslo, past the deadline the whole loop is built
+around). Shifting an hour *earlier* buys the same honesty for nothing —
+shift B verdicts the **previous** night's branch, which is finished,
+closed, and has already had the first shift's own closing battery run on
+it. The freshness lost is one night; what is gained is that the thing
+being judged holds still.
+
+### 4 · Two shifts, one tree, and the three places they could collide
+
+Neither session can see the other. Everything they share is `origin`,
+and every collision was closed there:
+
+- **Branch namespace.** Shift B pushes `nightb-YYYYMMDD` and
+  `nightb-YYYYMMDD-integration`, never `night-*`. The prefix is not
+  cosmetic: `nightb-*` does not match the glob `night-*`, so neither
+  shift's enumeration sweeps in the other's branches, where the two
+  obvious alternatives both fail — `night-YYYYMMDD-b` matches `night-*`,
+  and `night-YYYYMMDD/b` is refused by the remote outright as a ref
+  conflict against the existing `night-YYYYMMDD`. Both shifts date the
+  branch by the *morning being prepared*, so `nightb-20260902` and
+  `night-20260902` are the same night's two branches; B resolves it with
+  `TZ=Europe/Oslo date -d '+4 hours'` rather than the first shift's
+  `+3 hours`, because its earliest firing is an hour earlier and in CET
+  that firing is 21:00 Oslo, where `+3` lands exactly on midnight with
+  no margin at all.
+- **Duplicate fixes.** Every B flow reads `origin/main..origin/night-$D`
+  before auditing anything; defects those commits close, and files they
+  are rewriting, come off B's list. It costs one command, and it is the
+  only signal there is — the first shift's task list is gitignored, so
+  its commits are all B can see. B's 20:00 flow runs before the other
+  shift starts and has nothing to read, which is why that flow works
+  carried-over items first and records `file:line` for everything it
+  finds. The closing flow additionally probes the two branches against
+  each other with `git merge-tree` and names the both-sides files, so the
+  owner sees the overlap before merging two branches in one morning.
+- **Working files.** `NIGHTB_TASKS.md`, `NIGHTB_SUMMARY.md`, `.nightb/`,
+  gitignored beside the first shift's three. The names differ so a person
+  opening a container can tell whose notes they are; the *entries* are
+  load-bearing for a second reason, which is that `doc-index` rule 5 asks
+  ORIENTATION.md to name every root markdown document and reads its skip
+  set from `.gitignore`. Verified both directions rather than assumed:
+  with `NIGHTB_TASKS.md` present and the entries removed, `check:docs`
+  fails with *"docs/ORIENTATION.md does not name NIGHTB_TASKS.md"*; with
+  them, it passes. That is the case
+  `scripts/doc-index-ignore.test.mjs` already pins for the first shift.
+
+### 5 · A clean merge is not a merge verdict
+
+Conflict count does not measure worth, and the verdict flow is written
+so it cannot be mistaken for one. `night-20260901` carries 32 commits
+everybody wants and conflicts in exactly two files
+(`src/v2/spec/world-feed.jsx`, `src/v2/ui/LivePrivacyPanel.tsx`); a
+branch far staler could merge without a single conflict and still be
+wrong to take. So each branch gets a judgement — MERGE, DO NOT, NEEDS
+OWNER, one sentence each — and DO NOT is said plainly, because a branch
+left ambiguous is a branch that sits on origin for a week. The
+enumeration reads `claude/night-shifts-*`, not `-review-*`: the 31st's
+work landed through `claude/night-shifts-work-0ue8ku`, and keying on the
+older suffix would have missed it.
+
+The branches judged MERGE are then actually composed onto
+`nightb-$D-integration` and put through the full battery. That
+composition is the deliverable, and D336 is why: it caught a
+`check:figures` collision that git had merged without a conflict and that
+would have thrown `ReferenceError` before the gate checked a single
+figure. Nothing would have been red. The gate would simply have stopped
+working. An integration branch pushed with the battery unfinished is
+labelled unverified in the verdict, naming which checks ran and which did
+not — D1 reaches summaries, and this flow's one unforgivable failure is
+guessing green. Two gates are expected unrun in that container for
+reasons that are not code: `check:web-firebase` wants a real non-demo
+Firebase config, and `check:store-copy` wants the legal and store IDs
+that are still `REPLACE_WITH_*`.
+
+### 6 · Authorization is unchanged, deliberately
+
+The owner's standing authorization for shift B covers exactly what the
+first shift's covers, one namespace over: creating `nightb-*` branches
+from `origin/main` and pushing to them, unattended, nightly. Not `main`,
+not `night-*` or any other shift's branch, not force-pushes, not pull
+requests. Offered and declined in the same sitting: letting the merge
+verdict *perform* the merge, and letting it open a PR per verdict. The
+shift that judges what should land is the last shift that should be able
+to land it, and the verdict is worth more when a person still reads it.
+The PR half has a second cost besides: `ci.yml`'s `pull_request:` trigger
+is bare — no branch filter, no path filter — so a PR per verdict is the
+whole CI matrix on every push to that branch, nightly, forever, plus an
+iOS build from `ios-build.yml` whenever the night touched `ios/`,
+`capacitor.config.ts` or `package.json`.
+
+### When to revisit
+
+**If the merge verdict keeps telling the owner what he already knew**,
+the extra hour is not earning its cost and the cadence dial turns the way
+it turns everywhere else in this program: shrink the flow, or fold the
+verdict into the first shift's closing hour and retire shift B's audit
+half. **If the two shifts start landing the same fix twice**, the
+`origin/night-$D` read is not doing its job and the split should become
+slices by directory instead — considered and rejected here only because a
+one-sided rule the other brief has never heard of is not a split, it is a
+hope.
