@@ -5,3 +5,4 @@ changes, adds, prunes) · one line of why. A run that advanced nothing
 says so here plainly.
 
 - 2026-09-01 · seeded by the chartering session on the owner's direction ("the 1v1 and group profile", adopted as "charter the ties and interests lanes too" — D343 on main) · seven nodes: the tie as unit (tie-1), the guess decomposed (tie-2), knowledge vs projection (tie-3), picks as nominations (tie-4), homophily on chosen ties (tie-5), two conjectures (tie type, reading the crowd); none above argued.
+- 2026-09-01 · correction (chartering session, no theory moved): the seed row above cites the main record as D343 — main minted D342–D345 while the product branch was open, so the chartering record is numbered D347 at the time of this note; cite it by title, "Ties and Interests are chartered".
