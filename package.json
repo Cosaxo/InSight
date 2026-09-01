@@ -68,6 +68,7 @@
     "build:countries": "node scripts/build-countries.mjs",
     "build:dogs": "node scripts/build-dogs.mjs",
     "build:colors": "node scripts/build-colors.mjs",
+    "build:languages": "node scripts/build-languages.mjs",
     "check:ios-spm": "node scripts/check-ios-spm.mjs",
     "check:ios-facebook": "node scripts/check-ios-facebook.mjs",
     "check:ios-location": "node scripts/check-ios-location.mjs",

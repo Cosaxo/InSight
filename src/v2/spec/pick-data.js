@@ -697,6 +697,27 @@ export let PICK_QS;
                      // Coco, Grave of the Fireflies and the 1994 Lion King
                      // are all absent from the sitelink top-1000
     },
+    // first card of the languages domain, 2026-09-01 (minted keys —
+    // build-languages.mjs, ISO 639-1 via npm; the Sunday 08-30 domain
+    // slot, run late). The wish canon, not favouritism: the board is the
+    // languages people tell themselves they'll learn someday.
+    pk32: {
+      39: 26,   // Spanish — the world's default someday-language
+      47: 22,   // French
+      74: 18,   // Japanese
+      72: 14,   // Italian
+      182: 12,  // Chinese
+      32: 10,   // German
+      130: 9,   // Portuguese
+      84: 8,    // Korean
+      8: 7,     // Arabic
+      135: 6,   // Russian
+      57: 5,    // Hindi — clears the floor but not the top 10; folds
+      154: 5,   // Swahili — same
+      36: 4,    // Greek — below the floor
+      117: 2,   // Norwegian — below the floor
+      0: 12,    // Not listed — sign languages and the dialects ISO folds away
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -1067,6 +1088,18 @@ export let PICK_QS;
         Men: { 208263: 8, 483941: 7, 19355: 6, 106316: 6, 11621: 5 },
       },
     },
+    pk32: {
+      ageBand: {
+        // the young wish follows the screen (Japanese, Korean); the older
+        // wish follows the holiday (Italian, French)
+        '18-24': { 74: 9, 84: 7, 39: 6, 47: 5, 182: 4 },
+        '25-34': { 39: 8, 47: 7, 72: 6, 74: 5, 32: 4 },
+      },
+      gender: {
+        Women: { 47: 8, 72: 7, 39: 6, 84: 5, 74: 4 },
+        Men: { 39: 8, 74: 7, 182: 6, 32: 5, 135: 4 },
+      },
+    },
   };
 
   const api = {
@@ -1233,6 +1266,7 @@ export let PICK_QS;
     { id: 'pk29', cat: 'fav', type: 'pick', domain: 'colors', prompt: 'What colour is happiness?', n: 153 },
     { id: 'pk30', cat: 'fav', type: 'pick', domain: 'athletes', prompt: 'The athlete you’d pay to watch in their prime?', n: 157 },
     { id: 'pk31', cat: 'fav', type: 'pick', domain: 'films', prompt: 'The film that made you cry the most?', n: 158 },
+    { id: 'pk32', cat: 'fav', type: 'pick', domain: 'languages', prompt: 'The language you wish you spoke?', n: 160 },
   ];
   window.PICK_QS = PICK_QS;
 })();
