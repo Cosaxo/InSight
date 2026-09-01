@@ -110,6 +110,13 @@ registering and activation defers again with no error — the exact failure
 the bridge's absence already caused once. Check that attribute first if
 `[deviceBind] activated` lines stop appearing.
 
+**Measured, not assumed:** `npm run build && npx cap sync` was run against
+this tree on 2026-09-01 and left `android/` and `ios/` byte-identical —
+`customClass="MainViewController"` survives. Capacitor writes the
+storyboard at `cap add`, not at `cap sync`, so the risk is a future CLI
+change rather than routine use. `npm run check:devicebind` is what would
+catch it either way.
+
 **Android — shipped.**
 `android/app/src/main/java/com/cosaxo/insight/DeviceBindPlugin.java` holds
 the plugin; `MainActivity.java` registers it with
