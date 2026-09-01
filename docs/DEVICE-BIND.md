@@ -11,8 +11,8 @@ parts and their state:
 | Month/epoch decision logic | shipped, unit-tested (`functions/src/deviceBind.test.ts`) |
 | Rules requirement on answer writes | shipped **soft** — `deviceBindEnforced()` returns `false`; the flipped text is pre-tested |
 | Client activation flow (`src/v2/data/deviceBind.ts`) | shipped, wired into the live boot, memo logic unit-tested |
-| Native token bridge — **iOS** | **shipped (D341)**, compiled on every PR by `ios-build.yml` |
-| Native token bridge — **Android** | **shipped (D341)**, compiled on every PR by `ci.yml`'s `android-build` |
+| Native token bridge — **iOS** | **shipped (D342)**, compiled on every PR by `ios-build.yml` |
+| Native token bridge — **Android** | **shipped (D342)**, compiled on every PR by `ci.yml`'s `android-build` |
 | Apple/Google console setup + env vars | **owner steps below** |
 | Apple/Google endpoint shapes | written from D29's verify-before-build list; **confirm against current docs before relying on staging results** |
 
@@ -21,7 +21,7 @@ and retries next boot; because enforcement is soft, no vote is refused.
 The emulator path (e2e, dev-in-a-browser) grants without Apple/Google and
 is green today.
 
-**What was actually blocking this, and it was not the console (D341).**
+**What was actually blocking this, and it was not the console (D342).**
 It was the bridge. `src/v2/data/deviceBind.ts` checks
 `Capacitor.isPluginAvailable("DeviceBind")`, did not find it, logged
 `native bridge missing — activation deferred`, and returned. So activation
@@ -74,7 +74,7 @@ from a machine that cannot compile them", and that premise was wrong the
 whole time** — `ios-build.yml` compiles the iOS target on every PR
 touching `ios/**`, on a macOS runner, unsigned and with no Apple account,
 and `ci.yml`'s `android-build` runs `assembleDebug`. The compile check
-that would have made this safe already existed, on both platforms. D341
+that would have made this safe already existed, on both platforms. D342
 committed both halves against it.
 
 **And the Android snippet that sat here was broken.** It built its
@@ -210,11 +210,11 @@ are the fleet numbers, and they guard two different failures — one is
 "we are refusing honest users", the other is "we are not actually stopping
 the attack". Both must pass; neither substitutes for the other.
 
-**Read the third number FIRST (D341), because the two below cannot see
+**Read the third number FIRST (D342), because the two below cannot see
 the failure they exist to prevent.** Both are computed from
 `activateDeviceV2`'s own logs, so both measure THE ENDPOINT. An account
 that never called it is invisible to both — a client below the activation
-build, a device with no bridge (which was every device until D341), a boot
+build, a device with no bridge (which was every device until D342), a boot
 where the call was never reached. Those accounts vote, and the flip
 refuses them. So both rates can read perfect while most real votes would
 be refused, which is precisely the silent-refusal failure this section

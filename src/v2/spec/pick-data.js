@@ -718,6 +718,28 @@ export let PICK_QS;
       117: 2,   // Norwegian — below the floor
       0: 12,    // Not listed — sign languages and the dialects ISO folds away
     },
+    // daily catalog-question run, 2026-09-01 — sound is the second
+    // languages canon, and it is not the wish: pk32 ranks what you'd USE
+    // (Spanish leads, on sheer usefulness), this ranks what you'd LISTEN
+    // to — Italian takes the top, and Welsh and Irish chart here without
+    // appearing on the wish board at all.
+    pk33: {
+      72: 25,   // Italian — the consensus music
+      47: 22,   // French
+      39: 15,   // Spanish
+      74: 12,   // Japanese
+      130: 11,  // Portuguese
+      8: 10,    // Arabic
+      135: 9,   // Russian
+      36: 8,    // Greek
+      30: 7,    // Welsh — the eisteddfod vote
+      49: 6,    // Irish
+      153: 5,   // Swedish — clears the floor but not the top 10; folds
+      32: 5,    // German — the contrarian vote; same
+      84: 4,    // Korean — below the floor
+      117: 3,   // Norwegian — below the floor
+      0: 10,    // Not listed — everyone's grandmother's dialect
+    },
   };
 
   // Baked demo segment slices, per question: how each cohort orders the
@@ -1100,6 +1122,18 @@ export let PICK_QS;
         Men: { 39: 8, 74: 7, 182: 6, 32: 5, 135: 4 },
       },
     },
+    pk33: {
+      ageBand: {
+        // the romance languages hold every cohort; the young cell hears
+        // more Japanese, the older cell more Russian
+        '18-24': { 72: 8, 74: 7, 47: 6, 130: 5, 36: 4 },
+        '25-34': { 47: 8, 72: 7, 39: 6, 135: 5, 8: 4 },
+      },
+      gender: {
+        Women: { 47: 9, 72: 8, 130: 6, 74: 5, 49: 4 },
+        Men: { 72: 8, 39: 7, 135: 6, 8: 5, 30: 4 },
+      },
+    },
   };
 
   const api = {
@@ -1267,6 +1301,7 @@ export let PICK_QS;
     { id: 'pk30', cat: 'fav', type: 'pick', domain: 'athletes', prompt: 'The athlete you’d pay to watch in their prime?', n: 157 },
     { id: 'pk31', cat: 'fav', type: 'pick', domain: 'films', prompt: 'The film that made you cry the most?', n: 158 },
     { id: 'pk32', cat: 'fav', type: 'pick', domain: 'languages', prompt: 'The language you wish you spoke?', n: 160 },
+    { id: 'pk33', cat: 'fav', type: 'pick', domain: 'languages', prompt: 'The most beautiful language to hear?', n: 152 },
   ];
   window.PICK_QS = PICK_QS;
 })();

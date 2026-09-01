@@ -34682,9 +34682,114 @@ needs to be the app's own paper: `mark-tile` is still there, and the move
 back is `GROUND`, `ic_launcher_background.xml`, the extractor's group
 name and the two favicons — the same four places this change touched.
 
+## D341 · Crossroads is a question TYPE, and its stories ride the feed as members
+
+**2026-09-01.** **Status:** binding. Amends the placement half of D136's
+"Not dealt into the card stream" — the component half stands. Closes the
+client limit D185 §6 recorded. Recorded once, with its own first cut
+inside, because the misread is the useful part.
+
+> *"it seams the crossroad is at second to top of the feed all time it
+> should be in the feed like the others"*
+
+The shipped layout: daily card, then Crossroads, every visit — D136
+pinned the card at the head of the feed (`{i === 0 && <PathsCard />}`)
+and held `path` docs out of `WORLD_FEED_QS`. The first cut of this
+change read the ask as a placement tune and moved the pin five cards
+deep — still one reserved slot, one singleton card, `pathQs()[0]`. The
+owner's correction, same day:
+
+> *"crossroad is a type of question that can apper 5 or 7 or 9 and
+> multiple of them can apper crossroad is like any other question in the
+> feed"*
+
+`path` is a question TYPE. Its questions are members of the feed like
+any other: the pool carries them, the sort and the topic chips and the
+weave place them, several can be on screen at once, and where one
+appears is the feed's business, not a constant's. The five-cards-deep
+slot shipped for about an hour on this branch and is gone; nothing of it
+survives to amend.
+
+### What moved
+
+- **`buildFeedGlobals` (data/live.ts) stops holding `path` out** and maps
+  a path arm instead: the doc's story fields plus folded `counts`, `n`
+  for the "top" sort key, `cat` from the bank's `topic` — 'dilemma' for
+  the shipped stories, an always-on channel in both builds — and NOT the
+  synthesized endings-as-options, which are the vote path's business.
+- **The demo pool carries two stubs** (world-feed-data.js, in the
+  dilemmas group, one early and one deep): id, home topic, a prompt for
+  search. The content stays written once in paths-data.js; the card
+  resolves it by id.
+- **`PathsCard` takes its feed item as a prop** (`q`). A live item is the
+  bank doc's fields; a demo stub is an id. `srcOf` keeps D136's
+  two-sources-never-mixed rule with the item's `live` flag as the
+  switch, and `pathQs()[0]` — the head-of-list read that could never
+  show the second story (D185 §6) — is gone from the card. `pathQs()`
+  itself stays, as the Map's Walks branch's reader.
+- **Three dispatch sites in world-feed.jsx** route `type === 'path'` to
+  the card: the stream map, the Answered expander, and focus mode — so a
+  story found through search opens as the real story card.
+- **A finished walk is an answered question.** `answered()` grew a path
+  arm: walk finished locally (PATHS, demo and live alike) or a standing
+  vote (the returning device whose localStorage is gone). A finished
+  story parks behind the Answered expander with its reveal, exactly like
+  every answered card — where the pinned card had sat at the head
+  forever, finished or not. An unfinished walk is not an answer and
+  stays dealt in, resuming where it stood.
+- Two small honesty arms: `wfVotes` reads `n` for paths (the "top" sort
+  key), and the closing-ring picker skips them — the ring is
+  renderCard's to draw and a hash landing on a story would silently
+  spend the grace note.
+
+### What D136 said that is still true
+
+A walk's reveal is a TREE, not a split, so the card stays its own
+component — `renderCard`'s apparatus (option rows, who-voted, takes, the
+insight line) still has nothing to say about it, and the dispatch is the
+whole cost of that. The two sources still never mix. The vote path is
+untouched: a finished walk writes the same `optionIdx` through the same
+fold and ledger, and D211's no-redo rule stands.
+
+Left alone, knowingly: the search overlay's own `srchAnswered` copy has
+no path arm, so a finished demo walk can still be offered under "Open
+questions" — tapping it opens the finished card's reveal, which is
+correct if unpolished; the live case self-heals because the reconcile
+loop copies a standing path vote into the feed's vote map through its
+generic arm. And the reading game keeps the feed head (D196's reasoning
+is its own: one thing you are DOING, not a card in the stream), as does
+`LiveCallCard`'s unmounted machinery — a call is a commitment you are
+carrying, not content.
+
+### What proves it
+
+`test:unit` green, with the pins now on the owner's sentence itself: the
+demo mount asserts BOTH stories on screen at once as stream members
+(impossible under the singleton — it could only ever render
+`pathQs()[0]`), and that a finished story parks behind the Answered
+expander while the unfinished one stays dealt in (probed: removing the
+`answered()` path arm fails exactly that case with "a finished story is
+still in the fresh stream"). The live mount's title binding now pins the
+membership dispatch — the fixture pushes the story into `WORLD_FEED_QS`
+the way `buildFeedGlobals` emits it, one object behind both that door
+and `pathQs`. The card suite passes the item as a prop throughout;
+`lint`, `tsc -b`, `check:globals` (coupling unchanged), `check:figures`,
+`check:docs`, `test:scripts`, `check:bundle` on the CI-equivalent live
+build all green.
+
+### When to revisit
+
+If a future story's `cat` leaves the channel row (the farm's taxonomy is
+wider than the always-on set), the bank doc's `topic` is what places it —
+a story filed under a topic no chip can name is a card nobody can see,
+which is `wfFeedMatch` working, not a bug; give it a served topic. And if
+the demo's two stubs ever drift from paths-data.js ids, the card renders
+null and the demo smoke fails on the missing titles — that is the drift
+alarm, not a crash.
+
 ---
 
-## D341 · The fake-account defence was inert, and two records had already spent it
+## D342 · The fake-account defence was inert, and two records had already spent it
 
 **Date:** 2026-08-30 · **Status:** built. Owner's report is the trigger:
 *"one of the things that has been warned about the most is fake accounts
@@ -34874,7 +34979,7 @@ bounded in how wrong it can silently be. Until today that claim rested on
 two controls that were not running.
 ---
 
-## D342 · The account requirement becomes a level, so the bar can be raised later
+## D343 · The account requirement becomes a level, so the bar can be raised later
 
 **Date:** 2026-08-30 · **Status:** built. Owner's ask: *"I also want a way
 to filter out profiles that hasn't fulfilled the newest account
@@ -34895,7 +35000,7 @@ meet the new ones — you would be re-deriving that per account, after the
 fact, from whatever evidence survived.
 
 **Why now rather than later, and this is the load-bearing part.**
-Activation has never run — the native bridges did not exist until D341 —
+Activation has never run — the native bridges did not exist until D342 —
 so **no account anywhere holds a `db` claim**. Redefining what the claim
 MEANS is free today and is a migration over live auth users the moment one
 real account carries it. This window closes the day the owner sets the
@@ -34947,7 +35052,7 @@ it stops counting. That is deliberate power, so it gets priced before it is
 used — by two measurements that answer different questions and diverge
 hard:
 
-- **`ledgerVelocityScan`'s `bind_coverage`** (D341, per-level here) counts
+- **`ledgerVelocityScan`'s `bind_coverage`** (D342, per-level here) counts
   ANSWERS from accounts that actually voted, and reports what each bar
   would have refused. This is the aggregate question.
 - **`npm run account-levels -- --below 2`** counts ACCOUNTS. This is the

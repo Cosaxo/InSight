@@ -323,7 +323,7 @@ describe("window fold and state", () => {
   });
 });
 
-// Bind coverage (D341, per-level since D342) — the number D37's two
+// Bind coverage (D342, per-level since D343) — the number D37's two
 // thresholds cannot see.
 //
 // D37 gates the enforcement flip on rates read from activateDeviceV2's own

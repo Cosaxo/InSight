@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // check-account-level — firestore.rules' bar equals the source of truth.
 //
-// WHY. D342 made the account requirement a LEVEL so the bar can be raised
+// WHY. D343 made the account requirement a LEVEL so the bar can be raised
 // by changing one number. That number now lives in two files that cannot
 // import each other: `REQUIRED_LEVEL` in functions/src/accountLevel.ts,
 // which the callable and every report read, and `requiredAccountLevel()`

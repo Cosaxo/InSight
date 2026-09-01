@@ -6037,6 +6037,112 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "unit": "years"
  },
  {
+  "id": "feed-f122",
+  "surface": "feed",
+  "seq": 166,
+  "type": "vote",
+  "domain": null,
+  "prompt": "The famous person you'd trust to babysit: Dolly Parton, Keanu Reeves, David Attenborough, or Michelle Obama?",
+  "options": [
+   "Dolly Parton",
+   "Keanu Reeves",
+   "David Attenborough",
+   "Michelle Obama"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl18",
+  "surface": "feed",
+  "seq": 167,
+  "type": "dial",
+  "domain": null,
+  "prompt": "Minutes late before it counts as late?",
+  "options": [
+   "0–3 min",
+   "3–5 min",
+   "5–8 min",
+   "8–10 min",
+   "10–13 min",
+   "13–15 min",
+   "15–18 min",
+   "18–20 min",
+   "20–23 min",
+   "23–25 min",
+   "25–28 min",
+   "28–30 min"
+  ],
+  "topic": "culture",
+  "axis": null,
+  "test": null,
+  "lo": 0,
+  "hi": 30,
+  "unit": "min"
+ },
+ {
+  "id": "feed-f123",
+  "surface": "feed",
+  "seq": 168,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Never lie again — and never be lied to. Take the deal?",
+  "options": [
+   "Take it",
+   "Too much truth"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f124",
+  "surface": "feed",
+  "seq": 169,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A referendum on every big question: more democracy, or chaos?",
+  "options": [
+   "More democracy",
+   "Chaos"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null,
+  "political": true
+ },
+ {
+  "id": "feed-f125",
+  "surface": "feed",
+  "seq": 170,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Breakfast: sweet, or savoury?",
+  "options": [
+   "Sweet",
+   "Savoury"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f126",
+  "surface": "feed",
+  "seq": 171,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Black-and-white films: a treat, or a chore?",
+  "options": [
+   "A treat",
+   "A chore"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,
@@ -13811,6 +13917,225 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "p": 60,
   "k": "The Sun runs on fusion",
   "w": "Hydrogen fusing into helium in the core — not combustion; there is nothing up there to burn."
+ },
+ {
+  "id": "learn-anc14",
+  "surface": "learn",
+  "seq": 156,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Pompeii was buried by…",
+  "options": [
+   "A volcano",
+   "A flood",
+   "An earthquake",
+   "A sandstorm"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 2,
+  "p": 72,
+  "k": "Vesuvius buried Pompeii",
+  "w": "AD 79 — and the town had already been rattled by a major earthquake seventeen years earlier."
+ },
+ {
+  "id": "learn-anc15",
+  "surface": "learn",
+  "seq": 157,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The oldest known writing was mostly used for…",
+  "options": [
+   "Poetry",
+   "Prayers",
+   "Accounting",
+   "Royal decrees"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 39,
+  "k": "Writing began as accounting",
+  "w": "The earliest cuneiform tablets are inventories — grain, beer, sheep — centuries before anyone wrote a poem down."
+ },
+ {
+  "id": "learn-anc16",
+  "surface": "learn",
+  "seq": 158,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The Sphinx's missing nose was…",
+  "options": [
+   "Shot off by Napoleon's troops",
+   "Removed to a museum",
+   "Eroded by a flood",
+   "Gone centuries before Napoleon"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null,
+  "c": 3,
+  "t": 0,
+  "p": 42,
+  "k": "The nose predates Napoleon",
+  "w": "Drawings made decades before Napoleon's campaign already show the Sphinx noseless."
+ },
+ {
+  "id": "learn-anc17",
+  "surface": "learn",
+  "seq": 159,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The pyramids were built mainly by…",
+  "options": [
+   "Enslaved people",
+   "Paid seasonal workers",
+   "Prisoners of war",
+   "Priests"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 40,
+  "k": "Pyramid builders were paid",
+  "w": "Workers' villages near Giza show bread and beer rations, medical care and honourable burials — not slave quarters."
+ },
+ {
+  "id": "learn-anc18",
+  "surface": "learn",
+  "seq": 160,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The trial of Socrates was decided by…",
+  "options": [
+   "A single judge",
+   "A jury of about 500",
+   "The king of Athens",
+   "An oracle"
+  ],
+  "topic": "ancient",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 33,
+  "k": "Socrates faced 500 jurors",
+  "w": "Athenian juries ran to hundreds precisely so they could not be bribed."
+ },
+ {
+  "id": "learn-body14",
+  "surface": "learn",
+  "seq": 161,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Your stomach gets a new lining every…",
+  "options": [
+   "Few days",
+   "Few months",
+   "Year",
+   "It never renews"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 2,
+  "p": 35,
+  "k": "Stomach relines in days",
+  "w": "The acid would digest the stomach itself otherwise — the mucus lining turns over in under a week."
+ },
+ {
+  "id": "learn-body15",
+  "surface": "learn",
+  "seq": 162,
+  "type": "choice",
+  "domain": null,
+  "prompt": "The body's strongest muscle for its size is…",
+  "options": [
+   "The thigh",
+   "The jaw",
+   "The heart",
+   "The bicep"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 44,
+  "k": "The jaw: strongest for size",
+  "w": "The masseter — bite force concentrates through a short, brutal lever."
+ },
+ {
+  "id": "learn-body16",
+  "surface": "learn",
+  "seq": 163,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Which sense is wired most directly to memory?",
+  "options": [
+   "Sight",
+   "Hearing",
+   "Smell",
+   "Touch"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null,
+  "c": 2,
+  "t": 0,
+  "p": 51,
+  "k": "Smell wires to memory",
+  "w": "Olfactory signals skip the brain's relay station and land beside the memory centres — hence the time-travel of a familiar smell."
+ },
+ {
+  "id": "learn-body17",
+  "surface": "learn",
+  "seq": 164,
+  "type": "choice",
+  "domain": null,
+  "prompt": "Goosebumps are…",
+  "options": [
+   "A leftover from having fur",
+   "A circulation boost",
+   "An infection response",
+   "Random nerve noise"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null,
+  "c": 0,
+  "t": 1,
+  "p": 57,
+  "k": "Goosebumps: fur we lost",
+  "w": "The muscles that raise hairs made ancestors look bigger and warmer; the reflex outlived the coat."
+ },
+ {
+  "id": "learn-body18",
+  "surface": "learn",
+  "seq": 165,
+  "type": "choice",
+  "domain": null,
+  "prompt": "How many times does your heart beat in a day, roughly?",
+  "options": [
+   "10,000",
+   "100,000",
+   "1 million",
+   "1,000"
+  ],
+  "topic": "body",
+  "axis": null,
+  "test": null,
+  "c": 1,
+  "t": 0,
+  "p": 62,
+  "k": "100,000 beats a day"
  },
  {
   "id": "pulse-pace",

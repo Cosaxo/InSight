@@ -114,7 +114,7 @@ describe("check:ios-devicebind", () => {
 //
 // Same failure shape, one extra way to be wrong. Every case here is a
 // silent failure on a device: the app builds, ships, and simply never
-// activates — which is indistinguishable from the state D341 found.
+// activates — which is indistinguishable from the state D342 found.
 describe("check:devicebind · Android", () => {
   const A_PLUGIN = "android/app/src/main/java/com/cosaxo/insight/DeviceBindPlugin.java";
   const A_ACTIVITY = "android/app/src/main/java/com/cosaxo/insight/MainActivity.java";

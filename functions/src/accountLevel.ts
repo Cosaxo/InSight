@@ -13,7 +13,7 @@
 // one still qualify?".
 //
 // WHY THIS IS FREE TO DO TODAY AND EXPENSIVE LATER. Activation has never
-// run — the native bridges did not exist until D341 — so no account
+// run — the native bridges did not exist until D342 — so no account
 // anywhere holds a `db` claim. Redefining what the claim MEANS costs
 // nothing right now. Once real accounts carry `db: 1`, changing its
 // meaning is a migration over live auth users.
@@ -126,7 +126,7 @@ export const ACCOUNT_LEVELS: AccountLevelDef[] = [
  * below the new value stops counting the moment the rules deploy. Read the
  * per-level bind coverage the daily scan logs FIRST (velocity.ts,
  * `bind_coverage`) — it says how many real votes each level would refuse,
- * which is the same question D341 answered for the original flip.
+ * which is the same question D342 answered for the original flip.
  *
  * `check:account-level` holds firestore.rules' own literal equal to this,
  * because two numbers that must agree and live in different files are two
