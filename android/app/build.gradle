@@ -1,6 +1,6 @@
 apply plugin: 'com.android.application'
 
-// ── Release signing (docs/PLAY-RELEASE.md §2.1, D344) ────────────────
+// ── Release signing (docs/PLAY-RELEASE.md §2.1, D345) ────────────────
 //
 // Until 2026-09-01 the release build type had NO signingConfig at all, so
 // `bundleRelease` produced an unsigned AAB that Play will not accept. That

@@ -1,5 +1,7 @@
-// LivePrivacyPanel — the account & data panel (Phase 5), shown at the
-// top of the profile's General tab in live mode.
+// LivePrivacyPanel — the account & data panel (Phase 5). It opened the
+// profile's General tab from D98 to D344; the owner moved it behind the
+// gear in the profile's corner, so it now renders inside that sheet
+// (profile-overlay.jsx's AccountSheet) in live mode.
 //
 // Its job did not change at D98, but every sentence in it did. This
 // panel exists so that what the app SAYS about who can see what matches
@@ -11,8 +13,9 @@
 // product defines itself against — just pointed the other way.
 //
 // Born in this repo (not ported from the design prototype), so it
-// lives here as typed TSX. A globalThis assignment at the bottom
-// keeps the spec layer's render-time lookup working unchanged.
+// lives here as typed TSX. Off the global bridge since D344: the sheet
+// is the one consumer and it imports the default export, so there is no
+// publication left for check:globals rule 5 to hold.
 import React from "react";
 import LIVE, { localName } from "../data/live";
 import NAV from "../data/nav";
@@ -154,7 +157,9 @@ function LivePrivacyPanel() {
 
   return (
     <div className="card" style={{ marginBottom: 14, padding: "14px 16px" }}>
-      <div className="kicker" style={{ marginBottom: 4 }}>Account &amp; privacy</div>
+      {/* No kicker since D344: the sheet's header says "Account & privacy"
+          directly above this card, and a noun the header already says is
+          one of the four deletions COPY.md names (D182). */}
 
       {/* THE FACE, ABOVE THE NAME (D178). Both answer "who are you to
           other people", and the photo is the louder half — so it goes
@@ -382,8 +387,5 @@ function LivePrivacyPanel() {
     </div>
   );
 }
-
-// Render-time lookup bridge for the spec layer (profile-overlay.jsx).
-Object.assign(globalThis, { LivePrivacyPanel });
 
 export default LivePrivacyPanel;

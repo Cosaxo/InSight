@@ -27,7 +27,7 @@ export default defineConfig([
   // .gitignore.
   //
   // android/app/build is the third instance of exactly that class, added
-  // 2026-09-01 (D344): Gradle merges Capacitor's native-bridge.js into
+  // 2026-09-01 (D345): Gradle merges Capacitor's native-bridge.js into
   // build/intermediates/assets/, and that vendored file carries
   // eslint-disable comments plus a rule name this config does not load. So
   // `npm run lint` reports six errors in code nobody here wrote, on any

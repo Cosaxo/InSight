@@ -52,7 +52,7 @@ captures/
 # Comment next line if keeping position of elements in Navigation Editor is relevant for you
 .idea/navEditor.xml
 
-# Keystore files — UNCOMMENTED 2026-09-01 (D344), and they must stay that
+# Keystore files — UNCOMMENTED 2026-09-01 (D345), and they must stay that
 # way. The release build reads an upload keystore (app/build.gradle), so
 # from now on there can be one sitting in this directory. Committing it
 # publishes the credential that proves an upload comes from this project;

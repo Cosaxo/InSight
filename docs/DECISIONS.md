@@ -35193,7 +35193,115 @@ profile document; `v2_users` is world-readable since D98, and "this account
 is unverified" is not a fact this app needs to publish about a person.
 ---
 
-## D344 · Play is un-parked on an ENK, and the two code items that had no owner get built
+
+## D344 · Account & privacy moves behind a gear in the profile's corner
+
+**2026-09-01.** Owner: *"Hide accont and privacy in a gear icon in the
+cornor of your profile"*, over a screenshot of the profile opening on the
+settings card. Since D98 the account panel (`ui/LivePrivacyPanel.tsx`)
+has been the first thing the General tab draws, above the profile it
+names — so every profile visit opened on an errand surface. It now lives
+in its own sheet behind a gear `icon-btn` in the profile header's right
+corner, where the spacer that centred the title stood, and the General
+tab opens on what the answers have built.
+
+### What moved one tap deeper, and what did not move
+
+The panel carries the app's bluntest disclosure, so the move is worth its
+own paragraph rather than a silent relocation. `docs/COPY.md` §3 already
+draws the line this change stands on: **"Moving a disclosure one tap away
+and deleting a clause from it are different edits."** This is the first
+edit and not the second — the panel moves whole, no sentence changed.
+The public-answers line stays open, unlinked and untapped *on the panel*
+(`LivePrivacyPanel.test.tsx` pins that inside the component, unchanged),
+and the smoke case pins that the sheet holds it one tap from the profile.
+The three denies, `web/privacy.html` (which names no in-app placement),
+the store forms and D331's consent row are all untouched — the compass
+toggle still governs whether the coordinate is computed, from the same
+row, one tap over. The disclosure a user meets *before* any answer
+exists is unchanged too: D330 put the political consent at the start,
+and the sign-in gate's copy is not this panel's.
+
+### The gear is live-only, and the sheet is a real dialog
+
+- **No gear in demo** (`L.enabled` gates it): the panel states facts
+  about a real account and renders nothing without one, so the button
+  would open an empty sheet — D167's rule one control down. The 32px
+  spacer returns so the title does not shift between builds. Pinned from
+  both sides: `smoke-overlays` (demo — absent), `smoke-live` (live —
+  present, opens, holds the panel).
+- **The sheet** (`AccountSheet`, profile-overlay.jsx) is person-overlay's
+  stacked-map shape — a second `.overlay` at `zIndex: 24` — plus the
+  dialog semantics that pattern skips: `useDialog` for Escape and the
+  focus trap (its stopPropagation is why Escape peels the sheet and not
+  the profile under it), and a `pushBackLayer` registration so Android's
+  back does the same (app-shell asks `closeTopBackLayer` first). The
+  smoke case presses Escape and asserts the profile survives.
+- **The kicker is gone from the panel**: the sheet's header says
+  "Account & privacy" directly above the card, and a noun the header
+  already says is one of D182's four deletions.
+
+### The touch converted the panel off the bridge, and out of first paint
+
+D39's convert-on-touch, applied at the site being touched: the two
+`window.LivePrivacyPanel` sites became a static import, the
+`Object.assign(globalThis, …)` publication is deleted with its last
+render-time reader (single writer, checked per rule 6's warning), and
+rule 4 drops **6 → 4** for profile-overlay.jsx, **236 → 234** total.
+The panel also leaves the entry chunk: its spec-index line was what kept
+it eager, and its one consumer rides `loadOverlays()` (D223), so the
+import moves it into that chunk and first paint stops paying for a
+settings panel — same ESM-graph guarantee, no new race.
+
+Three comments whose premises had expired were corrected where the work
+touched them, because two of them mis-stated the tree to this change
+(the D200 shape — a correct reason outliving its premise): profile-
+overlay's "THIS FILE IS EAGER" (false since D223, and the reason the
+Roles lazy boundary exists was written against it), and the
+`handles.ts` / `socialFetch.ts` claim that LiveDuelPanel and
+LivePrivacyPanel are eager importers (half-false since D156 made the
+duel panel a `React.lazy`, fully false here) — the purity split stays,
+dated, with why it outlives them.
+
+## D344 amendment (2026-09-01) · The identity row stops calling every session anonymous
+
+Found while shipping D344 — the stale line sat directly above the new
+gear in the owner's own screenshot — and fixed on the owner's word the
+same day (*"yes fix the link google text too"*). The profile's identity
+row said **"anonymous session — link Google below to keep it"** for
+every live session, hardcoded. Wrong twice over, and half of it was
+already on the record: live.ts's auth observer comment named this exact
+site — *"profile-overlay.jsx hardcodes the same sentence with no check
+at all"* — so a Google-linked account was told it was anonymous. The
+other half expired at D211: "below" pointed at the Sign-in row that
+decision removed, and — as the branch stood when this was found — the
+only link path left was the D134 gate before the app opens, so the
+instruction clause had nothing to point at: COPY.md’s fourth deletion,
+an instruction for a control that is not underneath.
+
+The first cut therefore deleted the nudge outright: bare "anonymous
+session" was all the line could honestly say. The same day, D343 landed
+on main having revived the Sign-in row — D219 had taken the wall down
+(`VITE_REQUIRE_SIGNIN` defaults false), so anonymous sessions are real
+in release builds and every reinstall minted a duplicate account — and
+the merge changed the honest answer (the D318-amendment shape: the tree
+converged mid-flight). A link control exists again, inside the very
+panel D344 put behind the gear. So the line keeps the nudge and loses
+only what was false: **"anonymous session — sign in to keep it"** — no
+"below", no claim about where; the Sign-in row one gear tap away
+carries the full stake and the control. A linked account shows its
+handle instead — the durable identity, the same fact the account sheet
+states — or nothing while none is claimed. `LIVE.linked` picks the
+branch (the flag live.ts already derives and announces). This change
+still adds no control of its own: D343's row is the control, and the
+copy now points at a thing that exists.
+
+Both branches are pinned in smoke-live — the fixture is anonymous-first,
+so the default mount holds the nudge line and the absence of the dead
+"link Google below"; the linked case flips the flag, claims a handle,
+and asserts the swap. live.ts's observer comment and the fixture's
+`linked` note are updated to stop describing the defect as current.
+## D345 · Play is un-parked on an ENK, and the two code items that had no owner get built
 
 **Date:** 2026-09-01 · **Status:** Adopted (owner-confirmed: *"yes, do both
 and i will go for a ENK"*)

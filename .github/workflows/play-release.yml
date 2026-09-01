@@ -4,7 +4,7 @@
 # dependency between this tree and a live app. Android never had that
 # dependency, which is why this file was never written — and why, when D42
 # parked Play, the release path was simply absent rather than deferred.
-# D344 un-parked it (owner: an ENK, so D41's organization account), and
+# D345 un-parked it (owner: an ENK, so D41's organization account), and
 # this is the missing half.
 #
 # It is much cheaper than its sibling: ubuntu rather than macOS at 10x

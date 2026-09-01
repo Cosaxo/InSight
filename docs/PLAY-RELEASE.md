@@ -28,18 +28,18 @@ been bitten by twice before.
 
 | | Item | Kind | State |
 | --- | --- | --- | --- |
-| 1 | Release signing — `buildTypes.release` has no `signingConfig` | code | **done** (D344) — built and verified against a real build |
-| 2 | No `play-release.yml` — the AAB has no way out of CI | code | **done** (D344) — written; the four Play API calls are untested |
+| 1 | Release signing — `buildTypes.release` has no `signingConfig` | code | **done** (D345) — built and verified against a real build |
+| 2 | No `play-release.yml` — the AAB has no way out of CI | code | **done** (D345) — written; the four Play API calls are untested |
 | 3 | App Check → Play Integrity, or **every callable fails on Android** | console | **written down** (SHIP-CHECKLIST §2); the console work is account-gated |
 | 4 | `google-services.json`, downloaded in the right order | console | account-gated |
 | 5 | An account-deletion **URL** — Play requires one, Apple does not | web page | **done** — `web/delete-account.html` |
 | 6 | The Data Safety **Shared** column after D98 | owner decision | open |
-| 7 | The account type — re-read D41 under D42's condition | owner decision | **decided** — ENK, so D41's organization route (D344) |
+| 7 | The account type — re-read D41 under D42's condition | owner decision | **decided** — ENK, so D41's organization route (D345) |
 | 8 | The payments-policy read on D313/D315's Stripe checkout | owner decision | open |
 
 Everything else is either done or trails the submission.
 
-**Worked 2026-09-01, second pass (D344):** Play un-parked onto D41's
+**Worked 2026-09-01, second pass (D345):** Play un-parked onto D41's
 organization route on the owner's call, items 1 and 2 built, and §2.6
 measured rather than reasoned. **What remains needs a Play Console account
 or an owner's ruling — there is no longer any Play work in this tree that
@@ -113,7 +113,7 @@ compiles on the day this is revisited"* — and the shell does.
 and proguard files, and **no `signingConfig`**. `./gradlew bundleRelease`
 today produces an unsigned AAB, which Play will not accept.
 
-**Built at D344 and verified against a real build.** `android/app/build.gradle`
+**Built at D345 and verified against a real build.** `android/app/build.gradle`
 now reads the keystore from the environment first (CI secrets) and an
 untracked `android/keystore.properties` second. **With neither present the
 release stays unsigned on purpose** — a clean clone, `assembleDebug`, and
@@ -147,7 +147,7 @@ than its sibling: an `ubuntu-latest` runner rather than macOS at 10×
 billing, no cloud signing, no provisioning profiles, none of the four
 runs of signing archaeology that `ios-release.yml`'s comments preserve.
 
-**Built at D344.** What it carries, and why each piece is where it is:
+**Built at D345.** What it carries, and why each piece is where it is:
 
 - The same pre-flight — but `node scripts/check-store-copy.mjs` **without**
   `--ios`. That flag exists to excuse D42's parked Play fingerprint
@@ -262,7 +262,7 @@ Capacitor plugins, Firestore and Play Integrity are managed code.
 **`@sentry/capacitor` is the exception** — the Sentry Android SDK ships
 `.so` files.
 
-**Measured at D344, and the answer is that nothing needs doing.** The
+**Measured at D345, and the answer is that nothing needs doing.** The
 Android SDK and `node_modules` were installed and the release bundle
 built. It carries three native libraries across four ABIs —
 `libsentry.so` and `libsentry-android.so` as predicted, plus
@@ -403,7 +403,7 @@ stale, in the D116 shape — right answer, reasoning that no longer holds.
 
 ### 3.5 · The account type — re-read D41 *and* D42 together
 
-**Decided at D344: the owner is going for an ENK**, which is D41's
+**Decided at D345: the owner is going for an ENK**, which is D41's
 organization route and the before-an-installed-base branch, so **D41
 stands in full and nothing in it needs re-deriving.** The rest of this
 section is why that is the cheaper branch, and what has moved under it.
@@ -450,7 +450,7 @@ left alone — changing it now would make it wrong.
 
 - **`check:store-copy` has stopped being a known-permanent failure.** D42
   recorded the bare run's single remaining placeholder as a permanent
-  non-blocker; D344 retires that status — the fingerprint is now merely
+  non-blocker; D345 retires that status — the fingerprint is now merely
   *unminted*, which is a different thing, and `--first-upload` (§2.5) is
   the one-run excuse that says so. `play-release.yml` runs the check bare
   by default, so the fingerprint is enforced from the second upload on.
@@ -483,7 +483,7 @@ left alone — changing it now would make it wrong.
 
 ## 5 · The order, if it is un-parked
 
-**It is un-parked (D344), so this is the live order.** Struck items are
+**It is un-parked (D345), so this is the live order.** Struck items are
 done; everything left needs an account or a ruling.
 
 1. ~~**Account type**~~ — decided: ENK, D41's organization route.
@@ -499,7 +499,7 @@ done; everything left needs an account or a ruling.
    including generating the upload keystore and enrolling in Play App
    Signing.
 5. ~~**Code**~~ — signing, the workflow, the deletion page and the 16 KB
-   check are all built (D344).
+   check are all built (D345).
 6. **The first dispatch: `upload=false`.** It builds, signs, and runs
    every assertion without Play seeing anything.
 7. **Then `upload=true first_upload=true track=internal`.** Not
