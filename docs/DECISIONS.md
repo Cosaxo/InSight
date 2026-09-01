@@ -34599,3 +34599,85 @@ so unless something dispatches in between, that pre-flight should answer
 *run as-is*. Per D198 that sentence is a report about a comparison, never
 a promise about the tree: **a verdict has a shelf life of exactly one
 dispatch, and a bump has a shelf life of exactly one upload.**
+
+## D340 · The app icon moves to the paper tile, and the two-palette rule survives the move
+
+**2026-09-01.** Owner: *"lets mostly use the white app logo not the black
+one."* D302 made the **ink tile** the primary icon — every launcher
+asset, both favicons and the Android adaptive background composited the
+iris over `--ink`. That reverses here: the icon is now the **paper
+tile**, the mark on `--surface-2` (`#fefdfb`, oklch 0.994 0.0025 80) with
+the ink pupil and the paper dot conversions.
+
+Sixteen launcher rasters, two favicons and one colour resource moved.
+`design/store/feature-graphic.png` did not: it was already the paper
+mark, which is the whole reason the file had two palettes to choose
+between.
+
+### The palette rule was the constraint, and it decided the file's shape
+
+D302's finding stands: the dot colours cannot be shared between grounds,
+because converting one set of oklch tokens for both leaves the dots muddy
+on ink. So "use the white one" is not a background swap — it is a
+different set of seventeen fills. `design/icon/mark.svg` already carried
+both palettes, so the artwork existed; what it did not carry was the
+paper palette **at icon radii**.
+
+That is why the file now has **three flat groups over one geometry**
+rather than two:
+
+| group | palette · ground | radii tuned for | consumer |
+| --- | --- | --- | --- |
+| `mark` | paper | ~190 px | `gen-feature-graphic.mjs` |
+| `mark-paper-tile` | paper | 48 px (mdpi worst case) | `gen-icons.mjs` |
+| `mark-tile` | ink | 48 px | none since this change |
+
+Reusing `mark` for the icon would have been the smaller diff and the
+wrong one: its dots are a radius step finer because it renders six times
+larger, and the fatter set exists precisely because mdpi is 48 px. The
+split is by **size**, not by palette, and collapsing it would have
+undone a tuning D302 made for a reason.
+
+`mark-tile` is kept rather than deleted. It is the identity canvas's dark
+variant and the source `web/home.html`'s dark mode inlines its hexes
+from; it is now artwork with no extractor, which the file says about
+itself so nobody reads its lack of a tripwire as a gap.
+
+### One prefix hazard, in both directions
+
+`mark` is a prefix of `mark-paper-tile`. Both generators find their group
+with `indexOf`, and what keeps `gen-feature-graphic`'s search off the new
+group is the closing `">` in `<g id="mark">` — nothing else. Trimming
+either search string to a bare name would silently hand the feature
+graphic the icon's artwork. Both scripts and `mark.svg` now say so at the
+site of the search, alongside D302's older rule that the comment may
+never spell a group tag out in angle brackets.
+
+The blank-render tripwire moved with the ground: it counts pixels that
+differ from the opaque master's background, so its constant is now
+`GROUND` rather than `INK`. Had it been left pointing at ink it would
+have called a correct paper icon 100% marked — passing, but measuring
+nothing.
+
+### What this restores, and what it does not touch
+
+The splash is paper `#FAF9F2` (capacitor.config.ts). D302 noted that the
+icon had "deliberately stopped matching it"; at a shade's distance they
+read as one surface again, so the launch transition is quieter than it
+was. That is a consequence, not the reason — the reason is the owner's
+sentence.
+
+Unchanged: every in-app lockup (`app-shell.jsx` header, `LiveSignInGate`)
+already drew the mark on the app's paper ground filling from live tokens,
+so there was nothing there to flip; `web/join.html` and `web/home.html`
+likewise, including home's dark-mode swap to the ink palette, which is
+the two-palette rule doing its job on a dark page and is what "mostly"
+leaves standing. The notification status icon, the boot wordmark and the
+legacy splash PNGs are all outside this.
+
+### When to revisit
+
+If the icon ever needs to read on a dark launcher wallpaper more than it
+needs to be the app's own paper: `mark-tile` is still there, and the move
+back is `GROUND`, `ic_launcher_background.xml`, the extractor's group
+name and the two favicons — the same four places this change touched.
