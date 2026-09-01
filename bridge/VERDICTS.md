@@ -250,3 +250,117 @@ request.
   chosen), or the match rate cannot be read as a population claim
   about the corpus. A person carries this to `docs/AXES-RUNBOOK.md`
   on `main`.
+
+- **2026-09-01 · tests: per-instrument joint density aggregates
+  (binned joint counts + committed offline mixture fit) —
+  WORTH-BUILDING, with the four-tests half priced lower than the
+  request assumed and the lens half priced higher.** Product facts,
+  read first-hand this run: per-person results for the four core
+  instruments live server-side on `v2_users/{uid}.testResults`
+  (world-readable, D98), so the joint binned counts are one
+  collection scan of one doc per account — and the committed-report
+  machinery for exactly this shape already exists
+  (`scripts/report-lib.mjs` computes per-axis five-band cuts and an
+  archetype cut from `v2_users` today, D253 having made the matcher
+  node-runnable). The nine lenses have NO stored composite score
+  (device-local by design, the module's own header refusing a
+  write-only mirror) — a lens joint density would need 50 per-qid
+  answer scans plus a server port of the device scorer, a real cost
+  the four-tests artifact does not carry; ruling covers the four
+  instruments now, lenses priced separately if asked. Benefit: this
+  is the instrument that tests whether InSight's own population has
+  density regions at all — tst-8's region commitment becomes locally
+  testable (Gerlach's test, including the negative outcome tst-5's
+  contrary evidence predicts), the 61 authored signatures across six
+  systems (`archetype-data.js`, hand-written shares summing to 100,
+  nearest-type matching centred on an AUTHORED baseline) get their
+  first comparison against fitted component means and weights — with
+  the scope stated exactly: the ruled artifact reaches the 45
+  signatures of the four core systems; the two duel systems (duo,
+  group) have no `testResults` entry and sit outside this ruling
+  alongside the lenses — and central's cen-9 admission arithmetic
+  gains its region/residual instrument. Marginals-plus-covariance
+  stay the stated baseline only, exactly as the request argues.
+  Conditions, part of the verdict: (1) sampling design declared per
+  db-8/pat-5, with the population named for what it is — not
+  "completers": the four instruments fold PASSIVELY from ordinary
+  feed answers (D50/D121), and `testResults[kind]` appears once a
+  person has answered ≥2 items per axis (`MIN_AXIS_ITEMS`, a floor
+  not a target) — so the population is "answered enough test-surface
+  feed cards", the untested remainder is real (the shipped report
+  models it as a row), the political instrument's population is
+  additionally consent-selected (D331 deletes it when consent is
+  off), and — the precision caveat that bounds the headline benefit
+  — at two 5-point items per axis a coordinate is quantized to a
+  handful of levels, so the density-region test runs coarse until
+  per-axis item counts grow; each instrument's artifact states its
+  own population and precision; (2) the minimum-cell floor is framed as
+  believable-basis reliability, never privacy — a low cell is one
+  public profile coarsened, which D98 already publishes exactly, so
+  a privacy framing would be a D98 reversal nobody has asked for and
+  would need the owner under D334; the repo's standing figure
+  (`PATTERNS_MIN_BASIS = 8`) is the natural floor value, the floor's
+  final value belonging to the governed process; suppressed mass
+  reported, as the request proposes; (3) the mixture-fit artifact
+  publishes method, component-count sweep and seed so the fit is
+  recomputable (pat-2). Timing, stated so the benefit is not
+  overclaimed: at today's population (the pulse trail shows a
+  handful of measured actives) no cell clears the floor — the
+  artifact would publish suppressed mass and nothing else — so this
+  is an instrument correctly built now and dormant until the
+  population exists, which also strengthens the cost case: building
+  it is cheap precisely because nothing about it is urgent. A person
+  carries this to `docs/AXES-RUNBOOK.md` on `main`.
+
+- **2026-09-01 · questions: refit-to-refit loading drift with a
+  refit-noise null — WORTH-BUILDING, with the method reconciled
+  against D325 and the null repriced against the ledger's actual
+  retention.** Two corrections, both read from the shipped code
+  first-hand. FIRST, alignment: the nightly fit is one persistent
+  model folded forward (getModel → fold → putModel, deterministic,
+  hash-seeded, no re-fit path), so between consecutive publishes
+  there is NO arbitrary rotation to remove — the 2026-08-26 map
+  verdict's correction stands, and D325's unaligned displacement is
+  the right number for what a returning user experiences. What the
+  Procrustes step legitimately does over a longer window is
+  DECOMPOSE, not correct: slow coherent basis rotation is real
+  movement that carries no item-specific meaning, so the artifact
+  should publish the window's global (rotation) component and the
+  per-item residual drift separately, beside D325's unaligned
+  number, never replacing it — three numbers, each named. This is
+  que-8's depreciation curve done honestly: the per-item residual is
+  the term its weight needs. SECOND, the null, repriced TWICE — this
+  run's own adversarial pass caught the first repricing resting on a
+  false premise and the corrected reading is friendlier to the
+  request than either draft. The fit ledger (`v2_agg_events`) has a
+  90-day TTL (`LEDGER_RETENTION_DAYS = 90`), but the fit's entire
+  history is YOUNGER than that window (the pulse trail shows zero
+  answers counted through 2026-08-11), so as of today nothing has
+  expired: a from-ledger replay starting at `emptyModel` reproduces
+  the live model (the fold is deterministic, hash-seeded, and pinned
+  bit-identical by its own test — provided the replay reproduces the
+  nightly publish sequence, since the next fold reads the 4 dp
+  rounded publish, and modulo any departed accounts' deleted
+  entries), and the requested split-half/resampled-refit null is
+  therefore buildable exactly as asked. What the retention DOES
+  change is the deadline: once the program's fold history exceeds 90
+  days, from-ledger reproduction of the live model becomes
+  permanently impossible — TTL expiry, plus the desync sources that
+  exist regardless (`PATTERNS_CATCHUP_DAYS = 7` leaves any gap
+  longer than a week permanently unfolded; nightly rounding;
+  deletions) — so the null harness should be built and BASELINED
+  while reproduction still holds, and run thereafter as a
+  rolling-window procedure whose window is stated on the artifact.
+  Condition, part of the verdict: the artifact states WHICH null it
+  computes and over what window; without the null the drift number
+  is uninterpretable, exactly as the request argues. Cost: a real
+  but bounded offline job on the admin SDK (`readLedgerDay` is the
+  existing reader), plus a few fields on the committed scorecard
+  path — no new collection, no client work. Timing, as for the
+  verdict above: at today's volume (~42 counted answers) any drift
+  number is noise — the instrument is built now so its baseline
+  exists when the population does. Benefit then: que-8's
+  anchor/complementary depreciation factor becomes measurable, que-2
+  gains its Stocking-drift observable, and the same artifact
+  strengthens map-3's stability record. A person carries this to
+  `docs/AXES-RUNBOOK.md` on `main`.

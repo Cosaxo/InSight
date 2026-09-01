@@ -45,3 +45,24 @@ each answered question with the node ids that answer it.
   between-person — Guarana 2021). Explicit negative for cen-2: acute
   sleep loss → risk-taking is sign-unstable and should not be the
   anchor.
+
+- 2026-09-01 · central: bod-11 names the decisive design — perception
+  and measured channels predicting an affect outcome assessed by a
+  THIRD method — and cen-8's body slot now carries bod-11's
+  common-method-variance rival as its falsifier, so the combination
+  has a stake in whether that design is realizable on InSight-shaped
+  data. The question: what counts as a third method here? The pulse
+  sleep report and affect-adjacent feed answers are both self-report
+  in the same app at nearby moments (same-method on bod-11's own
+  terms?), but the product also holds non-self-report behavioral
+  traces — answering cadence and time-of-day, duel participation and
+  outcomes, edit rates (NOT per-item response latencies: D269 forbids
+  hesitation timing, so no such channel exists). Is there a defensible
+  reading in which such traces constitute a distinct method for the
+  outcome side (behavior, not appraisal), making bod-11's rival
+  locally testable on the pulse-repeat artifact already ruled
+  worth-building — or does the appraisal/behavior distinction fail
+  bod-11's bar for breaking the confound? A negative answer is as
+  valuable: it would mark bod-11 permanently untestable on the
+  product's own data and route the affect half of cen-8's body slot
+  through external literature only.

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "axiom": "central",
-  "updated": "2026-08-28",
+  "updated": "2026-09-01",
   "nodes": [
     {
       "id": "cen-1",
@@ -10,12 +10,30 @@
       "detail": "Revised 2026-08-28 to resolve the program's first contradicts edge (tst-6→cen-1, landed 2026-08-27, scoped to the 2026-08-26 form's singular 'one published coordinate system'). The fork is accepted rather than argued down: the singular assumed ergodicity silently, and three lanes reached the fork from three sides on one shared fact base (tst-7's cited facts: between-person structure generalizes within persons only under rarely-met ergodicity conditions; within-person variance runs 2–4× group estimates; factor scores are indeterminate, plausible values the remedy) — tst-6 (argued) composing the architecture, pat-3 (cited) adding genuinely independent estimator-level machinery evidence (level-blind estimators conflate three separately-estimable coupling structures, not two), map-6 (cited) carrying the display consequence. What survives of the 2026-08-26 form, unchanged: the published-coordinate-system-not-engine specification (pat-2, pat-7); each axiom entering through its own measurement model onto the shared between-person space (tst-3's link families, que-2's item-parameter frame widened, banded bio imports gen-2/gen-8, sensor bands bod-2); and engine choice as an empirical measurement (pat-6) — D325, the bridge's first crossing (2026-08-27), shipped the prequential instrument that makes that measurement possible in principle. What the revision adds: (1) the joint model is hierarchical — between-person coordinates for crowd couplings, within-person state spaces with their own loadings where occasions exist (pat-8), cross-level loading invariance tested, never assumed (tst-6's test); (2) publication is settled at the model level — population-level sufficient statistics that reproduce couplings with uncertainty (e.g. aggregated moment matrices over plausible-value draws), never per-person latent draws (tst-6's §9 reading) — which is also db-6's join currency, reached from the database side; the published within-person object is population-average, never per-person (pat-3). The 2026-08-26 form's second named risk — that the instrument space and the combination space might not be one object — was answered by tst-6 part (1) rather than dropped: embedding, not exhaustion; the tests space is a proper subspace of the joint space, the rest identified by the other axioms' measurement models (que-5 agrees from the bank's side) — the supports edge to tst-1 stands under that bound. Named risk retained: distillation faithfulness above pat-6's crossover is unmeasured technology (pat-7) — if it cannot be measured, the audit layer degrades from specification to aspiration. The pairwise-tables alternative still fails on the population leg (pat-4). To cited: multi-battery latent modeling, IRT linking/equating, multilevel SEM (Muthén 1994, Curran & Bauer 2011 — carried at tst-7, leaned on by edge). To measured: fit the between layer against the score shelf on published numbers; the within layer waits on repeated measurements (the pulse roster today; the era question is a bridge matter ruled needs-owner this run). Detail condensed per go-7; the 2026-08-26 argument lives in git.",
       "sources": [],
       "edges": [
-        { "to": "tst-1", "type": "supports" },
-        { "to": "pat-2", "type": "depends" },
-        { "to": "pat-1", "type": "depends" },
-        { "to": "tst-6", "type": "depends" },
-        { "to": "tst-7", "type": "depends" },
-        { "to": "pat-3", "type": "depends" }
+        {
+          "to": "tst-1",
+          "type": "supports"
+        },
+        {
+          "to": "pat-2",
+          "type": "depends"
+        },
+        {
+          "to": "pat-1",
+          "type": "depends"
+        },
+        {
+          "to": "tst-6",
+          "type": "depends"
+        },
+        {
+          "to": "tst-7",
+          "type": "depends"
+        },
+        {
+          "to": "pat-3",
+          "type": "depends"
+        }
       ],
       "created": "2026-08-25",
       "updated": "2026-08-28"
@@ -24,29 +42,126 @@
       "id": "cen-2",
       "claim": "An axiom's value is its marginal information about the rest, measured in two components — crowd value as marginal prequential surprisal reduction on a common population, and personal-lens value bounded by the person's own occasions — never by novelty or effort.",
       "status": "argued",
-      "detail": "Restated 2026-08-28; the ranking this metric prices moved to cen-8 (fission per go-7 — this node had grown into an essay carrying metric and ranking under one status; the 2026-08-26 form lives in git). The metric: an axiom's crowd value is the drop in held-out one-step-ahead predictive log-loss (surprisal bits) on the other axioms' observations when its columns enter the conditioning set, evaluated on a COMMON population — the whole answered stream under the joint model's explicit missingness — never on per-pair intersections, which would reproduce at portfolio level the incoherence cen-1 rejects in pairwise tables. Pairing (pat-4) governs precision, not definition: thin pairing widens the error bars on value; it does not zero value. The yardstick is the same prequential family pat-6 uses for engine choice — one number family serves both decisions — and its baseline term now ships: D325's quality block scores the answer-only model nightly, the floor any axiom's marginal term is later measured against; the path to this node's measured rung runs through the main-readable scorecard snapshot (map's 2026-08-28 request, ruled worth-building this run). Refinement from pat-8 (cited), which the 2026-08-26 form could not see: the information budget is two-dimensional, so the two value components are funded by different resources — crowd value by persons (pairing), personal-lens value by that person's own occasions, because N/T compensation holds for population-average estimands and fails structurally for person-specific ones. Personal-lens value is therefore not free at population zero: it is bounded by the axiom's own repeat cadence. A genotype is a constant — it has no within-person half (map-6's scope note); its personal value is prior-conditioning plus gen-10's direct-output anchors. Body channels repeat by nature; theirs is the personal value occasions can actually fund (bod-5). Falsifiers live at cen-8 with the slots they attack. To cited: marginal-predictive-value ranking (feature-importance/information-gain literature), prequential evaluation.",
+      "detail": "Restated 2026-08-28; the ranking this metric prices moved to cen-8 (fission per go-7 — this node had grown into an essay carrying metric and ranking under one status; the 2026-08-26 form lives in git). The metric: an axiom's crowd value is the drop in held-out one-step-ahead predictive log-loss (surprisal bits) on the other axioms' observations when its columns enter the conditioning set, evaluated on a COMMON population — the whole answered stream under the joint model's explicit missingness — never on per-pair intersections, which would reproduce at portfolio level the incoherence cen-1 rejects in pairwise tables. Pairing (pat-4) governs precision, not definition: thin pairing widens the error bars on value; it does not zero value. The yardstick is the same prequential family pat-6 uses for engine choice — one number family serves both decisions — and its baseline term now ships: D325's quality block scores the answer-only model nightly, the floor any axiom's marginal term is later measured against; the path to this node's measured rung runs through the main-readable scorecard snapshot (map's 2026-08-28 request, ruled worth-building this run). Refinement from pat-8 (cited), which the 2026-08-26 form could not see: the information budget is two-dimensional, so the two value components are funded by different resources — crowd value by persons (pairing), personal-lens value by that person's own occasions, because N/T compensation holds for population-average estimands and fails structurally for person-specific ones. Personal-lens value is therefore not free at population zero: it is bounded by the axiom's own repeat cadence. A genotype is a constant — it has no within-person half (map-6's scope note); its personal value is prior-conditioning plus gen-10's direct-output anchors. Body channels repeat by nature; theirs is the personal value occasions can actually fund (bod-5). Falsifiers live at cen-8 with the slots they attack. Update 2026-09-01: que-8 (2026-08-29, with que-7's cited scaffolding) answered this lane's one-currency question — the metric's frame is confirmed CONDITIONALLY (que-8's own word) as a constrained optimization, not a two-currency standoff: comparability enters as a graded validity floor outside the currency (que-4's rungs per comparison class), every slot above it is priced in program-horizon prequential bits, and this lane's discount-rate framing survives as the reduced form under exponential collapse with even its SIGN empirical — rate and arrival grow while survival decays, so future bits can be worth more than present ones. que-8's validity limits cross with it and are carried, not smoothed: the weight's factors multiply only under an independence approximation shared causes plausibly violate, the per-item weight is a linearisation valid only locally around the current portfolio, and que-3's warmth guardrail stands as a second constraint outside the currency. Recorded in-node as a consequence: this metric is horizon-indexed wherever deferred (linking) value is priced, and the horizon, the weighting and the required invariance rungs are governance inputs — owner decisions, not estimates (que-8's residues, accepted). To cited: marginal-predictive-value ranking (feature-importance/information-gain literature), prequential evaluation.",
       "sources": [],
       "edges": [
-        { "to": "pat-4", "type": "depends" },
-        { "to": "pat-6", "type": "depends" },
-        { "to": "cen-4", "type": "refines" },
-        { "to": "pat-8", "type": "depends" },
-        { "to": "gen-10", "type": "depends" },
-        { "to": "bod-5", "type": "depends" },
-        { "to": "map-6", "type": "depends" }
+        {
+          "to": "pat-4",
+          "type": "depends"
+        },
+        {
+          "to": "pat-6",
+          "type": "depends"
+        },
+        {
+          "to": "cen-4",
+          "type": "refines"
+        },
+        {
+          "to": "pat-8",
+          "type": "depends"
+        },
+        {
+          "to": "gen-10",
+          "type": "depends"
+        },
+        {
+          "to": "bod-5",
+          "type": "depends"
+        },
+        {
+          "to": "map-6",
+          "type": "depends"
+        }
       ],
       "created": "2026-08-25",
       "updated": "2026-08-28"
     },
     {
       "id": "cen-3",
-      "claim": "New axioms surface where the joint model's residuals cluster — and the current candidate list is: time-use/chronotype, voice, environment and place history, microbiome, social-graph texture.",
-      "status": "conjecture",
-      "detail": "A new axiom is justified when systematic person-variance remains that no current axiom explains (residual clustering), AND the candidate is measurable under §9's boundary. Each candidate needs its own mini-argument: what it would explain that nothing else does, its custody class, its pairing cost. This node exists to be repeatedly re-derived as the graphs mature — candidates should enter and leave with arguments, not fashion.",
+      "claim": "A new-axiom candidate is admitted by a five-part argument — the residual variance it would explain, the budget dimension that funds it, its custody tier, its entry mode, and its direct-output anchors — applied in expectation until the joint model's residuals exist, then re-derived against them.",
+      "status": "argued",
+      "detail": "Raised conjecture→argued 2026-09-01, and fissioned the same run per go-7 (the 2026-08-25 seed carried criterion and candidate list under one status; the list now lives at cen-9, this lane's cen-2/cen-8 split repeated). The seed's criterion — candidates surface where the joint model's residuals cluster — is right but idle until the joint model exists; this revision replaces waiting with the combination's own admission test, applied in expectation now and re-derivable against actual residuals later (the seed's criterion survives as that eventual replacement). The test composes five sibling results. VALUE: cen-2's metric in expectation — a candidate names whose observations it would reduce surprisal on, or stays off the list. FUNDING: pat-8's two dimensions — a candidate whose claimed value is within-person must name a real occasions source — one the axis produces by its nature, shipped or not — or the claim is unfunded; a crowd-value claim is priced by pairing. CUSTODY: cen-6's tier declaration, made at admission rather than retrofitted. ENTRY MODE: the genetic lane's import principle generalized (gen-1/gen-8) — where a consented artifact already exists in people's hands, importing beats building collection. ANCHORS: gen-10's lesson transposed — gen-10's own cited claim is scoped to genotypes and single-protein direct-output phenotypes; the generalization to any new axis (a small enumerable set of items where the axis predicts an individual answer multiplies calibration value, and its absence is itself admissible information) is this lane's transposition, marked as such per cen-7's own precedent. The rule the seed stated survives sharpened: candidates enter and leave with arguments, not fashion — one naming no residual, or claiming within-person value with no occasions source, is off the list regardless of appeal. Boundary against §1, drawn after this run's adversarial pass: the test's terms are principled, not practical — funding names what the axis can produce in principle, custody and entry mode are design-quality grounds (gen-1's shape: fewer custody surfaces is better design, not cheaper engineering) — and where already-shipped data is mentioned at cen-9 it is a tiebreaker outside the theory, labeled as such, never a ranking ground. The test is deliberately expectation-grade: it ranks arguments, not measurements, and every slot it fills names the instrument that would test it (cen-9 per candidate).",
       "sources": [],
-      "edges": [{ "to": "cen-1", "type": "depends" }],
+      "edges": [
+        {
+          "to": "cen-1",
+          "type": "depends"
+        },
+        {
+          "to": "cen-2",
+          "type": "depends"
+        },
+        {
+          "to": "pat-8",
+          "type": "depends"
+        },
+        {
+          "to": "cen-6",
+          "type": "depends"
+        },
+        {
+          "to": "gen-8",
+          "type": "depends"
+        },
+        {
+          "to": "gen-10",
+          "type": "depends"
+        },
+        {
+          "to": "gen-1",
+          "type": "depends"
+        }
+      ],
       "created": "2026-08-25",
-      "updated": "2026-08-25"
+      "updated": "2026-09-01"
+    },
+    {
+      "id": "cen-9",
+      "claim": "Under the admission test the current candidate list orders: time-use/chronotype first, social-graph texture second, microbiome behind the import door, voice held at the instrument gate, place history last.",
+      "status": "argued",
+      "detail": "Fissioned out of cen-3 2026-09-01 (go-7: the test and the list deserve separate statuses and separate attack surfaces; the list is the part meant to be re-derived, the test is the part meant to persist). The orderings, each with its named vulnerability; per cen-3's boundary, every rank stands on principled grounds, with already-shipped data admitted only as a labeled tiebreaker. (1) TIME-USE/CHRONOTYPE first, on two principled grounds: it adds no new consent or custody surface — answering-time phase and regularity are properties of timestamps on answers the person already publishes (every public answer carries its immutable answeredAt; duel answers stay sealed until reveal), so the candidate enters at cen-6's published tier with zero new collection, gen-1's custody-quality argument in time-use form; and it is occasions-funded in principle — answering itself is the occasion stream, the one resource pat-8 says person-specific estimands need. That the product already records the timestamps is the tiebreaker, noted as such. It deepens two axioms at once (§1's second purpose): the body axiom's sleep percept channel is adjacent (bod-5), and the genetic cross exists at architecture level (chronotype decisively polygenic, via gen-10's sources — a gen-9-shaped cross, not an anchor item). Honesty notes, both channels named: app-use timing measures the app-use channel, not sleep (bod-3's channel discipline transposed), and — the binding confound, added by this run's adversarial pass — answering phase is a convolution of the person's chronotype with the product's own delivery schedule (the daily rolls on a fixed UTC boundary landing at different local hours per timezone; reveal cycles and pushes shape when people answer), so any chronotype reading must break the schedule out first, and the cheap test below is only cheap if it can. (2) SOCIAL-GRAPH TEXTURE second: the relational data (the circle/group store and duel behavior — one membership store, one contest stream) carries relational variance (who is chosen, how contests resolve) no self-report item reaches; crowd-funded, pairing being shared membership; its consent structure is dyadic — an edge names two people — which is gen-6's more-than-one-person consent logic transposed from kinship to chosen ties, a design axiom at admission, not a blocker. Already-held-ness is again the tiebreaker, not the ground. (3) MICROBIOME: enters only as gen-8's import door generalized — consumer gut-microbiome reports are artifacts some people already hold; a state measurement (a longitudinal series of files, like methylation). Custody premise, expectation-grade like the value argument (this run's adversarial pass caught it asserted flatly, and the artifact classes split): most consumer products deliver 16S-class summary reports, while host-genotype-bearing reads are a property of shotgun metagenomic files specifically — and gen-8's recoverability evidence is methylation arrays, not metagenomes — so gen-8's full-strength custody carryover is adopted here as the conservative default for any file class that could carry host reads, not as an evidenced fact. No citation is claimed for any microbiome–trait coupling; the candidate sits behind, not beside, the first two. (4) VOICE: held at the gate. Its claimed value is a within-person affect/state channel, which lands exactly where bod-7's law bites — under bod-7's three states it enters as attenuated-or-unmeasured until construct validity is shown; and raw voice is maximally identifying, so only edge-derived features could ever cross (bod-2's law applied verbatim). (5) PLACE HISTORY last: it abuts the product's physical-safety deny (the presence paths). Coarse derived place classes (climate, urbanicity, mobility regularity) are a different object from live presence — a distinction that would go to the owner under D334, the safety deny itself staying outside the ask — but the custody argument is the hardest of the five and nothing else on the list needs it settled. What would reorder the list: a real residual analysis (cen-3's eventual test), a construct-validity result for voice instruments (bod-7's gate opening), or a measured within-person result showing answer-timing regularity carries no trait signal once the delivery-schedule convolution is broken out (the first candidate's cheap test failing).",
+      "sources": [],
+      "edges": [
+        {
+          "to": "cen-3",
+          "type": "depends"
+        },
+        {
+          "to": "gen-6",
+          "type": "depends"
+        },
+        {
+          "to": "bod-7",
+          "type": "depends"
+        },
+        {
+          "to": "gen-8",
+          "type": "depends"
+        },
+        {
+          "to": "bod-2",
+          "type": "depends"
+        },
+        {
+          "to": "bod-3",
+          "type": "depends"
+        },
+        {
+          "to": "bod-5",
+          "type": "depends"
+        },
+        {
+          "to": "gen-9",
+          "type": "depends"
+        },
+        {
+          "to": "gen-10",
+          "type": "depends"
+        }
+      ],
+      "created": "2026-09-01",
+      "updated": "2026-09-01"
     },
     {
       "id": "cen-4",
@@ -54,7 +169,16 @@
       "status": "argued",
       "detail": "The owner's example: enter your DNA and see how it interacts with your other data — personally, without contributing to any aggregate. In the joint-model frame this is well-defined (condition YOUR person-model on the extra columns; publish nothing), and it matters for the portfolio: an axiom can be valuable at population zero, purely as a personal lens. It also cleanly separates two consents (use for me vs contribute to the crowd) that most systems conflate.",
       "sources": [],
-      "edges": [{ "to": "cen-1", "type": "refines" }, { "to": "gen-2", "type": "supports" }],
+      "edges": [
+        {
+          "to": "cen-1",
+          "type": "refines"
+        },
+        {
+          "to": "gen-2",
+          "type": "supports"
+        }
+      ],
       "created": "2026-08-25",
       "updated": "2026-08-25"
     },
@@ -64,7 +188,16 @@
       "status": "argued",
       "detail": "The perfect combination is a research instrument to the exact extent its outputs are reproducible by outsiders: couplings published with n, method, sampling model (pat-5) and provenance, over consented data, at aggregate grain. That is what a real research field can cite and check. The alternative ambitions (private discovery claims, individual-level readouts) fail §9 or fail science, usually both. gen-4 carries the aging-specific half.",
       "sources": [],
-      "edges": [{ "to": "gen-4", "type": "supports" }, { "to": "pat-2", "type": "depends" }],
+      "edges": [
+        {
+          "to": "gen-4",
+          "type": "supports"
+        },
+        {
+          "to": "pat-2",
+          "type": "depends"
+        }
+      ],
       "created": "2026-08-25",
       "updated": "2026-08-25"
     },
@@ -75,15 +208,42 @@
       "detail": "Added 2026-08-26; adversarially checked the same run — the check demolished the first form ('the combination joins at exactly two grains, and no third exists'), which contradicted both cen-1's joint computation and the shipped product's own per-person derived state; this is the narrowed survivor (see LOG). The lanes converge on a custody SHAPE, stated as three roles a datum can occupy, each with its own grain. (1) PERSONAL: raw, full-resolution, in the person's own custody, publishing nothing — cen-4's outside-axiom entry generalized to every axiom. (2) SHARED COMPUTATION: what crosses into any pooled computation is derived, not raw — banded scores (gen-2), edge-folded bands (bod-2), values-with-provenance rather than artifacts (bod-4) — and carries its basis with it. (3) PUBLISHED: aggregate and recomputable by a reader from public numbers (pat-2), drawable client-side from published artifacts alone (map-5). The exclusion is carried by the custody lanes specifically: pooled RAW under operator custody is what gen-2 (a genome is unrevocable and familial), gen-6 (kinship consent), and bod-2 (maximal re-identification surface at near-zero coupling value) each rule out on their own grounds; pat-2 and map-5 contribute the published tier's shape, nothing more. What the law does not forbid: shared computation over consented observation streams at their native grain (InSight's answers are public by the product's own consent model, D98 on main) and per-person DERIVED state under operator custody with declared access — 'derived, with its basis' is the line, not 'nothing pooled'. The law hands the bridge a test any data request must pass: name your tier; a request that moves raw across custody is malformed. Update 2026-08-28: the law's external grounding now exists lane-side — db-2 (cited: custody-as-layout is shipped practice in i2b2's cell separation, All of Us's tiered CDR artifacts, MIMIC-IV's irreversible date shift) grounds the layout half, and db-7 (cited: erasure as a transaction across ledger, bridge and read models, with regulators' conditional acceptance of key destruction) grounds the erasure half. This node's own rise to cited waits on sources in its own list (§4), and the 'industry default' claim stays deliberately unasserted. To cited: local-first computation, federated analytics publishing only aggregates, edge-computation privacy literature.",
       "sources": [],
       "edges": [
-        { "to": "cen-1", "type": "refines" },
-        { "to": "cen-4", "type": "supports" },
-        { "to": "gen-2", "type": "depends" },
-        { "to": "gen-6", "type": "depends" },
-        { "to": "bod-2", "type": "depends" },
-        { "to": "pat-2", "type": "depends" },
-        { "to": "map-5", "type": "depends" },
-        { "to": "db-2", "type": "depends" },
-        { "to": "db-7", "type": "depends" }
+        {
+          "to": "cen-1",
+          "type": "refines"
+        },
+        {
+          "to": "cen-4",
+          "type": "supports"
+        },
+        {
+          "to": "gen-2",
+          "type": "depends"
+        },
+        {
+          "to": "gen-6",
+          "type": "depends"
+        },
+        {
+          "to": "bod-2",
+          "type": "depends"
+        },
+        {
+          "to": "pat-2",
+          "type": "depends"
+        },
+        {
+          "to": "map-5",
+          "type": "depends"
+        },
+        {
+          "to": "db-2",
+          "type": "depends"
+        },
+        {
+          "to": "db-7",
+          "type": "depends"
+        }
       ],
       "created": "2026-08-26",
       "updated": "2026-08-28"
@@ -95,18 +255,54 @@
       "detail": "Added 2026-08-28; the convergence claim was rewritten by this run's adversarial pass, which caught the first draft calling it independent — it is not, and saying so precisely is the honest version: the SUBJECT lanes derived their clauses from their own evidence bases (genetic, body, tests, questions), while the READER lanes (pattern, database, map — chartered to read the others) composed theirs partly by explicit synthesis, db-6 building on central's own cen-6, so citing db-6 back as confirmation would be circular and is not done here. What the grammar rests on is therefore the subject lanes' severally-cited clauses plus the reader lanes' machinery, and the COMPOSITION into one grammar is this lane's contribution. The clauses: gen-11 (cited) — a gene–trait coupling publishes its direct/genetic-nurture/mating-structure decomposition, never the bare correlation; bod-6/bod-7/bod-8 — effect-size currency declared, instrument status three-valued (measured/attenuated/unmeasured), direction and mediation decomposition published with the coupling; tst-6 (on tst-7 cited) — couplings computed through the model and published as aggregate sufficient statistics, never score-column correlations; pat-3 (cited) — artifacts are level-labeled, and the published within-person object is population-average; pat-5 — a sampling model beside every coupling; db-6 — the join's currency is (statistic, basis n, provenance, version); db-8 — how a read model's inputs were admitted and served is part of what it means; map-6 (cited) — the drawn connection carries population, decomposition and basis in the frame, by form rather than caption, because no evidence shows readers recover an undeclared population unaided; que-4 (cited) — cross-cohort comparison is graded by a named invariance method and labeled with its basis. Seven lanes in all. The grammar's justification is what each missing clause costs, per the contributing lanes' own evidence: drop the decomposition and a composite masquerades as a mechanism (gen-11); drop instrument status and an unmeasured channel masquerades as a small coupling (bod-7); drop the sampling design and a serving-policy artifact masquerades as a population fact (pat-5, db-8); drop the level and three different objects collapse into one wrong number (pat-3). Relation to cen-6 kept sharp: cen-6 is the custody law — WHAT may cross a boundary; this is the semantics law — what a crossing MEANS; db-6 composes both in one currency. The declaration is load-bearing for cen-5 too: a research field can only cite what carries its own interpretation conditions. Status argued deliberately: the strongest clauses are cited in their contributing nodes, but no external source asserts the composed grammar — the composition is this lane's synthesis. To cited: reporting-standards precedent (GRADE at go-1; STROBE-class reporting statements) that declaration grammars are how fields keep composite evidence honest.",
       "sources": [],
       "edges": [
-        { "to": "cen-1", "type": "refines" },
-        { "to": "cen-5", "type": "supports" },
-        { "to": "gen-11", "type": "depends" },
-        { "to": "pat-3", "type": "depends" },
-        { "to": "map-6", "type": "depends" },
-        { "to": "que-4", "type": "depends" },
-        { "to": "bod-7", "type": "depends" },
-        { "to": "bod-6", "type": "depends" },
-        { "to": "bod-8", "type": "depends" },
-        { "to": "pat-5", "type": "depends" },
-        { "to": "db-6", "type": "depends" },
-        { "to": "db-8", "type": "depends" }
+        {
+          "to": "cen-1",
+          "type": "refines"
+        },
+        {
+          "to": "cen-5",
+          "type": "supports"
+        },
+        {
+          "to": "gen-11",
+          "type": "depends"
+        },
+        {
+          "to": "pat-3",
+          "type": "depends"
+        },
+        {
+          "to": "map-6",
+          "type": "depends"
+        },
+        {
+          "to": "que-4",
+          "type": "depends"
+        },
+        {
+          "to": "bod-7",
+          "type": "depends"
+        },
+        {
+          "to": "bod-6",
+          "type": "depends"
+        },
+        {
+          "to": "bod-8",
+          "type": "depends"
+        },
+        {
+          "to": "pat-5",
+          "type": "depends"
+        },
+        {
+          "to": "db-6",
+          "type": "depends"
+        },
+        {
+          "to": "db-8",
+          "type": "depends"
+        }
       ],
       "created": "2026-08-28",
       "updated": "2026-08-28"
@@ -115,17 +311,36 @@
       "id": "cen-8",
       "claim": "Current portfolio ranking, argued not measured: questions first, tests second on logic's new channel plus interpretability, then body and genetic — unordered between themselves, split by funding dimension (occasions-funded vs pairing-funded) rather than ranked — each slot carrying the evidence that would demote it.",
       "status": "argued",
-      "detail": "Fissioned out of cen-2 2026-08-28 (go-7: the metric and the ranking are separate claims deserving separate statuses and separate attack surfaces). (1) QUESTIONS dominate: the answer stream is the common conditioning set whose removal collapses every other axiom's identification, and the phenotype battery is the scarce asset whose factory the questions axiom is (gen-3, cited). Two sibling results sharpen the slot: the spine is bent toward joint-space identification (que-5) — the axiom's value is partly designable, not merely counted — and gen-10 (cited) makes genetic tractability a spine-composition property: direct-output items are the one class where a genotype predicts an individual answer (genetic's REQUESTS row, ruled worth-building this run). (2) TESTS second, on the two grounds that survive cen-2's metric: keyed logic items are a genuinely new ability channel the opinion stream does not carry (tst-3), and the instruments are the joint space's interpretable coordinates — compression value. Stated plainly so the slot cannot coast: instrument-score columns derived from already-conditioned answers add roughly zero marginal bits by construction (tst-2's passive administration is pairing coverage, not information), so the slot rests on those two grounds and would otherwise fall. (3) BODY and GENETIC split on pat-8's two budget dimensions, which the 2026-08-26 form ranked as one undifferentiated slot — the split is a funding distinction, not an ordering: body's value concentrates in the within-person channel occasions can fund (bod-5, cited: sleep→self-control is the coupling with within-person larger than between at the point estimates — CIs overlapping, per bod-5's own caveat — and sleep→next-day affect the best-evidenced coupling by volume) — and the pulse roster is the shipped occasions source; genetic's value is pairing-funded — crowd option value rising with the paired population (gen-3), the enumerable direct-output anchors (gen-10), and constant-column personal conditioning (cen-4) — with no within-person half to fund. Falsifiers, per slot: a bio axiom whose banded columns fail to reduce answer-side surprisal at grown pairing is demoted; body's occasions argument weakens if within-person sleep couplings fail to show on the pulse repeat data (the aggregate artifact ruled worth-building this run); tests' slot falls to interpretability alone if logic's channel proves recoverable from the opinion stream.",
+      "detail": "Fissioned out of cen-2 2026-08-28 (go-7: the metric and the ranking are separate claims deserving separate statuses and separate attack surfaces). (1) QUESTIONS dominate: the answer stream is the common conditioning set whose removal collapses every other axiom's identification, and the phenotype battery is the scarce asset whose factory the questions axiom is (gen-3, cited). Two sibling results sharpen the slot: the spine is bent toward joint-space identification (que-5) — the axiom's value is partly designable, not merely counted — and gen-10 (cited) makes genetic tractability a spine-composition property: direct-output items are the one class where a genotype predicts an individual answer (genetic's REQUESTS row, ruled worth-building this run). (2) TESTS second, on the two grounds that survive cen-2's metric: keyed logic items are a genuinely new ability channel the opinion stream does not carry (tst-3), and the instruments are the joint space's interpretable coordinates — compression value. Stated plainly so the slot cannot coast: instrument-score columns derived from already-conditioned answers add roughly zero marginal bits by construction (tst-2's passive administration is pairing coverage, not information), so the slot rests on those two grounds and would otherwise fall. (3) BODY and GENETIC split on pat-8's two budget dimensions, which the 2026-08-26 form ranked as one undifferentiated slot — the split is a funding distinction, not an ordering: body's value concentrates in the within-person channel occasions can fund (bod-5, cited: sleep→self-control is the coupling with within-person larger than between at the point estimates — CIs overlapping, per bod-5's own caveat — and sleep→next-day affect the best-evidenced coupling by volume) — and the pulse roster is the shipped occasions source; genetic's value is pairing-funded — crowd option value rising with the paired population (gen-3), the enumerable direct-output anchors (gen-10), and constant-column personal conditioning (cen-4) — with no within-person half to fund. Falsifiers, per slot: a bio axiom whose banded columns fail to reduce answer-side surprisal at grown pairing is demoted; body's occasions argument weakens if within-person sleep couplings fail to show on the pulse repeat data (the aggregate artifact ruled worth-building 2026-08-28); tests' slot falls to interpretability alone if logic's channel proves recoverable from the opinion stream. Update 2026-09-01, the body slot bounded by the endocrine/metabolic scout (2026-08-29): bod-9/bod-10 (cited) show the occasions-funded argument does not generalize across the body's regulatory systems — trait–cortisol is near-null between persons, and occasions pay only as far as the state instrument's reliability (per-meal glucose responses fail test–retest even under controlled feeding; the cortisol awakening response fails the reliability gate) — so the slot narrows to channels with reliable state instruments, sleep first among them; and bod-11 (argued) finds the affect-relevant channel is so far the PERCEPTION channel, which is exactly what the shipped pulse roster collects — the occasions source and the evidence-bearing channel coincide, strengthening the slot's fundability while narrowing its breadth. New falsifier from the same source: if bod-11's named rival (common-method variance) explains the percept→affect couplings, the body slot's affect half demotes to unmeasured rather than small — bod-11's third-method design is what would decide it.",
       "sources": [],
       "edges": [
-        { "to": "cen-2", "type": "depends" },
-        { "to": "gen-3", "type": "depends" },
-        { "to": "gen-10", "type": "depends" },
-        { "to": "pat-8", "type": "depends" },
-        { "to": "bod-5", "type": "depends" }
+        {
+          "to": "cen-2",
+          "type": "depends"
+        },
+        {
+          "to": "gen-3",
+          "type": "depends"
+        },
+        {
+          "to": "gen-10",
+          "type": "depends"
+        },
+        {
+          "to": "pat-8",
+          "type": "depends"
+        },
+        {
+          "to": "bod-5",
+          "type": "depends"
+        },
+        {
+          "to": "bod-11",
+          "type": "depends"
+        }
       ],
       "created": "2026-08-28",
-      "updated": "2026-08-28"
+      "updated": "2026-09-01"
     }
   ]
 }

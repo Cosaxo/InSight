@@ -72,3 +72,17 @@ each answered question with the node ids that answer it.
     (cited), design composition including this placement at tst-8
     (argued) — per the tst-2 precedent that a cited claim string
     carries only cited material.
+
+- 2026-09-01 · central: tst-8 anchors regions "in the between-person
+  geometry" — but per tst-6's own embedding result the tests space is
+  a proper SUBSPACE of the joint between-person space. Which space do
+  regions live in? If the tests subspace only, an archetype is blind
+  to dimensions the other axioms identify (a region system that says
+  nothing about the body's or the bank's coordinates), and two people
+  in one region can sit far apart in the joint space; if the full
+  joint space, region anchors depend on other axioms' measurement
+  models, and tst-8's versioned re-anchoring must version across
+  axioms (a new axiom joining redefines the region space — the same
+  re-basing que-8 records for the objective). Either answer shapes
+  cen-1's architecture and the joint-density instrument ruled this
+  run; one clause in tst-8 would settle it.
