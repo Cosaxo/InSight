@@ -2,7 +2,10 @@
 // gated by D167). The arithmetic lives in patternsFit.ts, pure; this file
 // decides WHAT gets folded and WHERE the state lives, behind an injected
 // store (the calls.ts precedent) so the pass logic tests without an
-// emulator.
+// emulator. Since axes step 1.1 (AXES-PLAN §2) the same nightly pass also
+// folds each person's instrument answers into trait votes (axesFold.ts,
+// pure for the same reason) — same ledger read, same user-state write,
+// nothing on the answer trigger.
 //
 // THE SHAPE, and why it is a nightly sweep rather than a trigger arm.
 // VISION-V28 §2 asks for "a streaming/incremental fit over the vote log",
@@ -78,6 +81,7 @@ import {
   type PatternsQualityDay,
   type PatternsUserState,
 } from "./patternsFit";
+import { foldTraitDay, traitItems, type TraitVotes } from "./axesFold";
 
 /** The eligible pool: two options (the engine is one bit per question —
  * the prototype's own rule), and CORE ONLY (D161): the daily bank is core
@@ -90,6 +94,16 @@ export const PATTERNS_QIDS: ReadonlySet<string> = new Set(
       (q.surface === "daily" || (q.surface === "feed" && q.core === true)),
   ).map((q) => q.id),
 );
+
+/** The instruments' items, compiled from the bank the way PATTERNS_QIDS
+ * is (axes step 1.1, AXES-PLAN §2): the axes fold reads these out of the
+ * same ledger days the fit already reads, at zero extra Firestore reads.
+ * Disjoint from PATTERNS_QIDS by construction — instrument items are
+ * 5-option test-surface, the fit's pool is two-option daily/core-feed —
+ * and the no-tautology pin in patterns.test.ts is what keeps "by
+ * construction" from silently becoming "used to be". */
+export const AXES_TRAIT_ITEMS = traitItems(V2_QUESTIONS);
+const AXES_TRAIT_QIDS: ReadonlySet<string> = new Set(AXES_TRAIT_ITEMS.map((i) => i.qid));
 
 /** A missed night folds on the next run, up to a week back — bounded, so
  * a long outage cannot turn the catch-up into an unbounded ledger scan.
@@ -104,6 +118,16 @@ export interface PatternsLedgerEntry {
    *  answer moved away from. Its ABSENCE is what marks a first answer. */
   fromIdx?: number;
 }
+
+/** What the per-person state doc carries: the fit's own vector state plus
+ * the axes fold's trait votes (step 1.1). One doc on purpose — putUsers
+ * replaces the doc whole, so a second doc would double the write count for
+ * nothing, and the erasure story is already this subtree's. */
+export type PatternsUserDoc = PatternsUserState & {
+  /** Trait votes, qid → 0..4 (axesFold.TraitVotes). Optional because every
+   * doc written before this existed has none. */
+  t?: TraitVotes;
+};
 
 /** The I/O the fit needs, as an interface (calls.ts's store precedent) —
  * the sweep's pass logic is testable without any Firestore shape. */
@@ -126,8 +150,8 @@ export interface PatternsStore {
     quality: PatternsQuality,
     displacement: PatternsDisplacement,
   ): Promise<void>;
-  getUsers(uids: string[]): Promise<Map<string, PatternsUserState>>;
-  putUsers(states: Map<string, PatternsUserState>): Promise<void>;
+  getUsers(uids: string[]): Promise<Map<string, PatternsUserDoc>>;
+  putUsers(states: Map<string, PatternsUserDoc>): Promise<void>;
 }
 
 // The fold arithmetic lives in pure.ts (ORIENTATION §3). Re-exported
@@ -165,7 +189,7 @@ export async function runPatternsFit(
   store: PatternsStore,
   nowMs: number,
   eligible: ReadonlySet<string> = PATTERNS_QIDS,
-): Promise<{ days: number; folded: number; users: number; questions: number; bits: number }> {
+): Promise<{ days: number; folded: number; users: number; questions: number; bits: number; traits: number }> {
   const yesterday = utcDay(nowMs, -1);
   const floor = utcDay(nowMs, -PATTERNS_CATCHUP_DAYS);
   const model = (await store.getModel()) ?? { ...emptyModel(PATTERNS_K), lastDay: "" };
@@ -189,10 +213,11 @@ export async function runPatternsFit(
     if (day > lastDay && day >= floor) days.push(day);
   }
   if (!days.length || yesterday <= lastDay) {
-    return { days: 0, folded: 0, users: 0, questions: Object.keys(model.q).length, bits: 0 };
+    return { days: 0, folded: 0, users: 0, questions: Object.keys(model.q).length, bits: 0, traits: 0 };
   }
 
   let folded = 0;
+  let traits = 0;
   const touched = new Set<string>();
   // One tally per owed day (D325) — a day with nothing eligible keeps
   // its n: 0 row, so the series says "no answers" out loud rather than
@@ -201,11 +226,21 @@ export async function runPatternsFit(
   for (const day of days) {
     const score = emptyDayScore();
     scored.push({ day, score });
-    const entries = (await store.ledgerDay(day)).filter(
+    const dayEntries = await store.ledgerDay(day);
+    const entries = dayEntries.filter(
       (e) => eligible.has(e.qid) && (e.optionIdx === 0 || e.optionIdx === 1),
     );
+    // The axes fold's slice of the SAME read (step 1.1, AXES-PLAN §2):
+    // instrument answers, 0..4. Disjoint from `entries` — the no-tautology
+    // pin in patterns.test.ts is what holds that — so no row is ever both.
+    const traitEntries = dayEntries.filter(
+      (e) =>
+        AXES_TRAIT_QIDS.has(e.qid) &&
+        Number.isInteger(e.optionIdx) &&
+        (e.optionIdx as number) >= 0 && (e.optionIdx as number) <= 4,
+    );
     let refolded = 0;
-    if (!entries.length) continue;
+    if (!entries.length && !traitEntries.length) continue;
     // group by person; sort each person's day by qid so a replay
     // reproduces the run (the fit is order-sensitive within a day)
     //
@@ -263,23 +298,50 @@ export async function runPatternsFit(
       }
       byUid.set(e.uid, seen);
     }
-    const states = await store.getUsers([...byUid.keys()].sort());
-    const write = new Map<string, PatternsUserState>();
-    for (const [uid, seen] of [...byUid.entries()].sort((a, b) => (a[0] < b[0] ? -1 : 1))) {
-      const obs: PatternsObservation[] = [...seen.entries()].map(([qid, v]) => (
-        v.prev === undefined ? { qid, x: v.x } : { qid, x: v.x, prev: v.prev }
-      ));
-      obs.sort((a, b) => (a.qid < b.qid ? -1 : 1));
-      const user = states.get(uid) ?? emptyUser(model.k);
+    // Trait answers group per person too, kept in `at` order — last wins
+    // inside foldTraitDay, so the dedupe pass above is not repeated here.
+    const traitByUid = new Map<string, PatternsLedgerEntry[]>();
+    for (const e of traitEntries) {
+      const list = traitByUid.get(e.uid) ?? [];
+      list.push(e);
+      traitByUid.set(e.uid, list);
+    }
+    const uids = [...new Set([...byUid.keys(), ...traitByUid.keys()])].sort();
+    const states = await store.getUsers(uids);
+    const write = new Map<string, PatternsUserDoc>();
+    // People whose PATTERNS observations folded this attempt. The
+    // crashed-day publication guard below is about the fit's own
+    // scorecard, so a trait-only write must not satisfy it.
+    let stepped = 0;
+    for (const uid of uids) {
+      const user: PatternsUserDoc = states.get(uid) ?? emptyUser(model.k);
       // ALREADY FOLDED — a previous attempt at this day wrote this person
-      // before it died. Neither the vector nor the model steps again; see
-      // the note on the trade in this function's header.
-      if (user.d && user.d >= day) { refolded += 1; continue; }
-      foldUserDay(model, user, obs, score);
+      // before it died. Neither the vector nor the model steps again (see
+      // the note on the trade in this function's header), and that same
+      // attempt's putUsers carried the trait votes, so nothing is owed
+      // there either.
+      if (user.d && user.d >= day) { if (byUid.has(uid)) refolded += 1; continue; }
+      const seen = byUid.get(uid);
+      if (seen) {
+        const obs: PatternsObservation[] = [...seen.entries()].map(([qid, v]) => (
+          v.prev === undefined ? { qid, x: v.x } : { qid, x: v.x, prev: v.prev }
+        ));
+        obs.sort((a, b) => (a.qid < b.qid ? -1 : 1));
+        foldUserDay(model, user, obs, score);
+        folded += obs.length;
+        stepped += 1;
+      }
+      const te = traitByUid.get(uid);
+      if (te) {
+        const t = user.t ?? {};
+        const applied = foldTraitDay(t, te, AXES_TRAIT_QIDS);
+        // Hang the map on the doc only when something landed — an empty
+        // `t` written for everybody would be noise on every state doc.
+        if (applied) { user.t = t; traits += applied; }
+      }
       user.d = day;
       write.set(uid, user);
       touched.add(uid);
-      folded += obs.length;
     }
     if (write.size) await store.putUsers(write);
     // A DAY A DEAD RUN ALREADY FOLDED IS NOT AN EMPTY DAY. The retry guard
@@ -297,7 +359,7 @@ export async function runPatternsFit(
     // as already folded — a day that genuinely had no eligible answers
     // keeps its n: 0 row, which is the putModel zero-rather-than-nothing
     // idiom working as intended.
-    if (!write.size && refolded > 0) scored.pop();
+    if (!stepped && refolded > 0) scored.pop();
   }
   // …and if EVERY owed day was one of those, there is no head to publish.
   // `lastDay` still advances — the days really are folded, and not
@@ -309,7 +371,7 @@ export async function runPatternsFit(
     : (prevQuality ?? publishableQuality([{ day: yesterday, score: emptyDayScore() }], priorSeries));
   const displacement = displacementSummary(prevPub, model);
   await store.putModel(model, yesterday, folded, quality, displacement);
-  return { days: days.length, folded, users: touched.size, questions: Object.keys(model.q).length, bits: quality.bits };
+  return { days: days.length, folded, users: touched.size, questions: Object.keys(model.q).length, bits: quality.bits, traits };
 }
 
 /** The Firestore store. State lives in two places, each chosen for its
@@ -408,6 +470,10 @@ export function firestorePatternsStore(db: Firestore): PatternsStore {
               // retry guard reads `d` off what this returns, so omitting
               // it here made that guard dead in production.
               ...(snap.get("d") ? { d: String(snap.get("d")) } : {}),
+              // The trait votes, both ways for the same reason: putUsers
+              // replaces the doc whole, so a `t` this projection dropped
+              // would be erased by the person's next patterns-only fold.
+              ...(snap.get("t") ? { t: snap.get("t") as TraitVotes } : {}),
             });
           }
         });
@@ -421,9 +487,10 @@ export function firestorePatternsStore(db: Firestore): PatternsStore {
         for (const [uid, s] of entries.slice(i, i + 400)) {
           batch.set(
             db.collection("v2_users").doc(uid).collection("patterns").doc("state"),
-            // `set` with no merge replaces the document — `d` has to be
-            // named or the stamp never lands.
-            { v: s.v, n: s.n, at: FieldValue.serverTimestamp(), ...(s.d ? { d: s.d } : {}) },
+            // `set` with no merge replaces the document — `d` and `t` have
+            // to be named or the stamp/votes never land (or, worse for
+            // `t`, land once and vanish on the next write).
+            { v: s.v, n: s.n, at: FieldValue.serverTimestamp(), ...(s.d ? { d: s.d } : {}), ...(s.t ? { t: s.t } : {}) },
           );
         }
         await batch.commit();
