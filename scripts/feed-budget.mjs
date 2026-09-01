@@ -1,87 +1,115 @@
-// feed-budget.mjs — the feed lane's generation budget as arithmetic,
-// replacing D97's flat "≤6 questions/run, at most twice weekly to start".
+// feed-budget.mjs — the feed lane's generation budget as arithmetic: a
+// coverage FLOOR every topic reaches first, a DEMAND share above it that
+// follows where the crowd actually answers, and no ceiling (D342).
 //
 // WHY THIS EXISTS. The feed lane shipped with a contract and a flat cap and
-// nothing calling it: "No Routine fires this lane yet; it runs when the
-// maintainer asks a dev session." Zero farm-authored feed questions have ever
-// reached the bank — all 82 rows in content/provenance.json read `editorial`.
-// Giving the lane a Routine without giving it a regulator would hand a
-// scheduled job the one shape D97 and D115 both had to remove: a flat cap
-// generates into a full review queue and under-generates into an empty one,
-// and D33 already named review capacity the binding constraint. So the cap
-// becomes a computation before the lane becomes a schedule, not after.
+// nothing calling it (D97); D145 gave it a Routine and this regulator in the
+// same change, because a scheduled job with a flat cap is the one shape D97
+// and D115 both had to remove — it generates into a full review queue and
+// under-generates into an empty one. D213 raised the per-topic level from
+// 12 to 24 and the cadence to daily. D342 is the third shape: the level
+// became a floor rather than a target, the stop at the level went, and the
+// budget above the floor follows demand.
 //
-// WHAT BOUNDS THIS LANE, which is neither of the other two. farm-budget.mjs
-// regulates against a promotion PEN (finished questions waiting on a second
-// human gate); learn-budget.mjs regulates against RUNWAY (a field's cards are
-// consumed `fresh` exactly once each, so depth is days). The feed has neither:
-// it is single-gate like learn — a merged feed PR IS the production review —
-// but its cards are not consumed on a clock. A feed question stays servable
-// forever and the surface serves continuously, so there is no bottom to run
-// out of. The two real bounds are:
+// WHAT BOUNDED THIS LANE UNTIL D342, and why neither bound holds now. The
+// regulator stopped at a per-topic TARGET ("every topic is at the target —
+// a question written into a full topic buys breadth nobody was missing")
+// and held RUN_CAP at 6 on a SIGNAL-DILUTION argument (a fixed crowd spread
+// over more questions leaves each one with too few answers to score). Both
+// were sized to a bank every device was handed whole, and that premise is
+// gone: D316 adopted "there should be no question limit", D319–D321 built
+// it — the install fetches the boot surfaces, the core and a page per
+// topic, never the bank — and D316's own phases say what that does to the
+// lanes: "production volume stops being sized to consumption … cadence and
+// RUN_CAP become throughput questions answered by the writing bar rather
+// than the read path." A target the lane stops at IS sizing production to
+// consumption. What was true in the dilution argument survives in two
+// places that are not a cap: DEMAND_MIN_ANSWERS below (the demand signal
+// is not READ until the crowd is real, because a share measured on a
+// handful of answers is noise), and D319's serving order (a question that
+// measures badly sinks; nothing needs a cap to prevent it being written).
 //
-//   1. BREADTH, not depth. The lane's stated job while the crowd is small is
-//      "breadth across the ten topics (thinnest-first, the coverage rule)".
-//      A reader who filters to `people` meets three questions and a reader who
-//      filters to `dilemma` meets twelve; the thin topics are the ones that
-//      read as an empty product. So the deficit is measured per topic against
-//      a level the bank already demonstrates, and levelling is the whole goal.
-//   2. SIGNAL DILUTION, which is a rate bound rather than a stock one and is
-//      why RUN_CAP stays small even when the deficit is large. The feed's
-//      quality signal is per-question evenness, and a fixed crowd spread over
-//      more questions leaves each one with too few answers to score. Adding
-//      breadth costs measurement; that trade is worth making slowly.
-//
-// The constants (quoted in QUESTION-FARM.md and held equal by check:figures):
-//   RUN_CAP      = 6   questions per run. D97's number, kept deliberately:
-//                      unlike the daily and learn caps — which the regulators
-//                      let rise BECAUSE a regulator throttles them — this one
-//                      is bounded by dilution, and a regulator does not make a
-//                      thin crowd thicker. Raising it is the D97 amendment
-//                      that waits on the scorecard showing the crowd keeping
-//                      up, not a consequence of this file existing.
-//   TOPIC_TARGET = 24  servable questions per topic. Raised from 12 at D213
-//                      (the owner's volume decision — the feed should feel
-//                      infinite and topics fleshed out). 12 was "level the
-//                      ten at what the best-covered already demonstrates";
-//                      24 is the first waypoint past it, still nowhere near
-//                      "infinite" but chosen against the same two bounds:
-//                      the dilution cap below is a RATE bound so stock does
-//                      not dilute, and ten topics at 24 is 240 servable feed
-//                      questions — a seeded bank near 750 against
-//                      check:quality's BANK_WARN of 6000, headroom to spare.
-//                      (That constant was 1200, guarding an unpaginated
-//                      fetch; D161 paged the fetch and re-pointed it at the
-//                      localStorage cache budget, and D318 moved the cache
-//                      to IndexedDB and re-pointed it again, at the
-//                      whole-bank install fetch — so the headroom this
-//                      paragraph reasons about got much larger.) Raise it
-//                      again when every topic levels and the lanes start
-//                      no-opping — the regulator makes that moment visible.
-//   OPEN_MAX     = 6   unreviewed questions on the lane's open roll-up PR at
-//                      which generation stops entirely. Equal to RUN_CAP and
-//                      subtracted from the budget, the learn lane's
-//                      single-gate shape rather than the daily lane's: with no
-//                      second gate behind the merge, the lane carries ONE
-//                      unreviewed batch at a time. Since D212 a PR normally
-//                      merges in the run that opened it, so a batch sitting
-//                      open means a gate refused it — and the right response
-//                      to that is a fix, not a second batch.
+// The constants (quoted in QUESTION-FARM.md and held equal by
+// check:figures):
+//   RUN_CAP      = 12  questions per run, a throughput number: what one run
+//                      can pre-flight, argue one line each, door-justify
+//                      and re-read as a batch at the writing bar — the
+//                      learn lane's 10 plus the two continuum/path slots
+//                      the batch-mix rule asks the feed to vary into. It is
+//                      no longer bounded by the crowd; raise it when runs
+//                      finish with the bar met and time to spare, lower it
+//                      the day a batch merges with a dupe the re-read
+//                      should have caught.
+//   TOPIC_FLOOR  = 24  servable questions every topic reaches BEFORE any
+//                      budget goes to demand — the breadth bound, kept at
+//                      D213's level: a reader who filters to a topic meets
+//                      a product, not three cards. A floor, not a target:
+//                      nothing stops at it, and no number here says how
+//                      big a topic may grow.
+//   OPEN_MAX     = 12  unreviewed questions on the lane's open roll-up PR at
+//                      which generation stops entirely — equal to RUN_CAP
+//                      and subtracted from the budget, the single-gate
+//                      shape (a merged feed question is a served one, so
+//                      the lane carries ONE unreviewed batch at a time).
+//                      Since D212 a PR normally merges in the run that
+//                      opened it, so a batch sitting open means a gate
+//                      refused it — the right response is a fix, not a
+//                      second batch. This is the one stop left, and it is
+//                      about the gate, not the bank.
+//   DEMAND_MIN_ANSWERS = 100  credited feed answers across the allocatable
+//                      topics before the demand share is read at all.
+//                      Below it the lane levels thinnest-first (the blind
+//                      mode). Ten topics at ten answers each is the least
+//                      a ranking can be told apart from noise — the same
+//                      order as the taste profile's TASTE_MIN_TOTAL (10
+//                      answers before a person's own profile shapes
+//                      anything, D322) and the scorecard's 20-answer
+//                      landslide floor.
+//   DEMAND_STALE_DAYS  = 30  the committed scorecard's age past which its
+//                      demand share is not read — the farm manual's own
+//                      staleness rule (older than 30 days → coverage only),
+//                      applied to this lane's signal.
 //
 // The budget:
-//   deficit = Σ over topics of max(0, TOPIC_TARGET − servable questions)
-//   budget  = 0  if open ≥ OPEN_MAX, else
-//             min(RUN_CAP, OPEN_MAX − open, max(0, deficit − open))
+//   budget   = 0                          if open ≥ OPEN_MAX
+//            = min(RUN_CAP, OPEN_MAX − open)  otherwise — never 0 for stock
+//   floor    = min(budget, max(0, Σ max(0, TOPIC_FLOOR − stock) − open)),
+//              one per topic under the floor per pass, thinnest first
+//   the rest = by DEMAND WEIGHT when the scorecard carries a signal
+//              (D'Hondt rounds, so a small budget still lands on the
+//              leaders), else LEVELLING — one per topic per pass, thinnest
+//              first, with no ceiling
 //
-// WHAT COUNTS AS DEPTH, and why the count is not `questions.length`. One feed
-// type is in the bank and cannot reach a reader: `duel`-type feed cards are
-// prototype legacy. Counting them would let a topic read as covered on
-// questions nobody can be served. `rank` left this exclusion at D233 — an
-// answer can carry an order now, so a rank card covers its topic like any
-// other. Scene-attached `sNN` entries DO count: they are ordinary votes, the
-// seed emits them, and a reader cannot tell them from any other card. They
-// are out of the lane's AUTHORING scope, which is a different question from
-// whether they cover a topic.
+// Demand weight per topic = popularity × depth — the daily lane's demand
+// lane (QUESTION-FARM.md § Picking topics) made computable for a surface
+// that serves continuously. Popularity is the topic's share of credited
+// feed answers (the scorecard's conserved shares, so a door redistributes
+// demand and never mints it — TAGS-PLAN §3). Depth is answers per servable
+// question, normalised to the deepest topic — how hard the topic's stock
+// is being used, which is the reading of "how far its audience goes
+// through the pool" that stays measurable while D319's volume order keeps
+// new questions at the tail (least ÷ most would read 0 for every topic
+// holding one unanswered question, which is all of them). The product is
+// answers² ÷ stock: a big topic leads, and a small devoted one whose few
+// questions all get answered earns content beside it. No topic's demand
+// share may exceed the batch-mix gate's own ceiling (check:quality: no
+// topic past ⌈0.75 × batch⌉), so the allocation never prints a batch the
+// pre-flight would refuse.
+//
+// What the demand share may NOT do is unchanged: it allocates the TAIL
+// (new production declares `core: false`, and only a person moves a
+// question into the Mirror's corpus — QUESTION-FARM.md § The feed lane),
+// and `now` stays out of the fold (D231, LANE_EXCLUDED below).
+//
+// WHAT COUNTS AS STOCK, and why the count is not `questions.length`. One
+// feed type is in the bank and cannot reach a reader: `duel`-type feed
+// cards are prototype legacy. Counting them would let a topic read as
+// covered on questions nobody can be served. `rank` left this exclusion at
+// D233 — an answer can carry an order now, so a rank card covers its topic
+// like any other. Scene-attached `sNN` entries DO count: they are ordinary
+// votes, the seed emits them, and a reader cannot tell them from any other
+// card. They are out of the lane's AUTHORING scope, which is a different
+// question from whether they cover a topic.
 //
 // This is an operator/run tool, not a CI gate — the CI-side feed gates are
 // check:quality's feed surface and check:content's structural half.
@@ -93,9 +121,16 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-export const RUN_CAP = 6;
-export const TOPIC_TARGET = 24;
-export const OPEN_MAX = 6;
+export const RUN_CAP = 12;
+export const TOPIC_FLOOR = 24;
+export const OPEN_MAX = 12;
+export const DEMAND_MIN_ANSWERS = 100;
+export const DEMAND_STALE_DAYS = 30;
+
+// The batch-mix gate's topic ceiling (question-quality.mjs checkBatch:
+// `top > Math.ceil(feed.length * 0.75)` fails). Spelled once here so the
+// allocation and the gate cannot disagree about what one topic may take.
+export const BATCH_TOPIC_SHARE = 0.75;
 
 // The forms a reader can actually be served (QUESTION-FARM.md § The feed lane,
 // plus D136 for path and D233 for rank). `path` joined the servable set when
@@ -112,24 +147,31 @@ export const SERVABLE_TYPES = new Set(["vote", "rank", "dial", "field", "path"])
 //
 // The exclusion has to live HERE rather than in the run's instructions,
 // because the regulator would otherwise recruit the lane by arithmetic: a
-// brand-new topic is 24 questions short of TOPIC_TARGET, which is the
-// largest deficit in the taxonomy, so thinnest-first would point every run
-// at it from the day it was created. A rule the allocator argues against
-// every run is a rule that eventually loses.
+// brand-new topic sits 24 under the floor, the largest deficit in the
+// taxonomy, so thinnest-first would point every run at it from the day it
+// was created — and once it had answers, demand would. A rule the
+// allocator argues against every run is a rule that eventually loses.
 export const LANE_EXCLUDED = new Set(["now"]);
+
+// Thinnest first, ties on id so a run is reproducible. Re-sorted per pass so
+// what a pass already wrote counts.
+const byThinness = (rows) =>
+  rows.slice().sort((a, b) => a.questions + a.write - (b.questions + b.write) || a.topic.localeCompare(b.topic));
 
 // Pure: everything the CLI prints derives from this one function, so the test
 // pins the budget the lane actually gets.
 //
-// `topics` is [{ id, questions }] — every topic in the taxonomy, thin or not.
-export function feedBudget({ topics, open = 0 }) {
-  const deficit = topics.reduce((sum, t) => sum + Math.max(0, TOPIC_TARGET - t.questions), 0);
+// `topics` is [{ id, questions }] — every allocatable topic, thin or not.
+// `demand` is { topicId: weight } from feedSignal, or null when the lane is
+// blind.
+export function feedBudget({ topics, open = 0, demand = null }) {
+  const deficit = topics.reduce((sum, t) => sum + Math.max(0, TOPIC_FLOOR - t.questions), 0);
+  const empty = { deficit, allocation: [], split: { floor: 0, demand: 0, level: 0 } };
 
   if (open >= OPEN_MAX) {
     return {
+      ...empty,
       budget: 0,
-      deficit,
-      allocation: [],
       reason:
         `the open lane PR already carries ${open} unreviewed questions (OPEN_MAX ${OPEN_MAX}) — ` +
         "review is the work now, not writing. A feed question merges straight into production; " +
@@ -137,56 +179,97 @@ export function feedBudget({ topics, open = 0 }) {
     };
   }
 
-  const budget = Math.min(RUN_CAP, OPEN_MAX - open, Math.max(0, deficit - open));
-  if (budget === 0) {
-    return {
-      budget: 0,
-      deficit,
-      allocation: [],
-      reason:
-        deficit === 0
-          ? `every topic is at the ${TOPIC_TARGET}-question target — the ten read evenly, and a ` +
-            "question written into a full topic buys breadth nobody was missing while costing " +
-            "every question in it a share of the same crowd"
-          : `the bank is ${deficit} questions short of ${TOPIC_TARGET}/topic, and the ${open} ` +
-            "already written and unreviewed cover the whole of it — review is the work now",
-    };
-  }
-
-  // Water-filling, thinnest first, ties broken on id so a run is reproducible.
-  //
-  // No MIN_CHUNK here, deliberately, and it is the one place this regulator
-  // departs from learn-budget's shape rather than copying it. Learn chunks
-  // because difficulty spread is a per-FIELD property that a single card
-  // cannot demonstrate; the feed's batch-mix rules are per-BATCH (spread the
-  // tones, vary the forms), and breadth across the ten topics is the lane's
-  // stated job. Six questions into six thin topics is this lane working.
-  const thin = topics
-    .filter((t) => t.questions < TOPIC_TARGET)
-    .sort((a, b) => a.questions - b.questions || a.id.localeCompare(b.id));
-
-  const allocation = thin.map((t) => ({ topic: t.id, questions: t.questions, write: 0 }));
+  // Never zero for stock (D316): the only stop is the open PR above.
+  const budget = Math.min(RUN_CAP, OPEN_MAX - open);
+  const rows = topics.map((t) => ({ topic: t.id, questions: t.questions, write: 0, floor: 0, demand: 0, level: 0 }));
   let left = budget;
-  let progress = true;
-  while (left > 0 && progress) {
-    progress = false;
-    for (const a of allocation) {
-      if (left === 0) break;
-      if (a.questions + a.write >= TOPIC_TARGET) continue;
-      a.write++;
+
+  // 1. The floor — breadth before anything else. One per under-floor topic
+  //    per pass, thinnest first: six questions into six thin topics is this
+  //    lane working (the breadth rule feed-budget.test.mjs pins), and a
+  //    topic never takes more than its own room under the floor. Questions
+  //    already sitting on the open PR are assumed to cover the deficit
+  //    first — a checkout cannot see which topics they went to.
+  let floorLeft = Math.min(left, Math.max(0, deficit - open));
+  while (floorLeft > 0) {
+    const under = byThinness(rows).filter((r) => r.questions + r.write < TOPIC_FLOOR);
+    if (!under.length) break;
+    for (const r of under) {
+      if (!floorLeft) break;
+      r.write++;
+      r.floor++;
+      floorLeft--;
       left--;
-      progress = true;
     }
   }
 
+  // 2. Demand — everything the floor leaves, where the crowd answers.
+  //    D'Hondt rounds (each unit to the topic with the highest
+  //    weight ÷ (already given + 1)): proportional over a large budget,
+  //    and over a small one it lands on the leaders rather than spreading
+  //    one each to the tail, which is what "prioritise popular topics"
+  //    means when there are twelve to give. Capped per topic at the
+  //    batch-mix gate's own ceiling so the pre-flight can accept what the
+  //    regulator printed.
+  const weighted = demand ? rows.filter((r) => (demand[r.topic] ?? 0) > 0) : [];
+  if (left > 0 && weighted.length) {
+    const cap = Math.ceil(budget * BATCH_TOPIC_SHARE);
+    while (left > 0) {
+      const eligible = weighted.filter((r) => r.write < cap);
+      if (!eligible.length) break;
+      let pick = null;
+      let best = -1;
+      for (const r of eligible) {
+        const score = demand[r.topic] / (r.demand + 1);
+        if (!pick || score > best) {
+          best = score;
+          pick = r;
+        } else if (score === best) {
+          // Ties: the heavier weight, then id — reproducible either way.
+          const w = demand[r.topic];
+          const pw = demand[pick.topic];
+          if (w > pw || (w === pw && r.topic < pick.topic)) pick = r;
+        }
+      }
+      pick.write++;
+      pick.demand++;
+      left--;
+    }
+  }
+
+  // 3. Levelling — no signal (or nothing left with weight), so the rest
+  //    spreads thinnest-first across every topic with no ceiling: the bank
+  //    grows evenly until the crowd says where.
+  while (left > 0) {
+    for (const r of byThinness(rows)) {
+      if (!left) break;
+      r.write++;
+      r.level++;
+      left--;
+    }
+  }
+
+  const split = rows.reduce(
+    (s, r) => ({ floor: s.floor + r.floor, demand: s.demand + r.demand, level: s.level + r.level }),
+    { floor: 0, demand: 0, level: 0 },
+  );
+  // Floor rows first (thinnest first, as the bank stood), then the rest by
+  // what they got.
+  const allocation = [
+    ...rows.filter((r) => r.floor > 0).sort((a, b) => a.questions - b.questions || a.topic.localeCompare(b.topic)),
+    ...rows.filter((r) => r.floor === 0 && r.write > 0).sort((a, b) => b.write - a.write || a.topic.localeCompare(b.topic)),
+  ];
+
+  const parts = [];
+  if (split.floor) parts.push(`${split.floor} to the ${TOPIC_FLOOR}/topic floor (${deficit} short${open ? `, ${open} of them on the open PR` : ""}, thinnest first)`);
+  if (split.demand) parts.push(`${split.demand} by demand share`);
+  if (split.level) parts.push(`${split.level} levelling thinnest-first above the floor (no demand signal)`);
   return {
     budget: budget - left,
     deficit,
-    allocation: allocation.filter((a) => a.write > 0),
-    reason:
-      open > 0
-        ? `the bank is ${deficit} questions short of ${TOPIC_TARGET}/topic, ${open} of them already written and unreviewed — capped at ${RUN_CAP}/run`
-        : `the bank is ${deficit} questions short of ${TOPIC_TARGET}/topic — capped at ${RUN_CAP}/run`,
+    allocation,
+    split,
+    reason: `${parts.join(" · ")} — capped at ${RUN_CAP}/run${open ? `, less the ${open} unreviewed on the open PR` : ""}`,
   };
 }
 
@@ -197,11 +280,10 @@ export function loadFeedTopics() {
     if (!SERVABLE_TYPES.has(q.type)) continue;
     // Membership, not a partition (docs/TAGS-PLAN.md §3): a straddler covers
     // every topic it can be met through — home plus `also` doors — so a door
-    // on an existing question is the free first fix for a thin topic. Free
-    // precisely where this lane's dilution bound bites: a new question
-    // splits the conserved answer budget, a door on an existing one does
-    // not. Doors onto subtopic leaves fall out at the taxonomy guard below,
-    // the same way a retired topic would.
+    // on an existing question is the free first fix for a thin topic: a new
+    // question splits the conserved answer budget, a door on an existing one
+    // does not. Doors onto subtopic leaves fall out at the taxonomy guard
+    // below, the same way a retired topic would.
     for (const t of [q.cat, ...(q.also || [])]) {
       // A question whose topic left the taxonomy is a check:quality failure,
       // not this script's to reinterpret — count only what the taxonomy names.
@@ -214,32 +296,62 @@ export function loadFeedTopics() {
     .map((t) => ({ id: t.id, label: t.label, questions: counts.get(t.id) ?? 0 }));
 }
 
-// The scorecard line. The feed lane has no runway sentence to print — its
-// questions are not consumed — so what a run needs to know instead is which
-// MODE it is in: levelling blind, or writing where a real crowd answers. This
-// says so out loud rather than leaving the run to infer it from zeros.
-export function feedSignal(scorecard, topics) {
-  if (!scorecard) return { mode: "blind", note: "no committed scorecard — coverage only, thinnest-first" };
+// The demand signal, or the reason there is none. The feed lane has no
+// runway sentence to print — its questions are not consumed — so what a run
+// needs to know is which MODE it is in: levelling blind, or writing where a
+// real crowd answers. Says so out loud rather than leaving the run to infer
+// it from zeros. `now` is the clock, injectable so the staleness rule is
+// testable.
+export function feedSignal(scorecard, topics, now = Date.now()) {
+  const blind = (note) => ({ mode: "blind", weights: null, note });
+  if (!scorecard) return blind("no committed scorecard — levelling thinnest-first");
   const rows = scorecard.topics || {};
-  const scored = topics.reduce((n, t) => n + (rows[t.id]?.scored ?? 0), 0);
-  const answers = topics.reduce((n, t) => n + (rows[t.id]?.answers ?? 0), 0);
   const ageDays = scorecard.generatedAt
-    ? Math.floor((Date.now() - Date.parse(scorecard.generatedAt)) / 86400000)
+    ? Math.floor((now - Date.parse(scorecard.generatedAt)) / 86400000)
     : null;
-  if (!scored) {
-    return {
-      mode: "blind",
-      note:
-        `scorecard ${ageDays === null ? "carries no date" : `is ${ageDays} days old`} and scores 0 feed ` +
-        "questions — coverage only, thinnest-first. Dilution costs nothing you can currently measure, " +
-        "which is an argument for levelling now rather than for writing faster",
-    };
+  const age = ageDays === null ? "carries no date" : `is ${ageDays} days old`;
+  if (ageDays === null || ageDays > DEMAND_STALE_DAYS) {
+    return blind(
+      `scorecard ${age} (the demand share is not read past ${DEMAND_STALE_DAYS} days) — ` +
+        "a share off a stale crowd steers at last month's readers; levelling thinnest-first until it is refreshed",
+    );
   }
+  const credited = topics.map((t) => ({ id: t.id, stock: t.questions, answers: rows[t.id]?.answers ?? 0 }));
+  const total = credited.reduce((n, t) => n + t.answers, 0);
+  const scored = topics.reduce((n, t) => n + (rows[t.id]?.scored ?? 0), 0);
+  if (total < DEMAND_MIN_ANSWERS) {
+    return blind(
+      `scorecard credits ${+total.toFixed(1)} feed answers over ${scored} scored questions (${age.replace("is ", "")}) — ` +
+        `under ${DEMAND_MIN_ANSWERS}, a share measured on that few is noise; levelling thinnest-first`,
+    );
+  }
+  const density = credited.map((t) => (t.stock ? t.answers / t.stock : 0));
+  const deepest = Math.max(...density);
+  const weights = {};
+  credited.forEach((t, i) => {
+    const popularity = t.answers / total;
+    const depth = deepest ? density[i] / deepest : 0;
+    weights[t.id] = +(popularity * depth).toFixed(4);
+  });
+  const sum = Object.values(weights).reduce((n, w) => n + w, 0);
+  if (!sum) {
+    // Answers credited only to topics with no servable stock (a legacy
+    // duel-type card's topic, say): a crowd, but nothing it could be
+    // steering toward.
+    return blind(`scorecard credits ${+total.toFixed(1)} feed answers, none to a topic with servable stock — levelling thinnest-first`);
+  }
+  const lead = Object.entries(weights)
+    .filter(([, w]) => w > 0)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 3)
+    .map(([id, w]) => `${id} ${Math.round((100 * w) / sum)}%`);
   return {
-    mode: "signal",
+    mode: "demand",
+    weights,
     note:
-      `scorecard scores ${scored} feed questions over ${answers} answers (${ageDays} days old) — ` +
-      "read evenness per topic before allocating; the thinnest topic is not automatically the neediest",
+      `scorecard credits ${+total.toFixed(1)} feed answers over ${scored} scored questions (${age.replace("is ", "")}) — ` +
+      `demand leads ${lead.join(", ")} (share of the budget above the floor; popularity × depth). ` +
+      "Evenness per topic still steers WHAT to write, not where",
   };
 }
 
@@ -257,26 +369,6 @@ if (invokedDirectly) {
   }
 
   const topics = loadFeedTopics();
-  const { budget, deficit, allocation, reason } = feedBudget({ topics, open });
-  const labels = new Map(topics.map((t) => [t.id, t.label]));
-
-  console.log(`feed-budget: lane budget ${budget} (cap ${RUN_CAP}/run)`);
-  console.log(
-    `  bank: ${topics.reduce((n, t) => n + t.questions, 0)} servable questions over ${topics.length} topics · ` +
-      `${deficit} short of ${TOPIC_TARGET}/topic + ${open} on the open PR` +
-      `${openIdx < 0 ? " (assumed — pass --open with the real count)" : ""}`,
-  );
-  console.log(`  ${reason}`);
-
-  if (allocation.length) {
-    console.log("  write:");
-    for (const a of allocation) {
-      console.log(
-        `    ${a.write} into ${a.topic} (${labels.get(a.topic)}) — at ${a.questions} of ${TOPIC_TARGET}`,
-      );
-    }
-  }
-
   let scorecard = null;
   try {
     scorecard = JSON.parse(readFileSync(join(root, "content", "scorecard.json"), "utf8"));
@@ -284,6 +376,29 @@ if (invokedDirectly) {
     // Absent is a legitimate state the signal line names; a missing scorecard
     // must not stop a run computing its budget.
   }
-  console.log(`  signal: ${feedSignal(scorecard, topics).note}`);
+  const signal = feedSignal(scorecard, topics);
+  const { budget, deficit, allocation, reason } = feedBudget({ topics, open, demand: signal.weights });
+  const labels = new Map(topics.map((t) => [t.id, t.label]));
+
+  console.log(`feed-budget: lane budget ${budget} (cap ${RUN_CAP}/run)`);
+  console.log(
+    `  bank: ${topics.reduce((n, t) => n + t.questions, 0)} servable questions over ${topics.length} topics · ` +
+      `${deficit} under the ${TOPIC_FLOOR}/topic floor + ${open} on the open PR` +
+      `${openIdx < 0 ? " (assumed — pass --open with the real count)" : ""}`,
+  );
+  console.log(`  ${reason}`);
+
+  if (allocation.length) {
+    console.log("  write:");
+    for (const a of allocation) {
+      const why = a.floor
+        ? `floor — at ${a.questions} of ${TOPIC_FLOOR}`
+        : a.demand
+          ? `demand — at ${a.questions}, weight ${signal.weights[a.topic]}`
+          : `levelling — at ${a.questions}`;
+      console.log(`    ${a.write} into ${a.topic} (${labels.get(a.topic)}) — ${why}`);
+    }
+  }
+  console.log(`  signal: ${signal.note}`);
   process.exit(0);
 }

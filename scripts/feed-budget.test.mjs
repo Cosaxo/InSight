@@ -1,17 +1,21 @@
 // feed-budget.test.mjs — pins the feed regulator's arithmetic.
 //
-// The property that matters most here is the one the lane is being switched on
-// for: it must be able to return work against the bank as it actually ships.
-// The learn lane's flat rule could not (every field sat exactly on the floor it
-// was measured against), and that bug was invisible for as long as nothing
-// fired the lane. This lane gets a Routine in the same change, so the test that
-// would have caught it comes first.
+// The property that matters most here is the one D342 turned the regulator
+// around on: it must NEVER stop for stock. The lane used to throttle to zero
+// at a per-topic target, and the test that pinned that ("throttles to zero
+// once every topic is at target") was the bounded-bank premise worn as a
+// test — the same shape D316 retired on the read path. A future edit that
+// re-adds a stock ceiling should fail here rather than pass review.
 //
-// The second is the departure from learn-budget's shape: no MIN_CHUNK. Breadth
-// across the ten topics is this lane's stated job, so a full budget spread one
-// question into each of six thin topics is correct here and would be wrong
-// there. A future edit that "fixes the inconsistency" by adding chunking should
-// fail a test rather than pass review.
+// The second is the departure from learn-budget's shape: no MIN_CHUNK on the
+// floor. Breadth across the ten topics is what the floor is FOR, so a budget
+// spread one question into each of ten thin topics is correct here and would
+// be wrong there.
+//
+// The third is the demand share: above the floor the budget follows where
+// the crowd answers, weighted popularity × depth, and never past the
+// batch-mix gate's own ceiling — so the regulator cannot print a batch the
+// pre-flight refuses.
 import { readFileSync } from "node:fs";
 import { describe, it, expect } from "vitest";
 import {
@@ -19,14 +23,19 @@ import {
   feedSignal,
   loadFeedTopics,
   RUN_CAP,
-  TOPIC_TARGET,
+  TOPIC_FLOOR,
   OPEN_MAX,
+  DEMAND_MIN_ANSWERS,
+  DEMAND_STALE_DAYS,
+  BATCH_TOPIC_SHARE,
   SERVABLE_TYPES,
   LANE_EXCLUDED,
 } from "./feed-budget.mjs";
 
 const level = (n, questions) =>
   Array.from({ length: n }, (_, i) => ({ id: `t${String(i).padStart(2, "0")}`, questions }));
+
+const total = (allocation) => allocation.reduce((n, a) => n + a.write, 0);
 
 describe("feedBudget", () => {
   it("finds work in the bank as it actually ships", () => {
@@ -35,18 +44,19 @@ describe("feedBudget", () => {
     expect(allocation.length).toBeGreaterThan(0);
   });
 
-  it("grants the full cap to a bank far from target", () => {
+  it("grants the full cap to a bank far from the floor", () => {
     expect(feedBudget({ topics: level(10, 0) }).budget).toBe(RUN_CAP);
   });
 
-  it("throttles to zero once every topic is at target", () => {
-    expect(feedBudget({ topics: level(10, TOPIC_TARGET) }).budget).toBe(0);
-    expect(feedBudget({ topics: level(10, TOPIC_TARGET + 9) }).budget).toBe(0);
-  });
-
-  it("writes only the gap when one topic is nearly full", () => {
-    const topics = [...level(9, TOPIC_TARGET), { id: "thin", questions: TOPIC_TARGET - 2 }];
-    expect(feedBudget({ topics }).budget).toBe(2);
+  it("never stops for stock — a levelled bank still gets the full cap (D316/D342)", () => {
+    // The stop that used to live here was the bounded-bank premise. There
+    // is no question limit: a bank at the floor, or far past it, is a bank
+    // the lane keeps growing.
+    expect(feedBudget({ topics: level(10, TOPIC_FLOOR) }).budget).toBe(RUN_CAP);
+    expect(feedBudget({ topics: level(10, TOPIC_FLOOR * 10) }).budget).toBe(RUN_CAP);
+    const { split } = feedBudget({ topics: level(10, TOPIC_FLOOR * 10) });
+    expect(split.floor).toBe(0);
+    expect(split.level).toBe(RUN_CAP);
   });
 
   it("subtracts the open PR from the budget, not just from a ceiling", () => {
@@ -57,52 +67,112 @@ describe("feedBudget", () => {
     expect(feedBudget({ topics: level(10, 0), open: OPEN_MAX - 1 }).budget).toBe(1);
   });
 
-  it("stops entirely when the open PR is unreviewable", () => {
-    // Even against an empty bank: OPEN_MAX is about the reviewer, not the bank.
+  it("stops entirely when the open PR is unreviewable — the one stop left", () => {
+    // Even against an empty bank: OPEN_MAX is about the gate, not the bank.
     expect(feedBudget({ topics: level(10, 0), open: OPEN_MAX }).budget).toBe(0);
     expect(feedBudget({ topics: level(10, 0), open: OPEN_MAX + 3 }).budget).toBe(0);
   });
 
-  it("spreads across thin topics rather than chunking into one", () => {
-    // The deliberate difference from learn-budget: breadth IS the job here.
-    const { allocation } = feedBudget({ topics: level(10, 0) });
-    expect(allocation).toHaveLength(RUN_CAP);
-    expect(allocation.every((a) => a.write === 1)).toBe(true);
+  it("spreads the floor across thin topics rather than chunking into one", () => {
+    // The deliberate difference from learn-budget: breadth IS the floor's job.
+    const { allocation, split } = feedBudget({ topics: level(10, 0) });
+    expect(split.floor).toBe(RUN_CAP);
+    expect(allocation).toHaveLength(10);
+    expect(Math.max(...allocation.map((a) => a.write)) - Math.min(...allocation.map((a) => a.write))).toBeLessThanOrEqual(1);
   });
 
   it("fills the thinnest topics first", () => {
     const topics = [
-      { id: "fat", questions: TOPIC_TARGET - 1 },
+      { id: "fat", questions: TOPIC_FLOOR - 1 },
       { id: "thin", questions: 0 },
-      { id: "mid", questions: TOPIC_TARGET - 4 },
+      { id: "mid", questions: TOPIC_FLOOR - 4 },
     ];
     const { allocation } = feedBudget({ topics });
-    expect(allocation.map((a) => a.topic)).toEqual(["thin", "mid", "fat"]);
+    expect(allocation.slice(0, 3).map((a) => a.topic)).toEqual(["thin", "mid", "fat"]);
     expect(allocation[0].write).toBeGreaterThanOrEqual(allocation[2].write);
   });
 
-  it("never allocates a topic past the target", () => {
-    // Water-filling must respect each topic's own room: the budget moves on
-    // rather than overfilling whatever it started on.
-    const topics = [{ id: "a", questions: TOPIC_TARGET - 1 }, { id: "b", questions: 0 }];
-    const { allocation } = feedBudget({ topics });
-    for (const a of allocation) expect(a.questions + a.write).toBeLessThanOrEqual(TOPIC_TARGET);
+  it("the floor never overfills a topic; what is left levels above it", () => {
+    // A topic takes at most its own room under the floor from the floor
+    // share; the remainder is still granted, as levelling, so the budget
+    // is spent in full.
+    const topics = [{ id: "a", questions: TOPIC_FLOOR - 1 }, { id: "b", questions: TOPIC_FLOOR - 2 }];
+    const { allocation, split, budget } = feedBudget({ topics });
+    expect(budget).toBe(RUN_CAP);
+    for (const a of allocation) expect(a.floor).toBe(TOPIC_FLOOR - a.questions);
+    expect(split.floor).toBe(3);
+    expect(split.level).toBe(RUN_CAP - 3);
   });
 
-  it("reaches the target in a bounded number of runs at a steady gate", () => {
-    // The regulator's steady state, the property farm-budget.test.mjs pins for
-    // the daily lane: with the reviewer keeping up, generation converges on the
-    // target and then stops — it does not idle at a cap forever.
+  it("clears the floor in a bounded number of runs and keeps going", () => {
+    // The floor is reachable — the levelling property farm-budget.test.mjs
+    // pins for the daily pen — and once every topic clears it the lane does
+    // NOT go quiet: the next run's budget is still the cap.
     let topics = loadFeedTopics();
     let runs = 0;
-    for (; runs < 100; runs++) {
-      const { budget, allocation } = feedBudget({ topics });
-      if (budget === 0) break;
+    for (; runs < 100 && !topics.every((t) => t.questions >= TOPIC_FLOOR); runs++) {
+      const { allocation } = feedBudget({ topics });
       const written = new Map(allocation.map((a) => [a.topic, a.write]));
       topics = topics.map((t) => ({ ...t, questions: t.questions + (written.get(t.id) ?? 0) }));
     }
     expect(runs).toBeLessThan(100);
-    expect(topics.every((t) => t.questions >= TOPIC_TARGET)).toBe(true);
+    expect(topics.every((t) => t.questions >= TOPIC_FLOOR)).toBe(true);
+    expect(feedBudget({ topics }).budget).toBe(RUN_CAP);
+  });
+
+  it("levels evenly above the floor when there is no demand signal", () => {
+    const { allocation, split } = feedBudget({ topics: level(10, TOPIC_FLOOR + 5) });
+    expect(split.level).toBe(RUN_CAP);
+    // 12 over 10 topics: ten get one, the two alphabetically first get two.
+    expect(allocation.filter((a) => a.write === 2).map((a) => a.topic)).toEqual(["t00", "t01"]);
+    expect(total(allocation)).toBe(RUN_CAP);
+  });
+
+  it("sends everything above the floor to the demand share, proportionally", () => {
+    const topics = level(4, TOPIC_FLOOR);
+    const demand = { t00: 0.6, t01: 0.3, t02: 0.1, t03: 0 };
+    const { allocation, split } = feedBudget({ topics, demand });
+    expect(split.demand).toBe(RUN_CAP);
+    expect(split.level).toBe(0);
+    const by = Object.fromEntries(allocation.map((a) => [a.topic, a.write]));
+    // D'Hondt over 12 at 6:3:1 — the leader takes the most, the zero-weight
+    // topic takes nothing.
+    expect(by.t00).toBeGreaterThan(by.t01);
+    expect(by.t01).toBeGreaterThan(by.t02 ?? 0);
+    expect(by.t03).toBeUndefined();
+    expect(total(allocation)).toBe(RUN_CAP);
+  });
+
+  it("the floor comes before demand", () => {
+    // A topic under the floor is filled first even when the crowd is
+    // elsewhere: breadth is the bound, popularity is what the rest follows.
+    const topics = [
+      { id: "hot", questions: TOPIC_FLOOR },
+      { id: "cold", questions: TOPIC_FLOOR - 3 },
+    ];
+    const { allocation, split } = feedBudget({ topics, demand: { hot: 1, cold: 0 } });
+    const by = Object.fromEntries(allocation.map((a) => [a.topic, a]));
+    expect(by.cold.floor).toBe(3);
+    expect(split.floor).toBe(3);
+    expect(by.hot.demand).toBe(Math.ceil(RUN_CAP * BATCH_TOPIC_SHARE));
+    expect(split.level).toBe(RUN_CAP - 3 - by.hot.demand);
+  });
+
+  it("never lets one topic take more of a batch than the batch-mix gate allows", () => {
+    // check:quality fails a feed batch where one topic holds more than
+    // ⌈0.75 × batch⌉; the allocation must not print one.
+    const topics = level(3, TOPIC_FLOOR);
+    const { allocation } = feedBudget({ topics, demand: { t00: 1, t01: 0.0001, t02: 0 } });
+    for (const a of allocation) expect(a.write).toBeLessThanOrEqual(Math.ceil(RUN_CAP * BATCH_TOPIC_SHARE));
+    expect(total(allocation)).toBe(RUN_CAP);
+  });
+
+  it("is reproducible — the same inputs print the same allocation", () => {
+    const topics = level(10, TOPIC_FLOOR + 2);
+    const demand = Object.fromEntries(topics.map((t, i) => [t.id, (i + 1) / 55]));
+    const a = feedBudget({ topics, demand });
+    const b = feedBudget({ topics, demand });
+    expect(a).toEqual(b);
   });
 });
 
@@ -147,22 +217,12 @@ describe("loadFeedTopics", () => {
   });
 
   it("covers every topic in the taxonomy, thin ones included", () => {
-    // THE SECOND ASSERTION HERE USED TO BE
-    // `topics.some((t) => t.questions < TOPIC_TARGET)`, which is not the
-    // coverage property in this test's name — it is the DEFICIT'S CURRENT
-    // EXISTENCE, and this lane exists to remove it. The day the lane
-    // finishes levelling the topics it would have gone red for the lane
-    // having worked. `feed-budget.mjs` already writes the message for that
-    // state ("every topic is at the target"), so the script and its own
-    // test disagreed about whether it was reachable — the D208 shape, one
-    // lane over, found by sweeping for it after that one.
-    //
-    // What the fold actually promises: a row per taxonomy id, in the
-    // taxonomy's own order, whatever the level. It builds its counter from
-    // `feed.topics` and reads back with `?? 0`, so a topic nothing serves
-    // yet gets a ZERO row rather than vanishing — which is exactly the case
-    // the deficit arithmetic needs and the one the tree cannot demonstrate,
-    // because every committed topic currently has questions in it.
+    // What the fold promises: a row per taxonomy id, in the taxonomy's own
+    // order, whatever the level. It builds its counter from `feed.topics`
+    // and reads back with `?? 0`, so a topic nothing serves yet gets a ZERO
+    // row rather than vanishing — the case the floor arithmetic needs and
+    // the one the tree cannot demonstrate, because every committed topic
+    // currently has questions in it.
     const raw = JSON.parse(
       readFileSync(new URL("../content/feed-questions.json", import.meta.url), "utf8"),
     );
@@ -174,8 +234,9 @@ describe("loadFeedTopics", () => {
     // it (D231). `now` is the editorial current-events lane; a brand-new
     // topic is the largest deficit in the taxonomy, so thinnest-first
     // would point every farm run straight at the one topic a farm run may
-    // not write. The rule has to hold in the allocator, because a rule the
-    // allocator argues against every run eventually loses.
+    // not write — and once it had answers, demand would. The rule has to
+    // hold in the allocator, because a rule the allocator argues against
+    // every run eventually loses.
     expect(raw.topics.map((t) => t.id)).toContain("now");
     expect(topics.map((t) => t.id)).not.toContain("now");
     for (const t of topics) {
@@ -186,20 +247,90 @@ describe("loadFeedTopics", () => {
 });
 
 describe("feedSignal", () => {
-  it("names the blind mode when the scorecard scores nothing", () => {
-    const s = feedSignal({ generatedAt: new Date().toISOString(), topics: {} }, loadFeedTopics());
+  const fresh = () => new Date().toISOString();
+  const rowsFor = (topics, answers, scored = 2) =>
+    Object.fromEntries(topics.map((t) => [t.id, { scored, answers: answers(t) }]));
+
+  it("is blind with no scorecard at all", () => {
+    const s = feedSignal(null, loadFeedTopics());
     expect(s.mode).toBe("blind");
+    expect(s.weights).toBeNull();
   });
 
-  it("names the blind mode when there is no scorecard at all", () => {
-    expect(feedSignal(null, loadFeedTopics()).mode).toBe("blind");
-  });
-
-  it("switches to signal once feed questions are scored", () => {
+  it("is blind while the crowd is under DEMAND_MIN_ANSWERS", () => {
     const topics = loadFeedTopics();
-    const rows = Object.fromEntries(topics.map((t) => [t.id, { scored: 2, answers: 400 }]));
-    const s = feedSignal({ generatedAt: new Date().toISOString(), topics: rows }, topics);
-    expect(s.mode).toBe("signal");
-    expect(s.note).toContain("20 feed questions");
+    const rows = rowsFor(topics, () => (DEMAND_MIN_ANSWERS - 1) / topics.length);
+    const s = feedSignal({ generatedAt: fresh(), topics: rows }, topics);
+    expect(s.mode).toBe("blind");
+    expect(s.note).toContain(`under ${DEMAND_MIN_ANSWERS}`);
+  });
+
+  it("is blind against the committed scorecard as it stands today, and says why", () => {
+    // The tree's own scorecard credits a few dozen feed answers; the lane
+    // must level rather than read a ranking off that. When this fails
+    // because the crowd grew, the assertion has done its job — move it.
+    const scorecard = JSON.parse(readFileSync(new URL("../content/scorecard.json", import.meta.url), "utf8"));
+    const topics = loadFeedTopics();
+    const credited = topics.reduce((n, t) => n + (scorecard.topics[t.id]?.answers ?? 0), 0);
+    const s = feedSignal(scorecard, topics, Date.parse(scorecard.generatedAt));
+    expect(s.mode).toBe(credited >= DEMAND_MIN_ANSWERS ? "demand" : "blind");
+  });
+
+  it("is blind past DEMAND_STALE_DAYS, however loud the crowd", () => {
+    const topics = loadFeedTopics();
+    const rows = rowsFor(topics, () => 1000);
+    const at = new Date("2026-01-01T00:00:00Z");
+    const later = at.getTime() + (DEMAND_STALE_DAYS + 1) * 86400000;
+    const s = feedSignal({ generatedAt: at.toISOString(), topics: rows }, topics, later);
+    expect(s.mode).toBe("blind");
+    expect(s.note).toContain("stale");
+    const inTime = feedSignal({ generatedAt: at.toISOString(), topics: rows }, topics, at.getTime() + DEMAND_STALE_DAYS * 86400000);
+    expect(inTime.mode).toBe("demand");
+  });
+
+  it("weights popularity × depth once the crowd is real", () => {
+    // Three topics, same stock: answers 600 / 300 / 100. Popularity share
+    // 0.6 / 0.3 / 0.1; depth 1 / 0.5 / 0.167 → weights fall 9:2.25:0.25.
+    const topics = [
+      { id: "big", questions: 20 },
+      { id: "mid", questions: 20 },
+      { id: "small", questions: 20 },
+    ];
+    const rows = rowsFor(topics, (t) => ({ big: 600, mid: 300, small: 100 })[t.id]);
+    const s = feedSignal({ generatedAt: fresh(), topics: rows }, topics);
+    expect(s.mode).toBe("demand");
+    expect(s.weights.big).toBeGreaterThan(s.weights.mid);
+    expect(s.weights.mid).toBeGreaterThan(s.weights.small);
+    expect(s.weights.big / s.weights.mid).toBeCloseTo(4, 1);
+    expect(s.note).toContain("demand leads big");
+  });
+
+  it("lets a small devoted topic earn content beside a big diluted one", () => {
+    // The depth factor: 120 answers over 4 questions (30 each) against
+    // 200 over 40 (5 each). Popularity alone says 200 > 120; depth says the
+    // small topic's stock is being used six times harder. The product
+    // ranks the small one ahead — the daily lane's "small-but-devoted
+    // topics earn content alongside big ones", as arithmetic.
+    const topics = [
+      { id: "wide", questions: 40 },
+      { id: "devoted", questions: 4 },
+    ];
+    const rows = rowsFor(topics, (t) => ({ wide: 200, devoted: 120 })[t.id]);
+    const s = feedSignal({ generatedAt: fresh(), topics: rows }, topics);
+    expect(s.mode).toBe("demand");
+    expect(s.weights.devoted).toBeGreaterThan(s.weights.wide);
+  });
+
+  it("gives a topic nobody answers no weight, and a topic with no stock no depth", () => {
+    const topics = [
+      { id: "answered", questions: 10 },
+      { id: "silent", questions: 10 },
+      { id: "empty", questions: 0 },
+    ];
+    const rows = rowsFor(topics, (t) => ({ answered: 500, silent: 0, empty: 0 })[t.id]);
+    const s = feedSignal({ generatedAt: fresh(), topics: rows }, topics);
+    expect(s.weights.silent).toBe(0);
+    expect(s.weights.empty).toBe(0);
+    expect(s.weights.answered).toBeGreaterThan(0);
   });
 });

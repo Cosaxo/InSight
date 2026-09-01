@@ -940,9 +940,9 @@ const FIGURES = [
   },
   {
     file: "docs/QUESTION-FARM.md",
-    what: "the feed per-topic breadth target (TOPIC_TARGET)",
+    what: "the feed per-topic coverage floor (TOPIC_FLOOR)",
     re: /\*\*(\d+)\s*\n?\s*servable questions per\s*\n?\s*topic\*\*/,
-    actual: feedConst("TOPIC_TARGET"),
+    actual: feedConst("TOPIC_FLOOR"),
     fix: (n) => `"**${n} servable questions per topic**"`,
   },
   {
@@ -951,6 +951,23 @@ const FIGURES = [
     re: /\*\*(\d+)\*\* unreviewed questions on\s*\n?\s*that PR/,
     actual: feedConst("OPEN_MAX"),
     fix: (n) => `"**${n}** unreviewed questions on that PR"`,
+  },
+  // The demand share's two thresholds (D342): the crowd it will not read a
+  // ranking off, and the scorecard age past which it goes blind. Quoted in
+  // the same section, for the same reason as the caps above.
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the feed demand share's crowd threshold (DEMAND_MIN_ANSWERS)",
+    re: /\*\*(\d+) credited feed answers\*\*/,
+    actual: feedConst("DEMAND_MIN_ANSWERS"),
+    fix: (n) => `"**${n} credited feed answers**"`,
+  },
+  {
+    file: "docs/QUESTION-FARM.md",
+    what: "the feed demand share's staleness bound (DEMAND_STALE_DAYS)",
+    re: /no older than \*\*(\d+) days\*\*/,
+    actual: feedConst("DEMAND_STALE_DAYS"),
+    fix: (n) => `"no older than **${n} days**"`,
   },
   // The three duel-lane figures (D213), quoted in § The duel lane.
   {

@@ -88,11 +88,14 @@ the live figures: `node scripts/farm-budget.mjs`,
   buffer and runs against `PEN_TARGET` in `scripts/farm-budget.mjs`;
   promotion carries a weekly floor (D30) and a catch-up target while the
   pen has stock (D97). [`QUESTION-FARM.md`](QUESTION-FARM.md).
-- **Level the feed bank**: every topic short of `TOPIC_TARGET`
-  (`scripts/feed-budget.mjs`) needs servable questions — vote, dial,
-  field and path count; rank and duel do not (D12). The lane is
-  scheduled (D145); its output to date is nil — every feed provenance
-  row still reads editorial.
+- **Grow the feed bank**: every topic is brought to `TOPIC_FLOOR`
+  (`scripts/feed-budget.mjs`) first, and above it the budget follows
+  demand with no ceiling (D342) — vote, dial, field, path and rank count
+  as servable; duel-type cards do not. The lane is scheduled daily
+  (D145, D213) and producing — the majority of feed provenance rows now
+  read `farm`; `npm run feed:budget` prints the live split. What is
+  still owed: the demand share waits on a crowd the scorecard does not
+  yet credit enough of, so the lane levels blind until it does.
 - **Fill the learn fields**: every field short of `FIELD_TARGET`
   (`scripts/learn-budget.mjs`), with the minimum-chunk and spread rules
   (D115).

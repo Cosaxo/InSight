@@ -907,7 +907,7 @@ the daily consumes exactly 7/week whatever the archive holds, but the
 feed serves continuously and its capacity scales with users, not the
 calendar. Like learn and duel there is no spec-vs-live split — a merged
 feed PR IS the production review: one gate, production-level bar. **A
-Routine fires this lane** (D145; twice weekly — the inventory under
+Routine fires this lane** (D145; daily since D213 — the inventory under
 Governance carries the schedule). Until D145 it ran only when the
 maintainer asked a dev session, and across that whole period it produced
 nothing: every provenance row in the bank read `editorial` until the
@@ -915,38 +915,60 @@ lane's first scheduled batch merged (#222, 2026-08-18).
 Rules, each load-bearing:
 
 - **Start every run with `npm run feed:budget -- --open <questions on the
-  open lane PR>`** (D145). The budget is computed, not flat: it grants up
-  to **6 feed questions per run** while the bank is short of **24
-  servable questions per topic** (raised from 12 at D213 — the owner's
-  volume decision; the script's constant block carries the arithmetic),
-  subtracts whatever already sits
-  unreviewed on the lane's open PR, and grants **zero** at the target or
-  at **6** unreviewed questions on that PR. It prints the ALLOCATION —
-  which topics to write into and how many each — so thinnest-first is
-  arithmetic rather than a judgment call, plus a `signal:` line naming
-  which mode the run is in: levelling blind, or reading a scorecard that
-  actually scores feed questions.
+  open lane PR>`** (D145, reshaped at D342). The budget is computed, not
+  flat, and since D342 it has **no ceiling**: every run is granted
+  **12 feed questions per run**, less whatever already sits unreviewed
+  on the lane's open PR, and the only zero is **12** unreviewed questions on that PR
+  (a gate refused a batch — fix it, do not stack). What the grant is
+  spent on comes in three tiers, printed as the ALLOCATION with the
+  reason beside each topic:
 
-  This replaced the flat "≤6 questions/run, at most twice weekly to
-  start" — never wrong, but never executed either, and a flat cap is the
-  exact shape D97 and D115 had to remove from the other two lanes,
-  because it generates into a full review queue and under-generates into
-  an empty one. The constants live in `scripts/feed-budget.mjs` with the
-  reasoning, `check:figures` holds the numbers quoted here equal to the
-  script, and `feed-budget.test.mjs` pins the properties — including that
-  the lane finds work in the bank as it actually ships, and that it
-  spreads across thin topics rather than chunking into one.
+  1. **The floor first.** Every topic is brought to
+     **24 servable questions per topic** (D213's level, kept as a FLOOR
+     rather than a target) before anything else, thinnest first, one per
+     topic per pass — a reader who filters to a topic must meet a
+     product, not three cards. Nothing stops at the floor, and no number
+     anywhere says how big a topic may grow.
+  2. **Demand takes everything the floor leaves.** Topics are weighted
+     popularity × depth off the committed scorecard — the daily lane's
+     demand lane (§ Picking topics) made computable for a surface that
+     serves continuously: popularity is the topic's share of credited
+     feed answers (conserved shares, so a door redistributes demand and
+     never mints it), depth is answers per servable question against
+     the deepest topic. The share is read only once the scorecard
+     credits **100 credited feed answers** across the ten topics and is
+     no older than **30 days** (the manual's own staleness rule) — below
+     either, a ranking is noise — and no topic may take more of a batch
+     than `check:quality`'s batch-mix ceiling allows, so the regulator
+     never prints a batch the pre-flight refuses. The `signal:` line
+     says which mode the run is in and, in demand mode, which topics
+     lead.
+  3. **Levelling, blind.** With no readable signal the remainder spreads
+     thinnest-first across every topic, with no ceiling — the bank grows
+     evenly until the crowd says where.
 
-  **The cap does not rise with the regulator, and that is the point.**
-  The daily and learn caps could go up BECAUSE a regulator throttles
-  them; this one is bounded by signal dilution — a fixed crowd spread
-  over more questions leaves each with too few answers for its evenness
-  score to mean anything — and no regulator makes a thin crowd thicker.
-  (Pre-D98 this read "clears the k-floor on fewer of them". There is no
-  floor now — the counts publish from answer one — but a split measured
-  on three answers is noise either way, so the bound stands on the
-  statistics rather than on the publishing rule.) Raising it stays the
-  D97 amendment for when the scorecard shows the crowd keeping up.
+  The constants live in `scripts/feed-budget.mjs` with the reasoning,
+  `check:figures` holds the numbers quoted here equal to the script, and
+  `feed-budget.test.mjs` pins the properties — that the lane finds work
+  in the bank as it actually ships, that the floor spreads across thin
+  topics rather than chunking into one, that a levelled bank still gets
+  the full cap, and that no topic's demand share exceeds the batch-mix
+  ceiling.
+
+  **What D342 retired, recorded so it stays a decision.** Until then the
+  regulator stopped at the per-topic level ("every topic is at the
+  target") and held the cap at 6 on a signal-dilution argument — a fixed
+  crowd spread over more questions leaves each too few answers to score.
+  Both were sized to a bank every device was handed whole, and that
+  premise went at D316–D321: the install fetches a page per topic, never
+  the bank, and D316's own phases say what that does to the lanes —
+  production volume stops being sized to consumption, and the cap is a
+  throughput question answered by the writing bar. What was true in the
+  dilution argument lives on in two places that are not a cap: the
+  demand share is not READ until the crowd is real (tier 2's threshold),
+  and D319's serving order sinks a question that measures badly.
+  Popularity still moves nothing INTO the core (the tail bullet below),
+  and `now` stays out of the fold (D231).
 - **Four authorable forms.** A plain `vote` (2–5 options — see the option
   count below), one of the two
   **continuum forms** (`dial` / `field`, live since D114), or a **`path`**
@@ -1074,7 +1096,9 @@ Rules, each load-bearing:
   the Mirror folds over, and it stays a curatorial act — since D212 the
   one PER-QUESTION human act left in this pipeline, deliberately:
   popularity must not tilt the corpus toward what is already popular,
-  and neither must a generator.
+  and neither must a generator. D342's demand share sits inside this
+  rule by construction: it decides which TAIL topics a run writes into,
+  and it has no pen on `core`.
 - **Ship active.** The feed's retire path is real (`active: false`, the
   D52 shape) and stays the operator's; the lane never flips flags,
   and cites the scorecard's feed `retireProposals` in its PR body like
@@ -1543,6 +1567,13 @@ Each phase is its own reviewed change — nothing here is licence to start.
   Lanes 1–2 can now select against live signals AND have their output
   reach the live bank — demand-driven selection becomes fully real once
   Phase A's read path is confirmed.
+- **Phase B′ — demand in the feed regulator. TAKEN (D342,
+  2026-09-01).** `scripts/feed-budget.mjs` reads the committed
+  scorecard's per-topic credited answers and allocates everything above
+  the coverage floor by popularity × depth — the lane model's demand
+  lane, live on the one surface that serves continuously, with no
+  ceiling above the floor. The daily lane's demand lane is still read
+  by the run rather than computed by a script.
 - **Phase C — event-driven replenishment.** "Close to completing" as a
   trigger, not just a weekly check: a scheduled function computes
   per-topic exhaustion flags from the same public aggregates and the
@@ -1869,17 +1900,20 @@ contract, it changes, and it outranks this prompt's summary; re-read it
 every run.
 
 Start with npm run feed:budget -- --open <count of questions on the
-open feed PR's diff>. Zero means the run is a logged no-op. Otherwise
-write exactly the allocation it prints — thinnest topics first, breadth
-across the ten is this lane's job — in one of the four authorable
+open feed PR's diff>. Zero means a gate refused the open batch — fix
+it, do not stack (D342: there is no stock ceiling, so zero never means
+the bank is full). Otherwise write exactly the allocation it prints —
+the 24/topic floor first, thinnest first; above the floor the demand
+share follows where the crowd answers, or levels thinnest-first while
+the signal: line says the lane is blind — in one of the four authorable
 forms: vote (2-5 options — give the story the options it has,
 not two by habit), dial, field, or path. Continuum cards
 (dial/field) are written TWICE, the content entry with NO crowd texture
 plus its demo-pool twin in src/v2/spec/world-feed-data.js with the
 authored texture; lean scarce on them, they are a change of key and not
-a second genre. Read the budget's signal: line — while it says
-coverage-blind, level the topics; once the scorecard scores feed
-questions, read evenness per topic first. Pre-flight the whole batch
+a second genre. Read the budget's signal: line — it names the mode and,
+in demand mode, which topics lead; evenness per topic still steers WHAT
+you write into a topic, never where the budget goes. Pre-flight the whole batch
 from ONE candidates file with "surface": "feed" on each entry: npm run
 check:quality -- --batch candidates.json and npm run check:neighbors --
 --batch candidates.json; paste both packet lines per question into the
