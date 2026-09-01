@@ -16,7 +16,12 @@
 //
 // Exported for this, and nothing else changed.
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { MOD_QUEUE_PER_AUTHOR, overAuthorCap } from "./moderation";
+
+const here = dirname(fileURLToPath(import.meta.url));
 
 describe("overAuthorCap", () => {
   it("admits up to the cap and holds back the one after", () => {
@@ -60,5 +65,50 @@ describe("overAuthorCap", () => {
       expect(overAuthorCap(seen, "constructor")).toBe(false);
     }
     expect(overAuthorCap(seen, "constructor"), "`constructor` walked past its own cap").toBe(true);
+  });
+});
+
+describe("the queue builder still asks the cap", () => {
+  // The predicate above is proved in isolation, which is the improvement
+  // that commit made. What it does not reach is either CALL SITE: both
+  // live inside `runBuildModQueue`, a Firestore-driven handler no test
+  // executes (the module reports ~15% statement coverage), so
+  //
+  //   if (overAuthorCap(  →  if (false && overAuthorCap(
+  //
+  // leaves all 550 tests green — and the threat the cap exists for, one
+  // account occupying the whole queue, is reopened.
+  //
+  // A SOURCE PIN, and weaker than execution on purpose: it catches the
+  // call being removed or short-circuited, not a wrong argument. The
+  // stronger fix is to move the cap into the already-pure
+  // `buildModQueueFrom` path in pure.ts, where every other queue-shaping
+  // predicate lives and is executed — that is a refactor of the builder
+  // rather than a test, and it is on the list.
+  const src = readFileSync(resolve(join(here, "moderation.ts")), "utf8");
+
+  it("guards both the take branch and the avatar branch", () => {
+    const calls = [...src.matchAll(/if \(overAuthorCap\(perAuthor, ([^)]*)\)\)/g)];
+    expect(calls.length,
+      "a queue branch stopped asking the per-author cap").toBe(2);
+    // Named, so a branch swapping to the other's argument is visible too:
+    // an avatar's author is the uid its target names; a take's is on the
+    // document.
+    const args = calls.map((m) => m[1]);
+    expect(args, "the avatar branch stopped capping by its target").toContain("target");
+    // The regex stops at the first `)`, so the take branch's argument
+    // arrives without its own closing paren — matched as a prefix rather
+    // than papered over with a looser pattern.
+    expect(args.some((a) => a.startsWith('take.get("authorUid"')),
+      "the take branch stopped capping by its author").toBe(true);
+  });
+
+  it("has no unguarded queue write beside them", () => {
+    // The count above is only meaningful if there are exactly two places
+    // an entry can enter the queue. If a third appears, this fails and
+    // asks for it to be capped too rather than silently allowing it.
+    const writes = [...src.matchAll(/batch\.set\(db\.collection\("v2_mod_queue"\)/g)];
+    expect(writes.length,
+      "a new path writes into the moderation queue — does it ask the cap?").toBe(2);
   });
 });
