@@ -3,11 +3,13 @@
 //
 // WHY THEY ARE NOT IN ./handles AND ./invites, where they read more
 // naturally: those two are imported by LiveDuelPanel and
-// LivePrivacyPanel, which are EAGER (they self-register on globalThis for
-// the spec layer's render-time lookups). A `firebase/firestore` import
-// reachable from an eager module puts the whole SDK on the first-paint
-// path — check:bundle measured 1270 KB against a 955 KB ceiling, which is
-// exactly the tree as it stood before D110.
+// LivePrivacyPanel, which sat on the first-paint path when this split was
+// made (both are off it now — a React.lazy since D156, the overlays chunk
+// since D344 — but ./handles' own header has why the split outlives
+// them). A `firebase/firestore` import reachable from an eager module
+// puts the whole SDK on the first-paint path — check:bundle measured
+// 1270 KB against a 955 KB ceiling, which is exactly the tree as it
+// stood before D110.
 //
 // So the split is by WHAT MAY BE IMPORTED EAGERLY, not by subject: the
 // validation and the wording are pure and live with their features, and
