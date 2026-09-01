@@ -101,8 +101,8 @@ selection logic evolves or how wrong it gets about someone.
 The half that gets dearer with time is now done, and the half that does
 not is deliberately not:
 
-- **`core` is a declared field on feed questions.** 80 of the 172 in
-  `content/feed-questions.json` carry `core: true`, and 92 declare
+- **`core` is a declared field on feed questions.** 81 of the 178 in
+  `content/feed-questions.json` carry `core: true`, and 97 declare
   `core: false` — **the tail is not hypothetical; it is already more than a
   third of the feed and growing with every feed run.** The generator emits it
   onto feed entries only (`scripts/gen-v2content.mjs`, emit-when-set beside
