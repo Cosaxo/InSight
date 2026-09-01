@@ -1,7 +1,7 @@
 # The graph-optimizer axiom — current theory
 
-*Regenerated from `graph.json`, 2026-08-28. The graph is the data; this
-page is its readable face. 10 nodes: 7 argued, 3 cited.*
+*Regenerated from `graph.json`, 2026-09-01. The graph is the data; this
+page is its readable face. 11 nodes: 8 argued, 3 cited.*
 
 ## The substrate (go-1 · go-9)
 
@@ -32,7 +32,7 @@ go-6 has the typing rule. Resolution is empirical: months of status
 motion without padding substantiates the bet; stagnation-by-rewording
 means the critique won.
 
-## Health is measured (go-2 · go-5)
+## Health is measured (go-2 · go-5 · go-11)
 
 **go-2 (cited)** — accumulating knowledge bases decay measurably, and
 the four health signals map one-for-one onto the peer-reviewed
@@ -51,39 +51,81 @@ bet — the claim says so.
 **go-5 (argued)** — health is a committed instrument, `graph/health.mjs`:
 status mix, stale conjectures (>14d), orphans (program-wide degree
 zero), detail weight (>400w) per lane; unresolved contradictions and
-near-duplicate claim pairs (Jaccard ≥ 0.5) program-wide. Thresholds are
-named constants (a change is a diff, not drift); orphan degree is
-program-wide because cross-edges are the combination (go-3); staleness
-is a timestamp proxy and therefore a lower bound on rot. 2026-08-28:
-the instrument gains a per-lane **graded-sources count** — verification
-markers in source strings only, the one placement countable without
-interpreting prose (the suffix is homonymous in prose; go-10). It
-prices what a schema-defined grade field would inherit; it does not
-push adoption.
+near-duplicate claim pairs (Jaccard ≥ 0.5) program-wide; per-lane
+graded-sources counts (verification markers in source strings only —
+the one placement countable without interpreting prose; go-10); and,
+since 09-01, per-lane run recency (last LOG.md row date and age,
+silence flagged past 2 days; go-11). Thresholds are named constants (a change is a diff, not drift); orphan
+degree is program-wide because cross-edges are the combination (go-3);
+staleness is a timestamp proxy and therefore a lower bound on rot.
+
+**go-11 (argued, new 2026-09-01, refines go-5)** — run cadence is a
+health dimension no content metric can see: every prior signal is a
+function of what the graphs *say*, so a program that stops running
+reads as maximally healthy. Measured this run: zero landings
+program-wide from 08-29 until this run — the even-date group missed
+08-30 outright, the odd-date group 08-31 — and its 09-01 slots had
+also passed landing nothing by this run's write — the weekly digest
+due 08-30 is unwritten, and this run itself fired off its own
+even-date schedule (recovery or manual dispatch; the tree cannot say).
+The account side cannot see it either: all nine Routines read enabled
+with no run-outcome record — dispatcher-bound Routines record none by
+the platform's own contract, so those absences are uninformative by
+construction. The gap sat under a green checker and a clean
+health report until this run compared dates by hand — go-6's blindness
+generalized (silence is the recording rate itself at zero). Remedy in
+the same run: `health.mjs` now reports each lane's last `LOG.md` row
+date and age and flags silence past `SILENT_DAYS=2` (LOG is
+append-only, one row per run, and a nothing-advanced run still logs —
+where `graph.updated` moves only on content). Descriptive, never
+gating; re-pacing stays the owner's dial (§11). Named limit: the flag's
+availability itself depends on some lane running — a measurement that
+vanishes with the program it measures. Recovery began mid-run: map and
+pattern landed off-schedule catch-ups at 13:11 (during this run's land
+step), the odd group's own 09-01 slots still unfilled; six of nine
+lanes flag silent at this run's close.
 
 ## What the measurements taught (go-6 · go-7 · go-8 · go-10)
 
 **go-6 (argued)** — the contradiction count measures *recording*, not
-harmony, and is a lower bound on live tension. Since 2026-08-27 the
-program has its first `contradicts` edge — tst-6→cen-1, recorded in
-exactly the split-verdict shape this node offered: `contradicts` scoped
-to the singular cen-1 still asserts, `refines` for the half tst-6
-sharpens, the tests LOG naming both. Central inherits a visible work
-item. The typing rule stands: evidence against a claim the target
-**still asserts** is `contradicts`; after the target narrows, `refines`
-is the honest type (go-9→go-1 is the worked example of the rule's
-second branch).
+harmony, and is a lower bound on live tension. The typing rule:
+evidence against a claim the target **still asserts** is `contradicts`;
+after the target narrows, `refines` is the honest type (go-9→go-1 is
+the worked example of the second branch). **The machinery is now
+exercised end-to-end, with no optimizer involvement**: tests elected
+the program's first `contradicts` edge 08-27 in exactly the offered
+split-verdict shape (tst-6→cen-1); central's next run revised cen-1 to
+the hierarchical fork, naming the edge as what it resolved; tests then
+retired the `contradicts` 08-29 with full accounting (refines kept,
+supports added as a third option, residual tension re-homed at
+tst-5/tst-8). Two days, election to resolution. New count semantics: a
+reading of 0 is now ambiguous between *never-elected* and
+*elected-and-resolved* — the point-in-time instrument cannot
+distinguish them, so this summary narrates resolutions rather than
+reading 0 as concord.
 
 **go-7 (argued)** — detail has a weight budget; fission into nodes the
 ladder can grip separately is the fix, and splitting is the owning
-lane's act. Second measurement (2026-08-28): 23 of 69 nodes over
-budget — 33%, from 14% two days earlier; max more than doubled (map-6
-at 1531 words); argument-only nodes cross it too, so it is not
-scout-specific; **zero fissions have occurred**. The flag as published
-changes no behavior — either no lane reads it where it lives, or
-go-10's lesson generalizes: practice no artifact enforces does not
-propagate. Not a gate, deliberately. This run's lever is naming the
-worst offenders in the digest-facing summary below.
+lane's act. Third measurement (2026-09-01): **fission adoption began**
+— three parents split within two days of central routing the 08-28
+measurement by name (cen-2→cen-8, central's own read of this graph;
+gen-5→gen-12/13 per central's QUESTIONS append; tst-5→tst-8 forced by
+tests' own adversarial pass) — the lever this node chose worked
+wherever it was received. Yet the rate **rose**: 29 of the 80 nodes
+standing at this run's measurement over budget (36%, from 33% —
+itself from 14%, or 11% on the like-for-like nine-graph baseline),
+because scout runs keep landing heavy nodes and fission children
+themselves cross the budget (gen-12 710w; tst-5 still 789w after
+fission). Mid-land, the last two flagged offenders confirmed the
+verdict: map's and pattern's 09-01 catch-up runs fissioned exactly the
+nodes central named — map-6 1531→705w with an honest cited→argued
+demotion, pat-3 899→528w — and both parents plus two new children
+(map-7 431w, map-8 575w) remain over budget, leaving the post-fission
+rate at 31 of 88 (35%): fission barely moves it, because fission
+conserves words. Verdict: fission restores statuses the ladder can
+grip but does not by itself pay the budget — the budget binds at write
+time or not at all; the in-lane adversarial pass is so far the only
+channel that has independently enforced it.
 
 **go-8 (argued)** — three lanes independently invented per-source
 verification grading, which is real schema pressure; but its original
@@ -93,29 +135,31 @@ settle on its own (go-10 carries the measurement and the decision).
 What survives: the want is real, and unstructured grade strings
 accumulate migration debt.
 
-**go-10 (argued, new 2026-08-28)** — across fresh-session lanes, **a
-convention lives only where a committed artifact enforces it**.
-Measured: 18 distinct `-grade` tokens program-wide (16 excluding this
-lane's own meta-prose), from 11 by the same census two days earlier;
-the suffix went homonymous (verification labels vs domain adjectives
-sharing it); placement split four ways (two source-string syntaxes
-plus genetic's third, detail prose, free-form sentences) — genetic, a
-co-inventor, at 5/98 barely uses its own convention — and zero of the
-three newly scouted lanes adopted any. Propagation follows the
-*receiving* lane's read path and nothing else: 'instrument-grade'
-crossed lanes because central appended it to tests' QUESTIONS.md, a
-file tests is chartered to read, while genetic's graded source
-strings, readable by everyone, propagated nowhere. And read-path
-carriage moves tokens, not conventions — tests absorbed the
-homonymous adjective, not the grading practice — so only an enforced
-artifact keeps a convention convergent: the one practice exercised
-across lanes (electing `contradicts`) is the one SCHEMA.md documents.
-Consequences: no v2 grade enum now; if grades are ever schematized,
-the schema defines an enumerated vocabulary, lanes populate their own
-sources, and the field lands optional-and-empty — the
-migrate-all-in-one-run rule bounds mechanical migration to what a
-script derives without reading, a general constraint on schema
-evolution. Optionality enforces vocabulary, not adoption.
+**go-10 (argued)** — across fresh-session lanes, **unschematized
+conventions do not converge on their own** — they proliferate and
+drift into homonymy; convergence happens only through an active
+channel, and propagation follows the *receiving* lane's read path and
+nothing else. The 08-28 census: 18 distinct `-grade` tokens,
+homonymous suffix, four-way placement split, zero adoption by newly
+scouted lanes (one census example has since rotted in place: central
+deleted its 'instrument-grade standard' in cen-1's 08-28 revision;
+tests' 'instrument-grade model' still stands, re-verified 09-01).
+Confirmed 2026-09-01 across eight further observations, every one
+obeying a read path: central absorbed go-7 directly (it is chartered
+to read all graphs) and fissioned cen-2 the same run; its QUESTIONS
+appends carried fission to genetic, a pricing ask to questions and the
+go-6-shaped retype ask to tests — all three adopted the receiving
+lane's next run; the same appends to map and pattern moved nothing for
+four days simply because those lanes did not run, then both adopted in
+their 09-01 catch-up runs — the relay is 5-for-5, and a read path
+propagates exactly when the reader runs; and tests' fission arrived
+through no cross-lane carriage at all — its own adversarial pass
+re-derived the discipline from an in-lane precedent. The working channels: enforced artifacts
+(schema + checker), central's QUESTIONS relay, and in-lane adversarial
+convergence; passive availability moves nothing — everything else is
+token carriage. Standing verdicts: no v2 grade enum; any future grade
+field is schema-defined, lane-populated, optional-and-empty at
+migration.
 
 ## Standing frame (go-3 · go-4)
 
@@ -125,39 +169,60 @@ touches another lane's content (go-4).
 
 ---
 
-## Health summary — 2026-08-28 (for the digest)
+## Health summary — 2026-09-01 (for the digest)
 
 `node graph/check.mjs --all`: **green**, schema v1, all 9 graphs.
-`node graph/health.mjs`: 70 nodes, 137 edges (59 cross-graph).
+`node graph/health.mjs`: 88 nodes, 207 edges (84 cross-graph),
+re-measured after the mid-land catch-up landings below.
 
-| Lane | Nodes | Status mix (c/a/c/m) | Graded src | Flags |
-| --- | --- | --- | --- | --- |
-| genetic | 11 | 0/3/8/0 | 5/98 | 6 nodes over detail budget, gen-5 970w |
-| body | 8 | 0/4/4/0 | 0/16 | — |
-| questions | 6 | 0/3/3/0 | 0/26 | que-5 623w, que-2 474w |
-| tests | 7 | 3/2/2/0 | 0/12 | tst-6 644w, tst-2 501w |
-| map | 6 | 1/1/4/0 | 1/49 | **map-6 1531w** (3.8× budget), map-3 753w, map-4 688w |
-| pattern | 8 | 0/3/5/0 | 0/43 | pat-3 899w, pat-8 505w, pat-6 549w +2 |
-| graph-optimizer | 10 | 0/7/3/0 | 19/19 | — |
-| central | 6 | 1/5/0/0 | 0/0 | cen-1 484w, cen-2 511w; no sources yet in any node |
-| database | 8 | 0/4/4/0 | 20/45 | db-7 573w, db-3 495w, db-4 437w |
+**The headline is silence, then recovery.** Zero landings program-wide
+between 08-29 ~12:30 and 09-01 13:11 UTC: the even-date group
+(database, map, pattern, graph-optimizer, central) missed its 08-30
+cycle, the odd-date group (genetic, body, questions, tests) missed
+08-31 — and its 09-01 slots (09:02–12:02 UTC) also passed landing
+nothing — and the weekly digest due 08-30 (central's first firing
+after Sunday) is unwritten; DIGEST.md still reads 08-26. All nine
+Routines read enabled account-side with no run-outcome records;
+dispatcher-bound Routines record none by the platform's own contract,
+so those absences are uninformative by construction, and among the
+artifacts any lane or the digest reads, silence shows only in the
+tree — `health.mjs` now measures it (per-lane last-LOG-row age, flag
+past 2 days). Recovery began mid-way through this run's land step:
+this lane fired 09-01 off its even-date schedule, and map and pattern
+landed off-schedule catch-ups at 13:11 — recovery or manual dispatch,
+the tree cannot say which, and the odd lanes' missed slots say the
+cadence is not simply back. **Six lanes still flag silent at this
+run's close**: genetic, body, questions, tests (3d), central,
+database (4d). Cost of the gap, measured: the fission questions
+central routed to map and pattern sat unread throughout it, then were
+acted on in recovery's first hour.
 
-Program reading: **5 conjecture · 32 argued · 33 cited · 0 measured**.
-Cited overtook argued this week; the zero in `measured` remains the
-milestone to watch. No orphans, no dangling cross-edges, no
-near-duplicate pairs at threshold, no stale conjectures. **The
-program's first `contradicts` edge is live**: tst-6⇄cen-1 (tests,
-2026-08-27) — a real, correctly scoped open problem now sitting in
-central's path; how central resolves it is the first test of the
-schema's contradiction machinery end to end. **Detail bloat is the
-worsening signal**: 23 of 69 nodes over the 400-word budget (33%, from
-14% on 08-26), zero fissions so far; worst offenders named per lane
-above, fission offered per go-7 (per this run's LOG row, this lane
-trimmed its own freshly over-budget nodes back under rather than ship
-flags it preaches against). Cross-graph structural changes this run:
-**none warranted** — no literal duplicates, no dangling edges, nothing
-to prune. Schema verdict this run: **no v2** — go-8's grade-enum
-decision rule fired and answered no (go-10 has the measurement:
-18-token vocabulary, 11 two days earlier by the same census,
-homonymous suffix, four-way placement split, zero adoption by the
-newly scouted lanes).
+| Lane | Nodes | Status mix (c/a/c/m) | Graded src | Last run | Flags |
+| --- | --- | --- | --- | --- | --- |
+| genetic | 13 | 0/3/10/0 | 7/113 | 08-29 | silent 3d; 7 over budget: gen-10 739w, gen-12 710w (fission children over budget too) |
+| body | 11 | 0/4/7/0 | 0/47 | 08-29 | silent 3d; bod-10 406w |
+| questions | 8 | 0/4/4/0 | 0/34 | 08-29 | silent 3d; 5 over budget: que-8 976w (now the program's worst), que-7 782w |
+| tests | 8 | 2/3/3/0 | 0/20 | 08-29 | silent 3d; tst-6 894w, tst-5 789w (still over after fission), tst-2 501w |
+| central | 8 | 1/7/0/0 | 0/0 | 08-28 | silent 4d; cen-1 430w, cen-7 429w; still no sources in any node |
+| database | 8 | 0/4/4/0 | 20/45 | 08-28 | silent 4d; db-7 573w, db-3 495w, db-4 437w |
+| map | 10 | 1/3/6/0 | 1/49 | 09-01 | 5 over budget: map-3 753w, map-6 705w (fissioned from 1531w, honest cited→argued demotion, still over), map-4 688w |
+| pattern | 11 | 0/3/8/0 | 0/44 | 09-01 | 5 over budget: pat-6 549w, pat-3 528w (fissioned from 899w, still over), pat-8 511w |
+| graph-optimizer | 11 | 0/8/3/0 | 19/19 | 09-01 | — |
+
+Program reading: **4 conjecture · 39 argued · 45 cited · 0 measured**.
+No orphans, no dangling cross-edges, no near-duplicate pairs at
+threshold, no stale conjectures — though cen-3 and map-1 (both 08-25)
+hit the 14-day stale line on 09-09 (first flagged day) if their lanes
+stay silent. **The contradiction machinery worked end-to-end this
+week**: tst-6→cen-1, elected 08-27, resolved by cen-1's 08-28
+revision, retired 08-29 by the electing lane with full accounting —
+the count reads 0 again, and that 0 now means *resolved*, not
+*never-tensioned* (go-6 has the semantics). **Fission adoption is now
+5-for-5** on central's routed questions (cen-2→cen-8, gen-5→gen-12/13,
+tst-5→tst-8, and mid-land map-6 and pat-3) — but the over-budget rate
+sits at 31/88 (35%): every fission so far has left its parent or a
+child over the line, so the budget binds at write time or not at all
+(go-7). Cross-graph structural changes this run: **none warranted** —
+no literal duplicates, no dangling edges, nothing to prune. Schema
+verdict this run: **no change** — v1 stands; the run's instrument
+change (silence metric) is additive and threshold-named.

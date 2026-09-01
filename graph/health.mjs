@@ -12,7 +12,10 @@
 // first) and reports the health signals SCHEMA.md and go-5 name — status
 // mix, staleness, orphans (program-wide degree zero; the rate is the list
 // over the node count), unresolved contradictions, detail weight,
-// near-duplicate candidates (these last two program-wide). Numbers here are descriptive, never gating:
+// near-duplicate candidates (these last two program-wide) — plus, since
+// 2026-09-01, run recency (go-11): every other signal is a function of
+// graph CONTENT and reads unchanged when a lane stops running, so a lane's
+// last LOG.md row date is measured too. Numbers here are descriptive, never gating:
 // a finding is the START of an optimizer judgment, not a verdict. In
 // particular a "near-duplicate candidate" is a pair worth a human read —
 // claim-token overlap cannot tell a duplicate from a deliberate
@@ -38,6 +41,14 @@ const STATUSES = ["conjecture", "argued", "cited", "measured"];
 const STALE_DAYS = 14;        // untouched this long = stale (≈7 runs at the every-other-day cadence)
 const DETAIL_BUDGET_WORDS = 400; // past this, detail is prose pretending to be a node (go-7)
 const DUP_JACCARD = 0.5;      // claim-token overlap that flags a pair for reading
+const SILENT_DAYS = 2;        // cadence is every-other-day, so a lane's last logged run
+                              // is at most 2 whole days old on schedule; older means at
+                              // least one cycle landed nothing (go-11). LOG.md is the
+                              // signal because it is append-only, one row per run, and a
+                              // nothing-advanced run still logs (CHARTER §3) — where
+                              // graph.updated moves only on content. Limits: it trusts
+                              // the row's leading date, and it cannot say WHY a lane is
+                              // silent, only that it is.
 
 const args = process.argv.slice(2);
 const asJson = args.includes("--json");
@@ -65,6 +76,18 @@ const jaccard = (a, b) => {
 };
 
 // ---- load all graphs (well-formedness is check.mjs's job) ----------------
+// Last logged run per lane, from LOG.md's append-only rows ("- YYYY-MM-DD ·").
+// Max, not last line: robust to trailing prose while rows stay chronological.
+const lastLogDate = (lane) => {
+  try {
+    const rows = readFileSync(join(ROOT, "theory", lane, "LOG.md"), "utf8")
+      .match(/^- \d{4}-\d{2}-\d{2}(?= )/gm) ?? [];
+    return rows.map((r) => r.slice(2)).sort().at(-1) ?? null;
+  } catch {
+    return null; // no LOG.md — reported as such, never a crash
+  }
+};
+
 const graphs = [];
 for (const lane of LANE_DIRS) {
   try {
@@ -137,11 +160,14 @@ const perLane = graphs.map(({ lane, prefix, g }) => {
     if (days(n.updated) > STALE_DAYS && n.status === "conjecture") stale.push(n.id);
     if ((degree.get(n.id) ?? 0) === 0) orphans.push(n.id);
   }
+  const lastLog = lastLogDate(lane);
   return {
     lane, nodes: g.nodes.length, edges, crossOut, updated: g.updated, mix,
     staleConjectures: stale, orphans, overBudget, sources, gradedSources,
     detailMeanWords: g.nodes.length ? Math.round(detailTotal / g.nodes.length) : 0,
     detailMaxWords: detailMax,
+    lastLog, logAgeDays: lastLog === null ? null : days(lastLog),
+    silent: lastLog === null || days(lastLog) > SILENT_DAYS,
   };
 });
 
@@ -152,8 +178,10 @@ const totals = {
   mix: Object.fromEntries(STATUSES.map((s) => [s, perLane.reduce((a, l) => a + l.mix[s], 0)])),
   contradictions,
   dupCandidates,
+  silentLanes: perLane.filter((l) => l.silent)
+    .map((l) => ({ lane: l.lane, lastLog: l.lastLog, logAgeDays: l.logAgeDays })),
   asOf: asOf.toISOString().slice(0, 10),
-  thresholds: { STALE_DAYS, DETAIL_BUDGET_WORDS, DUP_JACCARD },
+  thresholds: { STALE_DAYS, DETAIL_BUDGET_WORDS, DUP_JACCARD, SILENT_DAYS },
 };
 
 if (asJson) {
@@ -165,6 +193,7 @@ console.log(`graph health — ${totals.asOf} · ${totals.nodes} nodes, ${totals.
 console.log(`status mix: ${STATUSES.map((s) => `${totals.mix[s]} ${s}`).join(" · ")}`);
 console.log(`unresolved contradictions: ${contradictions.length}${contradictions.length ? " — " + contradictions.map((c) => `${c.from}⇄${c.to}`).join(", ") : " (zero — see go-6 before reading this as health)"}`);
 console.log(`near-duplicate candidates (jaccard ≥ ${DUP_JACCARD}): ${dupCandidates.length ? dupCandidates.map((d) => `${d.a}~${d.b}@${d.similarity}`).join(", ") : "none"}`);
+console.log(`silent lanes (last logged run > ${SILENT_DAYS}d old): ${totals.silentLanes.length ? totals.silentLanes.map((s) => `${s.lane}@${s.lastLog ?? "no LOG"}(${s.logAgeDays ?? "?"}d)`).join(", ") : "none"}`);
 console.log("");
 for (const l of perLane) {
   const flags = [
