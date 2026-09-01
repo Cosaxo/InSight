@@ -133,11 +133,11 @@ describe("the slot's place in the stream", () => {
     expect(after.map((x) => x.id)).toEqual(before.map((x) => x.id));
   });
 
-  it("holds its depth on a returning device — a short fresh list, continued cadences, still never first (D346)", () => {
+  it("holds its depth on a returning device — a short fresh list, continued cadences, still never first (D348)", () => {
     // Three fresh topics out of a twenty-card list. The feed weaves the
     // fresh list and walks the full depth, so the slot lands at its
     // position among the continued cadences: after every fresh topic and
-    // after the first test card, never at the head. Before D346 the slot
+    // after the first test card, never at the head. Before D348 the slot
     // fired against the SIXTH card of the full list, and with the first
     // six answered — the ordinary returning device — the paid card
     // surfaced right behind the answered block, at the top of the feed.
