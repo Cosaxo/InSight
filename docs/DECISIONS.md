@@ -34599,3 +34599,83 @@ so unless something dispatches in between, that pre-flight should answer
 *run as-is*. Per D198 that sentence is a report about a comparison, never
 a promise about the tree: **a verdict has a shelf life of exactly one
 dispatch, and a bump has a shelf life of exactly one upload.**
+
+## D340 · Crossroads leaves the feed's head and rides the stream
+
+**2026-09-01.** **Status:** binding. Amends the placement half of D136's
+"Not dealt into the card stream" — the component half stands.
+
+> *"it seams the crossroad is at second to top of the feed all time it
+> should be in the feed like the others"*
+
+The owner, on the shipped layout: daily card, then Crossroads, every
+visit, because D136 pinned the card at the head of the feed
+(`{i === 0 && <PathsCard />}`) and a pinned card is furniture — the same
+slot whether the story is fresh, mid-walk, or a tree you finished a month
+ago. The ask is placement, not apparatus, and that split is the whole
+decision.
+
+### What moved
+
+The card now lands **`PATHS_AT` (5) cards into the stream** — the render
+map deals it in ahead of `feedList[PATHS_AT]`, the suggestion card's own
+shape one slot family over. The constant lives in
+`data/feed-interleave.ts` beside the cadences, so the placement's one
+number has the same home as the arithmetic that surrounds it and the test
+that pins it imports the value it pins. Five is chosen, not arbitrary:
+past the first screenful of questions, short of the paid slot
+(`SPONSOR_AT`, 6) so the two special cards never stack, and inside the
+first window (`WF_PAGE`, 8) so the slot mounts on open and reaching it is
+a scroll rather than a page load.
+
+**A feed too short to reach the slot shows the card at its end** — the
+paid slot's fallback shape (`interleaveFeed`'s "still owes the buyer
+their card"), because a fixed depth over a thin feed is how a card
+disappears without anyone deciding it should. The live smoke fixture's
+one-card feed exercises exactly this arm. **An empty feed stays empty**:
+the fallback carries `feedList.length > 0`, so the caught-up/muted line
+keeps the screen to itself — which is not a new refusal but the pinned
+slot's own behaviour preserved (`i === 0` never fired on an empty map
+either).
+
+### What D136 said that is still true
+
+The card is **still not `renderCard`'s** — its reveal is a tree rather
+than a split, so it stays its own component in its own slot rather than a
+question dealt through the weave with options and a who-voted sheet. Only
+the address changed. Downstream of that, nothing moved: the two-source
+discipline (`srcOf`), the vote path a finished walk writes through, D211's
+no-redo rule, and the Map's Walks branch are all untouched.
+
+Two neighbours checked and left alone. The reading game keeps the head
+(D196's reasoning is its own: one thing you are DOING, not a card in the
+stream), and `LiveCallCard`'s unmounted machinery keeps its head-pin
+comment with a note, since a call is a commitment you are carrying, not
+content. And D185's genre ratchet survives unweakened: its SEQUENCE
+argument needs "one slot shows one story at a time", which is as true at
+depth five as at depth zero — QUESTION-FARM.md § Crossroads stories now
+says it without the word "head".
+
+### What proves it
+
+`test:unit` (155 files, 2,302), with the placement now pinned where the
+pin means something: the demo mount asserts the card sits deeper than
+`PATHS_AT` siblings in the feed column (probed by reverting to `i === 0`
+and watching it fail; sibling count rather than a class query because
+`wf-card` exists only where an IntersectionObserver does, which jsdom
+does not promise), and the live mount's title binding doubles as the pin
+on the short-feed fallback. `lint`, `tsc -b`, `check:globals` (coupling
+unchanged at its 236 baseline), `check:figures` (62), `check:docs` (340
+records), `test:scripts` (586) all green; `check:bundle` on the
+CI-equivalent live build unmoved (2153 KB total / 771 KB eager, both
+under ceiling) — the import site did not change, so the card and its
+store stay in the lazy feed chunk.
+
+### When to revisit
+
+If the owner's next note is about the finished card — a completed tree
+riding the stream forever at depth five is the same furniture complaint
+one stop later — the shape to price is parking finished walks behind the
+Answered expander, which today cannot render a walk (`renderCard`
+apparatus, the reason the card is its own component at all). That is a
+new surface, not a tuning of this constant.

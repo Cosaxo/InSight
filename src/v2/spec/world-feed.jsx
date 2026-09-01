@@ -52,7 +52,7 @@ import { PLACESTATS } from './place-stats.js';
 import { Sheet } from './primitives.jsx';
 // The feed's cadence arithmetic — extracted so the test exercises THIS loop
 // rather than a copy of it (D11's claim, D42's citation; see the module).
-import { interleaveFeed, partitionAnswered } from '../data/feed-interleave.ts';
+import { PATHS_AT, interleaveFeed, partitionAnswered } from '../data/feed-interleave.ts';
 import { SPONSOR_AT, partitionSponsored } from '../data/sponsored.ts';
 import { askWindow } from '../data/askWindow.ts';
 import { utcDayIndex } from '../data/deck.ts';
@@ -4140,25 +4140,30 @@ class WorldFeed extends React.Component {
         </div>
         {feedList.slice(0, this.state.shown).map((q, i) => (
           <React.Fragment key={q.id}>
-            {/* Crossroads at the head of the feed (D136). Live it reads a
+            {/* Crossroads, dealt into the stream (D340). Live it reads a
                 real bank question and folds its branch shares from real
                 answers; demo it reads the authored pool. The card picks its
                 own source (see srcOf), so there is no gate here — which is
                 the point: a surface that renders in one mode and not the
                 other is a surface only one of them is tested on.
 
-                Not dealt into the stream with the other cards because its
-                reveal is a TREE rather than a split: none of renderCard's
-                apparatus — option rows, who-voted, takes, the insight line
-                — has anything to say about a walk, and the prototype pins
-                it here for the same reason. */}
-            {i === 0 && <PathsCard />}
-            {/* The reading game (D196) — pinned beside Crossroads and for
-                the same reason: it is one thing you are doing, not a card
-                dealt into the stream. It renders nothing in a demo build
-                and nothing until there are enough fair reads to keep a
-                record worth believing, so this line adds a card only where
-                there is a real one to add.
+                D136 pinned it at the head of the feed; the owner asked for
+                it to ride the feed like the other cards, so it now lands
+                PATHS_AT cards in — a fixed slot rather than a woven one,
+                because renderCard's apparatus (option rows, who-voted,
+                takes, the insight line) still has nothing to say about a
+                walk: the card stays its own component, only the address
+                changed. The slot is inside the first window (WF_PAGE), so
+                reaching it is a scroll, never a page load; a feed too
+                short to reach it shows the card at its end — see the
+                fallback under this map. */}
+            {i === PATHS_AT && <PathsCard />}
+            {/* The reading game (D196) — held at the head, not dealt into
+                the stream: it is one thing you are doing, not a card in
+                it. (Crossroads stood beside it here until D340.) It
+                renders nothing in a demo build and nothing until there are
+                enough fair reads to keep a record worth believing, so this
+                line adds a card only where there is a real one to add.
 
                 THIS SLOT HELD THE FUTURE-PREDICTION CARD FOR ONE DAY
                 (D194's tier-A call, which guessed the app's own future
@@ -4173,6 +4178,15 @@ class WorldFeed extends React.Component {
               : this.renderCard(q, { closing: q.id === closingId })}
           </React.Fragment>
         ))}
+        {/* A feed too short to reach the PATHS_AT slot still shows the one
+            story, at its end — the paid slot's fallback shape (see
+            interleaveFeed), because a slot that quietly delivers nothing
+            to a thin feed is how a card disappears without anyone
+            deciding it should. `> 0` keeps the empty feed empty: with
+            nothing fresh at all, the caught-up/muted line below owns the
+            screen, exactly as it did while the card was pinned at the
+            head (the i-based slot never fired on an empty list either). */}
+        {feedList.length > 0 && feedList.length <= PATHS_AT && <PathsCard />}
         {/* Room to scroll INTO while the window is still short of the list.
             Without it a feed whose mounted cards already fit the viewport
             can never fire the scroll that would grow it, and the window

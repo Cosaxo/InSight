@@ -9,6 +9,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, screen } from "@testing-library/react";
+import { PATHS_AT } from "../data/feed-interleave.ts";
 import { getApp, growUntil, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
 
 vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
@@ -92,19 +93,33 @@ describe("the daily tab", () => {
     expectNoBoundary("feed window");
   });
 
-  // Crossroads (D136) at the head of the feed, reading its DEMO source —
-  // this build has no bank, so `LIVE.pathQs()` is empty and the card falls
-  // back to paths-data.js. smoke-live.test.jsx owns the other source, and
-  // the pair is what makes the fallback a decision rather than an accident:
-  // each would pass alone if the card only ever had one source.
+  // Crossroads dealt into the demo feed (D136, placed by D340), reading its
+  // DEMO source — this build has no bank, so `LIVE.pathQs()` is empty and
+  // the card falls back to paths-data.js. smoke-live.test.jsx owns the other
+  // source, and the pair is what makes the fallback a decision rather than
+  // an accident: each would pass alone if the card only ever had one source.
   //
   // On the real mount rather than in the card's own suite, because the card
   // renders perfectly well in isolation whether or not anything ever puts
-  // it on screen — which is the failure this catches.
-  it("puts Crossroads at the head of the demo feed, from the demo story", () => {
+  // it on screen — which is the failure this catches. The position is
+  // asserted here too, and on this mount only: the demo bank is the one
+  // long enough to reach the slot (the live fixture's one-card feed
+  // exercises the short-feed fallback instead).
+  it("deals Crossroads into the demo feed stream, from the demo story", () => {
     const expectNoBoundary = mountApp();
-    expect(screen.getByText("Crossroads"), "the Crossroads card is not in the demo feed").toBeTruthy();
+    const kick = screen.getByText("Crossroads");
+    expect(kick, "the Crossroads card is not in the demo feed").toBeTruthy();
     expect(screen.getByText("The Wallet"), "the card is not showing the demo story").toBeTruthy();
+    // In the stream, not at the head (D340: "it should be in the feed like
+    // the others"). PATHS_AT feed cards sit above it as siblings in the
+    // feed column, plus the column's own sticky chip-row head — so
+    // anything ≤ PATHS_AT means the card has drifted back toward the
+    // pinned head slot D340 retired. Sibling count rather than a class
+    // query because renderCard only wears `wf-card` when an
+    // IntersectionObserver exists, which jsdom does not promise.
+    let before = 0;
+    for (let el = kick.closest(".card").previousElementSibling; el; el = el.previousElementSibling) before++;
+    expect(before, "Crossroads is back at the head of the feed").toBeGreaterThan(PATHS_AT);
     expectNoBoundary("crossroads card");
   });
 

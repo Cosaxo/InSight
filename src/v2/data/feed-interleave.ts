@@ -30,6 +30,21 @@ export const TEST_EVERY = 4;
 export const LENS_EVERY = 9;
 
 /**
+ * Where the ONE Crossroads story card sits, counted in feed cards (D340).
+ *
+ * It held a pinned slot at the head of the feed from D136 until the owner
+ * asked for it to ride the stream like everything else. world-feed deals
+ * it in ahead of the card at this index — past the first screenful, inside
+ * the first window (WF_PAGE), and short of the paid slot (SPONSOR_AT, 6)
+ * so the two never stack. A feed too short to reach the slot shows the
+ * card at its end instead — the paid slot's own fallback shape, for the
+ * same reason: a short feed still holds one story. The constant lives
+ * here, beside the cadences, so the test that pins the placement and the
+ * render that performs it cannot disagree about the number.
+ */
+export const PATHS_AT = 5;
+
+/**
  * Stable partition: everything the viewer has NOT answered in `fresh`,
  * everything they have in `done`, each half keeping its incoming order.
  *
