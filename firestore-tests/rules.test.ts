@@ -3002,6 +3002,39 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
     await assertSucceeds(setDoc(doc(plain, "v2_users", OWNER, "answers", duelAid), duelAnswer()));
   });
 
+  it("enforced text: the EDIT arm demands the claim too (D86 × D343)", async () => {
+    // The D86 edit is the only repeatable answer write, and its
+    // `deviceBound()` was the one call site no case reached. That makes it
+    // the one whose removal is invisible — creates would keep failing
+    // without the claim exactly as they should, edits would quietly stop
+    // caring, and nothing would say so.
+    //
+    // It also fails the other way round on flip day: an unbound account
+    // that answered before enforcement can still READ its answer and would
+    // simply stop being able to change it. Whether that is right is a
+    // decision; that it is TESTED is not optional.
+    await enfEnv.clearFirestore();
+    await seedInto(enfEnv);
+    const plain = enfEnv.authenticatedContext(OWNER).firestore();
+    const bound = enfEnv.authenticatedContext(FRIEND, { db: 1 }).firestore();
+    // Each account creates its own answer under the claim the arm demands,
+    // so the edit below is the only thing under test rather than the
+    // create that had to come first.
+    await assertSucceeds(setDoc(doc(bound, "v2_users", FRIEND, "answers", QID), worldAnswer()));
+    await assertSucceeds(updateDoc(doc(bound, "v2_users", FRIEND, "answers", QID),
+      { optionIdx: 1, editedAt: serverTimestamp() }));
+    // …and the same edit, from an account with no claim, is refused.
+    await enfEnv.clearFirestore();
+    await seedInto(enfEnv);
+    await enfEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "v2_users", OWNER, "answers", QID), {
+        qid: QID, surface: "daily", optionIdx: 0, answeredAt: new Date(), anchors: {},
+      });
+    });
+    await assertFails(updateDoc(doc(plain, "v2_users", OWNER, "answers", QID),
+      { optionIdx: 1, editedAt: serverTimestamp() }));
+  });
+
   it("enforced text: a HIGHER level than the bar still passes (D343)", async () => {
     // The `>=` property, and it is not academic. With `==`, raising the
     // bar to 2 and later relaxing it to 1 would refuse every level-2
