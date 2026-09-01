@@ -2832,6 +2832,26 @@ const SOCIAL = {
     const all = state.takes[key] || [];
     return gid !== "world" && qid ? all.filter((t) => t.qid === qid) : [...all];
   },
+  /**
+   * Is this scope's take list still being read?
+   *
+   * `takes()` answers `[]` for three different things — never fetched, in
+   * flight, and genuinely empty — and the panel could only tell the third
+   * one apart by having a flag to ask. Without it the takes panel printed
+   * "No takes yet. Say the first thing." over a query still running, and
+   * kept printing it for the life of that mount after a FAILED fetch,
+   * because `loadTakes`' catch deliberately leaves the key absent so a
+   * later open retries rather than caching an empty list.
+   *
+   * Every other on-demand D98 loader in this store already publishes one
+   * — votersLoading, kindredLoading, circleLoading, followsLoading,
+   * invitesLoading, near.roomLoading. `takesLoading` was the one that
+   * existed in state and never reached the surface.
+   */
+  takesLoading(gid: string, qid?: string): boolean {
+    const key = takeScopeKey(gid, qid);
+    return key == null ? false : !!state.takesLoading[key];
+  },
   async postTake(gid: string, qid: string, text: string): Promise<string | null> {
     const uid = state.uid;
     const body = text.trim().slice(0, TAKE_MAX_CHARS);

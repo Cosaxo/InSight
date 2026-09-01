@@ -348,6 +348,9 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
     // badge. The empty list IS the live-mode surface a circle with nothing
     // written in it shows.
     takes: () => [],
+    // Settled: a mount test is about what the screen draws once the
+    // read has landed, not about the frame before it.
+    takesLoading: () => false,
     loadTakes: async () => {},
     postTake: async () => null,
     deleteTake: async () => {},
