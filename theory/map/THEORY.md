@@ -1,7 +1,7 @@
 # The map axiom — current theory
 
-*Regenerated from `graph.json` on 2026-08-28; the graph is the data,
-this page is its readable face. Status counts: 4 cited · 1 argued ·
+*Regenerated from `graph.json` on 2026-09-01; the graph is the data,
+this page is its readable face. Status counts: 6 cited · 3 argued ·
 1 conjecture.*
 
 Display theory: how everything the axioms measure should be drawn,
@@ -12,7 +12,7 @@ the other theories; it never writes them.
 
 One geometry, honestly labeled, structurally stable, drawn from public
 numbers — and every cross-axis connection drawn with its population,
-its decomposition and its basis. The six claims:
+its decomposition and its basis. The ten claims:
 
 ### map-1 · One geometry at every scale — `conjecture`
 
@@ -116,68 +116,134 @@ structurally tempted toward per-user computation — and a device-drawn
 map from public artifacts stays independently verifiable: anyone can
 recompute the picture from the same numbers.
 
-### map-6 · A drawn connection declares its population, decomposition and basis — `cited`
+### map-6 · A drawn connection declares its population, decomposition and basis — `argued`
 
 This lane's answer to the charter's cross-connection mandate, and the
 display-side counterpart of what the siblings have each concluded at
-their own rungs: an honest coupling is published with its
-decomposition (gen-11, bod-8), exchanged as statistics carrying their
-basis (db-6), and split by level because between-person structure does
-not carry within-person structure (tst-6 on tst-7). The drawn
-connection is the last mile — it either preserves those declarations
-into the frame or undoes the axioms' honesty at the moment of reading.
+their own rungs (statuses as of 2026-09-01): an honest coupling is
+published with its decomposition (gen-11 cited, bod-8 cited),
+exchanged as statistics carrying their basis (db-6 argued), and split
+by level because between-person structure does not carry within-person
+structure (tst-6 argued, on tst-7 cited). The drawn connection is the
+last mile — it
+either preserves those declarations into the frame or undoes the
+axioms' honesty at the moment of reading.
 
-Two cited premises. **The level divergence is well documented — in the
-statistics and methodology literature, not the visualization
-literature** (the node keeps that distinction): ecological and
-individual correlations can reverse in sign (Robinson 1950 — cited for
-aggregate-vs-constituent only); subgroup reversal is common enough in
-psychology to need a practical guide (Kievit et al. 2013); results on
-between-person variation generalize within persons only under rarely
-met ergodicity conditions (Molenaar 2004, theoretical warrant), with
-within-person variance running two to four times the group estimate
-across six repeated-measures samples (Fisher et al. 2018 — carried
-with its published PNAS rebuttal); within- and between-person effects
-are distinct estimands (Curran & Bauer 2011). Scope note: which
-decomposition applies is per-pair — a genotype has no within-person
-half; its declaration is gen-11's direct/nurture/mating split instead.
-**Reading a drawn connection is unreliable in both directions, and
-form modulates it**: aggregating data into larger categories raises
-perceived causality, with text and bar rated most causal in the raw
-comparison (Xiong et al. 2020); yet against a Bayesian benchmark
-people underweight sample size and weigh disconfirming evidence over
+**Fissioned 2026-09-01** on central's question (carrying go-7): the
+original ~1531-word node bundled two cited premises, a cited precedent
+survey and this lane's own inferences under one status. The evidence
+now lives where the ladder can grip it — map-7 through map-10 below —
+and this node keeps what was always this lane's own: the rule and its
+consequences, at `argued`, the rung an inference honestly wears. The
+demotion is the fission's point, not a loss: every sentence that
+earned `cited` still wears it, one node over. (The form now differs
+from map-2's on purpose: map-2 wears `cited` because its premise
+sources sit in its own node; map-6's premises moved out, so its rung
+covers exactly what remains in it. Four sibling nodes — pat-3, cen-1,
+cen-2, cen-7 — still cite map-6 for content or a rung that moved; the
+LOG row names them for their owners to repair.)
+
+The rule's warrant: map-7 says the level split is real and per-pair;
+map-8 says reading a drawn connection is unreliable in both
+directions; map-10 records that nothing shows readers recover an
+undeclared population or level unaided — so declaration is structure,
+not courtesy. The design
+consequences (this lane's own inferences, marked): population and
+basis enter map-2's semantic table as part of a channel's one meaning;
+between-person and within-person couplings take *different geometries*
+— crowd structure as a field over people, your own coupling as a
+trajectory over time — never the same mark shape; an undecomposed
+composite drawn as one clean connector asserts a mechanism nobody
+measured, so the mark carries the decomposition where it exists and
+draws explicitly composite where it does not (map-4's thin-data
+discipline applied to edges); and language is a legitimate channel for
+low-n within-person couplings (map-9's precedent), with map-8's
+tension held openly — text drew the highest causality ratings in
+Xiong's comparison, so a sentence's honesty must come from stating
+population and basis, which is what a sentence can do and an unlabeled
+mark cannot.
+
+### map-7 · The level divergence is documented and per-pair — `cited`
+
+Aggregate-level and individual-level associations diverge, to the
+point of sign reversal, and between-person structure cannot be assumed
+to carry within-person structure: ergodicity suffices but is rarely
+met, and its necessity is contested (the node carries the rebuttal
+with the boundary). Documented in the statistics and methodology literature, not the
+visualization literature (the node keeps that distinction): ecological
+and individual correlations can reverse in sign (Robinson 1950 —
+cited for aggregate-vs-constituent only, the mis-cite warning recorded
+in-node); subgroup reversal is common enough in psychology to need a
+practical guide (Kievit et al. 2013); between-person results
+generalize within persons only under rarely met ergodicity conditions
+(Molenaar 2004, theoretical warrant), with within-person variance
+running two to four times the group estimate across six
+repeated-measures samples (Fisher et al. 2018 — carried with its
+published PNAS rebuttal); within- and between-person effects are
+distinct estimands (Curran & Bauer 2011). Scope note, this lane's own:
+which decomposition applies is per-pair — a genotype has no
+within-person half; its declaration is gen-11's direct/nurture/mating
+split instead — so the declaration names the decomposition that exists
+for that pair, not a fixed template.
+
+### map-8 · Reading a drawn connection is unreliable in both directions — `cited`
+
+Aggregating data into larger categories raises perceived causality
+(Xiong et al. 2020); yet against a Bayesian benchmark people
+underweight sample size and weigh disconfirming evidence over
 confirming — and no tested design beat plain text contingency tables
 (Kale et al. 2022) — so over-reading is not the only failure and a
-better mark is not automatically a better inference. The fused form
-loses to the plain one (connected scatterplots misread more than line
-graphs while engaging more — Haroz et al. 2016); mix-effects remedies
+better mark is not automatically a better inference. The fused form is
+misread more than the plain one (connected scatterplots produce more
+order and direction confusions than line graphs while engaging more —
+Haroz et al. 2016); mix-effects remedies
 build the decomposition into the mark (comet charts — Armstrong &
 Wattenberg 2014, a design paper); and the dual-axis folklore is held
 at its honest weight: most common guideline violation among misleading
 charts in the wild (Lisnic et al. 2023, observational), an active
 peer-reviewed defense exists (Brath et al. 2020/2022), no strong
 controlled two-measure experiment found, and Isenberg et al. 2011 is
-recorded as the trap it is (dual-*scale*, not dual-measure).
+recorded as the trap it is (dual-*scale*, not dual-measure). The two
+search-negatives that used to close this premise live at map-10, at
+the rung an absence honestly wears.
 
-What no verified source carries is recorded in-node: nothing shows
-readers map an aggregate display onto themselves, and nothing tests
+### map-9 · The deployed precedent chose language and raw series — `cited`
+
+The strongest deployed system rendered within-person correlations as
+natural-language statements rather than drawn lines and reported the
+resulting insights highly variable between individuals (Health
+Mashups, 2013); beside it, drawn personal cross-stream correlation
+display exists (SleepExplorer, 2016), ESM feedback work argues for
+showing the raw individual series rather than summary statistics
+(ESMvis, 2021), and N-of-1 counterfactual frameworks — methods, not a
+deployed system — supply the conditioning-basis vocabulary for the
+personal half (Daza 2018). All precedent, not comprehension evidence,
+and the node says so. The tension with map-8 is held openly: Xiong's
+text condition drew the highest causality ratings, so language is not
+automatically safer — its honesty has to come from stating population
+and basis in the sentence. Newest adjacent precedent, checked this
+run: CALTREND (arXiv 2505.00855) juxtaposes one person's data with
+other people's — the you-beside-a-population shape (reading it as the
+Mirror's shape is this lane's identification, not the paper's) —
+recorded as design precedent only, preprint grade.
+
+### map-10 · Two search-negatives, standing — `argued`
+
+No study was found showing readers map an aggregate display onto
+themselves individually, and no controlled study was found testing
 whether readers distinguish within- from between-person structure in a
-display at all. That absence is load-bearing: the frame must carry the
-population because reader competence at recovering it has never been
-demonstrated. Design consequences (this lane's own inferences, marked):
-population and basis enter map-2's semantic table as part of a
-channel's one meaning; between-person and within-person couplings take
-*different geometries* — crowd structure as a field over people, your
-own coupling as a trajectory over time — never the same mark shape; an
-undecomposed composite drawn as one clean connector asserts a
-mechanism nobody measured, so the mark carries the decomposition where
-it exists and draws explicitly composite where it does not (map-4's
-thin-data discipline applied to edges); and language is a legitimate
-channel for low-n within-person couplings (Health Mashups' deployed
-precedent), with the tension held openly that text drew the highest
-causality ratings in Xiong's comparison — a sentence can state
-population and basis, which an unlabeled mark cannot, and that is
-where its honesty must come from.
+display at all. Split out of map-8 at this run's adversarial pass's
+insistence: an absence can be attacked and survive, but no source can
+ground it, so it wears `argued` no matter how load-bearing it is.
+Twice attacked (the 2026-08-28 adversarial pass; this run's lead
+check: arXiv 2505.00855 is real but is juxtaposition design-precedent
+work at preprint grade, not the missing comprehension experiment) and
+still standing. The absence is load-bearing for map-6: if readers
+could be shown to recover an undeclared population unaided,
+declaration would be courtesy; nothing shows they can, so it is
+structure. Standing duty: any run touching this territory re-searches
+before restating — a single controlled experiment either way moves
+this node.
 
 ## Open front
 
@@ -189,7 +255,10 @@ work: specify it against those constraints, and say what the crowd's
 thinness looks like at world zoom. The lane's first bridge request
 crossed as D325 (the displacement instrument now ships); the open
 request is the committed fit-scorecard snapshot that would let map-3
-rise to `measured` on a real displacement distribution. map-6's two
-recorded negatives (no study of readers mapping aggregates onto
+rise to `measured` on a real displacement distribution. map-10's two
+search-negatives (no study of readers mapping aggregates onto
 themselves; none on distinguishing the two populations in a display)
-are re-check items for future runs — one lead is parked in-node.
+stay re-check items — the one parked lead was checked 2026-09-01 and
+did not dent them. Four sibling nodes (pat-3, cen-1, cen-2, cen-7)
+still cite map-6 for content or a rung this fission moved; their
+owners repair them from this run's LOG row.
