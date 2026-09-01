@@ -417,6 +417,24 @@ describe("v2 profile", () => {
       testResults: { big5: { dims: [], title: "Big Five" } },
     }, { merge: true }));
     await assertFails(setDoc(mine, { testResults: "hacked" }, { merge: true }));
+    // …and capped at 8 keys, which nothing asserted either.
+    await assertFails(setDoc(mine, {
+      testResults: Object.fromEntries(
+        Array.from({ length: 9 }, (_, i) => [`t${i}`, { dims: [] }]),
+      ),
+    }, { merge: true }));
+    // The display name's own 60-char cap. It went untested from the day it
+    // was written: this case checked the unknown-field and stranger-write
+    // arms and stopped, so `isOptionalShortString(displayName, 60)` could be
+    // widened to 6000, or deleted, with the whole suite still green. That
+    // matters more than the number — displayName is the string rendered
+    // beside every answer, take, reveal row and directory hit, and it is the
+    // one field on this document a person types freely. Its two neighbours
+    // with identical caps (the anchors below, and `v2_people.name`) both
+    // have negative cases; this one had none.
+    await assertFails(setDoc(mine, { displayName: "x".repeat(61) }, { merge: true }));
+    await assertFails(setDoc(mine, { displayName: 7 }, { merge: true }));
+    await assertSucceeds(setDoc(mine, { displayName: "x".repeat(60) }, { merge: true }));
   });
 
   // Push tokens are the reveal sender's fan-out list, and a token is a
@@ -893,6 +911,40 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     await assertFails(setDoc(doc(asUser(STRANGER), "v2_users", OWNER, "engagement", rollupDay()), rollup()));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "_state"), rollup()));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_users", OWNER, "engagement", "2026-01-01"), rollup({ day: "2026-01-01" })));
+    // The forward half of the same window, untested here for the same
+    // reason as on the shard above.
+    const ahead = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "engagement", ahead), rollup({ day: ahead })));
+    // `dayparts` is a fixed FOUR-slot histogram the fold indexes
+    // positionally, and its size clause went untested alongside the
+    // build/platform pair the shard above has the same gap in.
+    //
+    // On a FRESH day id each, and that is the point rather than tidiness:
+    // written to rollupDay() these two passed with their clauses replaced
+    // by `true`, because the case's own opening assertSucceeds already
+    // created that document and the rule is create-only. A refusal for the
+    // wrong reason is not a test of anything.
+    const dayN = (back: number) =>
+      new Date(Date.now() - back * 86400000).toISOString().slice(0, 10);
+    // LONGER, not shorter, and that is the whole assertion: a 3-slot list
+    // is already refused by `dayparts[3] is int` one line down, so a short
+    // one proves nothing about the size clause. Five slots clear every
+    // element check and reach `size() == 4` alone.
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "engagement", dayN(2)),
+      rollup({ day: dayN(2), dayparts: [0, 1, 1, 0, 1] })));
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "engagement", dayN(5)),
+      rollup({ day: dayN(5), dayparts: [0, 1, 1] })));
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "engagement", dayN(3)),
+      rollup({ day: dayN(3), build: "24" })));
+    // The control: the same fresh ids are otherwise writable, so the two
+    // refusals above are the clauses and not the id.
+    await assertSucceeds(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "engagement", dayN(4)),
+      rollup({ day: dayN(4) })));
     // …and not a doc that DISAGREES with its own id, which the line above
     // does not test: it moves the id and the field together, so the window
     // bound refuses it and `day == docId` is never asked. The fold reads
@@ -958,8 +1010,19 @@ describe("Foresight CALL, tier A (D194): sealed, public, and closed once graded"
     // a uid on the question channel is the two-channel rule's exact breach
     await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-3"), shard({ uid: OWNER })));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-4"), shard({ day: "2026-01-01" })));
+    // Both directions. The duel idiom this block copied has a test named
+    // "no pre-sealing the future, no deep backfill"; the copy took the
+    // clause and half the test, so `day < request.time + 2d` could be
+    // widened to 2000 days with the suite green.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-4f"),
+      shard({ day: new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10) })));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-5"), shard({ s: { opens: 1, notAKey: 1 } })));
     await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-6"), shard({ sampled: false })));
+    // The build/platform pair is the shard's whole provenance — the pulse
+    // console slices by it — and neither clause was asserted: both could be
+    // replaced with `true` with the suite green.
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-7"), shard({ build: "24" })));
+    await assertFails(setDoc(doc(asUser(OWNER), "v2_attention", "shard-8"), shard({ platform: "linux" })));
   });
 
   it("refuses a sampling rate below the floor — the fold weighs by 1/rate", async () => {
@@ -1752,6 +1815,13 @@ describe("v2 foresight verdicts (D126)", () => {
   it("owner writes one verdict; a stranger cannot write it for them", async () => {
     await assertSucceeds(setDoc(fRef(OWNER, OWNER), verdict()));
     await assertFails(setDoc(fRef(STRANGER, OWNER, "q2__ageBand__25-34"), verdict({ qid: "q2" })));
+  });
+
+  it("refuses a negative population — the verdict's own denominator", async () => {
+    // `n` is how many people the guess was read against, and it is what a
+    // score is later divided by. The `is int` half was asserted; `>= 0`
+    // was not, so the clause could be deleted with the suite green.
+    await assertFails(setDoc(fRef(OWNER, OWNER, "qn__ageBand__25-34"), verdict({ qid: "qn", n: -1 })));
   });
 
   it("cannot be rewritten or deleted — a wrong read stays wrong", async () => {
@@ -2912,7 +2982,7 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
     await assertSucceeds(setDoc(doc(plain, "v2_users", OWNER, "answers", duelAid), duelAnswer()));
   });
 
-  it("enforced text: a HIGHER level than the bar still passes (D338)", async () => {
+  it("enforced text: a HIGHER level than the bar still passes (D342)", async () => {
     // The `>=` property, and it is not academic. With `==`, raising the
     // bar to 2 and later relaxing it to 1 would refuse every level-2
     // account — the strictest users locked out by a relaxation, which is
@@ -2923,7 +2993,7 @@ describe("D29 device binding: soft today, and the flip is pre-tested", () => {
     await assertSucceeds(setDoc(doc(linked, "v2_users", FRIEND, "answers", QID), worldAnswer()));
   });
 
-  it("enforced text: level 0 is refused exactly as an absent claim is (D338)", async () => {
+  it("enforced text: level 0 is refused exactly as an absent claim is (D342)", async () => {
     // 0 is a real level (accountLevel.ts: "signed in, nothing verified"),
     // so it must not read as "some claim, therefore fine" — the shape a
     // truthiness check would have.
@@ -3423,6 +3493,24 @@ describe("rank answers (D233): an order, never an index", () => {
     await assertFails(setDoc(
       doc(asUser(OWNER), "v2_users", OWNER, "answers", "feed-v1"),
       rankAnswer({ qid: "feed-v1" }),
+    ));
+  });
+
+  it("refuses a one-item order — a ranking of one is not a ranking", async () => {
+    // `order.size() >= 2` sits beside `order.size() == options.size()`, and
+    // only the second was ever exercised: every case here ranks a
+    // four-option question, so the floor could be deleted with the suite
+    // green. A one-option question satisfies the equality and has to fail
+    // on the floor alone.
+    await seed(async (db) => {
+      await setDoc(doc(db, "v2_questions", "feed-f04"), {
+        surface: "feed", seq: 4, type: "rank", prompt: "Rank it",
+        options: ["A"], active: true,
+      });
+    });
+    await assertFails(setDoc(
+      doc(asUser(OWNER), "v2_users", OWNER, "answers", "feed-f04"),
+      rankAnswer({ qid: "feed-f04", order: [0] }),
     ));
   });
 

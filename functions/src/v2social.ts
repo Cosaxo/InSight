@@ -87,11 +87,26 @@ function inviteCode(): string {
 
 // ── membership callables ────────────────────────────────────────
 
-async function assertMembershipCap(uid: string): Promise<void> {
+/**
+ * Is this account already in as many circles as it may be?
+ *
+ * A predicate as well as an assertion because the approval path cannot
+ * throw where it checks: `approveJoinV2` clears a stale queue row for
+ * somebody who is ALREADY a member, and that must keep working for a
+ * person at the cap — otherwise a row nobody can clear stays drawn on the
+ * owner's screen forever. So the query runs before the transaction (a
+ * transaction cannot run a query at all) and the answer is used inside it,
+ * where the "already a member" case is decided.
+ */
+async function atMembershipCap(uid: string): Promise<boolean> {
   const db = firestore();
   const mine = await db.collection("v2_groups")
     .where("memberUids", "array-contains", uid).limit(MEMBERSHIP_CAP).get();
-  if (mine.size >= MEMBERSHIP_CAP) {
+  return mine.size >= MEMBERSHIP_CAP;
+}
+
+async function assertMembershipCap(uid: string): Promise<void> {
+  if (await atMembershipCap(uid)) {
     throw new HttpsError("resource-exhausted", "too many groups on this account");
   }
 }
@@ -340,6 +355,18 @@ export const approveJoinV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
   if (!gid || !who) throw new HttpsError("invalid-argument", "gid and uid required");
   const db = firestore();
   const ref = db.doc(`v2_groups/${gid}`);
+  // THE JOINER'S CAP, checked here because this is the one admission path
+  // that never did. `createGroupV2`, the join REQUEST and the invite accept
+  // all assert it; approve checked only the circle's own size, so a
+  // popular invite link could put somebody in far more circles than the cap
+  // allows — thirty requests is one hour of the rate limit, and every
+  // approval is somebody else's tap. That cap is also what bounds
+  // deleteAccount's group walk, which has no limit of its own.
+  //
+  // Read before the transaction and USED inside it: a transaction cannot
+  // run a query, and the "already a member" branch below has to keep
+  // clearing stale queue rows for people who are at the cap.
+  const capped = await atMembershipCap(who);
   const name = await db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
     if (!snap.exists) throw new HttpsError("not-found", "no such circle");
@@ -363,6 +390,11 @@ export const approveJoinV2 = onCall({ ...LIGHT_CALLABLE, region: REGION, enforce
     if (!pending.includes(who)) throw new HttpsError("failed-precondition", "they have not asked");
     const cap = snap.get("mode") === "duo" ? 2 : GROUP_CAP;
     if (members.length >= cap) throw new HttpsError("resource-exhausted", "circle is full");
+    // …and the other side of the same bound: the circle has room, but they
+    // do not. Said as THEIR limit rather than as this circle's, because
+    // the person tapping "Let in" has done nothing wrong and the message
+    // is what they read.
+    if (capped) throw new HttpsError("resource-exhausted", "they are in too many circles");
     tx.update(ref, {
       memberUids: FieldValue.arrayUnion(who),
       [`memberNames.${who}`]: String(snap.get("pendingNames")?.[who] || ""),
@@ -727,14 +759,18 @@ async function revealGroupDay(
 
   // ONE FIELD, and the fieldMask is load-bearing rather than tidy. A
   // profile is client-writable and firestore.rules bounds only some of it:
-  // displayName and the anchors are capped, `testResults` only by KEY
-  // COUNT (8), and `anon`/`createdAt`/`updatedAt` not at all. So a member
+  // displayName and the anchors are capped, the consent record is keyed
+  // and typed, `testResults` is bounded only by KEY COUNT (8), and
+  // `createdAt`/`updatedAt` not at all — no cap, not even a type. So a member
   // can legitimately hold a document approaching Firestore's 1 MiB, and
   // LANES = 5 × GROUP_CAP = 32 puts up to 160 of them in flight on the
   // 512 MiB instance. The mask bounds the exposure regardless of what any
   // rule permits, which is why it is fixed here rather than by capping
-  // testResults: `anon` is equally unbounded and the next field added
-  // would be too. Reading past the gate narrows the same window further —
+  // testResults: `createdAt` is equally unbounded and the next field
+  // added would be too. (This named `anon` until 2026-08-31 — a key D331
+  // took off the allowlist, so the example had no writer at all. The
+  // argument held; its illustration named a ghost, which is the way an
+  // argument stops being checkable.) Reading past the gate narrows the same window further —
   // only days that actually reveal put profiles in flight at all.
   const profileSnaps = await db.getAll(
     ...members.map((uid) => db.doc(`v2_users/${uid}`)),

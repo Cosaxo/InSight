@@ -22,7 +22,7 @@ import java.security.SecureRandom;
  * device it ever ran on — silently, from the app's point of view, because
  * {@code src/v2/data/deviceBind.ts} treats any activation failure as "try
  * again on a later boot". Pasting it would have looked exactly like the
- * missing-bridge state it was meant to end (D337).
+ * missing-bridge state it was meant to end (D341).
  *
  * <p>WHAT THE NONCE BUYS HERE, stated honestly because it is less than the
  * word usually implies. Play echoes it back inside the signed payload, so

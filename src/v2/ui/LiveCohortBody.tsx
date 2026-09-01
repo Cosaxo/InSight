@@ -307,8 +307,21 @@ function LiveCohortBody({ scope = "city" }: { scope?: CohortScope }) {
       if (!cell) { empty++; continue; }
       n = agg.total || 0;
     } else {
-      const dim = agg.by?.[scope];
-      if (dim && !cell) empty++;
+      // COUNTED WHETHER OR NOT THE AGGREGATE HAS A MAP FOR THIS SCOPE.
+      // The `dim &&` guard meant a question whose aggregate carries no
+      // `by.city` at all was dropped from the rows AND skipped by this
+      // counter, so the reader got neither the row nor the sentence
+      // explaining its absence — which is the failure this counter exists
+      // to prevent, in its own test file's words: "a question that
+      // vanishes reads as 'not asked here' rather than 'not answered
+      // here'". Reachable, not theoretical: the server's bucket for an
+      // empty anchor is null, so a question answered only by people with
+      // no confirmed city publishes counts and no `by.city` — the state
+      // every city-rated question is in before anyone confirms one.
+      //
+      // "No aggregate at all" stays the third state it is meant to be:
+      // that is the `continue` two lines up, before this.
+      if (!cell) empty++;
       if (cell) n = Object.values(cell).reduce((a, b) => a + b, 0);
     }
     if (!cell || !n) continue;

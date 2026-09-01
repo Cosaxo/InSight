@@ -78,6 +78,11 @@ const LIVE = vi.hoisted(() => ({
   // honest empty state and these cases scroll past it.
   anchors: () => ({} as Record<string, string>),
   isFollowing: () => false,
+  // The follow buttons ask for this set now: `isFollowing` reads the
+  // circle when the Circle stop has loaded it and the follow set
+  // otherwise, which is the state every surface but that one is in.
+  loadFollows: async () => {},
+  follows: () => null as string[] | null,
   setFollowing: async () => {},
   // LIVE.near survives on the mock because the D92 city-derive effect
   // still reads the grant state here; the CARD moved to NearLiveBody
@@ -194,6 +199,26 @@ describe("LiveCohortBody · an absent cell is counted and named", () => {
   // reads as "this question doesn't exist here".
   const missingLine = (n: number, where: string) =>
     new RegExp(`${n} more question${n === 1 ? " has" : "s have"} no\\s+answers from ${where} yet`, "i");
+
+  it("counts one whose aggregate has no city map at all", () => {
+    // The state EVERY city-rated question is in before anybody confirms a
+    // city: the server's bucket for an empty anchor is null, so the
+    // aggregate publishes counts and no `by.city`. The counter skipped
+    // those — it asked for the scope's map first and only counted a
+    // missing cell INSIDE one — so the question was dropped from the rows
+    // and from the sentence, which is the silence this counter exists to
+    // prevent: "a question that vanishes reads as 'not asked here' rather
+    // than 'not answered here'".
+    LIVE.aggFor = (qid) => qid === "q1"
+      ? { by: { city: { "Oslo, NO": { "0": 7, "1": 5 } } } }
+      : { counts: { "0": 9, "1": 3 }, total: 12 };
+
+    mountAnswers("city");
+
+    expect(screen.getByText("First question")).toBeTruthy();
+    expect(screen.queryByText("Second question")).toBeNull();
+    expect(screen.getByText(missingLine(1, "Oslo"))).toBeTruthy();
+  });
 
   it("counts and names a question whose city cell is missing", () => {
     LIVE.aggFor = (qid) => qid === "q1"
@@ -766,6 +791,22 @@ describe("LiveCohortBody · the lens row is the stop's tabs", () => {
     expect(screen.getByText("Almost everyone agrees")).toBeTruthy();
   });
 
+  it("Country and World do not pay the city's voter fan-out", async () => {
+    // The saving, stated as the number that used to be paid: opening
+    // either of these stops awaited twelve collection-group queries of up
+    // to 200 answers plus the profile reads that resolve their names, for
+    // rows neither stop draws — the place fields read the test aggregates.
+    // This is the Near stop's fix from three nights ago, one stop over.
+    const kindred = vi.fn(async () => {});
+    LIVE.loadKindred = kindred;
+    for (const scope of ["country", "world"] as const) {
+      render(<LiveCohortBody scope={scope} />);
+      await act(async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); });
+      expect(kindred, `${scope} fetched the voter lists it never draws`).not.toHaveBeenCalled();
+      cleanup();
+    }
+  });
+
   it("costs nothing for a tab nobody opened, and pays as soon as one is", async () => {
     // The property the old collapsed strip existed for, restated for
     // tabs: People pays for voter lists, so it may not run because the
@@ -809,12 +850,21 @@ describe("LiveCohortBody · the lens row is the stop's tabs", () => {
     await vi.waitFor(() => {
       expect(similarity, "the constellation is the head of the stop and its fold did not run").toHaveBeenCalledTimes(1);
     });
-    expect(kindred, "Kindred was fetched for a People tab nobody opened").not.toHaveBeenCalled();
+    // KINDRED IS THE CITY FIELD'S OWN COST, and this assertion used to
+    // read the other way — "fetched for a People tab nobody opened" —
+    // which it could only ever prove because `loadSimilarity` is a SPY in
+    // this case. In production that loader awaited the fan-out itself, so
+    // the city stop paid it on arrival and always had; the spy simply hid
+    // where the money went. The loader is scoped to the city field now
+    // (live.ts), so the cost is where the reader can see it: the
+    // constellation this stop opens on is drawn FROM kindred rows, so
+    // arriving at City fetches them, and the case below is the half that
+    // matters — Country and World, which draw place aggregates, do not.
+    await vi.waitFor(() => {
+      expect(kindred, "the city constellation's own rows were never fetched").toHaveBeenCalled();
+    });
 
     fireEvent.click(tab("People"));
-    await vi.waitFor(() => {
-      expect(kindred, "opening People fetched nothing — the gate above guards nothing").toHaveBeenCalled();
-    });
     // D136 made this STRICTER than it was. While Overview was a tab, moving
     // away and back unmounted and re-mounted the field, so the loader fired
     // again — harmless (loadSimilarity early-returns on `similarityLoading`

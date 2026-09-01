@@ -9,7 +9,7 @@ public class MainActivity extends BridgeActivity {
      * where the bridge is built — registering after it leaves the plugin
      * compiled, shipped and invisible to JS. That failure is silent
      * (isPluginAvailable simply answers false and activation defers), which
-     * is the same shape as the missing bridge D337 found, so
+     * is the same shape as the missing bridge D341 found, so
      * `npm run check:devicebind` asserts this call exists.
      */
     @Override

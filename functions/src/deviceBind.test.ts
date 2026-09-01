@@ -155,7 +155,7 @@ describe("buildAppleJwt", () => {
   });
 });
 
-// The Play Integrity request check (D337). Neither arm is reachable from
+// The Play Integrity request check (D341). Neither arm is reachable from
 // the emulator — decodeIntegrityToken is a live Google call — so this is
 // the only place either is exercised before a real handset runs it.
 //

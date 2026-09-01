@@ -25,6 +25,13 @@ record in `DECISIONS.md`, per MONETIZATION.md's own rule — and two
 pieces (§3, §6) *reshape* standing sentences, so those records are not
 optional paperwork but the actual decision.
 
+**Where §9.2's door lives is under review (2026-08-31).** The self-serve
+loop keeps its shape — review, quote lock, checkout, webhook, closer are
+all server-side and none of that is in question. What is in question is
+the front end: the composer and pay tap sit in the app binary, which is
+what Apple's 3.1.1 addresses. See
+[`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md); nothing is adopted.
+
 ## 0 · What this keeps, and the two sentences it reshapes
 
 **Kept, deliberately, because each is what makes the thing sellable at

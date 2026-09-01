@@ -4099,7 +4099,20 @@ const LIVE = {
 
   /** Whether the viewer follows `uid` — answered from the loaded list. */
   isFollowing(uid: string): boolean {
-    return !!state.circle?.some((m) => m.uid === uid);
+    // THE CIRCLE WHEN IT IS LOADED, and otherwise the follow SET — which
+    // is the cheap list D149 built for exactly this question.
+    //
+    // `state.circle` is filled by one component, the Circle stop's body.
+    // Three surfaces draw a follow button — the Kindred cards, the city
+    // constellation's person card, and people search — and not one of them
+    // loads it. So this read was FALSE for everyone you already follow: the
+    // button said Follow with `aria-pressed` false, and the first tap
+    // re-wrote a follow you already had, which reloads the circle, flips
+    // the label to Following, and leaves unfollowing to a second tap. Two
+    // of those hosts already load the follow set for other reasons, so the
+    // answer was in memory and this predicate would not look at it.
+    if (state.circle) return state.circle.some((m) => m.uid === uid);
+    return !!state.follows?.includes(uid);
   },
   /**
    * Follow or unfollow, then reload. Optimism is deliberately NOT applied
@@ -4199,7 +4212,19 @@ const LIVE = {
         // AGG_ID_CAP top-up re-fetching it next boot.
         saveAggCache();
       }
-      await this.loadKindred();
+      // NOT loadKindred(). It was awaited here, so opening Country or
+      // World paid the voter fan-out — twelve collection-group queries of
+      // up to 200 answers each, plus the profile reads that resolve their
+      // names — for data neither stop reads: the place fields draw from
+      // the test aggregates above. Only City reads `kindredPeople()`, and
+      // the People lens loads it for itself.
+      //
+      // The city half was already scoped this way, by the effect in
+      // LiveSimilarityField that calls `loadCityKindred()` under a comment
+      // saying Country and World "never filter on it, so paying a second
+      // fan-out there would buy nothing". The general one is scoped there
+      // too now. Same shape as the Near stop's fix three nights ago: the
+      // loader belongs to the surface that reads it.
     } catch (err) {
       reportError(err, { where: "loadSimilarity" });
     } finally {

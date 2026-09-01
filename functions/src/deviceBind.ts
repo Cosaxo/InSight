@@ -254,7 +254,7 @@ async function iosActivate(deviceToken: string, now: Date): Promise<boolean> {
  * refuses to build a request without a nonce, so a token that carries none
  * did not come from this app's bridge; treating that as acceptable would
  * make the check decorative, which is the failure mode this whole area
- * already had once (D337).
+ * already had once (D341).
  */
 export function requestDetailsProblem(
   details: { requestPackageName?: string; nonce?: string } | undefined,

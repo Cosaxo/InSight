@@ -99,6 +99,37 @@ const fakeDb = {
 
 vi.mock("./db", () => ({ db: () => fakeDb, FIRESTORE_DB_ID: "insight" }));
 
+// The refund side, as thin as the db fake and for the same reason: what is
+// under test is the closer's control flow around the money, not Stripe.
+// `refunds.list` answers what has already been paid back on an intent,
+// which is the question the closer has to ask before it pays.
+const stripeCalls = {
+  created: [] as Array<{ intent: string; amount: number; key: string | undefined }>,
+  listed: [] as string[],
+};
+const refundsByIntent = new Map<string, Array<{ id: string }>>();
+vi.mock("stripe", () => ({
+  default: class {
+    refunds = {
+      list: async ({ payment_intent: pi }: { payment_intent: string }) => {
+        stripeCalls.listed.push(pi);
+        return { data: refundsByIntent.get(pi) ?? [] };
+      },
+      create: async (
+        body: { payment_intent: string; amount: number },
+        opts?: { idempotencyKey?: string },
+      ) => {
+        stripeCalls.created.push({
+          intent: body.payment_intent, amount: body.amount, key: opts?.idempotencyKey,
+        });
+        const made = { id: `re_${stripeCalls.created.length}` };
+        refundsByIntent.set(body.payment_intent, [...(refundsByIntent.get(body.payment_intent) ?? []), made]);
+        return made;
+      },
+    };
+  },
+}));
+
 const { closePaidCampaignsV2, CLOSER_PAGE, CLOSER_MAX_PAGES } = await import("./paid");
 
 const YESTERDAY = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
@@ -132,6 +163,55 @@ beforeEach(() => {
   queries.length = 0;
   deletedAds.length = 0;
   aggs.clear();
+  stripeCalls.created.length = 0;
+  stripeCalls.listed.length = 0;
+  refundsByIntent.clear();
+  delete process.env.STRIPE_SECRET_KEY;
+});
+
+describe("the closer never refunds the same campaign twice", () => {
+  // The refund moves money and the purchase is marked closed AFTER it. A
+  // timeout in that window leaves the row `running` with the money already
+  // sent, and `until < today` stays true forever — so the next night
+  // recomputes the same amount and pays it again. Under the cap that is a
+  // silent second refund; over it, Stripe rejects, the catch holds the
+  // purchase open, and the campaign can never close.
+  const owed = (id: string) => ({
+    id,
+    data: {
+      state: "running",
+      kind: "question",
+      qid: `q_${id}`,
+      window: { until: YESTERDAY },
+      // 100 answers bought at €1, none served: the whole €100 comes back.
+      budget: { cap: 100, capEur: 100, ratePerAnswer: 1 },
+      stripePaymentIntent: `pi_${id}`,
+    } as Record<string, unknown>,
+  });
+
+  it("asks what has already been refunded before paying, and pays with a key", async () => {
+    process.env.STRIPE_SECRET_KEY = "sk_test_closer";
+    purchases.push(owed("p1"));
+    await runCloser();
+    expect(stripeCalls.listed, "it paid without asking").toEqual(["pi_p1"]);
+    expect(stripeCalls.created).toHaveLength(1);
+    expect(stripeCalls.created[0].amount).toBe(10000);
+    expect(stripeCalls.created[0].key, "a retry inside 24h would pay twice").toBe("close_p1");
+    expect(stateOf("p1")).toBe("closed");
+  });
+
+  it("closes without a second transfer when the crash already paid", async () => {
+    // The exact survivor of a crash between the transfer and the write:
+    // the money is gone, the row still says running.
+    process.env.STRIPE_SECRET_KEY = "sk_test_closer";
+    refundsByIntent.set("pi_p2", [{ id: "re_from_the_dead_run" }]);
+    purchases.push(owed("p2"));
+    await runCloser();
+    expect(stripeCalls.created, "the buyer was refunded twice").toHaveLength(0);
+    expect(stateOf("p2")).toBe("closed");
+    const closed = purchases.find((r) => r.id === "p2")!.data.closed as { refundId?: string };
+    expect(closed.refundId, "the refund that really happened was not recorded").toBe("re_from_the_dead_run");
+  });
 });
 
 describe("the campaign closer walks past its first page", () => {

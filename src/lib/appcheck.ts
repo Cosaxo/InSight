@@ -54,10 +54,46 @@ export async function initAppCheck(): Promise<void> {
   const webSiteKey = import.meta.env.VITE_APPCHECK_RECAPTCHA_SITE_KEY as
     | string
     | undefined;
-  // On web with no site key configured, skip — App Check is opt-in
-  // for dev so we don't force every contributor to provision their
-  // own reCAPTCHA registration.
-  if (!isNative && !webSiteKey) return;
+  // VITE_APPCHECK_DEBUG carries two shapes and the difference matters.
+  // "true" asks the SDK to MINT a token and print it for you to register
+  // once — right for a developer's browser, useless for CI, where a fresh
+  // token every run would need registering every run. Any other non-empty
+  // value IS a token, already registered, which is the only form a job can
+  // use. `debugToken` takes both (plugin definitions.d.ts: boolean | string).
+  const debugRaw = import.meta.env.VITE_APPCHECK_DEBUG as string | undefined;
+  const debugToken: boolean | string | undefined = !debugRaw
+    ? undefined
+    : debugRaw === "true"
+      ? true
+      : debugRaw;
+  // On web, App Check needs either a real reCAPTCHA registration or a debug
+  // token; with neither, skip — it stays opt-in for dev so a contributor
+  // need not provision their own registration. The debug half of this
+  // condition is what lets a browser keep reading Firestore after console
+  // enforcement is flipped on (LAUNCH-RUNBOOK 3.4), which is the moment an
+  // unattested dev browser and the screenshot job both stop working.
+  if (!isNative && !webSiteKey && !debugToken) return;
+  // The plugin demands a `provider` or a `siteKey` on web and builds a
+  // ReCaptchaV3Provider out of the latter. In debug mode that provider is
+  // never asked for a token — @firebase/app-check short-circuits getToken to
+  // the debug exchange — but initializeAppCheck still calls
+  // provider.initialize(), which loads Google's reCAPTCHA script. With no
+  // real registration that means a script fetch and a console error for an
+  // answer nothing reads, so hand it a provider that cannot be consulted
+  // rather than a placeholder key. Imported dynamically: web-only, and the
+  // native bundle should not carry it.
+  let webProvider: unknown;
+  if (!isNative && debugToken && !webSiteKey) {
+    const { CustomProvider } = await import("firebase/app-check");
+    webProvider = new CustomProvider({
+      getToken: () =>
+        Promise.reject(
+          new Error(
+            "[appcheck] debug mode: the provider must never be consulted.",
+          ),
+        ),
+    });
+  }
   try {
     await FirebaseAppCheck.initialize({
       // Auto-refresh keeps the token valid for the lifetime of the
@@ -65,15 +101,18 @@ export async function initAppCheck(): Promise<void> {
       isTokenAutoRefreshEnabled: true,
       // Site key is only consulted by the web provider; ignored on
       // iOS / Android where the plugin auto-selects DeviceCheck /
-      // Play Integrity.
-      ...(webSiteKey ? { siteKey: webSiteKey } : {}),
-      // Debug provider — opt-in via env var. In a debug build, the
-      // plugin prints a token to the device log that you then
-      // register in the Firebase console to allow that build past
-      // App Check. Never set this in production builds.
-      ...(import.meta.env.VITE_APPCHECK_DEBUG === "true"
-        ? { debugToken: true }
-        : {}),
+      // Play Integrity. `provider` wins over `siteKey` in the plugin, and
+      // only exists on the debug-without-a-key path above.
+      ...(webProvider
+        ? { provider: webProvider }
+        : webSiteKey
+          ? { siteKey: webSiteKey }
+          : {}),
+      // Debug provider — opt-in via env var, and a BYPASS rather than an
+      // attestation: whoever holds the token gets past App Check. Never set
+      // it in a build that reaches users; `shipsDebugToken` in
+      // scripts/appcheck-guard.ts refuses one at build time.
+      ...(debugToken !== undefined ? { debugToken } : {}),
     });
     initialized = true;
   } catch (err) {

@@ -42,10 +42,10 @@ exports and passes both gates with no Mac (run 6).
 - **The privacy nutrition label is not pushable at all.** Apple's API has
   no App Privacy resource (D73), so the metadata workflow prints it as the
   form and it is typed in by hand. **Still outstanding.**
-- **Trader status: declared** (D69). Waiting on a *bostedsattest* as the
-  address document — and the wait has two exits (4.3b, measured
-  2026-08-20): Skatteetaten issues it digitally to the Altinn inbox in
-  ~3 days, and pending verification gates only the EU-27 storefronts.
+- **Trader status: declared** (D69), **and the address document was
+  uploaded 2026-08-30.** The *bostedsattest* arrived 23 days after the
+  declaration and went up the same day. 4.3b now waits on Apple's
+  verification, which gates only the EU-27 storefronts.
 
 **Three decisions came out of that week and each is a gate now**: D73 (the
 privacy label has no endpoint), D74 (a tick is printed after the write, not
@@ -121,23 +121,28 @@ arithmetic.
 
 ## Phase 0 — Do these first (about an hour, one console)
 
-- [ ] **0.0 Decide the Firestore region — the only item here with a
-      DEADLINE.** Not a task so much as a fork, and it sits above the seed
-      because every day it is not decided makes it more expensive.
-      A database's location is fixed at creation, so this stops being a
-      setting and becomes a migration the moment real answers accumulate.
-      Worth roughly half of every Firestore line, forever, with no
-      user-visible change — and worth ~$20/month at the traction this app
-      is actually planning for, so the money is not the argument. The
-      deadline is.
+- [x] **0.0 The Firestore region — TAKEN 2026-08-15 (D165), and the
+      procedure finished 2026-08-27 (D333).** Production is `insight` /
+      `europe-west1`, a single region; `nam5` is the option not taken,
+      and deleting `(default)` was the last step. This carried the only
+      DEADLINE in the file, because a database's location is fixed at
+      creation and becomes a migration the moment real answers
+      accumulate — which is exactly why it was taken before they did.
 
-      [`FIRESTORE-REGION.md`](FIRESTORE-REGION.md) has the arithmetic, the
-      three options, the ordered procedure, and the two ways the migration
-      fails **silently** (a deploy sub-target that prints "Deploy
-      complete!" and ships nothing, and a Firestore trigger that binds to
-      the wrong database and simply never fires). Read it before touching
-      anything; staying on `nam5` is a legitimate answer and the point of
-      the page is that it be an answer rather than a default.
+      **The box stayed unticked for two weeks after the fact**, and that
+      is the documentation error this repo keeps re-committing (D39): the
+      tree said `europe-west1` the whole time — `FIRESTORE_LOCATION` in
+      `functions/src/db.ts`, `FUNCTIONS_REGION` in `functions/src/ops.ts`
+      — and only the checkbox lagged. It read as the largest open item on
+      the list while being the most finished thing on it.
+
+      [`FIRESTORE-REGION.md`](FIRESTORE-REGION.md) keeps its argument in
+      the present tense of a decision that was still open, on purpose:
+      the arithmetic, the three options, the ordered procedure, and the
+      two ways the migration fails **silently** (a deploy sub-target that
+      prints "Deploy complete!" and ships nothing, and a Firestore
+      trigger that binds to the wrong database and simply never fires).
+      Read it before touching a database region again, here or anywhere.
 
       **DONE 2026-08-15 (D165): `insight` / `europe-west1` is live** —
       created, rules + functions deployed, bank seeded and verified. The
@@ -374,6 +379,49 @@ arithmetic.
       the app and configuring its provider are two separate actions in the
       same console page, and having one without the other looks identical
       to having neither.
+
+      **AND THE REMAINING HALF IS NOT BEING DONE (D337, 2026-08-30).**
+      The owner's reading, checked against the tree and correct: there is
+      no public web client and none is planned. `web/` is seven static
+      pages, none of which loads Firebase — `web/home.html` says so in its
+      own comment, *"Deliberately NOT the app: InSight is a native
+      product"* — and the shipping product attests through DeviceCheck.
+      So the web reCAPTCHA provider was never for users. It is for the two
+      browsers that read production Firestore: **a developer's, and the
+      screenshot job's**, both of which stop working the moment 3.4 flips.
+      This step never said that, which is why it read as a launch item.
+
+      **The supported answer for both is a debug token, not reCAPTCHA** —
+      Firebase's own debug-provider documentation says so for CI, and the
+      reason is that reCAPTCHA v3 scores behaviour and a headless browser
+      is what it is built to score low. `src/lib/appcheck.ts` takes one in
+      `VITE_APPCHECK_DEBUG`: `true` mints a token and prints it for you to
+      register once, any other value IS a registered token, which is the
+      only form a job can use.
+
+      **The three actions, in order. Two tokens, not one** — a token is a
+      credential, and one shared between a laptop and a public CI log is
+      revoked in both places at once when either leaks:
+
+      1. **Mint yours.** Put `VITE_APPCHECK_DEBUG=true` in `.env` and run
+         the app locally. The browser console prints the token.
+      2. **Register it.** Firebase Console → **App Check** → **Apps** →
+         the web app → the three-dot menu → **Manage debug tokens** →
+         paste it in.
+      3. **Repeat for CI**, with its own token, and put that one in
+         GitHub → Settings → Secrets and variables → Actions as
+         **`APPCHECK_DEBUG_TOKEN`**. That is the name
+         `.github/workflows/screenshots.yml` already reads.
+
+      All three before 3.4, not after — the flip is what makes them
+      load-bearing.
+
+      **A debug token is a bypass, not an attestation.** Whoever holds it
+      is past App Check. One per environment, in secrets, never in a build
+      that reaches users — `shipsDebugToken` in `scripts/appcheck-guard.ts`
+      refuses a production build carrying one, which is why the screenshot
+      job builds `--mode capture`. Provision reCAPTCHA only if a public
+      web build ever ships.
 
       DeviceCheck needs a `.p8` key, not a toggle — an earlier note in
       this conversation said "one click, no keys" and that was wrong.
@@ -1000,6 +1048,14 @@ start.
       production environment is the incident switch.
       `SHIP-CHECKLIST § hardening`.
 
+      **Two browsers break on this flip, and both are yours.** A dev
+      browser and the screenshot job read production Firestore without
+      attesting, which is fine only while enforcement is off. Register
+      the debug tokens 1.4 describes BEFORE flipping: afterwards a
+      screenshot run fails at the size gate with nothing in its output
+      about why, and `npm run dev` against real data simply stops
+      returning rows.
+
 ## Phase 4 — Build the listings (do this while the clocks run)
 
 The harness, the graphic and the copy all landed 2026-08-03. **The copy is
@@ -1131,30 +1187,35 @@ That is a tester-count problem, not a workflow problem.
       that can replace it, which is a second and independent reason to want
       the ENK that D42 parked.
 
-      **Declared 2026-08-07. Waiting on the address document.** Apple asks
-      for proof of address; a Norwegian *bostedsattest* from Skatteetaten
-      is the one that fits and it arrives by post. This step is open only
-      until that envelope does — it is waiting, not work, so do not let it
-      block anything below it.
+      **Declared 2026-08-07. The document arrived 2026-08-30**, 23 days
+      later — the *bostedsattest* from Skatteetaten, which is the
+      Norwegian record that fits Apple's ask for proof of address. The
+      wait this step was open for is over, and both of the exits it
+      carried are spent.
 
-      **The envelope is the slow path, and it is not the only one
-      (researched 2026-08-20, still unarrived at ~2 weeks).** Two exits,
-      independent of each other:
+      **It is not in this repo, and it must not be.** The page carries a
+      fødselsnummer and a date of birth next to the address, and a git
+      history is the wrong place for any of the three — irrevocable by
+      construction, and mirrored by every clone. What is recorded here is
+      that the document arrived, not what it says.
 
-      - **Order the attest digitally.** Skatteetaten issues the
-        bostedsattest to the Altinn inbox in about three days; the
-        stamped paper copy is the one that costs up to two weeks plus
-        postage, and Apple never sees the stamp — the upload takes a
-        PDF, and Apple's wording asks only for "business or legal
-        records" that verify name and address. Ordering the digital one
-        now does not conflict with the paper order already in flight.
-      - **Ship without the EU 27, add them on verification.** Pending
-        trader verification gates ONLY EU distribution — Norway is EEA
-        (D69), and submission, TestFlight and every non-EU storefront
-        are untouched. Pricing and Availability can exclude the EU 27 at
-        launch and add them later without a new review. That order also
-        buys time to register the ENK (D69's way out) before the home
-        address publishes on any listing.
+      **Uploaded 2026-08-30**, through App Store Connect → **Business**
+      → *Trader Status*. **The step stays open anyway, and D74 is why:**
+      the upload is a fact, EU distribution being unblocked is not one
+      yet. It closes when the console reports the status verified — that
+      is Apple's to run, not work in this file. If the document comes
+      back instead, the open question is whether to send the
+      fødselsnummer unmasked: Apple's wording asks only for records
+      verifying **name and address**, so no part of the form needs it,
+      and that is the owner's call rather than this file's.
+
+      **Nothing below waits on it.** Verification gates ONLY EU
+      distribution — Norway is EEA (D69), so submission (6.2),
+      TestFlight and every non-EU storefront are untouched while it
+      runs. Pricing and Availability can still exclude the EU 27 at
+      launch and add them on verification without a new review, which
+      stays the way to register the ENK (D69's way out) before the home
+      address publishes on any listing.
 - [ ] **4.4 The privacy nutrition label — the last form, and it is manual.**
       Mandatory; Apple accepts no submission without it.
 
@@ -1445,7 +1506,7 @@ That is a tester-count problem, not a workflow problem.
       "three alerts, deliberately" for as long as there were eight, and
       `MONITORING.md` said seven through a sweep that claimed to have found
       every copy.
-- [x] **5.6 Version lockstep — holds at 2.0.0 build 27.**
+- [x] **5.6 Version lockstep — holds at 2.0.0 build 29.**
       *This line was stale three times, each one a bump behind 2.4 — build
       11 on 2026-08-13, build 12 later the same day, then 13 against a tree
       at 22.* It is the D39 shape — a figure kept current by intention —

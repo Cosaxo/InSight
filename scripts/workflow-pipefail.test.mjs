@@ -100,3 +100,70 @@ describe("workflow steps that pipe into tee", () => {
     });
   }
 });
+
+// ── the other way a workflow step fails invisibly ────────────────────
+//
+// `continue-on-error: true` removes a step from the job's conclusion
+// entirely: it can fail and the run is still green. That is deliberate
+// where it is used — nothing about static hosting should abort a rules
+// deploy — and it is only safe if something REPORTS the outcome. The
+// deploy workflow's own comments said the failure would be "surfaced in
+// the job summary" while the file had no summary step and read no
+// outcome, and that is exactly how `--only storage:rules` failed on every
+// deploy until a run log was audited by hand.
+//
+// The rule is per file rather than global: a workflow may legitimately
+// have no such steps.
+describe("continue-on-error steps are reported somewhere", () => {
+  const parse = (src) => {
+    // Steps as raw blocks, split on the `- name:` boundary the whole file
+    // uses. A YAML parse would be heavier and no more truthful here: what
+    // matters is the text GitHub reads.
+    const out = [];
+    const lines = src.split("\n");
+    let cur = null;
+    for (const line of lines) {
+      if (/^\s*-\s+name:/.test(line)) {
+        if (cur) out.push(cur);
+        cur = { head: line, body: "" };
+      } else if (cur) cur.body += line + "\n";
+    }
+    if (cur) out.push(cur);
+    return out;
+  };
+
+  // A step that only runs ON a failure cannot hide one: the run is already
+  // red, and its job is to add context to it — both of the repo's are "Why
+  // it failed — the function's own log". The rule is about steps that run
+  // on a HEALTHY path and are allowed to fail quietly there.
+  const optionalOn = (body) =>
+    /continue-on-error:\s*true/.test(body) && !/if:\s*failure\(\)/.test(body);
+
+  for (const f of files) {
+    const src = readFileSync(join(dir, f), "utf8");
+    const steps = parse(src).filter((s) => optionalOn(s.body));
+    if (!steps.length) continue;
+    it(`${f} gives every optional step an id and reads it back`, () => {
+      for (const s of steps) {
+        const id = /\bid:\s*([\w-]+)/.exec(s.body);
+        expect(
+          id,
+          `${f} has a continue-on-error step with no \`id:\` — nothing can read its `
+            + `outcome, so its failure is invisible on a green run:\n${s.head.trim()}`,
+        ).toBeTruthy();
+        expect(
+          src.includes(`steps.${id[1]}.outcome`),
+          `${f} never reads \`steps.${id[1]}.outcome\` — the step can fail with the `
+            + "run still green and nothing said:\n" + s.head.trim(),
+        ).toBe(true);
+      }
+    });
+  }
+
+  it("finds the optional steps this rule is about", () => {
+    const optional = files.flatMap((f) =>
+      parse(readFileSync(join(dir, f), "utf8")).filter((s) => optionalOn(s.body)));
+    expect(optional.length, "no continue-on-error steps found on a healthy path — the rule measures nothing")
+      .toBeGreaterThan(1);
+  });
+});

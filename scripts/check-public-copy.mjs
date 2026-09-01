@@ -81,9 +81,31 @@ const HTML_FILES = readdirSync(join(root, "web"))
   .filter((f) => !(f in EXEMPT_PAGES))
   .sort()
   .map((f) => `web/${f}`);
-const TSX_FILES = [
-  "src/v2/ui/LivePrivacyPanel.tsx",
-];
+// EVERY in-app surface, read from the directories, for the same reason the
+// `web/` half is: this was a hand list of ONE — the privacy panel — in the
+// gate whose own note above says "a hand list is not a remedy, it is the
+// thing that goes stale". A retired-model sentence in any other screen was
+// unreachable to it, and user-facing copy lives across all of these files.
+//
+// Comments are stripped by `collect()` below before scanning, which is what
+// makes this safe to widen: this layer explains its own history in prose
+// and quotes the old wording on purpose. Measured when it was widened: 133
+// files, zero hits — so the scope grew without a single sentence having to
+// change.
+//
+// A file that genuinely must opt out goes in EXEMPT_SOURCES with its
+// reason, the same shape EXEMPT_PAGES has, which is a line somebody writes
+// on purpose rather than one they can forget.
+const EXEMPT_SOURCES = {};
+const SOURCE_DIRS = ["src/v2/ui", "src/v2/spec"];
+const TSX_FILES = SOURCE_DIRS.flatMap((dir) => readdirSync(join(root, dir))
+  .filter((f) => /\.(tsx|jsx|js)$/.test(f))
+  // Tests are not copy: their fixtures quote the old model on purpose, and
+  // the mount suites assert on strings a user never sees.
+  .filter((f) => !/\.test\./.test(f))
+  .filter((f) => !(`${dir}/${f}` in EXEMPT_SOURCES))
+  .sort()
+  .map((f) => `${dir}/${f}`));
 const LISTING = "design/store/listing.json";
 
 // The two store-form surfaces, added 2026-08-30 because one of them had
@@ -250,7 +272,7 @@ export function collect() {
       out.push({ label: rel, text: raw });
       continue;
     }
-    if (rel.endsWith(".tsx")) {
+    if (/\.(tsx|jsx|js)$/.test(rel)) {
       // Strip block and line comments: a TSX file's comments explain the
       // history to the next maintainer and quote the old wording on
       // purpose — LivePrivacyPanel's does exactly that, twice. Scanning

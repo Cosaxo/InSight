@@ -893,6 +893,11 @@ function SimilaritySection({ scope }: {
   // the stop — no tab to open first, nothing to opt into. The loader is
   // bounded and session-cached; see live.ts loadSimilarity.
   React.useEffect(() => { void LIVE.loadSimilarity(); }, []);
+  // The person card this field opens carries a follow button, and the
+  // stop that loads the circle is a different one — so the set that
+  // answers "already following?" is asked for here. One query,
+  // session-cached.
+  React.useEffect(() => { void LIVE.loadFollows(); }, []);
   // The city half of the pool, for the one stop that filters by city
   // (D278). Scoped to this effect rather than folded into loadSimilarity
   // because Country and World never filter on it — they read place
@@ -900,7 +905,12 @@ function SimilaritySection({ scope }: {
   // buy nothing. Session-cached and keyed on the anchor; a viewer with no
   // city returns immediately.
   React.useEffect(() => {
-    if (scope === "city") void LIVE.loadCityKindred();
+    if (scope !== "city") return;
+    // Both halves of the pool, and both only here. `loadSimilarity` used
+    // to await the general fan-out for every scope, so Country and World
+    // paid a few thousand reads for rows they never draw.
+    void LIVE.loadKindred();
+    void LIVE.loadCityKindred();
   }, [scope]);
   if (!LIVE.enabled) return null;
 

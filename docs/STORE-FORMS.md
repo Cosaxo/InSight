@@ -471,9 +471,20 @@ answers came from:
   health topic. The nearest real candidate is the personality and politics
   profiles, and neither is health or wellness.
 
-Also **Made for Kids: No**, and **In-app purchases: No** — `MONETIZATION.md`
-records no consumer paid tier at launch. Neither is an
-`ageRatingDeclarations` attribute, so neither is in the table.
+Also **Made for Kids: No**, and **In-app purchases: No** — there are no
+StoreKit products, which is what that field asks about.
+
+**The answer stands; the reason it used to give does not.** It read
+"`MONETIZATION.md` records no consumer paid tier at launch", which went
+stale at D313: there IS a paid tier now — a buyer books a question or a
+feed ad and pays through Stripe — it is simply B2B and off-StoreKit.
+Same answer, dead reasoning, which is the D179/D183 shape exactly. Where
+that purchase surface may live without the stores taking a cut of it is
+[`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md), and SHIP-CHECKLIST § 3 carries
+it as a pre-submission decision.
+
+Neither is an `ageRatingDeclarations` attribute, so neither is in the
+table.
 
 **Expect 12+ / 13+.** Answer it deliberately rather than accepting a
 default.

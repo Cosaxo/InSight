@@ -7,7 +7,7 @@
 // Sentry event, no failed vote — because enforcement is soft, the app
 // behaves identically whether device binding works or has never run at
 // all. That is exactly how D29's gate sat inert from the day it was
-// written until D337, while later records (D219 above all) cited it as a
+// written until D341, while later records (D219 above all) cited it as a
 // live control.
 //
 // So the failure this guards is not "someone deleted the plugin". It is

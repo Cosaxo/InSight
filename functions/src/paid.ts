@@ -1441,11 +1441,38 @@ export const closePaidCampaignsV2 = onSchedule(
               const { default: Stripe } = await import("stripe");
               stripe = new Stripe(key);
             }
-            const refund = await stripe.refunds.create({
-              payment_intent: paymentIntent,
-              amount: Math.round(refundEur * 100),
-            });
-            refundId = refund.id;
+            // ASK BEFORE PAYING, and pay idempotently. The refund moves
+            // money and the purchase is marked closed AFTER it — so a
+            // timeout or a crash in that window leaves the row `running`
+            // with the money already sent, and `until < today` stays true
+            // forever, which means tomorrow's run recomputes the SAME
+            // amount and refunds again. When twice the refund still fits
+            // under the cap the buyer is quietly refunded twice; when it
+            // does not, Stripe rejects it, the catch below holds the
+            // purchase open, and the campaign can never close — every
+            // night, until an operator intervenes.
+            //
+            // Two guards because one is not enough. The idempotency key
+            // covers a retry inside Stripe's 24-hour window; this job runs
+            // daily, so the NEXT night is outside it, and only the lookup
+            // covers that. The charge side of this file already takes this
+            // seriously — it records duplicate payments and alarms on them,
+            // and expires a prior checkout session because "two open
+            // sessions is two ways to be charged for one question". The
+            // refund side had nothing.
+            const prior = await stripe.refunds.list({ payment_intent: paymentIntent, limit: 1 });
+            if (prior.data.length) {
+              refundId = prior.data[0].id;
+              logger.warn(`[paid] ${doc.id} already refunded (${refundId}) — closing without a second transfer`, {
+                metric: "paid_refund_already",
+              });
+            } else {
+              const refund = await stripe.refunds.create({
+                payment_intent: paymentIntent,
+                amount: Math.round(refundEur * 100),
+              }, { idempotencyKey: `close_${doc.id}` });
+              refundId = refund.id;
+            }
           } catch (err) {
             // A failed refund HOLDS the purchase open — closing it would
             // record the debt as settled. Tomorrow's run retries.

@@ -77,6 +77,8 @@ const h = vi.hoisted(() => ({
   // listener the tests used to push into, so its fixtures are a document set
   // rather than a callback, and they land in this same map.
   aggDocs: [] as FakeSnapshotDoc[],
+  /** The viewer's `following` rows — the set every follow button reads. */
+  followDocs: [] as FakeSnapshotDoc[],
   // Documents the my-answers query resolves to (empty = the fresh-account
   // boot every earlier case was written against). Added for the catalog
   // fold: an entity answer doc has no optionIdx, and hydrate's fold has to
@@ -291,6 +293,13 @@ vi.mock("firebase/firestore", () => {
         h.voterQueries.push(wheres);
         const city = typeof wheres["anchors.city"] === "string" ? wheres["anchors.city"] as string : "";
         return Promise.resolve(snapOf(h.voterDocs[city] || []));
+      }
+      // The viewer's own follow rows. Served because `isFollowing` reads
+      // this set when the circle is not loaded, and every follow button
+      // outside the Circle stop is in exactly that state — with the path
+      // unserved, the store could only ever answer "not following".
+      if (q?.path === "v2_users/uid_test/following") {
+        return Promise.resolve(snapOf(h.followDocs));
       }
       if (q?.path === "v2_question_aggs") {
         const ids = (q.parts || [])
@@ -696,6 +705,24 @@ describe("a loader that starts tells its subscribers it started", () => {
     expect(calls).toBeGreaterThan(0);
     expect(LIVE.votersLoading("q_1")).toBe(true);
     await flush();
+  });
+
+  it("isFollowing answers from the follow set, not only from the circle", async () => {
+    // `state.circle` is filled by ONE component, the Circle stop's body,
+    // and three surfaces draw a follow button without ever loading it: the
+    // Kindred cards, the city constellation's person card, and people
+    // search. So this predicate returned false for everyone you already
+    // follow — the button read Follow with aria-pressed false, and the
+    // first tap re-wrote a follow you already had before the label could
+    // flip. Two of those hosts already load the set for other reasons, so
+    // the answer was in memory and the predicate would not look at it.
+    h.followDocs = [{ id: "u_friend", data: { to: "u_friend", at: { seconds: 1 } } }];
+    const LIVE = await bootLive();
+    expect(LIVE.isFollowing("u_friend"), "before the set is asked for").toBe(false);
+    await LIVE.loadFollows();
+    expect(LIVE.follows()).toContain("u_friend");
+    expect(LIVE.isFollowing("u_friend"), "the set was loaded and ignored").toBe(true);
+    expect(LIVE.isFollowing("u_stranger")).toBe(false);
   });
 
   it("loadFollows", async () => {
@@ -2425,6 +2452,46 @@ describe("loadSimilarity — parallel chunks keep partial progress (D169)", () =
       expect.anything(),
       expect.objectContaining({ where: "loadSimilarity" }),
     );
+  });
+
+  it("fetches the place aggregates and NOT the voter lists", async () => {
+    // This awaited `loadKindred` — twelve collection-group queries of up
+    // to 200 answers each, plus the profile reads that resolve their
+    // names — and every stop that draws a constellation called it. Only
+    // City reads those rows; Country and World draw places from the test
+    // aggregates fetched above, so the fan-out was bought for nothing on
+    // two stops out of three. It is the city field's own loader now.
+    h.bankDocs.push({
+      id: "q_t00",
+      data: {
+        surface: "test", seq: 100, type: "vote", prompt: "Item",
+        options: ["1", "2", "3", "4", "5"], topic: "self", test: "big5", active: true,
+      },
+    });
+    h.aggDocs.push({ id: "q_t00", data: { total: 4, counts: { "2": 4 } } });
+    // A vote of the viewer's own, because the fan-out picks its questions
+    // from those: with none, `loadKindred` returns without asking anybody
+    // anything and the assertion below would hold for the wrong reason.
+    // The control at the end of the case is what proves it does not.
+    h.answerDocs.push({
+      id: "q_1",
+      data: { qid: "q_1", optionIdx: 0, surface: "daily", answeredAt: { seconds: 1 } },
+    });
+    const LIVE = await bootLive();
+    h.voterQueries.length = 0;
+
+    await LIVE.loadSimilarity();
+
+    expect(LIVE.aggFor("q_t00"), "the place profiles' own aggregates did not land").not.toBeNull();
+    expect(h.voterQueries, "the constellation fold paid the voter fan-out again").toHaveLength(0);
+
+    // THE CONTROL, and without it the assertion above is worth nothing:
+    // this fixture must be one where the fan-out really would fire. Asking
+    // for it directly — which is what the city field now does — issues the
+    // queries the loader used to issue for every stop.
+    await LIVE.loadKindred();
+    expect(h.voterQueries.length, "this fixture never fans out, so the case above proves nothing")
+      .toBeGreaterThan(0);
   });
 });
 

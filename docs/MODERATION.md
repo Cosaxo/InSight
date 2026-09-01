@@ -60,11 +60,12 @@ thread has to belong to one question.
 **World takes (D83, adopting D78 part 2) mount behind a post-vote
 toggle** on live world cards and the live daily — after your own blind
 vote, never before, because reading the discourse before answering is
-the same leak at world scale. They are anonymous (no author names
-rendered; the sentinel gid "world", one take per person per question via
-the `qid_uid` doc id), flaggable by any signed-in user, and carry the
-local mute control (`data/mutes.ts`) guideline 1.2 expects of a
-world-scale UGC surface.
+the same leak at world scale. They carry the sentinel gid "world" and one
+take per person per question via the `qid_uid` doc id, they are flaggable
+by any signed-in user, and they carry the local mute control
+(`data/mutes.ts`) guideline 1.2 expects of a world-scale UGC surface.
+They are NAMED — this sentence called them anonymous until 2026-08-31,
+which stopped being true at D98.
 
 **The client is done.** What remains is neither a screen nor a callable:
 the low-privilege Routine and the maintainer's answers to the open

@@ -643,6 +643,85 @@ on purpose — so what run 43 proved was proved on exactly the bundle run
 44 shipped, which is what D229 could not say about build 23.
 
 
+**Runs 45 and 46 delivered build 27, and the bump was skipped** (D339,
+caught 2026-08-31). Both archived `b78cd9c` nine minutes apart — run 45
+(`33324889659`, 17:18:30Z) step 17 `skipped`, the dry run, 6m 08s; run 46
+(`33325304169`, 17:27:23Z) `success`, 17:31:54Z → 17:33:17Z, 1m 23s of
+transfer. `UPLOAD SUCCEEDED with no errors`, delivery UUID
+`16213c73-cb2e-4b3f-804e-7ad281523986`, 6,131,570 bytes. Tenth pair of
+this shape. Eight that held (20, 21, 22, 28, 33, 36, 42, 44) against
+**eight skipped** (18, 19, 24, 26, 31, 38, 40, 46) — the first time the
+two counts have been level.
+
+**No record was written either, which is the D184 shape for the fourth
+time** after runs 25/26, 29–31 (D198) and 39/40 (D273): nothing in
+`docs/` named run 45, run 46, or build 27's delivery until this
+pre-flight read the run list. The tree was returned to for a day and 40
+commits — D337, and the 2026-08-31 night audit's 35 (D338) — none of
+which had any reason to think about a build number.
+
+**The one line that looks like it should have caught this is not wrong,
+and that is the finding.** LAUNCH-RUNBOOK 5.6 read *"holds at 2.0.0
+build 27"* and was **correct**: `check:figures` holds that sentence to
+`package.json`, and `package.json` did say 27. A figure gate proves the
+tree agrees with itself. It cannot prove the tree agrees with Apple, and
+D184 already established that the sound invariant keys on the run list,
+which nothing in this tree can read. So the gate that fired during this
+release prep fired *because* the number moved — it is downstream of the
+bump, never upstream of it.
+
+**D159's trap did not fire.** Both runs archived `b78cd9c` — the third
+release since run 21 where the dry run and the upload name one tree,
+after 39/40 and 43/44. `b78cd9c` is itself a pulse trail row rather than
+any release commit, which is run 22's shape exactly: the dispatch ran
+against the branch as it stood, and reading `appBuild` at the run's own
+`head_sha` is what makes the comparison answerable.
+
+130 commits rode in the 26 → 27 gap, over three days — the second widest
+after build 26's 193.
+
+**Build 28's pre-flight found the debt rather than a clean tree** (D339,
+2026-08-31). Run 46 is the highest run in `ios-release.yml`'s list, its
+step 17 `success`, and `appBuild` at run 46's own `head_sha` `b78cd9c`
+is **27** — against a tree at `ed9ecf9` reading **27**. 27 is not greater
+than 27, so the answer is **bump**, and `appBuild` went 27 → 28 with
+`check:versions --fix` before anything was dispatched.
+
+That is the fifth pre-flight to open on a spent build (builds 12, 13, 14,
+and now 28 — D143's shape), against four that found nothing to do (D153,
+D158, D191, D324). **The comparison is the only thing that catches it**,
+and the cost of skipping it is not a red build: App Store Connect refuses
+a reused number *after* the transfer completes, so every gate in this
+repo passes, the archive signs, the upload runs, and ~150 minutes of
+macOS quota is spent on a rejection.
+
+**Runs 47 and 48 then delivered build 28, and the bump landed off step
+17's conclusion** (D339 amendment, 2026-08-31). Run 47 (`33424574013`,
+18:21:42Z) step 17 `skipped` — the dry run, 5m 51s; run 48
+(`33425156532`, 18:27:58Z) `success`, 18:33:57Z → 18:35:41Z, 1m 44s of
+transfer. `UPLOAD SUCCEEDED with no errors`, delivery UUID
+`0b481684-32d0-46d5-b0cb-bb0488dd3741`, 6,131,775 bytes. Eleventh pair of
+this shape. `appBuild` went 28 → 29 read off step 17 rather than recalled
+— **nine that held** (20, 21, 22, 28, 33, 36, 42, 44, 48) against eight
+skipped (18, 19, 24, 26, 31, 38, 40, 46).
+
+**D159's trap did not fire, and the gap was closed on purpose for the
+second time** after runs 43/44. Both runs archived `8abb8e5`, and `main`
+was re-read between the dispatches and confirmed unmoved before the
+upload was sent. So what run 47 proved was proved on exactly the bundle
+run 48 shipped — the signing *and* the bundle, which is the pair D229 and
+D274 could only state by halves.
+
+**What is new here is which commit that one tree is.** Runs 43/44 closed
+the gap by leaving the release record unmerged, so the archived commit
+was `ac9072f`, a pulse trail row. This time the archived commit is
+`8abb8e5` — the merge of the release prep itself, carrying the bump that
+made the build number legal. The dry run and the upload therefore name
+the release commit rather than whatever the Routines happened to push
+last, which is the first time that has been true since run 21.
+
+42 commits rode in the 27 → 28 gap, over one day.
+
 **Build 16's pre-flight found nothing to do either, which is the first
 time that has happened twice running** (D158, 2026-08-15). Run 21 was
 still the highest run in the list, its upload step still `success`,

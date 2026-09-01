@@ -56,7 +56,7 @@ import { sharePcts } from "../data/pct";
 // D125: these two lenses printed the raw bucket KEY, so a country row read
 // "NO" and a city row "Oslo, NO". One resolver, shared with the feed's
 // breakdown sheet, so the same cohort is named the same everywhere.
-import { bucketLabel } from "./cohortLabels";
+import { bucketLabel } from "../data/cohortLabels";
 import TypeMixCard from "./TypeMixCard";
 // The People lens draws people rather than listing them (D152): the
 // prototype's match ring, a per-person hue, and the place name behind a
@@ -455,6 +455,10 @@ function PeopleLens({ qs, scope, shortName }: {
   qs: LensQuestion[]; scope: "city" | "country" | "world"; shortName: string;
 }) {
   React.useEffect(() => { void LIVE.loadKindred(); }, []);
+  // The follow buttons on these cards read the follow set when the circle
+  // is not loaded, and this lens is one of the surfaces that never loads
+  // it. One query, session-cached.
+  React.useEffect(() => { void LIVE.loadFollows(); }, []);
   const [, bump] = React.useReducer((n: number) => n + 1, 0);
   React.useEffect(() => LIVE.subscribe(bump), []);
 
@@ -556,10 +560,13 @@ function CohortCompare({ scope, shortName }: {
   // reads are the constellation's, and the constellation is the permanent
   // head of all three of these stops (D136) — it asks for them on arrival
   // and never unmounts, so they are in flight before this tab can be
-  // tapped. Asking again would not be free either: `loadSimilarity`
-  // early-returns on the agg sweep but still awaits `loadKindred`, which
-  // is the People lens's own cost gate — so a courtesy call here would
-  // charge Compare for voter lists nobody asked for
+  // tapped. A courtesy `loadSimilarity()` here would now be REDUNDANT
+  // rather than expensive, and the difference is worth stating because
+  // this note used to argue the second one: it said the call "still
+  // awaits `loadKindred`, which is the People lens's own cost gate", and
+  // that stopped being true on 2026-08-31, when the fan-out moved out of
+  // `loadSimilarity` to the two surfaces that actually read it. The
+  // conclusion survives its own reason — nothing here needs asking twice
   // (LiveCohortBody.test.tsx pins that the row costs nothing to navigate).
   const city = LIVE.myCity;
   const country = city ? (PLACES.parse(city)?.country || "") : "";

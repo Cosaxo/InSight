@@ -20144,52 +20144,6 @@ filed as editorial is undisclosed inventory laundered into the vintage
 rollup, and a row filed `sponsor` with no block is a card that would wear
 no band. Both mutations fail.
 
-### Open to rungs that do not exist yet
-
-**Adding a stricter requirement later is one entry**, and that was the
-point of the ask rather than a nicety. Each rung carries its own `met`
-predicate over a `LevelFacts` record, and `levelFor` walks the ladder,
-stopping at the first unmet rung — so it names no specific level and needs
-no edit when one is added. A unit test reads the walker's own source and
-fails if a number appears in it.
-
-Stopping rather than taking the highest satisfied rung is what makes levels
-subsume: an account that somehow met rung 3 but not rung 2 would otherwise
-report as 3, and the rules' `>=` would wave through an account that never
-met the bar it is compared against.
-
-The operator filter READS the ladder out of `accountLevel.ts` rather than
-restating it (`scripts/account-level-lib.mjs`, shared with the gate), so a
-new rung appears in the distribution with its name and can be filtered on
-with no edit to the tool. `--below` takes a KEY as well as a number, which
-is the future-proof form: `--below device+identity` keeps meaning the same
-requirement even if a rung is inserted beneath it and every number shifts.
-A bar the ladder does not define is REFUSED rather than filtered against —
-a typo'd `--below 5` that quietly matched everything would report the whole
-population as unqualified, which is a very convincing wrong answer.
-
-The gate grew with it: the ladder must be ascending, dense from 0, and
-every rung must declare a `met`. A gap makes a bar unreachable; a rung with
-no predicate is a requirement nothing can satisfy, and accounts would stop
-at the rung below it forever with nothing failing.
-
-**Three parser bugs in a row, all the same family, all worth recording**
-because the family is what this repo keeps re-committing — a parser that
-matches slightly the wrong thing and reports something plausible:
-
-1. The block finder took the first `[` after the name, which is the one in
-   the TYPE (`AccountLevelDef[]`). It returned an empty ladder from a file
-   with three rungs.
-2. `countMet` ran over the whole file and counted the interface's own `met`
-   declaration and `levelDef`'s fallback — five predicates for three rungs.
-3. An earlier level parser was anchored to line starts, so a formatter
-   collapsing the object literals would have blinded it.
-
-Two of the three failed loudly, and only because the gate treats an empty
-parse as an error rather than a pass. That decision is the whole reason
-they were cheap, and every one of them is now a case in
-`account-level-lib.test.mjs`.
-
 ### What this does NOT do
 
 - **No auction, no bidding, no per-impression anything.** The slot is a
@@ -34293,9 +34247,444 @@ the day anything else writes a question into Firestore — a console edit,
 a second seeder, a promoted question shipped without a functions deploy.
 The failure is quiet and small (that question's counts vanish from the
 Near grid, nothing errors), which is exactly why it is here.
+
+## D337 · reCAPTCHA stays unprovisioned; the web path is developers and CI, and they carry debug tokens
+
+**2026-08-30.** **Status:** adopted. **Owner's question**, which is what
+opened it: *"why is recapatcha needed?"* — asked about LAUNCH-RUNBOOK 1.4,
+which had listed the web reCAPTCHA v3 provider as an outstanding launch
+item since 2026-08-04 without ever saying who it was for.
+
+**It was for nobody, on the user side.** Checked against the tree rather
+than reasoned about: `web/` is seven static pages and only two mention
+Firebase, both in comments — `web/home.html` says *"Deliberately NOT the
+app: InSight is a native product"* and `web/join.html` describes itself
+as the invite-link fallback. No Firebase SDK is loaded anywhere in
+hosting, and `firebase.json` serves `web/`, not `dist/`. The shipping
+product is native and attests through DeviceCheck. The owner confirmed
+the intent directly: *"den trenger ikke å være tilgjengelig for å brukes
+i nettleser utenom for meg når jeg utvikler den"*.
+
+**So the web provider serves exactly two browsers, and both are ours:** a
+developer's, and the screenshot job's. Both read production Firestore
+without attesting, which is invisible today and fatal the moment console
+enforcement is flipped (runbook 3.4) — at which point `npm run dev`
+against real data returns nothing and a capture run fails at the size
+gate with no output explaining why.
+
+**Decision: do not provision reCAPTCHA. Use App Check debug tokens.**
+Firebase's own debug-provider documentation prescribes tokens for CI, and
+the reason is mechanical: reCAPTCHA v3 scores behaviour, and a headless
+browser is the thing it is built to score low, so the "real" provider is
+the one more likely to fail in the job that needs it.
+
+### What was verified rather than assumed
+
+The route was checked in installed code before it was recommended,
+because the recommendation had already been given once too confidently:
+
+- the Capacitor plugin accepts `debugToken: boolean | string` and sets
+  `self.FIREBASE_APPCHECK_DEBUG_TOKEN`;
+- `@firebase/app-check` short-circuits `getToken` to the debug exchange
+  and never consults the provider;
+- **but `_activate` calls `provider.initialize(app)` unconditionally.** A
+  placeholder site key would therefore still fetch Google's reCAPTCHA
+  script and log an error for an answer nothing reads. `initAppCheck`
+  hands the debug path a `CustomProvider` that rejects if consulted
+  instead.
+
+Two things stated to the owner before that check were wrong and are
+corrected here: a debug token does *not* remove the need for a provider
+(the plugin demands one), and tokens and reCAPTCHA are not alternatives
+in general — the split is by **where**, and only CI is clear-cut.
+
+### The cost, stated rather than discovered later
+
+**A debug token is a bypass, not an attestation.** Whoever holds it is
+past App Check on every request, and revoking one is a console action
+nobody watching a store build would think to take. Two tokens, not one —
+a laptop's and CI's are revoked independently — both in secrets, neither
+in a build that reaches users.
+
+That last clause is enforced rather than asked for. This change made the
+bad shape *reachable*: before it, no site key meant no App Check at all
+and `shipsUnattested` refused the build. Now a build can have no key and
+still initialise, so `shipsDebugToken` refuses any production build
+carrying `VITE_APPCHECK_DEBUG`, with no exemption for a native build —
+the tempting one, and false for its own biggest user, since the
+screenshot job sets `CAPACITOR_BUILD=1` and runs the result in a browser.
+That job now builds `--mode capture` instead, which costs three bytes
+(measured: 2,171,828 against 2,171,831 — the mode string, inlined once as
+the Sentry environment tag).
+
+### When to revisit
+
+**The day a public web build ships.** Nothing here is an argument that
+reCAPTCHA is wrong; it is an argument that provisioning a public
+attestation provider for two of our own browsers is work with no
+recipient. A web surface with real users reverses that in one step, and
+`VITE_APPCHECK_RECAPTCHA_SITE_KEY` is still the path — `initAppCheck`
+prefers it over the debug provider whenever it is set.
+
+## D338 · The 2026-08-31 night audit, reviewed and merged — 35 commits kept, two hand-written figures corrected, and one live bias that is the owner's call
+
+**2026-08-31.** **Status:** binding as a RECORD OF WHAT WAS MERGED. The
+thirty-five commits on `night-20260831` are kept as written. Nothing was
+reverted and nothing amended; two commits are added by this review, both
+correcting a figure or a comment the night itself left behind.
+
+### What arrived, and what made it cheap to read
+
+| | |
+| --- | --- |
+| Branch | `night-20260831`, 35 commits |
+| Against main | **0 behind** — it branched from `e5f52b81` and main had not moved |
+| Size | 57 files, +1,488 / −110 |
+
+The 0-behind row is the whole difference from D336. That review had to
+compose three branches and found a `check:figures` collision that git
+merged without a conflict and that would have thrown `ReferenceError`
+before the gate checked a single figure. Here there is no composition to
+get wrong: the branch is a fast-forward, so the tree that was tested is
+the tree that lands.
+
+### Verified, not assumed
+
+Every runner and every gate, on the branch tip, in this environment:
+
+| Runner | Result |
+| --- | --- |
+| `test:unit` | 2,302 passed (155 files) |
+| `test --prefix functions` | 536 passed (24 files) |
+| `test:scripts` | 586 passed (32 files) |
+| `test:rules` | 158 passed (2 files) |
+| `test:e2e` | ALL E2E CHECKS PASSED |
+| `tsc -b` · `npm run lint` | 0 · 0 |
+| 28 `check:*` gates | all pass |
+
+`check:fn-runtime` needs `npm run build --prefix functions` first and
+reports a missing build rather than a failure until it has one — worth
+knowing before reading its red as a regression.
+
+### The three changes read closest, and why they cleared
+
+- **`paid.ts`, the double refund.** The closer refunded and marked the
+  purchase closed after the money moved, so a crash in that window
+  re-refunded the same campaign every night. Now it lists refunds on the
+  payment intent before paying and pays under an idempotency key. Both
+  guards are load-bearing: the key covers a retry inside Stripe's 24-hour
+  window, and the job runs daily, so only the lookup covers the next
+  night. One residual, accepted: a partial refund made on that intent for
+  any other reason reads as "already refunded" and closes the row. That
+  errs toward not paying twice, which is the right direction for the
+  failure it is guarding.
+- **`engagement.ts`, the prototype fence on `q`.** Checked against
+  `firestore.rules` rather than taken on trust, because the fix is only
+  correct if the neighbouring `s` map does *not* need it: `s` keys are
+  bounded by name (`hasOnly([...])`, 31 of them) and `qids` only by count
+  (`<= 120`). So `s` cannot carry `constructor` and `q` can. The claim in
+  the commit message is exact.
+- **`live.ts`, dropping `loadKindred()` from `loadSimilarity`.** This is
+  the one that could have blanked a surface, so every reader of
+  `kindredPeople()` was walked: `PeopleLens` loads it in its own effect
+  (and `TypeMixCard` renders inside `PeopleLens`), `LiveSimilarityField`
+  loads it in an effect scoped to the city stop, and `CohortCompare` —
+  which looks like a counterexample, since `testNorms` reads the pool —
+  passes `basis: "cells"` and never reaches the pool at all. Nothing is
+  left reading an unloaded list.
+
+### The two commits this review adds
+
+Both are the same defect in different files, and it is the defect the
+night was itself hunting: **a comment that argues from something no
+longer true.** The night fixed two of these (the `anon` field in
+`v2social.ts`'s fieldMask note, which D331 had removed; the claim in
+`index.ts` that the reveal read rule tests membership, which D98 removed)
+and then left two of its own.
+
+1. **`LiveMirrorLenses.tsx`, `CohortCompare`.** Its "NO LOADER HERE" note
+   gave two reasons, and the night's own `live.ts` change voided the
+   second one an hour later: the note still said `loadSimilarity` "still
+   awaits `loadKindred`, which is the People lens's own cost gate", which
+   is exactly what stopped being true. The conclusion survives — the
+   constellation already holds those aggregates — so the reason is
+   corrected rather than the code.
+2. **`circle.ts`, `CIRCLE_ANSWER_CAP`.** The night replaced "it cannot
+   bind today" with a count, and got the count wrong: it wrote "feed 190,
+   test 160 = 644". Counted off the committed banks, feed is 166 and the
+   four instruments in `IS_TESTS` hold 110 — **570**, not 644. The
+   finding is untouched (570 is nearly twice the cap) but a hand-written
+   figure inside the argument it supports is this repo's most-repeated
+   documentation error, and `check:figures` exists because of it.
+
+### THE ASK: the circle's answer cap truncates alphabetically, and it binds now
+
+This is the one thing on the branch that is **not** closed, and it is
+recorded here rather than left in a code comment because the night's own
+note says it should go to the owner.
+
+`fetchAnswers` in `src/v2/data/circle.ts` reads a followed account's
+answers with `where("surface","in",[...6 surfaces])` and
+`limit(CIRCLE_ANSWER_CAP)` and **no `orderBy`**. An unordered Firestore
+limit takes documents by name, and the document name here is the question
+id — so past 300 answers a member's likeness is computed from the
+alphabetically-first 300 questions they have answered. The reading still
+draws. Nothing is empty, nothing errors, and no gate can see it. It is
+the same shape as the follow cap's own bug, fixed four nights ago after
+it silently kept the alphabetically-first fifty people in a circle.
+
+**It binds today**, against 570 answerable questions and a cap of 300,
+with no bank growth required.
+
+**The fix is not free, which is why it is an ask.** Ordering by
+`answeredAt` needs a composite index on (surface ASC, answeredAt DESC)
+scoped to the `answers` collection group, and this repo pays index
+entries on every answer ever written — the night that removed a
+reader-less index said so in its own message. The alternatives, smallest
+first: raise the cap (cheap, moves the threshold, does not remove the
+bias); order by `answeredAt` and pay the index (removes it, recurring
+write cost on every answer forever); page the query (removes it, costs
+reads per member per open). **What changed is the urgency, not the
+price** — this stops being a note filed behind the pagination work and
+becomes a live bias in a reading the app draws today.
+
+### When to revisit
+
+**The ask above, at the owner's next pass.** Nothing else here is open:
+the branch is merged, and the two corrections it needed are in it.
+
+## D339 · Build 27 was delivered and unrecorded; the pre-flight opened on a spent number, and the counts are level
+
+**2026-08-31.** **Status:** binding as a RELEASE RECORD and a PRE-FLIGHT
+VERDICT. One number moved — `appBuild` 27 → 28 — and no code changed.
+This is the release prep for build 28, and what it found first is that
+build 27 had already gone out.
+
+### What the run list said
+
+D158's rule, because a doc cannot see App Store Connect:
+
+- Run 46 (`33325304169`, 2026-08-30T17:27:23Z) is the highest run in
+  `ios-release.yml`'s list, 46 of 46.
+- Its step 17, `Upload to App Store Connect`, is **`success`**
+  (17:31:54Z → 17:33:17Z, 1m 23s of transfer). `UPLOAD SUCCEEDED with no
+  errors`, delivery UUID `16213c73-cb2e-4b3f-804e-7ad281523986`,
+  6,131,570 bytes. **Build 27 is spent.**
+- Run 45 (`33324889659`, 17:18:30Z) is its dry run — same commit, nine
+  minutes earlier, step 17 `skipped`. Tenth pair of this shape.
+- `appBuild` at run 46's **own `head_sha`** — `b78cd9c`, D159's rule
+  rather than any commit someone merged — is **27**.
+- The tree at `ed9ecf9` reads **27**.
+
+27 is not greater than 27, so the answer is **bump**. `appBuild` went
+27 → 28 through `check:versions --fix`, which carried it into
+`android/app/build.gradle` and both `CURRENT_PROJECT_VERSION` settings in
+the iOS project.
+
+### The counts are level for the first time
+
+Eight bumps have held (20, 21, 22, 28, 33, 36, 42, 44) against **eight
+skipped** (18, 19, 24, 26, 31, 38, 40, 46). Every skip in that list is
+D143's arithmetic waiting to be paid: App Store Connect refuses a reused
+build number *after* the transfer completes, so a dispatch on a stale
+number spends ~150 minutes of macOS quota to be told no.
+
+**And no record was written either — the D184 shape for the fourth
+time**, after runs 25/26, 29–31 (D198) and 39/40 (D273). Nothing in
+`docs/` named run 45, run 46, or build 27's delivery until this
+pre-flight read the run list. The tree was returned to for a day and 40
+commits (D337, and D338's night audit) by sessions with no reason to
+think about a build number.
+
+### The finding: the gate that fired is downstream of the bump
+
+`LAUNCH-RUNBOOK.md` 5.6 read *"holds at 2.0.0 build 27"* throughout, and
+it was **correct**. `check:figures` holds that sentence to
+`package.json`, `package.json` said 27, and the two agreed. The gate went
+red only *after* this session bumped to 28 — it was reporting that the
+prose had fallen behind the tree, which is its job and is not this.
+
+So the one automated line that looks like it should have caught a spent
+build number cannot, in principle: **a figure gate proves the tree agrees
+with itself, never that the tree agrees with Apple.** D184 reached the
+same place from the other side when it observed that a gate keyed on the
+runbook's claim would have stayed silent where no claim was written. The
+sound invariant keys on the run list, and nothing in this tree can read
+it — so this stays a procedure, and the procedure is the comparison
+above.
+
+### What D159's trap did, and did not, do
+
+Both runs archived `b78cd9c`, so the dry run and the upload name one
+tree — the third release since run 21, after 39/40 and 43/44. `b78cd9c`
+is itself a pulse trail row rather than any release commit, which is run
+22's shape: the dispatch ran against `main` as it stood when it was
+accepted. That costs nothing here and is exactly why the comparison is
+made at the run's own `head_sha`.
+
+130 commits rode in the 26 → 27 gap over three days, the second widest
+after build 26's 193. Build 28 carries 40 more.
+
+### What is prepared, and what is not
+
+Prepared: `appBuild` 28 in lockstep across the three files, the release
+record above, and the release-path gates run locally —
+`check-store-copy --ios` (the Play fingerprint is D42's parked one, which
+`--ios` excuses), `check:public-copy`, `check:versions`.
+
+**Not done: the dispatch.** It is `workflow_dispatch`-only for two
+reasons this session does not get to overrule — it bills at 10x, and its
+upload is outward-facing in a way that cannot be withdrawn, only
+superseded. The runbook's order stands: `upload = false` first, then
+`upload = true` against the same commit.
+
+### When to revisit
+
+**At the dispatch**, on two points. Read `appBuild` at the run's own
+`head_sha` rather than at the commit that merged this record — `main`
+gains pulse rows on a schedule, and `b78cd9c` is one. And make the bump
+to 29 off step 17's own conclusion while the step list is on screen,
+which is the only arrangement that has ever made it stick (D186, D198,
+D273).
+
+## D339 amendment (2026-08-31) · Build 28 is delivered, and the bump held off step 17
+
+**Status:** binding as a RELEASE RECORD. D339 above is the pre-flight that
+prepared build 28; this is what the dispatch did with it.
+
+Run 47 (`33424574013`, 18:21:42Z) was the dry run — step 17 `skipped`,
+5m 51s, archive and both entitlement gates green. Run 48
+(`33425156532`, 18:27:58Z) was the upload — step 17 **`success`**,
+18:33:57Z → 18:35:41Z, 1m 44s of transfer, `UPLOAD SUCCEEDED with no
+errors`, delivery UUID `0b481684-32d0-46d5-b0cb-bb0488dd3741`,
+6,131,775 bytes. **Build 28 is spent**, and `appBuild` went 28 → 29 read
+off that step's own step list rather than from a memory of it.
+
+Nine bumps have now held (20, 21, 22, 28, 33, 36, 42, 44, 48) against
+eight skipped (18, 19, 24, 26, 31, 38, 40, 46) — the first time the held
+count has led since the tally began.
+
+### The gap was closed on purpose, and on a different commit than last time
+
+Both runs archived `8abb8e5`, and `main` was re-read between the two
+dispatches and confirmed unmoved before the upload went. That is the
+second deliberate close after runs 43/44, so what run 47 proved was
+proved on exactly the bundle run 48 shipped — signing *and* bundle
+together, which D229 and D274 could each only say by halves.
+
+**What differs from runs 43/44 is which tree that is.** That release
+closed the gap by leaving its record unmerged, so the archived commit was
+`ac9072f`, a pulse trail row. Here the archived commit is the merge of
+the release prep itself — `8abb8e5`, PR #338, carrying the very bump that
+made build 28 a legal number. The dry run and the upload name the release
+commit rather than whatever a Routine last pushed, which has not been
+true since run 21.
+
+The order that produced it is worth stating, because it is the opposite
+of D324's and both are correct: when the pre-flight verdict is *run
+as-is*, nothing needs to reach `main`, so the record can be held back to
+keep the gap empty. When the verdict is **bump**, the number must be on
+`main` before the dispatch or the run archives the spent build — so the
+record merges first, and the gap is closed by re-reading `main` between
+the dispatches instead.
+
+42 commits rode in the 27 → 28 gap, over one day.
+
+### When to revisit
+
+**At build 29's pre-flight.** The comparison is unchanged and is made
+against the run list: run 48 is the highest run, its step 17 `success`,
+`appBuild` at its own `head_sha` `8abb8e5` is 28, and the tree is at 29 —
+so unless something dispatches in between, that pre-flight should answer
+*run as-is*. Per D198 that sentence is a report about a comparison, never
+a promise about the tree: **a verdict has a shelf life of exactly one
+dispatch, and a bump has a shelf life of exactly one upload.**
+
+## D340 · The app icon moves to the paper tile, and the two-palette rule survives the move
+
+**2026-09-01.** Owner: *"lets mostly use the white app logo not the black
+one."* D302 made the **ink tile** the primary icon — every launcher
+asset, both favicons and the Android adaptive background composited the
+iris over `--ink`. That reverses here: the icon is now the **paper
+tile**, the mark on `--surface-2` (`#fefdfb`, oklch 0.994 0.0025 80) with
+the ink pupil and the paper dot conversions.
+
+Sixteen launcher rasters, two favicons and one colour resource moved.
+`design/store/feature-graphic.png` did not: it was already the paper
+mark, which is the whole reason the file had two palettes to choose
+between.
+
+### The palette rule was the constraint, and it decided the file's shape
+
+D302's finding stands: the dot colours cannot be shared between grounds,
+because converting one set of oklch tokens for both leaves the dots muddy
+on ink. So "use the white one" is not a background swap — it is a
+different set of seventeen fills. `design/icon/mark.svg` already carried
+both palettes, so the artwork existed; what it did not carry was the
+paper palette **at icon radii**.
+
+That is why the file now has **three flat groups over one geometry**
+rather than two:
+
+| group | palette · ground | radii tuned for | consumer |
+| --- | --- | --- | --- |
+| `mark` | paper | ~190 px | `gen-feature-graphic.mjs` |
+| `mark-paper-tile` | paper | 48 px (mdpi worst case) | `gen-icons.mjs` |
+| `mark-tile` | ink | 48 px | none since this change |
+
+Reusing `mark` for the icon would have been the smaller diff and the
+wrong one: its dots are a radius step finer because it renders six times
+larger, and the fatter set exists precisely because mdpi is 48 px. The
+split is by **size**, not by palette, and collapsing it would have
+undone a tuning D302 made for a reason.
+
+`mark-tile` is kept rather than deleted. It is the identity canvas's dark
+variant and the source `web/home.html`'s dark mode inlines its hexes
+from; it is now artwork with no extractor, which the file says about
+itself so nobody reads its lack of a tripwire as a gap.
+
+### One prefix hazard, in both directions
+
+`mark` is a prefix of `mark-paper-tile`. Both generators find their group
+with `indexOf`, and what keeps `gen-feature-graphic`'s search off the new
+group is the closing `">` in `<g id="mark">` — nothing else. Trimming
+either search string to a bare name would silently hand the feature
+graphic the icon's artwork. Both scripts and `mark.svg` now say so at the
+site of the search, alongside D302's older rule that the comment may
+never spell a group tag out in angle brackets.
+
+The blank-render tripwire moved with the ground: it counts pixels that
+differ from the opaque master's background, so its constant is now
+`GROUND` rather than `INK`. Had it been left pointing at ink it would
+have called a correct paper icon 100% marked — passing, but measuring
+nothing.
+
+### What this restores, and what it does not touch
+
+The splash is paper `#FAF9F2` (capacitor.config.ts). D302 noted that the
+icon had "deliberately stopped matching it"; at a shade's distance they
+read as one surface again, so the launch transition is quieter than it
+was. That is a consequence, not the reason — the reason is the owner's
+sentence.
+
+Unchanged: every in-app lockup (`app-shell.jsx` header, `LiveSignInGate`)
+already drew the mark on the app's paper ground filling from live tokens,
+so there was nothing there to flip; `web/join.html` and `web/home.html`
+likewise, including home's dark-mode swap to the ink palette, which is
+the two-palette rule doing its job on a dark page and is what "mostly"
+leaves standing. The notification status icon, the boot wordmark and the
+legacy splash PNGs are all outside this.
+
+### When to revisit
+
+If the icon ever needs to read on a dark launcher wallpaper more than it
+needs to be the app's own paper: `mark-tile` is still there, and the move
+back is `GROUND`, `ic_launcher_background.xml`, the extractor's group
+name and the two favicons — the same four places this change touched.
+
 ---
 
-## D337 · The fake-account defence was inert, and two records had already spent it
+## D341 · The fake-account defence was inert, and two records had already spent it
 
 **Date:** 2026-08-30 · **Status:** built. Owner's report is the trigger:
 *"one of the things that has been warned about the most is fake accounts
@@ -34485,7 +34874,7 @@ bounded in how wrong it can silently be. Until today that claim rested on
 two controls that were not running.
 ---
 
-## D338 · The account requirement becomes a level, so the bar can be raised later
+## D342 · The account requirement becomes a level, so the bar can be raised later
 
 **Date:** 2026-08-30 · **Status:** built. Owner's ask: *"I also want a way
 to filter out profiles that hasn't fulfilled the newest account
@@ -34506,7 +34895,7 @@ meet the new ones — you would be re-deriving that per account, after the
 fact, from whatever evidence survived.
 
 **Why now rather than later, and this is the load-bearing part.**
-Activation has never run — the native bridges did not exist until D337 —
+Activation has never run — the native bridges did not exist until D341 —
 so **no account anywhere holds a `db` claim**. Redefining what the claim
 MEANS is free today and is a migration over live auth users the moment one
 real account carries it. This window closes the day the owner sets the
@@ -34558,7 +34947,7 @@ it stops counting. That is deliberate power, so it gets priced before it is
 used — by two measurements that answer different questions and diverge
 hard:
 
-- **`ledgerVelocityScan`'s `bind_coverage`** (D337, per-level here) counts
+- **`ledgerVelocityScan`'s `bind_coverage`** (D341, per-level here) counts
   ANSWERS from accounts that actually voted, and reports what each bar
   would have refused. This is the aggregate question.
 - **`npm run account-levels -- --below 2`** counts ACCOUNTS. This is the

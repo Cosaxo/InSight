@@ -1,4 +1,4 @@
-// The account-requirement ladder (D338).
+// The account-requirement ladder (D342).
 //
 // WHAT IS ACTUALLY AT STAKE HERE. `db` is the claim firestore.rules
 // compares against `requiredAccountLevel()`, so every function below

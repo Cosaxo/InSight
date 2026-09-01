@@ -45,6 +45,11 @@ const LIVE = vi.hoisted(() => ({
   // The follow control (D101) rides on every named row. Stubbed
   // unfollowed — the button's own behaviour has its own cases.
   isFollowing: () => false,
+  // The follow buttons ask for this set now: `isFollowing` reads the
+  // circle when the Circle stop has loaded it and the follow set
+  // otherwise, which is the state every surface but that one is in.
+  loadFollows: async () => {},
+  follows: () => null as string[] | null,
   setFollowing: vi.fn(async () => {}),
   // Kindred itself (D152) and the types-here card (D141) read the SAME
   // list: `kindredPeople` carries the ranking's people with their frozen

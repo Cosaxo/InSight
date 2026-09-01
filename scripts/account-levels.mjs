@@ -13,7 +13,7 @@
 // future-proof form: `--below device+identity` keeps meaning the same
 // requirement even if a rung is inserted beneath it and the numbers shift.
 //
-// WHY THIS EXISTS. D338 made the account requirement a LEVEL so the bar can
+// WHY THIS EXISTS. D342 made the account requirement a LEVEL so the bar can
 // be raised later. Raising it is one number (accountLevel.ts REQUIRED_LEVEL
 // plus the matching literal in firestore.rules, held equal by
 // `check:account-level`) — and the moment it deploys, every account below

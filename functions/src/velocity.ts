@@ -237,7 +237,7 @@ export function burstSignal(
   };
 }
 
-// ── bind coverage (D337) — a MEASUREMENT, not a signal ──────────
+// ── bind coverage (D341) — a MEASUREMENT, not a signal ──────────
 //
 // WHAT IT IS. Of the accounts that actually voted this window, how many
 // hold D29's `db` claim, and how many of the window's counted answers came
@@ -249,7 +249,7 @@ export function burstSignal(
 // `activateDeviceV2`'s own logs: the error rate, and Android's
 // missing-recall rate. Both measure THE ENDPOINT. Neither can see an
 // account that never called it — a client below the activation build, a
-// device whose bridge is absent (which was every device until D337), a
+// device whose bridge is absent (which was every device until D341), a
 // boot where the call was never reached. Those accounts vote and are
 // invisible to both numbers, so both thresholds can read perfect while
 // most voters would be refused the moment the flip lands. That is exactly
@@ -314,7 +314,7 @@ export function bindCoverage(
  * (accountLevel.ts) — and before the first flip of `deviceBindEnforced`,
  * where the bar is already 1. `refusedAnswers / answers` is the share of
  * real votes that would have been silently rolled back, which is the
- * failure D37 exists to prevent and could not see (D337).
+ * failure D37 exists to prevent and could not see (D341).
  */
 export function refusedAt(cov: BindCoverage, bar: number): LevelTally {
   let voters = 0;
@@ -548,7 +548,7 @@ export const ledgerVelocityScan = onSchedule(
 
     await stateRef.set({ lastScanAt: maxAt, days: pruneDays(merged) });
 
-    // Bind coverage (D337, per-level since D338). INFO, and stated as the
+    // Bind coverage (D341, per-level since D342). INFO, and stated as the
     // decision it informs rather than as bare ratios — the question an
     // operator has on flip day, and again on every later tightening, is
     // "what share of real votes would this refuse", and they should not

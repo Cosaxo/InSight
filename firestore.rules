@@ -682,7 +682,7 @@ service cloud.firestore {
         // literal rewritten to true, so flip day ships a one-word diff
         // whose behavior is pinned in both states.
         function deviceBindEnforced() { return false; }
-        // THE BAR, as a number rather than a boolean (D338). `db` carries
+        // THE BAR, as a number rather than a boolean (D342). `db` carries
         // the LEVEL of account requirements the activation callable could
         // verify — see functions/src/accountLevel.ts, which is the source
         // of truth this literal must equal (`npm run check:account-level`).
