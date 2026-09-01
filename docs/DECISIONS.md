@@ -34786,3 +34786,155 @@ which is `wfFeedMatch` working, not a bug; give it a served topic. And if
 the demo's two stubs ever drift from paths-data.js ids, the card renders
 null and the demo smoke fails on the missing titles — that is the drift
 alarm, not a crash.
+
+## D342 · First paint comes off the device: the warm boot, and `ready` splits from `attached`
+
+**2026-09-01.** **Status:** binding. Amends the boot's order of operations
+in `src/v2/data/live.ts` and the meaning of one flag; changes no read
+count and no rule. D77's label and D312's caches are the two records it
+stands on.
+
+### What was true
+
+`initLive` raced the whole network boot against a 2.5 s deadline and
+rendered when either settled. On a returning device the boot's chain
+before `ready` was: the SDK import and the auth restore (local), then
+meta → bank delta → answered delta → edit delta → [aggregate top-up] →
+deck aggregates, one round trip each, with the profile read the only
+thing in parallel. Every byte the first frame draws — the bank, the
+account's answers, the aggregates it last saw — was on the device
+already (D312), and the boot read all of it only *after* the meta
+document had come back, because the bank cache was keyed by
+`contentRev` and the rev check came first.
+
+So first paint waited on the sixth round trip or the deadline, whichever
+came first. On a 150 ms mobile RTT that is ~0.9 s of pure waiting plus
+the Firestore channel's own connection setup; on a train it was the
+deadline, and the deadline put a real user on the DEMO deck under
+"Sample questions · reconnecting…" (D77) until the boot attached and the
+screen swapped. The record of it losing was already in the tree: the
+`slowBoots` boredom input (D272) and D77's stage label both exist
+because the race was lost often enough to need them. And an offline
+launch — the case the caches were built for — showed sample questions.
+
+### What changed
+
+**The disk is read first, all of it at once, and the paint does not
+wait for the server.** `readDiskCaches` issues the five IndexedDB reads
+in parallel (tens of milliseconds) before the meta read is issued. A
+device holding a bank *and* this account's profile mirror publishes the
+deck, the votes, the aggregates and the feed globals, flips `ready` and
+`enabled`, and resolves a third runner in `initLive`'s race
+(`paintable`). The network phase then runs exactly as before against the
+same pre-read caches — a delta merges, a changed rev refetches and
+replaces the bank whole, the profile document overwrites the mirror, the
+deck's aggregates refresh — and every one of those reaches the screen
+through the notify path that already served late boots. The cold path
+(nothing on disk) is unchanged, deadline and label included.
+
+**Round trips before `ready`:** warm device 6 → **0**. The network phase
+itself, which still has to finish before the counts are today's: warm
+6 → 4 (the two answer deltas and the deck aggregates share one trip —
+they share no input, and they are still folded in the old order), cold
+7 → 4 (the three bank queries share one trip; the deck aggregates start
+the moment there is a deck, beside the answers, instead of after the
+profile await). Offline launch on a warm device: the real deck, with
+votes queued in the SDK's offline queue as they already were mid-session.
+
+**One flag became three, because one fact became two.** `ready` used to
+mean "the network boot completed"; it now means "there is a deck to
+draw", which the warm paint answers off disk. `attached` is the old
+meaning, and it is what every re-entry point keys on: `wake()` runs the
+full refresh while `!attached` (a wake keyed on `ready` would never
+retry a warm session whose reconcile failed — probed: reverting that one
+word fails the wake-retries case, and only that one, because
+`resubscribeForToday` refuses before the attach on its own key),
+`resubscribeForToday` refuses before the attach (the boot itself is
+still going to start the poll), and `refreshLive` shares its in-flight
+promise so a wake during a running boot joins it.
+`stale` is `warm && !attached`, the gap between the two. The `bootError`
+getter composed "still connecting — <stage>" for the rest of any session
+that had lost the race, invisible only because its one reader sat behind
+`demoInProd`; it composes only while `!attached` now. The deadline that
+sets the label is a plain timer on its own clock rather than the race's
+rejection, so a warm paint that wins the race in a few hundred
+milliseconds still gets the same question asked at the same 2.5 s: is
+the server still unheard from.
+
+**The profile mirror is a condition, not a nicety.** Every answer
+snapshots `state.profile.anchors` at write time (D8, D290), and the
+anchors arrived with the profile read some way down the chain. A vote
+cast on a warm-painted deck before that read would be filed under no
+cohort — a correct-looking answer no breakdown can count. So the warm
+paint requires `insight.ownProfile.v1`: the account's own display name,
+handle, anchors, consent record and test results, stamped with the uid,
+written on every profile read and by each of the profile's mutators,
+refused under any other uid, and inside the namespace `purgeLocalTrace`
+sweeps. A device that has not booted once since this record boots the
+old way, once. Not an ask under D334: it is the account's own data on
+the account's own device, already there in three other keys (the name,
+the answers, the profile cache), exposed to nobody.
+
+**The honest label for the new state.** A warm deck whose reconcile
+fails is real — this device's last sync — so the sample-questions pill
+would be a lie, but the counts are not today's and the server has not
+been heard from. The daily draws `Last sync · reconnecting…` for
+`enabled && stale && bootError`, the demo pill's shape (D77): the reason
+one tap away, and gated on a reason existing so the ordinary sub-second
+reconcile never flashes a label on launch.
+
+### The trade, stated
+
+- A cache under an older `contentRev` paints first and is replaced when
+  the full fetch lands: a deck one reseed old for about a second. The
+  screen the lost race showed instead was the demo deck, and the swap
+  a late attach made was demo → real. This one is real → real.
+- Counts are as of the last sync until the deck aggregates return (one
+  trip, in parallel with the answers). The same was true of every late
+  attach.
+- `slowBoots` still measures the network attach, not the paint: it is a
+  fact about the network, and it stays one. A perceived-boot number
+  would be a different input.
+- Nothing preloads the SDK. The warm paint still waits on its import and
+  the auth restore (both local); check:bundle's eager ceiling is what
+  keeps the SDK out of first paint on the demo build, and that argument
+  stands.
+
+### What proves it
+
+`src/v2/data/warm-boot.test.ts` gates the network — every read parks
+until the test releases it — so "the render was released while the
+server had answered nothing" is an assertion rather than a timing claim.
+Eleven cases: the warm paint itself (ready, enabled, not attached,
+stale, the cached deck/votes/aggregates/anchors, and the delta merging
+behind it); the cold boot unchanged, label included, and the mirror it
+leaves behind; a cached bank without the mirror waiting (the anchors
+argument); another account's answers and mirror never reaching a paint;
+a changed rev replacing the warm deck through a full fetch and
+rewriting the cache; a failed reconcile keeping the deck, setting the
+reason, and a wake retrying it; the deadline labelling a silent server
+and the attach clearing it; a wake during the running boot issuing
+nothing; an account switch purging the mirror; and the two round-trip
+shapes — meta, delta, then answers ‖ aggregates in one trip; meta, then
+the three bank queries in one trip. `smoke-live.test.jsx` draws the
+last-sync pill against the fixture's new `stale` option and asserts a
+healthy boot shows neither pill. The seven boot-driven suites' helpers
+wait on `attached`, which is the meaning they had been relying on;
+bank-cache's paging pin counts cursor-carrying pages instead of indexing
+the log, because the interleaving moved. `test:unit` 156 files / 2316
+tests green; lint, `tsc -b`, check:globals (coupling unchanged at 236),
+check:figures, check:docs, test:scripts, check:purge and the rest of the
+client gates green; the shipping bundle's eager graph 772 → 774 KB
+against 880.
+
+### When to revisit
+
+- If a reseed that changes today's daily reads as a glitch on warm
+  devices (the card swaps under the thumb), the remedy is to hold the
+  warm deck's *today* until the first poll — not to drop the paint.
+- If the mirror's `testResults` grows past a few kilobytes it should
+  move to the cacheStore meta row beside the answers' owner stamp; it is
+  in localStorage today because a synchronous read is what the paint
+  wants and the object is small.
+- If a surface ever needs the *network* fact rather than the *deck* fact,
+  it reads `attached`. `ready` will not tell it.

@@ -225,7 +225,18 @@ import { FUNCTIONS_REGION } from "../../lib/region";
 export type LivePathQ = QuestionDoc & { id: string; counts: number[] };
 
 const state = {
+  // The store can serve a deck. TWO things flip it, and the difference is
+  // D342: the WARM paint (everything below read off this device's own
+  // caches, before any network read) and the network attach. `attached`
+  // is the second alone — what `ready` used to mean — and it is the flag
+  // that gates re-entry (wake, resubscribe) and the stale label, because
+  // "there is a deck on screen" and "the server has been heard from this
+  // session" stopped being the same fact.
   ready: false,
+  attached: false,
+  // The deck on screen came off disk and the network has not confirmed it
+  // yet. Cleared by the attach; `LIVE.stale` reads it.
+  warm: false,
   // Why boot did not attach, in the user's own build. See LIVE.bootError.
   bootError: "",
   // Which await boot is sitting on, "" once attached. Separate from
@@ -1222,6 +1233,292 @@ function toLearnCards(rows: Array<QuestionDoc & { id: string }>): LearnCard[] {
   });
 }
 
+// ── the warm paint (D342) ────────────────────────────────────────────
+//
+// A returning device holds, on its own disk, everything the first frame
+// draws: the bank (D312's rows), the account's answers, the aggregates it
+// last saw, and — since D342 — a mirror of the account's own profile. The
+// boot used to read all of that only AFTER the meta document had come
+// back from the server, and it published nothing until the last of five
+// or six serial round trips had landed; first paint waited on the whole
+// chain, and on a phone it lost `initLive`'s race often enough to have an
+// engagement counter (`slowBoots`) and a "still connecting" label of its
+// own. Nothing on that chain was needed to draw the deck a device had
+// drawn the night before.
+//
+// So the disk is read FIRST, all three stores at once, and if it holds a
+// bank AND this account's profile mirror, the deck is published and the
+// screen is released (`markWarmPaint`) before the meta read is even
+// issued. The network phase then runs exactly as it did, against the same
+// pre-read caches, and reconciles in place: a delta merges, a changed
+// contentRev replaces the bank whole, the profile document overwrites the
+// mirror, the deck's aggregates refresh. Every one of those already
+// arrived through notify() on the late-boot path, so the screen was
+// always able to take them; what changed is only that a real deck, not
+// the demo one, is what it takes them on top of.
+//
+// WHY THE PROFILE MIRROR IS A CONDITION and not a nicety: every answer
+// snapshots `state.profile.anchors` at write time (D8, D290), and the
+// anchors used to arrive with the profile read some way down the chain.
+// A vote cast on a warm-painted deck before that read lands would be
+// filed under NO cohort — a correct-looking answer that no breakdown can
+// ever count. The mirror is written whenever the profile is read or
+// changed, so a device that has booted once since D342 always paints
+// with the anchors it will stamp; a device that has not simply boots the
+// old way, once.
+interface BankEntry extends QuestionDoc {
+  id: string;
+}
+
+// The localStorage era's keys — migration sources only since D312, each
+// read once and removed after the rows land in IndexedDB, so an
+// upgrading device pays neither a refetch nor a second copy in the small
+// box. Named here because the warm read is what reads them now.
+const BANK_LS = "insight.bankCache.v2";
+const ANS_LS = "insight.answersCache.v1";
+const AGG_LS = "insight.aggsCache.v1";
+
+interface DiskCaches {
+  bank: { rows: BankEntry[]; rev: number; cursor: number; from: "idb" | "ls" } | null;
+  // Only ever this account's — the owner check is made here, once, so no
+  // reader can forget it. Null under any other uid.
+  answers: { votes: Record<string, string>; maxTs: number; maxEditTs: number; from: "idb" | "ls" } | null;
+  aggs: { rows: Record<string, AggDoc>; from: "idb" | "ls" } | null;
+}
+
+// Everything the boot can read without the network, in one place and in
+// parallel: five reads on one connection, and IndexedDB runs read-only
+// transactions concurrently. Each store tries the IndexedDB rows first and
+// the pre-D312 localStorage blob second; a corrupt medium reads as empty,
+// which the boot treats as "refetch", exactly as the inline reads did.
+async function readDiskCaches(uid: string | null): Promise<DiskCaches> {
+  const out: DiskCaches = { bank: null, answers: null, aggs: null };
+  const [bankMeta, bankRows, ansMeta, ansRows, aggRows] = await Promise.all([
+    cacheStore.readMeta<{ rev: number; cursor: number }>("bank"),
+    cacheStore.readAll<BankEntry>("bank"),
+    uid ? cacheStore.readMeta<{ uid: string; maxTs: number; maxEditTs: number }>("answers") : null,
+    uid ? cacheStore.readAll<string>("answers") : new Map<string, string>(),
+    cacheStore.readAll<AggDoc>("aggs"),
+  ]);
+  try {
+    if (bankMeta && bankRows.size) {
+      out.bank = {
+        rows: [...bankRows.values()],
+        rev: Number(bankMeta.rev),
+        cursor: Number(bankMeta.cursor || 0),
+        from: "idb",
+      };
+    } else {
+      const cached = JSON.parse(localStorage.getItem(BANK_LS) || "null");
+      if (cached && Array.isArray(cached.questions) && cached.questions.length) {
+        out.bank = {
+          rows: cached.questions as BankEntry[],
+          rev: Number(cached.rev),
+          cursor: Number(cached.cursor || 0),
+          from: "ls",
+        };
+      }
+    }
+  } catch {
+    /* corrupt cache — refetch */
+  }
+  if (uid) {
+    try {
+      if (ansMeta && ansMeta.uid === uid) {
+        const votes: Record<string, string> = {};
+        ansRows.forEach((v, k) => {
+          votes[k] = v;
+        });
+        out.answers = {
+          votes,
+          maxTs: Number(ansMeta.maxTs || 0),
+          maxEditTs: Number(ansMeta.maxEditTs || 0),
+          from: "idb",
+        };
+      } else {
+        const cached = JSON.parse(localStorage.getItem(ANS_LS) || "null");
+        if (cached && cached.uid === uid && cached.votes) {
+          out.answers = {
+            votes: { ...(cached.votes as Record<string, string>) },
+            maxTs: Number(cached.maxTs || 0),
+            maxEditTs: Number(cached.maxEditTs || 0),
+            from: "ls",
+          };
+        }
+      }
+    } catch {
+      /* corrupt cache — refetch */
+    }
+  }
+  try {
+    if (aggRows.size) {
+      const rows: Record<string, AggDoc> = {};
+      aggRows.forEach((v, k) => {
+        rows[k] = v;
+      });
+      out.aggs = { rows, from: "idb" };
+    } else {
+      const cached = JSON.parse(localStorage.getItem(AGG_LS) || "null");
+      if (cached && typeof cached === "object") out.aggs = { rows: cached as Record<string, AggDoc>, from: "ls" };
+    }
+  } catch {
+    /* best-effort */
+  }
+  return out;
+}
+
+// ── the account's own profile, mirrored on this device (D342) ─────────
+//
+// The profile document is the source of truth; this is the copy the warm
+// paint reads so that the anchors an answer snapshots are on the device
+// before the first tap, not after the profile read. Stamped with its
+// owner and refused under any other uid — the same shape as the answers
+// store's meta row and the profile cache's `owner` — and it lives inside
+// the `insight.*` namespace purgeLocalTrace sweeps, so an account change
+// or a deletion takes it with everything else. Written wherever
+// `state.profile` changes: the boot's read, and each of the mutators.
+const OWN_PROFILE_LS = "insight.ownProfile.v1";
+
+function loadOwnProfile(uid: string): boolean {
+  try {
+    const raw = JSON.parse(localStorage.getItem(OWN_PROFILE_LS) || "null");
+    if (!raw || raw.uid !== uid) return false;
+    const obj = (v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? v : {});
+    state.profile.displayName = typeof raw.displayName === "string" ? raw.displayName : "";
+    state.profile.handle = typeof raw.handle === "string" ? raw.handle : "";
+    state.profile.testResults = obj(raw.testResults) as Record<string, unknown>;
+    state.profile.anchors = obj(raw.anchors) as Record<string, string>;
+    state.profile.consent = obj(raw.consent) as { political?: unknown };
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function saveOwnProfile(): void {
+  const uid = state.uid;
+  if (torndown || !uid) return;
+  const { displayName, handle, testResults, anchors, consent } = state.profile;
+  lsSet(OWN_PROFILE_LS, JSON.stringify({ uid, displayName, handle, testResults, anchors, consent }));
+}
+
+// The bank, published: sorted by seq, the serving window applied, split
+// per surface (allowlists — deck.ts carries the why), the learn slice
+// handed to its engine. One function because it now runs twice per boot
+// — once on the disk copy for the warm paint, once on what the network
+// settled — and two copies of the split is how one of them drifts.
+// Returns whether anything deck-able came out; the empty-bank throw is
+// the network phase's to make, on the server's answer rather than the
+// disk's.
+function publishBank(rows: BankEntry[]): boolean {
+  const sorted = rows.slice().sort((a, b) => (a.seq || 0) - (b.seq || 0));
+  // `until` is the current-events serving window (docs/NEXT-FUNCTIONALITY
+  // §1): a feed entry past its UTC day stops being OFFERED — the answers
+  // and the aggregate persist, the archive is the product. Feed-only by
+  // the gates (check:content), so the daily tombstone note below is
+  // untouched; `active: false` remains the hard, server-enforced kill.
+  const today = utcDayKey(0);
+  // Both ends, so `from` is a real serving boundary and not just the ring's
+  // start: an editor can write next week's question this week and have it
+  // appear on the day, rather than having to be awake to merge it. Day keys
+  // are zero-padded, so string order is date order.
+  const fresh = (q: { from?: string; until?: string }) =>
+    (!q.until || q.until >= today) && (!q.from || q.from <= today);
+  const active = sorted.filter((q) => q.active !== false && fresh(q));
+
+  // Allowlist split per surface — pure and unit-tested in deck.ts
+  // (splitBanks carries the why-comments: playability, the catalog
+  // carve-out, and the D32 learn fencing).
+  const banks = splitBanks(active);
+  // THE DAILY LANE KEEPS ITS RETIRED QUESTIONS, as tombstones. Every other
+  // surface iterates its bank, so dropping an inactive question there simply
+  // stops offering it — but the daily deck is POSITIONAL: computeDeckIds
+  // indexes `questionIds[(today - epoch - back) % n]`, so removing any
+  // element below the current window shifts every visible day. Probe, bank
+  // of 90 at DECK_EPOCH+30: retiring one question changes 7 of 7 pager
+  // cards, six answered history cards render as unanswered, and today's card
+  // silently swaps. Appending changes none, which is why D30 scopes its
+  // invariant to appends and did not catch this.
+  //
+  // The trigger is the intended ops workflow, not an accident:
+  // docs/QUESTION-FARM.md has the scorecard propose `active: false` for
+  // high-volume landslides — questions that have, by definition, already
+  // been served — and D34's remedy (seedContentV2 with bumpRev) forces the
+  // refetch that materialises it.
+  //
+  // So the kill switch moves to the DISPLAY (deck() below), where it still
+  // does its job: a retired question stops being offered, and the days
+  // around it keep their questions. The cost is one wasted agg listener per
+  // retired card until it ages out of the 7-day window.
+  state.questions = splitBanks(sorted).daily;
+  state.feedBank = banks.feed;
+  state.duelBank = banks.duel;
+  state.learnBank = banks.learn;
+  // The Learn bank (D284, paged at D320). Published HERE, beside the
+  // split, and not in buildFeedGlobals: that function opens `if
+  // (!state.feedBank.length) return`, so a bank with learn cards and no
+  // feed questions would have served none of them — Learn does not depend
+  // on the feed existing and must not start doing so. Caught by
+  // vote.test.ts's first learn case, which is exactly the bank that shape
+  // describes.
+  //
+  // Since D320 this slice is the CACHE's learn cards — everything this
+  // device was ever handed — not the whole surface; topUpLearnBank
+  // (kicked at the end of hydrate) pages fresh cards in against the
+  // published order and re-publishes. Publishing the cached slice first
+  // means a returning device's Learn works before any network answers.
+  publishLearnBank(toLearnCards(state.learnBank));
+
+  state.callBank = banks.call;
+  state.pulseBank = banks.pulse;
+  return !!(state.questions.length || state.feedBank.length || state.duelBank.length);
+}
+
+// Feed vote hydration: the spec's feed keeps its voted-state in
+// localStorage (WF_LS) — mirror the Firestore answers into it so
+// world-feed renders prior votes natively on any device. Run on the warm
+// paint and again once the network has spoken, for the same reason
+// publishBank is.
+function mirrorFeedVotes(): void {
+  try {
+    const WF_LS = "insight.feedVotes.v1";
+    const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
+    state.feedBank.forEach((q) => {
+      const v = state.votes[q.id];
+      if (v == null || wf[q.id] != null) return;
+      const mv = mirrorVoteValue(q, v);
+      if (mv != null) wf[q.id] = mv;
+    });
+    lsSet(WF_LS, JSON.stringify(wf));
+  } catch {
+    /* localStorage unavailable — feed falls back to store votes */
+  }
+}
+
+// Resolves the first time this process has a deck to draw — off disk or
+// off the network, whichever comes first. `initLive` races it beside the
+// boot and its deadline; resolved once and never reset, because a process
+// renders once (a uid change re-runs the boot under an app that is
+// already on screen).
+let markPaintable: () => void = () => {};
+const paintable = new Promise<void>((resolve) => {
+  markPaintable = resolve;
+});
+
+// The warm paint itself: the store answers `ready` and `enabled` off what
+// the disk held, and `warm` says so until the network confirms it (the
+// attach at the end of refreshLive clears it; `LIVE.stale` reads it). A
+// re-entered hydrate after the attach — a reconnect — has nothing to
+// flip and must not mark a live session stale.
+function markWarmPaint(): void {
+  if (torndown || state.attached) return;
+  state.warm = true;
+  state.ready = true;
+  LIVE.enabled = true;
+  notify();
+  markPaintable();
+}
+
 async function hydrate(): Promise<void> {
   const db = await getDb();
 
@@ -1250,6 +1547,54 @@ async function hydrate(): Promise<void> {
     })
     : null;
 
+  // ── the disk first, and the warm paint (D342) ──
+  // Read before the meta document, not after it: nothing here depends on
+  // the server, and every millisecond between the sign-in and this point
+  // was first paint waiting. The rev check the cache used to be read
+  // BEHIND moves to the bank block below, where the answer to it decides
+  // delta-or-refetch exactly as before — the only difference is that the
+  // screen is not waiting on the question.
+  const disk = await readDiskCaches(uidEarly);
+  if (disk.aggs) {
+    for (const [id, agg] of Object.entries(disk.aggs.rows)) state.aggs[id] = agg;
+    if (disk.aggs.from === "ls") {
+      // Migrate: mark every imported entry dirty so the flush the top-up
+      // below schedules carries them into IndexedDB. Display cache, so
+      // losing the 1 s window to a kill costs a refetch at most — the two
+      // caches beside it order removal after commit because theirs cost
+      // more.
+      for (const id of Object.keys(disk.aggs.rows)) aggDirty.add(id);
+      try {
+        localStorage.removeItem(AGG_LS);
+      } catch {
+        /* best-effort */
+      }
+      saveAggCache();
+    }
+  }
+  // The answers, folded now rather than after the bank fetch: they are
+  // this account's (readDiskCaches made the owner check) and the network
+  // phase only ever ADDS to them. The cursors ride `disk.answers` down to
+  // the delta queries.
+  if (disk.answers) Object.assign(state.votes, disk.answers.votes);
+  // The paint needs BOTH halves — a bank to draw and the profile mirror
+  // whose anchors the first tap will stamp (the header above has why).
+  // Without the mirror nothing is published here at all, and the boot is
+  // the pre-D342 boot: the feed globals in particular must not go out
+  // before `enabled` is true, or loadWorldFeed's demo join would land on
+  // top of the live pool.
+  const warmBank = disk.bank && uidEarly && loadOwnProfile(uidEarly) ? disk.bank : null;
+  if (warmBank && publishBank(warmBank.rows)) {
+    bankIds = new Set(warmBank.rows.map((q) => q.id));
+    state.stats.bankSource = "cache";
+    computeDeck();
+    publishTestResults();
+    loadProfileCache();
+    mirrorFeedVotes();
+    buildFeedGlobals();
+    markWarmPaint();
+  }
+
   // ── one meta read runs the whole cache story ──
   // contentRev invalidates the local question-bank cache; latest/min
   // build drive the in-app update prompts.
@@ -1274,9 +1619,6 @@ async function hydrate(): Promise<void> {
   // ── question bank: cached (cacheStore rows, D312/D318) keyed by contentRev ──
   // The bank is static content; a boot should cost 1 meta read, not
   // ~190 bank reads. Single-field query (no composite index).
-  interface BankEntry extends QuestionDoc {
-    id: string;
-  }
   // PAGE SIZE, not a ceiling — D161, and the difference is the whole point.
   //
   // This was `BANK_LIMIT = 1500`, a cap on one unpaginated fetch, with
@@ -1320,10 +1662,6 @@ async function hydrate(): Promise<void> {
   // Firestore's `in` takes up to 30 values, so the ceiling is not near.
   const BANK_SURFACES = ["daily", "test", "group", "duo", "pulse", "call"];
   let all: BankEntry[] | null = null;
-  // The localStorage era's key — read once as a migration source (D312)
-  // and removed after the rows land in IndexedDB, so an upgrading device
-  // pays neither a refetch nor a second copy of the bank in the small box.
-  const BANK_LS = "insight.bankCache.v2";
   let cursor = 0;
   // Which medium the cache came from. "idb" is the steady state and gets
   // only the DELTA written back — a warm boot with an empty delta writes
@@ -1332,27 +1670,16 @@ async function hydrate(): Promise<void> {
   // invalidated rev) rewrites the store whole so the next boot is "idb".
   let bankCacheFrom: "idb" | null = null;
   let deltaRows: BankEntry[] = [];
-  try {
-    const bankMeta = await cacheStore.readMeta<{ rev: number; cursor: number }>("bank");
-    if (bankMeta && bankMeta.rev === contentRev) {
-      const rows = await cacheStore.readAll<BankEntry>("bank");
-      if (rows.size) {
-        all = [...rows.values()];
-        cursor = Number(bankMeta.cursor || 0);
-        bankCacheFrom = "idb";
-        state.stats.bankSource = "cache";
-      }
-    }
-    if (!all) {
-      const cached = JSON.parse(localStorage.getItem(BANK_LS) || "null");
-      if (cached && cached.rev === contentRev && Array.isArray(cached.questions) && cached.questions.length) {
-        all = cached.questions as BankEntry[];
-        cursor = Number(cached.cursor || 0);
-        state.stats.bankSource = "cache";
-      }
-    }
-  } catch {
-    /* corrupt cache — refetch below */
+  // The rev check, where the cache read used to be. A cache under another
+  // contentRev is what the warm paint may already have drawn from — that
+  // is a deck one reseed old for the second or so the full fetch below
+  // takes, which is the trade D342 makes on purpose: the screen the lost
+  // race showed instead was the DEMO deck.
+  if (disk.bank && disk.bank.rev === contentRev) {
+    all = disk.bank.rows;
+    cursor = disk.bank.cursor;
+    if (disk.bank.from === "idb") bankCacheFrom = "idb";
+    state.stats.bankSource = "cache";
   }
   // Rows are stored without `updatedAt`: it is a transport field, and a
   // Timestamp does not survive JSON round-tripping as a Timestamp. Keeping
@@ -1518,10 +1845,17 @@ async function hydrate(): Promise<void> {
     // always, while the tail pages behind the published order like learn
     // does. Each query's rows are filtered by its own constraint's
     // client-side mirror, the pulse/call lesson.
-    const bootRows = (await fetchPaged([where("surface", "in", BANK_SURFACES)]))
-      .filter((q) => BANK_SURFACES.includes(q.surface));
-    const coreRows = (await fetchPaged([where("surface", "==", "feed"), where("core", "==", true)]))
-      .filter((q) => q.surface === "feed");
+    // THE THREE RUN AT ONCE (D342). They read disjoint slices of one
+    // collection and share nothing but `maxCursor`, which each page folds
+    // with Math.max — so a cold boot pays one round trip for the three
+    // rather than three in a row. Issue order is unchanged (the first page
+    // of each goes out in this order, synchronously), which is what
+    // bank-cache.test.ts's query pins read.
+    const [bootRows, coreRows, paidRows] = await Promise.all([
+      fetchPaged([where("surface", "in", BANK_SURFACES)])
+        .then((rows) => rows.filter((q) => BANK_SURFACES.includes(q.surface))),
+      fetchPaged([where("surface", "==", "feed"), where("core", "==", true)])
+        .then((rows) => rows.filter((q) => q.surface === "feed")),
     // …and a third, for the questions no published order can carry.
     //
     // A BOUGHT question (D313) is written into `v2_questions` by the
@@ -1538,10 +1872,11 @@ async function hydrate(): Promise<void> {
     // bought for — which is why the window is in the query rather than
     // left to `fresh()`: the set is the campaigns running today, not every
     // one ever sold.
-    const paidRows = (await fetchPaged([
-      where("paid", "==", true),
-      where("until", ">=", utcDayKey(0)),
-    ], "until")).filter((q) => q.surface === "feed");
+      fetchPaged([
+        where("paid", "==", true),
+        where("until", ">=", utcDayKey(0)),
+      ], "until").then((rows) => rows.filter((q) => q.surface === "feed")),
+    ]);
     all = [...bootRows, ...coreRows, ...paidRows];
     // NEVER LOWER IT. `maxCursor` is the newest `updatedAt` across the
     // three BOOT queries, and those do not cover the paged surfaces —
@@ -1581,84 +1916,27 @@ async function hydrate(): Promise<void> {
   // expired rows the serving filters drop, which must never be
   // re-fetched every boot.
   bankIds = new Set(all.map((q) => q.id));
-  const sorted = all.slice().sort((a, b) => (a.seq || 0) - (b.seq || 0));
-  // `until` is the current-events serving window (docs/NEXT-FUNCTIONALITY
-  // §1): a feed entry past its UTC day stops being OFFERED — the answers
-  // and the aggregate persist, the archive is the product. Feed-only by
-  // the gates (check:content), so the daily tombstone note below is
-  // untouched; `active: false` remains the hard, server-enforced kill.
-  const today = utcDayKey(0);
-  // Both ends, so `from` is a real serving boundary and not just the ring's
-  // start: an editor can write next week's question this week and have it
-  // appear on the day, rather than having to be awake to merge it. Day keys
-  // are zero-padded, so string order is date order.
-  const fresh = (q: { from?: string; until?: string }) =>
-    (!q.until || q.until >= today) && (!q.from || q.from <= today);
-  const active = sorted.filter((q) => q.active !== false && fresh(q));
-
-  // Allowlist split per surface — pure and unit-tested in deck.ts
-  // (splitBanks carries the why-comments: playability, the catalog
-  // carve-out, and the D32 learn fencing).
-  const banks = splitBanks(active);
-  // THE DAILY LANE KEEPS ITS RETIRED QUESTIONS, as tombstones. Every other
-  // surface iterates its bank, so dropping an inactive question there simply
-  // stops offering it — but the daily deck is POSITIONAL: computeDeckIds
-  // indexes `questionIds[(today - epoch - back) % n]`, so removing any
-  // element below the current window shifts every visible day. Probe, bank
-  // of 90 at DECK_EPOCH+30: retiring one question changes 7 of 7 pager
-  // cards, six answered history cards render as unanswered, and today's card
-  // silently swaps. Appending changes none, which is why D30 scopes its
-  // invariant to appends and did not catch this.
-  //
-  // The trigger is the intended ops workflow, not an accident:
-  // docs/QUESTION-FARM.md has the scorecard propose `active: false` for
-  // high-volume landslides — questions that have, by definition, already
-  // been served — and D34's remedy (seedContentV2 with bumpRev) forces the
-  // refetch that materialises it.
-  //
-  // So the kill switch moves to the DISPLAY (deck() below), where it still
-  // does its job: a retired question stops being offered, and the days
-  // around it keep their questions. The cost is one wasted agg listener per
-  // retired card until it ages out of the 7-day window.
-  state.questions = splitBanks(sorted).daily;
-  state.feedBank = banks.feed;
-  state.duelBank = banks.duel;
-  state.learnBank = banks.learn;
-  // The Learn bank (D284, paged at D320). Published HERE, beside the
-  // split, and not in buildFeedGlobals: that function opens `if
-  // (!state.feedBank.length) return`, so a bank with learn cards and no
-  // feed questions would have served none of them — Learn does not depend
-  // on the feed existing and must not start doing so. Caught by
-  // vote.test.ts's first learn case, which is exactly the bank that shape
-  // describes.
-  //
-  // Since D320 this slice is the CACHE's learn cards — everything this
-  // device was ever handed — not the whole surface; topUpLearnBank
-  // (kicked at the end of hydrate) pages fresh cards in against the
-  // published order and re-publishes. Publishing the cached slice first
-  // means a returning device's Learn works before any network answers.
-  publishLearnBank(toLearnCards(state.learnBank));
-
-  state.callBank = banks.call;
-  state.pulseBank = banks.pulse;
   // A completely unseeded project is a real failure: throw so boot leaves
   // LIVE disabled and the mock deck renders. Returning here used to let
   // boot flip enabled=true on an empty deck, which pins the user on
   // "Fetching today's question…" forever with neither honesty banner up.
-  if (!state.questions.length && !state.feedBank.length && !state.duelBank.length) {
-    throw new Error("live bank is empty — project not seeded");
-  }
   // A bank with content but no *daily* question is different: the rest of
   // the app works, so stay live and let the daily surface say so.
+  if (!publishBank(all)) {
+    throw new Error("live bank is empty — project not seeded");
+  }
+  computeDeck();
+  // The deck's aggregates, started the moment there is a deck to ask
+  // about (D342) and awaited where the poll used to be started, past the
+  // profile block: they depend on the bank alone, so the round trip
+  // overlaps the answers below instead of following them.
+  const aggPollP = startAggPoll();
 
   // ── my answers: cached + incremental (created docs never refetch) ──
-  // The localStorage era's key — a migration source only (D312), removed
-  // once the rows land in IndexedDB. It CANNOT simply be dropped: losing
-  // the cache re-offers answered questions on the next boot only until
-  // the refetch heals it, but losing it silently was the answers side of
-  // the quota failure §2.1 instruments, and this account's archive is the
-  // biggest thing the old blob held.
-  const ANS_LS = "insight.answersCache.v1";
+  // The disk copy was folded into state.votes before the warm paint;
+  // here only its cursors matter — and only if it is still this
+  // account's, because the uid can flip under a running hydrate (the
+  // profile block below makes the same check against `uidEarly`).
   const uidA = state.uid;
   let maxTs = 0;
   let maxEditTs = 0;
@@ -1669,26 +1947,11 @@ async function hydrate(): Promise<void> {
     // last chunk, so a torn write reads as "no cache", never as a
     // complete one).
     let answersFrom: "idb" | null = null;
-    try {
-      const ansMeta = await cacheStore.readMeta<{ uid: string; maxTs: number; maxEditTs: number }>("answers");
-      if (ansMeta && ansMeta.uid === uidA) {
-        const rows = await cacheStore.readAll<string>("answers");
-        rows.forEach((v, k) => {
-          state.votes[k] = v;
-        });
-        maxTs = Number(ansMeta.maxTs || 0);
-        maxEditTs = Number(ansMeta.maxEditTs || 0);
-        answersFrom = "idb";
-      } else {
-        const cached = JSON.parse(localStorage.getItem(ANS_LS) || "null");
-        if (cached && cached.uid === uidA && cached.votes) {
-          Object.assign(state.votes, cached.votes);
-          maxTs = Number(cached.maxTs || 0);
-          maxEditTs = Number(cached.maxEditTs || 0);
-        }
-      }
-    } catch {
-      /* refetch below */
+    const diskAnswers = uidA === uidEarly ? disk.answers : null;
+    if (diskAnswers) {
+      maxTs = diskAnswers.maxTs;
+      maxEditTs = diskAnswers.maxEditTs;
+      if (diskAnswers.from === "idb") answersFrom = "idb";
     }
     // What this boot's queries handed back, in the cache's own string
     // form — the write-back below is sized by this, not by the archive.
@@ -1768,15 +2031,32 @@ async function hydrate(): Promise<void> {
     // so the watermark advances to the OLDEST unread answer rather than
     // past everything.
     let fetched = 0;
+    // The edit delta's page, when the warm path issues one. Fetched in the
+    // SAME round trip as the answered delta (D342): the two queries share
+    // no input — the answered delta does not raise `maxEditTs` (see
+    // `raiseEdit` above), and the edit delta does not read `maxTs` — so
+    // nothing the first returns can change what the second asks. They are
+    // still FOLDED in the old order, answered then edited, because an
+    // answer both created and edited since the last boot is in both pages
+    // and the edit is the newer option.
+    let editPage: Awaited<ReturnType<typeof getDocs>> | null = null;
     if (maxTs > 0) {
-      const asnap = await getDocs(query(
-        collection(db, "v2_users", uidA, "answers"),
-        where("answeredAt", ">", Timestamp.fromMillis(maxTs)),
-        limit(400),
-      ));
+      const [asnap, esnap] = await Promise.all([
+        getDocs(query(
+          collection(db, "v2_users", uidA, "answers"),
+          where("answeredAt", ">", Timestamp.fromMillis(maxTs)),
+          limit(400),
+        )),
+        getDocs(query(
+          collection(db, "v2_users", uidA, "answers"),
+          where("editedAt", ">", Timestamp.fromMillis(maxEditTs)),
+          limit(400),
+        )),
+      ]);
       // …but NOT the edit watermark: see `raiseEdit` in fold above.
       asnap.docs.forEach((d) => fold(d, false));
       fetched = asnap.size;
+      editPage = esnap;
     } else {
       const ANS_PAGE = 1000;
       // A loop bound, not a content limit, and loud if it trips — the same
@@ -1824,15 +2104,11 @@ async function hydrate(): Promise<void> {
     //
     // Warm boots only: the cold-cache
     // full pull above already reads every doc's current optionIdx (and
-    // seeds this cursor through fold()).
-    if (maxTs > 0) {
-      const esnap = await getDocs(query(
-        collection(db, "v2_users", uidA, "answers"),
-        where("editedAt", ">", Timestamp.fromMillis(maxEditTs)),
-        limit(400),
-      ));
-      state.stats.answersFetched += esnap.size;
-      esnap.docs.forEach((d) => fold(d));
+    // seeds this cursor through fold()). The page itself was fetched
+    // beside the answered delta above; this is where it folds.
+    if (editPage) {
+      state.stats.answersFetched += editPage.size;
+      editPage.docs.forEach((d) => fold(d));
     }
     const ansMeta: Array<[string, unknown]> = [["answers", { uid: uidA, maxTs, maxEditTs }]];
     if (answersFrom === "idb") {
@@ -1860,8 +2136,9 @@ async function hydrate(): Promise<void> {
     answersCacheOwner = uidA;
   }
 
-  // ── aggregates: cached; fetch answered questions' aggs that are
-  // missing OR still cached as too-small ──
+  // ── aggregates: fetch answered questions' aggs that are missing OR
+  // still cached as too-small (the cached rows themselves were folded in
+  // before the warm paint, above) ──
   // Feed cards are blind pre-vote (counts show only after answering), so
   // the old whole-collection scan bought nothing. Deck docs get live
   // snapshots below; everything else refreshes on vote. A cached agg with
@@ -1869,29 +2146,7 @@ async function hydrate(): Promise<void> {
   // listener, so a first voter's empty snapshot would otherwise be frozen
   // forever. Since D98 that window is one answer wide rather than the
   // whole climb to a k-floor, so this re-reads far less than it used to.
-  const AGG_LS = "insight.aggsCache.v1"; // legacy: migration source only (D312)
-  try {
-    const rows = await cacheStore.readAll<AggDoc>("aggs");
-    rows.forEach((v, k) => {
-      state.aggs[k] = v;
-    });
-    if (!rows.size) {
-      const cached = JSON.parse(localStorage.getItem(AGG_LS) || "null");
-      if (cached && typeof cached === "object") {
-        Object.assign(state.aggs, cached);
-        // Migrate: mark every imported entry dirty so the flush the
-        // top-up below schedules carries them into IndexedDB. Display
-        // cache, so losing the 1 s window to a kill costs a refetch at
-        // most — the two caches above order removal after commit because
-        // theirs cost more.
-        for (const id of Object.keys(cached as Record<string, unknown>)) aggDirty.add(id);
-        localStorage.removeItem(AGG_LS);
-        saveAggCache();
-      }
-    }
-  } catch {
-    /* best-effort */
-  }
+  //
   // Aggregate top-up is a DISPLAY nicety — it decorates cards with counts.
   // It used to be unguarded, so one failed chunk query (a transient error,
   // a missing index) threw out of hydrate, rejected boot, and pinned the
@@ -1946,8 +2201,6 @@ async function hydrate(): Promise<void> {
     reportError(err, { where: "hydrate.aggs" });
   }
 
-  computeDeck();
-
   // my profile (display name + synced test results) — owner-only.
   // Guarded for the same reason: a missing display name is a cosmetic
   // loss, not a reason to spend the session on demo data.
@@ -1960,6 +2213,12 @@ async function hydrate(): Promise<void> {
       const prof = uid0 === uidEarly && profileP
         ? await profileP
         : await getDoc(doc(db, "v2_users", uid0));
+      if (prof && !prof.exists()) {
+        // The server says there is no document. The warm paint may have
+        // drawn from the mirror of one — server truth wins, and the
+        // re-mirror below records the absence so the next paint agrees.
+        state.profile = { displayName: "", handle: "", testResults: {}, anchors: {}, consent: {} };
+      }
       if (prof && prof.exists()) {
         state.profile.displayName = (prof.get("displayName") as string) || "";
         state.profile.handle = (prof.get("handle") as string) || "";
@@ -1979,6 +2238,10 @@ async function hydrate(): Promise<void> {
         const scrubbed = scrubPersonaAnchors(state.profile.anchors);
         if (scrubbed) LIVE.saveAnchors(scrubbed);
       }
+      // `prof` is null only when the early read failed (captured to null
+      // at the top of hydrate) — then the mirror keeps what it had rather
+      // than recording a truth nobody read.
+      if (prof) saveOwnProfile();
     } catch (err) {
       reportError(err, { where: "hydrate.profile" });
     }
@@ -1999,24 +2262,9 @@ async function hydrate(): Promise<void> {
   // before the deck poll only because nothing here depends on the order.
   loadProfileCache();
 
-  await startAggPoll();
+  await aggPollP;
 
-  // Feed vote hydration: the spec's feed keeps its voted-state in
-  // localStorage (WF_LS) — mirror the Firestore answers into it so
-  // world-feed renders prior votes natively on any device.
-  try {
-    const WF_LS = "insight.feedVotes.v1";
-    const wf = JSON.parse(localStorage.getItem(WF_LS) || "{}") || {};
-    state.feedBank.forEach((q) => {
-      const v = state.votes[q.id];
-      if (v == null || wf[q.id] != null) return;
-      const mv = mirrorVoteValue(q, v);
-      if (mv != null) wf[q.id] = mv;
-    });
-    lsSet(WF_LS, JSON.stringify(wf));
-  } catch {
-    /* localStorage unavailable — feed falls back to store votes */
-  }
+  mirrorFeedVotes();
 
   buildFeedGlobals();
 
@@ -2657,6 +2905,7 @@ const SOCIAL = {
   async claimHandle(handle: string) {
     const out = await callable<{ handle: string }>("claimHandleV2", { handle });
     state.profile.handle = out.handle;
+    saveOwnProfile();
     notify();
     return out;
   },
@@ -3488,6 +3737,7 @@ const LIVE = {
     }
     state.profile.displayName = name;
     saveLocalName(name);
+    saveOwnProfile();
     notify();
   },
   // The viewer's own anchors, as a plain map — the same seven keys an
@@ -4412,6 +4662,7 @@ const LIVE = {
       if (t) clean[k] = t.slice(0, max);
     }
     state.profile.anchors = clean;
+    saveOwnProfile();
     void (async () => {
       try {
         const db = await getDb();
@@ -4503,6 +4754,7 @@ const LIVE = {
     const rec = politicalConsentRecord(on, Date.now());
     state.profile.consent = { ...state.profile.consent, political: rec };
     if (!on) delete state.profile.testResults[POLITICAL_RESULT_KEY];
+    saveOwnProfile();
     publishTestResults();
     const db = await getDb();
     const uid = state.uid;
@@ -4523,6 +4775,7 @@ const LIVE = {
   },
   saveTestResult(kind: string, result: unknown): void {
     state.profile.testResults[kind] = result;
+    saveOwnProfile();
     void (async () => {
       try {
         const db = await getDb();
@@ -4620,6 +4873,7 @@ const LIVE = {
           // nothing to remove costs no write — this runs on every hydrate.
           if (state.profile.testResults[POLITICAL_RESULT_KEY]) {
             delete state.profile.testResults[POLITICAL_RESULT_KEY];
+            saveOwnProfile();
             wrote = true;
             void (async () => {
               try {
@@ -5094,8 +5348,14 @@ const LIVE = {
   get bootError(): string {
     if (state.bootError) return state.bootError;
     // Composed at read time so the label tracks the stage instead of
-    // freezing at whatever was true when the render race ended.
-    if (state.raceLost) {
+    // freezing at whatever was true when the render race ended — and only
+    // while the network is still unheard from. `raceLost` is never cleared
+    // (a reconnect can still show what the first attempt hit), so without
+    // the `attached` half this read "still connecting" for the rest of a
+    // session that had long since attached; invisible while the only
+    // reader sat behind demoInProd, and wrong the moment the stale banner
+    // (D342) started reading it on a live screen.
+    if (state.raceLost && !state.attached) {
       return state.bootStage
         ? `still connecting — ${state.bootStage}`
         : "still connecting";
@@ -5104,6 +5364,17 @@ const LIVE = {
   },
   get ready() {
     return state.ready;
+  },
+  // The network boot has completed this session (D342). `ready` can be
+  // true before this on a device with a cache — see the state comment.
+  get attached() {
+    return state.attached;
+  },
+  // What is on screen came off this device's caches and the server has not
+  // confirmed it yet: a warm paint whose reconcile is still running, or
+  // failed. The daily's banner reads it together with `bootError`.
+  get stale() {
+    return state.warm && !state.attached;
   },
   get uid() {
     return state.uid;
@@ -5833,6 +6104,8 @@ function resetForNewUid(uid: string): void {
   state.deckIds = [];
   state.deckDay = -1;
   state.ready = false;
+  state.attached = false;
+  state.warm = false;
   state.sessionLost = false;
   state.uid = uid;
   purgeLocalTrace();
@@ -5970,7 +6243,10 @@ function purgeLocalTrace(): void {
 // startAggPoll refreshes the whole deck and re-arms the timer on the new
 // day's question, so a rollover needs no separate teardown.
 async function resubscribeForToday(): Promise<void> {
-  if (torndown || !state.ready) return;
+  // `attached` rather than `ready` (D342): before the attach the boot
+  // itself is still the thing that will start the poll and the reveal
+  // listeners, and a second starter here would double them.
+  if (torndown || !state.attached) return;
   try {
     if (state.questions.length && state.deckDay !== dayIndex()) {
       computeDeck();
@@ -6051,6 +6327,12 @@ export function refreshLive(): Promise<void> {
     await hydrateSocial();
     state.bootStage = "";
     state.ready = true;
+    // The attach (D342): the network has been heard from this session. A
+    // warm paint that preceded it stops being stale here, and every
+    // re-entry point below (wake, resubscribe) keys on this rather than
+    // on `ready`, which the warm paint may have flipped an age ago.
+    state.attached = true;
+    state.warm = false;
     // fire-and-forget: reveal notifications on real devices (no-op on web).
     // Once per UID — re-registering on every reconnect would churn the
     // token array for no gain, but a new account needs its own.
@@ -6122,7 +6404,12 @@ function wake(): void {
   if (torndown) return;
   cancelIdleDetach();
   if (typeof navigator !== "undefined" && navigator.onLine === false) return;
-  if (!state.ready) {
+  // `attached`, not `ready` (D342): a warm-painted session whose network
+  // phase failed — or is still running — is `ready` and must still get
+  // the full refresh here, which is the only path that retries the
+  // reconcile. refreshLive shares its in-flight promise, so a wake during
+  // a running boot joins it rather than starting a second.
+  if (!state.attached) {
     void refreshLive().catch((err) => reportError(err, { where: "refreshLive.wake" }));
     return;
   }
@@ -6378,15 +6665,18 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
     notify();
     reportError(err, { where: "boot" });
   });
+  // THREE runners, not two (D342). The warm paint — hydrate publishing a
+  // deck off this device's caches — releases the render the moment it
+  // happens, which on a returning device is before the first network
+  // read has been issued. The deadline is a plain timer rather than a
+  // rejection because it now has a second job below.
+  const deadline = new Promise<void>((resolve) => {
+    setTimeout(resolve, timeoutMs);
+  });
   try {
-    await Promise.race([
-      boot,
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("live init timeout")), timeoutMs),
-      ),
-    ]);
+    await Promise.race([boot, paintable, deadline]);
   } catch {
-    /* logged above; timeout case logs here via the race rejection */
+    /* logged above */
   }
   // The race above only decides when to RENDER — boot keeps running, and
   // may still be running now. Say so rather than leaving the label blank:
@@ -6399,10 +6689,20 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
   // every reader takes for how long it has been stuck. `bootError` now
   // composes the live stage at read time; this only records that the race
   // was lost.
-  if (!LIVE.enabled && !state.bootError) {
+  //
+  // On the DEADLINE'S clock rather than the race's, because a warm paint
+  // wins the race in a few hundred milliseconds and the label is not
+  // about when the render happened — it is about the network still being
+  // unheard from after the same budget it always had. So: the same
+  // timeoutMs, and the same question, asked when it expires, whichever
+  // runner released the render. Keyed on `attached` rather than
+  // `enabled` for D342's reason: a warm-painted session is enabled and can
+  // still be waiting on the server.
+  void deadline.then(() => {
+    if (torndown || state.attached || state.bootError) return;
     state.raceLost = true;
     notify();
-  }
+  });
 }
 
 declare global {

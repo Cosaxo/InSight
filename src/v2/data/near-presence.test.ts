@@ -134,9 +134,10 @@ let booted: NearApi | null = null;
 
 async function bootNear(): Promise<NearApi> {
   const mod = await import("./live");
-  const LIVE = mod.default as unknown as { ready: boolean; near: NearApi };
+  const LIVE = mod.default as unknown as { attached: boolean; near: NearApi };
   await mod.initLive(1);
-  await vi.waitFor(() => { expect(LIVE.ready).toBe(true); });
+  // `attached` (D342): boot complete, not merely a deck on screen.
+  await vi.waitFor(() => { expect(LIVE.attached).toBe(true); });
   booted = LIVE.near;
   return LIVE.near;
 }

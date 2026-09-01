@@ -417,6 +417,17 @@ an emergency rules fix.
   all three suites pass. Environmental, not a broken test, and **not a
   reason to widen an egress allowlist** before trying the variable.
   docs/LOCAL-TESTING.md § Sandbox/CI note has the failure text.
+- **`LIVE.ready` does not mean the server has been heard from (D342).**
+  A returning device paints its real deck off its own caches before the
+  first network read is answered, so `ready` and `enabled` flip on disk;
+  `attached` is the network boot completing, and `stale` is the gap
+  between them. Key re-entry and is-the-network-up logic on `attached` —
+  `wake()` does, and a wake keyed on `ready` would never retry a failed
+  reconcile. The paint needs the profile mirror
+  (`insight.ownProfile.v1`) as well as the bank, because an answer
+  snapshots the anchors at write time (D8) and a warm deck without them
+  would file votes into no cohort. The boot-driven test helpers wait on
+  `attached` for the same reason.
 
 ## House style
 

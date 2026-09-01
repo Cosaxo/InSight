@@ -402,8 +402,10 @@ async function bootLive() {
   // A 1 ms race budget keeps no long-lived boot timer around; boot is
   // pure microtasks with these mocks, so just wait for it to settle.
   await mod.initLive(1);
+  // `attached` (D342): boot complete — the network phase done — rather
+  // than `ready`, which a cached device answers off disk first.
   await vi.waitFor(() => {
-    expect(LIVE.ready).toBe(true);
+    expect(LIVE.attached).toBe(true);
   });
   return LIVE;
 }

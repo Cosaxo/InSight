@@ -1238,6 +1238,28 @@ class DailySplit extends React.Component {
         st.showBootErr && h('div', {
           style: { fontSize: 11, lineHeight: 1.5, color: 'var(--ink-3)', textAlign: 'center', maxWidth: 320, padding: '0 12px', wordBreak: 'break-word' },
         }, LIVE.bootError || 'connecting…')),
+      // D342: the other honest case, and the one the banner above cannot
+      // see. A returning device paints the REAL deck off its own caches
+      // before the network is heard from; if the server then fails or
+      // stays silent past the boot's budget, what is on screen is this
+      // device's last sync — real answers, real counts, as of last time —
+      // and the person deserves to know the counts are not today's.
+      // Same tap-for-the-reason shape as the demo banner, and gated on a
+      // reason existing: the ordinary reconcile takes under a second and
+      // must not flash a label on every launch.
+      LIVE.enabled && LIVE.stale && LIVE.bootError && h('div', {
+        key: 'stale-banner',
+        style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 },
+      },
+        h('button', {
+          type: 'button',
+          onClick: () => this.setState(s => ({ showBootErr: !s.showBootErr })),
+          'aria-expanded': !!st.showBootErr,
+          style: { fontSize: 10.5, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--ink-3)', background: 'none', border: '1px solid var(--rule)', borderRadius: 999, padding: '3px 10px' },
+        }, 'Last sync · reconnecting…'),
+        st.showBootErr && h('div', {
+          style: { fontSize: 11, lineHeight: 1.5, color: 'var(--ink-3)', textAlign: 'center', maxWidth: 320, padding: '0 12px', wordBreak: 'break-word' },
+        }, LIVE.bootError)),
       screen);
   }
 }

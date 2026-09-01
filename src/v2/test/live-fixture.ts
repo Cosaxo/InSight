@@ -52,6 +52,12 @@ export interface LiveFixtureOptions {
   /** A live build that fell back to mock data — suppresses everything (D11). */
   demoInProd?: boolean;
   /**
+   * A warm-painted session whose reconcile failed (D342): the REAL deck
+   * off this device's caches, `attached` false, a boot reason set. The
+   * daily's last-sync pill is the only thing that reads the combination.
+   */
+  stale?: boolean;
+  /**
    * Override the published `counts` on every aggregate. The default splits
    * cleanly, which is exactly what a case about ROUNDING cannot use: a
    * reading taken off percentages and one taken off counts agree on it,
@@ -413,12 +419,18 @@ export function installLive(opts: LiveFixtureOptions = {}): LiveHandle {
   const LIVE: Dict = {
     enabled: true,
     ready: true,
+    // Attached and not stale by default: a session the server has been
+    // heard from. `stale` models the warm paint whose reconcile failed
+    // (D342) — the store's own transitions between the two are pinned in
+    // data/warm-boot.test.ts against the real store, not here.
+    attached: !opts.stale,
+    stale: !!opts.stale,
     feedReady: true,
     demoInProd: !!opts.demoInProd,
-    // Non-empty only in the demoInProd case, matching the real store: the
+    // Non-empty only where a boot failed, matching the real store: the
     // label is what a failed boot leaves behind, and a fixture that always
     // carried one would let a test assert the reason is shown while live.
-    bootError: opts.demoInProd ? "auth/network-request-failed — fixture" : "",
+    bootError: opts.demoInProd || opts.stale ? "auth/network-request-failed — fixture" : "",
     uid: "u_fixture",
     displayName: "Tester",
     // No handle: an account that has not claimed one is the state a new

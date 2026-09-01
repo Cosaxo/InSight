@@ -197,8 +197,9 @@ async function bootLive() {
   const mod = await import("./live");
   const LIVE = mod.default;
   await mod.initLive(1);
+  // `attached` (D342): boot complete, not merely a deck on screen.
   await vi.waitFor(() => {
-    expect(LIVE.ready).toBe(true);
+    expect(LIVE.attached).toBe(true);
   });
   return LIVE;
 }

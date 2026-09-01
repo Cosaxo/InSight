@@ -142,7 +142,8 @@ function bank(): FakeDoc[] {
 async function bootLive() {
   const mod = await import("./live");
   await mod.initLive(1);
-  await vi.waitFor(() => { expect(mod.default.ready).toBe(true); });
+  // `attached` (D342): boot complete, not merely a deck on screen.
+  await vi.waitFor(() => { expect(mod.default.attached).toBe(true); });
   return mod;
 }
 

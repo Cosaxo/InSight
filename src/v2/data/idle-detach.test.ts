@@ -165,8 +165,10 @@ function bank(): FakeSnapshotDoc[] {
 async function bootLive() {
   const mod = await import("./live");
   await mod.initLive(1);
+  // `attached` (D342): the poll these cases drive is started by the
+  // network phase, and `ready` can precede it on a cached device.
   await vi.waitFor(() => {
-    expect(mod.default.ready).toBe(true);
+    expect(mod.default.attached).toBe(true);
   });
   return mod;
 }
