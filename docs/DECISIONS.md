@@ -34851,17 +34851,7 @@ grammar rather than as a report bolted on — `CHARTER.md` §12, chartered
   prompt carries central's provisioning preamble and a guard: if the
   charter does not list the lane or the rubric is missing, stop and
   report — no improvised review.
-- **The charter amendment is staged, not landed**: one commit on
-  `claude/axiom-theory-review-70lkd7`, on top of `axiom-theory`'s
-  `f759260`, because a change to a lane's contract passes the owner
-  (D289 §4: *"no run ever merges a change to any lane's contract"*).
-  Landing is one fast-forward —
-  `git push origin claude/axiom-theory-review-70lkd7:axiom-theory` —
-  and nothing else; the Routine, the id in the charter's §10 table and
-  this record are already consistent with it. Until it lands, each
-  odd-night firing stops at the guard for a few dollars; if landing
-  waits more than a cycle, D289 §5's rule applies — work that cannot
-  land is waste, not spend — and the Routine is paused.
+- **The charter amendment landed on the owner's word** (*"land it"*, the same evening): `fa2de8e` on `axiom-theory`, a fast-forward from `f759260`, pushed after the checker ran green on the rebased tip. It was staged first on `claude/axiom-theory-review-70lkd7` rather than pushed, because a change to a lane's contract passes the owner (D289 §4: *"no run ever merges a change to any lane's contract"*) — the staging branch was the vehicle and is deleted now that its one commit is the branch tip. The first firing therefore finds the lane chartered; the prompt's guard is for a future charter that drops it, not for this one.
 - **Cost**: roughly half to one theory run per review (~$10–20), ≈ 15
   a month, under the owner's standing call that budget is not this
   program's constraint.

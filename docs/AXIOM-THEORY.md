@@ -149,13 +149,12 @@ every lane's next run reads feedback that already covers its latest
 landed run. Roughly half to one theory run per review (~$10–20), ≈ 15
 a month.
 
-**Delivery state.** The Routine is live (id in D342, the account-side
-half). The charter amendment — §12, the workspace, the checker's path
-set, nine seeded `FEEDBACK.md` files — is staged on
-`claude/axiom-theory-review-70lkd7` for the owner's fast-forward, not
-landed, because a change to a lane's contract passes the owner (D289
-§4). Until it lands, the Routine's prompt stops at its own guard
-rather than improvise a review.
+**Delivery state.** Live on both halves: the Routine (id in D342, the
+account-side half) and the charter amendment — §12, the workspace, the
+checker's path set, nine seeded `FEEDBACK.md` files — landed on
+`axiom-theory` as `fa2de8e` on the owner's word the same evening,
+staged on a branch first because a change to a lane's contract passes
+the owner (D289 §4). The first review is the Routine's first firing.
 
 ## The owner's controls
 
