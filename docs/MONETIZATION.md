@@ -154,6 +154,18 @@ server-written edit-flow record) and D195's one-dim audience cap, so
 adopting it is a set of DECISIONS.md records, not a build ticket. Until
 then, everything else on this page stands as written.
 
+**Where the door lives is an open question (2026-08-31).** Paths 2 and 3
+sell through one surface inside the app binary — `SuggestOverlay`, its
+rate card, its composer and its pay tap — and that is the surface Apple's
+3.1.1 is about, whatever D313 meant by "commerce stays on the web side".
+At EUR 320 a question and EUR 288 an ad, a store cut is EUR 48-96 a sale
+against roughly EUR 5 of card processing; and the closer's partial refund
+(D164) has no in-app-purchase primitive at all, so the billing model and
+IAP are not merely expensive together, they are incompatible.
+[`STORE-CUT-PLAN.md`](STORE-CUT-PLAN.md) sets out the three shapes and
+recommends moving the door to the web. **Nothing is adopted** — the door
+is where it has always been until a decision record says otherwise.
+
 ## Ruled out by standing posture
 
 Narrower than "no ads" — ads are path 3. What stays out is the
