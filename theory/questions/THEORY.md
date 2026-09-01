@@ -1,12 +1,12 @@
 # The questions axiom — current theory
 
-*Regenerated from `graph.json` on 2026-08-29; the graph is the data,
+*Regenerated from `graph.json` on 2026-09-01; the graph is the data,
 this page is its readable face. Statuses follow CHARTER §4's ladder.*
 
 The perfect question axiom is a theory of asking people things: what a
 question **is** as an instrument, how the bank **chooses** what to ask
 whom, how the choice is **priced**, how new questions are **made**, and
-where the answers may **not** travel. Eight claims, four now grounded
+where the answers may **not** travel. Eight claims, five now grounded
 in the measurement and design literature.
 
 ## What a question is
@@ -129,14 +129,62 @@ deferred bits, never the definitional value cen-2 protects.
 
 ## How questions are made
 
-**Production is a closed loop** (`que-3`, argued): every authored
-question is a hypothesis about what will split people, live performance
-is the experiment, and the generator learns shape-level rules from
-measured outcomes — under the standing guardrail that warmth outranks
-any score, because a bank optimized for maximal disagreement converges
-on outrage. que-8 records this guardrail as a second constraint
-standing outside the bits currency. Grounding path queued: the
-automatic item generation and item-quality-prediction literature.
+**Production is generation-plus-calibration under a warmth
+constraint** (`que-3`, **cited** — raised this run, and rebuilt by its
+adversarial pass before landing). Three limbs, each carried by its own
+literature; the closed loop as one system, and its two transfers, are
+this lane's marked inferences — no source measures an
+authored→measured→re-authored bank across generations.
+(1) *Generation*: generated items inherit family-level parameter
+**distributions** from their authoring structure, never known
+parameters — Embretson's problem statement (on-line generation vs.
+the axiom of measuring from items of known properties) and repairing
+model class (calibrate the generating principles, not the items);
+Glas & van der Linden's item-cloning CAT, whose headline warning is
+exactly this correction (ignoring within-family parameter variability
+biases ability estimates); Geerlings et al.'s hierarchical model for
+rule-generated families, within-family surface equivalence being a
+modelling *assumption* there, not a finding. The neural half
+demonstrates generate→measure, not measure→predict: von Davier's LSTM
+generates without construct targeting, and Attali et al. ran a
+large-scale *pilot* — their own word — in the Duolingo English Test
+practice test, human review retaining 58% of generated passages.
+(2) *Prediction*: the feature→parameter map is half a century old as
+a model — Fischer's LLTM decomposing difficulty into weights on
+authoring operations estimated from response data, generalized by
+De Boeck & Wilson's explanatory covariate frame, the hard linear
+constraint relaxed by random-item models (De Boeck 2008) — but no
+blind benchmark has shown it forecasting well enough to replace
+calibration: in BEA 2024 (667 retired USMLE items) the best
+text-based system beat a predict-the-mean baseline only marginally,
+successor results (Li et al. 2025; the surveys' best-case round-ups)
+are not scale-comparable across datasets, and the surveys license no
+accuracy verdict in either direction. So the map is the loop's prior
+and hypothesis-generator; calibration (que-2, a new `depends` edge)
+is its arbiter. A second transfer is marked here: the prediction
+literature is ability/cognitive, where difficulty is defined against
+a correct answer — for this opinion-shaped bank the analogue is item
+location/thresholds (or ideal-point location under unfolding, que-2),
+and no cited source estimates a feature→location map for opinion
+items. (3) *The guardrail* — warmth as a constraint outside que-8's
+bits currency; in the product's own rule, warmth over evenness. What
+engagement optimization *selects* is established at home: a
+preregistered audit manipulating the objective found engagement-based
+ranking amplified partisanship and out-group animosity, amplified
+content users say makes them feel worse about their out-group, and
+diverged from users' stated preferences (Milli et al.), atop the
+correlational background (Brady 2017; Rathje 2021), with Brady et al.
+2021 supplying the loop mechanism itself — rewarded outrage begets
+outrage, reinforcement-shaped. What is *not* established, held openly:
+that the selection changes readers — Guess et al.'s randomized
+three-month feed swap moved exposure substantially and no measured
+polarization outcome. The guardrail needs only the selection half (a
+disagreement-optimal bank is a worse *instrument*, whatever it does
+to readers), and its transfer to question banks is an analogy stated
+as one. The guardrail *refines* que-1 rather than supporting it: for
+opinion items the maximum-information item is approximately the
+maximally splitting one, so an unconstrained selector walks toward
+exactly this failure mode.
 
 ## Where answers may not travel
 
@@ -174,17 +222,23 @@ comparability floor a graded constraint rather than a cliff.
   settles them.
 - que-1's spine-size function has its arguments; it still wants a
   closed or computational form.
-- que-3 has no external grounding yet.
+- que-3's loop is grounded abroad but unmeasured at home: whether this
+  bank's own shape features predict its measured discrimination better
+  than a baseline is blocked on the first and third REQUESTS rows —
+  and would move que-3 toward *measured*.
 - Whether InSight's own published fit behaves as IRT predicts —
   blocked on the first REQUESTS row; would move que-2 toward
   *measured*.
 
 *Verification note for all cited nodes: this container's egress policy
-blocks publisher full-text; sources were corroborated at
-search-index/metadata level against multiple independent records (each
-node states its exact standard), and each run's adversarial pass
-independently re-verified that run's additions — this run's pass
-re-verified all 7 new external sources, relabelled two page ranges as
-with-discussion, and dropped one uncorroborated issue number. Kolen &
-Brennan is cited as the field's standard text only — not read at first
-hand, with no specific content claim resting on it.*
+blocks publisher full-text (and, this run, registry APIs); sources
+were corroborated at search-index/metadata level against multiple
+independent records (each node states its exact standard), and each
+run's adversarial pass independently re-verified that run's
+additions — this run's pass re-verified all of que-3's sources (zero
+invented, none resolving to a different paper), read one at full text
+(Attali, via the publisher's open PDF — the reading that produced the
+pilot correction), and returned 7 blocking defects, all applied
+before landing. Kolen & Brennan and Gierl & Haladyna are cited as the
+field's standard texts only — not read at first hand, with no
+specific content claims resting on them.*

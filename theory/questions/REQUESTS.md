@@ -38,3 +38,26 @@ implements its own requests.
   · **measurable**: que-8's depreciation curve (one of its weight's
   three factors); que-2's rung toward *measured* — whether live
   calibration drifts as Stocking's warning predicts.
+
+- 2026-09-01 · **what**: publish a per-core-question shape-feature
+  table — one committed artifact keyed by question id, joinable to
+  the first row's item-parameter artifact: the features already
+  committed on the bank (`type`, option count, `tone`, `cat`, D187's
+  `rates`) plus derived ones, each by a named method (length in words
+  from the prompt; reading level by a named readability index;
+  concreteness by a named published norm lexicon; moral-emotional and
+  out-group language counts by Brady's and Rathje's own published
+  dictionaries). · **why**: que-3 (cited) says the production loop
+  closes through live calibration with a learned feature→parameter
+  map as its prior; the explanatory regression that would learn that
+  map (Fischer's LLTM through De Boeck & Wilson's covariate frame)
+  needs the feature side as one table. Most raw features already
+  exist on the committed bank — missing are the derived features and
+  the single joinable publication. Cheap: annotation and derivation
+  over the committed bank, no new measurement. · **measurable**:
+  que-3's rung toward *measured* — whether shape features predict
+  this bank's own measured discrimination and split evenness better
+  than a predict-the-mean baseline, in BEA 2024's form; and the
+  guardrail empirically — whether the bank's vintages (D97) drift on
+  the moral-emotional / out-group features as measured splitting is
+  optimized for.
