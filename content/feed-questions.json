@@ -3220,6 +3220,110 @@
       "lo": 0,
       "hi": 20,
       "unit": "years"
+    },
+    {
+      "id": "f122",
+      "core": false,
+      "cat": "people",
+      "type": "vote",
+      "prompt": "The famous person you'd trust to babysit: Dolly Parton, Keanu Reeves, David Attenborough, or Michelle Obama?",
+      "options": [
+        {
+          "label": "Dolly Parton",
+          "count": 1500
+        },
+        {
+          "label": "Keanu Reeves",
+          "count": 1800
+        },
+        {
+          "label": "David Attenborough",
+          "count": 1600
+        },
+        {
+          "label": "Michelle Obama",
+          "count": 1400
+        }
+      ]
+    },
+    {
+      "id": "dl18",
+      "core": false,
+      "cat": "culture",
+      "type": "dial",
+      "prompt": "Minutes late before it counts as late?",
+      "lo": 0,
+      "hi": 30,
+      "unit": "min"
+    },
+    {
+      "id": "f123",
+      "core": false,
+      "cat": "dilemma",
+      "type": "vote",
+      "prompt": "Never lie again — and never be lied to. Take the deal?",
+      "options": [
+        {
+          "label": "Take it",
+          "count": 2700
+        },
+        {
+          "label": "Too much truth",
+          "count": 2400
+        }
+      ]
+    },
+    {
+      "id": "f124",
+      "core": false,
+      "cat": "event",
+      "type": "vote",
+      "political": true,
+      "prompt": "A referendum on every big question: more democracy, or chaos?",
+      "options": [
+        {
+          "label": "More democracy",
+          "count": 2100
+        },
+        {
+          "label": "Chaos",
+          "count": 2800
+        }
+      ]
+    },
+    {
+      "id": "f125",
+      "core": false,
+      "cat": "food",
+      "type": "vote",
+      "prompt": "Breakfast: sweet, or savoury?",
+      "options": [
+        {
+          "label": "Sweet",
+          "count": 2500
+        },
+        {
+          "label": "Savoury",
+          "count": 3100
+        }
+      ]
+    },
+    {
+      "id": "f126",
+      "core": false,
+      "cat": "movies",
+      "type": "vote",
+      "prompt": "Black-and-white films: a treat, or a chore?",
+      "options": [
+        {
+          "label": "A treat",
+          "count": 2600
+        },
+        {
+          "label": "A chore",
+          "count": 2300
+        }
+      ]
     }
   ]
 }

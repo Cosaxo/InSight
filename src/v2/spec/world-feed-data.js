@@ -203,6 +203,7 @@ window.WORLD_FEED_QS = [
   { id: 'dl15', cat: 'food', type: 'dial', prompt: 'Meals cooked from scratch in a week?', lo: 0, hi: 14, unit: 'meals', med: 4, n: 4000, dist: [10, 12, 14, 15, 13, 11, 8, 6, 4, 3, 2, 2] },
   { id: 'dl16', cat: 'food', type: 'dial', prompt: 'The ideal dinner hour?', lo: 17, hi: 23, unit: 'h', med: 19, n: 4400, dist: [3, 5, 8, 12, 16, 17, 14, 10, 7, 4, 2, 2] },
   { id: 'dl17', cat: 'bigq', type: 'dial', prompt: 'How many years ahead do you actually plan?', lo: 0, hi: 20, unit: 'years', med: 3, n: 4300, dist: [14, 18, 16, 13, 10, 8, 6, 5, 4, 3, 2, 1] },
+  { id: 'dl18', cat: 'culture', type: 'dial', prompt: 'Minutes late before it counts as late?', lo: 0, hi: 30, unit: 'min', med: 10, n: 4500, dist: [5, 7, 10, 14, 16, 15, 11, 8, 6, 4, 2, 2] },
   { id: 'fd4', cat: 'bigq', type: 'field', prompt: 'Human nature \u2014 place it', ax: ['selfish', 'kind'], ay: ['fixed', 'changeable'], n: 4700, cloud: [[70, 30, 11, 15], [28, 68, 9, 14], [50, 48, 5, 12]] },
 
   // ── scene questions ── asked inside one scene; counts are community-scale
