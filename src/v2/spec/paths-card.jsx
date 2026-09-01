@@ -14,7 +14,10 @@
 // story comes from paths-data.js and its branch shares are authored. The
 // card reads whichever it has and NEVER mixes them — `srcOf` returns one
 // shape, and the only thing that differs downstream is where `flow` comes
-// from and whether a choice writes to the server.
+// from and whether a choice writes to the server. Since D340 the feed
+// hands the card its item as a prop — a story is a MEMBER of the stream,
+// dealt in like any question, several at once when the bank holds
+// several — and the item's `live` flag is the source switch.
 //
 // THE CSS FAMILY WAS RENAMED, and the rename is the point rather than
 // taste. The prototype draws this card's head, title, rule, chips and
@@ -88,8 +91,8 @@ function PathsTree({ st, walk, flow }) {
 }
 
 /**
- * The one story this card is showing, in one shape, from whichever source
- * exists — plus how to read the crowd out of it.
+ * The story this card is showing, in one shape, from whichever source the
+ * feed item names — plus how to read the crowd out of it.
  *
  * `flow(key)` is the share of people standing at `key`. Live it is real:
  * the endings under that branch over the total. Demo it is the product of
@@ -97,13 +100,19 @@ function PathsTree({ st, walk, flow }) {
  * answers yet — the card draws the walk without a tree rather than
  * dividing by zero, because "every branch is 0% wide" is not a truthful
  * picture of an empty question.
+ *
+ * `demoId` is read only when `live` is null: a demo feed item carries just
+ * the id (paths-data.js holds the content), while a live item carries the
+ * bank doc's fields — the two-sources-never-mixed rule of D136, with the
+ * feed item as the switch instead of pathQs()'s head.
  */
-function srcOf(live) {
+function srcOf(live, demoId) {
   if (live) {
     // The bank doc as it stands, plus its per-ending counts. `total` is
-    // summed here rather than carried on the doc: the store folds the counts
-    // on call (see LIVE.pathQs) and one more field would be one more thing
-    // for the two sides to disagree about.
+    // summed here rather than carried on the doc: the feed item's fold
+    // (buildFeedGlobals) and the Map's (LIVE.pathQs) both hand counts
+    // over, and one more field would be one more thing for the sides to
+    // disagree about.
     const counts = live.counts || [];
     const total = counts.reduce((a, b) => a + b, 0);
     return {
@@ -118,7 +127,8 @@ function srcOf(live) {
       total,
     };
   }
-  const st = PATHS.stories()[0];
+  const st = PATHS.storyOf(demoId);
+  if (!st) return null;
   return {
     id: st.id, title: st.title, intro: st.intro, hue: st.hue,
     nodes: st.nodes, endings: st.endings, live: false,
@@ -127,12 +137,23 @@ function srcOf(live) {
   };
 }
 
-export function PathsCard() {
+/**
+ * One Crossroads story, as a card in the feed. `q` is the feed item the
+ * stream dealt this card — a bank doc's fields when live, an id-bearing
+ * stub when demo (D340: a story is a feed QUESTION, placed by the feed's
+ * own ordering like any other, several at once when the bank holds
+ * several; D136's pinned singleton read pathQs()[0] and could never show
+ * the second story — the limit D185 §6 recorded).
+ */
+export function PathsCard({ q }) {
   const [, force] = React.useReducer((x) => x + 1, 0);
   React.useEffect(() => PATHS.sub(force), []);
 
-  const live = LIVE.pathQs ? (LIVE.pathQs()[0] || null) : null;
-  const st = srcOf(live);
+  const live = q && q.live ? q : null;
+  const st = srcOf(live, q && q.id);
+  // An id the demo store cannot name draws nothing rather than someone
+  // else's story — same honesty rule as MTPathsCard below.
+  if (!st) return null;
 
   // Where the walk lives. Demo: the local store, which is the only record.
   // Live: the SERVER's answer is the record once a walk is finished — so a

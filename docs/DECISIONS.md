@@ -34600,82 +34600,107 @@ so unless something dispatches in between, that pre-flight should answer
 a promise about the tree: **a verdict has a shelf life of exactly one
 dispatch, and a bump has a shelf life of exactly one upload.**
 
-## D340 · Crossroads leaves the feed's head and rides the stream
+## D340 · Crossroads is a question TYPE, and its stories ride the feed as members
 
 **2026-09-01.** **Status:** binding. Amends the placement half of D136's
-"Not dealt into the card stream" — the component half stands.
+"Not dealt into the card stream" — the component half stands. Closes the
+client limit D185 §6 recorded. Recorded once, with its own first cut
+inside, because the misread is the useful part.
 
 > *"it seams the crossroad is at second to top of the feed all time it
 > should be in the feed like the others"*
 
-The owner, on the shipped layout: daily card, then Crossroads, every
-visit, because D136 pinned the card at the head of the feed
-(`{i === 0 && <PathsCard />}`) and a pinned card is furniture — the same
-slot whether the story is fresh, mid-walk, or a tree you finished a month
-ago. The ask is placement, not apparatus, and that split is the whole
-decision.
+The shipped layout: daily card, then Crossroads, every visit — D136
+pinned the card at the head of the feed (`{i === 0 && <PathsCard />}`)
+and held `path` docs out of `WORLD_FEED_QS`. The first cut of this
+change read the ask as a placement tune and moved the pin five cards
+deep — still one reserved slot, one singleton card, `pathQs()[0]`. The
+owner's correction, same day:
+
+> *"crossroad is a type of question that can apper 5 or 7 or 9 and
+> multiple of them can apper crossroad is like any other question in the
+> feed"*
+
+`path` is a question TYPE. Its questions are members of the feed like
+any other: the pool carries them, the sort and the topic chips and the
+weave place them, several can be on screen at once, and where one
+appears is the feed's business, not a constant's. The five-cards-deep
+slot shipped for about an hour on this branch and is gone; nothing of it
+survives to amend.
 
 ### What moved
 
-The card now lands **`PATHS_AT` (5) cards into the stream** — the render
-map deals it in ahead of `feedList[PATHS_AT]`, the suggestion card's own
-shape one slot family over. The constant lives in
-`data/feed-interleave.ts` beside the cadences, so the placement's one
-number has the same home as the arithmetic that surrounds it and the test
-that pins it imports the value it pins. Five is chosen, not arbitrary:
-past the first screenful of questions, short of the paid slot
-(`SPONSOR_AT`, 6) so the two special cards never stack, and inside the
-first window (`WF_PAGE`, 8) so the slot mounts on open and reaching it is
-a scroll rather than a page load.
-
-**A feed too short to reach the slot shows the card at its end** — the
-paid slot's fallback shape (`interleaveFeed`'s "still owes the buyer
-their card"), because a fixed depth over a thin feed is how a card
-disappears without anyone deciding it should. The live smoke fixture's
-one-card feed exercises exactly this arm. **An empty feed stays empty**:
-the fallback carries `feedList.length > 0`, so the caught-up/muted line
-keeps the screen to itself — which is not a new refusal but the pinned
-slot's own behaviour preserved (`i === 0` never fired on an empty map
-either).
+- **`buildFeedGlobals` (data/live.ts) stops holding `path` out** and maps
+  a path arm instead: the doc's story fields plus folded `counts`, `n`
+  for the "top" sort key, `cat` from the bank's `topic` — 'dilemma' for
+  the shipped stories, an always-on channel in both builds — and NOT the
+  synthesized endings-as-options, which are the vote path's business.
+- **The demo pool carries two stubs** (world-feed-data.js, in the
+  dilemmas group, one early and one deep): id, home topic, a prompt for
+  search. The content stays written once in paths-data.js; the card
+  resolves it by id.
+- **`PathsCard` takes its feed item as a prop** (`q`). A live item is the
+  bank doc's fields; a demo stub is an id. `srcOf` keeps D136's
+  two-sources-never-mixed rule with the item's `live` flag as the
+  switch, and `pathQs()[0]` — the head-of-list read that could never
+  show the second story (D185 §6) — is gone from the card. `pathQs()`
+  itself stays, as the Map's Walks branch's reader.
+- **Three dispatch sites in world-feed.jsx** route `type === 'path'` to
+  the card: the stream map, the Answered expander, and focus mode — so a
+  story found through search opens as the real story card.
+- **A finished walk is an answered question.** `answered()` grew a path
+  arm: walk finished locally (PATHS, demo and live alike) or a standing
+  vote (the returning device whose localStorage is gone). A finished
+  story parks behind the Answered expander with its reveal, exactly like
+  every answered card — where the pinned card had sat at the head
+  forever, finished or not. An unfinished walk is not an answer and
+  stays dealt in, resuming where it stood.
+- Two small honesty arms: `wfVotes` reads `n` for paths (the "top" sort
+  key), and the closing-ring picker skips them — the ring is
+  renderCard's to draw and a hash landing on a story would silently
+  spend the grace note.
 
 ### What D136 said that is still true
 
-The card is **still not `renderCard`'s** — its reveal is a tree rather
-than a split, so it stays its own component in its own slot rather than a
-question dealt through the weave with options and a who-voted sheet. Only
-the address changed. Downstream of that, nothing moved: the two-source
-discipline (`srcOf`), the vote path a finished walk writes through, D211's
-no-redo rule, and the Map's Walks branch are all untouched.
+A walk's reveal is a TREE, not a split, so the card stays its own
+component — `renderCard`'s apparatus (option rows, who-voted, takes, the
+insight line) still has nothing to say about it, and the dispatch is the
+whole cost of that. The two sources still never mix. The vote path is
+untouched: a finished walk writes the same `optionIdx` through the same
+fold and ledger, and D211's no-redo rule stands.
 
-Two neighbours checked and left alone. The reading game keeps the head
-(D196's reasoning is its own: one thing you are DOING, not a card in the
-stream), and `LiveCallCard`'s unmounted machinery keeps its head-pin
-comment with a note, since a call is a commitment you are carrying, not
-content. And D185's genre ratchet survives unweakened: its SEQUENCE
-argument needs "one slot shows one story at a time", which is as true at
-depth five as at depth zero — QUESTION-FARM.md § Crossroads stories now
-says it without the word "head".
+Left alone, knowingly: the search overlay's own `srchAnswered` copy has
+no path arm, so a finished demo walk can still be offered under "Open
+questions" — tapping it opens the finished card's reveal, which is
+correct if unpolished; the live case self-heals because the reconcile
+loop copies a standing path vote into the feed's vote map through its
+generic arm. And the reading game keeps the feed head (D196's reasoning
+is its own: one thing you are DOING, not a card in the stream), as does
+`LiveCallCard`'s unmounted machinery — a call is a commitment you are
+carrying, not content.
 
 ### What proves it
 
-`test:unit` (155 files, 2,302), with the placement now pinned where the
-pin means something: the demo mount asserts the card sits deeper than
-`PATHS_AT` siblings in the feed column (probed by reverting to `i === 0`
-and watching it fail; sibling count rather than a class query because
-`wf-card` exists only where an IntersectionObserver does, which jsdom
-does not promise), and the live mount's title binding doubles as the pin
-on the short-feed fallback. `lint`, `tsc -b`, `check:globals` (coupling
-unchanged at its 236 baseline), `check:figures` (62), `check:docs` (340
-records), `test:scripts` (586) all green; `check:bundle` on the
-CI-equivalent live build unmoved (2153 KB total / 771 KB eager, both
-under ceiling) — the import site did not change, so the card and its
-store stay in the lazy feed chunk.
+`test:unit` green, with the pins now on the owner's sentence itself: the
+demo mount asserts BOTH stories on screen at once as stream members
+(impossible under the singleton — it could only ever render
+`pathQs()[0]`), and that a finished story parks behind the Answered
+expander while the unfinished one stays dealt in (probed: removing the
+`answered()` path arm fails exactly that case with "a finished story is
+still in the fresh stream"). The live mount's title binding now pins the
+membership dispatch — the fixture pushes the story into `WORLD_FEED_QS`
+the way `buildFeedGlobals` emits it, one object behind both that door
+and `pathQs`. The card suite passes the item as a prop throughout;
+`lint`, `tsc -b`, `check:globals` (coupling unchanged), `check:figures`,
+`check:docs`, `test:scripts`, `check:bundle` on the CI-equivalent live
+build all green.
 
 ### When to revisit
 
-If the owner's next note is about the finished card — a completed tree
-riding the stream forever at depth five is the same furniture complaint
-one stop later — the shape to price is parking finished walks behind the
-Answered expander, which today cannot render a walk (`renderCard`
-apparatus, the reason the card is its own component at all). That is a
-new surface, not a tuning of this constant.
+If a future story's `cat` leaves the channel row (the farm's taxonomy is
+wider than the always-on set), the bank doc's `topic` is what places it —
+a story filed under a topic no chip can name is a card nobody can see,
+which is `wfFeedMatch` working, not a bug; give it a served topic. And if
+the demo's two stubs ever drift from paths-data.js ids, the card renders
+null and the demo smoke fails on the missing titles — that is the drift
+alarm, not a crash.

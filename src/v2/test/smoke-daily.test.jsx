@@ -9,7 +9,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, screen } from "@testing-library/react";
-import { PATHS_AT } from "../data/feed-interleave.ts";
+import { PATHS } from "../spec/paths-data.js";
 import { getApp, growUntil, mountApp, registerSmokeHooks, SMOKE_TIMEOUT_MS } from "./mount-app.jsx";
 
 vi.setConfig({ testTimeout: SMOKE_TIMEOUT_MS });
@@ -93,34 +93,54 @@ describe("the daily tab", () => {
     expectNoBoundary("feed window");
   });
 
-  // Crossroads dealt into the demo feed (D136, placed by D340), reading its
-  // DEMO source — this build has no bank, so `LIVE.pathQs()` is empty and
-  // the card falls back to paths-data.js. smoke-live.test.jsx owns the other
-  // source, and the pair is what makes the fallback a decision rather than
-  // an accident: each would pass alone if the card only ever had one source.
+  // Crossroads as MEMBERS of the demo feed (D340), reading the DEMO source
+  // — this build has no bank, so the pool's path stubs resolve their
+  // content from paths-data.js by id. smoke-live.test.jsx owns the other
+  // source, and the pair is what makes the source switch a decision rather
+  // than an accident: each would pass alone if the card only ever had one.
   //
   // On the real mount rather than in the card's own suite, because the card
-  // renders perfectly well in isolation whether or not anything ever puts
-  // it on screen — which is the failure this catches. The position is
-  // asserted here too, and on this mount only: the demo bank is the one
-  // long enough to reach the slot (the live fixture's one-card feed
-  // exercises the short-feed fallback instead).
-  it("deals Crossroads into the demo feed stream, from the demo story", () => {
+  // renders perfectly well in isolation whether or not anything ever deals
+  // it in — which is the failure this catches. What is pinned is the
+  // owner's correction itself (D340: a story is a question TYPE, "in the
+  // feed like the others"): BOTH demo stories on screen at once, at
+  // whatever depths the mix put them — the pinned singleton read
+  // pathQs()[0] and could never show a second story (D185 §6).
+  it("deals both demo stories into the feed stream as members", async () => {
+    PATHS.stories().forEach((s) => PATHS.reset(s.id));
     const expectNoBoundary = mountApp();
-    const kick = screen.getByText("Crossroads");
-    expect(kick, "the Crossroads card is not in the demo feed").toBeTruthy();
-    expect(screen.getByText("The Wallet"), "the card is not showing the demo story").toBeTruthy();
-    // In the stream, not at the head (D340: "it should be in the feed like
-    // the others"). PATHS_AT feed cards sit above it as siblings in the
-    // feed column, plus the column's own sticky chip-row head — so
-    // anything ≤ PATHS_AT means the card has drifted back toward the
-    // pinned head slot D340 retired. Sibling count rather than a class
-    // query because renderCard only wears `wf-card` when an
-    // IntersectionObserver exists, which jsdom does not promise.
-    let before = 0;
-    for (let el = kick.closest(".card").previousElementSibling; el; el = el.previousElementSibling) before++;
-    expect(before, "Crossroads is back at the head of the feed").toBeGreaterThan(PATHS_AT);
-    expectNoBoundary("crossroads card");
+    await growUntil(
+      () => screen.queryByText("The Wallet") && screen.queryByText("The Wrong Text"),
+      "both Crossroads stories",
+    );
+    expect(screen.getAllByText("Crossroads").length, "fewer than two story cards in the stream")
+      .toBeGreaterThanOrEqual(2);
+    expectNoBoundary("crossroads cards");
+  });
+
+  // …and the other half of "like the others": a FINISHED story is an
+  // answered question. It leaves the fresh stream and waits behind the
+  // Answered expander with its reveal — the same parking every answered
+  // card gets — while the unfinished story stays dealt in. This is also
+  // the one case that renders the expander's path dispatch, which a
+  // vote-only doneList never would.
+  it("parks a finished story behind the Answered expander", async () => {
+    PATHS.stories().forEach((s) => PATHS.reset(s.id));
+    const st = PATHS.stories()[0];
+    PATHS.choose(st.id, 0); PATHS.choose(st.id, 0); PATHS.choose(st.id, 0); // AAA
+    try {
+      const expectNoBoundary = mountApp();
+      await growUntil(() => screen.queryByText("The Wrong Text"), "the unfinished story");
+      expect(screen.queryByText("The Wallet"), "a finished story is still in the fresh stream").toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: /answered · \d+/i }));
+      expect(screen.getByText("The Wallet"), "the finished story is not behind the expander").toBeTruthy();
+      // Its reveal, not a fresh card: the ending is named (twice by design —
+      // the heading and the tree's own end label).
+      expect(screen.getAllByText(st.endings.AAA.name).length).toBe(2);
+      expectNoBoundary("finished story parked");
+    } finally {
+      PATHS.stories().forEach((s) => PATHS.reset(s.id));
+    }
   });
 
   it("parks a previously answered feed card behind the Answered expander", () => {

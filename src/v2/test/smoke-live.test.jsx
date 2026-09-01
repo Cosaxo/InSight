@@ -602,11 +602,11 @@ describe("the live gates hold in the DOM, not just in the source", () => {
   // be showing authored crowd figures to a live user, which is D1's case.
   // Binding on the fixture's own story title is what tells them apart.
   //
-  // Since D340 the card rides the stream at PATHS_AT rather than the head,
-  // and this fixture's one-card feed is too short to reach that slot — so
-  // finding the title here is ALSO the pin on the short-feed fallback: a
-  // thin live feed still shows its story. The in-stream position is pinned
-  // on the demo mount (smoke-daily), the one with a bank long enough.
+  // Since D340 a story is a MEMBER of the feed pool — the fixture pushes
+  // it into WORLD_FEED_QS the way buildFeedGlobals emits it — so finding
+  // the title here also pins the live dispatch: the stream dealt the card,
+  // nothing reserved it a slot. (The membership shape itself — several at
+  // once, parking when finished — is pinned on the demo mount.)
   it("draws Crossroads from the bank on a live feed, never the demo pool", () => {
     const expectNoBoundary = mountLive();
     expect(

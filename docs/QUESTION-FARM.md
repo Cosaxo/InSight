@@ -1199,10 +1199,11 @@ walk earns, and it describes where you are standing rather than scoring how
 you got there.
 
 **Topic, not corner.** A story's `cat` must differ from the `cat` of each of
-the two paths before it in the bank (`PATH_GENRE_LOOKBACK`, gated). One
-slot in the feed shows one story at a time (dealt into the stream since
-D340; D136 had pinned it at the head), so two in a row on one topic is the
-reader's entire experience of Crossroads. The
+the two paths before it in the bank (`PATH_GENRE_LOOKBACK`, gated). Stories
+ride the feed as ordinary members since D340 (D136 had pinned one slot at
+the head), and a story's genre is also its feed home — same-topic stories
+are neighbours in one topic's stream, so two in a row on one topic is still
+the reader's experience of Crossroads repeating itself. The
 scene is a scene with three turns — nothing in the form says the turns have
 to be about conduct, and nine of the taxonomy's ten topics have never had a
 story.
