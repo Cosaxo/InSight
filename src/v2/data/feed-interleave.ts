@@ -26,7 +26,7 @@
 // same reason.
 //
 // THE WORLD LIST IS THE FRESH ONE, and `depth` is what keeps the side
-// streams alive when it is short (D342). The feed used to weave against
+// streams alive when it is short (D346). The feed used to weave against
 // the FULL world list — answered cards included — and drop the answered
 // ones from the output afterwards, so that every cadence position stayed
 // reachable as the fresh half shrank. That kept the counts right and the
@@ -105,7 +105,7 @@ export interface InterleaveStreams<T> {
   sponsorAt?: number;
   /**
    * How many cadence positions to walk when `world` is shorter than that
-   * (D342): the side streams keep firing past the end of the world list,
+   * (D346): the side streams keep firing past the end of the world list,
    * with nothing between them, until this many positions have passed.
    * The feed passes the length of the full list — fresh and answered —
    * so a returning device gets the same side cards the full walk placed,

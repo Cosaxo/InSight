@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 //
-// The head of the feed on a RETURNING device (D342). The feed used to weave
+// The head of the feed on a RETURNING device (D346). The feed used to weave
 // its side streams against the full world list — answered cards included —
 // and drop the answered ones afterwards, so on a device that had answered
 // the first sixteen cards the first mounted page was seven test, learn and
@@ -49,7 +49,7 @@ afterEach(() => {
 const renderedIds = () => [...document.querySelectorAll(".wf-card")].map((el) => el._wfQid);
 const isWorld = (id) => typeof id === "string" && id.startsWith("feed-fixture-");
 
-describe("a returning device opens on fresh topics, not on the side streams (D342)", () => {
+describe("a returning device opens on fresh topics, not on the side streams (D346)", () => {
   it("puts the first side card after the cadence's worth of fresh world cards, not in front of the first one", async () => {
     // Twenty-four world cards, the first twelve answered on an earlier
     // visit: in the mirror the feed seeds from, and in the store, so the

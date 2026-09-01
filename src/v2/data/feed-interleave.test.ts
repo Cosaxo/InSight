@@ -239,7 +239,7 @@ describe("roundRobinBy", () => {
   });
 });
 
-// ── the returning device (D342) ───────────────────────────────────────
+// ── the returning device (D346) ───────────────────────────────────────
 //
 // The feed used to weave against the FULL world list — answered cards
 // included — and drop the answered ones from the output afterwards, so
@@ -250,7 +250,7 @@ describe("roundRobinBy", () => {
 // a solid block at the head of the feed. The owner's report: "when you
 // first open the app it never seems to add topics that are not tests or
 // learn". D309 had read the same complaint as depletion.
-describe("the fresh list is woven, and `depth` keeps the cadences alive (D342)", () => {
+describe("the fresh list is woven, and `depth` keeps the cadences alive (D346)", () => {
   const bank = world(24);
   const answered = new Set(bank.slice(0, 16));
   const fresh = bank.filter((w) => !answered.has(w));

@@ -15,6 +15,7 @@ import {
   encodeRecall,
   monthKey,
   recallEpoch,
+  requestDetailsProblem,
 } from "./deviceBind";
 
 const at = (iso: string) => new Date(iso);
@@ -151,5 +152,58 @@ describe("buildAppleJwt", () => {
       Buffer.from(s, "base64url"),
     );
     expect(okSig).toBe(false);
+  });
+});
+
+// The Play Integrity request check (D342). Neither arm is reachable from
+// the emulator — decodeIntegrityToken is a live Google call — so this is
+// the only place either is exercised before a real handset runs it.
+//
+// The nonce arm exists because DEVICE-BIND.md's paste-ready Android
+// snippet never set one, and IntegrityTokenRequest refuses to build
+// without a nonce. Had that snippet been pasted it would have failed on
+// every device, indistinguishably from the missing bridge it was meant to
+// end. So the bridge now sends one and the server REQUIRES it: a payload
+// carrying no nonce did not come from this app's bridge.
+describe("requestDetailsProblem", () => {
+  const PKG = "com.cosaxo.insight";
+
+  it("passes a payload from this app carrying the nonce we sent", () => {
+    expect(requestDetailsProblem({ requestPackageName: PKG, nonce: "n1" }, PKG, "n1")).toBeNull();
+  });
+
+  it("refuses a token minted for a different app", () => {
+    expect(requestDetailsProblem({ requestPackageName: "com.evil.app", nonce: "n1" }, PKG, "n1"))
+      .toBe("token is for a different app");
+    // Absent is not "matches" — an undefined package must not read as ours.
+    expect(requestDetailsProblem({ nonce: "n1" }, PKG, "n1")).toBe("token is for a different app");
+    expect(requestDetailsProblem(undefined, PKG, "n1")).toBe("token is for a different app");
+  });
+
+  it("refuses when the caller sent no nonce at all", () => {
+    // FAIL CLOSED. Accepting this would let a caller skip the check simply
+    // by omitting the field, which is the shape of decorative security
+    // this area has already shipped once.
+    expect(requestDetailsProblem({ requestPackageName: PKG, nonce: "n1" }, PKG, undefined))
+      .toBe("missing integrity nonce");
+    expect(requestDetailsProblem({ requestPackageName: PKG, nonce: "n1" }, PKG, ""))
+      .toBe("missing integrity nonce");
+  });
+
+  it("refuses when the signed nonce is not the one we sent", () => {
+    expect(requestDetailsProblem({ requestPackageName: PKG, nonce: "other" }, PKG, "n1"))
+      .toBe("integrity nonce does not match");
+    // A payload with no nonce and a caller-supplied one: the token was not
+    // minted for this request, whatever else it says.
+    expect(requestDetailsProblem({ requestPackageName: PKG }, PKG, "n1"))
+      .toBe("integrity nonce does not match");
+  });
+
+  it("checks the package BEFORE the nonce", () => {
+    // Order matters for the log line: "different app" is the more specific
+    // and more alarming finding, and a foreign token will usually also
+    // carry a foreign nonce.
+    expect(requestDetailsProblem({ requestPackageName: "com.evil.app" }, PKG, undefined))
+      .toBe("token is for a different app");
   });
 });

@@ -122,6 +122,7 @@ directions.
 | [`SHIP-CHECKLIST.md`](SHIP-CHECKLIST.md) | The reasoning for every remaining human step to the App Store. Canonical | tree |
 | [`LAUNCH-RUNBOOK.md`](LAUNCH-RUNBOOK.md) | The same work as an ordered to-do list. Holds order and status | tree |
 | [`IOS-RELEASE.md`](IOS-RELEASE.md) | Producing a signed archive without a Mac | tree |
+| [`PLAY-RELEASE.md`](PLAY-RELEASE.md) | What a Play release would take, assessed while it is parked (D42): four code gaps, one missing web page, three owner decisions | mixed |
 | [`STORE-FORMS.md`](STORE-FORMS.md) | Apple's privacy and age-rating questionnaires, answered field by field | tree |
 | [`SCALE-PLAN.md`](SCALE-PLAN.md) | What an unbounded feed costs, what trips first, and the core/tail split it forces. §1's classification is built; the rest is not | mixed |
 | [`SCALE-RUNBOOK.md`](SCALE-RUNBOOK.md) | The same work as an ordered build list — open steps only | plan |
@@ -222,6 +223,8 @@ everything else: the static gates, and where each one runs.
 | `check:ios-spm` | ci | The npm alias that keeps the iOS SwiftPM graph resolvable |
 | `check:ios-facebook` | ci | That the postinstall actually stripped the Facebook SDK a transitive SPM manifest links in (D16) |
 | `check:ios-location` | ci | The iOS location declarations against what the app does. ITMS-90683 is why it exists |
+| `check:devicebind` | ci | D29's iOS and Android bridges are registered, not merely present — the failure it guards is silent (D342) |
+| `check:account-level` | deploy | firestore.rules' account bar equals `accountLevel.ts`'s `REQUIRED_LEVEL` — they disagree silently both ways (D343) |
 | `check:web-firebase` | release | That the shipped bundle actually carries the Firebase config |
 | `check:store-listing` | release | Marketing copy against both consoles' length limits |
 | `check:store-copy` | release | No unfilled placeholders in the store-facing legal pages. Runs on every iOS archive (`ios-release.yml`) and is off CI on purpose |

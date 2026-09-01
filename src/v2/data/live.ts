@@ -4665,7 +4665,17 @@ const LIVE = {
     }
   },
   async linkGoogle(): Promise<void> {
-    return linkGoogle();
+    await linkGoogle();
+    // The account just gained an identity provider, which is the fact
+    // accountLevel.ts's level 2 is graded on. Activation memoizes per uid
+    // and would otherwise never look again, so drop the memo and let the
+    // next boot re-grade. Here rather than at the two call sites (the
+    // settings row and the first-launch gate) so neither can forget it.
+    //
+    // After the await: a failed link must not clear a settled memo, since
+    // nothing about the account changed.
+    const m = await import("./deviceBind");
+    m.forgetDeviceBind();
   },
   // The operator seed, reachable from a browser console.
   //
@@ -6283,8 +6293,9 @@ export async function initLive(timeoutMs = 2500): Promise<void> {
     // so a Google-linked user was told "You're on an anonymous session" and
     // offered "Link Google", which then painted auth/provider-already-linked
     // into the panel. Fail-safe (it could only under-claim), but wrong on
-    // screen, and profile-overlay.jsx hardcodes the same sentence with no
-    // check at all.
+    // screen — and profile-overlay.jsx hardcoded the same sentence with no
+    // check at all until the D344 amendment wired its identity row to this
+    // flag.
     //
     // …and ANNOUNCE it when it changes (D134). The anonymous → Google
     // upgrade keeps the uid, so this callback set `linked` and then fell

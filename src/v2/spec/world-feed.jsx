@@ -4040,7 +4040,7 @@ class WorldFeed extends React.Component {
     // shown it: the world's record first, then the test and lens streams'.
     const doneList = [...worldSplit.done, ...testSplit.done, ...lensSplit.done];
     // The weave walks the FRESH world list, and its cadences walk the FULL
-    // list's depth (D342). It used to walk the full list — answered cards
+    // list's depth (D346). It used to walk the full list — answered cards
     // included — and drop the answered ones from the output below, so the
     // side streams could not be starved: the test/lens slots fire on
     // world indices, the bank is finite, and the fresh half only ever
