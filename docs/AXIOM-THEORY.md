@@ -1,9 +1,10 @@
 # Axiom Theory — the theory layer, and its bridge into the product
 
 **Status: operating since 2026-08-25.** This page is the product-side
-record of a system that lives OUTSIDE the product: nine recurring
-Claude lanes writing theory on the orphan branch `axiom-theory` of this
-repo. **`CHARTER.md` at that branch's root is canonical** for
+record of a system that lives OUTSIDE the product: ten recurring
+Claude lanes on the orphan branch `axiom-theory` of this repo — nine
+writing theory, and since D342 one scoring their work every second
+night. **`CHARTER.md` at that branch's root is canonical** for
 everything about how the lanes behave; this page records what the
 product needs to know — where the system is, what may cross from it
 into the tree, and the account-side inventory. If the two disagree,
@@ -48,7 +49,10 @@ their connections — deliberately *not* an axiom, the owner's note
 **Central** synthesizes: the combination theory, the axiom portfolio,
 new-axiom proposals, focus questions into the other lanes, and the
 weekly `DIGEST.md`. The **graph optimizer** keeps the graphs
-themselves healthy, including its own methods.
+themselves healthy, including its own methods. And a tenth lane since
+2026-09-01, **review** (D342), scores every other lane's latest work
+every second night against the charter's own clauses and leaves each
+lane feedback — *The review lane*, below.
 
 ## Why the branch shape
 
@@ -89,7 +93,7 @@ alignment; the fit-not-Oracle note) carried into the record.
 
 ## The account-side inventory (product-side copy)
 
-All nine fire a **fresh session per run** on model `claude-fable-5`
+All ten fire a **fresh session per run** on model `claude-fable-5`
 (the owner's 2026-08-25 direction: Fable orchestrates, subagents are
 Opus at matched effort, never lower), completion notifications off —
 the digest is the legibility channel.
@@ -101,10 +105,57 @@ session that spawns each run with its tools pre-approved), and the
 owner re-paced the cadence the same evening: **every lane every other
 day** — subject axioms (genetic, body, questions, tests) at
 09:02–12:02 UTC on odd dates, reader lanes (map, pattern, graph
-optimizer, central) at the same hours on even dates, so readers always
-work on subject output at most a day old. **The charter's §10 table
-carries the live trigger ids** and is updated first on any change;
+optimizer, central) at the same hours on even dates, so readers always work on subject output at most a day old; the
+review lane at 02:02 UTC on odd dates, six hours before the earliest
+lane slot (D342). **The charter's §10 table carries the live trigger ids** and is updated first on any change;
 this page stopped copying the ids the evening they started moving.
+
+## The review lane (D342)
+
+Chartered 2026-09-01 on the owner's direction — *"a system that scores
+the different axiom work each 2 night and leaves feedback on how it
+could be even more useful, innovative, effective or other relevant
+score"* — as charter §12 on the branch, in the lanes' own grammar
+rather than as a report bolted on: a workspace, a graph whose claims
+are about what a score IS, a versioned instrument
+(`theory/review/RUBRIC.md`), a ledger (`scores.json`, rendered as
+`SCORES.md` beside `DIGEST.md`), and one Routine.
+
+**What it scores.** Six dimensions, each 0–10, each a clause of the
+charter turned into a count: **useful** (§1's purpose), **innovative**
+(§1's perfection licence, used), **effective** (§3's ratchet and the
+direction of the motion — falsifiers named and contradictions resolved
+score above node count), **rigorous** (§4 and §9), **connected** (§1's
+cross-axis rule) and **legible** (§6's five-minute reader). Scores are
+against the contract, never a ranking of lanes against each other, and
+a score without its evidence line — what was counted — is not a score.
+The one check a lane cannot run on itself is the lane's highest-value
+act: at least two risen `cited` sources per lane fetched and read each
+review, a failure named by node id and lowering Rigorous (D162's
+correlated-blind-spot rule, transposed to the theory layer).
+
+**How feedback reaches a lane.** Each review rewrites
+`theory/<lane>/FEEDBACK.md` — the scores, their evidence, whether the
+last feedback was acted on, and at most three items, each actionable
+within one run and naming the dimension it would move. The lane reads
+it in its Orient step and answers each item in its next LOG row, took
+or declined-with-a-reason, and the next review scores the response. A
+reasoned decline is never marked down; three reviews of reasoned
+declines are evidence against the rubric, not the lane (charter §11's
+review-drift rule) — the reviewer's own falsifier.
+
+**Cadence and cost.** Every second night at 02:02 UTC on odd dates, so
+every lane's next run reads feedback that already covers its latest
+landed run. Roughly half to one theory run per review (~$10–20), ≈ 15
+a month.
+
+**Delivery state.** The Routine is live (id in D342, the account-side
+half). The charter amendment — §12, the workspace, the checker's path
+set, nine seeded `FEEDBACK.md` files — is staged on
+`claude/axiom-theory-review-70lkd7` for the owner's fast-forward, not
+landed, because a change to a lane's contract passes the owner (D289
+§4). Until it lands, the Routine's prompt stops at its own guard
+rather than improvise a review.
 
 ## The owner's controls
 
@@ -262,13 +313,14 @@ and the follow graph is one too.
 ### 3 · What a lane costs, and what chartering one takes
 
 - **Money.** ~$20 a run (charter §10's first-day measurement), every
-  other day ≈ 15 runs a month ≈ **$300 a month per lane**. Two lanes
-  ≈ $600 a month on top of the nine. The owner's standing call is
+  other day ≈ 15 runs a month ≈ **$300 a month per lane**. Two lanes ≈ $600 a month on top of the ten (the review lane
+  included, D342). The owner's standing call is
   that budget is not the constraint and quality is — recorded, not
   re-argued.
 - **The dispatcher.** The 2026-09-01 digest reports roughly two days
-  of cadence lost to a dispatcher backlog with nine lanes at four to
-  five runs a day. A tenth and eleventh add to that queue. Slots that
+  of cadence lost to a dispatcher backlog with nine theory lanes at
+  four to five runs a day, and the review lane (D342) now fires at
+  night. An eleventh and twelfth add to that queue. Slots that
   keep central reading fresh subject work: **13:02 and 14:02 UTC on
   odd dates** (the subject group), with central still at 12:02 on
   even dates. If the backlog recurs, the fix is §11's cadence dial.
@@ -301,5 +353,6 @@ second-ranked candidate, which it subsumes. Charter **Interests** with
 it — the axis the frame already lists and no lane theorizes. Leave
 time-use inside central until its cheap test runs, and route the
 anchors and Learn to the questions lane as appended focus questions.
-Eleven lanes, ≈ $600 a month more, two new odd-date slots. Adoption is
+Twelve lanes with the review lane (D342), ≈ $600 a month more, two
+new odd-date slots. Adoption is
 the owner's word; until then nothing above binds.
