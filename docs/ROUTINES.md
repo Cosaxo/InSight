@@ -1,18 +1,21 @@
 # The routine register — every scheduled run, across every subscription
 
 > **Status:** tree — every row below is a Routine that exists on
-> somebody's account right now. §2 was verified against the live account
-> that owns it; §3 and §4 are transcribed from this repo's own records
-> and each says which. Nothing here is proposed.
+> somebody's account right now. §2 and §3 were each verified against the
+> live account that owns them, both on 2026-09-02; §4 has no rows and no
+> owner yet. Nothing here is proposed.
 
-**Why this file exists.** Three claude.ai subscriptions now run scheduled
-Routines against this one repository, and **no session can see another
-account's Routines.** `list_triggers` returns the calling account's and
+**Why this file exists.** Three claude.ai subscriptions work on this one
+repository, two of them running scheduled Routines against it, and **no
+session can see another account's Routines.** `list_triggers` returns the calling account's and
 nothing else — measured, not assumed: run from the account in §2 on
 2026-09-02 it returned nine Routines and omitted every lane in §3 and §4,
 all of which demonstrably fired within the previous twenty-four hours
 (`origin/axiom-theory` at 09:02 UTC that morning, `origin/night-20260902`
-at 05:20). So there is no console anywhere that shows the whole program.
+at 05:20). Run from §3's account the same morning it returned seventeen
+and omitted all nine of §2's — the same measurement from the other side,
+and the one that moved the night shift out of §4. So there is no console
+anywhere that shows the whole program.
 The repository is the only surface all three accounts can read, which
 makes this file the only place a collision between them can be seen at
 all: two lanes on one hour, two branches carrying one fix, two accounts
@@ -124,51 +127,173 @@ not just a free slot in the day.
 
 ---
 
-## 3 · Session 2 — the dispatcher-bound programs
+## 3 · Session 2 — the axes program, the theory lanes, the doc sweep, the night shift
 
-**Not verified from the owning account.** Transcribed from this repo's
-own inventories, which are the sessions' own records:
-`AXES-RUNBOOK.md` § The account-side inventory, `CHARTER.md` §10 on the
-`axiom-theory` branch, and `docs/DOC-SWEEP.md` §2 (which lives on
-`claude/doc-sweep-contract-2026-08-31` and has not merged). Grouped here
-because all sixteen dispatch the same way in the same environment
-`env_013gTXHYYHNaKBiWe8c4gmtd` — evidence they share an account, not
-proof. **Whoever owns them: replace this section with a verified block.**
+**Account** `a571fec5-de26-4cd4-96d6-6b39579609f1` ·
+**environment** `env_013gTXHYYHNaKBiWe8c4gmtd` ·
+**verified** 2026-09-02 10:18 UTC against `list_triggers`, **seventeen**
+Routines, every one enabled, none suspended, none ended.
 
-| Group | Routines | Schedule (UTC) | Binding | Writes | Merge |
-| --- | --- | --- | --- | --- | --- |
-| Axes program | build `trig_01Hzg91yafFVsa1HsXBcZY9X`, skeptic `trig_01JkE1PGWeuGe9GykFnjg1Gh`, retro `trig_01CT2yRRXZy7DbtUGPyNCB4J` | Tue / Wed 11:00, Sun 12:00 | Axiom dispatcher `session_01D44Wtdu5JfCYMJmYuKmLjc` → fresh session | `claude/axes-*` — the step each one names | **never merges** — skeptic, then the owner |
-| Theory lanes (twelve) | six subject lanes on odd dates 09:02–14:02, five reader lanes on even dates 08:02–12:02, review `trig_01P1aDKgDhab3yLeCrYn3TAt` at 02:02 on odd dates | ids and slots in `CHARTER.md` §10 | same dispatcher | the orphan `axiom-theory` branch only | lands on `axiom-theory`; never touches `main` |
-| Doc sweep | `trig_01E2bBC1QmYbkkHj3V96k6L1` | `17 8 */2 * *` — 08:17, odd days of the month | its own dispatcher `session_01NeQGEZcneyKmf5Q4fi4PGj`, model `opus` | `docs/` claims a command can recompute; reports the rest | **never merges** — the owner, always |
+Sixteen of them are the ones this section carried as a transcription
+until this block replaced it: every id it named and every slot it
+summarised is confirmed below, unchanged. The seventeenth is the night
+shift, which stood in §4 as a third subscription's Routine and is on
+this account — the correction is under the tables, and it is why §4 now
+has no rows.
 
-The doc sweep has its own dispatcher deliberately: the Axiom dispatcher
-was found failed on its own rate limit, and a shared dispatcher makes one
-lane's rate limit every lane's outage. That argument generalizes across
-accounts and is the reason §5's clock matters more than it looks.
-
----
-
-## 4 · Session 3 — the night shift
-
-**Not verified from the owning account.** From D326 §2 and from night
-shift B's brief, which names it as another subscription and another
-container. **Whoever owns it: replace this section with a verified
-block.**
+### The axes program — three lanes, one run log (issue #290)
 
 | Routine | Trigger id | Schedule (UTC) | Binding | Writes | Merge |
 | --- | --- | --- | --- | --- | --- |
-| InSight night shift | `trig_01WdCLF7zBNjqFmTVk15rWhE` | `21/23/01/03/05` — four audit flows at 95 min, a closing flow at 05:00 with a 50-minute budget | a persistent worker session (the owner's push authorization lives in its history) | `night-YYYYMMDD` | never merges — the branch waits for the morning review |
+| InSight axes build lane | `trig_01Hzg91yafFVsa1HsXBcZY9X` | `0 11 * * 2` — Tue 11:00 | Axiom dispatcher `session_01D44Wtdu5JfCYMJmYuKmLjc` → fresh session | `claude/axes-<step>` — one runbook step, its checkbox ticked in the same PR | **never merges** — the skeptic reviews, the owner merges |
+| InSight axes skeptic lane | `trig_01JkE1PGWeuGe9GykFnjg1Gh` | `0 11 * * 3` — Wed 11:00, the day after the build | same dispatcher | no branch — PR review comments and a per-PR verdict on #290 | never merges, never approves |
+| InSight axes retro lane | `trig_01CT2yRRXZy7DbtUGPyNCB4J` | `0 12 * * 0` — Sun 12:00 | same dispatcher | `claude/axes-retro-<date>` — `docs/` only, and only when the week taught something | **never merges** — the owner, always |
 
-It has no product document; its brief is the Routine. D326 §2 is the
-closest thing to a contract on `main`, and it records only the closing
-flow's shape, not the audit flows'.
+### The theory lanes — twelve, on the orphan `axiom-theory` branch
+
+Six subject lanes on odd UTC dates, five reader lanes on even ones so a
+reader always works on subject output at most a day old, and the review
+lane six hours ahead of the earliest slot. All twelve dispatch through
+the Axiom dispatcher into a fresh session, write the `axiom-theory`
+branch and nothing else, and never touch `main`.
+
+| Lane | Trigger id | Slot (UTC) | Dates |
+| --- | --- | --- | --- |
+| Review | `trig_01P1aDKgDhab3yLeCrYn3TAt` | `2 2 1-31/2 * *` — 02:02 | odd |
+| Genetic | `trig_01Vx4tmhq3EVwySCjSESjrrW` | `2 9 1-31/2 * *` — 09:02 | odd |
+| Body | `trig_01AopNS2HAVVHFYk99w7oJv7` | `2 10 1-31/2 * *` — 10:02 | odd |
+| Questions | `trig_01JeVZmgC9FB78L5VRxGQJ9L` | `2 11 1-31/2 * *` — 11:02 | odd |
+| Tests | `trig_01URyaqWz9WgLdRJVDn6z8hX` | `2 12 1-31/2 * *` — 12:02 | odd |
+| Ties | `trig_01PjG2bW3zK3GTgnfaYTjQky` | `2 13 1-31/2 * *` — 13:02 | odd |
+| Interests | `trig_01HUHXnMT6xAiEaurLxeBJNq` | `2 14 1-31/2 * *` — 14:02 | odd |
+| Database | `trig_01VDccEWW215SDJPE3ujHciL` | `2 8 2-30/2 * *` — 08:02 | even |
+| Map | `trig_014HZHQYSpjc4xQGfbyAgjXw` | `2 9 2-30/2 * *` — 09:02 | even |
+| Pattern | `trig_01AsWK9g327DuHD6XatbBAmR` | `2 10 2-30/2 * *` — 10:02 | even |
+| Graph optimizer | `trig_016uPKLAXGriwC7ukQyRRmUG` | `2 11 2-30/2 * *` — 11:02 | even |
+| Central | `trig_017ZfLe6VNmVGZ677qqvkqgm` | `2 12 2-30/2 * *` — 12:02 | even |
+
+### The doc sweep and the night shift
+
+| Routine | Trigger id | Schedule (UTC) | Binding | Writes | Merge |
+| --- | --- | --- | --- | --- | --- |
+| InSight doc sweep | `trig_01E2bBC1QmYbkkHj3V96k6L1` | `17 8 */2 * *` — 08:17, odd days of the month, 50-minute budget | its own dispatcher `session_01NeQGEZcneyKmf5Q4fi4PGj` ("Doc sweep dispatcher") | `claude/doc-sweep-<UTC date>` — only claims a command can recompute; everything else is reported | **never merges** — the owner, always |
+| InSight night shift | `trig_01WdCLF7zBNjqFmTVk15rWhE` | `0 21,23,1,3,5 * * *` — four audit flows at 95 min, the 05:00 firing is the closing flow at 50 | persistent worker `session_013UfS4opexyJsoD3K9NxqFF`, which is where the owner's push authorization lives | `night-YYYYMMDD` — anywhere a verified defect is | never merges, never opens a PR, never pushes `main`; the owner merges or cherry-picks in the morning |
+
+**Contracts.** The axes lanes read `docs/AXES-RUNBOOK.md` on
+`origin/main` every run and it outranks the prompt; the theory lanes
+read `CHARTER.md` on `axiom-theory` (§10 is their inventory, §12 the
+review lane); the doc sweep reads `docs/DOC-SWEEP.md`, which is not on
+`main` — see the observation below. The night shift has no product
+document at all: its brief is the Routine, and the only thing on `main`
+about it is D326 §2, which records the closing flow's shape and not the
+audit flows'. Its push authorization is a message the owner sent in the
+worker session's own history and it covers exactly `night-*` branches —
+never `main`, never a force-push, never a pull request.
+
+**Every one of the seventeen wakes a persistent session — none of them
+starts a fresh one directly**, and `list_triggers` shows this as
+`persist_session: true` with the session id above. The axes and theory
+lanes' dispatcher then forwards the prompt verbatim into a fresh session
+with the provisioning tools pre-approved, because a cron-spawned session
+carries no MCP tool grants and the `add_repo` provisioning step stalls
+at a permission prompt nobody answers (`AXES-RUNBOOK.md` § The
+account-side inventory has that measurement and its ~$65 of
+diagnostics). The doc sweep was given a second dispatcher rather than a
+slot on the first: the Axiom dispatcher was once found failed on its own
+rate limit, and a shared dispatcher makes one lane's rate limit every
+lane's outage — the reasoning §5's account budget picks up. The night
+shift is the exception to the whole pattern. It does not dispatch; it
+**is** the worker, woken five times a night in the same container so
+each flow continues where the last one stopped, which is also why its
+authorization can live in that session's history at all.
+
+### Corrections and observations, 2026-09-02
+
+- **The night shift is this account's, not a third's — §4's premise was
+  wrong.** All seventeen triggers carry creator account
+  `a571fec5-de26-4cd4-96d6-6b39579609f1` and environment
+  `env_013gTXHYYHNaKBiWe8c4gmtd`, the night shift among them, and the
+  worker session it binds to stands in that same environment. §4 read it
+  as a third subscription's on the strength of night shift B's brief
+  calling it *"another subscription, another container"* — which is true
+  from §2's side and one account too far: from there, this account **is**
+  another subscription. Two accounts run Routines against this
+  repository on today's evidence, not three.
+- **`list_triggers` carries no model field — the model belongs to the
+  bound session.** Every one of the seventeen binds to a persistent
+  session, so the model is that session's and has to be read
+  with `get_session` on the binding: the Axiom dispatcher records
+  `configured_model: claude-fable-5` with `session_context.model:
+  claude-fable-5-1` (switched, which is the move
+  `claude/fable-5-to-5.1-routines-xwukwp` records), the doc sweep
+  dispatcher `opus` at effort max, the night worker `claude-opus-5` at
+  effort xhigh with ultracode on. `AXES-RUNBOOK.md` on `main` still reads
+  `claude-fable-5`, which is the creation-time value; the correction —
+  the owner's 2026-09-01 direction, the dispatcher switched that evening,
+  the database lane of 2026-09-02 08:02 UTC the first run created on 5.1
+  — is written and unmerged on `claude/fable-5-to-5.1-routines-xwukwp`,
+  which is the doc sweep's own shape one document over. Rule 2 one field
+  over: a model read off a runbook, a prompt or a creation is a belief,
+  and the bound session is what runs.
+- **The doc sweep has fired every other day since 2026-08-30 and
+  correctly done nothing.** Its prompt sends it to `docs/DOC-SWEEP.md`
+  on `origin/main` and forbids improvising a procedure if that file is
+  missing — an unattended run inventing its own doc-editing rules being
+  the failure the lane exists to avoid. The file is still only on
+  `claude/doc-sweep-contract-2026-08-31` (PR #335, open). So this
+  account carries §2's now-lane failure in its own shape: a Routine
+  scheduled ahead of its contract, firing correctly into a no-op. Both
+  verified accounts carry one.
+- **`CHARTER.md` §10 matched `list_triggers` exactly** — twelve ids,
+  twelve slots, no drift, against the three retired ids §2 found in
+  `QUESTION-FARM.md`'s five-row table. The difference is not diligence:
+  those three changed because the Routines were **recreated**, and a
+  recreated Routine takes a new id where a re-paced one keeps it. An
+  inventory is therefore only as current as the last recreation nobody
+  wrote down — which is the whole of rule 2, and why every id on this
+  page is quoted from the tool response rather than from the runbook
+  that also holds it.
+- **"Every other day" is true inside a month and not across one.**
+  `1-31/2` and `*/2` are odd days of the month and `2-30/2` even ones,
+  and both restart at the 1st: the odd-date lanes fired 2026-08-31 and
+  again 2026-09-01, two days running, and the even-date lanes went from
+  08-30 to 09-02 with three days between. Computed, not read off the
+  cron. It matters for the clock in §5 — the theory lanes double up on
+  the first of a month following a 31-day one, and the review lane
+  doubles with them.
+
+---
+
+## 4 · Session 3 — the block nobody has claimed
+
+The night shift stood here as a third subscription's Routine. It is
+session 2's, measured against the account that owns it (§3's
+corrections), so this section has no rows.
+
+**That is not evidence the third subscription runs nothing.** No session
+can read another account's Routines, so a Routine on a third account is
+invisible to both verified blocks above exactly as §2's nine were
+invisible to §3's account and §3's seventeen to §2's. What is measured
+is narrower than it looks: every Routine either account can see belongs
+to one of those two. **Whoever owns a third: write this block** — §2 and §3 are the
+shape, and rule 2 is how you fill it.
+
+**Not the same thing as unregistered work.** `docs/OPS-RUNBOOK.md` on
+`claude/routines-planning-project-qqyave` (PR #361) specifies eight ops
+lanes — a one-off platform probe, then roll call, PR shepherd,
+production reader, release recorder, pulse responder, dependency
+shepherd and list worker — and its own Status line says none of them
+exists yet. They get no rows here until they fire, because this file's
+Status is `tree`. Whichever account creates one registers it in that
+account's block, in the same PR that creates it (rule 6).
 
 ---
 
 ## 5 · The shared-resource map
 
-Three things all three accounts write to, and the rule that keeps them
-from colliding.
+Three things every account writes to and the rule that keeps them from
+colliding, plus the one resource that does not cross an account line at
+all.
 
 ### The clock (UTC)
 
@@ -200,6 +325,25 @@ anything: the 08:00–09:30 window can carry six firings from two accounts,
 and the only ones that can see each other are the three sharing session
 1's bound dev session.
 
+### The account budget — the resource that does not cross
+
+Rate limits are per **account**, not per session and not per Routine: the
+seven-day window this session read on 2026-09-02 is the same window to
+the second — same `resetsAt`, same `allowed_warning` — that the Axiom
+dispatcher reports. One bucket behind seventeen Routines, a night worker
+running at xhigh with ultracode on, and every interactive session on the
+account. Session 1's nine draw on a different bucket, and neither account
+can spend the other's.
+
+The two consequences point opposite ways. **Inside** an account an
+expensive lane throttles its siblings — the night worker's session record
+carries $2,105 of cumulative metered work against the same limit the axes
+program dispatches through, which is the argument that gave the doc sweep
+a second dispatcher instead of a slot on the first. **Across** accounts
+the budget is the one thing on this page that cannot collide: two
+accounts firing into the same hour cost each other nothing but merge
+conflicts, so the clock above is about `main`, never about capacity.
+
 ### Branch namespaces
 
 | Prefix | Owner | Rule |
@@ -207,8 +351,10 @@ and the only ones that can see each other are the three sharing session
 | `claude/<lane>-<date>` | session 1 content lanes | one branch per lane per day; roll up onto the open one rather than stacking |
 | `claude/daily-algorithm-improvement-bnogf6`, `claude/daily-database-optimization-j03rdh` | session 1 improvers | long-lived, one per Routine; restart from `origin/main` after their PR merges |
 | `nightb-YYYYMMDD` | session 1 night shift B | never `night-*`, never `main` |
-| `night-YYYYMMDD` | session 3 night shift | never `nightb-*`, never `main` |
-| `claude/axes-*` | session 2 axes program | one per step |
+| `night-YYYYMMDD` | session 2 night shift | never `nightb-*`, never `main` |
+| `claude/axes-*` | session 2 axes program | one per step; `claude/axes-retro-<date>` for the Sunday digest's amendments |
+| `claude/doc-sweep-*` | session 2 doc sweep | one per run, dated UTC |
+| `claude/*-diag-<date>` | session 2 axes, doc sweep | the report fallback when a GitHub write is refused — `AXES-DIAG.md`, `DOC-SWEEP-DIAG.md` |
 | `axiom-theory` | session 2 theory lanes | orphan branch; never `main` |
 
 `nightb-*` does not match the glob `night-*`, which is what keeps either
@@ -227,6 +373,8 @@ Three tiers, and they do not transfer between programs:
   both night shifts — they push a branch and stop.
 - **Never merges, a reviewer first**: the axes program (skeptic, then
   owner) and every theory lane (their branch is not `main` at all).
+- **Opens its own PR, never merges**: the doc sweep — one branch, one PR
+  a run, and the owner merges every time.
 
 ### The three collision rules
 
