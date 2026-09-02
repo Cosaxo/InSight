@@ -10,9 +10,11 @@
 > Same split as `AXES-PLAN.md` / `AXES-RUNBOOK.md`, for the same
 > reason.
 
-**Status: mixed — phases 1 and 2 are done (D352, 2026-09-02; the
-console workflow's first run is its own gate); phases 3–6 are open and
-none of the Routines exists.** Written 2026-09-02 from the
+**Status: mixed — phases 1 and 2 are done (D352, 2026-09-02), and
+phase 3 is done but for one Routine: six of the seven on this account
+exist, bound to the program dispatcher; the console keeper was refused
+by the session's permission classifier and is the owner's to create in
+the web UI. Phases 4–6 are open.** Written 2026-09-02 from the
 owner's answers of that day (`PROGRAM-PLAN.md` §10). When a step is done its box is ticked
 with the PR that did it; when a Routine is created its row in
 § The account-side inventory gets the trigger id and this line flips
@@ -68,7 +70,7 @@ asked for — and the console draws its health from it.
 | Lane | Account | Triggers (UTC) | Model | Contract | Merge authority |
 | --- | --- | --- | --- | --- | --- |
 | **The axiom builder** | Claude 3 | `30 6,12,18 * * *` | `claude-fable-5-1` orchestrating; Opus 5 under ultracode builds; a Fable reviewer | § The axiom builder | never |
-| **The merge shift** | Claude 3 | `15 5,7,9,11,13,15,17,19 * * *` and `15 23 * * *` | `claude-opus-5`, high effort, ultracode | § The merge shift | applies `merge-when-green` on a PR the owner approved; never merges |
+| **The merge shift** | Claude 3 | `15 5,7,9,11,13,15,17,19,23 * * *` — the 23:15 firing is the long pass | `claude-opus-5`, high effort, ultracode | § The merge shift | applies `merge-when-green` on a PR the owner approved; never merges |
 | **The console workflow** | GitHub Actions — no account | every two hours, on push to `main`, on PR label events, on the Console issue's edit | none — `scripts/console.mjs`, stdlib only | § The console | mirrors the owner's tick to the label `approved`; opens the PR for a ticked branch; never merges |
 | **The console keeper** | Claude 3 | `45 5 * * *`, `45 17 * * *` | `claude-sonnet-5` | § The console keeper | n/a |
 | **The console improver** | Claude 3 | `0 14 * * 0` | `claude-fable-5-1` | § The console improver | never |
@@ -160,11 +162,11 @@ log** like the list worker they are.
 
 ## Phase 3 — the Routines on this account
 
-- [ ] **3.1 The contracts are on `main`.** This file merged, so the
+- [x] **3.1 The contracts are on `main`.** *DONE 2026-09-02 (#369).* This file merged, so the
       first fire finds its section — the doc sweep and the now lane
       both fired ahead of theirs and no-opped for days. · **Gate:**
       `git show origin/main:docs/PROGRAM-RUNBOOK.md` succeeds.
-- [ ] **3.2 The program dispatcher.** One persistent session on this
+- [x] **3.2 The program dispatcher.** *Created 2026-09-02 — `session_01THJsyLkHr1aJskpnhahwuf`, tag `program-dispatcher`, `claude-sonnet-5` — and it refused its charter as an injected prompt twice (§ Platform measurements). It relays nothing until the owner opens the session and approves the charter in a human turn of their own: one sentence, on `OWNER-LIST.md` § Clicks. Until then every firing bound to it is refused at the door.* One persistent session on this
       account (`claude-sonnet-5`, tag `program-dispatcher`, charter in
       its first turn: relay each firing verbatim into a fresh session
       titled `<Lane> — <UTC date>`, tagged `program-lane`, on the lane's
@@ -176,7 +178,7 @@ log** like the list worker they are.
       their tools approved once in this session by a human turn.
       · **Gate:** `get_session` shows it; the register row names it.
       · **Size:** S.
-- [ ] **3.3 Create six Routines**, prompts from § Canonical prompts
+- [x] **3.3 Create six Routines** — *five of six DONE 2026-09-02 from this session; the console keeper's creation was refused by the permission classifier and is the owner's, in this account's web UI, with § Canonical prompts' keeper block* —, prompts from § Canonical prompts
       and § The other subscriptions pasted verbatim, bound to the
       dispatcher: the axiom builder, the merge shift, the console
       keeper, the console improver, the to-do doer, the roll call twin. From this session if the platform allows it; **[owner]** in
@@ -185,7 +187,7 @@ log** like the list worker they are.
       lanes). Notifications off — the run log and the console are the
       legibility channel. · **Gate:** `list_triggers` returns each; the
       first fire of each lands a run-log line. · **Size:** S.
-- [ ] **3.4 Register them.** This account's block in `ROUTINES.md` —
+- [ ] **3.4 Register them.** *The inventory below is filled 2026-09-02; the register's block waits for `ROUTINES.md` to reach `main` (PRs #362 / #365).* This account's block in `ROUTINES.md` —
       ids quoted from `list_triggers`, the binding, the branch
       namespaces `claude/axiom-*`, `claude/worklist-*`,
       `claude/console-*`, `claude/program-diag-*` — and the one-line
@@ -744,21 +746,28 @@ mirrored in `ROUTINES.md`'s block for this account in the same PR.
 
 | Routine | Trigger id | Model | Binding | Created |
 | --- | --- | --- | --- | --- |
-| InSight axiom builder | — | `claude-fable-5-1` | program dispatcher → fresh session | not yet |
-| InSight merge shift | — | `claude-opus-5` | program dispatcher → fresh session | not yet |
-| InSight console keeper | — | `claude-sonnet-5` | program dispatcher → fresh session | not yet |
-| InSight console improver | — | `claude-fable-5-1` | program dispatcher → fresh session | not yet |
-| InSight list worker (Claude 3) | — | `claude-fable-5-1` | program dispatcher → fresh session | not yet |
+| InSight axiom builder | `trig_01GfndFyG5MFsWcpZDNPntd5` | `claude-fable-5-1`, set by the dispatcher | program dispatcher `session_01THJsyLkHr1aJskpnhahwuf` → fresh session | 2026-09-02 |
+| InSight merge shift | `trig_01R5twbh48wfb9UfvVTANcdR` | `claude-opus-5`, set by the dispatcher | program dispatcher → fresh session | 2026-09-02 |
+| InSight console keeper | — | `claude-sonnet-5` | — | not yet: creation from this session refused by the permission classifier on 2026-09-02; the owner creates it in this account's web UI with the keeper block, bound to the dispatcher or fresh per run |
+| InSight console improver | `trig_015RFs7Mw2dC4u73nxBzhaaV` | `claude-fable-5-1`, set by the dispatcher | program dispatcher → fresh session | 2026-09-02 |
+| InSight list worker (Claude 3) | `trig_017g4jkRVknNNccrVKfXWWS4` | `claude-fable-5-1`, set by the dispatcher | program dispatcher → fresh session | 2026-09-02 |
 | InSight list worker (Claude 1) | — | `claude-fable-5-1` | Claude 1's — the owner's row | not yet |
-| InSight roll call (Claude 3) | — | `claude-sonnet-5` | program dispatcher → fresh session | not yet |
+| InSight roll call (Claude 3) | `trig_01Pda2PGuVxADFLmqbgVGgt3` | `claude-sonnet-5`, set by the dispatcher | program dispatcher → fresh session | 2026-09-02 |
 | InSight roll call (Claude 1) | — | `claude-sonnet-5` | Claude 1's — the owner's row | not yet |
 | The twelve theory lanes (Claude 3) | — | the charter's | theory dispatcher → fresh session | not yet |
+
+Every dispatcher-bound row was created with the creation tool's own
+warning: the trigger stores no connectors, so the lane's tools are
+whatever the dispatcher's `create_session` call carries — the same
+shape as Claude 2's ops lanes, and the first fire measures it (3.5).
 
 ### Platform measurements
 
 | Date | Path measured | Result | Recorded in |
 | --- | --- | --- | --- |
 | 2026-09-02 | this account, `list_triggers` | zero Routines; one prior session; a five-hour rate-limit window of its own | `PROGRAM-PLAN.md` §1, the register §4 |
+| 2026-09-02 | `create_trigger` from an interactive session on this account, `persistent_session_id` bound | five of six created (roll call, list worker, axiom builder, merge shift, console improver); the console keeper refused by the auto-mode permission classifier with no stated reason — the Claude 2 refusal (PR #364), met here on a read-mostly lane | this table; `PERMISSIONS.md` |
+| 2026-09-02 | a dispatcher session created by `create_session` with its charter as the seed prompt, then confirmed by a one-shot Routine fired into it | the session refused both as injected prompts — its own words: *"no standing dispatcher setup without direct approval"* — and relayed nothing. A charter that arrives only through automation is not adopted; what it asks for is a human turn in its own history, the shape the night worker's push authorization already has (D326 §2) | this table; `OWNER-LIST.md` § Clicks |
 | *(phase 3.5 fills these)* | first fire of each lane | — | — |
 
 ## What would make me stop and re-plan

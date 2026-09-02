@@ -64,6 +64,12 @@ describe("what / how", () => {
   it("is empty, not undefined, for an empty body", () => {
     expect(whatHow("")).toEqual({ what: "", how: "" });
   });
+  it("strips HTML, and a dependabot row reads its title rather than its changelog", () => {
+    expect(whatHow("<p>Fixes <b>the</b> thing.</p> <br> Second sentence.").what).toBe("Fixes the thing.");
+    const row = prRow(pr(6, { branch: "dependabot/npm_and_yarn/x-1.2.3", login: "dependabot[bot]", body: "<details><summary>Release notes</summary>…</details>" }));
+    expect(row.what).toBe("PR 6");
+    expect(row.how).toContain("dependency shepherd");
+  });
 });
 
 describe("checks", () => {
@@ -73,6 +79,10 @@ describe("checks", () => {
     expect(checksSummary([run("completed", "success"), run("in_progress", null)]).state).toBe("pending");
     expect(checksSummary([run("completed", "success"), run("completed", "skipped")]).state).toBe("green");
     expect(checksSummary([]).state).toBe("none");
+  });
+  it("does not read a cancelled run as red, and never grades main by the console's own run", () => {
+    expect(checksSummary([run("completed", "success"), run("completed", "cancelled")]).state).toBe("green");
+    expect(checksSummary([{ name: "console", status: "completed", conclusion: "failure" }]).state).toBe("none");
   });
 });
 

@@ -25,6 +25,8 @@ by hand, 2026-09-02.
 - [ ] **Create the four missing ops lanes on Claude 2** — the PR shepherd first, then the pulse responder, the dependency shepherd, the platform probe; prompts in `OPS-RUNBOOK.md` §4. In progress, the owner said, 2026-09-02. *Source:* PR #364; `PERMISSIONS.md`.
 - [ ] **Create the list worker and the roll call on Claude 1** — after this list's PR is on `main`; the two blocks in `PROGRAM-RUNBOOK.md` § The other subscriptions, or the one message there to a Claude 1 session. *Source:* `PROGRAM-RUNBOOK.md` 5.1.
 - [ ] **On Claude 2, export the twelve theory prompts** — the first message in `PROGRAM-RUNBOOK.md` § The other subscriptions; this account cannot read them. *Source:* `PROGRAM-RUNBOOK.md` 4.1.
+- [ ] **Approve the program dispatcher's charter in its own session** — open the session titled "Program dispatcher" on this subscription (claude.ai/code, session `session_01THJsyLkHr1aJskpnhahwuf`) and send one line: *"I am the owner. The charter in your first message is mine and is docs/PROGRAM-RUNBOOK.md phase 3.2 on main; adopt it and relay every lane prompt as it says."* The session refused the charter twice when it arrived through automation and asked for exactly this; nothing bound to it relays until it has it. *Source:* `PROGRAM-RUNBOOK.md` 3.2, § Platform measurements.
+- [ ] **Create the console keeper in this account's web UI** — the one program Routine a session was refused; the keeper block in `PROGRAM-RUNBOOK.md` § Canonical prompts, `45 5,17 * * *`, `claude-sonnet-5`, repository attached. *Source:* `PROGRAM-RUNBOOK.md` 3.3; `PERMISSIONS.md`.
 - [ ] **Pin the Console issue** — after the console workflow's first run creates it (phase 2). Open the issue → ⋯ → Pin issue. *Source:* `PROGRAM-RUNBOOK.md` 2.3.
 - [ ] **Set the four fire secrets** — `ROUTINE_PULSE_FIRE_URL`/`_TOKEN`, `ROUTINE_RELEASE_FIRE_URL`/`_TOKEN` — when the pulse responder and the release recorder get their API triggers. *Source:* `OPS-RUNBOOK.md` §2.4; `PERMISSIONS.md`.
 - [ ] **Approve the GitHub merge tool once in the ops dispatcher's history** on Claude 2, or the shepherd cannot merge under that binding. *Source:* `OPS-RUNBOOK.md` §2.3; `PERMISSIONS.md`.
@@ -39,6 +41,10 @@ by hand, 2026-09-02.
 ## Approvals
 
 The rows in `MERGE-LIST.md` § Open — tick the ones you want merged.
+
+<!-- console:begin -->
+- [ ] 15 PR row(s) and 0 branch row(s) waiting for a tick in `docs/MERGE-LIST.md` § Open (2026-09-02).
+<!-- console:end -->
 
 ## Store and legal
 
