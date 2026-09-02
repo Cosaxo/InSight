@@ -224,7 +224,7 @@ vi.mock("firebase/firestore", () => {
     deleteField: () => "__delete__",
     terminate: () => Promise.resolve(),
     clearIndexedDbPersistence: () => Promise.resolve(),
-    // D343: the queue-drained signal settlePending awaits — required
+    // D353: the queue-drained signal settlePending awaits — required
     // here like every other member live.ts binds, whether or not a case
     // reaches it (vitest throws on a member the factory does not define).
     waitForPendingWrites: () => Promise.resolve(),
@@ -293,7 +293,7 @@ async function bootLive() {
   // duplicate pages (100k rows) through the cache store, and
   // fake-indexeddb structured-clones every one of them.
   //
-  // `attached`, not `ready` (D342): every case below asserts on what the
+  // `attached`, not `ready` (D352): every case below asserts on what the
   // NETWORK phase did — which queries went out, what the cache holds after
   // — and a device with a seeded cache is `ready` off disk before the
   // first of those queries is issued.
@@ -518,7 +518,7 @@ describe("question-bank cache", () => {
     await bootLive();
     // Three pages for the boot surfaces, plus one each for the core-feed
     // (D321) and bought-question (D313) queries. Counted rather than
-    // indexed: since D342 the three cold queries go out together, so the
+    // indexed: since D352 the three cold queries go out together, so the
     // boot's second page is issued AFTER the core and paid queries' first
     // pages, and its position in the log depends on that interleaving.
     // What the off-by-one would change is the NUMBER of cursor-carrying

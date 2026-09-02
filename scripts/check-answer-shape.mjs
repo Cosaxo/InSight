@@ -126,7 +126,7 @@ for (let i = 0; ; ) {
   if (!/setDoc\(/.test(callLine)) {
     // A READ of the path — `collection(db, "v2_users", uid, "answers")`
     // inside a query — is outside this gate's subject: nothing a read
-    // does can drop a field from a document. D343's settle is the first
+    // does can drop a field from a document. D353's settle is the first
     // read written with the same `uid` name the write shape uses
     // (hydrate's deltas say `uidA`, which is why they never reached this
     // line), and it is classified rather than renamed around the scan.

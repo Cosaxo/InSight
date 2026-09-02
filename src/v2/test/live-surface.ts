@@ -102,7 +102,7 @@ export const LIVE_MEMBERS = [
   // said a real user was on demo content without saying why, and an
   // iPhone has no console to ask — the first device this app ran on
   // failed exactly there.
-  // D342 — the warm paint split "there is a deck on screen" (`ready`)
+  // D352 — the warm paint split "there is a deck on screen" (`ready`)
   // from "the server has been heard from" (`attached`); `stale` is the
   // gap between them, and the daily's banner reads it beside bootError.
   "attached",
