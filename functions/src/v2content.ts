@@ -6465,6 +6465,81 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   "test": null
  },
  {
+  "id": "feed-n07",
+  "surface": "feed",
+  "seq": 184,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Nine-figure transfer fees: the market working, or football losing the plot?",
+  "options": [
+   "The market working",
+   "Losing the plot",
+   "Fine — until my club pays"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-02",
+  "until": "2026-09-04",
+  "bg": "Europe's summer transfer window closed on 1 September. Deadline day brought a rush of deals across the big leagues, several at nine-figure fees, before squads lock until the winter window opens in January."
+ },
+ {
+  "id": "feed-n08",
+  "surface": "feed",
+  "seq": 185,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A $4bn telescope just left to hunt dark energy. Money well spent?",
+  "options": [
+   "Every cent",
+   "Fix Earth first",
+   "Ask me when it finds something"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-02",
+  "until": "2026-09-05",
+  "bg": "NASA's Nancy Grace Roman Space Telescope launched on a SpaceX Falcon Heavy on 30 August, bound for the L2 point 1.5 million kilometres out. Its wide-field camera will hunt exoplanets and map dark energy; the mission cost about $4.3 billion."
+ },
+ {
+  "id": "feed-n09",
+  "surface": "feed",
+  "seq": 186,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A Grand Slam without the world No. 1: wide open, or missing something?",
+  "options": [
+   "Wide open",
+   "Missing something"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-02",
+  "until": "2026-09-06",
+  "bg": "The 2026 US Open runs 30 August to 13 September in New York. Top-ranked Jannik Sinner withdrew before play began with a knee injury; Carlos Alcaraz and Aryna Sabalenka arrived as the defending singles champions."
+ },
+ {
+  "id": "feed-n10",
+  "surface": "feed",
+  "seq": 187,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Awards season opens at Venice. Do festival prizes change what you watch?",
+  "options": [
+   "I seek winners out",
+   "They reach me eventually",
+   "Industry theatre"
+  ],
+  "topic": "now",
+  "axis": null,
+  "test": null,
+  "from": "2026-09-02",
+  "until": "2026-09-07",
+  "bg": "The 83rd Venice International Film Festival runs 2 to 12 September and opens the autumn awards season. Maggie Gyllenhaal chairs the main-competition jury; 21 world premieres compete for the Golden Lion."
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,
