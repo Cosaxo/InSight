@@ -246,6 +246,24 @@ await expectCode("client read of the verdict log refused", "permission-denied",
 // 9 · the world leg (D83): the same chain at world scale, where the
 // flagger is a STRANGER — no shared circle anywhere in it.
 const WQID = "daily-000";
+// THE QUESTION HAS TO EXIST, and this driver never made it. a224c18 put
+// the operational kill switch on the world-take create rule — `get(…
+// v2_questions/$(qid)).data.get("active", true) == true` — and its own
+// comment says what a missing question does: "get() on an absent document
+// is null and `.data` on null fails the rule". Nothing here seeds the
+// bank, so this leg has been denied ever since, with the null-value error
+// four layers from the cause that this file's header already warns about.
+//
+// It stayed invisible because CI runs `test:e2e:all`: one emulator, three
+// drivers, and driver 1 calls seedContentV2 before this one starts. So the
+// composite was green while the standalone script backend-checks.yml calls
+// "the right thing to run by hand" could not reach step 9 at all.
+//
+// MERGE, and only the field the rule reads: under `test:e2e:all` the real
+// seeded question is already here and must not be replaced by a stub —
+// this leg is the only reader either way, moderation.ts never opens
+// v2_questions.
+await adb.doc(`v2_questions/${WQID}`).set({ active: true }, { merge: true });
 const worldAuthor = await newUser();
 const WTAKE = `${WQID}_${worldAuthor}`;
 await setDoc(doc(db, "v2_takes", WTAKE), {
