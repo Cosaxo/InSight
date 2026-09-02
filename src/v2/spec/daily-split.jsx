@@ -1197,7 +1197,7 @@ class DailySplit extends React.Component {
     const { rootRef, screen } = this.renderVals();
     // One pill for both boot states — the demo deck under a lost race
     // (D77) and the real deck off this device's caches with the server
-    // unheard from (D352): the label, and the reason one tap away. A
+    // unheard from (D353): the label, and the reason one tap away. A
     // helper rather than two copies, because the second copy had drifted
     // from the first (no pointer cursor, UA button chrome on WebKit)
     // before it shipped.
@@ -1245,7 +1245,7 @@ class DailySplit extends React.Component {
       // behind a tap because "reconnecting…" is the honest thing to show
       // someone on a train, and `auth/network-request-failed` is not.
       LIVE.demoInProd && bootPill('demo-banner', 'Sample questions · reconnecting…', LIVE.bootError || 'connecting…'),
-      // D352: the other honest case, and the one the pill above cannot
+      // D353: the other honest case, and the one the pill above cannot
       // see. A returning device paints the REAL deck off its own caches
       // before the network is heard from; if the server then fails or
       // stays silent past the boot's budget, what is on screen is this

@@ -359,7 +359,7 @@ vi.mock("firebase/firestore", () => {
     // consent record, in one merge — a sentinel here, asserted in
     // political-consent.test.ts rather than in these boot fixtures.
     deleteField: () => "__delete__",
-    // D353: the queue-drained signal settlePending awaits. Resolved at
+    // D354: the queue-drained signal settlePending awaits. Resolved at
     // once here — no case in this file relaunches with an unacked answer;
     // those live in warm-boot.test.ts, whose mock gates it.
     waitForPendingWrites: () => Promise.resolve(),
@@ -414,7 +414,7 @@ async function bootLive() {
   // A 1 ms race budget keeps no long-lived boot timer around; boot is
   // pure microtasks with these mocks, so just wait for it to settle.
   await mod.initLive(1);
-  // `attached` (D352): boot complete — the network phase done — rather
+  // `attached` (D353): boot complete — the network phase done — rather
   // than `ready`, which a cached device answers off disk first.
   await vi.waitFor(() => {
     expect(LIVE.attached).toBe(true);

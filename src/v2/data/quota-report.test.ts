@@ -85,7 +85,7 @@ vi.mock("firebase/firestore", () => {
     deleteField: () => "__delete__",
     terminate: () => Promise.resolve(),
     clearIndexedDbPersistence: () => Promise.resolve(),
-    // D353: the queue-drained signal settlePending awaits — required
+    // D354: the queue-drained signal settlePending awaits — required
     // here like every other member live.ts binds, whether or not a case
     // reaches it (vitest throws on a member the factory does not define).
     waitForPendingWrites: () => Promise.resolve(),
@@ -125,7 +125,7 @@ const quotaReports = () =>
 async function bootLive() {
   const mod = await import("./live");
   await mod.initLive(1);
-  // `attached` (D352): boot complete, not merely a deck on screen.
+  // `attached` (D353): boot complete, not merely a deck on screen.
   await vi.waitFor(() => { expect(mod.default.attached).toBe(true); });
   return mod.default;
 }

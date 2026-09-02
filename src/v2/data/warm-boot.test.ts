@@ -1,9 +1,9 @@
-// The warm paint (D352): a returning device draws its real deck off its
+// The warm paint (D353): a returning device draws its real deck off its
 // own caches before the first network read is answered, and the network
 // phase reconciles behind the screen.
 //
 // Why this file exists. `initLive` releases the render when its race
-// settles, and until D352 the only runners were the whole network boot
+// settles, and until D353 the only runners were the whole network boot
 // and a 2.5 s deadline — so a returning device with the bank, its
 // answers, its aggregates and (now) its own profile all on disk still
 // waited on five or six serial round trips, and on a phone it lost the
@@ -78,7 +78,7 @@ const h = vi.hoisted(() => ({
   writes: [] as string[],
   holdWrites: false,
   parkedWrites: [] as Array<() => void>,
-  // waitForPendingWrites: the SDK's queue-drained signal (D353). Parked
+  // waitForPendingWrites: the SDK's queue-drained signal (D354). Parked
   // until `drainQueue` — offline, it never resolves.
   drainWaiters: [] as Array<() => void>,
   // Whether subscribing fires the observer at once with `uid` (the SDK
@@ -142,7 +142,7 @@ vi.mock("firebase/firestore", () => {
       data: () => ({ ...d.data }),
       get: (k: string) => d.data[k],
       // The SDK's per-document flag for a local mutation laid over the
-      // server's copy (D353's second review) — a fake doc sets it with
+      // server's copy (D354's second review) — a fake doc sets it with
       // `pending: true`.
       metadata: { hasPendingWrites: !!d.pending },
     })),
@@ -310,7 +310,7 @@ function seedProfile(uid: string, over: Record<string, unknown> = {}) {
     anchors: { city: "Oslo, NO", age: "30s" }, consent: {}, ...over,
   }));
 }
-// A device that has been through one full boot since D352: every store
+// A device that has been through one full boot since D353: every store
 // holds something, and the profile mirror names this account.
 async function seedWarmDevice() {
   await seedBank([row("q_1", 1)], h.contentRev, 1000);
@@ -340,7 +340,7 @@ const flush = () => new Promise<void>((r) => setTimeout(r, 0));
 const fire = (ev: string) => { for (const fn of h.listeners[ev] || []) fn(); };
 // …and for a document event (`visibilitychange`).
 const fireDoc = (ev: string) => { for (const fn of h.docListeners[ev] || []) fn(); };
-// The SDK reports its queue drained (D353).
+// The SDK reports its queue drained (D354).
 const drainQueue = async () => {
   h.drainWaiters.splice(0).forEach((r) => r());
   await flush();
@@ -493,7 +493,7 @@ describe("the warm paint", () => {
   });
 
   it("a first boot still waits for the network, and labels the wait", async () => {
-    // Nothing on disk: the pre-D352 boot, unchanged. The deadline is what
+    // Nothing on disk: the pre-D353 boot, unchanged. The deadline is what
     // releases the render, and the honest demo deck is what it shows.
     h.gated = true;
     const mod = await import("./live");
@@ -521,7 +521,7 @@ describe("the warm paint", () => {
   it("a cached bank without the profile mirror waits — an answer must never snapshot empty anchors", async () => {
     await seedBank([row("q_1", 1)], h.contentRev, 1000);
     await seedAnswers("uid_test", { q_1: "1" }, 500);
-    // No mirror: a device on its first boot since D352.
+    // No mirror: a device on its first boot since D353.
     h.gated = true;
     const mod = await import("./live");
     const LIVE = mod.default;
@@ -568,7 +568,7 @@ describe("the warm paint", () => {
     const LIVE = mod.default;
     await mod.initLive(30_000);
     // Painted off the OLD rev's rows — a deck one reseed old for as long
-    // as the full fetch takes, which is the trade D352 makes on purpose.
+    // as the full fetch takes, which is the trade D353 makes on purpose.
     expect(LIVE.ready).toBe(true);
     expect(LIVE.dailyBank().map((x) => x.id)).toEqual(["q_1"]);
 
@@ -835,7 +835,7 @@ describe("the provisional account", () => {
 
   it("a boot that fails past the deck poll's start does not leave the poll armed", async () => {
     // The poll starts the moment there is a deck (beside the answers
-    // reads, D352) and the answers reads are the unguarded ones — so a
+    // reads, D353) and the answers reads are the unguarded ones — so a
     // failure there used to strand a read-per-minute on a session that
     // never attached.
     await seedWarmDevice();
@@ -942,7 +942,7 @@ describe("the provisional account", () => {
     await mod.initLive(30_000);
     expect(LIVE.ready).toBe(true);
     // The SDK reports "no session" on its way to the sign-in refreshLive
-    // already started. Before D352 state.uid was null here and the branch
+    // already started. Before D353 state.uid was null here and the branch
     // could not fire; with a provisional uid it would have minted a
     // second anonymous account beside the first.
     h.authCb?.(null);
@@ -960,8 +960,8 @@ describe("the provisional account", () => {
   });
 });
 
-describe("answers the server has not acknowledged (D353)", () => {
-  // Before D352 an offline relaunch showed the demo deck, which hid this
+describe("answers the server has not acknowledged (D354)", () => {
+  // Before D353 an offline relaunch showed the demo deck, which hid this
   // gap by showing nothing. Now that the real deck comes back, an answer
   // that only the SDK's persisted queue holds must come back with it —
   // or the deck re-offers it and the second tap is refused.
@@ -1369,7 +1369,7 @@ describe("answers the server has not acknowledged (D353)", () => {
 });
 
 describe("the network phase's round trips", () => {
-  // The queries a boot issues are unchanged; what D352 changed is which
+  // The queries a boot issues are unchanged; what D353 changed is which
   // of them are in flight AT ONCE. A serial chain has one read pending
   // at every step; each release below counts what the next step parks.
 
@@ -1386,7 +1386,7 @@ describe("the network phase's round trips", () => {
     expect(pendingPaths()).toEqual(["v2_questions"]);
     await release();
     // Step 3: the two answer deltas AND the deck aggregates, in one trip.
-    // Before D352 this was three trips — answered, then edited, then the
+    // Before D353 this was three trips — answered, then edited, then the
     // aggregates after the profile await. Waited for, not read at once:
     // the delta's rows are written back to the cache first, and that is
     // a few macrotasks of IndexedDB.

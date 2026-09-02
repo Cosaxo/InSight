@@ -91,7 +91,7 @@ function ReportFace({ uid }: { uid: string }) {
     <button type="button" className="press" disabled={done}
       aria-label={done ? "Photo reported" : `Report this photo${armed ? " — confirm" : ""}`}
       // The store rolls a refused report back and reports it; a rejection
-      // reaching this `void` would surface as an unhandled one (D352's
+      // reaching this `void` would surface as an unhandled one (D353's
       // gate made a failed sign-in a second way for it to reject).
       onClick={() => { if (armed) void LIVE.flagAvatar(uid).catch(() => {}); else setArmed(true); }}
       style={{
