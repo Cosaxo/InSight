@@ -134,9 +134,11 @@ describe("the daily tab", () => {
       expect(screen.queryByText("The Wallet"), "a finished story is still in the fresh stream").toBeNull();
       fireEvent.click(screen.getByRole("button", { name: /answered · \d+/i }));
       expect(screen.getByText("The Wallet"), "the finished story is not behind the expander").toBeTruthy();
-      // Its reveal, not a fresh card: the ending is named (twice by design —
-      // the heading and the tree's own end label).
-      expect(screen.getAllByText(st.endings.AAA.name).length).toBe(2);
+      // Its reveal, not a fresh card: the ending is named. Once since
+      // 2026-09-02 — the label the tree used to carry on its end node
+      // moved into the card, where it can be read (paths-card.test.jsx
+      // holds the same count).
+      expect(screen.getAllByText(st.endings.AAA.name).length).toBe(1);
       expectNoBoundary("finished story parked");
     } finally {
       PATHS.stories().forEach((s) => PATHS.reset(s.id));
