@@ -236,13 +236,16 @@ real slipped through:
 - `src/v2/data/vote.test.ts` pins the `window.LIVE` member surface, because
   renaming a member there passes tsc (consumers are `.jsx`), eslint and
   check:globals — then blanks the Map on a device.
-- `src/v2/test/mount-app.jsx` is the harness, and **nine** suites share it:
-  all but one of the **six** `smoke-*.test.jsx`, which walk both tabs and
-  every overlay; `dialog`; and three that go PAST first paint into screens
-  no smoke case reaches — the Map's measured body, the daily's Circle and
-  1v1 modes, and the demo Mirror's stops past World. (The exception is
-  `smoke-live`, which mounts `App` too, through its own live fixture.) The three guards above are all **name**-level; these are
-  the ones that mount the whole `App` and execute a render. Other suites
+- `src/v2/test/mount-app.jsx` is the harness, and **eight** suites mount
+  the whole `App` through it: five of the **six** `smoke-*.test.jsx`, which
+  walk both tabs and every overlay, and three that go PAST first paint into
+  screens no smoke case reaches — the Map's measured body, the daily's
+  Circle and 1v1 modes, and the demo Mirror's stops past World. (The sixth
+  smoke file, `smoke-live`, mounts `App` too, through its own live fixture.
+  More suites than these import the harness — `dialog` and the feed's
+  direct-mount files take its helpers without mounting the app.) The three
+  guards above are all **name**-level; these are the ones that mount the
+  whole `App` and execute a render. Other suites
   render a component directly — `person-mindmap-still` is the one to read,
   because it found this class first. Measured, not assumed: injecting
   `window.FEEDREAD.statsTypo()` into `MirrorTab` leaves check:globals,

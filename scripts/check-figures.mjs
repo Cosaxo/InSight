@@ -444,9 +444,19 @@ const smokeFiles = readdirSync(join(root, "src/v2/test"))
 // not named smoke-*. Until this entry the sentence read "these are the
 // only ones that execute a render", which by then was wrong about eighteen
 // suites in this one directory.
+// Counted by what they DO, not by how they spell an import. This asked for
+// `from "./mount-app.jsx"` with the extension, and fifteen suites import
+// that module — nine with the extension, six without — so normalising any
+// one import, a tidy-up nobody would think twice about, would have failed
+// the gate demanding CLAUDE.md say "fifteen" with nothing having changed.
+// It also counted two files that import the harness for its helpers and
+// never mount anything.
+//
+// `mountApp(` is the real predicate: it is the call that renders the whole
+// App, which is what the sentence is about.
 const harnessFiles = readdirSync(join(root, "src/v2/test"))
   .filter((f) => /\.test\.jsx$/.test(f))
-  .filter((f) => /from ["']\.\/mount-app\.jsx["']/.test(
+  .filter((f) => /\bmountApp\(/.test(
     readFileSync(join(root, "src/v2/test", f), "utf8"),
   )).length;
 
@@ -574,9 +584,9 @@ const FIGURES = [
   {
     file: "CLAUDE.md",
     what: "mount smoke files (§2)",
-    re: /all but one of the \*\*(\w+)\*\* `smoke-\*\.test\.jsx`/,
+    re: /five of the \*\*(\w+)\*\* `smoke-\*\.test\.jsx`/,
     actual: word(smokeFiles),
-    fix: (n) => `"all but one of the **${n}** \`smoke-*.test.jsx\`"`,
+    fix: (n) => `"five of the **${n}** smoke-*.test.jsx"`,
   },
   {
     file: "scripts/apply-monitoring.mjs",
@@ -606,10 +616,10 @@ const FIGURES = [
   },
   {
     file: "CLAUDE.md",
-    what: "suites sharing the mount harness (§2)",
-    re: /harness, and \*\*(\w+)\*\* suites share it/,
+    what: "suites that mount the whole App through the harness (§2)",
+    re: /harness, and \*\*(\w+)\*\* suites mount\s+the whole `App`/,
     actual: word(harnessFiles),
-    fix: (n) => `"and **${n}** suites share it"`,
+    fix: (n) => `"and **${n}** suites mount the whole App"`,
   },
   {
     file: "CLAUDE.md",
