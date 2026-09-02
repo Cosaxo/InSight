@@ -114,6 +114,23 @@ export interface Working {
    * empty states differ: "guessed at the coin" is only true when it
    * did not. */
   hadEv: boolean;
+  /**
+   * WHY A NAMED ANSWER PRODUCED NO ROW, when none of them did. Three
+   * different facts used to leave `rows` empty in the same way, and the
+   * panel printed one sentence for all three — "under 12 in both
+   * samples", a number the code could not promise:
+   *
+   *   thin   the crossing really was under the 12-voter floor
+   *   weak   plenty of voters, but the lean did not reach 0.54 — the
+   *          ORDINARY case, and the one most often mislabelled
+   *   failed the voter-picks read rejected, which is not a fact about
+   *          the crowd at all
+   *
+   * Set independently; more than one can be true across several answers.
+   */
+  thin: boolean;
+  weak: boolean;
+  failed: boolean;
 }
 
 interface LoadingsDoc { k: number; q: Record<string, { v: number[]; n: number; sum: number }> }
@@ -380,10 +397,10 @@ export const PATTERNS = {
     const rec = logSaved().find((r) => r.qid === qid);
     if (!rec || rec.mine == null || !loadings) return null;
     const evIds = rec.ev ?? [];
-    if (!evIds.length) return { rows: [], hadEv: false };
+    if (!evIds.length) return { rows: [], hadEv: false, thin: false, weak: false, failed: false };
     const items = pool();
     const target = items.find((p) => p.q.id === qid);
-    if (!target) return { rows: [], hadEv: true };
+    if (!target) return { rows: [], hadEv: true, thin: false, weak: false, failed: false };
     // the grade's own weight, for the rows that still resolve
     const answered = items.filter((p) => p.q.id !== qid && p.mine != null);
     const wOf = new Map<string, number>();
@@ -398,16 +415,28 @@ export const PATTERNS = {
       });
     }
     const rows: WorkingRow[] = [];
+    let thin = false, weak = false, failed = false;
     for (const evId of evIds) {
       const ev = items.find((p) => p.q.id === evId);
       if (!ev || ev.mine == null) continue; // the bank moved on — an unresolvable id is silence, not a guess
       const side: 0 | 1 = ev.mine === 1 ? 0 : 1;
-      const share = await this.tell(qid, evId, side).catch(() => null);
-      if (!share || share.shares[rec.pred] < 0.54) continue;
+      // The rejection is caught HERE rather than folded into the null
+      // above, because "the read did not happen" and "the crossing is
+      // under the floor" are different sentences and the panel says so.
+      let share: TellShare | null = null;
+      try {
+        share = await this.tell(qid, evId, side);
+        if (!share) thin = true;
+      } catch { failed = true; }
+      if (!share) continue;
+      // Enough people, and they leaned — or enough people who did not.
+      // This is the common way an answer drops out, and it was being
+      // reported as a sample size.
+      if (share.shares[rec.pred] < 0.54) { weak = true; continue; }
       rows.push({ evId, side, share: share.shares[rec.pred], n: share.n, w: wOf.get(evId) ?? 0 });
     }
     rows.sort((a, b) => b.w - a.w);
-    return { rows, hadEv: true };
+    return { rows, hadEv: true, thin, weak, failed };
   },
 
   /** The Oracle's evidence line (2026-08-20 standalone): among the people
