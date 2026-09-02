@@ -960,7 +960,9 @@ class DailySplit extends React.Component {
         h('button', { className: 'press tap44', onClick: () => { clearTimeout(this._sheetT); this.setState({ tab: 'ctx', sheetClosing: false }); }, 'aria-label': ctxLabel, style: { flexShrink: 0, width: 20, height: 20, borderRadius: '50%', border: S.bg ? '0.5px solid color-mix(in oklch, var(--ink) 26%, var(--rule))' : '0.5px solid var(--rule)', background: 'transparent', color: S.bg ? 'var(--ink-2)' : 'var(--ink-3)', fontFamily: BRIC, fontSize: 11.5, fontWeight: 800, lineHeight: 1, cursor: 'pointer', WebkitAppearance: 'none', padding: 0 } }, 'i'),
         window.PassiveTag ? h(window.PassiveTag, { q: S, answered: voted }) : null),
       chipRow,
-      h('div', { style: { fontFamily: BRIC, fontWeight: 800, fontSize: hier ? 37 : 31, lineHeight: 1.06, letterSpacing: hier ? -1.1 : -0.8, textWrap: 'balance' } }, S.text),
+      // the prompt voice (2026-09-02): the day's question is the one thing
+      // on this card a person answers, so it is the one thing in the serif
+      h('div', { style: { fontFamily: 'var(--serif)', fontWeight: 500, fontSize: hier ? 31 : 27, lineHeight: 1.14, letterSpacing: '-0.01em', textWrap: 'balance' } }, S.text),
       !voted
         // asking: options size to their content and centre the label — a fixed
         // 236px column left a 22px word floating in a 115px box, reading as a skeleton

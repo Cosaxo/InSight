@@ -87,7 +87,7 @@
 .qm-read{display:flex;flex-direction:column;justify-content:center;border-top:1px solid var(--rule);padding:16px 2px 4px}
 .qm-qhead{display:flex;align-items:center;gap:8px}
 .qm-yours{margin-left:auto;font-size:11.5px;font-weight:700;color:var(--accent-ink,var(--accent));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.qm-prompt{font-size:17.5px;font-weight:750;line-height:1.28;color:var(--ink);margin:9px 0 0;text-wrap:pretty}
+.qm-prompt{font-family:var(--serif);font-size:21px;font-weight:500;line-height:1.22;color:var(--ink);margin:9px 0 0;text-wrap:pretty}
 .qm-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
 .qm-opt{border:1.4px solid var(--rule);background:var(--surface);border-radius:12px;padding:11px 9px;font:inherit;font-size:14px;font-weight:650;color:var(--ink);min-height:46px;cursor:pointer;text-align:center;text-wrap:balance;transition:transform .18s var(--ease-spring),border-color .15s ease}
 .qm-opt:hover{border-color:var(--accent);transform:translateY(-1px)}

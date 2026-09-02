@@ -3876,7 +3876,11 @@ class WorldFeed extends React.Component {
         {/* the bare skin has no box to compete with, so the question can carry
             the card on its own — it steps up a size and tightens accordingly,
             and steps back down when `hier` gives the daily the top of the page */}
-        <div style={{ fontFamily: 'var(--sans)', fontWeight: snap || focus ? 800 : 750, fontSize: snap ? (skin === 'bare' ? (this.opts.hier ? 24.5 : 30) : (this.opts.hier ? 22 : 26)) : focus ? 20 : 16.5, lineHeight: snap ? 1.14 : focus ? 1.2 : 1.25, letterSpacing: snap ? (skin === 'bare' ? -0.7 : -0.5) : focus ? -0.4 : -0.25, textWrap: snap || focus ? 'balance' : 'pretty' }}>{q.prompt}</div>
+        {/* the prompt voice (2026-09-02): a question a person answers is
+            set in the serif, and only where it IS the card — snap and
+            focus. A row prompt stays sans: at 16.5px in a list it is a
+            label for a card, not the card. */}
+        <div style={{ fontFamily: snap || focus ? 'var(--serif)' : 'var(--sans)', fontWeight: snap || focus ? 500 : 600, fontSize: snap ? (skin === 'bare' ? (this.opts.hier ? 26 : 30) : (this.opts.hier ? 23 : 26)) : focus ? 22 : 16.5, lineHeight: snap ? 1.18 : focus ? 1.22 : 1.25, letterSpacing: snap || focus ? '-0.01em' : -0.25, textWrap: snap || focus ? 'balance' : 'pretty' }}>{q.prompt}</div>
         {q.type === 'vote' && this.renderVote(q, T, snap)}
         {q.type === 'duel' && this.renderDuel(q, T, snap)}
         {q.type === 'rank' && this.renderRank(q, T, snap)}

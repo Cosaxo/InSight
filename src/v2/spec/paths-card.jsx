@@ -234,7 +234,11 @@ export function PathsCard({ q }) {
               </div>
             )}
           <div className="pp-end">
-            <b>{end.name}</b>
+            {/* the ending is the answer this story arrived at, so it wears
+                the prompt voice. 500, not the design's 600: the tree ships
+                one Spectral weight (styles.css says why), and a synthesised
+                bold serif is worse than the real 500 */}
+            <div style={{ fontFamily: 'var(--serif)', fontSize: 24, fontWeight: 500, letterSpacing: '-0.01em', lineHeight: 1.1, color: 'var(--pp-ink)' }}>{end.name}</div>
             <div className="pp-line">{end.line}</div>
             {flow && (
               <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 9 }}>

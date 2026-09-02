@@ -406,9 +406,9 @@ export default function PatternsMap({ items, version, topic }: {
               <span className="pt-kick" style={{ color: "var(--accent-ink)" }}>Strongest link{topicWord}</span>
               <span style={{ fontSize: 14, fontWeight: 500, lineHeight: 1.5, color: "var(--ink-2)", textWrap: "pretty" }}>
                 People who pick <b style={{ fontWeight: 800, color: inkCol(catHue(top.i)) }}>{chain.pick}</b> on{" "}
-                <span style={{ color: "var(--ink)" }}>{"“" + items[top.i].q.text + "”"}</span>{" "}
+                <span style={{ fontFamily: "var(--serif)", color: "var(--ink)" }}>{"“" + items[top.i].q.text + "”"}</span>{" "}
                 mostly go on to pick <b style={{ fontWeight: 800, color: inkCol(catHue(top.j)) }}>{chain.then}</b> on{" "}
-                <span style={{ color: "var(--ink)" }}>{"“" + items[top.j].q.text + "”"}</span>
+                <span style={{ fontFamily: "var(--serif)", color: "var(--ink)" }}>{"“" + items[top.j].q.text + "”"}</span>
               </span>
               <span style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
                 <b style={{ fontSize: 26, fontWeight: 800, letterSpacing: "-0.03em", lineHeight: 1, color: "var(--accent-ink)" }}>{chain.pct}%</b>

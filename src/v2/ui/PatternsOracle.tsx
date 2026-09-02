@@ -332,7 +332,7 @@ export default function PatternsOracle({ items }: {
             </button>
           ) : <span className="or-sealed" style={{ marginLeft: "auto" }}>sealed</span>}
         </div>
-        <p style={{ margin: "8px 0 0", fontSize: 21, fontWeight: 750, lineHeight: 1.2, letterSpacing: "-0.01em", color: "var(--ink)", textWrap: "pretty" }}>{q.text}</p>
+        <p style={{ margin: "8px 0 0", fontFamily: "var(--serif)", fontSize: 21, fontWeight: 500, lineHeight: 1.2, letterSpacing: "-0.01em", color: "var(--ink)", textWrap: "pretty" }}>{q.text}</p>
         <div style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", marginTop: 10 }}>
           <div className="ln-field" style={{ flex: "1 1 0px", width: "auto", minHeight: 190, maxHeight: 300, maxWidth: "100%", aspectRatio: "1 / 1" }}>
             {/* the prototype advanced on a tap anywhere in the field; that
