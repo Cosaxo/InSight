@@ -3,13 +3,14 @@
 > **Status:** tree — every row below is a Routine that exists on
 > somebody's account right now. §2 and §3 were each verified against the
 > live account that owns them, both on 2026-09-02; §4 has no rows and no
-> owner yet; §5's lanes are the owner's word plus their contracts, with
-> no id readable from any account here. Nothing here is proposed.
+> owner yet; §5's lanes are their contracts plus what a decision record
+> says about them, with no id readable from any account here. Nothing
+> here is proposed.
 
 **Why this file exists.** Three claude.ai subscriptions work on this one
 repository — two of them running Routines that a session here has
-verified, the third running the ops and program lanes on the owner's
-word (§5) — and **no session can see another account's Routines.** `list_triggers` returns the calling account's and
+verified, and lanes chartered on all three that relay nothing yet
+(§5) — and **no session can see another account's Routines.** `list_triggers` returns the calling account's and
 nothing else — measured, not assumed: run from the account in §2 on
 2026-09-02 it returned nine Routines and omitted every lane in §3 and §4,
 all of which demonstrably fired within the previous twenty-four hours
@@ -325,15 +326,27 @@ PR that creates one (rule 6).
 
 ---
 
-## 5 · The ops program — live on an account this one cannot see
+## 5 · The ops and program lanes — chartered, part-created, and relaying nothing
 
-**Not verified, and not verifiable from here.** The owner's word,
-2026-09-02: the ops Routines exist and were created from another Claude
-session. `list_triggers` from §2's account does not return them, and
-`OPS-RUNBOOK.md` §5's inventory is still every row a dash — so **no
-trigger id for any ops lane is recorded anywhere in the tree.** Filling
-that table is the owning session's job under rule 1. Until it does, §1
-of that file is the whole record, reproduced here so a session that
+**Corrected 2026-09-02 evening, and the correction is the point.** This
+section first read *"live on an account this one cannot see"* on the
+owner's word that the ops Routines existed. D353 and PR #364 say what
+that word actually covered: **four** ops lanes were created on Claude 2
+— the roll call, the production reader, the release recorder and the
+list worker — bound to an ops dispatcher session
+(`session_01RQvTPyNEFgX5yNUPqkDPnS`). **The PR shepherd is not among
+them**, and `OPS-RUNBOOK.md`'s inventory still carries every row as a
+dash, its own included. So this section previously told a reader the
+shepherd was live and gave its next fire time; that was wrong, and the
+label on PR #365 has had nothing to act on it from the first minute.
+
+The lesson is rule 2's, one rung up: **the owner's word establishes that
+a Routine exists, not which one.** Only `list_triggers` from the owning
+account settles that, and no account here can run it against Claude 2 or
+Claude 3.
+
+What follows is `OPS-RUNBOOK.md` §1 and `PROGRAM-RUNBOOK.md` § The lanes
+reproduced — the contracts, not the account state — so a session that
 meets one of these lanes knows what it has met.
 
 | Lane | Fires (UTC) | Model | Merge authority |
@@ -372,24 +385,37 @@ does not exist, and neither does `no-shepherd`, the label
 06:20 and 16:20 slots have both passed with no comment on either
 labelled PR. On traces alone, no ops lane has completed a run.
 
-**And for once the reason is written down rather than invisible**, which
-is the whole point of the exercise. Both remaining links of §6's merge
-chain are blocked on one human turn each, and `OWNER-LIST.md` carries
-both:
+**And the reason is written down rather than invisible**, which is the
+whole point of the exercise. **Both dispatchers refused their charters
+on the same day, independently, for the same reason** — a standing
+instruction that arrives through automation is one the session cannot
+verify, so it should refuse it (D353). Everything bound to either is
+therefore a Routine that exists and has never run:
 
-- **The program dispatcher refused its charter** when it arrived through
-  automation — *"no standing dispatcher setup without direct approval"* —
-  so **nothing bound to it relays**, the merge shift included. It asks
-  for one line from the owner in its own session.
-- **The GitHub merge tool has never been approved** in the ops
-  dispatcher's own history on Claude 2, and under that binding the PR
-  shepherd cannot merge at all (`OPS-RUNBOOK.md` §2.3).
+- **The ops dispatcher** (Claude 2) refused, and the roll call fired
+  into it at 15:30 and was refused too. Four lanes bound, nothing
+  relayed, and no run-log line saying so — because a lane that never
+  starts writes nothing.
+- **The program dispatcher** (Claude 3) refused the same shape the same
+  day, so the **merge shift** and four siblings relay nothing either.
+- **The GitHub merge tool** has never been approved in the ops
+  dispatcher's own history, so even once it relays, the shepherd could
+  not merge (`OPS-RUNBOOK.md` §2.3) — and the shepherd has not been
+  created at all.
 
-So the lanes exist, are correctly idle, and say why — the state the
-farm's issue #31 was created to make legible, reached here through the
-owner list instead of a run log. A reader who only had the traces would
-have concluded the opposite. That gap is what this register is for, and
-the run log will close the rest of it the first time a lane completes.
+D353's fix is structural rather than another instruction: the charter
+moves into `OPS-RUNBOOK.md` § The ops dispatcher, where a session can
+**verify it against the repository** instead of trusting a prompt. The
+remaining clicks are on `OWNER-LIST.md`, one line each, plus one open
+question — whether to retire the dispatcher hop entirely for the web-UI
+path, where a Routine starts cloned and needs no relay.
+
+So: chartered, part-created, correctly idle, and saying why. That last
+part is the state the farm's issue #31 was created to make legible, and
+it arrived here through the owner list rather than a run log. A reader
+with only the traces would have concluded the opposite — and a reader
+with only the owner's word, as this section shows, concluded something
+wrong in the other direction.
 
 **One measurement, taken while labelling PR #365.** Applying
 `merge-when-green` through the GitHub API **created the label** — default
