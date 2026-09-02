@@ -335,10 +335,14 @@ that word actually covered: **four** ops lanes were created on Claude 2
 — the roll call, the production reader, the release recorder and the
 list worker — bound to an ops dispatcher session
 (`session_01RQvTPyNEFgX5yNUPqkDPnS`). **The PR shepherd is not among
-them**, and `OPS-RUNBOOK.md`'s inventory still carries every row as a
-dash, its own included. So this section previously told a reader the
-shepherd was live and gave its next fire time; that was wrong, and the
-label on PR #365 has had nothing to act on it from the first minute.
+them.** So this section previously told a reader the shepherd was live
+and gave its next fire time; that was wrong, and the label on PR #365
+has had nothing to act on it from the first minute. PR #364 has since
+filled four rows of `OPS-RUNBOOK.md`'s inventory with real ids and
+written the reason into the rest: **three lanes could not be created
+from a session at all** — the shepherd, the pulse responder and the
+dependency shepherd were refused by the permission classifier, and are
+the owner's to create in Claude 2's web UI.
 
 The lesson is rule 2's, one rung up: **the owner's word establishes that
 a Routine exists, not which one.** Only `list_triggers` from the owning
@@ -349,16 +353,25 @@ What follows is `OPS-RUNBOOK.md` §1 and `PROGRAM-RUNBOOK.md` § The lanes
 reproduced — the contracts, not the account state — so a session that
 meets one of these lanes knows what it has met.
 
-| Lane | Fires (UTC) | Model | Merge authority |
+Ids below are transcribed from `OPS-RUNBOOK.md`'s inventory, not read
+from `list_triggers` — rule 2 is unsatisfiable from here, and a
+transcribed id is a belief about the tree rather than about the account.
+
+| Lane | Trigger id | Fires (UTC) | Merge authority |
 | --- | --- | --- | --- |
-| **PR shepherd** | `20 6,16 * * *`, plus GitHub `pull_request` events — opened, ready_for_review, reopened, **labeled**, closed-and-merged, base `main` | `claude-opus-5` | **the only lane in this register that may merge engineering** — squash, only on green, only a PR the owner labelled `merge-when-green`, only while the grant is intact |
-| Production reader | `40 6 * * *` | `claude-sonnet-5` | none — read-only |
-| Dependency shepherd | `30 8 * * 1` — Mondays | `claude-opus-5` | never, absent a dated grant in its own contract |
-| Roll call | `30 15 * * *` | `claude-sonnet-5` | none — read-only |
-| List worker | `0 17 * * *` | `claude-fable-5-1` orchestrating subagents | never |
-| Platform probe | one-off, Run now | `claude-sonnet-5` | never |
-| Release recorder | API, from `ios-release.yml` after an upload | `claude-opus-5` | never |
-| Pulse responder | API, from `pulse.yml` when the operator gate is red | `claude-opus-5` | never |
+| **PR shepherd** | **none — refused from a session; the owner's to create in the web UI** | `20 6,16 * * *`, plus GitHub `pull_request` events — opened, ready_for_review, reopened, **labeled**, closed-and-merged, base `main` | **the only lane in this register that may merge engineering** — squash, only on green, only a PR the owner approved, only while the grant is intact |
+| Roll call | `trig_01PBouXe7Frg5FmrmPJQ2ZKj` | `30 15 * * *` | none — read-only |
+| Production reader | `trig_01TPdViy5b8ZunttN4RUuHbX` | `40 6 * * *` | none — read-only |
+| List worker | `trig_01USe4xEhJ57MRjgThykdRzM` | `0 17 * * *` | never |
+| Release recorder | `trig_01Vr2QLmWAGBaBsnT6yTusnr` | API, from `ios-release.yml` — poke-only until its API trigger is added in the web UI | never |
+| Dependency shepherd | none — same refusal | `30 8 * * 1` — Mondays | never, absent a dated grant in its own contract |
+| Pulse responder | none — same refusal | API, from `pulse.yml` when the operator gate is red | never |
+| Platform probe | none — the owner's, in the web UI | one-off, Run now | never |
+
+Four exist and are bound to the ops dispatcher; four do not, and each of
+those four says why in its own row rather than leaving a reader to
+guess. That is the shape this register asks for, arriving in the runbook
+first.
 
 Six more were chartered on the same account the same day, by D352's
 `PROGRAM-RUNBOOK.md` § The lanes, every inventory row a dash:
