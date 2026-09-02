@@ -893,6 +893,17 @@ export function checkQuestion(q, surface, ctx, mode = {}) {
       const num = (v) => typeof v === "number" && Number.isFinite(v);
       if (!num(q.lo) || !num(q.hi) || q.lo >= q.hi) {
         err("range", `dial needs numeric lo < hi (got lo ${JSON.stringify(q.lo)}, hi ${JSON.stringify(q.hi)})`);
+      } else if (q.active !== false && (q.hi - q.lo) / DIAL_BUCKETS < 1) {
+        // At least a whole unit per bucket (D352). `dialFmt` prints
+        // integers and the synthesized labels round their edges, so a
+        // 17–23 h dial's twelve buckets read "17–18 h", "18–18 h",
+        // "18–19 h" in the voters panel, and a 1–4 hrs dial has buckets no
+        // integer can sit in at all (the recorded limit in
+        // dial-bucket.test.jsx). Fourteen shipped like that before the
+        // rule existed; the fix is the UNIT (minutes, not hours), never a
+        // stretched end. Retired entries are exempt — they are the ones
+        // this rule retired, kept in the bank so the seed reads the flag.
+        err("step", `${q.hi - q.lo} ${q.unit || "units"} over ${DIAL_BUCKETS} buckets is under one unit per bucket — labels collapse ("18–18 h"); widen the span to at least ${DIAL_BUCKETS}, or change the unit (minutes, not hours)`);
       }
       if (texture) {
         if (!num(q.med) || (num(q.lo) && num(q.hi) && (q.med < q.lo || q.med > q.hi))) {

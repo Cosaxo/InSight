@@ -2037,7 +2037,12 @@ options it has, not two by habit), dial, field, or path. Continuum cards
 (dial/field) are written TWICE, the content entry with NO crowd texture
 plus its demo-pool twin in src/v2/spec/world-feed-data.js with the
 authored texture; lean scarce on them, they are a change of key and not
-a second genre. Read the budget's signal: line — it names the mode and,
+a second genre. A dial's range holds BOTH ends real people answer at,
+generously, with at least a whole unit per bucket — a span of 12 or
+more in the printed unit, a multiple of 12 where the unit allows; under
+twelve units change the unit (minutes, not hours), never stretch the
+ends (§ Continuum questions, D352 — check:quality's step rule refuses
+the rest). Read the budget's signal: line — it names the mode and,
 in demand mode, which topics lead; evenness per topic still steers WHAT
 you write into a topic, never where the budget goes. Pre-flight the whole batch
 from ONE candidates file with "surface": "feed" on each entry: npm run

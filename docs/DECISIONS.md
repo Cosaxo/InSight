@@ -36285,7 +36285,11 @@ per bucket — a span of at least 12 in the printed unit, a multiple of
 12 where the unit allows (the h, cups, friends, books, min and songs
 rows), and where the honest span is under twelve units the UNIT moves
 rather than the ends (the concert, in minutes). QUESTION-FARM §
-Continuum questions now says this.
+Continuum questions and the feed lane's prompt block now say this, and
+`check:quality` holds the half of it a script can read: a dial under
+one unit per bucket fails the `step` rule (retired entries exempt),
+at the batch pre-flight as well as in the bank — so the next lane run
+cannot write a 17–23 h dial, whatever the prose says that week.
 
 **Why new ids, not an edit.** D114 synthesizes the bucket labels from
 `lo/hi/unit`, so D52's option freeze freezes the range: the seed
