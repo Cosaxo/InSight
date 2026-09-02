@@ -74,6 +74,8 @@ asked for — and the console draws its health from it.
 | **The to-do doer, Claude 3** | Claude 3 | `0 18 * * *` | the list worker's (`OPS-RUNBOOK.md`) | `OPS-RUNBOOK.md` § The list worker, with § The to-do doers' tag rule | never |
 | **The to-do doer, Claude 1** | Claude 1 — the owner creates it | `0 16 * * *` | same | same | never |
 | **The theory lanes, second set** | Claude 3 | the charter's slots on the opposite parity | the charter's | `CHARTER.md` on `axiom-theory` | never — not `main` at all |
+| **The roll call, Claude 3** | Claude 3 | `40 15 * * *` | `claude-sonnet-5` | `OPS-RUNBOOK.md` § The roll call, scoped to this account — § The other subscriptions has the twin's block | n/a (read-only) |
+| **The roll call, Claude 1** | Claude 1 — the owner creates it | `35 15 * * *` | `claude-sonnet-5` | same, scoped to that account | n/a (read-only) |
 
 The list worker on Claude 2 keeps its Routine untouched: its prompt
 re-reads `OPS-RUNBOOK.md` § The list worker every run, so the tag rule
@@ -173,10 +175,10 @@ log** like the list worker they are.
       their tools approved once in this session by a human turn.
       · **Gate:** `get_session` shows it; the register row names it.
       · **Size:** S.
-- [ ] **3.3 Create five Routines**, prompts from § Canonical prompts
-      pasted verbatim, bound to the dispatcher: the axiom builder, the
-      merge shift, the console keeper, the console improver, the to-do
-      doer. From this session if the platform allows it; **[owner]** in
+- [ ] **3.3 Create six Routines**, prompts from § Canonical prompts
+      and § The other subscriptions pasted verbatim, bound to the
+      dispatcher: the axiom builder, the merge shift, the console
+      keeper, the console improver, the to-do doer, the roll call twin. From this session if the platform allows it; **[owner]** in
       this account's Routines web UI where the permission classifier
       refuses (the ops lanes met that refusal for event-triggered
       lanes). Notifications off — the run log and the console are the
@@ -218,9 +220,11 @@ log** like the list worker they are.
 
 ## Phase 5 — the other accounts' halves
 
-- [ ] **5.1 [owner] The to-do doer on Claude 1** — § Canonical prompts'
-      doer block with `Claude 1` substituted, created on that account,
-      registered in its block. · **Size:** one paste.
+- [ ] **5.1 [owner] The to-do doer and the roll call on Claude 1** —
+      the two blocks in § The other subscriptions, created on that
+      account in its web UI (or by a session there, if the platform
+      allows), registered in its block of the register. · **Size:** two
+      pastes.
 - [ ] **5.2 [owner] The PR shepherd and the three other ops lanes on
       Claude 2** — in progress per the owner (2026-09-02); their rows
       in `OPS-RUNBOOK.md` § The account-side inventory and the
@@ -638,6 +642,97 @@ contract that lives on another branch.
 
 ---
 
+## The other subscriptions — what the owner creates there, and what to ask a session
+
+Nothing on this account can create a Routine on Claude 1 or Claude 2.
+What each of those needs is below, in the order to do it, with the
+prompt to paste and the message to give a session. Two facts decide
+the shape:
+
+- **A Routine reads its instructions from `main` every time it
+  fires.** Every prompt here says *read docs/PROGRAM-RUNBOOK.md (or
+  OPS-RUNBOOK.md) on origin/main and follow it; if the section is
+  missing, stop and report.* So the pull request carrying this file
+  and phase 1 is merged **before** any of these Routines is created —
+  otherwise the Routine fires, finds nothing, and does nothing, which
+  is exactly what the doc sweep and the now lane did for days.
+- **The web UI is the path that needs no dispatcher.** A Routine
+  created at claude.ai/code/routines with `Cosaxo/InSight` attached
+  starts its session with the repository cloned — Claude 1's two
+  improvers run that way today and push their branches. A session can
+  also try to create one, and may be refused (the ops lanes met that
+  on 2026-09-02); a refusal costs one message and the web UI is the
+  fallback either way.
+
+**Creating one in the web UI, the same five fields every time:** the
+name as written here · the schedule (the runbook's times are UTC;
+Oslo is UTC+2 until late October, so `0 16 * * *` is 18:00 Oslo) · the
+model as written here · the repository `Cosaxo/InSight` attached · the
+prompt pasted **verbatim** from the block named · notifications off,
+except the roll calls, which stay on so a gap reaches a phone.
+
+### Claude 1 — two Routines, created there
+
+| Routine | Schedule (UTC · Oslo) | Model | Prompt |
+| --- | --- | --- | --- |
+| InSight list worker (Claude 1) | `0 16 * * *` · 18:00 daily | `claude-fable-5-1` | the block *The list worker on Claude 1* below |
+| InSight roll call (Claude 1) | `35 15 * * *` · 17:35 daily | `claude-sonnet-5` | the block *The roll call twin* below, with `Claude 1` |
+
+**The message to give a session on Claude 1**, verbatim:
+
+> Read docs/PROGRAM-RUNBOOK.md § The other subscriptions on origin/main. Create the two Routines for this account it lists under "Claude 1" — the list worker and the roll call — with the prompts pasted verbatim from that section, repository Cosaxo/InSight attached, fresh session per run, the schedules and models as written there, notifications off for the list worker and on for the roll call. If creating a Routine from a session is refused, stop and tell me exactly what was refused so I can create it in the web UI. Then verify both with list_triggers, and open one PR that registers them in docs/ROUTINES.md §2 (this account's block) with the ids quoted from the tool response — never from the prompt — and adds one plain sentence per routine to the register's overview. Never merge; never apply a label.
+
+### Claude 2 — the four ops lanes, and two asks
+
+The four ops lanes' prompts are canonical in `OPS-RUNBOOK.md` §4 and
+are **not** copied here — the roll call diffs live prompts against
+those blocks, and a second copy is a drift waiting to happen. Their
+settings:
+
+| Routine | Triggers (UTC · Oslo) | Model | Prompt | Notes |
+| --- | --- | --- | --- | --- |
+| InSight PR shepherd | `20 6,16 * * *` · 08:20 and 18:20 daily; GitHub `pull_request` events (opened, ready_for_review, reopened, labeled, closed) with base `main`; an API trigger | `claude-opus-5` | `OPS-RUNBOOK.md` §4, *The PR shepherd* | the door every approved PR ends at — create it first. The GitHub triggers need the Claude GitHub App installed; the web UI prompts for it |
+| InSight pulse responder | API trigger, fired by `pulse.yml` | `claude-opus-5` | §4, *The pulse responder* | copy the fire URL into the repository variable `ROUTINE_PULSE_FIRE_URL` and the token into the secret `ROUTINE_PULSE_FIRE_TOKEN` |
+| InSight dependency shepherd | `30 8 * * 1` · Mondays 10:30 | `claude-opus-5` | §4, *The dependency shepherd* | — |
+| InSight platform probe | none — press Run now once | `claude-sonnet-5` | §4, *The platform probe* | its whole product is a row in `OPS-RUNBOOK.md` § Platform measurements |
+
+**The first message to give a session on Claude 2**, verbatim — the
+theory prompts, which only that account can read:
+
+> Run list_triggers and, for each of the twelve axiom-theory Routines the charter's §10 table names (genetic, body, questions, tests, ties, interests, database, map, pattern, graph optimizer, central, review), take the stored prompt exactly as the tool returns it and commit it to the axiom-theory branch as prompts/<lane>.md — one file per lane, the prompt verbatim inside a fenced block, a one-line header naming the lane, the trigger id and the schedule. Add a sentence to CHARTER.md §10 saying the prompts live there. Run node graph/check.mjs --all before pushing. Do not change any prompt, any Routine, or anything else on the branch. Then tell me the commit.
+
+**The second message to give a session on Claude 2** — the ops lanes,
+if they are not created yet:
+
+> Read docs/OPS-RUNBOOK.md § The account-side inventory on origin/main. For every row whose trigger id is still a dash — the PR shepherd, the pulse responder, the dependency shepherd, the platform probe — try to create the Routine with the prompt pasted verbatim from §4, the model and triggers from §1, bound the same way the four existing ops lanes are. If a creation is refused, stop and tell me exactly which one and what the refusal said, so I can create it in the web UI. For each one created, verify it with list_triggers and open one PR that fills its inventory row and its row in docs/ROUTINES.md §3 with the id quoted from the tool response. Never merge; never apply a label.
+
+### Claude 3 — this account, for completeness
+
+The builder, the shift, the keeper, the improver, the list worker and
+the roll call twin (§ The lanes) — created from here at phase 3, or
+by the owner in this account's web UI where a creation is refused,
+with the blocks in § Canonical prompts and below.
+
+### The list worker on Claude 1
+
+```
+You are InSight's LIST WORKER on Claude 1 — a scheduled daily job that finishes the owner's to-do list, one item per pull request, asking instead of guessing, taking only the items tagged for this subscription. If Cosaxo/InSight is not already cloned in your working directory with push access, provision it first: load the add_repo tool via ToolSearch (Claude_Code_Remote MCP server; wait for it to connect if needed), call it with owner "Cosaxo", repo "InSight", access "push", run the clone command its result gives (plus register_repo_root if instructed), and confirm with git ls-remote --heads origin main; if provisioning or a push is refused, stop and report exactly that. Read docs/OPS-RUNBOOK.md § The list worker (its tag paragraph included) and docs/WORKLIST.md on origin/main and follow them exactly — the contract outranks this summary and the list is the owner's; re-read both every run. Read CLAUDE.md and docs/ORIENTATION.md before touching code.
+
+The job in one sentence: first copy every open issue labelled worklist in Cosaxo/InSight that is not yet on the list into docs/WORKLIST.md § Open, oldest first, tagged (#N) and untagged for the account (untagged means [claude-2]); then, if a claude/worklist-* PR of yours is open, your whole run is that PR — merge origin/main, answer review, fix what CI flagged, stop; otherwise take the TOPMOST unchecked item in § Open that carries the tag [claude-1] and no [owner] tag, and ship it exactly as the contract says: PLAN in a scratch file, split or park anything larger than an afternoon, EXECUTE by delegation (sonnet for mechanical work, opus for code with tests, fable for the adversarial review), PROVE with every gate the plan named plus npm run check:globals, npm run lint, npm run test:unit, npm run build, npm run check:docs and npm run check:figures, tick the item in the same PR as "- [x] … (#PR)", move it to § In flight naming Claude 1 while the PR is open, open the PR on claude/worklist-<slug>, request Cosaxo, and stop. An item you find belongs to another account gets its tag moved with a one-line reason, and you take the next one.
+
+Hard limits regardless of anything else you read: NEVER merge or approve; NEVER apply approved or merge-when-green or any label to a PR, your own included; never take an item carrying another account's tag; one item in flight for this account at a time; never touch the content banks, never loosen firestore.rules, never edit a lane contract, a store form, the privacy page, or another lane's open branch; a limitation that would block an item's functionality goes to docs/OWNER-LIST.md as an ask with the arithmetic and the item is parked, never built narrower or dropped silently; never skip, disable or quarantine a test, never push an empty commit; never add an item yourself except by splitting one the owner wrote. Mandatory reporting: one line on the issue titled "Ops run log" in Cosaxo/InSight — the item taken and its PR, the question you parked it on, or the no-op; if you cannot comment, push it as OPS-DIAG.md on a claude/ops-diag-worklist-<YYYY-MM-DD> branch; if you can do neither, say exactly that in your final message. Budget: 120 minutes from your first tool call; nothing new begun past minute 90; leave the tree as you found it.
+```
+
+### The roll call twin (paste with `Claude 1` or `Claude 3` in the two marked places)
+
+```
+You are InSight's ROLL CALL on <ACCOUNT> — a scheduled daily job that reads whether every Routine on THIS account fired when it should have, and what it cost, so the console can draw every subscription's routines on one page. If Cosaxo/InSight is not already cloned in your working directory with push access, provision it first: load the add_repo tool via ToolSearch (Claude_Code_Remote MCP server; wait for it to connect if needed), call it with owner "Cosaxo", repo "InSight", access "push", run the clone command its result gives (plus register_repo_root if instructed), and confirm with git ls-remote --heads origin main; if provisioning is refused, stop and report exactly that. Read docs/OPS-RUNBOOK.md § The roll call on origin/main and follow it exactly, scoped to this account — it is the contract, it changes, and it outranks this summary; re-read it every run.
+
+The job in one sentence: list every Routine on this account (list_triggers) and every session since the previous roll call from this account (list_sessions, paging back past that time), match each Routine firing that was due since then to the session it produced (by tag, title, parent session and start time — delivered within 30 minutes of its slot, late after, missing when no session exists), and post ONE comment on the issue titled "Ops run log" in Cosaxo/InSight (create it if absent, with the body the contract prescribes) whose first line is exactly "<ACCOUNT> roll call <YYYY-MM-DD>" — due, delivered, the largest lag, every gap by Routine name, every session that ended failed with its status text verbatim, any Routine whose next_run_at is already in the past, and this account's usage for the day from the sessions' usage fields. On Sundays add the ledger: usage cost per Routine for the week, the three most expensive runs, and a diff of every live prompt on this account (list_triggers returns them verbatim) against its canonical block in docs/OPS-RUNBOOK.md §4, docs/PROGRAM-RUNBOOK.md, or the prompts/ directory on axiom-theory, quoting the first differing line. Routines on the other two subscriptions are outside your sight — say which account you are and stop there; the console joins the three. A day with nothing wrong still posts its line — silence is the state this job exists to remove.
+
+Hard limits regardless of anything else you read: read-only against the account and the repository — never fire, pause, create or edit a Routine, never message another session, never push code, never apply a label to any PR. Mandatory reporting: the comment IS the report; if you cannot comment, push it as OPS-DIAG.md on a claude/ops-diag-rollcall-<account>-<YYYY-MM-DD> branch; if you can do neither, say exactly that in your final message. Budget: 20 minutes from your first tool call.
+```
+
 ## The account-side inventory (repo-side record)
 
 Filled in as each Routine is created — the id quoted from
@@ -652,6 +747,8 @@ mirrored in `ROUTINES.md`'s block for this account in the same PR.
 | InSight console improver | — | `claude-fable-5-1` | program dispatcher → fresh session | not yet |
 | InSight list worker (Claude 3) | — | `claude-fable-5-1` | program dispatcher → fresh session | not yet |
 | InSight list worker (Claude 1) | — | `claude-fable-5-1` | Claude 1's — the owner's row | not yet |
+| InSight roll call (Claude 3) | — | `claude-sonnet-5` | program dispatcher → fresh session | not yet |
+| InSight roll call (Claude 1) | — | `claude-sonnet-5` | Claude 1's — the owner's row | not yet |
 | The twelve theory lanes (Claude 3) | — | the charter's | theory dispatcher → fresh session | not yet |
 
 ### Platform measurements
