@@ -6358,6 +6358,113 @@ export const V2_QUESTIONS: V2SeedQuestion[] = [
   }
  },
  {
+  "id": "feed-f132",
+  "surface": "feed",
+  "seq": 178,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Teleport anywhere instantly — but you can never travel slowly again. Take it?",
+  "options": [
+   "Take it",
+   "Keep the journey"
+  ],
+  "topic": "dilemma",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f133",
+  "surface": "feed",
+  "seq": 179,
+  "type": "vote",
+  "domain": null,
+  "prompt": "A cashless world: convenient future, or something lost?",
+  "options": [
+   "Convenient future",
+   "Something lost"
+  ],
+  "topic": "event",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f134",
+  "surface": "feed",
+  "seq": 180,
+  "type": "vote",
+  "domain": null,
+  "prompt": "Ketchup: fridge, or cupboard?",
+  "options": [
+   "Fridge",
+   "Cupboard"
+  ],
+  "topic": "food",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-f135",
+  "surface": "feed",
+  "seq": 181,
+  "type": "vote",
+  "domain": null,
+  "prompt": "One genre forever: comedy, thriller, drama, or documentary?",
+  "options": [
+   "Comedy",
+   "Thriller",
+   "Drama",
+   "Documentary"
+  ],
+  "topic": "movies",
+  "axis": null,
+  "test": null
+ },
+ {
+  "id": "feed-dl19",
+  "surface": "feed",
+  "seq": 182,
+  "type": "dial",
+  "domain": null,
+  "prompt": "How many songs on a perfect album?",
+  "options": [
+   "6–7 songs",
+   "7–8 songs",
+   "8–10 songs",
+   "10–11 songs",
+   "11–12 songs",
+   "12–13 songs",
+   "13–14 songs",
+   "14–15 songs",
+   "15–17 songs",
+   "17–18 songs",
+   "18–19 songs",
+   "19–20 songs"
+  ],
+  "topic": "music",
+  "axis": null,
+  "test": null,
+  "lo": 6,
+  "hi": 20,
+  "unit": "songs"
+ },
+ {
+  "id": "feed-f136",
+  "surface": "feed",
+  "seq": 183,
+  "type": "vote",
+  "domain": null,
+  "prompt": "One selfie with: Beyoncé, the Pope, Lionel Messi, or Taylor Swift?",
+  "options": [
+   "Beyoncé",
+   "The Pope",
+   "Lionel Messi",
+   "Taylor Swift"
+  ],
+  "topic": "people",
+  "axis": null,
+  "test": null
+ },
+ {
   "id": "pick-pk04",
   "surface": "feed",
   "seq": 1000,
