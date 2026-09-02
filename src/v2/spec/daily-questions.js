@@ -4,7 +4,7 @@
 // spec-index.js load order is semantic — scripts/check-spec-globals.mjs
 // guards the wiring in CI.
 import { sharePcts } from '../data/pct';
-// The store (D352). Read at CALL time only — `myAnswer` and `liveSync`
+// The store (D353). Read at CALL time only — `myAnswer` and `liveSync`
 // below — never while this module evaluates. That is what makes the
 // import safe this early in spec-index.js: data/live.ts imports
 // test-definitions.js, and neither of the three reads another's bindings

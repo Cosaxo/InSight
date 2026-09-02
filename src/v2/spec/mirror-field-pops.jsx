@@ -13,7 +13,7 @@ import { Av, TabSection, MatchRing } from './primitives.jsx';
 // coupling count, and both modules are eager so the ESM graph carries it
 // into the same chunk for free.
 import { TypeMark } from './type-marks.jsx';
-// The Mirror's own parts and the feed's memory, as imports (D352's sweep).
+// The Mirror's own parts and the feed's memory, as imports (D353's sweep).
 // Every `window.X &&` beside these reads was a load-order guard; each of
 // these modules evaluates before this one (mirror-tab.jsx's import order,
 // or the eager list), and an imported binding cannot be unset. The two

@@ -16,13 +16,13 @@ import { bindSwipeBack } from './swipe-back.js';
 // the stop id) are unchanged, because those guard data, not loading.
 import NearLiveBody from '../ui/NearLiveBody';
 import NAV from '../data/nav';
-// The store, imported (D352). The two reads below were `window.LIVE` behind
+// The store, imported (D353). The two reads below were `window.LIVE` behind
 // an existence guard; an imported binding cannot be unset, so the guard is
 // gone and the data halves (`.enabled`, `.demoInProd`) stay — both are
 // false for the whole of mock mode.
 import LIVE from '../data/live';
 // THE MIRROR'S OWN MODULES, in spec-index.js's order, as side-effect
-// imports (D353). This is the file loadMirrorTab() names, so these twelve
+// imports (D354). This is the file loadMirrorTab() names, so these twelve
 // ride its chunk and evaluate before this module's body — map-tab.jsx's
 // shape, which carries its six the same way. The order is semantic here
 // exactly as it was in the eager list: group-mirror reads CompareBreakdown
@@ -68,7 +68,7 @@ import './segment-explorer.jsx';
 // fallback is a frame, not a wait. Near stays eager; the objection still
 // holds there.
 //
-// AND THEN THE WHOLE TAB WENT (D353). This file and its twelve siblings
+// AND THEN THE WHOLE TAB WENT (D354). This file and its twelve siblings
 // ride loadMirrorTab() now, prewarmed by main.jsx in the same breath as the
 // Map — so "Near stays eager" above is true only relative to THIS chunk:
 // NearLiveBody is a static import of this file and arrives with it. The
@@ -449,7 +449,7 @@ export function MirrorTab({ onPerson, pop, onPop, worldZoom, onZoom, firstRun, b
   );
 }
 
-// MirrorTab is an EXPORT and no longer a publication (D353): its one
+// MirrorTab is an EXPORT and no longer a publication (D354): its one
 // reader, app-shell's MirrorSlot, takes it off the module namespace the
 // chunk resolves to — rule 5's honest shape, single writer, no residue.
 ;globalThis.mirrorPop = typeof mirrorPop === 'undefined' ? globalThis.mirrorPop : mirrorPop;

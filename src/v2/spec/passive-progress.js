@@ -3,7 +3,7 @@
 //
 // CONVERTED off the shared-global bridge (D39): `PASSIVE` is a named export
 // and this file publishes nothing to globalThis. The store is an import too
-// since D352 (`LIVE` below): the SEED proxy reads `.enabled` on each
+// since D353 (`LIVE` below): the SEED proxy reads `.enabled` on each
 // property access, which is call time, so nothing here reads the binding
 // while the module evaluates.
 //

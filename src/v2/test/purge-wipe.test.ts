@@ -74,7 +74,7 @@ import { SUGGESTIONS } from "../spec/suggestions.js";
 import { SUBTOPICS } from "../spec/world-subtopics.js";
 
 // No `window as any` handle any more: the last two stores this file drove
-// through the window (FEEDREAD, WF_REPORT) became imports with D352's
+// through the window (FEEDREAD, WF_REPORT) became imports with D353's
 // sweep, the way every other store here already was.
 
 // Exactly purgeLocalTrace's behaviour: remove every insight.* key, then

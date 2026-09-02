@@ -613,7 +613,7 @@ lane is added, rebound, re-paced or retired; the roll call reads it.
 | InSight list worker | `trig_01USe4xEhJ57MRjgThykdRzM` | not set (session default) | same dispatcher | 2026-09-02 |
 
 Two things the table cannot say, recorded 2026-09-02 by the session that
-filled it (D352's), for the next one that looks here:
+filled it (D353's), for the next one that looks here:
 
 - **The PR shepherd's row is empty although the shepherd is real.** The
   owner has said the shepherd is a Routine and the repository carries the
